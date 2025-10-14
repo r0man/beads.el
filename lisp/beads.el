@@ -204,6 +204,7 @@ Returns an alist with issue fields."
       (issue-type . ,(alist-get 'issue_type issue))
       (created-at . ,(alist-get 'created_at issue))
       (updated-at . ,(alist-get 'updated_at issue))
+      (closed-at . ,(alist-get 'closed_at issue))
       (acceptance-criteria . ,(alist-get 'acceptance_criteria issue))
       (design . ,(alist-get 'design issue))
       (notes . ,(alist-get 'notes issue))
