@@ -1,0 +1,34 @@
+# Binaries
+/beads
+/bd
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binaries
+*.test
+*.out
+
+# Go workspace file
+go.work
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# SQLite databases (now using JSONL as source of truth)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Keep JSONL exports (source of truth for git)
+!.beads/*.jsonl
