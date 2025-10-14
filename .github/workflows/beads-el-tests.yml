@@ -1,0 +1,96 @@
+name: beads.el Tests
+
+on:
+  push:
+    branches: [ main, beads ]
+    paths:
+      - 'lisp/**'
+      - '.github/workflows/beads-el-tests.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'lisp/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        emacs-version:
+          - '27.1'
+          - '27.2'
+          - '28.1'
+          - '28.2'
+          - '29.1'
+          - 'snapshot'
+      fail-fast: false
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Emacs
+      uses: purcell/setup-emacs@master
+      with:
+        version: ${{ matrix.emacs-version }}
+
+    - name: Install transient (for Emacs 27)
+      if: startsWith(matrix.emacs-version, '27')
+      run: |
+        mkdir -p ~/.emacs.d/elpa
+        cd ~/.emacs.d/elpa
+        git clone https://github.com/magit/transient.git
+        cd transient
+        make lisp
+
+    - name: Run tests
+      run: |
+        cd lisp
+        make test
+
+    - name: Test statistics
+      run: |
+        cd lisp
+        make test-stats
+
+    - name: Byte compile
+      run: |
+        cd lisp
+        make compile
+
+    - name: Check for compilation warnings
+      run: |
+        cd lisp
+        if make compile 2>&1 | grep -i warning; then
+          echo "Byte compilation produced warnings"
+          exit 1
+        fi
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Emacs
+      uses: purcell/setup-emacs@master
+      with:
+        version: '29.1'
+
+    - name: Install package-lint
+      run: |
+        emacs --batch \
+          --eval "(progn (require 'package) \
+                         (add-to-list 'package-archives '(\"melpa\" . \"https://melpa.org/packages/\")) \
+                         (package-initialize) \
+                         (package-refresh-contents) \
+                         (package-install 'package-lint))"
+
+    - name: Run package-lint
+      run: |
+        cd lisp
+        emacs --batch \
+          --eval "(require 'package-lint)" \
+          -f package-lint-batch-and-exit \
+          beads.el beads-list.el beads-show.el beads-create.el \
+          beads-update.el beads-main.el beads-misc.el
