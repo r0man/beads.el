@@ -223,29 +223,53 @@ Returns list of arguments for bd create command."
               (setq beads-create--description desc)
               desc)))
 
+(defun beads-create--edit-text-multiline (current-value callback field-name)
+  "Edit text in a multiline buffer.
+CURRENT-VALUE is the initial text, CALLBACK is called with the result,
+FIELD-NAME is shown in the buffer name and messages."
+  (let* ((buffer-name (format "*beads-%s*" (downcase field-name)))
+         (buffer (generate-new-buffer buffer-name))
+         (parent-buffer (current-buffer)))
+    (switch-to-buffer buffer)
+    (when current-value
+      (insert current-value))
+    ;; Use markdown-mode if available, otherwise text-mode
+    (if (fboundp 'markdown-mode)
+        (markdown-mode)
+      (text-mode))
+    ;; Enable visual-line-mode for better editing
+    (visual-line-mode 1)
+    (setq header-line-format
+          (format "Edit %s: C-c C-c to finish, C-c C-k to cancel"
+                  field-name))
+    ;; Set up keybindings
+    (let ((finish-func (lambda ()
+                        (interactive)
+                        (let ((text (buffer-substring-no-properties
+                                   (point-min) (point-max))))
+                          (kill-buffer)
+                          (switch-to-buffer parent-buffer)
+                          (funcall callback text)
+                          (message "%s saved" field-name))))
+          (cancel-func (lambda ()
+                        (interactive)
+                        (kill-buffer)
+                        (switch-to-buffer parent-buffer)
+                        (message "%s edit cancelled" field-name))))
+      (local-set-key (kbd "C-c C-c") finish-func)
+      (local-set-key (kbd "C-c C-k") cancel-func))
+    (message "Edit %s. C-c C-c to finish, C-c C-k to cancel." field-name)))
+
 (transient-define-suffix beads-create--infix-description-multiline ()
   "Set the description using a multiline editor."
   :description "Description (multiline)"
   :key "M"
   :transient t
   (interactive)
-  (let ((buffer (generate-new-buffer "*beads-description*")))
-    (switch-to-buffer buffer)
-    (when beads-create--description
-      (insert beads-create--description))
-    (text-mode)
-    (message "Edit description. C-c C-c to finish, C-c C-k to cancel.")
-    (local-set-key (kbd "C-c C-c")
-                   (lambda ()
-                     (interactive)
-                     (setq beads-create--description (buffer-string))
-                     (kill-buffer)
-                     (message "Description saved")))
-    (local-set-key (kbd "C-c C-k")
-                   (lambda ()
-                     (interactive)
-                     (kill-buffer)
-                     (message "Description edit cancelled")))))
+  (beads-create--edit-text-multiline
+   beads-create--description
+   (lambda (text) (setq beads-create--description text))
+   "Description"))
 
 (transient-define-infix beads-create--infix-custom-id ()
   "Set a custom ID for the issue."
