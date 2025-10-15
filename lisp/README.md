@@ -31,7 +31,7 @@ leaving your editor.
 ```elisp
 (use-package beads
   :ensure t
-  :bind ("C-c b" . beads-main))
+  :bind ("C-c b" . beads))
 ```
 
 ### Manual Installation
@@ -47,12 +47,12 @@ leaving your editor.
 3. Optionally bind to a key:
 
 ```elisp
-(global-set-key (kbd "C-c b") 'beads-main)
+(global-set-key (kbd "C-c b") 'beads)
 ```
 
 ## Quick Start
 
-1. **Open Beads menu**: `M-x beads-main` (or your custom keybinding)
+1. **Open Beads menu**: `M-x beads` (or your custom keybinding)
 2. **List issues**: Press `l` (list all) or `r` (ready issues)
 3. **Navigate**: Use arrow keys or `n`/`p` to move between issues
 4. **View issue**: Press `RET` or `s` on an issue
@@ -62,7 +62,7 @@ leaving your editor.
 
 ## Usage Guide
 
-### Main Menu (`M-x beads-main`)
+### Main Menu (`M-x beads`)
 
 The root transient menu provides access to all beads.el commands:
 
@@ -141,7 +141,7 @@ Transient menu for creating new issues:
 - `r` - Reset all fields
 
 **Example workflow:**
-1. `M-x beads-main` then `c`
+1. `M-x beads` then `c`
 2. Enter title: "Fix authentication bug"
 3. Press `-t` then select `bug`
 4. Press `-p` then select `1` (high priority)
@@ -252,7 +252,7 @@ Useful for syncing issues across branches or sharing with team.
   (beads-actor nil)     ; use bd default
   (beads-enable-debug nil)
   :bind
-  (("C-c b" . beads-main)
+  (("C-c b" . beads)
    ("C-c b l" . beads-list)
    ("C-c b r" . beads-ready)
    ("C-c b c" . beads-create)
@@ -267,7 +267,7 @@ Useful for syncing issues across branches or sharing with team.
   "Open beads main menu for current project."
   (interactive)
   (let ((default-directory (projectile-project-root)))
-    (beads-main)))
+    (beads)))
 
 (define-key projectile-command-map "b" 'my/beads-for-project)
 ```
@@ -276,7 +276,7 @@ Useful for syncing issues across branches or sharing with team.
 
 | Command        | Default Key | Context    | Description           |
 |----------------|-------------|------------|-----------------------|
-| `beads-main`   | -           | Global     | Open main menu        |
+| `beads`        | -           | Global     | Open main menu        |
 | `beads-list`   | `l`         | Main menu  | List all issues       |
 | `beads-ready`  | `r`         | Main menu  | Show ready issues     |
 | `beads-blocked`| `b`         | Main menu  | Show blocked issues   |

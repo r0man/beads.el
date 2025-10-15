@@ -231,6 +231,24 @@ Returns t if found, signals error otherwise."
         t)
     (beads--error "Cannot find bd executable: %s" beads-executable)))
 
+;;;###autoload
+(autoload 'beads "beads-main" "Open the main Beads transient menu." t)
+
+;;;###autoload
+(autoload 'beads-list "beads-list" "Display all Beads issues in a tabulated list." t)
+
+;;;###autoload
+(autoload 'beads-ready "beads-list" "Display ready Beads issues in a tabulated list." t)
+
+;;;###autoload
+(autoload 'beads-blocked "beads-list" "Display blocked Beads issues in a tabulated list." t)
+
+;;;###autoload
+(autoload 'beads-show "beads-show" "Show details for a Beads issue." t)
+
+;;;###autoload
+(autoload 'beads-create "beads-create" "Create a new Beads issue using transient menu." t)
+
 ;;; Footer
 
 (provide 'beads)
