@@ -209,9 +209,11 @@
   "Show details for the issue at point."
   (interactive)
   (if-let ((id (beads-list--current-issue-id)))
-      (progn
+      (let ((project-dir default-directory))
         (require 'beads-show)
-        (beads-show id))
+        ;; Preserve project context when showing issue
+        (let ((default-directory project-dir))
+          (beads-show id)))
     (user-error "No issue at point")))
 
 (defun beads-list-quit ()
@@ -324,9 +326,12 @@
   (interactive)
   (beads-check-executable)
   (let ((issues (beads--parse-issues (beads--run-command "list")))
-        (buffer (get-buffer-create "*beads-list*")))
+        (buffer (get-buffer-create "*beads-list*"))
+        (project-dir default-directory))  ; Capture project context
     (with-current-buffer buffer
       (beads-list-mode)
+      ;; Preserve project context in list buffer
+      (setq default-directory project-dir)
       (if (not issues)
           (progn
             (setq tabulated-list-entries nil)
@@ -351,9 +356,12 @@
   (interactive)
   (beads-check-executable)
   (let ((issues (beads--parse-issues (beads--run-command "ready")))
-        (buffer (get-buffer-create "*beads-ready*")))
+        (buffer (get-buffer-create "*beads-ready*"))
+        (project-dir default-directory))  ; Capture project context
     (with-current-buffer buffer
       (beads-list-mode)
+      ;; Preserve project context in list buffer
+      (setq default-directory project-dir)
       (if (not issues)
           (progn
             (setq tabulated-list-entries nil)
@@ -378,9 +386,12 @@
   (interactive)
   (beads-check-executable)
   (let ((issues (beads--parse-issues (beads--run-command "blocked")))
-        (buffer (get-buffer-create "*beads-blocked*")))
+        (buffer (get-buffer-create "*beads-blocked*"))
+        (project-dir default-directory))  ; Capture project context
     (with-current-buffer buffer
       (beads-list-mode)
+      ;; Preserve project context in list buffer
+      (setq default-directory project-dir)
       (if (not issues)
           (progn
             (setq tabulated-list-entries nil)

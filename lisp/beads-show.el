@@ -371,10 +371,13 @@ Creates or switches to a buffer showing the full issue details."
                               string pred)))
                          nil t)))
   (let* ((buffer-name (format "*beads-show: %s*" issue-id))
-         (buffer (get-buffer-create buffer-name)))
+         (buffer (get-buffer-create buffer-name))
+         (project-dir default-directory))  ; Capture current project context
     (with-current-buffer buffer
       (beads-show-mode)
       (setq beads-show--issue-id issue-id)
+      ;; Preserve project context in show buffer
+      (setq default-directory project-dir)
 
       (condition-case err
           (let ((issue-json (beads--run-command "show" issue-id)))

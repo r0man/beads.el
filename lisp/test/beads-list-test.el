@@ -554,6 +554,55 @@
         (should beads-show-called)
         (should (equal beads-show-arg id))))))
 
+;;; Issue ID Tests with Custom Prefixes
+
+(ert-deftest beads-list-test-show-with-custom-prefix ()
+  "Test showing issues with custom ID prefixes like 'myproject-13'."
+  (require 'beads-show)
+  (let* ((custom-prefix-issues
+          '(((id . "myproject-1")
+             (title . "First custom issue")
+             (status . "open")
+             (priority . 1)
+             (issue-type . "bug"))
+            ((id . "myproject-13")
+             (title . "Custom prefix issue")
+             (status . "in_progress")
+             (priority . 0)
+             (issue-type . "feature"))))
+         (beads-show-called nil)
+         (beads-show-arg nil))
+    (beads-list-test--with-temp-buffer
+        custom-prefix-issues 'list
+      (goto-char (point-min))
+      ;; Default sort is by Priority, so myproject-13 (pri 0) comes first
+      (let ((id (beads-list--current-issue-id)))
+        (should (equal id "myproject-13"))
+        ;; Mock beads-show to verify correct ID is passed
+        (cl-letf (((symbol-function 'beads-show)
+                   (lambda (issue-id)
+                     (setq beads-show-called t
+                           beads-show-arg issue-id))))
+          (beads-list-show)
+          (should beads-show-called)
+          (should (stringp beads-show-arg))
+          (should (equal beads-show-arg "myproject-13"))
+          ;; Verify no text properties or extra whitespace
+          (should (equal beads-show-arg (substring-no-properties beads-show-arg)))
+          (should (string= beads-show-arg (string-trim beads-show-arg))))))))
+
+(ert-deftest beads-list-test-issue-id-has-no-text-properties ()
+  "Test that issue IDs returned from list have no text properties."
+  (beads-list-test--with-temp-buffer
+      beads-list-test--sample-issues 'list
+    (goto-char (point-min))
+    (let ((id (beads-list--current-issue-id)))
+      (should (stringp id))
+      ;; Verify ID has no text properties
+      (should (equal id (substring-no-properties id)))
+      ;; Verify ID has no extra whitespace
+      (should (string= id (string-trim id))))))
+
 ;;; Column Width Tests
 
 (ert-deftest beads-list-test-column-widths ()
