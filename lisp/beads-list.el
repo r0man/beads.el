@@ -23,9 +23,19 @@
 ;;   g       - Refresh buffer
 ;;   q       - Quit buffer
 ;;   m/u     - Mark/unmark issue
-;;   M/U     - Mark all/unmark all issues
-;;   C       - Create new issue
-;;   c       - Update issue at point
+;;   U       - Unmark all issues
+;;   * !     - Mark all issues (ibuffer-style)
+;;   * u     - Unmark all issues (ibuffer-style)
+;;   c/+     - Create new issue
+;;   e       - Edit/update issue at point
+;;   d/k     - Close issue at point
+;;   w       - Copy issue ID to kill ring
+;;   S       - Sort by column
+;;   /       - Filter by text
+;;   / s     - Filter by status
+;;   / p     - Filter by priority
+;;   / t     - Filter by type
+;;   / c     - Clear all filters
 
 ;;; Code:
 
@@ -116,6 +126,18 @@
 (defvar-local beads-list--marked-issues nil
   "List of marked issue IDs.")
 
+(defvar-local beads-list--filter-status nil
+  "Current status filter (nil means no filter).")
+
+(defvar-local beads-list--filter-priority nil
+  "Current priority filter (nil means no filter).")
+
+(defvar-local beads-list--filter-type nil
+  "Current issue type filter (nil means no filter).")
+
+(defvar-local beads-list--filter-text nil
+  "Current text search filter (nil means no filter).")
+
 ;;; Utilities
 
 (defun beads-list--status-face (status)
@@ -160,13 +182,68 @@
                   type
                   title))))
 
+(defun beads-list--apply-filters (issues)
+  "Apply active filters to ISSUES and return filtered list."
+  (let ((filtered issues))
+    ;; Filter by status
+    (when beads-list--filter-status
+      (setq filtered
+            (seq-filter (lambda (issue)
+                         (string= (alist-get 'status issue)
+                                 beads-list--filter-status))
+                       filtered)))
+    ;; Filter by priority
+    (when beads-list--filter-priority
+      (setq filtered
+            (seq-filter (lambda (issue)
+                         (equal (alist-get 'priority issue)
+                               beads-list--filter-priority))
+                       filtered)))
+    ;; Filter by type
+    (when beads-list--filter-type
+      (setq filtered
+            (seq-filter (lambda (issue)
+                         (string= (alist-get 'issue-type issue)
+                                 beads-list--filter-type))
+                       filtered)))
+    ;; Filter by text search (searches id, title, description)
+    (when (and beads-list--filter-text
+               (not (string-empty-p beads-list--filter-text)))
+      (setq filtered
+            (seq-filter (lambda (issue)
+                         (or (string-match-p beads-list--filter-text
+                                            (alist-get 'id issue))
+                             (string-match-p beads-list--filter-text
+                                            (or (alist-get 'title issue) ""))
+                             (string-match-p beads-list--filter-text
+                                            (or (alist-get 'description issue) ""))))
+                       filtered)))
+    filtered))
+
+(defun beads-list--format-filter-string ()
+  "Format current filters for mode-line display."
+  (let ((filters nil))
+    (when beads-list--filter-status
+      (push (format "status=%s" beads-list--filter-status) filters))
+    (when beads-list--filter-priority
+      (push (format "priority=%s" beads-list--filter-priority) filters))
+    (when beads-list--filter-type
+      (push (format "type=%s" beads-list--filter-type) filters))
+    (when (and beads-list--filter-text
+               (not (string-empty-p beads-list--filter-text)))
+      (push (format "text=%s" beads-list--filter-text) filters))
+    (if filters
+        (concat " [Filters: " (string-join filters ", ") "]")
+      "")))
+
 (defun beads-list--populate-buffer (issues command)
   "Populate current buffer with ISSUES using COMMAND for refresh."
   (setq beads-list--command command
         beads-list--raw-issues issues)
-  (setq tabulated-list-entries
-        (mapcar #'beads-list--issue-to-entry issues))
-  (tabulated-list-print t))
+  (let ((filtered (beads-list--apply-filters issues)))
+    (setq tabulated-list-entries
+          (mapcar #'beads-list--issue-to-entry filtered))
+    (tabulated-list-print t)))
 
 (defun beads-list--current-issue-id ()
   "Return the ID of the issue at point, or nil."
@@ -284,22 +361,124 @@
         (call-interactively #'beads-update))
     (user-error "No issue at point")))
 
+(defun beads-list-close ()
+  "Close the issue at point using the beads-close transient menu."
+  (interactive)
+  (if-let ((id (beads-list--current-issue-id)))
+      (progn
+        (require 'beads-misc)
+        ;; beads-close will auto-detect the issue ID from beads-list context
+        (call-interactively #'beads-close))
+    (user-error "No issue at point")))
+
+(defun beads-list-copy-id ()
+  "Copy the issue ID at point to the kill ring."
+  (interactive)
+  (if-let ((id (beads-list--current-issue-id)))
+      (progn
+        (kill-new id)
+        (message "Copied issue ID: %s" id))
+    (user-error "No issue at point")))
+
+(defun beads-list-sort ()
+  "Sort the issue list by column.
+Uses tabulated-list built-in sorting."
+  (interactive)
+  (call-interactively #'tabulated-list-sort))
+
+(defun beads-list-filter-by-status ()
+  "Filter issues by status."
+  (interactive)
+  (let ((status (completing-read "Filter by status (empty to clear): "
+                                 '("open" "in_progress" "blocked" "closed")
+                                 nil t)))
+    (setq beads-list--filter-status
+          (if (string-empty-p status) nil status))
+    (beads-list--populate-buffer beads-list--raw-issues beads-list--command)
+    (message "Filter: %s" (or (beads-list--format-filter-string) "cleared"))))
+
+(defun beads-list-filter-by-priority ()
+  "Filter issues by priority."
+  (interactive)
+  (let ((priority (completing-read "Filter by priority (empty to clear): "
+                                   '("0" "1" "2" "3" "4")
+                                   nil t)))
+    (setq beads-list--filter-priority
+          (if (string-empty-p priority) nil (string-to-number priority)))
+    (beads-list--populate-buffer beads-list--raw-issues beads-list--command)
+    (message "Filter: %s" (or (beads-list--format-filter-string) "cleared"))))
+
+(defun beads-list-filter-by-type ()
+  "Filter issues by type."
+  (interactive)
+  (let ((type (completing-read "Filter by type (empty to clear): "
+                               '("bug" "feature" "task" "epic" "chore")
+                               nil t)))
+    (setq beads-list--filter-type
+          (if (string-empty-p type) nil type))
+    (beads-list--populate-buffer beads-list--raw-issues beads-list--command)
+    (message "Filter: %s" (or (beads-list--format-filter-string) "cleared"))))
+
+(defun beads-list-filter-by-text ()
+  "Filter issues by text search (searches id, title, description)."
+  (interactive)
+  (let ((text (read-string "Filter by text (empty to clear): "
+                           beads-list--filter-text)))
+    (setq beads-list--filter-text
+          (if (string-empty-p text) nil text))
+    (beads-list--populate-buffer beads-list--raw-issues beads-list--command)
+    (message "Filter: %s" (or (beads-list--format-filter-string) "cleared"))))
+
+(defun beads-list-clear-filters ()
+  "Clear all active filters."
+  (interactive)
+  (setq beads-list--filter-status nil
+        beads-list--filter-priority nil
+        beads-list--filter-type nil
+        beads-list--filter-text nil)
+  (beads-list--populate-buffer beads-list--raw-issues beads-list--command)
+  (message "All filters cleared"))
+
 ;;; Mode Definition
 
 (defvar beads-list-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map tabulated-list-mode-map)
+    ;; Navigation (following standard conventions)
     (define-key map (kbd "n") #'beads-list-next)
     (define-key map (kbd "p") #'beads-list-previous)
     (define-key map (kbd "RET") #'beads-list-show)
+
+    ;; Refresh/quit (like Magit, dired)
     (define-key map (kbd "g") #'beads-list-refresh)
     (define-key map (kbd "q") #'beads-list-quit)
+
+    ;; Marking (like dired/ibuffer)
     (define-key map (kbd "m") #'beads-list-mark)
     (define-key map (kbd "u") #'beads-list-unmark)
-    (define-key map (kbd "M") #'beads-list-mark-all)
     (define-key map (kbd "U") #'beads-list-unmark-all)
-    (define-key map (kbd "C") #'beads-list-create)
-    (define-key map (kbd "c") #'beads-list-update)
+    (define-key map (kbd "* !") #'beads-list-mark-all)     ; ibuffer-style
+    (define-key map (kbd "* *") #'beads-list-mark-all)     ; alternative
+    (define-key map (kbd "* u") #'beads-list-unmark-all)   ; ibuffer-style
+
+    ;; CRUD operations (following Emacs conventions)
+    (define-key map (kbd "c") #'beads-list-create)         ; create (like many modes)
+    (define-key map (kbd "+") #'beads-list-create)         ; alternative
+    (define-key map (kbd "e") #'beads-list-update)         ; edit (more intuitive)
+    (define-key map (kbd "d") #'beads-list-close)          ; delete/done (mark for closing)
+    (define-key map (kbd "k") #'beads-list-close)          ; kill (alternative)
+
+    ;; Utilities
+    (define-key map (kbd "w") #'beads-list-copy-id)        ; copy (like eww, info)
+    (define-key map (kbd "S") #'beads-list-sort)           ; sort menu
+
+    ;; Filtering (like ibuffer)
+    (define-key map (kbd "/") #'beads-list-filter-by-text)      ; text search
+    (define-key map (kbd "/ s") #'beads-list-filter-by-status)  ; filter by status
+    (define-key map (kbd "/ p") #'beads-list-filter-by-priority); filter by priority
+    (define-key map (kbd "/ t") #'beads-list-filter-by-type)    ; filter by type
+    (define-key map (kbd "/ /") #'beads-list-filter-by-text)    ; text search (alt)
+    (define-key map (kbd "/ c") #'beads-list-clear-filters)     ; clear all filters
     map)
   "Keymap for `beads-list-mode'.")
 
@@ -343,11 +522,12 @@
             (message "No issues found"))
         (beads-list--populate-buffer issues 'list)
         (setq mode-line-format
-              `("%e" mode-line-front-space
+              '("%e" mode-line-front-space
                 mode-line-buffer-identification
-                "  " ,(format "%d issue%s"
-                             (length issues)
-                             (if (= (length issues) 1) "" "s"))))))
+                (:eval (format "  %d issue%s%s"
+                             (length tabulated-list-entries)
+                             (if (= (length tabulated-list-entries) 1) "" "s")
+                             (beads-list--format-filter-string)))))))
     (pop-to-buffer buffer)))
 
 ;;;###autoload
@@ -373,11 +553,12 @@
             (message "No ready issues found"))
         (beads-list--populate-buffer issues 'ready)
         (setq mode-line-format
-              `("%e" mode-line-front-space
+              '("%e" mode-line-front-space
                 mode-line-buffer-identification
-                "  " ,(format "%d ready issue%s"
-                             (length issues)
-                             (if (= (length issues) 1) "" "s"))))))
+                (:eval (format "  %d ready issue%s%s"
+                             (length tabulated-list-entries)
+                             (if (= (length tabulated-list-entries) 1) "" "s")
+                             (beads-list--format-filter-string)))))))
     (pop-to-buffer buffer)))
 
 ;;;###autoload
@@ -403,11 +584,12 @@
             (message "No blocked issues found"))
         (beads-list--populate-buffer issues 'blocked)
         (setq mode-line-format
-              `("%e" mode-line-front-space
+              '("%e" mode-line-front-space
                 mode-line-buffer-identification
-                "  " ,(format "%d blocked issue%s"
-                             (length issues)
-                             (if (= (length issues) 1) "" "s"))))))
+                (:eval (format "  %d blocked issue%s%s"
+                             (length tabulated-list-entries)
+                             (if (= (length tabulated-list-entries) 1) "" "s")
+                             (beads-list--format-filter-string)))))))
     (pop-to-buffer buffer)))
 
 ;;; Footer
