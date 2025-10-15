@@ -119,11 +119,24 @@
 
 (defvar beads-show-mode-map
   (let ((map (make-sparse-keymap)))
+    ;; Refresh/quit
     (define-key map (kbd "g") #'beads-refresh-show)
     (define-key map (kbd "q") #'quit-window)
+
+    ;; Section navigation
     (define-key map (kbd "n") #'beads-show-next-section)
     (define-key map (kbd "p") #'beads-show-previous-section)
+
+    ;; Reference navigation (like compilation-mode)
+    (define-key map (kbd "[") #'beads-show-previous-reference)
+    (define-key map (kbd "]") #'beads-show-next-reference)
+    (define-key map (kbd "TAB") #'beads-show-next-button)
+    (define-key map (kbd "<backtab>") #'beads-show-previous-button)
+    (define-key map (kbd "S-TAB") #'beads-show-previous-button)
+
+    ;; Follow reference
     (define-key map (kbd "RET") #'beads-show-follow-reference)
+    (define-key map (kbd "o") #'beads-show-follow-reference-other-window)
     map)
   "Keymap for `beads-show-mode'.")
 
@@ -357,19 +370,8 @@ Returns the issue ID or nil if none found."
 Creates or switches to a buffer showing the full issue details."
   (interactive
    (list (completing-read "Show issue: "
-                         (lambda (string pred action)
-                           (if (eq action 'metadata)
-                               '(metadata (category . beads-issue))
-                             (complete-with-action
-                              action
-                              (mapcar (lambda (i)
-                                       (alist-get 'id i))
-                                     (condition-case nil
-                                         (beads--parse-issues
-                                          (beads--run-command "list"))
-                                       (error nil)))
-                              string pred)))
-                         nil t)))
+                         (beads--issue-completion-table)
+                         nil t nil 'beads--issue-id-history)))
   (let* ((buffer-name (format "*beads-show: %s*" issue-id))
          (buffer (get-buffer-create buffer-name))
          (project-dir default-directory))  ; Capture current project context
@@ -447,6 +449,93 @@ Extracts the issue ID from text at point and calls `beads-show'."
   (if-let ((issue-id (beads-show--extract-issue-at-point)))
       (beads-show issue-id)
     (message "No issue reference at point")))
+
+(defun beads-show-follow-reference-other-window ()
+  "Follow bd-N reference at point in other window."
+  (interactive)
+  (if-let ((issue-id (beads-show--extract-issue-at-point)))
+      (let ((buffer-name (format "*beads-show: %s*" issue-id)))
+        (if-let ((buf (get-buffer buffer-name)))
+            (switch-to-buffer-other-window buf)
+          ;; Buffer doesn't exist, create it
+          (let ((project-dir default-directory))
+            (with-current-buffer (get-buffer-create buffer-name)
+              (beads-show-mode)
+              (setq beads-show--issue-id issue-id)
+              (setq default-directory project-dir)
+              (condition-case err
+                  (let ((issue-json (beads--run-command "show" issue-id)))
+                    (setq beads-show--issue-data (beads--parse-issue issue-json))
+                    (beads-show--render-issue beads-show--issue-data))
+                (error
+                 (let ((inhibit-read-only t))
+                   (erase-buffer)
+                   (insert (propertize "Error loading issue\n\n"
+                                     'face 'error))
+                   (insert (format "%s" (error-message-string err)))
+                   (goto-char (point-min))))))
+            (switch-to-buffer-other-window buffer-name))))
+    (message "No issue reference at point")))
+
+(defun beads-show-next-reference ()
+  "Jump to next bd-N reference in buffer."
+  (interactive)
+  (let ((start-pos (point))
+        (found nil))
+    (save-excursion
+      ;; Move past current reference if we're on one
+      (when (beads-show--extract-issue-at-point)
+        (re-search-forward "bd-[0-9]+" nil t))
+      ;; Search for next reference
+      (when (re-search-forward "\\(bd-[0-9]+\\)" nil t)
+        (setq found (match-beginning 1))))
+    (if found
+        (goto-char found)
+      (message "No next reference"))))
+
+(defun beads-show-previous-reference ()
+  "Jump to previous bd-N reference in buffer."
+  (interactive)
+  (let ((start-pos (point))
+        (found nil))
+    (save-excursion
+      ;; Move before current reference if we're on one
+      (when (beads-show--extract-issue-at-point)
+        (goto-char (line-beginning-position)))
+      ;; Search for previous reference
+      (when (re-search-backward "\\(bd-[0-9]+\\)" nil t)
+        (setq found (match-beginning 1))))
+    (if found
+        (goto-char found)
+      (message "No previous reference"))))
+
+(defun beads-show-next-button ()
+  "Jump to next clickable element (button) in buffer."
+  (interactive)
+  (let ((next-button (next-button (point))))
+    (if next-button
+        (goto-char (button-start next-button))
+      ;; Wrap around to beginning
+      (let ((first-button (next-button (point-min))))
+        (if first-button
+            (progn
+              (goto-char (button-start first-button))
+              (message "Wrapped to first button"))
+          (message "No buttons in buffer"))))))
+
+(defun beads-show-previous-button ()
+  "Jump to previous clickable element (button) in buffer."
+  (interactive)
+  (let ((prev-button (previous-button (point))))
+    (if prev-button
+        (goto-char (button-start prev-button))
+      ;; Wrap around to end
+      (let ((last-button (previous-button (point-max))))
+        (if last-button
+            (progn
+              (goto-char (button-start last-button))
+              (message "Wrapped to last button"))
+          (message "No buttons in buffer"))))))
 
 ;;; Footer
 
