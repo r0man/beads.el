@@ -278,7 +278,8 @@
   (if-let ((id (beads-list--current-issue-id)))
       (progn
         (require 'beads-update)
-        (beads-update id))
+        ;; beads-update will auto-detect the issue ID from beads-list context
+        (call-interactively #'beads-update))
     (user-error "No issue at point")))
 
 ;;; Mode Definition
