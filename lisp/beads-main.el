@@ -195,7 +195,8 @@ Key bindings:
    ("x" "Close issue" beads-close)]
   ["Dependencies"
    :description "Manage dependencies"
-   ("d" "Dependencies menu" beads-dep)]
+   ("d" "Dependencies menu" beads-dep)
+   ("v" "Visual graph" beads-graph-all)]
   ["Admin"
    :description "Project administration"
    ("i" "Init project" beads-init)

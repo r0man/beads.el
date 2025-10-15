@@ -320,6 +320,12 @@ Returns t if found, signals error otherwise."
 ;;;###autoload
 (autoload 'beads-quickstart "beads-misc" "Show Beads quickstart guide." t)
 
+;;;###autoload
+(autoload 'beads-graph-all "beads-graph" "Show dependency graph for all issues." t)
+
+;;;###autoload
+(autoload 'beads-graph-issue "beads-graph" "Show dependency graph focused on issue." t)
+
 ;;; Footer
 
 (provide 'beads)
