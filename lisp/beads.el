@@ -190,6 +190,74 @@ Call CALLBACK with parsed JSON output when complete."
              (kill-buffer (process-buffer process))))))
       proc)))
 
+;;; Completion Support
+
+(defun beads--issue-completion-table ()
+  "Return completion table for issue IDs with annotations."
+  (lambda (string pred action)
+    (if (eq action 'metadata)
+        '(metadata
+          (category . beads-issue)
+          (annotation-function . beads--annotate-issue)
+          (group-function . beads--group-issue))
+      (let ((issues (condition-case nil
+                        (beads--parse-issues (beads--run-command "list"))
+                      (error nil))))
+        (complete-with-action
+         action
+         (mapcar (lambda (i) (alist-get 'id i)) issues)
+         string pred)))))
+
+(defun beads--annotate-issue (issue-id)
+  "Annotate ISSUE-ID with status and title for completion."
+  (condition-case nil
+      (let* ((issues (beads--parse-issues (beads--run-command "list")))
+             (issue (seq-find (lambda (i)
+                               (string= (alist-get 'id i) issue-id))
+                             issues)))
+        (when issue
+          (let ((status (alist-get 'status issue))
+                (title (alist-get 'title issue))
+                (priority (alist-get 'priority issue)))
+            (format " %s [P%s] %s"
+                    (propertize (upcase status)
+                              'face (pcase status
+                                     ("open" 'success)
+                                     ("in_progress" 'warning)
+                                     ("blocked" 'error)
+                                     ("closed" 'shadow)
+                                     (_ 'default)))
+                    priority
+                    (if (> (length title) 40)
+                        (concat (substring title 0 37) "...")
+                      title)))))
+    (error "")))
+
+(defun beads--group-issue (issue-id transform)
+  "Group ISSUE-ID by status for completion.
+If TRANSFORM is non-nil, return the transformed issue ID."
+  (if transform
+      issue-id
+    (condition-case nil
+        (let* ((issues (beads--parse-issues (beads--run-command "list")))
+               (issue (seq-find (lambda (i)
+                                 (string= (alist-get 'id i) issue-id))
+                               issues))
+               (status (when issue (alist-get 'status issue))))
+          (pcase status
+            ("open" "Open")
+            ("in_progress" "In Progress")
+            ("blocked" "Blocked")
+            ("closed" "Closed")
+            (_ "Other")))
+      (error "Other"))))
+
+(defvar beads--issue-id-history nil
+  "History list for issue ID completion.")
+
+(defvar beads--dependency-type-history nil
+  "History list for dependency type completion.")
+
 ;;; JSON Parsing
 
 (defun beads--parse-issue (json)
@@ -248,6 +316,9 @@ Returns t if found, signals error otherwise."
 
 ;;;###autoload
 (autoload 'beads-create "beads-create" "Create a new Beads issue using transient menu." t)
+
+;;;###autoload
+(autoload 'beads-quickstart "beads-misc" "Show Beads quickstart guide." t)
 
 ;;; Footer
 

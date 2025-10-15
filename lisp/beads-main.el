@@ -33,6 +33,7 @@
 (require 'beads-list)
 (require 'beads-show)
 (require 'beads-create)
+(require 'beads-misc)
 (require 'transient)
 
 ;;; Variables
@@ -202,6 +203,7 @@ Key bindings:
    ("I" "Import from JSONL" beads-import)]
   ["Other"
    :description "Other commands"
+   ("?" "Quickstart guide" beads-quickstart)
    ("g" "Refresh menu" beads-refresh-menu)
    ("q" "Quit" transient-quit-one)])
 

@@ -176,18 +176,8 @@ If ISSUE-ID is provided, use it directly."
    (list (or (beads-close--detect-issue-id)
              (completing-read
               "Close issue: "
-              (lambda (string pred action)
-                (if (eq action 'metadata)
-                    '(metadata (category . beads-issue))
-                  (complete-with-action
-                   action
-                   (mapcar (lambda (i) (alist-get 'id i))
-                           (condition-case nil
-                               (beads--parse-issues
-                                (beads--run-command "list"))
-                             (error nil)))
-                   string pred)))
-              nil t))))
+              (beads--issue-completion-table)
+              nil t nil 'beads--issue-id-history))))
   (beads-check-executable)
   (unless issue-id
     (user-error "No issue ID specified"))
@@ -518,6 +508,50 @@ listing dependencies."
   (when (y-or-n-p "Reset all fields? ")
     (beads-dep--reset-state)
     (message "Fields reset")))
+
+;;; ============================================================
+;;; bd quickstart
+;;; ============================================================
+
+(defun beads-quickstart--execute ()
+  "Execute bd quickstart and display in buffer."
+  (condition-case err
+      (let* ((output (with-temp-buffer
+                       (let ((exit-code
+                              (call-process beads-executable nil t nil
+                                            "quickstart")))
+                         (unless (zerop exit-code)
+                           (error "Command failed: %s" (buffer-string)))
+                         (buffer-string))))
+             (buf (get-buffer-create "*beads-quickstart*")))
+        (with-current-buffer buf
+          (let ((inhibit-read-only t))
+            (erase-buffer)
+            (insert output)
+            (goto-char (point-min))
+            (special-mode)
+            (local-set-key (kbd "q") 'quit-window)
+            (local-set-key (kbd "g")
+                           (lambda ()
+                             (interactive)
+                             (beads-quickstart--execute)))
+            ;; Make the buffer more readable
+            (visual-line-mode 1)
+            (setq header-line-format
+                  "Beads Quick Start Guide - Press 'q' to quit")))
+        (display-buffer buf)
+        (message "Beads quickstart guide")
+        nil)
+    (error
+     (beads--error "Failed to get quickstart guide: %s"
+                   (error-message-string err)))))
+
+;;;###autoload
+(defun beads-quickstart ()
+  "Show Beads quickstart guide."
+  (interactive)
+  (beads-check-executable)
+  (beads-quickstart--execute))
 
 ;;; ============================================================
 ;;; bd stats
