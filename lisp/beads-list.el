@@ -24,6 +24,8 @@
 ;;   q       - Quit buffer
 ;;   m/u     - Mark/unmark issue
 ;;   M/U     - Mark all/unmark all issues
+;;   C       - Create new issue
+;;   c       - Update issue at point
 
 ;;; Code:
 
@@ -207,8 +209,9 @@
   "Show details for the issue at point."
   (interactive)
   (if-let ((id (beads-list--current-issue-id)))
-      ;; TODO: Implement beads-show command
-      (message "Show issue %s (not yet implemented)" id)
+      (progn
+        (require 'beads-show)
+        (beads-show id))
     (user-error "No issue at point")))
 
 (defun beads-list-quit ()
@@ -263,6 +266,21 @@
         (tabulated-list-put-tag " "))
       (forward-line 1))))
 
+(defun beads-list-create ()
+  "Create a new issue using the beads-create transient menu."
+  (interactive)
+  (require 'beads-create)
+  (call-interactively #'beads-create))
+
+(defun beads-list-update ()
+  "Update the issue at point using the beads-update transient menu."
+  (interactive)
+  (if-let ((id (beads-list--current-issue-id)))
+      (progn
+        (require 'beads-update)
+        (beads-update id))
+    (user-error "No issue at point")))
+
 ;;; Mode Definition
 
 (defvar beads-list-mode-map
@@ -277,6 +295,8 @@
     (define-key map (kbd "u") #'beads-list-unmark)
     (define-key map (kbd "M") #'beads-list-mark-all)
     (define-key map (kbd "U") #'beads-list-unmark-all)
+    (define-key map (kbd "C") #'beads-list-create)
+    (define-key map (kbd "c") #'beads-list-update)
     map)
   "Keymap for `beads-list-mode'.")
 

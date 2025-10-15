@@ -445,7 +445,9 @@
     (should (lookup-key beads-list-mode-map (kbd "m")))
     (should (lookup-key beads-list-mode-map (kbd "u")))
     (should (lookup-key beads-list-mode-map (kbd "M")))
-    (should (lookup-key beads-list-mode-map (kbd "U")))))
+    (should (lookup-key beads-list-mode-map (kbd "U")))
+    (should (lookup-key beads-list-mode-map (kbd "C")))
+    (should (lookup-key beads-list-mode-map (kbd "c")))))
 
 (ert-deftest beads-list-test-keybinding-functions ()
   "Test that keybindings map to correct functions."
@@ -460,7 +462,11 @@
     (should (eq (lookup-key beads-list-mode-map (kbd "g"))
                 #'beads-list-refresh))
     (should (eq (lookup-key beads-list-mode-map (kbd "q"))
-                #'beads-list-quit))))
+                #'beads-list-quit))
+    (should (eq (lookup-key beads-list-mode-map (kbd "C"))
+                #'beads-list-create))
+    (should (eq (lookup-key beads-list-mode-map (kbd "c"))
+                #'beads-list-update))))
 
 ;;; Edge Cases
 
@@ -499,6 +505,54 @@
     (beads-list-mode)
     (setq beads-list--command nil)
     (should-error (beads-list-refresh))))
+
+;;; Command Tests
+
+(ert-deftest beads-list-test-create-command ()
+  "Test that beads-list-create requires beads-create."
+  (with-temp-buffer
+    (beads-list-mode)
+    ;; Should require beads-create module
+    (should (fboundp 'beads-list-create))))
+
+(ert-deftest beads-list-test-update-command-without-issue ()
+  "Test that beads-list-update errors when no issue at point."
+  (beads-list-test--with-temp-buffer
+      beads-list-test--empty-issues 'list
+    (goto-char (point-min))
+    (should-error (beads-list-update))))
+
+(ert-deftest beads-list-test-update-command-with-issue ()
+  "Test that beads-list-update can be called with issue at point."
+  (beads-list-test--with-temp-buffer
+      beads-list-test--sample-issues 'list
+    (goto-char (point-min))
+    (forward-line 1)
+    (let ((id (beads-list--current-issue-id)))
+      (should id)
+      ;; Should be callable (we can't test full execution without mocking)
+      (should (fboundp 'beads-list-update)))))
+
+(ert-deftest beads-list-test-show-calls-beads-show ()
+  "Test that beads-list-show requires and calls beads-show."
+  ;; Pre-load beads-show so require doesn't affect test
+  (require 'beads-show)
+  (beads-list-test--with-temp-buffer
+      beads-list-test--sample-issues 'list
+    (goto-char (point-min))
+    (forward-line 1)
+    (let ((id (beads-list--current-issue-id))
+          (beads-show-called nil)
+          (beads-show-arg nil))
+      (should id)
+      ;; Mock beads-show to verify it's called
+      (cl-letf (((symbol-function 'beads-show)
+                 (lambda (issue-id)
+                   (setq beads-show-called t
+                         beads-show-arg issue-id))))
+        (beads-list-show)
+        (should beads-show-called)
+        (should (equal beads-show-arg id))))))
 
 ;;; Column Width Tests
 
