@@ -137,18 +137,21 @@ Automatically adds global flags based on customization."
     (when beads-actor
       (setq cmd (append cmd (list "--actor" beads-actor))))
     (when-let ((db (beads--get-database-path)))
-      (setq cmd (append cmd (list "--db" db))))
+      ;; Strip Tramp prefix for remote paths so bd can understand the path
+      (setq cmd (append cmd (list "--db" (file-local-name db)))))
     ;; Add subcommand and args
     (append cmd (list subcommand) args (list "--json"))))
 
 (defun beads--run-command (subcommand &rest args)
   "Run bd SUBCOMMAND with ARGS synchronously.
-Returns parsed JSON output or signals error."
+Returns parsed JSON output or signals error.
+Works over Tramp when `default-directory' is a remote path."
   (let* ((cmd (apply #'beads--build-command subcommand args))
          (cmd-string (mapconcat #'shell-quote-argument cmd " ")))
     (beads--log "Running: %s" cmd-string)
+    (beads--log "In directory: %s" default-directory)
     (with-temp-buffer
-      (let* ((exit-code (apply #'call-process
+      (let* ((exit-code (apply #'process-file
                                (car cmd) nil t nil (cdr cmd)))
              (output (buffer-string)))
         (beads--log "Exit code: %d" exit-code)
@@ -162,12 +165,14 @@ Returns parsed JSON output or signals error."
 
 (defun beads--run-command-async (callback subcommand &rest args)
   "Run bd SUBCOMMAND with ARGS asynchronously.
-Call CALLBACK with parsed JSON output when complete."
+Call CALLBACK with parsed JSON output when complete.
+Works over Tramp when `default-directory' is a remote path."
   (let* ((cmd (apply #'beads--build-command subcommand args))
          (cmd-string (mapconcat #'shell-quote-argument cmd " "))
          (buffer (generate-new-buffer " *beads-async*")))
     (beads--log "Running async: %s" cmd-string)
-    (let ((proc (apply #'start-process
+    (beads--log "In directory: %s" default-directory)
+    (let ((proc (apply #'start-file-process
                        "beads-async" buffer
                        (car cmd) (cdr cmd))))
       (set-process-sentinel

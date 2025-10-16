@@ -73,10 +73,13 @@
          (beads-enable-debug nil)
          (beads-auto-refresh t)
          (beads--project-cache (make-hash-table :test 'equal)))
-     ,@body))
+     ;; Mock beads--find-beads-dir to prevent auto-discovery
+     (cl-letf (((symbol-function 'beads--find-beads-dir)
+                (lambda () nil)))
+       ,@body)))
 
 (defun beads-test--mock-call-process (exit-code output)
-  "Create a mock for `call-process' returning EXIT-CODE and OUTPUT."
+  "Create a mock for `process-file' returning EXIT-CODE and OUTPUT."
   (lambda (program &optional infile destination display &rest args)
     (when destination
       (with-current-buffer (if (bufferp destination)
@@ -86,7 +89,7 @@
     exit-code))
 
 (defun beads-test--mock-start-process (exit-code output)
-  "Create a mock for `start-process' returning EXIT-CODE and OUTPUT."
+  "Create a mock for `start-file-process' returning EXIT-CODE and OUTPUT."
   (lambda (name buffer program &rest args)
     (let ((proc (make-process
                  :name name
@@ -154,7 +157,7 @@
   "Test successful command execution with valid JSON."
   (beads-test-with-temp-config
    (let ((json-output (json-encode beads-test--sample-issue)))
-     (cl-letf (((symbol-function 'call-process)
+     (cl-letf (((symbol-function 'process-file)
                 (beads-test--mock-call-process 0 json-output)))
        (let ((result (beads--run-command "show" "bd-1")))
          (should (listp result))
@@ -166,7 +169,7 @@
   "Test command execution with JSON array output."
   (beads-test-with-temp-config
    (let ((json-output (json-encode beads-test--sample-issues-array)))
-     (cl-letf (((symbol-function 'call-process)
+     (cl-letf (((symbol-function 'process-file)
                 (beads-test--mock-call-process 0 json-output)))
        (let ((result (beads--run-command "list")))
          (should (vectorp result))
@@ -175,7 +178,7 @@
 (ert-deftest beads-test-run-command-empty-object ()
   "Test command execution with empty JSON object."
   (beads-test-with-temp-config
-   (cl-letf (((symbol-function 'call-process)
+   (cl-letf (((symbol-function 'process-file)
               (beads-test--mock-call-process 0 "{}")))
      (let ((result (beads--run-command "stats")))
        (should (listp result))
@@ -184,7 +187,7 @@
 (ert-deftest beads-test-run-command-empty-array ()
   "Test command execution with empty JSON array."
   (beads-test-with-temp-config
-   (cl-letf (((symbol-function 'call-process)
+   (cl-letf (((symbol-function 'process-file)
               (beads-test--mock-call-process 0 "[]")))
      (let ((result (beads--run-command "ready")))
        (should (vectorp result))
@@ -193,7 +196,7 @@
 (ert-deftest beads-test-run-command-non-zero-exit ()
   "Test command execution with non-zero exit code."
   (beads-test-with-temp-config
-   (cl-letf (((symbol-function 'call-process)
+   (cl-letf (((symbol-function 'process-file)
               (beads-test--mock-call-process 1 "Error: issue not found")))
      (should-error
       (beads--run-command "show" "bd-999")
@@ -202,7 +205,7 @@
 (ert-deftest beads-test-run-command-invalid-json ()
   "Test command execution with invalid JSON output."
   (beads-test-with-temp-config
-   (cl-letf (((symbol-function 'call-process)
+   (cl-letf (((symbol-function 'process-file)
               (beads-test--mock-call-process 0 "not valid json")))
      (should-error
       (beads--run-command "list")
@@ -211,7 +214,7 @@
 (ert-deftest beads-test-run-command-malformed-json ()
   "Test command execution with malformed JSON."
   (beads-test-with-temp-config
-   (cl-letf (((symbol-function 'call-process)
+   (cl-letf (((symbol-function 'process-file)
               (beads-test--mock-call-process 0 "{\"key\": \"value\"")))
      (should-error
       (beads--run-command "show" "bd-1")
@@ -221,7 +224,7 @@
   "Test command execution with JSON containing null values."
   (beads-test-with-temp-config
    (let ((json-output "{\"id\":\"bd-1\",\"title\":null,\"priority\":1}"))
-     (cl-letf (((symbol-function 'call-process)
+     (cl-letf (((symbol-function 'process-file)
                 (beads-test--mock-call-process 0 json-output)))
        (let ((result (beads--run-command "show" "bd-1")))
          (should (listp result))
@@ -234,7 +237,7 @@
   "Test command execution with nested JSON structures."
   (beads-test-with-temp-config
    (let ((json-output "{\"id\":\"bd-1\",\"metadata\":{\"tags\":[\"a\",\"b\"]}}"))
-     (cl-letf (((symbol-function 'call-process)
+     (cl-letf (((symbol-function 'process-file)
                 (beads-test--mock-call-process 0 json-output)))
        (let ((result (beads--run-command "show" "bd-1")))
          (should (listp result))
@@ -249,7 +252,7 @@
   "Test command execution with Unicode characters in JSON."
   (beads-test-with-temp-config
    (let ((json-output "{\"id\":\"bd-1\",\"title\":\"测试 \u00e9 \u263a\"}"))
-     (cl-letf (((symbol-function 'call-process)
+     (cl-letf (((symbol-function 'process-file)
                 (beads-test--mock-call-process 0 json-output)))
        (let ((result (beads--run-command "show" "bd-1")))
          (should (listp result))
@@ -260,7 +263,7 @@
   "Test that error messages from bd are captured and reported."
   (beads-test-with-temp-config
    (let ((error-msg "Error: database locked"))
-     (cl-letf (((symbol-function 'call-process)
+     (cl-letf (((symbol-function 'process-file)
                 (beads-test--mock-call-process 1 error-msg)))
        (condition-case err
            (progn
@@ -451,7 +454,7 @@
   "Test full flow from command execution to issue parsing."
   (beads-test-with-temp-config
    (let ((json-output (json-encode beads-test--sample-issues-array)))
-     (cl-letf (((symbol-function 'call-process)
+     (cl-letf (((symbol-function 'process-file)
                 (beads-test--mock-call-process 0 json-output)))
        (let* ((result (beads--run-command "list"))
               (parsed (beads--parse-issues result)))
@@ -463,7 +466,7 @@
   "Test showing a single issue end-to-end."
   (beads-test-with-temp-config
    (let ((json-output (json-encode beads-test--sample-issue)))
-     (cl-letf (((symbol-function 'call-process)
+     (cl-letf (((symbol-function 'process-file)
                 (beads-test--mock-call-process 0 json-output)))
        (let* ((result (beads--run-command "show" "bd-1"))
               (parsed (beads--parse-issue result)))
@@ -480,7 +483,7 @@
          (beads-database-path "/tmp/test.db")
          (json-output "[]")
          (captured-command nil))
-     (cl-letf (((symbol-function 'call-process)
+     (cl-letf (((symbol-function 'process-file)
                 (lambda (program &optional infile destination display &rest args)
                   (setq captured-command (cons program args))
                   (when destination
@@ -499,7 +502,7 @@
 (ert-deftest beads-test-edge-case-empty-string-output ()
   "Test handling of empty string output from command."
   (beads-test-with-temp-config
-   (cl-letf (((symbol-function 'call-process)
+   (cl-letf (((symbol-function 'process-file)
               (beads-test--mock-call-process 0 "")))
      (should-error
       (beads--run-command "list")
@@ -508,7 +511,7 @@
 (ert-deftest beads-test-edge-case-whitespace-only-output ()
   "Test handling of whitespace-only output."
   (beads-test-with-temp-config
-   (cl-letf (((symbol-function 'call-process)
+   (cl-letf (((symbol-function 'process-file)
               (beads-test--mock-call-process 0 "   \n\t  ")))
      (should-error
       (beads--run-command "list")
@@ -572,7 +575,7 @@
   (beads-test-with-temp-config
    (let ((beads-enable-debug t)
          (json-output "{}"))
-     (cl-letf (((symbol-function 'call-process)
+     (cl-letf (((symbol-function 'process-file)
                 (beads-test--mock-call-process 0 json-output)))
        (with-current-buffer (get-buffer-create "*beads-debug*")
          (erase-buffer))
@@ -587,7 +590,7 @@
   (beads-test-with-temp-config
    (let ((beads-enable-debug nil)
          (json-output "{}"))
-     (cl-letf (((symbol-function 'call-process)
+     (cl-letf (((symbol-function 'process-file)
                 (beads-test--mock-call-process 0 json-output)))
        (when (get-buffer "*beads-debug*")
          (kill-buffer "*beads-debug*"))
