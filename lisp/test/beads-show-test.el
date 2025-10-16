@@ -758,5 +758,369 @@
     (kill-buffer "*beads-show: bd-1*")
     (kill-buffer "*beads-show: bd-42*")))
 
+;;; Tests for Outline Navigation
+
+(defvar beads-show-test--outline-issue
+  '((id . "bd-200")
+    (title . "Issue Title")
+    (description . "First paragraph in description.\n\n## Level 2 Heading\n\nText under level 2.\n\n### Level 3 Heading\n\nText under level 3.\n\n## Another Level 2\n\nMore text.")
+    (status . "open")
+    (priority . 1)
+    (issue_type . "feature")
+    (created_at . "2025-01-15T10:00:00Z")
+    (updated_at . "2025-01-15T10:00:00Z")
+    (acceptance_criteria . "## Acceptance Level 2\n\nSome criteria.")
+    (design . "### Design Level 3\n\nDesign details.\n\n## Design Level 2\n\nMore design.")
+    (notes . "Final notes here."))
+  "Sample issue with nested headings for outline navigation testing.")
+
+(ert-deftest beads-show-test-section-level-title ()
+  "Test section level detection for title (level 0)."
+  (cl-letf (((symbol-function 'beads--run-command)
+             (beads-show-test--mock-show-command
+              beads-show-test--outline-issue)))
+    (beads-show "bd-200")
+    (with-current-buffer "*beads-show: bd-200*"
+      (goto-char (point-min))
+      ;; Search for title
+      (when (search-forward "Issue Title" nil t)
+        (beginning-of-line)
+        (should (eq (beads-show--section-level) 0)))
+      (kill-buffer))))
+
+(ert-deftest beads-show-test-section-level-major-section ()
+  "Test section level detection for major sections (level 1)."
+  (cl-letf (((symbol-function 'beads--run-command)
+             (beads-show-test--mock-show-command
+              beads-show-test--outline-issue)))
+    (beads-show "bd-200")
+    (with-current-buffer "*beads-show: bd-200*"
+      (goto-char (point-min))
+      ;; Search for "Description" major section
+      (when (search-forward "Description\n─" nil t)
+        (goto-char (match-beginning 0))
+        (should (eq (beads-show--section-level) 1)))
+      (kill-buffer))))
+
+(ert-deftest beads-show-test-section-level-markdown-heading-2 ()
+  "Test section level detection for markdown ## heading (level 2)."
+  (cl-letf (((symbol-function 'beads--run-command)
+             (beads-show-test--mock-show-command
+              beads-show-test--outline-issue)))
+    (beads-show "bd-200")
+    (with-current-buffer "*beads-show: bd-200*"
+      (goto-char (point-min))
+      ;; Search for "## Level 2 Heading"
+      (when (search-forward "## Level 2 Heading" nil t)
+        (beginning-of-line)
+        (should (eq (beads-show--section-level) 2)))
+      (kill-buffer))))
+
+(ert-deftest beads-show-test-section-level-markdown-heading-3 ()
+  "Test section level detection for markdown ### heading (level 3)."
+  (cl-letf (((symbol-function 'beads--run-command)
+             (beads-show-test--mock-show-command
+              beads-show-test--outline-issue)))
+    (beads-show "bd-200")
+    (with-current-buffer "*beads-show: bd-200*"
+      (goto-char (point-min))
+      ;; Search for "### Level 3 Heading"
+      (when (search-forward "### Level 3 Heading" nil t)
+        (beginning-of-line)
+        (should (eq (beads-show--section-level) 3)))
+      (kill-buffer))))
+
+(ert-deftest beads-show-test-section-level-not-heading ()
+  "Test section level returns nil for non-heading lines."
+  (cl-letf (((symbol-function 'beads--run-command)
+             (beads-show-test--mock-show-command
+              beads-show-test--outline-issue)))
+    (beads-show "bd-200")
+    (with-current-buffer "*beads-show: bd-200*"
+      (goto-char (point-min))
+      ;; Search for "First paragraph" which is not a heading
+      (when (search-forward "First paragraph" nil t)
+        (beginning-of-line)
+        (should (null (beads-show--section-level))))
+      (kill-buffer))))
+
+(ert-deftest beads-show-test-outline-next-basic ()
+  "Test moving to next heading at any level."
+  (cl-letf (((symbol-function 'beads--run-command)
+             (beads-show-test--mock-show-command
+              beads-show-test--outline-issue)))
+    (beads-show "bd-200")
+    (with-current-buffer "*beads-show: bd-200*"
+      (goto-char (point-min))
+      ;; Start at title
+      (search-forward "Issue Title" nil t)
+      (beginning-of-line)
+      (let ((start-level (beads-show--section-level)))
+        (should (eq start-level 0))
+        ;; Move to next heading (should be Description)
+        (beads-show-outline-next)
+        (let ((next-level (beads-show--section-level)))
+          (should next-level)
+          (should (> (point) (point-min)))))
+      (kill-buffer))))
+
+(ert-deftest beads-show-test-outline-previous-basic ()
+  "Test moving to previous heading at any level."
+  (cl-letf (((symbol-function 'beads--run-command)
+             (beads-show-test--mock-show-command
+              beads-show-test--outline-issue)))
+    (beads-show "bd-200")
+    (with-current-buffer "*beads-show: bd-200*"
+      ;; Start near the end
+      (goto-char (point-max))
+      (let ((start-pos (point)))
+        ;; Move to previous heading
+        (beads-show-outline-previous)
+        (should (< (point) start-pos))
+        (should (beads-show--section-level)))
+      (kill-buffer))))
+
+(ert-deftest beads-show-test-outline-next-at-end ()
+  "Test outline-next at end of buffer shows message."
+  (cl-letf (((symbol-function 'beads--run-command)
+             (beads-show-test--mock-show-command
+              beads-show-test--minimal-issue)))
+    (beads-show "bd-1")
+    (with-current-buffer "*beads-show: bd-1*"
+      (goto-char (point-max))
+      (forward-line -1)
+      (let ((pos (point)))
+        (beads-show-outline-next)
+        ;; Should not move and stay at same position
+        (should (= (point) pos)))
+      (kill-buffer))))
+
+(ert-deftest beads-show-test-outline-previous-at-start ()
+  "Test outline-previous at start of buffer shows message."
+  (cl-letf (((symbol-function 'beads--run-command)
+             (beads-show-test--mock-show-command
+              beads-show-test--minimal-issue)))
+    (beads-show "bd-1")
+    (with-current-buffer "*beads-show: bd-1*"
+      (goto-char (point-min))
+      (let ((pos (point)))
+        (beads-show-outline-previous)
+        ;; Should not move from start
+        (should (= (point) pos)))
+      (kill-buffer))))
+
+(ert-deftest beads-show-test-outline-next-same-level ()
+  "Test moving to next heading at same level."
+  (cl-letf (((symbol-function 'beads--run-command)
+             (beads-show-test--mock-show-command
+              beads-show-test--outline-issue)))
+    (beads-show "bd-200")
+    (with-current-buffer "*beads-show: bd-200*"
+      (goto-char (point-min))
+      ;; Find first ## heading
+      (when (search-forward "## Level 2 Heading" nil t)
+        (beginning-of-line)
+        (should (eq (beads-show--section-level) 2))
+        (let ((start-pos (point)))
+          ;; Move to next same-level heading (should be "## Another Level 2")
+          (beads-show-outline-next-same-level)
+          (should (> (point) start-pos))
+          (should (eq (beads-show--section-level) 2))))
+      (kill-buffer))))
+
+(ert-deftest beads-show-test-outline-previous-same-level ()
+  "Test moving to previous heading at same level."
+  (cl-letf (((symbol-function 'beads--run-command)
+             (beads-show-test--mock-show-command
+              beads-show-test--outline-issue)))
+    (beads-show "bd-200")
+    (with-current-buffer "*beads-show: bd-200*"
+      (goto-char (point-min))
+      ;; Find second ## heading (Another Level 2)
+      (search-forward "## Level 2 Heading" nil t)
+      (when (search-forward "## Another Level 2" nil t)
+        (beginning-of-line)
+        (should (eq (beads-show--section-level) 2))
+        (let ((start-pos (point)))
+          ;; Move to previous same-level heading
+          (beads-show-outline-previous-same-level)
+          (should (< (point) start-pos))
+          (should (eq (beads-show--section-level) 2))))
+      (kill-buffer))))
+
+(ert-deftest beads-show-test-outline-same-level-not-at-heading ()
+  "Test outline-next-same-level errors when not at heading."
+  (cl-letf (((symbol-function 'beads--run-command)
+             (beads-show-test--mock-show-command
+              beads-show-test--outline-issue)))
+    (beads-show "bd-200")
+    (with-current-buffer "*beads-show: bd-200*"
+      (goto-char (point-min))
+      ;; Move to non-heading text
+      (when (search-forward "First paragraph" nil t)
+        (should-error (beads-show-outline-next-same-level) :type 'user-error))
+      (kill-buffer))))
+
+(ert-deftest beads-show-test-outline-up-from-level-3 ()
+  "Test moving up from level 3 heading to parent."
+  (cl-letf (((symbol-function 'beads--run-command)
+             (beads-show-test--mock-show-command
+              beads-show-test--outline-issue)))
+    (beads-show "bd-200")
+    (with-current-buffer "*beads-show: bd-200*"
+      (goto-char (point-min))
+      ;; Find ### Level 3 heading
+      (when (search-forward "### Level 3 Heading" nil t)
+        (beginning-of-line)
+        (should (eq (beads-show--section-level) 3))
+        (let ((start-pos (point)))
+          ;; Move up to parent (should be ## Level 2)
+          (beads-show-outline-up)
+          (should (< (point) start-pos))
+          (let ((parent-level (beads-show--section-level)))
+            (should parent-level)
+            (should (< parent-level 3)))))
+      (kill-buffer))))
+
+(ert-deftest beads-show-test-outline-up-from-level-2 ()
+  "Test moving up from level 2 heading to level 1."
+  (cl-letf (((symbol-function 'beads--run-command)
+             (beads-show-test--mock-show-command
+              beads-show-test--outline-issue)))
+    (beads-show "bd-200")
+    (with-current-buffer "*beads-show: bd-200*"
+      (goto-char (point-min))
+      ;; Find ## Level 2 heading
+      (when (search-forward "## Level 2 Heading" nil t)
+        (beginning-of-line)
+        (should (eq (beads-show--section-level) 2))
+        (let ((start-pos (point)))
+          ;; Move up to parent (should be Description at level 1)
+          (beads-show-outline-up)
+          (should (< (point) start-pos))
+          (should (eq (beads-show--section-level) 1))))
+      (kill-buffer))))
+
+(ert-deftest beads-show-test-outline-up-at-level-0-errors ()
+  "Test outline-up at level 0 (title) gives error."
+  (cl-letf (((symbol-function 'beads--run-command)
+             (beads-show-test--mock-show-command
+              beads-show-test--outline-issue)))
+    (beads-show "bd-200")
+    (with-current-buffer "*beads-show: bd-200*"
+      (goto-char (point-min))
+      ;; Find title
+      (when (search-forward "Issue Title" nil t)
+        (beginning-of-line)
+        (should (eq (beads-show--section-level) 0))
+        (should-error (beads-show-outline-up) :type 'user-error))
+      (kill-buffer))))
+
+(ert-deftest beads-show-test-outline-up-not-at-heading ()
+  "Test outline-up errors when not at heading."
+  (cl-letf (((symbol-function 'beads--run-command)
+             (beads-show-test--mock-show-command
+              beads-show-test--outline-issue)))
+    (beads-show "bd-200")
+    (with-current-buffer "*beads-show: bd-200*"
+      (goto-char (point-min))
+      ;; Move to non-heading text
+      (when (search-forward "First paragraph" nil t)
+        (should-error (beads-show-outline-up) :type 'user-error))
+      (kill-buffer))))
+
+(ert-deftest beads-show-test-outline-keybindings ()
+  "Test that outline navigation keybindings are set up correctly."
+  (beads-show-test-with-temp-buffer
+   (should (eq (lookup-key beads-show-mode-map (kbd "C-c C-n"))
+              #'beads-show-outline-next))
+   (should (eq (lookup-key beads-show-mode-map (kbd "C-c C-p"))
+              #'beads-show-outline-previous))
+   (should (eq (lookup-key beads-show-mode-map (kbd "C-c C-f"))
+              #'beads-show-outline-next-same-level))
+   (should (eq (lookup-key beads-show-mode-map (kbd "C-c C-b"))
+              #'beads-show-outline-previous-same-level))
+   (should (eq (lookup-key beads-show-mode-map (kbd "C-c C-u"))
+              #'beads-show-outline-up))))
+
+(ert-deftest beads-show-test-outline-navigation-sequence ()
+  "Test a sequence of outline navigation commands."
+  (cl-letf (((symbol-function 'beads--run-command)
+             (beads-show-test--mock-show-command
+              beads-show-test--outline-issue)))
+    (beads-show "bd-200")
+    (with-current-buffer "*beads-show: bd-200*"
+      ;; Start at top
+      (goto-char (point-min))
+
+      ;; Navigate through headings
+      (when (search-forward "Issue Title" nil t)
+        (beginning-of-line)
+        (should (eq (beads-show--section-level) 0))
+
+        ;; Next heading (Description - level 1)
+        (beads-show-outline-next)
+        (should (>= (beads-show--section-level) 1))
+
+        ;; Next heading (should be ## Level 2)
+        (beads-show-outline-next)
+        (let ((level (beads-show--section-level)))
+          (should (or (eq level 1) (eq level 2))))
+
+        ;; Previous heading
+        (beads-show-outline-previous)
+        (should (beads-show--section-level)))
+
+      (kill-buffer))))
+
+;;; Tests for Field Editing
+
+(ert-deftest beads-show-test-edit-field-keybinding ()
+  "Test that C-c C-e is bound to beads-show-edit-field."
+  (beads-show-test-with-temp-buffer
+   (should (eq (lookup-key beads-show-mode-map (kbd "C-c C-e"))
+              #'beads-show-edit-field))))
+
+(ert-deftest beads-show-test-edit-field-outside-show-buffer ()
+  "Test that edit-field fails outside beads-show buffer."
+  (with-temp-buffer
+    (should-error (beads-show-edit-field) :type 'user-error)))
+
+(ert-deftest beads-show-test-edit-field-without-issue-id ()
+  "Test that edit-field fails without issue ID."
+  (beads-show-test-with-temp-buffer
+   (setq beads-show--issue-id nil)
+   (should-error (beads-show-edit-field) :type 'user-error)))
+
+(ert-deftest beads-show-test-edit-field-without-issue-data ()
+  "Test that edit-field fails without issue data."
+  (beads-show-test-with-temp-buffer
+   (setq beads-show--issue-id "bd-42")
+   (setq beads-show--issue-data nil)
+   (should-error (beads-show-edit-field) :type 'user-error)))
+
+(ert-deftest beads-show-test-update-field-description ()
+  "Test updating description field."
+  (let ((update-called nil)
+        (update-args nil))
+    (cl-letf (((symbol-function 'beads--run-command)
+               (lambda (subcommand &rest args)
+                 ;; Only capture update command, not show
+                 (when (string= subcommand "update")
+                   (setq update-called t)
+                   (setq update-args (cons subcommand args)))
+                 ;; Return updated issue data
+                 beads-show-test--full-issue)))
+      (beads-show-test-with-temp-buffer
+       (setq beads-show--issue-id "bd-42")
+       (setq beads-show--issue-data (beads--parse-issue
+                                     beads-show-test--full-issue))
+       (beads-show--update-field "Description" "-d" "New description text")
+       (should update-called)
+       (should (member "update" update-args))
+       (should (member "bd-42" update-args))
+       (should (member "-d" update-args))
+       (should (member "New description text" update-args))))))
+
 (provide 'beads-show-test)
 ;;; beads-show-test.el ends here

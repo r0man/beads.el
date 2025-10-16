@@ -15,8 +15,22 @@
 ;; - Formatted display of issue metadata and text fields
 ;; - Clickable bd-N references using buttons
 ;; - Basic text fontification (bold, colors)
+;; - Markdown-mode-style outline navigation (C-c C-n/p/f/b/u)
+;; - Inline field editing (C-c C-e)
+;; - Simple section navigation (n/p)
+;; - Reference and button navigation ([, ], TAB)
 ;; - Keyboard navigation and refresh commands
 ;; - Handles missing optional fields gracefully
+;;
+;; Outline navigation:
+;; - C-c C-n: Next heading (any level)
+;; - C-c C-p: Previous heading (any level)
+;; - C-c C-f: Next heading at same level
+;; - C-c C-b: Previous heading at same level
+;; - C-c C-u: Up to parent heading
+;;
+;; Field editing:
+;; - C-c C-e: Edit field (prompts for field selection)
 
 ;;; Code:
 
@@ -123,9 +137,19 @@
     (define-key map (kbd "g") #'beads-refresh-show)
     (define-key map (kbd "q") #'quit-window)
 
-    ;; Section navigation
+    ;; Section navigation (simple)
     (define-key map (kbd "n") #'beads-show-next-section)
     (define-key map (kbd "p") #'beads-show-previous-section)
+
+    ;; Outline navigation (markdown-mode style)
+    (define-key map (kbd "C-c C-n") #'beads-show-outline-next)
+    (define-key map (kbd "C-c C-p") #'beads-show-outline-previous)
+    (define-key map (kbd "C-c C-f") #'beads-show-outline-next-same-level)
+    (define-key map (kbd "C-c C-b") #'beads-show-outline-previous-same-level)
+    (define-key map (kbd "C-c C-u") #'beads-show-outline-up)
+
+    ;; Field editing
+    (define-key map (kbd "C-c C-e") #'beads-show-edit-field)
 
     ;; Reference navigation (like compilation-mode)
     (define-key map (kbd "[") #'beads-show-previous-reference)
@@ -297,6 +321,179 @@ Returns the issue ID or nil if none found."
                        (<= original-point match-end))
                (setq result (match-string 1)))))
          result)))))
+
+;;; Outline Navigation
+
+(defun beads-show--section-level ()
+  "Return the outline level of the section at point.
+Returns:
+  0 - Title section (═══ underline)
+  1 - Major section (─── underline)
+  2+ - Markdown heading (## = 2, ### = 3, etc.)
+  nil - Not at a heading"
+  (save-excursion
+    (beginning-of-line)
+    (cond
+     ;; Check if we're on a ═══ underline (title level 0)
+     ((looking-at "^═+$")
+      0)
+     ;; Check if we're on the title text line (followed by ═══)
+     ((and (not (eobp))
+           (save-excursion
+             (forward-line 1)
+             (looking-at "^═+$")))
+      0)
+     ;; Check if we're on a ─── underline (major section level 1)
+     ((looking-at "^─+$")
+      1)
+     ;; Check if we're on a major section heading (followed by ───)
+     ((and (looking-at "^[A-Z][a-zA-Z ]+$")
+           (not (eobp))
+           (save-excursion
+             (forward-line 1)
+             (looking-at "^─+$")))
+      1)
+     ;; Check if we're on a markdown heading (##+ )
+     ((looking-at "^\\(#+\\)\\s-+")
+      (length (match-string 1)))
+     ;; Not at a heading
+     (t nil))))
+
+(defun beads-show-outline-next ()
+  "Move to next heading at any level."
+  (interactive)
+  (let ((start-pos (point))
+        (start-level (beads-show--section-level))
+        (found nil))
+    ;; Skip current heading entirely (including underline if present)
+    (forward-line 1)
+    (when (and start-level (looking-at "^[═─]+$"))
+      (forward-line 1))
+    ;; Search for next heading
+    (while (and (not found) (not (eobp)))
+      (let ((level (beads-show--section-level)))
+        (when level
+          ;; Make sure it's a real heading line, not an underline
+          (unless (looking-at "^[═─]+$")
+            (setq found t))))
+      (unless found
+        (forward-line 1)))
+    (if found
+        (recenter-top-bottom 0)
+      (goto-char start-pos)
+      (message "No next heading"))))
+
+(defun beads-show-outline-previous ()
+  "Move to previous heading at any level."
+  (interactive)
+  (let ((start-pos (point))
+        (start-level (beads-show--section-level))
+        (found nil))
+    ;; Move back at least one line to start search
+    (beginning-of-line)
+    (forward-line -1)
+    ;; If we were on an underline, skip past its heading text
+    (when (and start-level (looking-at "^[═─]+$"))
+      (forward-line -1))
+    ;; Search for previous heading
+    (while (and (not found) (not (bobp)))
+      (let ((level (beads-show--section-level)))
+        (when level
+          ;; Make sure it's a real heading line, not an underline
+          (unless (looking-at "^[═─]+$")
+            (setq found t))))
+      (unless found
+        (forward-line -1)))
+    (if found
+        (recenter-top-bottom 0)
+      (goto-char start-pos)
+      (message "No previous heading"))))
+
+(defun beads-show-outline-next-same-level ()
+  "Move to next heading at the same level."
+  (interactive)
+  (let ((current-level (beads-show--section-level))
+        (start-pos (point))
+        (found nil))
+    (unless current-level
+      (user-error "Not at a heading"))
+    ;; Skip current heading entirely (including underline if present)
+    (forward-line 1)
+    (when (looking-at "^[═─]+$")
+      (forward-line 1))
+    ;; Search for next same-level heading
+    (while (and (not found) (not (eobp)))
+      (let ((level (beads-show--section-level)))
+        (cond
+         ((and (eq level current-level) (not (looking-at "^[═─]+$")))
+          (setq found t))
+         ((and level (< level current-level) (not (looking-at "^[═─]+$")))
+          ;; Hit a higher-level heading, stop searching
+          (setq found 'stop))
+         (t
+          (forward-line 1)))))
+    (if (eq found t)
+        (recenter-top-bottom 0)
+      (goto-char start-pos)
+      (message "No next heading at same level"))))
+
+(defun beads-show-outline-previous-same-level ()
+  "Move to previous heading at the same level."
+  (interactive)
+  (let ((current-level (beads-show--section-level))
+        (start-pos (point))
+        (found nil))
+    (unless current-level
+      (user-error "Not at a heading"))
+    ;; Move back at least one line
+    (beginning-of-line)
+    (forward-line -1)
+    ;; If on underline, skip past it
+    (when (looking-at "^[═─]+$")
+      (forward-line -1))
+    ;; Search backwards
+    (while (and (not found) (not (bobp)))
+      (let ((level (beads-show--section-level)))
+        (cond
+         ((and (eq level current-level) (not (looking-at "^[═─]+$")))
+          (setq found t))
+         ((and level (< level current-level) (not (looking-at "^[═─]+$")))
+          ;; Hit a higher-level heading, stop searching
+          (setq found 'stop))
+         (t
+          (forward-line -1)))))
+    (if (eq found t)
+        (recenter-top-bottom 0)
+      (goto-char start-pos)
+      (message "No previous heading at same level"))))
+
+(defun beads-show-outline-up ()
+  "Move to parent heading (next higher level)."
+  (interactive)
+  (let ((current-level (beads-show--section-level))
+        (start-pos (point))
+        (found nil))
+    (unless current-level
+      (user-error "Not at a heading"))
+    (when (zerop current-level)
+      (user-error "Already at top level"))
+    ;; Move back at least one line
+    (beginning-of-line)
+    (forward-line -1)
+    ;; If on underline, skip past it
+    (when (looking-at "^[═─]+$")
+      (forward-line -1))
+    ;; Search backwards for parent
+    (while (and (not found) (not (bobp)))
+      (let ((level (beads-show--section-level)))
+        (when (and level (< level current-level) (not (looking-at "^[═─]+$")))
+          (setq found t)))
+      (unless found
+        (forward-line -1)))
+    (if found
+        (recenter-top-bottom 0)
+      (goto-char start-pos)
+      (message "No parent heading"))))
 
 ;;; Buffer Rendering
 
@@ -536,6 +733,113 @@ Extracts the issue ID from text at point and calls `beads-show'."
               (goto-char (button-start last-button))
               (message "Wrapped to last button"))
           (message "No buttons in buffer"))))))
+
+;;; Field Editing
+
+(defun beads-show--edit-field-multiline (field-name current-value callback)
+  "Edit FIELD-NAME in a multiline buffer.
+CURRENT-VALUE is the initial text, CALLBACK is called with result."
+  (let* ((buffer-name (format "*beads-edit-%s*" (downcase field-name)))
+         (buffer (generate-new-buffer buffer-name))
+         (parent-buffer (current-buffer))
+         (parent-issue-id beads-show--issue-id)
+         (project-dir default-directory))
+    (switch-to-buffer buffer)
+    (when current-value
+      (insert current-value))
+    ;; Use markdown-mode if available, otherwise text-mode
+    (if (fboundp 'markdown-mode)
+        (markdown-mode)
+      (text-mode))
+    ;; Enable visual-line-mode for better editing
+    (visual-line-mode 1)
+    (setq header-line-format
+          (format "Edit %s: C-c C-c to save, C-c C-k to cancel"
+                  field-name))
+    (setq default-directory project-dir)
+    ;; Set up keybindings
+    (let ((finish-func (lambda ()
+                        (interactive)
+                        (let ((text (buffer-substring-no-properties
+                                   (point-min) (point-max))))
+                          (kill-buffer)
+                          (switch-to-buffer parent-buffer)
+                          (funcall callback text)
+                          (message "%s saved" field-name))))
+          (cancel-func (lambda ()
+                        (interactive)
+                        (kill-buffer)
+                        (switch-to-buffer parent-buffer)
+                        (message "%s edit cancelled" field-name))))
+      (local-set-key (kbd "C-c C-c") finish-func)
+      (local-set-key (kbd "C-c C-k") cancel-func))
+    (message "Edit %s. C-c C-c to save, C-c C-k to cancel." field-name)))
+
+(defun beads-show--update-field (field-name field-flag new-value)
+  "Update FIELD-NAME using FIELD-FLAG with NEW-VALUE via bd update."
+  (unless beads-show--issue-id
+    (user-error "No issue ID in current buffer"))
+  (condition-case err
+      (progn
+        (beads--run-command "update" beads-show--issue-id
+                           field-flag new-value)
+        ;; Update local issue data
+        (let ((field-symbol (intern (concat ":"
+                                           (replace-regexp-in-string
+                                            "-" "_"
+                                            (downcase field-name))))))
+          (setf (alist-get (intern (replace-regexp-in-string
+                                   "-" "_"
+                                   (downcase field-name)))
+                          beads-show--issue-data)
+                new-value))
+        ;; Refresh the display
+        (beads-refresh-show)
+        (message "%s updated" field-name))
+    (error
+     (message "Failed to update %s: %s"
+              field-name (error-message-string err)))))
+
+;;;###autoload
+(defun beads-show-edit-field ()
+  "Edit a field of the current issue.
+Prompts for field to edit, opens editing buffer with C-c C-c to save."
+  (interactive)
+  (unless (derived-mode-p 'beads-show-mode)
+    (user-error "Not in a beads-show buffer"))
+  (unless beads-show--issue-id
+    (user-error "No issue ID associated with this buffer"))
+  (unless beads-show--issue-data
+    (user-error "No issue data available"))
+
+  (let* ((fields '(("Title" . title)
+                  ("Description" . description)
+                  ("Acceptance Criteria" . acceptance-criteria)
+                  ("Design" . design)
+                  ("Notes" . notes)))
+         (field-name (completing-read "Edit field: "
+                                     (mapcar #'car fields)
+                                     nil t))
+         (field-key (cdr (assoc field-name fields)))
+         (current-value (alist-get field-key beads-show--issue-data))
+         (is-title (eq field-key 'title)))
+
+    (if is-title
+        ;; Title is single-line
+        (let ((new-value (read-string (format "%s: " field-name)
+                                      current-value)))
+          (beads-show--update-field field-name "--title" new-value))
+      ;; Other fields are multiline
+      (beads-show--edit-field-multiline
+       field-name
+       current-value
+       (lambda (new-value)
+         (let ((flag (pcase field-key
+                      ('description "-d")
+                      ('acceptance-criteria "--acceptance-criteria")
+                      ('design "--design")
+                      ('notes "--notes"))))
+           (beads-show--update-field field-name flag new-value)))))))
 
 ;;; Footer
 
