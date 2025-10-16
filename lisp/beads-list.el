@@ -31,7 +31,7 @@
 ;;   d/k     - Close issue at point
 ;;   w       - Copy issue ID to kill ring
 ;;   S       - Sort by column
-;;   /       - Filter by text
+;;   / /     - Filter by text
 ;;   / s     - Filter by status
 ;;   / p     - Filter by priority
 ;;   / t     - Filter by type
@@ -472,13 +472,14 @@ Uses tabulated-list built-in sorting."
     (define-key map (kbd "w") #'beads-list-copy-id)        ; copy (like eww, info)
     (define-key map (kbd "S") #'beads-list-sort)           ; sort menu
 
-    ;; Filtering (like ibuffer)
-    (define-key map (kbd "/") #'beads-list-filter-by-text)      ; text search
-    (define-key map (kbd "/ s") #'beads-list-filter-by-status)  ; filter by status
-    (define-key map (kbd "/ p") #'beads-list-filter-by-priority); filter by priority
-    (define-key map (kbd "/ t") #'beads-list-filter-by-type)    ; filter by type
-    (define-key map (kbd "/ /") #'beads-list-filter-by-text)    ; text search (alt)
-    (define-key map (kbd "/ c") #'beads-list-clear-filters)     ; clear all filters
+    ;; Filtering (like ibuffer) - create prefix map for /
+    (let ((filter-map (make-sparse-keymap)))
+      (define-key filter-map (kbd "s") #'beads-list-filter-by-status)
+      (define-key filter-map (kbd "p") #'beads-list-filter-by-priority)
+      (define-key filter-map (kbd "t") #'beads-list-filter-by-type)
+      (define-key filter-map (kbd "/") #'beads-list-filter-by-text)
+      (define-key filter-map (kbd "c") #'beads-list-clear-filters)
+      (define-key map (kbd "/") filter-map))
     map)
   "Keymap for `beads-list-mode'.")
 

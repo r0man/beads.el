@@ -359,8 +359,12 @@
             ((symbol-function 'beads-check-executable)
              (lambda () t)))
     (beads-list)
-    ;; Check mode-line-format contains the count
-    (should (member "4 issues" mode-line-format))
+    ;; Check mode-line-format contains the :eval form
+    (should (member '(:eval (format "  %d issue%s%s"
+                                    (length tabulated-list-entries)
+                                    (if (= (length tabulated-list-entries) 1) "" "s")
+                                    (beads-list--format-filter-string)))
+                    mode-line-format))
     (kill-buffer)))
 
 (ert-deftest beads-list-test-mode-line-empty ()
@@ -444,10 +448,13 @@
     (should (lookup-key beads-list-mode-map (kbd "q")))
     (should (lookup-key beads-list-mode-map (kbd "m")))
     (should (lookup-key beads-list-mode-map (kbd "u")))
-    (should (lookup-key beads-list-mode-map (kbd "M")))
     (should (lookup-key beads-list-mode-map (kbd "U")))
-    (should (lookup-key beads-list-mode-map (kbd "C")))
-    (should (lookup-key beads-list-mode-map (kbd "c")))))
+    (should (lookup-key beads-list-mode-map (kbd "c")))
+    (should (lookup-key beads-list-mode-map (kbd "e")))
+    (should (lookup-key beads-list-mode-map (kbd "w")))
+    (should (lookup-key beads-list-mode-map (kbd "S")))
+    ;; Test filter prefix key exists and is a keymap
+    (should (keymapp (lookup-key beads-list-mode-map (kbd "/"))))))
 
 (ert-deftest beads-list-test-keybinding-functions ()
   "Test that keybindings map to correct functions."
@@ -463,10 +470,27 @@
                 #'beads-list-refresh))
     (should (eq (lookup-key beads-list-mode-map (kbd "q"))
                 #'beads-list-quit))
-    (should (eq (lookup-key beads-list-mode-map (kbd "C"))
-                #'beads-list-create))
     (should (eq (lookup-key beads-list-mode-map (kbd "c"))
-                #'beads-list-update))))
+                #'beads-list-create))
+    (should (eq (lookup-key beads-list-mode-map (kbd "e"))
+                #'beads-list-update))
+    (should (eq (lookup-key beads-list-mode-map (kbd "w"))
+                #'beads-list-copy-id))
+    (should (eq (lookup-key beads-list-mode-map (kbd "S"))
+                #'beads-list-sort))
+    ;; Test filter keybindings
+    (let ((filter-map (lookup-key beads-list-mode-map (kbd "/"))))
+      (should (keymapp filter-map))
+      (should (eq (lookup-key filter-map (kbd "s"))
+                  #'beads-list-filter-by-status))
+      (should (eq (lookup-key filter-map (kbd "p"))
+                  #'beads-list-filter-by-priority))
+      (should (eq (lookup-key filter-map (kbd "t"))
+                  #'beads-list-filter-by-type))
+      (should (eq (lookup-key filter-map (kbd "/"))
+                  #'beads-list-filter-by-text))
+      (should (eq (lookup-key filter-map (kbd "c"))
+                  #'beads-list-clear-filters)))))
 
 ;;; Edge Cases
 
