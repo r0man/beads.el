@@ -417,29 +417,11 @@ Returns list of arguments for bd update command."
               (setq beads-update--external-ref ref)
               ref)))
 
-(transient-define-infix beads-update--infix-description ()
-  "Set the description of the issue."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "Description (--description)"
-                         (beads-update--format-current-value
-                          beads-update--description
-                          (beads-update--get-original 'description))))
-  :key "d"
-  :argument "description="
-  :prompt "Description: "
-  :reader (lambda (_prompt _initial-input _history)
-            (let ((desc (read-string
-                        "Description (single line): "
-                        (or beads-update--description
-                            (beads-update--get-original 'description)))))
-              (setq beads-update--description desc)
-              desc)))
-
 (defun beads-update--edit-text-multiline (current-value fallback-value callback field-name)
   "Edit text in a multiline buffer.
 CURRENT-VALUE is the modified text, FALLBACK-VALUE is the original,
-CALLBACK is called with the result, FIELD-NAME is shown in messages."
+CALLBACK is called with the result, FIELD-NAME is shown in messages.
+After editing, the transient menu is re-displayed."
   (let* ((buffer-name (format "*beads-%s*" (downcase field-name)))
          (buffer (generate-new-buffer buffer-name))
          (parent-buffer (current-buffer)))
@@ -462,21 +444,24 @@ CALLBACK is called with the result, FIELD-NAME is shown in messages."
                           (kill-buffer)
                           (switch-to-buffer parent-buffer)
                           (funcall callback text)
-                          (message "%s saved" field-name))))
+                          (message "%s saved" field-name)
+                          ;; Re-show the transient menu
+                          (beads-update--menu))))
           (cancel-func (lambda ()
                         (interactive)
                         (kill-buffer)
                         (switch-to-buffer parent-buffer)
-                        (message "%s edit cancelled" field-name))))
+                        (message "%s edit cancelled" field-name)
+                        ;; Re-show the transient menu
+                        (beads-update--menu))))
       (local-set-key (kbd "C-c C-c") finish-func)
       (local-set-key (kbd "C-c C-k") cancel-func))
     (message "Edit %s. C-c C-c to finish, C-c C-k to cancel." field-name)))
 
-(transient-define-suffix beads-update--infix-description-multiline ()
+(transient-define-suffix beads-update--infix-description ()
   "Set the description using a multiline editor."
-  :description "Description (multiline)"
-  :key "D"
-  :transient t
+  :description "Description (--description)"
+  :key "d"
   (interactive)
   (beads-update--edit-text-multiline
    beads-update--description
@@ -488,7 +473,6 @@ CALLBACK is called with the result, FIELD-NAME is shown in messages."
   "Set the acceptance criteria using a multiline editor."
   :description "Acceptance Criteria (multiline)"
   :key "A"
-  :transient t
   (interactive)
   (beads-update--edit-text-multiline
    beads-update--acceptance-criteria
@@ -500,7 +484,6 @@ CALLBACK is called with the result, FIELD-NAME is shown in messages."
   "Set the design notes using a multiline editor."
   :description "Design (multiline)"
   :key "E"  ; Changed from G to avoid conflict with Magit refresh
-  :transient t
   (interactive)
   (beads-update--edit-text-multiline
    beads-update--design
@@ -512,7 +495,6 @@ CALLBACK is called with the result, FIELD-NAME is shown in messages."
   "Set the notes using a multiline editor."
   :description "Notes (multiline)"
   :key "N"
-  :transient t
   (interactive)
   (beads-update--edit-text-multiline
    beads-update--notes
@@ -541,6 +523,8 @@ CALLBACK is called with the result, FIELD-NAME is shown in messages."
                      beads-update--issue-id
                      (length changes)
                      (if (= (length changes) 1) "" "s"))
+            ;; Invalidate completion cache
+            (beads--invalidate-completion-cache)
             ;; Refresh any open beads buffers
             (when beads-auto-refresh
               (dolist (buf (buffer-list))
@@ -603,18 +587,39 @@ CALLBACK is called with the result, FIELD-NAME is shown in messages."
 
 ;;; Main Transient Menu
 
-;;;###autoload (autoload 'beads-update "beads-update" nil t)
-(transient-define-prefix beads-update (&optional issue-id)
+(transient-define-prefix beads-update--menu ()
+  "Transient menu for updating an issue in Beads."
+  ["Issue Details"
+   ["Status & Priority"
+    (beads-update--infix-status)
+    (beads-update--infix-priority)
+    (beads-update--infix-type)]
+   ["Basic Info"
+    (beads-update--infix-title)
+    (beads-update--infix-assignee)
+    (beads-update--infix-external-ref)]]
+  ["Content Fields"
+   (beads-update--infix-description)
+   (beads-update--infix-acceptance-multiline)
+   (beads-update--infix-design-multiline)
+   (beads-update--infix-notes-multiline)]
+  ["Actions"
+   ("u" "Update issue" beads-update--execute)
+   ("P" "Preview command" beads-update--preview)
+   ("r" "Reset all changes" beads-update--reset)
+   ("q" "Quit" transient-quit-one)])
+
+;;;###autoload
+(defun beads-update (&optional issue-id)
   "Update an existing issue in Beads.
 
-This transient menu provides an interactive interface for updating
-all fields of an existing issue.  The menu is context-aware and
-automatically detects the issue ID from beads-list or beads-show
+This function provides an interactive interface for updating all fields
+of an existing issue via a transient menu. The function is context-aware
+and automatically detects the issue ID from beads-list or beads-show
 buffers.
 
-If ISSUE-ID is provided, use it directly.  Otherwise, detect from
+If ISSUE-ID is provided, use it directly. Otherwise, detect from
 context or prompt the user."
-  :value (lambda () nil)
   (interactive
    (list (or (beads-update--detect-issue-id)
             (completing-read
@@ -626,29 +631,8 @@ context or prompt the user."
   (unless issue-id
     (user-error "No issue ID specified"))
   (beads-update--load-issue-data issue-id)
-  ["Issue Details"
-   ["Status & Priority"
-    (beads-update--infix-status)
-    (beads-update--infix-priority)
-    (beads-update--infix-type)]
-   ["Basic Info"
-    (beads-update--infix-title)
-    (beads-update--infix-assignee)
-    (beads-update--infix-external-ref)]]
-  ["Content Fields"
-   ["Single Line"
-    (beads-update--infix-description)]
-   ["Multiline"
-    ("D" "Description (multiline)" beads-update--infix-description-multiline)
-    ("A" "Acceptance Criteria (multiline)"
-     beads-update--infix-acceptance-multiline)
-    ("E" "Design (multiline)" beads-update--infix-design-multiline)
-    ("N" "Notes (multiline)" beads-update--infix-notes-multiline)]]
-  ["Actions"
-   ("u" "Update issue" beads-update--execute)
-   ("P" "Preview command" beads-update--preview)
-   ("r" "Reset all changes" beads-update--reset)
-   ("q" "Quit" transient-quit-one)])
+  ;; Show the transient menu
+  (beads-update--menu))
 
 (provide 'beads-update)
 ;;; beads-update.el ends here

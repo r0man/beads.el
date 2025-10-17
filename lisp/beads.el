@@ -197,6 +197,32 @@ Works over Tramp when `default-directory' is a remote path."
 
 ;;; Completion Support
 
+(defvar beads--completion-cache nil
+  "Cache for issue list used in completion.
+Format: (TIMESTAMP . ISSUES-LIST)")
+
+(defvar beads--completion-cache-ttl 5
+  "Time-to-live for completion cache in seconds.")
+
+(defun beads--get-cached-issues ()
+  "Get cached issue list, refreshing if stale.
+Returns list of issues or nil on error."
+  (let ((now (float-time)))
+    (when (or (null beads--completion-cache)
+              (> (- now (car beads--completion-cache))
+                 beads--completion-cache-ttl))
+      (condition-case nil
+          (setq beads--completion-cache
+                (cons now (beads--parse-issues (beads--run-command "list"))))
+        (error
+         (setq beads--completion-cache nil))))
+    (cdr beads--completion-cache)))
+
+(defun beads--invalidate-completion-cache ()
+  "Invalidate the completion cache.
+Call this after creating, updating, or deleting issues."
+  (setq beads--completion-cache nil))
+
 (defun beads--issue-completion-table ()
   "Return completion table for issue IDs with annotations."
   (lambda (string pred action)
@@ -205,9 +231,7 @@ Works over Tramp when `default-directory' is a remote path."
           (category . beads-issue)
           (annotation-function . beads--annotate-issue)
           (group-function . beads--group-issue))
-      (let ((issues (condition-case nil
-                        (beads--parse-issues (beads--run-command "list"))
-                      (error nil))))
+      (let ((issues (beads--get-cached-issues)))
         (complete-with-action
          action
          (mapcar (lambda (i) (alist-get 'id i)) issues)
@@ -216,7 +240,7 @@ Works over Tramp when `default-directory' is a remote path."
 (defun beads--annotate-issue (issue-id)
   "Annotate ISSUE-ID with status and title for completion."
   (condition-case nil
-      (let* ((issues (beads--parse-issues (beads--run-command "list")))
+      (let* ((issues (beads--get-cached-issues))
              (issue (seq-find (lambda (i)
                                (string= (alist-get 'id i) issue-id))
                              issues)))
@@ -244,7 +268,7 @@ If TRANSFORM is non-nil, return the transformed issue ID."
   (if transform
       issue-id
     (condition-case nil
-        (let* ((issues (beads--parse-issues (beads--run-command "list")))
+        (let* ((issues (beads--get-cached-issues))
                (issue (seq-find (lambda (i)
                                  (string= (alist-get 'id i) issue-id))
                                issues))
@@ -321,6 +345,27 @@ Returns t if found, signals error otherwise."
 
 ;;;###autoload
 (autoload 'beads-create "beads-create" "Create a new Beads issue using transient menu." t)
+
+;;;###autoload
+(autoload 'beads-close "beads-close" "Close a Beads issue with optional reason." t)
+
+;;;###autoload
+(autoload 'beads-stats "beads-stats" "Display Beads issue statistics." t)
+
+;;;###autoload
+(autoload 'beads-dep "beads-dep" "Manage dependencies in Beads." t)
+
+;;;###autoload
+(autoload 'beads-dep-add "beads-dep" "Add a dependency to an issue." t)
+
+;;;###autoload
+(autoload 'beads-dep-remove "beads-dep" "Remove a dependency from an issue." t)
+
+;;;###autoload
+(autoload 'beads-dep-tree "beads-dep" "Display dependency tree for an issue." t)
+
+;;;###autoload
+(autoload 'beads-dep-cycles "beads-dep" "Check for dependency cycles." t)
 
 ;;;###autoload
 (autoload 'beads-quickstart "beads-misc" "Show Beads quickstart guide." t)

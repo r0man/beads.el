@@ -33,6 +33,10 @@
 (require 'beads-list)
 (require 'beads-show)
 (require 'beads-create)
+(require 'beads-update)
+(require 'beads-close)
+(require 'beads-stats)
+(require 'beads-dep)
 (require 'beads-misc)
 (require 'transient)
 
@@ -111,30 +115,6 @@ Returns a propertized string showing project and database info."
 (defun beads-main--not-implemented (feature)
   "Show not-implemented message for FEATURE."
   (message "Feature '%s' not yet implemented" feature))
-
-(transient-define-suffix beads-update ()
-  "Update an existing issue (placeholder)."
-  :description "Update issue"
-  (interactive)
-  (beads-main--not-implemented "update"))
-
-(transient-define-suffix beads-close ()
-  "Close an issue (placeholder)."
-  :description "Close issue"
-  (interactive)
-  (beads-main--not-implemented "close"))
-
-(transient-define-suffix beads-stats ()
-  "Show project statistics (placeholder)."
-  :description "Show statistics"
-  (interactive)
-  (beads-main--not-implemented "stats"))
-
-(transient-define-suffix beads-dep ()
-  "Manage dependencies (placeholder submenu)."
-  :description "Manage dependencies"
-  (interactive)
-  (beads-main--not-implemented "dep"))
 
 (transient-define-suffix beads-init ()
   "Initialize beads in current directory (placeholder)."

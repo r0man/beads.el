@@ -506,7 +506,6 @@ STATE is an alist expression of (variable . value) pairs."
   (should (fboundp 'beads-create--infix-type))
   (should (fboundp 'beads-create--infix-priority))
   (should (fboundp 'beads-create--infix-description))
-  (should (fboundp 'beads-create--infix-description-multiline))
   (should (fboundp 'beads-create--infix-custom-id))
   (should (fboundp 'beads-create--infix-dependencies)))
 

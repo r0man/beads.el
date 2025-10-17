@@ -202,31 +202,11 @@ Returns list of arguments for bd create command."
               (setq beads-create--priority priority)
               (number-to-string priority))))
 
-(transient-define-infix beads-create--infix-description ()
-  "Set the description of the issue."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "Description (-d)"
-                         (beads-create--format-current-value
-                          (when beads-create--description
-                            (if (> (length beads-create--description) 20)
-                                (concat (substring
-                                         beads-create--description 0 20)
-                                        "...")
-                              beads-create--description)))))
-  :key "d"
-  :argument "description="
-  :prompt "Description: "
-  :reader (lambda (_prompt _initial-input _history)
-            (let ((desc (read-string "Description (single line): "
-                                     beads-create--description)))
-              (setq beads-create--description desc)
-              desc)))
-
 (defun beads-create--edit-text-multiline (current-value callback field-name)
   "Edit text in a multiline buffer.
 CURRENT-VALUE is the initial text, CALLBACK is called with the result,
-FIELD-NAME is shown in the buffer name and messages."
+FIELD-NAME is shown in the buffer name and messages.
+After editing, the transient menu is re-displayed."
   (let* ((buffer-name (format "*beads-%s*" (downcase field-name)))
          (buffer (generate-new-buffer buffer-name))
          (parent-buffer (current-buffer)))
@@ -250,21 +230,24 @@ FIELD-NAME is shown in the buffer name and messages."
                           (kill-buffer)
                           (switch-to-buffer parent-buffer)
                           (funcall callback text)
-                          (message "%s saved" field-name))))
+                          (message "%s saved" field-name)
+                          ;; Re-show the transient menu
+                          (beads-create))))
           (cancel-func (lambda ()
                         (interactive)
                         (kill-buffer)
                         (switch-to-buffer parent-buffer)
-                        (message "%s edit cancelled" field-name))))
+                        (message "%s edit cancelled" field-name)
+                        ;; Re-show the transient menu
+                        (beads-create))))
       (local-set-key (kbd "C-c C-c") finish-func)
       (local-set-key (kbd "C-c C-k") cancel-func))
     (message "Edit %s. C-c C-c to finish, C-c C-k to cancel." field-name)))
 
-(transient-define-suffix beads-create--infix-description-multiline ()
+(transient-define-suffix beads-create--infix-description ()
   "Set the description using a multiline editor."
-  :description "Description (multiline)"
-  :key "M"
-  :transient t
+  :description "Description (-d)"
+  :key "d"
   (interactive)
   (beads-create--edit-text-multiline
    beads-create--description
@@ -371,8 +354,7 @@ validated before execution."
     (beads-create--infix-type)
     (beads-create--infix-priority)]
    ["Content"
-    (beads-create--infix-description)
-    ("M" "Description (multiline)" beads-create--infix-description-multiline)]]
+    (beads-create--infix-description)]]
   ["Advanced"
    (beads-create--infix-custom-id)
    (beads-create--infix-dependencies)]
