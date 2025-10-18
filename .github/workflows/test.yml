@@ -1,4 +1,4 @@
-name: Test
+name: CI
 
 on:
   push:
@@ -14,10 +14,10 @@ jobs:
       fail-fast: false
       matrix:
         emacs_version:
+          - '27.1'
           - '27.2'
           - '28.2'
-          - '29.4'
-          - '30.2'
+          - '29.1'
           - 'snapshot'
 
     steps:
@@ -38,18 +38,20 @@ jobs:
             ${{ runner.os }}-eldev-
 
       - name: Install Eldev
-        run: curl --fail --silent --show-error --location https://raw.github.com/doublep/eldev/master/webinstall/github-eldev | sh
-
-      - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@master
-
-      - name: Install Beads via Homebrew
-        run: |
-          brew tap steveyegge/beads
-          brew install bd
-
-      - name: Verify Beads installation
-        run: bd version
+        run: curl -fsSL https://raw.github.com/doublep/eldev/master/webinstall/github-eldev | sh
 
       - name: Run tests
-        run: eldev -p -dtT test
+        run: |
+          cd lisp
+          eldev -p -dtT test
+
+      - name: Byte-compile
+        run: |
+          cd lisp
+          eldev -p -dtT compile --warnings-as-errors
+
+      - name: Lint
+        if: matrix.emacs_version != 'snapshot'
+        run: |
+          cd lisp
+          eldev -p -dtT lint
