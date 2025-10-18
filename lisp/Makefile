@@ -7,7 +7,9 @@ BATCH = $(EMACS) --batch -Q -L .
 test:
 	@echo "Running all beads.el tests..."
 	$(BATCH) -l beads.el \
+		-l beads-list.el \
 		-l beads-create.el \
+		-l beads-update.el \
 		-l beads-show.el \
 		-l beads-main.el \
 		-l beads-misc.el \
@@ -16,6 +18,7 @@ test:
 		-l test/beads-utils-test.el \
 		-l test/beads-list-test.el \
 		-l test/beads-transient-create-test.el \
+		-l test/beads-transient-update-test.el \
 		-l test/beads-show-test.el \
 		-l test/beads-main-test.el \
 		-l test/beads-misc-test.el \
@@ -61,7 +64,9 @@ test-misc:
 # Interactive test mode
 test-interactive:
 	$(EMACS) -Q -L . -l beads.el \
+		-l beads-list.el \
 		-l beads-create.el \
+		-l beads-update.el \
 		-l beads-show.el \
 		-l beads-main.el \
 		-l beads-misc.el \
@@ -70,6 +75,7 @@ test-interactive:
 		-l test/beads-utils-test.el \
 		-l test/beads-list-test.el \
 		-l test/beads-transient-create-test.el \
+		-l test/beads-transient-update-test.el \
 		-l test/beads-show-test.el \
 		-l test/beads-main-test.el \
 		-l test/beads-misc-test.el \
@@ -92,6 +98,7 @@ test-stats:
 	@echo "Utils tests: $$(grep -c 'ert-deftest' test/beads-utils-test.el)"
 	@echo "List tests: $$(grep -c 'ert-deftest' test/beads-list-test.el)"
 	@echo "Create tests: $$(grep -c 'ert-deftest' test/beads-transient-create-test.el)"
+	@echo "Update tests: $$(grep -c 'ert-deftest' test/beads-transient-update-test.el)"
 	@echo "Show tests: $$(grep -c 'ert-deftest' test/beads-show-test.el)"
 	@echo "Main tests: $$(grep -c 'ert-deftest' test/beads-main-test.el)"
 	@echo "Misc tests: $$(grep -c 'ert-deftest' test/beads-misc-test.el)"

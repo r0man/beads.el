@@ -141,6 +141,20 @@
     (define-key map (kbd "n") #'beads-show-next-section)
     (define-key map (kbd "p") #'beads-show-previous-section)
 
+    ;; Paragraph navigation (markdown-mode style)
+    (define-key map (kbd "M-{") #'beads-show-backward-paragraph)
+    (define-key map (kbd "M-}") #'beads-show-forward-paragraph)
+    (define-key map (kbd "M-h") #'beads-show-mark-paragraph)
+
+    ;; Block navigation (markdown-mode style)
+    (define-key map (kbd "C-M-{") #'beads-show-backward-block)
+    (define-key map (kbd "C-M-}") #'beads-show-forward-block)
+
+    ;; Section boundary navigation (markdown-mode style)
+    (define-key map (kbd "C-M-a") #'beads-show-beginning-of-section)
+    (define-key map (kbd "C-M-e") #'beads-show-end-of-section)
+    (define-key map (kbd "C-M-h") #'beads-show-mark-section)
+
     ;; Outline navigation (markdown-mode style)
     (define-key map (kbd "C-c C-n") #'beads-show-outline-next)
     (define-key map (kbd "C-c C-p") #'beads-show-outline-previous)
@@ -158,8 +172,13 @@
     (define-key map (kbd "<backtab>") #'beads-show-previous-button)
     (define-key map (kbd "S-TAB") #'beads-show-previous-button)
 
+    ;; Markdown-mode-style aliases for reference navigation
+    (define-key map (kbd "M-n") #'beads-show-next-reference)
+    (define-key map (kbd "M-p") #'beads-show-previous-reference)
+
     ;; Follow reference
     (define-key map (kbd "RET") #'beads-show-follow-reference)
+    (define-key map (kbd "C-c C-o") #'beads-show-follow-reference)  ; markdown-mode alias
     (define-key map (kbd "o") #'beads-show-follow-reference-other-window)
     map)
   "Keymap for `beads-show-mode'.")
@@ -639,6 +658,305 @@ Extracts the issue ID from text at point and calls `beads-show'."
           (forward-line 2)
           (recenter-top-bottom 0))
       (message "No previous section"))))
+
+(defun beads-show-forward-paragraph ()
+  "Move forward by one paragraph."
+  (interactive)
+  (forward-paragraph 1))
+
+(defun beads-show-backward-paragraph ()
+  "Move backward by one paragraph."
+  (interactive)
+  (backward-paragraph 1))
+
+(defun beads-show-mark-paragraph ()
+  "Mark the current paragraph.
+Set mark at beginning of paragraph, move point to end, and activate region."
+  (interactive)
+  (mark-paragraph)
+  (activate-mark)
+  (message "Paragraph marked"))
+
+;;; Block Navigation
+
+(defun beads-show--at-block-boundary ()
+  "Return the type of block at point, or nil if not at a block boundary.
+Block types:
+  'fenced-code - ``` or ~~~ fence
+  'list - list item (-, *, +, or numbered)
+  'blockquote - line starting with >
+  'indented-code - line with 4+ spaces
+  'blank - blank line (block separator)"
+  (save-excursion
+    (beginning-of-line)
+    (cond
+     ;; Blank line
+     ((looking-at "^[[:space:]]*$")
+      'blank)
+     ;; Fenced code block
+     ((looking-at "^\\(?:```\\|~~~\\)")
+      'fenced-code)
+     ;; List items
+     ((looking-at "^[[:space:]]*\\(?:[-*+]\\|[0-9]+\\.\\)[[:space:]]")
+      'list)
+     ;; Blockquote
+     ((looking-at "^[[:space:]]*>")
+      'blockquote)
+     ;; Indented code (4+ spaces)
+     ((looking-at "^    \\|^\t")
+      'indented-code)
+     ;; Not at a block boundary
+     (t nil))))
+
+(defun beads-show--skip-blank-lines-forward ()
+  "Skip forward over blank lines. Return t if moved, nil otherwise."
+  (let ((start (point)))
+    (while (and (not (eobp))
+                (looking-at "^[[:space:]]*$"))
+      (forward-line 1))
+    (not (eq start (point)))))
+
+(defun beads-show--skip-blank-lines-backward ()
+  "Skip backward over blank lines. Return t if moved, nil otherwise."
+  (let ((start (point)))
+    (while (and (not (bobp))
+                (save-excursion
+                  (forward-line -1)
+                  (looking-at "^[[:space:]]*$")))
+      (forward-line -1))
+    (not (eq start (point)))))
+
+(defun beads-show--in-fenced-code-block ()
+  "Return t if point is inside a fenced code block."
+  (save-excursion
+    (let ((fence-count 0))
+      (goto-char (point-min))
+      (while (< (point) (point))
+        (when (looking-at "^\\(?:```\\|~~~\\)")
+          (setq fence-count (1+ fence-count)))
+        (forward-line 1))
+      ;; Odd fence count means we're inside a block
+      (oddp fence-count))))
+
+(defun beads-show-forward-block ()
+  "Move forward to the next block boundary.
+Blocks include fenced code, lists, blockquotes, and indented code."
+  (interactive)
+  (let ((start-pos (point))
+        (moved nil))
+    (beginning-of-line)
+
+    ;; Skip current block if we're at the start of one
+    (let ((block-type (beads-show--at-block-boundary)))
+      (when block-type
+        (cond
+         ;; Fenced code block - skip to closing fence
+         ((eq block-type 'fenced-code)
+          (let ((fence-marker (buffer-substring-no-properties
+                              (point) (+ (point) 3))))
+            (forward-line 1)
+            (while (and (not (eobp))
+                       (not (looking-at (concat "^" (regexp-quote fence-marker)))))
+              (forward-line 1))
+            (when (not (eobp))
+              (forward-line 1))
+            (setq moved t)))
+
+         ;; List - skip consecutive list items
+         ((eq block-type 'list)
+          (while (and (not (eobp))
+                     (or (looking-at "^[[:space:]]*\\(?:[-*+]\\|[0-9]+\\.\\)[[:space:]]")
+                         (looking-at "^[[:space:]]*$")
+                         ;; Continuation lines (indented)
+                         (and (not (looking-at "^[[:space:]]*$"))
+                              (looking-at "^[[:space:]]+"))))
+            (forward-line 1))
+          (setq moved t))
+
+         ;; Blockquote - skip consecutive quoted lines
+         ((eq block-type 'blockquote)
+          (while (and (not (eobp))
+                     (looking-at "^[[:space:]]*>"))
+            (forward-line 1))
+          (setq moved t))
+
+         ;; Indented code - skip consecutive indented lines
+         ((eq block-type 'indented-code)
+          (while (and (not (eobp))
+                     (or (looking-at "^    \\|^\t")
+                         (looking-at "^[[:space:]]*$")))
+            (forward-line 1))
+          (setq moved t))
+
+         ;; Blank line - skip consecutive blanks
+         ((eq block-type 'blank)
+          (beads-show--skip-blank-lines-forward)
+          (setq moved t)))))
+
+    ;; If we didn't move yet, skip to next block
+    (unless moved
+      ;; Skip current paragraph/text
+      (while (and (not (eobp))
+                 (not (beads-show--at-block-boundary)))
+        (forward-line 1))
+      ;; Skip blank lines
+      (beads-show--skip-blank-lines-forward))
+
+    (if (not (eq (point) start-pos))
+        (progn
+          (beginning-of-line)
+          (recenter-top-bottom 0))
+      (goto-char start-pos)
+      (message "No next block"))))
+
+(defun beads-show-backward-block ()
+  "Move backward to the previous block boundary.
+Blocks include fenced code, lists, blockquotes, and indented code."
+  (interactive)
+  (let ((start-pos (point))
+        (moved nil))
+
+    ;; Move back at least one line
+    (forward-line -1)
+
+    ;; Skip blank lines
+    (while (and (not (bobp))
+               (looking-at "^[[:space:]]*$"))
+      (forward-line -1))
+
+    (when (not (bobp))
+      ;; Find the start of the current block
+      (let ((block-type (beads-show--at-block-boundary)))
+        (cond
+         ;; Fenced code - find opening fence
+         ((eq block-type 'fenced-code)
+          ;; Move to closing fence
+          (while (and (not (bobp))
+                     (not (looking-at "^\\(?:```\\|~~~\\)")))
+            (forward-line -1))
+          ;; Now find opening fence
+          (when (looking-at "^\\(?:```\\|~~~\\)")
+            (let ((fence-marker (buffer-substring-no-properties
+                                (point) (+ (point) 3))))
+              (forward-line -1)
+              (while (and (not (bobp))
+                         (not (looking-at (concat "^" (regexp-quote fence-marker)))))
+                (forward-line -1))))
+          (setq moved t))
+
+         ;; List - find start of list
+         ((eq block-type 'list)
+          (while (and (not (bobp))
+                     (or (looking-at "^[[:space:]]*\\(?:[-*+]\\|[0-9]+\\.\\)[[:space:]]")
+                         (looking-at "^[[:space:]]*$")
+                         (and (not (looking-at "^[[:space:]]*$"))
+                              (looking-at "^[[:space:]]+"))))
+            (forward-line -1))
+          ;; Move forward one line if we went too far
+          (unless (bobp)
+            (forward-line 1))
+          (setq moved t))
+
+         ;; Blockquote - find start
+         ((eq block-type 'blockquote)
+          (while (and (not (bobp))
+                     (looking-at "^[[:space:]]*>"))
+            (forward-line -1))
+          (unless (bobp)
+            (forward-line 1))
+          (setq moved t))
+
+         ;; Indented code - find start
+         ((eq block-type 'indented-code)
+          (while (and (not (bobp))
+                     (or (looking-at "^    \\|^\t")
+                         (looking-at "^[[:space:]]*$")))
+            (forward-line -1))
+          (unless (bobp)
+            (forward-line 1))
+          (setq moved t))
+
+         ;; Regular text - scan backward to find a block
+         (t
+          (while (and (not (bobp))
+                     (not (beads-show--at-block-boundary)))
+            (forward-line -1))
+          (when (beads-show--at-block-boundary)
+            (setq moved t))))))
+
+    (if moved
+        (progn
+          (beginning-of-line)
+          (recenter-top-bottom 0))
+      (goto-char start-pos)
+      (message "No previous block"))))
+
+(defun beads-show-beginning-of-section ()
+  "Move to beginning of current section.
+If already at section header, stay there."
+  (interactive)
+  (let ((current-level (beads-show--section-level)))
+    (if current-level
+        ;; Already at a heading, we're at the beginning
+        (beginning-of-line)
+      ;; Not at a heading, find the current section's beginning
+      (let ((start-pos (point))
+            (found nil))
+        (beginning-of-line)
+        (while (and (not found) (not (bobp)))
+          (when (beads-show--section-level)
+            ;; Make sure we're on the heading line, not underline
+            (when (looking-at "^[═─]+$")
+              (forward-line -1))
+            (setq found t))
+          (unless found
+            (forward-line -1)))
+        (if found
+            (beginning-of-line)
+          (goto-char start-pos)
+          (message "No section found"))))))
+
+(defun beads-show-end-of-section ()
+  "Move to end of current section (before next section or EOF)."
+  (interactive)
+  (let ((current-level (beads-show--section-level)))
+    (if current-level
+        ;; At a heading, move past underline if present then find next section
+        (progn
+          (forward-line 1)
+          (when (looking-at "^[═─]+$")
+            (forward-line 1))
+          (let ((target-level current-level)
+                (found-next nil))
+            (while (and (not found-next) (not (eobp)))
+              (let ((level (beads-show--section-level)))
+                (when (and level (<= level target-level)
+                          (not (looking-at "^[═─]+$")))
+                  (setq found-next t)))
+              (unless found-next
+                (forward-line 1)))
+            (when found-next
+              (forward-line -1))
+            (end-of-line)))
+      ;; Not at a heading, move to end of current section
+      (beads-show-beginning-of-section)
+      (beads-show-end-of-section))))
+
+(defun beads-show-mark-section ()
+  "Mark the current section.
+Set mark at beginning of section, move point to end, and activate region."
+  (interactive)
+  (let ((start-pos (point)))
+    ;; Move to beginning of section
+    (beads-show-beginning-of-section)
+    (let ((begin (point)))
+      ;; Set mark at beginning and activate it
+      (push-mark begin t t)
+      ;; Move to end
+      (beads-show-end-of-section)
+      ;; Ensure mark is activated (important for batch mode)
+      (activate-mark)
+      (message "Section marked"))))
 
 (defun beads-show-follow-reference ()
   "Follow bd-N reference at point or on current line."
