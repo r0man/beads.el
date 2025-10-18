@@ -41,17 +41,11 @@ jobs:
         run: curl -fsSL https://raw.github.com/doublep/eldev/master/webinstall/github-eldev | sh
 
       - name: Run tests
-        run: |
-          cd lisp
-          eldev -p -dtT test
+        run: eldev -p -dtT test
 
       - name: Byte-compile
-        run: |
-          cd lisp
-          eldev -p -dtT compile --warnings-as-errors
+        run: eldev -p -dtT compile --warnings-as-errors
 
       - name: Lint
         if: matrix.emacs_version != 'snapshot'
-        run: |
-          cd lisp
-          eldev -p -dtT lint
+        run: eldev -p -dtT lint

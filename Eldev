@@ -15,7 +15,8 @@
 (eldev-add-extra-dependencies 'lint '(package-lint))
 
 ;; Test files location
-(setf eldev-test-fileset '("./lisp/test/*.el"))
+(setf eldev-test-fileset '("lisp/test/*.el"))
 
 ;; Load path includes lisp directory
 (eldev-add-loading-roots 'build "lisp")
+(eldev-add-loading-roots 'test "lisp")
