@@ -1,5 +1,7 @@
 # beads.el - Magit-like Interface for Beads Issue Tracker
 
+[![CI](https://github.com/r0man/beads.el/actions/workflows/test.yml/badge.svg)](https://github.com/r0man/beads.el/actions/workflows/test.yml)
+
 A comprehensive Emacs interface for [Beads](https://github.com/steveyegge/beads),
 providing a keyboard-driven, transient-based UI for managing issues without
 leaving your editor.
@@ -439,35 +441,71 @@ lisp/
 - Validation before execution
 - Reset commands to clear state
 
-## Testing
+## Development
+
+### Prerequisites
+
+- **Emacs** 27.1 or newer
+- **Eldev** (recommended) or Make
+- **bd** CLI tool
+
+### Setting up Development Environment
+
+We use [Eldev](https://github.com/doublep/eldev) for development tasks:
+
+```bash
+# Install Eldev (one-time setup)
+curl -fsSL https://raw.github.com/doublep/eldev/master/webinstall/github-eldev | sh
+
+# Or via Guix
+guix install emacs-eldev
+```
 
 ### Running Tests
 
 ```bash
-# Run all tests
-make test
+# With Eldev (recommended)
+eldev test                 # Run all 651 tests
+eldev test beads-list      # Run specific test file
 
-# Run specific test suite
-make test-process
-make test-list
-make test-create
-# ... etc
-
-# Show test statistics
-make test-stats
-
-# Interactive test mode (for debugging)
-make test-interactive
+# With Make (fallback)
+cd lisp
+make test                  # Run all tests
+make test-list             # Run specific test suite
+make test-stats            # Show test statistics
+make test-interactive      # Interactive test mode (for debugging)
 ```
 
 ### Test Coverage
 
-- **Total tests:** 448
+- **Total tests:** 651
 - **Overall coverage:** >75%
 - **Core modules:** >80%
 - **UI modules:** >70%
 
 All tests use mocking to avoid requiring a real bd database.
+
+### Linting and Compilation
+
+```bash
+# Byte-compile all files
+eldev compile
+
+# Run linters (checkdoc, package-lint)
+eldev lint
+
+# Or with Make
+cd lisp && make compile
+```
+
+### CI/CD
+
+GitHub Actions automatically runs tests, compilation, and linting on:
+- Push to main branch
+- Pull requests
+- Multiple Emacs versions (27.1, 27.2, 28.2, 29.1, snapshot)
+
+See `.github/workflows/test.yml` for CI configuration.
 
 ## Contributing
 
@@ -480,7 +518,8 @@ Contributions are welcome! Please:
    - Use `beads-` prefix for public functions
    - Add docstrings to all public functions
    - Use 80-column width for code
-4. **Run tests** before submitting: `make test`
+4. **Run tests** before submitting: `eldev test` or `make test`
+5. **Check byte-compilation**: `eldev compile`
 
 ## Known Limitations
 
