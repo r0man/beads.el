@@ -352,17 +352,21 @@
 ;;; Mode Line Tests
 
 (ert-deftest beads-list-test-mode-line-count ()
-  "Test that mode line shows issue count."
+  "Test that mode line shows issue count and marked issues."
   (cl-letf (((symbol-function 'beads--run-command)
              (lambda (&rest _)
                (apply #'vector beads-list-test--sample-issues)))
             ((symbol-function 'beads-check-executable)
              (lambda () t)))
     (beads-list)
-    ;; Check mode-line-format contains the :eval form
-    (should (member '(:eval (format "  %d issue%s%s"
+    ;; Check mode-line-format contains the :eval form with marked count
+    (should (member '(:eval (format "  %d issue%s%s%s"
                                     (length tabulated-list-entries)
                                     (if (= (length tabulated-list-entries) 1) "" "s")
+                                    (if beads-list--marked-issues
+                                        (format " [%d marked]"
+                                               (length beads-list--marked-issues))
+                                      "")
                                     (beads-list--format-filter-string)))
                     mode-line-format))
     (kill-buffer)))

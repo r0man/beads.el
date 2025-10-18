@@ -36,6 +36,9 @@
 ;;   / p     - Filter by priority
 ;;   / t     - Filter by type
 ;;   / c     - Clear all filters
+;;   B s     - Bulk update status for marked issues
+;;   B p     - Bulk update priority for marked issues
+;;   B c     - Bulk close marked issues
 
 ;;; Code:
 
@@ -439,6 +442,100 @@ Uses tabulated-list built-in sorting."
   (beads-list--populate-buffer beads-list--raw-issues beads-list--command)
   (message "All filters cleared"))
 
+;;; Bulk Operations
+
+(defun beads-list-bulk-update-status ()
+  "Update status for all marked issues."
+  (interactive)
+  (if (null beads-list--marked-issues)
+      (user-error "No issues marked")
+    (let ((status (completing-read
+                   (format "Set status for %d issue(s): "
+                          (length beads-list--marked-issues))
+                   '("open" "in_progress" "blocked")
+                   nil t)))
+      (when (and (not (string-empty-p status))
+                 (y-or-n-p (format "Update status to '%s' for %d issue(s)? "
+                                  status (length beads-list--marked-issues))))
+        (let ((success-count 0)
+              (fail-count 0))
+          (dolist (id beads-list--marked-issues)
+            (condition-case err
+                (progn
+                  (beads--run-command "update" id "--status" status)
+                  (setq success-count (1+ success-count)))
+              (error
+               (message "Failed to update %s: %s" id
+                       (error-message-string err))
+               (setq fail-count (1+ fail-count)))))
+          (beads-list-unmark-all)
+          (beads--invalidate-completion-cache)
+          (beads-list-refresh)
+          (message "Updated %d issue(s), %d failed" success-count fail-count))))))
+
+(defun beads-list-bulk-update-priority ()
+  "Update priority for all marked issues."
+  (interactive)
+  (if (null beads-list--marked-issues)
+      (user-error "No issues marked")
+    (let* ((choices '(("0 - Critical" . 0)
+                     ("1 - High" . 1)
+                     ("2 - Medium" . 2)
+                     ("3 - Low" . 3)
+                     ("4 - Backlog" . 4)))
+           (selection (completing-read
+                      (format "Set priority for %d issue(s): "
+                             (length beads-list--marked-issues))
+                      choices nil t))
+           (priority (cdr (assoc selection choices))))
+      (when (and priority
+                 (y-or-n-p (format "Update priority to %d for %d issue(s)? "
+                                  priority (length beads-list--marked-issues))))
+        (let ((success-count 0)
+              (fail-count 0))
+          (dolist (id beads-list--marked-issues)
+            (condition-case err
+                (progn
+                  (beads--run-command "update" id "--priority"
+                                     (number-to-string priority))
+                  (setq success-count (1+ success-count)))
+              (error
+               (message "Failed to update %s: %s" id
+                       (error-message-string err))
+               (setq fail-count (1+ fail-count)))))
+          (beads-list-unmark-all)
+          (beads--invalidate-completion-cache)
+          (beads-list-refresh)
+          (message "Updated %d issue(s), %d failed" success-count fail-count))))))
+
+(defun beads-list-bulk-close ()
+  "Close all marked issues."
+  (interactive)
+  (if (null beads-list--marked-issues)
+      (user-error "No issues marked")
+    (let ((reason (read-string
+                   (format "Reason for closing %d issue(s): "
+                          (length beads-list--marked-issues)))))
+      (when (y-or-n-p (format "Close %d issue(s)? "
+                             (length beads-list--marked-issues)))
+        (let ((success-count 0)
+              (fail-count 0))
+          (dolist (id beads-list--marked-issues)
+            (condition-case err
+                (progn
+                  (if (and reason (not (string-empty-p (string-trim reason))))
+                      (beads--run-command "close" id "--reason" reason)
+                    (beads--run-command "close" id))
+                  (setq success-count (1+ success-count)))
+              (error
+               (message "Failed to close %s: %s" id
+                       (error-message-string err))
+               (setq fail-count (1+ fail-count)))))
+          (beads-list-unmark-all)
+          (beads--invalidate-completion-cache)
+          (beads-list-refresh)
+          (message "Closed %d issue(s), %d failed" success-count fail-count))))))
+
 ;;; Mode Definition
 
 (defvar beads-list-mode-map
@@ -480,6 +577,13 @@ Uses tabulated-list built-in sorting."
       (define-key filter-map (kbd "/") #'beads-list-filter-by-text)
       (define-key filter-map (kbd "c") #'beads-list-clear-filters)
       (define-key map (kbd "/") filter-map))
+
+    ;; Bulk operations (like Magit) - create prefix map for B
+    (let ((bulk-map (make-sparse-keymap)))
+      (define-key bulk-map (kbd "s") #'beads-list-bulk-update-status)
+      (define-key bulk-map (kbd "p") #'beads-list-bulk-update-priority)
+      (define-key bulk-map (kbd "c") #'beads-list-bulk-close)
+      (define-key map (kbd "B") bulk-map))
     map)
   "Keymap for `beads-list-mode'.")
 
@@ -525,9 +629,13 @@ Uses tabulated-list built-in sorting."
         (setq mode-line-format
               '("%e" mode-line-front-space
                 mode-line-buffer-identification
-                (:eval (format "  %d issue%s%s"
+                (:eval (format "  %d issue%s%s%s"
                              (length tabulated-list-entries)
                              (if (= (length tabulated-list-entries) 1) "" "s")
+                             (if beads-list--marked-issues
+                                 (format " [%d marked]"
+                                        (length beads-list--marked-issues))
+                               "")
                              (beads-list--format-filter-string)))))))
     (pop-to-buffer buffer)))
 
@@ -556,9 +664,13 @@ Uses tabulated-list built-in sorting."
         (setq mode-line-format
               '("%e" mode-line-front-space
                 mode-line-buffer-identification
-                (:eval (format "  %d ready issue%s%s"
+                (:eval (format "  %d ready issue%s%s%s"
                              (length tabulated-list-entries)
                              (if (= (length tabulated-list-entries) 1) "" "s")
+                             (if beads-list--marked-issues
+                                 (format " [%d marked]"
+                                        (length beads-list--marked-issues))
+                               "")
                              (beads-list--format-filter-string)))))))
     (pop-to-buffer buffer)))
 
@@ -587,9 +699,13 @@ Uses tabulated-list built-in sorting."
         (setq mode-line-format
               '("%e" mode-line-front-space
                 mode-line-buffer-identification
-                (:eval (format "  %d blocked issue%s%s"
+                (:eval (format "  %d blocked issue%s%s%s"
                              (length tabulated-list-entries)
                              (if (= (length tabulated-list-entries) 1) "" "s")
+                             (if beads-list--marked-issues
+                                 (format " [%d marked]"
+                                        (length beads-list--marked-issues))
+                               "")
                              (beads-list--format-filter-string)))))))
     (pop-to-buffer buffer)))
 

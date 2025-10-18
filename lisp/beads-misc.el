@@ -610,7 +610,8 @@ listing dependencies."
 (defun beads-export--reset-state ()
   "Reset export transient state."
   (setq beads-export--output nil
-        beads-export--no-auto-flush nil))
+        beads-export--no-auto-flush nil
+        beads-export--status nil))
 
 (defun beads-export--format-value (value)
   "Format VALUE for display in transient menu."
@@ -737,7 +738,9 @@ JSONL format. The default output is .beads/issues.jsonl."
   "Reset import transient state."
   (setq beads-import--input nil
         beads-import--dry-run nil
-        beads-import--resolve-collisions nil))
+        beads-import--resolve-collisions nil
+        beads-import--skip-existing nil
+        beads-import--strict nil))
 
 (defun beads-import--format-value (value)
   "Format VALUE for display in transient menu."
