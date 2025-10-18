@@ -13,7 +13,9 @@
 ;; - bd stats: Project statistics
 ;; - bd export: Export to JSONL
 ;; - bd import: Import from JSONL
+;; - bd renumber: Renumber all issues sequentially
 ;; - bd init: Initialize beads project
+;; - bd rename-prefix: Rename issue prefix for all issues
 ;;
 ;; All menus follow the patterns established in beads-create.el and
 ;; beads-update.el.  They provide context-aware issue detection,
@@ -700,6 +702,190 @@ automatic collision resolution for branch merges."
   ["Actions"
    ("i" "Import" beads-import--execute-command)
    ("R" "Reset fields" beads-import--reset)
+   ("q" "Quit" transient-quit-one)])
+
+;;; ============================================================
+;;; bd renumber
+;;; ============================================================
+
+;;; Transient State Variables
+
+(defvar beads-renumber--dry-run nil
+  "Whether to run in dry-run mode.")
+
+(defvar beads-renumber--force nil
+  "Whether to force renumbering.")
+
+;;; Utility Functions
+
+(defun beads-renumber--reset-state ()
+  "Reset renumber transient state."
+  (setq beads-renumber--dry-run nil
+        beads-renumber--force nil))
+
+(defun beads-renumber--validate-flags ()
+  "Validate that exactly one of --dry-run or --force is set.
+Returns error message string if invalid, nil if valid."
+  (cond
+   ((and beads-renumber--dry-run beads-renumber--force)
+    "Cannot use both --dry-run and --force")
+   ((not (or beads-renumber--dry-run beads-renumber--force))
+    "Must specify either --dry-run or --force")
+   (t nil)))
+
+;;; Infix Commands
+
+(transient-define-infix beads-renumber--infix-dry-run ()
+  "Toggle dry-run flag."
+  :class 'transient-switch
+  :description "Preview changes (--dry-run)"
+  :key "d"
+  :argument "--dry-run"
+  :reader (lambda (_prompt _initial-input _history)
+            (setq beads-renumber--dry-run (not beads-renumber--dry-run)
+                  beads-renumber--force nil)
+            beads-renumber--dry-run))
+
+(transient-define-infix beads-renumber--infix-force ()
+  "Toggle force flag."
+  :class 'transient-switch
+  :description "Actually perform renumbering (--force)"
+  :key "f"
+  :argument "--force"
+  :reader (lambda (_prompt _initial-input _history)
+            (setq beads-renumber--force (not beads-renumber--force)
+                  beads-renumber--dry-run nil)
+            beads-renumber--force))
+
+;;; Suffix Commands
+
+(defun beads-renumber--execute (dry-run force)
+  "Execute bd renumber with DRY-RUN or FORCE flag."
+  (condition-case err
+      (let ((args (list "renumber")))
+        (cond
+         (dry-run (setq args (append args (list "--dry-run"))))
+         (force (setq args (append args (list "--force")))))
+        (let ((output (with-temp-buffer
+                        (let ((exit-code
+                               (apply #'call-process
+                                      beads-executable nil t nil args)))
+                          (unless (zerop exit-code)
+                            (error "Renumber failed: %s" (buffer-string)))
+                          (buffer-string))))
+              (buf (get-buffer-create "*beads-renumber*")))
+          (with-current-buffer buf
+            (let ((inhibit-read-only t))
+              (erase-buffer)
+              (insert output)
+              (goto-char (point-min))
+              (special-mode)
+              (local-set-key (kbd "q") 'quit-window)))
+          (display-buffer buf)
+          (if dry-run
+              (message "Renumber preview (see *beads-renumber* buffer)")
+            (progn
+              (message "Renumber completed - see mapping in buffer")
+              ;; Invalidate completion cache after renumbering
+              (when (fboundp 'beads--invalidate-completion-cache)
+                (beads--invalidate-completion-cache))
+              ;; Refresh all beads buffers
+              (when beads-auto-refresh
+                (dolist (buf (buffer-list))
+                  (with-current-buffer buf
+                    (cond
+                     ((and (fboundp 'beads-list-refresh)
+                           (derived-mode-p 'beads-list-mode))
+                      (beads-list-refresh))
+                     ((and (fboundp 'beads-refresh-show)
+                           (derived-mode-p 'beads-show-mode))
+                      (beads-refresh-show))))))))
+          nil))
+    (error
+     (beads--error "Failed to renumber: %s"
+                   (error-message-string err)))))
+
+(transient-define-suffix beads-renumber--execute-command ()
+  "Execute the bd renumber command."
+  :key "r"
+  :description "Renumber issues"
+  (interactive)
+  (let ((error (beads-renumber--validate-flags)))
+    (when error
+      (user-error "Validation failed: %s" error))
+    (when beads-renumber--force
+      ;; Very strong confirmation for force mode
+      (let ((confirmation
+             (read-string
+              (concat "WARNING: Renumbering will:\n"
+                      "- Change all issue IDs sequentially\n"
+                      "- Update all dependencies and references\n"
+                      "- May break external references\n"
+                      "- Cannot be undone\n\n"
+                      "STRONGLY RECOMMENDED: Backup git repo first!\n\n"
+                      "Type 'renumber' to confirm: "))))
+        (unless (string= confirmation "renumber")
+          (user-error "Renumber cancelled"))))
+    (beads-renumber--execute beads-renumber--dry-run
+                             beads-renumber--force)
+    (beads-renumber--reset-state)))
+
+(transient-define-suffix beads-renumber--preview-command ()
+  "Preview the renumber command without executing."
+  :key "p"
+  :description "Preview command"
+  :transient t
+  (interactive)
+  (let ((error (beads-renumber--validate-flags)))
+    (if error
+        (message "Command invalid: %s" error)
+      (message "Will execute: bd renumber %s"
+               (cond
+                (beads-renumber--dry-run "--dry-run")
+                (beads-renumber--force "--force"))))))
+
+(transient-define-suffix beads-renumber--reset ()
+  "Reset all renumber parameters."
+  :key "R"
+  :description "Reset flags"
+  :transient t
+  (interactive)
+  (when (y-or-n-p "Reset all flags? ")
+    (beads-renumber--reset-state)
+    (message "Flags reset")))
+
+;;; Main Transient Menu
+
+;;;###autoload (autoload 'beads-renumber "beads-misc" nil t)
+(transient-define-prefix beads-renumber ()
+  "Renumber all issues sequentially to eliminate ID gaps.
+
+This transient menu provides an interface for renumbering all issues
+in the database. This is a DESTRUCTIVE operation that:
+- Renumbers all issues starting from 1 (keeping chronological order)
+- Updates all dependency links
+- Updates all text references in all fields
+
+RISKS:
+- May break external references (GitHub issues, docs, commits)
+- Git history may become confusing
+- Operation cannot be undone
+
+It is STRONGLY RECOMMENDED to backup your git repository before
+performing this operation.
+
+Use --dry-run to preview changes before applying them."
+  :value (lambda () nil)
+  (interactive)
+  (beads-check-executable)
+  ["Renumber Options"
+   ["Mode (choose one)"
+    (beads-renumber--infix-dry-run)
+    (beads-renumber--infix-force)]]
+  ["Actions"
+   ("r" "Renumber" beads-renumber--execute-command)
+   ("p" "Preview command" beads-renumber--preview-command)
+   ("R" "Reset flags" beads-renumber--reset)
    ("q" "Quit" transient-quit-one)])
 
 ;;; ============================================================
