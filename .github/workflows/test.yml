@@ -40,8 +40,13 @@ jobs:
       - name: Install Eldev
         run: curl -fsSL https://raw.github.com/doublep/eldev/master/webinstall/github-eldev | sh
 
-      - name: Install Beads
-        run: curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/install.sh | bash
+      - name: Install Nix
+        uses: cachix/install-nix-action@v24
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Beads via Nix flake
+        run: nix profile install github:steveyegge/beads
 
       - name: Run tests
         run: eldev -p -dtT test
