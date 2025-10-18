@@ -80,7 +80,7 @@
 (defun beads-graph--check-dot ()
   "Check if dot executable is available."
   (unless (executable-find beads-graph-dot-executable)
-    (user-error "Graphviz 'dot' command not found. Please install graphviz")))
+    (user-error "Graphviz 'dot' command not found.  Please install graphviz")))
 
 (defun beads-graph--issue-color (issue)
   "Return color for ISSUE based on status."

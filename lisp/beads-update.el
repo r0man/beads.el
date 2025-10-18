@@ -9,7 +9,7 @@
 ;;; Commentary:
 
 ;; Provides a transient menu interface for updating existing issues in
-;; Beads. This module uses the transient library to create an
+;; Beads.  This module uses the transient library to create an
 ;; interactive menu that allows users to modify any field of an
 ;; existing issue.
 ;;
@@ -22,7 +22,7 @@
 ;; - Otherwise prompts for issue ID with completion
 ;;
 ;; The menu automatically fetches the current issue data and
-;; pre-populates fields. Only changed fields are sent to bd update.
+;; pre-populates fields.  Only changed fields are sent to bd update.
 ;;
 ;; Available fields:
 ;; - Status (open, in_progress, blocked, closed)
@@ -624,11 +624,11 @@ After editing, the transient menu is re-displayed."
   "Update an existing issue in Beads.
 
 This function provides an interactive interface for updating all fields
-of an existing issue via a transient menu. The function is context-aware
+of an existing issue via a transient menu.  The function is context-aware
 and automatically detects the issue ID from beads-list or beads-show
 buffers.
 
-If ISSUE-ID is provided, use it directly. Otherwise, detect from
+If ISSUE-ID is provided, use it directly.  Otherwise, detect from
 context or prompt the user."
   (interactive
    (list (or (beads-update--detect-issue-id)

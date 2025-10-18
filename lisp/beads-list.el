@@ -423,7 +423,7 @@ Uses tabulated-list built-in sorting."
     (message "Filter: %s" (or (beads-list--format-filter-string) "cleared"))))
 
 (defun beads-list-filter-by-text ()
-  "Filter issues by text search (searches id, title, description)."
+  "Filter issues by text search (search id, title, description)."
   (interactive)
   (let ((text (read-string "Filter by text (empty to clear): "
                            beads-list--filter-text)))

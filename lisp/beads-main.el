@@ -64,7 +64,7 @@ Returns cached version if available, otherwise queries bd."
                            "unknown")))
             (setq beads-main--cached-version version)
             version)
-        (error "unknown"))))
+        (error "Unknown version"))))
 
 (defun beads-main--get-project-info ()
   "Get current project root and database path.

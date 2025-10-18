@@ -17,7 +17,7 @@
 ;; - bd init: Initialize beads project
 ;;
 ;; All menus follow the patterns established in beads-create.el and
-;; beads-update.el. They provide context-aware issue detection,
+;; beads-update.el.  They provide context-aware issue detection,
 ;; validation, and integration with beads-list and beads-show buffers.
 
 ;;; Code:

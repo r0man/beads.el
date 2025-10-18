@@ -709,7 +709,7 @@ Block types:
      (t nil))))
 
 (defun beads-show--skip-blank-lines-forward ()
-  "Skip forward over blank lines. Return t if moved, nil otherwise."
+  "Skip forward over blank lines.  Return t if moved, nil otherwise."
   (let ((start (point)))
     (while (and (not (eobp))
                 (looking-at "^[[:space:]]*$"))
@@ -717,7 +717,7 @@ Block types:
     (not (eq start (point)))))
 
 (defun beads-show--skip-blank-lines-backward ()
-  "Skip backward over blank lines. Return t if moved, nil otherwise."
+  "Skip backward over blank lines.  Return t if moved, nil otherwise."
   (let ((start (point)))
     (while (and (not (bobp))
                 (save-excursion
@@ -1121,7 +1121,7 @@ CURRENT-VALUE is the initial text, CALLBACK is called with result."
 ;;;###autoload
 (defun beads-show-edit-field ()
   "Edit a field of the current issue.
-Prompts for field to edit, opens editing buffer with C-c C-c to save."
+Prompts for field to edit and opens an editing buffer."
   (interactive)
   (unless (derived-mode-p 'beads-show-mode)
     (user-error "Not in a beads-show buffer"))

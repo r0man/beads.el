@@ -125,7 +125,7 @@ Returns the path to .beads directory or nil if not found."
 Returns nil if auto-discovery should be used."
   (or beads-database-path
       (when-let ((beads-dir (beads--find-beads-dir)))
-        (car (directory-files beads-dir t "\\.db$")))))
+        (car (directory-files beads-dir t "\\.db\\'")))))
 
 ;;; Process Execution
 
