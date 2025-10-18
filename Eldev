@@ -1,0 +1,24 @@
+; -*- mode: emacs-lisp; lexical-binding: t -*-
+
+;; Eldev configuration for beads.el
+
+(eldev-use-package-archive 'gnu)
+(eldev-use-package-archive 'melpa)
+
+(setq eldev-project-main-file "lisp/beads.el")
+
+;; Minimum Emacs version
+(eldev-add-extra-dependencies 'emacs "27.1")
+
+;; Runtime dependencies
+(eldev-add-extra-dependencies 'runtime '(transient))
+
+;; Development dependencies
+(eldev-add-extra-dependencies 'test '(ert))
+(eldev-add-extra-dependencies 'lint '(package-lint))
+
+;; Test files location
+(setf eldev-test-fileset '("./lisp/test/*.el"))
+
+;; Load path includes lisp directory
+(eldev-add-loading-roots 'build "lisp")
