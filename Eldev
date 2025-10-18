@@ -7,9 +7,6 @@
 
 (setq eldev-project-main-file "lisp/beads.el")
 
-;; Minimum Emacs version
-(eldev-add-extra-dependencies 'emacs "27.1")
-
 ;; Runtime dependencies
 (eldev-add-extra-dependencies 'runtime '(transient))
 
