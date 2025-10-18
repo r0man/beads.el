@@ -3,6 +3,29 @@
 This file provides guidance to Claude Code (claude.ai/code) when
 working with code in this repository.
 
+## Quick Start: "What's Next?"
+
+VC uses **Beads for issue tracking**. When starting a session or asked "what's next":
+
+```bash
+bd ready                                   # Show ready work (no blockers)
+bd show beads.el-X                         # View issue details
+bd update beads.el-X --status in_progress  # Claim the work
+```
+
+## Common Commands
+
+```bash
+# Finding work
+bd ready                    # Ready issues
+bd list --status open       # All open issues
+bd show beads.el-X          # Issue details with dependencies
+
+## Working on issues
+bd update beads.el-X --status in_progress
+bd update beads.el-X --notes "Progress update"
+bd close beads.el-X --reason "Completed"
+
 ## Project Overview
 
 beads.el is a Magit-like Emacs interface for the Beads issue tracker,
