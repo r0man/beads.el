@@ -40,6 +40,9 @@ jobs:
       - name: Install Eldev
         run: curl -fsSL https://raw.github.com/doublep/eldev/master/webinstall/github-eldev | sh
 
+      - name: Install Beads
+        run: curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/install.sh | bash
+
       - name: Run tests
         run: eldev -p -dtT test
 
