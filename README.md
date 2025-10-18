@@ -1,6 +1,6 @@
 # beads.el - Magit-like Interface for Beads Issue Tracker
 
-A comprehensive Emacs interface for [Beads](https://github.com/your-org/beads),
+A comprehensive Emacs interface for [Beads](https://github.com/steveyegge/beads),
 providing a keyboard-driven, transient-based UI for managing issues without
 leaving your editor.
 
@@ -497,7 +497,7 @@ Same license as the Beads project.
 
 ## Related Projects
 
-- **Beads** - The CLI issue tracker: https://github.com/your-org/beads
+- **Beads** - The CLI issue tracker: https://github.com/steveyegge/beads
 - **Magit** - Git porcelain that inspired this interface
 - **Org-mode** - Alternative approach to issue tracking in Emacs
 

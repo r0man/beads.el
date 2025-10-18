@@ -3,7 +3,7 @@
 ;; Copyright (C) 2025 Beads Authors
 
 ;; Author: Beads Authors
-;; URL: https://github.com/your-org/beads
+;; URL: https://github.com/r0man/beads.el
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "27.1") (transient "0.3.0"))
 ;; Keywords: tools, project, issue-tracker, beads
