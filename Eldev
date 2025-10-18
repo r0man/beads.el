@@ -7,6 +7,9 @@
 
 (setq eldev-project-main-file "lisp/beads.el")
 
+;; Minimum Emacs version
+(eldev-add-extra-dependencies 'emacs "27.1")
+
 ;; Runtime dependencies
 (eldev-add-extra-dependencies 'runtime '(transient))
 
@@ -15,8 +18,7 @@
 (eldev-add-extra-dependencies 'lint '(package-lint))
 
 ;; Test files location
-(setf eldev-test-fileset '("lisp/test/*.el"))
+(setf eldev-test-fileset '("./lisp/test/*.el"))
 
 ;; Load path includes lisp directory
 (eldev-add-loading-roots 'build "lisp")
-(eldev-add-loading-roots 'test "lisp")
