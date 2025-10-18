@@ -5,13 +5,15 @@ working with code in this repository.
 
 ## Quick Start: "What's Next?"
 
-VC uses **Beads for issue tracking**. When starting a session or asked "what's next":
+This project uses **Beads for issue tracking**. When starting a session or asked "what's next":
 
 ```bash
 bd ready                                   # Show ready work (no blockers)
 bd show beads.el-X                         # View issue details
 bd update beads.el-X --status in_progress  # Claim the work
 ```
+
+If you need more information about how beads works, run "bd quickstart".
 
 ## Common Commands
 
