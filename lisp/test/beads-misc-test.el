@@ -258,102 +258,6 @@
   (should (fboundp 'beads-dep--reset)))
 
 ;;; ============================================================
-;;; bd stats tests
-;;; ============================================================
-
-(ert-deftest beads-misc-test-stats-execute-success ()
-  "Test successful stats execution."
-  (let ((stats-output "Total: 10\nOpen: 5\nClosed: 5\n"))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-misc-test--mock-call-process 0 stats-output))
-              ((symbol-function 'display-buffer) (lambda (_buf) nil)))
-      (should-not (beads-stats--execute))
-      (should (get-buffer "*beads-stats*")))))
-
-(ert-deftest beads-misc-test-stats-execute-failure ()
-  "Test stats execution failure."
-  (cl-letf (((symbol-function 'call-process)
-             (beads-misc-test--mock-call-process 1 "Error")))
-    (should-error (beads-stats--execute))))
-
-(ert-deftest beads-misc-test-stats-execute-buffer-content ()
-  "Test stats buffer contains output."
-  (let ((stats-output "Total: 42\nOpen: 20\n"))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-misc-test--mock-call-process 0 stats-output))
-              ((symbol-function 'display-buffer) (lambda (_buf) nil)))
-      (beads-stats--execute)
-      (with-current-buffer "*beads-stats*"
-        (should (string-match-p "Total: 42" (buffer-string)))
-        (should (string-match-p "Open: 20" (buffer-string)))))))
-
-(ert-deftest beads-misc-test-stats-function-defined ()
-  "Test that beads-stats function is defined."
-  (should (fboundp 'beads-stats)))
-
-(ert-deftest beads-misc-test-stats-function-autoload ()
-  "Test that beads-stats has autoload cookie."
-  (should (fboundp 'beads-stats)))
-
-(ert-deftest beads-misc-test-stats-buffer-mode ()
-  "Test that stats buffer uses special-mode."
-  (let ((stats-output "Test"))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-misc-test--mock-call-process 0 stats-output))
-              ((symbol-function 'display-buffer) (lambda (_buf) nil)))
-      (beads-stats--execute)
-      (with-current-buffer "*beads-stats*"
-        (should (eq major-mode 'special-mode))))))
-
-(ert-deftest beads-misc-test-stats-buffer-keybindings ()
-  "Test that stats buffer has proper keybindings."
-  (let ((stats-output "Test"))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-misc-test--mock-call-process 0 stats-output))
-              ((symbol-function 'display-buffer) (lambda (_buf) nil)))
-      (beads-stats--execute)
-      (with-current-buffer "*beads-stats*"
-        (should (local-key-binding (kbd "q")))
-        (should (local-key-binding (kbd "g")))))))
-
-(ert-deftest beads-misc-test-stats-refresh ()
-  "Test stats buffer refresh functionality."
-  (let ((stats-output "Initial")
-        (call-count 0))
-    (cl-letf (((symbol-function 'call-process)
-               (lambda (&rest _args)
-                 (setq call-count (1+ call-count))
-                 (with-current-buffer (current-buffer)
-                   (insert stats-output))
-                 0))
-              ((symbol-function 'display-buffer) (lambda (_buf) nil)))
-      (beads-stats--execute)
-      (should (= call-count 1))
-      (with-current-buffer "*beads-stats*"
-        (setq stats-output "Refreshed")
-        (funcall (local-key-binding (kbd "g"))))
-      (should (= call-count 2)))))
-
-(ert-deftest beads-misc-test-stats-empty-output ()
-  "Test stats with empty output."
-  (let ((stats-output ""))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-misc-test--mock-call-process 0 stats-output))
-              ((symbol-function 'display-buffer) (lambda (_buf) nil)))
-      (should-not (beads-stats--execute))
-      (should (get-buffer "*beads-stats*")))))
-
-(ert-deftest beads-misc-test-stats-large-output ()
-  "Test stats with large output."
-  (let ((stats-output (make-string 10000 ?x)))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-misc-test--mock-call-process 0 stats-output))
-              ((symbol-function 'display-buffer) (lambda (_buf) nil)))
-      (should-not (beads-stats--execute))
-      (with-current-buffer "*beads-stats*"
-        (should (= (buffer-size) 10000))))))
-
-;;; ============================================================
 ;;; bd export tests
 ;;; ============================================================
 
@@ -696,23 +600,6 @@
       (should (get-buffer "*beads-import*"))
       (with-current-buffer "*beads-import*"
         (should (string-match-p "Preview" (buffer-string)))))))
-
-(ert-deftest beads-misc-test-stats-multiple-refreshes ()
-  "Test multiple stats refreshes work correctly."
-  (let ((call-count 0)
-        (outputs '("First" "Second" "Third")))
-    (cl-letf (((symbol-function 'call-process)
-               (lambda (&rest _args)
-                 (with-current-buffer (current-buffer)
-                   (insert (nth call-count outputs)))
-                 (setq call-count (1+ call-count))
-                 0))
-              ((symbol-function 'display-buffer) (lambda (_buf) nil)))
-      (beads-stats--execute)
-      (with-current-buffer "*beads-stats*"
-        (funcall (local-key-binding (kbd "g")))
-        (funcall (local-key-binding (kbd "g"))))
-      (should (= call-count 3)))))
 
 (provide 'beads-misc-test)
 ;;; beads-misc-test.el ends here

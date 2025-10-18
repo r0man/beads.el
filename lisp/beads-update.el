@@ -516,31 +516,35 @@ After editing, the transient menu is re-displayed."
     (if errors
         (user-error "Validation failed: %s" (string-join errors "; "))
       (condition-case err
-          (let* ((args (beads-update--build-command-args))
-                 (result (apply #'beads--run-command "update" args))
-                 (issue (beads--parse-issue result)))
-            (message "Updated issue: %s (changed %d field%s)"
-                     beads-update--issue-id
-                     (length changes)
-                     (if (= (length changes) 1) "" "s"))
-            ;; Invalidate completion cache
-            (beads--invalidate-completion-cache)
-            ;; Refresh any open beads buffers
-            (when beads-auto-refresh
-              (dolist (buf (buffer-list))
-                (with-current-buffer buf
-                  (cond
-                   ((derived-mode-p 'beads-list-mode)
-                    (beads-list-refresh))
-                   ((and (derived-mode-p 'beads-show-mode)
-                         (string= beads-show--issue-id
-                                 beads-update--issue-id))
-                    (beads-refresh-show))))))
-            ;; Reset state
-            (beads-update--reset-state))
+          (progn
+            (let* ((args (beads-update--build-command-args))
+                   (result (apply #'beads--run-command "update" args))
+                   (issue (beads--parse-issue result)))
+              (message "Updated issue: %s (changed %d field%s)"
+                       beads-update--issue-id
+                       (length changes)
+                       (if (= (length changes) 1) "" "s"))
+              ;; Invalidate completion cache
+              (beads--invalidate-completion-cache)
+              ;; Refresh any open beads buffers
+              (when beads-auto-refresh
+                (dolist (buf (buffer-list))
+                  (with-current-buffer buf
+                    (cond
+                     ((derived-mode-p 'beads-list-mode)
+                      (beads-list-refresh))
+                     ((and (derived-mode-p 'beads-show-mode)
+                           (string= beads-show--issue-id
+                                   beads-update--issue-id))
+                      (beads-refresh-show))))))
+              ;; Reset state
+              (beads-update--reset-state))
+            nil)
         (error
-         (message "Failed to update issue: %s"
-                  (error-message-string err)))))))
+         (let ((err-msg (format "Failed to update issue: %s"
+                               (error-message-string err))))
+           (message "%s" err-msg)
+           err-msg))))))
 
 (transient-define-suffix beads-update--reset ()
   "Reset all changed parameters to their original values."
@@ -569,21 +573,27 @@ After editing, the transient menu is re-displayed."
   (interactive)
   (let ((errors (beads-update--validate-all)))
     (if errors
-        (message "Validation errors: %s" (string-join errors "; "))
+        (let ((err-msg (format "Validation errors: %s" (string-join errors "; "))))
+          (message "%s" err-msg)
+          err-msg)
       (condition-case err
           (let* ((args (beads-update--build-command-args))
                  (cmd (apply #'beads--build-command "update" args))
                  (cmd-string (mapconcat #'shell-quote-argument cmd " "))
-                 (changes (beads-update--get-changed-fields)))
-            (message "Command: %s\nChanges: %s"
-                     cmd-string
-                     (mapconcat (lambda (c)
-                                 (format "%s=%s"
-                                         (car c)
-                                         (cdr c)))
-                               changes ", ")))
+                 (changes (beads-update--get-changed-fields))
+                 (preview-msg (format "Command: %s\nChanges: %s"
+                                     cmd-string
+                                     (mapconcat (lambda (c)
+                                                 (format "%s=%s"
+                                                         (car c)
+                                                         (cdr c)))
+                                               changes ", "))))
+            (message "%s" preview-msg)
+            preview-msg)
         (error
-         (message "Error: %s" (error-message-string err)))))))
+         (let ((err-msg (format "Error: %s" (error-message-string err))))
+           (message "%s" err-msg)
+           err-msg))))))
 
 ;;; Main Transient Menu
 

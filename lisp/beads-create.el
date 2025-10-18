@@ -298,21 +298,25 @@ After editing, the transient menu is re-displayed."
     (if errors
         (user-error "Validation failed: %s" (string-join errors "; "))
       (condition-case err
-          (let* ((args (beads-create--build-command-args))
-                 (result (apply #'beads--run-command "create" args))
-                 (issue (beads--parse-issue result))
-                 (issue-id (alist-get 'id issue)))
-            (beads-create--reset-state)
-            (message "Created issue: %s - %s"
-                     issue-id
-                     (alist-get 'title issue))
-            ;; Optionally show the created issue
-            (when (y-or-n-p (format "Show issue %s? " issue-id))
-              ;; This would call beads-show if it existed
-              (message "Issue details: %s" issue)))
+          (progn
+            (let* ((args (beads-create--build-command-args))
+                   (result (apply #'beads--run-command "create" args))
+                   (issue (beads--parse-issue result))
+                   (issue-id (alist-get 'id issue)))
+              (beads-create--reset-state)
+              (message "Created issue: %s - %s"
+                       issue-id
+                       (alist-get 'title issue))
+              ;; Optionally show the created issue
+              (when (y-or-n-p (format "Show issue %s? " issue-id))
+                ;; This would call beads-show if it existed
+                (message "Issue details: %s" issue)))
+            nil)
         (error
-         (message "Failed to create issue: %s"
-                  (error-message-string err)))))))
+         (let ((err-msg (format "Failed to create issue: %s"
+                               (error-message-string err))))
+           (message "%s" err-msg)
+           err-msg))))))
 
 (transient-define-suffix beads-create--reset ()
   "Reset all parameters to their default values."
@@ -332,11 +336,15 @@ After editing, the transient menu is re-displayed."
   (interactive)
   (let ((errors (beads-create--validate-all)))
     (if errors
-        (message "Validation errors: %s" (string-join errors "; "))
+        (let ((err-msg (format "Validation errors: %s" (string-join errors "; "))))
+          (message "%s" err-msg)
+          err-msg)
       (let* ((args (beads-create--build-command-args))
              (cmd (apply #'beads--build-command "create" args))
-             (cmd-string (mapconcat #'shell-quote-argument cmd " ")))
-        (message "Command: %s" cmd-string)))))
+             (cmd-string (mapconcat #'shell-quote-argument cmd " "))
+             (preview-msg (format "Command: %s" cmd-string)))
+        (message "%s" preview-msg)
+        preview-msg))))
 
 ;;; Main Transient Menu
 

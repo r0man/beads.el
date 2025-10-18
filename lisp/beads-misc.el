@@ -395,46 +395,6 @@ listing dependencies."
   (beads-quickstart--execute))
 
 ;;; ============================================================
-;;; bd stats
-;;; ============================================================
-
-(defun beads-stats--execute ()
-  "Execute bd stats and display in buffer."
-  (condition-case err
-      (let* ((output (with-temp-buffer
-                       (let ((exit-code
-                              (call-process beads-executable nil t nil
-                                            "stats")))
-                         (unless (zerop exit-code)
-                           (error "Command failed: %s" (buffer-string)))
-                         (buffer-string))))
-             (buf (get-buffer-create "*beads-stats*")))
-        (with-current-buffer buf
-          (let ((inhibit-read-only t))
-            (erase-buffer)
-            (insert output)
-            (goto-char (point-min))
-            (special-mode)
-            (local-set-key (kbd "q") 'quit-window)
-            (local-set-key (kbd "g")
-                           (lambda ()
-                             (interactive)
-                             (beads-stats--execute)))))
-        (display-buffer buf)
-        (message "Project statistics")
-        nil)
-    (error
-     (beads--error "Failed to get statistics: %s"
-                   (error-message-string err)))))
-
-;;;###autoload
-(defun beads-stats ()
-  "Show project statistics."
-  (interactive)
-  (beads-check-executable)
-  (beads-stats--execute))
-
-;;; ============================================================
 ;;; bd export
 ;;; ============================================================
 
