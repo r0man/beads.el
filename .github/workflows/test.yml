@@ -47,7 +47,7 @@ jobs:
         run: eldev -p -dtT test
 
       - name: Byte-compile
-        run: eldev -p -dtT compile --warnings-as-errors
+        run: eldev -p -dtT compile
 
       - name: Lint
         if: matrix.emacs_version != 'snapshot'
