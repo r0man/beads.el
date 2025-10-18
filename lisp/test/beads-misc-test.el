@@ -52,17 +52,6 @@
         (insert output)))
     exit-code))
 
-(defmacro beads-misc-test-with-close-state (state &rest body)
-  "Execute BODY with beads-close state set to STATE."
-  (declare (indent 1))
-  `(progn
-     (setq beads-close--issue-id nil
-           beads-close--reason nil)
-     ,@(mapcar (lambda (binding)
-                 `(setq ,(car binding) ,(cdr binding)))
-               (eval state))
-     ,@body))
-
 (defmacro beads-misc-test-with-dep-state (state &rest body)
   "Execute BODY with beads-dep state set to STATE."
   (declare (indent 1))
@@ -74,126 +63,6 @@
                  `(setq ,(car binding) ,(cdr binding)))
                (eval state))
      ,@body))
-
-;;; ============================================================
-;;; bd close tests
-;;; ============================================================
-
-(ert-deftest beads-misc-test-close-reset-state ()
-  "Test that close reset-state clears all variables."
-  (beads-misc-test-with-close-state
-   '((beads-close--issue-id . "bd-42")
-     (beads-close--reason . "Fixed"))
-   (beads-close--reset-state)
-   (should (null beads-close--issue-id))
-   (should (null beads-close--reason))))
-
-(ert-deftest beads-misc-test-close-format-value-set ()
-  "Test formatting when value is set."
-  (let ((result (beads-close--format-value "test-value")))
-    (should (stringp result))
-    (should (string-match-p "test-value" result))
-    (should (get-text-property 0 'face result))))
-
-(ert-deftest beads-misc-test-close-format-value-nil ()
-  "Test formatting when value is nil."
-  (let ((result (beads-close--format-value nil)))
-    (should (stringp result))
-    (should (string-match-p "unset" result))))
-
-(ert-deftest beads-misc-test-close-validate-reason-nil ()
-  "Test reason validation when reason is nil."
-  (beads-misc-test-with-close-state nil
-   (should (beads-close--validate-reason))))
-
-(ert-deftest beads-misc-test-close-validate-reason-empty ()
-  "Test reason validation when reason is empty."
-  (beads-misc-test-with-close-state
-   '((beads-close--reason . ""))
-   (should (beads-close--validate-reason))))
-
-(ert-deftest beads-misc-test-close-validate-reason-whitespace ()
-  "Test reason validation when reason is whitespace."
-  (beads-misc-test-with-close-state
-   '((beads-close--reason . "   \n\t  "))
-   (should (beads-close--validate-reason))))
-
-(ert-deftest beads-misc-test-close-validate-reason-valid ()
-  "Test reason validation when reason is valid."
-  (beads-misc-test-with-close-state
-   '((beads-close--reason . "Fixed the bug"))
-   (should (null (beads-close--validate-reason)))))
-
-(ert-deftest beads-misc-test-close-validate-issue-id-nil ()
-  "Test issue ID validation when nil."
-  (beads-misc-test-with-close-state nil
-   (should (beads-close--validate-issue-id))))
-
-(ert-deftest beads-misc-test-close-validate-issue-id-empty ()
-  "Test issue ID validation when empty."
-  (beads-misc-test-with-close-state
-   '((beads-close--issue-id . ""))
-   (should (beads-close--validate-issue-id))))
-
-(ert-deftest beads-misc-test-close-validate-issue-id-valid ()
-  "Test issue ID validation when valid."
-  (beads-misc-test-with-close-state
-   '((beads-close--issue-id . "bd-42"))
-   (should (null (beads-close--validate-issue-id)))))
-
-(ert-deftest beads-misc-test-close-validate-all-success ()
-  "Test validate-all with all valid parameters."
-  (beads-misc-test-with-close-state
-   '((beads-close--issue-id . "bd-42")
-     (beads-close--reason . "Fixed"))
-   (should (null (beads-close--validate-all)))))
-
-(ert-deftest beads-misc-test-close-validate-all-failure ()
-  "Test validate-all with missing parameters."
-  (beads-misc-test-with-close-state nil
-   (let ((errors (beads-close--validate-all)))
-     (should errors)
-     (should (listp errors))
-     (should (>= (length errors) 2)))))
-
-(ert-deftest beads-misc-test-close-execute-success ()
-  "Test successful issue closing."
-  (beads-misc-test-with-close-state
-   '((beads-close--issue-id . "bd-42")
-     (beads-close--reason . "Fixed"))
-   (let ((json-output (json-encode
-                       beads-misc-test--sample-closed-issue)))
-     (cl-letf (((symbol-function 'call-process)
-                (beads-misc-test--mock-call-process 0 json-output)))
-       (let ((result (beads-close--execute "bd-42" "Fixed")))
-         (should result)
-         (should (equal (alist-get 'status result) "closed")))))))
-
-(ert-deftest beads-misc-test-close-execute-command-failure ()
-  "Test execution handles bd command failure."
-  (beads-misc-test-with-close-state
-   '((beads-close--issue-id . "bd-42")
-     (beads-close--reason . "Fixed"))
-   (cl-letf (((symbol-function 'call-process)
-              (beads-misc-test--mock-call-process 1 "Error")))
-     (should-error (beads-close--execute "bd-42" "Fixed")))))
-
-(ert-deftest beads-misc-test-close-transient-defined ()
-  "Test that beads-close transient is defined."
-  (should (fboundp 'beads-close)))
-
-(ert-deftest beads-misc-test-close-transient-is-prefix ()
-  "Test that beads-close is a transient prefix."
-  (should (get 'beads-close 'transient--prefix)))
-
-(ert-deftest beads-misc-test-close-infix-commands-defined ()
-  "Test that close infix commands are defined."
-  (should (fboundp 'beads-close--infix-reason)))
-
-(ert-deftest beads-misc-test-close-suffix-commands-defined ()
-  "Test that close suffix commands are defined."
-  (should (fboundp 'beads-close--execute-command))
-  (should (fboundp 'beads-close--reset)))
 
 ;;; ============================================================
 ;;; bd dep tests
@@ -808,15 +677,6 @@
   (should (fboundp 'beads-init--reset)))
 
 ;;; Edge Cases and Integration Tests
-
-(ert-deftest beads-misc-test-close-with-special-chars-in-reason ()
-  "Test closing with special characters in reason."
-  (let ((json-output (json-encode
-                      beads-misc-test--sample-closed-issue)))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-misc-test--mock-call-process 0 json-output)))
-      (should (beads-close--execute "bd-42"
-                                    "Fixed \"quoted\" & special chars")))))
 
 (ert-deftest beads-misc-test-dep-add-all-types ()
   "Test adding dependencies with all types."

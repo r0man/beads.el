@@ -191,10 +191,13 @@ After editing, the transient menu is re-displayed."
                     (beads-list-refresh))
                    ((and (derived-mode-p 'beads-show-mode)
                          (string= beads-show--issue-id issue-id))
-                    (beads-refresh-show)))))))
+                    (beads-refresh-show)))))
+            nil)
         (error
-         (message "Failed to close issue: %s"
-                  (error-message-string err)))))))
+         (let ((err-msg (format "Failed to close issue: %s"
+                               (error-message-string err))))
+           (message "%s" err-msg)
+           err-msg)))))))
 
 (transient-define-suffix beads-close--reset ()
   "Reset all parameters to their default values."
@@ -214,11 +217,15 @@ After editing, the transient menu is re-displayed."
   (interactive)
   (let ((errors (beads-close--validate-all)))
     (if errors
-        (message "Validation errors: %s" (string-join errors "; "))
+        (let ((err-msg (format "Validation errors: %s" (string-join errors "; "))))
+          (message "%s" err-msg)
+          err-msg)
       (let* ((args (beads-close--build-command-args))
              (cmd (apply #'beads--build-command "close" args))
-             (cmd-string (mapconcat #'shell-quote-argument cmd " ")))
-        (message "Command: %s" cmd-string)))))
+             (cmd-string (mapconcat #'shell-quote-argument cmd " "))
+             (preview-msg (format "Command: %s" cmd-string)))
+        (message "%s" preview-msg)
+        preview-msg))))
 
 ;;; Main Transient Menu
 
