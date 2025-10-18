@@ -171,28 +171,27 @@ After editing, the transient menu is re-displayed."
     (if errors
         (user-error "Validation failed: %s" (string-join errors "; "))
       (condition-case err
-          (progn
-            (let* ((args (beads-close--build-command-args))
-                   (result (apply #'beads--run-command "close" args))
-                   (issue (beads--parse-issue result))
-                   (issue-id (alist-get 'id issue)))
-              (beads-close--reset-state)
-              (message "Closed issue: %s - %s"
-                       issue-id
-                       (alist-get 'title issue))
-              ;; Invalidate completion cache
-              (beads--invalidate-completion-cache)
-              ;; Refresh any open beads buffers
-              (when beads-auto-refresh
-                (dolist (buf (buffer-list))
-                  (with-current-buffer buf
-                    (cond
-                     ((derived-mode-p 'beads-list-mode)
-                      (beads-list-refresh))
-                     ((and (derived-mode-p 'beads-show-mode)
-                           (string= beads-show--issue-id issue-id))
-                      (beads-refresh-show))))))
-              nil))
+          (let* ((args (beads-close--build-command-args))
+                 (result (apply #'beads--run-command "close" args))
+                 (issue (beads--parse-issue result))
+                 (issue-id (alist-get 'id issue)))
+            (beads-close--reset-state)
+            (message "Closed issue: %s - %s"
+                     issue-id
+                     (alist-get 'title issue))
+            ;; Invalidate completion cache
+            (beads--invalidate-completion-cache)
+            ;; Refresh any open beads buffers
+            (when beads-auto-refresh
+              (dolist (buf (buffer-list))
+                (with-current-buffer buf
+                  (cond
+                   ((derived-mode-p 'beads-list-mode)
+                    (beads-list-refresh))
+                   ((and (derived-mode-p 'beads-show-mode)
+                         (string= beads-show--issue-id issue-id))
+                    (beads-refresh-show)))))
+            nil)
         (error
          (let ((err-msg (format "Failed to close issue: %s"
                                (error-message-string err))))
