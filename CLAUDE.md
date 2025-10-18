@@ -72,11 +72,22 @@ make clean
 
 ### Development Workflow
 
-When making changes:
-1. Edit source files in lisp/*.el
-2. Run relevant test suite (make test-<module>)
-3. Run full test suite before committing (make test)
-4. Check for byte-compile warnings (make compile)
+When working on an issue:
+1. Create a branch for the issue: `git checkout -b beads.el-X-short-description`
+2. Update issue status: `bd update beads.el-X --status in_progress`
+3. Edit source files in lisp/*.el
+4. Run relevant test suite: `make test-<module>`
+5. Run full test suite: `make test`
+6. Check for byte-compile warnings: `make compile`
+7. Commit changes with descriptive message
+8. Push branch to GitHub: `git push -u origin beads.el-X-short-description`
+9. Verify tests pass on GitHub Actions CI
+10. Create pull request or merge to main after CI passes
+11. Close issue: `bd close beads.el-X --reason "Completed"`
+
+Branch naming convention: `beads.el-X-short-description` where X is the
+issue number and short-description briefly describes the work (e.g.,
+`beads.el-27-implement-label-commands`).
 
 All tests use mocking and do NOT require a real bd database or .beads
 directory.
