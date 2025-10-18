@@ -1,0 +1,1 @@
+((version . 2) (dependencies (:package relint :version "2.0" :archive gnu-elpa)))

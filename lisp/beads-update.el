@@ -4,7 +4,6 @@
 
 ;; Author: Beads Contributors
 ;; Keywords: tools, project, issues
-;; Package-Requires: ((emacs "27.1") (transient "0.3.0"))
 
 ;;; Commentary:
 
