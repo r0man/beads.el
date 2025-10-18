@@ -354,6 +354,9 @@ Returns t if found, signals error otherwise."
 (autoload 'beads-delete "beads-delete" "Delete a Beads issue permanently." t)
 
 ;;;###autoload
+(autoload 'beads-reopen "beads-reopen" "Reopen a closed Beads issue with optional reason." t)
+
+;;;###autoload
 (autoload 'beads-stats "beads-stats" "Display Beads issue statistics." t)
 
 ;;;###autoload
@@ -379,6 +382,30 @@ Returns t if found, signals error otherwise."
 
 ;;;###autoload
 (autoload 'beads-graph-issue "beads-graph" "Show dependency graph focused on issue." t)
+
+;;;###autoload
+(autoload 'beads-sync "beads-sync" "Synchronize issues with git remote." t)
+
+;;;###autoload
+(autoload 'beads-compact "beads-compact" "Compact old closed issues using semantic summarization." t)
+
+;;;###autoload
+(autoload 'beads-restore "beads-restore" "Restore full history of compacted issue from git." t)
+
+;;;###autoload
+(autoload 'beads-daemon "beads-daemon" "Manage the Beads sync daemon." t)
+
+;;;###autoload
+(autoload 'beads-daemon-start "beads-daemon" "Start the Beads daemon." t)
+
+;;;###autoload
+(autoload 'beads-daemon-stop "beads-daemon" "Stop the Beads daemon." t)
+
+;;;###autoload
+(autoload 'beads-daemon-status "beads-daemon" "Show Beads daemon status." t)
+
+;;;###autoload
+(autoload 'beads-label "beads-label" "Manage issue labels in Beads." t)
 
 ;;; Footer
 
