@@ -40,8 +40,10 @@ jobs:
       - name: Install Eldev
         run: curl -fsSL https://raw.github.com/doublep/eldev/master/webinstall/github-eldev | sh
 
-      - name: Install Beads via Nix flake
-        run: nix profile install github:steveyegge/beads
+      - name: Install Beads via Homebrew
+        run: |
+          brew tap steveyegge/beads
+          brew install bd
 
       - name: Verify Beads installation
         run: bd version
