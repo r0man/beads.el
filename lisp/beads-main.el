@@ -40,7 +40,9 @@
 (require 'beads-dep)
 (require 'beads-misc)
 (require 'beads-sync)
+(require 'beads-compact)
 (require 'beads-daemon)
+(require 'beads-rename-prefix)
 (require 'transient)
 
 ;;; Variables
@@ -165,8 +167,10 @@ Key bindings:
    ("i" "Init project" beads-init)
    ("e" "Export to JSONL" beads-export)
    ("I" "Import from JSONL" beads-import)
+   ("C" "Compact old issues" beads-compact)
    ("S" "Sync with remote" beads-sync)
-   ("D" "Daemon management" beads-daemon)]
+   ("D" "Daemon management" beads-daemon)
+   ("P" "Rename prefix" beads-rename-prefix)]
   ["Other"
    :description "Other commands"
    ("?" "Quickstart guide" beads-quickstart)
