@@ -34,10 +34,13 @@
 (require 'beads-create)
 (require 'beads-update)
 (require 'beads-close)
+(require 'beads-reopen)
 (require 'beads-delete)
 (require 'beads-stats)
 (require 'beads-dep)
 (require 'beads-misc)
+(require 'beads-sync)
+(require 'beads-daemon)
 (require 'transient)
 
 ;;; Variables
@@ -132,7 +135,7 @@ into logical groups for easy navigation.
 
 Key bindings:
   View issues:        l (list), r (ready), b (blocked), s (show)
-  Create/Edit:        c (create), u (update), x (close), D (delete)
+  Create/Edit:        c (create), u (update), x (close), o (reopen), D (delete)
   Dependencies:       d (dep submenu)
   Admin:              i (init), e (export), I (import)
   Other:              g (refresh), q (quit)"
@@ -151,6 +154,7 @@ Key bindings:
    ("c" "Create issue" beads-create)
    ("u" "Update issue" beads-update)
    ("x" "Close issue" beads-close)
+   ("o" "Reopen issue" beads-reopen)
    ("D" "Delete issue" beads-delete)]
   ["Dependencies"
    :description "Manage dependencies"
@@ -160,10 +164,13 @@ Key bindings:
    :description "Project administration"
    ("i" "Init project" beads-init)
    ("e" "Export to JSONL" beads-export)
-   ("I" "Import from JSONL" beads-import)]
+   ("I" "Import from JSONL" beads-import)
+   ("S" "Sync with remote" beads-sync)
+   ("D" "Daemon management" beads-daemon)]
   ["Other"
    :description "Other commands"
    ("?" "Quickstart guide" beads-quickstart)
+   ("R" "Restore compacted issue" beads-restore)
    ("g" "Refresh menu" beads-refresh-menu)
    ("q" "Quit" transient-quit-one)])
 
