@@ -48,6 +48,9 @@ jobs:
       - name: Install Beads via Nix flake
         run: nix profile install github:steveyegge/beads
 
+      - name: Verify Beads installation
+        run: bd version
+
       - name: Run tests
         run: eldev -p -dtT test
 
