@@ -1,1 +1,0 @@
-((version . 2) (dependencies (:package relint :version "2.0" :archive gnu-elpa) (:package package-lint :version "0.14" :archives (melpa gnu-elpa)) (:package transient)))
