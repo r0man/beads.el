@@ -401,5 +401,87 @@ STATE is an alist expression of (variable . value) pairs."
        ;; Should validate 1000 times in under 0.5 seconds
        (should (< elapsed 0.5))))))
 
+;;; ============================================================
+;;; Integration Tests
+;;; ============================================================
+
+(ert-deftest beads-close-test-integration-transient-menu-defined ()
+  "Integration test: Verify beads-close transient menu is defined."
+  :tags '(integration)
+  (should (fboundp 'beads-close)))
+
+(ert-deftest beads-close-test-integration-execute-function-defined ()
+  "Integration test: Verify execute function is defined."
+  :tags '(integration)
+  (should (fboundp 'beads-close--execute)))
+
+(ert-deftest beads-close-test-integration-validation-can-run ()
+  "Integration test: Verify validation can run."
+  :tags '(integration)
+  (beads-close-test-with-state
+   '((beads-close--issue-id . "bd-42")
+     (beads-close--reason . "Test reason"))
+   ;; Validation should complete without error
+   (let ((validation-result (beads-close--validate-all)))
+     ;; Result is either nil or a list
+     (should (or (null validation-result) (listp validation-result))))))
+
+(ert-deftest beads-close-test-integration-context-from-list-mode ()
+  "Integration test: Test context detection from list mode."
+  :tags '(integration)
+  (require 'beads-list)
+  (with-temp-buffer
+    (beads-list-mode)
+    (cl-letf (((symbol-function 'beads-list--current-issue-id)
+               (lambda () "bd-42")))
+      (should (equal (beads-close--detect-issue-id) "bd-42")))))
+
+(ert-deftest beads-close-test-integration-context-from-show-mode ()
+  "Integration test: Test context detection from show mode."
+  :tags '(integration)
+  (require 'beads-show)
+  (with-temp-buffer
+    (beads-show-mode)
+    (setq-local beads-show--issue-id "bd-99")
+    (should (equal (beads-close--detect-issue-id) "bd-99"))))
+
+(ert-deftest beads-close-test-integration-list-close-command ()
+  "Integration test: Verify beads-list-close command exists."
+  :tags '(integration)
+  (require 'beads-list)
+  (should (fboundp 'beads-list-close)))
+
+(ert-deftest beads-close-test-integration-list-keybinding-d ()
+  "Integration test: Verify d keybinding in list mode."
+  :tags '(integration)
+  (require 'beads-list)
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((binding (lookup-key beads-list-mode-map (kbd "d"))))
+      (should (eq binding 'beads-list-close)))))
+
+(ert-deftest beads-close-test-integration-list-keybinding-k ()
+  "Integration test: Verify k keybinding in list mode."
+  :tags '(integration)
+  (require 'beads-list)
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((binding (lookup-key beads-list-mode-map (kbd "k"))))
+      (should (eq binding 'beads-list-close)))))
+
+(ert-deftest beads-close-test-integration-command-building-workflow ()
+  "Integration test: Test complete command building workflow."
+  :tags '(integration)
+  (beads-close-test-with-state
+   '((beads-close--issue-id . "bd-42")
+     (beads-close--reason . "Completed successfully"))
+   ;; Should not error during validation
+   (should-not (beads-close--validate-all))
+   ;; Should build valid command args
+   (let ((args (beads-close--build-command-args)))
+     (should (equal (car args) "bd-42"))
+     (should (member "--reason" args))
+     (should (member "Completed successfully" args)))))
+
 (provide 'beads-transient-close-test)
 ;;; beads-transient-close-test.el ends here

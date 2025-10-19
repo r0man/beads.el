@@ -526,5 +526,34 @@
         ;; Should render 100 issues in under 1 second
         (should (< elapsed 1.0))))))
 
+;;; ============================================================
+;;; Integration Tests
+;;; ============================================================
+
+(ert-deftest beads-dep-test-integration-dep-tree-mode-defined ()
+  "Integration test: Verify beads-dep-tree-mode is defined."
+  :tags '(integration)
+  (should (fboundp 'beads-dep-tree-mode)))
+
+(ert-deftest beads-dep-test-integration-dep-add-command-exists ()
+  "Integration test: Verify beads-dep-add command exists."
+  :tags '(integration)
+  (should (fboundp 'beads-dep-add)))
+
+(ert-deftest beads-dep-test-integration-dep-remove-command-exists ()
+  "Integration test: Verify beads-dep-remove command exists."
+  :tags '(integration)
+  (should (fboundp 'beads-dep-remove)))
+
+(ert-deftest beads-dep-test-integration-dep-menu-command-exists ()
+  "Integration test: Verify beads-dep menu command exists."
+  :tags '(integration)
+  (should (fboundp 'beads-dep)))
+
+(ert-deftest beads-dep-test-integration-dep-tree-command-exists ()
+  "Integration test: Verify beads-dep-tree command exists."
+  :tags '(integration)
+  (should (fboundp 'beads-dep-tree)))
+
 (provide 'beads-dep-test)
 ;;; beads-dep-test.el ends here

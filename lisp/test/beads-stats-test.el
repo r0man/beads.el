@@ -337,5 +337,35 @@
       ;; Should format 1000 times in under 0.5 seconds
       (should (< elapsed 0.5)))))
 
+;;; ============================================================
+;;; Integration Tests
+;;; ============================================================
+
+(ert-deftest beads-stats-test-integration-stats-command-exists ()
+  "Integration test: Verify beads-stats command exists."
+  :tags '(integration)
+  (should (fboundp 'beads-stats)))
+
+(ert-deftest beads-stats-test-integration-mode-defined ()
+  "Integration test: Verify beads-stats-mode is defined."
+  :tags '(integration)
+  (should (fboundp 'beads-stats-mode)))
+
+(ert-deftest beads-stats-test-integration-keybinding-g-refresh ()
+  "Integration test: Verify g keybinding for refresh."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-stats-mode)
+    (let ((binding (lookup-key beads-stats-mode-map (kbd "g"))))
+      (should (eq binding 'beads-stats-refresh)))))
+
+(ert-deftest beads-stats-test-integration-keybinding-q-quit ()
+  "Integration test: Verify q keybinding for quit."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-stats-mode)
+    (let ((binding (lookup-key beads-stats-mode-map (kbd "q"))))
+      (should (eq binding 'quit-window)))))
+
 (provide 'beads-stats-test)
 ;;; beads-stats-test.el ends here

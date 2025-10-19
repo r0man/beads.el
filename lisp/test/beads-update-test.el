@@ -804,5 +804,80 @@ STATE is an alist expression of (variable . value) pairs."
        ;; Should validate 1000 times in under 0.5 seconds
        (should (< elapsed 0.5))))))
 
+;;; ============================================================
+;;; Integration Tests
+;;; ============================================================
+
+(ert-deftest beads-update-test-integration-transient-menu-defined ()
+  "Integration test: Verify beads-update transient menu is defined."
+  :tags '(integration)
+  (should (fboundp 'beads-update)))
+
+(ert-deftest beads-update-test-integration-execute-function-defined ()
+  "Integration test: Verify execute function is defined."
+  :tags '(integration)
+  (should (fboundp 'beads-update--execute)))
+
+(ert-deftest beads-update-test-integration-context-from-list-mode ()
+  "Integration test: Test context detection from list mode."
+  :tags '(integration)
+  (require 'beads-list)
+  (with-temp-buffer
+    (beads-list-mode)
+    (cl-letf (((symbol-function 'beads-list--current-issue-id)
+               (lambda () "bd-42")))
+      (should (equal (beads-update--detect-issue-id) "bd-42")))))
+
+(ert-deftest beads-update-test-integration-context-from-show-mode ()
+  "Integration test: Test context detection from show mode."
+  :tags '(integration)
+  (require 'beads-show)
+  (with-temp-buffer
+    (beads-show-mode)
+    (setq-local beads-show--issue-id "bd-99")
+    (should (equal (beads-update--detect-issue-id) "bd-99"))))
+
+(ert-deftest beads-update-test-integration-list-update-command ()
+  "Integration test: Verify beads-list-update command exists."
+  :tags '(integration)
+  (require 'beads-list)
+  (should (fboundp 'beads-list-update)))
+
+(ert-deftest beads-update-test-integration-list-keybinding-e ()
+  "Integration test: Verify e keybinding in list mode."
+  :tags '(integration)
+  (require 'beads-list)
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((binding (lookup-key beads-list-mode-map (kbd "e"))))
+      (should (eq binding 'beads-list-update)))))
+
+(ert-deftest beads-update-test-integration-validation-workflow ()
+  "Integration test: Test validation workflow."
+  :tags '(integration)
+  (beads-update-test-with-state
+   '((beads-update--issue-id . "bd-42")
+     (beads-update--status . "invalid-status"))
+   (let ((validation-error (beads-update--validate-all)))
+     ;; validate-all returns list of errors, not string
+     (should validation-error)
+     (should (listp validation-error)))))
+
+(ert-deftest beads-update-test-integration-command-building-workflow ()
+  "Integration test: Test complete command building workflow."
+  :tags '(integration)
+  (beads-update-test-with-state
+   '((beads-update--issue-id . "bd-42")
+     (beads-update--status . "in_progress")
+     (beads-update--priority . 1))
+   ;; Should not error during validation
+   (should-not (beads-update--validate-all))
+   ;; Should build valid command args
+   (let ((args (beads-update--build-command-args)))
+     (should (equal (car args) "bd-42"))
+     (should (member "-s" args))
+     (should (member "in_progress" args))
+     (should (member "-p" args)))))
+
 (provide 'beads-transient-update-test)
 ;;; beads-transient-update-test.el ends here

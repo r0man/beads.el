@@ -1566,5 +1566,109 @@
        (should (member "-d" update-args))
        (should (member "New description text" update-args))))))
 
+;;; ============================================================
+;;; Integration Tests
+;;; ============================================================
+
+(ert-deftest beads-show-test-integration-mode-defined ()
+  "Integration test: Verify beads-show-mode is defined."
+  :tags '(integration)
+  (should (fboundp 'beads-show-mode)))
+
+(ert-deftest beads-show-test-integration-keybinding-g-refresh ()
+  "Integration test: Verify g keybinding for refresh."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-show-mode)
+    (let ((binding (lookup-key beads-show-mode-map (kbd "g"))))
+      (should (eq binding 'beads-refresh-show)))))
+
+(ert-deftest beads-show-test-integration-keybinding-q-quit ()
+  "Integration test: Verify q keybinding for quit."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-show-mode)
+    (let ((binding (lookup-key beads-show-mode-map (kbd "q"))))
+      (should (eq binding 'quit-window)))))
+
+(ert-deftest beads-show-test-integration-keybinding-n-next ()
+  "Integration test: Verify n keybinding for next section."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-show-mode)
+    (let ((binding (lookup-key beads-show-mode-map (kbd "n"))))
+      (should (eq binding 'beads-show-next-section)))))
+
+(ert-deftest beads-show-test-integration-keybinding-p-prev ()
+  "Integration test: Verify p keybinding for previous section."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-show-mode)
+    (let ((binding (lookup-key beads-show-mode-map (kbd "p"))))
+      (should (eq binding 'beads-show-previous-section)))))
+
+(ert-deftest beads-show-test-integration-outline-navigation-next ()
+  "Integration test: Verify C-c C-n outline navigation."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-show-mode)
+    (let ((binding (lookup-key beads-show-mode-map (kbd "C-c C-n"))))
+      (should (eq binding 'beads-show-outline-next)))))
+
+(ert-deftest beads-show-test-integration-outline-navigation-previous ()
+  "Integration test: Verify C-c C-p outline navigation."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-show-mode)
+    (let ((binding (lookup-key beads-show-mode-map (kbd "C-c C-p"))))
+      (should (eq binding 'beads-show-outline-previous)))))
+
+(ert-deftest beads-show-test-integration-outline-navigation-forward ()
+  "Integration test: Verify C-c C-f outline navigation."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-show-mode)
+    (let ((binding (lookup-key beads-show-mode-map (kbd "C-c C-f"))))
+      (should (eq binding 'beads-show-outline-next-same-level)))))
+
+(ert-deftest beads-show-test-integration-outline-navigation-backward ()
+  "Integration test: Verify C-c C-b outline navigation."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-show-mode)
+    (let ((binding (lookup-key beads-show-mode-map (kbd "C-c C-b"))))
+      (should (eq binding 'beads-show-outline-previous-same-level)))))
+
+(ert-deftest beads-show-test-integration-outline-navigation-up ()
+  "Integration test: Verify C-c C-u outline navigation."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-show-mode)
+    (let ((binding (lookup-key beads-show-mode-map (kbd "C-c C-u"))))
+      (should (eq binding 'beads-show-outline-up)))))
+
+(ert-deftest beads-show-test-integration-reference-navigation ()
+  "Integration test: Verify [ and ] for reference navigation."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-show-mode)
+    (let ((prev-binding (lookup-key beads-show-mode-map (kbd "[")))
+          (next-binding (lookup-key beads-show-mode-map (kbd "]"))))
+      (should (eq prev-binding 'beads-show-previous-reference))
+      (should (eq next-binding 'beads-show-next-reference)))))
+
+(ert-deftest beads-show-test-integration-edit-field-keybinding ()
+  "Integration test: Verify C-c C-e for edit field."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-show-mode)
+    (let ((binding (lookup-key beads-show-mode-map (kbd "C-c C-e"))))
+      (should (eq binding 'beads-show-edit-field)))))
+
+(ert-deftest beads-show-test-integration-show-command-exists ()
+  "Integration test: Verify beads-show command exists."
+  :tags '(integration)
+  (should (fboundp 'beads-show)))
+
 (provide 'beads-show-test)
 ;;; beads-show-test.el ends here

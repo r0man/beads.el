@@ -652,6 +652,111 @@
     (should (equal (car (aref tabulated-list-format 3)) "Type"))
     (should (equal (car (aref tabulated-list-format 4)) "Title"))))
 
+;;; ============================================================
+;;; Integration Tests
+;;; ============================================================
+
+(ert-deftest beads-list-test-integration-mode-defined ()
+  "Integration test: Verify beads-list-mode is defined."
+  :tags '(integration)
+  (should (fboundp 'beads-list-mode)))
+
+(ert-deftest beads-list-test-integration-keybinding-n-next ()
+  "Integration test: Verify n keybinding for next."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((binding (lookup-key beads-list-mode-map (kbd "n"))))
+      (should (eq binding 'beads-list-next)))))
+
+(ert-deftest beads-list-test-integration-keybinding-p-previous ()
+  "Integration test: Verify p keybinding for previous."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((binding (lookup-key beads-list-mode-map (kbd "p"))))
+      (should (eq binding 'beads-list-previous)))))
+
+(ert-deftest beads-list-test-integration-keybinding-ret-show ()
+  "Integration test: Verify RET keybinding for show."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((binding (lookup-key beads-list-mode-map (kbd "RET"))))
+      (should (eq binding 'beads-list-show)))))
+
+(ert-deftest beads-list-test-integration-keybinding-g-refresh ()
+  "Integration test: Verify g keybinding for refresh."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((binding (lookup-key beads-list-mode-map (kbd "g"))))
+      (should (eq binding 'beads-list-refresh)))))
+
+(ert-deftest beads-list-test-integration-keybinding-q-quit ()
+  "Integration test: Verify q keybinding for quit."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((binding (lookup-key beads-list-mode-map (kbd "q"))))
+      (should (eq binding 'beads-list-quit)))))
+
+(ert-deftest beads-list-test-integration-keybinding-m-mark ()
+  "Integration test: Verify m keybinding for mark."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((binding (lookup-key beads-list-mode-map (kbd "m"))))
+      (should (eq binding 'beads-list-mark)))))
+
+(ert-deftest beads-list-test-integration-keybinding-u-unmark ()
+  "Integration test: Verify u keybinding for unmark."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((binding (lookup-key beads-list-mode-map (kbd "u"))))
+      (should (eq binding 'beads-list-unmark)))))
+
+(ert-deftest beads-list-test-integration-keybinding-w-copy ()
+  "Integration test: Verify w keybinding for copy-id."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((binding (lookup-key beads-list-mode-map (kbd "w"))))
+      (should (eq binding 'beads-list-copy-id)))))
+
+(ert-deftest beads-list-test-integration-keybinding-S-sort ()
+  "Integration test: Verify S keybinding for sort."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((binding (lookup-key beads-list-mode-map (kbd "S"))))
+      (should (eq binding 'beads-list-sort)))))
+
+(ert-deftest beads-list-test-integration-list-mode-setup ()
+  "Integration test: Verify list mode can be set up."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-list-mode)
+    (should (eq major-mode 'beads-list-mode))
+    (should (boundp 'tabulated-list-format))
+    (should tabulated-list-format)))
+
+(ert-deftest beads-list-test-integration-list-command-exists ()
+  "Integration test: Verify beads-list command exists."
+  :tags '(integration)
+  (should (fboundp 'beads-list)))
+
+(ert-deftest beads-list-test-integration-ready-command-exists ()
+  "Integration test: Verify beads-ready command exists."
+  :tags '(integration)
+  (should (fboundp 'beads-ready)))
+
+(ert-deftest beads-list-test-integration-blocked-command-exists ()
+  "Integration test: Verify beads-blocked command exists."
+  :tags '(integration)
+  (should (fboundp 'beads-blocked)))
+
 ;;; Footer
 
 (provide 'beads-list-test)
