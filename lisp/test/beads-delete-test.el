@@ -293,11 +293,17 @@ Text references to be updated:
   (require 'beads-list)
   (with-temp-buffer
     (beads-list-mode)
-    (cl-letf (((symbol-function 'beads-list--current-issue-id)
-               (lambda () "bd-42"))
-              ((symbol-function 'call-interactively)
-               (lambda (fn) (should (eq fn 'beads-delete)))))
-      (beads-list-delete))))
+    (let ((beads-delete-called nil)
+          (beads-delete-called-with nil))
+      (cl-letf (((symbol-function 'beads-list--current-issue-id)
+                 (lambda () "bd-42"))
+                ((symbol-function 'beads-delete)
+                 (lambda (id)
+                   (setq beads-delete-called t)
+                   (setq beads-delete-called-with id))))
+        (beads-list-delete)
+        (should beads-delete-called)
+        (should (equal beads-delete-called-with "bd-42"))))))
 
 (ert-deftest beads-delete-test-list-delete-no-issue ()
   "Test deleting from list view with no issue at point."
@@ -307,6 +313,23 @@ Text references to be updated:
     (cl-letf (((symbol-function 'beads-list--current-issue-id)
                (lambda () nil)))
       (should-error (beads-list-delete) :type 'user-error))))
+
+(ert-deftest beads-delete-test-list-keybinding-exists ()
+  "Test that D keybinding exists in beads-list-mode-map."
+  (require 'beads-list)
+  (let ((binding (lookup-key beads-list-mode-map (kbd "D"))))
+    (should (eq binding 'beads-list-delete))))
+
+(ert-deftest beads-delete-test-list-delete-passes-id ()
+  "Test that beads-list-delete passes the issue ID to beads-delete."
+  (require 'beads-list)
+  (let ((received-id nil))
+    (cl-letf (((symbol-function 'beads-list--current-issue-id)
+               (lambda () "test-123"))
+              ((symbol-function 'beads-delete)
+               (lambda (id) (setq received-id id))))
+      (beads-list-delete)
+      (should (equal received-id "test-123")))))
 
 ;;; ============================================================
 ;;; Edge Cases and Integration Tests

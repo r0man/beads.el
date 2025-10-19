@@ -381,12 +381,13 @@
 (defun beads-list-delete ()
   "Delete the issue at point using the beads-delete transient menu."
   (interactive)
-  (if-let* ((id (beads-list--current-issue-id)))
-      (progn
-        (require 'beads-delete)
-        ;; beads-delete will auto-detect the issue ID from beads-list context
-        (call-interactively #'beads-delete))
-    (user-error "No issue at point")))
+  (let ((id (beads-list--current-issue-id)))
+    (if id
+        (progn
+          (require 'beads-delete)
+          ;; beads-delete will auto-detect the issue ID from beads-list context
+          (beads-delete id))
+      (user-error "No issue at point"))))
 
 (defun beads-list-copy-id ()
   "Copy the issue ID at point to the kill ring."
