@@ -1670,5 +1670,13 @@
   :tags '(integration)
   (should (fboundp 'beads-show)))
 
+(ert-deftest beads-show-test-integration-context-detection ()
+  "Integration test: Context detection works in show mode."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-show-mode)
+    ;; Show mode should be active
+    (should (eq major-mode 'beads-show-mode))))
+
 (provide 'beads-show-test)
 ;;; beads-show-test.el ends here

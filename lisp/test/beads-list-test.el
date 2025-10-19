@@ -757,6 +757,74 @@
   :tags '(integration)
   (should (fboundp 'beads-blocked)))
 
+(ert-deftest beads-list-test-integration-workflow-to-show ()
+  "Integration test: Navigate from list to show buffer."
+  :tags '(integration)
+  (require 'beads-show)
+  (with-temp-buffer
+    (beads-list-mode)
+    ;; Verify that list mode has show command
+    (should (fboundp 'beads-list-show))
+    ;; Verify RET is bound to show
+    (let ((binding (lookup-key beads-list-mode-map (kbd "RET"))))
+      (should (eq binding 'beads-list-show)))))
+
+(ert-deftest beads-list-test-integration-workflow-to-update ()
+  "Integration test: Update from list buffer."
+  :tags '(integration)
+  (require 'beads-update)
+  (with-temp-buffer
+    (beads-list-mode)
+    ;; Verify that list mode has update command
+    (should (fboundp 'beads-list-update))
+    ;; Verify e is bound to update
+    (let ((binding (lookup-key beads-list-mode-map (kbd "e"))))
+      (should (eq binding 'beads-list-update)))))
+
+(ert-deftest beads-list-test-integration-workflow-to-close ()
+  "Integration test: Close from list buffer."
+  :tags '(integration)
+  (require 'beads-close)
+  (with-temp-buffer
+    (beads-list-mode)
+    ;; Verify that list mode has close command
+    (should (fboundp 'beads-list-close))
+    ;; Verify d is bound to close
+    (let ((binding (lookup-key beads-list-mode-map (kbd "d"))))
+      (should (eq binding 'beads-list-close)))))
+
+(ert-deftest beads-list-test-integration-workflow-to-delete ()
+  "Integration test: Delete from list buffer."
+  :tags '(integration)
+  (require 'beads-delete)
+  (with-temp-buffer
+    (beads-list-mode)
+    ;; Verify that list mode has delete command
+    (should (fboundp 'beads-list-delete))
+    ;; Verify D is bound to delete
+    (let ((binding (lookup-key beads-list-mode-map (kbd "D"))))
+      (should (eq binding 'beads-list-delete)))))
+
+(ert-deftest beads-list-test-integration-workflow-to-create ()
+  "Integration test: Create from list buffer."
+  :tags '(integration)
+  (require 'beads-create)
+  (with-temp-buffer
+    (beads-list-mode)
+    ;; Verify that list mode has create command
+    (should (fboundp 'beads-list-create))
+    ;; Verify c is bound to create
+    (let ((binding (lookup-key beads-list-mode-map (kbd "c"))))
+      (should (eq binding 'beads-list-create)))))
+
+(ert-deftest beads-list-test-integration-context-detection ()
+  "Integration test: Context detection works in list mode."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-list-mode)
+    ;; List mode should be active
+    (should (eq major-mode 'beads-list-mode))))
+
 ;;; Footer
 
 (provide 'beads-list-test)

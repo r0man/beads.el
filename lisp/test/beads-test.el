@@ -1881,5 +1881,31 @@ STRUCTURE is a list of paths to create (dirs end with /)."
 
 (provide 'beads-tramp-test)
 
+;;; ============================================================
+;;; Module Integration Tests
+;;; ============================================================
+
+(ert-deftest beads-test-integration-cache-invalidation ()
+  "Integration test: Verify cache invalidation functions exist."
+  :tags '(integration)
+  ;; The cache invalidation function should be defined
+  (should (fboundp 'beads--invalidate-completion-cache)))
+
+(ert-deftest beads-test-integration-all-commands-autoloaded ()
+  "Integration test: Verify all main commands are autoloaded."
+  :tags '(integration)
+  (should (fboundp 'beads-list))
+  (should (fboundp 'beads-ready))
+  (should (fboundp 'beads-blocked))
+  (should (fboundp 'beads-show))
+  (should (fboundp 'beads-create))
+  (should (fboundp 'beads-update))
+  (should (fboundp 'beads-close))
+  (should (fboundp 'beads-delete))
+  (should (fboundp 'beads-stats))
+  (should (fboundp 'beads-graph-all))
+  (should (fboundp 'beads-import))
+  (should (fboundp 'beads-export)))
+
 (provide 'beads-test)
 ;;; beads-test.el ends here
