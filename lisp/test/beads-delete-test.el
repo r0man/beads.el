@@ -368,6 +368,188 @@ Text references to be updated:
               (should (beads-delete--confirm-deletion issue-id))
             (should-not (beads-delete--confirm-deletion issue-id))))))))
 
+;;; ============================================================
+;;; Integration Test Helpers
+;;; ============================================================
+
+(defvar beads-delete-test--temp-dirs nil
+  "List of temporary directories created during tests for cleanup.")
+
+(defun beads-delete-test--create-temp-project ()
+  "Create a temporary project directory with beads initialized.
+Returns the project directory path."
+  (let* ((temp-dir (make-temp-file "beads-test-" t))
+         (db-path (expand-file-name ".beads/test.db" temp-dir)))
+    ;; Track for cleanup
+    (push temp-dir beads-delete-test--temp-dirs)
+    ;; Initialize beads in the temp directory
+    (let ((default-directory temp-dir))
+      (call-process "bd" nil nil nil "init" "--prefix" "test"))
+    temp-dir))
+
+(defun beads-delete-test--cleanup-temp-projects ()
+  "Clean up all temporary project directories."
+  (dolist (dir beads-delete-test--temp-dirs)
+    (when (file-directory-p dir)
+      (delete-directory dir t)))
+  (setq beads-delete-test--temp-dirs nil))
+
+(defun beads-delete-test--create-issue (project-dir title)
+  "Create an issue in PROJECT-DIR with TITLE.
+Returns the issue ID."
+  (let ((default-directory project-dir))
+    (with-temp-buffer
+      (call-process "bd" nil t nil "create" title "--json")
+      (goto-char (point-min))
+      (let* ((json-object-type 'alist)
+             (json-array-type 'list)
+             (json-key-type 'symbol)
+             (result (json-read)))
+        (alist-get 'id result)))))
+
+(defun beads-delete-test--issue-exists-p (project-dir issue-id)
+  "Check if ISSUE-ID exists in PROJECT-DIR.
+Returns non-nil if the issue exists."
+  (let ((default-directory project-dir))
+    (with-temp-buffer
+      (let ((exit-code (call-process "bd" nil t nil "show" issue-id
+                                     "--json")))
+        (= exit-code 0)))))
+
+(defun beads-delete-test--delete-issue (project-dir issue-id)
+  "Delete ISSUE-ID in PROJECT-DIR using bd CLI directly."
+  (let ((default-directory project-dir))
+    (call-process "bd" nil nil nil "delete" "--force" issue-id)))
+
+;;; ============================================================
+;;; Integration Tests
+;;; ============================================================
+
+(ert-deftest beads-delete-test-integration-delete-from-list-view ()
+  "Integration test: Create issue, delete from list view, verify
+deletion."
+  :tags '(integration)
+  (skip-unless (executable-find "bd"))
+
+  (let ((project-dir (beads-delete-test--create-temp-project))
+        (issue-id nil)
+        (test-passed nil))
+
+    (unwind-protect
+        (progn
+          ;; Step 1: Create a test issue
+          (setq issue-id (beads-delete-test--create-issue
+                          project-dir "Test issue for deletion"))
+          (should issue-id)
+          (should (beads-delete-test--issue-exists-p project-dir issue-id))
+
+          ;; Step 2: Open list view in the project
+          (let ((default-directory project-dir)
+                (beads-auto-refresh nil)) ; Disable auto-refresh
+
+            ;; Get the list of issues
+            (beads-list)
+            (switch-to-buffer "*beads-list*")
+
+            ;; Verify we're in list mode
+            (should (derived-mode-p 'beads-list-mode))
+
+            ;; Find the issue in the list
+            (goto-char (point-min))
+            (should (search-forward issue-id nil t))
+            (beginning-of-line)
+
+            ;; Step 3: Verify the issue ID is detected
+            (let ((detected-id (beads-list--current-issue-id)))
+              (should (equal detected-id issue-id))
+
+              ;; Step 4: Call beads-delete (simulating D key press)
+              (let ((delete-called nil)
+                    (delete-called-with nil))
+                ;; Mock the transient to capture what happens
+                (cl-letf (((symbol-function 'beads-delete)
+                           (lambda (id)
+                             (setq delete-called t)
+                             (setq delete-called-with id)
+                             ;; Actually delete the issue
+                             (beads-delete-test--delete-issue
+                              project-dir id))))
+
+                  ;; Simulate pressing D
+                  (beads-list-delete)
+
+                  ;; Verify beads-delete was called with correct ID
+                  (should delete-called)
+                  (should (equal delete-called-with issue-id))))))
+
+          ;; Step 5: Verify the issue was actually deleted
+          (should-not (beads-delete-test--issue-exists-p
+                       project-dir issue-id))
+
+          (setq test-passed t))
+
+      ;; Cleanup
+      (when (get-buffer "*beads-list*")
+        (kill-buffer "*beads-list*"))
+      (beads-delete-test--cleanup-temp-projects)
+
+      ;; Final assertion
+      (should test-passed))))
+
+(ert-deftest beads-delete-test-integration-delete-with-force-flag ()
+  "Integration test: Delete with force flag using transient."
+  :tags '(integration)
+  (skip-unless (executable-find "bd"))
+
+  (let ((project-dir (beads-delete-test--create-temp-project))
+        (issue-id nil))
+
+    (unwind-protect
+        (let ((default-directory project-dir))
+          ;; Create a test issue
+          (setq issue-id (beads-delete-test--create-issue
+                          project-dir "Test force deletion"))
+          (should issue-id)
+          (should (beads-delete-test--issue-exists-p project-dir issue-id))
+
+          ;; Reset delete state
+          (beads-delete--reset-state)
+
+          ;; Set up the delete
+          (setq beads-delete--issue-id issue-id)
+          (setq beads-delete--force t)
+
+          ;; Mock confirmation
+          (cl-letf (((symbol-function 'beads-delete--confirm-deletion)
+                     (lambda (_id) t)))
+
+            ;; Execute deletion
+            (beads-delete--execute-deletion)
+
+            ;; Verify issue is deleted
+            (should-not (beads-delete-test--issue-exists-p
+                         project-dir issue-id))))
+
+      ;; Cleanup
+      (beads-delete-test--cleanup-temp-projects))))
+
+(ert-deftest beads-delete-test-integration-keybinding-exists ()
+  "Integration test: Verify D keybinding exists in list mode."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((binding (lookup-key beads-list-mode-map (kbd "D"))))
+      (should (eq binding 'beads-list-delete)))))
+
+;;; Cleanup hook
+
+(defun beads-delete-test--cleanup-all ()
+  "Cleanup function to run after all tests."
+  (beads-delete-test--cleanup-temp-projects))
+
+;; Register cleanup
+(add-hook 'ert-runner-reporter-run-ended-functions
+          #'beads-delete-test--cleanup-all)
 
 (provide 'beads-delete-test)
 ;;; beads-delete-test.el ends here
