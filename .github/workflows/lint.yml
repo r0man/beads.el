@@ -31,16 +31,8 @@ jobs:
       - name: Install Eldev
         run: curl -fsSL https://raw.github.com/doublep/eldev/master/webinstall/github-eldev | sh
 
-      - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@master
-
-      - name: Install Beads via Homebrew
-        run: |
-          brew tap steveyegge/beads
-          brew install bd
-
-      - name: Verify Beads installation
-        run: bd version
+      - name: Byte-compile
+        run: eldev -p -dtT compile --warnings-as-errors
 
       - name: Lint
         run: eldev -p -dtT lint
