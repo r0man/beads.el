@@ -188,8 +188,8 @@ Requires typing 'yes' or the issue ID exactly."
 
 ;;; Main Transient
 
-;;;###autoload (autoload 'beads-delete "beads-delete" nil t)
-(transient-define-prefix beads-delete (&optional issue-id)
+;;;###autoload
+(defun beads-delete (&optional issue-id)
   "Delete an issue with bd delete.
 
 This is a DESTRUCTIVE operation that:
@@ -197,18 +197,25 @@ This is a DESTRUCTIVE operation that:
 - Updates text references to '[deleted:ID]'
 - Deletes the issue from the database
 
-You will be prompted to confirm deletion by typing 'yes' or the issue ID.
-
-Optional argument ISSUE-ID pre-fills the issue to delete."
-  :value (lambda () nil)
+If ISSUE-ID is not provided, prompts for completion.
+If called from beads-list or beads-show buffer, detects issue from context."
   (interactive
-   (list (beads-delete--detect-issue-id)))
-  ;; Set initial issue ID if provided or detected
+   (list (or (beads-delete--detect-issue-id)
+             (completing-read "Delete issue: "
+                              (beads--issue-completion-table)
+                              nil t nil 'beads--issue-id-history))))
+  ;; Set the issue ID
   (when issue-id
     (setq beads-delete--issue-id issue-id))
   ;; Check executable
   (beads-check-executable)
-  ;; Show menu
+  ;; Show the transient
+  (beads-delete--menu))
+
+;;;###autoload (autoload 'beads-delete--menu "beads-delete" nil t)
+(transient-define-prefix beads-delete--menu ()
+  "Transient menu for deleting issues."
+  :value (lambda () nil)
   ["Delete Issue"
    (beads-delete--infix-issue-id)
    (beads-delete--infix-force)]

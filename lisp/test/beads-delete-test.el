@@ -230,12 +230,13 @@ Text references to be updated:
 ;;; ============================================================
 
 (ert-deftest beads-delete-test-transient-defined ()
-  "Test that beads-delete transient is defined."
+  "Test that beads-delete function is defined."
   (should (fboundp 'beads-delete)))
 
-(ert-deftest beads-delete-test-transient-is-prefix ()
-  "Test that beads-delete is a transient prefix."
-  (should (get 'beads-delete 'transient--prefix)))
+(ert-deftest beads-delete-test-transient-menu-is-prefix ()
+  "Test that beads-delete--menu is a transient prefix."
+  (should (fboundp 'beads-delete--menu))
+  (should (get 'beads-delete--menu 'transient--prefix)))
 
 (ert-deftest beads-delete-test-infix-commands-defined ()
   "Test that delete infix commands are defined."
