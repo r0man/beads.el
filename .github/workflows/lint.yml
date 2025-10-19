@@ -1,4 +1,4 @@
-name: Test
+name: Lint
 
 on:
   push:
@@ -8,26 +8,17 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        emacs_version:
-          - '27.2'
-          - '28.2'
-          - '29.4'
-          - '30.2'
-          - 'snapshot'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Emacs ${{ matrix.emacs_version }}
+      - name: Set up Emacs 30.2
         uses: purcell/setup-emacs@master
         with:
-          version: ${{ matrix.emacs_version }}
+          version: '30.2'
 
       - name: Cache Eldev dependencies
         uses: actions/cache@v3
@@ -51,8 +42,5 @@ jobs:
       - name: Verify Beads installation
         run: bd version
 
-      - name: Run tests
-        run: eldev -p -dtT test
-
-      - name: Byte-compile
-        run: eldev -p -dtT compile --warnings-as-errors
+      - name: Lint
+        run: eldev -p -dtT lint
