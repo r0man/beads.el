@@ -68,9 +68,11 @@ Text references to be updated:
 (ert-deftest beads-delete-test-reset-state ()
   "Test that reset-state clears all variables."
   (beads-delete-test-with-state
-   '((beads-delete--issue-id . "bd-42"))
+   '((beads-delete--issue-id . "bd-42")
+     (beads-delete--force . t))
    (beads-delete--reset-state)
-   (should (null beads-delete--issue-id))))
+   (should (null beads-delete--issue-id))
+   (should (null beads-delete--force))))
 
 ;;; ============================================================
 ;;; Validation Tests
@@ -108,10 +110,19 @@ Text references to be updated:
 ;;; Command Building Tests
 ;;; ============================================================
 
-(ert-deftest beads-delete-test-build-command-args ()
-  "Test building command arguments."
+(ert-deftest beads-delete-test-build-command-args-without-force ()
+  "Test building command arguments without force flag."
   (beads-delete-test-with-state
-   '((beads-delete--issue-id . "bd-42"))
+   '((beads-delete--issue-id . "bd-42")
+     (beads-delete--force . nil))
+   (let ((args (beads-delete--build-command-args)))
+     (should (equal args '("bd-42"))))))
+
+(ert-deftest beads-delete-test-build-command-args-with-force ()
+  "Test building command arguments with force flag."
+  (beads-delete-test-with-state
+   '((beads-delete--issue-id . "bd-42")
+     (beads-delete--force . t))
    (let ((args (beads-delete--build-command-args)))
      (should (equal args '("--force" "bd-42"))))))
 
@@ -228,12 +239,74 @@ Text references to be updated:
 
 (ert-deftest beads-delete-test-infix-commands-defined ()
   "Test that delete infix commands are defined."
-  (should (fboundp 'beads-delete--infix-issue-id)))
+  (should (fboundp 'beads-delete--infix-issue-id))
+  (should (fboundp 'beads-delete--infix-force)))
 
 (ert-deftest beads-delete-test-suffix-commands-defined ()
   "Test that delete suffix commands are defined."
   (should (fboundp 'beads-delete--execute))
   (should (fboundp 'beads-delete--reset)))
+
+;;; ============================================================
+;;; Context Detection Tests
+;;; ============================================================
+
+(ert-deftest beads-delete-test-detect-issue-id-from-list-mode ()
+  "Test detecting issue ID from beads-list-mode."
+  (require 'beads-list)
+  (with-temp-buffer
+    (beads-list-mode)
+    (cl-letf (((symbol-function 'beads-list--current-issue-id)
+               (lambda () "bd-42")))
+      (should (equal (beads-delete--detect-issue-id) "bd-42")))))
+
+(ert-deftest beads-delete-test-detect-issue-id-from-show-mode ()
+  "Test detecting issue ID from beads-show-mode."
+  (require 'beads-show)
+  (with-temp-buffer
+    (beads-show-mode)
+    (setq-local beads-show--issue-id "bd-99")
+    (should (equal (beads-delete--detect-issue-id) "bd-99"))))
+
+(ert-deftest beads-delete-test-detect-issue-id-from-buffer-name ()
+  "Test detecting issue ID from buffer name."
+  (with-current-buffer (get-buffer-create "*beads-show: bd-123*")
+    (should (equal (beads-delete--detect-issue-id) "bd-123"))
+    (kill-buffer)))
+
+(ert-deftest beads-delete-test-detect-issue-id-no-context ()
+  "Test detecting issue ID when no context available."
+  (with-temp-buffer
+    (should (null (beads-delete--detect-issue-id)))))
+
+;;; ============================================================
+;;; List View Integration Tests
+;;; ============================================================
+
+(ert-deftest beads-delete-test-list-delete-function-defined ()
+  "Test that beads-list-delete function is defined."
+  (require 'beads-list)
+  (should (fboundp 'beads-list-delete)))
+
+(ert-deftest beads-delete-test-list-delete-with-issue ()
+  "Test deleting from list view with issue at point."
+  (require 'beads-list)
+  (with-temp-buffer
+    (beads-list-mode)
+    (cl-letf (((symbol-function 'beads-list--current-issue-id)
+               (lambda () "bd-42"))
+              ((symbol-function 'call-interactively)
+               (lambda (fn) (should (eq fn 'beads-delete)))))
+      (beads-list-delete))))
+
+(ert-deftest beads-delete-test-list-delete-no-issue ()
+  "Test deleting from list view with no issue at point."
+  (require 'beads-list)
+  (with-temp-buffer
+    (beads-list-mode)
+    (cl-letf (((symbol-function 'beads-list--current-issue-id)
+               (lambda () nil)))
+      (should-error (beads-list-delete) :type 'user-error))))
 
 ;;; ============================================================
 ;;; Edge Cases and Integration Tests

@@ -28,6 +28,7 @@
 ;;   c/+     - Create new issue
 ;;   e       - Edit/update issue at point
 ;;   d/k     - Close issue at point
+;;   D       - Delete issue at point (destructive)
 ;;   w       - Copy issue ID to kill ring
 ;;   S       - Sort by column
 ;;   / /     - Filter by text
@@ -377,6 +378,16 @@
         (call-interactively #'beads-close))
     (user-error "No issue at point")))
 
+(defun beads-list-delete ()
+  "Delete the issue at point using the beads-delete transient menu."
+  (interactive)
+  (if-let* ((id (beads-list--current-issue-id)))
+      (progn
+        (require 'beads-delete)
+        ;; beads-delete will auto-detect the issue ID from beads-list context
+        (call-interactively #'beads-delete))
+    (user-error "No issue at point")))
+
 (defun beads-list-copy-id ()
   "Copy the issue ID at point to the kill ring."
   (interactive)
@@ -567,6 +578,7 @@ Uses tabulated-list built-in sorting."
     (define-key map (kbd "e") #'beads-list-update)         ; edit (more intuitive)
     (define-key map (kbd "d") #'beads-list-close)          ; delete/done (mark for closing)
     (define-key map (kbd "k") #'beads-list-close)          ; kill (alternative)
+    (define-key map (kbd "D") #'beads-list-delete)         ; delete permanently (destructive)
 
     ;; Utilities
     (define-key map (kbd "w") #'beads-list-copy-id)        ; copy (like eww, info)

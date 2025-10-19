@@ -27,6 +27,8 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-list)
+(require 'beads-show)
 (require 'transient)
 
 ;;; State Variables
@@ -34,11 +36,39 @@
 (defvar beads-delete--issue-id nil
   "Issue ID to delete.")
 
+(defvar beads-delete--force nil
+  "Whether to force deletion without preview.")
+
 ;;; State Management
 
 (defun beads-delete--reset-state ()
   "Reset all delete state variables."
-  (setq beads-delete--issue-id nil))
+  (setq beads-delete--issue-id nil
+        beads-delete--force nil))
+
+;;; Utility Functions
+
+(defun beads-delete--detect-issue-id ()
+  "Detect issue ID from current context.
+Returns issue ID string or nil if not found."
+  (or
+   ;; From beads-list buffer
+   (when (derived-mode-p 'beads-list-mode)
+     (beads-list--current-issue-id))
+   ;; From beads-show buffer
+   (when (derived-mode-p 'beads-show-mode)
+     beads-show--issue-id)
+   ;; From buffer name (*beads-show: bd-N*)
+   (when (string-match "\\*beads-show: \\([^*]+\\)\\*"
+                      (buffer-name))
+     (match-string 1 (buffer-name)))))
+
+(defun beads-delete--format-current-value (value)
+  "Format VALUE for display in transient menu.
+Returns a propertized string showing the current value."
+  (if (and value (not (string-empty-p (string-trim value))))
+      (propertize (format " [%s]" value) 'face 'transient-value)
+    (propertize " [not set]" 'face 'transient-inactive-value)))
 
 ;;; Validation
 
@@ -58,7 +88,10 @@
 (defun beads-delete--build-command-args ()
   "Build command arguments for bd delete.
 Returns list of arguments (not including 'delete' subcommand)."
-  (list "--force" beads-delete--issue-id))
+  (let ((args (list beads-delete--issue-id)))
+    (when beads-delete--force
+      (push "--force" args))
+    args))
 
 ;;; Confirmation
 
@@ -83,16 +116,16 @@ Requires typing 'yes' or the issue ID exactly."
     (message "Deleted issue %s" beads-delete--issue-id)
     ;; Invalidate completion cache
     (beads--invalidate-completion-cache)
-    ;; Refresh any open beads buffers
-    (dolist (buffer (buffer-list))
-      (with-current-buffer buffer
-        (when (or (eq major-mode 'beads-list-mode)
-                  (eq major-mode 'beads-show-mode))
-          (revert-buffer nil t))))
     ;; Close show buffer if viewing the deleted issue
     (let ((show-buffer (format "*beads-show %s*" beads-delete--issue-id)))
       (when (get-buffer show-buffer)
         (kill-buffer show-buffer)))
+    ;; Refresh any open beads buffers
+    (when beads-auto-refresh
+      (dolist (buffer (buffer-list))
+        (with-current-buffer buffer
+          (when (derived-mode-p 'beads-list-mode)
+            (beads-list-refresh)))))
     result))
 
 ;;; Transient Infixes
@@ -100,50 +133,63 @@ Requires typing 'yes' or the issue ID exactly."
 (transient-define-infix beads-delete--infix-issue-id ()
   "Read issue ID to delete."
   :class 'transient-option
-  :description "Issue ID"
+  :description (lambda ()
+                 (concat "Issue ID (required)"
+                         (beads-delete--format-current-value
+                          beads-delete--issue-id)))
   :key "i"
-  :argument "--issue-id="
+  :argument "id="
+  :prompt "Issue ID to delete: "
   :reader (lambda (_prompt _initial-input _history)
-            (let ((id (completing-read "Issue ID: "
-                                      (beads--issue-completion-table)
-                                      nil nil nil 'beads-issue-history)))
+            (let ((id (completing-read
+                      "Issue ID to delete: "
+                      (beads--issue-completion-table)
+                      nil t beads-delete--issue-id
+                      'beads--issue-id-history)))
               (setq beads-delete--issue-id id)
-              id))
-  :always-read t
+              id)))
+
+(transient-define-infix beads-delete--infix-force ()
+  "Toggle force deletion flag."
+  :class 'transient-switch
+  :description "Force deletion (--force)"
+  :key "-f"
+  :argument "--force"
   :init-value (lambda (obj)
-                ;; Try to get issue ID from context
-                (let ((id (or beads-delete--issue-id
-                             (beads--current-issue-id))))
-                  (when id
-                    (setq beads-delete--issue-id id)
-                    (oset obj value (concat "--issue-id=" id))))))
+                (when beads-delete--force
+                  (oset obj value t)))
+  :reader (lambda (_prompt _initial-input _history)
+            (setq beads-delete--force
+                  (not beads-delete--force))
+            beads-delete--force))
 
 ;;; Transient Suffixes
 
 (transient-define-suffix beads-delete--execute ()
   "Execute bd delete command."
   :description "Delete issue"
-  :key "d"
+  :key "x"
   (interactive)
   (when-let ((error (beads-delete--validate-all)))
     (user-error "%s" error))
-  (beads-delete--execute-deletion)
-  (beads-delete--reset-state)
-  (transient-quit))
+  (when beads-delete--force
+    (beads-delete--execute-deletion))
+  (beads-delete--reset-state))
 
 (transient-define-suffix beads-delete--reset ()
   "Reset delete state."
-  :description "Reset"
+  :description "Reset fields"
   :key "R"
   :transient t
   (interactive)
-  (beads-delete--reset-state)
-  (message "Reset delete state"))
+  (when (y-or-n-p "Reset all fields? ")
+    (beads-delete--reset-state)
+    (message "All fields reset")))
 
 ;;; Main Transient
 
-;;;###autoload
-(transient-define-prefix beads-delete ()
+;;;###autoload (autoload 'beads-delete "beads-delete" nil t)
+(transient-define-prefix beads-delete (&optional issue-id)
   "Delete an issue with bd delete.
 
 This is a DESTRUCTIVE operation that:
@@ -151,13 +197,25 @@ This is a DESTRUCTIVE operation that:
 - Updates text references to '[deleted:ID]'
 - Deletes the issue from the database
 
-You will be prompted to confirm deletion by typing 'yes' or the issue ID."
-  ["Arguments"
-   (beads-delete--infix-issue-id)]
+You will be prompted to confirm deletion by typing 'yes' or the issue ID.
+
+Optional argument ISSUE-ID pre-fills the issue to delete."
+  :value (lambda () nil)
+  (interactive
+   (list (beads-delete--detect-issue-id)))
+  ;; Set initial issue ID if provided or detected
+  (when issue-id
+    (setq beads-delete--issue-id issue-id))
+  ;; Check executable
+  (beads-check-executable)
+  ;; Show menu
+  ["Delete Issue"
+   (beads-delete--infix-issue-id)
+   (beads-delete--infix-force)]
   ["Actions"
-   ("d" "Delete" beads-delete--execute)
-   ("R" "Reset" beads-delete--reset)
-   ("q" "Quit" transient-quit)])
+   ("x" "Delete issue" beads-delete--execute)
+   ("R" "Reset fields" beads-delete--reset)
+   ("q" "Quit" transient-quit-one)])
 
 (provide 'beads-delete)
 ;;; beads-delete.el ends here
