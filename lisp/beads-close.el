@@ -234,7 +234,7 @@ After editing, the transient menu is re-displayed."
   "Close an issue in Beads with an optional reason.
 
 This transient menu provides an interactive interface for closing
-issues. The issue ID is detected from context (beads-list or
+issues.  The issue ID is detected from context (beads-list or
 beads-show buffers) or prompted for completion.
 
 Optional argument ISSUE-ID pre-fills the issue to close."

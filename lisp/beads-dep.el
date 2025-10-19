@@ -399,7 +399,7 @@ Otherwise, detect from context if possible."
 (defun beads-dep-tree-show-issue ()
   "Show issue at point in dependency tree."
   (interactive)
-  (if-let ((id (beads-dep-tree--get-issue-at-point)))
+  (if-let* ((id (beads-dep-tree--get-issue-at-point)))
       (if (fboundp 'beads-show)
           (beads-show id)
         (message "Issue: %s" id))

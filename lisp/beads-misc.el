@@ -314,7 +314,7 @@ Returns list of error messages, or nil if all valid."
   "Manage issue dependencies in Beads.
 
 This transient menu provides an interface for managing dependencies
-between issues. It supports adding, removing, viewing trees, and
+between issues.  It supports adding, removing, viewing trees, and
 listing dependencies."
   :value (lambda () nil)
   (interactive)
@@ -424,7 +424,7 @@ listing dependencies."
 
 (defun beads-export--get-default-output ()
   "Get default output path (.beads/issues.jsonl)."
-  (when-let ((beads-dir (beads--find-beads-dir)))
+  (when-let* ((beads-dir (beads--find-beads-dir)))
     (expand-file-name "issues.jsonl" beads-dir)))
 
 ;;; Infix Commands
@@ -508,7 +508,7 @@ listing dependencies."
   "Export issues to JSONL.
 
 This transient menu provides an interface for exporting issues to
-JSONL format. The default output is .beads/issues.jsonl."
+JSONL format.  The default output is .beads/issues.jsonl."
   :value (lambda () nil)
   (interactive)
   (beads-check-executable)
@@ -559,7 +559,7 @@ JSONL format. The default output is .beads/issues.jsonl."
 
 (defun beads-import--get-default-input ()
   "Get default input path (.beads/issues.jsonl)."
-  (when-let ((beads-dir (beads--find-beads-dir)))
+  (when-let* ((beads-dir (beads--find-beads-dir)))
     (expand-file-name "issues.jsonl" beads-dir)))
 
 (defun beads-import--validate-input ()
@@ -687,7 +687,7 @@ DRY-RUN and RESOLVE-COLLISIONS control behavior."
   "Import issues from JSONL.
 
 This transient menu provides an interface for importing issues from
-JSONL format. It supports dry-run mode for previewing changes and
+JSONL format.  It supports dry-run mode for previewing changes and
 automatic collision resolution for branch merges."
   :value (lambda () nil)
   (interactive)
@@ -811,7 +811,7 @@ automatic collision resolution for branch merges."
   "Initialize a new Beads project.
 
 This transient menu provides an interface for initializing a new
-Beads project in the current directory. It allows setting the
+Beads project in the current directory.  It allows setting the
 issue ID prefix and database path."
   :value (lambda () nil)
   (interactive)

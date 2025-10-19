@@ -322,8 +322,8 @@ Returns the issue ID or nil if none found."
         (original-point (point)))
     (or
      ;; First try to see if we're on a button
-     (when-let ((button (button-at original-point)))
-       (when-let ((id (button-get button 'issue-id)))
+     (when-let* ((button (button-at original-point)))
+       (when-let* ((id (button-get button 'issue-id)))
          (when (string-match "^bd-[0-9]+$" id)
            id)))
 
@@ -617,7 +617,7 @@ Creates or switches to a buffer showing the full issue details."
   "Show issue detail for bd-N reference at point.
 Extracts the issue ID from text at point and calls `beads-show'."
   (interactive)
-  (if-let ((issue-id (beads-show--extract-issue-at-point)))
+  (if-let* ((issue-id (beads-show--extract-issue-at-point)))
       (beads-show issue-id)
     (user-error "No issue reference found at point")))
 
@@ -962,16 +962,16 @@ Set mark at beginning of section, move point to end, and activate region."
 (defun beads-show-follow-reference ()
   "Follow bd-N reference at point or on current line."
   (interactive)
-  (if-let ((issue-id (beads-show--extract-issue-at-point)))
+  (if-let* ((issue-id (beads-show--extract-issue-at-point)))
       (beads-show issue-id)
     (message "No issue reference at point")))
 
 (defun beads-show-follow-reference-other-window ()
   "Follow bd-N reference at point in other window."
   (interactive)
-  (if-let ((issue-id (beads-show--extract-issue-at-point)))
+  (if-let* ((issue-id (beads-show--extract-issue-at-point)))
       (let ((buffer-name (format "*beads-show: %s*" issue-id)))
-        (if-let ((buf (get-buffer buffer-name)))
+        (if-let* ((buf (get-buffer buffer-name)))
             (switch-to-buffer-other-window buf)
           ;; Buffer doesn't exist, create it
           (let ((project-dir default-directory))

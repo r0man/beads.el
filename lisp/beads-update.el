@@ -313,7 +313,7 @@ Returns list of arguments for bd update command."
                          (beads-update--format-current-value
                           (when beads-update--priority
                             (number-to-string beads-update--priority))
-                          (when-let ((p (beads-update--get-original
+                          (when-let* ((p (beads-update--get-original
                                         'priority)))
                             (number-to-string p)))))
   :key "p"

@@ -171,7 +171,7 @@ Key bindings:
 (defun beads-list-show ()
   "Show details for the issue at point."
   (interactive)
-  (if-let ((id (beads-list--current-issue-id)))
+  (if-let* ((id (beads-list--current-issue-id)))
       (if (fboundp 'beads-show)
           (beads-show id)
         (message "Show issue %s" id))

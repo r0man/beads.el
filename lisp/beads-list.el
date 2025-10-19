@@ -291,7 +291,7 @@
 (defun beads-list-show ()
   "Show details for the issue at point."
   (interactive)
-  (if-let ((id (beads-list--current-issue-id)))
+  (if-let* ((id (beads-list--current-issue-id)))
       (let ((project-dir default-directory))
         (require 'beads-show)
         ;; Preserve project context when showing issue
@@ -317,7 +317,7 @@
 (defun beads-list-mark ()
   "Mark the issue at point."
   (interactive)
-  (when-let ((id (beads-list--current-issue-id)))
+  (when-let* ((id (beads-list--current-issue-id)))
     (unless (member id beads-list--marked-issues)
       (push id beads-list--marked-issues))
     (tabulated-list-put-tag ">" t)))
@@ -325,7 +325,7 @@
 (defun beads-list-unmark ()
   "Unmark the issue at point."
   (interactive)
-  (when-let ((id (beads-list--current-issue-id)))
+  (when-let* ((id (beads-list--current-issue-id)))
     (setq beads-list--marked-issues
           (delete id beads-list--marked-issues))
     (tabulated-list-put-tag " " t)))
@@ -360,7 +360,7 @@
 (defun beads-list-update ()
   "Update the issue at point using the beads-update transient menu."
   (interactive)
-  (if-let ((id (beads-list--current-issue-id)))
+  (if-let* ((id (beads-list--current-issue-id)))
       (progn
         (require 'beads-update)
         ;; beads-update will auto-detect the issue ID from beads-list context
@@ -370,7 +370,7 @@
 (defun beads-list-close ()
   "Close the issue at point using the beads-close transient menu."
   (interactive)
-  (if-let ((id (beads-list--current-issue-id)))
+  (if-let* ((id (beads-list--current-issue-id)))
       (progn
         (require 'beads-misc)
         ;; beads-close will auto-detect the issue ID from beads-list context
@@ -380,7 +380,7 @@
 (defun beads-list-copy-id ()
   "Copy the issue ID at point to the kill ring."
   (interactive)
-  (if-let ((id (beads-list--current-issue-id)))
+  (if-let* ((id (beads-list--current-issue-id)))
       (progn
         (kill-new id)
         (message "Copied issue ID: %s" id))

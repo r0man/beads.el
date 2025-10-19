@@ -98,7 +98,7 @@ FORMAT-STRING and ARGS are passed to `format'."
 (defun beads--find-project-root ()
   "Find the project root directory.
 Returns nil if not in a project."
-  (when-let ((proj (project-current)))
+  (when-let* ((proj (project-current)))
     (if (fboundp 'project-root)
         (project-root proj)
       ;; Emacs 27 compatibility - project-roots is obsolete but needed for old Emacs
@@ -125,7 +125,7 @@ Returns the path to .beads directory or nil if not found."
   "Get the database path for bd commands.
 Returns nil if auto-discovery should be used."
   (or beads-database-path
-      (when-let ((beads-dir (beads--find-beads-dir)))
+      (when-let* ((beads-dir (beads--find-beads-dir)))
         (car (directory-files beads-dir t "\\.db\\'")))))
 
 ;;; Process Execution
@@ -137,7 +137,7 @@ Automatically adds global flags based on customization."
     ;; Add global flags
     (when beads-actor
       (setq cmd (append cmd (list "--actor" beads-actor))))
-    (when-let ((db (beads--get-database-path)))
+    (when-let* ((db (beads--get-database-path)))
       ;; Strip Tramp prefix for remote paths so bd can understand the path
       (setq cmd (append cmd (list "--db" (file-local-name db)))))
     ;; Add subcommand and args
