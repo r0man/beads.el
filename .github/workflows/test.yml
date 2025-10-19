@@ -38,7 +38,7 @@ jobs:
             ${{ runner.os }}-eldev-
 
       - name: Install Eldev
-        run: curl -fsSL https://raw.github.com/doublep/eldev/master/webinstall/github-eldev | sh
+        run: curl --fail --silent --show-error --location https://raw.github.com/doublep/eldev/master/webinstall/github-eldev | sh
 
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@master
