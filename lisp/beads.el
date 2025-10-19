@@ -351,6 +351,9 @@ Returns t if found, signals error otherwise."
 (autoload 'beads-close "beads-close" "Close a Beads issue with optional reason." t)
 
 ;;;###autoload
+(autoload 'beads-delete "beads-delete" "Delete a Beads issue permanently." t)
+
+;;;###autoload
 (autoload 'beads-stats "beads-stats" "Display Beads issue statistics." t)
 
 ;;;###autoload
