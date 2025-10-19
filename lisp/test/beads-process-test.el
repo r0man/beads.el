@@ -574,6 +574,7 @@
   "Test that debug logging works when enabled."
   (beads-test-with-temp-config
    (let ((beads-enable-debug t)
+         (beads-debug-level 'verbose)
          (json-output "{}"))
      (cl-letf (((symbol-function 'process-file)
                 (beads-test--mock-call-process 0 json-output)))
