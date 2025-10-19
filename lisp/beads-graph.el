@@ -284,10 +284,10 @@ Returns the path to the generated image file."
                (if (string-empty-p p) nil (string-to-number p)))))
       ("type"
        (setq beads-graph--filter-type
-             (let ((t (completing-read "Type (empty to clear): "
+             (let ((typ (completing-read "Type (empty to clear): "
                                       '("bug" "feature" "task" "epic" "chore")
                                       nil t)))
-               (if (string-empty-p t) nil t))))
+               (if (string-empty-p typ) nil typ))))
       ("clear-all"
        (setq beads-graph--filter-status nil
              beads-graph--filter-priority nil

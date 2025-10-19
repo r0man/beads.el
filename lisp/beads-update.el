@@ -518,7 +518,7 @@ After editing, the transient menu is re-displayed."
           (progn
             (let* ((args (beads-update--build-command-args))
                    (result (apply #'beads--run-command "update" args))
-                   (issue (beads--parse-issue result)))
+                   (_issue (beads--parse-issue result)))
               (message "Updated issue: %s (changed %d field%s)"
                        beads-update--issue-id
                        (length changes)

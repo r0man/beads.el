@@ -156,8 +156,10 @@ Returns error message string if invalid, nil if valid."
             (beads--invalidate-completion-cache)
             (beads-dep-add--reset)
             (when beads-auto-refresh
-              (beads-list--refresh-all-buffers)
-              (beads-show--refresh-all-buffers)))
+              ;; TODO: Implement buffer refresh functions
+              ;; (beads-list--refresh-all-buffers)
+              ;; (beads-show--refresh-all-buffers)
+              nil))
         (error
          (message "Failed to add dependency: %s"
                   (error-message-string err)))))))
@@ -268,8 +270,10 @@ Returns error message string if invalid, nil if valid."
             (beads--invalidate-completion-cache)
             (beads-dep-remove--reset)
             (when beads-auto-refresh
-              (beads-list--refresh-all-buffers)
-              (beads-show--refresh-all-buffers)))
+              ;; TODO: Implement buffer refresh functions
+              ;; (beads-list--refresh-all-buffers)
+              ;; (beads-show--refresh-all-buffers)
+              nil))
         (error
          (message "Failed to remove dependency: %s"
                   (error-message-string err)))))))

@@ -405,6 +405,9 @@ listing dependencies."
 (defvar beads-export--no-auto-flush nil
   "Whether to disable auto-flush.")
 
+(defvar beads-export--status nil
+  "Status filter for export.")
+
 ;;; Utility Functions
 
 (defun beads-export--reset-state ()
@@ -531,6 +534,12 @@ JSONL format. The default output is .beads/issues.jsonl."
 
 (defvar beads-import--resolve-collisions nil
   "Whether to auto-resolve collisions.")
+
+(defvar beads-import--skip-existing nil
+  "Whether to skip existing issues during import.")
+
+(defvar beads-import--strict nil
+  "Whether to use strict mode during import.")
 
 ;;; Utility Functions
 

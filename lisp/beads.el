@@ -101,8 +101,9 @@ Returns nil if not in a project."
   (when-let ((proj (project-current)))
     (if (fboundp 'project-root)
         (project-root proj)
-      ;; Emacs 27 compatibility
-      (car (project-roots proj)))))
+      ;; Emacs 27 compatibility - project-roots is obsolete but needed for old Emacs
+      (with-no-warnings
+        (car (project-roots proj))))))
 
 (defun beads--find-beads-dir (&optional directory)
   "Find .beads directory starting from DIRECTORY.

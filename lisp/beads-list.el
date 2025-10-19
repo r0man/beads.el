@@ -43,6 +43,10 @@
 
 (require 'beads)
 
+;;; Forward Declarations
+
+(declare-function beads-update "beads-update" (&optional issue-id))
+
 ;;; Customization
 
 (defgroup beads-list nil
