@@ -18,8 +18,8 @@
 (require 'beads-delete)
 
 ;; Load test utilities
-(unless (featurep 'beads-testing)
-  (load (expand-file-name "beads-testing"
+(unless (featurep 'beads-test-helper)
+  (load (expand-file-name "beads-test-helper"
                           (file-name-directory
                            (or load-file-name buffer-file-name)))))
 
@@ -52,7 +52,7 @@ Text references to be updated:
 (ert-deftest beads-delete-test-get-preview-success ()
   "Test getting deletion preview successfully."
   (cl-letf (((symbol-function 'process-file)
-             (beads-testing-mock-call-process
+             (beads-test-helper-mock-call-process
               0 beads-delete-test--preview-output)))
     (let ((preview (beads-delete--get-preview "bd-42")))
       (should (stringp preview))
@@ -61,7 +61,7 @@ Text references to be updated:
 (ert-deftest beads-delete-test-get-preview-failure ()
   "Test getting preview handles bd command failure."
   (cl-letf (((symbol-function 'process-file)
-             (beads-testing-mock-call-process 1 "Error: issue not found")))
+             (beads-test-helper-mock-call-process 1 "Error: issue not found")))
     (should-error (beads-delete--get-preview "bd-999"))))
 
 (ert-deftest beads-delete-test-show-preview-creates-buffer ()
@@ -98,7 +98,7 @@ Text references to be updated:
   (let ((json-output (json-encode '((id . "bd-42")
                                     (deleted . t)))))
     (cl-letf (((symbol-function 'process-file)
-               (beads-testing-mock-call-process 0 json-output))
+               (beads-test-helper-mock-call-process 0 json-output))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda () nil)))
       (let ((result (beads-delete--execute-deletion "bd-42")))
@@ -107,7 +107,7 @@ Text references to be updated:
 (ert-deftest beads-delete-test-execute-deletion-command-failure ()
   "Test deletion handles bd command failure."
   (cl-letf (((symbol-function 'process-file)
-             (beads-testing-mock-call-process 1 "Error")))
+             (beads-test-helper-mock-call-process 1 "Error")))
     (should-error (beads-delete--execute-deletion "bd-42"))))
 
 (ert-deftest beads-delete-test-execute-invalidates-cache ()
@@ -115,7 +115,7 @@ Text references to be updated:
   (let ((json-output (json-encode '((id . "bd-42") (deleted . t))))
         (cache-invalidated nil))
     (cl-letf (((symbol-function 'process-file)
-               (beads-testing-mock-call-process 0 json-output))
+               (beads-test-helper-mock-call-process 0 json-output))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda () (setq cache-invalidated t))))
       (beads-delete--execute-deletion "bd-42")
@@ -128,7 +128,7 @@ Text references to be updated:
     (with-current-buffer (get-buffer-create "*beads-show bd-42*")
       (special-mode))
     (cl-letf (((symbol-function 'process-file)
-               (beads-testing-mock-call-process 0 json-output))
+               (beads-test-helper-mock-call-process 0 json-output))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda () nil)))
       (beads-delete--execute-deletion "bd-42")
@@ -142,7 +142,7 @@ Text references to be updated:
         (get-buffer-create "*beads-delete-preview: bd-42*")
       (special-mode))
     (cl-letf (((symbol-function 'process-file)
-               (beads-testing-mock-call-process 0 json-output))
+               (beads-test-helper-mock-call-process 0 json-output))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda () nil)))
       (beads-delete--execute-deletion "bd-42")
@@ -251,7 +251,7 @@ Text references to be updated:
       (let ((json-output (json-encode (list (cons 'id id)
                                             (cons 'deleted t)))))
         (cl-letf (((symbol-function 'process-file)
-                   (beads-testing-mock-call-process 0 json-output))
+                   (beads-test-helper-mock-call-process 0 json-output))
                   ((symbol-function 'beads--invalidate-completion-cache)
                    (lambda () nil)))
           (should (beads-delete--execute-deletion id)))))))
