@@ -99,14 +99,16 @@ FORMAT-STRING and ARGS are passed to `format'."
       (let* ((timestamp (format-time-string "%Y-%m-%d %H:%M:%S"))
              (level-str (upcase (symbol-name level)))
              (msg (apply #'format format-string args))
-             (log-line (format "[%s] [%s] %s\n" timestamp level-str msg)))
+             (log-line (format "[%s] [%s] %s\n" timestamp level-str msg))
+             (buf (get-buffer-create "*beads-debug*")))
         ;; Log to buffer
-        (with-current-buffer (get-buffer-create "*beads-debug*")
+        (with-current-buffer buf
           (goto-char (point-max))
           (let ((inhibit-read-only t))
-            (insert log-line))
-          ;; Auto-scroll if buffer is visible
-          (when (get-buffer-window (current-buffer))
+            (insert log-line)))
+        ;; Auto-scroll if buffer is visible in a window
+        (when-let ((win (get-buffer-window buf)))
+          (with-selected-window win
             (goto-char (point-max))
             (recenter -1)))))))
 
