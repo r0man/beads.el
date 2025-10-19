@@ -37,37 +37,24 @@ and provides comprehensive Emacs Lisp interfaces for all bd commands.
 
 ## Build and Test Commands
 
-### Running Tests
+Always build, test and lint the project after changing code.
+
+### Build
 
 ```bash
-# From lisp/ directory (all commands assume you're in lisp/)
-cd lisp
+eldev -p -dtT compile
+```
 
-# Run all tests (448 total tests, should complete in <1s)
-make test
+### Test
 
-# Run individual test suites
-make test-process      # Process execution and JSON parsing
-make test-project      # Project discovery and caching
-make test-utils        # Utility functions
-make test-list         # List mode UI
-make test-create       # Create transient menu
-make test-show         # Show mode UI
-make test-update       # Update transient menu
-make test-main         # Main transient menu
-make test-misc         # Misc commands (close, dep, stats, etc.)
+```bash
+eldev -p -dtT test
+```
 
-# Interactive test mode (opens Emacs with ERT loaded)
-make test-interactive
+### Lint
 
-# Show test statistics
-make test-stats
-
-# Byte-compile all .el files (checks for compilation warnings)
-make compile
-
-# Clean compiled .elc files
-make clean
+```bash
+eldev -p -dtT lint
 ```
 
 ### Development Workflow
