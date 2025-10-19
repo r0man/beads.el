@@ -8,7 +8,7 @@
 ;;; Commentary:
 
 ;; Comprehensive ERT tests for beads-delete.el.
-;; Tests cover all aspects of the bd delete command interface.
+;; Tests the preview-based deletion workflow.
 
 ;;; Code:
 
@@ -16,6 +16,12 @@
 (require 'json)
 (require 'beads)
 (require 'beads-delete)
+
+;; Load test utilities
+(unless (featurep 'beads-testing)
+  (load (expand-file-name "beads-testing"
+                          (file-name-directory
+                           (or load-file-name buffer-file-name)))))
 
 ;;; Test Fixtures
 
@@ -39,115 +45,49 @@ Text references to be updated:
 "
   "Sample preview output.")
 
-;;; Test Utilities
-
-(defun beads-delete-test--mock-call-process (exit-code output)
-  "Create a mock for `call-process' returning EXIT-CODE and OUTPUT."
-  (lambda (program &optional infile destination display &rest args)
-    (when destination
-      (with-current-buffer (if (bufferp destination)
-                               destination
-                             (current-buffer))
-        (insert output)))
-    exit-code))
-
-(defmacro beads-delete-test-with-state (state &rest body)
-  "Execute BODY with beads-delete state set to STATE."
-  (declare (indent 1))
-  `(progn
-     (setq beads-delete--issue-id nil)
-     ,@(mapcar (lambda (binding)
-                 `(setq ,(car binding) ,(cdr binding)))
-               (eval state))
-     ,@body))
-
 ;;; ============================================================
-;;; State Management Tests
+;;; Preview Tests
 ;;; ============================================================
 
-(ert-deftest beads-delete-test-reset-state ()
-  "Test that reset-state clears all variables."
-  (beads-delete-test-with-state
-   '((beads-delete--issue-id . "bd-42"))
-   (beads-delete--reset-state)
-   (should (null beads-delete--issue-id))))
+(ert-deftest beads-delete-test-get-preview-success ()
+  "Test getting deletion preview successfully."
+  (cl-letf (((symbol-function 'process-file)
+             (beads-testing-mock-call-process
+              0 beads-delete-test--preview-output)))
+    (let ((preview (beads-delete--get-preview "bd-42")))
+      (should (stringp preview))
+      (should (string-match-p "bd-42" preview)))))
 
-;;; ============================================================
-;;; Validation Tests
-;;; ============================================================
+(ert-deftest beads-delete-test-get-preview-failure ()
+  "Test getting preview handles bd command failure."
+  (cl-letf (((symbol-function 'process-file)
+             (beads-testing-mock-call-process 1 "Error: issue not found")))
+    (should-error (beads-delete--get-preview "bd-999"))))
 
-(ert-deftest beads-delete-test-validate-issue-id-nil ()
-  "Test issue ID validation when nil."
-  (beads-delete-test-with-state nil
-   (should (beads-delete--validate-issue-id))))
+(ert-deftest beads-delete-test-show-preview-creates-buffer ()
+  "Test that show-preview creates a buffer with preview text."
+  (let* ((issue-id "bd-42")
+         (preview-text "Test preview content")
+         (buffer (beads-delete--show-preview issue-id preview-text)))
+    (unwind-protect
+        (progn
+          (should (bufferp buffer))
+          (should (string-match-p issue-id (buffer-name buffer)))
+          (with-current-buffer buffer
+            (should (string-match-p preview-text (buffer-string)))
+            (should buffer-read-only)))
+      (when (buffer-live-p buffer)
+        (kill-buffer buffer)))))
 
-(ert-deftest beads-delete-test-validate-issue-id-empty ()
-  "Test issue ID validation when empty."
-  (beads-delete-test-with-state
-   '((beads-delete--issue-id . ""))
-   (should (beads-delete--validate-issue-id))))
-
-(ert-deftest beads-delete-test-validate-issue-id-valid ()
-  "Test issue ID validation when valid."
-  (beads-delete-test-with-state
-   '((beads-delete--issue-id . "bd-42"))
-   (should (null (beads-delete--validate-issue-id)))))
-
-(ert-deftest beads-delete-test-validate-all-success ()
-  "Test validate-all with valid parameters."
-  (beads-delete-test-with-state
-   '((beads-delete--issue-id . "bd-42"))
-   (should (null (beads-delete--validate-all)))))
-
-(ert-deftest beads-delete-test-validate-all-failure ()
-  "Test validate-all with missing parameters."
-  (beads-delete-test-with-state nil
-   (should (beads-delete--validate-all))))
-
-;;; ============================================================
-;;; Command Building Tests
-;;; ============================================================
-
-(ert-deftest beads-delete-test-build-command-args ()
-  "Test building command arguments."
-  (beads-delete-test-with-state
-   '((beads-delete--issue-id . "bd-42"))
-   (let ((args (beads-delete--build-command-args)))
-     (should (equal args '("--force" "bd-42"))))))
-
-;;; ============================================================
-;;; Confirmation Tests
-;;; ============================================================
-
-(ert-deftest beads-delete-test-confirm-with-yes ()
-  "Test confirmation with 'yes' response."
-  (cl-letf (((symbol-function 'read-string)
-             (lambda (_prompt) "yes")))
-    (should (beads-delete--confirm-deletion "bd-42"))))
-
-(ert-deftest beads-delete-test-confirm-with-issue-id ()
-  "Test confirmation with exact issue ID."
-  (cl-letf (((symbol-function 'read-string)
-             (lambda (_prompt) "bd-42")))
-    (should (beads-delete--confirm-deletion "bd-42"))))
-
-(ert-deftest beads-delete-test-confirm-with-wrong-response ()
-  "Test confirmation with wrong response."
-  (cl-letf (((symbol-function 'read-string)
-             (lambda (_prompt) "no")))
-    (should-not (beads-delete--confirm-deletion "bd-42"))))
-
-(ert-deftest beads-delete-test-confirm-with-wrong-issue-id ()
-  "Test confirmation with wrong issue ID."
-  (cl-letf (((symbol-function 'read-string)
-             (lambda (_prompt) "bd-99")))
-    (should-not (beads-delete--confirm-deletion "bd-42"))))
-
-(ert-deftest beads-delete-test-confirm-case-sensitive ()
-  "Test confirmation is case-sensitive."
-  (cl-letf (((symbol-function 'read-string)
-             (lambda (_prompt) "YES")))
-    (should-not (beads-delete--confirm-deletion "bd-42"))))
+(ert-deftest beads-delete-test-show-preview-content-only ()
+  "Test that preview buffer shows only bd command output."
+  (let* ((buffer (beads-delete--show-preview
+                  "bd-42" "Test content from bd")))
+    (unwind-protect
+        (with-current-buffer buffer
+          (should (string= "Test content from bd" (buffer-string))))
+      (when (buffer-live-p buffer)
+        (kill-buffer buffer)))))
 
 ;;; ============================================================
 ;;; Execution Tests
@@ -155,122 +95,178 @@ Text references to be updated:
 
 (ert-deftest beads-delete-test-execute-deletion-success ()
   "Test successful deletion execution."
-  (beads-delete-test-with-state
-   '((beads-delete--issue-id . "bd-42"))
-   (let ((json-output (json-encode '((id . "bd-42")
+  (let ((json-output (json-encode '((id . "bd-42")
                                     (deleted . t)))))
-     (cl-letf (((symbol-function 'call-process)
-                (beads-delete-test--mock-call-process 0 json-output))
-               ((symbol-function 'read-string) (lambda (_prompt) "yes"))
-               ((symbol-function 'beads--invalidate-completion-cache)
-                (lambda () nil)))
-       (let ((result (beads-delete--execute-deletion)))
-         (should result))))))
-
-(ert-deftest beads-delete-test-execute-deletion-cancelled ()
-  "Test deletion cancelled by user."
-  (beads-delete-test-with-state
-   '((beads-delete--issue-id . "bd-42"))
-   (cl-letf (((symbol-function 'read-string) (lambda (_prompt) "no")))
-     (should-error (beads-delete--execute-deletion)
-                   :type 'user-error))))
+    (cl-letf (((symbol-function 'process-file)
+               (beads-testing-mock-call-process 0 json-output))
+              ((symbol-function 'beads--invalidate-completion-cache)
+               (lambda () nil)))
+      (let ((result (beads-delete--execute-deletion "bd-42")))
+        (should result)))))
 
 (ert-deftest beads-delete-test-execute-deletion-command-failure ()
   "Test deletion handles bd command failure."
-  (beads-delete-test-with-state
-   '((beads-delete--issue-id . "bd-42"))
-   (cl-letf (((symbol-function 'call-process)
-              (beads-delete-test--mock-call-process 1 "Error"))
-             ((symbol-function 'read-string) (lambda (_prompt) "yes")))
-     (should-error (beads-delete--execute-deletion)))))
+  (cl-letf (((symbol-function 'process-file)
+             (beads-testing-mock-call-process 1 "Error")))
+    (should-error (beads-delete--execute-deletion "bd-42"))))
 
 (ert-deftest beads-delete-test-execute-invalidates-cache ()
   "Test that deletion invalidates completion cache."
-  (beads-delete-test-with-state
-   '((beads-delete--issue-id . "bd-42"))
-   (let ((json-output (json-encode '((id . "bd-42") (deleted . t))))
-         (cache-invalidated nil))
-     (cl-letf (((symbol-function 'call-process)
-                (beads-delete-test--mock-call-process 0 json-output))
-               ((symbol-function 'read-string) (lambda (_prompt) "yes"))
-               ((symbol-function 'beads--invalidate-completion-cache)
-                (lambda () (setq cache-invalidated t))))
-       (beads-delete--execute-deletion)
-       (should cache-invalidated)))))
+  (let ((json-output (json-encode '((id . "bd-42") (deleted . t))))
+        (cache-invalidated nil))
+    (cl-letf (((symbol-function 'process-file)
+               (beads-testing-mock-call-process 0 json-output))
+              ((symbol-function 'beads--invalidate-completion-cache)
+               (lambda () (setq cache-invalidated t))))
+      (beads-delete--execute-deletion "bd-42")
+      (should cache-invalidated))))
 
 (ert-deftest beads-delete-test-execute-closes-show-buffer ()
   "Test that deletion closes the show buffer for deleted issue."
-  (beads-delete-test-with-state
-   '((beads-delete--issue-id . "bd-42"))
-   (let ((json-output (json-encode '((id . "bd-42") (deleted . t)))))
-     ;; Create a show buffer first
-     (with-current-buffer (get-buffer-create "*beads-show bd-42*")
-       (special-mode))
-     (cl-letf (((symbol-function 'call-process)
-                (beads-delete-test--mock-call-process 0 json-output))
-               ((symbol-function 'read-string) (lambda (_prompt) "yes"))
-               ((symbol-function 'beads--invalidate-completion-cache)
-                (lambda () nil)))
-       (beads-delete--execute-deletion)
-       (should-not (get-buffer "*beads-show bd-42*"))))))
+  (let ((json-output (json-encode '((id . "bd-42") (deleted . t)))))
+    ;; Create a show buffer first
+    (with-current-buffer (get-buffer-create "*beads-show bd-42*")
+      (special-mode))
+    (cl-letf (((symbol-function 'process-file)
+               (beads-testing-mock-call-process 0 json-output))
+              ((symbol-function 'beads--invalidate-completion-cache)
+               (lambda () nil)))
+      (beads-delete--execute-deletion "bd-42")
+      (should-not (get-buffer "*beads-show bd-42*")))))
+
+(ert-deftest beads-delete-test-execute-closes-preview-buffer ()
+  "Test that deletion closes the preview buffer."
+  (let ((json-output (json-encode '((id . "bd-42") (deleted . t)))))
+    ;; Create a preview buffer first
+    (with-current-buffer
+        (get-buffer-create "*beads-delete-preview: bd-42*")
+      (special-mode))
+    (cl-letf (((symbol-function 'process-file)
+               (beads-testing-mock-call-process 0 json-output))
+              ((symbol-function 'beads--invalidate-completion-cache)
+               (lambda () nil)))
+      (beads-delete--execute-deletion "bd-42")
+      (should-not (get-buffer "*beads-delete-preview: bd-42*")))))
 
 ;;; ============================================================
-;;; Transient Tests
+;;; Main Command Tests
 ;;; ============================================================
 
-(ert-deftest beads-delete-test-transient-defined ()
-  "Test that beads-delete transient is defined."
+(ert-deftest beads-delete-test-command-defined ()
+  "Test that beads-delete function is defined."
   (should (fboundp 'beads-delete)))
 
-(ert-deftest beads-delete-test-transient-is-prefix ()
-  "Test that beads-delete is a transient prefix."
-  (should (get 'beads-delete 'transient--prefix)))
+;;; ============================================================
+;;; Context Detection Tests
+;;; ============================================================
 
-(ert-deftest beads-delete-test-infix-commands-defined ()
-  "Test that delete infix commands are defined."
-  (should (fboundp 'beads-delete--infix-issue-id)))
+(ert-deftest beads-delete-test-detect-issue-id-from-list-mode ()
+  "Test detecting issue ID from beads-list-mode."
+  (require 'beads-list)
+  (with-temp-buffer
+    (beads-list-mode)
+    (cl-letf (((symbol-function 'beads-list--current-issue-id)
+               (lambda () "bd-42")))
+      (should (equal (beads-delete--detect-issue-id) "bd-42")))))
 
-(ert-deftest beads-delete-test-suffix-commands-defined ()
-  "Test that delete suffix commands are defined."
-  (should (fboundp 'beads-delete--execute))
-  (should (fboundp 'beads-delete--reset)))
+(ert-deftest beads-delete-test-detect-issue-id-from-show-mode ()
+  "Test detecting issue ID from beads-show-mode."
+  (require 'beads-show)
+  (with-temp-buffer
+    (beads-show-mode)
+    (setq-local beads-show--issue-id "bd-99")
+    (should (equal (beads-delete--detect-issue-id) "bd-99"))))
+
+(ert-deftest beads-delete-test-detect-issue-id-from-buffer-name ()
+  "Test detecting issue ID from buffer name."
+  (with-current-buffer (get-buffer-create "*beads-show: bd-123*")
+    (should (equal (beads-delete--detect-issue-id) "bd-123"))
+    (kill-buffer)))
+
+(ert-deftest beads-delete-test-detect-issue-id-no-context ()
+  "Test detecting issue ID when no context available."
+  (with-temp-buffer
+    (should (null (beads-delete--detect-issue-id)))))
 
 ;;; ============================================================
-;;; Edge Cases and Integration Tests
+;;; List View Integration Tests
+;;; ============================================================
+
+(ert-deftest beads-delete-test-list-delete-function-defined ()
+  "Test that beads-list-delete function is defined."
+  (require 'beads-list)
+  (should (fboundp 'beads-list-delete)))
+
+(ert-deftest beads-delete-test-list-delete-with-issue ()
+  "Test deleting from list view with issue at point."
+  (require 'beads-list)
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((beads-delete-called nil)
+          (beads-delete-called-with nil))
+      (cl-letf (((symbol-function 'beads-list--current-issue-id)
+                 (lambda () "bd-42"))
+                ((symbol-function 'beads-delete)
+                 (lambda (id)
+                   (setq beads-delete-called t)
+                   (setq beads-delete-called-with id))))
+        (beads-list-delete)
+        (should beads-delete-called)
+        (should (equal beads-delete-called-with "bd-42"))))))
+
+(ert-deftest beads-delete-test-list-delete-no-issue ()
+  "Test deleting from list view with no issue at point."
+  (require 'beads-list)
+  (with-temp-buffer
+    (beads-list-mode)
+    (cl-letf (((symbol-function 'beads-list--current-issue-id)
+               (lambda () nil)))
+      (should-error (beads-list-delete) :type 'user-error))))
+
+(ert-deftest beads-delete-test-list-keybinding-exists ()
+  "Test that D keybinding exists in beads-list-mode-map."
+  (require 'beads-list)
+  (let ((binding (lookup-key beads-list-mode-map (kbd "D"))))
+    (should (eq binding 'beads-list-delete))))
+
+(ert-deftest beads-delete-test-list-delete-passes-id ()
+  "Test that beads-list-delete passes the issue ID to beads-delete."
+  (require 'beads-list)
+  (let ((received-id nil))
+    (cl-letf (((symbol-function 'beads-list--current-issue-id)
+               (lambda () "test-123"))
+              ((symbol-function 'beads-delete)
+               (lambda (id) (setq received-id id))))
+      (beads-list-delete)
+      (should (equal received-id "test-123")))))
+
+;;; ============================================================
+;;; Edge Cases
 ;;; ============================================================
 
 (ert-deftest beads-delete-test-different-issue-id-formats ()
   "Test deletion with different issue ID formats."
   (let ((issue-ids '("bd-1" "bd-999" "worker-42" "test-123")))
     (dolist (id issue-ids)
-      (setq beads-delete--issue-id id)
       (let ((json-output (json-encode (list (cons 'id id)
                                             (cons 'deleted t)))))
-        (cl-letf (((symbol-function 'call-process)
-                   (beads-delete-test--mock-call-process 0 json-output))
-                  ((symbol-function 'read-string)
-                   (lambda (_prompt) "yes"))
+        (cl-letf (((symbol-function 'process-file)
+                   (beads-testing-mock-call-process 0 json-output))
                   ((symbol-function 'beads--invalidate-completion-cache)
                    (lambda () nil)))
-          (should (beads-delete--execute-deletion)))))))
+          (should (beads-delete--execute-deletion id)))))))
 
-(ert-deftest beads-delete-test-confirmation-with-exact-issue-id ()
-  "Test confirmation requires exact issue ID match."
-  (let ((test-cases '(("bd-42" "bd-42" t)    ; exact match
-                     ("bd-42" "BD-42" nil)   ; wrong case
-                     ("bd-42" "bd-43" nil)   ; wrong number
-                     ("bd-42" "bd-4" nil)    ; partial
-                     ("bd-42" "42" nil))))   ; missing prefix
-    (dolist (case test-cases)
-      (let ((issue-id (nth 0 case))
-            (response (nth 1 case))
-            (expected (nth 2 case)))
-        (cl-letf (((symbol-function 'read-string)
-                   (lambda (_prompt) response)))
-          (if expected
-              (should (beads-delete--confirm-deletion issue-id))
-            (should-not (beads-delete--confirm-deletion issue-id))))))))
+;;; ============================================================
+;;; Integration Tests
+;;; ============================================================
 
+(ert-deftest beads-delete-test-integration-keybinding-exists ()
+  "Integration test: Verify D keybinding exists in list mode."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((binding (lookup-key beads-list-mode-map (kbd "D"))))
+      (should (eq binding 'beads-list-delete)))))
 
 (provide 'beads-delete-test)
 ;;; beads-delete-test.el ends here

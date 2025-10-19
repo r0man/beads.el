@@ -17,147 +17,160 @@
 ;; 2. Updates text references to '[deleted:ID]' in directly connected issues
 ;; 3. Deletes the issue from the database
 ;;
+;; Workflow:
+;; 1. User calls `beads-delete', selects issue
+;; 2. Preview is shown (bd delete without --force)
+;; 3. User confirms yes/no
+;; 4. If yes: execute deletion (bd delete --force)
+;; 5. If no: cancel operation
+;;
 ;; Features:
-;; - Preview mode (without --force) shows impact before deletion
-;; - Strong confirmation prompt requiring 'yes' or issue ID
-;; - Display dependencies and text references that will be affected
+;; - Interactive preview before deletion
 ;; - Context-aware: works from show/list buffers
 ;; - Refreshes all buffers after deletion
 
 ;;; Code:
 
 (require 'beads)
-(require 'transient)
+(require 'beads-list)
+(require 'beads-show)
 
-;;; State Variables
+;;; Utility Functions
 
-(defvar beads-delete--issue-id nil
-  "Issue ID to delete.")
+(defun beads-delete--detect-issue-id ()
+  "Detect issue ID from current context.
+Returns issue ID string or nil if not found."
+  (or
+   ;; From beads-list buffer
+   (when (derived-mode-p 'beads-list-mode)
+     (beads-list--current-issue-id))
+   ;; From beads-show buffer
+   (when (derived-mode-p 'beads-show-mode)
+     beads-show--issue-id)
+   ;; From buffer name (*beads-show: bd-N*)
+   (when (string-match "\\*beads-show: \\([^*]+\\)\\*"
+                      (buffer-name))
+     (match-string 1 (buffer-name)))))
 
-;;; State Management
+;;; Preview Functions
 
-(defun beads-delete--reset-state ()
-  "Reset all delete state variables."
-  (setq beads-delete--issue-id nil))
+(defun beads-delete--get-preview (issue-id)
+  "Get deletion preview for ISSUE-ID.
+Runs bd delete without --force to show what will be affected.
+Returns preview output as string."
+  (let* ((cmd (list beads-executable))
+         (db (beads--get-database-path)))
+    ;; Add global flags
+    (when beads-actor
+      (setq cmd (append cmd (list "--actor" beads-actor))))
+    (when db
+      (setq cmd (append cmd (list "--db" (file-local-name db)))))
+    ;; Add delete subcommand and issue-id (no --force, no --json)
+    (setq cmd (append cmd (list "delete" issue-id)))
 
-;;; Validation
+    (with-temp-buffer
+      (let ((exit-code (apply #'process-file
+                              (car cmd) nil t nil (cdr cmd))))
+        (if (zerop exit-code)
+            (buffer-string)
+          (beads--error "Failed to get preview (exit %d): %s"
+                        exit-code (buffer-string)))))))
 
-(defun beads-delete--validate-issue-id ()
-  "Validate issue ID.  Return error string or nil."
-  (if (or (null beads-delete--issue-id)
-          (string-empty-p (string-trim beads-delete--issue-id)))
-      "Issue ID is required"
-    nil))
-
-(defun beads-delete--validate-all ()
-  "Validate all delete parameters.  Return error string or nil."
-  (beads-delete--validate-issue-id))
-
-;;; Command Building
-
-(defun beads-delete--build-command-args ()
-  "Build command arguments for bd delete.
-Returns list of arguments (not including 'delete' subcommand)."
-  (list "--force" beads-delete--issue-id))
-
-;;; Confirmation
-
-(defun beads-delete--confirm-deletion (issue-id)
-  "Prompt user to confirm deletion of ISSUE-ID.
-Requires typing 'yes' or the issue ID exactly."
-  (let* ((prompt (format "Type 'yes' or '%s' to confirm deletion: "
-                        issue-id))
-         (response (read-string prompt)))
-    (or (string= response "yes")
-        (string= response issue-id))))
+(defun beads-delete--show-preview (issue-id preview-text)
+  "Show deletion preview for ISSUE-ID in a buffer.
+PREVIEW-TEXT is the output from bd delete without --force.
+Returns the preview buffer."
+  (let ((buffer (get-buffer-create
+                 (format "*beads-delete-preview: %s*" issue-id))))
+    (with-current-buffer buffer
+      (setq buffer-read-only nil)
+      (erase-buffer)
+      (insert preview-text)
+      (goto-char (point-min))
+      (setq buffer-read-only t)
+      (special-mode))
+    buffer))
 
 ;;; Execution
 
-(defun beads-delete--execute-deletion ()
-  "Execute the deletion with confirmation."
-  (unless (beads-delete--confirm-deletion beads-delete--issue-id)
-    (user-error "Deletion cancelled"))
-
-  (let* ((args (beads-delete--build-command-args))
-         (result (apply #'beads--run-command "delete" args)))
-    (message "Deleted issue %s" beads-delete--issue-id)
+(defun beads-delete--execute-deletion (issue-id)
+  "Execute the deletion of ISSUE-ID with --force flag."
+  (let ((result (beads--run-command "delete" issue-id "--force")))
+    (message "Deleted issue %s" issue-id)
     ;; Invalidate completion cache
     (beads--invalidate-completion-cache)
-    ;; Refresh any open beads buffers
-    (dolist (buffer (buffer-list))
-      (with-current-buffer buffer
-        (when (or (eq major-mode 'beads-list-mode)
-                  (eq major-mode 'beads-show-mode))
-          (revert-buffer nil t))))
     ;; Close show buffer if viewing the deleted issue
-    (let ((show-buffer (format "*beads-show %s*" beads-delete--issue-id)))
+    (let ((show-buffer (format "*beads-show %s*" issue-id)))
       (when (get-buffer show-buffer)
         (kill-buffer show-buffer)))
+    ;; Close preview buffer
+    (let ((preview-buffer (format "*beads-delete-preview: %s*" issue-id)))
+      (when (get-buffer preview-buffer)
+        (kill-buffer preview-buffer)))
+    ;; Refresh any open beads buffers
+    (when beads-auto-refresh
+      (dolist (buffer (buffer-list))
+        (with-current-buffer buffer
+          (when (derived-mode-p 'beads-list-mode)
+            (beads-list-refresh)))))
     result))
 
-;;; Transient Infixes
-
-(transient-define-infix beads-delete--infix-issue-id ()
-  "Read issue ID to delete."
-  :class 'transient-option
-  :description "Issue ID"
-  :key "i"
-  :argument "--issue-id="
-  :reader (lambda (_prompt _initial-input _history)
-            (let ((id (completing-read "Issue ID: "
-                                      (beads--issue-completion-table)
-                                      nil nil nil 'beads-issue-history)))
-              (setq beads-delete--issue-id id)
-              id))
-  :always-read t
-  :init-value (lambda (obj)
-                ;; Try to get issue ID from context
-                (let ((id (or beads-delete--issue-id
-                             (beads--current-issue-id))))
-                  (when id
-                    (setq beads-delete--issue-id id)
-                    (oset obj value (concat "--issue-id=" id))))))
-
-;;; Transient Suffixes
-
-(transient-define-suffix beads-delete--execute ()
-  "Execute bd delete command."
-  :description "Delete issue"
-  :key "d"
-  (interactive)
-  (when-let ((error (beads-delete--validate-all)))
-    (user-error "%s" error))
-  (beads-delete--execute-deletion)
-  (beads-delete--reset-state)
-  (transient-quit))
-
-(transient-define-suffix beads-delete--reset ()
-  "Reset delete state."
-  :description "Reset"
-  :key "R"
-  :transient t
-  (interactive)
-  (beads-delete--reset-state)
-  (message "Reset delete state"))
-
-;;; Main Transient
+;;; Main Command
 
 ;;;###autoload
-(transient-define-prefix beads-delete ()
-  "Delete an issue with bd delete.
+(defun beads-delete (&optional issue-id)
+  "Delete an issue with preview and confirmation.
 
 This is a DESTRUCTIVE operation that:
 - Removes all dependency links
 - Updates text references to '[deleted:ID]'
 - Deletes the issue from the database
 
-You will be prompted to confirm deletion by typing 'yes' or the issue ID."
-  ["Arguments"
-   (beads-delete--infix-issue-id)]
-  ["Actions"
-   ("d" "Delete" beads-delete--execute)
-   ("R" "Reset" beads-delete--reset)
-   ("q" "Quit" transient-quit)])
+Workflow:
+1. Prompts for issue ID (or uses ISSUE-ID if provided)
+2. Shows preview of what will be deleted (bd delete without --force)
+3. Asks for confirmation (yes/no)
+4. If yes: executes deletion (bd delete --force)
+5. If no: cancels operation
+
+If called from beads-list or beads-show buffer, detects issue
+from context."
+  (interactive
+   (list (or (beads-delete--detect-issue-id)
+             (completing-read "Delete issue: "
+                              (beads--issue-completion-table)
+                              nil t nil 'beads--issue-id-history))))
+  ;; Check executable
+  (beads-check-executable)
+
+  ;; Get issue ID if not provided
+  (unless issue-id
+    (setq issue-id (completing-read "Delete issue: "
+                                    (beads--issue-completion-table)
+                                    nil t nil
+                                    'beads--issue-id-history)))
+
+  ;; Get preview
+  (message "Getting deletion preview for %s..." issue-id)
+  (condition-case err
+      (let* ((preview-text (beads-delete--get-preview issue-id))
+             (preview-buffer (beads-delete--show-preview
+                              issue-id preview-text)))
+        ;; Show preview buffer
+        (pop-to-buffer preview-buffer)
+
+        ;; Ask for confirmation and close preview buffer
+        (unwind-protect
+            (when (yes-or-no-p
+                   (format "Delete issue %s? " issue-id))
+              ;; Execute deletion
+              (beads-delete--execute-deletion issue-id))
+          ;; Always close preview buffer after answering
+          (when (buffer-live-p preview-buffer)
+            (kill-buffer preview-buffer))))
+    (error
+     (message "Failed to get deletion preview: %s"
+              (error-message-string err)))))
 
 (provide 'beads-delete)
 ;;; beads-delete.el ends here

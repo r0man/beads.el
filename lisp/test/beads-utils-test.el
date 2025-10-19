@@ -67,7 +67,7 @@
       (kill-buffer "*beads-debug*"))
 
     ;; Log a message
-    (beads--log "Test message: %s" "value")
+    (beads--log 'info "Test message: %s" "value")
 
     ;; Debug buffer should not be created
     (should-not (get-buffer "*beads-debug*"))))
@@ -80,7 +80,7 @@
       (kill-buffer "*beads-debug*"))
 
     ;; Log a message
-    (beads--log "Test message: %s" "value")
+    (beads--log 'info "Test message: %s" "value")
 
     ;; Debug buffer should be created
     (should (get-buffer "*beads-debug*"))
@@ -101,7 +101,7 @@
       (kill-buffer "*beads-debug*"))
 
     ;; Log a message
-    (beads--log "Timestamp test")
+    (beads--log 'info "Timestamp test")
 
     ;; Check timestamp format [YYYY-MM-DD HH:MM:SS]
     (with-current-buffer "*beads-debug*"
@@ -122,9 +122,9 @@
       (kill-buffer "*beads-debug*"))
 
     ;; Log multiple messages
-    (beads--log "First message")
-    (beads--log "Second message")
-    (beads--log "Third message")
+    (beads--log 'info "First message")
+    (beads--log 'info "Second message")
+    (beads--log 'info "Third message")
 
     ;; Check all messages are present
     (with-current-buffer "*beads-debug*"
@@ -144,7 +144,7 @@
       (kill-buffer "*beads-debug*"))
 
     ;; Log with various format specifiers
-    (beads--log "String: %s, Number: %d, Float: %.2f" "test" 42 3.14159)
+    (beads--log 'info "String: %s, Number: %d, Float: %.2f" "test" 42 3.14159)
 
     ;; Check formatted output
     (with-current-buffer "*beads-debug*"
@@ -162,7 +162,7 @@
       (kill-buffer "*beads-debug*"))
 
     ;; Log empty message
-    (beads--log "")
+    (beads--log 'info "")
 
     ;; Buffer should exist with timestamp but empty message
     (with-current-buffer "*beads-debug*"
@@ -333,17 +333,17 @@
       (kill-buffer "*beads-debug*"))
 
     ;; First session
-    (beads--log "Session 1: operation 1")
-    (beads--log "Session 1: operation 2")
+    (beads--log 'info "Session 1: operation 1")
+    (beads--log 'info "Session 1: operation 2")
 
     ;; Second session
-    (beads--log "Session 2: operation 1")
+    (beads--log 'info "Session 2: operation 1")
     (condition-case nil
         (beads--error "Session 2: error")
       (user-error nil))
 
     ;; Third session
-    (beads--log "Session 3: operation 1")
+    (beads--log 'info "Session 3: operation 1")
 
     ;; Verify all messages are present
     (with-current-buffer "*beads-debug*"
@@ -374,7 +374,7 @@
     (should-not (get-buffer "*beads-debug*"))
 
     ;; Log a message
-    (beads--log "First message")
+    (beads--log 'info "First message")
 
     ;; Now buffer should exist
     (should (get-buffer "*beads-debug*"))
@@ -412,7 +412,7 @@
       (kill-buffer "*beads-debug*"))
 
     ;; Log message with newline in content
-    (beads--log "Line 1\nLine 2\nLine 3")
+    (beads--log 'info "Line 1\nLine 2\nLine 3")
 
     ;; Check that the message is logged as-is
     (with-current-buffer "*beads-debug*"
@@ -430,7 +430,7 @@
       (kill-buffer "*beads-debug*"))
 
     ;; Log with special characters
-    (beads--log "Special: %% $@ #! \\ \" ' `")
+    (beads--log 'info "Special: %% $@ #! \\ \" ' `")
 
     ;; Check content (note: %% becomes % in format)
     (with-current-buffer "*beads-debug*"
