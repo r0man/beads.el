@@ -4,7 +4,6 @@
 
 ;; Author: Beads Contributors
 ;; Keywords: tools, project, issues
-;; Package-Requires: ((emacs "27.1") (transient "0.3.0"))
 
 ;;; Commentary:
 
@@ -172,29 +171,33 @@ After editing, the transient menu is re-displayed."
     (if errors
         (user-error "Validation failed: %s" (string-join errors "; "))
       (condition-case err
-          (let* ((args (beads-close--build-command-args))
-                 (result (apply #'beads--run-command "close" args))
-                 (issue (beads--parse-issue result))
-                 (issue-id (alist-get 'id issue)))
-            (beads-close--reset-state)
-            (message "Closed issue: %s - %s"
-                     issue-id
-                     (alist-get 'title issue))
-            ;; Invalidate completion cache
-            (beads--invalidate-completion-cache)
-            ;; Refresh any open beads buffers
-            (when beads-auto-refresh
-              (dolist (buf (buffer-list))
-                (with-current-buffer buf
-                  (cond
-                   ((derived-mode-p 'beads-list-mode)
-                    (beads-list-refresh))
-                   ((and (derived-mode-p 'beads-show-mode)
-                         (string= beads-show--issue-id issue-id))
-                    (beads-refresh-show)))))))
+          (progn
+            (let* ((args (beads-close--build-command-args))
+                   (result (apply #'beads--run-command "close" args))
+                   (issue (beads--parse-issue result))
+                   (issue-id (alist-get 'id issue)))
+              (beads-close--reset-state)
+              (message "Closed issue: %s - %s"
+                       issue-id
+                       (alist-get 'title issue))
+              ;; Invalidate completion cache
+              (beads--invalidate-completion-cache)
+              ;; Refresh any open beads buffers
+              (when beads-auto-refresh
+                (dolist (buf (buffer-list))
+                  (with-current-buffer buf
+                    (cond
+                     ((derived-mode-p 'beads-list-mode)
+                      (beads-list-refresh))
+                     ((and (derived-mode-p 'beads-show-mode)
+                           (string= beads-show--issue-id issue-id))
+                      (beads-refresh-show))))))
+              nil))
         (error
-         (message "Failed to close issue: %s"
-                  (error-message-string err)))))))
+         (let ((err-msg (format "Failed to close issue: %s"
+                               (error-message-string err))))
+           (message "%s" err-msg)
+           err-msg))))))
 
 (transient-define-suffix beads-close--reset ()
   "Reset all parameters to their default values."
@@ -214,11 +217,15 @@ After editing, the transient menu is re-displayed."
   (interactive)
   (let ((errors (beads-close--validate-all)))
     (if errors
-        (message "Validation errors: %s" (string-join errors "; "))
+        (let ((err-msg (format "Validation errors: %s" (string-join errors "; "))))
+          (message "%s" err-msg)
+          err-msg)
       (let* ((args (beads-close--build-command-args))
              (cmd (apply #'beads--build-command "close" args))
-             (cmd-string (mapconcat #'shell-quote-argument cmd " ")))
-        (message "Command: %s" cmd-string)))))
+             (cmd-string (mapconcat #'shell-quote-argument cmd " "))
+             (preview-msg (format "Command: %s" cmd-string)))
+        (message "%s" preview-msg)
+        preview-msg))))
 
 ;;; Main Transient Menu
 
@@ -227,7 +234,7 @@ After editing, the transient menu is re-displayed."
   "Close an issue in Beads with an optional reason.
 
 This transient menu provides an interactive interface for closing
-issues. The issue ID is detected from context (beads-list or
+issues.  The issue ID is detected from context (beads-list or
 beads-show buffers) or prompted for completion.
 
 Optional argument ISSUE-ID pre-fills the issue to close."

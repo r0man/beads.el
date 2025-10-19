@@ -4,7 +4,6 @@
 
 ;; Author: Beads Contributors
 ;; Keywords: tools, project, issues
-;; Package-Requires: ((emacs "27.1") (transient "0.3.0"))
 
 ;;; Commentary:
 
@@ -17,7 +16,7 @@
 ;; - bd init: Initialize beads project
 ;;
 ;; All menus follow the patterns established in beads-create.el and
-;; beads-update.el. They provide context-aware issue detection,
+;; beads-update.el.  They provide context-aware issue detection,
 ;; validation, and integration with beads-list and beads-show buffers.
 
 ;;; Code:
@@ -30,165 +29,6 @@
 (declare-function beads-list-refresh "beads-list")
 (declare-function beads-show--issue-id "beads-show")
 (declare-function beads-refresh-show "beads-show")
-
-;;; ============================================================
-;;; bd close
-;;; ============================================================
-
-;;; Transient State Variables
-
-(defvar beads-close--issue-id nil
-  "Issue ID to close.")
-
-(defvar beads-close--reason nil
-  "Reason for closing the issue.")
-
-;;; Utility Functions
-
-(defun beads-close--reset-state ()
-  "Reset close transient state."
-  (setq beads-close--issue-id nil
-        beads-close--reason nil))
-
-(defun beads-close--detect-issue-id ()
-  "Detect issue ID from current context.
-Returns issue ID string or nil if not found."
-  (or
-   ;; From beads-list buffer
-   (when (and (fboundp 'beads-list--current-issue-id)
-              (derived-mode-p 'beads-list-mode))
-     (beads-list--current-issue-id))
-   ;; From beads-show buffer
-   (when (and (boundp 'beads-show--issue-id)
-              (derived-mode-p 'beads-show-mode))
-     beads-show--issue-id)
-   ;; From buffer name (*beads-show: bd-N*)
-   (when (string-match "\\*beads-show: \\(bd-[0-9]+\\)\\*"
-                       (buffer-name))
-     (match-string 1 (buffer-name)))))
-
-(defun beads-close--format-value (value)
-  "Format VALUE for display in transient menu."
-  (if value
-      (propertize (format " [%s]" value) 'face 'transient-value)
-    (propertize " [unset]" 'face 'transient-inactive-value)))
-
-(defun beads-close--validate-reason ()
-  "Validate that reason is set.
-Returns error message string if invalid, nil if valid."
-  (when (or (null beads-close--reason)
-            (string-empty-p (string-trim beads-close--reason)))
-    "Reason is required"))
-
-(defun beads-close--validate-issue-id ()
-  "Validate that issue ID is set.
-Returns error message string if invalid, nil if valid."
-  (when (or (null beads-close--issue-id)
-            (string-empty-p (string-trim beads-close--issue-id)))
-    "Issue ID is required"))
-
-(defun beads-close--validate-all ()
-  "Validate all parameters.
-Returns list of error messages, or nil if all valid."
-  (delq nil
-        (list (beads-close--validate-issue-id)
-              (beads-close--validate-reason))))
-
-;;; Infix Commands
-
-(transient-define-infix beads-close--infix-reason ()
-  "Set the reason for closing the issue."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "Reason (--reason, required)"
-                         (beads-close--format-value
-                          beads-close--reason)))
-  :key "r"
-  :argument "reason="
-  :prompt "Close reason: "
-  :reader (lambda (_prompt _initial-input _history)
-            (let ((reason (read-string "Close reason: "
-                                       beads-close--reason)))
-              (setq beads-close--reason reason)
-              reason)))
-
-;;; Suffix Commands
-
-(defun beads-close--execute (issue-id reason)
-  "Execute bd close for ISSUE-ID with REASON."
-  (condition-case err
-      (let* ((result (beads--run-command "close" issue-id
-                                         "--reason" reason))
-             (issue (beads--parse-issue result)))
-        (message "Closed issue: %s" issue-id)
-        ;; Refresh buffers if auto-refresh is enabled
-        (when beads-auto-refresh
-          (dolist (buf (buffer-list))
-            (with-current-buffer buf
-              (cond
-               ((and (fboundp 'beads-list-refresh)
-                     (derived-mode-p 'beads-list-mode))
-                (beads-list-refresh))
-               ((and (fboundp 'beads-refresh-show)
-                     (derived-mode-p 'beads-show-mode)
-                     (boundp 'beads-show--issue-id)
-                     (string= beads-show--issue-id issue-id))
-                (beads-refresh-show))))))
-        issue)
-    (error
-     (beads--error "Failed to close issue: %s"
-                   (error-message-string err)))))
-
-(transient-define-suffix beads-close--execute-command ()
-  "Execute the bd close command."
-  :key "c"
-  :description "Close issue"
-  (interactive)
-  (let ((errors (beads-close--validate-all)))
-    (if errors
-        (user-error "Validation failed: %s" (string-join errors "; "))
-      (beads-close--execute beads-close--issue-id beads-close--reason)
-      (beads-close--reset-state))))
-
-(transient-define-suffix beads-close--reset ()
-  "Reset all parameters."
-  :key "R"
-  :description "Reset all fields"
-  :transient t
-  (interactive)
-  (when (y-or-n-p "Reset all fields? ")
-    (setq beads-close--reason nil)
-    (message "Fields reset")))
-
-;;; Main Transient Menu
-
-;;;###autoload (autoload 'beads-close "beads-misc" nil t)
-(transient-define-prefix beads-close (&optional issue-id)
-  "Close an issue in Beads.
-
-This transient menu provides an interface for closing issues with
-a reason. It detects the issue ID from context (beads-list or
-beads-show buffers) or prompts the user.
-
-If ISSUE-ID is provided, use it directly."
-  :value (lambda () nil)
-  (interactive
-   (list (or (beads-close--detect-issue-id)
-             (completing-read
-              "Close issue: "
-              (beads--issue-completion-table)
-              nil t nil 'beads--issue-id-history))))
-  (beads-check-executable)
-  (unless issue-id
-    (user-error "No issue ID specified"))
-  (setq beads-close--issue-id issue-id)
-  ["Close Issue"
-   ["Parameters"
-    (beads-close--infix-reason)]]
-  ["Actions"
-   ("c" "Close issue" beads-close--execute-command)
-   ("R" "Reset fields" beads-close--reset)
-   ("q" "Quit" transient-quit-one)])
 
 ;;; ============================================================
 ;;; bd dep
@@ -474,7 +314,7 @@ Returns list of error messages, or nil if all valid."
   "Manage issue dependencies in Beads.
 
 This transient menu provides an interface for managing dependencies
-between issues. It supports adding, removing, viewing trees, and
+between issues.  It supports adding, removing, viewing trees, and
 listing dependencies."
   :value (lambda () nil)
   (interactive)
@@ -554,46 +394,6 @@ listing dependencies."
   (beads-quickstart--execute))
 
 ;;; ============================================================
-;;; bd stats
-;;; ============================================================
-
-(defun beads-stats--execute ()
-  "Execute bd stats and display in buffer."
-  (condition-case err
-      (let* ((output (with-temp-buffer
-                       (let ((exit-code
-                              (call-process beads-executable nil t nil
-                                            "stats")))
-                         (unless (zerop exit-code)
-                           (error "Command failed: %s" (buffer-string)))
-                         (buffer-string))))
-             (buf (get-buffer-create "*beads-stats*")))
-        (with-current-buffer buf
-          (let ((inhibit-read-only t))
-            (erase-buffer)
-            (insert output)
-            (goto-char (point-min))
-            (special-mode)
-            (local-set-key (kbd "q") 'quit-window)
-            (local-set-key (kbd "g")
-                           (lambda ()
-                             (interactive)
-                             (beads-stats--execute)))))
-        (display-buffer buf)
-        (message "Project statistics")
-        nil)
-    (error
-     (beads--error "Failed to get statistics: %s"
-                   (error-message-string err)))))
-
-;;;###autoload
-(defun beads-stats ()
-  "Show project statistics."
-  (interactive)
-  (beads-check-executable)
-  (beads-stats--execute))
-
-;;; ============================================================
 ;;; bd export
 ;;; ============================================================
 
@@ -604,6 +404,9 @@ listing dependencies."
 
 (defvar beads-export--no-auto-flush nil
   "Whether to disable auto-flush.")
+
+(defvar beads-export--status nil
+  "Status filter for export.")
 
 ;;; Utility Functions
 
@@ -621,7 +424,7 @@ listing dependencies."
 
 (defun beads-export--get-default-output ()
   "Get default output path (.beads/issues.jsonl)."
-  (when-let ((beads-dir (beads--find-beads-dir)))
+  (when-let* ((beads-dir (beads--find-beads-dir)))
     (expand-file-name "issues.jsonl" beads-dir)))
 
 ;;; Infix Commands
@@ -705,7 +508,7 @@ listing dependencies."
   "Export issues to JSONL.
 
 This transient menu provides an interface for exporting issues to
-JSONL format. The default output is .beads/issues.jsonl."
+JSONL format.  The default output is .beads/issues.jsonl."
   :value (lambda () nil)
   (interactive)
   (beads-check-executable)
@@ -732,6 +535,12 @@ JSONL format. The default output is .beads/issues.jsonl."
 (defvar beads-import--resolve-collisions nil
   "Whether to auto-resolve collisions.")
 
+(defvar beads-import--skip-existing nil
+  "Whether to skip existing issues during import.")
+
+(defvar beads-import--strict nil
+  "Whether to use strict mode during import.")
+
 ;;; Utility Functions
 
 (defun beads-import--reset-state ()
@@ -750,7 +559,7 @@ JSONL format. The default output is .beads/issues.jsonl."
 
 (defun beads-import--get-default-input ()
   "Get default input path (.beads/issues.jsonl)."
-  (when-let ((beads-dir (beads--find-beads-dir)))
+  (when-let* ((beads-dir (beads--find-beads-dir)))
     (expand-file-name "issues.jsonl" beads-dir)))
 
 (defun beads-import--validate-input ()
@@ -878,7 +687,7 @@ DRY-RUN and RESOLVE-COLLISIONS control behavior."
   "Import issues from JSONL.
 
 This transient menu provides an interface for importing issues from
-JSONL format. It supports dry-run mode for previewing changes and
+JSONL format.  It supports dry-run mode for previewing changes and
 automatic collision resolution for branch merges."
   :value (lambda () nil)
   (interactive)
@@ -1002,7 +811,7 @@ automatic collision resolution for branch merges."
   "Initialize a new Beads project.
 
 This transient menu provides an interface for initializing a new
-Beads project in the current directory. It allows setting the
+Beads project in the current directory.  It allows setting the
 issue ID prefix and database path."
   :value (lambda () nil)
   (interactive)

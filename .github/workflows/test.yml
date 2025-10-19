@@ -1,0 +1,55 @@
+name: Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        emacs_version:
+          - '27.2'
+          - '28.2'
+          - '29.4'
+          - '30.2'
+          - 'snapshot'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Emacs ${{ matrix.emacs_version }}
+        uses: purcell/setup-emacs@master
+        with:
+          version: ${{ matrix.emacs_version }}
+
+      - name: Cache Eldev dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.emacs.d/eldev
+          key: ${{ runner.os }}-eldev-${{ hashFiles('Eldev') }}
+          restore-keys: |
+            ${{ runner.os }}-eldev-
+
+      - name: Install Eldev
+        run: curl --fail --silent --show-error --location https://raw.github.com/doublep/eldev/master/webinstall/github-eldev | sh
+
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+
+      - name: Install Beads via Homebrew
+        run: |
+          brew tap steveyegge/beads
+          brew install bd
+
+      - name: Verify Beads installation
+        run: bd version
+
+      - name: Run tests
+        run: eldev -p -dtT test
