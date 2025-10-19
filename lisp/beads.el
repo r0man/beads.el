@@ -64,6 +64,16 @@ If nil, uses $USER environment variable."
   :type 'boolean
   :group 'beads)
 
+(defcustom beads-debug-level 'info
+  "Debug logging level.
+- `error': Only log errors
+- `info': Log commands and important events (default)
+- `verbose': Log everything including command output"
+  :type '(choice (const :tag "Error only" error)
+                 (const :tag "Info (commands and events)" info)
+                 (const :tag "Verbose (all output)" verbose))
+  :group 'beads)
+
 (defcustom beads-auto-refresh t
   "Automatically refresh buffers after mutations."
   :type 'boolean
@@ -76,22 +86,85 @@ If nil, uses $USER environment variable."
 
 ;;; Utilities
 
-(defun beads--log (format-string &rest args)
+(defun beads--log (level format-string &rest args)
   "Log message to *beads-debug* buffer if debug is enabled.
+LEVEL is one of `error', `info', or `verbose'.
 FORMAT-STRING and ARGS are passed to `format'."
   (when beads-enable-debug
-    (with-current-buffer (get-buffer-create "*beads-debug*")
-      (goto-char (point-max))
-      (insert (format "[%s] " (format-time-string "%Y-%m-%d %H:%M:%S"))
-              (apply #'format format-string args)
-              "\n"))))
+    ;; Check if this message should be logged based on level
+    (when (or (eq level 'error)
+              (and (eq beads-debug-level 'info)
+                   (memq level '(error info)))
+              (eq beads-debug-level 'verbose))
+      (let* ((timestamp (format-time-string "%Y-%m-%d %H:%M:%S"))
+             (level-str (upcase (symbol-name level)))
+             (msg (apply #'format format-string args))
+             (log-line (format "[%s] [%s] %s\n" timestamp level-str msg)))
+        ;; Log to buffer
+        (with-current-buffer (get-buffer-create "*beads-debug*")
+          (goto-char (point-max))
+          (let ((inhibit-read-only t))
+            (insert log-line))
+          ;; Auto-scroll if buffer is visible
+          (when (get-buffer-window (current-buffer))
+            (goto-char (point-max))
+            (recenter -1)))))))
 
 (defun beads--error (format-string &rest args)
   "Display error message to user.
 FORMAT-STRING and ARGS are passed to `format'."
   (let ((msg (apply #'format format-string args)))
-    (beads--log "ERROR: %s" msg)
+    (apply #'beads--log 'error "ERROR: %s" (list msg))
     (user-error "Beads: %s" msg)))
+
+;;;###autoload
+(defun beads-show-debug-buffer ()
+  "Show the *beads-debug* buffer in another window.
+Enables debug logging if not already enabled."
+  (interactive)
+  (unless beads-enable-debug
+    (setq beads-enable-debug t)
+    (message "Debug logging enabled"))
+  (let ((buf (get-buffer-create "*beads-debug*")))
+    (with-current-buffer buf
+      (unless (eq major-mode 'beads-debug-mode)
+        (beads-debug-mode)))
+    (display-buffer buf)))
+
+;;;###autoload
+(defun beads-clear-debug-buffer ()
+  "Clear the *beads-debug* buffer."
+  (interactive)
+  (when-let ((buf (get-buffer "*beads-debug*")))
+    (with-current-buffer buf
+      (let ((inhibit-read-only t))
+        (erase-buffer)))
+    (message "Debug buffer cleared")))
+
+(defvar beads-debug-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "g") #'beads-show-debug-buffer)
+    (define-key map (kbd "c") #'beads-clear-debug-buffer)
+    (define-key map (kbd "q") #'quit-window)
+    map)
+  "Keymap for `beads-debug-mode'.")
+
+(define-derived-mode beads-debug-mode special-mode "Beads-Debug"
+  "Major mode for viewing Beads debug logs.
+
+\\{beads-debug-mode-map}"
+  (setq buffer-read-only t)
+  (setq truncate-lines nil))
+
+;;;###autoload
+(defun beads-toggle-debug ()
+  "Toggle debug logging on/off."
+  (interactive)
+  (setq beads-enable-debug (not beads-enable-debug))
+  (message "Beads debug logging %s"
+           (if beads-enable-debug "enabled" "disabled"))
+  (when beads-enable-debug
+    (beads-show-debug-buffer)))
 
 ;;; Project Integration
 
@@ -149,14 +222,14 @@ Returns parsed JSON output or signals error.
 Works over Tramp when `default-directory' is a remote path."
   (let* ((cmd (apply #'beads--build-command subcommand args))
          (cmd-string (mapconcat #'shell-quote-argument cmd " ")))
-    (beads--log "Running: %s" cmd-string)
-    (beads--log "In directory: %s" default-directory)
+    (beads--log 'info "Running: %s" cmd-string)
+    (beads--log 'verbose "In directory: %s" default-directory)
     (with-temp-buffer
       (let* ((exit-code (apply #'process-file
                                (car cmd) nil t nil (cdr cmd)))
              (output (buffer-string)))
-        (beads--log "Exit code: %d" exit-code)
-        (beads--log "Output: %s" output)
+        (beads--log 'verbose "Exit code: %d" exit-code)
+        (beads--log 'verbose "Output: %s" output)
         (if (zerop exit-code)
             (condition-case err
                 (json-read-from-string output)
@@ -171,8 +244,8 @@ Works over Tramp when `default-directory' is a remote path."
   (let* ((cmd (apply #'beads--build-command subcommand args))
          (cmd-string (mapconcat #'shell-quote-argument cmd " "))
          (buffer (generate-new-buffer " *beads-async*")))
-    (beads--log "Running async: %s" cmd-string)
-    (beads--log "In directory: %s" default-directory)
+    (beads--log 'info "Running async: %s" cmd-string)
+    (beads--log 'verbose "In directory: %s" default-directory)
     (let ((proc (apply #'start-file-process
                        "beads-async" buffer
                        (car cmd) (cdr cmd))))
@@ -183,8 +256,8 @@ Works over Tramp when `default-directory' is a remote path."
            (let ((exit-code (process-exit-status process)))
              (with-current-buffer (process-buffer process)
                (let ((output (buffer-string)))
-                 (beads--log "Async exit code: %d" exit-code)
-                 (beads--log "Async output: %s" output)
+                 (beads--log 'verbose "Async exit code: %d" exit-code)
+                 (beads--log 'verbose "Async output: %s" output)
                  (if (zerop exit-code)
                      (condition-case err
                          (funcall callback (json-read-from-string output))
