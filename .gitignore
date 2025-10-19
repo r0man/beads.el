@@ -32,3 +32,5 @@ Thumbs.db
 
 # Keep JSONL exports (source of truth for git)
 !.beads/*.jsonl
+/.eldev/
+/lisp/.eldev/

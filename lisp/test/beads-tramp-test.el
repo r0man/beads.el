@@ -249,6 +249,7 @@
   "Test that debug logging includes remote directory information."
   (beads-tramp-test-with-temp-config
    (let ((beads-enable-debug t)
+         (beads-debug-level 'verbose)
          (default-directory "/ssh:remote:/home/user/project/")
          (json-output "{}"))
      (cl-letf (((symbol-function 'process-file)
