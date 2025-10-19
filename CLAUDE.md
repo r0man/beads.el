@@ -57,6 +57,11 @@ eldev -p -dtT test
 eldev -p -dtT lint
 ```
 
+### Development environment
+
+If the "guix" command is available you can get a development
+environment with "guix shell -D -f guix.scm" in the project root.
+
 ### Development Workflow
 
 When working on an issue:
