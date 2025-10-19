@@ -294,7 +294,7 @@ STATE is an alist expression of (variable . value) pairs."
 
 ;;; Integration Tests
 
-(ert-deftest beads-close-test-integration-full-workflow ()
+(ert-deftest beads-close-test-full-workflow ()
   "Test complete workflow from setting params to closing."
   (beads-close-test-with-state nil
    ;; Set parameters
@@ -319,7 +319,7 @@ STATE is an alist expression of (variable . value) pairs."
        ;; Verify state was reset
        (should (null beads-close--issue-id))))))
 
-(ert-deftest beads-close-test-integration-reset-and-reclose ()
+(ert-deftest beads-close-test-reset-and-reclose ()
   "Test resetting state and closing another issue."
   (beads-close-test-with-state
    '((beads-close--issue-id . "bd-1")
@@ -405,17 +405,17 @@ STATE is an alist expression of (variable . value) pairs."
 ;;; Integration Tests
 ;;; ============================================================
 
-(ert-deftest beads-close-test-integration-transient-menu-defined ()
+(ert-deftest beads-close-test-transient-menu-defined ()
   "Integration test: Verify beads-close transient menu is defined."
   :tags '(integration)
   (should (fboundp 'beads-close)))
 
-(ert-deftest beads-close-test-integration-execute-function-defined ()
+(ert-deftest beads-close-test-execute-function-defined ()
   "Integration test: Verify execute function is defined."
   :tags '(integration)
   (should (fboundp 'beads-close--execute)))
 
-(ert-deftest beads-close-test-integration-validation-can-run ()
+(ert-deftest beads-close-test-validation-can-run ()
   "Integration test: Verify validation can run."
   :tags '(integration)
   (beads-close-test-with-state
@@ -426,7 +426,7 @@ STATE is an alist expression of (variable . value) pairs."
      ;; Result is either nil or a list
      (should (or (null validation-result) (listp validation-result))))))
 
-(ert-deftest beads-close-test-integration-context-from-list-mode ()
+(ert-deftest beads-close-test-context-from-list-mode ()
   "Integration test: Test context detection from list mode."
   :tags '(integration)
   (require 'beads-list)
@@ -436,7 +436,7 @@ STATE is an alist expression of (variable . value) pairs."
                (lambda () "bd-42")))
       (should (equal (beads-close--detect-issue-id) "bd-42")))))
 
-(ert-deftest beads-close-test-integration-context-from-show-mode ()
+(ert-deftest beads-close-test-context-from-show-mode ()
   "Integration test: Test context detection from show mode."
   :tags '(integration)
   (require 'beads-show)
@@ -445,13 +445,13 @@ STATE is an alist expression of (variable . value) pairs."
     (setq-local beads-show--issue-id "bd-99")
     (should (equal (beads-close--detect-issue-id) "bd-99"))))
 
-(ert-deftest beads-close-test-integration-list-close-command ()
+(ert-deftest beads-close-test-list-close-command ()
   "Integration test: Verify beads-list-close command exists."
   :tags '(integration)
   (require 'beads-list)
   (should (fboundp 'beads-list-close)))
 
-(ert-deftest beads-close-test-integration-list-keybinding-d ()
+(ert-deftest beads-close-test-list-keybinding-d ()
   "Integration test: Verify d keybinding in list mode."
   :tags '(integration)
   (require 'beads-list)
@@ -460,7 +460,7 @@ STATE is an alist expression of (variable . value) pairs."
     (let ((binding (lookup-key beads-list-mode-map (kbd "d"))))
       (should (eq binding 'beads-list-close)))))
 
-(ert-deftest beads-close-test-integration-list-keybinding-k ()
+(ert-deftest beads-close-test-list-keybinding-k ()
   "Integration test: Verify k keybinding in list mode."
   :tags '(integration)
   (require 'beads-list)
@@ -469,7 +469,7 @@ STATE is an alist expression of (variable . value) pairs."
     (let ((binding (lookup-key beads-list-mode-map (kbd "k"))))
       (should (eq binding 'beads-list-close)))))
 
-(ert-deftest beads-close-test-integration-command-building-workflow ()
+(ert-deftest beads-close-test-command-building-workflow ()
   "Integration test: Test complete command building workflow."
   :tags '(integration)
   (beads-close-test-with-state

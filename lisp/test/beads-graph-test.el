@@ -260,22 +260,17 @@
 ;;; Integration Tests
 ;;; ============================================================
 
-(ert-deftest beads-graph-test-integration-mode-defined ()
-  "Integration test: Verify beads-graph-mode is defined."
-  :tags '(integration)
-  (should (fboundp 'beads-graph-mode)))
-
-(ert-deftest beads-graph-test-integration-graph-all-exists ()
+(ert-deftest beads-graph-test-graph-all-exists ()
   "Integration test: Verify beads-graph-all command exists."
   :tags '(integration)
   (should (fboundp 'beads-graph-all)))
 
-(ert-deftest beads-graph-test-integration-graph-issue-exists ()
+(ert-deftest beads-graph-test-graph-issue-exists ()
   "Integration test: Verify beads-graph-issue command exists."
   :tags '(integration)
   (should (fboundp 'beads-graph-issue)))
 
-(ert-deftest beads-graph-test-integration-keybinding-g-refresh ()
+(ert-deftest beads-graph-test-keybinding-g-refresh ()
   "Integration test: Verify g keybinding for refresh."
   :tags '(integration)
   (with-temp-buffer
@@ -283,7 +278,7 @@
     (let ((binding (lookup-key beads-graph-mode-map (kbd "g"))))
       (should (eq binding 'beads-graph-refresh)))))
 
-(ert-deftest beads-graph-test-integration-keybinding-f-filter ()
+(ert-deftest beads-graph-test-keybinding-f-filter ()
   "Integration test: Verify f keybinding for filter."
   :tags '(integration)
   (with-temp-buffer
@@ -291,7 +286,7 @@
     (let ((binding (lookup-key beads-graph-mode-map (kbd "f"))))
       (should (eq binding 'beads-graph-filter)))))
 
-(ert-deftest beads-graph-test-integration-keybinding-e-export ()
+(ert-deftest beads-graph-test-keybinding-e-export ()
   "Integration test: Verify e keybinding for export."
   :tags '(integration)
   (with-temp-buffer

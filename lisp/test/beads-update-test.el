@@ -615,7 +615,7 @@ STATE is an alist expression of (variable . value) pairs."
 
 ;;; Integration Tests
 
-(ert-deftest beads-update-test-integration-full-workflow ()
+(ert-deftest beads-update-test-full-workflow ()
   "Test complete workflow from loading to update."
   (beads-update-test-with-state nil
    ;; Load issue data
@@ -646,7 +646,7 @@ STATE is an alist expression of (variable . value) pairs."
        ;; Verify state was reset
        (should (null beads-update--issue-id))))))
 
-(ert-deftest beads-update-test-integration-reset-changes ()
+(ert-deftest beads-update-test-reset-changes ()
   "Test resetting changes."
   (beads-update-test-with-state
    `((beads-update--issue-id . "bd-42")
@@ -663,7 +663,7 @@ STATE is an alist expression of (variable . value) pairs."
      (should (equal beads-update--issue-id "bd-42"))
      (should beads-update--original-data))))
 
-(ert-deftest beads-update-test-integration-multiple-field-update ()
+(ert-deftest beads-update-test-multiple-field-update ()
   "Test updating multiple fields at once."
   (beads-update-test-with-state
    `((beads-update--issue-id . "bd-42")
@@ -808,17 +808,17 @@ STATE is an alist expression of (variable . value) pairs."
 ;;; Integration Tests
 ;;; ============================================================
 
-(ert-deftest beads-update-test-integration-transient-menu-defined ()
+(ert-deftest beads-update-test-transient-menu-defined ()
   "Integration test: Verify beads-update transient menu is defined."
   :tags '(integration)
   (should (fboundp 'beads-update)))
 
-(ert-deftest beads-update-test-integration-execute-function-defined ()
+(ert-deftest beads-update-test-execute-function-defined ()
   "Integration test: Verify execute function is defined."
   :tags '(integration)
   (should (fboundp 'beads-update--execute)))
 
-(ert-deftest beads-update-test-integration-context-from-list-mode ()
+(ert-deftest beads-update-test-context-from-list-mode ()
   "Integration test: Test context detection from list mode."
   :tags '(integration)
   (require 'beads-list)
@@ -828,7 +828,7 @@ STATE is an alist expression of (variable . value) pairs."
                (lambda () "bd-42")))
       (should (equal (beads-update--detect-issue-id) "bd-42")))))
 
-(ert-deftest beads-update-test-integration-context-from-show-mode ()
+(ert-deftest beads-update-test-context-from-show-mode ()
   "Integration test: Test context detection from show mode."
   :tags '(integration)
   (require 'beads-show)
@@ -837,13 +837,13 @@ STATE is an alist expression of (variable . value) pairs."
     (setq-local beads-show--issue-id "bd-99")
     (should (equal (beads-update--detect-issue-id) "bd-99"))))
 
-(ert-deftest beads-update-test-integration-list-update-command ()
+(ert-deftest beads-update-test-list-update-command ()
   "Integration test: Verify beads-list-update command exists."
   :tags '(integration)
   (require 'beads-list)
   (should (fboundp 'beads-list-update)))
 
-(ert-deftest beads-update-test-integration-list-keybinding-e ()
+(ert-deftest beads-update-test-list-keybinding-e ()
   "Integration test: Verify e keybinding in list mode."
   :tags '(integration)
   (require 'beads-list)
@@ -852,7 +852,7 @@ STATE is an alist expression of (variable . value) pairs."
     (let ((binding (lookup-key beads-list-mode-map (kbd "e"))))
       (should (eq binding 'beads-list-update)))))
 
-(ert-deftest beads-update-test-integration-validation-workflow ()
+(ert-deftest beads-update-test-validation-workflow ()
   "Integration test: Test validation workflow."
   :tags '(integration)
   (beads-update-test-with-state
@@ -863,7 +863,7 @@ STATE is an alist expression of (variable . value) pairs."
      (should validation-error)
      (should (listp validation-error)))))
 
-(ert-deftest beads-update-test-integration-command-building-workflow ()
+(ert-deftest beads-update-test-command-building-workflow ()
   "Integration test: Test complete command building workflow."
   :tags '(integration)
   (beads-update-test-with-state

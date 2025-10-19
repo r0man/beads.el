@@ -656,12 +656,12 @@
 ;;; Integration Tests
 ;;; ============================================================
 
-(ert-deftest beads-list-test-integration-mode-defined ()
+(ert-deftest beads-list-test-mode-defined ()
   "Integration test: Verify beads-list-mode is defined."
   :tags '(integration)
   (should (fboundp 'beads-list-mode)))
 
-(ert-deftest beads-list-test-integration-keybinding-n-next ()
+(ert-deftest beads-list-test-keybinding-n-next ()
   "Integration test: Verify n keybinding for next."
   :tags '(integration)
   (with-temp-buffer
@@ -669,7 +669,7 @@
     (let ((binding (lookup-key beads-list-mode-map (kbd "n"))))
       (should (eq binding 'beads-list-next)))))
 
-(ert-deftest beads-list-test-integration-keybinding-p-previous ()
+(ert-deftest beads-list-test-keybinding-p-previous ()
   "Integration test: Verify p keybinding for previous."
   :tags '(integration)
   (with-temp-buffer
@@ -677,7 +677,7 @@
     (let ((binding (lookup-key beads-list-mode-map (kbd "p"))))
       (should (eq binding 'beads-list-previous)))))
 
-(ert-deftest beads-list-test-integration-keybinding-ret-show ()
+(ert-deftest beads-list-test-keybinding-ret-show ()
   "Integration test: Verify RET keybinding for show."
   :tags '(integration)
   (with-temp-buffer
@@ -685,7 +685,7 @@
     (let ((binding (lookup-key beads-list-mode-map (kbd "RET"))))
       (should (eq binding 'beads-list-show)))))
 
-(ert-deftest beads-list-test-integration-keybinding-g-refresh ()
+(ert-deftest beads-list-test-keybinding-g-refresh ()
   "Integration test: Verify g keybinding for refresh."
   :tags '(integration)
   (with-temp-buffer
@@ -693,7 +693,7 @@
     (let ((binding (lookup-key beads-list-mode-map (kbd "g"))))
       (should (eq binding 'beads-list-refresh)))))
 
-(ert-deftest beads-list-test-integration-keybinding-q-quit ()
+(ert-deftest beads-list-test-keybinding-q-quit ()
   "Integration test: Verify q keybinding for quit."
   :tags '(integration)
   (with-temp-buffer
@@ -701,7 +701,7 @@
     (let ((binding (lookup-key beads-list-mode-map (kbd "q"))))
       (should (eq binding 'beads-list-quit)))))
 
-(ert-deftest beads-list-test-integration-keybinding-m-mark ()
+(ert-deftest beads-list-test-keybinding-m-mark ()
   "Integration test: Verify m keybinding for mark."
   :tags '(integration)
   (with-temp-buffer
@@ -709,7 +709,7 @@
     (let ((binding (lookup-key beads-list-mode-map (kbd "m"))))
       (should (eq binding 'beads-list-mark)))))
 
-(ert-deftest beads-list-test-integration-keybinding-u-unmark ()
+(ert-deftest beads-list-test-keybinding-u-unmark ()
   "Integration test: Verify u keybinding for unmark."
   :tags '(integration)
   (with-temp-buffer
@@ -717,7 +717,7 @@
     (let ((binding (lookup-key beads-list-mode-map (kbd "u"))))
       (should (eq binding 'beads-list-unmark)))))
 
-(ert-deftest beads-list-test-integration-keybinding-w-copy ()
+(ert-deftest beads-list-test-keybinding-w-copy ()
   "Integration test: Verify w keybinding for copy-id."
   :tags '(integration)
   (with-temp-buffer
@@ -725,7 +725,7 @@
     (let ((binding (lookup-key beads-list-mode-map (kbd "w"))))
       (should (eq binding 'beads-list-copy-id)))))
 
-(ert-deftest beads-list-test-integration-keybinding-S-sort ()
+(ert-deftest beads-list-test-keybinding-S-sort ()
   "Integration test: Verify S keybinding for sort."
   :tags '(integration)
   (with-temp-buffer
@@ -733,7 +733,7 @@
     (let ((binding (lookup-key beads-list-mode-map (kbd "S"))))
       (should (eq binding 'beads-list-sort)))))
 
-(ert-deftest beads-list-test-integration-list-mode-setup ()
+(ert-deftest beads-list-test-list-mode-setup ()
   "Integration test: Verify list mode can be set up."
   :tags '(integration)
   (with-temp-buffer
@@ -742,22 +742,22 @@
     (should (boundp 'tabulated-list-format))
     (should tabulated-list-format)))
 
-(ert-deftest beads-list-test-integration-list-command-exists ()
+(ert-deftest beads-list-test-list-command-exists ()
   "Integration test: Verify beads-list command exists."
   :tags '(integration)
   (should (fboundp 'beads-list)))
 
-(ert-deftest beads-list-test-integration-ready-command-exists ()
+(ert-deftest beads-list-test-ready-command-exists ()
   "Integration test: Verify beads-ready command exists."
   :tags '(integration)
   (should (fboundp 'beads-ready)))
 
-(ert-deftest beads-list-test-integration-blocked-command-exists ()
+(ert-deftest beads-list-test-blocked-command-exists ()
   "Integration test: Verify beads-blocked command exists."
   :tags '(integration)
   (should (fboundp 'beads-blocked)))
 
-(ert-deftest beads-list-test-integration-workflow-to-show ()
+(ert-deftest beads-list-test-workflow-to-show ()
   "Integration test: Navigate from list to show buffer."
   :tags '(integration)
   (require 'beads-show)
@@ -769,7 +769,7 @@
     (let ((binding (lookup-key beads-list-mode-map (kbd "RET"))))
       (should (eq binding 'beads-list-show)))))
 
-(ert-deftest beads-list-test-integration-workflow-to-update ()
+(ert-deftest beads-list-test-workflow-to-update ()
   "Integration test: Update from list buffer."
   :tags '(integration)
   (require 'beads-update)
@@ -781,7 +781,7 @@
     (let ((binding (lookup-key beads-list-mode-map (kbd "e"))))
       (should (eq binding 'beads-list-update)))))
 
-(ert-deftest beads-list-test-integration-workflow-to-close ()
+(ert-deftest beads-list-test-workflow-to-close ()
   "Integration test: Close from list buffer."
   :tags '(integration)
   (require 'beads-close)
@@ -793,7 +793,7 @@
     (let ((binding (lookup-key beads-list-mode-map (kbd "d"))))
       (should (eq binding 'beads-list-close)))))
 
-(ert-deftest beads-list-test-integration-workflow-to-delete ()
+(ert-deftest beads-list-test-workflow-to-delete ()
   "Integration test: Delete from list buffer."
   :tags '(integration)
   (require 'beads-delete)
@@ -805,7 +805,7 @@
     (let ((binding (lookup-key beads-list-mode-map (kbd "D"))))
       (should (eq binding 'beads-list-delete)))))
 
-(ert-deftest beads-list-test-integration-workflow-to-create ()
+(ert-deftest beads-list-test-workflow-to-create ()
   "Integration test: Create from list buffer."
   :tags '(integration)
   (require 'beads-create)
@@ -817,7 +817,7 @@
     (let ((binding (lookup-key beads-list-mode-map (kbd "c"))))
       (should (eq binding 'beads-list-create)))))
 
-(ert-deftest beads-list-test-integration-context-detection ()
+(ert-deftest beads-list-test-context-detection ()
   "Integration test: Context detection works in list mode."
   :tags '(integration)
   (with-temp-buffer

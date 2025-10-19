@@ -605,12 +605,12 @@
 ;;; Integration Tests
 ;;; ============================================================
 
-(ert-deftest beads-misc-test-integration-import-command-exists ()
+(ert-deftest beads-misc-test-import-command-exists ()
   "Integration test: Verify beads-import command exists."
   :tags '(integration)
   (should (fboundp 'beads-import)))
 
-(ert-deftest beads-misc-test-integration-export-command-exists ()
+(ert-deftest beads-misc-test-export-command-exists ()
   "Integration test: Verify beads-export command exists."
   :tags '(integration)
   (should (fboundp 'beads-export)))

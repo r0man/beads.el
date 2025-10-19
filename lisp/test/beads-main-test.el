@@ -561,13 +561,13 @@ by checking if the function is available after requiring beads-main."
 ;;; Integration Tests
 ;;; ============================================================
 
-(ert-deftest beads-main-test-integration-main-menu-defined ()
+(ert-deftest beads-main-test-main-menu-defined ()
   "Integration test: Verify beads main entry point is defined."
   :tags '(integration)
   ;; The main beads command should exist (autoloaded from beads-main)
   (should (fboundp 'beads)))
 
-(ert-deftest beads-main-test-integration-module-loaded ()
+(ert-deftest beads-main-test-module-loaded ()
   "Integration test: Verify beads-main module can be loaded."
   :tags '(integration)
   ;; The module should be loadable

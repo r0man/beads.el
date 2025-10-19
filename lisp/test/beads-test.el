@@ -1010,7 +1010,7 @@ STRUCTURE is a list of paths to create (dirs end with /)."
 ;;; ========================================
 
 
-(ert-deftest beads-test-integration-command-to-parse ()
+(ert-deftest beads-test-command-to-parse ()
   "Test full flow from command execution to issue parsing."
   (beads-test-with-temp-config
    (let ((json-output (json-encode beads-test--sample-issues-array)))
@@ -1022,7 +1022,7 @@ STRUCTURE is a list of paths to create (dirs end with /)."
          (should (= (length parsed) 3))
          (should (equal (alist-get 'id (car parsed)) "bd-1")))))))
 
-(ert-deftest beads-test-integration-single-issue-show ()
+(ert-deftest beads-test-single-issue-show ()
   "Test showing a single issue end-to-end."
   (beads-test-with-temp-config
    (let ((json-output (json-encode beads-test--sample-issue)))
@@ -1036,7 +1036,7 @@ STRUCTURE is a list of paths to create (dirs end with /)."
          (should (equal (alist-get 'title parsed) "Test Issue"))
          (should (equal (alist-get 'status parsed) "open")))))))
 
-(ert-deftest beads-test-integration-with-global-flags ()
+(ert-deftest beads-test-with-global-flags ()
   "Test command execution with global flags applied."
   (beads-test-with-temp-config
    (let ((beads-actor "test-user")
@@ -1885,13 +1885,13 @@ STRUCTURE is a list of paths to create (dirs end with /)."
 ;;; Module Integration Tests
 ;;; ============================================================
 
-(ert-deftest beads-test-integration-cache-invalidation ()
+(ert-deftest beads-test-cache-invalidation ()
   "Integration test: Verify cache invalidation functions exist."
   :tags '(integration)
   ;; The cache invalidation function should be defined
   (should (fboundp 'beads--invalidate-completion-cache)))
 
-(ert-deftest beads-test-integration-all-commands-autoloaded ()
+(ert-deftest beads-test-all-commands-autoloaded ()
   "Integration test: Verify all main commands are autoloaded."
   :tags '(integration)
   (should (fboundp 'beads-list))

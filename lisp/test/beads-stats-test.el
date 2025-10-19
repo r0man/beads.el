@@ -256,7 +256,7 @@
 
 ;;; Integration Tests
 
-(ert-deftest beads-stats-test-integration-full-workflow ()
+(ert-deftest beads-stats-test-full-workflow ()
   "Test complete workflow from fetching to display."
   (let ((json-output (json-encode beads-stats-test--sample-stats)))
     (cl-letf (((symbol-function 'call-process)
@@ -341,17 +341,12 @@
 ;;; Integration Tests
 ;;; ============================================================
 
-(ert-deftest beads-stats-test-integration-stats-command-exists ()
+(ert-deftest beads-stats-test-stats-command-exists ()
   "Integration test: Verify beads-stats command exists."
   :tags '(integration)
   (should (fboundp 'beads-stats)))
 
-(ert-deftest beads-stats-test-integration-mode-defined ()
-  "Integration test: Verify beads-stats-mode is defined."
-  :tags '(integration)
-  (should (fboundp 'beads-stats-mode)))
-
-(ert-deftest beads-stats-test-integration-keybinding-g-refresh ()
+(ert-deftest beads-stats-test-keybinding-g-refresh ()
   "Integration test: Verify g keybinding for refresh."
   :tags '(integration)
   (with-temp-buffer
@@ -359,7 +354,7 @@
     (let ((binding (lookup-key beads-stats-mode-map (kbd "g"))))
       (should (eq binding 'beads-stats-refresh)))))
 
-(ert-deftest beads-stats-test-integration-keybinding-q-quit ()
+(ert-deftest beads-stats-test-keybinding-q-quit ()
   "Integration test: Verify q keybinding for quit."
   :tags '(integration)
   (with-temp-buffer
