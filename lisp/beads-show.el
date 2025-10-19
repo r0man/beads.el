@@ -36,6 +36,7 @@
 
 (require 'beads)
 (require 'button)
+(require 'cl-lib)
 
 ;;; Customization
 
@@ -265,7 +266,7 @@ CONTENT can be a string or nil (empty sections are skipped)."
     (goto-char start)
     ;; Headings (## Header)
     (while (re-search-forward "^\\(#+\\)\\s-+\\(.+\\)$" end t)
-      (let ((level (length (match-string 1)))
+      (let ((_level (length (match-string 1)))
             (heading-start (match-beginning 2))
             (heading-end (match-end 2)))
         (put-text-property heading-start heading-end
@@ -321,8 +322,8 @@ Returns the issue ID or nil if none found."
         (original-point (point)))
     (or
      ;; First try to see if we're on a button
-     (when-let ((button (button-at original-point)))
-       (when-let ((id (button-get button 'issue-id)))
+     (when-let* ((button (button-at original-point)))
+       (when-let* ((id (button-get button 'issue-id)))
          (when (string-match "^bd-[0-9]+$" id)
            id)))
 
@@ -616,7 +617,7 @@ Creates or switches to a buffer showing the full issue details."
   "Show issue detail for bd-N reference at point.
 Extracts the issue ID from text at point and calls `beads-show'."
   (interactive)
-  (if-let ((issue-id (beads-show--extract-issue-at-point)))
+  (if-let* ((issue-id (beads-show--extract-issue-at-point)))
       (beads-show issue-id)
     (user-error "No issue reference found at point")))
 
@@ -682,11 +683,11 @@ Set mark at beginning of paragraph, move point to end, and activate region."
 (defun beads-show--at-block-boundary ()
   "Return the type of block at point, or nil if not at a block boundary.
 Block types:
-  'fenced-code - ``` or ~~~ fence
-  'list - list item (-, *, +, or numbered)
-  'blockquote - line starting with >
-  'indented-code - line with 4+ spaces
-  'blank - blank line (block separator)"
+  `fenced-code' - ``` or ~~~ fence
+  `list' - list item (-, *, +, or numbered)
+  `blockquote' - line starting with >
+  `indented-code' - line with 4+ spaces
+  `blank' - blank line (block separator)"
   (save-excursion
     (beginning-of-line)
     (cond
@@ -709,7 +710,7 @@ Block types:
      (t nil))))
 
 (defun beads-show--skip-blank-lines-forward ()
-  "Skip forward over blank lines. Return t if moved, nil otherwise."
+  "Skip forward over blank lines.  Return t if moved, nil otherwise."
   (let ((start (point)))
     (while (and (not (eobp))
                 (looking-at "^[[:space:]]*$"))
@@ -717,7 +718,7 @@ Block types:
     (not (eq start (point)))))
 
 (defun beads-show--skip-blank-lines-backward ()
-  "Skip backward over blank lines. Return t if moved, nil otherwise."
+  "Skip backward over blank lines.  Return t if moved, nil otherwise."
   (let ((start (point)))
     (while (and (not (bobp))
                 (save-excursion
@@ -736,7 +737,7 @@ Block types:
           (setq fence-count (1+ fence-count)))
         (forward-line 1))
       ;; Odd fence count means we're inside a block
-      (oddp fence-count))))
+      (cl-oddp fence-count))))
 
 (defun beads-show-forward-block ()
   "Move forward to the next block boundary.
@@ -946,7 +947,7 @@ If already at section header, stay there."
   "Mark the current section.
 Set mark at beginning of section, move point to end, and activate region."
   (interactive)
-  (let ((start-pos (point)))
+  (let ((_start-pos (point)))
     ;; Move to beginning of section
     (beads-show-beginning-of-section)
     (let ((begin (point)))
@@ -961,16 +962,16 @@ Set mark at beginning of section, move point to end, and activate region."
 (defun beads-show-follow-reference ()
   "Follow bd-N reference at point or on current line."
   (interactive)
-  (if-let ((issue-id (beads-show--extract-issue-at-point)))
+  (if-let* ((issue-id (beads-show--extract-issue-at-point)))
       (beads-show issue-id)
     (message "No issue reference at point")))
 
 (defun beads-show-follow-reference-other-window ()
   "Follow bd-N reference at point in other window."
   (interactive)
-  (if-let ((issue-id (beads-show--extract-issue-at-point)))
+  (if-let* ((issue-id (beads-show--extract-issue-at-point)))
       (let ((buffer-name (format "*beads-show: %s*" issue-id)))
-        (if-let ((buf (get-buffer buffer-name)))
+        (if-let* ((buf (get-buffer buffer-name)))
             (switch-to-buffer-other-window buf)
           ;; Buffer doesn't exist, create it
           (let ((project-dir default-directory))
@@ -995,7 +996,7 @@ Set mark at beginning of section, move point to end, and activate region."
 (defun beads-show-next-reference ()
   "Jump to next bd-N reference in buffer."
   (interactive)
-  (let ((start-pos (point))
+  (let ((_start-pos (point))
         (found nil))
     (save-excursion
       ;; Move past current reference if we're on one
@@ -1011,7 +1012,7 @@ Set mark at beginning of section, move point to end, and activate region."
 (defun beads-show-previous-reference ()
   "Jump to previous bd-N reference in buffer."
   (interactive)
-  (let ((start-pos (point))
+  (let ((_start-pos (point))
         (found nil))
     (save-excursion
       ;; Move before current reference if we're on one
@@ -1060,7 +1061,7 @@ CURRENT-VALUE is the initial text, CALLBACK is called with result."
   (let* ((buffer-name (format "*beads-edit-%s*" (downcase field-name)))
          (buffer (generate-new-buffer buffer-name))
          (parent-buffer (current-buffer))
-         (parent-issue-id beads-show--issue-id)
+         (_parent-issue-id beads-show--issue-id)
          (project-dir default-directory))
     (switch-to-buffer buffer)
     (when current-value
@@ -1102,7 +1103,7 @@ CURRENT-VALUE is the initial text, CALLBACK is called with result."
         (beads--run-command "update" beads-show--issue-id
                            field-flag new-value)
         ;; Update local issue data
-        (let ((field-symbol (intern (concat ":"
+        (let ((_field-symbol (intern (concat ":"
                                            (replace-regexp-in-string
                                             "-" "_"
                                             (downcase field-name))))))
@@ -1121,7 +1122,7 @@ CURRENT-VALUE is the initial text, CALLBACK is called with result."
 ;;;###autoload
 (defun beads-show-edit-field ()
   "Edit a field of the current issue.
-Prompts for field to edit, opens editing buffer with C-c C-c to save."
+Prompts for field to edit and opens an editing buffer."
   (interactive)
   (unless (derived-mode-p 'beads-show-mode)
     (user-error "Not in a beads-show buffer"))

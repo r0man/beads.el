@@ -101,7 +101,7 @@
     (cl-letf (((symbol-function 'call-process)
                (lambda (&rest _args) (error "Process failed"))))
       (let ((version (beads-main--get-version)))
-        (should (string= version "unknown"))))))
+        (should (string= version "Unknown version"))))))
 
 (ert-deftest beads-main-test-get-version-no-match ()
   "Test version detection when output doesn't match pattern."

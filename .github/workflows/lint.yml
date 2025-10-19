@@ -1,0 +1,46 @@
+name: Lint
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Emacs 30.2
+        uses: purcell/setup-emacs@master
+        with:
+          version: '30.2'
+
+      - name: Cache Eldev dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.emacs.d/eldev
+          key: ${{ runner.os }}-eldev-${{ hashFiles('Eldev') }}
+          restore-keys: |
+            ${{ runner.os }}-eldev-
+
+      - name: Install Eldev
+        run: curl --fail --silent --show-error --location https://raw.github.com/doublep/eldev/master/webinstall/github-eldev | sh
+
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+
+      - name: Install Beads via Homebrew
+        run: |
+          brew tap steveyegge/beads
+          brew install bd
+
+      - name: Verify Beads installation
+        run: bd version
+
+      - name: Lint
+        run: eldev -p -dtT lint

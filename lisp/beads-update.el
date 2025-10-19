@@ -4,12 +4,11 @@
 
 ;; Author: Beads Contributors
 ;; Keywords: tools, project, issues
-;; Package-Requires: ((emacs "27.1") (transient "0.3.0"))
 
 ;;; Commentary:
 
 ;; Provides a transient menu interface for updating existing issues in
-;; Beads. This module uses the transient library to create an
+;; Beads.  This module uses the transient library to create an
 ;; interactive menu that allows users to modify any field of an
 ;; existing issue.
 ;;
@@ -22,7 +21,7 @@
 ;; - Otherwise prompts for issue ID with completion
 ;;
 ;; The menu automatically fetches the current issue data and
-;; pre-populates fields. Only changed fields are sent to bd update.
+;; pre-populates fields.  Only changed fields are sent to bd update.
 ;;
 ;; Available fields:
 ;; - Status (open, in_progress, blocked, closed)
@@ -314,7 +313,7 @@ Returns list of arguments for bd update command."
                          (beads-update--format-current-value
                           (when beads-update--priority
                             (number-to-string beads-update--priority))
-                          (when-let ((p (beads-update--get-original
+                          (when-let* ((p (beads-update--get-original
                                         'priority)))
                             (number-to-string p)))))
   :key "p"
@@ -516,31 +515,35 @@ After editing, the transient menu is re-displayed."
     (if errors
         (user-error "Validation failed: %s" (string-join errors "; "))
       (condition-case err
-          (let* ((args (beads-update--build-command-args))
-                 (result (apply #'beads--run-command "update" args))
-                 (issue (beads--parse-issue result)))
-            (message "Updated issue: %s (changed %d field%s)"
-                     beads-update--issue-id
-                     (length changes)
-                     (if (= (length changes) 1) "" "s"))
-            ;; Invalidate completion cache
-            (beads--invalidate-completion-cache)
-            ;; Refresh any open beads buffers
-            (when beads-auto-refresh
-              (dolist (buf (buffer-list))
-                (with-current-buffer buf
-                  (cond
-                   ((derived-mode-p 'beads-list-mode)
-                    (beads-list-refresh))
-                   ((and (derived-mode-p 'beads-show-mode)
-                         (string= beads-show--issue-id
-                                 beads-update--issue-id))
-                    (beads-refresh-show))))))
-            ;; Reset state
-            (beads-update--reset-state))
+          (progn
+            (let* ((args (beads-update--build-command-args))
+                   (result (apply #'beads--run-command "update" args))
+                   (_issue (beads--parse-issue result)))
+              (message "Updated issue: %s (changed %d field%s)"
+                       beads-update--issue-id
+                       (length changes)
+                       (if (= (length changes) 1) "" "s"))
+              ;; Invalidate completion cache
+              (beads--invalidate-completion-cache)
+              ;; Refresh any open beads buffers
+              (when beads-auto-refresh
+                (dolist (buf (buffer-list))
+                  (with-current-buffer buf
+                    (cond
+                     ((derived-mode-p 'beads-list-mode)
+                      (beads-list-refresh))
+                     ((and (derived-mode-p 'beads-show-mode)
+                           (string= beads-show--issue-id
+                                   beads-update--issue-id))
+                      (beads-refresh-show))))))
+              ;; Reset state
+              (beads-update--reset-state))
+            nil)
         (error
-         (message "Failed to update issue: %s"
-                  (error-message-string err)))))))
+         (let ((err-msg (format "Failed to update issue: %s"
+                               (error-message-string err))))
+           (message "%s" err-msg)
+           err-msg))))))
 
 (transient-define-suffix beads-update--reset ()
   "Reset all changed parameters to their original values."
@@ -569,21 +572,27 @@ After editing, the transient menu is re-displayed."
   (interactive)
   (let ((errors (beads-update--validate-all)))
     (if errors
-        (message "Validation errors: %s" (string-join errors "; "))
+        (let ((err-msg (format "Validation errors: %s" (string-join errors "; "))))
+          (message "%s" err-msg)
+          err-msg)
       (condition-case err
           (let* ((args (beads-update--build-command-args))
                  (cmd (apply #'beads--build-command "update" args))
                  (cmd-string (mapconcat #'shell-quote-argument cmd " "))
-                 (changes (beads-update--get-changed-fields)))
-            (message "Command: %s\nChanges: %s"
-                     cmd-string
-                     (mapconcat (lambda (c)
-                                 (format "%s=%s"
-                                         (car c)
-                                         (cdr c)))
-                               changes ", ")))
+                 (changes (beads-update--get-changed-fields))
+                 (preview-msg (format "Command: %s\nChanges: %s"
+                                     cmd-string
+                                     (mapconcat (lambda (c)
+                                                 (format "%s=%s"
+                                                         (car c)
+                                                         (cdr c)))
+                                               changes ", "))))
+            (message "%s" preview-msg)
+            preview-msg)
         (error
-         (message "Error: %s" (error-message-string err)))))))
+         (let ((err-msg (format "Error: %s" (error-message-string err))))
+           (message "%s" err-msg)
+           err-msg))))))
 
 ;;; Main Transient Menu
 
@@ -614,11 +623,11 @@ After editing, the transient menu is re-displayed."
   "Update an existing issue in Beads.
 
 This function provides an interactive interface for updating all fields
-of an existing issue via a transient menu. The function is context-aware
+of an existing issue via a transient menu.  The function is context-aware
 and automatically detects the issue ID from beads-list or beads-show
 buffers.
 
-If ISSUE-ID is provided, use it directly. Otherwise, detect from
+If ISSUE-ID is provided, use it directly.  Otherwise, detect from
 context or prompt the user."
   (interactive
    (list (or (beads-update--detect-issue-id)
