@@ -1,4 +1,4 @@
-;;; beads-testing.el --- Test helpers for beads.el -*- lexical-binding: t; -*-
+;;; beads-test-helper.el --- Test helpers for beads.el -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
@@ -20,7 +20,7 @@
 ;;; Mock Helpers for Unit Tests
 ;;; ============================================================
 
-(defun beads-testing-mock-call-process (exit-code output)
+(defun beads-test-helper-mock-call-process (exit-code output)
   "Create a mock for `call-process' returning EXIT-CODE and OUTPUT."
   (lambda (program &optional infile destination display &rest args)
     (when destination
@@ -34,29 +34,29 @@
 ;;; Integration Test Helpers
 ;;; ============================================================
 
-(defvar beads-testing--temp-dirs nil
+(defvar beads-test-helper--temp-dirs nil
   "List of temporary directories created during tests for cleanup.")
 
-(defun beads-testing-create-temp-project ()
+(defun beads-test-helper-create-temp-project ()
   "Create a temporary project directory with beads initialized.
 Returns the project directory path."
   (let* ((temp-dir (make-temp-file "beads-test-" t))
          (db-path (expand-file-name ".beads/test.db" temp-dir)))
     ;; Track for cleanup
-    (push temp-dir beads-testing--temp-dirs)
+    (push temp-dir beads-test-helper--temp-dirs)
     ;; Initialize beads in the temp directory
     (let ((default-directory temp-dir))
       (call-process "bd" nil nil nil "init" "--prefix" "test"))
     temp-dir))
 
-(defun beads-testing-cleanup-temp-projects ()
+(defun beads-test-helper-cleanup-temp-projects ()
   "Clean up all temporary project directories."
-  (dolist (dir beads-testing--temp-dirs)
+  (dolist (dir beads-test-helper--temp-dirs)
     (when (file-directory-p dir)
       (delete-directory dir t)))
-  (setq beads-testing--temp-dirs nil))
+  (setq beads-test-helper--temp-dirs nil))
 
-(defun beads-testing-create-issue (project-dir title)
+(defun beads-test-helper-create-issue (project-dir title)
   "Create an issue in PROJECT-DIR with TITLE.
 Returns the issue ID."
   (let ((default-directory project-dir))
@@ -69,7 +69,7 @@ Returns the issue ID."
              (result (json-read)))
         (alist-get 'id result)))))
 
-(defun beads-testing-issue-exists-p (project-dir issue-id)
+(defun beads-test-helper-issue-exists-p (project-dir issue-id)
   "Check if ISSUE-ID exists in PROJECT-DIR.
 Returns non-nil if the issue exists."
   (let ((default-directory project-dir))
@@ -78,12 +78,12 @@ Returns non-nil if the issue exists."
                                      "--json")))
         (= exit-code 0)))))
 
-(defun beads-testing-delete-issue (project-dir issue-id)
+(defun beads-test-helper-delete-issue (project-dir issue-id)
   "Delete ISSUE-ID in PROJECT-DIR using bd CLI directly."
   (let ((default-directory project-dir))
     (call-process "bd" nil nil nil "delete" "--force" issue-id)))
 
-(defun beads-testing-get-issue (project-dir issue-id)
+(defun beads-test-helper-get-issue (project-dir issue-id)
   "Get issue data for ISSUE-ID in PROJECT-DIR.
 Returns the parsed JSON issue object."
   (let ((default-directory project-dir))
@@ -97,13 +97,13 @@ Returns the parsed JSON issue object."
 
 ;;; Cleanup hook
 
-(defun beads-testing--cleanup-all ()
+(defun beads-test-helper--cleanup-all ()
   "Cleanup function to run after all tests."
-  (beads-testing-cleanup-temp-projects))
+  (beads-test-helper-cleanup-temp-projects))
 
 ;; Register cleanup
 (add-hook 'ert-runner-reporter-run-ended-functions
-          #'beads-testing--cleanup-all)
+          #'beads-test-helper--cleanup-all)
 
-(provide 'beads-testing)
-;;; beads-testing.el ends here
+(provide 'beads-test-helper)
+;;; beads-test-helper.el ends here
