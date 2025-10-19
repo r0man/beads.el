@@ -26,21 +26,51 @@ leaving your editor.
 
 ## Installation
 
-### MELPA (Recommended)
+**Note:** beads.el is not yet available on MELPA. Until then, install from
+source using one of the methods below.
+
+### Option 1: use-package with :load-path (Recommended)
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/yourusername/beads.el.git ~/path/to/beads.el
+```
+
+2. Configure with use-package:
 
 ```elisp
 (use-package beads
-  :ensure t
+  :load-path "~/path/to/beads.el/lisp"
+  :commands (beads beads-list beads-ready beads-show beads-create)
   :bind ("C-c b" . beads))
 ```
 
-### Manual Installation
+### Option 2: use-package with :vc (Emacs 29+)
 
-1. Clone or download this repository
-2. Add to your `load-path`:
+For Emacs 29 or newer, you can use the built-in package-vc feature:
 
 ```elisp
-(add-to-list 'load-path "/path/to/beads/lisp")
+(use-package beads
+  :vc (:fetcher github :repo "yourusername/beads.el")
+  :commands (beads beads-list beads-ready beads-show beads-create)
+  :bind ("C-c b" . beads))
+```
+
+This will automatically clone and install the package.
+
+### Option 3: Manual Installation
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/yourusername/beads.el.git ~/path/to/beads.el
+```
+
+2. Add to your `load-path` and require:
+
+```elisp
+(add-to-list 'load-path "~/path/to/beads.el/lisp")
 (require 'beads)
 ```
 
@@ -50,7 +80,49 @@ leaving your editor.
 (global-set-key (kbd "C-c b") 'beads)
 ```
 
+### Byte-Compilation (Optional, for better performance)
+
+After cloning, byte-compile for faster loading:
+
+```bash
+cd ~/path/to/beads.el
+eldev compile
+```
+
+Or from within Emacs:
+
+```elisp
+(byte-recompile-directory "~/path/to/beads.el/lisp" 0)
+```
+
+**Note:** If eldev is not available, the Emacs method will still work for
+basic compilation.
+
 ## Quick Start
+
+### First-Time Setup
+
+1. **Install bd CLI**: Follow the installation instructions at
+   [Beads repository](https://github.com/steveyegge/beads)
+
+2. **Initialize Beads in your project** (if not already done):
+   ```bash
+   cd /path/to/your/project
+   bd init
+   ```
+
+   Or from within Emacs:
+   ```
+   M-x beads-init
+   ```
+
+3. **Verify bd is accessible**: Check that `bd` is in your PATH:
+   ```bash
+   which bd
+   bd version
+   ```
+
+### Basic Workflow
 
 1. **Open Beads menu**: `M-x beads` (or your custom keybinding)
 2. **List issues**: Press `l` (list all) or `r` (ready issues)
@@ -59,6 +131,9 @@ leaving your editor.
 5. **Create issue**: Press `c` from main menu
 6. **Update issue**: Press `u` from list or show buffer
 7. **Close issue**: Press `x` from list or show buffer
+
+**Tip:** Run `M-x beads-quickstart` to see an interactive tutorial within
+Emacs, or run `bd quickstart` from the command line
 
 ## Usage Guide
 
@@ -243,14 +318,17 @@ Useful for syncing issues across branches or sharing with team.
 
 ### Use-package Configuration
 
+Full example with customization and keybindings:
+
 ```elisp
 (use-package beads
-  :ensure t
+  :load-path "~/path/to/beads.el/lisp"  ; or use :vc for Emacs 29+
+  :commands (beads beads-list beads-ready beads-show beads-create)
   :custom
-  (beads-executable "bd")
-  (beads-db-path nil)  ; auto-discover
-  (beads-actor nil)     ; use bd default
-  (beads-enable-debug nil)
+  (beads-executable "bd")               ; path to bd executable
+  (beads-db-path nil)                   ; nil = auto-discover
+  (beads-actor nil)                     ; nil = use bd default
+  (beads-enable-debug nil)              ; enable for troubleshooting
   :bind
   (("C-c b" . beads)
    ("C-c b l" . beads-list)
@@ -445,19 +523,16 @@ lisp/
 
 ```bash
 # Run all tests
-make test
+eldev test
 
-# Run specific test suite
-make test-process
-make test-list
-make test-create
-# ... etc
+# Run tests with verbose output
+eldev -p -dtT test
 
-# Show test statistics
-make test-stats
+# Run specific test file
+eldev test test/beads-list-test.el
 
-# Interactive test mode (for debugging)
-make test-interactive
+# Run tests with coverage
+eldev test --coverage
 ```
 
 ### Test Coverage
@@ -480,7 +555,7 @@ Contributions are welcome! Please:
    - Use `beads-` prefix for public functions
    - Add docstrings to all public functions
    - Use 80-column width for code
-4. **Run tests** before submitting: `make test`
+4. **Run tests** before submitting: `eldev test`
 
 ## Known Limitations
 
