@@ -260,7 +260,7 @@ Text references to be updated:
 ;;; Integration Tests
 ;;; ============================================================
 
-(ert-deftest beads-delete-test-integration-keybinding-exists ()
+(ert-deftest beads-delete-test-keybinding-exists ()
   "Integration test: Verify D keybinding exists in list mode."
   :tags '(integration)
   (with-temp-buffer

@@ -601,5 +601,19 @@
       (with-current-buffer "*beads-import*"
         (should (string-match-p "Preview" (buffer-string)))))))
 
+;;; ============================================================
+;;; Integration Tests
+;;; ============================================================
+
+(ert-deftest beads-misc-test-import-command-exists ()
+  "Integration test: Verify beads-import command exists."
+  :tags '(integration)
+  (should (fboundp 'beads-import)))
+
+(ert-deftest beads-misc-test-export-command-exists ()
+  "Integration test: Verify beads-export command exists."
+  :tags '(integration)
+  (should (fboundp 'beads-export)))
+
 (provide 'beads-misc-test)
 ;;; beads-misc-test.el ends here

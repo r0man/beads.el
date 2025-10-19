@@ -517,7 +517,7 @@ STATE is an alist expression of (variable . value) pairs."
 
 ;;; Integration Tests
 
-(ert-deftest beads-create-test-integration-full-workflow ()
+(ert-deftest beads-create-test-full-workflow ()
   "Test complete workflow from setting params to creation."
   (beads-create-test-with-state nil
    ;; Set parameters
@@ -547,7 +547,7 @@ STATE is an alist expression of (variable . value) pairs."
        ;; Verify state was reset
        (should (null beads-create--title))))))
 
-(ert-deftest beads-create-test-integration-with-dependencies ()
+(ert-deftest beads-create-test-with-dependencies ()
   "Test workflow with dependencies specified."
   (beads-create-test-with-state
    '((beads-create--title . "Dependent Issue")
@@ -571,7 +571,7 @@ STATE is an alist expression of (variable . value) pairs."
                ((symbol-function 'y-or-n-p) (lambda (_) nil)))
        (should-not (beads-create--execute))))))
 
-(ert-deftest beads-create-test-integration-reset-and-recreate ()
+(ert-deftest beads-create-test-reset-and-recreate ()
   "Test resetting state and creating another issue."
   (beads-create-test-with-state
    '((beads-create--title . "First Issue")
@@ -682,6 +682,70 @@ STATE is an alist expression of (variable . value) pairs."
      (let ((elapsed (float-time (time-subtract (current-time) start-time))))
        ;; Should validate 1000 times in under 0.5 seconds
        (should (< elapsed 0.5))))))
+
+;;; ============================================================
+;;; Integration Tests
+;;; ============================================================
+
+(ert-deftest beads-create-test-transient-menu-defined ()
+  "Integration test: Verify beads-create transient menu is defined."
+  :tags '(integration)
+  (should (fboundp 'beads-create)))
+
+(ert-deftest beads-create-test-execute-function-defined ()
+  "Integration test: Verify execute function is defined."
+  :tags '(integration)
+  (should (fboundp 'beads-create--execute)))
+
+(ert-deftest beads-create-test-validation-workflow ()
+  "Integration test: Validate that validation prevents execution."
+  :tags '(integration)
+  (beads-create-test-with-state
+   '((beads-create--title . nil))  ; Invalid state
+   (let ((validation-error (beads-create--validate-all)))
+     ;; validate-all returns list of errors, not string
+     (should validation-error)
+     (should (listp validation-error)))))
+
+(ert-deftest beads-create-test-command-building-workflow ()
+  "Integration test: Test complete command building workflow."
+  :tags '(integration)
+  (beads-create-test-with-state
+   '((beads-create--title . "Integration Test Issue")
+     (beads-create--type . "task")
+     (beads-create--priority . 2))
+   ;; Should not error during validation
+   (should-not (beads-create--validate-all))
+   ;; Should build valid command args
+   (let ((args (beads-create--build-command-args)))
+     (should (member "Integration Test Issue" args))
+     (should (member "-t" args))
+     (should (member "task" args))
+     (should (member "-p" args)))))
+
+(ert-deftest beads-create-test-list-create-command ()
+  "Integration test: Verify beads-list-create command exists."
+  :tags '(integration)
+  (require 'beads-list)
+  (should (fboundp 'beads-list-create)))
+
+(ert-deftest beads-create-test-list-keybinding-c ()
+  "Integration test: Verify c keybinding in list mode."
+  :tags '(integration)
+  (require 'beads-list)
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((binding (lookup-key beads-list-mode-map (kbd "c"))))
+      (should (eq binding 'beads-list-create)))))
+
+(ert-deftest beads-create-test-list-keybinding-plus ()
+  "Integration test: Verify + keybinding in list mode."
+  :tags '(integration)
+  (require 'beads-list)
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((binding (lookup-key beads-list-mode-map (kbd "+"))))
+      (should (eq binding 'beads-list-create)))))
 
 (provide 'beads-transient-create-test)
 ;;; beads-transient-create-test.el ends here
