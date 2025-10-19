@@ -35,12 +35,12 @@
 (require 'beads-update)
 (require 'beads-close)
 (require 'beads-reopen)
-(require 'beads-delete)
+;; (require 'beads-delete)  ; Not yet implemented
 (require 'beads-stats)
 (require 'beads-dep)
 (require 'beads-misc)
 (require 'beads-sync)
-(require 'beads-daemon)
+;; (require 'beads-daemon)  ; Not yet implemented
 (require 'transient)
 
 ;;; Variables
@@ -165,12 +165,12 @@ Key bindings:
    ("i" "Init project" beads-init)
    ("e" "Export to JSONL" beads-export)
    ("I" "Import from JSONL" beads-import)
-   ("S" "Sync with remote" beads-sync)
-   ("D" "Daemon management" beads-daemon)]
+   ("S" "Sync with remote" beads-sync)]
+   ;; ("D" "Daemon management" beads-daemon)  ; Not yet implemented
   ["Other"
    :description "Other commands"
    ("?" "Quickstart guide" beads-quickstart)
-   ("R" "Restore compacted issue" beads-restore)
+   ;; ("R" "Restore compacted issue" beads-restore)  ; Not yet implemented
    ("g" "Refresh menu" beads-refresh-menu)
    ("q" "Quit" transient-quit-one)])
 
