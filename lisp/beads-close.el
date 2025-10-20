@@ -263,7 +263,7 @@ context or prompt the user."
   (when issue-id
     (setq beads-close--issue-id issue-id))
   ;; Show the transient menu
-  (beads-close--menu))
+  (transient-setup 'beads-close--menu))
 
 (provide 'beads-close)
 ;;; beads-close.el ends here
