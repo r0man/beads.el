@@ -450,6 +450,9 @@ Returns t if found, signals error otherwise."
 (autoload 'beads-quickstart "beads-misc" "Show Beads quickstart guide." t)
 
 ;;;###autoload
+(autoload 'beads-sync "beads-sync" "Synchronize issues with git remote." t)
+
+;;;###autoload
 (autoload 'beads-graph-all "beads-graph" "Show dependency graph for all issues." t)
 
 ;;;###autoload
