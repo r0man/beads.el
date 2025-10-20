@@ -15,6 +15,30 @@ bd update beads.el-X --status in_progress  # Claim the work
 
 If you need more information about how beads works, run "bd quickstart".
 
+## Beads Reference Documentation
+
+**IMPORTANT**: Always maintain a local checkout of the upstream Beads
+repository for reference when designing and implementing commands:
+
+```bash
+# Clone beads reference repository (if not already present)
+git clone https://github.com/steveyegge/beads.git beads-reference
+```
+
+The `beads-reference/` directory is in `.gitignore` and should NOT be
+committed. When designing or implementing:
+
+- **Transient menus**: Review beads CLI documentation for command
+  structure, flags, and output formats
+- **Command patterns**: Check how the bd CLI handles similar operations
+- **Integration**: Understand the relationship between bd commands and
+  their JSON output
+- **Documentation**: Reference the official docs for accurate behavior
+  and edge cases
+
+Always consult `beads-reference/` documentation BEFORE implementing
+new commands or transient menus to ensure consistency with the CLI.
+
 ## Common Commands
 
 ```bash
