@@ -57,12 +57,12 @@
   :group 'beads
   :prefix "beads-list-")
 
-(defcustom beads-list-id-width 12
+(defcustom beads-list-id-width 18
   "Width of ID column in issue lists."
   :type 'integer
   :group 'beads-list)
 
-(defcustom beads-list-status-width 12
+(defcustom beads-list-status-width 11
   "Width of Status column in issue lists."
   :type 'integer
   :group 'beads-list)
