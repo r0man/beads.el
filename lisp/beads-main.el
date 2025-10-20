@@ -39,6 +39,7 @@
 (require 'beads-stats)
 (require 'beads-dep)
 (require 'beads-misc)
+(require 'beads-sync)
 (require 'transient)
 
 ;;; Variables
@@ -136,7 +137,7 @@ Key bindings:
   Create/Edit:        c (create), u (update), x (close), o (reopen),
                       D (delete)
   Dependencies:       d (dep submenu)
-  Admin:              i (init), e (export), I (import)
+  Admin:              i (init), e (export), I (import), S (sync)
   Other:              g (refresh), q (quit)"
   [:description
    (lambda () (beads-main--format-project-header))
@@ -163,7 +164,8 @@ Key bindings:
    :description "Project administration"
    ("i" "Init project" beads-init)
    ("e" "Export to JSONL" beads-export)
-   ("I" "Import from JSONL" beads-import)]
+   ("I" "Import from JSONL" beads-import)
+   ("S" "Sync with remote" beads-sync)]
   ["Other"
    :description "Other commands"
    ("?" "Quickstart guide" beads-quickstart)
