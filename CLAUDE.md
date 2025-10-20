@@ -51,6 +51,7 @@ bd show beads.el-X          # Issue details with dependencies
 bd update beads.el-X --status in_progress
 bd update beads.el-X --notes "Progress update"
 bd close beads.el-X --reason "Completed"
+```
 
 ## Project Overview
 
