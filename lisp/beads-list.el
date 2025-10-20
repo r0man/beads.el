@@ -28,6 +28,7 @@
 ;;   c/+     - Create new issue
 ;;   e       - Edit/update issue at point
 ;;   d/k     - Close issue at point
+;;   o       - Reopen issue at point
 ;;   D       - Delete issue at point (destructive)
 ;;   w       - Copy issue ID to kill ring
 ;;   S       - Sort by column
@@ -39,6 +40,7 @@
 ;;   B s     - Bulk update status for marked issues
 ;;   B p     - Bulk update priority for marked issues
 ;;   B c     - Bulk close marked issues
+;;   B o     - Bulk reopen marked issues
 
 ;;; Code:
 
@@ -373,7 +375,7 @@
   (interactive)
   (if-let* ((id (beads-list--current-issue-id)))
       (progn
-        (require 'beads-misc)
+        (require 'beads-close)
         ;; beads-close will auto-detect the issue ID from beads-list context
         (call-interactively #'beads-close))
     (user-error "No issue at point")))
@@ -388,6 +390,16 @@
           ;; beads-delete will auto-detect the issue ID from beads-list context
           (beads-delete id))
       (user-error "No issue at point"))))
+
+(defun beads-list-reopen ()
+  "Reopen the issue at point using the beads-reopen transient menu."
+  (interactive)
+  (if-let* ((id (beads-list--current-issue-id)))
+      (progn
+        (require 'beads-reopen)
+        ;; beads-reopen will auto-detect the issue ID from beads-list context
+        (call-interactively #'beads-reopen))
+    (user-error "No issue at point")))
 
 (defun beads-list-copy-id ()
   "Copy the issue ID at point to the kill ring."
@@ -549,7 +561,37 @@ Uses tabulated-list built-in sorting."
           (beads-list-unmark-all)
           (beads--invalidate-completion-cache)
           (beads-list-refresh)
-          (message "Closed %d issue(s), %d failed" success-count fail-count))))))
+          (message "Closed %d issue(s), %d failed"
+                   success-count fail-count))))))
+
+(defun beads-list-bulk-reopen ()
+  "Reopen all marked issues."
+  (interactive)
+  (if (null beads-list--marked-issues)
+      (user-error "No issues marked")
+    (let ((reason (read-string
+                   (format "Reason for reopening %d issue(s): "
+                          (length beads-list--marked-issues)))))
+      (when (y-or-n-p (format "Reopen %d issue(s)? "
+                             (length beads-list--marked-issues)))
+        (let ((success-count 0)
+              (fail-count 0))
+          (dolist (id beads-list--marked-issues)
+            (condition-case err
+                (progn
+                  (if (and reason (not (string-empty-p (string-trim reason))))
+                      (beads--run-command "reopen" id "--reason" reason)
+                    (beads--run-command "reopen" id))
+                  (setq success-count (1+ success-count)))
+              (error
+               (message "Failed to reopen %s: %s" id
+                       (error-message-string err))
+               (setq fail-count (1+ fail-count)))))
+          (beads-list-unmark-all)
+          (beads--invalidate-completion-cache)
+          (beads-list-refresh)
+          (message "Reopened %d issue(s), %d failed"
+                   success-count fail-count))))))
 
 ;;; Mode Definition
 
@@ -579,6 +621,7 @@ Uses tabulated-list built-in sorting."
     (define-key map (kbd "e") #'beads-list-update)         ; edit (more intuitive)
     (define-key map (kbd "d") #'beads-list-close)          ; delete/done (mark for closing)
     (define-key map (kbd "k") #'beads-list-close)          ; kill (alternative)
+    (define-key map (kbd "o") #'beads-list-reopen)         ; open/reopen closed issue
     (define-key map (kbd "D") #'beads-list-delete)         ; delete permanently (destructive)
 
     ;; Utilities
@@ -599,6 +642,7 @@ Uses tabulated-list built-in sorting."
       (define-key bulk-map (kbd "s") #'beads-list-bulk-update-status)
       (define-key bulk-map (kbd "p") #'beads-list-bulk-update-priority)
       (define-key bulk-map (kbd "c") #'beads-list-bulk-close)
+      (define-key bulk-map (kbd "o") #'beads-list-bulk-reopen)
       (define-key map (kbd "B") bulk-map))
     map)
   "Keymap for `beads-list-mode'.")

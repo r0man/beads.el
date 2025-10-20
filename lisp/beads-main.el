@@ -34,6 +34,7 @@
 (require 'beads-create)
 (require 'beads-update)
 (require 'beads-close)
+(require 'beads-reopen)
 (require 'beads-delete)
 (require 'beads-stats)
 (require 'beads-dep)
@@ -132,7 +133,8 @@ into logical groups for easy navigation.
 
 Key bindings:
   View issues:        l (list), r (ready), b (blocked), s (show)
-  Create/Edit:        c (create), u (update), x (close), D (delete)
+  Create/Edit:        c (create), u (update), x (close), o (reopen),
+                      D (delete)
   Dependencies:       d (dep submenu)
   Admin:              i (init), e (export), I (import)
   Other:              g (refresh), q (quit)"
@@ -151,6 +153,7 @@ Key bindings:
    ("c" "Create issue" beads-create)
    ("u" "Update issue" beads-update)
    ("x" "Close issue" beads-close)
+   ("o" "Reopen issue" beads-reopen)
    ("D" "Delete issue" beads-delete)]
   ["Dependencies"
    :description "Manage dependencies"
