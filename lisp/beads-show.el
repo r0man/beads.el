@@ -9,11 +9,11 @@
 
 ;; This module provides issue detail display functionality for beads.el.
 ;; It implements a special-mode-derived buffer that shows full issue
-;; details with markdown-like formatting and clickable bd-N references.
+;; details with markdown-like formatting and clickable issue references.
 ;;
 ;; Key features:
 ;; - Formatted display of issue metadata and text fields
-;; - Clickable bd-N references using buttons
+;; - Clickable issue references using buttons
 ;; - Basic text fontification (bold, colors)
 ;; - Markdown-mode-style outline navigation (C-c C-n/p/f/b/u)
 ;; - Inline field editing (C-c C-e)
@@ -257,7 +257,7 @@ CONTENT can be a string or nil (empty sections are skipped)."
       (insert "\n")
       ;; Apply markdown-like fontification
       (beads-show--fontify-markdown start (point))
-      ;; Make bd-N references clickable
+      ;; Make issue references clickable
       (beads-show--buttonize-references start (point)))))
 
 (defun beads-show--fontify-markdown (start end)
@@ -298,10 +298,13 @@ CONTENT can be a string or nil (empty sections are skipped)."
                         'face 'font-lock-builtin-face))))
 
 (defun beads-show--buttonize-references (start end)
-  "Make bd-N references clickable between START and END."
+  "Make issue references clickable between START and END.
+Recognizes issue IDs in the format PROJECT-NUMBER, where PROJECT can
+contain letters, numbers, dots, underscores, and hyphens.
+Examples: beads.el-22, bd-123, worker-1, api-42."
   (save-excursion
     (goto-char start)
-    (while (re-search-forward "\\(bd-[0-9]+\\)" end t)
+    (while (re-search-forward "\\b\\([a-zA-Z][a-zA-Z0-9._-]*-[0-9]+\\)\\b" end t)
       (let ((issue-id (match-string 1)))
         (make-button (match-beginning 1) (match-end 1)
                     'issue-id issue-id
@@ -311,30 +314,29 @@ CONTENT can be a string or nil (empty sections are skipped)."
                     'face 'link)))))
 
 (defun beads-show--button-action (button)
-  "Action for clicking on a bd-N reference BUTTON."
+  "Action for clicking on an issue reference BUTTON."
   (let ((issue-id (button-get button 'issue-id)))
     (beads-show issue-id)))
 
 (defun beads-show--extract-issue-at-point ()
-  "Extract bd-N issue reference at point.
-Returns the issue ID or nil if none found."
+  "Extract issue reference at point.
+Returns the issue ID or nil if none found.
+Recognizes issue IDs like beads.el-22, bd-123, worker-1, etc."
   (let ((case-fold-search nil)
         (original-point (point)))
     (or
      ;; First try to see if we're on a button
      (when-let* ((button (button-at original-point)))
-       (when-let* ((id (button-get button 'issue-id)))
-         (when (string-match "^bd-[0-9]+$" id)
-           id)))
+       (button-get button 'issue-id))
 
-     ;; Try to find bd-N on current line around point
+     ;; Try to find issue ID on current line around point
      (save-excursion
        (let ((line-start (line-beginning-position))
              (line-end (line-end-position))
              (result nil))
          (goto-char line-start)
          (while (and (not result)
-                    (re-search-forward "\\(bd-[0-9]+\\)" line-end t))
+                    (re-search-forward "\\b\\([a-zA-Z][a-zA-Z0-9._-]*-[0-9]+\\)\\b" line-end t))
            (let ((match-start (match-beginning 1))
                  (match-end (match-end 1)))
              (when (and (>= original-point match-start)
@@ -573,7 +575,7 @@ Returns:
 
     ;; Footer
     (insert beads-show-section-separator)
-    (insert (propertize "Press 'g' to refresh, 'q' to quit, RET on bd-N to jump"
+    (insert (propertize "Press 'g' to refresh, 'q' to quit, RET on issue ID to jump"
                        'face 'shadow))
     (insert "\n")
 
@@ -614,7 +616,7 @@ Creates or switches to a buffer showing the full issue details."
 
 ;;;###autoload
 (defun beads-show-at-point ()
-  "Show issue detail for bd-N reference at point.
+  "Show issue detail for issue reference at point.
 Extracts the issue ID from text at point and calls `beads-show'."
   (interactive)
   (if-let* ((issue-id (beads-show--extract-issue-at-point)))
@@ -960,14 +962,14 @@ Set mark at beginning of section, move point to end, and activate region."
       (message "Section marked"))))
 
 (defun beads-show-follow-reference ()
-  "Follow bd-N reference at point or on current line."
+  "Follow issue reference at point or on current line."
   (interactive)
   (if-let* ((issue-id (beads-show--extract-issue-at-point)))
       (beads-show issue-id)
     (message "No issue reference at point")))
 
 (defun beads-show-follow-reference-other-window ()
-  "Follow bd-N reference at point in other window."
+  "Follow issue reference at point in other window."
   (interactive)
   (if-let* ((issue-id (beads-show--extract-issue-at-point)))
       (let ((buffer-name (format "*beads-show: %s*" issue-id)))
@@ -994,7 +996,7 @@ Set mark at beginning of section, move point to end, and activate region."
     (message "No issue reference at point")))
 
 (defun beads-show-next-reference ()
-  "Jump to next bd-N reference in buffer."
+  "Jump to next issue reference in buffer."
   (interactive)
   (let ((_start-pos (point))
         (found nil))
@@ -1010,7 +1012,7 @@ Set mark at beginning of section, move point to end, and activate region."
       (message "No next reference"))))
 
 (defun beads-show-previous-reference ()
-  "Jump to previous bd-N reference in buffer."
+  "Jump to previous issue reference in buffer."
   (interactive)
   (let ((_start-pos (point))
         (found nil))

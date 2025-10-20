@@ -231,14 +231,14 @@ After editing, the transient menu is re-displayed."
                           (funcall callback text)
                           (message "%s saved" field-name)
                           ;; Re-show the transient menu
-                          (beads-create))))
+                          (transient-setup 'beads-create))))
           (cancel-func (lambda ()
                         (interactive)
                         (kill-buffer)
                         (switch-to-buffer parent-buffer)
                         (message "%s edit cancelled" field-name)
                         ;; Re-show the transient menu
-                        (beads-create))))
+                        (transient-setup 'beads-create))))
       (local-set-key (kbd "C-c C-c") finish-func)
       (local-set-key (kbd "C-c C-k") cancel-func))
     (message "Edit %s. C-c C-c to finish, C-c C-k to cancel." field-name)))

@@ -9,10 +9,11 @@ leaving your editor.
 - 📋 **Tabulated List Mode**: Browse issues with sortable columns (ID, status,
   priority, type, title)
 - 🔍 **Issue Detail View**: Rich formatting with markdown-like rendering and
-  clickable bd-N references
+  clickable issue references
 - ⌨️ **Transient Menus**: Magit-style keyboard-driven interface for all bd
   commands
 - 🚀 **Context-Aware**: Automatically detects issue IDs from current buffer
+- 💡 **Eldoc Integration**: Hover over issue references anywhere to see details
 - 🎯 **Complete Coverage**: All bd CLI commands available through transients
 - 🔗 **Project Integration**: Seamless integration with Emacs project.el
 
@@ -43,7 +44,8 @@ git clone https://github.com/yourusername/beads.el.git ~/path/to/beads.el
 (use-package beads
   :load-path "~/path/to/beads.el/lisp"
   :commands (beads beads-list beads-ready beads-show beads-create)
-  :bind ("C-c b" . beads))
+  :bind ("C-c b" . beads)
+  :hook (after-init . beads-eldoc-mode))  ; Enable eldoc support
 ```
 
 ### Option 2: use-package with :vc (Emacs 29+)
@@ -54,7 +56,8 @@ For Emacs 29 or newer, you can use the built-in package-vc feature:
 (use-package beads
   :vc (:fetcher github :repo "yourusername/beads.el")
   :commands (beads beads-list beads-ready beads-show beads-create)
-  :bind ("C-c b" . beads))
+  :bind ("C-c b" . beads)
+  :hook (after-init . beads-eldoc-mode))  ; Enable eldoc support
 ```
 
 This will automatically clone and install the package.
@@ -197,6 +200,58 @@ When viewing issue details (via `beads-show` or pressing `RET` in list):
 **Actions:**
 - Issue references (bd-N) are clickable - press `RET` or click to jump
 
+### Eldoc Support
+
+beads.el provides eldoc integration that displays issue information when your
+cursor hovers over issue references in any buffer.
+
+**Supported Formats:**
+- `beads.el-22` - Project-specific references
+- `bd-123` - Standard Beads references
+- `worker-1`, `api-42` - Any `project-N` format
+
+**Enable Eldoc Support:**
+
+```elisp
+;; Enable globally
+(beads-eldoc-mode 1)
+```
+
+**What You Get:**
+
+When you position your cursor on an issue reference like `beads.el-22`:
+- **Echo area**: Brief info (ID, status, title)
+- **Eldoc buffer**: Full issue metadata (description, notes, dates, etc.)
+
+**How It Works:**
+
+1. **In beads buffers** (list/show): Uses text properties for instant lookup
+2. **In other buffers** (code, markdown, org): Pattern matching with caching
+3. **Performance**: Issues are cached for 5 minutes (configurable)
+
+**Configuration:**
+
+```elisp
+;; Customize cache TTL (default: 300 seconds)
+(setq beads-eldoc-cache-ttl 600)  ; 10 minutes
+
+;; Customize issue pattern (default supports all project-N formats)
+(setq beads-eldoc-issue-pattern "\\b\\([a-zA-Z][a-zA-Z0-9._-]*-[0-9]+\\)\\b")
+```
+
+**Example Use Cases:**
+
+- **Code comments**: Hover over `;; Fix beads.el-22` to see issue details
+- **Commit messages**: See issue info while writing git commits
+- **Org files**: Get context on issues in your planning documents
+- **Markdown**: Preview issue details in README or documentation
+
+**Tips:**
+
+- Cache automatically invalidates when you modify issues
+- Works with any eldoc-compatible mode
+- Combines with eldoc-box for richer display
+
 ### Creating Issues (`beads-create`)
 
 Transient menu for creating new issues:
@@ -334,7 +389,8 @@ Full example with customization and keybindings:
    ("C-c b l" . beads-list)
    ("C-c b r" . beads-ready)
    ("C-c b c" . beads-create)
-   ("C-c b s" . beads-show)))
+   ("C-c b s" . beads-show))
+  :hook (after-init . beads-eldoc-mode)) ; Enable eldoc support
 ```
 
 ### Integration with Projectile
@@ -477,21 +533,22 @@ lisp/
 ├── beads.el                      # Core: process, JSON, project
 ├── beads-list.el                 # Tabulated list mode
 ├── beads-show.el                 # Issue detail view
+├── beads-eldoc.el                # Eldoc integration for issue refs
 ├── beads-create.el               # Create transient
 ├── beads-update.el               # Update transient
 ├── beads-misc.el                 # Misc transients (close/dep/stats/etc)
 ├── beads-main.el                 # Root transient menu
 ├── Makefile                      # Test runner
 └── test/
-    ├── beads-process-test.el     # Process execution tests
-    ├── beads-project-test.el     # Project discovery tests
-    ├── beads-utils-test.el       # Utility function tests
+    ├── beads-test.el             # Core functionality tests
     ├── beads-list-test.el        # List mode tests
     ├── beads-show-test.el        # Show mode tests
-    ├── beads-transient-create-test.el
-    ├── beads-transient-update-test.el
-    ├── beads-main-test.el
-    └── beads-misc-test.el
+    ├── beads-eldoc-test.el       # Eldoc integration tests
+    ├── beads-create-test.el      # Create transient tests
+    ├── beads-update-test.el      # Update transient tests
+    ├── beads-close-test.el       # Close transient tests
+    ├── beads-main-test.el        # Main menu tests
+    └── beads-misc-test.el        # Misc commands tests
 ```
 
 ### Key Design Patterns
@@ -537,10 +594,11 @@ eldev test --coverage
 
 ### Test Coverage
 
-- **Total tests:** 448
+- **Total tests:** 883
 - **Overall coverage:** >75%
 - **Core modules:** >80%
 - **UI modules:** >70%
+- **Eldoc module:** >85%
 
 All tests use mocking to avoid requiring a real bd database.
 
