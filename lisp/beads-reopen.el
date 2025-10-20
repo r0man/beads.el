@@ -264,7 +264,7 @@ context or prompt the user."
   (when issue-id
     (setq beads-reopen--issue-id issue-id))
   ;; Show the transient menu
-  (beads-reopen--menu))
+  (transient-setup 'beads-reopen--menu))
 
 (provide 'beads-reopen)
 ;;; beads-reopen.el ends here
