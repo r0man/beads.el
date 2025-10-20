@@ -34,3 +34,6 @@ Thumbs.db
 !.beads/*.jsonl
 /.eldev/
 /lisp/.eldev/
+
+# Beads reference repository (for documentation, not committed)
+/beads-reference/
