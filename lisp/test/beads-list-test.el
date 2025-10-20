@@ -20,22 +20,26 @@
      (title . "First issue")
      (status . "open")
      (priority . 1)
-     (issue-type . "bug"))
+     (issue-type . "bug")
+     (created-at . "2025-10-20T14:30:00Z"))
     ((id . "bd-2")
      (title . "Second issue")
      (status . "in_progress")
      (priority . 0)
-     (issue-type . "feature"))
+     (issue-type . "feature")
+     (created-at . "2025-10-20T16:36:52Z"))
     ((id . "bd-3")
      (title . "Third issue")
      (status . "blocked")
      (priority . 2)
-     (issue-type . "task"))
+     (issue-type . "task")
+     (created-at . "2025-10-19T10:00:00Z"))
     ((id . "bd-4")
      (title . "Fourth issue")
      (status . "closed")
      (priority . 3)
-     (issue-type . "bug")))
+     (issue-type . "bug")
+     (created-at . "2025-10-18T08:15:00Z")))
   "Sample issue data for testing.")
 
 (defvar beads-list-test--empty-issues '()
@@ -106,11 +110,13 @@
          (entry (beads-list--issue-to-entry issue)))
     (should (equal (car entry) "bd-1"))
     (should (vectorp (cadr entry)))
-    (should (= (length (cadr entry)) 5))
+    (should (= (length (cadr entry)) 6))
     ;; Check ID column
     (should (equal (aref (cadr entry) 0) "bd-1"))
     ;; Check title column
-    (should (equal (aref (cadr entry) 4) "First issue"))))
+    (should (equal (aref (cadr entry) 4) "First issue"))
+    ;; Check created column exists
+    (should (stringp (aref (cadr entry) 5)))))
 
 (ert-deftest beads-list-test-populate-buffer ()
   "Test populating buffer with issues."
@@ -156,7 +162,9 @@
   "Test sorting issues by priority."
   (beads-list-test--with-temp-buffer
       beads-list-test--sample-issues 'list
-    ;; Already sorted by Priority (default)
+    ;; Re-sort by Priority (default is now Created)
+    (setq tabulated-list-sort-key (cons "Priority" nil))
+    (tabulated-list-print t)
     (goto-char (point-min))
     (forward-line 0)  ; Stay at first line
     ;; Priority 0 should be first
@@ -592,18 +600,20 @@
              (title . "First custom issue")
              (status . "open")
              (priority . 1)
-             (issue-type . "bug"))
+             (issue-type . "bug")
+             (created-at . "2025-10-19T10:00:00Z"))
             ((id . "myproject-13")
              (title . "Custom prefix issue")
              (status . "in_progress")
              (priority . 0)
-             (issue-type . "feature"))))
+             (issue-type . "feature")
+             (created-at . "2025-10-20T16:00:00Z"))))
          (beads-show-called nil)
          (beads-show-arg nil))
     (beads-list-test--with-temp-buffer
         custom-prefix-issues 'list
       (goto-char (point-min))
-      ;; Default sort is by Priority, so myproject-13 (pri 0) comes first
+      ;; Default sort is by Created (descending), so myproject-13 comes first
       (let ((id (beads-list--current-issue-id)))
         (should (equal id "myproject-13"))
         ;; Mock beads-show to verify correct ID is passed
@@ -645,12 +655,155 @@
   "Test that all required columns are present."
   (with-temp-buffer
     (beads-list-mode)
-    (should (= (length tabulated-list-format) 5))
+    (should (= (length tabulated-list-format) 6))
     (should (equal (car (aref tabulated-list-format 0)) "ID"))
     (should (equal (car (aref tabulated-list-format 1)) "Status"))
     (should (equal (car (aref tabulated-list-format 2)) "Priority"))
     (should (equal (car (aref tabulated-list-format 3)) "Type"))
-    (should (equal (car (aref tabulated-list-format 4)) "Title"))))
+    (should (equal (car (aref tabulated-list-format 4)) "Title"))
+    (should (equal (car (aref tabulated-list-format 5)) "Created"))))
+
+;;; Date Formatting Tests
+
+(ert-deftest beads-list-test-format-date-absolute ()
+  "Test absolute date formatting."
+  (let ((beads-list-date-format 'absolute)
+        (timestamp "2025-10-20T16:36:52.648609367Z"))
+    (should (equal (beads-list--format-date timestamp)
+                   "2025-10-20 16:36"))))
+
+(ert-deftest beads-list-test-format-date-relative ()
+  "Test relative date formatting."
+  (let ((beads-list-date-format 'relative)
+        ;; Create a timestamp from 2 hours ago
+        (timestamp (format-time-string
+                    "%Y-%m-%dT%H:%M:%SZ"
+                    (time-subtract (current-time)
+                                   (seconds-to-time 7200))
+                    t)))
+    (let ((result (beads-list--format-date timestamp)))
+      (should (string-match-p "ago" result))
+      (should (or (string-match-p "2h ago" result)
+                  (string-match-p "1h ago" result)
+                  (string-match-p "119m ago" result)
+                  (string-match-p "120m ago" result))))))
+
+(ert-deftest beads-list-test-format-date-iso ()
+  "Test ISO date formatting."
+  (let ((beads-list-date-format 'iso)
+        (timestamp "2025-10-20T16:36:52Z"))
+    (should (equal (beads-list--format-date timestamp)
+                   "2025-10-20T16:36:52Z"))))
+
+(ert-deftest beads-list-test-format-date-date-only ()
+  "Test date-only formatting."
+  (let ((beads-list-date-format 'date-only)
+        (timestamp "2025-10-20T16:36:52.648609367Z"))
+    (should (equal (beads-list--format-date timestamp)
+                   "2025-10-20"))))
+
+(ert-deftest beads-list-test-format-date-custom-string ()
+  "Test custom format string."
+  (let ((beads-list-date-format "%Y/%m/%d")
+        (timestamp "2025-10-20T16:36:52Z"))
+    (should (equal (beads-list--format-date timestamp)
+                   "2025/10/20"))))
+
+(ert-deftest beads-list-test-format-date-nil ()
+  "Test formatting nil timestamp."
+  (should (equal (beads-list--format-date nil) "")))
+
+(ert-deftest beads-list-test-format-date-empty-string ()
+  "Test formatting empty string timestamp."
+  (should (equal (beads-list--format-date "") "")))
+
+(ert-deftest beads-list-test-format-date-relative-seconds ()
+  "Test relative formatting for seconds."
+  (let ((beads-list-date-format 'relative)
+        ;; 30 seconds ago
+        (timestamp (format-time-string
+                    "%Y-%m-%dT%H:%M:%SZ"
+                    (time-subtract (current-time)
+                                   (seconds-to-time 30))
+                    t)))
+    (let ((result (beads-list--format-date timestamp)))
+      (should (string-suffix-p "ago" result))
+      (should (string-match-p "[0-9]+s ago" result)))))
+
+(ert-deftest beads-list-test-format-date-relative-days ()
+  "Test relative formatting for days."
+  (let ((beads-list-date-format 'relative)
+        ;; 3 days ago
+        (timestamp (format-time-string
+                    "%Y-%m-%dT%H:%M:%SZ"
+                    (time-subtract (current-time)
+                                   (seconds-to-time 259200))
+                    t)))
+    (let ((result (beads-list--format-date timestamp)))
+      (should (string-match-p "[23]d ago" result)))))
+
+(ert-deftest beads-list-test-format-date-relative-weeks ()
+  "Test relative formatting for weeks."
+  (let ((beads-list-date-format 'relative)
+        ;; 2 weeks ago (14 days)
+        (timestamp (format-time-string
+                    "%Y-%m-%dT%H:%M:%SZ"
+                    (time-subtract (current-time)
+                                   (seconds-to-time 1209600))
+                    t)))
+    (let ((result (beads-list--format-date timestamp)))
+      (should (string-match-p "[12]w ago" result)))))
+
+(ert-deftest beads-list-test-created-column-in-entry ()
+  "Test that created date appears in issue entry."
+  (let ((beads-list-date-format 'absolute)
+        (issue (car beads-list-test--sample-issues)))
+    (let ((entry (beads-list--issue-to-entry issue)))
+      ;; Created should be in column 5 (6th element, 0-indexed)
+      (should (stringp (aref (cadr entry) 5)))
+      (should (string-match-p "2025-10-20"
+                              (aref (cadr entry) 5))))))
+
+(ert-deftest beads-list-test-sort-by-created ()
+  "Test sorting issues by creation date."
+  (beads-list-test--with-temp-buffer
+      beads-list-test--sample-issues 'list
+    ;; Default sort is now by Created (descending)
+    (goto-char (point-min))
+    (forward-line 0)
+    ;; Most recent (bd-2: 2025-10-20T16:36:52Z) should be first
+    (should (equal (beads-list--current-issue-id) "bd-2"))))
+
+(ert-deftest beads-list-test-default-sort-is-created ()
+  "Test that default sort key is Created column."
+  (with-temp-buffer
+    (beads-list-mode)
+    (should (equal tabulated-list-sort-key '("Created" . t)))))
+
+;;; Integration Test: Date Format Customization
+
+(ert-deftest beads-list-test-integration-date-format-change ()
+  "Integration test: Changing date format affects display."
+  :tags '(integration)
+  (let ((beads-list-date-format 'absolute))
+    (beads-list-test--with-temp-buffer
+        beads-list-test--sample-issues 'list
+      (goto-char (point-min))
+      (forward-line 0)
+      (let ((entry (beads-list--issue-to-entry
+                    (car beads-list-test--sample-issues))))
+        (should (string-match-p "[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}"
+                                (aref (cadr entry) 5)))))))
+
+(ert-deftest beads-list-test-integration-created-width-custom ()
+  "Integration test: Created column width is customizable."
+  :tags '(integration)
+  (let ((beads-list-created-width 20))
+    (with-temp-buffer
+      (beads-list-mode)
+      (let ((format (aref tabulated-list-format 5)))
+        (should (equal (car format) "Created"))
+        (should (= (cadr format) 20))))))
 
 ;;; ============================================================
 ;;; Integration Tests
