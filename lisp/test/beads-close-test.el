@@ -278,8 +278,8 @@ STATE is an alist expression of (variable . value) pairs."
   (should (fboundp 'beads-close)))
 
 (ert-deftest beads-close-test-transient-is-prefix ()
-  "Test that beads-close is a transient prefix."
-  (should (get 'beads-close 'transient--prefix)))
+  "Test that beads-close--menu is a transient prefix."
+  (should (get 'beads-close--menu 'transient--prefix)))
 
 (ert-deftest beads-close-test-infix-commands-defined ()
   "Test that all infix commands are defined."
