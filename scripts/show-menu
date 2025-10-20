@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+emacs -Q -L "$(pwd)/lisp" --eval "(progn (require 'beads) (beads))"
