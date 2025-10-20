@@ -82,6 +82,29 @@
   :type 'integer
   :group 'beads-list)
 
+(defcustom beads-list-created-width 16
+  "Width of Created column in issue lists."
+  :type 'integer
+  :group 'beads-list)
+
+(defcustom beads-list-date-format 'absolute
+  "Format for displaying creation dates in issue lists.
+
+Options:
+  `absolute'  - Absolute date and time (2025-10-20 16:36)
+  `relative'  - Relative time (2 hours ago, 3 days ago)
+  `iso'       - Full ISO 8601 timestamp (2025-10-20T16:36:52Z)
+  `date-only' - Date without time (2025-10-20)
+  string      - Custom format string for `format-time-string'
+
+The `absolute' format sorts correctly in chronological order."
+  :type '(choice (const :tag "Absolute (YYYY-MM-DD HH:MM)" absolute)
+                 (const :tag "Relative (X hours/days ago)" relative)
+                 (const :tag "ISO 8601 (full timestamp)" iso)
+                 (const :tag "Date only (YYYY-MM-DD)" date-only)
+                 (string :tag "Custom format-time-string"))
+  :group 'beads-list)
+
 ;;; Faces
 
 (defface beads-list-status-open
@@ -177,19 +200,66 @@
   (let ((priority-str (if priority (format "%d" priority) "")))
     (propertize priority-str 'face (beads-list--priority-face priority))))
 
+(defun beads-list--format-date (iso-timestamp)
+  "Format ISO-TIMESTAMP according to `beads-list-date-format'.
+ISO-TIMESTAMP should be an ISO 8601 string like
+'2025-10-20T16:36:52.648609367Z'.  Returns a formatted string based on
+the value of `beads-list-date-format'."
+  (if (or (not iso-timestamp) (string-empty-p iso-timestamp))
+      ""
+    (let ((time (date-to-time iso-timestamp)))
+      (pcase beads-list-date-format
+        ('absolute
+         (format-time-string "%Y-%m-%d %H:%M" time))
+        ('relative
+         (let* ((now (current-time))
+                (diff (time-subtract now time))
+                (seconds (time-to-seconds diff)))
+           (cond
+            ((< seconds 60)
+             (format "%ds ago" (floor seconds)))
+            ((< seconds 3600)
+             (format "%dm ago" (floor (/ seconds 60))))
+            ((< seconds 86400)
+             (let ((hours (floor (/ seconds 3600))))
+               (format "%dh ago" hours)))
+            ((< seconds 604800)
+             (let ((days (floor (/ seconds 86400))))
+               (format "%dd ago" days)))
+            ((< seconds 2592000)
+             (let ((weeks (floor (/ seconds 604800))))
+               (format "%dw ago" weeks)))
+            ((< seconds 31536000)
+             (let ((months (floor (/ seconds 2592000))))
+               (format "%dmo ago" months)))
+            (t
+             (let ((years (floor (/ seconds 31536000))))
+               (format "%dy ago" years))))))
+        ('iso
+         (format-time-string "%Y-%m-%dT%H:%M:%SZ" time t))
+        ('date-only
+         (format-time-string "%Y-%m-%d" time))
+        ((pred stringp)
+         (format-time-string beads-list-date-format time))
+        (_
+         (format-time-string "%Y-%m-%d %H:%M" time))))))
+
 (defun beads-list--issue-to-entry (issue)
   "Convert ISSUE alist to tabulated-list entry."
   (let* ((id (alist-get 'id issue))
          (title (or (alist-get 'title issue) ""))
          (status (alist-get 'status issue))
          (priority (alist-get 'priority issue))
-         (type (or (alist-get 'issue-type issue) "")))
+         (type (or (alist-get 'issue-type issue) ""))
+         (created (alist-get 'created-at issue))
+         (created-str (beads-list--format-date created)))
     (list id
           (vector id
                   (beads-list--format-status status)
                   (beads-list--format-priority priority)
                   type
-                  title))))
+                  title
+                  created-str))))
 
 (defun beads-list--apply-filters (issues)
   "Apply active filters to ISSUES and return filtered list."
@@ -657,9 +727,10 @@ Uses tabulated-list built-in sorting."
                 (list "Priority" beads-list-priority-width t
                       :right-align t)
                 (list "Type" beads-list-type-width t)
-                (list "Title" beads-list-title-width t)))
+                (list "Title" beads-list-title-width t)
+                (list "Created" beads-list-created-width t)))
   (setq tabulated-list-padding 2)
-  (setq tabulated-list-sort-key (cons "Priority" nil))
+  (setq tabulated-list-sort-key (cons "Created" t))
   (tabulated-list-init-header))
 
 ;;; Public Commands
