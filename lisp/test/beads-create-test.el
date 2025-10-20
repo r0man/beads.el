@@ -93,6 +93,40 @@ STATE is an alist expression of (variable . value) pairs."
    (should (null beads-create--custom-id))
    (should (null beads-create--dependencies))))
 
+(ert-deftest beads-create-test-reset-interactive-confirmed ()
+  "Test interactive reset command when user confirms."
+  (beads-create-test-with-state
+   '((beads-create--title . "Test")
+     (beads-create--type . "bug")
+     (beads-create--priority . 1))
+   (let ((transient-reset-called nil))
+     (cl-letf (((symbol-function 'y-or-n-p) (lambda (_) t))
+               ((symbol-function 'transient-reset)
+                (lambda () (setq transient-reset-called t))))
+       (beads-create--reset)
+       ;; Should call transient-reset
+       (should transient-reset-called)
+       ;; State should be cleared
+       (should (null beads-create--title))
+       (should (null beads-create--type))
+       (should (null beads-create--priority))))))
+
+(ert-deftest beads-create-test-reset-interactive-cancelled ()
+  "Test interactive reset command when user cancels."
+  (beads-create-test-with-state
+   '((beads-create--title . "Test")
+     (beads-create--type . "bug"))
+   (let ((transient-reset-called nil))
+     (cl-letf (((symbol-function 'y-or-n-p) (lambda (_) nil))
+               ((symbol-function 'transient-reset)
+                (lambda () (setq transient-reset-called t))))
+       (beads-create--reset)
+       ;; Should not call transient-reset
+       (should-not transient-reset-called)
+       ;; State should remain unchanged
+       (should (equal beads-create--title "Test"))
+       (should (equal beads-create--type "bug"))))))
+
 ;;; Tests for Value Formatting
 
 (ert-deftest beads-create-test-format-current-value-set ()

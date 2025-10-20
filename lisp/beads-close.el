@@ -44,16 +44,6 @@
   (setq beads-close--issue-id nil
         beads-close--reason nil))
 
-(defun beads-close--format-current-value (value)
-  "Format VALUE for display in transient menu.
-Returns a propertized string showing the current value."
-  (if (and value (not (string-empty-p (string-trim value))))
-      (let ((display (if (> (length value) 40)
-                        (concat (substring value 0 40) "...")
-                      value)))
-        (propertize (format " [%s]" display) 'face 'transient-value))
-    (propertize " [not set]" 'face 'transient-inactive-value)))
-
 (defun beads-close--detect-issue-id ()
   "Detect issue ID from current context.
 Returns issue ID string or nil if not found."
@@ -69,27 +59,28 @@ Returns issue ID string or nil if not found."
                       (buffer-name))
      (match-string 1 (buffer-name)))))
 
-(defun beads-close--validate-issue-id ()
+(defun beads-close--validate-issue-id (id)
   "Validate that issue ID is set.
 Returns error message string if invalid, nil if valid."
-  (when (or (null beads-close--issue-id)
-            (string-empty-p (string-trim beads-close--issue-id)))
+  (when (or (null id)
+            (string-empty-p (string-trim id)))
     "Issue ID is required"))
 
-(defun beads-close--validate-all ()
-  "Validate all parameters.
+(defun beads-close--validate-all (parsed)
+  "Validate all parameters in PARSED plist.
 Returns list of error messages, or nil if all valid."
   (delq nil
-        (list (beads-close--validate-issue-id))))
+        (list (beads-close--validate-issue-id (plist-get parsed :id)))))
 
-(defun beads-close--build-command-args ()
-  "Build command arguments from current transient state.
+(defun beads-close--build-command-args (parsed)
+  "Build command arguments from PARSED plist.
 Returns list of arguments for bd close command."
-  (let ((args (list beads-close--issue-id)))
+  (let* ((id (plist-get parsed :id))
+         (reason (plist-get parsed :reason))
+         (args (list id)))
     ;; Add reason flag if provided
-    (when (and beads-close--reason
-               (not (string-empty-p (string-trim beads-close--reason))))
-      (setq args (append args (list "--reason" beads-close--reason))))
+    (when (and reason (not (string-empty-p (string-trim reason))))
+      (setq args (append args (list "--reason" reason))))
     args))
 
 (defun beads-close--edit-reason-multiline (current-value callback)
@@ -135,21 +126,15 @@ After editing, the transient menu is re-displayed."
 (transient-define-infix beads-close--infix-issue-id ()
   "Set the issue ID to close."
   :class 'transient-option
-  :description (lambda ()
-                 (concat "Issue ID (required)"
-                         (beads-close--format-current-value
-                          beads-close--issue-id)))
+  :description "Issue ID (required)"
   :key "i"
   :argument "id="
-  :prompt "Issue ID: "
+  :prompt "Issue ID to close: "
   :reader (lambda (_prompt _initial-input _history)
-            (let ((id (completing-read
-                      "Issue ID to close: "
-                      (beads--issue-completion-table)
-                      nil t beads-close--issue-id
-                      'beads--issue-id-history)))
-              (setq beads-close--issue-id id)
-              id)))
+            (completing-read "Issue ID to close: "
+                           (beads--issue-completion-table)
+                           nil t beads-close--issue-id
+                           'beads--issue-id-history)))
 
 (transient-define-suffix beads-close--infix-reason ()
   "Set the reason for closing using a multiline editor."
@@ -162,20 +147,36 @@ After editing, the transient menu is re-displayed."
 
 ;;; Suffix Commands
 
+(defun beads-close--parse-transient-args (args)
+  "Parse transient ARGS list into a plist.
+Returns (:id STRING :reason STRING).
+Note: Reason is handled via state variable from multiline editor."
+  (let ((id nil))
+    (while args
+      (let ((arg (pop args)))
+        (when (string-prefix-p "id=" arg)
+          (setq id (substring arg 3)))))
+    (list :id id
+          :reason beads-close--reason)))
+
 (transient-define-suffix beads-close--execute ()
   "Execute the bd close command with current parameters."
   :key "x"
   :description "Close issue"
   (interactive)
-  (let ((errors (beads-close--validate-all)))
+  (let* ((args (transient-args 'beads-close--menu))
+         (parsed (beads-close--parse-transient-args args))
+         (errors (beads-close--validate-all parsed)))
     (if errors
         (user-error "Validation failed: %s" (string-join errors "; "))
       (condition-case err
           (progn
-            (let* ((args (beads-close--build-command-args))
-                   (result (apply #'beads--run-command "close" args))
+            (let* ((cmd-args (beads-close--build-command-args parsed))
+                   (result (apply #'beads--run-command "close" cmd-args))
                    (issue (beads--parse-issue result))
                    (issue-id (alist-get 'id issue)))
+              ;; Update state variables for potential subsequent calls
+              (setq beads-close--issue-id (plist-get parsed :id))
               (beads-close--reset-state)
               (message "Closed issue: %s - %s"
                        issue-id
@@ -207,6 +208,8 @@ After editing, the transient menu is re-displayed."
   (interactive)
   (when (y-or-n-p "Reset all fields? ")
     (beads-close--reset-state)
+    ;; Reset transient's argument state and refresh
+    (transient-reset)
     (message "All fields reset")))
 
 (transient-define-suffix beads-close--preview ()
@@ -215,13 +218,16 @@ After editing, the transient menu is re-displayed."
   :description "Preview command"
   :transient t
   (interactive)
-  (let ((errors (beads-close--validate-all)))
+  (let* ((args (transient-args 'beads-close--menu))
+         (parsed (beads-close--parse-transient-args args))
+         (errors (beads-close--validate-all parsed)))
     (if errors
-        (let ((err-msg (format "Validation errors: %s" (string-join errors "; "))))
+        (let ((err-msg (format "Validation errors: %s"
+                              (string-join errors "; "))))
           (message "%s" err-msg)
           err-msg)
-      (let* ((args (beads-close--build-command-args))
-             (cmd (apply #'beads--build-command "close" args))
+      (let* ((cmd-args (beads-close--build-command-args parsed))
+             (cmd (apply #'beads--build-command "close" cmd-args))
              (cmd-string (mapconcat #'shell-quote-argument cmd " "))
              (preview-msg (format "Command: %s" cmd-string)))
         (message "%s" preview-msg)

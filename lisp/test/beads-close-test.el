@@ -78,6 +78,38 @@ STATE is an alist expression of (variable . value) pairs."
    (should (null beads-close--issue-id))
    (should (null beads-close--reason))))
 
+(ert-deftest beads-close-test-reset-interactive-confirmed ()
+  "Test interactive reset command when user confirms."
+  (beads-close-test-with-state
+   '((beads-close--issue-id . "bd-42")
+     (beads-close--reason . "Fixed"))
+   (let ((transient-reset-called nil))
+     (cl-letf (((symbol-function 'y-or-n-p) (lambda (_) t))
+               ((symbol-function 'transient-reset)
+                (lambda () (setq transient-reset-called t))))
+       (beads-close--reset)
+       ;; Should call transient-reset
+       (should transient-reset-called)
+       ;; State should be cleared
+       (should (null beads-close--issue-id))
+       (should (null beads-close--reason))))))
+
+(ert-deftest beads-close-test-reset-interactive-cancelled ()
+  "Test interactive reset command when user cancels."
+  (beads-close-test-with-state
+   '((beads-close--issue-id . "bd-42")
+     (beads-close--reason . "Fixed"))
+   (let ((transient-reset-called nil))
+     (cl-letf (((symbol-function 'y-or-n-p) (lambda (_) nil))
+               ((symbol-function 'transient-reset)
+                (lambda () (setq transient-reset-called t))))
+       (beads-close--reset)
+       ;; Should not call transient-reset
+       (should-not transient-reset-called)
+       ;; State should remain unchanged
+       (should (equal beads-close--issue-id "bd-42"))
+       (should (equal beads-close--reason "Fixed"))))))
+
 ;;; Tests for Value Formatting
 
 (ert-deftest beads-close-test-format-current-value-set ()

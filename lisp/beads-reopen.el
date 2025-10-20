@@ -1,4 +1,4 @@
-;;; beads-reopen.el --- Reopen closed issues -*- lexical-binding: t; -*-
+;;; beads-reopen.el --- Reopen issues with reason -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
@@ -7,10 +7,10 @@
 
 ;;; Commentary:
 
-;; Provides an interactive interface for reopening closed issues in
-;; Beads.  This module allows users to reopen issues with an optional
-;; reason, and is context-aware to detect the issue ID from beads-list
-;; or beads-show buffers.
+;; Provides an interactive interface for reopening issues in Beads.
+;; This module allows users to reopen issues with an optional reason,
+;; and is context-aware to detect the issue ID from beads-list or
+;; beads-show buffers.
 ;;
 ;; Usage:
 ;;   M-x beads-reopen RET
@@ -18,7 +18,7 @@
 ;; The command will:
 ;; - Detect issue ID from context (beads-list or beads-show buffers)
 ;; - Prompt for issue ID if not in context
-;; - Allow entering a reason for reopening (optional)
+;; - Allow entering a reason for reopening (optional but recommended)
 ;; - Execute bd reopen command
 ;; - Refresh open beads buffers
 
@@ -44,16 +44,6 @@
   (setq beads-reopen--issue-id nil
         beads-reopen--reason nil))
 
-(defun beads-reopen--format-current-value (value)
-  "Format VALUE for display in transient menu.
-Returns a propertized string showing the current value."
-  (if (and value (not (string-empty-p (string-trim value))))
-      (let ((display (if (> (length value) 40)
-                        (concat (substring value 0 40) "...")
-                      value)))
-        (propertize (format " [%s]" display) 'face 'transient-value))
-    (propertize " [not set]" 'face 'transient-inactive-value)))
-
 (defun beads-reopen--detect-issue-id ()
   "Detect issue ID from current context.
 Returns issue ID string or nil if not found."
@@ -69,27 +59,28 @@ Returns issue ID string or nil if not found."
                       (buffer-name))
      (match-string 1 (buffer-name)))))
 
-(defun beads-reopen--validate-issue-id ()
+(defun beads-reopen--validate-issue-id (id)
   "Validate that issue ID is set.
 Returns error message string if invalid, nil if valid."
-  (when (or (null beads-reopen--issue-id)
-            (string-empty-p (string-trim beads-reopen--issue-id)))
+  (when (or (null id)
+            (string-empty-p (string-trim id)))
     "Issue ID is required"))
 
-(defun beads-reopen--validate-all ()
-  "Validate all parameters.
+(defun beads-reopen--validate-all (parsed)
+  "Validate all parameters in PARSED plist.
 Returns list of error messages, or nil if all valid."
   (delq nil
-        (list (beads-reopen--validate-issue-id))))
+        (list (beads-reopen--validate-issue-id (plist-get parsed :id)))))
 
-(defun beads-reopen--build-command-args ()
-  "Build command arguments from current transient state.
+(defun beads-reopen--build-command-args (parsed)
+  "Build command arguments from PARSED plist.
 Returns list of arguments for bd reopen command."
-  (let ((args (list beads-reopen--issue-id)))
+  (let* ((id (plist-get parsed :id))
+         (reason (plist-get parsed :reason))
+         (args (list id)))
     ;; Add reason flag if provided
-    (when (and beads-reopen--reason
-               (not (string-empty-p (string-trim beads-reopen--reason))))
-      (setq args (append args (list "--reason" beads-reopen--reason))))
+    (when (and reason (not (string-empty-p (string-trim reason))))
+      (setq args (append args (list "--reason" reason))))
     args))
 
 (defun beads-reopen--edit-reason-multiline (current-value callback)
@@ -135,21 +126,15 @@ After editing, the transient menu is re-displayed."
 (transient-define-infix beads-reopen--infix-issue-id ()
   "Set the issue ID to reopen."
   :class 'transient-option
-  :description (lambda ()
-                 (concat "Issue ID (required)"
-                         (beads-reopen--format-current-value
-                          beads-reopen--issue-id)))
+  :description "Issue ID (required)"
   :key "i"
   :argument "id="
-  :prompt "Issue ID: "
+  :prompt "Issue ID to reopen: "
   :reader (lambda (_prompt _initial-input _history)
-            (let ((id (completing-read
-                      "Issue ID to reopen: "
-                      (beads--issue-completion-table)
-                      nil t beads-reopen--issue-id
-                      'beads--issue-id-history)))
-              (setq beads-reopen--issue-id id)
-              id)))
+            (completing-read "Issue ID to reopen: "
+                           (beads--issue-completion-table)
+                           nil t beads-reopen--issue-id
+                           'beads--issue-id-history)))
 
 (transient-define-suffix beads-reopen--infix-reason ()
   "Set the reason for reopening using a multiline editor."
@@ -162,22 +147,38 @@ After editing, the transient menu is re-displayed."
 
 ;;; Suffix Commands
 
+(defun beads-reopen--parse-transient-args (args)
+  "Parse transient ARGS list into a plist.
+Returns (:id STRING :reason STRING).
+Note: Reason is handled via state variable from multiline editor."
+  (let ((id nil))
+    (while args
+      (let ((arg (pop args)))
+        (when (string-prefix-p "id=" arg)
+          (setq id (substring arg 3)))))
+    (list :id id
+          :reason beads-reopen--reason)))
+
 (transient-define-suffix beads-reopen--execute ()
   "Execute the bd reopen command with current parameters."
   :key "x"
   :description "Reopen issue"
   (interactive)
-  (let ((errors (beads-reopen--validate-all)))
+  (let* ((args (transient-args 'beads-reopen--menu))
+         (parsed (beads-reopen--parse-transient-args args))
+         (errors (beads-reopen--validate-all parsed)))
     (if errors
         (user-error "Validation failed: %s" (string-join errors "; "))
       (condition-case err
           (progn
-            (let* ((args (beads-reopen--build-command-args))
-                   (result (apply #'beads--run-command "reopen" args))
+            (let* ((cmd-args (beads-reopen--build-command-args parsed))
+                   (result (apply #'beads--run-command "reopen" cmd-args))
                    (issue (beads--parse-issue result))
                    (issue-id (alist-get 'id issue)))
+              ;; Update state variables for potential subsequent calls
+              (setq beads-reopen--issue-id (plist-get parsed :id))
               (beads-reopen--reset-state)
-              (message "Reopened issue: %s - %s"
+              (message "Reopend issue: %s - %s"
                        issue-id
                        (alist-get 'title issue))
               ;; Invalidate completion cache
@@ -207,6 +208,8 @@ After editing, the transient menu is re-displayed."
   (interactive)
   (when (y-or-n-p "Reset all fields? ")
     (beads-reopen--reset-state)
+    ;; Clear transient's argument state
+    (transient-set)
     (message "All fields reset")))
 
 (transient-define-suffix beads-reopen--preview ()
@@ -215,14 +218,16 @@ After editing, the transient menu is re-displayed."
   :description "Preview command"
   :transient t
   (interactive)
-  (let ((errors (beads-reopen--validate-all)))
+  (let* ((args (transient-args 'beads-reopen--menu))
+         (parsed (beads-reopen--parse-transient-args args))
+         (errors (beads-reopen--validate-all parsed)))
     (if errors
         (let ((err-msg (format "Validation errors: %s"
                               (string-join errors "; "))))
           (message "%s" err-msg)
           err-msg)
-      (let* ((args (beads-reopen--build-command-args))
-             (cmd (apply #'beads--build-command "reopen" args))
+      (let* ((cmd-args (beads-reopen--build-command-args parsed))
+             (cmd (apply #'beads--build-command "reopen" cmd-args))
              (cmd-string (mapconcat #'shell-quote-argument cmd " "))
              (preview-msg (format "Command: %s" cmd-string)))
         (message "%s" preview-msg)
@@ -243,10 +248,10 @@ After editing, the transient menu is re-displayed."
 
 ;;;###autoload
 (defun beads-reopen (&optional issue-id)
-  "Reopen a closed issue in Beads.
+  "Reopen an issue in Beads.
 
-This function provides an interactive interface for reopening closed
-issues via a transient menu.  The function is context-aware and
+This function provides an interactive interface for reopening issues
+via a transient menu.  The function is context-aware and
 automatically detects the issue ID from beads-list or beads-show
 buffers.
 

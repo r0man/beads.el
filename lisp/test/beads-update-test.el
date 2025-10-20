@@ -125,6 +125,45 @@ STATE is an alist expression of (variable . value) pairs."
    (should (null beads-update--issue-id))
    (should (null beads-update--original-data))))
 
+(ert-deftest beads-update-test-reset-interactive-confirmed ()
+  "Test interactive reset command when user confirms."
+  (beads-update-test-with-state
+   `((beads-update--issue-id . "bd-42")
+     (beads-update--original-data . ,beads-update-test--sample-issue)
+     (beads-update--status . "closed")
+     (beads-update--priority . 3))
+   (let ((transient-reset-called nil))
+     (cl-letf (((symbol-function 'y-or-n-p) (lambda (_) t))
+               ((symbol-function 'transient-reset)
+                (lambda () (setq transient-reset-called t))))
+       (beads-update--reset)
+       ;; Should call transient-reset
+       (should transient-reset-called)
+       ;; State variables should be cleared
+       (should (null beads-update--status))
+       (should (null beads-update--priority))
+       ;; But issue-id and original-data should remain
+       (should (equal beads-update--issue-id "bd-42"))
+       (should beads-update--original-data)))))
+
+(ert-deftest beads-update-test-reset-interactive-cancelled ()
+  "Test interactive reset command when user cancels."
+  (beads-update-test-with-state
+   `((beads-update--issue-id . "bd-42")
+     (beads-update--original-data . ,beads-update-test--sample-issue)
+     (beads-update--status . "closed")
+     (beads-update--priority . 3))
+   (let ((transient-reset-called nil))
+     (cl-letf (((symbol-function 'y-or-n-p) (lambda (_) nil))
+               ((symbol-function 'transient-reset)
+                (lambda () (setq transient-reset-called t))))
+       (beads-update--reset)
+       ;; Should not call transient-reset
+       (should-not transient-reset-called)
+       ;; State should remain unchanged
+       (should (equal beads-update--status "closed"))
+       (should (equal beads-update--priority 3))))))
+
 ;;; Tests for Value Formatting
 
 (ert-deftest beads-update-test-format-current-value-unchanged ()
@@ -260,123 +299,96 @@ STATE is an alist expression of (variable . value) pairs."
 
 (ert-deftest beads-update-test-validate-status-nil ()
   "Test status validation when status is nil."
-  (beads-update-test-with-state nil
-   (should (null (beads-update--validate-status)))))
+  (should (null (beads-update--validate-status nil))))
 
 (ert-deftest beads-update-test-validate-status-valid-open ()
   "Test status validation with valid open status."
-  (beads-update-test-with-state '((beads-update--status . "open"))
-   (should (null (beads-update--validate-status)))))
+  (should (null (beads-update--validate-status "open"))))
 
 (ert-deftest beads-update-test-validate-status-valid-in-progress ()
   "Test status validation with valid in_progress status."
-  (beads-update-test-with-state
-   '((beads-update--status . "in_progress"))
-   (should (null (beads-update--validate-status)))))
+  (should (null (beads-update--validate-status "in_progress"))))
 
 (ert-deftest beads-update-test-validate-status-valid-blocked ()
   "Test status validation with valid blocked status."
-  (beads-update-test-with-state '((beads-update--status . "blocked"))
-   (should (null (beads-update--validate-status)))))
+  (should (null (beads-update--validate-status "blocked"))))
 
 (ert-deftest beads-update-test-validate-status-valid-closed ()
   "Test status validation with valid closed status."
-  (beads-update-test-with-state '((beads-update--status . "closed"))
-   (should (null (beads-update--validate-status)))))
+  (should (null (beads-update--validate-status "closed"))))
 
 (ert-deftest beads-update-test-validate-status-invalid ()
   "Test status validation with invalid status."
-  (beads-update-test-with-state '((beads-update--status . "invalid"))
-   (should (beads-update--validate-status))))
+  (should (beads-update--validate-status "invalid")))
 
 (ert-deftest beads-update-test-validate-type-nil ()
   "Test type validation when type is nil."
-  (beads-update-test-with-state nil
-   (should (null (beads-update--validate-type)))))
+  (should (null (beads-update--validate-type nil))))
 
 (ert-deftest beads-update-test-validate-type-valid-bug ()
   "Test type validation with valid bug type."
-  (beads-update-test-with-state '((beads-update--type . "bug"))
-   (should (null (beads-update--validate-type)))))
+  (should (null (beads-update--validate-type "bug"))))
 
 (ert-deftest beads-update-test-validate-type-valid-feature ()
   "Test type validation with valid feature type."
-  (beads-update-test-with-state '((beads-update--type . "feature"))
-   (should (null (beads-update--validate-type)))))
+  (should (null (beads-update--validate-type "feature"))))
 
 (ert-deftest beads-update-test-validate-type-valid-task ()
   "Test type validation with valid task type."
-  (beads-update-test-with-state '((beads-update--type . "task"))
-   (should (null (beads-update--validate-type)))))
+  (should (null (beads-update--validate-type "task"))))
 
 (ert-deftest beads-update-test-validate-type-valid-epic ()
   "Test type validation with valid epic type."
-  (beads-update-test-with-state '((beads-update--type . "epic"))
-   (should (null (beads-update--validate-type)))))
+  (should (null (beads-update--validate-type "epic"))))
 
 (ert-deftest beads-update-test-validate-type-valid-chore ()
   "Test type validation with valid chore type."
-  (beads-update-test-with-state '((beads-update--type . "chore"))
-   (should (null (beads-update--validate-type)))))
+  (should (null (beads-update--validate-type "chore"))))
 
 (ert-deftest beads-update-test-validate-type-invalid ()
   "Test type validation with invalid type."
-  (beads-update-test-with-state '((beads-update--type . "invalid"))
-   (should (beads-update--validate-type))))
+  (should (beads-update--validate-type "invalid")))
 
 (ert-deftest beads-update-test-validate-priority-nil ()
   "Test priority validation when priority is nil."
-  (beads-update-test-with-state nil
-   (should (null (beads-update--validate-priority)))))
+  (should (null (beads-update--validate-priority nil))))
 
 (ert-deftest beads-update-test-validate-priority-zero ()
   "Test priority validation with zero (critical)."
-  (beads-update-test-with-state '((beads-update--priority . 0))
-   (should (null (beads-update--validate-priority)))))
+  (should (null (beads-update--validate-priority 0))))
 
 (ert-deftest beads-update-test-validate-priority-one ()
   "Test priority validation with one."
-  (beads-update-test-with-state '((beads-update--priority . 1))
-   (should (null (beads-update--validate-priority)))))
+  (should (null (beads-update--validate-priority 1))))
 
 (ert-deftest beads-update-test-validate-priority-four ()
   "Test priority validation with four (backlog)."
-  (beads-update-test-with-state '((beads-update--priority . 4))
-   (should (null (beads-update--validate-priority)))))
+  (should (null (beads-update--validate-priority 4))))
 
 (ert-deftest beads-update-test-validate-priority-negative ()
   "Test priority validation with negative number."
-  (beads-update-test-with-state '((beads-update--priority . -1))
-   (should (beads-update--validate-priority))))
+  (should (beads-update--validate-priority -1)))
 
 (ert-deftest beads-update-test-validate-priority-too-high ()
   "Test priority validation with number too high."
-  (beads-update-test-with-state '((beads-update--priority . 5))
-   (should (beads-update--validate-priority))))
+  (should (beads-update--validate-priority 5)))
 
 (ert-deftest beads-update-test-validate-priority-string ()
   "Test priority validation with string instead of number."
-  (beads-update-test-with-state '((beads-update--priority . "1"))
-   (should (beads-update--validate-priority))))
+  (should (beads-update--validate-priority "1")))
 
 (ert-deftest beads-update-test-validate-all-success ()
   "Test validate-all with all valid parameters."
-  (beads-update-test-with-state
-   '((beads-update--status . "in_progress")
-     (beads-update--type . "bug")
-     (beads-update--priority . 1))
-   (should (null (beads-update--validate-all)))))
+  (let ((parsed '(:status "in_progress" :type "bug" :priority 1)))
+    (should (null (beads-update--validate-all parsed)))))
 
 (ert-deftest beads-update-test-validate-all-multiple-errors ()
   "Test validate-all with multiple validation errors."
-  (beads-update-test-with-state
-   '((beads-update--status . "invalid")
-     (beads-update--type . "wrong")
-     (beads-update--priority . 10))
-   (let ((errors (beads-update--validate-all)))
-     (should errors)
-     (should (listp errors))
-     (should (>= (length errors) 3)))))
+  (let* ((parsed '(:status "invalid" :type "wrong" :priority 10))
+         (errors (beads-update--validate-all parsed)))
+    (should errors)
+    (should (listp errors))
+    (should (>= (length errors) 3))))
 
 ;;; Tests for Command Building
 
@@ -654,8 +666,9 @@ STATE is an alist expression of (variable . value) pairs."
      (beads-update--status . "closed")
      (beads-update--priority . 0))
 
-   ;; Mock y-or-n-p to return yes
-   (cl-letf (((symbol-function 'y-or-n-p) (lambda (_) t)))
+   ;; Mock y-or-n-p and transient-reset
+   (cl-letf (((symbol-function 'y-or-n-p) (lambda (_) t))
+             ((symbol-function 'transient-reset) (lambda ())))
      (beads-update--reset)
      (should (null beads-update--status))
      (should (null beads-update--priority))
@@ -855,29 +868,29 @@ STATE is an alist expression of (variable . value) pairs."
 (ert-deftest beads-update-test-validation-workflow ()
   "Integration test: Test validation workflow."
   :tags '(integration)
-  (beads-update-test-with-state
-   '((beads-update--issue-id . "bd-42")
-     (beads-update--status . "invalid-status"))
-   (let ((validation-error (beads-update--validate-all)))
-     ;; validate-all returns list of errors, not string
-     (should validation-error)
-     (should (listp validation-error)))))
+  (let* ((parsed '(:issue-id "bd-42" :status "invalid-status"))
+         (validation-error (beads-update--validate-all parsed)))
+    ;; validate-all returns list of errors, not string
+    (should validation-error)
+    (should (listp validation-error))))
 
 (ert-deftest beads-update-test-command-building-workflow ()
   "Integration test: Test complete command building workflow."
   :tags '(integration)
   (beads-update-test-with-state
-   '((beads-update--issue-id . "bd-42")
+   `((beads-update--issue-id . "bd-42")
+     (beads-update--original-data . ,beads-update-test--sample-issue)
      (beads-update--status . "in_progress")
      (beads-update--priority . 1))
-   ;; Should not error during validation
-   (should-not (beads-update--validate-all))
-   ;; Should build valid command args
-   (let ((args (beads-update--build-command-args)))
-     (should (equal (car args) "bd-42"))
-     (should (member "-s" args))
-     (should (member "in_progress" args))
-     (should (member "-p" args)))))
+   (let ((parsed '(:status "in_progress" :priority 1)))
+     ;; Should not error during validation
+     (should-not (beads-update--validate-all parsed))
+     ;; Should build valid command args
+     (let ((args (beads-update--build-command-args parsed)))
+       (should (equal (car args) "bd-42"))
+       (should (member "-s" args))
+       (should (member "in_progress" args))
+       (should (member "-p" args))))))
 
 (provide 'beads-transient-update-test)
 ;;; beads-transient-update-test.el ends here
