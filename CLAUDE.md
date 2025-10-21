@@ -64,28 +64,56 @@ and provides comprehensive Emacs Lisp interfaces for all bd commands.
 
 Always build, test and lint the project after changing code.
 
+**IMPORTANT**: All build, test, and lint commands MUST be run within
+the proper development environment:
+
+- If the `guix` command is available, wrap ALL commands with:
+  `guix shell -D -f guix.scm -- <command>`
+- Otherwise, assume eldev and dependencies are already installed
+
+The guix.scm file provides emacs-eldev and all required dependencies.
+
 ### Build
 
 ```bash
+# With guix (preferred):
+guix shell -D -f guix.scm -- eldev -p -dtT compile
+
+# Without guix (assumes eldev installed):
 eldev -p -dtT compile
 ```
 
 ### Test
 
 ```bash
+# With guix (preferred):
+guix shell -D -f guix.scm -- eldev -p -dtT test
+
+# Without guix (assumes eldev installed):
 eldev -p -dtT test
 ```
 
 ### Lint
 
 ```bash
+# With guix (preferred):
+guix shell -D -f guix.scm -- eldev -p -dtT lint
+
+# Without guix (assumes eldev installed):
 eldev -p -dtT lint
 ```
 
-### Development environment
+### Checking for Guix
 
-If the "guix" command is available you can get a development
-environment with "guix shell -D -f guix.scm" in the project root.
+To determine which command format to use, check if guix is available:
+
+```bash
+if command -v guix >/dev/null 2>&1; then
+  # Use: guix shell -D -f guix.scm -- eldev ...
+else
+  # Use: eldev ...
+fi
+```
 
 ### Development Workflow
 
