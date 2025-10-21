@@ -60,9 +60,33 @@ providing keyboard-driven, transient-based UI for managing issues
 without leaving Emacs. The codebase integrates with the `bd` CLI tool
 and provides comprehensive Emacs Lisp interfaces for all bd commands.
 
+## Code Quality Requirements
+
+**CRITICAL - MANDATORY FOR ALL CODE CHANGES**
+
+After EVERY code change, you MUST run and pass ALL three checks before
+considering the change complete:
+
+1. **Tests** - All tests must pass (921/921)
+2. **Lint** - All linters must pass with zero warnings
+3. **Byte Compilation** - Code must compile without warnings
+
+**A code change is NOT complete until all three checks pass.**
+
+Do NOT commit code that fails any of these checks. Do NOT skip these
+checks. Do NOT defer these checks. Run them immediately after making
+any code modification.
+
+If any check fails:
+- Fix the issue immediately
+- Re-run all three checks
+- Only proceed when all checks pass
+
+This is a non-negotiable requirement for code quality.
+
 ## Build and Test Commands
 
-Always build, test and lint the project after changing code.
+**MANDATORY**: Run these commands after EVERY code change.
 
 **IMPORTANT**: All build, test, and lint commands MUST be run within
 the proper development environment:
@@ -121,14 +145,21 @@ When working on an issue:
 1. Create a branch for the issue: `git checkout -b beads.el-X-short-description`
 2. Update issue status: `bd update beads.el-X --status in_progress`
 3. Edit source files in lisp/*.el
-4. Run relevant test suite: `make test-<module>`
-5. Run full test suite: `make test`
-6. Check for byte-compile warnings: `make compile`
-7. Commit changes with descriptive message
-8. Push branch to GitHub: `git push -u origin beads.el-X-short-description`
-9. Verify tests pass on GitHub Actions CI
-10. Create pull request or merge to main after CI passes
-11. Close issue: `bd close beads.el-X --reason "Completed"`
+4. **MANDATORY: Verify code quality** (run after EVERY code change):
+   a. Run tests: `guix shell -D -f guix.scm -- eldev -p -dtT test`
+   b. Run linter: `guix shell -D -f guix.scm -- eldev -p -dtT lint`
+   c. Run compiler: `guix shell -D -f guix.scm -- eldev -p -dtT compile`
+   d. **ALL THREE MUST PASS** - Fix any failures immediately
+5. Repeat steps 3-4 until feature is complete and all checks pass
+6. Commit changes with descriptive message (only after all checks pass)
+7. Push branch to GitHub: `git push -u origin beads.el-X-short-description`
+8. Verify tests pass on GitHub Actions CI
+9. Create pull request or merge to main after CI passes
+10. Close issue: `bd close beads.el-X --reason "Completed"`
+
+**CRITICAL**: Never commit code that fails tests, lint, or compilation.
+The workflow at step 4 is mandatory and non-negotiable for every code
+modification.
 
 Branch naming convention: `beads.el-X-short-description` where X is the
 issue number and short-description briefly describes the work (e.g.,
@@ -228,15 +259,24 @@ When adding a new bd command:
 2. Add transient menu if interactive (see beads-create.el as template)
 3. Add autoload to beads.el if it's a public entry point
 4. Add comprehensive tests (>80% coverage target)
-5. Update README.md if user-facing
-6. Add keybinding to beads-main.el or relevant mode-map
+5. **Run all checks (test, lint, compile) - ALL MUST PASS**
+6. Update README.md if user-facing
+7. Add keybinding to beads-main.el or relevant mode-map
+
+**Remember**: After implementing, you MUST run and pass all three
+checks (test, lint, compile) before the work is considered complete.
 
 ### Testing Requirements
+
+**MANDATORY**: Run full test suite after EVERY code change.
+
 - All new functions need ERT tests
 - Mock bd command output using let-binding over beads--run-command
 - Test both success and error paths
 - Target >80% code coverage for core modules
 - Use descriptive test names: beads-<module>-<function>-<scenario>
+- **Tests must pass (921/921) before committing any code**
+- Run: `guix shell -D -f guix.scm -- eldev -p -dtT test`
 
 ### Transient Menu Patterns
 
