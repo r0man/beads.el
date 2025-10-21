@@ -17,27 +17,58 @@ If you need more information about how beads works, run "bd quickstart".
 
 ## Beads Reference Documentation
 
-**IMPORTANT**: Always maintain a local checkout of the upstream Beads
-repository for reference when designing and implementing commands:
+**CRITICAL - REQUIRED BEFORE IMPLEMENTING ANY BD COMMANDS**
+
+Before implementing or modifying ANY transient command for bd/beads,
+you MUST have a fresh, up-to-date checkout of the upstream Beads
+repository:
 
 ```bash
 # Clone beads reference repository (if not already present)
-git clone https://github.com/steveyegge/beads.git beads-reference
+if [ ! -d "beads-reference" ]; then
+  git clone https://github.com/steveyegge/beads.git beads-reference
+fi
+
+# ALWAYS pull latest changes before implementing commands
+cd beads-reference && git pull && cd ..
 ```
 
 The `beads-reference/` directory is in `.gitignore` and should NOT be
-committed. When designing or implementing:
+committed.
 
-- **Transient menus**: Review beads CLI documentation for command
-  structure, flags, and output formats
-- **Command patterns**: Check how the bd CLI handles similar operations
-- **Integration**: Understand the relationship between bd commands and
-  their JSON output
-- **Documentation**: Reference the official docs for accurate behavior
-  and edge cases
+### Required Reading Before Implementation
 
-Always consult `beads-reference/` documentation BEFORE implementing
-new commands or transient menus to ensure consistency with the CLI.
+**MANDATORY**: Before designing or implementing any bd command, you
+MUST read and understand:
+
+1. **README.md** - Understand command options, flags, and usage patterns
+   - Read: `beads-reference/README.md`
+   - Understand all command options and their behavior
+   - Note command-line flag syntax and output formats
+
+2. **Workflow Documentation** - Understand how beads is actually used
+   - Read workflow files in `beads-reference/`
+   - Understand the user workflows and common patterns
+   - Design Emacs commands that fit naturally into these workflows
+   - Make commands feel "Emacs-native" while preserving beads semantics
+
+3. **CLI Documentation** - Check command structure and JSON output
+   - Review how bd CLI handles similar operations
+   - Understand the relationship between bd commands and JSON output
+   - Reference official docs for accurate behavior and edge cases
+
+### Implementation Checklist
+
+When implementing new bd/beads commands:
+1. **Ensure beads-reference/ is fresh** (clone or pull latest)
+2. **Read README.md** to understand the command you're implementing
+3. **Review workflow documentation** to understand usage patterns
+4. **Design Emacs-ish interface** that fits the beads workflow
+5. Implement the transient menu following patterns in beads-create.el
+6. Test with actual bd commands (if available)
+7. Run all quality checks (test, lint, compile)
+
+**Never implement bd commands without consulting beads-reference first.**
 
 ## Common Commands
 
