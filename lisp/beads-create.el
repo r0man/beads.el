@@ -85,7 +85,7 @@ After editing, the transient menu is re-displayed."
                           (message "%s saved" field-name)
                           ;; Re-invoke the transient with saved arguments
                           (transient-set 'beads-create saved-args)
-                          (beads-create))))
+                          (call-interactively #'beads-create))))
           (cancel-func (lambda ()
                         (interactive)
                         (kill-buffer)
@@ -93,7 +93,7 @@ After editing, the transient menu is re-displayed."
                         (message "%s edit cancelled" field-name)
                         ;; Re-invoke the transient with saved arguments
                         (transient-set 'beads-create saved-args)
-                        (beads-create))))
+                        (call-interactively #'beads-create))))
       (local-set-key (kbd "C-c C-c") finish-func)
       (local-set-key (kbd "C-c C-k") cancel-func))
     (message "Edit %s. C-c C-c to finish, C-c C-k to cancel." field-name)))
