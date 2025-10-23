@@ -94,7 +94,6 @@ After editing, the transient menu is re-displayed."
 
 (transient-define-suffix beads-create:--description ()
   "Edit multi-line description."
-  :transient t
   :key "-d"
   :description "Description"
   (interactive)
@@ -105,7 +104,6 @@ After editing, the transient menu is re-displayed."
 
 (transient-define-suffix beads-create:--acceptance ()
   "Edit multi-line acceptance criteria."
-  :transient t
   :key "-A"
   :description "Acceptance"
   (interactive)
@@ -116,7 +114,6 @@ After editing, the transient menu is re-displayed."
 
 (transient-define-suffix beads-create:--design ()
   "Edit multi-line design notes."
-  :transient t
   :key "-G"
   :description "Design"
   (interactive)
