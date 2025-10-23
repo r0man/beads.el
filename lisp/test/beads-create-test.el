@@ -293,22 +293,13 @@
       (should (null beads-create--design))
       (should transient-reset-called))))
 
-(ert-deftest beads-create-test-multiline-edit-preserves-transient-args ()
-  "Integration test: editing multi-line fields preserves other arguments."
+(ert-deftest beads-create-test-multiline-edit-preserves-state ()
+  "Integration test: editing multi-line fields preserves state."
   :tags '(integration)
   (let ((beads-create--description nil)
-        (beads-create--acceptance nil)
-        (transient-resume-called nil)
-        (saved-args '("--title=My Issue"
-                      "--type=bug"
-                      "--priority=1"
-                      "--assignee=alice"
-                      "--labels=urgent,backend")))
+        (beads-create--acceptance nil))
     ;; Simulate user editing description field
-    (cl-letf (((symbol-function 'transient-resume)
-               (lambda ()
-                 (setq transient-resume-called t)))
-              ((symbol-function 'generate-new-buffer)
+    (cl-letf (((symbol-function 'generate-new-buffer)
                (lambda (name) (get-buffer-create name)))
               ((symbol-function 'switch-to-buffer) #'ignore)
               ((symbol-function 'markdown-mode) #'ignore)
@@ -332,35 +323,23 @@
           (insert "This is a detailed description\nwith multiple lines")
 
           ;; Simulate C-c C-c (finish editing)
-          ;; Call the finish function that was set up
-          (let ((finish-key (where-is-internal
-                            'transient-resume
-                            (current-local-map) t)))
-            ;; Since we mocked local-set-key, directly call the callback
-            (funcall (lambda ()
-                      (let ((text (buffer-substring-no-properties
-                                   (point-min) (point-max))))
-                        (kill-buffer)
-                        (setq beads-create--description text)
-                        (transient-resume)))))
+          ;; Directly call the callback since we mocked local-set-key
+          (funcall (lambda ()
+                    (let ((text (buffer-substring-no-properties
+                                 (point-min) (point-max))))
+                      (kill-buffer)
+                      (setq beads-create--description text))))
 
           ;; Verify description was saved
           (should (equal beads-create--description
-                        "This is a detailed description\nwith multiple lines"))
+                        "This is a detailed description\nwith multiple lines")))))))
 
-          ;; Verify transient-resume was called (would preserve other args)
-          (should transient-resume-called))))))
-
-(ert-deftest beads-create-test-multiline-edit-cancel-preserves-args ()
-  "Integration test: canceling multi-line edit still resumes transient."
+(ert-deftest beads-create-test-multiline-edit-cancel-preserves-state ()
+  "Integration test: canceling multi-line edit preserves original state."
   :tags '(integration)
-  (let ((beads-create--description "Original description")
-        (transient-resume-called nil))
+  (let ((beads-create--description "Original description"))
     ;; Simulate user canceling description edit
-    (cl-letf (((symbol-function 'transient-resume)
-               (lambda ()
-                 (setq transient-resume-called t)))
-              ((symbol-function 'generate-new-buffer)
+    (cl-letf (((symbol-function 'generate-new-buffer)
                (lambda (name) (get-buffer-create name)))
               ((symbol-function 'switch-to-buffer) #'ignore)
               ((symbol-function 'markdown-mode) #'ignore)
@@ -382,16 +361,78 @@
         (with-current-buffer edit-buffer
           (insert "New text that will be discarded")
 
-          ;; Simulate C-c C-k (cancel)
-          (funcall (lambda ()
-                    (kill-buffer)
-                    (transient-resume)))
+          ;; Simulate C-c C-k (cancel) - doesn't call the callback
+          (kill-buffer)
 
           ;; Verify description was NOT changed
-          (should (equal beads-create--description "Original description"))
+          (should (equal beads-create--description "Original description")))))))
 
-          ;; Verify transient-resume was still called
-          (should transient-resume-called))))))
+(ert-deftest beads-create-test-full-multiline-workflow ()
+  "Integration test: Complete workflow with transient args and multi-line editing.
+Tests the user experience:
+1. Set simple args (title, type, priority)
+2. Edit multi-line field (description)
+3. Execute and verify all args are passed correctly"
+  :tags '(integration)
+  (let ((beads-create--description nil)
+        (beads-create--acceptance nil)
+        (beads-create--design nil)
+        (beads--run-command-calls nil))
+    (cl-letf (((symbol-function 'beads--run-command)
+               (lambda (&rest args)
+                 (setq beads--run-command-calls args)
+                 beads-create-test--sample-create-response))
+              ((symbol-function 'transient-args)
+               (lambda (_)
+                 '("--title=My Issue"
+                   "--type=bug"
+                   "--priority=1"
+                   "--assignee=alice"
+                   "--labels=urgent,backend")))
+              ((symbol-function 'transient-reset) #'ignore)
+              ((symbol-function 'y-or-n-p) (lambda (_) nil))
+              ((symbol-function 'generate-new-buffer)
+               (lambda (name) (get-buffer-create name)))
+              ((symbol-function 'switch-to-buffer) #'ignore)
+              ((symbol-function 'markdown-mode) #'ignore)
+              ((symbol-function 'text-mode) #'ignore)
+              ((symbol-function 'visual-line-mode) #'ignore)
+              ((symbol-function 'local-set-key) #'ignore)
+              ((symbol-function 'message) #'ignore))
+
+      ;; Step 1: User has set transient args (simulated above)
+
+      ;; Step 2: User edits description field
+      (beads-create--edit-text-multiline
+       beads-create--description
+       (lambda (text) (setq beads-create--description text))
+       "Description")
+
+      ;; Simulate typing and finishing
+      (let ((edit-buffer (get-buffer "*beads-description*")))
+        (with-current-buffer edit-buffer
+          (insert "This is my bug description")
+          ;; Simulate C-c C-c (finish)
+          (funcall (lambda ()
+                    (let ((text (buffer-substring-no-properties
+                                 (point-min) (point-max))))
+                      (kill-buffer)
+                      (setq beads-create--description text))))))
+
+      ;; Verify description was set
+      (should (equal beads-create--description "This is my bug description"))
+
+      ;; Step 3: User executes the create command
+      (beads-create--execute)
+
+      ;; Verify ALL arguments were passed correctly
+      (should (member "My Issue" beads--run-command-calls))
+      (should (member "--type=bug" beads--run-command-calls))
+      (should (member "--priority=1" beads--run-command-calls))
+      (should (member "--assignee=alice" beads--run-command-calls))
+      (should (member "--labels=urgent,backend" beads--run-command-calls))
+      (should (member "-d" beads--run-command-calls))
+      (should (member "This is my bug description" beads--run-command-calls)))))
 
 (provide 'beads-create-test)
 ;;; beads-create-test.el ends here

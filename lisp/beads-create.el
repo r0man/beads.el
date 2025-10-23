@@ -58,8 +58,6 @@ After editing, the transient menu is re-displayed."
   (let* ((buffer-name (format "*beads-%s*" (downcase field-name)))
          (buffer (generate-new-buffer buffer-name))
          (parent-buffer (current-buffer)))
-    ;; Suspend the transient before switching away
-    (transient--suspend-override)
     (switch-to-buffer buffer)
     (when current-value
       (insert current-value))
@@ -80,16 +78,12 @@ After editing, the transient menu is re-displayed."
                           (kill-buffer)
                           (switch-to-buffer parent-buffer)
                           (funcall callback text)
-                          (message "%s saved" field-name)
-                          ;; Resume the transient menu with saved state
-                          (transient-resume))))
+                          (message "%s saved" field-name))))
           (cancel-func (lambda ()
                         (interactive)
                         (kill-buffer)
                         (switch-to-buffer parent-buffer)
-                        (message "%s edit cancelled" field-name)
-                        ;; Resume the transient menu with saved state
-                        (transient-resume))))
+                        (message "%s edit cancelled" field-name))))
       (local-set-key (kbd "C-c C-c") finish-func)
       (local-set-key (kbd "C-c C-k") cancel-func))
     (message "Edit %s. C-c C-c to finish, C-c C-k to cancel." field-name)))
