@@ -29,177 +29,26 @@
 (require 'beads)
 (require 'transient)
 
-;;; Transient State Variables
-
-(defvar beads-create--title nil
-  "Title for the issue being created.")
-
-(defvar beads-create--type nil
-  "Type for the issue being created.")
-
-(defvar beads-create--priority nil
-  "Priority for the issue being created.")
+;;; Transient State Variables (Only for Multi-line Fields)
 
 (defvar beads-create--description nil
-  "Description for the issue being created.")
+  "Multi-line description content.")
 
-(defvar beads-create--custom-id nil
-  "Custom ID for the issue being created.")
+(defvar beads-create--acceptance nil
+  "Multi-line acceptance criteria content.")
 
-(defvar beads-create--dependencies nil
-  "Dependencies for the issue being created.")
+(defvar beads-create--design nil
+  "Multi-line design notes content.")
 
 ;;; Utility Functions
 
 (defun beads-create--reset-state ()
-  "Reset all transient state variables to nil."
-  (setq beads-create--title nil
-        beads-create--type nil
-        beads-create--priority nil
-        beads-create--description nil
-        beads-create--custom-id nil
-        beads-create--dependencies nil))
+  "Reset only multi-line state variables."
+  (setq beads-create--description nil
+        beads-create--acceptance nil
+        beads-create--design nil))
 
-(defun beads-create--format-current-value (value)
-  "Format VALUE for display in transient menu.
-Returns a propertized string showing the current value."
-  (if value
-      (propertize (format " [%s]" value) 'face 'transient-value)
-    (propertize " [unset]" 'face 'transient-inactive-value)))
-
-(defun beads-create--validate-title ()
-  "Validate that title is set.
-Returns error message string if invalid, nil if valid."
-  (when (or (null beads-create--title)
-            (string-empty-p (string-trim beads-create--title)))
-    "Title is required"))
-
-(defun beads-create--validate-type ()
-  "Validate that type is valid.
-Returns error message string if invalid, nil if valid."
-  (when (and beads-create--type
-             (not (member beads-create--type
-                          '("bug" "feature" "task" "epic" "chore"))))
-    "Type must be one of: bug, feature, task, epic, chore"))
-
-(defun beads-create--validate-priority ()
-  "Validate that priority is valid.
-Returns error message string if invalid, nil if valid."
-  (when (and beads-create--priority
-             (not (and (numberp beads-create--priority)
-                      (>= beads-create--priority 0)
-                      (<= beads-create--priority 4))))
-    "Priority must be a number between 0 and 4"))
-
-(defun beads-create--validate-dependencies ()
-  "Validate dependency format.
-Returns error message string if invalid, nil if valid."
-  (when beads-create--dependencies
-    (unless (string-match-p
-             "^[a-z-]+:[a-z0-9-]+\\(,[a-z-]+:[a-z0-9-]+\\)*$"
-             beads-create--dependencies)
-      "Dependencies must be in format: type:issue-id (e.g., blocks:bd-1)")))
-
-(defun beads-create--validate-all ()
-  "Validate all parameters.
-Returns list of error messages, or nil if all valid."
-  (delq nil
-        (list (beads-create--validate-title)
-              (beads-create--validate-type)
-              (beads-create--validate-priority)
-              (beads-create--validate-dependencies))))
-
-(defun beads-create--build-command-args ()
-  "Build command arguments from current transient state.
-Returns list of arguments for bd create command."
-  (let ((args (list beads-create--title)))
-    ;; Add type flag
-    (when beads-create--type
-      (setq args (append args (list "-t" beads-create--type))))
-    ;; Add priority flag
-    (when beads-create--priority
-      (setq args (append args (list "-p"
-                                     (number-to-string
-                                      beads-create--priority)))))
-    ;; Add description flag
-    (when (and beads-create--description
-               (not (string-empty-p (string-trim beads-create--description))))
-      (setq args (append args (list "-d" beads-create--description))))
-    ;; Add custom ID flag
-    (when (and beads-create--custom-id
-               (not (string-empty-p (string-trim beads-create--custom-id))))
-      (setq args (append args (list "--id" beads-create--custom-id))))
-    ;; Add dependencies flag
-    (when (and beads-create--dependencies
-               (not (string-empty-p (string-trim
-                                     beads-create--dependencies))))
-      (setq args (append args (list "--deps" beads-create--dependencies))))
-    args))
-
-;;; Infix Commands
-
-(transient-define-infix beads-create--infix-title ()
-  "Set the title of the issue."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "T  Title         Issue title (required)"
-                         (beads-create--format-current-value
-                          beads-create--title)))
-  :key "T"
-  :argument "title="
-  :prompt "Issue title: "
-  :reader (lambda (_prompt _initial-input _history)
-            (let ((title (read-string "Issue title: "
-                                      beads-create--title)))
-              (setq beads-create--title title)
-              title)))
-
-(transient-define-infix beads-create--infix-type ()
-  "Set the type of the issue."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "-t, --type       Issue type (bug|feature|task|epic|chore, default: task)"
-                         (beads-create--format-current-value
-                          beads-create--type)))
-  :key "-t"
-  :argument "--type="
-  :prompt "Type: "
-  :choices '("bug" "feature" "task" "epic" "chore")
-  :reader (lambda (_prompt _initial-input _history)
-            (let ((type (completing-read
-                        "Type: "
-                        '("bug" "feature" "task" "epic" "chore")
-                        nil t beads-create--type)))
-              (setq beads-create--type type)
-              type)))
-
-(transient-define-infix beads-create--infix-priority ()
-  "Set the priority of the issue."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "-p, --priority   Priority (0-4, 0=highest, default: 2)"
-                         (beads-create--format-current-value
-                          (when beads-create--priority
-                            (number-to-string beads-create--priority)))))
-  :key "-p"
-  :argument "--priority="
-  :prompt "Priority: "
-  :reader (lambda (_prompt _initial-input _history)
-            (let* ((choices '(("0 - Critical" . 0)
-                             ("1 - High" . 1)
-                             ("2 - Medium" . 2)
-                             ("3 - Low" . 3)
-                             ("4 - Backlog" . 4)))
-                   (selection (completing-read
-                              "Priority: "
-                              choices
-                              nil t
-                              (when beads-create--priority
-                                (car (rassoc beads-create--priority
-                                            choices)))))
-                   (priority (cdr (assoc selection choices))))
-              (setq beads-create--priority priority)
-              (number-to-string priority))))
+;;; Multi-line Field Editing
 
 (defun beads-create--edit-text-multiline (current-value callback field-name)
   "Edit text in a multiline buffer.
@@ -243,109 +92,128 @@ After editing, the transient menu is re-displayed."
       (local-set-key (kbd "C-c C-k") cancel-func))
     (message "Edit %s. C-c C-c to finish, C-c C-k to cancel." field-name)))
 
-(transient-define-suffix beads-create--infix-description ()
-  "Set the description using a multiline editor."
-  :description "-d, --description Multi-line description"
+(transient-define-suffix beads-create:--description ()
+  "Edit multi-line description."
+  :transient t
   :key "-d"
+  :description "Description"
   (interactive)
   (beads-create--edit-text-multiline
    beads-create--description
    (lambda (text) (setq beads-create--description text))
    "Description"))
 
-(transient-define-infix beads-create--infix-custom-id ()
-  "Set a custom ID for the issue."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "-i, --id         Custom ID (for parallel workers)"
-                         (beads-create--format-current-value
-                          beads-create--custom-id)))
-  :key "-i"
-  :argument "--id="
-  :prompt "Custom ID: "
-  :level 5
-  :reader (lambda (_prompt _initial-input _history)
-            (let ((id (read-string "Custom ID (e.g., worker1-100): "
-                                   beads-create--custom-id)))
-              (setq beads-create--custom-id id)
-              id)))
+(transient-define-suffix beads-create:--acceptance ()
+  "Edit multi-line acceptance criteria."
+  :transient t
+  :key "-A"
+  :description "Acceptance"
+  (interactive)
+  (beads-create--edit-text-multiline
+   beads-create--acceptance
+   (lambda (text) (setq beads-create--acceptance text))
+   "Acceptance Criteria"))
 
-(transient-define-infix beads-create--infix-dependencies ()
-  "Set dependencies for the issue."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "-D, --deps       Dependencies (format: type:id,type:id)"
-                         (beads-create--format-current-value
-                          beads-create--dependencies)))
-  :key "-D"
-  :argument "--deps="
-  :prompt "Dependencies: "
-  :level 5
-  :reader (lambda (_prompt _initial-input _history)
-            (let ((deps (read-string
-                        "Dependencies (type:id, e.g., blocks:bd-1): "
-                        beads-create--dependencies)))
-              (setq beads-create--dependencies deps)
-              deps)))
+(transient-define-suffix beads-create:--design ()
+  "Edit multi-line design notes."
+  :transient t
+  :key "-G"
+  :description "Design"
+  (interactive)
+  (beads-create--edit-text-multiline
+   beads-create--design
+   (lambda (text) (setq beads-create--design text))
+   "Design Notes"))
 
 ;;; Suffix Commands
 
 (transient-define-suffix beads-create--execute ()
-  "Execute the bd create command with current parameters."
+  "Execute bd create with all arguments."
   :key "x"
   :description "Create issue"
   (interactive)
-  (let ((errors (beads-create--validate-all)))
-    (if errors
-        (user-error "Validation failed: %s" (string-join errors "; "))
-      (condition-case err
-          (progn
-            (let* ((args (beads-create--build-command-args))
-                   (result (apply #'beads--run-command "create" args))
-                   (issue (beads--parse-issue result))
-                   (issue-id (alist-get 'id issue)))
-              (beads-create--reset-state)
-              (message "Created issue: %s - %s"
-                       issue-id
-                       (alist-get 'title issue))
-              ;; Optionally show the created issue
-              (when (y-or-n-p (format "Show issue %s? " issue-id))
-                ;; This would call beads-show if it existed
-                (message "Issue details: %s" issue)))
-            nil)
-        (error
-         (let ((err-msg (format "Failed to create issue: %s"
-                               (error-message-string err))))
-           (message "%s" err-msg)
-           err-msg))))))
+  (let* ((args (transient-args 'beads-create))
+         (title (transient-arg-value "--title=" args))
+         (file (transient-arg-value "--file=" args))
+         (cmd-args '()))
+
+    ;; Validation
+    (unless (or title file)
+      (user-error "Title is required (or use --file)"))
+
+    ;; Build command: title as positional, rest as flags
+    (when title
+      (push title cmd-args)
+      ;; Remove --title= from args
+      (setq args (seq-remove
+                  (lambda (a) (string-prefix-p "--title=" a))
+                  args)))
+
+    ;; Add multi-line fields
+    (when beads-create--description
+      (setq args (append args (list "-d" beads-create--description))))
+    (when beads-create--acceptance
+      (setq args (append args (list "--acceptance"
+                                     beads-create--acceptance))))
+    (when beads-create--design
+      (setq args (append args (list "--design" beads-create--design))))
+
+    ;; Execute bd create
+    (condition-case err
+        (let* ((result (apply #'beads--run-command
+                             "create"
+                             (append cmd-args args)))
+               (issue (beads--parse-issue result))
+               (issue-id (alist-get 'id issue)))
+          ;; Reset state
+          (beads-create--reset-state)
+          (transient-reset)  ; Reset transient args too
+          (message "Created issue: %s - %s"
+                   issue-id
+                   (alist-get 'title issue))
+          ;; Optionally show issue
+          (when (y-or-n-p (format "Show issue %s? " issue-id))
+            (beads-show issue-id)))
+      (error
+       (message "Failed to create issue: %s"
+                (error-message-string err))))))
 
 (transient-define-suffix beads-create--reset ()
-  "Reset all parameters to their default values."
+  "Reset all arguments and state."
   :key "R"
-  :description "Reset all fields"
+  :description "Reset all"
   :transient t
   (interactive)
   (when (y-or-n-p "Reset all fields? ")
     (beads-create--reset-state)
+    (transient-reset)  ; Reset transient-managed args
     (message "All fields reset")))
 
 (transient-define-suffix beads-create--preview ()
-  "Preview the bd create command that will be executed."
+  "Preview the bd create command."
   :key "p"
   :description "Preview command"
   :transient t
   (interactive)
-  (let ((errors (beads-create--validate-all)))
-    (if errors
-        (let ((err-msg (format "Validation errors: %s" (string-join errors "; "))))
-          (message "%s" err-msg)
-          err-msg)
-      (let* ((args (beads-create--build-command-args))
-             (cmd (apply #'beads--build-command "create" args))
-             (cmd-string (mapconcat #'shell-quote-argument cmd " "))
-             (preview-msg (format "Command: %s" cmd-string)))
-        (message "%s" preview-msg)
-        preview-msg))))
+  (let* ((args (transient-args 'beads-create))
+         (title (transient-arg-value "--title=" args))
+         (cmd-args '()))
+    (when title
+      (push title cmd-args)
+      (setq args (seq-remove
+                  (lambda (a) (string-prefix-p "--title=" a))
+                  args)))
+    (when beads-create--description
+      (setq args (append args (list "-d" "<description>"))))
+    (when beads-create--acceptance
+      (setq args (append args (list "--acceptance" "<acceptance>"))))
+    (when beads-create--design
+      (setq args (append args (list "--design" "<design>"))))
+    (let ((cmd (apply #'beads--build-command
+                     "create"
+                     (append cmd-args args))))
+      (message "Command: %s"
+               (mapconcat #'shell-quote-argument cmd " ")))))
 
 ;;; Main Transient Menu
 
@@ -356,19 +224,48 @@ After editing, the transient menu is re-displayed."
 This transient menu provides an interactive interface for setting
 all parameters of the bd create command.  Required fields are
 validated before execution."
-  :value (lambda () nil)
+  ;; Required
   ["Required"
-   (beads-create--infix-title)]
+   ("T" "Title" "--title="
+    :prompt "Issue title: "
+    :always-read t)]
+
+  ;; Simple arguments (inline string definitions)
   ["Arguments"
-   (beads-create--infix-type)
-   (beads-create--infix-priority)
-   (beads-create--infix-description)
-   (beads-create--infix-custom-id)
-   (beads-create--infix-dependencies)]
+   ("-t" "Type" "--type="
+    :choices ("bug" "feature" "task" "epic" "chore"))
+   ("-p" "Priority (0-4)" "--priority="
+    :choices ("0" "1" "2" "3" "4"))
+   ("-a" "Assignee" "--assignee="
+    :prompt "Assignee: ")
+   ("-l" "Labels" "--labels="
+    :prompt "Labels (comma-separated): ")
+   ("-e" "External ref" "--external-ref="
+    :prompt "External reference (e.g., gh-123): ")]
+
+  ;; Multi-line fields (need custom suffixes)
+  ["Multi-line Fields"
+   ("-d" "Description" beads-create:--description)
+   ("-A" "Acceptance" beads-create:--acceptance)
+   ("-G" "Design" beads-create:--design)]
+
+  ;; Advanced options
+  ["Advanced Options"
+   :level 5
+   ("-i" "Custom ID" "--id="
+    :prompt "Custom ID (e.g., worker1-100): ")
+   ("-D" "Dependencies" "--deps="
+    :prompt "Dependencies (type:id, e.g., blocks:bd-1): ")
+   ("-f" "From file" "--file="
+    :reader transient-read-file
+    :prompt "Markdown file: ")
+   ("-F" "Force" "--force")]  ; Switch (no '=')
+
+  ;; Actions
   ["Actions"
    ("x" "Create issue" beads-create--execute)
-   ("p" "Preview command" beads-create--preview)
-   ("R" "Reset" beads-create--reset)
+   ("p" "Preview command" beads-create--preview :transient t)
+   ("R" "Reset all" beads-create--reset :transient t)
    ("q" "Quit" transient-quit-one)])
 
 (provide 'beads-create)
