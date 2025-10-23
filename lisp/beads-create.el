@@ -142,10 +142,10 @@ Returns list of arguments for bd create command."
   "Set the title of the issue."
   :class 'transient-option
   :description (lambda ()
-                 (concat "Title (required)"
+                 (concat "T  Title         Issue title (required)"
                          (beads-create--format-current-value
                           beads-create--title)))
-  :key "t"
+  :key "T"
   :argument "title="
   :prompt "Issue title: "
   :reader (lambda (_prompt _initial-input _history)
@@ -158,11 +158,11 @@ Returns list of arguments for bd create command."
   "Set the type of the issue."
   :class 'transient-option
   :description (lambda ()
-                 (concat "Type (-t)"
+                 (concat "-t, --type       Issue type (bug|feature|task|epic|chore, default: task)"
                          (beads-create--format-current-value
                           beads-create--type)))
-  :key "T"
-  :argument "type="
+  :key "-t"
+  :argument "--type="
   :prompt "Type: "
   :choices '("bug" "feature" "task" "epic" "chore")
   :reader (lambda (_prompt _initial-input _history)
@@ -177,12 +177,12 @@ Returns list of arguments for bd create command."
   "Set the priority of the issue."
   :class 'transient-option
   :description (lambda ()
-                 (concat "Priority (-p)"
+                 (concat "-p, --priority   Priority (0-4, 0=highest, default: 2)"
                          (beads-create--format-current-value
                           (when beads-create--priority
                             (number-to-string beads-create--priority)))))
-  :key "p"
-  :argument "priority="
+  :key "-p"
+  :argument "--priority="
   :prompt "Priority: "
   :reader (lambda (_prompt _initial-input _history)
             (let* ((choices '(("0 - Critical" . 0)
@@ -245,8 +245,8 @@ After editing, the transient menu is re-displayed."
 
 (transient-define-suffix beads-create--infix-description ()
   "Set the description using a multiline editor."
-  :description "Description (-d)"
-  :key "d"
+  :description "-d, --description Multi-line description"
+  :key "-d"
   (interactive)
   (beads-create--edit-text-multiline
    beads-create--description
@@ -257,12 +257,13 @@ After editing, the transient menu is re-displayed."
   "Set a custom ID for the issue."
   :class 'transient-option
   :description (lambda ()
-                 (concat "Custom ID (--id)"
+                 (concat "-i, --id         Custom ID (for parallel workers)"
                          (beads-create--format-current-value
                           beads-create--custom-id)))
-  :key "i"
-  :argument "id="
+  :key "-i"
+  :argument "--id="
   :prompt "Custom ID: "
+  :level 5
   :reader (lambda (_prompt _initial-input _history)
             (let ((id (read-string "Custom ID (e.g., worker1-100): "
                                    beads-create--custom-id)))
@@ -273,12 +274,13 @@ After editing, the transient menu is re-displayed."
   "Set dependencies for the issue."
   :class 'transient-option
   :description (lambda ()
-                 (concat "Dependencies (--deps)"
+                 (concat "-D, --deps       Dependencies (format: type:id,type:id)"
                          (beads-create--format-current-value
                           beads-create--dependencies)))
-  :key "D"
-  :argument "deps="
+  :key "-D"
+  :argument "--deps="
   :prompt "Dependencies: "
+  :level 5
   :reader (lambda (_prompt _initial-input _history)
             (let ((deps (read-string
                         "Dependencies (type:id, e.g., blocks:bd-1): "
@@ -290,7 +292,7 @@ After editing, the transient menu is re-displayed."
 
 (transient-define-suffix beads-create--execute ()
   "Execute the bd create command with current parameters."
-  :key "c"
+  :key "x"
   :description "Create issue"
   (interactive)
   (let ((errors (beads-create--validate-all)))
@@ -319,7 +321,7 @@ After editing, the transient menu is re-displayed."
 
 (transient-define-suffix beads-create--reset ()
   "Reset all parameters to their default values."
-  :key "r"
+  :key "R"
   :description "Reset all fields"
   :transient t
   (interactive)
@@ -329,7 +331,7 @@ After editing, the transient menu is re-displayed."
 
 (transient-define-suffix beads-create--preview ()
   "Preview the bd create command that will be executed."
-  :key "P"
+  :key "p"
   :description "Preview command"
   :transient t
   (interactive)
@@ -355,20 +357,18 @@ This transient menu provides an interactive interface for setting
 all parameters of the bd create command.  Required fields are
 validated before execution."
   :value (lambda () nil)
-  ["Issue Details"
-   ["Basic"
-    (beads-create--infix-title)
-    (beads-create--infix-type)
-    (beads-create--infix-priority)]
-   ["Content"
-    (beads-create--infix-description)]]
-  ["Advanced"
+  ["Required"
+   (beads-create--infix-title)]
+  ["Arguments"
+   (beads-create--infix-type)
+   (beads-create--infix-priority)
+   (beads-create--infix-description)
    (beads-create--infix-custom-id)
    (beads-create--infix-dependencies)]
   ["Actions"
-   ("c" "Create issue" beads-create--execute)
-   ("P" "Preview command" beads-create--preview)
-   ("r" "Reset all fields" beads-create--reset)
+   ("x" "Create issue" beads-create--execute)
+   ("p" "Preview command" beads-create--preview)
+   ("R" "Reset" beads-create--reset)
    ("q" "Quit" transient-quit-one)])
 
 (provide 'beads-create)
