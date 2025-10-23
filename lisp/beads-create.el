@@ -54,14 +54,10 @@
   "Edit text in a multiline buffer.
 CURRENT-VALUE is the initial text, CALLBACK is called with the result,
 FIELD-NAME is shown in the buffer name and messages.
-After editing, the transient menu is re-displayed."
+The transient menu stays active but hidden during editing."
   (let* ((buffer-name (format "*beads-%s*" (downcase field-name)))
          (buffer (generate-new-buffer buffer-name))
-         (parent-buffer (current-buffer))
-         ;; Save current transient arguments before quitting
-         (saved-args (transient-args 'beads-create)))
-    ;; Quit the transient to hide it
-    (transient-quit-one)
+         (parent-buffer (current-buffer)))
     (switch-to-buffer buffer)
     (when current-value
       (insert current-value))
@@ -82,18 +78,12 @@ After editing, the transient menu is re-displayed."
                           (kill-buffer)
                           (switch-to-buffer parent-buffer)
                           (funcall callback text)
-                          (message "%s saved" field-name)
-                          ;; Re-invoke the transient with saved arguments
-                          (transient-set 'beads-create saved-args)
-                          (call-interactively #'beads-create))))
+                          (message "%s saved" field-name))))
           (cancel-func (lambda ()
                         (interactive)
                         (kill-buffer)
                         (switch-to-buffer parent-buffer)
-                        (message "%s edit cancelled" field-name)
-                        ;; Re-invoke the transient with saved arguments
-                        (transient-set 'beads-create saved-args)
-                        (call-interactively #'beads-create))))
+                        (message "%s edit cancelled" field-name))))
       (local-set-key (kbd "C-c C-c") finish-func)
       (local-set-key (kbd "C-c C-k") cancel-func))
     (message "Edit %s. C-c C-c to finish, C-c C-k to cancel." field-name)))
