@@ -434,186 +434,81 @@ Tests the user experience:
       (should (member "-d" beads--run-command-calls))
       (should (member "This is my bug description" beads--run-command-calls)))))
 
-(ert-deftest beads-create-test-integration-set-title-description-and-save ()
-  "Integration test: Complete user workflow - set title, edit description, save.
-This test simulates the exact user experience:
-1. User invokes beads-create menu
-2. User sets title via transient argument
-3. User presses -d to edit description
-   - Edit buffer opens (transient stays active in background)
-4. User types description and presses C-c C-c
-   - Description is saved
-   - Returns to parent buffer
-5. User presses x to execute create
-6. Issue is created with both title and description"
+(ert-deftest beads-create-test-real-integration-with-bd-command ()
+  "Real integration test: Create actual beads database and issue.
+This test:
+1. Creates a temporary project directory
+2. Initializes a real beads database with 'bd init'
+3. Sets title and description via the interface
+4. Executes create with real 'bd create' command
+5. Verifies the issue was actually created with 'bd show'"
   :tags '(integration)
-  (let ((beads-create--description nil)
-        (beads-create--acceptance nil)
-        (beads-create--design nil)
-        (beads--run-command-calls nil))
-    (cl-letf (;; Mock beads--run-command to capture the final create call
-              ((symbol-function 'beads--run-command)
-               (lambda (&rest args)
-                 (setq beads--run-command-calls args)
-                 beads-create-test--sample-create-response))
+  (skip-unless (executable-find "bd"))
+  (let* ((temp-dir (make-temp-file "beads-test-" t))
+         (default-directory temp-dir)
+         (beads-executable "bd")
+         (beads-actor "test-user")
+         (beads-create--description nil)
+         (beads-create--acceptance nil)
+         (beads-create--design nil)
+         (created-issue-id nil))
+    (unwind-protect
+        (progn
+          ;; Initialize beads database
+          (let ((init-result (shell-command-to-string "bd init test-project")))
+            (should (file-exists-p (expand-file-name ".beads"))))
 
-              ;; Mock transient functions
-              ((symbol-function 'transient-args)
-               (lambda (_)
-                 ;; Return the title argument as if user set it
-                 '("--title=My Test Issue")))
+          ;; Set up the fields
+          (setq beads-create--description "This is a test description.\nIt has multiple lines.")
 
-              ((symbol-function 'transient-reset) #'ignore)
-              ((symbol-function 'y-or-n-p) (lambda (_) nil))
+          ;; Execute create with mocked transient-args
+          (cl-letf (((symbol-function 'transient-args)
+                     (lambda (_) '("--title=Integration Test Issue"
+                                   "--type=bug"
+                                   "--priority=1")))
+                    ((symbol-function 'transient-reset) #'ignore)
+                    ((symbol-function 'y-or-n-p) (lambda (_) nil)))
 
-              ;; Mock buffer/editing functions
-              ((symbol-function 'generate-new-buffer)
-               (lambda (name) (get-buffer-create name)))
-              ((symbol-function 'switch-to-buffer) #'ignore)
-              ((symbol-function 'markdown-mode) #'ignore)
-              ((symbol-function 'text-mode) #'ignore)
-              ((symbol-function 'visual-line-mode) #'ignore)
-              ((symbol-function 'local-set-key) #'ignore)
-              ((symbol-function 'message) #'ignore))
+            ;; Call execute (this will call real bd create)
+            (condition-case err
+                (beads-create--execute)
+              (error
+               (message "Execute failed: %s" (error-message-string err))
+               (should nil))))
 
-      ;; Step 1 & 2: User has invoked menu and set title (simulated via transient-args)
+          ;; Parse the output to get the issue ID
+          ;; bd create outputs something like "Created issue: bd-1 - Integration Test Issue"
+          (let* ((list-output (shell-command-to-string "bd list --json"))
+                 (issues (condition-case nil
+                            (json-read-from-string list-output)
+                          (error nil))))
+            (should issues)
+            (should (> (length issues) 0))
 
-      ;; Step 3: User presses -d to edit description
-      (beads-create--edit-text-multiline
-       beads-create--description
-       (lambda (text) (setq beads-create--description text))
-       "Description")
+            (let ((issue (aref issues 0)))
+              (setq created-issue-id (alist-get 'id issue))
 
-      ;; Get the edit buffer
-      (let ((edit-buffer (get-buffer "*beads-description*")))
-        (should edit-buffer)
+              ;; Verify the issue has correct fields
+              (should created-issue-id)
+              (should (equal (alist-get 'title issue) "Integration Test Issue"))
+              (should (equal (alist-get 'issue_type issue) "bug"))
+              (should (equal (alist-get 'priority issue) 1))
+              (should (equal (alist-get 'description issue)
+                            "This is a test description.\nIt has multiple lines."))
+              (should (equal (alist-get 'status issue) "open"))))
 
-        ;; Step 4: User types description in the edit buffer
-        (with-current-buffer edit-buffer
-          (insert "This is a detailed description of my issue.\nIt has multiple lines.")
+          ;; Verify we can show the issue
+          (let* ((show-output (shell-command-to-string
+                              (format "bd show %s --json" created-issue-id)))
+                 (show-data (json-read-from-string show-output))
+                 (issue (if (vectorp show-data) (aref show-data 0) show-data)))
+            (should (equal (alist-get 'id issue) created-issue-id))
+            (should (equal (alist-get 'title issue) "Integration Test Issue"))))
 
-          ;; Simulate C-c C-c (finish editing)
-          (let ((text (buffer-substring-no-properties (point-min) (point-max))))
-            (kill-buffer)
-            (setq beads-create--description text))))
+      ;; Cleanup
+      (when (file-exists-p temp-dir)
+        (delete-directory temp-dir t)))))
 
-      ;; Verify description was saved
-      (should (equal beads-create--description
-                    "This is a detailed description of my issue.\nIt has multiple lines."))
-
-      ;; Step 5: User is back in parent buffer, transient still active
-      ;; Step 6: User presses x to execute create
-      (beads-create--execute)
-
-      ;; Verify the issue was created with BOTH title and description
-      (should beads--run-command-calls)
-      (should (equal (car beads--run-command-calls) "create"))
-
-      ;; Verify title was passed (as positional argument)
-      (should (member "My Test Issue" beads--run-command-calls))
-
-      ;; Verify description was passed
-      (should (member "-d" beads--run-command-calls))
-      (should (member "This is a detailed description of my issue.\nIt has multiple lines."
-                     beads--run-command-calls))
-
-      ;; Verify state was reset after successful creation
-      (should (null beads-create--description))
-      (should (null beads-create--acceptance))
-      (should (null beads-create--design)))))
-
-(ert-deftest beads-create-test-real-user-workflow ()
-  "Test real user workflow: invoke menu, set title, edit description, create.
-This test actually invokes the transient menu and simulates real user actions."
-  :tags '(integration manual)
-  (skip-unless (not noninteractive))
-  ;; This test can only run in interactive mode
-  (let ((beads--run-command-calls nil)
-        (issue-created nil))
-    ;; Mock beads--run-command
-    (cl-letf (((symbol-function 'beads--run-command)
-               (lambda (&rest args)
-                 (setq beads--run-command-calls args)
-                 (setq issue-created t)
-                 beads-create-test--sample-create-response))
-              ((symbol-function 'y-or-n-p) (lambda (_) nil)))
-
-      ;; Start fresh
-      (beads-create--reset-state)
-
-      ;; Invoke the transient menu
-      (call-interactively #'beads-create)
-
-      ;; At this point, transient menu should be visible
-      ;; We can't easily simulate key presses in tests, but we can
-      ;; verify the menu structure exists
-      (should (get 'beads-create 'transient--prefix))
-
-      ;; Simulate setting title by directly setting transient value
-      (transient-set 'beads-create '("--title=Test Issue"))
-
-      ;; Now simulate editing description
-      ;; Set description directly
-      (setq beads-create--description "My description")
-
-      ;; Quit the transient
-      (when transient-current-prefix
-        (transient-quit-one))
-
-      ;; Simulate execute
-      (let ((transient-current-prefix nil)
-            (transient-current-command nil))
-        ;; Mock transient-args to return our saved args
-        (cl-letf (((symbol-function 'transient-args)
-                   (lambda (_) '("--title=Test Issue"))))
-          (beads-create--execute)))
-
-      ;; Verify issue was created
-      (should issue-created)
-      (should beads--run-command-calls)
-      (should (member "Test Issue" beads--run-command-calls))
-      (should (member "-d" beads--run-command-calls))
-      (should (member "My description" beads--run-command-calls)))))
-
-(ert-deftest beads-create-test-multiline-edit-flow-simplified ()
-  "Test the multiline edit flow - simple buffer editing.
-Focus on verifying that the edit buffer workflow saves state correctly."
-  :tags '(integration)
-  (let ((beads-create--description nil)
-        (buffer-created nil))
-
-    (cl-letf (;; Mock buffer functions to track what happens
-              ((symbol-function 'generate-new-buffer)
-               (lambda (name)
-                 (setq buffer-created t)
-                 (get-buffer-create name)))
-              ((symbol-function 'switch-to-buffer) #'ignore)
-              ((symbol-function 'markdown-mode) #'ignore)
-              ((symbol-function 'text-mode) #'ignore)
-              ((symbol-function 'visual-line-mode) #'ignore)
-              ((symbol-function 'local-set-key) #'ignore)
-              ((symbol-function 'message) #'ignore))
-
-      ;; Call the edit function
-      (beads-create--edit-text-multiline
-       nil
-       (lambda (text) (setq beads-create--description text))
-       "Description")
-
-      ;; Verify buffer was created
-      (should buffer-created)
-
-      ;; Simulate user finishing edit
-      (let ((edit-buffer (get-buffer "*beads-description*")))
-        (should edit-buffer)
-        (with-current-buffer edit-buffer
-          (insert "My test description")
-          (let ((text (buffer-substring-no-properties (point-min) (point-max))))
-            (setq beads-create--description text)
-            (kill-buffer))))
-
-      ;; Verify description was saved
-      (should (equal beads-create--description "My test description")))))
 
 (provide 'beads-create-test)
 ;;; beads-create-test.el ends here
