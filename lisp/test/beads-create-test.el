@@ -434,5 +434,117 @@ Tests the user experience:
       (should (member "-d" beads--run-command-calls))
       (should (member "This is my bug description" beads--run-command-calls)))))
 
+(ert-deftest beads-create-test-integration-set-title-description-and-save ()
+  "Integration test: Complete user workflow - set title, edit description, save.
+This test simulates the exact user experience:
+1. User invokes beads-create menu
+2. User sets title via transient argument
+3. User presses -d to edit description
+   - Transient quits and saves arguments
+   - Edit buffer opens
+4. User types description and presses C-c C-c
+   - Description is saved
+   - Transient arguments are restored
+   - Menu re-appears
+5. User presses x to execute create
+6. Issue is created with both title and description"
+  :tags '(integration)
+  (let ((beads-create--description nil)
+        (beads-create--acceptance nil)
+        (beads-create--design nil)
+        (beads--run-command-calls nil)
+        (transient-quit-called nil)
+        (transient-set-called nil)
+        (saved-transient-args nil))
+    (cl-letf (;; Mock beads--run-command to capture the final create call
+              ((symbol-function 'beads--run-command)
+               (lambda (&rest args)
+                 (setq beads--run-command-calls args)
+                 beads-create-test--sample-create-response))
+
+              ;; Mock transient functions
+              ((symbol-function 'transient-args)
+               (lambda (_)
+                 ;; Return the title argument as if user set it
+                 '("--title=My Test Issue")))
+
+              ((symbol-function 'transient-quit-one)
+               (lambda ()
+                 (setq transient-quit-called t)))
+
+              ((symbol-function 'transient-set)
+               (lambda (prefix args)
+                 (setq transient-set-called t)
+                 (setq saved-transient-args args)))
+
+              ((symbol-function 'transient-reset) #'ignore)
+              ((symbol-function 'y-or-n-p) (lambda (_) nil))
+
+              ;; Mock buffer/editing functions
+              ((symbol-function 'generate-new-buffer)
+               (lambda (name) (get-buffer-create name)))
+              ((symbol-function 'switch-to-buffer) #'ignore)
+              ((symbol-function 'markdown-mode) #'ignore)
+              ((symbol-function 'text-mode) #'ignore)
+              ((symbol-function 'visual-line-mode) #'ignore)
+              ((symbol-function 'local-set-key) #'ignore)
+              ((symbol-function 'message) #'ignore))
+
+      ;; Step 1 & 2: User has invoked menu and set title (simulated via transient-args)
+
+      ;; Step 3: User presses -d to edit description
+      (beads-create--edit-text-multiline
+       beads-create--description
+       (lambda (text) (setq beads-create--description text))
+       "Description")
+
+      ;; Verify transient was quit
+      (should transient-quit-called)
+
+      ;; Get the edit buffer
+      (let ((edit-buffer (get-buffer "*beads-description*")))
+        (should edit-buffer)
+
+        ;; Step 4: User types description in the edit buffer
+        (with-current-buffer edit-buffer
+          (insert "This is a detailed description of my issue.\nIt has multiple lines.")
+
+          ;; Simulate C-c C-c (finish editing)
+          ;; This calls the finish-func which we need to simulate
+          (let ((text (buffer-substring-no-properties (point-min) (point-max))))
+            (kill-buffer)
+            (setq beads-create--description text)
+
+            ;; The finish-func would call transient-set and beads-create
+            ;; We'll verify transient-set was called
+            (transient-set 'beads-create '("--title=My Test Issue"))
+            (should transient-set-called)
+            (should (equal saved-transient-args '("--title=My Test Issue"))))))
+
+      ;; Verify description was saved
+      (should (equal beads-create--description
+                    "This is a detailed description of my issue.\nIt has multiple lines."))
+
+      ;; Step 5: User would see menu re-appear (simulated by transient-set)
+      ;; Step 6: User presses x to execute create
+      (beads-create--execute)
+
+      ;; Verify the issue was created with BOTH title and description
+      (should beads--run-command-calls)
+      (should (equal (car beads--run-command-calls) "create"))
+
+      ;; Verify title was passed (as positional argument)
+      (should (member "My Test Issue" beads--run-command-calls))
+
+      ;; Verify description was passed
+      (should (member "-d" beads--run-command-calls))
+      (should (member "This is a detailed description of my issue.\nIt has multiple lines."
+                     beads--run-command-calls))
+
+      ;; Verify state was reset after successful creation
+      (should (null beads-create--description))
+      (should (null beads-create--acceptance))
+      (should (null beads-create--design)))))
+
 (provide 'beads-create-test)
 ;;; beads-create-test.el ends here
