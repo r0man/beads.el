@@ -57,7 +57,11 @@ FIELD-NAME is shown in the buffer name and messages.
 After editing, the transient menu is re-displayed."
   (let* ((buffer-name (format "*beads-%s*" (downcase field-name)))
          (buffer (generate-new-buffer buffer-name))
-         (parent-buffer (current-buffer)))
+         (parent-buffer (current-buffer))
+         ;; Save current transient arguments before quitting
+         (saved-args (transient-args 'beads-create)))
+    ;; Quit the transient to hide it
+    (transient-quit-one)
     (switch-to-buffer buffer)
     (when current-value
       (insert current-value))
@@ -78,19 +82,24 @@ After editing, the transient menu is re-displayed."
                           (kill-buffer)
                           (switch-to-buffer parent-buffer)
                           (funcall callback text)
-                          (message "%s saved" field-name))))
+                          (message "%s saved" field-name)
+                          ;; Re-invoke the transient with saved arguments
+                          (transient-set 'beads-create saved-args)
+                          (beads-create))))
           (cancel-func (lambda ()
                         (interactive)
                         (kill-buffer)
                         (switch-to-buffer parent-buffer)
-                        (message "%s edit cancelled" field-name))))
+                        (message "%s edit cancelled" field-name)
+                        ;; Re-invoke the transient with saved arguments
+                        (transient-set 'beads-create saved-args)
+                        (beads-create))))
       (local-set-key (kbd "C-c C-c") finish-func)
       (local-set-key (kbd "C-c C-k") cancel-func))
     (message "Edit %s. C-c C-c to finish, C-c C-k to cancel." field-name)))
 
 (transient-define-suffix beads-create:--description ()
   "Edit multi-line description."
-  :transient t
   :key "-d"
   :description "Description"
   (interactive)
@@ -101,7 +110,6 @@ After editing, the transient menu is re-displayed."
 
 (transient-define-suffix beads-create:--acceptance ()
   "Edit multi-line acceptance criteria."
-  :transient t
   :key "-A"
   :description "Acceptance"
   (interactive)
@@ -112,7 +120,6 @@ After editing, the transient menu is re-displayed."
 
 (transient-define-suffix beads-create:--design ()
   "Edit multi-line design notes."
-  :transient t
   :key "-G"
   :description "Design"
   (interactive)
