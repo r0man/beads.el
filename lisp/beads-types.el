@@ -30,6 +30,26 @@
 ;;
 ;; Usage:
 ;;
+;;   ;; Read a single issue by ID
+;;   (let ((issue (beads-issue-read "bd-123")))
+;;     (message "Title: %s" (oref issue title)))
+;;
+;;   ;; List all issues
+;;   (let ((issues (beads-issue-list)))
+;;     (dolist (issue issues)
+;;       (message "Issue: %s" (oref issue id))))
+;;
+;;   ;; List issues by status
+;;   (beads-issue-list "open")
+;;   (beads-issue-list "in_progress")
+;;
+;;   ;; Get ready work
+;;   (beads-issue-ready)
+;;   (beads-issue-ready 10)  ; limit to 10 results
+;;
+;;   ;; List blocked issues
+;;   (beads-blocked-issue-list)
+;;
 ;;   ;; Create from JSON
 ;;   (beads-issue-from-json json-data)
 ;;
@@ -44,6 +64,12 @@
 
 (require 'eieio)
 (require 'cl-lib)
+(require 'json)
+
+;; Forward declarations to avoid circular dependencies
+(declare-function beads--run-command "beads")
+(declare-function beads--parse-issue "beads")
+(declare-function beads--parse-issues "beads")
 
 ;;; Constants and Enumerations
 
@@ -795,6 +821,51 @@ Converts ISO 8601 timestamp to human-readable format."
     (3 "P3")
     (4 "P4 (highest)")
     (_ (format "P%d" priority))))
+
+;;; CLI Integration - Reading and Listing Issues
+
+(defun beads-issue-read (issue-id)
+  "Read a beads issue by ISSUE-ID from the CLI.
+Uses the bd show command with --json flag to fetch the issue.
+Runs in the directory specified by `default-directory'.
+Returns a beads-issue object or signals an error if not found."
+  (interactive "sIssue ID: ")
+  (let ((json (beads--run-command "show" issue-id)))
+    (beads-issue-from-json json)))
+
+(defun beads-issue-list (&optional status)
+  "List beads issues from the CLI.
+Uses the bd list command with --json flag to fetch all issues.
+If STATUS is provided, filters by that status.
+Runs in the directory specified by `default-directory'.
+Returns a list of beads-issue objects."
+  (interactive)
+  (let* ((args (when status (list "--status" status)))
+         (json (apply #'beads--run-command "list" args)))
+    (when (vectorp json)
+      (mapcar #'beads-issue-from-json (append json nil)))))
+
+(defun beads-blocked-issue-list ()
+  "List blocked beads issues from the CLI.
+Uses the bd blocked command with --json flag.
+Runs in the directory specified by `default-directory'.
+Returns a list of beads-blocked-issue objects."
+  (interactive)
+  (let ((json (beads--run-command "blocked")))
+    (when (vectorp json)
+      (mapcar #'beads-blocked-issue-from-json (append json nil)))))
+
+(defun beads-issue-ready (&optional limit)
+  "Get ready work from the CLI.
+Uses the bd ready command with --json flag.
+If LIMIT is provided, limits the number of results.
+Runs in the directory specified by `default-directory'.
+Returns a list of beads-issue objects."
+  (interactive)
+  (let* ((args (when limit (list "--limit" (number-to-string limit))))
+         (json (apply #'beads--run-command "ready" args)))
+    (when (vectorp json)
+      (mapcar #'beads-issue-from-json (append json nil)))))
 
 (provide 'beads-types)
 ;;; beads-types.el ends here
