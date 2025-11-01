@@ -827,20 +827,6 @@ STRUCTURE is a list of paths to create (dirs end with /)."
 ;;; ========================================
 
 
-;; Note: Async tests are commented out as they have issues in batch mode.
-;; The async functionality is tested manually and through integration tests.
-
-;; (ert-deftest beads-test-run-command-async-success ()
-;;   "Test successful async command execution."
-;;   :tags '(:async)
-;;   (skip-unless (not noninteractive))
-;;   ...async test body...)
-
-;; (ert-deftest beads-test-run-command-async-failure ()
-;;   "Test async command execution with failure."
-;;   :tags '(:async)
-;;   (skip-unless (not noninteractive))
-;;   ...async test body...)
 
 
 ;;; ========================================

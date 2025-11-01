@@ -746,7 +746,6 @@
 (ert-deftest beads-types-test-integration-issue-read ()
   "Integration test: read an issue by ID using real bd CLI."
   :tags '(:integration)
-  (skip-unless (executable-find "bd"))
   (let* ((project-dir (make-temp-file "beads-test-" t))
          (default-directory project-dir))
     (unwind-protect
@@ -786,7 +785,6 @@
 (ert-deftest beads-types-test-integration-issue-list ()
   "Integration test: list issues using real bd CLI."
   :tags '(:integration)
-  (skip-unless (executable-find "bd"))
   (let* ((project-dir (make-temp-file "beads-test-" t))
          (default-directory project-dir))
     (unwind-protect
@@ -830,7 +828,6 @@
 (ert-deftest beads-types-test-integration-issue-list-by-status ()
   "Integration test: list issues filtered by status using real bd CLI."
   :tags '(:integration)
-  (skip-unless (executable-find "bd"))
   (let* ((project-dir (make-temp-file "beads-test-" t))
          (default-directory project-dir))
     (unwind-protect
@@ -897,7 +894,6 @@
 (ert-deftest beads-types-test-integration-issue-ready ()
   "Integration test: get ready work using real bd CLI."
   :tags '(:integration)
-  (skip-unless (executable-find "bd"))
   (let* ((project-dir (make-temp-file "beads-test-" t))
          (default-directory project-dir))
     (unwind-protect
@@ -932,7 +928,6 @@
 (ert-deftest beads-types-test-integration-blocked-issue-list ()
   "Integration test: list blocked issues using real bd CLI."
   :tags '(:integration)
-  (skip-unless (executable-find "bd"))
   (let* ((project-dir (make-temp-file "beads-test-" t))
          (default-directory project-dir))
     (unwind-protect
