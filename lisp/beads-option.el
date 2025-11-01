@@ -26,6 +26,37 @@
 (require 'beads)
 (require 'transient)
 
+;; Forward declare reader functions (loaded later to avoid circular deps)
+(declare-function beads-reader-create-title "beads-reader")
+(declare-function beads-reader-create-type "beads-reader")
+(declare-function beads-reader-create-priority "beads-reader")
+(declare-function beads-reader-create-custom-id "beads-reader")
+(declare-function beads-reader-create-dependencies "beads-reader")
+(declare-function beads-reader-create-assignee "beads-reader")
+(declare-function beads-reader-create-external-ref "beads-reader")
+(declare-function beads-reader-create-labels "beads-reader")
+(declare-function beads-reader-update-status "beads-reader")
+(declare-function beads-reader-update-priority "beads-reader")
+(declare-function beads-reader-update-type "beads-reader")
+(declare-function beads-reader-update-title "beads-reader")
+(declare-function beads-reader-update-assignee "beads-reader")
+(declare-function beads-reader-update-external-ref "beads-reader")
+(declare-function beads-reader-close-issue-id "beads-reader")
+(declare-function beads-reader-reopen-issue-id "beads-reader")
+(declare-function beads-reader-sync-message "beads-reader")
+(declare-function beads-reader-dep-add-issue-id "beads-reader")
+(declare-function beads-reader-dep-add-depends-on-id "beads-reader")
+(declare-function beads-reader-dep-add-type "beads-reader")
+(declare-function beads-reader-dep-remove-issue-id "beads-reader")
+(declare-function beads-reader-dep-remove-depends-on-id "beads-reader")
+(declare-function beads-reader-dep-from "beads-reader")
+(declare-function beads-reader-dep-to "beads-reader")
+(declare-function beads-reader-dep-type "beads-reader")
+(declare-function beads-reader-export-output "beads-reader")
+(declare-function beads-reader-import-input "beads-reader")
+(declare-function beads-reader-init-prefix "beads-reader")
+(declare-function beads-reader-init-db "beads-reader")
+
 ;;; ============================================================
 ;;; Custom Transient Classes
 ;;; ============================================================
@@ -276,8 +307,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "t"
   :argument "title="
   :prompt "Issue title: "
-  :reader (lambda (_prompt _initial-input _history)
-            (read-string "Issue title: " beads-create--title)))
+  :reader #'beads-reader-create-title)
 
 (transient-define-infix beads-option-create-type ()
   "Set the type of the issue."
@@ -287,10 +317,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :argument "type="
   :prompt "Type: "
   :choices '("bug" "feature" "task" "epic" "chore")
-  :reader (lambda (_prompt _initial-input _history)
-            (completing-read "Type: "
-                           '("bug" "feature" "task" "epic" "chore")
-                           nil t beads-create--type)))
+  :reader #'beads-reader-create-type)
 
 (transient-define-infix beads-option-create-priority ()
   "Set the priority of the issue."
@@ -299,19 +326,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "p"
   :argument "priority="
   :prompt "Priority: "
-  :reader (lambda (_prompt _initial-input _history)
-            (let* ((choices '(("0 - Critical" . 0)
-                             ("1 - High" . 1)
-                             ("2 - Medium" . 2)
-                             ("3 - Low" . 3)
-                             ("4 - Backlog" . 4)))
-                   (selection (completing-read
-                              "Priority: " choices nil t
-                              (when beads-create--priority
-                                (car (rassoc beads-create--priority
-                                           choices)))))
-                   (priority (cdr (assoc selection choices))))
-              (number-to-string priority))))
+  :reader #'beads-reader-create-priority)
 
 (transient-define-infix beads-option-create-description ()
   "Set the description using a multiline editor."
@@ -328,8 +343,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "i"
   :argument "id="
   :prompt "Custom ID: "
-  :reader (lambda (_prompt _initial-input _history)
-            (read-string "Custom ID: " beads-create--custom-id)))
+  :reader #'beads-reader-create-custom-id)
 
 (transient-define-infix beads-option-create-dependencies ()
   "Set dependencies for the issue."
@@ -338,9 +352,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "D"
   :argument "deps="
   :prompt "Dependencies (type:id,...): "
-  :reader (lambda (_prompt _initial-input _history)
-            (read-string "Dependencies (e.g., blocks:bd-1,related:bd-2): "
-                        beads-create--dependencies)))
+  :reader #'beads-reader-create-dependencies)
 
 (transient-define-infix beads-option-create-acceptance ()
   "Set acceptance criteria using a multiline editor."
@@ -357,8 +369,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "a"
   :argument "assignee="
   :prompt "Assignee: "
-  :reader (lambda (_prompt _initial-input _history)
-            (read-string "Assignee: " beads-create--assignee)))
+  :reader #'beads-reader-create-assignee)
 
 (transient-define-infix beads-option-create-design ()
   "Set design notes using a multiline editor."
@@ -375,9 +386,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "x"
   :argument "external-ref="
   :prompt "External reference: "
-  :reader (lambda (_prompt _initial-input _history)
-            (read-string "External reference (e.g., gh-9, jira-ABC): "
-                        beads-create--external-ref)))
+  :reader #'beads-reader-create-external-ref)
 
 (transient-define-infix beads-option-create-labels ()
   "Set labels for the issue."
@@ -386,9 +395,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "l"
   :argument "labels="
   :prompt "Labels (comma-separated): "
-  :reader (lambda (_prompt _initial-input _history)
-            (read-string "Labels (comma-separated): "
-                        beads-create--labels)))
+  :reader #'beads-reader-create-labels)
 
 (transient-define-infix beads-option-create-force ()
   "Toggle force flag for create operation."
@@ -409,10 +416,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :argument "status="
   :prompt "Status: "
   :choices '("open" "in_progress" "blocked" "closed")
-  :reader (lambda (_prompt _initial-input _history)
-            (completing-read "Status: "
-                           '("open" "in_progress" "blocked" "closed")
-                           nil t beads-update--status)))
+  :reader #'beads-reader-update-status)
 
 (transient-define-infix beads-option-update-priority ()
   "Set the priority of the issue."
@@ -421,19 +425,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "p"
   :argument "priority="
   :prompt "Priority: "
-  :reader (lambda (_prompt _initial-input _history)
-            (let* ((choices '(("0 - Critical" . 0)
-                             ("1 - High" . 1)
-                             ("2 - Medium" . 2)
-                             ("3 - Low" . 3)
-                             ("4 - Backlog" . 4)))
-                   (selection (completing-read
-                              "Priority: " choices nil t
-                              (when beads-update--priority
-                                (car (rassoc beads-update--priority
-                                           choices)))))
-                   (priority (cdr (assoc selection choices))))
-              (number-to-string priority))))
+  :reader #'beads-reader-update-priority)
 
 (transient-define-infix beads-option-update-type ()
   "Set the type of the issue."
@@ -443,10 +435,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :argument "type="
   :prompt "Type: "
   :choices '("bug" "feature" "task" "epic" "chore")
-  :reader (lambda (_prompt _initial-input _history)
-            (completing-read "Type: "
-                           '("bug" "feature" "task" "epic" "chore")
-                           nil t beads-update--type)))
+  :reader #'beads-reader-update-type)
 
 (transient-define-infix beads-option-update-title ()
   "Set the title of the issue."
@@ -455,8 +444,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "t"
   :argument "title="
   :prompt "Issue title: "
-  :reader (lambda (_prompt _initial-input _history)
-            (read-string "Issue title: " beads-update--title)))
+  :reader #'beads-reader-update-title)
 
 (transient-define-infix beads-option-update-assignee ()
   "Set the assignee of the issue."
@@ -465,8 +453,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "a"
   :argument "assignee="
   :prompt "Assignee: "
-  :reader (lambda (_prompt _initial-input _history)
-            (read-string "Assignee: " beads-update--assignee)))
+  :reader #'beads-reader-update-assignee)
 
 (transient-define-infix beads-option-update-external-ref ()
   "Set the external reference of the issue."
@@ -475,9 +462,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "x"
   :argument "external-ref="
   :prompt "External reference: "
-  :reader (lambda (_prompt _initial-input _history)
-            (read-string "External reference (e.g., gh-9, jira-ABC): "
-                        beads-update--external-ref)))
+  :reader #'beads-reader-update-external-ref)
 
 (transient-define-infix beads-option-update-description ()
   "Set the description using a multiline editor."
@@ -522,11 +507,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "i"
   :argument "id="
   :prompt "Issue ID: "
-  :reader (lambda (_prompt _initial-input _history)
-            (completing-read "Issue ID to close: "
-                           (beads--issue-completion-table)
-                           nil t beads-close--issue-id
-                           'beads--issue-id-history)))
+  :reader #'beads-reader-close-issue-id)
 
 (transient-define-infix beads-option-close-reason ()
   "Set the reason for closing using a multiline editor."
@@ -547,11 +528,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "i"
   :argument "id="
   :prompt "Issue ID: "
-  :reader (lambda (_prompt _initial-input _history)
-            (completing-read "Issue ID to reopen: "
-                           (beads--issue-completion-table)
-                           nil t beads-reopen--issue-id
-                           'beads--issue-id-history)))
+  :reader #'beads-reader-reopen-issue-id)
 
 (transient-define-infix beads-option-reopen-reason ()
   "Set the reason for reopening using a multiline editor."
@@ -579,8 +556,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "m"
   :argument "-m="
   :prompt "Commit message: "
-  :reader (lambda (_prompt _initial-input _history)
-            (read-string "Commit message: ")))
+  :reader #'beads-reader-sync-message)
 
 (transient-define-infix beads-option-sync-no-pull ()
   "Toggle skip pull flag."
@@ -607,9 +583,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :description "Issue ID"
   :argument "--issue-id="
   :prompt "Issue ID: "
-  :reader (lambda (prompt _initial-input _history)
-            (completing-read prompt (beads--issue-completion-table)
-                           nil nil nil 'beads--issue-id-history)))
+  :reader #'beads-reader-dep-add-issue-id)
 
 (transient-define-infix beads-option-dep-add-depends-on-id ()
   "Specify depends-on ID for add dependency."
@@ -618,9 +592,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :description "Depends on ID"
   :argument "--depends-on="
   :prompt "Depends on issue ID: "
-  :reader (lambda (prompt _initial-input _history)
-            (completing-read prompt (beads--issue-completion-table)
-                           nil nil nil 'beads--issue-id-history)))
+  :reader #'beads-reader-dep-add-depends-on-id)
 
 (transient-define-infix beads-option-dep-add-type ()
   "Specify dependency type for add operation."
@@ -629,13 +601,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :description "Dependency type"
   :argument "--type="
   :choices '("blocks" "related" "parent-child" "discovered-from")
-  :reader (lambda (prompt _initial-input _history)
-            (completing-read prompt
-                           '("blocks" "related" "parent-child"
-                             "discovered-from")
-                           nil t nil
-                           'beads--dependency-type-history
-                           "blocks")))
+  :reader #'beads-reader-dep-add-type)
 
 (transient-define-infix beads-option-dep-remove-issue-id ()
   "Specify issue ID for remove dependency."
@@ -644,9 +610,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :description "Issue ID"
   :argument "--issue-id="
   :prompt "Issue ID: "
-  :reader (lambda (prompt _initial-input _history)
-            (completing-read prompt (beads--issue-completion-table)
-                           nil nil nil 'beads--issue-id-history)))
+  :reader #'beads-reader-dep-remove-issue-id)
 
 (transient-define-infix beads-option-dep-remove-depends-on-id ()
   "Specify depends-on ID for remove dependency."
@@ -655,9 +619,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :description "Depends on ID"
   :argument "--depends-on="
   :prompt "Depends on issue ID: "
-  :reader (lambda (prompt _initial-input _history)
-            (completing-read prompt (beads--issue-completion-table)
-                           nil nil nil 'beads--issue-id-history)))
+  :reader #'beads-reader-dep-remove-depends-on-id)
 
 (transient-define-infix beads-option-dep-from ()
   "Set the source issue ID."
@@ -666,10 +628,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "f"
   :argument "from="
   :prompt "From issue: "
-  :reader (lambda (_prompt _initial-input _history)
-            (completing-read "From issue: "
-                           (beads--issue-completion-table)
-                           nil nil beads-dep--from-issue)))
+  :reader #'beads-reader-dep-from)
 
 (transient-define-infix beads-option-dep-to ()
   "Set the target issue ID."
@@ -678,10 +637,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "t"
   :argument "to="
   :prompt "To issue: "
-  :reader (lambda (_prompt _initial-input _history)
-            (completing-read "To issue: "
-                           (beads--issue-completion-table)
-                           nil nil beads-dep--to-issue)))
+  :reader #'beads-reader-dep-to)
 
 (transient-define-infix beads-option-dep-type ()
   "Set the dependency type."
@@ -691,11 +647,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :argument "type="
   :prompt "Dependency type: "
   :choices '("blocks" "related" "parent-child" "discovered-from")
-  :reader (lambda (_prompt _initial-input _history)
-            (completing-read "Type: "
-                           '("blocks" "related" "parent-child"
-                             "discovered-from")
-                           nil t beads-dep--dep-type)))
+  :reader #'beads-reader-dep-type)
 
 ;;; ============================================================
 ;;; Transient Infix Definitions - beads-misc (export/import/init)
@@ -708,8 +660,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "o"
   :argument "output="
   :prompt "Output file: "
-  :reader (lambda (_prompt _initial-input _history)
-            (read-file-name "Output file: " nil beads-export--output)))
+  :reader #'beads-reader-export-output)
 
 (transient-define-infix beads-option-export-no-auto-flush ()
   "Toggle no-auto-flush flag."
@@ -725,8 +676,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "i"
   :argument "input="
   :prompt "Input file: "
-  :reader (lambda (_prompt _initial-input _history)
-            (read-file-name "Input file: " nil beads-import--input t)))
+  :reader #'beads-reader-import-input)
 
 (transient-define-infix beads-option-import-dry-run ()
   "Toggle dry-run flag."
@@ -749,9 +699,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "p"
   :argument "prefix="
   :prompt "Issue ID prefix: "
-  :reader (lambda (_prompt _initial-input _history)
-            (read-string "Issue ID prefix (e.g., bd): "
-                        beads-init--prefix)))
+  :reader #'beads-reader-init-prefix)
 
 (transient-define-infix beads-option-init-db ()
   "Set the database path."
@@ -760,8 +708,10 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "d"
   :argument "db="
   :prompt "Database path: "
-  :reader (lambda (_prompt _initial-input _history)
-            (read-file-name "Database path: " nil beads-init--db-path)))
+  :reader #'beads-reader-init-db)
+
+;; Load reader functions now that state variables are defined
+(require 'beads-reader)
 
 (provide 'beads-option)
 ;;; beads-option.el ends here
