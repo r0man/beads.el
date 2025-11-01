@@ -458,12 +458,12 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
 
 (ert-deftest beads-create-test-infix-commands-defined ()
   "Test that all infix commands are defined."
-  (should (fboundp 'beads-create--infix-title))
-  (should (fboundp 'beads-create--infix-type))
-  (should (fboundp 'beads-create--infix-priority))
-  (should (fboundp 'beads-create--infix-description))
-  (should (fboundp 'beads-create--infix-custom-id))
-  (should (fboundp 'beads-create--infix-dependencies)))
+  (should (fboundp 'beads-option-create-title))
+  (should (fboundp 'beads-option-create-type))
+  (should (fboundp 'beads-option-create-priority))
+  (should (fboundp 'beads-option-create-description))
+  (should (fboundp 'beads-option-create-custom-id))
+  (should (fboundp 'beads-option-create-dependencies)))
 
 (ert-deftest beads-create-test-suffix-commands-defined ()
   "Test that all suffix commands are defined."
@@ -828,12 +828,12 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
 
 (ert-deftest beads-create-test-infix-commands-new-fields ()
   "Test that all new infix commands are defined."
-  (should (fboundp 'beads-create--infix-acceptance))
-  (should (fboundp 'beads-create--infix-assignee))
-  (should (fboundp 'beads-create--infix-design))
-  (should (fboundp 'beads-create--infix-external-ref))
-  (should (fboundp 'beads-create--infix-labels))
-  (should (fboundp 'beads-create--infix-force)))
+  (should (fboundp 'beads-option-create-acceptance))
+  (should (fboundp 'beads-option-create-assignee))
+  (should (fboundp 'beads-option-create-design))
+  (should (fboundp 'beads-option-create-external-ref))
+  (should (fboundp 'beads-option-create-labels))
+  (should (fboundp 'beads-option-create-force)))
 
 
 (provide 'beads-create-test)

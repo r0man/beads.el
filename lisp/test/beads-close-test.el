@@ -283,8 +283,8 @@ STATE is an alist expression of (variable . value) pairs."
 
 (ert-deftest beads-close-test-infix-commands-defined ()
   "Test that all infix commands are defined."
-  (should (fboundp 'beads-close--infix-issue-id))
-  (should (fboundp 'beads-close--infix-reason)))
+  (should (fboundp 'beads-option-close-issue-id))
+  (should (fboundp 'beads-option-close-reason)))
 
 (ert-deftest beads-close-test-suffix-commands-defined ()
   "Test that all suffix commands are defined."

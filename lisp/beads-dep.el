@@ -24,27 +24,13 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-option)
 (require 'transient)
 
 ;;; Variables
 
-(defvar beads-dep-add--issue-id nil
-  "Issue ID for add dependency operation.")
-
-(defvar beads-dep-add--depends-on-id nil
-  "Depends-on ID for add dependency operation.")
-
-(defvar beads-dep-add--type "blocks"
-  "Dependency type for add operation.")
-
-(defvar beads-dep-remove--issue-id nil
-  "Issue ID for remove dependency operation.")
-
-(defvar beads-dep-remove--depends-on-id nil
-  "Depends-on ID for remove dependency operation.")
-
 (defvar beads-dep-tree--issue-id nil
-  "Issue ID for tree display.")
+  "Issue ID for tree display (buffer-local).")
 
 ;;; Utility Functions
 
@@ -78,49 +64,6 @@ DEP is an alist with keys: issue_id, depends_on_id, type, status."
             (propertize depends-on-id 'face 'font-lock-constant-face))))
 
 ;;; Add Dependency
-
-(transient-define-infix beads-dep-add--infix-issue-id ()
-  "Specify issue ID for add dependency."
-  :class 'transient-option
-  :key "i"
-  :description "Issue ID"
-  :argument "--issue-id="
-  :prompt "Issue ID: "
-  :reader (lambda (prompt _initial-input _history)
-            (let ((id (completing-read prompt (beads--issue-completion-table)
-                                      nil nil nil 'beads--issue-id-history)))
-              (setq beads-dep-add--issue-id id)
-              id)))
-
-(transient-define-infix beads-dep-add--infix-depends-on-id ()
-  "Specify depends-on ID for add dependency."
-  :class 'transient-option
-  :key "d"
-  :description "Depends on ID"
-  :argument "--depends-on="
-  :prompt "Depends on issue ID: "
-  :reader (lambda (prompt _initial-input _history)
-            (let ((id (completing-read prompt (beads--issue-completion-table)
-                                      nil nil nil 'beads--issue-id-history)))
-              (setq beads-dep-add--depends-on-id id)
-              id)))
-
-(transient-define-infix beads-dep-add--infix-type ()
-  "Specify dependency type for add operation."
-  :class 'transient-option
-  :key "t"
-  :description "Dependency type"
-  :argument "--type="
-  :choices '("blocks" "related" "parent-child" "discovered-from")
-  :reader (lambda (prompt _initial-input _history)
-            (let ((type (completing-read prompt
-                                        '("blocks" "related" "parent-child"
-                                          "discovered-from")
-                                        nil t nil
-                                        'beads--dependency-type-history
-                                        "blocks")))
-              (setq beads-dep-add--type type)
-              type)))
 
 (defun beads-dep-add--validate ()
   "Validate add dependency parameters.
@@ -181,7 +124,7 @@ Returns error message string if invalid, nil if valid."
   "Reset add dependency state."
   (setq beads-dep-add--issue-id nil
         beads-dep-add--depends-on-id nil
-        beads-dep-add--type "blocks"))
+        beads-dep-add--type nil))
 
 (transient-define-suffix beads-dep-add--reset-interactive ()
   "Reset add dependency fields interactively."
@@ -202,9 +145,9 @@ Otherwise, detect from context if possible."
     (setq beads-dep-add--issue-id issue-id))
   (beads-check-executable)
   ["Add Dependency"
-   (beads-dep-add--infix-issue-id)
-   (beads-dep-add--infix-depends-on-id)
-   (beads-dep-add--infix-type)]
+   (beads-option-dep-add-issue-id)
+   (beads-option-dep-add-depends-on-id)
+   (beads-option-dep-add-type)]
   ["Actions"
    ("a" "Add dependency" beads-dep-add--execute)
    ("P" "Preview command" beads-dep-add--preview)
@@ -212,32 +155,6 @@ Otherwise, detect from context if possible."
    ("q" "Quit" transient-quit-one)])
 
 ;;; Remove Dependency
-
-(transient-define-infix beads-dep-remove--infix-issue-id ()
-  "Specify issue ID for remove dependency."
-  :class 'transient-option
-  :key "i"
-  :description "Issue ID"
-  :argument "--issue-id="
-  :prompt "Issue ID: "
-  :reader (lambda (prompt _initial-input _history)
-            (let ((id (completing-read prompt (beads--issue-completion-table)
-                                      nil nil nil 'beads--issue-id-history)))
-              (setq beads-dep-remove--issue-id id)
-              id)))
-
-(transient-define-infix beads-dep-remove--infix-depends-on-id ()
-  "Specify depends-on ID for remove dependency."
-  :class 'transient-option
-  :key "d"
-  :description "Depends on ID"
-  :argument "--depends-on="
-  :prompt "Depends on issue ID: "
-  :reader (lambda (prompt _initial-input _history)
-            (let ((id (completing-read prompt (beads--issue-completion-table)
-                                      nil nil nil 'beads--issue-id-history)))
-              (setq beads-dep-remove--depends-on-id id)
-              id)))
 
 (defun beads-dep-remove--validate ()
   "Validate remove dependency parameters.
@@ -314,8 +231,8 @@ Otherwise, detect from context if possible."
     (setq beads-dep-remove--issue-id issue-id))
   (beads-check-executable)
   ["Remove Dependency"
-   (beads-dep-remove--infix-issue-id)
-   (beads-dep-remove--infix-depends-on-id)]
+   (beads-option-dep-remove-issue-id)
+   (beads-option-dep-remove-depends-on-id)]
   ["Actions"
    ("r" "Remove dependency" beads-dep-remove--execute)
    ("P" "Preview command" beads-dep-remove--preview)

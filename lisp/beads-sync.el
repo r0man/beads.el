@@ -31,26 +31,13 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-option)
 (require 'transient)
 (require 'compile)
 
 ;;; Forward declarations
 (declare-function beads-list-refresh "beads-list")
 (declare-function beads-refresh-show "beads-show")
-
-;;; Transient State Variables
-
-(defvar beads-sync--dry-run nil
-  "Whether to run in dry-run mode (preview without changes).")
-
-(defvar beads-sync--message nil
-  "Custom commit message for sync operation.")
-
-(defvar beads-sync--no-pull nil
-  "Whether to skip pulling from remote.")
-
-(defvar beads-sync--no-push nil
-  "Whether to skip pushing to remote.")
 
 ;;; Utility Functions
 
@@ -82,39 +69,6 @@
                  beads-show-mode)
         (ignore-errors
           (beads-refresh-show))))))
-
-;;; Infix Commands
-
-(transient-define-infix beads-sync--infix-dry-run ()
-  "Toggle dry-run mode."
-  :class 'transient-switch
-  :description "Dry run (--dry-run)"
-  :key "d"
-  :argument "--dry-run")
-
-(transient-define-infix beads-sync--infix-message ()
-  "Set custom commit message."
-  :class 'transient-option
-  :description "Message (-m)"
-  :key "m"
-  :argument "-m="
-  :prompt "Commit message: "
-  :reader (lambda (_prompt _initial-input _history)
-            (read-string "Commit message: ")))
-
-(transient-define-infix beads-sync--infix-no-pull ()
-  "Toggle skip pull flag."
-  :class 'transient-switch
-  :description "Skip pull (--no-pull)"
-  :key "P"
-  :argument "--no-pull")
-
-(transient-define-infix beads-sync--infix-no-push ()
-  "Toggle skip push flag."
-  :class 'transient-switch
-  :description "Skip push (--no-push)"
-  :key "p"
-  :argument "--no-push")
 
 ;;; Suffix Commands
 
@@ -284,10 +238,10 @@ which performs a complete git-based sync workflow:
 
 Use --dry-run to preview changes without making them."
   ["Sync Options"
-   (beads-sync--infix-dry-run)
-   (beads-sync--infix-message)
-   (beads-sync--infix-no-pull)
-   (beads-sync--infix-no-push)]
+   (beads-option-sync-dry-run)
+   (beads-option-sync-message)
+   (beads-option-sync-no-pull)
+   (beads-option-sync-no-push)]
   ["Actions"
    ("s" "Sync" beads-sync--execute-command)
    ("P" "Preview command" beads-sync--preview)

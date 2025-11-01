@@ -26,16 +26,9 @@
 
 (require 'beads)
 (require 'beads-list)
+(require 'beads-option)
 (require 'beads-show)
 (require 'transient)
-
-;;; Transient State Variables
-
-(defvar beads-close--issue-id nil
-  "Issue ID to close.")
-
-(defvar beads-close--reason nil
-  "Reason for closing the issue.")
 
 ;;; Utility Functions
 
@@ -130,26 +123,7 @@ After editing, the transient menu is re-displayed."
       (local-set-key (kbd "C-c C-k") cancel-func))
     (message "Edit reason. C-c C-c to finish, C-c C-k to cancel.")))
 
-;;; Infix Commands
-
-(transient-define-infix beads-close--infix-issue-id ()
-  "Set the issue ID to close."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "Issue ID (required)"
-                         (beads-close--format-current-value
-                          beads-close--issue-id)))
-  :key "i"
-  :argument "id="
-  :prompt "Issue ID: "
-  :reader (lambda (_prompt _initial-input _history)
-            (let ((id (completing-read
-                      "Issue ID to close: "
-                      (beads--issue-completion-table)
-                      nil t beads-close--issue-id
-                      'beads--issue-id-history)))
-              (setq beads-close--issue-id id)
-              id)))
+;;; Suffix Commands - Reason
 
 (transient-define-suffix beads-close--infix-reason ()
   "Set the reason for closing using a multiline editor."
@@ -232,7 +206,7 @@ After editing, the transient menu is re-displayed."
 (transient-define-prefix beads-close--menu ()
   "Transient menu for closing an issue in Beads."
   ["Close Issue"
-   (beads-close--infix-issue-id)
+   (beads-option-close-issue-id)
    (beads-close--infix-reason)]
   ["Actions"
    ("x" "Close issue" beads-close--execute)

@@ -26,16 +26,9 @@
 
 (require 'beads)
 (require 'beads-list)
+(require 'beads-option)
 (require 'beads-show)
 (require 'transient)
-
-;;; Transient State Variables
-
-(defvar beads-reopen--issue-id nil
-  "Issue ID to reopen.")
-
-(defvar beads-reopen--reason nil
-  "Reason for reopening the issue.")
 
 ;;; Utility Functions
 
@@ -130,26 +123,7 @@ After editing, the transient menu is re-displayed."
       (local-set-key (kbd "C-c C-k") cancel-func))
     (message "Edit reason. C-c C-c to finish, C-c C-k to cancel.")))
 
-;;; Infix Commands
-
-(transient-define-infix beads-reopen--infix-issue-id ()
-  "Set the issue ID to reopen."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "Issue ID (required)"
-                         (beads-reopen--format-current-value
-                          beads-reopen--issue-id)))
-  :key "i"
-  :argument "id="
-  :prompt "Issue ID: "
-  :reader (lambda (_prompt _initial-input _history)
-            (let ((id (completing-read
-                      "Issue ID to reopen: "
-                      (beads--issue-completion-table)
-                      nil t beads-reopen--issue-id
-                      'beads--issue-id-history)))
-              (setq beads-reopen--issue-id id)
-              id)))
+;;; Suffix Commands - Reason
 
 (transient-define-suffix beads-reopen--infix-reason ()
   "Set the reason for reopening using a multiline editor."
@@ -233,7 +207,7 @@ After editing, the transient menu is re-displayed."
 (transient-define-prefix beads-reopen--menu ()
   "Transient menu for reopening an issue in Beads."
   ["Reopen Issue"
-   (beads-reopen--infix-issue-id)
+   (beads-option-reopen-issue-id)
    (beads-reopen--infix-reason)]
   ["Actions"
    ("x" "Reopen issue" beads-reopen--execute)

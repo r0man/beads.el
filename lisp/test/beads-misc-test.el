@@ -245,9 +245,9 @@
 
 (ert-deftest beads-misc-test-dep-infix-commands-defined ()
   "Test that dep infix commands are defined."
-  (should (fboundp 'beads-dep--infix-from))
-  (should (fboundp 'beads-dep--infix-to))
-  (should (fboundp 'beads-dep--infix-type)))
+  (should (fboundp 'beads-option-dep-from))
+  (should (fboundp 'beads-option-dep-to))
+  (should (fboundp 'beads-option-dep-type)))
 
 (ert-deftest beads-misc-test-dep-suffix-commands-defined ()
   "Test that dep suffix commands are defined."
@@ -327,8 +327,8 @@
 
 (ert-deftest beads-misc-test-export-infix-commands-defined ()
   "Test that export infix commands are defined."
-  (should (fboundp 'beads-export--infix-output))
-  (should (fboundp 'beads-export--infix-no-auto-flush)))
+  (should (fboundp 'beads-option-export-output))
+  (should (fboundp 'beads-option-export-no-auto-flush)))
 
 (ert-deftest beads-misc-test-export-suffix-commands-defined ()
   "Test that export suffix commands are defined."
@@ -457,9 +457,9 @@
 
 (ert-deftest beads-misc-test-import-infix-commands-defined ()
   "Test that import infix commands are defined."
-  (should (fboundp 'beads-import--infix-input))
-  (should (fboundp 'beads-import--infix-dry-run))
-  (should (fboundp 'beads-import--infix-resolve-collisions)))
+  (should (fboundp 'beads-option-import-input))
+  (should (fboundp 'beads-option-import-dry-run))
+  (should (fboundp 'beads-option-import-resolve-collisions)))
 
 (ert-deftest beads-misc-test-import-suffix-commands-defined ()
   "Test that import suffix commands are defined."
@@ -572,8 +572,8 @@
 
 (ert-deftest beads-misc-test-init-infix-commands-defined ()
   "Test that init infix commands are defined."
-  (should (fboundp 'beads-init--infix-prefix))
-  (should (fboundp 'beads-init--infix-db)))
+  (should (fboundp 'beads-option-init-prefix))
+  (should (fboundp 'beads-option-init-db)))
 
 (ert-deftest beads-misc-test-init-suffix-commands-defined ()
   "Test that init suffix commands are defined."

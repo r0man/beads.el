@@ -31,71 +31,8 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-option)
 (require 'transient)
-
-;;; Custom Transient Classes
-
-(defclass beads-create-transient-multiline (transient-option)
-  ((multi-line :initarg :multi-line :initform t)
-   (field-name :initarg :field-name :initform "Text"))
-  "Transient infix class for multiline text fields.
-This class provides an editor buffer for multiline text entry,
-similar to git commit message editing.")
-
-(cl-defmethod transient-infix-read ((obj beads-create-transient-multiline))
-  "Read multiline text value for OBJ using a dedicated buffer."
-  (let* ((value (oref obj value))
-         (field-name (oref obj field-name))
-         (transient-buf (current-buffer))
-         (result nil))
-    ;; Create a temporary buffer for editing
-    (let* ((buffer-name (format "*beads-%s*" (downcase field-name)))
-           (buffer (generate-new-buffer buffer-name)))
-      (switch-to-buffer buffer)
-      (when value
-        (insert value))
-      ;; Use markdown-mode if available, otherwise text-mode
-      (if (fboundp 'markdown-mode)
-          (markdown-mode)
-        (text-mode))
-      ;; Enable visual-line-mode for better editing
-      (visual-line-mode 1)
-      (setq header-line-format
-            (format "Edit %s: C-c C-c to finish, C-c C-k to cancel"
-                    field-name))
-      ;; Set up keybindings
-      (let ((finish-func
-             (lambda ()
-               (interactive)
-               (setq result (buffer-substring-no-properties
-                            (point-min) (point-max)))
-               (kill-buffer)
-               (switch-to-buffer transient-buf)
-               (exit-recursive-edit)))
-            (cancel-func
-             (lambda ()
-               (interactive)
-               (setq result nil)
-               (kill-buffer)
-               (switch-to-buffer transient-buf)
-               (exit-recursive-edit))))
-        (local-set-key (kbd "C-c C-c") finish-func)
-        (local-set-key (kbd "C-c C-k") cancel-func)
-        (message "Edit %s. C-c C-c to finish, C-c C-k to cancel."
-                 field-name)
-        (recursive-edit)))
-    result))
-
-(cl-defmethod transient-format-value ((obj beads-create-transient-multiline))
-  "Format the value of multiline OBJ for display in transient menu."
-  (let ((value (oref obj value)))
-    (if (and value (not (string-empty-p (string-trim value))))
-        (let* ((first-line (car (split-string value "\n")))
-               (display (if (> (length first-line) 40)
-                           (concat (substring first-line 0 40) "...")
-                         first-line)))
-          (propertize (format " [%s]" display) 'face 'transient-value))
-      (propertize " [unset]" 'face 'transient-inactive-value))))
 
 ;;; Utility Functions
 
@@ -249,137 +186,6 @@ Returns list of arguments for bd create command."
       (setq args (append args (list "--force"))))
     args))
 
-;;; Infix Commands
-
-(transient-define-infix beads-create--infix-title ()
-  "Set the title of the issue."
-  :class 'transient-option
-  :description "Title (required)"
-  :key "t"
-  :argument "title="
-  :prompt "Issue title: "
-  :reader (lambda (_prompt _initial-input _history)
-            (read-string "Issue title: ")))
-
-(transient-define-infix beads-create--infix-type ()
-  "Set the type of the issue."
-  :class 'transient-option
-  :description "Type (-t)"
-  :key "T"
-  :argument "type="
-  :prompt "Type: "
-  :choices '("bug" "feature" "task" "epic" "chore")
-  :reader (lambda (_prompt _initial-input _history)
-            (completing-read
-             "Type: "
-             '("bug" "feature" "task" "epic" "chore")
-             nil t)))
-
-(transient-define-infix beads-create--infix-priority ()
-  "Set the priority of the issue."
-  :class 'transient-option
-  :description "Priority (-p)"
-  :key "p"
-  :argument "priority="
-  :prompt "Priority: "
-  :reader (lambda (_prompt _initial-input _history)
-            (let* ((choices '(("0 - Critical" . 0)
-                             ("1 - High" . 1)
-                             ("2 - Medium" . 2)
-                             ("3 - Low" . 3)
-                             ("4 - Backlog" . 4)))
-                   (selection (completing-read
-                              "Priority: "
-                              choices
-                              nil t))
-                   (priority (cdr (assoc selection choices))))
-              (number-to-string priority))))
-
-(transient-define-infix beads-create--infix-description ()
-  "Set the description using a multiline editor."
-  :class 'beads-create-transient-multiline
-  :description "Description (-d)"
-  :key "d"
-  :argument "description="
-  :prompt "Description: "
-  :field-name "Description")
-
-(transient-define-infix beads-create--infix-custom-id ()
-  "Set a custom ID for the issue."
-  :class 'transient-option
-  :description "Custom ID (--id)"
-  :key "i"
-  :argument "id="
-  :prompt "Custom ID: "
-  :reader (lambda (_prompt _initial-input _history)
-            (read-string "Custom ID (e.g., worker1-100): ")))
-
-(transient-define-infix beads-create--infix-dependencies ()
-  "Set dependencies for the issue."
-  :class 'transient-option
-  :description "Dependencies (--deps)"
-  :key "D"
-  :argument "deps="
-  :prompt "Dependencies: "
-  :reader (lambda (_prompt _initial-input _history)
-            (read-string
-             "Dependencies (type:id, e.g., blocks:bd-1): ")))
-
-(transient-define-infix beads-create--infix-acceptance ()
-  "Set acceptance criteria using a multiline editor."
-  :class 'beads-create-transient-multiline
-  :description "Acceptance (--acceptance)"
-  :key "a"
-  :argument "acceptance="
-  :prompt "Acceptance criteria: "
-  :field-name "Acceptance")
-
-(transient-define-infix beads-create--infix-assignee ()
-  "Set the assignee of the issue."
-  :class 'transient-option
-  :description "Assignee (-a)"
-  :key "A"
-  :argument "assignee="
-  :prompt "Assignee: "
-  :reader (lambda (_prompt _initial-input _history)
-            (read-string "Assignee: ")))
-
-(transient-define-infix beads-create--infix-design ()
-  "Set design notes using a multiline editor."
-  :class 'beads-create-transient-multiline
-  :description "Design (--design)"
-  :key "g"
-  :argument "design="
-  :prompt "Design notes: "
-  :field-name "Design")
-
-(transient-define-infix beads-create--infix-external-ref ()
-  "Set external reference (e.g., gh-9, jira-ABC)."
-  :class 'transient-option
-  :description "External Ref (--external-ref)"
-  :key "e"
-  :argument "external-ref="
-  :prompt "External reference: "
-  :reader (lambda (_prompt _initial-input _history)
-            (read-string "External ref (e.g., gh-9, jira-ABC): ")))
-
-(transient-define-infix beads-create--infix-labels ()
-  "Set labels for the issue."
-  :class 'transient-option
-  :description "Labels (-l)"
-  :key "l"
-  :argument "labels="
-  :prompt "Labels: "
-  :reader (lambda (_prompt _initial-input _history)
-            (read-string "Labels (comma-separated): ")))
-
-(transient-define-infix beads-create--infix-force ()
-  "Force creation even if prefix doesn't match database prefix."
-  :class 'transient-switch
-  :description "Force (--force)"
-  :key "f"
-  :argument "--force")
-
 ;;; Suffix Commands
 
 (transient-define-suffix beads-create--execute ()
@@ -456,23 +262,23 @@ validated before execution."
   :value (lambda () nil)
   ["Issue Details"
    ["Basic"
-    (beads-create--infix-title)
-    (beads-create--infix-type)
-    (beads-create--infix-priority)]
+    (beads-option-create-title)
+    (beads-option-create-type)
+    (beads-option-create-priority)]
    ["Content"
-    (beads-create--infix-description)
-    (beads-create--infix-acceptance)
-    (beads-create--infix-design)]
+    (beads-option-create-description)
+    (beads-option-create-acceptance)
+    (beads-option-create-design)]
    ["Assignment"
-    (beads-create--infix-assignee)
-    (beads-create--infix-labels)
-    (beads-create--infix-external-ref)]]
+    (beads-option-create-assignee)
+    (beads-option-create-labels)
+    (beads-option-create-external-ref)]]
   ["Advanced"
    ["IDs & Deps"
-    (beads-create--infix-custom-id)
-    (beads-create--infix-dependencies)]
+    (beads-option-create-custom-id)
+    (beads-option-create-dependencies)]
    ["Options"
-    (beads-create--infix-force)]]
+    (beads-option-create-force)]]
   ["Actions"
    ("c" "Create issue" beads-create--execute)
    ("P" "Preview command" beads-create--preview)

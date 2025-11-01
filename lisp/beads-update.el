@@ -38,47 +38,10 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-option)
 (require 'beads-list)
 (require 'beads-show)
 (require 'transient)
-
-;;; Transient State Variables
-
-(defvar beads-update--issue-id nil
-  "Issue ID being updated.")
-
-(defvar beads-update--original-data nil
-  "Original issue data as fetched from bd.")
-
-(defvar beads-update--status nil
-  "New status for the issue.")
-
-(defvar beads-update--priority nil
-  "New priority for the issue.")
-
-(defvar beads-update--type nil
-  "New type for the issue.")
-
-(defvar beads-update--title nil
-  "New title for the issue.")
-
-(defvar beads-update--description nil
-  "New description for the issue.")
-
-(defvar beads-update--acceptance-criteria nil
-  "New acceptance criteria for the issue.")
-
-(defvar beads-update--design nil
-  "New design notes for the issue.")
-
-(defvar beads-update--notes nil
-  "New notes for the issue.")
-
-(defvar beads-update--assignee nil
-  "New assignee for the issue.")
-
-(defvar beads-update--external-ref nil
-  "New external reference for the issue.")
 
 ;;; Utility Functions
 
@@ -281,140 +244,7 @@ Returns list of arguments for bd update command."
                                       (cdr change)))))))
     args))
 
-;;; Infix Commands
-
-(transient-define-infix beads-update--infix-status ()
-  "Set the status of the issue."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "Status (-s)"
-                         (beads-update--format-current-value
-                          beads-update--status
-                          (beads-update--get-original 'status))))
-  :key "s"
-  :argument "status="
-  :prompt "Status: "
-  :choices '("open" "in_progress" "blocked" "closed")
-  :reader (lambda (_prompt _initial-input _history)
-            (let ((status (completing-read
-                          "Status: "
-                          '("open" "in_progress" "blocked" "closed")
-                          nil t
-                          (or beads-update--status
-                              (beads-update--get-original 'status)))))
-              (setq beads-update--status status)
-              status)))
-
-(transient-define-infix beads-update--infix-priority ()
-  "Set the priority of the issue."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "Priority (-p)"
-                         (beads-update--format-current-value
-                          (when beads-update--priority
-                            (number-to-string beads-update--priority))
-                          (when-let* ((p (beads-update--get-original
-                                        'priority)))
-                            (number-to-string p)))))
-  :key "p"
-  :argument "priority="
-  :prompt "Priority: "
-  :reader (lambda (_prompt _initial-input _history)
-            (let* ((choices '(("0 - Critical" . 0)
-                             ("1 - High" . 1)
-                             ("2 - Medium" . 2)
-                             ("3 - Low" . 3)
-                             ("4 - Backlog" . 4)))
-                   (default (or beads-update--priority
-                               (beads-update--get-original 'priority)))
-                   (selection (completing-read
-                              "Priority: "
-                              choices
-                              nil t
-                              (when default
-                                (car (rassoc default choices)))))
-                   (priority (cdr (assoc selection choices))))
-              (setq beads-update--priority priority)
-              (number-to-string priority))))
-
-(transient-define-infix beads-update--infix-type ()
-  "Set the type of the issue."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "Type (-t)"
-                         (beads-update--format-current-value
-                          beads-update--type
-                          (beads-update--get-original 'issue-type))))
-  :key "T"
-  :argument "type="
-  :prompt "Type: "
-  :choices '("bug" "feature" "task" "epic" "chore")
-  :reader (lambda (_prompt _initial-input _history)
-            (let ((type (completing-read
-                        "Type: "
-                        '("bug" "feature" "task" "epic" "chore")
-                        nil t
-                        (or beads-update--type
-                            (beads-update--get-original 'issue-type)))))
-              (setq beads-update--type type)
-              type)))
-
-(transient-define-infix beads-update--infix-title ()
-  "Set the title of the issue."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "Title (--title)"
-                         (beads-update--format-current-value
-                          beads-update--title
-                          (beads-update--get-original 'title))))
-  :key "t"
-  :argument "title="
-  :prompt "Issue title: "
-  :reader (lambda (_prompt _initial-input _history)
-            (let ((title (read-string
-                         "Issue title: "
-                         (or beads-update--title
-                             (beads-update--get-original 'title)))))
-              (setq beads-update--title title)
-              title)))
-
-(transient-define-infix beads-update--infix-assignee ()
-  "Set the assignee of the issue."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "Assignee (-a)"
-                         (beads-update--format-current-value
-                          beads-update--assignee
-                          (beads-update--get-original 'assignee))))
-  :key "a"
-  :argument "assignee="
-  :prompt "Assignee: "
-  :reader (lambda (_prompt _initial-input _history)
-            (let ((assignee (read-string
-                            "Assignee: "
-                            (or beads-update--assignee
-                                (beads-update--get-original 'assignee)))))
-              (setq beads-update--assignee assignee)
-              assignee)))
-
-(transient-define-infix beads-update--infix-external-ref ()
-  "Set the external reference of the issue."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "External Ref (--external-ref)"
-                         (beads-update--format-current-value
-                          beads-update--external-ref
-                          (beads-update--get-original 'external-ref))))
-  :key "x"
-  :argument "external-ref="
-  :prompt "External reference: "
-  :reader (lambda (_prompt _initial-input _history)
-            (let ((ref (read-string
-                       "External reference (e.g., gh-9, jira-ABC): "
-                       (or beads-update--external-ref
-                           (beads-update--get-original 'external-ref)))))
-              (setq beads-update--external-ref ref)
-              ref)))
+;;; Multiline Editor Functions
 
 (defun beads-update--edit-text-multiline (current-value fallback-value callback field-name)
   "Edit text in a multiline buffer.
@@ -600,13 +430,13 @@ After editing, the transient menu is re-displayed."
   "Transient menu for updating an issue in Beads."
   ["Issue Details"
    ["Status & Priority"
-    (beads-update--infix-status)
-    (beads-update--infix-priority)
-    (beads-update--infix-type)]
+    (beads-option-update-status)
+    (beads-option-update-priority)
+    (beads-option-update-type)]
    ["Basic Info"
-    (beads-update--infix-title)
-    (beads-update--infix-assignee)
-    (beads-update--infix-external-ref)]]
+    (beads-option-update-title)
+    (beads-option-update-assignee)
+    (beads-option-update-external-ref)]]
   ["Content Fields"
    (beads-update--infix-description)
    (beads-update--infix-acceptance-multiline)

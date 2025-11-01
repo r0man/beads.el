@@ -22,6 +22,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-option)
 (require 'transient)
 
 ;;; Forward declarations
@@ -33,17 +34,6 @@
 ;;; ============================================================
 ;;; bd dep
 ;;; ============================================================
-
-;;; Transient State Variables
-
-(defvar beads-dep--from-issue nil
-  "Source issue ID for dependency operations.")
-
-(defvar beads-dep--to-issue nil
-  "Target issue ID for dependency operations.")
-
-(defvar beads-dep--dep-type nil
-  "Dependency type (blocks, related, parent-child, discovered-from).")
 
 ;;; Utility Functions
 
@@ -93,64 +83,6 @@ Returns list of error messages, or nil if all valid."
       (mapcar (lambda (i) (alist-get 'id i))
               (beads--parse-issues (beads--run-command "list")))
     (error nil)))
-
-;;; Infix Commands
-
-(transient-define-infix beads-dep--infix-from ()
-  "Set the source issue ID."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "From Issue"
-                         (beads-dep--format-value
-                          beads-dep--from-issue)))
-  :key "f"
-  :argument "from="
-  :prompt "From issue: "
-  :reader (lambda (_prompt _initial-input _history)
-            (let ((id (completing-read
-                       "From issue: "
-                       (beads-dep--get-available-issues)
-                       nil nil beads-dep--from-issue)))
-              (setq beads-dep--from-issue id)
-              id)))
-
-(transient-define-infix beads-dep--infix-to ()
-  "Set the target issue ID."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "To Issue"
-                         (beads-dep--format-value
-                          beads-dep--to-issue)))
-  :key "t"
-  :argument "to="
-  :prompt "To issue: "
-  :reader (lambda (_prompt _initial-input _history)
-            (let ((id (completing-read
-                       "To issue: "
-                       (beads-dep--get-available-issues)
-                       nil nil beads-dep--to-issue)))
-              (setq beads-dep--to-issue id)
-              id)))
-
-(transient-define-infix beads-dep--infix-type ()
-  "Set the dependency type."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "Type (--type)"
-                         (beads-dep--format-value
-                          beads-dep--dep-type)))
-  :key "T"
-  :argument "type="
-  :prompt "Dependency type: "
-  :choices '("blocks" "related" "parent-child" "discovered-from")
-  :reader (lambda (_prompt _initial-input _history)
-            (let ((type (completing-read
-                         "Type: "
-                         '("blocks" "related" "parent-child"
-                           "discovered-from")
-                         nil t beads-dep--dep-type)))
-              (setq beads-dep--dep-type type)
-              type)))
 
 ;;; Suffix Commands - Add
 
@@ -324,10 +256,10 @@ listing dependencies."
     (setq beads-dep--from-issue (beads-close--detect-issue-id)))
   ["Dependency Parameters"
    ["Issues"
-    (beads-dep--infix-from)
-    (beads-dep--infix-to)]
+    (beads-option-dep-from)
+    (beads-option-dep-to)]
    ["Type"
-    (beads-dep--infix-type)]]
+    (beads-option-dep-type)]]
   ["Actions"
    ["Modify"
     ("a" "Add dependency" beads-dep--add-command)
@@ -397,24 +329,12 @@ listing dependencies."
 ;;; bd export
 ;;; ============================================================
 
-;;; Transient State Variables
-
-(defvar beads-export--output nil
-  "Output file path for export.")
-
-(defvar beads-export--no-auto-flush nil
-  "Whether to disable auto-flush.")
-
-(defvar beads-export--status nil
-  "Status filter for export.")
-
 ;;; Utility Functions
 
 (defun beads-export--reset-state ()
   "Reset export transient state."
   (setq beads-export--output nil
-        beads-export--no-auto-flush nil
-        beads-export--status nil))
+        beads-export--no-auto-flush nil))
 
 (defun beads-export--format-value (value)
   "Format VALUE for display in transient menu."
@@ -426,39 +346,6 @@ listing dependencies."
   "Get default output path (.beads/issues.jsonl)."
   (when-let* ((beads-dir (beads--find-beads-dir)))
     (expand-file-name "issues.jsonl" beads-dir)))
-
-;;; Infix Commands
-
-(transient-define-infix beads-export--infix-output ()
-  "Set the output file path."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "Output (--output)"
-                         (beads-export--format-value
-                          (or beads-export--output
-                              (beads-export--get-default-output)))))
-  :key "o"
-  :argument "output="
-  :prompt "Output file: "
-  :reader (lambda (_prompt _initial-input _history)
-            (let ((path (read-file-name
-                         "Output file: "
-                         nil
-                         (or beads-export--output
-                             (beads-export--get-default-output)))))
-              (setq beads-export--output path)
-              path)))
-
-(transient-define-infix beads-export--infix-no-auto-flush ()
-  "Toggle no-auto-flush flag."
-  :class 'transient-switch
-  :description "Disable auto-flush (--no-auto-flush)"
-  :key "n"
-  :argument "--no-auto-flush"
-  :reader (lambda (_prompt _initial-input _history)
-            (setq beads-export--no-auto-flush
-                  (not beads-export--no-auto-flush))
-            beads-export--no-auto-flush))
 
 ;;; Suffix Commands
 
@@ -513,8 +400,8 @@ JSONL format.  The default output is .beads/issues.jsonl."
   (interactive)
   (beads-check-executable)
   ["Export Parameters"
-   (beads-export--infix-output)
-   (beads-export--infix-no-auto-flush)]
+   (beads-option-export-output)
+   (beads-option-export-no-auto-flush)]
   ["Actions"
    ("e" "Export" beads-export--execute-command)
    ("R" "Reset fields" beads-export--reset)
@@ -524,32 +411,13 @@ JSONL format.  The default output is .beads/issues.jsonl."
 ;;; bd import
 ;;; ============================================================
 
-;;; Transient State Variables
-
-(defvar beads-import--input nil
-  "Input file path for import.")
-
-(defvar beads-import--dry-run nil
-  "Whether to run in dry-run mode.")
-
-(defvar beads-import--resolve-collisions nil
-  "Whether to auto-resolve collisions.")
-
-(defvar beads-import--skip-existing nil
-  "Whether to skip existing issues during import.")
-
-(defvar beads-import--strict nil
-  "Whether to use strict mode during import.")
-
 ;;; Utility Functions
 
 (defun beads-import--reset-state ()
   "Reset import transient state."
   (setq beads-import--input nil
         beads-import--dry-run nil
-        beads-import--resolve-collisions nil
-        beads-import--skip-existing nil
-        beads-import--strict nil))
+        beads-import--resolve-collisions nil))
 
 (defun beads-import--format-value (value)
   "Format VALUE for display in transient menu."
@@ -573,50 +441,6 @@ Returns error message string if invalid, nil if valid."
   "Validate all parameters.
 Returns list of error messages, or nil if all valid."
   (delq nil (list (beads-import--validate-input))))
-
-;;; Infix Commands
-
-(transient-define-infix beads-import--infix-input ()
-  "Set the input file path."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "Input (--input, required)"
-                         (beads-import--format-value
-                          beads-import--input)))
-  :key "i"
-  :argument "input="
-  :prompt "Input file: "
-  :reader (lambda (_prompt _initial-input _history)
-            (let ((path (read-file-name
-                         "Input file: "
-                         nil
-                         (or beads-import--input
-                             (beads-import--get-default-input))
-                         t)))
-              (setq beads-import--input path)
-              path)))
-
-(transient-define-infix beads-import--infix-dry-run ()
-  "Toggle dry-run flag."
-  :class 'transient-switch
-  :description "Dry run (--dry-run)"
-  :key "d"
-  :argument "--dry-run"
-  :reader (lambda (_prompt _initial-input _history)
-            (setq beads-import--dry-run
-                  (not beads-import--dry-run))
-            beads-import--dry-run))
-
-(transient-define-infix beads-import--infix-resolve-collisions ()
-  "Toggle resolve-collisions flag."
-  :class 'transient-switch
-  :description "Resolve collisions (--resolve-collisions)"
-  :key "r"
-  :argument "--resolve-collisions"
-  :reader (lambda (_prompt _initial-input _history)
-            (setq beads-import--resolve-collisions
-                  (not beads-import--resolve-collisions))
-            beads-import--resolve-collisions))
 
 ;;; Suffix Commands
 
@@ -693,10 +517,10 @@ automatic collision resolution for branch merges."
   (interactive)
   (beads-check-executable)
   ["Import Parameters"
-   (beads-import--infix-input)]
+   (beads-option-import-input)]
   ["Options"
-   (beads-import--infix-dry-run)
-   (beads-import--infix-resolve-collisions)]
+   (beads-option-import-dry-run)
+   (beads-option-import-resolve-collisions)]
   ["Actions"
    ("i" "Import" beads-import--execute-command)
    ("R" "Reset fields" beads-import--reset)
@@ -705,14 +529,6 @@ automatic collision resolution for branch merges."
 ;;; ============================================================
 ;;; bd init
 ;;; ============================================================
-
-;;; Transient State Variables
-
-(defvar beads-init--prefix nil
-  "Issue ID prefix for new project.")
-
-(defvar beads-init--db-path nil
-  "Database path for new project.")
 
 ;;; Utility Functions
 
@@ -726,42 +542,6 @@ automatic collision resolution for branch merges."
   (if value
       (propertize (format " [%s]" value) 'face 'transient-value)
     (propertize " [unset]" 'face 'transient-inactive-value)))
-
-;;; Infix Commands
-
-(transient-define-infix beads-init--infix-prefix ()
-  "Set the issue ID prefix."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "Prefix (--prefix)"
-                         (beads-init--format-value
-                          beads-init--prefix)))
-  :key "p"
-  :argument "prefix="
-  :prompt "Issue ID prefix: "
-  :reader (lambda (_prompt _initial-input _history)
-            (let ((prefix (read-string "Issue ID prefix (e.g., bd): "
-                                       beads-init--prefix)))
-              (setq beads-init--prefix prefix)
-              prefix)))
-
-(transient-define-infix beads-init--infix-db ()
-  "Set the database path."
-  :class 'transient-option
-  :description (lambda ()
-                 (concat "Database (--db)"
-                         (beads-init--format-value
-                          beads-init--db-path)))
-  :key "d"
-  :argument "db="
-  :prompt "Database path: "
-  :reader (lambda (_prompt _initial-input _history)
-            (let ((path (read-file-name
-                         "Database path: "
-                         nil
-                         beads-init--db-path)))
-              (setq beads-init--db-path path)
-              path)))
 
 ;;; Suffix Commands
 
@@ -817,8 +597,8 @@ issue ID prefix and database path."
   (interactive)
   (beads-check-executable)
   ["Initialization Parameters"
-   (beads-init--infix-prefix)
-   (beads-init--infix-db)]
+   (beads-option-init-prefix)
+   (beads-option-init-db)]
   ["Actions"
    ("i" "Initialize" beads-init--execute-command)
    ("R" "Reset fields" beads-init--reset)
