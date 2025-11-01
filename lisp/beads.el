@@ -228,13 +228,16 @@ Works over Tramp when `default-directory' is a remote path."
     (beads--log 'verbose "In directory: %s" default-directory)
     (with-temp-buffer
       (let* ((exit-code (apply #'process-file
-                               (car cmd) nil t nil (cdr cmd)))
+                               (car cmd) nil '(t nil) nil (cdr cmd)))
              (output (buffer-string)))
         (beads--log 'verbose "Exit code: %d" exit-code)
         (beads--log 'verbose "Output: %s" output)
         (if (zerop exit-code)
             (condition-case err
-                (json-read-from-string output)
+                (let ((json-object-type 'alist)
+                      (json-array-type 'vector)
+                      (json-key-type 'symbol))
+                  (json-read-from-string output))
               (error
                (beads--error "Failed to parse JSON: %s" (error-message-string err))))
           (beads--error "Command failed (exit %d): %s" exit-code output))))))
@@ -262,7 +265,10 @@ Works over Tramp when `default-directory' is a remote path."
                  (beads--log 'verbose "Async output: %s" output)
                  (if (zerop exit-code)
                      (condition-case err
-                         (funcall callback (json-read-from-string output))
+                         (let ((json-object-type 'alist)
+                               (json-array-type 'vector)
+                               (json-key-type 'symbol))
+                           (funcall callback (json-read-from-string output)))
                        (error
                         (beads--error "Failed to parse JSON: %s"
                                       (error-message-string err))))

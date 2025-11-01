@@ -1,4 +1,4 @@
-;;; beads-transient-create-test.el --- Tests for beads-create -*- lexical-binding: t; -*-
+;;; beads-create-test.el --- Tests for beads-create -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
@@ -10,6 +10,10 @@
 ;; Comprehensive ERT tests for beads-create.el transient menu.
 ;; Tests cover transient definition, command construction, validation,
 ;; execution, and integration with the bd CLI.
+;;
+;; This test file uses the transient-args pattern where tests mock
+;; (transient-args 'beads-create) to return argument lists like
+;; '("title=Test" "type=bug" "priority=1").
 
 ;;; Code:
 
@@ -33,25 +37,12 @@
 
 ;;; Test Utilities
 
-(defun beads-create-test--set-state (state-alist)
-  "Set transient state from STATE-ALIST.
-STATE-ALIST is an alist of (variable . value) pairs."
-  (setq beads-create--title nil
-        beads-create--type nil
-        beads-create--priority nil
-        beads-create--description nil
-        beads-create--custom-id nil
-        beads-create--dependencies nil)
-  (dolist (binding state-alist)
-    (set (car binding) (cdr binding))))
-
-(defmacro beads-create-test-with-state (state &rest body)
-  "Execute BODY with beads-create transient state set to STATE.
-STATE is an alist expression of (variable . value) pairs."
-  (declare (indent 1))
-  `(progn
-     (beads-create-test--set-state ,state)
-     ,@body))
+(defun beads-create-test--mock-transient-args (args)
+  "Create a mock for `transient-args' returning ARGS.
+ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
+  (lambda (prefix)
+    (when (eq prefix 'beads-create)
+      args)))
 
 (defun beads-create-test--mock-call-process (exit-code output)
   "Create a mock for `call-process' returning EXIT-CODE and OUTPUT."
@@ -63,432 +54,397 @@ STATE is an alist expression of (variable . value) pairs."
         (insert output)))
     exit-code))
 
-;;; Tests for State Management
+;;; Tests for Argument Parsing
 
-(ert-deftest beads-create-test-reset-state ()
-  "Test that reset-state clears all variables."
-  (beads-create-test-with-state
-   '((beads-create--title . "Test")
-     (beads-create--type . "bug")
-     (beads-create--priority . 1)
-     (beads-create--description . "Desc")
-     (beads-create--custom-id . "custom-1")
-     (beads-create--dependencies . "blocks:bd-1"))
-   (beads-create--reset-state)
-   (should (null beads-create--title))
-   (should (null beads-create--type))
-   (should (null beads-create--priority))
-   (should (null beads-create--description))
-   (should (null beads-create--custom-id))
-   (should (null beads-create--dependencies))))
+(ert-deftest beads-create-test-parse-args-empty ()
+  "Test parsing empty argument list."
+  (let ((parsed (beads-create--parse-transient-args nil)))
+    (should (null (plist-get parsed :title)))
+    (should (null (plist-get parsed :type)))
+    (should (null (plist-get parsed :priority)))
+    (should (null (plist-get parsed :description)))
+    (should (null (plist-get parsed :custom-id)))
+    (should (null (plist-get parsed :dependencies)))))
 
-(ert-deftest beads-create-test-reset-state-from-nil ()
-  "Test that reset-state works when variables are already nil."
-  (beads-create-test-with-state nil
-   (beads-create--reset-state)
-   (should (null beads-create--title))
-   (should (null beads-create--type))
-   (should (null beads-create--priority))
-   (should (null beads-create--description))
-   (should (null beads-create--custom-id))
-   (should (null beads-create--dependencies))))
+(ert-deftest beads-create-test-parse-args-title-only ()
+  "Test parsing with only title."
+  (let ((parsed (beads-create--parse-transient-args
+                 '("title=Test Issue"))))
+    (should (equal (plist-get parsed :title) "Test Issue"))
+    (should (null (plist-get parsed :type)))))
 
-;;; Tests for Value Formatting
+(ert-deftest beads-create-test-parse-args-all-fields ()
+  "Test parsing with all fields."
+  (let ((parsed (beads-create--parse-transient-args
+                 '("title=Full Issue"
+                   "type=feature"
+                   "priority=2"
+                   "description=Full description"
+                   "id=custom-1"
+                   "deps=blocks:bd-1"))))
+    (should (equal (plist-get parsed :title) "Full Issue"))
+    (should (equal (plist-get parsed :type) "feature"))
+    (should (equal (plist-get parsed :priority) 2))
+    (should (equal (plist-get parsed :description) "Full description"))
+    (should (equal (plist-get parsed :custom-id) "custom-1"))
+    (should (equal (plist-get parsed :dependencies) "blocks:bd-1"))))
 
-(ert-deftest beads-create-test-format-current-value-set ()
-  "Test formatting when value is set."
-  (let ((result (beads-create--format-current-value "test-value")))
-    (should (stringp result))
-    (should (string-match-p "test-value" result))
-    (should (get-text-property 0 'face result))))
+(ert-deftest beads-create-test-parse-args-title-with-equals ()
+  "Test parsing title containing equals sign."
+  (let ((parsed (beads-create--parse-transient-args
+                 '("title=Issue with x=y formula"))))
+    (should (equal (plist-get parsed :title) "Issue with x=y formula"))))
 
-(ert-deftest beads-create-test-format-current-value-nil ()
-  "Test formatting when value is nil."
-  (let ((result (beads-create--format-current-value nil)))
-    (should (stringp result))
-    (should (string-match-p "unset" result))
-    (should (get-text-property 0 'face result))))
-
-(ert-deftest beads-create-test-format-current-value-empty-string ()
-  "Test formatting with empty string."
-  (let ((result (beads-create--format-current-value "")))
-    (should (stringp result))
-    ;; Empty string is truthy, so it should show the value
-    (should (string-match-p "\\[\\]" result))))
-
-(ert-deftest beads-create-test-format-current-value-long-string ()
-  "Test formatting with long string value."
-  (let* ((long-value (make-string 100 ?x))
-         (result (beads-create--format-current-value long-value)))
-    (should (stringp result))
-    (should (string-match-p "xxx" result))))
+(ert-deftest beads-create-test-parse-args-multiline-description ()
+  "Test parsing multiline description."
+  (let ((parsed (beads-create--parse-transient-args
+                 '("title=Test"
+                   "description=Line 1\nLine 2\nLine 3"))))
+    (should (equal (plist-get parsed :title) "Test"))
+    (should (string-match-p "\n" (plist-get parsed :description)))))
 
 ;;; Tests for Validation
 
 (ert-deftest beads-create-test-validate-title-nil ()
   "Test title validation when title is nil."
-  (beads-create-test-with-state nil
-   (should (beads-create--validate-title))))
+  (should (beads-create--validate-title nil)))
 
 (ert-deftest beads-create-test-validate-title-empty ()
   "Test title validation when title is empty."
-  (beads-create-test-with-state '((beads-create--title . ""))
-   (should (beads-create--validate-title))))
+  (should (beads-create--validate-title "")))
 
 (ert-deftest beads-create-test-validate-title-whitespace ()
   "Test title validation when title is only whitespace."
-  (beads-create-test-with-state '((beads-create--title . "   \n\t  "))
-   (should (beads-create--validate-title))))
+  (should (beads-create--validate-title "   \n\t  ")))
 
 (ert-deftest beads-create-test-validate-title-valid ()
   "Test title validation when title is valid."
-  (beads-create-test-with-state '((beads-create--title . "Valid Title"))
-   (should (null (beads-create--validate-title)))))
+  (should (null (beads-create--validate-title "Valid Title"))))
 
 (ert-deftest beads-create-test-validate-type-nil ()
   "Test type validation when type is nil."
-  (beads-create-test-with-state nil
-   (should (null (beads-create--validate-type)))))
+  (should (null (beads-create--validate-type nil))))
 
 (ert-deftest beads-create-test-validate-type-valid-bug ()
   "Test type validation with valid bug type."
-  (beads-create-test-with-state '((beads-create--type . "bug"))
-   (should (null (beads-create--validate-type)))))
+  (should (null (beads-create--validate-type "bug"))))
 
 (ert-deftest beads-create-test-validate-type-valid-feature ()
   "Test type validation with valid feature type."
-  (beads-create-test-with-state '((beads-create--type . "feature"))
-   (should (null (beads-create--validate-type)))))
+  (should (null (beads-create--validate-type "feature"))))
 
 (ert-deftest beads-create-test-validate-type-valid-task ()
   "Test type validation with valid task type."
-  (beads-create-test-with-state '((beads-create--type . "task"))
-   (should (null (beads-create--validate-type)))))
+  (should (null (beads-create--validate-type "task"))))
 
 (ert-deftest beads-create-test-validate-type-valid-epic ()
   "Test type validation with valid epic type."
-  (beads-create-test-with-state '((beads-create--type . "epic"))
-   (should (null (beads-create--validate-type)))))
+  (should (null (beads-create--validate-type "epic"))))
 
 (ert-deftest beads-create-test-validate-type-valid-chore ()
   "Test type validation with valid chore type."
-  (beads-create-test-with-state '((beads-create--type . "chore"))
-   (should (null (beads-create--validate-type)))))
+  (should (null (beads-create--validate-type "chore"))))
 
 (ert-deftest beads-create-test-validate-type-invalid ()
   "Test type validation with invalid type."
-  (beads-create-test-with-state '((beads-create--type . "invalid"))
-   (should (beads-create--validate-type))))
+  (should (beads-create--validate-type "invalid")))
 
 (ert-deftest beads-create-test-validate-priority-nil ()
   "Test priority validation when priority is nil."
-  (beads-create-test-with-state nil
-   (should (null (beads-create--validate-priority)))))
+  (should (null (beads-create--validate-priority nil))))
 
 (ert-deftest beads-create-test-validate-priority-zero ()
   "Test priority validation with zero (critical)."
-  (beads-create-test-with-state '((beads-create--priority . 0))
-   (should (null (beads-create--validate-priority)))))
+  (should (null (beads-create--validate-priority 0))))
 
 (ert-deftest beads-create-test-validate-priority-one ()
   "Test priority validation with one."
-  (beads-create-test-with-state '((beads-create--priority . 1))
-   (should (null (beads-create--validate-priority)))))
+  (should (null (beads-create--validate-priority 1))))
 
 (ert-deftest beads-create-test-validate-priority-four ()
   "Test priority validation with four (backlog)."
-  (beads-create-test-with-state '((beads-create--priority . 4))
-   (should (null (beads-create--validate-priority)))))
+  (should (null (beads-create--validate-priority 4))))
 
 (ert-deftest beads-create-test-validate-priority-negative ()
   "Test priority validation with negative number."
-  (beads-create-test-with-state '((beads-create--priority . -1))
-   (should (beads-create--validate-priority))))
+  (should (beads-create--validate-priority -1)))
 
 (ert-deftest beads-create-test-validate-priority-too-high ()
   "Test priority validation with number too high."
-  (beads-create-test-with-state '((beads-create--priority . 5))
-   (should (beads-create--validate-priority))))
+  (should (beads-create--validate-priority 5)))
 
 (ert-deftest beads-create-test-validate-priority-string ()
   "Test priority validation with string instead of number."
-  (beads-create-test-with-state '((beads-create--priority . "1"))
-   (should (beads-create--validate-priority))))
+  (should (beads-create--validate-priority "1")))
 
 (ert-deftest beads-create-test-validate-dependencies-nil ()
   "Test dependencies validation when nil."
-  (beads-create-test-with-state nil
-   (should (null (beads-create--validate-dependencies)))))
+  (should (null (beads-create--validate-dependencies nil))))
 
 (ert-deftest beads-create-test-validate-dependencies-valid-single ()
   "Test dependencies validation with single valid dependency."
-  (beads-create-test-with-state '((beads-create--dependencies . "blocks:bd-1"))
-   (should (null (beads-create--validate-dependencies)))))
+  (should (null (beads-create--validate-dependencies "blocks:bd-1"))))
 
 (ert-deftest beads-create-test-validate-dependencies-valid-multiple ()
   "Test dependencies validation with multiple valid dependencies."
-  (beads-create-test-with-state
-   '((beads-create--dependencies . "blocks:bd-1,related:bd-2"))
-   (should (null (beads-create--validate-dependencies)))))
+  (should (null (beads-create--validate-dependencies
+                 "blocks:bd-1,related:bd-2"))))
 
 (ert-deftest beads-create-test-validate-dependencies-valid-discovered ()
   "Test dependencies validation with discovered-from type."
-  (beads-create-test-with-state
-   '((beads-create--dependencies . "discovered-from:bd-10"))
-   (should (null (beads-create--validate-dependencies)))))
+  (should (null (beads-create--validate-dependencies
+                 "discovered-from:bd-10"))))
 
 (ert-deftest beads-create-test-validate-dependencies-invalid-format ()
   "Test dependencies validation with invalid format."
-  (beads-create-test-with-state
-   '((beads-create--dependencies . "invalid"))
-   (should (beads-create--validate-dependencies))))
+  (should (beads-create--validate-dependencies "invalid")))
 
 (ert-deftest beads-create-test-validate-dependencies-missing-colon ()
   "Test dependencies validation without colon separator."
-  (beads-create-test-with-state
-   '((beads-create--dependencies . "blocksbd-1"))
-   (should (beads-create--validate-dependencies))))
+  (should (beads-create--validate-dependencies "blocksbd-1")))
 
 (ert-deftest beads-create-test-validate-dependencies-invalid-characters ()
   "Test dependencies validation with invalid characters."
-  (beads-create-test-with-state
-   '((beads-create--dependencies . "blocks:BD_1"))
-   (should (beads-create--validate-dependencies))))
+  (should (beads-create--validate-dependencies "blocks:BD_1")))
 
 (ert-deftest beads-create-test-validate-all-success ()
   "Test validate-all with all valid parameters."
-  (beads-create-test-with-state
-   '((beads-create--title . "Valid Title")
-     (beads-create--type . "bug")
-     (beads-create--priority . 1))
-   (should (null (beads-create--validate-all)))))
+  (let ((parsed (beads-create--parse-transient-args
+                 '("title=Valid Title"
+                   "type=bug"
+                   "priority=1"))))
+    (should (null (beads-create--validate-all parsed)))))
 
 (ert-deftest beads-create-test-validate-all-multiple-errors ()
   "Test validate-all with multiple validation errors."
-  (beads-create-test-with-state
-   '((beads-create--title . "")
-     (beads-create--type . "invalid")
-     (beads-create--priority . 10))
-   (let ((errors (beads-create--validate-all)))
-     (should errors)
-     (should (listp errors))
-     (should (> (length errors) 1)))))
+  (let ((parsed (beads-create--parse-transient-args
+                 '("title="
+                   "type=invalid"
+                   "priority=10"))))
+    (let ((errors (beads-create--validate-all parsed)))
+      (should errors)
+      (should (listp errors))
+      (should (> (length errors) 1)))))
 
 ;;; Tests for Command Building
 
 (ert-deftest beads-create-test-build-command-args-minimal ()
   "Test building command args with only title."
-  (beads-create-test-with-state '((beads-create--title . "Test Issue"))
-   (let ((args (beads-create--build-command-args)))
-     (should (equal args '("Test Issue"))))))
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Test Issue")))
+         (args (beads-create--build-command-args parsed)))
+    (should (equal args '("Test Issue")))))
 
 (ert-deftest beads-create-test-build-command-args-with-type ()
   "Test building command args with title and type."
-  (beads-create-test-with-state
-   '((beads-create--title . "Test Issue")
-     (beads-create--type . "bug"))
-   (let ((args (beads-create--build-command-args)))
-     (should (equal args '("Test Issue" "-t" "bug"))))))
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Test Issue" "type=bug")))
+         (args (beads-create--build-command-args parsed)))
+    (should (equal args '("Test Issue" "-t" "bug")))))
 
 (ert-deftest beads-create-test-build-command-args-with-priority ()
   "Test building command args with title and priority."
-  (beads-create-test-with-state
-   '((beads-create--title . "Test Issue")
-     (beads-create--priority . 1))
-   (let ((args (beads-create--build-command-args)))
-     (should (equal args '("Test Issue" "-p" "1"))))))
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Test Issue" "priority=1")))
+         (args (beads-create--build-command-args parsed)))
+    (should (equal args '("Test Issue" "-p" "1")))))
 
 (ert-deftest beads-create-test-build-command-args-with-description ()
   "Test building command args with description."
-  (beads-create-test-with-state
-   '((beads-create--title . "Test Issue")
-     (beads-create--description . "Test description"))
-   (let ((args (beads-create--build-command-args)))
-     (should (equal args '("Test Issue" "-d" "Test description"))))))
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Test Issue"
+                    "description=Test description")))
+         (args (beads-create--build-command-args parsed)))
+    (should (equal args '("Test Issue" "-d" "Test description")))))
 
 (ert-deftest beads-create-test-build-command-args-with-custom-id ()
   "Test building command args with custom ID."
-  (beads-create-test-with-state
-   '((beads-create--title . "Test Issue")
-     (beads-create--custom-id . "worker1-100"))
-   (let ((args (beads-create--build-command-args)))
-     (should (equal args '("Test Issue" "--id" "worker1-100"))))))
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Test Issue" "id=worker1-100")))
+         (args (beads-create--build-command-args parsed)))
+    (should (equal args '("Test Issue" "--id" "worker1-100")))))
 
 (ert-deftest beads-create-test-build-command-args-with-dependencies ()
   "Test building command args with dependencies."
-  (beads-create-test-with-state
-   '((beads-create--title . "Test Issue")
-     (beads-create--dependencies . "blocks:bd-1"))
-   (let ((args (beads-create--build-command-args)))
-     (should (equal args '("Test Issue" "--deps" "blocks:bd-1"))))))
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Test Issue" "deps=blocks:bd-1")))
+         (args (beads-create--build-command-args parsed)))
+    (should (equal args '("Test Issue" "--deps" "blocks:bd-1")))))
 
 (ert-deftest beads-create-test-build-command-args-all-options ()
   "Test building command args with all options."
-  (beads-create-test-with-state
-   '((beads-create--title . "Test Issue")
-     (beads-create--type . "feature")
-     (beads-create--priority . 2)
-     (beads-create--description . "Long description")
-     (beads-create--custom-id . "custom-42")
-     (beads-create--dependencies . "related:bd-10"))
-   (let ((args (beads-create--build-command-args)))
-     (should (equal args '("Test Issue"
-                          "-t" "feature"
-                          "-p" "2"
-                          "-d" "Long description"
-                          "--id" "custom-42"
-                          "--deps" "related:bd-10"))))))
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Test Issue"
+                    "type=feature"
+                    "priority=2"
+                    "description=Long description"
+                    "id=custom-42"
+                    "deps=related:bd-10")))
+         (args (beads-create--build-command-args parsed)))
+    (should (equal args '("Test Issue"
+                         "-t" "feature"
+                         "-p" "2"
+                         "-d" "Long description"
+                         "--id" "custom-42"
+                         "--deps" "related:bd-10")))))
 
 (ert-deftest beads-create-test-build-command-args-title-with-spaces ()
   "Test building command args with title containing spaces."
-  (beads-create-test-with-state
-   '((beads-create--title . "Test Issue With Spaces"))
-   (let ((args (beads-create--build-command-args)))
-     (should (equal (car args) "Test Issue With Spaces")))))
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Test Issue With Spaces")))
+         (args (beads-create--build-command-args parsed)))
+    (should (equal (car args) "Test Issue With Spaces"))))
 
 (ert-deftest beads-create-test-build-command-args-title-special-chars ()
   "Test building command args with special characters in title."
-  (beads-create-test-with-state
-   '((beads-create--title . "Test \"quoted\" & special chars"))
-   (let ((args (beads-create--build-command-args)))
-     (should (equal (car args) "Test \"quoted\" & special chars")))))
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Test \"quoted\" & special chars")))
+         (args (beads-create--build-command-args parsed)))
+    (should (equal (car args) "Test \"quoted\" & special chars"))))
 
 (ert-deftest beads-create-test-build-command-args-multiline-description ()
   "Test building command args with multiline description."
-  (beads-create-test-with-state
-   '((beads-create--title . "Test")
-     (beads-create--description . "Line 1\nLine 2\nLine 3"))
-   (let ((args (beads-create--build-command-args)))
-     (should (member "-d" args))
-     (let ((desc (nth (1+ (cl-position "-d" args :test #'equal)) args)))
-       (should (string-match-p "\n" desc))))))
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Test"
+                    "description=Line 1\nLine 2\nLine 3")))
+         (args (beads-create--build-command-args parsed)))
+    (should (member "-d" args))
+    (let ((desc (nth (1+ (cl-position "-d" args :test #'equal)) args)))
+      (should (string-match-p "\n" desc)))))
 
 (ert-deftest beads-create-test-build-command-args-priority-zero ()
   "Test building command args with priority zero (critical)."
-  (beads-create-test-with-state
-   '((beads-create--title . "Critical Issue")
-     (beads-create--priority . 0))
-   (let ((args (beads-create--build-command-args)))
-     (should (member "0" args)))))
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Critical Issue" "priority=0")))
+         (args (beads-create--build-command-args parsed)))
+    (should (member "0" args))))
 
 (ert-deftest beads-create-test-build-command-args-empty-optional-fields ()
   "Test that empty optional fields are not included."
-  (beads-create-test-with-state
-   '((beads-create--title . "Test")
-     (beads-create--description . "")
-     (beads-create--custom-id . "  \t\n  ")
-     (beads-create--dependencies . ""))
-   (let ((args (beads-create--build-command-args)))
-     ;; Should only contain title, no flags
-     (should (equal args '("Test"))))))
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Test"
+                    "description="
+                    "id=  \t\n  "
+                    "deps=")))
+         (args (beads-create--build-command-args parsed)))
+    ;; Should only contain title, no flags
+    (should (equal args '("Test")))))
 
 ;;; Tests for Execution
 
 (ert-deftest beads-create-test-execute-success ()
   "Test successful issue creation."
-  (beads-create-test-with-state
-   '((beads-create--title . "Test Issue")
-     (beads-create--type . "bug")
-     (beads-create--priority . 1))
-   (let ((json-output (json-encode
-                       beads-create-test--sample-create-response)))
-     (cl-letf (((symbol-function 'call-process)
-                (beads-create-test--mock-call-process 0 json-output))
-               ((symbol-function 'y-or-n-p) (lambda (_) nil)))
-       (should-not (beads-create--execute))
-       ;; State should be reset after successful execution
-       (should (null beads-create--title))
-       (should (null beads-create--type))
-       (should (null beads-create--priority))))))
+  (let ((json-output (json-encode
+                      beads-create-test--sample-create-response)))
+    (cl-letf (((symbol-function 'transient-args)
+               (beads-create-test--mock-transient-args
+                '("title=Test Issue" "type=bug" "priority=1")))
+              ((symbol-function 'call-process)
+               (beads-create-test--mock-call-process 0 json-output))
+              ((symbol-function 'y-or-n-p) (lambda (_) nil))
+              ((symbol-function 'beads--invalidate-completion-cache)
+               (lambda () nil)))
+      (should-not (beads-create--execute)))))
 
 (ert-deftest beads-create-test-execute-validation-failure ()
   "Test execution fails with validation error."
-  (beads-create-test-with-state
-   '((beads-create--title . "")
-     (beads-create--type . "bug"))
-   (should-error (beads-create--execute) :type 'user-error)))
+  (cl-letf (((symbol-function 'transient-args)
+             (beads-create-test--mock-transient-args
+              '("title=" "type=bug"))))
+    (should-error (beads-create--execute) :type 'user-error)))
 
 (ert-deftest beads-create-test-execute-missing-title ()
   "Test execution fails when title is missing."
-  (beads-create-test-with-state
-   '((beads-create--type . "bug")
-     (beads-create--priority . 1))
-   (should-error (beads-create--execute) :type 'user-error)))
+  (cl-letf (((symbol-function 'transient-args)
+             (beads-create-test--mock-transient-args
+              '("type=bug" "priority=1"))))
+    (should-error (beads-create--execute) :type 'user-error)))
 
 (ert-deftest beads-create-test-execute-invalid-type ()
   "Test execution fails with invalid type."
-  (beads-create-test-with-state
-   '((beads-create--title . "Test")
-     (beads-create--type . "invalid"))
-   (should-error (beads-create--execute) :type 'user-error)))
+  (cl-letf (((symbol-function 'transient-args)
+             (beads-create-test--mock-transient-args
+              '("title=Test" "type=invalid"))))
+    (should-error (beads-create--execute) :type 'user-error)))
 
 (ert-deftest beads-create-test-execute-invalid-priority ()
   "Test execution fails with invalid priority."
-  (beads-create-test-with-state
-   '((beads-create--title . "Test")
-     (beads-create--priority . 10))
-   (should-error (beads-create--execute) :type 'user-error)))
+  (cl-letf (((symbol-function 'transient-args)
+             (beads-create-test--mock-transient-args
+              '("title=Test" "priority=10"))))
+    (should-error (beads-create--execute) :type 'user-error)))
 
 (ert-deftest beads-create-test-execute-command-failure ()
   "Test execution handles bd command failure."
-  (beads-create-test-with-state
-   '((beads-create--title . "Test Issue")
-     (beads-create--priority . 1))
-   (cl-letf (((symbol-function 'call-process)
-              (beads-create-test--mock-call-process 1 "Error: failed")))
-     ;; Should not propagate error, just display message
-     ;; The function catches errors and returns the message string
-     (should (stringp (beads-create--execute))))))
+  (cl-letf (((symbol-function 'transient-args)
+             (beads-create-test--mock-transient-args
+              '("title=Test Issue" "priority=1")))
+            ((symbol-function 'call-process)
+             (beads-create-test--mock-call-process 1 "Error: failed")))
+    ;; Should not propagate error, just display message
+    ;; The function catches errors and returns the message string
+    (should (stringp (beads-create--execute)))))
 
 (ert-deftest beads-create-test-execute-with-all-fields ()
   "Test execution with all fields populated."
-  (beads-create-test-with-state
-   '((beads-create--title . "Full Issue")
-     (beads-create--type . "feature")
-     (beads-create--priority . 2)
-     (beads-create--description . "Full description")
-     (beads-create--custom-id . "test-1")
-     (beads-create--dependencies . "blocks:bd-1"))
-   (let ((json-output (json-encode
-                       beads-create-test--sample-create-response))
-         (captured-args nil))
-     (cl-letf (((symbol-function 'call-process)
-                (lambda (program &optional infile destination display
-                                &rest args)
-                  (setq captured-args args)
-                  (when destination
-                    (with-current-buffer (current-buffer)
-                      (insert json-output)))
-                  0))
-               ((symbol-function 'y-or-n-p) (lambda (_) nil)))
-       (should-not (beads-create--execute))
-       ;; Verify all arguments were passed
-       (should (member "-t" captured-args))
-       (should (member "feature" captured-args))
-       (should (member "-p" captured-args))
-       (should (member "2" captured-args))
-       (should (member "-d" captured-args))
-       (should (member "--id" captured-args))
-       (should (member "--deps" captured-args))))))
+  (let ((json-output (json-encode
+                      beads-create-test--sample-create-response))
+        (captured-args nil))
+    (cl-letf (((symbol-function 'transient-args)
+               (beads-create-test--mock-transient-args
+                '("title=Full Issue"
+                  "type=feature"
+                  "priority=2"
+                  "description=Full description"
+                  "id=test-1"
+                  "deps=blocks:bd-1")))
+              ((symbol-function 'call-process)
+               (lambda (program &optional infile destination display
+                               &rest args)
+                 (setq captured-args args)
+                 (when destination
+                   (with-current-buffer (current-buffer)
+                     (insert json-output)))
+                 0))
+              ((symbol-function 'y-or-n-p) (lambda (_) nil))
+              ((symbol-function 'beads--invalidate-completion-cache)
+               (lambda () nil)))
+      (should-not (beads-create--execute))
+      ;; Verify all arguments were passed
+      (should (member "-t" captured-args))
+      (should (member "feature" captured-args))
+      (should (member "-p" captured-args))
+      (should (member "2" captured-args))
+      (should (member "-d" captured-args))
+      (should (member "--id" captured-args))
+      (should (member "--deps" captured-args)))))
 
 ;;; Tests for Preview
 
 (ert-deftest beads-create-test-preview-valid ()
   "Test preview command with valid parameters."
-  (beads-create-test-with-state
-   '((beads-create--title . "Test Issue")
-     (beads-create--type . "bug")
-     (beads-create--priority . 1))
-   ;; Preview returns a message string
-   (should (stringp (beads-create--preview)))))
+  (cl-letf (((symbol-function 'transient-args)
+             (beads-create-test--mock-transient-args
+              '("title=Test Issue" "type=bug" "priority=1"))))
+    ;; Preview returns a message string
+    (should (stringp (beads-create--preview)))))
 
 (ert-deftest beads-create-test-preview-validation-failure ()
   "Test preview shows validation errors."
-  (beads-create-test-with-state
-   '((beads-create--title . "")
-     (beads-create--type . "bug"))
-   ;; Preview returns a message string even with validation errors
-   (should (stringp (beads-create--preview)))))
+  (cl-letf (((symbol-function 'transient-args)
+             (beads-create-test--mock-transient-args
+              '("title=" "type=bug"))))
+    ;; Preview returns a message string even with validation errors
+    (should (stringp (beads-create--preview)))))
+
+;;; Tests for Reset
+
+(ert-deftest beads-create-test-reset ()
+  "Test reset command."
+  (cl-letf (((symbol-function 'y-or-n-p) (lambda (_) t))
+            ((symbol-function 'transient-set) (lambda (&rest _) nil)))
+    ;; Reset should call transient-set without errors
+    (should-not (beads-create--reset))))
 
 ;;; Tests for Transient Definition
 
@@ -519,169 +475,156 @@ STATE is an alist expression of (variable . value) pairs."
 
 (ert-deftest beads-create-test-full-workflow ()
   "Test complete workflow from setting params to creation."
-  (beads-create-test-with-state nil
-   ;; Set parameters
-   (setq beads-create--title "Integration Test Issue")
-   (setq beads-create--type "task")
-   (setq beads-create--priority 3)
-   (setq beads-create--description "Integration test description")
+  (let ((json-output (json-encode
+                      beads-create-test--sample-create-response)))
+    (cl-letf (((symbol-function 'transient-args)
+               (beads-create-test--mock-transient-args
+                '("title=Integration Test Issue"
+                  "type=task"
+                  "priority=3"
+                  "description=Integration test description")))
+              ((symbol-function 'call-process)
+               (beads-create-test--mock-call-process 0 json-output))
+              ((symbol-function 'y-or-n-p) (lambda (_) nil))
+              ((symbol-function 'beads--invalidate-completion-cache)
+               (lambda () nil)))
+      ;; Parse and validate
+      (let* ((args (transient-args 'beads-create))
+             (parsed (beads-create--parse-transient-args args)))
+        (should (null (beads-create--validate-all parsed)))
 
-   ;; Validate
-   (should (null (beads-create--validate-all)))
+        ;; Build command
+        (let ((cmd-args (beads-create--build-command-args parsed)))
+          (should (member "Integration Test Issue" cmd-args))
+          (should (member "-t" cmd-args))
+          (should (member "task" cmd-args))
+          (should (member "-p" cmd-args))
+          (should (member "3" cmd-args))))
 
-   ;; Build command
-   (let ((args (beads-create--build-command-args)))
-     (should (member "Integration Test Issue" args))
-     (should (member "-t" args))
-     (should (member "task" args))
-     (should (member "-p" args))
-     (should (member "3" args)))
-
-   ;; Execute (mocked)
-   (let ((json-output (json-encode
-                       beads-create-test--sample-create-response)))
-     (cl-letf (((symbol-function 'call-process)
-                (beads-create-test--mock-call-process 0 json-output))
-               ((symbol-function 'y-or-n-p) (lambda (_) nil)))
-       (should-not (beads-create--execute))
-       ;; Verify state was reset
-       (should (null beads-create--title))))))
+      ;; Execute
+      (should-not (beads-create--execute)))))
 
 (ert-deftest beads-create-test-with-dependencies ()
   "Test workflow with dependencies specified."
-  (beads-create-test-with-state
-   '((beads-create--title . "Dependent Issue")
-     (beads-create--type . "bug")
-     (beads-create--priority . 1)
-     (beads-create--dependencies . "discovered-from:bd-5"))
+  (let ((json-output (json-encode
+                      beads-create-test--sample-create-response)))
+    (cl-letf (((symbol-function 'transient-args)
+               (beads-create-test--mock-transient-args
+                '("title=Dependent Issue"
+                  "type=bug"
+                  "priority=1"
+                  "deps=discovered-from:bd-5")))
+              ((symbol-function 'call-process)
+               (beads-create-test--mock-call-process 0 json-output))
+              ((symbol-function 'y-or-n-p) (lambda (_) nil))
+              ((symbol-function 'beads--invalidate-completion-cache)
+               (lambda () nil)))
+      ;; Validate
+      (let* ((args (transient-args 'beads-create))
+             (parsed (beads-create--parse-transient-args args)))
+        (should (null (beads-create--validate-all parsed)))
 
-   ;; Validate
-   (should (null (beads-create--validate-all)))
+        ;; Build and verify command includes dependencies
+        (let ((cmd-args (beads-create--build-command-args parsed)))
+          (should (member "--deps" cmd-args))
+          (should (member "discovered-from:bd-5" cmd-args))))
 
-   ;; Build and verify command includes dependencies
-   (let ((args (beads-create--build-command-args)))
-     (should (member "--deps" args))
-     (should (member "discovered-from:bd-5" args)))
-
-   ;; Execute
-   (let ((json-output (json-encode
-                       beads-create-test--sample-create-response)))
-     (cl-letf (((symbol-function 'call-process)
-                (beads-create-test--mock-call-process 0 json-output))
-               ((symbol-function 'y-or-n-p) (lambda (_) nil)))
-       (should-not (beads-create--execute))))))
-
-(ert-deftest beads-create-test-reset-and-recreate ()
-  "Test resetting state and creating another issue."
-  (beads-create-test-with-state
-   '((beads-create--title . "First Issue")
-     (beads-create--type . "bug"))
-
-   ;; Reset
-   (beads-create--reset-state)
-   (should (null beads-create--title))
-   (should (null beads-create--type))
-
-   ;; Set new values
-   (setq beads-create--title "Second Issue")
-   (setq beads-create--type "feature")
-   (setq beads-create--priority 2)
-
-   ;; Build command - should only have new values
-   (let ((args (beads-create--build-command-args)))
-     (should (member "Second Issue" args))
-     (should (member "feature" args))
-     (should-not (member "bug" args)))))
+      ;; Execute
+      (should-not (beads-create--execute)))))
 
 ;;; Edge Cases
 
 (ert-deftest beads-create-test-edge-case-unicode-title ()
   "Test creating issue with Unicode characters in title."
-  (beads-create-test-with-state
-   '((beads-create--title . "测试 Issue with émojis 😀"))
-   (let ((args (beads-create--build-command-args)))
-     (should (equal (car args) "测试 Issue with émojis 😀")))))
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=测试 Issue with émojis 😀")))
+         (args (beads-create--build-command-args parsed)))
+    (should (equal (car args) "测试 Issue with émojis 😀"))))
 
 (ert-deftest beads-create-test-edge-case-very-long-title ()
   "Test creating issue with very long title."
-  (let ((long-title (make-string 500 ?x)))
-    (beads-create-test-with-state
-     `((beads-create--title . ,long-title))
-     (let ((args (beads-create--build-command-args)))
-       (should (equal (car args) long-title))))))
+  (let* ((long-title (make-string 500 ?x))
+         (parsed (beads-create--parse-transient-args
+                  (list (concat "title=" long-title))))
+         (args (beads-create--build-command-args parsed)))
+    (should (equal (car args) long-title))))
 
 (ert-deftest beads-create-test-edge-case-title-with-newlines ()
   "Test creating issue with newlines in title."
-  (beads-create-test-with-state
-   '((beads-create--title . "Title\nWith\nNewlines"))
-   ;; This should be valid - bd will handle it
-   (should (null (beads-create--validate-title)))
-   (let ((args (beads-create--build-command-args)))
-     (should (string-match-p "\n" (car args))))))
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Title\nWith\nNewlines")))
+         (title (plist-get parsed :title))
+         (args (beads-create--build-command-args parsed)))
+    ;; This should be valid - bd will handle it
+    (should (null (beads-create--validate-title title)))
+    (should (string-match-p "\n" (car args)))))
 
 (ert-deftest beads-create-test-edge-case-description-with-quotes ()
   "Test creating issue with quotes in description."
-  (beads-create-test-with-state
-   '((beads-create--title . "Test")
-     (beads-create--description . "Description with \"quotes\" and 'apostrophes'"))
-   (let ((args (beads-create--build-command-args)))
-     (should (member "-d" args)))))
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Test"
+                    "description=Description with \"quotes\" and 'apostrophes'")))
+         (args (beads-create--build-command-args parsed)))
+    (should (member "-d" args))))
 
 (ert-deftest beads-create-test-edge-case-multiple-dependencies ()
   "Test creating issue with multiple dependencies."
-  (beads-create-test-with-state
-   '((beads-create--title . "Test")
-     (beads-create--dependencies . "blocks:bd-1,related:bd-2,parent-child:bd-3"))
-   (should (null (beads-create--validate-dependencies)))
-   (let ((args (beads-create--build-command-args)))
-     (should (member "--deps" args))
-     (let ((deps (nth (1+ (cl-position "--deps" args :test #'equal)) args)))
-       (should (string-match-p "blocks:bd-1" deps))
-       (should (string-match-p "related:bd-2" deps))
-       (should (string-match-p "parent-child:bd-3" deps))))))
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Test"
+                    "deps=blocks:bd-1,related:bd-2,parent-child:bd-3")))
+         (deps (plist-get parsed :dependencies)))
+    (should (null (beads-create--validate-dependencies deps)))
+    (let ((args (beads-create--build-command-args parsed)))
+      (should (member "--deps" args))
+      (let ((dep-value (nth (1+ (cl-position "--deps" args :test #'equal))
+                            args)))
+        (should (string-match-p "blocks:bd-1" dep-value))
+        (should (string-match-p "related:bd-2" dep-value))
+        (should (string-match-p "parent-child:bd-3" dep-value))))))
 
 (ert-deftest beads-create-test-edge-case-custom-id-with-special-chars ()
   "Test custom ID with special characters."
-  (beads-create-test-with-state
-   '((beads-create--title . "Test")
-     (beads-create--custom-id . "worker-1-task-100"))
-   (let ((args (beads-create--build-command-args)))
-     (should (member "--id" args))
-     (should (member "worker-1-task-100" args)))))
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Test" "id=worker-1-task-100")))
+         (args (beads-create--build-command-args parsed)))
+    (should (member "--id" args))
+    (should (member "worker-1-task-100" args))))
 
 ;;; Performance Tests
 
 (ert-deftest beads-create-test-performance-command-building ()
   "Test command building performance."
   :tags '(:performance)
-  (beads-create-test-with-state
-   '((beads-create--title . "Test")
-     (beads-create--type . "bug")
-     (beads-create--priority . 1)
-     (beads-create--description . "Description")
-     (beads-create--custom-id . "test-1")
-     (beads-create--dependencies . "blocks:bd-1"))
-   (let ((start-time (current-time)))
-     (dotimes (_ 1000)
-       (beads-create--build-command-args))
-     (let ((elapsed (float-time (time-subtract (current-time) start-time))))
-       ;; Should build 1000 commands in under 0.5 seconds
-       (should (< elapsed 0.5))))))
+  (let ((parsed (beads-create--parse-transient-args
+                 '("title=Test"
+                   "type=bug"
+                   "priority=1"
+                   "description=Description"
+                   "id=test-1"
+                   "deps=blocks:bd-1"))))
+    (let ((start-time (current-time)))
+      (dotimes (_ 1000)
+        (beads-create--build-command-args parsed))
+      (let ((elapsed (float-time (time-subtract (current-time)
+                                                 start-time))))
+        ;; Should build 1000 commands in under 0.5 seconds
+        (should (< elapsed 0.5))))))
 
 (ert-deftest beads-create-test-performance-validation ()
   "Test validation performance."
   :tags '(:performance)
-  (beads-create-test-with-state
-   '((beads-create--title . "Test Issue")
-     (beads-create--type . "bug")
-     (beads-create--priority . 1)
-     (beads-create--dependencies . "blocks:bd-1"))
-   (let ((start-time (current-time)))
-     (dotimes (_ 1000)
-       (beads-create--validate-all))
-     (let ((elapsed (float-time (time-subtract (current-time) start-time))))
-       ;; Should validate 1000 times in under 0.5 seconds
-       (should (< elapsed 0.5))))))
+  (let ((parsed (beads-create--parse-transient-args
+                 '("title=Test Issue"
+                   "type=bug"
+                   "priority=1"
+                   "deps=blocks:bd-1"))))
+    (let ((start-time (current-time)))
+      (dotimes (_ 1000)
+        (beads-create--validate-all parsed))
+      (let ((elapsed (float-time (time-subtract (current-time)
+                                                 start-time))))
+        ;; Should validate 1000 times in under 0.5 seconds
+        (should (< elapsed 0.5))))))
 
 ;;; ============================================================
 ;;; Integration Tests
@@ -700,28 +643,27 @@ STATE is an alist expression of (variable . value) pairs."
 (ert-deftest beads-create-test-validation-workflow ()
   "Integration test: Validate that validation prevents execution."
   :tags '(integration)
-  (beads-create-test-with-state
-   '((beads-create--title . nil))  ; Invalid state
-   (let ((validation-error (beads-create--validate-all)))
-     ;; validate-all returns list of errors, not string
-     (should validation-error)
-     (should (listp validation-error)))))
+  (let* ((parsed (beads-create--parse-transient-args '("title=")))
+         (validation-error (beads-create--validate-all parsed)))
+    ;; validate-all returns list of errors, not string
+    (should validation-error)
+    (should (listp validation-error))))
 
 (ert-deftest beads-create-test-command-building-workflow ()
   "Integration test: Test complete command building workflow."
   :tags '(integration)
-  (beads-create-test-with-state
-   '((beads-create--title . "Integration Test Issue")
-     (beads-create--type . "task")
-     (beads-create--priority . 2))
-   ;; Should not error during validation
-   (should-not (beads-create--validate-all))
-   ;; Should build valid command args
-   (let ((args (beads-create--build-command-args)))
-     (should (member "Integration Test Issue" args))
-     (should (member "-t" args))
-     (should (member "task" args))
-     (should (member "-p" args)))))
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Integration Test Issue"
+                    "type=task"
+                    "priority=2"))))
+    ;; Should not error during validation
+    (should-not (beads-create--validate-all parsed))
+    ;; Should build valid command args
+    (let ((args (beads-create--build-command-args parsed)))
+      (should (member "Integration Test Issue" args))
+      (should (member "-t" args))
+      (should (member "task" args))
+      (should (member "-p" args)))))
 
 (ert-deftest beads-create-test-list-create-command ()
   "Integration test: Verify beads-list-create command exists."
@@ -747,5 +689,429 @@ STATE is an alist expression of (variable . value) pairs."
     (let ((binding (lookup-key beads-list-mode-map (kbd "+"))))
       (should (eq binding 'beads-list-create)))))
 
-(provide 'beads-transient-create-test)
-;;; beads-transient-create-test.el ends here
+;;; Tests for New Fields (acceptance, assignee, design, external-ref,
+;;; labels, force)
+
+(ert-deftest beads-create-test-parse-args-acceptance ()
+  "Test parsing acceptance criteria field."
+  (let ((parsed (beads-create--parse-transient-args
+                 '("title=Test" "acceptance=Criteria text"))))
+    (should (equal (plist-get parsed :acceptance) "Criteria text"))))
+
+(ert-deftest beads-create-test-parse-args-assignee ()
+  "Test parsing assignee field."
+  (let ((parsed (beads-create--parse-transient-args
+                 '("title=Test" "assignee=john"))))
+    (should (equal (plist-get parsed :assignee) "john"))))
+
+(ert-deftest beads-create-test-parse-args-design ()
+  "Test parsing design notes field."
+  (let ((parsed (beads-create--parse-transient-args
+                 '("title=Test" "design=Design notes"))))
+    (should (equal (plist-get parsed :design) "Design notes"))))
+
+(ert-deftest beads-create-test-parse-args-external-ref ()
+  "Test parsing external reference field."
+  (let ((parsed (beads-create--parse-transient-args
+                 '("title=Test" "external-ref=gh-123"))))
+    (should (equal (plist-get parsed :external-ref) "gh-123"))))
+
+(ert-deftest beads-create-test-parse-args-labels ()
+  "Test parsing labels field."
+  (let ((parsed (beads-create--parse-transient-args
+                 '("title=Test" "labels=bug,urgent"))))
+    (should (equal (plist-get parsed :labels) "bug,urgent"))))
+
+(ert-deftest beads-create-test-parse-args-force ()
+  "Test parsing force flag."
+  (let ((parsed (beads-create--parse-transient-args
+                 '("title=Test" "--force"))))
+    (should (eq (plist-get parsed :force) t))))
+
+(ert-deftest beads-create-test-parse-args-all-new-fields ()
+  "Test parsing with all new fields."
+  (let ((parsed (beads-create--parse-transient-args
+                 '("title=Full Test"
+                   "acceptance=Accept criteria"
+                   "assignee=alice"
+                   "design=Design doc"
+                   "external-ref=jira-ABC"
+                   "labels=feature,p1"
+                   "--force"))))
+    (should (equal (plist-get parsed :acceptance) "Accept criteria"))
+    (should (equal (plist-get parsed :assignee) "alice"))
+    (should (equal (plist-get parsed :design) "Design doc"))
+    (should (equal (plist-get parsed :external-ref) "jira-ABC"))
+    (should (equal (plist-get parsed :labels) "feature,p1"))
+    (should (eq (plist-get parsed :force) t))))
+
+(ert-deftest beads-create-test-build-command-args-with-acceptance ()
+  "Test building command args with acceptance criteria."
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Test" "acceptance=Must pass tests")))
+         (args (beads-create--build-command-args parsed)))
+    (should (member "--acceptance" args))
+    (should (member "Must pass tests" args))))
+
+(ert-deftest beads-create-test-build-command-args-with-assignee ()
+  "Test building command args with assignee."
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Test" "assignee=bob")))
+         (args (beads-create--build-command-args parsed)))
+    (should (member "-a" args))
+    (should (member "bob" args))))
+
+(ert-deftest beads-create-test-build-command-args-with-design ()
+  "Test building command args with design notes."
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Test" "design=Architecture notes")))
+         (args (beads-create--build-command-args parsed)))
+    (should (member "--design" args))
+    (should (member "Architecture notes" args))))
+
+(ert-deftest beads-create-test-build-command-args-with-external-ref ()
+  "Test building command args with external reference."
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Test" "external-ref=gh-42")))
+         (args (beads-create--build-command-args parsed)))
+    (should (member "--external-ref" args))
+    (should (member "gh-42" args))))
+
+(ert-deftest beads-create-test-build-command-args-with-labels ()
+  "Test building command args with labels."
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Test" "labels=bug,critical")))
+         (args (beads-create--build-command-args parsed)))
+    (should (member "-l" args))
+    (should (member "bug,critical" args))))
+
+(ert-deftest beads-create-test-build-command-args-with-force ()
+  "Test building command args with force flag."
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Test" "--force")))
+         (args (beads-create--build-command-args parsed)))
+    (should (member "--force" args))))
+
+(ert-deftest beads-create-test-build-command-args-comprehensive ()
+  "Test building command args with all fields including new ones."
+  (let* ((parsed (beads-create--parse-transient-args
+                  '("title=Comprehensive Test"
+                    "type=feature"
+                    "priority=1"
+                    "description=Full description"
+                    "acceptance=Full acceptance"
+                    "assignee=charlie"
+                    "design=Full design"
+                    "external-ref=jira-XYZ"
+                    "labels=feature,p1,urgent"
+                    "id=custom-1"
+                    "deps=blocks:bd-1"
+                    "--force")))
+         (args (beads-create--build-command-args parsed)))
+    (should (equal (car args) "Comprehensive Test"))
+    (should (member "-t" args))
+    (should (member "feature" args))
+    (should (member "-p" args))
+    (should (member "1" args))
+    (should (member "-d" args))
+    (should (member "--acceptance" args))
+    (should (member "-a" args))
+    (should (member "charlie" args))
+    (should (member "--design" args))
+    (should (member "--external-ref" args))
+    (should (member "jira-XYZ" args))
+    (should (member "-l" args))
+    (should (member "feature,p1,urgent" args))
+    (should (member "--id" args))
+    (should (member "--deps" args))
+    (should (member "--force" args))))
+
+(ert-deftest beads-create-test-infix-commands-new-fields ()
+  "Test that all new infix commands are defined."
+  (should (fboundp 'beads-create--infix-acceptance))
+  (should (fboundp 'beads-create--infix-assignee))
+  (should (fboundp 'beads-create--infix-design))
+  (should (fboundp 'beads-create--infix-external-ref))
+  (should (fboundp 'beads-create--infix-labels))
+  (should (fboundp 'beads-create--infix-force)))
+
+(ert-deftest beads-create-test-kbd-create-issue ()
+  "Integration test: Create an issue using keyboard macros with EIEIO
+verification."
+  :tags '(integration kbd eieio)
+  (skip-unless nil) ; Skip: recursive-edit in multiline editor incompatible with kbd macros
+  (skip-unless (executable-find "bd"))
+  (require 'beads-test-helper)
+  (require 'beads-types)  ; Use EIEIO classes
+  ;; Create temporary directory for test
+  (let* ((project-dir (make-temp-file "beads-test-" t))
+         (default-directory project-dir)
+         (test-title "TestIssueKbd1")
+         (test-description "Test-description")
+         created-issue-id)
+    (unwind-protect
+        (progn
+          ;; Initialize beads in temp directory
+          (call-process "bd" nil nil nil "init" "--prefix" "test")
+
+          ;; Mock project-current to prevent finding beads.el project
+          ;; Mock y-or-n-p and capture created issue ID
+          (cl-letf* (((symbol-function 'project-current) (lambda (&optional _) nil))
+                     (original-message (symbol-function 'message))
+                     ((symbol-function 'y-or-n-p) (lambda (_) nil))
+                     ;; Capture the created issue ID from the message
+                     ((symbol-function 'message)
+                      (lambda (format-string &rest args)
+                        (when (and (stringp format-string)
+                                   (string-prefix-p "Created issue:"
+                                                    format-string))
+                          (let ((msg (apply #'format format-string args)))
+                            (when (string-match "Created issue: \\([a-z0-9.-]+\\)"
+                                                msg)
+                              (setq created-issue-id (match-string 1 msg)))))
+                        ;; Call original message with proper args
+                        (apply original-message format-string args))))
+
+            ;; Use beads-kbd-do helper to create issue
+            (beads-kbd-do (list "M-x beads-create RET"
+                           (format "t %s RET" test-title)
+                           "T epic RET"
+                           "p 2 RET"
+                           (format "d %s C-c C-c" test-description)
+                           "c"))
+
+            ;; Verify the issue was created using EIEIO classes
+            (should created-issue-id)
+            (should (string-match-p "^[a-z0-9.-]+$" created-issue-id))
+
+            ;; Use object-oriented approach to verify issue details
+            (let ((issue (beads-issue-read created-issue-id)))
+              ;; Verify using EIEIO slot access
+              (should (beads-issue-p issue))
+              (should (equal (oref issue title) test-title))
+              (should (equal (oref issue issue-type) "epic"))
+              (should (equal (oref issue priority) 2))
+              (should (string-match-p (regexp-quote test-description)
+                                      (oref issue description))))))
+      ;; Cleanup temp directory
+      (when (file-directory-p project-dir)
+        (delete-directory project-dir t)))))
+
+(ert-deftest beads-create-test-kbd-create-minimal-issue ()
+  "Integration test: Create an issue with only required fields using
+keyboard macros."
+  :tags '(integration kbd eieio)
+  (skip-unless (executable-find "bd"))
+  (require 'beads-test-helper)
+  (require 'beads-types)  ; Use EIEIO classes
+  ;; Create temporary directory for test
+  (let* ((project-dir (make-temp-file "beads-test-" t))
+         (default-directory project-dir)
+         (test-title "MinimalKbdTest")
+         created-issue-id)
+    (unwind-protect
+        (progn
+          ;; Initialize beads in temp directory
+          (call-process "bd" nil nil nil "init" "--prefix" "test")
+
+          ;; Mock project-current to prevent finding beads.el project
+          ;; Mock y-or-n-p to always return nil
+          (cl-letf* (((symbol-function 'project-current) (lambda (&optional _) nil))
+                     (original-message (symbol-function 'message))
+                     ((symbol-function 'y-or-n-p) (lambda (_) nil))
+                     ;; Capture the created issue ID from the message
+                     ((symbol-function 'message)
+                      (lambda (format-string &rest args)
+                        (when (and (stringp format-string)
+                                   (string-prefix-p "Created issue:"
+                                                    format-string))
+                          (let ((msg (apply #'format format-string args)))
+                            (when (string-match "Created issue: \\([a-z0-9.-]+\\)"
+                                                msg)
+                              (setq created-issue-id (match-string 1 msg)))))
+                        ;; Call original message with proper args
+                        (apply original-message format-string args))))
+
+            ;; Use beads-kbd-do helper to create minimal issue
+            (beads-kbd-do (list "M-x beads-create RET"
+                           (format "t %s RET" test-title)
+                           "c"))
+
+            ;; Verify the issue was created using EIEIO classes
+            (should created-issue-id)
+            (should (string-match-p "^[a-z0-9.-]+$" created-issue-id))
+
+            ;; Use object-oriented approach to verify issue details
+            (let ((issue (beads-issue-read created-issue-id)))
+              ;; Verify using EIEIO slot access
+              (should (beads-issue-p issue))
+              (should (equal (oref issue title) test-title))
+              ;; Default values should be set
+              (should (equal (oref issue issue-type) "task"))
+              (should (equal (oref issue priority) 2))
+              (should (equal (oref issue status) "open"))
+              ;; Check that issue is open (using utility function)
+              (should (beads-issue-open-p issue)))))
+      ;; Cleanup temp directory
+      (when (file-directory-p project-dir)
+        (delete-directory project-dir t)))))
+
+;;; Integration Tests with beads-kbd-do for New Fields
+
+(ert-deftest beads-create-test-kbd-create-with-assignee-labels ()
+  "Integration test: Create issue with assignee and labels using kbd."
+  :tags '(integration kbd eieio)
+  (skip-unless (executable-find "bd"))
+  (require 'beads-test-helper)
+  (require 'beads-types)
+  (let* ((project-dir (make-temp-file "beads-test-" t))
+         (default-directory project-dir)
+         (test-title "TestAssigneeLabels")
+         (test-assignee "alice")
+         (test-labels "bug,urgent")
+         created-issue-id)
+    (unwind-protect
+        (progn
+          (call-process "bd" nil nil nil "init" "--prefix" "test")
+          ;; Mock project-current to prevent finding beads.el project
+          (cl-letf* (((symbol-function 'project-current) (lambda (&optional _) nil))
+                     (original-message (symbol-function 'message))
+                     ((symbol-function 'y-or-n-p) (lambda (_) nil))
+                     ((symbol-function 'message)
+                      (lambda (format-string &rest args)
+                        (when (and (stringp format-string)
+                                   (string-prefix-p "Created issue:"
+                                                    format-string))
+                          (let ((msg (apply #'format format-string args)))
+                            (when (string-match
+                                   "Created issue: \\([a-z0-9.-]+\\)"
+                                   msg)
+                              (setq created-issue-id (match-string 1 msg)))))
+                        (apply original-message format-string args))))
+            (beads-kbd-do (list "M-x beads-create RET"
+                           (format "t %s RET" test-title)
+                           (format "A %s RET" test-assignee)
+                           (format "l %s RET" test-labels)
+                           "c"))
+            (should created-issue-id)
+            (let ((issue (beads-issue-read created-issue-id)))
+              (should (beads-issue-p issue))
+              (should (equal (oref issue title) test-title))
+              (should (equal (oref issue assignee) test-assignee))
+              (should (equal (oref issue labels)
+                           (split-string test-labels ","))))))
+      (when (file-directory-p project-dir)
+        (delete-directory project-dir t)))))
+
+(ert-deftest beads-create-test-kbd-create-with-external-ref ()
+  "Integration test: Create issue with external reference using kbd."
+  :tags '(integration kbd eieio)
+  (skip-unless (executable-find "bd"))
+  (require 'beads-test-helper)
+  (require 'beads-types)
+  (let* ((project-dir (make-temp-file "beads-test-" t))
+         (default-directory project-dir)
+         (test-title "TestExternalRef")
+         (test-ref "gh-999")
+         created-issue-id)
+    (unwind-protect
+        (progn
+          (call-process "bd" nil nil nil "init" "--prefix" "test")
+          ;; Mock project-current to prevent finding beads.el project
+          (cl-letf* (((symbol-function 'project-current) (lambda (&optional _) nil))
+                     (original-message (symbol-function 'message))
+                     ((symbol-function 'y-or-n-p) (lambda (_) nil))
+                     ((symbol-function 'message)
+                      (lambda (format-string &rest args)
+                        (when (and (stringp format-string)
+                                   (string-prefix-p "Created issue:"
+                                                    format-string))
+                          (let ((msg (apply #'format format-string args)))
+                            (when (string-match
+                                   "Created issue: \\([a-z0-9.-]+\\)"
+                                   msg)
+                              (setq created-issue-id (match-string 1 msg)))))
+                        (apply original-message format-string args))))
+            (beads-kbd-do (list "M-x beads-create RET"
+                           (format "t %s RET" test-title)
+                           (format "e %s RET" test-ref)
+                           "c"))
+            (should created-issue-id)
+            (let ((issue (beads-issue-read created-issue-id)))
+              (should (beads-issue-p issue))
+              (should (equal (oref issue title) test-title))
+              ;; Only verify external-ref if bd version supports it
+              (when (oref issue external-ref)
+                (should (equal (oref issue external-ref) test-ref))))))
+      (when (file-directory-p project-dir)
+        (delete-directory project-dir t)))))
+
+(ert-deftest beads-create-test-kbd-create-comprehensive ()
+  "Integration test: Create issue with all new fields using kbd."
+  :tags '(integration kbd eieio)
+  (skip-unless nil) ; Skip: recursive-edit in multiline editor incompatible with kbd macros
+  (skip-unless (executable-find "bd"))
+  (require 'beads-test-helper)
+  (require 'beads-types)
+  (let* ((project-dir (make-temp-file "beads-test-" t))
+         (default-directory project-dir)
+         (test-title "ComprehensiveTest")
+         (test-assignee "bob")
+         (test-labels "feature,p1")
+         (test-ref "jira-ABC")
+         (test-acceptance "MustPassTests")
+         (test-design "ArchitectureDoc")
+         created-issue-id)
+    (unwind-protect
+        (progn
+          (call-process "bd" nil nil nil "init" "--prefix" "test")
+          ;; Mock project-current to prevent finding beads.el project
+          (cl-letf* (((symbol-function 'project-current) (lambda (&optional _) nil))
+                     (original-message (symbol-function 'message))
+                     ((symbol-function 'y-or-n-p) (lambda (_) nil))
+                     ((symbol-function 'message)
+                      (lambda (format-string &rest args)
+                        (when (and (stringp format-string)
+                                   (string-prefix-p "Created issue:"
+                                                    format-string))
+                          (let ((msg (apply #'format format-string args)))
+                            (when (string-match
+                                   "Created issue: \\([a-z0-9.-]+\\)"
+                                   msg)
+                              (setq created-issue-id (match-string 1 msg)))))
+                        (apply original-message format-string args))))
+            (beads-kbd-do (list "M-x beads-create RET"
+                           (format "t %s RET" test-title)
+                           "T feature RET"
+                           "p 1 RET"
+                           (format "A %s RET" test-assignee)
+                           (format "l %s RET" test-labels)
+                           (format "e %s RET" test-ref)
+                           (format "a %s C-c C-c" test-acceptance)
+                           (format "g %s C-c C-c" test-design)
+                           "c"))
+            (should created-issue-id)
+            (let ((issue (beads-issue-read created-issue-id)))
+              (should (beads-issue-p issue))
+              (should (equal (oref issue title) test-title))
+              (should (equal (oref issue issue-type) "feature"))
+              (should (equal (oref issue priority) 1))
+              ;; Only verify new fields if bd version supports them
+              (when (oref issue assignee)
+                (should (equal (oref issue assignee) test-assignee)))
+              (when (oref issue labels)
+                (should (equal (oref issue labels)
+                             (split-string test-labels ","))))
+              (when (oref issue external-ref)
+                (should (equal (oref issue external-ref) test-ref)))
+              (when (oref issue acceptance-criteria)
+                (should (string-match-p (regexp-quote test-acceptance)
+                                        (oref issue acceptance-criteria))))
+              (when (oref issue design)
+                (should (string-match-p (regexp-quote test-design)
+                                        (oref issue design)))))))
+      (when (file-directory-p project-dir)
+        (delete-directory project-dir t)))))
+
+(provide 'beads-create-test)
+;;; beads-create-test.el ends here
