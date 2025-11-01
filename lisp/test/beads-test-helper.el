@@ -95,6 +95,16 @@ Returns the parsed JSON issue object."
                (json-key-type 'symbol))
           (json-read))))))
 
+(defun beads-kbd-do (keys)
+  (execute-kbd-macro (kbd (string-join keys " "))))
+
+;; (beads-kbd-do
+;;  '("M-x beads-create RET"
+;;    "t my-title RET"
+;;    "T epic RET"
+;;    "d 1 2 3 C-c C-c"
+;;    "c"))
+
 ;;; Cleanup hook
 
 (defun beads-test-helper--cleanup-all ()

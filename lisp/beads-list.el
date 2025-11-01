@@ -210,7 +210,7 @@ the value of `beads-list-date-format'."
     (let ((time (date-to-time iso-timestamp)))
       (pcase beads-list-date-format
         ('absolute
-         (format-time-string "%Y-%m-%d %H:%M" time))
+         (format-time-string "%Y-%m-%d %H:%M" time t))
         ('relative
          (let* ((now (current-time))
                 (diff (time-subtract now time))

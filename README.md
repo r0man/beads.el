@@ -1,7 +1,5 @@
 # beads.el - Magit-like Interface for Beads Issue Tracker
 
-⚠️ Status: Experimental
-
 A comprehensive Emacs interface for [Beads](https://github.com/steveyegge/beads),
 providing a keyboard-driven, transient-based UI for managing issues without
 leaving your editor.
