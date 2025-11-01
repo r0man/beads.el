@@ -596,16 +596,16 @@ STATE is an alist expression of (variable . value) pairs."
 
 (ert-deftest beads-update-test-infix-commands-defined ()
   "Test that all infix commands are defined."
-  (should (fboundp 'beads-update--infix-status))
-  (should (fboundp 'beads-update--infix-priority))
-  (should (fboundp 'beads-update--infix-type))
-  (should (fboundp 'beads-update--infix-title))
-  (should (fboundp 'beads-update--infix-assignee))
-  (should (fboundp 'beads-update--infix-external-ref))
-  (should (fboundp 'beads-update--infix-description))
-  (should (fboundp 'beads-update--infix-acceptance-multiline))
-  (should (fboundp 'beads-update--infix-design-multiline))
-  (should (fboundp 'beads-update--infix-notes-multiline)))
+  (should (fboundp 'beads-option-update-status))
+  (should (fboundp 'beads-option-update-priority))
+  (should (fboundp 'beads-option-update-type))
+  (should (fboundp 'beads-option-update-title))
+  (should (fboundp 'beads-option-update-assignee))
+  (should (fboundp 'beads-option-update-external-ref))
+  (should (fboundp 'beads-option-update-description))
+  (should (fboundp 'beads-option-update-acceptance-multiline))
+  (should (fboundp 'beads-option-update-design-multiline))
+  (should (fboundp 'beads-option-update-notes-multiline)))
 
 (ert-deftest beads-update-test-suffix-commands-defined ()
   "Test that all suffix commands are defined."

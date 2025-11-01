@@ -132,7 +132,7 @@
     (beads-dep-add--reset)
     (should (null beads-dep-add--issue-id))
     (should (null beads-dep-add--depends-on-id))
-    (should (equal beads-dep-add--type "blocks"))))
+    (should (null beads-dep-add--type))))
 
 ;;; Tests for Remove Dependency Validation
 

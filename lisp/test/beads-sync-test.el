@@ -306,10 +306,10 @@ This test would have caught the original bug."
 
 (ert-deftest beads-sync-test-infix-commands-defined ()
   "Test that all infix commands are defined."
-  (should (fboundp 'beads-sync--infix-dry-run))
-  (should (fboundp 'beads-sync--infix-message))
-  (should (fboundp 'beads-sync--infix-no-pull))
-  (should (fboundp 'beads-sync--infix-no-push)))
+  (should (fboundp 'beads-option-sync-dry-run))
+  (should (fboundp 'beads-option-sync-message))
+  (should (fboundp 'beads-option-sync-no-pull))
+  (should (fboundp 'beads-option-sync-no-push)))
 
 (ert-deftest beads-sync-test-suffix-commands-defined ()
   "Test that all suffix commands are defined."

@@ -331,10 +331,10 @@ by checking if the function is available after requiring beads-main."
 (ert-deftest beads-main-test-export-reset-state ()
   "Test that beads-export resets state properly."
   (setq beads-export--output "test.jsonl"
-        beads-export--status "open")
+        beads-export--no-auto-flush t)
   (beads-export--reset-state)
   (should (null beads-export--output))
-  (should (null beads-export--status)))
+  (should (null beads-export--no-auto-flush)))
 
 (ert-deftest beads-main-test-export-execute-defined ()
   "Test that beads-export execute command is defined."
@@ -350,15 +350,11 @@ by checking if the function is available after requiring beads-main."
   "Test that beads-import resets state properly."
   (setq beads-import--input "test.jsonl"
         beads-import--dry-run t
-        beads-import--resolve-collisions t
-        beads-import--skip-existing t
-        beads-import--strict t)
+        beads-import--resolve-collisions t)
   (beads-import--reset-state)
   (should (null beads-import--input))
   (should (null beads-import--dry-run))
-  (should (null beads-import--resolve-collisions))
-  (should (null beads-import--skip-existing))
-  (should (null beads-import--strict)))
+  (should (null beads-import--resolve-collisions)))
 
 (ert-deftest beads-main-test-import-execute-defined ()
   "Test that beads-import execute command is defined."
