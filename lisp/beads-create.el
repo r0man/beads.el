@@ -126,7 +126,7 @@ Returns error message string if invalid, nil if valid."
     (unless (string-match-p
              "^[a-z-]+:[a-z0-9.-]+\\(,[a-z-]+:[a-z0-9.-]+\\)*$"
              dependencies)
-      "Dependencies must be in format: type:issue-id (e.g., blocks:bd-1)")))
+      "Dependencies must be in format: type:issue-id (e.g., blocks:bd-a1b2)")))
 
 (defun beads-create--validate-all (parsed)
   "Validate all parameters from PARSED plist.

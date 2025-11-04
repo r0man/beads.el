@@ -299,12 +299,13 @@ CONTENT can be a string or nil (empty sections are skipped)."
 
 (defun beads-show--buttonize-references (start end)
   "Make issue references clickable between START and END.
-Recognizes issue IDs in the format PROJECT-NUMBER, where PROJECT can
-contain letters, numbers, dots, underscores, and hyphens.
-Examples: beads.el-22, bd-123, worker-1, api-42."
+Recognizes issue IDs in the format PROJECT-HASH, where PROJECT can
+contain letters, numbers, dots, underscores, and hyphens, and HASH
+is a hexadecimal string (4-8 characters).
+Examples: beads.el-7bea, bd-a1b2, worker-f14c, api-3e7a."
   (save-excursion
     (goto-char start)
-    (while (re-search-forward "\\b\\([a-zA-Z][a-zA-Z0-9._-]*-[0-9]+\\)\\b" end t)
+    (while (re-search-forward "\\b\\([a-zA-Z][a-zA-Z0-9._-]*-[0-9a-fA-F]+\\)\\b" end t)
       (let ((issue-id (match-string 1)))
         (make-button (match-beginning 1) (match-end 1)
                     'issue-id issue-id
@@ -321,7 +322,7 @@ Examples: beads.el-22, bd-123, worker-1, api-42."
 (defun beads-show--extract-issue-at-point ()
   "Extract issue reference at point.
 Returns the issue ID or nil if none found.
-Recognizes issue IDs like beads.el-22, bd-123, worker-1, etc."
+Recognizes issue IDs like beads.el-7bea, bd-a1b2, worker-f14c, etc."
   (let ((case-fold-search nil)
         (original-point (point)))
     (or
@@ -336,7 +337,7 @@ Recognizes issue IDs like beads.el-22, bd-123, worker-1, etc."
              (result nil))
          (goto-char line-start)
          (while (and (not result)
-                    (re-search-forward "\\b\\([a-zA-Z][a-zA-Z0-9._-]*-[0-9]+\\)\\b" line-end t))
+                    (re-search-forward "\\b\\([a-zA-Z][a-zA-Z0-9._-]*-[0-9a-fA-F]+\\)\\b" line-end t))
            (let ((match-start (match-beginning 1))
                  (match-end (match-end 1)))
              (when (and (>= original-point match-start)
@@ -1003,9 +1004,9 @@ Set mark at beginning of section, move point to end, and activate region."
     (save-excursion
       ;; Move past current reference if we're on one
       (when (beads-show--extract-issue-at-point)
-        (re-search-forward "bd-[0-9]+" nil t))
+        (re-search-forward "[a-zA-Z][a-zA-Z0-9._-]*-[0-9a-fA-F]+" nil t))
       ;; Search for next reference
-      (when (re-search-forward "\\(bd-[0-9]+\\)" nil t)
+      (when (re-search-forward "\\([a-zA-Z][a-zA-Z0-9._-]*-[0-9a-fA-F]+\\)" nil t)
         (setq found (match-beginning 1))))
     (if found
         (goto-char found)
@@ -1021,7 +1022,7 @@ Set mark at beginning of section, move point to end, and activate region."
       (when (beads-show--extract-issue-at-point)
         (goto-char (line-beginning-position)))
       ;; Search for previous reference
-      (when (re-search-backward "\\(bd-[0-9]+\\)" nil t)
+      (when (re-search-backward "\\([a-zA-Z][a-zA-Z0-9._-]*-[0-9a-fA-F]+\\)" nil t)
         (setq found (match-beginning 1))))
     (if found
         (goto-char found)
