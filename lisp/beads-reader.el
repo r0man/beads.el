@@ -118,7 +118,7 @@ DEFAULT-VAR is the variable holding the current priority value."
 
 (defun beads-reader-create-dependencies (_prompt _initial-input _history)
   "Read dependencies for issue creation."
-  (read-string "Dependencies (e.g., blocks:bd-1,related:bd-2): "
+  (read-string "Dependencies (e.g., blocks:bd-a1b2,related:bd-f14c): "
                beads-create--dependencies))
 
 (defun beads-reader-create-assignee (_prompt _initial-input _history)

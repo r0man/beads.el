@@ -10,7 +10,7 @@
 ;; Provides eldoc integration for Beads issue references.
 ;;
 ;; When the cursor is positioned on a beads issue reference (like
-;; beads.el-22 or bd-123), eldoc will display:
+;; beads.el-7bea or bd-a1b2), eldoc will display:
 ;; - Issue title and status in the echo area
 ;; - Full issue metadata in the eldoc buffer
 ;;
@@ -43,11 +43,12 @@ Default is 5 minutes (300 seconds)."
   :group 'beads-eldoc)
 
 (defcustom beads-eldoc-issue-pattern
-  "\\b\\([a-zA-Z][a-zA-Z0-9._-]*-[0-9]+\\)\\b"
+  "\\b\\([a-zA-Z][a-zA-Z0-9._-]*-[0-9a-fA-F]+\\)\\b"
   "Regular expression pattern for matching beads issue references.
-Matches issue IDs in the format PROJECT-NUMBER, where PROJECT can
-contain letters, numbers, dots, underscores, and hyphens.
-Examples: beads.el-22, bd-123, worker-1, api-42."
+Matches issue IDs in the format PROJECT-HASH, where PROJECT can
+contain letters, numbers, dots, underscores, and hyphens, and HASH
+is a hexadecimal string (4-8 characters).
+Examples: beads.el-7bea, bd-a1b2, worker-f14c, api-3e7a."
   :type 'string
   :group 'beads-eldoc)
 
@@ -93,7 +94,7 @@ Otherwise, clear the entire cache."
   "Return the beads issue ID at point, or nil if none.
 First checks for button properties (from beads-show buffers),
 then falls back to pattern matching.
-Recognizes issue IDs like beads.el-22, bd-123, worker-1, etc."
+Recognizes issue IDs like beads.el-7bea, bd-a1b2, worker-f14c, etc."
   (or
    ;; First try button property (works in beads-show buffers)
    (when-let* ((button (button-at (point))))
@@ -180,7 +181,7 @@ This function is designed for `eldoc-documentation-functions'."
 (define-minor-mode beads-eldoc-mode
   "Global minor mode to enable eldoc support for beads issue references.
 When enabled, moving the cursor over a beads issue reference
-\(like beads.el-22 or bd-123) will display issue information in
+\(like beads.el-7bea or bd-a1b2) will display issue information in
 the echo area and eldoc buffer."
   :global t
   :group 'beads-eldoc
