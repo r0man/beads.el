@@ -31,7 +31,7 @@
 ;; Usage:
 ;;
 ;;   ;; Read a single issue by ID
-;;   (let ((issue (beads-issue-read "bd-123")))
+;;   (let ((issue (beads-issue-read "bd-a1b2")))
 ;;     (message "Title: %s" (oref issue title)))
 ;;
 ;;   ;; List all issues
@@ -207,7 +207,7 @@
   ((id
     :initarg :id
     :type string
-    :documentation "Unique issue identifier (e.g., 'bd-123').")
+    :documentation "Unique issue identifier (e.g., 'bd-a1b2').")
    (title
     :initarg :title
     :type string
