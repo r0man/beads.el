@@ -34,6 +34,9 @@
 (require 'beads-option)
 (require 'transient)
 
+;; Forward declarations
+(declare-function beads-show "beads-show")
+
 ;;; Utility Functions
 
 (defun beads-create--parse-transient-args (args)
@@ -177,9 +180,9 @@ dash-style syntax matching bd CLI."
                      (alist-get 'title issue))
             ;; Invalidate completion cache
             (beads--invalidate-completion-cache)
-            ;; Optionally show the created issue
+            ;; Optionally show the created issue in a proper buffer
             (when (y-or-n-p (format "Show issue %s? " issue-id))
-              (message "Issue details: %s" issue))
+              (beads-show issue-id))
             nil)
         (error
          (let ((err-msg (format "Failed to create issue: %s"
