@@ -1,3 +1,5 @@
+;;; init.el --- Minimal init.el for testing  -*- lexical-binding: t; -*-
+
 (use-package ef-themes
   :hook (after-init . (lambda() (ef-themes-rotate ef-themes-collection))))
 
