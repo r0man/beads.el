@@ -173,15 +173,20 @@ similar to git commit message editing.")
 
 
 (cl-defmethod transient-format-value ((obj beads-create-transient-multiline))
-  "Format the value of multiline OBJ for display in transient menu."
-  (let ((value (oref obj value)))
-    (if (and value (not (string-empty-p (string-trim value))))
-        (let* ((first-line (car (split-string value "\n")))
-               (display (if (> (length first-line) 40)
-                           (concat (substring first-line 0 40) "...")
-                         first-line)))
-          (propertize (format " [%s]" display) 'face 'transient-value))
-      (propertize " [unset]" 'face 'transient-inactive-value))))
+  "Format the value of multiline OBJ for display in transient menu.
+Shows the full argument with value in parentheses.
+Grey when unset, green when set. Multiline values show first line only."
+  (let ((value (oref obj value))
+        (arg (oref obj argument)))
+    (concat "("
+            (if (and value (not (string-empty-p (string-trim value))))
+                (let* ((first-line (car (split-string value "\n")))
+                       (display (if (> (length first-line) 40)
+                                   (concat (substring first-line 0 40) "...")
+                                 first-line)))
+                  (propertize (concat arg display) 'face 'transient-value))
+              (propertize arg 'face 'transient-inactive-value))
+            ")")))
 
 ;;; ============================================================
 ;;; Utility Functions
