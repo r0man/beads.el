@@ -239,7 +239,18 @@ dash-style syntax matching bd CLI."
    (7 beads-option-create-external-ref)
    (7 beads-option-create-custom-id)
    (7 beads-option-create-dependencies)
-   (7 "-f" "Force creation" "--force")])
+   (7 "-f" "Force creation" "--force")]
+  ["Global Options"
+   :class transient-columns
+   :if (lambda () (>= transient-current-prefix 7))
+   (7 beads-option-global-actor)
+   (7 beads-option-global-db)
+   (7 beads-option-global-json)
+   (7 beads-option-global-no-auto-flush)
+   (7 beads-option-global-no-auto-import)
+   (7 beads-option-global-no-daemon)
+   (7 beads-option-global-no-db)
+   (7 beads-option-global-sandbox)])
 
 ;;; Main Transient Menu
 

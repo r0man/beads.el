@@ -61,12 +61,40 @@
 ;;; Custom Transient Classes
 ;;; ============================================================
 
+(defclass beads-option-global (transient-option)
+  ((variable :initarg :variable :initform nil))
+  "Transient infix class for global bd flags.
+Global flags use '=' prefix instead of '-' and store their values
+in global elisp variables that persist across commands.")
+
 (defclass beads-create-transient-multiline (transient-option)
   ((multi-line :initarg :multi-line :initform t)
    (field-name :initarg :field-name :initform "Text"))
   "Transient infix class for multiline text fields.
 This class provides an editor buffer for multiline text entry,
 similar to git commit message editing.")
+
+(cl-defmethod transient-infix-read ((obj beads-option-global))
+  "Read value for global option OBJ and store in global variable."
+  (let* ((variable (oref obj variable))
+         (current-value (and variable (symbol-value variable)))
+         (prompt (oref obj prompt))
+         (new-value (read-string prompt current-value)))
+    ;; Store in global variable if specified
+    (when variable
+      (set variable new-value))
+    new-value))
+
+(cl-defmethod transient-format-value ((obj beads-option-global))
+  "Format value of global option OBJ for display."
+  (let* ((variable (oref obj variable))
+         (value (and variable (symbol-value variable))))
+    (if (and value (not (string-empty-p (string-trim value))))
+        (let ((display (if (> (length value) 40)
+                          (concat (substring value 0 40) "...")
+                        value)))
+          (propertize (format " [%s]" display) 'face 'transient-value))
+      (propertize " [unset]" 'face 'transient-inactive-value))))
 
 (cl-defmethod transient-infix-read ((obj beads-create-transient-multiline))
   "Read multiline text value for OBJ using a dedicated buffer."
@@ -140,6 +168,40 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
 ;;; ============================================================
 ;;; State Variables
 ;;; ============================================================
+
+;;; Global state variables (shared across all commands)
+
+(defvar beads-global-actor nil
+  "Global actor name override for audit trail.
+When set, overrides $BD_ACTOR or $USER.")
+
+(defvar beads-global-db nil
+  "Global database path override.
+When set, bypasses auto-discovery of .beads/*.db.")
+
+(defvar beads-global-json nil
+  "Global JSON output flag.
+When non-nil, forces JSON output format.")
+
+(defvar beads-global-no-auto-flush nil
+  "Global no-auto-flush flag.
+When non-nil, disables automatic JSONL sync after CRUD operations.")
+
+(defvar beads-global-no-auto-import nil
+  "Global no-auto-import flag.
+When non-nil, disables automatic JSONL import when newer than DB.")
+
+(defvar beads-global-no-daemon nil
+  "Global no-daemon flag.
+When non-nil, forces direct storage mode, bypassing daemon.")
+
+(defvar beads-global-no-db nil
+  "Global no-db flag.
+When non-nil, uses no-db mode: load from JSONL only, no SQLite.")
+
+(defvar beads-global-sandbox nil
+  "Global sandbox flag.
+When non-nil, enables sandbox mode: disables daemon and auto-sync.")
 
 ;;; beads-create state variables
 
@@ -709,6 +771,70 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :argument "--db="
   :prompt "Database path: "
   :reader #'beads-reader-init-db)
+
+;;; ============================================================
+;;; Transient Infix Definitions - Global Options
+;;; ============================================================
+
+(transient-define-infix beads-option-global-actor ()
+  "Override actor name for audit trail."
+  :class 'beads-option-global
+  :variable 'beads-global-actor
+  :description "Actor name override"
+  :key "=a"
+  :argument "=actor="
+  :prompt "Actor name: ")
+
+(transient-define-infix beads-option-global-db ()
+  "Override database path."
+  :class 'beads-option-global
+  :variable 'beads-global-db
+  :description "Database path override"
+  :key "=d"
+  :argument "=db="
+  :prompt "Database path: ")
+
+(transient-define-infix beads-option-global-json ()
+  "Force JSON output format."
+  :class 'transient-switch
+  :description "Force JSON output"
+  :key "=j"
+  :argument "=json")
+
+(transient-define-infix beads-option-global-no-auto-flush ()
+  "Disable automatic JSONL sync."
+  :class 'transient-switch
+  :description "No auto-flush"
+  :key "=F"
+  :argument "=no-auto-flush")
+
+(transient-define-infix beads-option-global-no-auto-import ()
+  "Disable automatic JSONL import."
+  :class 'transient-switch
+  :description "No auto-import"
+  :key "=I"
+  :argument "=no-auto-import")
+
+(transient-define-infix beads-option-global-no-daemon ()
+  "Force direct storage mode."
+  :class 'transient-switch
+  :description "No daemon"
+  :key "=D"
+  :argument "=no-daemon")
+
+(transient-define-infix beads-option-global-no-db ()
+  "Use no-db mode (JSONL only)."
+  :class 'transient-switch
+  :description "No-db mode"
+  :key "=N"
+  :argument "=no-db")
+
+(transient-define-infix beads-option-global-sandbox ()
+  "Enable sandbox mode."
+  :class 'transient-switch
+  :description "Sandbox mode"
+  :key "=s"
+  :argument "=sandbox")
 
 ;; Load reader functions now that state variables are defined
 (require 'beads-reader)
