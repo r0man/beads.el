@@ -61,12 +61,63 @@
 ;;; Custom Transient Classes
 ;;; ============================================================
 
-(defclass beads-option-global (transient-option)
-  ((variable :initarg :variable :initform nil)
-   (pad-keys :initarg :pad-keys :initform nil))
+(defclass beads-option-global (transient-lisp-variable)
+  ((pad-keys :initarg :pad-keys :initform nil))
   "Transient infix class for global bd flags.
-Global flags use '=' prefix instead of '-' and store their values
-in global elisp variables that persist across commands.")
+Inherits from transient-lisp-variable for automatic variable persistence,
+with custom display formatting to match transient-option.")
+
+(defclass beads-option-global-switch (transient-lisp-variable)
+  ((pad-keys :initarg :pad-keys :initform nil))
+  "Transient switch class for global bd boolean flags.
+Inherits from transient-lisp-variable for automatic variable persistence,
+with custom display formatting to match transient-switch.")
+
+(cl-defmethod transient-infix-read ((obj beads-option-global))
+  "Read a string value for global option OBJ.
+Uses read-string to ensure the value is always a string, not a symbol."
+  (let ((prompt (concat (oref obj prompt)))
+        (initial-input (oref obj value)))
+    (read-string prompt initial-input)))
+
+(cl-defmethod transient-infix-read ((obj beads-option-global-switch))
+  "Toggle the boolean value for switch OBJ."
+  (let ((current (oref obj value)))
+    ;; Toggle: nil -> t, t -> nil
+    (not current)))
+
+(cl-defmethod transient-infix-value ((_obj beads-option-global))
+  "Return nil to prevent these from being included in transient arguments.
+Values are read directly from variables by beads--build-command."
+  nil)
+
+(cl-defmethod transient-infix-value ((_obj beads-option-global-switch))
+  "Return nil to prevent these from being included in transient arguments.
+Values are read directly from variables by beads--build-command."
+  nil)
+
+(cl-defmethod transient-format-value ((obj beads-option-global))
+  "Format value for OBJ to match transient-option display.
+Shows the full argument with value in parentheses.
+Grey when unset, green when set."
+  (let ((value (oref obj value))
+        (arg (oref obj argument)))
+    (concat "("
+            (if (and value (not (equal value "")))
+                (propertize (concat arg value) 'face 'transient-value)
+              (propertize arg 'face 'transient-inactive-value))
+            ")")))
+
+(cl-defmethod transient-format-value ((obj beads-option-global-switch))
+  "Format value for OBJ to match transient-switch display.
+Shows the argument in parentheses, green when enabled, grey when disabled."
+  (let ((value (oref obj value))
+        (arg (oref obj argument)))
+    (concat "("
+            (if value
+                (propertize arg 'face 'transient-value)
+              (propertize arg 'face 'transient-inactive-value))
+            ")")))
 
 (defclass beads-create-transient-multiline (transient-option)
   ((multi-line :initarg :multi-line :initform t)
@@ -75,27 +126,6 @@ in global elisp variables that persist across commands.")
 This class provides an editor buffer for multiline text entry,
 similar to git commit message editing.")
 
-(cl-defmethod transient-infix-read ((obj beads-option-global))
-  "Read value for global option OBJ and store in global variable."
-  (let* ((variable (oref obj variable))
-         (current-value (and variable (symbol-value variable)))
-         (prompt (oref obj prompt))
-         (new-value (read-string prompt current-value)))
-    ;; Store in global variable if specified
-    (when variable
-      (set variable new-value))
-    new-value))
-
-(cl-defmethod transient-format-value ((obj beads-option-global))
-  "Format value of global option OBJ for display."
-  (let* ((variable (oref obj variable))
-         (value (and variable (symbol-value variable))))
-    (if (and value (not (string-empty-p (string-trim value))))
-        (let ((display (if (> (length value) 40)
-                          (concat (substring value 0 40) "...")
-                        value)))
-          (propertize (format " [%s]" display) 'face 'transient-value))
-      (propertize " [unset]" 'face 'transient-inactive-value))))
 
 (cl-defmethod transient-infix-read ((obj beads-create-transient-multiline))
   "Read multiline text value for OBJ using a dedicated buffer."
@@ -140,6 +170,7 @@ similar to git commit message editing.")
                  field-name)
         (recursive-edit)))
     result))
+
 
 (cl-defmethod transient-format-value ((obj beads-create-transient-multiline))
   "Format the value of multiline OBJ for display in transient menu."
@@ -783,7 +814,7 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
   :variable 'beads-global-actor
   :description "Actor name override"
   :key "=a"
-  :argument "=actor="
+  :argument "--actor="
   :prompt "Actor name: ")
 
 (transient-define-infix beads-option-global-db ()
@@ -792,50 +823,56 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
   :variable 'beads-global-db
   :description "Database path override"
   :key "=d"
-  :argument "=db="
+  :argument "--db="
   :prompt "Database path: ")
 
 (transient-define-infix beads-option-global-json ()
   "Force JSON output format."
-  :class 'transient-switch
+  :class 'beads-option-global-switch
+  :variable 'beads-global-json
   :description "Force JSON output"
   :key "=j"
-  :argument "=json")
+  :argument "--json")
 
 (transient-define-infix beads-option-global-no-auto-flush ()
   "Disable automatic JSONL sync."
-  :class 'transient-switch
+  :class 'beads-option-global-switch
+  :variable 'beads-global-no-auto-flush
   :description "No auto-flush"
   :key "=F"
-  :argument "=no-auto-flush")
+  :argument "--no-auto-flush")
 
 (transient-define-infix beads-option-global-no-auto-import ()
   "Disable automatic JSONL import."
-  :class 'transient-switch
+  :class 'beads-option-global-switch
+  :variable 'beads-global-no-auto-import
   :description "No auto-import"
   :key "=I"
-  :argument "=no-auto-import")
+  :argument "--no-auto-import")
 
 (transient-define-infix beads-option-global-no-daemon ()
   "Force direct storage mode."
-  :class 'transient-switch
+  :class 'beads-option-global-switch
+  :variable 'beads-global-no-daemon
   :description "No daemon"
   :key "=D"
-  :argument "=no-daemon")
+  :argument "--no-daemon")
 
 (transient-define-infix beads-option-global-no-db ()
   "Use no-db mode (JSONL only)."
-  :class 'transient-switch
+  :class 'beads-option-global-switch
+  :variable 'beads-global-no-db
   :description "No-db mode"
   :key "=N"
-  :argument "=no-db")
+  :argument "--no-db")
 
 (transient-define-infix beads-option-global-sandbox ()
   "Enable sandbox mode."
-  :class 'transient-switch
+  :class 'beads-option-global-switch
+  :variable 'beads-global-sandbox
   :description "Sandbox mode"
   :key "=s"
-  :argument "=sandbox")
+  :argument "--sandbox")
 
 ;; Load reader functions now that state variables are defined
 (require 'beads-reader)
