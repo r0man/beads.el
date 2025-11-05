@@ -305,16 +305,16 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :class 'transient-option
   :description "Title (required)"
   :key "t"
-  :argument "title="
+  :argument "--title="
   :prompt "Issue title: "
   :reader #'beads-reader-create-title)
 
 (transient-define-infix beads-option-create-type ()
   "Set the type of the issue."
   :class 'transient-option
-  :description "Type (-t)"
-  :key "T"
-  :argument "type="
+  :description "Type"
+  :key "-t"
+  :argument "-t="
   :prompt "Type: "
   :choices '("bug" "feature" "task" "epic" "chore")
   :reader #'beads-reader-create-type)
@@ -322,9 +322,9 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
 (transient-define-infix beads-option-create-priority ()
   "Set the priority of the issue."
   :class 'transient-option
-  :description "Priority (-p)"
-  :key "p"
-  :argument "priority="
+  :description "Priority"
+  :key "-p"
+  :argument "-p="
   :prompt "Priority: "
   :reader #'beads-reader-create-priority)
 
@@ -332,25 +332,25 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   "Set the description using a multiline editor."
   :class 'beads-create-transient-multiline
   :field-name "Description"
-  :description "Description (-d)"
-  :key "d"
-  :argument "description=")
+  :description "Description"
+  :key "-d"
+  :argument "-d=")
 
 (transient-define-infix beads-option-create-custom-id ()
   "Set a custom ID for the issue."
   :class 'transient-option
-  :description "Custom ID (--id)"
-  :key "i"
-  :argument "id="
+  :description "Custom ID"
+  :key "-i"
+  :argument "--id="
   :prompt "Custom ID: "
   :reader #'beads-reader-create-custom-id)
 
 (transient-define-infix beads-option-create-dependencies ()
   "Set dependencies for the issue."
   :class 'transient-option
-  :description "Dependencies (--deps)"
-  :key "D"
-  :argument "deps="
+  :description "Dependencies"
+  :key "-D"
+  :argument "--deps="
   :prompt "Dependencies (type:id,...): "
   :reader #'beads-reader-create-dependencies)
 
@@ -358,16 +358,16 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   "Set acceptance criteria using a multiline editor."
   :class 'beads-create-transient-multiline
   :field-name "Acceptance Criteria"
-  :description "Acceptance Criteria (--acceptance)"
-  :key "A"
-  :argument "acceptance=")
+  :description "Acceptance criteria"
+  :key "-A"
+  :argument "--acceptance=")
 
 (transient-define-infix beads-option-create-assignee ()
   "Set the assignee of the issue."
   :class 'transient-option
-  :description "Assignee (-a)"
-  :key "a"
-  :argument "assignee="
+  :description "Assignee"
+  :key "-a"
+  :argument "-a="
   :prompt "Assignee: "
   :reader #'beads-reader-create-assignee)
 
@@ -375,32 +375,32 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   "Set design notes using a multiline editor."
   :class 'beads-create-transient-multiline
   :field-name "Design"
-  :description "Design (--design)"
-  :key "G"
-  :argument "design=")
+  :description "Design notes"
+  :key "-G"
+  :argument "--design=")
 
 (transient-define-infix beads-option-create-external-ref ()
   "Set external reference for the issue."
   :class 'transient-option
-  :description "External Ref (--external-ref)"
-  :key "x"
-  :argument "external-ref="
+  :description "External reference"
+  :key "-x"
+  :argument "--external-ref="
   :prompt "External reference: "
   :reader #'beads-reader-create-external-ref)
 
 (transient-define-infix beads-option-create-labels ()
   "Set labels for the issue."
   :class 'transient-option
-  :description "Labels (--labels)"
-  :key "l"
-  :argument "labels="
+  :description "Labels"
+  :key "-l"
+  :argument "-l="
   :prompt "Labels (comma-separated): "
   :reader #'beads-reader-create-labels)
 
 (transient-define-infix beads-option-create-force ()
   "Toggle force flag for create operation."
   :class 'transient-switch
-  :description "Force (--force)"
+  :description "Force creation"
   :key "f"
   :argument "--force")
 
@@ -411,9 +411,9 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
 (transient-define-infix beads-option-update-status ()
   "Set the status of the issue."
   :class 'transient-option
-  :description "Status (-s)"
+  :description "-s, --status"
   :key "s"
-  :argument "status="
+  :argument "-s="
   :prompt "Status: "
   :choices '("open" "in_progress" "blocked" "closed")
   :reader #'beads-reader-update-status)
@@ -421,18 +421,18 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
 (transient-define-infix beads-option-update-priority ()
   "Set the priority of the issue."
   :class 'transient-option
-  :description "Priority (-p)"
+  :description "-p, --priority"
   :key "p"
-  :argument "priority="
+  :argument "-p="
   :prompt "Priority: "
   :reader #'beads-reader-update-priority)
 
 (transient-define-infix beads-option-update-type ()
   "Set the type of the issue."
   :class 'transient-option
-  :description "Type (-t)"
+  :description "-t, --type"
   :key "T"
-  :argument "type="
+  :argument "-t="
   :prompt "Type: "
   :choices '("bug" "feature" "task" "epic" "chore")
   :reader #'beads-reader-update-type)
@@ -440,27 +440,27 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
 (transient-define-infix beads-option-update-title ()
   "Set the title of the issue."
   :class 'transient-option
-  :description "Title (--title)"
+  :description "--title"
   :key "t"
-  :argument "title="
+  :argument "--title="
   :prompt "Issue title: "
   :reader #'beads-reader-update-title)
 
 (transient-define-infix beads-option-update-assignee ()
   "Set the assignee of the issue."
   :class 'transient-option
-  :description "Assignee (-a)"
+  :description "-a, --assignee"
   :key "a"
-  :argument "assignee="
+  :argument "-a="
   :prompt "Assignee: "
   :reader #'beads-reader-update-assignee)
 
 (transient-define-infix beads-option-update-external-ref ()
   "Set the external reference of the issue."
   :class 'transient-option
-  :description "External Ref (--external-ref)"
+  :description "--external-ref"
   :key "x"
-  :argument "external-ref="
+  :argument "--external-ref="
   :prompt "External reference: "
   :reader #'beads-reader-update-external-ref)
 
@@ -468,33 +468,33 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   "Set the description using a multiline editor."
   :class 'beads-create-transient-multiline
   :field-name "Description"
-  :description "Description (--description)"
+  :description "-d, --description"
   :key "d"
-  :argument "description=")
+  :argument "-d=")
 
 (transient-define-infix beads-option-update-acceptance-multiline ()
   "Set the acceptance criteria using a multiline editor."
   :class 'beads-create-transient-multiline
   :field-name "Acceptance Criteria"
-  :description "Acceptance Criteria (--acceptance-criteria)"
+  :description "--acceptance-criteria"
   :key "A"
-  :argument "acceptance-criteria=")
+  :argument "--acceptance-criteria=")
 
 (transient-define-infix beads-option-update-design-multiline ()
   "Set the design notes using a multiline editor."
   :class 'beads-create-transient-multiline
   :field-name "Design"
-  :description "Design (--design)"
+  :description "--design"
   :key "G"
-  :argument "design=")
+  :argument "--design=")
 
 (transient-define-infix beads-option-update-notes-multiline ()
   "Set the notes using a multiline editor."
   :class 'beads-create-transient-multiline
   :field-name "Notes"
-  :description "Notes (--notes)"
+  :description "--notes"
   :key "N"
-  :argument "notes=")
+  :argument "--notes=")
 
 ;;; ============================================================
 ;;; Transient Infix Definitions - beads-close
@@ -505,7 +505,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :class 'transient-option
   :description "Issue ID (required)"
   :key "i"
-  :argument "id="
+  :argument "--id="
   :prompt "Issue ID: "
   :reader #'beads-reader-close-issue-id)
 
@@ -513,9 +513,9 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   "Set the reason for closing using a multiline editor."
   :class 'beads-create-transient-multiline
   :field-name "Close Reason"
-  :description "Reason (--reason)"
+  :description "--reason"
   :key "r"
-  :argument "reason=")
+  :argument "--reason=")
 
 ;;; ============================================================
 ;;; Transient Infix Definitions - beads-reopen
@@ -526,7 +526,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :class 'transient-option
   :description "Issue ID (required)"
   :key "i"
-  :argument "id="
+  :argument "--id="
   :prompt "Issue ID: "
   :reader #'beads-reader-reopen-issue-id)
 
@@ -534,9 +534,9 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   "Set the reason for reopening using a multiline editor."
   :class 'beads-create-transient-multiline
   :field-name "Reopen Reason"
-  :description "Reason (--reason)"
+  :description "--reason"
   :key "r"
-  :argument "reason=")
+  :argument "--reason=")
 
 ;;; ============================================================
 ;;; Transient Infix Definitions - beads-sync
@@ -545,14 +545,14 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
 (transient-define-infix beads-option-sync-dry-run ()
   "Toggle dry-run mode."
   :class 'transient-switch
-  :description "Dry run (--dry-run)"
+  :description "--dry-run"
   :key "d"
   :argument "--dry-run")
 
 (transient-define-infix beads-option-sync-message ()
   "Set custom commit message."
   :class 'transient-option
-  :description "Message (-m)"
+  :description "-m, --message"
   :key "m"
   :argument "-m="
   :prompt "Commit message: "
@@ -561,14 +561,14 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
 (transient-define-infix beads-option-sync-no-pull ()
   "Toggle skip pull flag."
   :class 'transient-switch
-  :description "Skip pull (--no-pull)"
+  :description "--no-pull"
   :key "P"
   :argument "--no-pull")
 
 (transient-define-infix beads-option-sync-no-push ()
   "Toggle skip push flag."
   :class 'transient-switch
-  :description "Skip push (--no-push)"
+  :description "--no-push"
   :key "p"
   :argument "--no-push")
 
@@ -624,27 +624,27 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
 (transient-define-infix beads-option-dep-from ()
   "Set the source issue ID."
   :class 'transient-option
-  :description "From Issue"
+  :description "--from"
   :key "f"
-  :argument "from="
+  :argument "--from="
   :prompt "From issue: "
   :reader #'beads-reader-dep-from)
 
 (transient-define-infix beads-option-dep-to ()
   "Set the target issue ID."
   :class 'transient-option
-  :description "To Issue"
+  :description "--to"
   :key "t"
-  :argument "to="
+  :argument "--to="
   :prompt "To issue: "
   :reader #'beads-reader-dep-to)
 
 (transient-define-infix beads-option-dep-type ()
   "Set the dependency type."
   :class 'transient-option
-  :description "Type (--type)"
+  :description "-t, --type"
   :key "T"
-  :argument "type="
+  :argument "-t="
   :prompt "Dependency type: "
   :choices '("blocks" "related" "parent-child" "discovered-from")
   :reader #'beads-reader-dep-type)
@@ -656,57 +656,57 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
 (transient-define-infix beads-option-export-output ()
   "Set the output file path."
   :class 'transient-option
-  :description "Output (--output)"
+  :description "-o, --output"
   :key "o"
-  :argument "output="
+  :argument "-o="
   :prompt "Output file: "
   :reader #'beads-reader-export-output)
 
 (transient-define-infix beads-option-export-no-auto-flush ()
   "Toggle no-auto-flush flag."
   :class 'transient-switch
-  :description "Disable auto-flush (--no-auto-flush)"
+  :description "--no-auto-flush"
   :key "n"
   :argument "--no-auto-flush")
 
 (transient-define-infix beads-option-import-input ()
   "Set the input file path."
   :class 'transient-option
-  :description "Input (--input, required)"
+  :description "-i, --input (required)"
   :key "i"
-  :argument "input="
+  :argument "-i="
   :prompt "Input file: "
   :reader #'beads-reader-import-input)
 
 (transient-define-infix beads-option-import-dry-run ()
   "Toggle dry-run flag."
   :class 'transient-switch
-  :description "Dry run (--dry-run)"
+  :description "--dry-run"
   :key "d"
   :argument "--dry-run")
 
 (transient-define-infix beads-option-import-resolve-collisions ()
   "Toggle resolve-collisions flag."
   :class 'transient-switch
-  :description "Resolve collisions (--resolve-collisions)"
+  :description "--resolve-collisions"
   :key "r"
   :argument "--resolve-collisions")
 
 (transient-define-infix beads-option-init-prefix ()
   "Set the issue ID prefix."
   :class 'transient-option
-  :description "Prefix (--prefix)"
+  :description "-p, --prefix"
   :key "p"
-  :argument "prefix="
+  :argument "-p="
   :prompt "Issue ID prefix: "
   :reader #'beads-reader-init-prefix)
 
 (transient-define-infix beads-option-init-db ()
   "Set the database path."
   :class 'transient-option
-  :description "Database (--db)"
+  :description "--db"
   :key "d"
-  :argument "db="
+  :argument "--db="
   :prompt "Database path: "
   :reader #'beads-reader-init-db)
 

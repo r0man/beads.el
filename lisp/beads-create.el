@@ -41,46 +41,22 @@
 Returns (:title STRING :type STRING :priority NUMBER
          :description STRING :custom-id STRING :dependencies STRING
          :acceptance STRING :assignee STRING :design STRING
-         :external-ref STRING :labels STRING :force BOOLEAN)."
-  (let ((title nil)
-        (type nil)
-        (priority nil)
-        (description nil)
-        (custom-id nil)
-        (dependencies nil)
-        (acceptance nil)
-        (assignee nil)
-        (design nil)
-        (external-ref nil)
-        (labels nil)
-        (force nil))
-    (while args
-      (let ((arg (pop args)))
-        (cond
-         ((string-prefix-p "title=" arg)
-          (setq title (substring arg 6)))
-         ((string-prefix-p "type=" arg)
-          (setq type (substring arg 5)))
-         ((string-prefix-p "priority=" arg)
-          (setq priority (string-to-number (substring arg 9))))
-         ((string-prefix-p "description=" arg)
-          (setq description (substring arg 12)))
-         ((string-prefix-p "id=" arg)
-          (setq custom-id (substring arg 3)))
-         ((string-prefix-p "deps=" arg)
-          (setq dependencies (substring arg 5)))
-         ((string-prefix-p "acceptance=" arg)
-          (setq acceptance (substring arg 11)))
-         ((string-prefix-p "assignee=" arg)
-          (setq assignee (substring arg 9)))
-         ((string-prefix-p "design=" arg)
-          (setq design (substring arg 7)))
-         ((string-prefix-p "external-ref=" arg)
-          (setq external-ref (substring arg 13)))
-         ((string-prefix-p "labels=" arg)
-          (setq labels (substring arg 7)))
-         ((string= "--force" arg)
-          (setq force t)))))
+         :external-ref STRING :labels STRING :force BOOLEAN).
+
+This uses transient's standard argument parsing with dash-style flags."
+  (let* ((title (transient-arg-value "--title=" args))
+         (type (transient-arg-value "-t=" args))
+         (priority-str (transient-arg-value "-p=" args))
+         (priority (when priority-str (string-to-number priority-str)))
+         (description (transient-arg-value "-d=" args))
+        (custom-id (transient-arg-value "--id=" args))
+        (dependencies (transient-arg-value "--deps=" args))
+        (acceptance (transient-arg-value "--acceptance=" args))
+        (assignee (transient-arg-value "-a=" args))
+        (design (transient-arg-value "--design=" args))
+        (external-ref (transient-arg-value "--external-ref=" args))
+        (labels (transient-arg-value "-l=" args))
+        (force (transient-arg-value "--force" args)))
     (list :title title
           :type type
           :priority priority
@@ -141,47 +117,40 @@ Returns list of error messages, or nil if all valid."
 
 (defun beads-create--build-command-args (parsed)
   "Build command arguments from PARSED plist.
-Returns list of arguments for bd create command."
+Returns list of arguments for bd create command.
+
+Title is passed as positional argument, other flags use standard
+dash-style syntax matching bd CLI."
   (let ((args (list (plist-get parsed :title))))
-    ;; Add type flag
+    ;; Add flags in consistent order (flag then value)
     (when-let ((type (plist-get parsed :type)))
       (setq args (append args (list "-t" type))))
-    ;; Add priority flag
     (when-let ((priority (plist-get parsed :priority)))
       (setq args (append args (list "-p" (number-to-string priority)))))
-    ;; Add description flag
     (when-let ((desc (plist-get parsed :description)))
       (unless (string-empty-p (string-trim desc))
         (setq args (append args (list "-d" desc)))))
-    ;; Add acceptance flag
     (when-let ((acceptance (plist-get parsed :acceptance)))
       (unless (string-empty-p (string-trim acceptance))
         (setq args (append args (list "--acceptance" acceptance)))))
-    ;; Add assignee flag
     (when-let ((assignee (plist-get parsed :assignee)))
       (unless (string-empty-p (string-trim assignee))
         (setq args (append args (list "-a" assignee)))))
-    ;; Add design flag
     (when-let ((design (plist-get parsed :design)))
       (unless (string-empty-p (string-trim design))
         (setq args (append args (list "--design" design)))))
-    ;; Add external-ref flag
     (when-let ((external-ref (plist-get parsed :external-ref)))
       (unless (string-empty-p (string-trim external-ref))
         (setq args (append args (list "--external-ref" external-ref)))))
-    ;; Add labels flag
     (when-let ((labels (plist-get parsed :labels)))
       (unless (string-empty-p (string-trim labels))
         (setq args (append args (list "-l" labels)))))
-    ;; Add custom ID flag
     (when-let ((id (plist-get parsed :custom-id)))
       (unless (string-empty-p (string-trim id))
         (setq args (append args (list "--id" id)))))
-    ;; Add dependencies flag
     (when-let ((deps (plist-get parsed :dependencies)))
       (unless (string-empty-p (string-trim deps))
         (setq args (append args (list "--deps" deps)))))
-    ;; Add force flag
     (when (plist-get parsed :force)
       (setq args (append args (list "--force"))))
     args))
@@ -250,6 +219,28 @@ Returns list of arguments for bd create command."
         (message "%s" preview-msg)
         preview-msg))))
 
+;;; Transient Groups
+
+(transient-define-group beads-create-infix-arguments
+  ;; Options for creating a new issue.  Grouped logically by purpose:
+  ;; Required fields, Issue attributes, Content, and Advanced options.
+  ["Required"
+   (beads-option-create-title)]
+  ["Issue attributes"
+   (beads-option-create-type)
+   (beads-option-create-priority)
+   (beads-option-create-assignee)
+   (beads-option-create-labels)]
+  ["Content"
+   (beads-option-create-description)
+   (7 beads-option-create-acceptance)
+   (7 beads-option-create-design)]
+  ["Advanced"
+   (7 beads-option-create-external-ref)
+   (7 beads-option-create-custom-id)
+   (7 beads-option-create-dependencies)
+   (7 "-f" "Force creation" "--force")])
+
 ;;; Main Transient Menu
 
 ;;;###autoload (autoload 'beads-create "beads-create" nil t)
@@ -260,30 +251,11 @@ This transient menu provides an interactive interface for setting
 all parameters of the bd create command.  Required fields are
 validated before execution."
   :value (lambda () nil)
-  ["Issue Details"
-   ["Basic"
-    (beads-option-create-title)
-    (beads-option-create-type)
-    (beads-option-create-priority)]
-   ["Content"
-    (beads-option-create-description)
-    (beads-option-create-acceptance)
-    (beads-option-create-design)]
-   ["Assignment"
-    (beads-option-create-assignee)
-    (beads-option-create-labels)
-    (beads-option-create-external-ref)]]
-  ["Advanced"
-   ["IDs & Deps"
-    (beads-option-create-custom-id)
-    (beads-option-create-dependencies)]
-   ["Options"
-    (beads-option-create-force)]]
+  'beads-create-infix-arguments
   ["Actions"
-   ("c" "Create issue" beads-create--execute)
+   ("x" "Create issue" beads-create--execute)
    ("P" "Preview command" beads-create--preview)
-   ("r" "Reset all fields" beads-create--reset)
-   ("q" "Quit" transient-quit-one)])
+   ("R" "Reset all fields" beads-create--reset)])
 
 (provide 'beads-create)
 ;;; beads-create.el ends here
