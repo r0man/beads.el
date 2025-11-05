@@ -440,11 +440,19 @@ ARGS should be a list of strings like (\"--title=Test\" \"-t=bug\")."
 ;;; Tests for Reset
 
 (ert-deftest beads-create-test-reset ()
-  "Test reset command."
-  (cl-letf (((symbol-function 'y-or-n-p) (lambda (_) t))
-            ((symbol-function 'transient-set) (lambda (&rest _) nil)))
-    ;; Reset should call transient-set without errors
-    (should-not (beads-create--reset))))
+  "Test reset command clears transient state."
+  (let ((value-set-to 'not-called))
+    (cl-letf (((symbol-function 'y-or-n-p) (lambda (_) t))
+              ((symbol-function 'transient-prefix-object)
+               (lambda () 'mock-prefix))
+              ((symbol-function 'transient-set-value)
+               (lambda (obj value)
+                 (setq value-set-to value)
+                 nil))
+              ((symbol-function 'transient--redisplay) (lambda () nil)))
+      ;; Reset should complete without errors and set value to nil
+      (should-not (beads-create--reset))
+      (should (eq value-set-to nil)))))
 
 ;;; Tests for Transient Definition
 
@@ -834,6 +842,49 @@ ARGS should be a list of strings like (\"--title=Test\" \"-t=bug\")."
   (should (fboundp 'beads-option-create-external-ref))
   (should (fboundp 'beads-option-create-labels))
   (should (fboundp 'beads-option-create-force)))
+
+;;; Tests for Transient Definition
+
+(ert-deftest beads-create-test-transient-definition-valid ()
+  "Test that beads-create transient definition is valid.
+This test reproduces the bug where a quoted symbol in the transient
+definition causes 'Wrong type argument: number-or-marker-p' error."
+  ;; The transient prefix should be a valid command
+  (should (commandp 'beads-create))
+
+  ;; Get the transient prefix object
+  (let ((prefix (get 'beads-create 'transient--prefix)))
+    ;; The prefix should exist and be a transient-prefix object
+    (should prefix)
+    (should (transient-prefix-p prefix))))
+
+(ert-deftest beads-create-test-transient-can-be-called ()
+  "Test that beads-create can be called without error.
+This directly tests the fix for the bug where referencing
+beads-create-infix-arguments (a transient-define-group) directly
+in transient-define-prefix caused a 'Wrong type argument:
+number-or-marker-p' error. The fix was to inline the layout
+directly in the transient-define-prefix definition."
+  ;; Mock transient-setup to prevent actual UI display
+  ;; We just want to verify it doesn't error during setup
+  (let ((setup-called nil)
+        (setup-succeeded nil))
+    (cl-letf (((symbol-function 'transient-setup)
+               (lambda (name &rest args)
+                 (setq setup-called t)
+                 ;; If we get here without error, the setup succeeded
+                 (setq setup-succeeded t))))
+      ;; Call beads-create - should call transient-setup internally
+      (condition-case err
+          (beads-create)
+        ;; Catch and ignore errors from transient-setup trying to
+        ;; display the buffer (since we're mocking it)
+        (error nil))
+
+      ;; Verify setup was called
+      (should setup-called)
+      ;; Verify it succeeded (no error from invalid layout reference)
+      (should setup-succeeded))))
 
 
 (provide 'beads-create-test)

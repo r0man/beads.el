@@ -38,3 +38,6 @@ Thumbs.db
 # Beads reference repository (for documentation, not committed)
 /beads-reference/
 /magit-reference/
+
+# Personal development configuration (not part of package)
+/share/
