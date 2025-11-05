@@ -84,6 +84,16 @@ If nil, uses $USER environment variable."
 (defvar beads--project-cache (make-hash-table :test 'equal)
   "Cache of project roots to .beads directories.")
 
+;; Forward declarations for global option variables (defined in beads-option.el)
+(defvar beads-global-actor nil)
+(defvar beads-global-db nil)
+(defvar beads-global-json nil)
+(defvar beads-global-no-auto-flush nil)
+(defvar beads-global-no-auto-import nil)
+(defvar beads-global-no-daemon nil)
+(defvar beads-global-no-db nil)
+(defvar beads-global-sandbox nil)
+
 ;;; Utilities
 
 (defun beads--log (level format-string &rest args)
@@ -207,15 +217,45 @@ Returns nil if auto-discovery should be used."
 
 (defun beads--build-command (subcommand &rest args)
   "Build bd command with SUBCOMMAND and ARGS.
-Automatically adds global flags based on customization."
+Automatically adds global flags based on customization and
+global transient variables (beads-global-*).
+
+Global transient variables (set via beads-option-global options)
+take precedence over defcustom settings."
   (let ((cmd (list beads-executable)))
-    ;; Add global flags
-    (when beads-actor
-      (setq cmd (append cmd (list "--actor" beads-actor))))
-    (when-let* ((db (beads--get-database-path)))
-      ;; Strip Tramp prefix for remote paths so bd can understand the path
-      (setq cmd (append cmd (list "--db" (file-local-name db)))))
+    ;; Add global option flags (beads-global-* variables from transient menus)
+    ;; These take precedence over defcustom settings
+
+    ;; Actor: beads-global-actor > beads-actor > $USER
+    (when-let ((actor (or beads-global-actor beads-actor)))
+      ;; Convert to string in case it's a symbol
+      (let ((actor-str (if (stringp actor) actor (format "%s" actor))))
+        (unless (string-empty-p (string-trim actor-str))
+          (setq cmd (append cmd (list "--actor" actor-str))))))
+
+    ;; Database: beads-global-db > beads--get-database-path
+    (when-let ((db (or beads-global-db (beads--get-database-path))))
+      ;; Convert to string in case it's a symbol
+      (let ((db-str (if (stringp db) db (format "%s" db))))
+        (unless (string-empty-p (string-trim db-str))
+          ;; Strip Tramp prefix for remote paths so bd can understand the path
+          (setq cmd (append cmd (list "--db" (file-local-name db-str)))))))
+
+    ;; Boolean global flags (only if set via transient)
+    (when beads-global-no-auto-flush
+      (setq cmd (append cmd (list "--no-auto-flush"))))
+    (when beads-global-no-auto-import
+      (setq cmd (append cmd (list "--no-auto-import"))))
+    (when beads-global-no-daemon
+      (setq cmd (append cmd (list "--no-daemon"))))
+    (when beads-global-no-db
+      (setq cmd (append cmd (list "--no-db"))))
+    (when beads-global-sandbox
+      (setq cmd (append cmd (list "--sandbox"))))
+
     ;; Add subcommand and args
+    ;; Note: --json is always added unless beads-global-no-db is set
+    ;; (in no-db mode, JSON is the only format)
     (append cmd (list subcommand) args (list "--json"))))
 
 (defun beads--run-command (subcommand &rest args)
