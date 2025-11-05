@@ -194,8 +194,10 @@ dash-style syntax matching bd CLI."
   :transient t
   (interactive)
   (when (y-or-n-p "Reset all fields? ")
-    ;; Clear transient's argument state
-    (transient-set)
+    ;; Clear transient's argument state using transient-reset
+    (transient-reset)
+    ;; Refresh the transient display to show cleared state
+    (transient--redisplay)
     (message "All fields reset")))
 
 (transient-define-suffix beads-create--preview ()
@@ -241,8 +243,6 @@ dash-style syntax matching bd CLI."
    (7 beads-option-create-dependencies)
    (7 "-f" "Force creation" "--force")]
   ["Global Options"
-   :class transient-columns
-   :if (lambda () (>= transient-current-prefix 7))
    (7 beads-option-global-actor)
    (7 beads-option-global-db)
    (7 beads-option-global-json)
@@ -261,8 +261,7 @@ dash-style syntax matching bd CLI."
 This transient menu provides an interactive interface for setting
 all parameters of the bd create command.  Required fields are
 validated before execution."
-  :value (lambda () nil)
-  'beads-create-infix-arguments
+  beads-create-infix-arguments
   ["Actions"
    ("x" "Create issue" beads-create--execute)
    ("P" "Preview command" beads-create--preview)
