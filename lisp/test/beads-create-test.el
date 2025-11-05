@@ -13,7 +13,7 @@
 ;;
 ;; This test file uses the transient-args pattern where tests mock
 ;; (transient-args 'beads-create) to return argument lists like
-;; '("title=Test" "type=bug" "priority=1").
+;; '("--title=Test" "-t=bug" "-p=1").
 
 ;;; Code:
 
@@ -39,7 +39,7 @@
 
 (defun beads-create-test--mock-transient-args (args)
   "Create a mock for `transient-args' returning ARGS.
-ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
+ARGS should be a list of strings like (\"--title=Test\" \"-t=bug\")."
   (lambda (prefix)
     (when (eq prefix 'beads-create)
       args)))
@@ -69,19 +69,19 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
 (ert-deftest beads-create-test-parse-args-title-only ()
   "Test parsing with only title."
   (let ((parsed (beads-create--parse-transient-args
-                 '("title=Test Issue"))))
+                 '("--title=Test Issue"))))
     (should (equal (plist-get parsed :title) "Test Issue"))
     (should (null (plist-get parsed :type)))))
 
 (ert-deftest beads-create-test-parse-args-all-fields ()
   "Test parsing with all fields."
   (let ((parsed (beads-create--parse-transient-args
-                 '("title=Full Issue"
-                   "type=feature"
-                   "priority=2"
-                   "description=Full description"
-                   "id=custom-1"
-                   "deps=blocks:bd-1"))))
+                 '("--title=Full Issue"
+                   "-t=feature"
+                   "-p=2"
+                   "-d=Full description"
+                   "--id=custom-1"
+                   "--deps=blocks:bd-1"))))
     (should (equal (plist-get parsed :title) "Full Issue"))
     (should (equal (plist-get parsed :type) "feature"))
     (should (equal (plist-get parsed :priority) 2))
@@ -92,14 +92,14 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
 (ert-deftest beads-create-test-parse-args-title-with-equals ()
   "Test parsing title containing equals sign."
   (let ((parsed (beads-create--parse-transient-args
-                 '("title=Issue with x=y formula"))))
+                 '("--title=Issue with x=y formula"))))
     (should (equal (plist-get parsed :title) "Issue with x=y formula"))))
 
 (ert-deftest beads-create-test-parse-args-multiline-description ()
   "Test parsing multiline description."
   (let ((parsed (beads-create--parse-transient-args
-                 '("title=Test"
-                   "description=Line 1\nLine 2\nLine 3"))))
+                 '("--title=Test"
+                   "-d=Line 1\nLine 2\nLine 3"))))
     (should (equal (plist-get parsed :title) "Test"))
     (should (string-match-p "\n" (plist-get parsed :description)))))
 
@@ -210,17 +210,17 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
 (ert-deftest beads-create-test-validate-all-success ()
   "Test validate-all with all valid parameters."
   (let ((parsed (beads-create--parse-transient-args
-                 '("title=Valid Title"
-                   "type=bug"
-                   "priority=1"))))
+                 '("--title=Valid Title"
+                   "-t=bug"
+                   "-p=1"))))
     (should (null (beads-create--validate-all parsed)))))
 
 (ert-deftest beads-create-test-validate-all-multiple-errors ()
   "Test validate-all with multiple validation errors."
   (let ((parsed (beads-create--parse-transient-args
-                 '("title="
-                   "type=invalid"
-                   "priority=10"))))
+                 '("--title="
+                   "-t=invalid"
+                   "-p=10"))))
     (let ((errors (beads-create--validate-all parsed)))
       (should errors)
       (should (listp errors))
@@ -231,55 +231,55 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
 (ert-deftest beads-create-test-build-command-args-minimal ()
   "Test building command args with only title."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Test Issue")))
+                  '("--title=Test Issue")))
          (args (beads-create--build-command-args parsed)))
     (should (equal args '("Test Issue")))))
 
 (ert-deftest beads-create-test-build-command-args-with-type ()
   "Test building command args with title and type."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Test Issue" "type=bug")))
+                  '("--title=Test Issue" "-t=bug")))
          (args (beads-create--build-command-args parsed)))
     (should (equal args '("Test Issue" "-t" "bug")))))
 
 (ert-deftest beads-create-test-build-command-args-with-priority ()
   "Test building command args with title and priority."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Test Issue" "priority=1")))
+                  '("--title=Test Issue" "-p=1")))
          (args (beads-create--build-command-args parsed)))
     (should (equal args '("Test Issue" "-p" "1")))))
 
 (ert-deftest beads-create-test-build-command-args-with-description ()
   "Test building command args with description."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Test Issue"
-                    "description=Test description")))
+                  '("--title=Test Issue"
+                    "-d=Test description")))
          (args (beads-create--build-command-args parsed)))
     (should (equal args '("Test Issue" "-d" "Test description")))))
 
 (ert-deftest beads-create-test-build-command-args-with-custom-id ()
   "Test building command args with custom ID."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Test Issue" "id=worker1-100")))
+                  '("--title=Test Issue" "--id=worker1-100")))
          (args (beads-create--build-command-args parsed)))
     (should (equal args '("Test Issue" "--id" "worker1-100")))))
 
 (ert-deftest beads-create-test-build-command-args-with-dependencies ()
   "Test building command args with dependencies."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Test Issue" "deps=blocks:bd-1")))
+                  '("--title=Test Issue" "--deps=blocks:bd-1")))
          (args (beads-create--build-command-args parsed)))
     (should (equal args '("Test Issue" "--deps" "blocks:bd-1")))))
 
 (ert-deftest beads-create-test-build-command-args-all-options ()
   "Test building command args with all options."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Test Issue"
-                    "type=feature"
-                    "priority=2"
-                    "description=Long description"
-                    "id=custom-42"
-                    "deps=related:bd-10")))
+                  '("--title=Test Issue"
+                    "-t=feature"
+                    "-p=2"
+                    "-d=Long description"
+                    "--id=custom-42"
+                    "--deps=related:bd-10")))
          (args (beads-create--build-command-args parsed)))
     (should (equal args '("Test Issue"
                          "-t" "feature"
@@ -291,22 +291,22 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
 (ert-deftest beads-create-test-build-command-args-title-with-spaces ()
   "Test building command args with title containing spaces."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Test Issue With Spaces")))
+                  '("--title=Test Issue With Spaces")))
          (args (beads-create--build-command-args parsed)))
     (should (equal (car args) "Test Issue With Spaces"))))
 
 (ert-deftest beads-create-test-build-command-args-title-special-chars ()
   "Test building command args with special characters in title."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Test \"quoted\" & special chars")))
+                  '("--title=Test \"quoted\" & special chars")))
          (args (beads-create--build-command-args parsed)))
     (should (equal (car args) "Test \"quoted\" & special chars"))))
 
 (ert-deftest beads-create-test-build-command-args-multiline-description ()
   "Test building command args with multiline description."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Test"
-                    "description=Line 1\nLine 2\nLine 3")))
+                  '("--title=Test"
+                    "-d=Line 1\nLine 2\nLine 3")))
          (args (beads-create--build-command-args parsed)))
     (should (member "-d" args))
     (let ((desc (nth (1+ (cl-position "-d" args :test #'equal)) args)))
@@ -315,17 +315,17 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
 (ert-deftest beads-create-test-build-command-args-priority-zero ()
   "Test building command args with priority zero (critical)."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Critical Issue" "priority=0")))
+                  '("--title=Critical Issue" "-p=0")))
          (args (beads-create--build-command-args parsed)))
     (should (member "0" args))))
 
 (ert-deftest beads-create-test-build-command-args-empty-optional-fields ()
   "Test that empty optional fields are not included."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Test"
-                    "description="
-                    "id=  \t\n  "
-                    "deps=")))
+                  '("--title=Test"
+                    "-d="
+                    "--id=  \t\n  "
+                    "--deps=")))
          (args (beads-create--build-command-args parsed)))
     ;; Should only contain title, no flags
     (should (equal args '("Test")))))
@@ -338,7 +338,7 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
                       beads-create-test--sample-create-response)))
     (cl-letf (((symbol-function 'transient-args)
                (beads-create-test--mock-transient-args
-                '("title=Test Issue" "type=bug" "priority=1")))
+                '("--title=Test Issue" "-t=bug" "-p=1")))
               ((symbol-function 'call-process)
                (beads-create-test--mock-call-process 0 json-output))
               ((symbol-function 'y-or-n-p) (lambda (_) nil))
@@ -350,35 +350,35 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
   "Test execution fails with validation error."
   (cl-letf (((symbol-function 'transient-args)
              (beads-create-test--mock-transient-args
-              '("title=" "type=bug"))))
+              '("--title=" "-t=bug"))))
     (should-error (beads-create--execute) :type 'user-error)))
 
 (ert-deftest beads-create-test-execute-missing-title ()
   "Test execution fails when title is missing."
   (cl-letf (((symbol-function 'transient-args)
              (beads-create-test--mock-transient-args
-              '("type=bug" "priority=1"))))
+              '("-t=bug" "-p=1"))))
     (should-error (beads-create--execute) :type 'user-error)))
 
 (ert-deftest beads-create-test-execute-invalid-type ()
   "Test execution fails with invalid type."
   (cl-letf (((symbol-function 'transient-args)
              (beads-create-test--mock-transient-args
-              '("title=Test" "type=invalid"))))
+              '("--title=Test" "-t=invalid"))))
     (should-error (beads-create--execute) :type 'user-error)))
 
 (ert-deftest beads-create-test-execute-invalid-priority ()
   "Test execution fails with invalid priority."
   (cl-letf (((symbol-function 'transient-args)
              (beads-create-test--mock-transient-args
-              '("title=Test" "priority=10"))))
+              '("--title=Test" "-p=10"))))
     (should-error (beads-create--execute) :type 'user-error)))
 
 (ert-deftest beads-create-test-execute-command-failure ()
   "Test execution handles bd command failure."
   (cl-letf (((symbol-function 'transient-args)
              (beads-create-test--mock-transient-args
-              '("title=Test Issue" "priority=1")))
+              '("--title=Test Issue" "-p=1")))
             ((symbol-function 'call-process)
              (beads-create-test--mock-call-process 1 "Error: failed")))
     ;; Should not propagate error, just display message
@@ -392,12 +392,12 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
         (captured-args nil))
     (cl-letf (((symbol-function 'transient-args)
                (beads-create-test--mock-transient-args
-                '("title=Full Issue"
-                  "type=feature"
-                  "priority=2"
-                  "description=Full description"
-                  "id=test-1"
-                  "deps=blocks:bd-1")))
+                '("--title=Full Issue"
+                  "-t=feature"
+                  "-p=2"
+                  "-d=Full description"
+                  "--id=test-1"
+                  "--deps=blocks:bd-1")))
               ((symbol-function 'call-process)
                (lambda (program &optional infile destination display
                                &rest args)
@@ -425,7 +425,7 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
   "Test preview command with valid parameters."
   (cl-letf (((symbol-function 'transient-args)
              (beads-create-test--mock-transient-args
-              '("title=Test Issue" "type=bug" "priority=1"))))
+              '("--title=Test Issue" "-t=bug" "-p=1"))))
     ;; Preview returns a message string
     (should (stringp (beads-create--preview)))))
 
@@ -433,7 +433,7 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
   "Test preview shows validation errors."
   (cl-letf (((symbol-function 'transient-args)
              (beads-create-test--mock-transient-args
-              '("title=" "type=bug"))))
+              '("--title=" "-t=bug"))))
     ;; Preview returns a message string even with validation errors
     (should (stringp (beads-create--preview)))))
 
@@ -479,10 +479,10 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
                       beads-create-test--sample-create-response)))
     (cl-letf (((symbol-function 'transient-args)
                (beads-create-test--mock-transient-args
-                '("title=Integration Test Issue"
-                  "type=task"
-                  "priority=3"
-                  "description=Integration test description")))
+                '("--title=Integration Test Issue"
+                  "-t=task"
+                  "-p=3"
+                  "-d=Integration test description")))
               ((symbol-function 'call-process)
                (beads-create-test--mock-call-process 0 json-output))
               ((symbol-function 'y-or-n-p) (lambda (_) nil))
@@ -510,10 +510,10 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
                       beads-create-test--sample-create-response)))
     (cl-letf (((symbol-function 'transient-args)
                (beads-create-test--mock-transient-args
-                '("title=Dependent Issue"
-                  "type=bug"
-                  "priority=1"
-                  "deps=discovered-from:bd-5")))
+                '("--title=Dependent Issue"
+                  "-t=bug"
+                  "-p=1"
+                  "--deps=discovered-from:bd-5")))
               ((symbol-function 'call-process)
                (beads-create-test--mock-call-process 0 json-output))
               ((symbol-function 'y-or-n-p) (lambda (_) nil))
@@ -537,7 +537,7 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
 (ert-deftest beads-create-test-edge-case-unicode-title ()
   "Test creating issue with Unicode characters in title."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=测试 Issue with émojis 😀")))
+                  '("--title=测试 Issue with émojis 😀")))
          (args (beads-create--build-command-args parsed)))
     (should (equal (car args) "测试 Issue with émojis 😀"))))
 
@@ -545,14 +545,14 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
   "Test creating issue with very long title."
   (let* ((long-title (make-string 500 ?x))
          (parsed (beads-create--parse-transient-args
-                  (list (concat "title=" long-title))))
+                  (list (concat "--title=" long-title))))
          (args (beads-create--build-command-args parsed)))
     (should (equal (car args) long-title))))
 
 (ert-deftest beads-create-test-edge-case-title-with-newlines ()
   "Test creating issue with newlines in title."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Title\nWith\nNewlines")))
+                  '("--title=Title\nWith\nNewlines")))
          (title (plist-get parsed :title))
          (args (beads-create--build-command-args parsed)))
     ;; This should be valid - bd will handle it
@@ -562,16 +562,16 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
 (ert-deftest beads-create-test-edge-case-description-with-quotes ()
   "Test creating issue with quotes in description."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Test"
-                    "description=Description with \"quotes\" and 'apostrophes'")))
+                  '("--title=Test"
+                    "-d=Description with \"quotes\" and 'apostrophes'")))
          (args (beads-create--build-command-args parsed)))
     (should (member "-d" args))))
 
 (ert-deftest beads-create-test-edge-case-multiple-dependencies ()
   "Test creating issue with multiple dependencies."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Test"
-                    "deps=blocks:bd-1,related:bd-2,parent-child:bd-3")))
+                  '("--title=Test"
+                    "--deps=blocks:bd-1,related:bd-2,parent-child:bd-3")))
          (deps (plist-get parsed :dependencies)))
     (should (null (beads-create--validate-dependencies deps)))
     (let ((args (beads-create--build-command-args parsed)))
@@ -585,7 +585,7 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
 (ert-deftest beads-create-test-edge-case-custom-id-with-special-chars ()
   "Test custom ID with special characters."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Test" "id=worker-1-task-100")))
+                  '("--title=Test" "--id=worker-1-task-100")))
          (args (beads-create--build-command-args parsed)))
     (should (member "--id" args))
     (should (member "worker-1-task-100" args))))
@@ -596,12 +596,12 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
   "Test command building performance."
   :tags '(:performance)
   (let ((parsed (beads-create--parse-transient-args
-                 '("title=Test"
-                   "type=bug"
-                   "priority=1"
-                   "description=Description"
-                   "id=test-1"
-                   "deps=blocks:bd-1"))))
+                 '("--title=Test"
+                   "-t=bug"
+                   "-p=1"
+                   "-d=Description"
+                   "--id=test-1"
+                   "--deps=blocks:bd-1"))))
     (let ((start-time (current-time)))
       (dotimes (_ 1000)
         (beads-create--build-command-args parsed))
@@ -614,10 +614,10 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
   "Test validation performance."
   :tags '(:performance)
   (let ((parsed (beads-create--parse-transient-args
-                 '("title=Test Issue"
-                   "type=bug"
-                   "priority=1"
-                   "deps=blocks:bd-1"))))
+                 '("--title=Test Issue"
+                   "-t=bug"
+                   "-p=1"
+                   "--deps=blocks:bd-1"))))
     (let ((start-time (current-time)))
       (dotimes (_ 1000)
         (beads-create--validate-all parsed))
@@ -643,7 +643,7 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
 (ert-deftest beads-create-test-validation-workflow ()
   "Integration test: Validate that validation prevents execution."
   :tags '(integration)
-  (let* ((parsed (beads-create--parse-transient-args '("title=")))
+  (let* ((parsed (beads-create--parse-transient-args '("--title=")))
          (validation-error (beads-create--validate-all parsed)))
     ;; validate-all returns list of errors, not string
     (should validation-error)
@@ -653,9 +653,9 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
   "Integration test: Test complete command building workflow."
   :tags '(integration)
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Integration Test Issue"
-                    "type=task"
-                    "priority=2"))))
+                  '("--title=Integration Test Issue"
+                    "-t=task"
+                    "-p=2"))))
     ;; Should not error during validation
     (should-not (beads-create--validate-all parsed))
     ;; Should build valid command args
@@ -695,48 +695,48 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
 (ert-deftest beads-create-test-parse-args-acceptance ()
   "Test parsing acceptance criteria field."
   (let ((parsed (beads-create--parse-transient-args
-                 '("title=Test" "acceptance=Criteria text"))))
+                 '("--title=Test" "--acceptance=Criteria text"))))
     (should (equal (plist-get parsed :acceptance) "Criteria text"))))
 
 (ert-deftest beads-create-test-parse-args-assignee ()
   "Test parsing assignee field."
   (let ((parsed (beads-create--parse-transient-args
-                 '("title=Test" "assignee=john"))))
+                 '("--title=Test" "-a=john"))))
     (should (equal (plist-get parsed :assignee) "john"))))
 
 (ert-deftest beads-create-test-parse-args-design ()
   "Test parsing design notes field."
   (let ((parsed (beads-create--parse-transient-args
-                 '("title=Test" "design=Design notes"))))
+                 '("--title=Test" "--design=Design notes"))))
     (should (equal (plist-get parsed :design) "Design notes"))))
 
 (ert-deftest beads-create-test-parse-args-external-ref ()
   "Test parsing external reference field."
   (let ((parsed (beads-create--parse-transient-args
-                 '("title=Test" "external-ref=gh-123"))))
+                 '("--title=Test" "--external-ref=gh-123"))))
     (should (equal (plist-get parsed :external-ref) "gh-123"))))
 
 (ert-deftest beads-create-test-parse-args-labels ()
   "Test parsing labels field."
   (let ((parsed (beads-create--parse-transient-args
-                 '("title=Test" "labels=bug,urgent"))))
+                 '("--title=Test" "-l=bug,urgent"))))
     (should (equal (plist-get parsed :labels) "bug,urgent"))))
 
 (ert-deftest beads-create-test-parse-args-force ()
   "Test parsing force flag."
   (let ((parsed (beads-create--parse-transient-args
-                 '("title=Test" "--force"))))
+                 '("--title=Test" "--force"))))
     (should (eq (plist-get parsed :force) t))))
 
 (ert-deftest beads-create-test-parse-args-all-new-fields ()
   "Test parsing with all new fields."
   (let ((parsed (beads-create--parse-transient-args
-                 '("title=Full Test"
-                   "acceptance=Accept criteria"
-                   "assignee=alice"
-                   "design=Design doc"
-                   "external-ref=jira-ABC"
-                   "labels=feature,p1"
+                 '("--title=Full Test"
+                   "--acceptance=Accept criteria"
+                   "-a=alice"
+                   "--design=Design doc"
+                   "--external-ref=jira-ABC"
+                   "-l=feature,p1"
                    "--force"))))
     (should (equal (plist-get parsed :acceptance) "Accept criteria"))
     (should (equal (plist-get parsed :assignee) "alice"))
@@ -748,7 +748,7 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
 (ert-deftest beads-create-test-build-command-args-with-acceptance ()
   "Test building command args with acceptance criteria."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Test" "acceptance=Must pass tests")))
+                  '("--title=Test" "--acceptance=Must pass tests")))
          (args (beads-create--build-command-args parsed)))
     (should (member "--acceptance" args))
     (should (member "Must pass tests" args))))
@@ -756,7 +756,7 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
 (ert-deftest beads-create-test-build-command-args-with-assignee ()
   "Test building command args with assignee."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Test" "assignee=bob")))
+                  '("--title=Test" "-a=bob")))
          (args (beads-create--build-command-args parsed)))
     (should (member "-a" args))
     (should (member "bob" args))))
@@ -764,7 +764,7 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
 (ert-deftest beads-create-test-build-command-args-with-design ()
   "Test building command args with design notes."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Test" "design=Architecture notes")))
+                  '("--title=Test" "--design=Architecture notes")))
          (args (beads-create--build-command-args parsed)))
     (should (member "--design" args))
     (should (member "Architecture notes" args))))
@@ -772,7 +772,7 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
 (ert-deftest beads-create-test-build-command-args-with-external-ref ()
   "Test building command args with external reference."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Test" "external-ref=gh-42")))
+                  '("--title=Test" "--external-ref=gh-42")))
          (args (beads-create--build-command-args parsed)))
     (should (member "--external-ref" args))
     (should (member "gh-42" args))))
@@ -780,7 +780,7 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
 (ert-deftest beads-create-test-build-command-args-with-labels ()
   "Test building command args with labels."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Test" "labels=bug,critical")))
+                  '("--title=Test" "-l=bug,critical")))
          (args (beads-create--build-command-args parsed)))
     (should (member "-l" args))
     (should (member "bug,critical" args))))
@@ -788,24 +788,24 @@ ARGS should be a list of strings like (\"title=Test\" \"type=bug\")."
 (ert-deftest beads-create-test-build-command-args-with-force ()
   "Test building command args with force flag."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Test" "--force")))
+                  '("--title=Test" "--force")))
          (args (beads-create--build-command-args parsed)))
     (should (member "--force" args))))
 
 (ert-deftest beads-create-test-build-command-args-comprehensive ()
   "Test building command args with all fields including new ones."
   (let* ((parsed (beads-create--parse-transient-args
-                  '("title=Comprehensive Test"
-                    "type=feature"
-                    "priority=1"
-                    "description=Full description"
-                    "acceptance=Full acceptance"
-                    "assignee=charlie"
-                    "design=Full design"
-                    "external-ref=jira-XYZ"
-                    "labels=feature,p1,urgent"
-                    "id=custom-1"
-                    "deps=blocks:bd-1"
+                  '("--title=Comprehensive Test"
+                    "-t=feature"
+                    "-p=1"
+                    "-d=Full description"
+                    "--acceptance=Full acceptance"
+                    "-a=charlie"
+                    "--design=Full design"
+                    "--external-ref=jira-XYZ"
+                    "-l=feature,p1,urgent"
+                    "--id=custom-1"
+                    "--deps=blocks:bd-1"
                     "--force")))
          (args (beads-create--build-command-args parsed)))
     (should (equal (car args) "Comprehensive Test"))
