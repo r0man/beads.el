@@ -14,9 +14,9 @@
 (eldev-add-extra-dependencies 'test '(ert))
 (eldev-add-extra-dependencies 'lint '(package-lint))
 
-;; Exclude worktree directory from everything
+;; Exclude worktree and share directories from everything
 (setf eldev-standard-excludes
-      `(:or ,eldev-standard-excludes "worktree/**"))
+      `(:or ,eldev-standard-excludes "worktree/**" "share/**"))
 
 ;; Test files location
 (setf eldev-test-fileset '("lisp/test/*.el"))

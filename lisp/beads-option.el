@@ -62,7 +62,8 @@
 ;;; ============================================================
 
 (defclass beads-option-global (transient-option)
-  ((variable :initarg :variable :initform nil))
+  ((variable :initarg :variable :initform nil)
+   (pad-keys :initarg :pad-keys :initform nil))
   "Transient infix class for global bd flags.
 Global flags use '=' prefix instead of '-' and store their values
 in global elisp variables that persist across commands.")
