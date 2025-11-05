@@ -51,7 +51,7 @@ This uses transient's standard argument parsing with dash-style flags."
          (type (transient-arg-value "-t=" args))
          (priority-str (transient-arg-value "-p=" args))
          (priority (when priority-str (string-to-number priority-str)))
-         (description (transient-arg-value "-d=" args))
+         (description (transient-arg-value "--description=" args))
         (custom-id (transient-arg-value "--id=" args))
         (dependencies (transient-arg-value "--deps=" args))
         (acceptance (transient-arg-value "--acceptance=" args))
