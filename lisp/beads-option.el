@@ -174,15 +174,17 @@ similar to git commit message editing.")
 
 (cl-defmethod transient-format-value ((obj beads-create-transient-multiline))
   "Format the value of multiline OBJ for display in transient menu.
-Shows argument with truncated first line.  Grey when unset, green when set."
+Shows argument with all lines escaped to single line, truncated at 40 chars.
+Grey when unset, green when set."
   (let ((value (oref obj value))
         (arg (oref obj argument)))
     (if (and value (not (string-empty-p (string-trim value))))
-        (let* ((first-line (car (split-string value "\n" t)))
-               (trimmed (string-trim first-line))
-               (display (if (> (length trimmed) 40)
-                           (concat (substring trimmed 0 40) "...")
-                         trimmed)))
+        (let* ((trimmed (string-trim value))
+               ;; Replace newlines with escaped \n for display
+               (escaped (replace-regexp-in-string "\n" "\\\\n" trimmed))
+               (display (if (> (length escaped) 40)
+                           (concat (substring escaped 0 40) "...")
+                         escaped)))
           (propertize (concat arg display) 'face 'transient-value))
       (propertize arg 'face 'transient-inactive-value))))
 
