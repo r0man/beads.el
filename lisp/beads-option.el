@@ -75,7 +75,7 @@ with custom display formatting to match transient-switch.")
 
 (cl-defmethod transient-infix-read ((obj beads-option-global))
   "Read a string value for global option OBJ.
-Uses read-string to ensure the value is always a string, not a symbol."
+Uses `read-string' to ensure the value is always a string, not a symbol."
   (let ((prompt (concat (oref obj prompt)))
         (initial-input (oref obj value)))
     (read-string prompt initial-input)))
@@ -175,7 +175,7 @@ similar to git commit message editing.")
 (cl-defmethod transient-format-value ((obj beads-create-transient-multiline))
   "Format the value of multiline OBJ for display in transient menu.
 Shows the full argument with value in parentheses.
-Grey when unset, green when set. Multiline values show first line only."
+Grey when unset, green when set.  Multiline values show first line only."
   (let ((value (oref obj value))
         (arg (oref obj argument)))
     (concat "("
@@ -433,7 +433,7 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
   :field-name "Description"
   :description "Description"
   :key "-d"
-  :argument "-d=")
+  :argument "--description=")
 
 (transient-define-infix beads-option-create-custom-id ()
   "Set a custom ID for the issue."
@@ -569,7 +569,7 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
   :field-name "Description"
   :description "-d, --description"
   :key "d"
-  :argument "-d=")
+  :argument "--description=")
 
 (transient-define-infix beads-option-update-acceptance-multiline ()
   "Set the acceptance criteria using a multiline editor."
