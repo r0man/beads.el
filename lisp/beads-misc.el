@@ -352,9 +352,14 @@ listing dependencies."
 (defun beads-export--execute (output-path no-auto-flush)
   "Execute bd export to OUTPUT-PATH with NO-AUTO-FLUSH flag."
   (condition-case err
-      (let ((args (list "export" "-o" output-path)))
+      (let (args)
+        ;; Build args in reverse order for push/nreverse
         (when no-auto-flush
-          (setq args (append args (list "--no-auto-flush"))))
+          (push "--no-auto-flush" args))
+        (push output-path args)
+        (push "-o" args)
+        (push "export" args)
+        (setq args (nreverse args))
         (with-temp-buffer
           (let ((exit-code (apply #'call-process
                                   beads-executable nil t nil args)))
@@ -448,11 +453,16 @@ Returns list of error messages, or nil if all valid."
   "Execute bd import from INPUT-PATH with flags.
 DRY-RUN and RESOLVE-COLLISIONS control behavior."
   (condition-case err
-      (let ((args (list "import" "-i" input-path)))
-        (when dry-run
-          (setq args (append args (list "--dry-run"))))
+      (let (args)
+        ;; Build args in reverse order for push/nreverse
         (when resolve-collisions
-          (setq args (append args (list "--resolve-collisions"))))
+          (push "--resolve-collisions" args))
+        (when dry-run
+          (push "--dry-run" args))
+        (push input-path args)
+        (push "-i" args)
+        (push "import" args)
+        (setq args (nreverse args))
         (let ((output (with-temp-buffer
                         (let ((exit-code
                                (apply #'call-process
@@ -548,15 +558,20 @@ automatic collision resolution for branch merges."
 (defun beads-init--execute (prefix db-path)
   "Execute bd init with PREFIX and DB-PATH."
   (condition-case err
-      (let ((args (list "init")))
-        (when prefix
-          (let ((trimmed (string-trim prefix)))
-            (unless (string-empty-p trimmed)
-              (setq args (append args (list "--prefix" trimmed))))))
+      (let (args)
+        ;; Build args in reverse order for push/nreverse
         (when db-path
           (let ((trimmed (string-trim db-path)))
             (unless (string-empty-p trimmed)
-              (setq args (append args (list "--db" trimmed))))))
+              (push trimmed args)
+              (push "--db" args))))
+        (when prefix
+          (let ((trimmed (string-trim prefix)))
+            (unless (string-empty-p trimmed)
+              (push trimmed args)
+              (push "--prefix" args))))
+        (push "init" args)
+        (setq args (nreverse args))
         (with-temp-buffer
           (let ((exit-code (apply #'call-process
                                   beads-executable nil t nil args)))

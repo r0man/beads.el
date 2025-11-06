@@ -78,13 +78,17 @@ Returns list of error messages, or nil if all valid."
 (defun beads-close--build-command-args ()
   "Build command arguments from current transient state.
 Returns list of arguments for bd close command."
-  (let ((args (list beads-close--issue-id)))
+  (let (args)
+    ;; Push in reverse order for push/nreverse pattern
+    ;; Issue ID goes first (will be first after nreverse)
+    (push beads-close--issue-id args)
     ;; Add reason flag if provided
     (when beads-close--reason
       (let ((trimmed (string-trim beads-close--reason)))
         (unless (string-empty-p trimmed)
-          (setq args (append args (list "--reason" trimmed))))))
-    args))
+          (push "--reason" args)
+          (push trimmed args))))
+    (nreverse args)))
 
 (defun beads-close--edit-reason-multiline (current-value callback)
   "Edit reason in a multiline buffer.

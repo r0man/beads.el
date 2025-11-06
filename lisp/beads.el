@@ -276,16 +276,21 @@ global transient variables (beads-global-*).
 
 Global transient variables (set via beads-option-global options)
 take precedence over defcustom settings."
-  (let ((cmd (list beads-executable)))
-    ;; Add global option flags (beads-global-* variables from transient menus)
-    ;; These take precedence over defcustom settings
+  ;; Use push/nreverse for O(n) performance instead of repeated append (O(n²))
+  (let ((parts nil))
+    ;; Build arguments by pushing in desired final order, then reverse at end
+    ;; Final: (executable [--actor actor] [--db db] [flags...] subcommand args... --json)
+
+    ;; Push executable first (will be first after nreverse)
+    (push beads-executable parts)
 
     ;; Actor: beads-global-actor > beads-actor > $USER
     (when-let ((actor (or beads-global-actor beads-actor)))
       ;; Convert to string in case it's a symbol
       (let ((actor-str (if (stringp actor) actor (format "%s" actor))))
         (unless (string-empty-p (string-trim actor-str))
-          (setq cmd (append cmd (list "--actor" actor-str))))))
+          (push "--actor" parts)
+          (push actor-str parts))))
 
     ;; Database: beads-global-db > beads--get-database-path
     (when-let ((db (or beads-global-db (beads--get-database-path))))
@@ -293,24 +298,33 @@ take precedence over defcustom settings."
       (let ((db-str (if (stringp db) db (format "%s" db))))
         (unless (string-empty-p (string-trim db-str))
           ;; Strip Tramp prefix for remote paths so bd can understand the path
-          (setq cmd (append cmd (list "--db" (file-local-name db-str)))))))
+          (push "--db" parts)
+          (push (file-local-name db-str) parts))))
 
     ;; Boolean global flags (only if set via transient)
     (when beads-global-no-auto-flush
-      (setq cmd (append cmd (list "--no-auto-flush"))))
+      (push "--no-auto-flush" parts))
     (when beads-global-no-auto-import
-      (setq cmd (append cmd (list "--no-auto-import"))))
+      (push "--no-auto-import" parts))
     (when beads-global-no-daemon
-      (setq cmd (append cmd (list "--no-daemon"))))
+      (push "--no-daemon" parts))
     (when beads-global-no-db
-      (setq cmd (append cmd (list "--no-db"))))
+      (push "--no-db" parts))
     (when beads-global-sandbox
-      (setq cmd (append cmd (list "--sandbox"))))
+      (push "--sandbox" parts))
 
-    ;; Add subcommand and args
-    ;; Note: --json is always added unless beads-global-no-db is set
-    ;; (in no-db mode, JSON is the only format)
-    (append cmd (list subcommand) args (list "--json"))))
+    ;; Add subcommand
+    (push subcommand parts)
+
+    ;; Add command-specific args
+    (dolist (arg args)
+      (push arg parts))
+
+    ;; --json flag goes at the end
+    (push "--json" parts)
+
+    ;; Reverse to get correct order
+    (nreverse parts)))
 
 (defun beads--run-command (subcommand &rest args)
   "Run bd SUBCOMMAND with ARGS synchronously.
