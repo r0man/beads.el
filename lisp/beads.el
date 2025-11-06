@@ -129,6 +129,60 @@ FORMAT-STRING and ARGS are passed to `format'."
     (apply #'beads--log 'error "ERROR: %s" (list msg))
     (user-error "Beads: %s" msg)))
 
+(defun beads--display-error-buffer (command exit-code stdout stderr)
+  "Display detailed error information in *beads-errors* buffer.
+COMMAND is the command string that was executed.
+EXIT-CODE is the process exit code.
+STDOUT is the standard output from the process.
+STDERR is the standard error output from the process."
+  (let ((buf (get-buffer-create "*beads-errors*"))
+        (inhibit-read-only t))
+    (with-current-buffer buf
+      (erase-buffer)
+      (special-mode)
+      (setq buffer-read-only nil)
+      (insert (propertize "Beads Command Error\n"
+                          'face '(:weight bold :height 1.2))
+              (propertize (make-string 60 ?=) 'face 'shadow)
+              "\n\n")
+
+      ;; Timestamp
+      (insert (propertize "Time: " 'face 'bold)
+              (format-time-string "%Y-%m-%d %H:%M:%S")
+              "\n\n")
+
+      ;; Command
+      (insert (propertize "Command:\n" 'face 'bold)
+              (propertize command 'face 'font-lock-string-face)
+              "\n\n")
+
+      ;; Exit code
+      (insert (propertize "Exit Code: " 'face 'bold)
+              (propertize (format "%d" exit-code)
+                          'face 'error)
+              "\n\n")
+
+      ;; Stdout
+      (insert (propertize "Standard Output:\n" 'face 'bold)
+              (propertize (make-string 40 ?-) 'face 'shadow)
+              "\n")
+      (if (and stdout (not (string-empty-p (string-trim stdout))))
+          (insert stdout "\n")
+        (insert (propertize "(empty)\n" 'face 'shadow)))
+      (insert "\n")
+
+      ;; Stderr
+      (insert (propertize "Standard Error:\n" 'face 'bold)
+              (propertize (make-string 40 ?-) 'face 'shadow)
+              "\n")
+      (if (and stderr (not (string-empty-p (string-trim stderr))))
+          (insert stderr "\n")
+        (insert (propertize "(empty)\n" 'face 'shadow)))
+
+      (setq buffer-read-only t)
+      (goto-char (point-min)))
+    (display-buffer buf)))
+
 ;;;###autoload
 (defun beads-show-debug-buffer ()
   "Show the *beads-debug* buffer in another window.
@@ -268,7 +322,7 @@ Works over Tramp when `default-directory' is a remote path."
     (beads--log 'verbose "In directory: %s" default-directory)
     (with-temp-buffer
       (let* ((exit-code (apply #'process-file
-                               (car cmd) nil '(t nil) nil (cdr cmd)))
+                               (car cmd) nil '(t t) nil (cdr cmd)))
              (output (buffer-string)))
         (beads--log 'verbose "Exit code: %d" exit-code)
         (beads--log 'verbose "Output: %s" output)
@@ -279,8 +333,19 @@ Works over Tramp when `default-directory' is a remote path."
                       (json-key-type 'symbol))
                   (json-read-from-string output))
               (error
-               (beads--error "Failed to parse JSON: %s" (error-message-string err))))
-          (beads--error "Command failed (exit %d): %s" exit-code output))))))
+               (when (not noninteractive)
+                 (beads--display-error-buffer cmd-string exit-code
+                                              output
+                                              "(stderr merged with stdout)"))
+               (beads--error "Failed to parse JSON: %s"
+                             (error-message-string err))))
+          ;; Display error buffer and signal error
+          (when (not noninteractive)
+            (beads--display-error-buffer cmd-string exit-code
+                                         output
+                                         "(stderr merged with stdout)"))
+          (beads--error "Command failed (exit %d): %s"
+                        exit-code output))))))
 
 (defun beads--run-command-async (callback subcommand &rest args)
   "Run bd SUBCOMMAND with ARGS asynchronously.
@@ -310,8 +375,17 @@ Works over Tramp when `default-directory' is a remote path."
                                (json-key-type 'symbol))
                            (funcall callback (json-read-from-string output)))
                        (error
+                        (when (not noninteractive)
+                          (beads--display-error-buffer cmd-string exit-code
+                                                       output
+                                                       "(stderr mixed with stdout)"))
                         (beads--error "Failed to parse JSON: %s"
                                       (error-message-string err))))
+                   ;; Display error buffer and signal error
+                   (when (not noninteractive)
+                     (beads--display-error-buffer cmd-string exit-code
+                                                  output
+                                                  "(stderr mixed with stdout)"))
                    (beads--error "Async command failed (exit %d): %s"
                                  exit-code output))))
              (kill-buffer (process-buffer process))))))
