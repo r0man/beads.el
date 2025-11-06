@@ -250,37 +250,36 @@ dash-style syntax matching bd CLI."
 (transient-define-group beads-create-infix-arguments
   ;; Options for creating a new issue.  Grouped logically by purpose:
   ;; Required fields, Issue attributes, Content, Advanced, and Global options.
-  ;; Levels are set on sections to hide entire groups, avoiding empty headers.
   ;; Levels: 1=required, 2=issue attrs, 3=content, 4=advanced, 7=global
-  ["Required" :level 1
-   beads-option-create-title]
-  ["Issue attributes" :level 2
-   beads-option-create-type
-   beads-option-create-priority
-   beads-option-create-assignee
-   beads-option-create-labels]
-  ["Content" :level 3
-   beads-option-create-description
-   beads-option-create-acceptance
-   beads-option-create-design]
-  ["Advanced" :level 4
-   beads-option-create-external-ref
-   beads-option-create-custom-id
-   beads-option-create-dependencies
-   beads-option-create-parent
-   beads-option-create-repo
-   beads-option-create-from-template
-   beads-option-create-file
-   "-f" "Force creation" "--force"]
-  ["Global Options" :level 7
-   beads-option-global-actor
-   beads-option-global-db
-   beads-option-global-json
-   beads-option-global-no-auto-flush
-   beads-option-global-no-auto-import
-   beads-option-global-no-daemon
-   beads-option-global-no-db
-   beads-option-global-sandbox])
+  ["Required"
+   (1 beads-option-create-title)]
+  ["Issue attributes"
+   (2 beads-option-create-type)
+   (2 beads-option-create-priority)
+   (2 beads-option-create-assignee)
+   (2 beads-option-create-labels)]
+  ["Content"
+   (3 beads-option-create-description)
+   (3 beads-option-create-acceptance)
+   (3 beads-option-create-design)]
+  ["Advanced"
+   (4 beads-option-create-external-ref)
+   (4 beads-option-create-custom-id)
+   (4 beads-option-create-dependencies)
+   (4 beads-option-create-parent)
+   (4 beads-option-create-repo)
+   (4 beads-option-create-from-template)
+   (4 beads-option-create-file)
+   (4 "-f" "Force creation" "--force")]
+  ["Global Options"
+   (7 beads-option-global-actor)
+   (7 beads-option-global-db)
+   (7 beads-option-global-json)
+   (7 beads-option-global-no-auto-flush)
+   (7 beads-option-global-no-auto-import)
+   (7 beads-option-global-no-daemon)
+   (7 beads-option-global-no-db)
+   (7 beads-option-global-sandbox)])
 
 ;;; Main Transient Menu
 
