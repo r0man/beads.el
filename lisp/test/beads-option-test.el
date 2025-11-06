@@ -53,35 +53,47 @@
   "Test multiline formatter with empty value."
   (let ((obj (beads-create-transient-multiline)))
     (oset obj value nil)
+    (oset obj argument "--test=")
     (let ((result (transient-format-value obj)))
       (should (stringp result))
-      (should (string-match-p "\\[unset\\]" result)))))
+      ;; New format: shows just the argument with inactive face
+      (should (string-match-p "--test=" result))
+      (should-not (string-match-p "\\[" result)))))
 
 (ert-deftest beads-option-test-multiline-format-value-short ()
   "Test multiline formatter with short value."
   (let ((obj (beads-create-transient-multiline)))
     (oset obj value "Short text")
+    (oset obj argument "--test=")
     (let ((result (transient-format-value obj)))
       (should (stringp result))
-      (should (string-match-p "\\[Short text\\]" result)))))
+      ;; New format: shows argument=value (no brackets)
+      (should (string-match-p "--test=Short text" result))
+      (should-not (string-match-p "\\[" result)))))
 
 (ert-deftest beads-option-test-multiline-format-value-multiline ()
-  "Test multiline formatter with multiline value (shows first line)."
+  "Test multiline formatter with multiline value (shows all lines escaped)."
   (let ((obj (beads-create-transient-multiline)))
     (oset obj value "Line one\nLine two\nLine three")
+    (oset obj argument "--test=")
     (let ((result (transient-format-value obj)))
       (should (stringp result))
-      (should (string-match-p "\\[Line one\\]" result))
-      (should-not (string-match-p "Line two" result)))))
+      ;; New format: shows escaped newlines as \\n
+      (should (string-match-p "--test=Line one\\\\nLine two\\\\nLine three" result))
+      (should-not (string-match-p "\\[" result)))))
 
 (ert-deftest beads-option-test-multiline-format-value-long ()
   "Test multiline formatter with long first line (truncation)."
   (let ((obj (beads-create-transient-multiline))
         (long-line (make-string 50 ?x)))
     (oset obj value long-line)
+    (oset obj argument "--test=")
     (let ((result (transient-format-value obj)))
       (should (stringp result))
-      (should (string-match-p "\\.\\.\\." result)))))
+      ;; New format: truncates at 40 chars and adds ...
+      (should (string-match-p "--test=" result))
+      (should (string-match-p "\\.\\.\\." result))
+      (should-not (string-match-p "\\[" result)))))
 
 ;;; ============================================================
 ;;; Infix Definition Tests
