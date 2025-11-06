@@ -80,9 +80,10 @@ Returns list of error messages, or nil if all valid."
 Returns list of arguments for bd reopen command."
   (let ((args (list beads-reopen--issue-id)))
     ;; Add reason flag if provided
-    (when (and beads-reopen--reason
-               (not (string-empty-p (string-trim beads-reopen--reason))))
-      (setq args (append args (list "--reason" beads-reopen--reason))))
+    (when beads-reopen--reason
+      (let ((trimmed (string-trim beads-reopen--reason)))
+        (unless (string-empty-p trimmed)
+          (setq args (append args (list "--reason" trimmed))))))
     args))
 
 (defun beads-reopen--edit-reason-multiline (current-value callback)
