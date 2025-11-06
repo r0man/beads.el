@@ -35,9 +35,10 @@ Thumbs.db
 /.eldev/
 /lisp/.eldev/
 
-# Beads reference repository (for documentation, not committed)
+# Reference repositories (for documentation, not committed)
 /beads-reference/
 /magit-reference/
+/transient-reference/
 
 # Personal development configuration (not part of package)
 /share/
