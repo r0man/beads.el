@@ -32,8 +32,15 @@ Thumbs.db
 
 # Keep JSONL exports (source of truth for git)
 !.beads/*.jsonl
+
+# Beads local state (not committed)
+.beads/metadata.json
+.beads/daemon.lock
+
+# Eldev and build artifacts
 /.eldev/
 /lisp/.eldev/
+*.elc
 
 # Reference repositories (for documentation, not committed)
 /beads-reference/
