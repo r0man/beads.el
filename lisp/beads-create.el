@@ -250,35 +250,36 @@ dash-style syntax matching bd CLI."
 (transient-define-group beads-create-infix-arguments
   ;; Options for creating a new issue.  Grouped logically by purpose:
   ;; Required fields, Issue attributes, Content, and Advanced options.
+  ;; Levels: 1=essential, 2=basic, 3=common, 4=advanced, 5=expert
   ["Required"
-   (beads-option-create-title)]
+   (1 beads-option-create-title)]
   ["Issue attributes"
-   (beads-option-create-type)
-   (beads-option-create-priority)
-   (beads-option-create-assignee)
-   (beads-option-create-labels)]
+   (2 beads-option-create-type)
+   (2 beads-option-create-priority)
+   (3 beads-option-create-assignee)
+   (3 beads-option-create-labels)]
   ["Content"
-   (beads-option-create-description)
-   (7 beads-option-create-acceptance)
-   (7 beads-option-create-design)]
+   (2 beads-option-create-description)
+   (4 beads-option-create-acceptance)
+   (4 beads-option-create-design)]
   ["Advanced"
-   (7 beads-option-create-external-ref)
-   (7 beads-option-create-custom-id)
-   (7 beads-option-create-dependencies)
-   (7 beads-option-create-parent)
-   (7 beads-option-create-repo)
-   (7 beads-option-create-from-template)
-   (7 beads-option-create-file)
-   (7 "-f" "Force creation" "--force")]
+   (4 beads-option-create-external-ref)
+   (4 beads-option-create-custom-id)
+   (4 beads-option-create-dependencies)
+   (4 beads-option-create-parent)
+   (4 beads-option-create-repo)
+   (5 beads-option-create-from-template)
+   (5 beads-option-create-file)
+   (5 "-f" "Force creation" "--force")]
   ["Global Options"
-   (7 beads-option-global-actor)
-   (7 beads-option-global-db)
-   (7 beads-option-global-json)
-   (7 beads-option-global-no-auto-flush)
-   (7 beads-option-global-no-auto-import)
-   (7 beads-option-global-no-daemon)
-   (7 beads-option-global-no-db)
-   (7 beads-option-global-sandbox)])
+   (5 beads-option-global-actor)
+   (5 beads-option-global-db)
+   (5 beads-option-global-json)
+   (5 beads-option-global-no-auto-flush)
+   (5 beads-option-global-no-auto-import)
+   (5 beads-option-global-no-daemon)
+   (5 beads-option-global-no-db)
+   (5 beads-option-global-sandbox)])
 
 ;;; Main Transient Menu
 
@@ -288,7 +289,14 @@ dash-style syntax matching bd CLI."
 
 This transient menu provides an interactive interface for setting
 all parameters of the bd create command.  Required fields are
-validated before execution."
+validated before execution.
+
+Transient levels control which fields are visible (cycle with C-x l):
+  Level 1: Essential fields (title)
+  Level 2: Basic fields (type, priority, description)
+  Level 3: Common fields (assignee, labels)  [default]
+  Level 4: Advanced fields (acceptance, design, refs, etc.)
+  Level 5: Expert fields (templates, bulk operations, global flags)"
   beads-create-infix-arguments
   ["Actions"
    ("x" "Create issue" beads-create--execute)
