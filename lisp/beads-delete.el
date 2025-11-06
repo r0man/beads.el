@@ -58,23 +58,28 @@ Returns issue ID string or nil if not found."
   "Get deletion preview for ISSUE-ID.
 Runs bd delete without --force to show what will be affected.
 Returns preview output as string."
-  (let* ((cmd (list beads-executable))
-         (db (beads--get-database-path)))
-    ;; Add global flags
-    (when beads-actor
-      (setq cmd (append cmd (list "--actor" beads-actor))))
+  ;; Use push/nreverse for O(n) performance instead of repeated append (O(n²))
+  (let* ((db (beads--get-database-path))
+         (parts nil))
+    ;; Build arguments in reverse order (push prepends to list)
+    (push issue-id parts)
+    (push "delete" parts)
     (when db
-      (setq cmd (append cmd (list "--db" (file-local-name db)))))
-    ;; Add delete subcommand and issue-id (no --force, no --json)
-    (setq cmd (append cmd (list "delete" issue-id)))
-
-    (with-temp-buffer
-      (let ((exit-code (apply #'process-file
-                              (car cmd) nil t nil (cdr cmd))))
-        (if (zerop exit-code)
-            (buffer-string)
-          (beads--error "Failed to get preview (exit %d): %s"
-                        exit-code (buffer-string)))))))
+      (push (file-local-name db) parts)
+      (push "--db" parts))
+    (when beads-actor
+      (push beads-actor parts)
+      (push "--actor" parts))
+    (push beads-executable parts)
+    ;; Reverse to get correct order
+    (let ((cmd (nreverse parts)))
+      (with-temp-buffer
+        (let ((exit-code (apply #'process-file
+                                (car cmd) nil t nil (cdr cmd))))
+          (if (zerop exit-code)
+              (buffer-string)
+            (beads--error "Failed to get preview (exit %d): %s"
+                          exit-code (buffer-string))))))))
 
 (defun beads-delete--show-preview (issue-id preview-text)
   "Show deletion preview for ISSUE-ID in a buffer.
