@@ -207,7 +207,7 @@ For testing, we pass the multiline string on a single line with escaped \\n."
 
 (ert-deftest beads-create-test-validate-dependencies-invalid-characters ()
   "Test dependencies validation with invalid characters."
-  (should (beads-create--validate-dependencies "blocks:BD_1")))
+  (should (beads-create--validate-dependencies "blocks:BD@123")))
 
 (ert-deftest beads-create-test-validate-all-success ()
   "Test validate-all with all valid parameters."
