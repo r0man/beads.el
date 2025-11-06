@@ -49,22 +49,22 @@ Returns (:title STRING :type STRING :priority NUMBER
 
 This uses transient's standard argument parsing with dash-style flags."
   (let* ((title (transient-arg-value "--title=" args))
-         (type (transient-arg-value "-t=" args))
-         (priority-str (transient-arg-value "-p=" args))
+         (type (transient-arg-value "--type=" args))
+         (priority-str (transient-arg-value "--priority=" args))
          (priority (when priority-str (string-to-number priority-str)))
          (description (transient-arg-value "--description=" args))
         (custom-id (transient-arg-value "--id=" args))
         (dependencies (transient-arg-value "--deps=" args))
         (acceptance (transient-arg-value "--acceptance=" args))
-        (assignee (transient-arg-value "-a=" args))
+        (assignee (transient-arg-value "--assignee=" args))
         (design (transient-arg-value "--design=" args))
         (external-ref (transient-arg-value "--external-ref=" args))
-        (labels (transient-arg-value "-l=" args))
+        (labels (transient-arg-value "--labels=" args))
         (force (transient-arg-value "--force" args))
         (parent (transient-arg-value "--parent=" args))
         (repo (transient-arg-value "--repo=" args))
         (from-template (transient-arg-value "--from-template=" args))
-        (file (transient-arg-value "-f=" args)))
+        (file (transient-arg-value "--file=" args)))
     (list :title title
           :type type
           :priority priority
