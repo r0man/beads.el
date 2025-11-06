@@ -252,18 +252,18 @@ dash-style syntax matching bd CLI."
   ;; Required fields, Issue attributes, Content, Advanced, and Global options.
   ;; Levels are set on sections to hide entire groups, avoiding empty headers.
   ;; Levels: 1=required, 2=issue attrs, 3=content, 4=advanced, 7=global
-  [(1 "Required")
+  ["Required" :level 1
    beads-option-create-title]
-  [(2 "Issue attributes")
+  ["Issue attributes" :level 2
    beads-option-create-type
    beads-option-create-priority
    beads-option-create-assignee
    beads-option-create-labels]
-  [(3 "Content")
+  ["Content" :level 3
    beads-option-create-description
    beads-option-create-acceptance
    beads-option-create-design]
-  [(4 "Advanced")
+  ["Advanced" :level 4
    beads-option-create-external-ref
    beads-option-create-custom-id
    beads-option-create-dependencies
@@ -272,7 +272,7 @@ dash-style syntax matching bd CLI."
    beads-option-create-from-template
    beads-option-create-file
    "-f" "Force creation" "--force"]
-  [(7 "Global Options")
+  ["Global Options" :level 7
    beads-option-global-actor
    beads-option-global-db
    beads-option-global-json
