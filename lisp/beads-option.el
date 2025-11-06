@@ -515,7 +515,7 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
   "Toggle force flag for create operation."
   :class 'transient-switch
   :description "Force creation"
-  :key "f"
+  :key "-f"
   :argument "--force")
 
 (transient-define-infix beads-option-create-parent ()

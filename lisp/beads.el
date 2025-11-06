@@ -504,15 +504,6 @@ Returns t if found, signals error otherwise."
 ;;;###autoload
 (autoload 'beads-graph-issue "beads-graph" "Show dependency graph focused on issue." t)
 
-;;; Initialization
-
-;; Set default transient level for beads-create to 3
-;; This makes level 1-3 fields visible by default (essential, basic, and common)
-;; Users can change this with C-x l in the transient menu
-(with-eval-after-load 'beads-create
-  (unless (alist-get 'beads-create transient-levels)
-    (transient-set-level 'beads-create 3)))
-
 ;;; Footer
 
 (provide 'beads)
