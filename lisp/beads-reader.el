@@ -135,6 +135,31 @@ DEFAULT-VAR is the variable holding the current priority value."
   (read-string "Labels (comma-separated): "
                beads-create--labels))
 
+(defun beads-reader-create-parent (_prompt _initial-input _history)
+  "Read parent issue ID for hierarchical child."
+  (completing-read "Parent issue ID: "
+                   (beads--issue-completion-table)
+                   nil nil
+                   beads-create--parent))
+
+(defun beads-reader-create-repo (_prompt _initial-input _history)
+  "Read target repository for issue."
+  (read-string "Target repository: " beads-create--repo))
+
+(defun beads-reader-create-from-template (_prompt _initial-input _history)
+  "Read template name for issue creation."
+  (completing-read "Template: "
+                   '("epic" "bug" "feature")
+                   nil nil
+                   beads-create--from-template))
+
+(defun beads-reader-create-file (_prompt _initial-input _history)
+  "Read markdown file path for bulk issue creation."
+  (read-file-name "Markdown file: "
+                  nil
+                  beads-create--file
+                  t))
+
 ;;; ============================================================
 ;;; beads-update Reader Functions
 ;;; ============================================================

@@ -35,6 +35,10 @@
 (declare-function beads-reader-create-assignee "beads-reader")
 (declare-function beads-reader-create-external-ref "beads-reader")
 (declare-function beads-reader-create-labels "beads-reader")
+(declare-function beads-reader-create-parent "beads-reader")
+(declare-function beads-reader-create-repo "beads-reader")
+(declare-function beads-reader-create-from-template "beads-reader")
+(declare-function beads-reader-create-file "beads-reader")
 (declare-function beads-reader-update-status "beads-reader")
 (declare-function beads-reader-update-priority "beads-reader")
 (declare-function beads-reader-update-type "beads-reader")
@@ -97,27 +101,25 @@ Values are read directly from variables by beads--build-command."
   nil)
 
 (cl-defmethod transient-format-value ((obj beads-option-global))
-  "Format value for OBJ to match transient-option display.
-Shows the full argument with value in parentheses.
-Grey when unset, green when set."
+  "Format value for OBJ, displaying with appropriate faces and parentheses.
+Shows \"(argument value)\" with argument and value separately colored."
   (let ((value (oref obj value))
         (arg (oref obj argument)))
-    (concat "("
-            (if (and value (not (equal value "")))
-                (propertize (concat arg value) 'face 'transient-value)
-              (propertize arg 'face 'transient-inactive-value))
-            ")")))
+    (if (and value (not (equal value "")))
+        (concat "("
+                (propertize arg 'face 'transient-argument)
+                (propertize value 'face 'transient-value)
+                ")")
+      (propertize (concat "(" arg ")") 'face 'transient-inactive-argument))))
 
 (cl-defmethod transient-format-value ((obj beads-option-global-switch))
-  "Format value for OBJ to match transient-switch display.
-Shows the argument in parentheses, green when enabled, grey when disabled."
+  "Format value for OBJ, displaying with appropriate faces and parentheses.
+Shows \"(argument)\" with proper face based on whether it's set."
   (let ((value (oref obj value))
         (arg (oref obj argument)))
-    (concat "("
-            (if value
-                (propertize arg 'face 'transient-value)
-              (propertize arg 'face 'transient-inactive-value))
-            ")")))
+    (propertize (concat "(" arg ")") 'face (if value
+                                               'transient-argument
+                                             'transient-inactive-argument))))
 
 (defclass beads-create-transient-multiline (transient-option)
   ((multi-line :initarg :multi-line :initform t)
@@ -174,8 +176,8 @@ similar to git commit message editing.")
 
 (cl-defmethod transient-format-value ((obj beads-create-transient-multiline))
   "Format the value of multiline OBJ for display in transient menu.
-Shows argument with all lines escaped to single line, truncated at 40 chars.
-Grey when unset, green when set."
+Shows argument and value with appropriate faces, like transient-option.
+Multiline text is escaped to single line and truncated at 40 chars."
   (let ((value (oref obj value))
         (arg (oref obj argument)))
     (if (and value (not (string-empty-p (string-trim value))))
@@ -185,8 +187,9 @@ Grey when unset, green when set."
                (display (if (> (length escaped) 40)
                            (concat (substring escaped 0 40) "...")
                          escaped)))
-          (propertize (concat arg display) 'face 'transient-value))
-      (propertize arg 'face 'transient-inactive-value))))
+          (concat (propertize arg 'face 'transient-argument)
+                  (propertize display 'face 'transient-value)))
+      (propertize arg 'face 'transient-inactive-argument))))
 
 ;;; ============================================================
 ;;; Utility Functions
@@ -277,6 +280,18 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
 
 (defvar beads-create--force nil
   "Force flag for create operation (override validations).")
+
+(defvar beads-create--parent nil
+  "Parent issue ID for hierarchical child (e.g., 'bd-a3f8e9').")
+
+(defvar beads-create--repo nil
+  "Target repository for issue (overrides auto-routing).")
+
+(defvar beads-create--from-template nil
+  "Template name for issue creation (e.g., 'epic', 'bug', 'feature').")
+
+(defvar beads-create--file nil
+  "Markdown file path for bulk issue creation.")
 
 ;;; beads-update state variables
 
@@ -502,6 +517,42 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
   :description "Force creation"
   :key "f"
   :argument "--force")
+
+(transient-define-infix beads-option-create-parent ()
+  "Set parent issue ID for hierarchical child."
+  :class 'transient-option
+  :description "Parent issue ID"
+  :key "-P"
+  :argument "--parent="
+  :prompt "Parent issue ID (e.g., bd-a3f8e9): "
+  :reader #'beads-reader-create-parent)
+
+(transient-define-infix beads-option-create-repo ()
+  "Set target repository for issue (overrides auto-routing)."
+  :class 'transient-option
+  :description "Target repository"
+  :key "-r"
+  :argument "--repo="
+  :prompt "Target repository: "
+  :reader #'beads-reader-create-repo)
+
+(transient-define-infix beads-option-create-from-template ()
+  "Set template for issue creation."
+  :class 'transient-option
+  :description "From template"
+  :key "-T"
+  :argument "--from-template="
+  :prompt "Template (epic, bug, feature): "
+  :reader #'beads-reader-create-from-template)
+
+(transient-define-infix beads-option-create-file ()
+  "Set markdown file for bulk issue creation."
+  :class 'transient-option
+  :description "Create from file"
+  :key "-F"
+  :argument "-f="
+  :prompt "Markdown file: "
+  :reader #'beads-reader-create-file)
 
 ;;; ============================================================
 ;;; Transient Infix Definitions - beads-update
