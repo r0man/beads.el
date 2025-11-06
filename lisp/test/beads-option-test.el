@@ -232,6 +232,139 @@
   (should (commandp 'beads-option-init-db)))
 
 ;;; ============================================================
+;;; Global Option Class Tests
+;;; ============================================================
+
+(ert-deftest beads-option-test-global-class-exists ()
+  "Test that beads-option-global class is defined."
+  (should (class-p 'beads-option-global))
+  (should (child-of-class-p 'beads-option-global
+                            'transient-lisp-variable)))
+
+(ert-deftest beads-option-test-global-switch-class-exists ()
+  "Test that beads-option-global-switch class is defined."
+  (should (class-p 'beads-option-global-switch))
+  (should (child-of-class-p 'beads-option-global-switch
+                            'transient-lisp-variable)))
+
+;; Note: transient-infix-read tests are omitted because the method
+;; is wrapped by transient's framework and requires full transient
+;; infrastructure to test. The methods are indirectly tested via
+;; integration tests when using actual transient menus.
+
+(ert-deftest beads-option-test-global-format-value-with-value ()
+  "Test transient-format-value for global option with value."
+  (let ((obj (beads-option-global)))
+    (oset obj value "myactor")
+    (oset obj argument "--actor=")
+    (let ((result (transient-format-value obj)))
+      (should (stringp result))
+      (should (string-match-p "(--actor=myactor)" result)))))
+
+(ert-deftest beads-option-test-global-format-value-without-value ()
+  "Test transient-format-value for global option without value."
+  (let ((obj (beads-option-global)))
+    (oset obj value nil)
+    (oset obj argument "--actor=")
+    (let ((result (transient-format-value obj)))
+      (should (stringp result))
+      (should (string-match-p "(--actor=)" result)))))
+
+(ert-deftest beads-option-test-global-format-value-empty-string ()
+  "Test transient-format-value with empty string."
+  (let ((obj (beads-option-global)))
+    (oset obj value "")
+    (oset obj argument "--actor=")
+    (let ((result (transient-format-value obj)))
+      (should (stringp result))
+      (should (string-match-p "(--actor=)" result)))))
+
+(ert-deftest beads-option-test-global-switch-format-value-true ()
+  "Test transient-format-value for switch when true."
+  (let ((obj (beads-option-global-switch)))
+    (oset obj value t)
+    (oset obj argument "--no-daemon")
+    (let ((result (transient-format-value obj)))
+      (should (stringp result))
+      (should (string-match-p "(--no-daemon)" result)))))
+
+(ert-deftest beads-option-test-global-switch-format-value-false ()
+  "Test transient-format-value for switch when false."
+  (let ((obj (beads-option-global-switch)))
+    (oset obj value nil)
+    (oset obj argument "--no-daemon")
+    (let ((result (transient-format-value obj)))
+      (should (stringp result))
+      (should (string-match-p "(--no-daemon)" result)))))
+
+(ert-deftest beads-option-test-global-infix-value-returns-nil ()
+  "Test transient-infix-value returns nil for global options."
+  (let ((obj (beads-option-global)))
+    (oset obj value "test")
+    (should (null (transient-infix-value obj)))))
+
+(ert-deftest beads-option-test-global-switch-infix-value-returns-nil ()
+  "Test transient-infix-value returns nil for global switches."
+  (let ((obj (beads-option-global-switch)))
+    (oset obj value t)
+    (should (null (transient-infix-value obj)))))
+
+;;; ============================================================
+;;; Global Option Infix Definition Tests
+;;; ============================================================
+
+(ert-deftest beads-option-test-global-actor-infix-exists ()
+  "Test that global actor infix is defined."
+  (should (commandp 'beads-option-global-actor)))
+
+(ert-deftest beads-option-test-global-db-infix-exists ()
+  "Test that global db infix is defined."
+  (should (commandp 'beads-option-global-db)))
+
+(ert-deftest beads-option-test-global-json-infix-exists ()
+  "Test that global json infix is defined."
+  (should (commandp 'beads-option-global-json)))
+
+(ert-deftest beads-option-test-global-no-auto-flush-infix-exists ()
+  "Test that global no-auto-flush infix is defined."
+  (should (commandp 'beads-option-global-no-auto-flush)))
+
+(ert-deftest beads-option-test-global-no-auto-import-infix-exists ()
+  "Test that global no-auto-import infix is defined."
+  (should (commandp 'beads-option-global-no-auto-import)))
+
+(ert-deftest beads-option-test-global-no-daemon-infix-exists ()
+  "Test that global no-daemon infix is defined."
+  (should (commandp 'beads-option-global-no-daemon)))
+
+(ert-deftest beads-option-test-global-no-db-infix-exists ()
+  "Test that global no-db infix is defined."
+  (should (commandp 'beads-option-global-no-db)))
+
+(ert-deftest beads-option-test-global-sandbox-infix-exists ()
+  "Test that global sandbox infix is defined."
+  (should (commandp 'beads-option-global-sandbox)))
+
+;; Note: beads-option-global-section existence is tested indirectly
+;; by the fact that beads-create transient menu works and includes
+;; the global options section.
+
+;;; ============================================================
+;;; Global Variable State Tests
+;;; ============================================================
+
+(ert-deftest beads-option-test-global-variables-exist ()
+  "Test that global option variables are defined."
+  (should (boundp 'beads-global-actor))
+  (should (boundp 'beads-global-db))
+  (should (boundp 'beads-global-json))
+  (should (boundp 'beads-global-no-auto-flush))
+  (should (boundp 'beads-global-no-auto-import))
+  (should (boundp 'beads-global-no-daemon))
+  (should (boundp 'beads-global-no-db))
+  (should (boundp 'beads-global-sandbox)))
+
+;;; ============================================================
 ;;; State Variable Tests
 ;;; ============================================================
 
