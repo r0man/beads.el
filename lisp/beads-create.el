@@ -53,18 +53,18 @@ This uses transient's standard argument parsing with dash-style flags."
          (priority-str (transient-arg-value "--priority=" args))
          (priority (when priority-str (string-to-number priority-str)))
          (description (transient-arg-value "--description=" args))
-        (custom-id (transient-arg-value "--id=" args))
-        (dependencies (transient-arg-value "--deps=" args))
-        (acceptance (transient-arg-value "--acceptance=" args))
-        (assignee (transient-arg-value "--assignee=" args))
-        (design (transient-arg-value "--design=" args))
-        (external-ref (transient-arg-value "--external-ref=" args))
-        (labels (transient-arg-value "--labels=" args))
-        (force (transient-arg-value "--force" args))
-        (parent (transient-arg-value "--parent=" args))
-        (repo (transient-arg-value "--repo=" args))
-        (from-template (transient-arg-value "--from-template=" args))
-        (file (transient-arg-value "--file=" args)))
+         (custom-id (transient-arg-value "--id=" args))
+         (dependencies (transient-arg-value "--deps=" args))
+         (acceptance (transient-arg-value "--acceptance=" args))
+         (assignee (transient-arg-value "--assignee=" args))
+         (design (transient-arg-value "--design=" args))
+         (external-ref (transient-arg-value "--external-ref=" args))
+         (labels (transient-arg-value "--labels=" args))
+         (force (transient-arg-value "--force" args))
+         (parent (transient-arg-value "--parent=" args))
+         (repo (transient-arg-value "--repo=" args))
+         (from-template (transient-arg-value "--from-template=" args))
+         (file (transient-arg-value "--file=" args)))
     (list :title title
           :type type
           :priority priority
@@ -102,8 +102,8 @@ Returns error message string if invalid, nil if valid."
 Returns error message string if invalid, nil if valid."
   (when (and priority
              (not (and (numberp priority)
-                      (>= priority 0)
-                      (<= priority 4))))
+                       (>= priority 0)
+                       (<= priority 4))))
     "Priority must be a number between 0 and 4"))
 
 (defun beads-create--validate-dependencies (dependencies)
@@ -207,7 +207,7 @@ dash-style syntax matching bd CLI."
             nil)
         (error
          (let ((err-msg (format "Failed to create issue: %s"
-                               (error-message-string err))))
+                                (error-message-string err))))
            (message "%s" err-msg)
            err-msg))))))
 
@@ -235,7 +235,7 @@ dash-style syntax matching bd CLI."
          (errors (beads-create--validate-all parsed)))
     (if errors
         (let ((err-msg (format "Validation errors: %s"
-                              (string-join errors "; "))))
+                               (string-join errors "; "))))
           (message "%s" err-msg)
           err-msg)
       (let* ((cmd-args (beads-create--build-command-args parsed))
@@ -247,40 +247,44 @@ dash-style syntax matching bd CLI."
 
 ;;; Transient Groups
 
-(transient-define-group beads-create-infix-arguments
-  ;; Options for creating a new issue.  Grouped logically by purpose:
-  ;; Required fields, Issue attributes, Content, Advanced, and Global options.
-  ;; Levels: 1=required, 2=issue attrs, 3=content, 4=advanced, 7=global
+(transient-define-group beads-create--required-section
   [:level 1 "Required"
-   (beads-option-create-title)]
+          (beads-option-create-title)])
+
+(transient-define-group beads-create--issue-attributes-section
   [:level 2 "Issue attributes"
-   (beads-option-create-type)
-   (beads-option-create-priority)
-   (beads-option-create-assignee)
-   (beads-option-create-labels)]
+          (beads-option-create-type)
+          (beads-option-create-priority)
+          (beads-option-create-assignee)
+          (beads-option-create-labels)])
+
+(transient-define-group beads-create--content-section
   [:level 3 "Content"
-   (beads-option-create-description)
-   (beads-option-create-acceptance)
-   (beads-option-create-design)]
+          (beads-option-create-description)
+          (beads-option-create-acceptance)
+          (beads-option-create-design)])
+
+(transient-define-group beads-create--advanced-section
   [:level 4 "Advanced"
-   (beads-option-create-external-ref)
-   (beads-option-create-custom-id)
-   (beads-option-create-dependencies)
-   (beads-option-create-parent)
-   (beads-option-create-repo)
-   (beads-option-create-from-template)
-   (beads-option-create-file)
-   (beads-option-create-force)]
-  [:level 5
-   "Global Options"
-   (beads-option-global-actor)
-   (beads-option-global-db)
-   (beads-option-global-json)
-   (beads-option-global-no-auto-flush)
-   (beads-option-global-no-auto-import)
-   (beads-option-global-no-daemon)
-   (beads-option-global-no-db)
-   (beads-option-global-sandbox)])
+          (beads-option-create-external-ref)
+          (beads-option-create-custom-id)
+          (beads-option-create-dependencies)
+          (beads-option-create-parent)
+          (beads-option-create-repo)
+          (beads-option-create-from-template)
+          (beads-option-create-file)
+          (beads-option-create-force)])
+
+(transient-define-group beads-create--global-section
+  [:level 5 "Global Options"
+          (beads-option-global-actor)
+          (beads-option-global-db)
+          (beads-option-global-json)
+          (beads-option-global-no-auto-flush)
+          (beads-option-global-no-auto-import)
+          (beads-option-global-no-daemon)
+          (beads-option-global-no-db)
+          (beads-option-global-sandbox)])
 
 ;;; Main Transient Menu
 
@@ -298,7 +302,11 @@ Transient levels control which field groups are visible (cycle with C-x l):
   Level 3: Content (description, acceptance, design)  [default]
   Level 4: Advanced (external-ref, custom-id, dependencies, etc.)
   Level 7: Global options (actor, db, json flags, etc.)"
-  beads-create-infix-arguments
+  beads-create--required-section
+  beads-create--issue-attributes-section
+  beads-create--content-section
+  beads-create--advanced-section
+  beads-create--global-section
   ["Actions"
    ("x" "Create issue" beads-create--execute)
    ("P" "Preview command" beads-create--preview)
