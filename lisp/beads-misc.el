@@ -549,10 +549,14 @@ automatic collision resolution for branch merges."
   "Execute bd init with PREFIX and DB-PATH."
   (condition-case err
       (let ((args (list "init")))
-        (when (and prefix (not (string-empty-p (string-trim prefix))))
-          (setq args (append args (list "--prefix" prefix))))
-        (when (and db-path (not (string-empty-p (string-trim db-path))))
-          (setq args (append args (list "--db" db-path))))
+        (when prefix
+          (let ((trimmed (string-trim prefix)))
+            (unless (string-empty-p trimmed)
+              (setq args (append args (list "--prefix" trimmed))))))
+        (when db-path
+          (let ((trimmed (string-trim db-path)))
+            (unless (string-empty-p trimmed)
+              (setq args (append args (list "--db" trimmed))))))
         (with-temp-buffer
           (let ((exit-code (apply #'call-process
                                   beads-executable nil t nil args)))

@@ -80,9 +80,10 @@ Returns list of error messages, or nil if all valid."
 Returns list of arguments for bd close command."
   (let ((args (list beads-close--issue-id)))
     ;; Add reason flag if provided
-    (when (and beads-close--reason
-               (not (string-empty-p (string-trim beads-close--reason))))
-      (setq args (append args (list "--reason" beads-close--reason))))
+    (when beads-close--reason
+      (let ((trimmed (string-trim beads-close--reason)))
+        (unless (string-empty-p trimmed)
+          (setq args (append args (list "--reason" trimmed))))))
     args))
 
 (defun beads-close--edit-reason-multiline (current-value callback)
