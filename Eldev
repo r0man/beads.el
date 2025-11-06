@@ -7,8 +7,10 @@
 
 (setq eldev-project-main-file "lisp/beads.el")
 
-;; Runtime dependencies
-(eldev-add-extra-dependencies 'runtime '(transient))
+;; Ensure we upgrade built-in packages (like transient) with newer versions from archives
+;; This is critical for Emacs 29+ where transient is built-in but may be outdated
+;; The package dependencies are defined in lisp/beads.el Package-Requires header
+(setq package-install-upgrade-built-in t)
 
 ;; Development dependencies
 (eldev-add-extra-dependencies 'test '(ert))
