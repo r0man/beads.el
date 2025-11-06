@@ -105,8 +105,10 @@ NO-PUSH: skip pushing to remote"
     ;; Add flags
     (when dry-run
       (setq cmd (append cmd (list "--dry-run"))))
-    (when (and message (not (string-empty-p (string-trim message))))
-      (setq cmd (append cmd (list "-m" message))))
+    (when message
+      (let ((trimmed (string-trim message)))
+        (unless (string-empty-p trimmed)
+          (setq cmd (append cmd (list "-m" trimmed))))))
     (when no-pull
       (setq cmd (append cmd (list "--no-pull"))))
     (when no-push
@@ -211,8 +213,10 @@ NO-PUSH: skip pushing to remote"
     ;; Build args list (without the subcommand)
     (when dry-run
       (setq args (append args (list "--dry-run"))))
-    (when (and message (not (string-empty-p (string-trim message))))
-      (setq args (append args (list "-m" message))))
+    (when message
+      (let ((trimmed (string-trim message)))
+        (unless (string-empty-p trimmed)
+          (setq args (append args (list "-m" trimmed))))))
     (when no-pull
       (setq args (append args (list "--no-pull"))))
     (when no-push
