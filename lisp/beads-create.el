@@ -275,17 +275,6 @@ dash-style syntax matching bd CLI."
           (beads-option-create-file)
           (beads-option-create-force)])
 
-(transient-define-group beads-create--global-section
-  [:level 5 "Global Options"
-          (beads-option-global-actor)
-          (beads-option-global-db)
-          (beads-option-global-json)
-          (beads-option-global-no-auto-flush)
-          (beads-option-global-no-auto-import)
-          (beads-option-global-no-daemon)
-          (beads-option-global-no-db)
-          (beads-option-global-sandbox)])
-
 ;;; Main Transient Menu
 
 ;;;###autoload (autoload 'beads-create "beads-create" nil t)
@@ -306,7 +295,7 @@ Transient levels control which field groups are visible (cycle with C-x l):
   beads-create--issue-attributes-section
   beads-create--content-section
   beads-create--advanced-section
-  beads-create--global-section
+  beads-option-global-section
   ["Actions"
    ("x" "Create issue" beads-create--execute)
    ("P" "Preview command" beads-create--preview)

@@ -930,6 +930,17 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
   :key "=s"
   :argument "--sandbox")
 
+(transient-define-group beads-option-global-section
+  [:level 5 "Global Options"
+          (beads-option-global-actor)
+          (beads-option-global-db)
+          (beads-option-global-json)
+          (beads-option-global-no-auto-flush)
+          (beads-option-global-no-auto-import)
+          (beads-option-global-no-daemon)
+          (beads-option-global-no-db)
+          (beads-option-global-sandbox)])
+
 ;; Load reader functions now that state variables are defined
 (require 'beads-reader)
 
