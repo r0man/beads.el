@@ -101,20 +101,24 @@ DRY-RUN: preview without making changes
 MESSAGE: custom commit message
 NO-PULL: skip pulling from remote
 NO-PUSH: skip pushing to remote"
-  (let ((cmd (list beads-executable "sync")))
-    ;; Add flags
-    (when dry-run
-      (setq cmd (append cmd (list "--dry-run"))))
+  ;; Use push/nreverse for O(n) performance instead of repeated append (O(n²))
+  (let ((parts nil))
+    ;; Build arguments in reverse order (push prepends to list)
+    (when no-push
+      (push "--no-push" parts))
+    (when no-pull
+      (push "--no-pull" parts))
     (when message
       (let ((trimmed (string-trim message)))
         (unless (string-empty-p trimmed)
-          (setq cmd (append cmd (list "-m" trimmed))))))
-    (when no-pull
-      (setq cmd (append cmd (list "--no-pull"))))
-    (when no-push
-      (setq cmd (append cmd (list "--no-push"))))
-    ;; Return as shell command string
-    (mapconcat #'shell-quote-argument cmd " ")))
+          (push trimmed parts)
+          (push "-m" parts))))
+    (when dry-run
+      (push "--dry-run" parts))
+    (push "sync" parts)
+    (push beads-executable parts)
+    ;; Reverse to get correct order and return as shell command string
+    (mapconcat #'shell-quote-argument (nreverse parts) " ")))
 
 (defvar beads-sync--dry-run-active nil
   "Track if current sync is a dry-run.")
@@ -209,18 +213,20 @@ NO-PUSH: skip pushing to remote"
          (message (plist-get parsed :message))
          (no-pull (plist-get parsed :no-pull))
          (no-push (plist-get parsed :no-push))
-         (args nil))
-    ;; Build args list (without the subcommand)
-    (when dry-run
-      (setq args (append args (list "--dry-run"))))
+         args)
+    ;; Build args list in reverse order for push/nreverse
+    (when no-push
+      (push "--no-push" args))
+    (when no-pull
+      (push "--no-pull" args))
     (when message
       (let ((trimmed (string-trim message)))
         (unless (string-empty-p trimmed)
-          (setq args (append args (list "-m" trimmed))))))
-    (when no-pull
-      (setq args (append args (list "--no-pull"))))
-    (when no-push
-      (setq args (append args (list "--no-push"))))
+          (push trimmed args)
+          (push "-m" args))))
+    (when dry-run
+      (push "--dry-run" args))
+    (setq args (nreverse args))
 
     (let* ((cmd (apply #'beads--build-command "sync" args))
            (cmd-string (mapconcat #'shell-quote-argument cmd " ")))

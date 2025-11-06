@@ -212,37 +212,47 @@ Returns list of error messages, or nil if all valid."
 Returns list of arguments for bd update command."
   (unless beads-update--issue-id
     (user-error "No issue ID set"))
-  (let ((args (list beads-update--issue-id))
+  (let (args
         (changes (beads-update--get-changed-fields)))
     (when (null changes)
       (user-error "No fields have been changed"))
+    ;; Push in reverse order for push/nreverse pattern
+    ;; Issue ID goes first (will be first after nreverse)
+    (push beads-update--issue-id args)
+    ;; Collect flag arguments (process changes in original order)
     (dolist (change changes)
       (pcase (car change)
         ('status
-         (setq args (append args (list "-s" (cdr change)))))
+         (push "-s" args)
+         (push (cdr change) args))
         ('priority
-         (setq args (append args (list "-p"
-                                       (number-to-string
-                                        (cdr change))))))
+         (push "-p" args)
+         (push (number-to-string (cdr change)) args))
         ('type
-         (setq args (append args (list "-t" (cdr change)))))
+         (push "-t" args)
+         (push (cdr change) args))
         ('title
-         (setq args (append args (list "--title" (cdr change)))))
+         (push "--title" args)
+         (push (cdr change) args))
         ('description
-         (setq args (append args (list "--description" (cdr change)))))
+         (push "--description" args)
+         (push (cdr change) args))
         ('acceptance-criteria
-         (setq args (append args (list "--acceptance-criteria"
-                                      (cdr change)))))
+         (push "--acceptance-criteria" args)
+         (push (cdr change) args))
         ('design
-         (setq args (append args (list "--design" (cdr change)))))
+         (push "--design" args)
+         (push (cdr change) args))
         ('notes
-         (setq args (append args (list "--notes" (cdr change)))))
+         (push "--notes" args)
+         (push (cdr change) args))
         ('assignee
-         (setq args (append args (list "-a" (cdr change)))))
+         (push "-a" args)
+         (push (cdr change) args))
         ('external-ref
-         (setq args (append args (list "--external-ref"
-                                      (cdr change)))))))
-    args))
+         (push "--external-ref" args)
+         (push (cdr change) args))))
+    (nreverse args)))
 
 ;;; Multiline Editor Functions
 
