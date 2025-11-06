@@ -44,7 +44,8 @@
 Returns (:title STRING :type STRING :priority NUMBER
          :description STRING :custom-id STRING :dependencies STRING
          :acceptance STRING :assignee STRING :design STRING
-         :external-ref STRING :labels STRING :force BOOLEAN).
+         :external-ref STRING :labels STRING :force BOOLEAN
+         :parent STRING :repo STRING :from-template STRING :file STRING).
 
 This uses transient's standard argument parsing with dash-style flags."
   (let* ((title (transient-arg-value "--title=" args))
@@ -59,7 +60,11 @@ This uses transient's standard argument parsing with dash-style flags."
         (design (transient-arg-value "--design=" args))
         (external-ref (transient-arg-value "--external-ref=" args))
         (labels (transient-arg-value "-l=" args))
-        (force (transient-arg-value "--force" args)))
+        (force (transient-arg-value "--force" args))
+        (parent (transient-arg-value "--parent=" args))
+        (repo (transient-arg-value "--repo=" args))
+        (from-template (transient-arg-value "--from-template=" args))
+        (file (transient-arg-value "-f=" args)))
     (list :title title
           :type type
           :priority priority
@@ -71,7 +76,11 @@ This uses transient's standard argument parsing with dash-style flags."
           :design design
           :external-ref external-ref
           :labels labels
-          :force force)))
+          :force force
+          :parent parent
+          :repo repo
+          :from-template from-template
+          :file file)))
 
 (defun beads-create--validate-title (title)
   "Validate that TITLE is set.
@@ -154,6 +163,18 @@ dash-style syntax matching bd CLI."
     (when-let ((deps (plist-get parsed :dependencies)))
       (unless (string-empty-p (string-trim deps))
         (setq args (append args (list "--deps" deps)))))
+    (when-let ((parent (plist-get parsed :parent)))
+      (unless (string-empty-p (string-trim parent))
+        (setq args (append args (list "--parent" parent)))))
+    (when-let ((repo (plist-get parsed :repo)))
+      (unless (string-empty-p (string-trim repo))
+        (setq args (append args (list "--repo" repo)))))
+    (when-let ((from-template (plist-get parsed :from-template)))
+      (unless (string-empty-p (string-trim from-template))
+        (setq args (append args (list "--from-template" from-template)))))
+    (when-let ((file (plist-get parsed :file)))
+      (unless (string-empty-p (string-trim file))
+        (setq args (append args (list "-f" file)))))
     (when (plist-get parsed :force)
       (setq args (append args (list "--force"))))
     args))
@@ -244,6 +265,10 @@ dash-style syntax matching bd CLI."
    (7 beads-option-create-external-ref)
    (7 beads-option-create-custom-id)
    (7 beads-option-create-dependencies)
+   (7 beads-option-create-parent)
+   (7 beads-option-create-repo)
+   (7 beads-option-create-from-template)
+   (7 beads-option-create-file)
    (7 "-f" "Force creation" "--force")]
   ["Global Options"
    (7 beads-option-global-actor)
