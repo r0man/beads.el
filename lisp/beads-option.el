@@ -428,7 +428,7 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
   :class 'transient-option
   :description "Type"
   :key "-t"
-  :argument "-t="
+  :argument "--type="
   :prompt "Type: "
   :choices '("bug" "feature" "task" "epic" "chore")
   :reader #'beads-reader-create-type)
@@ -438,7 +438,7 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
   :class 'transient-option
   :description "Priority"
   :key "-p"
-  :argument "-p="
+  :argument "--priority="
   :prompt "Priority: "
   :reader #'beads-reader-create-priority)
 
@@ -481,7 +481,7 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
   :class 'transient-option
   :description "Assignee"
   :key "-a"
-  :argument "-a="
+  :argument "--assignee="
   :prompt "Assignee: "
   :reader #'beads-reader-create-assignee)
 
@@ -507,7 +507,7 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
   :class 'transient-option
   :description "Labels"
   :key "-l"
-  :argument "-l="
+  :argument "--labels="
   :prompt "Labels (comma-separated): "
   :reader #'beads-reader-create-labels)
 
@@ -550,7 +550,7 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
   :class 'transient-option
   :description "Create from file"
   :key "-F"
-  :argument "-f="
+  :argument "--file="
   :prompt "Markdown file: "
   :reader #'beads-reader-create-file)
 
@@ -561,9 +561,9 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
 (transient-define-infix beads-option-update-status ()
   "Set the status of the issue."
   :class 'transient-option
-  :description "-s, --status"
+  :description "--status"
   :key "s"
-  :argument "-s="
+  :argument "--status="
   :prompt "Status: "
   :choices '("open" "in_progress" "blocked" "closed")
   :reader #'beads-reader-update-status)
@@ -571,18 +571,18 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
 (transient-define-infix beads-option-update-priority ()
   "Set the priority of the issue."
   :class 'transient-option
-  :description "-p, --priority"
+  :description "--priority"
   :key "p"
-  :argument "-p="
+  :argument "--priority="
   :prompt "Priority: "
   :reader #'beads-reader-update-priority)
 
 (transient-define-infix beads-option-update-type ()
   "Set the type of the issue."
   :class 'transient-option
-  :description "-t, --type"
+  :description "--type"
   :key "T"
-  :argument "-t="
+  :argument "--type="
   :prompt "Type: "
   :choices '("bug" "feature" "task" "epic" "chore")
   :reader #'beads-reader-update-type)
@@ -599,9 +599,9 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
 (transient-define-infix beads-option-update-assignee ()
   "Set the assignee of the issue."
   :class 'transient-option
-  :description "-a, --assignee"
+  :description "--assignee"
   :key "a"
-  :argument "-a="
+  :argument "--assignee="
   :prompt "Assignee: "
   :reader #'beads-reader-update-assignee)
 
@@ -618,7 +618,7 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
   "Set the description using a multiline editor."
   :class 'beads-create-transient-multiline
   :field-name "Description"
-  :description "-d, --description"
+  :description "--description"
   :key "d"
   :argument "--description=")
 
@@ -702,9 +702,9 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
 (transient-define-infix beads-option-sync-message ()
   "Set custom commit message."
   :class 'transient-option
-  :description "-m, --message"
+  :description "--message"
   :key "m"
-  :argument "-m="
+  :argument "--message="
   :prompt "Commit message: "
   :reader #'beads-reader-sync-message)
 
@@ -792,9 +792,9 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
 (transient-define-infix beads-option-dep-type ()
   "Set the dependency type."
   :class 'transient-option
-  :description "-t, --type"
+  :description "--type"
   :key "T"
-  :argument "-t="
+  :argument "--type="
   :prompt "Dependency type: "
   :choices '("blocks" "related" "parent-child" "discovered-from")
   :reader #'beads-reader-dep-type)
@@ -806,9 +806,9 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
 (transient-define-infix beads-option-export-output ()
   "Set the output file path."
   :class 'transient-option
-  :description "-o, --output"
+  :description "--output"
   :key "o"
-  :argument "-o="
+  :argument "--output="
   :prompt "Output file: "
   :reader #'beads-reader-export-output)
 
@@ -822,9 +822,9 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
 (transient-define-infix beads-option-import-input ()
   "Set the input file path."
   :class 'transient-option
-  :description "-i, --input (required)"
+  :description "--input (required)"
   :key "i"
-  :argument "-i="
+  :argument "--input="
   :prompt "Input file: "
   :reader #'beads-reader-import-input)
 
@@ -845,9 +845,9 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
 (transient-define-infix beads-option-init-prefix ()
   "Set the issue ID prefix."
   :class 'transient-option
-  :description "-p, --prefix"
+  :description "--prefix"
   :key "p"
-  :argument "-p="
+  :argument "--prefix="
   :prompt "Issue ID prefix: "
   :reader #'beads-reader-init-prefix)
 
