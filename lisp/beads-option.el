@@ -184,8 +184,11 @@ Multiline text is escaped to single line and truncated at 40 chars."
         (let* ((trimmed (string-trim value))
                ;; Replace newlines with escaped \n for display
                (escaped (replace-regexp-in-string "\n" "\\\\n" trimmed))
-               (display (if (> (length escaped) 40)
-                           (concat (substring escaped 0 40) "...")
+               (display (if (> (length escaped)
+                               beads-display-value-max-length)
+                           (concat (substring escaped 0
+                                             beads-display-value-max-length)
+                                  "...")
                          escaped)))
           (concat (propertize arg 'face 'transient-argument)
                   (propertize display 'face 'transient-value)))
@@ -199,8 +202,10 @@ Multiline text is escaped to single line and truncated at 40 chars."
   "Format VALUE for display in transient menu.
 Shows the value in brackets with appropriate face, or [unset] if nil."
   (if (and value (not (string-empty-p (string-trim value))))
-      (let ((display (if (> (length value) 40)
-                        (concat (substring value 0 40) "...")
+      (let ((display (if (> (length value) beads-display-value-max-length)
+                        (concat (substring value 0
+                                          beads-display-value-max-length)
+                               "...")
                       value)))
         (propertize (format " [%s]" display) 'face 'transient-value))
     (propertize " [unset]" 'face 'transient-inactive-value)))

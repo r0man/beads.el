@@ -67,8 +67,11 @@ Returns a propertized string."
   (let* ((current (or new-value original-value))
          (changed (and new-value (not (equal new-value original-value))))
          (display (if current
-                     (if (> (length (format "%s" current)) 40)
-                         (concat (substring (format "%s" current) 0 40) "...")
+                     (if (> (length (format "%s" current))
+                            beads-display-value-max-length)
+                         (concat (substring (format "%s" current) 0
+                                           beads-display-value-max-length)
+                                "...")
                        (format "%s" current))
                    "unset"))
          (face (cond

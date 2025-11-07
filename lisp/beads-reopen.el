@@ -41,8 +41,10 @@
   "Format VALUE for display in transient menu.
 Returns a propertized string showing the current value."
   (if (and value (not (string-empty-p (string-trim value))))
-      (let ((display (if (> (length value) 40)
-                        (concat (substring value 0 40) "...")
+      (let ((display (if (> (length value) beads-display-value-max-length)
+                        (concat (substring value 0
+                                          beads-display-value-max-length)
+                               "...")
                       value)))
         (propertize (format " [%s]" display) 'face 'transient-value))
     (propertize " [not set]" 'face 'transient-inactive-value)))

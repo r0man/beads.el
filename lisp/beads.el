@@ -94,6 +94,22 @@ If nil, uses $USER environment variable."
 (defvar beads-global-no-db nil)
 (defvar beads-global-sandbox nil)
 
+;;; Constants
+
+(defconst beads-display-value-max-length 40
+  "Maximum length for displaying values in transient menus.
+Values longer than this will be truncated with \"...\" appended.")
+
+(defconst beads-separator-line-width 40
+  "Width of separator lines in error and debug buffers.")
+
+(defconst beads-stats-separator-width 50
+  "Width of separator lines in statistics display.")
+
+(defconst beads-graph-label-max-length 30
+  "Maximum length for issue titles in dependency graphs.
+Longer titles will be truncated for graph display.")
+
 ;;; Utilities
 
 (defun beads--log (level format-string &rest args)
@@ -164,7 +180,8 @@ STDERR is the standard error output from the process."
 
       ;; Stdout
       (insert (propertize "Standard Output:\n" 'face 'bold)
-              (propertize (make-string 40 ?-) 'face 'shadow)
+              (propertize (make-string beads-separator-line-width ?-)
+                          'face 'shadow)
               "\n")
       (if (and stdout (not (string-empty-p (string-trim stdout))))
           (insert stdout "\n")
@@ -173,7 +190,8 @@ STDERR is the standard error output from the process."
 
       ;; Stderr
       (insert (propertize "Standard Error:\n" 'face 'bold)
-              (propertize (make-string 40 ?-) 'face 'shadow)
+              (propertize (make-string beads-separator-line-width ?-)
+                          'face 'shadow)
               "\n")
       (if (and stderr (not (string-empty-p (string-trim stderr))))
           (insert stderr "\n")
@@ -467,8 +485,10 @@ Call this after creating, updating, or deleting issues."
                                      ("closed" 'shadow)
                                      (_ 'default)))
                     priority
-                    (if (> (length title) 40)
-                        (concat (substring title 0 37) "...")
+                    (if (> (length title) beads-display-value-max-length)
+                        (concat (substring title 0
+                                          (- beads-display-value-max-length 3))
+                               "...")
                       title)))))
     (error "")))
 
