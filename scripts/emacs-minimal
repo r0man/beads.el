@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+guix shell \
+     beads \
+     emacs \
+     emacs-ef-themes \
+     emacs-transient \
+     emacs-vertico \
+     --pure \
+     -- emacs --init-directory ~/workspace/beads.el/share/emacs.d
