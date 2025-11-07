@@ -278,24 +278,24 @@ dash-style syntax matching bd CLI."
 
 (transient-define-group beads-create--required-section
   [:level 1 "Required"
-          (beads-option-create-title)])
+          (beads-option-issue-title)])
 
 (transient-define-group beads-create--issue-attributes-section
   [:level 2 "Issue attributes"
-          (beads-option-create-type)
-          (beads-option-create-priority)
-          (beads-option-create-assignee)
-          (beads-option-create-labels)])
+          (beads-option-issue-type)
+          (beads-option-issue-priority)
+          (beads-option-issue-assignee)
+          (beads-option-issue-labels)])
 
 (transient-define-group beads-create--content-section
   [:level 3 "Content"
-          (beads-option-create-description)
-          (beads-option-create-acceptance)
-          (beads-option-create-design)])
+          (beads-option-issue-description)
+          (beads-option-issue-acceptance)
+          (beads-option-issue-design)])
 
 (transient-define-group beads-create--advanced-section
   [:level 4 "Advanced"
-          (beads-option-create-external-ref)
+          (beads-option-issue-external-ref)
           (beads-option-create-custom-id)
           (beads-option-create-dependencies)
           (beads-option-create-parent)
