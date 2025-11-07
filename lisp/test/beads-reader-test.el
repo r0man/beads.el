@@ -90,25 +90,25 @@
 
 (ert-deftest beads-reader-test-priority-returns-lambda ()
   "Test that beads-reader-priority returns a lambda function."
-  (let ((beads-create--priority 2))
+  (let ((beads-update--priority 2))
     (let ((reader (beads-reader-priority "Priority: "
-                                         'beads-create--priority)))
+                                         'beads-update--priority)))
       (should (functionp reader)))))
 
 (ert-deftest beads-reader-test-priority-converts-to-string ()
   "Test that beads-reader-priority converts number to string."
-  (let ((beads-create--priority 2))
+  (let ((beads-update--priority 2))
     (cl-letf (((symbol-function 'completing-read)
                (lambda (&rest _args) "1 - High")))
       (let* ((reader (beads-reader-priority "Priority: "
-                                            'beads-create--priority))
+                                            'beads-update--priority))
              (result (funcall reader nil nil nil)))
         (should (stringp result))
         (should (equal result "1"))))))
 
 (ert-deftest beads-reader-test-priority-all-levels ()
   "Test priority reader converts all levels correctly."
-  (let ((beads-create--priority nil))
+  (let ((beads-update--priority nil))
     (dolist (test-case '(("0 - Critical" . "0")
                          ("1 - High" . "1")
                          ("2 - Medium" . "2")
@@ -117,7 +117,7 @@
       (cl-letf (((symbol-function 'completing-read)
                  (lambda (&rest _args) (car test-case))))
         (let* ((reader (beads-reader-priority "Priority: "
-                                              'beads-create--priority))
+                                              'beads-update--priority))
                (result (funcall reader nil nil nil)))
           (should (equal result (cdr test-case))))))))
 
@@ -346,11 +346,11 @@
 
 (ert-deftest beads-reader-test-priority-with-nil-default ()
   "Test priority reader when default variable is nil."
-  (let ((beads-create--priority nil))
+  (let ((beads-update--priority nil))
     (cl-letf (((symbol-function 'completing-read)
                (lambda (&rest _args) "3 - Low")))
       (let* ((reader (beads-reader-priority "Priority: "
-                                            'beads-create--priority))
+                                            'beads-update--priority))
              (result (funcall reader nil nil nil)))
         (should (equal result "3"))))))
 

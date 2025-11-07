@@ -19,35 +19,15 @@
 ;; Reader functions follow the transient reader protocol:
 ;; They receive (prompt initial-input history) arguments and return
 ;; a string value to be used by the transient infix.
+;;
+;; State variables used by reader functions are defined in
+;; beads-state.el, which eliminates circular dependencies between
+;; this module and beads-option.el.
 
 ;;; Code:
 
 (require 'beads)
-
-;; Forward declare state variables from beads-option
-(defvar beads-create--title)
-(defvar beads-create--type)
-(defvar beads-create--priority)
-(defvar beads-create--custom-id)
-(defvar beads-create--dependencies)
-(defvar beads-create--assignee)
-(defvar beads-create--external-ref)
-(defvar beads-create--labels)
-(defvar beads-update--status)
-(defvar beads-update--priority)
-(defvar beads-update--type)
-(defvar beads-update--title)
-(defvar beads-update--assignee)
-(defvar beads-update--external-ref)
-(defvar beads-close--issue-id)
-(defvar beads-reopen--issue-id)
-(defvar beads-dep--from-issue)
-(defvar beads-dep--to-issue)
-(defvar beads-dep--dep-type)
-(defvar beads-export--output)
-(defvar beads-import--input)
-(defvar beads-init--prefix)
-(defvar beads-init--db-path)
+(require 'beads-state)
 
 ;;; ============================================================
 ;;; Common Reader Functions
@@ -99,66 +79,64 @@ DEFAULT-VAR is the variable holding the current priority value."
 
 (defun beads-reader-create-title (_prompt _initial-input _history)
   "Read title for issue creation."
-  (read-string "Issue title: " beads-create--title))
+  (read-string "Issue title: "))
 
 (defun beads-reader-create-type (_prompt _initial-input _history)
   "Read type for issue creation."
   (completing-read "Type: "
                    '("bug" "feature" "task" "epic" "chore")
-                   nil t beads-create--type))
+                   nil t))
 
 (defun beads-reader-create-priority (_prompt _initial-input _history)
   "Read priority for issue creation."
-  (funcall (beads-reader-priority "Priority: " 'beads-create--priority)
-           nil nil nil))
+  (let* ((choices '(("0 - Critical" . 0)
+                    ("1 - High" . 1)
+                    ("2 - Medium" . 2)
+                    ("3 - Low" . 3)
+                    ("4 - Backlog" . 4)))
+         (selection (completing-read "Priority: " choices nil t))
+         (priority (cdr (assoc selection choices))))
+    (number-to-string priority)))
 
 (defun beads-reader-create-custom-id (_prompt _initial-input _history)
   "Read custom ID for issue creation."
-  (read-string "Custom ID: " beads-create--custom-id))
+  (read-string "Custom ID: "))
 
 (defun beads-reader-create-dependencies (_prompt _initial-input _history)
   "Read dependencies for issue creation."
-  (read-string "Dependencies (e.g., blocks:bd-a1b2,related:bd-f14c): "
-               beads-create--dependencies))
+  (read-string "Dependencies (e.g., blocks:bd-a1b2,related:bd-f14c): "))
 
 (defun beads-reader-create-assignee (_prompt _initial-input _history)
   "Read assignee for issue creation."
-  (read-string "Assignee: " beads-create--assignee))
+  (read-string "Assignee: "))
 
 (defun beads-reader-create-external-ref (_prompt _initial-input _history)
   "Read external reference for issue creation."
-  (read-string "External reference (e.g., gh-9, jira-ABC): "
-               beads-create--external-ref))
+  (read-string "External reference (e.g., gh-9, jira-ABC): "))
 
 (defun beads-reader-create-labels (_prompt _initial-input _history)
   "Read labels for issue creation."
-  (read-string "Labels (comma-separated): "
-               beads-create--labels))
+  (read-string "Labels (comma-separated): "))
 
 (defun beads-reader-create-parent (_prompt _initial-input _history)
   "Read parent issue ID for hierarchical child."
   (completing-read "Parent issue ID: "
                    (beads--issue-completion-table)
-                   nil nil
-                   beads-create--parent))
+                   nil nil))
 
 (defun beads-reader-create-repo (_prompt _initial-input _history)
   "Read target repository for issue."
-  (read-string "Target repository: " beads-create--repo))
+  (read-string "Target repository: "))
 
 (defun beads-reader-create-from-template (_prompt _initial-input _history)
   "Read template name for issue creation."
   (completing-read "Template: "
                    '("epic" "bug" "feature")
-                   nil nil
-                   beads-create--from-template))
+                   nil nil))
 
 (defun beads-reader-create-file (_prompt _initial-input _history)
   "Read markdown file path for bulk issue creation."
-  (read-file-name "Markdown file: "
-                  nil
-                  beads-create--file
-                  t))
+  (read-file-name "Markdown file: " nil nil t))
 
 ;;; ============================================================
 ;;; beads-update Reader Functions
