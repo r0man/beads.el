@@ -73,7 +73,9 @@ Returns an alist with statistics fields."
     (insert (propertize "Beads Issue Statistics"
                        'face 'bold)
             "\n")
-    (insert (propertize (make-string 50 ?═) 'face 'shadow) "\n\n")
+    (insert (propertize (make-string beads-stats-separator-width ?═)
+                       'face 'shadow)
+            "\n\n")
 
     ;; Total
     (insert (propertize "Total Issues: " 'face 'bold)
@@ -83,7 +85,9 @@ Returns an alist with statistics fields."
 
     ;; By Status
     (insert (propertize "By Status:" 'face 'bold) "\n")
-    (insert (propertize (make-string 50 ?─) 'face 'shadow) "\n")
+    (insert (propertize (make-string beads-stats-separator-width ?─)
+                       'face 'shadow)
+            "\n")
     (insert (format "  %-15s %s\n"
                    (propertize "Open:" 'face 'default)
                    (propertize (format "%d" (alist-get 'open stats))
@@ -104,7 +108,9 @@ Returns an alist with statistics fields."
 
     ;; Ready Issues
     (insert (propertize "Ready to Work:" 'face 'bold) "\n")
-    (insert (propertize (make-string 50 ?─) 'face 'shadow) "\n")
+    (insert (propertize (make-string beads-stats-separator-width ?─)
+                       'face 'shadow)
+            "\n")
     (insert (format "  %s issues with no blockers\n"
                    (propertize (format "%d" (alist-get 'ready stats))
                               'face 'success)))
@@ -112,7 +118,9 @@ Returns an alist with statistics fields."
 
     ;; Lead Time
     (insert (propertize "Average Lead Time:" 'face 'bold) "\n")
-    (insert (propertize (make-string 50 ?─) 'face 'shadow) "\n")
+    (insert (propertize (make-string beads-stats-separator-width ?─)
+                       'face 'shadow)
+            "\n")
     (insert (format "  %s\n"
                    (beads-stats--format-lead-time
                     (alist-get 'lead-time stats))))
