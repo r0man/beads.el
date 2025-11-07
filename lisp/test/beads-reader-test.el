@@ -126,32 +126,32 @@
 ;;; ============================================================
 
 (ert-deftest beads-reader-test-create-title-exists ()
-  "Test that beads-reader-create-title is defined."
-  (should (fboundp 'beads-reader-create-title)))
+  "Test that beads-reader-issue-title is defined."
+  (should (fboundp 'beads-reader-issue-title)))
 
 (ert-deftest beads-reader-test-create-title ()
   "Test reading title for issue creation."
   (let ((beads-create--title "Initial Title"))
     (cl-letf (((symbol-function 'read-string)
                (lambda (&rest _args) "New Title")))
-      (let ((result (beads-reader-create-title nil nil nil)))
+      (let ((result (beads-reader-issue-title nil nil nil)))
         (should (equal result "New Title"))))))
 
 (ert-deftest beads-reader-test-create-type-exists ()
-  "Test that beads-reader-create-type is defined."
-  (should (fboundp 'beads-reader-create-type)))
+  "Test that beads-reader-issue-type is defined."
+  (should (fboundp 'beads-reader-issue-type)))
 
 (ert-deftest beads-reader-test-create-type ()
   "Test reading type for issue creation."
   (let ((beads-create--type "bug"))
     (cl-letf (((symbol-function 'completing-read)
                (lambda (&rest _args) "feature")))
-      (let ((result (beads-reader-create-type nil nil nil)))
+      (let ((result (beads-reader-issue-type nil nil nil)))
         (should (equal result "feature"))))))
 
 (ert-deftest beads-reader-test-create-priority-exists ()
-  "Test that beads-reader-create-priority is defined."
-  (should (fboundp 'beads-reader-create-priority)))
+  "Test that beads-reader-issue-priority is defined."
+  (should (fboundp 'beads-reader-issue-priority)))
 
 (ert-deftest beads-reader-test-create-custom-id-exists ()
   "Test that beads-reader-create-custom-id is defined."
@@ -162,16 +162,16 @@
   (should (fboundp 'beads-reader-create-dependencies)))
 
 (ert-deftest beads-reader-test-create-assignee-exists ()
-  "Test that beads-reader-create-assignee is defined."
-  (should (fboundp 'beads-reader-create-assignee)))
+  "Test that beads-reader-issue-assignee is defined."
+  (should (fboundp 'beads-reader-issue-assignee)))
 
 (ert-deftest beads-reader-test-create-external-ref-exists ()
-  "Test that beads-reader-create-external-ref is defined."
-  (should (fboundp 'beads-reader-create-external-ref)))
+  "Test that beads-reader-issue-external-ref is defined."
+  (should (fboundp 'beads-reader-issue-external-ref)))
 
 (ert-deftest beads-reader-test-create-labels-exists ()
-  "Test that beads-reader-create-labels is defined."
-  (should (fboundp 'beads-reader-create-labels)))
+  "Test that beads-reader-issue-labels is defined."
+  (should (fboundp 'beads-reader-issue-labels)))
 
 (ert-deftest beads-reader-test-create-parent-exists ()
   "Test that beads-reader-create-parent is defined."
@@ -377,7 +377,7 @@
   (let ((beads-create--title nil))
     (cl-letf (((symbol-function 'read-string)
                (lambda (&rest _args) "New Title")))
-      (let ((result (beads-reader-create-title nil nil nil)))
+      (let ((result (beads-reader-issue-title nil nil nil)))
         (should (equal result "New Title"))))))
 
 (provide 'beads-reader-test)
