@@ -473,10 +473,10 @@ the command building with a pre-parsed multiline value."
 
 (ert-deftest beads-create-test-infix-commands-defined ()
   "Test that all infix commands are defined."
-  (should (fboundp 'beads-option-create-title))
-  (should (fboundp 'beads-option-create-type))
-  (should (fboundp 'beads-option-create-priority))
-  (should (fboundp 'beads-option-create-description))
+  (should (fboundp 'beads-option-issue-title))
+  (should (fboundp 'beads-option-issue-type))
+  (should (fboundp 'beads-option-issue-priority))
+  (should (fboundp 'beads-option-issue-description))
   (should (fboundp 'beads-option-create-custom-id))
   (should (fboundp 'beads-option-create-dependencies)))
 
@@ -843,11 +843,11 @@ Titles can contain newlines; bd will handle them."
 
 (ert-deftest beads-create-test-infix-commands-new-fields ()
   "Test that all new infix commands are defined."
-  (should (fboundp 'beads-option-create-acceptance))
-  (should (fboundp 'beads-option-create-assignee))
-  (should (fboundp 'beads-option-create-design))
-  (should (fboundp 'beads-option-create-external-ref))
-  (should (fboundp 'beads-option-create-labels))
+  (should (fboundp 'beads-option-issue-acceptance))
+  (should (fboundp 'beads-option-issue-assignee))
+  (should (fboundp 'beads-option-issue-design))
+  (should (fboundp 'beads-option-issue-external-ref))
+  (should (fboundp 'beads-option-issue-labels))
   (should (fboundp 'beads-option-create-force)))
 
 ;;; Tests for Transient Definition

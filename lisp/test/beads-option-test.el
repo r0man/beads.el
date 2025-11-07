@@ -107,17 +107,17 @@
   "Test that reopen issue-id infix is defined."
   (should (commandp 'beads-option-reopen-issue-id)))
 
-(ert-deftest beads-option-test-create-title-infix-exists ()
-  "Test that create title infix is defined."
-  (should (commandp 'beads-option-create-title)))
+(ert-deftest beads-option-test-issue-title-infix-exists ()
+  "Test that issue title infix is defined."
+  (should (commandp 'beads-option-issue-title)))
 
-(ert-deftest beads-option-test-create-type-infix-exists ()
-  "Test that create type infix is defined."
-  (should (commandp 'beads-option-create-type)))
+(ert-deftest beads-option-test-issue-type-infix-exists ()
+  "Test that issue type infix is defined."
+  (should (commandp 'beads-option-issue-type)))
 
-(ert-deftest beads-option-test-create-priority-infix-exists ()
-  "Test that create priority infix is defined."
-  (should (commandp 'beads-option-create-priority)))
+(ert-deftest beads-option-test-issue-priority-infix-exists ()
+  "Test that issue priority infix is defined."
+  (should (commandp 'beads-option-issue-priority)))
 
 (ert-deftest beads-option-test-create-custom-id-infix-exists ()
   "Test that create custom-id infix is defined."
@@ -127,33 +127,33 @@
   "Test that create dependencies infix is defined."
   (should (commandp 'beads-option-create-dependencies)))
 
-(ert-deftest beads-option-test-create-assignee-infix-exists ()
-  "Test that create assignee infix is defined."
-  (should (commandp 'beads-option-create-assignee)))
+(ert-deftest beads-option-test-issue-assignee-infix-exists ()
+  "Test that issue assignee infix is defined."
+  (should (commandp 'beads-option-issue-assignee)))
 
-(ert-deftest beads-option-test-create-external-ref-infix-exists ()
-  "Test that create external-ref infix is defined."
-  (should (commandp 'beads-option-create-external-ref)))
+(ert-deftest beads-option-test-issue-external-ref-infix-exists ()
+  "Test that issue external-ref infix is defined."
+  (should (commandp 'beads-option-issue-external-ref)))
 
-(ert-deftest beads-option-test-create-labels-infix-exists ()
-  "Test that create labels infix is defined."
-  (should (commandp 'beads-option-create-labels)))
+(ert-deftest beads-option-test-issue-labels-infix-exists ()
+  "Test that issue labels infix is defined."
+  (should (commandp 'beads-option-issue-labels)))
 
 (ert-deftest beads-option-test-create-force-infix-exists ()
   "Test that create force infix is defined."
   (should (commandp 'beads-option-create-force)))
 
-(ert-deftest beads-option-test-create-description-infix-exists ()
-  "Test that create description infix is defined."
-  (should (commandp 'beads-option-create-description)))
+(ert-deftest beads-option-test-issue-description-infix-exists ()
+  "Test that issue description infix is defined."
+  (should (commandp 'beads-option-issue-description)))
 
-(ert-deftest beads-option-test-create-acceptance-infix-exists ()
-  "Test that create acceptance infix is defined."
-  (should (commandp 'beads-option-create-acceptance)))
+(ert-deftest beads-option-test-issue-acceptance-infix-exists ()
+  "Test that issue acceptance infix is defined."
+  (should (commandp 'beads-option-issue-acceptance)))
 
-(ert-deftest beads-option-test-create-design-infix-exists ()
-  "Test that create design infix is defined."
-  (should (commandp 'beads-option-create-design)))
+(ert-deftest beads-option-test-issue-design-infix-exists ()
+  "Test that issue design infix is defined."
+  (should (commandp 'beads-option-issue-design)))
 
 (ert-deftest beads-option-test-dep-add-issue-id-infix-exists ()
   "Test that dep-add issue-id infix is defined."

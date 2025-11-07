@@ -77,18 +77,18 @@ DEFAULT-VAR is the variable holding the current priority value."
 ;;; beads-create Reader Functions
 ;;; ============================================================
 
-(defun beads-reader-create-title (_prompt _initial-input _history)
-  "Read title for issue creation."
+(defun beads-reader-issue-title (_prompt _initial-input _history)
+  "Read title for an issue."
   (read-string "Issue title: "))
 
-(defun beads-reader-create-type (_prompt _initial-input _history)
-  "Read type for issue creation."
+(defun beads-reader-issue-type (_prompt _initial-input _history)
+  "Read type for an issue."
   (completing-read "Type: "
                    '("bug" "feature" "task" "epic" "chore")
                    nil t))
 
-(defun beads-reader-create-priority (_prompt _initial-input _history)
-  "Read priority for issue creation."
+(defun beads-reader-issue-priority (_prompt _initial-input _history)
+  "Read priority for an issue."
   (let* ((choices '(("0 - Critical" . 0)
                     ("1 - High" . 1)
                     ("2 - Medium" . 2)
@@ -106,16 +106,16 @@ DEFAULT-VAR is the variable holding the current priority value."
   "Read dependencies for issue creation."
   (read-string "Dependencies (e.g., blocks:bd-a1b2,related:bd-f14c): "))
 
-(defun beads-reader-create-assignee (_prompt _initial-input _history)
-  "Read assignee for issue creation."
+(defun beads-reader-issue-assignee (_prompt _initial-input _history)
+  "Read assignee for an issue."
   (read-string "Assignee: "))
 
-(defun beads-reader-create-external-ref (_prompt _initial-input _history)
-  "Read external reference for issue creation."
+(defun beads-reader-issue-external-ref (_prompt _initial-input _history)
+  "Read external reference for an issue."
   (read-string "External reference (e.g., gh-9, jira-ABC): "))
 
-(defun beads-reader-create-labels (_prompt _initial-input _history)
-  "Read labels for issue creation."
+(defun beads-reader-issue-labels (_prompt _initial-input _history)
+  "Read labels for an issue."
   (read-string "Labels (comma-separated): "))
 
 (defun beads-reader-create-parent (_prompt _initial-input _history)
