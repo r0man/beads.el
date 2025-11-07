@@ -108,8 +108,10 @@
         (priority (alist-get 'priority issue)))
     (format "%s\\n%s\\n[P%s %s]"
             id
-            (if (> (length title) 30)
-                (concat (substring title 0 27) "...")
+            (if (> (length title) beads-graph-label-max-length)
+                (concat (substring title 0
+                                  (- beads-graph-label-max-length 3))
+                       "...")
               title)
             priority
             status)))
