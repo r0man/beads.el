@@ -7,9 +7,9 @@
 
 ;;; Commentary:
 
-;; This module centralizes all transient infix definitions and state
-;; variables used across beads.el commands.  By consolidating these
-;; definitions in one place, we:
+;; This module centralizes all transient infix definitions used
+;; across beads.el commands.  By consolidating these definitions
+;; in one place, we:
 ;;
 ;; - Avoid duplication across modules
 ;; - Make it easier to maintain consistent behavior
@@ -19,11 +19,14 @@
 ;; - Custom transient classes (beads-create-transient-multiline)
 ;; - Utility functions for formatting values
 ;; - All transient-define-infix declarations
-;; - All state variables for transient menus
+;;
+;; State variables are defined in beads-state.el to avoid circular
+;; dependencies with beads-reader.el.
 
 ;;; Code:
 
 (require 'beads)
+(require 'beads-state)
 (require 'transient)
 
 ;; Forward declare reader functions (loaded later to avoid circular deps)
@@ -209,211 +212,6 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
                       value)))
         (propertize (format " [%s]" display) 'face 'transient-value))
     (propertize " [unset]" 'face 'transient-inactive-value)))
-
-;;; ============================================================
-;;; State Variables
-;;; ============================================================
-
-;;; Global state variables (shared across all commands)
-
-(defvar beads-global-actor nil
-  "Global actor name override for audit trail.
-When set, overrides $BD_ACTOR or $USER.")
-
-(defvar beads-global-db nil
-  "Global database path override.
-When set, bypasses auto-discovery of .beads/*.db.")
-
-(defvar beads-global-json nil
-  "Global JSON output flag.
-When non-nil, forces JSON output format.")
-
-(defvar beads-global-no-auto-flush nil
-  "Global no-auto-flush flag.
-When non-nil, disables automatic JSONL sync after CRUD operations.")
-
-(defvar beads-global-no-auto-import nil
-  "Global no-auto-import flag.
-When non-nil, disables automatic JSONL import when newer than DB.")
-
-(defvar beads-global-no-daemon nil
-  "Global no-daemon flag.
-When non-nil, forces direct storage mode, bypassing daemon.")
-
-(defvar beads-global-no-db nil
-  "Global no-db flag.
-When non-nil, uses no-db mode: load from JSONL only, no SQLite.")
-
-(defvar beads-global-sandbox nil
-  "Global sandbox flag.
-When non-nil, enables sandbox mode: disables daemon and auto-sync.")
-
-;;; beads-create state variables
-
-(defvar beads-create--title nil
-  "Title for the issue being created.")
-
-(defvar beads-create--type nil
-  "Type for the issue being created (bug, feature, task, epic, chore).")
-
-(defvar beads-create--priority nil
-  "Priority for the issue being created (0-4).")
-
-(defvar beads-create--description nil
-  "Description for the issue being created.")
-
-(defvar beads-create--custom-id nil
-  "Custom ID for the issue being created.")
-
-(defvar beads-create--dependencies nil
-  "Dependencies for the issue being created (format: type:id,...).")
-
-(defvar beads-create--acceptance nil
-  "Acceptance criteria for the issue being created.")
-
-(defvar beads-create--assignee nil
-  "Assignee for the issue being created.")
-
-(defvar beads-create--design nil
-  "Design notes for the issue being created.")
-
-(defvar beads-create--external-ref nil
-  "External reference for the issue being created.")
-
-(defvar beads-create--labels nil
-  "Labels for the issue being created.")
-
-(defvar beads-create--force nil
-  "Force flag for create operation (override validations).")
-
-(defvar beads-create--parent nil
-  "Parent issue ID for hierarchical child (e.g., 'bd-a3f8e9').")
-
-(defvar beads-create--repo nil
-  "Target repository for issue (overrides auto-routing).")
-
-(defvar beads-create--from-template nil
-  "Template name for issue creation (e.g., 'epic', 'bug', 'feature').")
-
-(defvar beads-create--file nil
-  "Markdown file path for bulk issue creation.")
-
-;;; beads-update state variables
-
-(defvar beads-update--issue-id nil
-  "Issue ID being updated.")
-
-(defvar beads-update--original-data nil
-  "Original issue data as fetched from bd.")
-
-(defvar beads-update--status nil
-  "New status for the issue.")
-
-(defvar beads-update--priority nil
-  "New priority for the issue.")
-
-(defvar beads-update--type nil
-  "New type for the issue.")
-
-(defvar beads-update--title nil
-  "New title for the issue.")
-
-(defvar beads-update--description nil
-  "New description for the issue.")
-
-(defvar beads-update--acceptance-criteria nil
-  "New acceptance criteria for the issue.")
-
-(defvar beads-update--design nil
-  "New design notes for the issue.")
-
-(defvar beads-update--notes nil
-  "New notes for the issue.")
-
-(defvar beads-update--assignee nil
-  "New assignee for the issue.")
-
-(defvar beads-update--external-ref nil
-  "New external reference for the issue.")
-
-;;; beads-close state variables
-
-(defvar beads-close--issue-id nil
-  "Issue ID to close.")
-
-(defvar beads-close--reason nil
-  "Reason for closing the issue.")
-
-;;; beads-reopen state variables
-
-(defvar beads-reopen--issue-id nil
-  "Issue ID to reopen.")
-
-(defvar beads-reopen--reason nil
-  "Reason for reopening the issue.")
-
-;;; beads-sync state variables
-
-(defvar beads-sync--dry-run nil
-  "Whether to run in dry-run mode (preview without changes).")
-
-(defvar beads-sync--message nil
-  "Custom commit message for sync operation.")
-
-(defvar beads-sync--no-pull nil
-  "Whether to skip pulling from remote.")
-
-(defvar beads-sync--no-push nil
-  "Whether to skip pushing to remote.")
-
-;;; beads-dep state variables
-
-(defvar beads-dep-add--issue-id nil
-  "Issue ID for add dependency operation.")
-
-(defvar beads-dep-add--depends-on-id nil
-  "Depends-on ID for add dependency operation.")
-
-(defvar beads-dep-add--type nil
-  "Dependency type for add operation.")
-
-(defvar beads-dep-remove--issue-id nil
-  "Issue ID for remove dependency operation.")
-
-(defvar beads-dep-remove--depends-on-id nil
-  "Depends-on ID for remove dependency operation.")
-
-(defvar beads-dep--from-issue nil
-  "Source issue ID for dependency operations.")
-
-(defvar beads-dep--to-issue nil
-  "Target issue ID for dependency operations.")
-
-(defvar beads-dep--dep-type nil
-  "Dependency type (blocks, related, parent-child, discovered-from).")
-
-;;; beads-misc (export, import, init) state variables
-
-(defvar beads-export--output nil
-  "Output file path for export.")
-
-(defvar beads-export--no-auto-flush nil
-  "Whether to disable auto-flush.")
-
-(defvar beads-import--input nil
-  "Input file path for import.")
-
-(defvar beads-import--dry-run nil
-  "Whether to run in dry-run mode.")
-
-(defvar beads-import--resolve-collisions nil
-  "Whether to auto-resolve collisions.")
-
-(defvar beads-init--prefix nil
-  "Issue ID prefix for new project.")
-
-(defvar beads-init--db-path nil
-  "Database path for new project.")
 
 ;;; ============================================================
 ;;; Transient Infix Definitions - beads-create
