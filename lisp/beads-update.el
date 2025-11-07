@@ -34,6 +34,10 @@
 ;; - Notes
 ;; - Assignee
 ;; - External Reference
+;;
+;; This module uses the transient-args pattern where transient manages
+;; state via its built-in argument system.  Suffix commands retrieve
+;; values using (transient-args 'beads-update).
 
 ;;; Code:
 
@@ -43,42 +47,15 @@
 (require 'beads-show)
 (require 'transient)
 
+;;; State Management
+
+(defvar beads-update--issue-id nil
+  "Issue ID being updated (detected from context).")
+
+(defvar beads-update--original-data nil
+  "Original issue data alist (for showing current values in menu).")
+
 ;;; Utility Functions
-
-(defun beads-update--reset-state ()
-  "Reset all transient state variables to nil."
-  (setq beads-update--issue-id nil
-        beads-update--original-data nil
-        beads-update--status nil
-        beads-update--priority nil
-        beads-update--type nil
-        beads-update--title nil
-        beads-update--description nil
-        beads-update--acceptance-criteria nil
-        beads-update--design nil
-        beads-update--notes nil
-        beads-update--assignee nil
-        beads-update--external-ref nil))
-
-(defun beads-update--format-current-value (new-value original-value)
-  "Format value for display in transient menu.
-Shows NEW-VALUE if set, otherwise ORIGINAL-VALUE.
-Returns a propertized string."
-  (let* ((current (or new-value original-value))
-         (changed (and new-value (not (equal new-value original-value))))
-         (display (if current
-                     (if (> (length (format "%s" current))
-                            beads-display-value-max-length)
-                         (concat (substring (format "%s" current) 0
-                                           beads-display-value-max-length)
-                                "...")
-                       (format "%s" current))
-                   "unset"))
-         (face (cond
-                (changed 'transient-value)
-                (current 'transient-inactive-value)
-                (t 'transient-inactive-value))))
-    (propertize (format " [%s]" display) 'face face)))
 
 (defun beads-update--detect-issue-id ()
   "Detect issue ID from current context.
@@ -111,112 +88,106 @@ Returns parsed issue alist or signals error."
 Sets beads-update--issue-id and beads-update--original-data."
   (setq beads-update--issue-id issue-id)
   (setq beads-update--original-data
-        (beads-update--fetch-issue issue-id))
-  ;; Reset current values to nil (user hasn't changed anything yet)
-  (setq beads-update--status nil
-        beads-update--priority nil
-        beads-update--type nil
-        beads-update--title nil
-        beads-update--description nil
-        beads-update--acceptance-criteria nil
-        beads-update--design nil
-        beads-update--notes nil
-        beads-update--assignee nil
-        beads-update--external-ref nil))
+        (beads-update--fetch-issue issue-id)))
 
 (defun beads-update--get-original (field)
   "Get original value of FIELD from original-data."
   (alist-get field beads-update--original-data))
 
-(defun beads-update--get-changed-fields ()
-  "Return alist of fields that have been changed.
+(defun beads-update--parse-transient-args (args)
+  "Parse transient ARGS list into a plist.
+Returns (:status STRING :priority NUMBER :title STRING
+         :description STRING :acceptance STRING :design STRING
+         :notes STRING :assignee STRING :external-ref STRING).
+
+This uses transient's standard argument parsing with dash-style flags."
+  (let* ((status (transient-arg-value "--status=" args))
+         (priority-str (transient-arg-value "--priority=" args))
+         (priority (when priority-str (string-to-number priority-str)))
+         (title (transient-arg-value "--title=" args))
+         (description (transient-arg-value "--description=" args))
+         (acceptance (transient-arg-value "--acceptance=" args))
+         (design (transient-arg-value "--design=" args))
+         (notes (transient-arg-value "--notes=" args))
+         (assignee (transient-arg-value "--assignee=" args))
+         (external-ref (transient-arg-value "--external-ref=" args)))
+    (list :status status
+          :priority priority
+          :title title
+          :description description
+          :acceptance acceptance
+          :design design
+          :notes notes
+          :assignee assignee
+          :external-ref external-ref)))
+
+(defun beads-update--get-changed-fields (parsed)
+  "Return alist of fields that have been changed in PARSED plist.
 Only includes fields where current value differs from original."
   (let ((changes nil))
-    (when (and beads-update--status
-              (not (equal beads-update--status
-                         (beads-update--get-original 'status))))
-      (push (cons 'status beads-update--status) changes))
-    (when (and beads-update--priority
-              (not (equal beads-update--priority
-                         (beads-update--get-original 'priority))))
-      (push (cons 'priority beads-update--priority) changes))
-    (when (and beads-update--type
-              (not (equal beads-update--type
-                         (beads-update--get-original 'issue-type))))
-      (push (cons 'type beads-update--type) changes))
-    (when (and beads-update--title
-              (not (equal beads-update--title
-                         (beads-update--get-original 'title))))
-      (push (cons 'title beads-update--title) changes))
-    (when (and beads-update--description
-              (not (equal beads-update--description
-                         (beads-update--get-original 'description))))
-      (push (cons 'description beads-update--description) changes))
-    (when (and beads-update--acceptance-criteria
-              (not (equal beads-update--acceptance-criteria
-                         (beads-update--get-original
-                          'acceptance-criteria))))
-      (push (cons 'acceptance-criteria
-                 beads-update--acceptance-criteria)
-            changes))
-    (when (and beads-update--design
-              (not (equal beads-update--design
-                         (beads-update--get-original 'design))))
-      (push (cons 'design beads-update--design) changes))
-    (when (and beads-update--notes
-              (not (equal beads-update--notes
-                         (beads-update--get-original 'notes))))
-      (push (cons 'notes beads-update--notes) changes))
-    (when (and beads-update--assignee
-              (not (equal beads-update--assignee
-                         (beads-update--get-original 'assignee))))
-      (push (cons 'assignee beads-update--assignee) changes))
-    (when (and beads-update--external-ref
-              (not (equal beads-update--external-ref
-                         (beads-update--get-original 'external-ref))))
-      (push (cons 'external-ref beads-update--external-ref) changes))
+    (when-let ((status (plist-get parsed :status)))
+      (unless (equal status (beads-update--get-original 'status))
+        (push (cons 'status status) changes)))
+    (when-let ((priority (plist-get parsed :priority)))
+      (unless (equal priority (beads-update--get-original 'priority))
+        (push (cons 'priority priority) changes)))
+    (when-let ((title (plist-get parsed :title)))
+      (unless (equal title (beads-update--get-original 'title))
+        (push (cons 'title title) changes)))
+    (when-let ((description (plist-get parsed :description)))
+      (unless (equal description (beads-update--get-original 'description))
+        (push (cons 'description description) changes)))
+    (when-let ((acceptance (plist-get parsed :acceptance)))
+      (unless (equal acceptance
+                     (beads-update--get-original 'acceptance-criteria))
+        (push (cons 'acceptance acceptance) changes)))
+    (when-let ((design (plist-get parsed :design)))
+      (unless (equal design (beads-update--get-original 'design))
+        (push (cons 'design design) changes)))
+    (when-let ((notes (plist-get parsed :notes)))
+      (unless (equal notes (beads-update--get-original 'notes))
+        (push (cons 'notes notes) changes)))
+    (when-let ((assignee (plist-get parsed :assignee)))
+      (unless (equal assignee (beads-update--get-original 'assignee))
+        (push (cons 'assignee assignee) changes)))
+    (when-let ((external-ref (plist-get parsed :external-ref)))
+      (unless (equal external-ref
+                     (beads-update--get-original 'external-ref))
+        (push (cons 'external-ref external-ref) changes)))
     (nreverse changes)))
 
-(defun beads-update--validate-status ()
-  "Validate that status is valid.
+(defun beads-update--validate-status (status)
+  "Validate that STATUS is valid.
 Returns error message string if invalid, nil if valid."
-  (when (and beads-update--status
-            (not (member beads-update--status
+  (when (and status
+            (not (member status
                         '("open" "in_progress" "blocked" "closed"))))
     "Status must be one of: open, in_progress, blocked, closed"))
 
-(defun beads-update--validate-type ()
-  "Validate that type is valid.
+(defun beads-update--validate-priority (priority)
+  "Validate that PRIORITY is valid.
 Returns error message string if invalid, nil if valid."
-  (when (and beads-update--type
-            (not (member beads-update--type
-                        '("bug" "feature" "task" "epic" "chore"))))
-    "Type must be one of: bug, feature, task, epic, chore"))
-
-(defun beads-update--validate-priority ()
-  "Validate that priority is valid.
-Returns error message string if invalid, nil if valid."
-  (when (and beads-update--priority
-            (not (and (numberp beads-update--priority)
-                     (>= beads-update--priority 0)
-                     (<= beads-update--priority 4))))
+  (when (and priority
+            (not (and (numberp priority)
+                     (>= priority 0)
+                     (<= priority 4))))
     "Priority must be a number between 0 and 4"))
 
-(defun beads-update--validate-all ()
-  "Validate all parameters.
+(defun beads-update--validate-all (parsed)
+  "Validate all parameters from PARSED plist.
 Returns list of error messages, or nil if all valid."
   (delq nil
-        (list (beads-update--validate-status)
-              (beads-update--validate-type)
-              (beads-update--validate-priority))))
+        (list (beads-update--validate-status (plist-get parsed :status))
+              (beads-update--validate-priority
+               (plist-get parsed :priority)))))
 
-(defun beads-update--build-command-args ()
-  "Build command arguments from changed fields.
+(defun beads-update--build-command-args (parsed)
+  "Build command arguments from PARSED plist.
 Returns list of arguments for bd update command."
   (unless beads-update--issue-id
     (user-error "No issue ID set"))
   (let (args
-        (changes (beads-update--get-changed-fields)))
+        (changes (beads-update--get-changed-fields parsed)))
     (when (null changes)
       (user-error "No fields have been changed"))
     ;; Push in reverse order for push/nreverse pattern
@@ -231,17 +202,14 @@ Returns list of arguments for bd update command."
         ('priority
          (push "-p" args)
          (push (number-to-string (cdr change)) args))
-        ('type
-         (push "-t" args)
-         (push (cdr change) args))
         ('title
          (push "--title" args)
          (push (cdr change) args))
         ('description
          (push "--description" args)
          (push (cdr change) args))
-        ('acceptance-criteria
-         (push "--acceptance-criteria" args)
+        ('acceptance
+         (push "--acceptance" args)
          (push (cdr change) args))
         ('design
          (push "--design" args)
@@ -257,93 +225,6 @@ Returns list of arguments for bd update command."
          (push (cdr change) args))))
     (nreverse args)))
 
-;;; Multiline Editor Functions
-
-(defun beads-update--edit-text-multiline (current-value fallback-value callback field-name)
-  "Edit text in a multiline buffer.
-CURRENT-VALUE is the modified text, FALLBACK-VALUE is the original,
-CALLBACK is called with the result, FIELD-NAME is shown in messages.
-After editing, the transient menu is re-displayed."
-  (let* ((buffer-name (format "*beads-%s*" (downcase field-name)))
-         (buffer (generate-new-buffer buffer-name))
-         (parent-buffer (current-buffer)))
-    (switch-to-buffer buffer)
-    (insert (or current-value fallback-value ""))
-    ;; Use markdown-mode if available, otherwise text-mode
-    (if (fboundp 'markdown-mode)
-        (markdown-mode)
-      (text-mode))
-    ;; Enable visual-line-mode for better editing
-    (visual-line-mode 1)
-    (setq header-line-format
-          (format "Edit %s: C-c C-c to finish, C-c C-k to cancel"
-                  field-name))
-    ;; Set up keybindings
-    (let ((finish-func (lambda ()
-                        (interactive)
-                        (let ((text (buffer-substring-no-properties
-                                   (point-min) (point-max))))
-                          (kill-buffer)
-                          (switch-to-buffer parent-buffer)
-                          (funcall callback text)
-                          (message "%s saved" field-name)
-                          ;; Re-show the transient menu
-                          (beads-update--menu))))
-          (cancel-func (lambda ()
-                        (interactive)
-                        (kill-buffer)
-                        (switch-to-buffer parent-buffer)
-                        (message "%s edit cancelled" field-name)
-                        ;; Re-show the transient menu
-                        (beads-update--menu))))
-      (local-set-key (kbd "C-c C-c") finish-func)
-      (local-set-key (kbd "C-c C-k") cancel-func))
-    (message "Edit %s. C-c C-c to finish, C-c C-k to cancel." field-name)))
-
-(transient-define-suffix beads-update--infix-description ()
-  "Set the description using a multiline editor."
-  :description "Description (--description)"
-  :key "d"
-  (interactive)
-  (beads-update--edit-text-multiline
-   beads-update--description
-   (beads-update--get-original 'description)
-   (lambda (text) (setq beads-update--description text))
-   "Description"))
-
-(transient-define-suffix beads-update--infix-acceptance-multiline ()
-  "Set the acceptance criteria using a multiline editor."
-  :description "Acceptance Criteria (multiline)"
-  :key "A"
-  (interactive)
-  (beads-update--edit-text-multiline
-   beads-update--acceptance-criteria
-   (beads-update--get-original 'acceptance-criteria)
-   (lambda (text) (setq beads-update--acceptance-criteria text))
-   "Acceptance Criteria"))
-
-(transient-define-suffix beads-update--infix-design-multiline ()
-  "Set the design notes using a multiline editor."
-  :description "Design (multiline)"
-  :key "E"  ; Changed from G to avoid conflict with Magit refresh
-  (interactive)
-  (beads-update--edit-text-multiline
-   beads-update--design
-   (beads-update--get-original 'design)
-   (lambda (text) (setq beads-update--design text))
-   "Design"))
-
-(transient-define-suffix beads-update--infix-notes-multiline ()
-  "Set the notes using a multiline editor."
-  :description "Notes (multiline)"
-  :key "N"
-  (interactive)
-  (beads-update--edit-text-multiline
-   beads-update--notes
-   (beads-update--get-original 'notes)
-   (lambda (text) (setq beads-update--notes text))
-   "Notes"))
-
 ;;; Suffix Commands
 
 (transient-define-suffix beads-update--execute ()
@@ -351,16 +232,18 @@ After editing, the transient menu is re-displayed."
   :key "u"
   :description "Update issue"
   (interactive)
-  (let* ((errors (beads-update--validate-all))
-         (changes (beads-update--get-changed-fields)))
+  (let* ((args (transient-args 'beads-update))
+         (parsed (beads-update--parse-transient-args args))
+         (errors (beads-update--validate-all parsed))
+         (changes (beads-update--get-changed-fields parsed)))
     (when (null changes)
       (user-error "No fields have been changed"))
     (if errors
         (user-error "Validation failed: %s" (string-join errors "; "))
       (condition-case err
           (progn
-            (let* ((args (beads-update--build-command-args))
-                   (result (apply #'beads--run-command "update" args))
+            (let* ((cmd-args (beads-update--build-command-args parsed))
+                   (result (apply #'beads--run-command "update" cmd-args))
                    (_issue (beads--parse-issue result)))
               (message "Updated issue: %s (changed %d field%s)"
                        beads-update--issue-id
@@ -380,7 +263,8 @@ After editing, the transient menu is re-displayed."
                                    beads-update--issue-id))
                       (beads-refresh-show))))))
               ;; Reset state
-              (beads-update--reset-state))
+              (setq beads-update--issue-id nil
+                    beads-update--original-data nil))
             nil)
         (error
          (let ((err-msg (format "Failed to update issue: %s"
@@ -395,16 +279,10 @@ After editing, the transient menu is re-displayed."
   :transient t
   (interactive)
   (when (y-or-n-p "Reset all changes? ")
-    (setq beads-update--status nil
-          beads-update--priority nil
-          beads-update--type nil
-          beads-update--title nil
-          beads-update--description nil
-          beads-update--acceptance-criteria nil
-          beads-update--design nil
-          beads-update--notes nil
-          beads-update--assignee nil
-          beads-update--external-ref nil)
+    ;; Clear transient's argument state using transient-reset
+    (transient-reset)
+    ;; Refresh the transient display to show cleared state
+    (transient--redisplay)
     (message "All changes reset")))
 
 (transient-define-suffix beads-update--preview ()
@@ -413,16 +291,19 @@ After editing, the transient menu is re-displayed."
   :description "Preview command"
   :transient t
   (interactive)
-  (let ((errors (beads-update--validate-all)))
+  (let* ((args (transient-args 'beads-update))
+         (parsed (beads-update--parse-transient-args args))
+         (errors (beads-update--validate-all parsed)))
     (if errors
-        (let ((err-msg (format "Validation errors: %s" (string-join errors "; "))))
+        (let ((err-msg (format "Validation errors: %s"
+                               (string-join errors "; "))))
           (message "%s" err-msg)
           err-msg)
       (condition-case err
-          (let* ((args (beads-update--build-command-args))
-                 (cmd (apply #'beads--build-command "update" args))
+          (let* ((cmd-args (beads-update--build-command-args parsed))
+                 (cmd (apply #'beads--build-command "update" cmd-args))
                  (cmd-string (mapconcat #'shell-quote-argument cmd " "))
-                 (changes (beads-update--get-changed-fields))
+                 (changes (beads-update--get-changed-fields parsed))
                  (preview-msg (format "Command: %s\nChanges: %s"
                                      cmd-string
                                      (mapconcat (lambda (c)
@@ -444,17 +325,17 @@ After editing, the transient menu is re-displayed."
   ["Issue Details"
    ["Status & Priority"
     (beads-option-update-status)
-    (beads-option-update-priority)
-    (beads-option-update-type)]
+    (beads-option-issue-priority)]
    ["Basic Info"
-    (beads-option-update-title)
-    (beads-option-update-assignee)
-    (beads-option-update-external-ref)]]
+    (beads-option-issue-title)
+    (beads-option-issue-assignee)
+    (beads-option-issue-external-ref)]]
   ["Content Fields"
-   (beads-update--infix-description)
-   (beads-update--infix-acceptance-multiline)
-   (beads-update--infix-design-multiline)
-   (beads-update--infix-notes-multiline)]
+   (beads-option-issue-description)
+   (beads-option-issue-acceptance)
+   (beads-option-issue-design)
+   (beads-option-update-notes-multiline)]
+  beads-option-global-section
   ["Actions"
    ("u" "Update issue" beads-update--execute)
    ("P" "Preview command" beads-update--preview)
