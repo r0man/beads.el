@@ -265,20 +265,19 @@ PROMPT is shown to the user."
 
 (defun beads-reader-export-output (_prompt _initial-input _history)
   "Read output file path for export operation."
-  (read-file-name "Output file: " nil beads-export--output))
+  (read-file-name "Output file: " nil nil))
 
 (defun beads-reader-import-input (_prompt _initial-input _history)
   "Read input file path for import operation."
-  (read-file-name "Input file: " nil beads-import--input t))
+  (read-file-name "Input file: " nil nil t))
 
 (defun beads-reader-init-prefix (_prompt _initial-input _history)
   "Read issue ID prefix for init operation."
-  (read-string "Issue ID prefix (e.g., bd): "
-               beads-init--prefix))
+  (read-string "Issue ID prefix (e.g., bd): " nil))
 
 (defun beads-reader-init-db (_prompt _initial-input _history)
   "Read database path for init operation."
-  (read-file-name "Database path: " nil beads-init--db-path))
+  (read-file-name "Database path: " nil nil))
 
 (provide 'beads-reader)
 ;;; beads-reader.el ends here

@@ -372,43 +372,28 @@
   "Test that required state variables are defined."
   (should (boundp 'beads-close--issue-id))
   (should (boundp 'beads-reopen--issue-id))
-  ;; beads-dep-add and beads-dep-remove no longer use state variables (transient-args pattern)
-  ;; beads-sync no longer uses state variables (transient-args pattern)
+  ;; beads-dep-add, beads-dep-remove, beads-sync, beads-export, beads-import, and beads-init
+  ;; no longer use state variables (transient-args pattern)
   (should (boundp 'beads-dep--from-issue))
   (should (boundp 'beads-dep--to-issue))
-  (should (boundp 'beads-dep--dep-type))
-  (should (boundp 'beads-export--output))
-  (should (boundp 'beads-export--no-auto-flush))
-  (should (boundp 'beads-import--input))
-  (should (boundp 'beads-import--dry-run))
-  (should (boundp 'beads-import--resolve-collisions))
-  (should (boundp 'beads-init--prefix))
-  (should (boundp 'beads-init--db-path)))
+  (should (boundp 'beads-dep--dep-type)))
 
 (ert-deftest beads-option-test-state-variables-initial-values ()
   "Test that state variables have correct initial values."
-  ;; Save current state (excluding refactored commands that use transient-args)
+  ;; Save current state (only commands that still use state variables)
   (let ((saved-close-issue-id beads-close--issue-id)
-        (saved-reopen-issue-id beads-reopen--issue-id)
-        (saved-export-output beads-export--output)
-        (saved-import-input beads-import--input))
+        (saved-reopen-issue-id beads-reopen--issue-id))
     (unwind-protect
         (progn
           ;; Reset all to nil
           (setq beads-close--issue-id nil
-                beads-reopen--issue-id nil
-                beads-export--output nil
-                beads-import--input nil)
+                beads-reopen--issue-id nil)
           ;; All should be nil after reset
           (should (null beads-close--issue-id))
-          (should (null beads-reopen--issue-id))
-          (should (null beads-export--output))
-          (should (null beads-import--input)))
+          (should (null beads-reopen--issue-id)))
       ;; Restore original state
       (setq beads-close--issue-id saved-close-issue-id
-            beads-reopen--issue-id saved-reopen-issue-id
-            beads-export--output saved-export-output
-            beads-import--input saved-import-input))))
+            beads-reopen--issue-id saved-reopen-issue-id))))
 
 (provide 'beads-option-test)
 ;;; beads-option-test.el ends here

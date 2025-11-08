@@ -261,14 +261,6 @@
 ;;; bd export tests
 ;;; ============================================================
 
-(ert-deftest beads-misc-test-export-reset-state ()
-  "Test that export reset-state clears all variables."
-  (setq beads-export--output "/tmp/test.jsonl"
-        beads-export--no-auto-flush t)
-  (beads-export--reset-state)
-  (should (null beads-export--output))
-  (should (null beads-export--no-auto-flush)))
-
 (ert-deftest beads-misc-test-export-format-value-set ()
   "Test export formatting when value is set."
   (let ((result (beads-export--format-value "/tmp/test.jsonl")))
@@ -322,8 +314,8 @@
   (should (fboundp 'beads-export)))
 
 (ert-deftest beads-misc-test-export-transient-is-prefix ()
-  "Test that beads-export is a transient prefix."
-  (should (get 'beads-export 'transient--prefix)))
+  "Test that beads-export--menu is a transient prefix."
+  (should (get 'beads-export--menu 'transient--prefix)))
 
 (ert-deftest beads-misc-test-export-infix-commands-defined ()
   "Test that export infix commands are defined."
@@ -339,16 +331,6 @@
 ;;; bd import tests
 ;;; ============================================================
 
-(ert-deftest beads-misc-test-import-reset-state ()
-  "Test that import reset-state clears all variables."
-  (setq beads-import--input "/tmp/test.jsonl"
-        beads-import--dry-run t
-        beads-import--resolve-collisions t)
-  (beads-import--reset-state)
-  (should (null beads-import--input))
-  (should (null beads-import--dry-run))
-  (should (null beads-import--resolve-collisions)))
-
 (ert-deftest beads-misc-test-import-format-value-set ()
   "Test import formatting when value is set."
   (let ((result (beads-import--format-value "/tmp/test.jsonl")))
@@ -363,28 +345,23 @@
 
 (ert-deftest beads-misc-test-import-validate-input-nil ()
   "Test input validation when nil."
-  (setq beads-import--input nil)
-  (should (beads-import--validate-input)))
+  (should (beads-import--validate-input nil)))
 
 (ert-deftest beads-misc-test-import-validate-input-empty ()
   "Test input validation when empty."
-  (setq beads-import--input "")
-  (should (beads-import--validate-input)))
+  (should (beads-import--validate-input "")))
 
 (ert-deftest beads-misc-test-import-validate-input-valid ()
   "Test input validation when valid."
-  (setq beads-import--input "/tmp/test.jsonl")
-  (should (null (beads-import--validate-input))))
+  (should (null (beads-import--validate-input "/tmp/test.jsonl"))))
 
 (ert-deftest beads-misc-test-import-validate-all-success ()
   "Test validate-all with valid input."
-  (setq beads-import--input "/tmp/test.jsonl")
-  (should (null (beads-import--validate-all))))
+  (should (null (beads-import--validate-all "/tmp/test.jsonl"))))
 
 (ert-deftest beads-misc-test-import-validate-all-failure ()
   "Test validate-all with missing input."
-  (setq beads-import--input nil)
-  (let ((errors (beads-import--validate-all)))
+  (let ((errors (beads-import--validate-all nil)))
     (should errors)
     (should (>= (length errors) 1))))
 
@@ -452,8 +429,8 @@
   (should (fboundp 'beads-import)))
 
 (ert-deftest beads-misc-test-import-transient-is-prefix ()
-  "Test that beads-import is a transient prefix."
-  (should (get 'beads-import 'transient--prefix)))
+  "Test that beads-import--menu is a transient prefix."
+  (should (get 'beads-import--menu 'transient--prefix)))
 
 (ert-deftest beads-misc-test-import-infix-commands-defined ()
   "Test that import infix commands are defined."
@@ -469,14 +446,6 @@
 ;;; ============================================================
 ;;; bd init tests
 ;;; ============================================================
-
-(ert-deftest beads-misc-test-init-reset-state ()
-  "Test that init reset-state clears all variables."
-  (setq beads-init--prefix "test"
-        beads-init--db-path "/tmp/test.db")
-  (beads-init--reset-state)
-  (should (null beads-init--prefix))
-  (should (null beads-init--db-path)))
 
 (ert-deftest beads-misc-test-init-format-value-set ()
   "Test init formatting when value is set."
@@ -567,8 +536,8 @@
   (should (fboundp 'beads-init)))
 
 (ert-deftest beads-misc-test-init-transient-is-prefix ()
-  "Test that beads-init is a transient prefix."
-  (should (get 'beads-init 'transient--prefix)))
+  "Test that beads-init--menu is a transient prefix."
+  (should (get 'beads-init--menu 'transient--prefix)))
 
 (ert-deftest beads-misc-test-init-infix-commands-defined ()
   "Test that init infix commands are defined."

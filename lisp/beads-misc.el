@@ -331,11 +331,6 @@ listing dependencies."
 
 ;;; Utility Functions
 
-(defun beads-export--reset-state ()
-  "Reset export transient state."
-  (setq beads-export--output nil
-        beads-export--no-auto-flush nil))
-
 (defun beads-export--format-value (value)
   "Format VALUE for display in transient menu."
   (if value
@@ -346,6 +341,12 @@ listing dependencies."
   "Get default output path (.beads/issues.jsonl)."
   (when-let* ((beads-dir (beads--find-beads-dir)))
     (expand-file-name "issues.jsonl" beads-dir)))
+
+(defun beads-export--parse-transient-args (args)
+  "Parse transient ARGS and return plist with export parameters.
+Returns (:output OUTPUT :no-auto-flush NO-AUTO-FLUSH)."
+  (list :output (transient-arg-value "--output=" args)
+        :no-auto-flush (transient-arg-value "--no-auto-flush" args)))
 
 ;;; Suffix Commands
 
@@ -376,12 +377,14 @@ listing dependencies."
   :key "e"
   :description "Export to JSONL"
   (interactive)
-  (let ((output (or beads-export--output
-                    (beads-export--get-default-output))))
+  (let* ((args (transient-args 'beads-export--menu))
+         (params (beads-export--parse-transient-args args))
+         (output (or (plist-get params :output)
+                     (beads-export--get-default-output)))
+         (no-auto-flush (plist-get params :no-auto-flush)))
     (when (or (null output) (string-empty-p (string-trim output)))
       (user-error "Output path is required"))
-    (beads-export--execute output beads-export--no-auto-flush)
-    (beads-export--reset-state)))
+    (beads-export--execute output no-auto-flush)))
 
 (transient-define-suffix beads-export--reset ()
   "Reset all export parameters."
@@ -390,20 +393,15 @@ listing dependencies."
   :transient t
   (interactive)
   (when (y-or-n-p "Reset all fields? ")
-    (beads-export--reset-state)
+    (transient-reset)
+    (transient--redisplay)
     (message "Fields reset")))
 
 ;;; Main Transient Menu
 
-;;;###autoload (autoload 'beads-export "beads-misc" nil t)
-(transient-define-prefix beads-export ()
-  "Export issues to JSONL.
-
-This transient menu provides an interface for exporting issues to
-JSONL format.  The default output is .beads/issues.jsonl."
+(transient-define-prefix beads-export--menu ()
+  "Transient menu for exporting issues to JSONL."
   :value (lambda () nil)
-  (interactive)
-  (beads-check-executable)
   ["Export Parameters"
    (beads-option-export-output)
    (beads-option-export-no-auto-flush)]
@@ -412,17 +410,21 @@ JSONL format.  The default output is .beads/issues.jsonl."
    ("R" "Reset fields" beads-export--reset)
    ("q" "Quit" transient-quit-one)])
 
+;;;###autoload
+(defun beads-export ()
+  "Export issues to JSONL.
+
+This command provides an interface for exporting issues to
+JSONL format.  The default output is .beads/issues.jsonl."
+  (interactive)
+  (beads-check-executable)
+  (call-interactively #'beads-export--menu))
+
 ;;; ============================================================
 ;;; bd import
 ;;; ============================================================
 
 ;;; Utility Functions
-
-(defun beads-import--reset-state ()
-  "Reset import transient state."
-  (setq beads-import--input nil
-        beads-import--dry-run nil
-        beads-import--resolve-collisions nil))
 
 (defun beads-import--format-value (value)
   "Format VALUE for display in transient menu."
@@ -435,17 +437,24 @@ JSONL format.  The default output is .beads/issues.jsonl."
   (when-let* ((beads-dir (beads--find-beads-dir)))
     (expand-file-name "issues.jsonl" beads-dir)))
 
-(defun beads-import--validate-input ()
-  "Validate that input path is set.
+(defun beads-import--parse-transient-args (args)
+  "Parse transient ARGS and return plist with import parameters.
+Returns (:input INPUT :dry-run DRY-RUN :resolve-collisions RESOLVE-COLLISIONS)."
+  (list :input (transient-arg-value "--input=" args)
+        :dry-run (transient-arg-value "--dry-run" args)
+        :resolve-collisions (transient-arg-value "--resolve-collisions" args)))
+
+(defun beads-import--validate-input (input)
+  "Validate that INPUT path is set.
 Returns error message string if invalid, nil if valid."
-  (when (or (null beads-import--input)
-            (string-empty-p (string-trim beads-import--input)))
+  (when (or (null input)
+            (string-empty-p (string-trim input)))
     "Input file path is required"))
 
-(defun beads-import--validate-all ()
-  "Validate all parameters.
+(defun beads-import--validate-all (input)
+  "Validate all parameters with INPUT.
 Returns list of error messages, or nil if all valid."
-  (delq nil (list (beads-import--validate-input))))
+  (delq nil (list (beads-import--validate-input input))))
 
 ;;; Suffix Commands
 
@@ -495,14 +504,15 @@ DRY-RUN and RESOLVE-COLLISIONS control behavior."
   :key "i"
   :description "Import from JSONL"
   (interactive)
-  (let ((errors (beads-import--validate-all)))
+  (let* ((args (transient-args 'beads-import--menu))
+         (params (beads-import--parse-transient-args args))
+         (input (plist-get params :input))
+         (dry-run (plist-get params :dry-run))
+         (resolve-collisions (plist-get params :resolve-collisions))
+         (errors (beads-import--validate-all input)))
     (if errors
         (user-error "Validation failed: %s" (string-join errors "; "))
-      (beads-import--execute beads-import--input
-                             beads-import--dry-run
-                             beads-import--resolve-collisions)
-      (unless beads-import--dry-run
-        (beads-import--reset-state)))))
+      (beads-import--execute input dry-run resolve-collisions))))
 
 (transient-define-suffix beads-import--reset ()
   "Reset all import parameters."
@@ -511,21 +521,15 @@ DRY-RUN and RESOLVE-COLLISIONS control behavior."
   :transient t
   (interactive)
   (when (y-or-n-p "Reset all fields? ")
-    (beads-import--reset-state)
+    (transient-reset)
+    (transient--redisplay)
     (message "Fields reset")))
 
 ;;; Main Transient Menu
 
-;;;###autoload (autoload 'beads-import "beads-misc" nil t)
-(transient-define-prefix beads-import ()
-  "Import issues from JSONL.
-
-This transient menu provides an interface for importing issues from
-JSONL format.  It supports dry-run mode for previewing changes and
-automatic collision resolution for branch merges."
+(transient-define-prefix beads-import--menu ()
+  "Transient menu for importing issues from JSONL."
   :value (lambda () nil)
-  (interactive)
-  (beads-check-executable)
   ["Import Parameters"
    (beads-option-import-input)]
   ["Options"
@@ -536,22 +540,34 @@ automatic collision resolution for branch merges."
    ("R" "Reset fields" beads-import--reset)
    ("q" "Quit" transient-quit-one)])
 
+;;;###autoload
+(defun beads-import ()
+  "Import issues from JSONL.
+
+This command provides an interface for importing issues from
+JSONL format.  It supports dry-run mode for previewing changes and
+automatic collision resolution for branch merges."
+  (interactive)
+  (beads-check-executable)
+  (call-interactively #'beads-import--menu))
+
 ;;; ============================================================
 ;;; bd init
 ;;; ============================================================
 
 ;;; Utility Functions
 
-(defun beads-init--reset-state ()
-  "Reset init transient state."
-  (setq beads-init--prefix nil
-        beads-init--db-path nil))
-
 (defun beads-init--format-value (value)
   "Format VALUE for display in transient menu."
   (if value
       (propertize (format " [%s]" value) 'face 'transient-value)
     (propertize " [unset]" 'face 'transient-inactive-value)))
+
+(defun beads-init--parse-transient-args (args)
+  "Parse transient ARGS and return plist with init parameters.
+Returns (:prefix PREFIX :db-path DB-PATH)."
+  (list :prefix (transient-arg-value "--prefix=" args)
+        :db-path (transient-arg-value "--db=" args)))
 
 ;;; Suffix Commands
 
@@ -590,8 +606,11 @@ automatic collision resolution for branch merges."
   :description "Initialize project"
   (interactive)
   (when (y-or-n-p "Initialize Beads project in current directory? ")
-    (beads-init--execute beads-init--prefix beads-init--db-path)
-    (beads-init--reset-state)))
+    (let* ((args (transient-args 'beads-init--menu))
+           (params (beads-init--parse-transient-args args))
+           (prefix (plist-get params :prefix))
+           (db-path (plist-get params :db-path)))
+      (beads-init--execute prefix db-path))))
 
 (transient-define-suffix beads-init--reset ()
   "Reset all init parameters."
@@ -600,21 +619,15 @@ automatic collision resolution for branch merges."
   :transient t
   (interactive)
   (when (y-or-n-p "Reset all fields? ")
-    (beads-init--reset-state)
+    (transient-reset)
+    (transient--redisplay)
     (message "Fields reset")))
 
 ;;; Main Transient Menu
 
-;;;###autoload (autoload 'beads-init "beads-misc" nil t)
-(transient-define-prefix beads-init ()
-  "Initialize a new Beads project.
-
-This transient menu provides an interface for initializing a new
-Beads project in the current directory.  It allows setting the
-issue ID prefix and database path."
+(transient-define-prefix beads-init--menu ()
+  "Transient menu for initializing a new Beads project."
   :value (lambda () nil)
-  (interactive)
-  (beads-check-executable)
   ["Initialization Parameters"
    (beads-option-init-prefix)
    (beads-option-init-db)]
@@ -622,6 +635,17 @@ issue ID prefix and database path."
    ("i" "Initialize" beads-init--execute-command)
    ("R" "Reset fields" beads-init--reset)
    ("q" "Quit" transient-quit-one)])
+
+;;;###autoload
+(defun beads-init ()
+  "Initialize a new Beads project.
+
+This command provides an interface for initializing a new
+Beads project in the current directory.  It allows setting the
+issue ID prefix and database path."
+  (interactive)
+  (beads-check-executable)
+  (call-interactively #'beads-init--menu))
 
 ;;; Footer
 
