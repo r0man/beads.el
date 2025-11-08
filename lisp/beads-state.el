@@ -122,39 +122,8 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
   "Reason for reopening the issue.")
 
 ;;; ============================================================
-;;; beads-sync state variables
-;;; ============================================================
-
-(defvar beads-sync--dry-run nil
-  "Whether to run in dry-run mode (preview without changes).")
-
-(defvar beads-sync--message nil
-  "Custom commit message for sync operation.")
-
-(defvar beads-sync--no-pull nil
-  "Whether to skip pulling from remote.")
-
-(defvar beads-sync--no-push nil
-  "Whether to skip pushing to remote.")
-
-;;; ============================================================
 ;;; beads-dep state variables
 ;;; ============================================================
-
-(defvar beads-dep-add--issue-id nil
-  "Issue ID for add dependency operation.")
-
-(defvar beads-dep-add--depends-on-id nil
-  "Depends-on ID for add dependency operation.")
-
-(defvar beads-dep-add--type nil
-  "Dependency type for add operation.")
-
-(defvar beads-dep-remove--issue-id nil
-  "Issue ID for remove dependency operation.")
-
-(defvar beads-dep-remove--depends-on-id nil
-  "Depends-on ID for remove dependency operation.")
 
 (defvar beads-dep--from-issue nil
   "Source issue ID for dependency operations.")

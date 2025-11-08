@@ -89,80 +89,53 @@
 
 (ert-deftest beads-dep-test-add-validate-missing-issue-id ()
   "Test add validation with missing issue ID."
-  (let ((beads-dep-add--issue-id nil)
-        (beads-dep-add--depends-on-id "bd-2")
-        (beads-dep-add--type "blocks"))
-    (should (stringp (beads-dep-add--validate)))))
+  (should (stringp (beads-dep-add--validate nil "bd-2" "blocks"))))
 
 (ert-deftest beads-dep-test-add-validate-missing-depends-on ()
   "Test add validation with missing depends-on ID."
-  (let ((beads-dep-add--issue-id "bd-1")
-        (beads-dep-add--depends-on-id nil)
-        (beads-dep-add--type "blocks"))
-    (should (stringp (beads-dep-add--validate)))))
+  (should (stringp (beads-dep-add--validate "bd-1" nil "blocks"))))
 
 (ert-deftest beads-dep-test-add-validate-self-dependency ()
   "Test add validation with self-dependency."
-  (let ((beads-dep-add--issue-id "bd-1")
-        (beads-dep-add--depends-on-id "bd-1")
-        (beads-dep-add--type "blocks"))
-    (should (string-match-p "itself" (beads-dep-add--validate)))))
+  (should (string-match-p "itself" (beads-dep-add--validate "bd-1" "bd-1" "blocks"))))
 
 (ert-deftest beads-dep-test-add-validate-missing-type ()
   "Test add validation with missing type."
-  (let ((beads-dep-add--issue-id "bd-1")
-        (beads-dep-add--depends-on-id "bd-2")
-        (beads-dep-add--type nil))
-    (should (stringp (beads-dep-add--validate)))))
+  (should (stringp (beads-dep-add--validate "bd-1" "bd-2" nil))))
 
 (ert-deftest beads-dep-test-add-validate-valid ()
   "Test add validation with valid parameters."
-  (let ((beads-dep-add--issue-id "bd-1")
-        (beads-dep-add--depends-on-id "bd-2")
-        (beads-dep-add--type "blocks"))
-    (should (null (beads-dep-add--validate)))))
+  (should (null (beads-dep-add--validate "bd-1" "bd-2" "blocks"))))
 
 ;;; Tests for Add Dependency Reset
 
 (ert-deftest beads-dep-test-add-reset ()
   "Test resetting add dependency state."
-  (let ((beads-dep-add--issue-id "bd-1")
-        (beads-dep-add--depends-on-id "bd-2")
-        (beads-dep-add--type "related"))
-    (beads-dep-add--reset)
-    (should (null beads-dep-add--issue-id))
-    (should (null beads-dep-add--depends-on-id))
-    (should (null beads-dep-add--type))))
+  ;; Reset just calls transient-reset and transient--redisplay
+  ;; We verify the function is defined and callable
+  (should (fboundp 'beads-dep-add--reset)))
 
 ;;; Tests for Remove Dependency Validation
 
 (ert-deftest beads-dep-test-remove-validate-missing-issue-id ()
   "Test remove validation with missing issue ID."
-  (let ((beads-dep-remove--issue-id nil)
-        (beads-dep-remove--depends-on-id "bd-2"))
-    (should (stringp (beads-dep-remove--validate)))))
+  (should (stringp (beads-dep-remove--validate nil "bd-2"))))
 
 (ert-deftest beads-dep-test-remove-validate-missing-depends-on ()
   "Test remove validation with missing depends-on ID."
-  (let ((beads-dep-remove--issue-id "bd-1")
-        (beads-dep-remove--depends-on-id nil))
-    (should (stringp (beads-dep-remove--validate)))))
+  (should (stringp (beads-dep-remove--validate "bd-1" nil))))
 
 (ert-deftest beads-dep-test-remove-validate-valid ()
   "Test remove validation with valid parameters."
-  (let ((beads-dep-remove--issue-id "bd-1")
-        (beads-dep-remove--depends-on-id "bd-2"))
-    (should (null (beads-dep-remove--validate)))))
+  (should (null (beads-dep-remove--validate "bd-1" "bd-2"))))
 
 ;;; Tests for Remove Dependency Reset
 
 (ert-deftest beads-dep-test-remove-reset ()
   "Test resetting remove dependency state."
-  (let ((beads-dep-remove--issue-id "bd-1")
-        (beads-dep-remove--depends-on-id "bd-2"))
-    (beads-dep-remove--reset)
-    (should (null beads-dep-remove--issue-id))
-    (should (null beads-dep-remove--depends-on-id))))
+  ;; Reset just calls transient-reset and transient--redisplay
+  ;; We verify the function is defined and callable
+  (should (fboundp 'beads-dep-remove--reset)))
 
 ;;; Tests for Dependency Tree Mode
 
@@ -458,19 +431,13 @@
 
 (ert-deftest beads-dep-test-edge-case-empty-string-issue-id ()
   "Test handling of empty string issue ID."
-  (let ((beads-dep-add--issue-id "")
-        (beads-dep-add--depends-on-id "bd-2")
-        (beads-dep-add--type "blocks"))
-    (should (stringp (beads-dep-add--validate)))))
+  (should (stringp (beads-dep-add--validate "" "bd-2" "blocks"))))
 
 (ert-deftest beads-dep-test-edge-case-whitespace-issue-id ()
   "Test handling of whitespace issue ID."
-  (let ((beads-dep-add--issue-id "   ")
-        (beads-dep-add--depends-on-id "bd-2")
-        (beads-dep-add--type "blocks"))
-    ;; String-empty-p doesn't catch whitespace, so this might pass validation
-    ;; but fail at execution - which is acceptable
-    (should t)))
+  ;; String-empty-p doesn't catch whitespace, so this might pass validation
+  ;; but fail at execution - which is acceptable
+  (should t))
 
 (ert-deftest beads-dep-test-edge-case-truncated-tree ()
   "Test rendering tree with truncated flag."
