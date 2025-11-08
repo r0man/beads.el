@@ -488,7 +488,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :class 'beads-create-transient-multiline
   :field-name "Reopen Reason"
   :description "--reason"
-  :key "r"
+  :key "-r"
   :argument "--reason=")
 
 ;;; ============================================================
