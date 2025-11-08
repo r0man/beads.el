@@ -610,7 +610,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   "Set the output file path."
   :class 'transient-option
   :description "--output"
-  :key "o"
+  :key "-o"
   :argument "--output="
   :prompt "Output file: "
   :reader #'beads-reader-export-output)
@@ -619,7 +619,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   "Toggle no-auto-flush flag."
   :class 'transient-switch
   :description "--no-auto-flush"
-  :key "n"
+  :key "-n"
   :argument "--no-auto-flush")
 
 (transient-define-infix beads-option-import-input ()
@@ -635,21 +635,21 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   "Toggle dry-run flag."
   :class 'transient-switch
   :description "--dry-run"
-  :key "d"
+  :key "-d"
   :argument "--dry-run")
 
 (transient-define-infix beads-option-import-resolve-collisions ()
   "Toggle resolve-collisions flag."
   :class 'transient-switch
   :description "--resolve-collisions"
-  :key "r"
+  :key "-r"
   :argument "--resolve-collisions")
 
 (transient-define-infix beads-option-init-prefix ()
   "Set the issue ID prefix."
   :class 'transient-option
   :description "--prefix"
-  :key "p"
+  :key "-p"
   :argument "--prefix="
   :prompt "Issue ID prefix: "
   :reader #'beads-reader-init-prefix)
@@ -658,7 +658,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   "Set the database path."
   :class 'transient-option
   :description "--db"
-  :key "d"
+  :key "-d"
   :argument "--db="
   :prompt "Database path: "
   :reader #'beads-reader-init-db)

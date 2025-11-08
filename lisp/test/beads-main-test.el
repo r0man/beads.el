@@ -309,14 +309,8 @@ by checking if the function is available after requiring beads-main."
 ;;; Tests for beads-init command
 
 (ert-deftest beads-main-test-init-is-transient-prefix ()
-  "Test that beads-init is a transient prefix."
-  (should (get 'beads-init 'transient--prefix)))
-
-(ert-deftest beads-main-test-init-reset-state ()
-  "Test that beads-init resets state properly."
-  (setq beads-init--prefix "test-prefix")
-  (beads-init--reset-state)
-  (should (null beads-init--prefix)))
+  "Test that beads-init--menu is a transient prefix."
+  (should (get 'beads-init--menu 'transient--prefix)))
 
 (ert-deftest beads-main-test-init-execute-defined ()
   "Test that beads-init execute command is defined."
@@ -325,16 +319,8 @@ by checking if the function is available after requiring beads-main."
 ;;; Tests for beads-export command
 
 (ert-deftest beads-main-test-export-is-transient-prefix ()
-  "Test that beads-export is a transient prefix."
-  (should (get 'beads-export 'transient--prefix)))
-
-(ert-deftest beads-main-test-export-reset-state ()
-  "Test that beads-export resets state properly."
-  (setq beads-export--output "test.jsonl"
-        beads-export--no-auto-flush t)
-  (beads-export--reset-state)
-  (should (null beads-export--output))
-  (should (null beads-export--no-auto-flush)))
+  "Test that beads-export--menu is a transient prefix."
+  (should (get 'beads-export--menu 'transient--prefix)))
 
 (ert-deftest beads-main-test-export-execute-defined ()
   "Test that beads-export execute command is defined."
@@ -343,18 +329,8 @@ by checking if the function is available after requiring beads-main."
 ;;; Tests for beads-import command
 
 (ert-deftest beads-main-test-import-is-transient-prefix ()
-  "Test that beads-import is a transient prefix."
-  (should (get 'beads-import 'transient--prefix)))
-
-(ert-deftest beads-main-test-import-reset-state ()
-  "Test that beads-import resets state properly."
-  (setq beads-import--input "test.jsonl"
-        beads-import--dry-run t
-        beads-import--resolve-collisions t)
-  (beads-import--reset-state)
-  (should (null beads-import--input))
-  (should (null beads-import--dry-run))
-  (should (null beads-import--resolve-collisions)))
+  "Test that beads-import--menu is a transient prefix."
+  (should (get 'beads-import--menu 'transient--prefix)))
 
 (ert-deftest beads-main-test-import-execute-defined ()
   "Test that beads-import execute command is defined."

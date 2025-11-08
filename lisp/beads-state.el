@@ -134,30 +134,5 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
 (defvar beads-dep--dep-type nil
   "Dependency type (blocks, related, parent-child, discovered-from).")
 
-;;; ============================================================
-;;; beads-misc (export, import, init) state variables
-;;; ============================================================
-
-(defvar beads-export--output nil
-  "Output file path for export.")
-
-(defvar beads-export--no-auto-flush nil
-  "Whether to disable auto-flush.")
-
-(defvar beads-import--input nil
-  "Input file path for import.")
-
-(defvar beads-import--dry-run nil
-  "Whether to run in dry-run mode.")
-
-(defvar beads-import--resolve-collisions nil
-  "Whether to auto-resolve collisions.")
-
-(defvar beads-init--prefix nil
-  "Issue ID prefix for new project.")
-
-(defvar beads-init--db-path nil
-  "Database path for new project.")
-
 (provide 'beads-state)
 ;;; beads-state.el ends here
