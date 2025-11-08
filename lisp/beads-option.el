@@ -550,7 +550,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
 (transient-define-infix beads-option-dep-add-type ()
   "Specify dependency type for add operation."
   :class 'transient-option
-  :key "t"
+  :key "-t"
   :description "Dependency type"
   :argument "--type="
   :choices '("blocks" "related" "parent-child" "discovered-from")

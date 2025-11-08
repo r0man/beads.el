@@ -65,20 +65,31 @@ DEP is an alist with keys: issue_id, depends_on_id, type, status."
 
 ;;; Add Dependency
 
-(defun beads-dep-add--validate ()
+(defun beads-dep-add--parse-transient-args (args)
+  "Parse transient ARGS list into a plist.
+Returns (:issue-id STRING :depends-on-id STRING :type STRING)."
+  (let* ((issue-id (transient-arg-value "--issue-id=" args))
+         (depends-on-id (transient-arg-value "--depends-on=" args))
+         (type (transient-arg-value "--type=" args)))
+    (list :issue-id issue-id
+          :depends-on-id depends-on-id
+          :type type)))
+
+(defun beads-dep-add--validate (issue-id depends-on-id type)
   "Validate add dependency parameters.
+ISSUE-ID, DEPENDS-ON-ID, and TYPE are the dependency parameters.
 Returns error message string if invalid, nil if valid."
   (cond
-   ((or (null beads-dep-add--issue-id)
-        (string-empty-p beads-dep-add--issue-id))
+   ((or (null issue-id)
+        (string-empty-p issue-id))
     "Issue ID is required")
-   ((or (null beads-dep-add--depends-on-id)
-        (string-empty-p beads-dep-add--depends-on-id))
+   ((or (null depends-on-id)
+        (string-empty-p depends-on-id))
     "Depends-on ID is required")
-   ((string= beads-dep-add--issue-id beads-dep-add--depends-on-id)
+   ((string= issue-id depends-on-id)
     "Issue cannot depend on itself")
-   ((or (null beads-dep-add--type)
-        (string-empty-p beads-dep-add--type))
+   ((or (null type)
+        (string-empty-p type))
     "Dependency type is required")
    (t nil)))
 
@@ -86,18 +97,22 @@ Returns error message string if invalid, nil if valid."
   "Execute add dependency command."
   :description "Add dependency"
   (interactive)
-  (let ((error-msg (beads-dep-add--validate)))
+  (let* ((args (transient-args 'beads-dep-add))
+         (parsed (beads-dep-add--parse-transient-args args))
+         (issue-id (plist-get parsed :issue-id))
+         (depends-on-id (plist-get parsed :depends-on-id))
+         (type (plist-get parsed :type))
+         (error-msg (beads-dep-add--validate issue-id depends-on-id type)))
     (if error-msg
         (user-error "Cannot add dependency: %s" error-msg)
       (condition-case err
           (let* ((result (beads--run-command "dep" "add"
-                                             beads-dep-add--issue-id
-                                             beads-dep-add--depends-on-id
-                                             "--type" beads-dep-add--type))
+                                             issue-id
+                                             depends-on-id
+                                             "--type" type))
                  (formatted (beads-dep--format-dependency result)))
             (message "Dependency added: %s" formatted)
             (beads--invalidate-completion-cache)
-            (beads-dep-add--reset)
             (when beads-auto-refresh
               ;; TODO: Implement buffer refresh functions
               ;; (beads-list--refresh-all-buffers)
@@ -112,37 +127,38 @@ Returns error message string if invalid, nil if valid."
   :description "Preview command"
   :transient t
   (interactive)
-  (let ((error-msg (beads-dep-add--validate)))
+  (let* ((args (transient-args 'beads-dep-add))
+         (parsed (beads-dep-add--parse-transient-args args))
+         (issue-id (plist-get parsed :issue-id))
+         (depends-on-id (plist-get parsed :depends-on-id))
+         (type (plist-get parsed :type))
+         (error-msg (beads-dep-add--validate issue-id depends-on-id type)))
     (if error-msg
         (message "Invalid: %s" error-msg)
       (message "bd dep add %s %s --type %s"
-               beads-dep-add--issue-id
-               beads-dep-add--depends-on-id
-               beads-dep-add--type))))
+               issue-id
+               depends-on-id
+               type))))
 
-(defun beads-dep-add--reset ()
-  "Reset add dependency state."
-  (setq beads-dep-add--issue-id nil
-        beads-dep-add--depends-on-id nil
-        beads-dep-add--type nil))
-
-(transient-define-suffix beads-dep-add--reset-interactive ()
-  "Reset add dependency fields interactively."
+(transient-define-suffix beads-dep-add--reset ()
+  "Reset add dependency fields."
   :description "Reset fields"
   :transient t
   (interactive)
-  (beads-dep-add--reset)
-  (message "Add dependency fields reset"))
+  (when (y-or-n-p "Reset all fields? ")
+    ;; Clear transient's argument state using transient-reset
+    (transient-reset)
+    ;; Refresh the transient display to show cleared state
+    (transient--redisplay)
+    (message "All fields reset")))
 
-;;;###autoload (autoload 'beads-dep-add "beads-dep" nil t)
-(transient-define-prefix beads-dep-add (&optional issue-id)
-  "Add a dependency to an issue.
-If ISSUE-ID is provided, use it as the default issue ID.
-Otherwise, detect from context if possible."
-  :value (lambda () nil)
-  (interactive (list (beads-dep--detect-issue-id)))
-  (when issue-id
-    (setq beads-dep-add--issue-id issue-id))
+(transient-define-prefix beads-dep-add--menu ()
+  "Transient menu for adding a dependency."
+  :value (lambda ()
+           (let ((detected-id (beads-dep--detect-issue-id)))
+             (when detected-id
+               (list (concat "--issue-id=" detected-id)))))
+  (interactive)
   (beads-check-executable)
   ["Add Dependency"
    (beads-option-dep-add-issue-id)
@@ -151,20 +167,46 @@ Otherwise, detect from context if possible."
   ["Actions"
    ("a" "Add dependency" beads-dep-add--execute)
    ("P" "Preview command" beads-dep-add--preview)
-   ("R" "Reset fields" beads-dep-add--reset-interactive)
+   ("R" "Reset fields" beads-dep-add--reset)
    ("q" "Quit" transient-quit-one)])
+
+;;;###autoload
+(defun beads-dep-add (&optional issue-id)
+  "Add a dependency to an issue.
+
+This function provides an interactive interface for adding
+dependencies via a transient menu.  The function is context-aware
+and automatically detects the issue ID from beads-list or beads-show
+buffers.
+
+If ISSUE-ID is provided, use it directly.  Otherwise, detect from
+context or prompt the user."
+  (interactive (list (beads-dep--detect-issue-id)))
+  ;; Suppress unused argument warning
+  (ignore issue-id)
+  ;; Show the transient menu
+  (beads-dep-add--menu))
 
 ;;; Remove Dependency
 
-(defun beads-dep-remove--validate ()
+(defun beads-dep-remove--parse-transient-args (args)
+  "Parse transient ARGS list into a plist.
+Returns (:issue-id STRING :depends-on-id STRING)."
+  (let* ((issue-id (transient-arg-value "--issue-id=" args))
+         (depends-on-id (transient-arg-value "--depends-on=" args)))
+    (list :issue-id issue-id
+          :depends-on-id depends-on-id)))
+
+(defun beads-dep-remove--validate (issue-id depends-on-id)
   "Validate remove dependency parameters.
+ISSUE-ID and DEPENDS-ON-ID are the dependency parameters.
 Returns error message string if invalid, nil if valid."
   (cond
-   ((or (null beads-dep-remove--issue-id)
-        (string-empty-p beads-dep-remove--issue-id))
+   ((or (null issue-id)
+        (string-empty-p issue-id))
     "Issue ID is required")
-   ((or (null beads-dep-remove--depends-on-id)
-        (string-empty-p beads-dep-remove--depends-on-id))
+   ((or (null depends-on-id)
+        (string-empty-p depends-on-id))
     "Depends-on ID is required")
    (t nil)))
 
@@ -172,20 +214,23 @@ Returns error message string if invalid, nil if valid."
   "Execute remove dependency command."
   :description "Remove dependency"
   (interactive)
-  (let ((error-msg (beads-dep-remove--validate)))
+  (let* ((args (transient-args 'beads-dep-remove))
+         (parsed (beads-dep-remove--parse-transient-args args))
+         (issue-id (plist-get parsed :issue-id))
+         (depends-on-id (plist-get parsed :depends-on-id))
+         (error-msg (beads-dep-remove--validate issue-id depends-on-id)))
     (if error-msg
         (user-error "Cannot remove dependency: %s" error-msg)
       (condition-case err
           (let* ((result (beads--run-command "dep" "remove"
-                                             beads-dep-remove--issue-id
-                                             beads-dep-remove--depends-on-id))
+                                             issue-id
+                                             depends-on-id))
                  (status (alist-get 'status result)))
             (message "Dependency %s: %s -> %s"
                      (propertize status 'face 'success)
-                     beads-dep-remove--issue-id
-                     beads-dep-remove--depends-on-id)
+                     issue-id
+                     depends-on-id)
             (beads--invalidate-completion-cache)
-            (beads-dep-remove--reset)
             (when beads-auto-refresh
               ;; TODO: Implement buffer refresh functions
               ;; (beads-list--refresh-all-buffers)
@@ -200,35 +245,36 @@ Returns error message string if invalid, nil if valid."
   :description "Preview command"
   :transient t
   (interactive)
-  (let ((error-msg (beads-dep-remove--validate)))
+  (let* ((args (transient-args 'beads-dep-remove))
+         (parsed (beads-dep-remove--parse-transient-args args))
+         (issue-id (plist-get parsed :issue-id))
+         (depends-on-id (plist-get parsed :depends-on-id))
+         (error-msg (beads-dep-remove--validate issue-id depends-on-id)))
     (if error-msg
         (message "Invalid: %s" error-msg)
       (message "bd dep remove %s %s"
-               beads-dep-remove--issue-id
-               beads-dep-remove--depends-on-id))))
+               issue-id
+               depends-on-id))))
 
-(defun beads-dep-remove--reset ()
-  "Reset remove dependency state."
-  (setq beads-dep-remove--issue-id nil
-        beads-dep-remove--depends-on-id nil))
-
-(transient-define-suffix beads-dep-remove--reset-interactive ()
-  "Reset remove dependency fields interactively."
+(transient-define-suffix beads-dep-remove--reset ()
+  "Reset remove dependency fields."
   :description "Reset fields"
   :transient t
   (interactive)
-  (beads-dep-remove--reset)
-  (message "Remove dependency fields reset"))
+  (when (y-or-n-p "Reset all fields? ")
+    ;; Clear transient's argument state using transient-reset
+    (transient-reset)
+    ;; Refresh the transient display to show cleared state
+    (transient--redisplay)
+    (message "All fields reset")))
 
-;;;###autoload (autoload 'beads-dep-remove "beads-dep" nil t)
-(transient-define-prefix beads-dep-remove (&optional issue-id)
-  "Remove a dependency from an issue.
-If ISSUE-ID is provided, use it as the default issue ID.
-Otherwise, detect from context if possible."
-  :value (lambda () nil)
-  (interactive (list (beads-dep--detect-issue-id)))
-  (when issue-id
-    (setq beads-dep-remove--issue-id issue-id))
+(transient-define-prefix beads-dep-remove--menu ()
+  "Transient menu for removing a dependency."
+  :value (lambda ()
+           (let ((detected-id (beads-dep--detect-issue-id)))
+             (when detected-id
+               (list (concat "--issue-id=" detected-id)))))
+  (interactive)
   (beads-check-executable)
   ["Remove Dependency"
    (beads-option-dep-remove-issue-id)
@@ -236,8 +282,25 @@ Otherwise, detect from context if possible."
   ["Actions"
    ("r" "Remove dependency" beads-dep-remove--execute)
    ("P" "Preview command" beads-dep-remove--preview)
-   ("R" "Reset fields" beads-dep-remove--reset-interactive)
+   ("R" "Reset fields" beads-dep-remove--reset)
    ("q" "Quit" transient-quit-one)])
+
+;;;###autoload
+(defun beads-dep-remove (&optional issue-id)
+  "Remove a dependency from an issue.
+
+This function provides an interactive interface for removing
+dependencies via a transient menu.  The function is context-aware
+and automatically detects the issue ID from beads-list or beads-show
+buffers.
+
+If ISSUE-ID is provided, use it directly.  Otherwise, detect from
+context or prompt the user."
+  (interactive (list (beads-dep--detect-issue-id)))
+  ;; Suppress unused argument warning
+  (ignore issue-id)
+  ;; Show the transient menu
+  (beads-dep-remove--menu))
 
 ;;; Show Dependency Tree
 

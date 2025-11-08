@@ -372,18 +372,11 @@
   "Test that required state variables are defined."
   (should (boundp 'beads-close--issue-id))
   (should (boundp 'beads-reopen--issue-id))
-  (should (boundp 'beads-dep-add--issue-id))
-  (should (boundp 'beads-dep-add--depends-on-id))
-  (should (boundp 'beads-dep-add--type))
-  (should (boundp 'beads-dep-remove--issue-id))
-  (should (boundp 'beads-dep-remove--depends-on-id))
+  ;; beads-dep-add and beads-dep-remove no longer use state variables (transient-args pattern)
+  ;; beads-sync no longer uses state variables (transient-args pattern)
   (should (boundp 'beads-dep--from-issue))
   (should (boundp 'beads-dep--to-issue))
   (should (boundp 'beads-dep--dep-type))
-  (should (boundp 'beads-sync--dry-run))
-  (should (boundp 'beads-sync--message))
-  (should (boundp 'beads-sync--no-pull))
-  (should (boundp 'beads-sync--no-push))
   (should (boundp 'beads-export--output))
   (should (boundp 'beads-export--no-auto-flush))
   (should (boundp 'beads-import--input))
@@ -394,14 +387,9 @@
 
 (ert-deftest beads-option-test-state-variables-initial-values ()
   "Test that state variables have correct initial values."
-  ;; Save current state
+  ;; Save current state (excluding refactored commands that use transient-args)
   (let ((saved-close-issue-id beads-close--issue-id)
         (saved-reopen-issue-id beads-reopen--issue-id)
-        (saved-dep-add-issue-id beads-dep-add--issue-id)
-        (saved-dep-add-depends-on-id beads-dep-add--depends-on-id)
-        (saved-dep-add-type beads-dep-add--type)
-        (saved-sync-dry-run beads-sync--dry-run)
-        (saved-sync-message beads-sync--message)
         (saved-export-output beads-export--output)
         (saved-import-input beads-import--input))
     (unwind-protect
@@ -409,31 +397,16 @@
           ;; Reset all to nil
           (setq beads-close--issue-id nil
                 beads-reopen--issue-id nil
-                beads-dep-add--issue-id nil
-                beads-dep-add--depends-on-id nil
-                beads-dep-add--type nil
-                beads-sync--dry-run nil
-                beads-sync--message nil
                 beads-export--output nil
                 beads-import--input nil)
           ;; All should be nil after reset
           (should (null beads-close--issue-id))
           (should (null beads-reopen--issue-id))
-          (should (null beads-dep-add--issue-id))
-          (should (null beads-dep-add--depends-on-id))
-          (should (null beads-dep-add--type))
-          (should (null beads-sync--dry-run))
-          (should (null beads-sync--message))
           (should (null beads-export--output))
           (should (null beads-import--input)))
       ;; Restore original state
       (setq beads-close--issue-id saved-close-issue-id
             beads-reopen--issue-id saved-reopen-issue-id
-            beads-dep-add--issue-id saved-dep-add-issue-id
-            beads-dep-add--depends-on-id saved-dep-add-depends-on-id
-            beads-dep-add--type saved-dep-add-type
-            beads-sync--dry-run saved-sync-dry-run
-            beads-sync--message saved-sync-message
             beads-export--output saved-export-output
             beads-import--input saved-import-input))))
 
