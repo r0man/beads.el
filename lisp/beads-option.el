@@ -499,14 +499,14 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   "Toggle dry-run mode."
   :class 'transient-switch
   :description "--dry-run"
-  :key "d"
+  :key "-d"
   :argument "--dry-run")
 
 (transient-define-infix beads-option-sync-message ()
   "Set custom commit message."
   :class 'transient-option
   :description "--message"
-  :key "m"
+  :key "-m"
   :argument "--message="
   :prompt "Commit message: "
   :reader #'beads-reader-sync-message)
@@ -515,14 +515,14 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   "Toggle skip pull flag."
   :class 'transient-switch
   :description "--no-pull"
-  :key "P"
+  :key "-P"
   :argument "--no-pull")
 
 (transient-define-infix beads-option-sync-no-push ()
   "Toggle skip push flag."
   :class 'transient-switch
   :description "--no-push"
-  :key "p"
+  :key "-p"
   :argument "--no-push")
 
 ;;; ============================================================
