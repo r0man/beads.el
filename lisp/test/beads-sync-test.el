@@ -20,24 +20,6 @@
 
 ;;; Test Utilities
 
-(defun beads-sync-test--set-state (state-alist)
-  "Set transient state from STATE-ALIST.
-STATE-ALIST is an alist of (variable . value) pairs."
-  (setq beads-sync--dry-run nil
-        beads-sync--message nil
-        beads-sync--no-pull nil
-        beads-sync--no-push nil)
-  (dolist (binding state-alist)
-    (set (car binding) (cdr binding))))
-
-(defmacro beads-sync-test-with-state (state &rest body)
-  "Execute BODY with beads-sync transient state set to STATE.
-STATE is an alist expression of (variable . value) pairs."
-  (declare (indent 1))
-  `(progn
-     (beads-sync-test--set-state ,state)
-     ,@body))
-
 (defun beads-sync-test--mock-compilation-start (command &optional _mode)
   "Create a mock compilation buffer for COMMAND."
   (let ((buf (get-buffer-create "*test-compilation*")))
@@ -48,53 +30,6 @@ STATE is an alist expression of (variable . value) pairs."
         (insert (format "Running: %s\n" command))
         (insert "Mock compilation output\n")))
     buf))
-
-;;; Tests for State Management
-
-(ert-deftest beads-sync-test-reset-state ()
-  "Test that reset-state clears all variables."
-  (beads-sync-test-with-state
-   '((beads-sync--dry-run . t)
-     (beads-sync--message . "test message")
-     (beads-sync--no-pull . t)
-     (beads-sync--no-push . t))
-   (beads-sync--reset-state)
-   (should (null beads-sync--dry-run))
-   (should (null beads-sync--message))
-   (should (null beads-sync--no-pull))
-   (should (null beads-sync--no-push))))
-
-(ert-deftest beads-sync-test-reset-state-from-nil ()
-  "Test that reset-state works when variables are already nil."
-  (beads-sync-test-with-state nil
-   (beads-sync--reset-state)
-   (should (null beads-sync--dry-run))
-   (should (null beads-sync--message))
-   (should (null beads-sync--no-pull))
-   (should (null beads-sync--no-push))))
-
-;;; Tests for Value Formatting
-
-(ert-deftest beads-sync-test-format-value-set ()
-  "Test formatting when value is set."
-  (let ((result (beads-sync--format-value "test-value")))
-    (should (stringp result))
-    (should (string-match-p "test-value" result))
-    (should (get-text-property 0 'face result))))
-
-(ert-deftest beads-sync-test-format-value-nil ()
-  "Test formatting when value is nil."
-  (let ((result (beads-sync--format-value nil)))
-    (should (stringp result))
-    (should (string-match-p "unset" result))
-    (should (get-text-property 0 'face result))))
-
-(ert-deftest beads-sync-test-format-value-empty-string ()
-  "Test formatting with empty string."
-  (let ((result (beads-sync--format-value "")))
-    (should (stringp result))
-    ;; Empty string is truthy, so it should show the value
-    (should (string-match-p "\\[\\]" result))))
 
 ;;; Tests for Command Building
 
@@ -159,7 +94,7 @@ STATE is an alist expression of (variable . value) pairs."
 
 (ert-deftest beads-sync-test-parse-transient-args-message ()
   "Test parsing message argument."
-  (let ((parsed (beads-sync--parse-transient-args '("-m=Test message"))))
+  (let ((parsed (beads-sync--parse-transient-args '("--message=Test message"))))
     (should (null (plist-get parsed :dry-run)))
     (should (string= (plist-get parsed :message) "Test message"))
     (should (null (plist-get parsed :no-pull)))
@@ -184,7 +119,7 @@ STATE is an alist expression of (variable . value) pairs."
 (ert-deftest beads-sync-test-parse-transient-args-all-flags ()
   "Test parsing all flags together."
   (let ((parsed (beads-sync--parse-transient-args
-                 '("--dry-run" "-m=Full sync" "--no-pull" "--no-push"))))
+                 '("--dry-run" "--message=Full sync" "--no-pull" "--no-push"))))
     (should (plist-get parsed :dry-run))
     (should (string= (plist-get parsed :message) "Full sync"))
     (should (plist-get parsed :no-pull))
@@ -193,7 +128,7 @@ STATE is an alist expression of (variable . value) pairs."
 (ert-deftest beads-sync-test-parse-transient-args-order-independent ()
   "Test that argument order doesn't matter."
   (let ((parsed (beads-sync--parse-transient-args
-                 '("--no-push" "-m=Test" "--no-pull" "--dry-run"))))
+                 '("--no-push" "--message=Test" "--no-pull" "--dry-run"))))
     (should (plist-get parsed :dry-run))
     (should (string= (plist-get parsed :message) "Test"))
     (should (plist-get parsed :no-pull))
@@ -208,7 +143,7 @@ being passed from the transient menu."
   (cl-letf (((symbol-function 'transient-args)
              (lambda (prefix)
                (should (eq prefix 'beads-sync))
-               '("--dry-run" "-m=FromTransient" "--no-pull")))
+               '("--dry-run" "--message=FromTransient" "--no-pull")))
             ((symbol-function 'beads-check-executable)
              (lambda () t))
             ((symbol-function 'compilation-start)
@@ -229,7 +164,7 @@ This test would have caught the original bug."
   (cl-letf (((symbol-function 'transient-args)
              (lambda (prefix)
                (should (eq prefix 'beads-sync))
-               '("--dry-run" "-m=PreviewTest")))
+               '("--dry-run" "--message=PreviewTest")))
             (message-log nil))
     (beads-sync--preview)
     ;; If we get here without error, the test passes
@@ -239,60 +174,50 @@ This test would have caught the original bug."
 
 (ert-deftest beads-sync-test-execute-success-basic ()
   "Test successful basic sync execution."
-  (beads-sync-test-with-state nil
-   (cl-letf (((symbol-function 'compilation-start)
-              #'beads-sync-test--mock-compilation-start)
-             ((symbol-function 'beads-sync--refresh-all-buffers)
-              (lambda () nil)))
-     (should-not (beads-sync--execute nil nil nil nil)))))
+  (cl-letf (((symbol-function 'compilation-start)
+             #'beads-sync-test--mock-compilation-start)
+            ((symbol-function 'beads-sync--refresh-all-buffers)
+             (lambda () nil)))
+    (should-not (beads-sync--execute nil nil nil nil))))
 
 (ert-deftest beads-sync-test-execute-with-dry-run ()
   "Test sync execution with dry-run flag."
-  (beads-sync-test-with-state
-   '((beads-sync--dry-run . t))
-   (cl-letf (((symbol-function 'compilation-start)
-              (lambda (command &optional _mode)
-                ;; Verify --dry-run flag is in command
-                (should (string-match-p "--dry-run" command))
-                (beads-sync-test--mock-compilation-start command)))
-             ((symbol-function 'beads-sync--refresh-all-buffers)
-              (lambda () nil)))
-     (should-not (beads-sync--execute t nil nil nil)))))
+  (cl-letf (((symbol-function 'compilation-start)
+             (lambda (command &optional _mode)
+               ;; Verify --dry-run flag is in command
+               (should (string-match-p "--dry-run" command))
+               (beads-sync-test--mock-compilation-start command)))
+            ((symbol-function 'beads-sync--refresh-all-buffers)
+             (lambda () nil)))
+    (should-not (beads-sync--execute t nil nil nil))))
 
 (ert-deftest beads-sync-test-execute-with-message ()
   "Test sync execution with custom commit message."
-  (beads-sync-test-with-state
-   '((beads-sync--message . "Custom sync message"))
-   (cl-letf (((symbol-function 'compilation-start)
-              (lambda (command &optional _mode)
-                ;; Verify -m flag and message are in command
-                (should (string-match-p "-m" command))
-                (should (string-match-p "Custom" command))
-                (beads-sync-test--mock-compilation-start command)))
-             ((symbol-function 'beads-sync--refresh-all-buffers)
-              (lambda () nil)))
-     (should-not (beads-sync--execute nil "Custom sync message"
-                                      nil nil)))))
+  (cl-letf (((symbol-function 'compilation-start)
+             (lambda (command &optional _mode)
+               ;; Verify -m flag and message are in command
+               (should (string-match-p "-m" command))
+               (should (string-match-p "Custom" command))
+               (beads-sync-test--mock-compilation-start command)))
+            ((symbol-function 'beads-sync--refresh-all-buffers)
+             (lambda () nil)))
+    (should-not (beads-sync--execute nil "Custom sync message"
+                                     nil nil))))
 
 (ert-deftest beads-sync-test-execute-with-all-flags ()
   "Test sync execution with all flags set."
-  (beads-sync-test-with-state
-   '((beads-sync--dry-run . t)
-     (beads-sync--message . "All flags test")
-     (beads-sync--no-pull . t)
-     (beads-sync--no-push . t))
-   (cl-letf (((symbol-function 'compilation-start)
-              (lambda (command &optional _mode)
-                ;; Verify all flags are in command
-                (should (string-match-p "--dry-run" command))
-                (should (string-match-p "-m" command))
-                (should (string-match-p "All" command))
-                (should (string-match-p "--no-pull" command))
-                (should (string-match-p "--no-push" command))
-                (beads-sync-test--mock-compilation-start command)))
-             ((symbol-function 'beads-sync--refresh-all-buffers)
-              (lambda () nil)))
-     (should-not (beads-sync--execute t "All flags test" t t)))))
+  (cl-letf (((symbol-function 'compilation-start)
+             (lambda (command &optional _mode)
+               ;; Verify all flags are in command
+               (should (string-match-p "--dry-run" command))
+               (should (string-match-p "-m" command))
+               (should (string-match-p "All" command))
+               (should (string-match-p "--no-pull" command))
+               (should (string-match-p "--no-push" command))
+               (beads-sync-test--mock-compilation-start command)))
+            ((symbol-function 'beads-sync--refresh-all-buffers)
+             (lambda () nil)))
+    (should-not (beads-sync--execute t "All flags test" t t))))
 
 ;;; Tests for Transient Definition
 
@@ -321,19 +246,18 @@ This test would have caught the original bug."
 
 (ert-deftest beads-sync-test-preview-basic ()
   "Test preview command with no flags."
-  (beads-sync-test-with-state nil
-   ;; Preview should complete without error and return nil
-   (beads-sync--preview)))
+  (cl-letf (((symbol-function 'transient-args)
+             (lambda (_prefix) nil)))
+    ;; Preview should complete without error and return nil
+    (beads-sync--preview)))
 
 (ert-deftest beads-sync-test-preview-with-flags ()
   "Test preview command with all flags."
-  (beads-sync-test-with-state
-   '((beads-sync--dry-run . t)
-     (beads-sync--message . "Test message")
-     (beads-sync--no-pull . t)
-     (beads-sync--no-push . t))
-   ;; Preview should complete without error and return nil
-   (beads-sync--preview)))
+  (cl-letf (((symbol-function 'transient-args)
+             (lambda (_prefix)
+               '("--dry-run" "--message=Test message" "--no-pull" "--no-push"))))
+    ;; Preview should complete without error and return nil
+    (beads-sync--preview)))
 
 ;;; Tests for Buffer Refresh
 
@@ -356,45 +280,38 @@ This test would have caught the original bug."
 
 (ert-deftest beads-sync-test-full-workflow ()
   "Test complete workflow from setting params to execution."
-  (beads-sync-test-with-state nil
-   ;; Set parameters
-   (setq beads-sync--dry-run t)
-   (setq beads-sync--message "Integration test sync")
+  ;; Execute (mocked)
+  (cl-letf (((symbol-function 'compilation-start)
+             #'beads-sync-test--mock-compilation-start)
+            ((symbol-function 'beads-sync--refresh-all-buffers)
+             (lambda () nil)))
+    (should-not (beads-sync--execute t "Integration test sync"
+                                     nil nil))))
 
-   ;; Execute (mocked)
-   (cl-letf (((symbol-function 'compilation-start)
-              #'beads-sync-test--mock-compilation-start)
-             ((symbol-function 'beads-sync--refresh-all-buffers)
-              (lambda () nil)))
-     (should-not (beads-sync--execute t "Integration test sync"
-                                      nil nil)))))
+(ert-deftest beads-sync-test-execute-multiple-times ()
+  "Test executing with different parameters."
+  ;; First execution
+  (cl-letf (((symbol-function 'compilation-start)
+             (lambda (command &optional _mode)
+               (should (string-match-p "--dry-run" command))
+               (should (string-match-p "-m" command))
+               (should (string-match-p "First" command))
+               (beads-sync-test--mock-compilation-start command)))
+            ((symbol-function 'beads-sync--refresh-all-buffers)
+             (lambda () nil)))
+    (should-not (beads-sync--execute t "First sync" nil nil)))
 
-(ert-deftest beads-sync-test-reset-and-reexecute ()
-  "Test resetting state and executing again."
-  (beads-sync-test-with-state
-   '((beads-sync--dry-run . t)
-     (beads-sync--message . "First sync"))
-
-   ;; Reset
-   (beads-sync--reset-state)
-   (should (null beads-sync--dry-run))
-   (should (null beads-sync--message))
-
-   ;; Set new values
-   (setq beads-sync--message "Second sync")
-   (setq beads-sync--no-pull t)
-
-   ;; Execute with new values
-   (cl-letf (((symbol-function 'compilation-start)
-              (lambda (command &optional _mode)
-                (should (string-match-p "-m" command))
-                (should (string-match-p "Second" command))
-                (should (string-match-p "--no-pull" command))
-                (should-not (string-match-p "--dry-run" command))
-                (beads-sync-test--mock-compilation-start command)))
-             ((symbol-function 'beads-sync--refresh-all-buffers)
-              (lambda () nil)))
-     (should-not (beads-sync--execute nil "Second sync" t nil)))))
+  ;; Second execution with different parameters
+  (cl-letf (((symbol-function 'compilation-start)
+             (lambda (command &optional _mode)
+               (should (string-match-p "-m" command))
+               (should (string-match-p "Second" command))
+               (should (string-match-p "--no-pull" command))
+               (should-not (string-match-p "--dry-run" command))
+               (beads-sync-test--mock-compilation-start command)))
+            ((symbol-function 'beads-sync--refresh-all-buffers)
+             (lambda () nil)))
+    (should-not (beads-sync--execute nil "Second sync" t nil))))
 
 ;;; ============================================================
 ;;; Integration Tests

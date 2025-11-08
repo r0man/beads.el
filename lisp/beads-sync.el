@@ -41,19 +41,6 @@
 
 ;;; Utility Functions
 
-(defun beads-sync--reset-state ()
-  "Reset all sync transient state variables."
-  (setq beads-sync--dry-run nil
-        beads-sync--message nil
-        beads-sync--no-pull nil
-        beads-sync--no-push nil))
-
-(defun beads-sync--format-value (value)
-  "Format VALUE for display in transient menu."
-  (if value
-      (propertize (format " [%s]" value) 'face 'transient-value)
-    (propertize " [unset]" 'face 'transient-inactive-value)))
-
 (defun beads-sync--refresh-all-buffers ()
   "Refresh all beads buffers after sync."
   ;; Refresh all beads-list buffers
@@ -75,21 +62,10 @@
 (defun beads-sync--parse-transient-args (args)
   "Parse transient ARGS list into a plist.
 Returns (:dry-run BOOL :message STRING :no-pull BOOL :no-push BOOL)."
-  (let ((dry-run nil)
-        (message nil)
-        (no-pull nil)
-        (no-push nil))
-    (while args
-      (let ((arg (pop args)))
-        (cond
-         ((string= arg "--dry-run")
-          (setq dry-run t))
-         ((string= arg "--no-pull")
-          (setq no-pull t))
-         ((string= arg "--no-push")
-          (setq no-push t))
-         ((string-prefix-p "-m=" arg)
-          (setq message (substring arg 3))))))
+  (let* ((dry-run (transient-arg-value "--dry-run" args))
+         (message (transient-arg-value "--message=" args))
+         (no-pull (transient-arg-value "--no-pull" args))
+         (no-push (transient-arg-value "--no-push" args)))
     (list :dry-run dry-run
           :message message
           :no-pull no-pull
@@ -180,14 +156,7 @@ NO-PUSH: skip pushing to remote"
          (message (plist-get parsed :message))
          (no-pull (plist-get parsed :no-pull))
          (no-push (plist-get parsed :no-push)))
-    ;; Update state variables for potential subsequent calls
-    (setq beads-sync--dry-run dry-run
-          beads-sync--message message
-          beads-sync--no-pull no-pull
-          beads-sync--no-push no-push)
-    (beads-sync--execute dry-run message no-pull no-push)
-    (unless dry-run
-      (beads-sync--reset-state))))
+    (beads-sync--execute dry-run message no-pull no-push)))
 
 (transient-define-suffix beads-sync--reset ()
   "Reset all sync parameters."
@@ -196,10 +165,11 @@ NO-PUSH: skip pushing to remote"
   :transient t
   (interactive)
   (when (y-or-n-p "Reset all fields? ")
-    (beads-sync--reset-state)
-    ;; Clear transient's argument state
-    (transient-set)
-    (message "Fields reset")))
+    ;; Clear transient's argument state using transient-reset
+    (transient-reset)
+    ;; Refresh the transient display to show cleared state
+    (transient--redisplay)
+    (message "All fields reset")))
 
 (transient-define-suffix beads-sync--preview ()
   "Preview the bd sync command that will be executed."
