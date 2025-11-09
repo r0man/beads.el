@@ -13,24 +13,24 @@
 ;;
 ;; Key features:
 ;; - Display all epics with progress information
-;; - TAB to expand/collapse child issues inline
-;; - RET to open children in beads-list buffer
+;; - SPC to expand/collapse child issues inline
+;; - TAB to navigate between epics and issues
+;; - RET to show epic or issue details
 ;; - Dynamic fetching of children only when expanded
 ;; - Visual hierarchy with indentation
 ;; - Refresh support (g key)
 ;; - Color-coded progress percentages
-;; - Navigate between epics with n/p keys
 ;;
 ;; Usage:
 ;;   M-x beads-epic
 ;;
 ;; Keybindings:
-;;   TAB - Toggle expand/collapse epic at point
-;;   RET - Show children in beads-list buffer
-;;   n   - Next epic
-;;   p   - Previous epic
-;;   g   - Refresh epic status
-;;   q   - Quit window
+;;   SPC       - Toggle expand/collapse epic at point
+;;   TAB       - Next epic or issue
+;;   S-TAB     - Previous epic or issue
+;;   RET       - Show epic or issue at point using beads-show
+;;   g         - Refresh epic status
+;;   q         - Quit window
 
 ;;; Code:
 
@@ -156,8 +156,8 @@ Format: ((epic-id . (expanded-p . children)) ...)")
     (erase-buffer)
     (insert (propertize "Beads Epic Status\n\n"
                         'face 'header-line))
-    (insert "Press TAB to expand/collapse, RET to show in list, ")
-    (insert "g to refresh, q to quit\n\n")
+    (insert "Press SPC to expand/collapse, TAB/S-TAB to navigate, ")
+    (insert "RET to show details, g to refresh, q to quit\n\n")
     (if (null beads-epic-status--epics)
         (insert (propertize "No epics found\n"
                             'face 'shadow))
@@ -232,17 +232,20 @@ Format: ((epic-id . (expanded-p . children)) ...)")
                          'beads-epic-status-status-in-progress-face)
                         ("blocked" 'beads-epic-status-status-blocked-face)
                         (_ 'default))))
-    (insert "     ")
-    (insert (propertize id 'face 'beads-epic-status-child-id-face))
-    (insert " ")
-    (insert (format "[P%d]" priority))
-    (insert " ")
-    (insert (format "[%s]" (or type "task")))
-    (insert " ")
-    (insert (propertize status 'face status-face))
-    (insert " - ")
-    (insert title)
-    (insert "\n")))
+    (let ((start (point)))
+      (insert "     ")
+      (insert (propertize id 'face 'beads-epic-status-child-id-face))
+      (insert " ")
+      (insert (format "[P%d]" priority))
+      (insert " ")
+      (insert (format "[%s]" (or type "task")))
+      (insert " ")
+      (insert (propertize status 'face status-face))
+      (insert " - ")
+      (insert title)
+      (insert "\n")
+      ;; Add issue-id property to entire child line
+      (put-text-property start (point) 'issue-id id))))
 
 ;;; Interactive Commands
 
@@ -256,7 +259,7 @@ Format: ((epic-id . (expanded-p . children)) ...)")
           (setf (nth 1 expanded-entry) nil)
         ;; Expand - fetch children if not cached
         (unless (nthcdr 2 expanded-entry)
-          (message "Fetching children for %s..." epic-id)
+          (message "Loading children for %s..." epic-id)
           (let ((children (beads-epic-status--fetch-children epic-id)))
             (setcdr expanded-entry (cons t children))))
         (setf (nth 1 expanded-entry) t)))
@@ -321,6 +324,45 @@ Format: ((epic-id . (expanded-p . children)) ...)")
   (setq beads-epic-status--point-pos (point))
   (beads-epic))
 
+(defun beads-epic-status-show-at-point ()
+  "Show details of epic or issue at point using beads-show."
+  (interactive)
+  (let ((issue-id (or (get-text-property (point) 'epic-id)
+                      (get-text-property (point) 'issue-id))))
+    (if issue-id
+        (progn
+          (require 'beads-show)
+          (beads-show issue-id))
+      (user-error "No issue at point"))))
+
+(defun beads-epic-status-next-item ()
+  "Move to next epic or issue."
+  (interactive)
+  (let ((start (point)))
+    (forward-line 1)
+    (while (and (not (eobp))
+                (not (or (get-text-property (point) 'epic-id)
+                         (get-text-property (point) 'issue-id))))
+      (forward-line 1))
+    (when (eobp)
+      (goto-char start)
+      (message "No next item"))))
+
+(defun beads-epic-status-previous-item ()
+  "Move to previous epic or issue."
+  (interactive)
+  (let ((start (point)))
+    (forward-line -1)
+    (while (and (not (bobp))
+                (not (or (get-text-property (point) 'epic-id)
+                         (get-text-property (point) 'issue-id))))
+      (forward-line -1))
+    (when (and (bobp)
+               (not (or (get-text-property (point) 'epic-id)
+                        (get-text-property (point) 'issue-id))))
+      (goto-char start)
+      (message "No previous item"))))
+
 (defun beads-epic-status--move-to-epic-line ()
   "Move point to nearest epic line if not already on one."
   (unless (get-text-property (point) 'epic-id)
@@ -340,8 +382,11 @@ Format: ((epic-id . (expanded-p . children)) ...)")
 
 (defvar beads-epic-status-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "TAB") #'beads-epic-status-toggle-expand)
-    (define-key map (kbd "RET") #'beads-epic-status-show-children)
+    (define-key map (kbd "SPC") #'beads-epic-status-toggle-expand)
+    (define-key map (kbd "TAB") #'beads-epic-status-next-item)
+    (define-key map (kbd "<backtab>") #'beads-epic-status-previous-item)
+    (define-key map (kbd "S-TAB") #'beads-epic-status-previous-item)
+    (define-key map (kbd "RET") #'beads-epic-status-show-at-point)
     (define-key map (kbd "n") #'beads-epic-status-next)
     (define-key map (kbd "p") #'beads-epic-status-previous)
     (define-key map (kbd "g") #'beads-epic-status-refresh)
