@@ -208,6 +208,11 @@
     :initarg :id
     :type string
     :documentation "Unique issue identifier (e.g., 'bd-a1b2').")
+   (content-hash
+    :initarg :content-hash
+    :type (or null string)
+    :initform nil
+    :documentation "SHA256 hash of canonical content (for de-duplication).")
    (title
     :initarg :title
     :type string
@@ -293,6 +298,11 @@
     :type integer
     :initform 0
     :documentation "Original size before compaction.")
+   (source-repo
+    :initarg :source-repo
+    :type (or null string)
+    :initform nil
+    :documentation "Which repo owns this issue (multi-repo support).")
    (labels
     :initarg :labels
     :type list
@@ -426,6 +436,11 @@
     :initarg :depth
     :type integer
     :documentation "Depth in dependency tree.")
+   (parent-id
+    :initarg :parent-id
+    :type (or null string)
+    :initform nil
+    :documentation "Parent issue ID in dependency tree.")
    (truncated
     :initarg :truncated
     :type boolean
@@ -531,7 +546,77 @@
     :initarg :limit
     :type (or null integer)
     :initform nil
-    :documentation "Maximum number of results."))
+    :documentation "Maximum number of results.")
+   (title-contains
+    :initarg :title-contains
+    :type (or null string)
+    :initform nil
+    :documentation "Pattern matching in title (case-insensitive).")
+   (description-contains
+    :initarg :description-contains
+    :type (or null string)
+    :initform nil
+    :documentation "Pattern matching in description (case-insensitive).")
+   (notes-contains
+    :initarg :notes-contains
+    :type (or null string)
+    :initform nil
+    :documentation "Pattern matching in notes (case-insensitive).")
+   (created-after
+    :initarg :created-after
+    :type (or null string)
+    :initform nil
+    :documentation "Filter issues created after date (YYYY-MM-DD or RFC3339).")
+   (created-before
+    :initarg :created-before
+    :type (or null string)
+    :initform nil
+    :documentation "Filter issues created before date (YYYY-MM-DD or RFC3339).")
+   (updated-after
+    :initarg :updated-after
+    :type (or null string)
+    :initform nil
+    :documentation "Filter issues updated after date (YYYY-MM-DD or RFC3339).")
+   (updated-before
+    :initarg :updated-before
+    :type (or null string)
+    :initform nil
+    :documentation "Filter issues updated before date (YYYY-MM-DD or RFC3339).")
+   (closed-after
+    :initarg :closed-after
+    :type (or null string)
+    :initform nil
+    :documentation "Filter issues closed after date (YYYY-MM-DD or RFC3339).")
+   (closed-before
+    :initarg :closed-before
+    :type (or null string)
+    :initform nil
+    :documentation "Filter issues closed before date (YYYY-MM-DD or RFC3339).")
+   (empty-description
+    :initarg :empty-description
+    :type boolean
+    :initform nil
+    :documentation "Filter issues with empty or missing description.")
+   (no-assignee
+    :initarg :no-assignee
+    :type boolean
+    :initform nil
+    :documentation "Filter issues with no assignee.")
+   (no-labels
+    :initarg :no-labels
+    :type boolean
+    :initform nil
+    :documentation "Filter issues with no labels.")
+   (priority-min
+    :initarg :priority-min
+    :type (or null integer)
+    :initform nil
+    :documentation "Filter by minimum priority (inclusive).")
+   (priority-max
+    :initarg :priority-max
+    :type (or null integer)
+    :initform nil
+    :documentation "Filter by maximum priority (inclusive)."))
   "Represents filters for issue queries.")
 
 (defclass beads-work-filter ()
@@ -549,6 +634,16 @@
     :type (or null string)
     :initform nil
     :documentation "Filter by assignee.")
+   (labels
+    :initarg :labels
+    :type list
+    :initform nil
+    :documentation "Filter by labels (AND semantics).")
+   (labels-any
+    :initarg :labels-any
+    :type list
+    :initform nil
+    :documentation "Filter by labels (OR semantics).")
    (limit
     :initarg :limit
     :type (or null integer)
@@ -568,6 +663,7 @@
 JSON should be the parsed JSON object from bd --json output."
   (beads-issue
    :id (alist-get 'id json)
+   :content-hash (alist-get 'content_hash json)
    :title (alist-get 'title json)
    :description (or (alist-get 'description json) "")
    :design (alist-get 'design json)
@@ -586,6 +682,7 @@ JSON should be the parsed JSON object from bd --json output."
    :compacted-at (alist-get 'compacted_at json)
    :compacted-at-commit (alist-get 'compacted_at_commit json)
    :original-size (or (alist-get 'original_size json) 0)
+   :source-repo (alist-get 'source_repo json)
    :labels (append (alist-get 'labels json) nil)
    :dependencies (when-let ((deps (alist-get 'dependencies json)))
                    (mapcar #'beads-dependency-from-json (append deps nil)))
@@ -632,6 +729,7 @@ JSON should be the parsed JSON object from bd --json output."
   "Create a beads-blocked-issue object from JSON alist."
   (beads-blocked-issue
    :id (alist-get 'id json)
+   :content-hash (alist-get 'content_hash json)
    :title (alist-get 'title json)
    :description (or (alist-get 'description json) "")
    :design (alist-get 'design json)
@@ -650,6 +748,7 @@ JSON should be the parsed JSON object from bd --json output."
    :compacted-at (alist-get 'compacted_at json)
    :compacted-at-commit (alist-get 'compacted_at_commit json)
    :original-size (or (alist-get 'original_size json) 0)
+   :source-repo (alist-get 'source_repo json)
    :labels (append (alist-get 'labels json) nil)
    :dependencies (when-let ((deps (alist-get 'dependencies json)))
                    (mapcar #'beads-dependency-from-json (append deps nil)))
@@ -662,6 +761,7 @@ JSON should be the parsed JSON object from bd --json output."
   "Create a beads-tree-node object from JSON alist."
   (beads-tree-node
    :id (alist-get 'id json)
+   :content-hash (alist-get 'content_hash json)
    :title (alist-get 'title json)
    :description (or (alist-get 'description json) "")
    :design (alist-get 'design json)
@@ -680,12 +780,14 @@ JSON should be the parsed JSON object from bd --json output."
    :compacted-at (alist-get 'compacted_at json)
    :compacted-at-commit (alist-get 'compacted_at_commit json)
    :original-size (or (alist-get 'original_size json) 0)
+   :source-repo (alist-get 'source_repo json)
    :labels (append (alist-get 'labels json) nil)
    :dependencies (when-let ((deps (alist-get 'dependencies json)))
                    (mapcar #'beads-dependency-from-json (append deps nil)))
    :comments (when-let ((comments (alist-get 'comments json)))
                (mapcar #'beads-comment-from-json (append comments nil)))
    :depth (or (alist-get 'depth json) 0)
+   :parent-id (alist-get 'parent_id json)
    :truncated (eq (alist-get 'truncated json) t)))
 
 (defun beads-statistics-from-json (json)
