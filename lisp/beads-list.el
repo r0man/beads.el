@@ -12,11 +12,17 @@
 ;; Beads issues in a sortable, colorized table format.
 ;;
 ;; Commands:
-;;   M-x beads-list      ; Show all issues
-;;   M-x beads-ready     ; Show ready work
-;;   M-x beads-blocked   ; Show blocked issues
+;;   M-x beads-list    ; Show transient menu with filters, then list issues
+;;   M-x beads-ready   ; Show ready work
+;;   M-x beads-blocked ; Show blocked issues
 ;;
-;; Key bindings in beads-list-mode:
+;; The beads-list command now uses a transient menu interface that
+;; allows setting advanced filter parameters before executing the
+;; bd list command.  The transient menu supports all bd list flags
+;; including status, priority, type, date ranges, text search, labels,
+;; and more.
+;;
+;; Key bindings in beads-list-mode (after displaying results):
 ;;   n/p     - Next/previous issue
 ;;   RET     - Show issue details
 ;;   g       - Refresh buffer
@@ -32,11 +38,6 @@
 ;;   D       - Delete issue at point (destructive)
 ;;   w       - Copy issue ID to kill ring
 ;;   S       - Sort by column
-;;   / /     - Filter by text
-;;   / s     - Filter by status
-;;   / p     - Filter by priority
-;;   / t     - Filter by type
-;;   / c     - Clear all filters
 ;;   B s     - Bulk update status for marked issues
 ;;   B p     - Bulk update priority for marked issues
 ;;   B c     - Bulk close marked issues
@@ -45,6 +46,9 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-types)
+(require 'beads-option)
+(require 'transient)
 
 ;;; Forward Declarations
 
@@ -153,22 +157,14 @@ The `absolute' format sorts correctly in chronological order."
   "The bd command used to populate this buffer (list, ready, or blocked).")
 
 (defvar-local beads-list--raw-issues nil
-  "Raw issue data for the current buffer.")
+  "List of beads-issue objects for the current buffer.")
 
 (defvar-local beads-list--marked-issues nil
   "List of marked issue IDs.")
 
-(defvar-local beads-list--filter-status nil
-  "Current status filter (nil means no filter).")
-
-(defvar-local beads-list--filter-priority nil
-  "Current priority filter (nil means no filter).")
-
-(defvar-local beads-list--filter-type nil
-  "Current issue type filter (nil means no filter).")
-
-(defvar-local beads-list--filter-text nil
-  "Current text search filter (nil means no filter).")
+(defvar-local beads-list--filter nil
+  "Current beads-issue-filter object (nil means no filter).
+Use for client-side filtering in the buffer.")
 
 ;;; Utilities
 
@@ -245,13 +241,13 @@ the value of `beads-list-date-format'."
          (format-time-string "%Y-%m-%d %H:%M" time))))))
 
 (defun beads-list--issue-to-entry (issue)
-  "Convert ISSUE alist to tabulated-list entry."
-  (let* ((id (alist-get 'id issue))
-         (title (or (alist-get 'title issue) ""))
-         (status (alist-get 'status issue))
-         (priority (alist-get 'priority issue))
-         (type (or (alist-get 'issue-type issue) ""))
-         (created (alist-get 'created-at issue))
+  "Convert ISSUE (beads-issue object) to tabulated-list entry."
+  (let* ((id (oref issue id))
+         (title (or (oref issue title) ""))
+         (status (oref issue status))
+         (priority (oref issue priority))
+         (type (or (oref issue issue-type) ""))
+         (created (oref issue created-at))
          (created-str (beads-list--format-date created)))
     (list id
           (vector id
@@ -261,78 +257,233 @@ the value of `beads-list-date-format'."
                   title
                   created-str))))
 
-(defun beads-list--apply-filters (issues)
-  "Apply active filters to ISSUES and return filtered list."
-  (let ((filtered issues))
-    ;; Filter by status
-    (when beads-list--filter-status
-      (setq filtered
-            (seq-filter (lambda (issue)
-                         (string= (alist-get 'status issue)
-                                 beads-list--filter-status))
-                       filtered)))
-    ;; Filter by priority
-    (when beads-list--filter-priority
-      (setq filtered
-            (seq-filter (lambda (issue)
-                         (equal (alist-get 'priority issue)
-                               beads-list--filter-priority))
-                       filtered)))
-    ;; Filter by type
-    (when beads-list--filter-type
-      (setq filtered
-            (seq-filter (lambda (issue)
-                         (string= (alist-get 'issue-type issue)
-                                 beads-list--filter-type))
-                       filtered)))
-    ;; Filter by text search (searches id, title, description)
-    (when (and beads-list--filter-text
-               (not (string-empty-p beads-list--filter-text)))
-      (setq filtered
-            (seq-filter (lambda (issue)
-                         (or (string-match-p beads-list--filter-text
-                                            (alist-get 'id issue))
-                             (string-match-p beads-list--filter-text
-                                            (or (alist-get 'title issue) ""))
-                             (string-match-p beads-list--filter-text
-                                            (or (alist-get 'description issue) ""))))
-                       filtered)))
-    filtered))
-
-(defun beads-list--format-filter-string ()
-  "Format current filters for mode-line display."
-  (let ((filters nil))
-    (when beads-list--filter-status
-      (push (format "status=%s" beads-list--filter-status) filters))
-    (when beads-list--filter-priority
-      (push (format "priority=%s" beads-list--filter-priority) filters))
-    (when beads-list--filter-type
-      (push (format "type=%s" beads-list--filter-type) filters))
-    (when (and beads-list--filter-text
-               (not (string-empty-p beads-list--filter-text)))
-      (push (format "text=%s" beads-list--filter-text) filters))
-    (if filters
-        (concat " [Filters: " (string-join filters ", ") "]")
-      "")))
-
-(defun beads-list--populate-buffer (issues command)
-  "Populate current buffer with ISSUES using COMMAND for refresh."
+(defun beads-list--populate-buffer (issues command &optional filter)
+  "Populate current buffer with ISSUES using COMMAND for refresh.
+Optional FILTER is a beads-issue-filter object for context."
   (setq beads-list--command command
-        beads-list--raw-issues issues)
-  (let ((filtered (beads-list--apply-filters issues)))
-    (setq tabulated-list-entries
-          (mapcar #'beads-list--issue-to-entry filtered))
-    (tabulated-list-print t)))
+        beads-list--raw-issues issues
+        beads-list--filter filter)
+  (setq tabulated-list-entries
+        (mapcar #'beads-list--issue-to-entry issues))
+  (tabulated-list-print t))
 
 (defun beads-list--current-issue-id ()
   "Return the ID of the issue at point, or nil."
   (tabulated-list-get-id))
 
 (defun beads-list--get-issue-by-id (id)
-  "Return issue alist for ID from current buffer's raw issues."
+  "Return beads-issue object for ID from current buffer's raw issues."
   (seq-find (lambda (issue)
-              (string= (alist-get 'id issue) id))
+              (string= (oref issue id) id))
             beads-list--raw-issues))
+
+;;; Transient Menu Integration
+
+(defun beads-list--parse-transient-args (args)
+  "Parse transient ARGS list into a beads-issue-filter object.
+Returns a beads-issue-filter object with all applicable filters set."
+  (let ((filter (beads-issue-filter)))
+    ;; Boolean switches
+    (when (member "--all" args)
+      (oset filter all t))
+    (when (member "--no-assignee" args)
+      (oset filter no-assignee t))
+    (when (member "--empty-description" args)
+      (oset filter empty-description t))
+    (when (member "--no-labels" args)
+      (oset filter no-labels t))
+    (when (member "--long" args)
+      (oset filter long t))
+    ;; String options
+    (when-let ((assignee (transient-arg-value "--assignee=" args)))
+      (oset filter assignee assignee))
+    (when-let ((closed-after (transient-arg-value "--closed-after=" args)))
+      (oset filter closed-after closed-after))
+    (when-let ((closed-before (transient-arg-value "--closed-before=" args)))
+      (oset filter closed-before closed-before))
+    (when-let ((created-after (transient-arg-value "--created-after=" args)))
+      (oset filter created-after created-after))
+    (when-let ((created-before (transient-arg-value
+                                 "--created-before=" args)))
+      (oset filter created-before created-before))
+    (when-let ((desc-contains (transient-arg-value
+                                "--desc-contains=" args)))
+      (oset filter description-contains desc-contains))
+    (when-let ((format (transient-arg-value "--format=" args)))
+      (oset filter format format))
+    (when-let ((id (transient-arg-value "--id=" args)))
+      (oset filter ids id))
+    (when-let ((notes-contains (transient-arg-value
+                                 "--notes-contains=" args)))
+      (oset filter notes-contains notes-contains))
+    (when-let ((status (transient-arg-value "--status=" args)))
+      (oset filter status status))
+    (when-let ((title (transient-arg-value "--title=" args)))
+      (oset filter title-search title))
+    (when-let ((title-contains (transient-arg-value
+                                 "--title-contains=" args)))
+      (oset filter title-contains title-contains))
+    (when-let ((type (transient-arg-value "--type=" args)))
+      (oset filter issue-type type))
+    (when-let ((updated-after (transient-arg-value
+                                "--updated-after=" args)))
+      (oset filter updated-after updated-after))
+    (when-let ((updated-before (transient-arg-value
+                                 "--updated-before=" args)))
+      (oset filter updated-before updated-before))
+    ;; Repeatable options (collect all values)
+    (let ((label-values nil)
+          (label-any-values nil))
+      (dolist (arg args)
+        (when (string-prefix-p "--label=" arg)
+          (push (substring arg (length "--label=")) label-values))
+        (when (string-prefix-p "--label-any=" arg)
+          (push (substring arg (length "--label-any=")) label-any-values)))
+      (when label-values
+        (oset filter labels (nreverse label-values)))
+      (when label-any-values
+        (oset filter labels-any (nreverse label-any-values))))
+    ;; Numeric options
+    (when-let ((limit-str (transient-arg-value "--limit=" args)))
+      (oset filter limit (string-to-number limit-str)))
+    (when-let ((priority-str (transient-arg-value "--priority=" args)))
+      (oset filter priority (string-to-number priority-str)))
+    (when-let ((priority-min-str (transient-arg-value
+                                    "--priority-min=" args)))
+      (oset filter priority-min (string-to-number priority-min-str)))
+    (when-let ((priority-max-str (transient-arg-value
+                                    "--priority-max=" args)))
+      (oset filter priority-max (string-to-number priority-max-str)))
+    filter))
+
+;;; Transient Suffix Commands
+
+(transient-define-suffix beads-list--transient-execute ()
+  "Execute the bd list command with current filter parameters."
+  :key "x"
+  :description "List issues"
+  (interactive)
+  (let* ((args (transient-args 'beads-list))
+         (filter (beads-list--parse-transient-args args))
+         (cmd-args (beads-issue-filter-to-args filter)))
+    (condition-case err
+        (let* ((result (apply #'beads--run-command "list" cmd-args))
+               (issues (beads--parse-issues result))
+               (issue-objects (mapcar #'beads-issue-from-json issues))
+               (buffer (get-buffer-create "*beads-list*"))
+               (project-dir default-directory))
+          (with-current-buffer buffer
+            (beads-list-mode)
+            (setq default-directory project-dir)
+            (if (not issue-objects)
+                (progn
+                  (setq tabulated-list-entries nil)
+                  (tabulated-list-print t)
+                  (message "No issues found"))
+              (beads-list--populate-buffer issue-objects 'list filter)
+              (message "Found %d issue%s"
+                       (length issue-objects)
+                       (if (= (length issue-objects) 1) "" "s"))))
+          (pop-to-buffer buffer))
+      (error
+       (message "Failed to list issues: %s"
+                (error-message-string err))))))
+
+(transient-define-suffix beads-list--transient-reset ()
+  "Reset all filter parameters to their default values."
+  :key "r"
+  :description "Reset all filters"
+  :transient t
+  (interactive)
+  (when (y-or-n-p "Reset all filters? ")
+    (transient-reset)
+    (transient--redisplay)
+    (message "All filters reset")))
+
+(transient-define-suffix beads-list--transient-preview ()
+  "Preview the bd list command that will be executed."
+  :key "P"
+  :description "Preview command"
+  :transient t
+  (interactive)
+  (let* ((args (transient-args 'beads-list))
+         (filter (beads-list--parse-transient-args args))
+         (cmd-args (beads-issue-filter-to-args filter))
+         (cmd (apply #'beads--build-command "list" cmd-args))
+         (cmd-string (mapconcat #'shell-quote-argument cmd " ")))
+    (message "Command: %s" cmd-string)))
+
+;;; Transient Groups
+
+(transient-define-group beads-list--basic-filters-section
+  [:level 1 "Basic Filters"
+          (beads-option-list-status)
+          (beads-option-list-priority)
+          (beads-option-list-type)
+          (beads-option-list-assignee)])
+
+(transient-define-group beads-list--text-search-section
+  [:level 2 "Text Search"
+          (beads-option-list-title)
+          (beads-option-list-title-contains)
+          (beads-option-list-desc-contains)
+          (beads-option-list-notes-contains)])
+
+(transient-define-group beads-list--date-filters-section
+  [:level 3 "Date Filters"
+          (beads-option-list-created-after)
+          (beads-option-list-created-before)
+          (beads-option-list-updated-after)
+          (beads-option-list-updated-before)
+          (beads-option-list-closed-after)
+          (beads-option-list-closed-before)])
+
+(transient-define-group beads-list--advanced-filters-section
+  [:level 4 "Advanced Filters"
+          (beads-option-list-priority-min)
+          (beads-option-list-priority-max)
+          (beads-option-list-label)
+          (beads-option-list-label-any)
+          (beads-option-list-id)
+          (beads-option-list-no-assignee)
+          (beads-option-list-empty-description)
+          (beads-option-list-no-labels)])
+
+(transient-define-group beads-list--output-options-section
+  [:level 5 "Output Options"
+          (beads-option-list-limit)
+          (beads-option-list-long)
+          (beads-option-list-format)
+          (beads-option-list-all)])
+
+;;; Main Transient
+
+;;;###autoload (autoload 'beads-list "beads-list" nil t)
+(transient-define-prefix beads-list ()
+  "List issues in Beads with filter options.
+
+This transient menu provides an interactive interface for setting
+filter parameters for the bd list command.  All filters are
+optional.
+
+Transient levels control which filter groups are visible
+(cycle with C-x l):
+  Level 1: Basic filters (status, priority, type, assignee)
+  Level 2: Text search (title, description, notes)
+  Level 3: Date filters (created, updated, closed)        [default]
+  Level 4: Advanced filters (priority ranges, labels, etc.)
+  Level 5: Output options (limit, long format, etc.)
+  Level 7: Global options (actor, db, json flags, etc.)"
+  beads-list--basic-filters-section
+  beads-list--text-search-section
+  beads-list--date-filters-section
+  beads-list--advanced-filters-section
+  beads-list--output-options-section
+  beads-option-global-section
+  ["Actions"
+   ("x" "List issues" beads-list--transient-execute)
+   ("P" "Preview command" beads-list--transient-preview)
+   ("R" "Reset all filters" beads-list--transient-reset)])
 
 ;;; Commands
 
@@ -341,13 +492,17 @@ the value of `beads-list-date-format'."
   (interactive)
   (unless beads-list--command
     (user-error "No command associated with this buffer"))
-  (let* ((issues (pcase beads-list--command
-                   ('list (beads--parse-issues
-                          (beads--run-command "list")))
-                   ('ready (beads--parse-issues
-                           (beads--run-command "ready")))
-                   ('blocked (beads--parse-issues
-                             (beads--run-command "blocked")))
+  (let* ((cmd-args (when beads-list--filter
+                     (beads-issue-filter-to-args beads-list--filter)))
+         (issues (pcase beads-list--command
+                   ('list
+                    (let* ((result (apply #'beads--run-command "list" cmd-args))
+                           (parsed (beads--parse-issues result)))
+                      (mapcar #'beads-issue-from-json parsed)))
+                   ('ready
+                    (beads-issue-ready))
+                   ('blocked
+                    (beads-blocked-issue-list))
                    (_ (error "Unknown command: %s" beads-list--command))))
          (pos (point)))
     (if (not issues)
@@ -355,7 +510,7 @@ the value of `beads-list-date-format'."
           (setq tabulated-list-entries nil)
           (tabulated-list-print t)
           (message "No issues found"))
-      (beads-list--populate-buffer issues beads-list--command)
+      (beads-list--populate-buffer issues beads-list--command beads-list--filter)
       (goto-char pos)
       (message "Refreshed %d issue%s"
                (length issues)
@@ -486,58 +641,21 @@ Uses tabulated-list built-in sorting."
   (interactive)
   (call-interactively #'tabulated-list-sort))
 
-(defun beads-list-filter-by-status ()
-  "Filter issues by status."
+(defun beads-list-filter ()
+  "Open beads-list transient menu with current filter pre-selected.
+If in a beads-list buffer, the current filter is used to pre-populate the
+transient menu options."
   (interactive)
-  (let ((status (completing-read "Filter by status (empty to clear): "
-                                 '("open" "in_progress" "blocked" "closed")
-                                 nil t)))
-    (setq beads-list--filter-status
-          (if (string-empty-p status) nil status))
-    (beads-list--populate-buffer beads-list--raw-issues beads-list--command)
-    (message "Filter: %s" (or (beads-list--format-filter-string) "cleared"))))
+  (when (and (boundp 'beads-list--filter) beads-list--filter)
+    ;; Convert current filter to transient args
+    (let ((args (beads-issue-filter-to-args beads-list--filter)))
+      ;; Set the transient value with current filter
+      (put 'beads-list 'transient--value args)
+      ;; Also add to history for persistence
+      (put 'beads-list 'transient--history (list args))))
+  ;; Open the transient menu
+  (call-interactively #'beads-list))
 
-(defun beads-list-filter-by-priority ()
-  "Filter issues by priority."
-  (interactive)
-  (let ((priority (completing-read "Filter by priority (empty to clear): "
-                                   '("0" "1" "2" "3" "4")
-                                   nil t)))
-    (setq beads-list--filter-priority
-          (if (string-empty-p priority) nil (string-to-number priority)))
-    (beads-list--populate-buffer beads-list--raw-issues beads-list--command)
-    (message "Filter: %s" (or (beads-list--format-filter-string) "cleared"))))
-
-(defun beads-list-filter-by-type ()
-  "Filter issues by type."
-  (interactive)
-  (let ((type (completing-read "Filter by type (empty to clear): "
-                               '("bug" "feature" "task" "epic" "chore")
-                               nil t)))
-    (setq beads-list--filter-type
-          (if (string-empty-p type) nil type))
-    (beads-list--populate-buffer beads-list--raw-issues beads-list--command)
-    (message "Filter: %s" (or (beads-list--format-filter-string) "cleared"))))
-
-(defun beads-list-filter-by-text ()
-  "Filter issues by text search (search id, title, description)."
-  (interactive)
-  (let ((text (read-string "Filter by text (empty to clear): "
-                           beads-list--filter-text)))
-    (setq beads-list--filter-text
-          (if (string-empty-p text) nil text))
-    (beads-list--populate-buffer beads-list--raw-issues beads-list--command)
-    (message "Filter: %s" (or (beads-list--format-filter-string) "cleared"))))
-
-(defun beads-list-clear-filters ()
-  "Clear all active filters."
-  (interactive)
-  (setq beads-list--filter-status nil
-        beads-list--filter-priority nil
-        beads-list--filter-type nil
-        beads-list--filter-text nil)
-  (beads-list--populate-buffer beads-list--raw-issues beads-list--command)
-  (message "All filters cleared"))
 
 ;;; Bulk Operations
 
@@ -697,15 +815,7 @@ Uses tabulated-list built-in sorting."
     ;; Utilities
     (define-key map (kbd "w") #'beads-list-copy-id)        ; copy (like eww, info)
     (define-key map (kbd "S") #'beads-list-sort)           ; sort menu
-
-    ;; Filtering (like ibuffer) - create prefix map for /
-    (let ((filter-map (make-sparse-keymap)))
-      (define-key filter-map (kbd "s") #'beads-list-filter-by-status)
-      (define-key filter-map (kbd "p") #'beads-list-filter-by-priority)
-      (define-key filter-map (kbd "t") #'beads-list-filter-by-type)
-      (define-key filter-map (kbd "/") #'beads-list-filter-by-text)
-      (define-key filter-map (kbd "c") #'beads-list-clear-filters)
-      (define-key map (kbd "/") filter-map))
+    (define-key map (kbd "l") #'beads-list-filter)         ; filter (open transient with current filter)
 
     ;; Bulk operations (like Magit) - create prefix map for B
     (let ((bulk-map (make-sparse-keymap)))
@@ -736,51 +846,15 @@ Uses tabulated-list built-in sorting."
 ;;; Public Commands
 
 ;;;###autoload
-(defun beads-list ()
-  "Display all Beads issues in a tabulated list."
-  (interactive)
-  (beads-check-executable)
-  (let ((issues (beads--parse-issues (beads--run-command "list")))
-        (buffer (get-buffer-create "*beads-list*"))
-        (project-dir default-directory))  ; Capture project context
-    (with-current-buffer buffer
-      (beads-list-mode)
-      ;; Preserve project context in list buffer
-      (setq default-directory project-dir)
-      (if (not issues)
-          (progn
-            (setq tabulated-list-entries nil)
-            (tabulated-list-print t)
-            (setq mode-line-format
-                  '("%e" mode-line-front-space
-                    mode-line-buffer-identification
-                    "  No issues found"))
-            (message "No issues found"))
-        (beads-list--populate-buffer issues 'list)
-        (setq mode-line-format
-              '("%e" mode-line-front-space
-                mode-line-buffer-identification
-                (:eval (format "  %d issue%s%s%s"
-                             (length tabulated-list-entries)
-                             (if (= (length tabulated-list-entries) 1) "" "s")
-                             (if beads-list--marked-issues
-                                 (format " [%d marked]"
-                                        (length beads-list--marked-issues))
-                               "")
-                             (beads-list--format-filter-string)))))))
-    (pop-to-buffer buffer)))
-
-;;;###autoload
 (defun beads-ready ()
   "Display ready Beads issues in a tabulated list."
   (interactive)
   (beads-check-executable)
-  (let ((issues (beads--parse-issues (beads--run-command "ready")))
+  (let ((issues (beads-issue-ready))
         (buffer (get-buffer-create "*beads-ready*"))
-        (project-dir default-directory))  ; Capture project context
+        (project-dir default-directory))
     (with-current-buffer buffer
       (beads-list-mode)
-      ;; Preserve project context in list buffer
       (setq default-directory project-dir)
       (if (not issues)
           (progn
@@ -795,14 +869,13 @@ Uses tabulated-list built-in sorting."
         (setq mode-line-format
               '("%e" mode-line-front-space
                 mode-line-buffer-identification
-                (:eval (format "  %d ready issue%s%s%s"
+                (:eval (format "  %d ready issue%s%s"
                              (length tabulated-list-entries)
                              (if (= (length tabulated-list-entries) 1) "" "s")
                              (if beads-list--marked-issues
                                  (format " [%d marked]"
                                         (length beads-list--marked-issues))
-                               "")
-                             (beads-list--format-filter-string)))))))
+                               "")))))))
     (pop-to-buffer buffer)))
 
 ;;;###autoload
@@ -810,12 +883,11 @@ Uses tabulated-list built-in sorting."
   "Display blocked Beads issues in a tabulated list."
   (interactive)
   (beads-check-executable)
-  (let ((issues (beads--parse-issues (beads--run-command "blocked")))
+  (let ((issues (beads-blocked-issue-list))
         (buffer (get-buffer-create "*beads-blocked*"))
-        (project-dir default-directory))  ; Capture project context
+        (project-dir default-directory))
     (with-current-buffer buffer
       (beads-list-mode)
-      ;; Preserve project context in list buffer
       (setq default-directory project-dir)
       (if (not issues)
           (progn
@@ -830,14 +902,13 @@ Uses tabulated-list built-in sorting."
         (setq mode-line-format
               '("%e" mode-line-front-space
                 mode-line-buffer-identification
-                (:eval (format "  %d blocked issue%s%s%s"
+                (:eval (format "  %d blocked issue%s%s"
                              (length tabulated-list-entries)
                              (if (= (length tabulated-list-entries) 1) "" "s")
                              (if beads-list--marked-issues
                                  (format " [%d marked]"
                                         (length beads-list--marked-issues))
-                               "")
-                             (beads-list--format-filter-string)))))))
+                               "")))))))
     (pop-to-buffer buffer)))
 
 ;;; Footer
