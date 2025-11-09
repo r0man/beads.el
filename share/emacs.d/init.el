@@ -7,6 +7,7 @@
   :bind (("C-x C-g s" . magit-status)))
 
 (use-package beads
+  :bind (("C-x C-g b" . beads))
   :commands (beads)
   :load-path ("~/workspace/beads.el/lisp"
               "~/workspace/beads.el/lisp/test")
