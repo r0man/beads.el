@@ -331,14 +331,34 @@ Submenu for managing issue dependencies:
 
 ### Statistics (`beads-stats`)
 
-Display project statistics in special buffer:
+Display project statistics in an **interactive** buffer:
 
-- Issue counts by status
-- Issue counts by type
-- Priority breakdown
-- Other metrics
+- Total issues
+- Issue counts by status (Open, In Progress, Blocked, Closed)
+- Ready to work issues
+- Average lead time
 
-Press `g` to refresh, `q` to quit.
+**Interactive Features:**
+
+All statistic numbers are **clickable**! Click on any number to instantly view those issues in a filtered list:
+
+- Click **Total Issues** → View all issues
+- Click **Open** → View open issues only
+- Click **In Progress** → View in-progress issues only
+- Click **Blocked** → View blocked issues
+- Click **Closed** → View closed issues
+- Click **Ready** → View ready-to-work issues
+
+**Keyboard Shortcuts:**
+- `g` - Refresh statistics
+- `q` - Quit statistics buffer
+
+**Example Workflow:**
+1. Run `M-x beads-stats` (or `S` from beads-main menu)
+2. See at-a-glance view of project health
+3. Click on "Open: 30" to see all open issues
+4. Work on issues, then return to stats with `M-x beads-stats`
+5. Click on "Ready: 15" to find next issue to work on
 
 ### Import/Export
 
