@@ -248,7 +248,8 @@
     :documentation "Priority level (0=lowest, 4=highest).")
    (issue-type
     :initarg :issue-type
-    :type string
+    :type (or null string)
+    :initform nil
     :documentation "Issue type (bug, feature, task, epic, chore).")
    (assignee
     :initarg :assignee
@@ -262,11 +263,13 @@
     :documentation "Estimated time in minutes.")
    (created-at
     :initarg :created-at
-    :type string
+    :type (or null string)
+    :initform nil
     :documentation "Creation timestamp (ISO 8601).")
    (updated-at
     :initarg :updated-at
-    :type string
+    :type (or null string)
+    :initform nil
     :documentation "Last update timestamp (ISO 8601).")
    (closed-at
     :initarg :closed-at
@@ -541,7 +544,7 @@
     :initarg :ids
     :type list
     :initform nil
-    :documentation "Filter by specific issue IDs.")
+    :documentation "Filter by specific issue IDs (comma-separated string).")
    (limit
     :initarg :limit
     :type (or null integer)
@@ -616,7 +619,22 @@
     :initarg :priority-max
     :type (or null integer)
     :initform nil
-    :documentation "Filter by maximum priority (inclusive)."))
+    :documentation "Filter by maximum priority (inclusive).")
+   (all
+    :initarg :all
+    :type boolean
+    :initform nil
+    :documentation "Show all issues (default behavior flag).")
+   (format
+    :initarg :format
+    :type (or null string)
+    :initform nil
+    :documentation "Output format: digraph, dot, or Go template.")
+   (long
+    :initarg :long
+    :type boolean
+    :initform nil
+    :documentation "Show detailed multi-line output for each issue."))
   "Represents filters for issue queries.")
 
 (defclass beads-work-filter ()
@@ -811,6 +829,100 @@ JSON should be the parsed JSON object from bd --json output."
    :total-children (or (alist-get 'total_children json) 0)
    :closed-children (or (alist-get 'closed_children json) 0)
    :eligible-for-close (eq (alist-get 'eligible_for_close json) t)))
+
+;;; beads-issue-filter Methods
+
+(cl-defmethod beads-issue-filter-to-args ((filter beads-issue-filter))
+  "Build bd command arguments from FILTER instance.
+Returns a list of strings suitable for passing to beads--run-command.
+Only includes arguments for non-nil filter slots."
+  (with-slots (status priority issue-type assignee labels labels-any
+                      title-search ids limit title-contains
+                      description-contains notes-contains created-after
+                      created-before updated-after updated-before
+                      closed-after closed-before empty-description
+                      no-assignee no-labels priority-min priority-max
+                      all format long) filter
+    (let (args)
+      ;; Boolean flags
+      (when all (push "--all" args))
+      (when no-assignee (push "--no-assignee" args))
+      (when empty-description (push "--empty-description" args))
+      (when no-labels (push "--no-labels" args))
+      (when long (push "--long" args))
+      ;; String filters
+      (when assignee
+        (push "--assignee" args)
+        (push assignee args))
+      (when closed-after
+        (push "--closed-after" args)
+        (push closed-after args))
+      (when closed-before
+        (push "--closed-before" args)
+        (push closed-before args))
+      (when created-after
+        (push "--created-after" args)
+        (push created-after args))
+      (when created-before
+        (push "--created-before" args)
+        (push created-before args))
+      (when description-contains
+        (push "--desc-contains" args)
+        (push description-contains args))
+      (when format
+        (push "--format" args)
+        (push format args))
+      (when ids
+        (push "--id" args)
+        (push ids args))
+      (when notes-contains
+        (push "--notes-contains" args)
+        (push notes-contains args))
+      (when status
+        (push "--status" args)
+        (push status args))
+      (when title-search
+        (push "--title" args)
+        (push title-search args))
+      (when title-contains
+        (push "--title-contains" args)
+        (push title-contains args))
+      (when issue-type
+        (push "--type" args)
+        (push issue-type args))
+      (when updated-after
+        (push "--updated-after" args)
+        (push updated-after args))
+      (when updated-before
+        (push "--updated-before" args)
+        (push updated-before args))
+      ;; List filters (repeatable flags)
+      (when labels
+        (dolist (label labels)
+          (push "--label" args)
+          (push label args)))
+      (when labels-any
+        (dolist (label labels-any)
+          (push "--label-any" args)
+          (push label args)))
+      ;; Numeric filters
+      (when limit
+        (push "--limit" args)
+        (push (number-to-string limit) args))
+      (when priority
+        (push "--priority" args)
+        (push (number-to-string priority) args))
+      (when priority-min
+        (push "--priority-min" args)
+        (push (number-to-string priority-min) args))
+      (when priority-max
+        (push "--priority-max" args)
+        (push (number-to-string priority-max) args))
+      (nreverse args))))
+
+(cl-defmethod beads-issue-filter-is-empty ((filter beads-issue-filter))
+  "Return t if FILTER has no active filters, nil otherwise."
+  (null (beads-issue-filter-to-args filter)))
 
 ;;; Conversion to Alist (Backwards Compatibility)
 
