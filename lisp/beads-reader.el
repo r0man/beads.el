@@ -279,5 +279,103 @@ PROMPT is shown to the user."
   "Read database path for init operation."
   (read-file-name "Database path: " nil nil))
 
+;;; ============================================================
+;;; beads-list Reader Functions
+;;; ============================================================
+
+(defun beads-reader-list-assignee (_prompt _initial-input _history)
+  "Read assignee for list filter."
+  (read-string "Filter by assignee: "))
+
+(defun beads-reader-list-date (_prompt _initial-input _history)
+  "Read date for list filter (YYYY-MM-DD or RFC3339)."
+  (read-string "Date (YYYY-MM-DD or RFC3339): "))
+
+(defun beads-reader-list-desc-contains (_prompt _initial-input _history)
+  "Read description search text for list filter."
+  (read-string "Description contains: "))
+
+(defun beads-reader-list-format (_prompt _initial-input _history)
+  "Read output format for list."
+  (completing-read "Output format: "
+                   '("digraph" "dot" "template")
+                   nil t))
+
+(defun beads-reader-list-id (_prompt _initial-input _history)
+  "Read comma-separated issue IDs for list filter."
+  (read-string "Issue IDs (comma-separated): "))
+
+(defun beads-reader-list-label (_prompt _initial-input _history)
+  "Read label for list filter."
+  (read-string "Label: "))
+
+(defun beads-reader-list-labels (_prompt _initial-input _history)
+  "Read comma-separated labels for list filter."
+  (read-string "Labels (comma-separated): "))
+
+(defun beads-reader-list-limit (_prompt _initial-input _history)
+  "Read limit for list results."
+  (let ((input (read-string "Limit (number of results): ")))
+    (if (string-empty-p input)
+        ""
+      (number-to-string (string-to-number input)))))
+
+(defun beads-reader-list-notes-contains (_prompt _initial-input _history)
+  "Read notes search text for list filter."
+  (read-string "Notes contains: "))
+
+(defun beads-reader-list-priority (_prompt _initial-input _history)
+  "Read priority for list filter."
+  (let* ((choices '(("0 - Critical" . 0)
+                    ("1 - High" . 1)
+                    ("2 - Medium" . 2)
+                    ("3 - Low" . 3)
+                    ("4 - Backlog" . 4)))
+         (selection (completing-read "Priority: " choices nil t))
+         (priority (cdr (assoc selection choices))))
+    (number-to-string priority)))
+
+(defun beads-reader-list-priority-min (_prompt _initial-input _history)
+  "Read minimum priority for list filter."
+  (let* ((choices '(("0 - Critical" . 0)
+                    ("1 - High" . 1)
+                    ("2 - Medium" . 2)
+                    ("3 - Low" . 3)
+                    ("4 - Backlog" . 4)))
+         (selection (completing-read "Minimum priority: " choices nil t))
+         (priority (cdr (assoc selection choices))))
+    (number-to-string priority)))
+
+(defun beads-reader-list-priority-max (_prompt _initial-input _history)
+  "Read maximum priority for list filter."
+  (let* ((choices '(("0 - Critical" . 0)
+                    ("1 - High" . 1)
+                    ("2 - Medium" . 2)
+                    ("3 - Low" . 3)
+                    ("4 - Backlog" . 4)))
+         (selection (completing-read "Maximum priority: " choices nil t))
+         (priority (cdr (assoc selection choices))))
+    (number-to-string priority)))
+
+(defun beads-reader-list-status (_prompt _initial-input _history)
+  "Read status for list filter."
+  (completing-read "Status: "
+                   '("open" "in_progress" "blocked" "closed")
+                   nil t))
+
+(defun beads-reader-list-title (_prompt _initial-input _history)
+  "Read title text for list filter."
+  (read-string "Title: "))
+
+(defun beads-reader-list-title-contains (_prompt _initial-input _history)
+  "Read title search text for list filter."
+  (read-string "Title contains: "))
+
+(defun beads-reader-list-type (_prompt _initial-input _history)
+  "Read type for list filter."
+  (completing-read "Type: "
+                   '("bug" "feature" "task" "epic" "chore")
+                   nil t))
+
 (provide 'beads-reader)
 ;;; beads-reader.el ends here
