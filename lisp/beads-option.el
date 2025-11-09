@@ -664,6 +664,236 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :reader #'beads-reader-init-db)
 
 ;;; ============================================================
+;;; Transient Infix Definitions - beads-list
+;;; ============================================================
+
+;; Boolean switches
+(transient-define-infix beads-option-list-all ()
+  "Show all issues (default behavior)."
+  :class 'transient-switch
+  :description "--all"
+  :key "-a"
+  :argument "--all")
+
+(transient-define-infix beads-option-list-no-assignee ()
+  "Filter issues with no assignee."
+  :class 'transient-switch
+  :description "--no-assignee"
+  :key "-A"
+  :argument "--no-assignee")
+
+(transient-define-infix beads-option-list-empty-description ()
+  "Filter issues with empty or missing description."
+  :class 'transient-switch
+  :description "--empty-description"
+  :key "-E"
+  :argument "--empty-description")
+
+(transient-define-infix beads-option-list-no-labels ()
+  "Filter issues with no labels."
+  :class 'transient-switch
+  :description "--no-labels"
+  :key "-N"
+  :argument "--no-labels")
+
+(transient-define-infix beads-option-list-long ()
+  "Show detailed multi-line output for each issue."
+  :class 'transient-switch
+  :description "--long"
+  :key "-L"
+  :argument "--long")
+
+;; String filters
+(transient-define-infix beads-option-list-assignee ()
+  "Filter by assignee."
+  :class 'transient-option
+  :description "--assignee"
+  :key "-a"
+  :argument "--assignee="
+  :prompt "Assignee: "
+  :reader #'beads-reader-list-assignee)
+
+(transient-define-infix beads-option-list-closed-after ()
+  "Filter issues closed after date (YYYY-MM-DD or RFC3339)."
+  :class 'transient-option
+  :description "--closed-after"
+  :key "-ca"
+  :argument "--closed-after="
+  :prompt "Closed after: "
+  :reader #'beads-reader-list-date)
+
+(transient-define-infix beads-option-list-closed-before ()
+  "Filter issues closed before date (YYYY-MM-DD or RFC3339)."
+  :class 'transient-option
+  :description "--closed-before"
+  :key "-cb"
+  :argument "--closed-before="
+  :prompt "Closed before: "
+  :reader #'beads-reader-list-date)
+
+(transient-define-infix beads-option-list-created-after ()
+  "Filter issues created after date (YYYY-MM-DD or RFC3339)."
+  :class 'transient-option
+  :description "--created-after"
+  :key "-Ca"
+  :argument "--created-after="
+  :prompt "Created after: "
+  :reader #'beads-reader-list-date)
+
+(transient-define-infix beads-option-list-created-before ()
+  "Filter issues created before date (YYYY-MM-DD or RFC3339)."
+  :class 'transient-option
+  :description "--created-before"
+  :key "-Cb"
+  :argument "--created-before="
+  :prompt "Created before: "
+  :reader #'beads-reader-list-date)
+
+(transient-define-infix beads-option-list-desc-contains ()
+  "Filter by description substring (case-insensitive)."
+  :class 'transient-option
+  :description "--desc-contains"
+  :key "-d"
+  :argument "--desc-contains="
+  :prompt "Description contains: "
+  :reader #'beads-reader-list-desc-contains)
+
+(transient-define-infix beads-option-list-format ()
+  "Output format: digraph, dot, or Go template."
+  :class 'transient-option
+  :description "--format"
+  :key "-f"
+  :argument "--format="
+  :prompt "Format: "
+  :reader #'beads-reader-list-format)
+
+(transient-define-infix beads-option-list-id ()
+  "Filter by specific issue IDs (comma-separated)."
+  :class 'transient-option
+  :description "--id"
+  :key "-i"
+  :argument "--id="
+  :prompt "Issue IDs: "
+  :reader #'beads-reader-list-id)
+
+(transient-define-infix beads-option-list-label ()
+  "Filter by labels (AND: must have ALL)."
+  :class 'transient-option
+  :description "--label"
+  :key "-l"
+  :argument "--label="
+  :prompt "Label (AND): "
+  :reader #'beads-reader-list-label)
+
+(transient-define-infix beads-option-list-label-any ()
+  "Filter by labels (OR: must have AT LEAST ONE)."
+  :class 'transient-option
+  :description "--label-any"
+  :key "-L"
+  :argument "--label-any="
+  :prompt "Label (OR): "
+  :reader #'beads-reader-list-label)
+
+(transient-define-infix beads-option-list-limit ()
+  "Limit number of results."
+  :class 'transient-option
+  :description "--limit"
+  :key "-n"
+  :argument "--limit="
+  :prompt "Limit: "
+  :reader #'beads-reader-list-limit)
+
+(transient-define-infix beads-option-list-notes-contains ()
+  "Filter by notes substring (case-insensitive)."
+  :class 'transient-option
+  :description "--notes-contains"
+  :key "-N"
+  :argument "--notes-contains="
+  :prompt "Notes contains: "
+  :reader #'beads-reader-list-notes-contains)
+
+(transient-define-infix beads-option-list-priority ()
+  "Filter by priority (0-4)."
+  :class 'transient-option
+  :description "--priority"
+  :key "-P"
+  :argument "--priority="
+  :prompt "Priority: "
+  :reader #'beads-reader-list-priority)
+
+(transient-define-infix beads-option-list-priority-min ()
+  "Filter by minimum priority (inclusive)."
+  :class 'transient-option
+  :description "--priority-min"
+  :key "-p<"
+  :argument "--priority-min="
+  :prompt "Min priority: "
+  :reader #'beads-reader-list-priority-min)
+
+(transient-define-infix beads-option-list-priority-max ()
+  "Filter by maximum priority (inclusive)."
+  :class 'transient-option
+  :description "--priority-max"
+  :key "-p>"
+  :argument "--priority-max="
+  :prompt "Max priority: "
+  :reader #'beads-reader-list-priority-max)
+
+(transient-define-infix beads-option-list-status ()
+  "Filter by status (open, in_progress, blocked, closed)."
+  :class 'transient-option
+  :description "--status"
+  :key "-s"
+  :argument "--status="
+  :prompt "Status: "
+  :reader #'beads-reader-list-status)
+
+(transient-define-infix beads-option-list-title ()
+  "Filter by title text (case-insensitive substring match)."
+  :class 'transient-option
+  :description "--title"
+  :key "-ti"
+  :argument "--title="
+  :prompt "Title: "
+  :reader #'beads-reader-list-title)
+
+(transient-define-infix beads-option-list-title-contains ()
+  "Filter by title substring (case-insensitive)."
+  :class 'transient-option
+  :description "--title-contains"
+  :key "-tc"
+  :argument "--title-contains="
+  :prompt "Title contains: "
+  :reader #'beads-reader-list-title-contains)
+
+(transient-define-infix beads-option-list-type ()
+  "Filter by type (bug, feature, task, epic, chore)."
+  :class 'transient-option
+  :description "--type"
+  :key "-T"
+  :argument "--type="
+  :prompt "Type: "
+  :reader #'beads-reader-list-type)
+
+(transient-define-infix beads-option-list-updated-after ()
+  "Filter issues updated after date (YYYY-MM-DD or RFC3339)."
+  :class 'transient-option
+  :description "--updated-after"
+  :key "-ua"
+  :argument "--updated-after="
+  :prompt "Updated after: "
+  :reader #'beads-reader-list-date)
+
+(transient-define-infix beads-option-list-updated-before ()
+  "Filter issues updated before date (YYYY-MM-DD or RFC3339)."
+  :class 'transient-option
+  :description "--updated-before"
+  :key "-ub"
+  :argument "--updated-before="
+  :prompt "Updated before: "
+  :reader #'beads-reader-list-date)
+
+;;; ============================================================
 ;;; Transient Infix Definitions - Global Options
 ;;; ============================================================
 
