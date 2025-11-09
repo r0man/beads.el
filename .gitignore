@@ -36,6 +36,9 @@ Thumbs.db
 # Beads local state (not committed)
 .beads/metadata.json
 .beads/daemon.lock
+.beads/daemon.log
+.beads/config.yaml
+.beads/*.meta.json
 
 # Eldev and build artifacts
 /.eldev/
