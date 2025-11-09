@@ -40,6 +40,7 @@
 (require 'beads-dep)
 (require 'beads-misc)
 (require 'beads-sync)
+(require 'beads-epic-status)
 (require 'transient)
 
 ;;; Variables
@@ -134,6 +135,7 @@ into logical groups for easy navigation.
 
 Key bindings:
   View issues:        l (list), r (ready), b (blocked), s (show)
+  Epic:               E (epic status)
   Create/Edit:        c (create), u (update), x (close), o (reopen),
                       D (delete)
   Dependencies:       d (dep submenu)
@@ -149,6 +151,9 @@ Key bindings:
    ("b" "Blocked issues" beads-blocked)
    ("s" "Show issue" beads-show)
    ("t" "Stats" beads-stats)]
+  ["Epic"
+   :description "Epic management"
+   ("E" "Epic status" beads-epic)]
   ["Create/Edit"
    :description "Create and modify issues"
    ("c" "Create issue" beads-create)
