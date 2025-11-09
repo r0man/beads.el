@@ -329,10 +329,16 @@
   "Test that key bindings are set correctly."
   (with-temp-buffer
     (beads-epic-status-mode)
-    (should (eq (lookup-key (current-local-map) (kbd "TAB"))
+    (should (eq (lookup-key (current-local-map) (kbd "SPC"))
                'beads-epic-status-toggle-expand))
+    (should (eq (lookup-key (current-local-map) (kbd "TAB"))
+               'beads-epic-status-next-item))
+    (should (eq (lookup-key (current-local-map) (kbd "S-TAB"))
+               'beads-epic-status-previous-item))
+    (should (eq (lookup-key (current-local-map) (kbd "<backtab>"))
+               'beads-epic-status-previous-item))
     (should (eq (lookup-key (current-local-map) (kbd "RET"))
-               'beads-epic-status-show-children))
+               'beads-epic-status-show-at-point))
     (should (eq (lookup-key (current-local-map) (kbd "n"))
                'beads-epic-status-next))
     (should (eq (lookup-key (current-local-map) (kbd "p"))
