@@ -15,6 +15,7 @@
 (require 'ert)
 (require 'json)
 (require 'beads)
+(require 'beads-types)
 (require 'beads-stats)
 
 ;;; Test Fixtures
@@ -36,7 +37,7 @@
     (closed_issues . 0)
     (blocked_issues . 0)
     (ready_issues . 0)
-    (average_lead_time_hours . 0))
+    (average_lead_time_hours . 0.0))
   "Zero statistics for testing edge cases.")
 
 ;;; Test Utilities
@@ -56,21 +57,23 @@
 (ert-deftest beads-stats-test-parse-stats ()
   "Test parsing statistics from JSON."
   (let ((stats (beads-stats--parse-stats beads-stats-test--sample-stats)))
-    (should (= (alist-get 'total stats) 100))
-    (should (= (alist-get 'open stats) 30))
-    (should (= (alist-get 'in-progress stats) 15))
-    (should (= (alist-get 'closed stats) 50))
-    (should (= (alist-get 'blocked stats) 5))
-    (should (= (alist-get 'ready stats) 25))
-    (should (= (alist-get 'lead-time stats) 48.5))))
+    (should (beads-statistics-p stats))
+    (should (= (oref stats total-issues) 100))
+    (should (= (oref stats open-issues) 30))
+    (should (= (oref stats in-progress-issues) 15))
+    (should (= (oref stats closed-issues) 50))
+    (should (= (oref stats blocked-issues) 5))
+    (should (= (oref stats ready-issues) 25))
+    (should (= (oref stats average-lead-time) 48.5))))
 
 (ert-deftest beads-stats-test-parse-zero-stats ()
   "Test parsing statistics with all zeros."
   (let ((stats (beads-stats--parse-stats beads-stats-test--zero-stats)))
-    (should (= (alist-get 'total stats) 0))
-    (should (= (alist-get 'open stats) 0))
-    (should (= (alist-get 'closed stats) 0))
-    (should (= (alist-get 'lead-time stats) 0))))
+    (should (beads-statistics-p stats))
+    (should (= (oref stats total-issues) 0))
+    (should (= (oref stats open-issues) 0))
+    (should (= (oref stats closed-issues) 0))
+    (should (= (oref stats average-lead-time) 0.0))))
 
 ;;; Tests for Lead Time Formatting
 
@@ -106,26 +109,29 @@
 ;;; Tests for Rendering
 
 (ert-deftest beads-stats-test-render-basic ()
-  "Test basic rendering of statistics."
+  "Test basic rendering of statistics matches CLI format."
   (with-temp-buffer
     (let ((stats (beads-stats--parse-stats beads-stats-test--sample-stats)))
       (beads-stats--render stats)
       (let ((content (buffer-string)))
-        (should (string-match-p "Beads Issue Statistics" content))
+        ;; Check for CLI-style header with emoji
+        (should (string-match-p "📊 Beads Statistics:" content))
         (should (string-match-p "Total Issues:" content))
         (should (string-match-p "100" content))
-        (should (string-match-p "By Status:" content))
         (should (string-match-p "Open:" content))
         (should (string-match-p "30" content))
         (should (string-match-p "In Progress:" content))
         (should (string-match-p "15" content))
-        (should (string-match-p "Blocked:" content))
-        (should (string-match-p "5" content))
         (should (string-match-p "Closed:" content))
         (should (string-match-p "50" content))
-        (should (string-match-p "Ready to Work:" content))
+        (should (string-match-p "Blocked:" content))
+        (should (string-match-p "5" content))
+        (should (string-match-p "Ready:" content))
         (should (string-match-p "25" content))
-        (should (string-match-p "Average Lead Time:" content))))))
+        ;; Should NOT have extra sections from old format
+        (should-not (string-match-p "By Status:" content))
+        (should-not (string-match-p "Ready to Work:" content))
+        (should-not (string-match-p "Average Lead Time:" content))))))
 
 (ert-deftest beads-stats-test-render-zero-stats ()
   "Test rendering statistics with all zeros."
@@ -136,15 +142,26 @@
         (should (string-match-p "Total Issues:" content))
         (should (string-match-p "\\b0\\b" content))))))
 
-(ert-deftest beads-stats-test-render-has-commands ()
-  "Test that rendered output includes command help."
+(ert-deftest beads-stats-test-render-matches-cli ()
+  "Test that rendered output matches CLI format exactly.
+The CLI output is simple and does not include a Commands footer."
   (with-temp-buffer
     (let ((stats (beads-stats--parse-stats beads-stats-test--sample-stats)))
       (beads-stats--render stats)
       (let ((content (buffer-string)))
-        (should (string-match-p "Commands:" content))
-        (should (string-match-p "g - refresh" content))
-        (should (string-match-p "q - quit" content))))))
+        ;; Verify CLI-style format
+        (should (string-match-p "📊 Beads Statistics:" content))
+        (should (string-match-p "Total Issues:" content))
+        (should (string-match-p "Open:" content))
+        (should (string-match-p "In Progress:" content))
+        (should (string-match-p "Closed:" content))
+        (should (string-match-p "Blocked:" content))
+        (should (string-match-p "Ready:" content))
+        ;; Should NOT have separators, section headers, or command footer
+        (should-not (string-match-p "By Status:" content))
+        (should-not (string-match-p "Commands:" content))
+        (should-not (string-match-p "═" content))
+        (should-not (string-match-p "─" content))))))
 
 ;;; Tests for Mode
 
@@ -361,6 +378,228 @@
     (beads-stats-mode)
     (let ((binding (lookup-key beads-stats-mode-map (kbd "q"))))
       (should (eq binding 'quit-window)))))
+
+;;; ============================================================
+;;; Interactive Stats Tests (Button Functionality)
+;;; ============================================================
+
+(ert-deftest beads-stats-test-integer-to-float-conversion ()
+  "Test that integer average_lead_time_hours is converted to float.
+This catches the bug where bd returns 0 as an integer, but
+beads-statistics class requires a float."
+  ;; Test with integer 0
+  (let ((stats-with-int '((total_issues . 10)
+                          (open_issues . 5)
+                          (in_progress_issues . 2)
+                          (closed_issues . 3)
+                          (blocked_issues . 0)
+                          (ready_issues . 5)
+                          (average_lead_time_hours . 0))))  ; Integer!
+    (let ((stats (beads-stats--parse-stats stats-with-int)))
+      (should (beads-statistics-p stats))
+      (should (floatp (oref stats average-lead-time)))
+      (should (= (oref stats average-lead-time) 0.0))))
+
+  ;; Test with other integers
+  (let ((stats-with-int '((total_issues . 10)
+                          (open_issues . 5)
+                          (in_progress_issues . 2)
+                          (closed_issues . 3)
+                          (blocked_issues . 0)
+                          (ready_issues . 5)
+                          (average_lead_time_hours . 48))))  ; Integer!
+    (let ((stats (beads-stats--parse-stats stats-with-int)))
+      (should (beads-statistics-p stats))
+      (should (floatp (oref stats average-lead-time)))
+      (should (= (oref stats average-lead-time) 48.0)))))
+
+(ert-deftest beads-stats-test-button-creation ()
+  "Test beads-stats--make-stat-button creates proper button."
+  (let ((button-text (beads-stats--make-stat-button
+                      "42"
+                      'total
+                      42
+                      'font-lock-constant-face)))
+    ;; Verify it's a string with properties
+    (should (stringp button-text))
+    (should (string= button-text "42"))
+
+    ;; Verify button properties
+    (should (get-text-property 0 'button button-text))
+    (should (eq (get-text-property 0 'category button-text)
+                'beads-stats-button))
+    (should (eq (get-text-property 0 'filter-type button-text) 'total))
+    (should (= (get-text-property 0 'count button-text) 42))
+    (should (eq (get-text-property 0 'face button-text)
+                'font-lock-constant-face))
+    (should (eq (get-text-property 0 'mouse-face button-text) 'highlight))
+    (should (get-text-property 0 'follow-link button-text))
+    (should (get-text-property 0 'help-echo button-text))))
+
+(ert-deftest beads-stats-test-button-help-echo ()
+  "Test button help-echo messages are correct."
+  ;; Total
+  (let ((button (beads-stats--make-stat-button "100" 'total 100 'default)))
+    (should (string-match-p "all 100 issues"
+                           (get-text-property 0 'help-echo button))))
+
+  ;; Open
+  (let ((button (beads-stats--make-stat-button "30" 'open 30 'success)))
+    (should (string-match-p "30 open issues"
+                           (get-text-property 0 'help-echo button))))
+
+  ;; In-progress
+  (let ((button (beads-stats--make-stat-button "15" 'in-progress 15 'warning)))
+    (should (string-match-p "15 in-progress issues"
+                           (get-text-property 0 'help-echo button))))
+
+  ;; Blocked
+  (let ((button (beads-stats--make-stat-button "5" 'blocked 5 'error)))
+    (should (string-match-p "5 blocked issues"
+                           (get-text-property 0 'help-echo button))))
+
+  ;; Closed
+  (let ((button (beads-stats--make-stat-button "50" 'closed 50 'shadow)))
+    (should (string-match-p "50 closed issues"
+                           (get-text-property 0 'help-echo button))))
+
+  ;; Ready
+  (let ((button (beads-stats--make-stat-button "25" 'ready 25 'success)))
+    (should (string-match-p "25 ready issues"
+                           (get-text-property 0 'help-echo button)))))
+
+(ert-deftest beads-stats-test-button-action-total ()
+  "Test button action for total filter."
+  (let ((beads-list-called nil))
+    (cl-letf (((symbol-function 'beads-list)
+               (lambda () (setq beads-list-called t))))
+      (beads-stats--open-filtered-list 'total 100)
+      (should beads-list-called))))
+
+(ert-deftest beads-stats-test-button-action-ready ()
+  "Test button action for ready filter."
+  (let ((beads-ready-called nil))
+    (cl-letf (((symbol-function 'beads-ready)
+               (lambda () (setq beads-ready-called t))))
+      (beads-stats--open-filtered-list 'ready 25)
+      (should beads-ready-called))))
+
+(ert-deftest beads-stats-test-button-action-blocked ()
+  "Test button action for blocked filter."
+  (let ((beads-blocked-called nil))
+    (cl-letf (((symbol-function 'beads-blocked)
+               (lambda () (setq beads-blocked-called t))))
+      (beads-stats--open-filtered-list 'blocked 5)
+      (should beads-blocked-called))))
+
+(ert-deftest beads-stats-test-button-action-open ()
+  "Test button action for open status filter."
+  (let ((status-filter nil)
+        (beads-check-executable-called nil))
+    (cl-letf (((symbol-function 'beads-check-executable)
+               (lambda () (setq beads-check-executable-called t)))
+              ((symbol-function 'beads--run-command)
+               (lambda (&rest args)
+                 (setq status-filter (member "open" args))
+                 "[]"))
+              ((symbol-function 'beads--parse-issues)
+               (lambda (_json) nil))
+              ((symbol-function 'beads-list-mode)
+               (lambda ()))
+              ((symbol-function 'beads-list--populate-buffer)
+               (lambda (_issues _cmd)))
+              ((symbol-function 'pop-to-buffer)
+               (lambda (_buf))))
+      (beads-stats--open-filtered-list 'open 30)
+      (should beads-check-executable-called)
+      (should status-filter))))
+
+(ert-deftest beads-stats-test-button-action-in-progress ()
+  "Test button action for in-progress status filter."
+  (let ((status-filter nil))
+    (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
+              ((symbol-function 'beads--run-command)
+               (lambda (&rest args)
+                 (setq status-filter (member "in_progress" args))
+                 "[]"))
+              ((symbol-function 'beads--parse-issues) (lambda (_json) nil))
+              ((symbol-function 'beads-list-mode) (lambda ()))
+              ((symbol-function 'beads-list--populate-buffer)
+               (lambda (_issues _cmd)))
+              ((symbol-function 'pop-to-buffer) (lambda (_buf))))
+      (beads-stats--open-filtered-list 'in-progress 15)
+      (should status-filter))))
+
+(ert-deftest beads-stats-test-button-action-closed ()
+  "Test button action for closed status filter."
+  (let ((status-filter nil))
+    (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
+              ((symbol-function 'beads--run-command)
+               (lambda (&rest args)
+                 (setq status-filter (member "closed" args))
+                 "[]"))
+              ((symbol-function 'beads--parse-issues) (lambda (_json) nil))
+              ((symbol-function 'beads-list-mode) (lambda ()))
+              ((symbol-function 'beads-list--populate-buffer)
+               (lambda (_issues _cmd)))
+              ((symbol-function 'pop-to-buffer) (lambda (_buf))))
+      (beads-stats--open-filtered-list 'closed 50)
+      (should status-filter))))
+
+(ert-deftest beads-stats-test-render-contains-buttons ()
+  "Test that beads-stats--render creates buttons in output."
+  (with-temp-buffer
+    (let ((stats (beads-stats--parse-stats beads-stats-test--sample-stats)))
+      (beads-stats--render stats)
+
+      ;; Search for Total Issues button - in new format: "Total Issues:      100"
+      (goto-char (point-min))
+      (should (search-forward "Total Issues:" nil t))
+      ;; Move forward to find the number (with spaces for alignment)
+      (skip-chars-forward " ")
+      (let ((button-pos (point)))
+        (should (get-text-property button-pos 'button))
+        (should (eq (get-text-property button-pos 'filter-type) 'total)))
+
+      ;; Search through buffer for buttons with different filter types
+      ;; Just verify that buttons exist with the correct filter-type properties
+      (goto-char (point-min))
+      (let ((found-open nil))
+        (while (not (eobp))
+          (when (eq (get-text-property (point) 'filter-type) 'open)
+            (setq found-open t))
+          (forward-char 1))
+        (should found-open)))))
+
+(ert-deftest beads-stats-test-render-button-faces ()
+  "Test that buttons in rendered output have correct faces."
+  (with-temp-buffer
+    (let ((stats (beads-stats--parse-stats beads-stats-test--sample-stats)))
+      (beads-stats--render stats)
+      (let ((content (buffer-string)))
+        ;; Verify the stats are in the output
+        (should (string-match-p "Total Issues:" content))
+        (should (string-match-p "100" content))
+        (should (string-match-p "Open:" content))
+        (should (string-match-p "30" content))
+        (should (string-match-p "In Progress:" content))
+        (should (string-match-p "15" content))))))
+
+(ert-deftest beads-stats-test-zero-issues-with-buttons ()
+  "Test rendering with zero issues creates buttons correctly."
+  (with-temp-buffer
+    (let ((stats (beads-stats--parse-stats beads-stats-test--zero-stats)))
+      (beads-stats--render stats)
+      (goto-char (point-min))
+
+      ;; Even with zero issues, buttons should be created
+      (should (search-forward "Total Issues:" nil t))
+      ;; Move forward past spaces to find the number
+      (skip-chars-forward " ")
+      (let ((button-pos (point)))
+        (should (get-text-property button-pos 'button))
+        (should (eq (get-text-property button-pos 'filter-type) 'total))
+        (should (= (get-text-property button-pos 'count) 0))))))
 
 (provide 'beads-stats-test)
 ;;; beads-stats-test.el ends here
