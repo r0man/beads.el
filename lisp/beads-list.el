@@ -368,8 +368,8 @@ Returns a beads-issue-filter object with all applicable filters set."
          (cmd-args (beads-issue-filter-to-args filter)))
     (condition-case err
         (let* ((result (apply #'beads--run-command "list" cmd-args))
-               (issues (beads--parse-issues result))
-               (issue-objects (mapcar #'beads-issue-from-json issues))
+               (issue-objects (when (vectorp result)
+                                (mapcar #'beads-issue-from-json (append result nil))))
                (buffer (get-buffer-create "*beads-list*"))
                (project-dir default-directory))
           (with-current-buffer buffer
@@ -496,9 +496,9 @@ Transient levels control which filter groups are visible
                      (beads-issue-filter-to-args beads-list--filter)))
          (issues (pcase beads-list--command
                    ('list
-                    (let* ((result (apply #'beads--run-command "list" cmd-args))
-                           (parsed (beads--parse-issues result)))
-                      (mapcar #'beads-issue-from-json parsed)))
+                    (let ((result (apply #'beads--run-command "list" cmd-args)))
+                      (when (vectorp result)
+                        (mapcar #'beads-issue-from-json (append result nil)))))
                    ('ready
                     (beads-issue-ready))
                    ('blocked
