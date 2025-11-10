@@ -32,6 +32,18 @@
 ;;; Code:
 
 (require 'beads)
+(require 'transient)
+
+;; Forward declarations
+(declare-function beads--detect-issue-id "beads")
+(declare-function beads-list-refresh "beads-list")
+(declare-function beads-show-refresh "beads-show")
+(declare-function beads-option-read-issue-ids-for-label "beads-option")
+(declare-function beads-option-read-label-name "beads-option")
+
+;; Circular dependency note: beads-option requires beads-label for
+;; beads--label-completion-table.  We avoid the cycle by only forward-declaring
+;; the reader functions and loading beads-option dynamically.
 
 ;;; Customization
 
@@ -88,6 +100,142 @@ Returns a simple list of label strings for use with `completing-read'."
   (let ((labels (beads--get-cached-labels)))
     ;; Remove duplicates (shouldn't be any from bd, but be safe)
     (delete-dups labels)))
+
+;;; Label Add Command
+
+(defun beads-label-add--parse-transient-args (args)
+  "Parse transient ARGS list into a plist.
+Returns (:issue-ids STRING :label STRING)."
+  (let* ((issue-ids (transient-arg-value "--issue-ids=" args))
+         (label (transient-arg-value "--label=" args)))
+    (list :issue-ids issue-ids
+          :label label)))
+
+(defun beads-label-add--validate-issue-ids (issue-ids)
+  "Validate that ISSUE-IDS is set.
+Returns error message string if invalid, nil if valid."
+  (when (or (null issue-ids)
+            (string-empty-p (string-trim issue-ids)))
+    "Issue ID(s) required"))
+
+(defun beads-label-add--validate-label (label)
+  "Validate that LABEL is set.
+Returns error message string if invalid, nil if valid."
+  (when (or (null label)
+            (string-empty-p (string-trim label)))
+    "Label is required"))
+
+(defun beads-label-add--validate-all (parsed)
+  "Validate all parameters from PARSED plist.
+Returns list of error messages, or nil if all valid."
+  (delq nil
+        (list (beads-label-add--validate-issue-ids
+               (plist-get parsed :issue-ids))
+              (beads-label-add--validate-label
+               (plist-get parsed :label)))))
+
+(defun beads-label-add--build-command-args (parsed)
+  "Build command arguments from PARSED plist.
+Returns list of arguments for bd label add command."
+  (let* ((issue-ids (plist-get parsed :issue-ids))
+         (label (plist-get parsed :label))
+         (ids-list (split-string (string-trim issue-ids) "[, ]+" t))
+         args)
+    ;; Build args: [issue-id...] [label]
+    (setq args (append ids-list (list label)))
+    args))
+
+;;; Suffix Commands
+
+(transient-define-suffix beads-label-add--execute ()
+  "Execute the bd label add command with current parameters."
+  :key "a"
+  :description "Add label"
+  (interactive)
+  (let* ((args (transient-args 'beads-label-add))
+         (parsed (beads-label-add--parse-transient-args args))
+         (errors (beads-label-add--validate-all parsed)))
+    (if errors
+        (user-error "Validation failed: %s" (string-join errors "; "))
+      (condition-case err
+          (let* ((cmd-args (beads-label-add--build-command-args parsed))
+                 (issue-ids-str (plist-get parsed :issue-ids))
+                 (label (plist-get parsed :label))
+                 (ids-list (split-string (string-trim issue-ids-str)
+                                        "[, ]+" t))
+                 (count (length ids-list)))
+            (apply #'beads--run-command "label" "add" cmd-args)
+            (message "Added label '%s' to %d issue%s"
+                     label count (if (= count 1) "" "s"))
+            ;; Invalidate label cache
+            (beads--invalidate-label-cache)
+            ;; Invalidate issue cache (labels may have changed)
+            (beads--invalidate-completion-cache)
+            ;; Refresh current buffer if in list/show mode
+            (when (derived-mode-p 'beads-list-mode)
+              (beads-list-refresh))
+            (when (derived-mode-p 'beads-show-mode)
+              (beads-show-refresh))
+            nil)
+        (error
+         (let ((err-msg (format "Failed to add label: %s"
+                                (error-message-string err))))
+           (message "%s" err-msg)
+           err-msg))))))
+
+(transient-define-suffix beads-label-add--reset ()
+  "Reset all parameters to their default values."
+  :key "r"
+  :description "Reset fields"
+  :transient t
+  (interactive)
+  (when (y-or-n-p "Reset all fields? ")
+    (transient-reset)
+    (transient--redisplay)
+    (message "All fields reset")))
+
+(transient-define-suffix beads-label-add--preview ()
+  "Preview the bd label add command that will be executed."
+  :key "P"
+  :description "Preview command"
+  :transient t
+  (interactive)
+  (let* ((args (transient-args 'beads-label-add))
+         (parsed (beads-label-add--parse-transient-args args))
+         (errors (beads-label-add--validate-all parsed)))
+    (if errors
+        (let ((err-msg (format "Validation errors: %s"
+                               (string-join errors "; "))))
+          (message "%s" err-msg)
+          err-msg)
+      (let* ((cmd-args (beads-label-add--build-command-args parsed))
+             (cmd (apply #'beads--build-command "label" "add" cmd-args))
+             (cmd-string (mapconcat #'shell-quote-argument cmd " "))
+             (preview-msg (format "Command: %s" cmd-string)))
+        (message "%s" preview-msg)
+        preview-msg))))
+
+;;; Main Transient Menu
+
+;;;###autoload (autoload 'beads-label-add "beads-label" nil t)
+(transient-define-prefix beads-label-add ()
+  "Add a label to one or more issues.
+
+This transient menu provides an interactive interface for adding
+labels to issues using the bd label add command."
+  :init-value (lambda (_) (require 'beads-option))
+  ["Arguments"
+   ("i" "Issue ID(s)" "--issue-ids="
+    :reader beads-option-read-issue-ids-for-label
+    :prompt "Issue ID(s) (comma-separated): ")
+   ("l" "Label" "--label="
+    :reader beads-option-read-label-name
+    :prompt "Label name: ")]
+  beads-option-global-section
+  ["Actions"
+   ("a" "Add label" beads-label-add--execute)
+   ("P" "Preview command" beads-label-add--preview)
+   ("r" "Reset fields" beads-label-add--reset)])
 
 (provide 'beads-label)
 ;;; beads-label.el ends here

@@ -27,6 +27,7 @@
 
 (require 'beads)
 (require 'beads-state)
+(require 'beads-label)
 (require 'transient)
 
 ;; Forward declare reader functions (loaded later to avoid circular deps)
@@ -973,6 +974,24 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
           (beads-option-global-no-daemon)
           (beads-option-global-no-db)
           (beads-option-global-sandbox)])
+
+;;; Label-specific Readers
+
+(defun beads-option-read-issue-ids-for-label (_prompt _initial-input _history)
+  "Read issue ID(s) for label operations, with context detection.
+Detects current issue from beads-show or beads-list buffer,
+falls back to `completing-read' for issue ID."
+  (or (beads--detect-issue-id)
+      (completing-read "Issue ID (or comma-separated list): "
+                       (beads--issue-completion-table)
+                       nil nil)))
+
+(defun beads-option-read-label-name (_prompt _initial-input _history)
+  "Read label name with auto-completion from existing labels."
+  (let ((labels (beads--label-completion-table)))
+    (if labels
+        (completing-read "Label name: " labels nil nil)
+      (read-string "Label name: "))))
 
 ;; Load reader functions now that state variables are defined
 (require 'beads-reader)
