@@ -380,5 +380,81 @@
       (let ((result (beads-reader-issue-title nil nil nil)))
         (should (equal result "New Title"))))))
 
+;;; ============================================================
+;;; Tests for Label Reader Functions
+;;; ============================================================
+
+(ert-deftest beads-reader-test-list-label-with-labels ()
+  "Test reading list label with auto-completion when labels exist."
+  (cl-letf (((symbol-function 'beads--label-completion-table)
+             (lambda () '("backend" "frontend" "api")))
+            ((symbol-function 'completing-read)
+             (lambda (prompt table &rest _args)
+               (should (equal prompt "Label (AND): "))
+               (should (member "backend" table))
+               "backend")))
+    (let ((result (beads-reader-list-label nil nil nil)))
+      (should (equal result "backend")))))
+
+(ert-deftest beads-reader-test-list-label-no-labels ()
+  "Test reading list label falls back to read-string when no labels."
+  (cl-letf (((symbol-function 'beads--label-completion-table)
+             (lambda () nil))
+            ((symbol-function 'read-string)
+             (lambda (prompt) "custom-label")))
+    (let ((result (beads-reader-list-label nil nil nil)))
+      (should (equal result "custom-label")))))
+
+(ert-deftest beads-reader-test-list-labels-with-labels ()
+  "Test reading multiple labels with auto-completion when labels exist."
+  (cl-letf (((symbol-function 'beads--label-completion-table)
+             (lambda () '("backend" "frontend" "api")))
+            ((symbol-function 'completing-read-multiple)
+             (lambda (prompt table &rest _args)
+               (should (equal prompt "Labels (comma-separated): "))
+               (should (member "backend" table))
+               '("backend" "frontend"))))
+    (let ((result (beads-reader-list-labels nil nil nil)))
+      (should (equal result "backend,frontend")))))
+
+(ert-deftest beads-reader-test-list-labels-no-labels ()
+  "Test reading multiple labels falls back to read-string when no labels."
+  (cl-letf (((symbol-function 'beads--label-completion-table)
+             (lambda () nil))
+            ((symbol-function 'read-string)
+             (lambda (prompt) "custom1,custom2")))
+    (let ((result (beads-reader-list-labels nil nil nil)))
+      (should (equal result "custom1,custom2")))))
+
+(ert-deftest beads-reader-test-issue-labels-with-labels ()
+  "Test reading issue labels with auto-completion when labels exist."
+  (cl-letf (((symbol-function 'beads--label-completion-table)
+             (lambda () '("bug" "urgent" "security")))
+            ((symbol-function 'completing-read-multiple)
+             (lambda (prompt table &rest _args)
+               (should (equal prompt "Labels (comma-separated): "))
+               (should (member "bug" table))
+               '("bug" "urgent"))))
+    (let ((result (beads-reader-issue-labels nil nil nil)))
+      (should (equal result "bug,urgent")))))
+
+(ert-deftest beads-reader-test-issue-labels-no-labels ()
+  "Test reading issue labels falls back to read-string when no labels."
+  (cl-letf (((symbol-function 'beads--label-completion-table)
+             (lambda () nil))
+            ((symbol-function 'read-string)
+             (lambda (prompt) "label1,label2,label3")))
+    (let ((result (beads-reader-issue-labels nil nil nil)))
+      (should (equal result "label1,label2,label3")))))
+
+(ert-deftest beads-reader-test-issue-labels-empty-selection ()
+  "Test reading issue labels when user selects nothing."
+  (cl-letf (((symbol-function 'beads--label-completion-table)
+             (lambda () '("backend" "frontend")))
+            ((symbol-function 'completing-read-multiple)
+             (lambda (&rest _args) '())))
+    (let ((result (beads-reader-issue-labels nil nil nil)))
+      (should (equal result "")))))
+
 (provide 'beads-reader-test)
 ;;; beads-reader-test.el ends here

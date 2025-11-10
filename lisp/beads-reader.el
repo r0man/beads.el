@@ -28,6 +28,7 @@
 
 (require 'beads)
 (require 'beads-state)
+(require 'beads-label)
 
 ;;; ============================================================
 ;;; Common Reader Functions
@@ -115,8 +116,13 @@ DEFAULT-VAR is the variable holding the current priority value."
   (read-string "External reference (e.g., gh-9, jira-ABC): "))
 
 (defun beads-reader-issue-labels (_prompt _initial-input _history)
-  "Read labels for an issue."
-  (read-string "Labels (comma-separated): "))
+  "Read labels for an issue with auto-completion."
+  (let ((labels (beads--label-completion-table)))
+    (if labels
+        (mapconcat #'identity
+                   (completing-read-multiple "Labels (comma-separated): " labels)
+                   ",")
+      (read-string "Labels (comma-separated): "))))
 
 (defun beads-reader-create-parent (_prompt _initial-input _history)
   "Read parent issue ID for hierarchical child."
@@ -306,12 +312,20 @@ PROMPT is shown to the user."
   (read-string "Issue IDs (comma-separated): "))
 
 (defun beads-reader-list-label (_prompt _initial-input _history)
-  "Read label for list filter."
-  (read-string "Label: "))
+  "Read label for list filter with auto-completion."
+  (let ((labels (beads--label-completion-table)))
+    (if labels
+        (completing-read "Label (AND): " labels nil nil)
+      (read-string "Label (AND): "))))
 
 (defun beads-reader-list-labels (_prompt _initial-input _history)
-  "Read comma-separated labels for list filter."
-  (read-string "Labels (comma-separated): "))
+  "Read comma-separated labels for list filter with auto-completion."
+  (let ((labels (beads--label-completion-table)))
+    (if labels
+        (mapconcat #'identity
+                   (completing-read-multiple "Labels (comma-separated): " labels)
+                   ",")
+      (read-string "Labels (comma-separated): "))))
 
 (defun beads-reader-list-limit (_prompt _initial-input _history)
   "Read limit for list results."
