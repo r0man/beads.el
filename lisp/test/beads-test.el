@@ -1893,5 +1893,134 @@ STRUCTURE is a list of paths to create (dirs end with /)."
   (should (fboundp 'beads-import))
   (should (fboundp 'beads-export)))
 
+;;; ========================================
+;;; Label Completion Tests
+;;; ========================================
+
+(ert-deftest beads-test-label-list-all-success ()
+  "Test successful fetching of labels from bd label list-all."
+  (beads-test-with-temp-config
+   (let ((json-output "[{\"label\":\"backend\",\"count\":5},{\"label\":\"frontend\",\"count\":3}]"))
+     (cl-letf (((symbol-function 'process-file)
+                (beads-test--mock-call-process 0 json-output)))
+       (let ((result (beads-label-list-all)))
+         (should (listp result))
+         (should (= (length result) 2))
+         (should (member "backend" result))
+         (should (member "frontend" result)))))))
+
+(ert-deftest beads-test-label-list-all-empty ()
+  "Test label list-all with no labels."
+  (beads-test-with-temp-config
+   (cl-letf (((symbol-function 'process-file)
+              (beads-test--mock-call-process 0 "[]")))
+     (let ((result (beads-label-list-all)))
+       (should (listp result))
+       (should (= (length result) 0))))))
+
+(ert-deftest beads-test-label-cache-works ()
+  "Test that label cache stores and retrieves labels."
+  (beads-test-with-temp-config
+   (let ((json-output "[{\"label\":\"test\",\"count\":1}]"))
+     (cl-letf (((symbol-function 'process-file)
+                (beads-test--mock-call-process 0 json-output)))
+       ;; Clear cache first
+       (beads--invalidate-label-cache)
+
+       ;; First call should populate cache
+       (let ((result1 (beads--get-cached-labels)))
+         (should (listp result1))
+         (should (member "test" result1))
+
+         ;; Cache should be populated
+         (should beads--label-cache)
+         (should (consp beads--label-cache))
+
+         ;; Second call should use cache (no process-file call)
+         (cl-letf (((symbol-function 'process-file)
+                    (lambda (&rest _args)
+                      (error "Should not call process-file when cache is valid"))))
+           (let ((result2 (beads--get-cached-labels)))
+             (should (equal result1 result2)))))))))
+
+(ert-deftest beads-test-label-cache-expires ()
+  "Test that label cache expires after TTL."
+  (beads-test-with-temp-config
+   (let ((json-output1 "[{\"label\":\"old\",\"count\":1}]")
+         (json-output2 "[{\"label\":\"new\",\"count\":1}]")
+         (beads-label-cache-ttl 1)) ; 1 second TTL
+     ;; Clear cache first
+     (beads--invalidate-label-cache)
+
+     ;; First call
+     (cl-letf (((symbol-function 'process-file)
+                (beads-test--mock-call-process 0 json-output1)))
+       (let ((result1 (beads--get-cached-labels)))
+         (should (member "old" result1))
+
+         ;; Wait for cache to expire
+         (sleep-for 1.1)
+
+         ;; Second call should fetch fresh data
+         (cl-letf (((symbol-function 'process-file)
+                    (beads-test--mock-call-process 0 json-output2)))
+           (let ((result2 (beads--get-cached-labels)))
+             (should (member "new" result2))
+             (should-not (member "old" result2)))))))))
+
+(ert-deftest beads-test-label-cache-invalidation ()
+  "Test that cache can be manually invalidated."
+  (beads-test-with-temp-config
+   (let ((json-output "[{\"label\":\"test\",\"count\":1}]"))
+     (cl-letf (((symbol-function 'process-file)
+                (beads-test--mock-call-process 0 json-output)))
+       ;; Populate cache
+       (beads--get-cached-labels)
+       (should beads--label-cache)
+
+       ;; Invalidate
+       (beads--invalidate-label-cache)
+       (should-not beads--label-cache)))))
+
+(ert-deftest beads-test-label-completion-table ()
+  "Test that label completion table returns correct list."
+  (beads-test-with-temp-config
+   (let ((json-output "[{\"label\":\"backend\",\"count\":5},{\"label\":\"frontend\",\"count\":3},{\"label\":\"api\",\"count\":2}]"))
+     (cl-letf (((symbol-function 'process-file)
+                (beads-test--mock-call-process 0 json-output)))
+       ;; Clear cache
+       (beads--invalidate-label-cache)
+
+       (let ((table (beads--label-completion-table)))
+         (should (listp table))
+         (should (= (length table) 3))
+         (should (member "backend" table))
+         (should (member "frontend" table))
+         (should (member "api" table)))))))
+
+(ert-deftest beads-test-label-completion-table-empty ()
+  "Test label completion table with no labels."
+  (beads-test-with-temp-config
+   (cl-letf (((symbol-function 'process-file)
+              (beads-test--mock-call-process 0 "[]")))
+     ;; Clear cache
+     (beads--invalidate-label-cache)
+
+     (let ((table (beads--label-completion-table)))
+       (should (listp table))
+       (should (= (length table) 0))))))
+
+(ert-deftest beads-test-label-completion-table-removes-duplicates ()
+  "Test that label completion table removes any duplicate labels."
+  (beads-test-with-temp-config
+   ;; Manually set cache with duplicates (shouldn't happen, but test defensively)
+   (setq beads--label-cache (cons (float-time) '("test" "test" "other")))
+
+   (let ((table (beads--label-completion-table)))
+     (should (listp table))
+     (should (= (length table) 2))
+     (should (member "test" table))
+     (should (member "other" table)))))
+
 (provide 'beads-test)
 ;;; beads-test.el ends here
