@@ -612,6 +612,9 @@ Returns t if found, signals error otherwise."
 ;;;###autoload
 (autoload 'beads-graph-issue "beads-graph" "Show dependency graph focused on issue." t)
 
+;;;###autoload
+(autoload 'beads-label-add "beads-label" "Add a label to one or more issues." t)
+
 ;;; Footer
 
 (provide 'beads)
