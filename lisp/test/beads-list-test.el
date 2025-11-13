@@ -137,13 +137,15 @@ ISSUES should be a list of alists (test data format)."
          (entry (beads-list--issue-to-entry issue)))
     (should (equal (car entry) "bd-1"))
     (should (vectorp (cadr entry)))
-    (should (= (length (cadr entry)) 6))
+    (should (= (length (cadr entry)) 7))
     ;; Check ID column
     (should (equal (aref (cadr entry) 0) "bd-1"))
     ;; Check title column
     (should (equal (aref (cadr entry) 4) "First issue"))
     ;; Check created column exists
-    (should (stringp (aref (cadr entry) 5)))))
+    (should (stringp (aref (cadr entry) 5)))
+    ;; Check updated column exists
+    (should (stringp (aref (cadr entry) 6)))))
 
 (ert-deftest beads-list-test-populate-buffer ()
   "Test populating buffer with issues."
@@ -384,7 +386,7 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-format-priority ()
   "Test priority formatting with face properties."
   (let ((formatted (beads-list--format-priority 1)))
-    (should (equal formatted "1"))
+    (should (equal formatted "P1"))
     (should (eq (get-text-property 0 'face formatted)
                 'beads-list-priority-high))))
 
