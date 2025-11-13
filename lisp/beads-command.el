@@ -12,7 +12,7 @@
 ;; The class hierarchy mirrors bd command structure:
 ;; - beads-command: Base class with global flags (--actor, --db, etc.)
 ;;   - beads-command-json: Commands that support --json flag (abstract)
-;;     - beads-command-create: bd create command (future)
+;;     - beads-command-create: bd create command
 ;;     - beads-command-update: bd update command (future)
 ;;     - beads-command-list: bd list command
 ;;   - beads-command-init: bd init command (no JSON support)
@@ -681,6 +681,218 @@ beads-json-parse-error on failure."
               (error
                (signal 'beads-json-parse-error
                        (list (format "Failed to create beads-issue instances: %s"
+                                    (error-message-string err))
+                             :exit-code exit-code
+                             :parsed-json parsed-json
+                             :stderr stderr
+                             :parse-error err))))
+          ;; Non-zero exit code: parent already signaled error
+          result)))))
+
+;;; Create Command
+
+(defclass beads-command-create (beads-command-json)
+  ((title
+    :initarg :title
+    :type (or null string)
+    :initform nil
+    :documentation "Issue title (positional or --title).
+First positional argument or explicit --title flag.")
+   (acceptance
+    :initarg :acceptance
+    :type (or null string)
+    :initform nil
+    :documentation "Acceptance criteria (--acceptance).")
+   (assignee
+    :initarg :assignee
+    :type (or null string)
+    :initform nil
+    :documentation "Assignee (-a, --assignee).")
+   (deps
+    :initarg :deps
+    :type (or null list)
+    :initform nil
+    :documentation "Dependencies (--deps).
+List of strings in format 'type:id' or 'id'.
+Examples: 'discovered-from:bd-20', 'blocks:bd-15', 'bd-20'.")
+   (description
+    :initarg :description
+    :type (or null string)
+    :initform nil
+    :documentation "Issue description (-d, --description).")
+   (design
+    :initarg :design
+    :type (or null string)
+    :initform nil
+    :documentation "Design notes (--design).")
+   (external-ref
+    :initarg :external-ref
+    :type (or null string)
+    :initform nil
+    :documentation "External reference (--external-ref).
+Examples: 'gh-9', 'jira-ABC'.")
+   (file
+    :initarg :file
+    :type (or null string)
+    :initform nil
+    :documentation "Create multiple issues from markdown file (-f, --file).")
+   (force
+    :initarg :force
+    :type boolean
+    :initform nil
+    :documentation "Force creation even if prefix doesn't match (--force).")
+   (from-template
+    :initarg :from-template
+    :type (or null string)
+    :initform nil
+    :documentation "Create issue from template (--from-template).
+Examples: 'epic', 'bug', 'feature'.")
+   (id
+    :initarg :id
+    :type (or null string)
+    :initform nil
+    :documentation "Explicit issue ID (--id).
+Example: 'bd-42' for partitioning.")
+   (labels
+    :initarg :labels
+    :type (or null list)
+    :initform nil
+    :documentation "Labels (-l, --labels).
+List of label strings.")
+   (parent
+    :initarg :parent
+    :type (or null string)
+    :initform nil
+    :documentation "Parent issue ID for hierarchical child (--parent).
+Example: 'bd-a3f8e9'.")
+   (priority
+    :initarg :priority
+    :type (or null string)
+    :initform nil
+    :documentation "Priority (-p, --priority).
+Values: 0-4 or P0-P4 (0=highest). Default: '2'.")
+   (repo
+    :initarg :repo
+    :type (or null string)
+    :initform nil
+    :documentation "Target repository for issue (--repo).
+Overrides auto-routing.")
+   (issue-type
+    :initarg :issue-type
+    :type (or null string)
+    :initform nil
+    :documentation "Issue type (-t, --type).
+Values: bug, feature, task, epic, chore. Default: 'task'."))
+  :documentation "Represents bd create command.
+Creates a new issue (or multiple issues from markdown file).
+When executed with :json t, returns the created beads-issue instance(s).")
+
+(cl-defmethod beads-command-to-args ((command beads-command-create))
+  "Build full command arguments for create COMMAND.
+Returns list: (\"create\" ...global-flags... ...create-flags...)."
+  (with-slots (title acceptance assignee deps description design
+                     external-ref file force from-template id labels
+                     parent priority repo issue-type) command
+    (let ((args (list "create"))
+          (global-args (cl-call-next-method)))
+      ;; Append global flags (includes --json if enabled)
+      (setq args (append args global-args))
+
+      ;; Title (positional argument if provided)
+      (when title
+        (setq args (append args (list title))))
+
+      ;; Boolean flags
+      (when force
+        (setq args (append args (list "--force"))))
+
+      ;; String options
+      (when acceptance
+        (setq args (append args (list "--acceptance" acceptance))))
+      (when assignee
+        (setq args (append args (list "--assignee" assignee))))
+      (when description
+        (setq args (append args (list "--description" description))))
+      (when design
+        (setq args (append args (list "--design" design))))
+      (when external-ref
+        (setq args (append args (list "--external-ref" external-ref))))
+      (when file
+        (setq args (append args (list "--file" file))))
+      (when from-template
+        (setq args (append args (list "--from-template" from-template))))
+      (when id
+        (setq args (append args (list "--id" id))))
+      (when parent
+        (setq args (append args (list "--parent" parent))))
+      (when priority
+        (setq args (append args (list "--priority" priority))))
+      (when repo
+        (setq args (append args (list "--repo" repo))))
+      (when issue-type
+        (setq args (append args (list "--type" issue-type))))
+
+      ;; List options (multiple values)
+      (when deps
+        (setq args (append args (list "--deps" (mapconcat #'identity deps ",")))))
+      (when labels
+        (setq args (append args (list "--labels" (mapconcat #'identity labels ",")))))
+
+      args)))
+
+(cl-defmethod beads-command-validate ((command beads-command-create))
+  "Validate create COMMAND.
+Checks for required fields and conflicts between options.
+Returns error string or nil if valid."
+  (with-slots (title file) command
+    (cond
+     ;; Must have either title or file
+     ((and (not title) (not file))
+      "Must provide either title or --file")
+     ;; Can't use both title and file
+     ((and title file)
+      "Cannot use both title and --file")
+     ;; Otherwise valid
+     (t nil))))
+
+(cl-defmethod beads-command-execute ((command beads-command-create))
+  "Execute create COMMAND and return created issue(s).
+When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
+When :json is t, returns beads-issue instance (or list of instances
+when creating from file).
+Signals beads-validation-error, beads-command-error, or
+beads-json-parse-error on failure."
+  (with-slots (json) command
+    (if (not json)
+        ;; If json is not enabled, use parent implementation
+        (cl-call-next-method)
+      ;; JSON execution: call parent to get parsed JSON, then convert
+      ;; to beads-issue instance(s) using beads-issue-from-json
+      (let* ((result (cl-call-next-method))
+             (exit-code (nth 0 result))
+             (parsed-json (nth 1 result))
+             (stderr (nth 2 result)))
+        ;; Convert JSON to beads-issue instance(s)
+        (if (zerop exit-code)
+            (condition-case err
+                (cond
+                 ;; Single issue (JSON object)
+                 ((eq (type-of parsed-json) 'cons)
+                  (beads-issue-from-json parsed-json))
+                 ;; Multiple issues from file (JSON array)
+                 ((eq (type-of parsed-json) 'vector)
+                  (mapcar #'beads-issue-from-json
+                          (append parsed-json nil)))
+                 ;; Unexpected JSON structure
+                 (t
+                  (signal 'beads-json-parse-error
+                          (list "Unexpected JSON structure from bd create"
+                                :exit-code exit-code
+                                :parsed-json parsed-json
+                                :stderr stderr))))
+              (error
+               (signal 'beads-json-parse-error
+                       (list (format "Failed to create beads-issue instance: %s"
                                     (error-message-string err))
                              :exit-code exit-code
                              :parsed-json parsed-json
