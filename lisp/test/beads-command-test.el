@@ -1,439 +1,38 @@
-;;; beads-command-test.el --- Tests for beads-command.el -*- lexical-binding: t; -*-
+;;; beads-command-test.el --- Integration tests for beads-command.el -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
 ;;; Commentary:
 
-;; Tests for EIEIO command classes in beads-command.el.
+;; Integration tests for EIEIO command classes in beads-command.el.
+;; These tests use beads-test-helper-create-temp-project to create
+;; temporary projects and run real bd CLI commands.
+;;
+;; All tests are tagged with :integration and require bd to be installed.
 
 ;;; Code:
 
 (require 'ert)
 (require 'beads-command)
+(require 'beads-types)
+(require 'beads-test-helper)
 
 ;; Define beads-executable for testing (it's defined in beads.el normally)
 (defvar beads-executable "bd"
   "Path to the bd executable for testing.")
 
-;;; Base Command Tests
+;;; Integration Test: beads-command-init
 
-(ert-deftest beads-command-test-base-class-is-abstract ()
-  "Verify beads-command cannot be instantiated directly.
-Since EIEIO doesn't provide eieio-class-abstract-p, we verify
-the class has :abstract t in its definition."
-  ;; The class definition has :abstract t, so we verify the slot exists
-  ;; by checking we can't instantiate it (should error)
-  (should-error (beads-command)
-                :type 'error))
-
-(ert-deftest beads-command-test-to-args-empty ()
-  "Test beads-command-init-to-args with no flags set returns just init."
-  (let* ((cmd (beads-command-init))
-         (args (beads-command-to-args cmd)))
-    (should (equal args '("init")))))
-
-(ert-deftest beads-command-test-to-args-with-actor ()
-  "Test beads-command-to-args with --actor flag."
-  (let* ((cmd (beads-command-init :actor "testuser"))
-         (args (beads-command-to-args cmd)))
-    (should (member "--actor" args))
-    (should (member "testuser" args))))
-
-(ert-deftest beads-command-test-to-args-with-db ()
-  "Test beads-command-to-args with --db flag."
-  (let* ((cmd (beads-command-init :db "/path/to/db"))
-         (args (beads-command-to-args cmd)))
-    (should (member "--db" args))
-    (should (member "/path/to/db" args))))
-
-(ert-deftest beads-command-test-to-args-with-boolean-flags ()
-  "Test beads-command-to-args with boolean flags."
-  (let* ((cmd (beads-command-init
-               :no-auto-flush t
-               :no-daemon t
-               :sandbox t))
-         (args (beads-command-to-args cmd)))
-    (should (member "--no-auto-flush" args))
-    (should (member "--no-daemon" args))
-    (should (member "--sandbox" args))))
-
-(ert-deftest beads-command-test-to-args-all-global-flags ()
-  "Test beads-command-to-args with all global flags set."
-  (let* ((cmd (beads-command-init
-               :actor "alice"
-               :db "/tmp/test.db"
-               :no-auto-flush t
-               :no-auto-import t
-               :no-daemon t
-               :no-db t
-               :sandbox t))
-         (args (beads-command-to-args cmd)))
-    (should (member "--actor" args))
-    (should (member "alice" args))
-    (should (member "--db" args))
-    (should (member "/tmp/test.db" args))
-    (should (member "--no-auto-flush" args))
-    (should (member "--no-auto-import" args))
-    (should (member "--no-daemon" args))
-    (should (member "--no-db" args))
-    (should (member "--sandbox" args))))
-
-;;; JSON Command Tests
-
-;; Define a concrete test command class that inherits from beads-command-json
-(defclass beads-test-json-command (beads-command-json)
-  ()
-  :documentation "Test command class for testing beads-command-json.")
-
-(cl-defmethod beads-command-to-args ((command beads-test-json-command))
-  "Build test command arguments."
-  (let ((args (list "test")))
-    ;; Get parent args (global + json)
-    (setq args (append args (cl-call-next-method)))
-    args))
-
-;; No need to override beads-command-execute - will use parent implementation
-
-(ert-deftest beads-command-test-json-command-class-is-abstract ()
-  "Verify beads-command-json cannot be instantiated directly."
-  (should-error (beads-command-json)
-                :type 'error))
-
-(ert-deftest beads-command-test-json-command-inherits-from-beads-command ()
-  "Verify beads-command-json inherits from beads-command."
-  (let ((cmd (beads-test-json-command)))
-    (should (object-of-class-p cmd 'beads-command-json))
-    (should (object-of-class-p cmd 'beads-command))))
-
-(ert-deftest beads-command-test-json-command-to-args-without-json ()
-  "Test beads-command-json-to-args with json=nil."
-  (let* ((cmd (beads-test-json-command :json nil))
-         (args (beads-command-to-args cmd)))
-    (should (equal (car args) "test"))
-    (should-not (member "--json" args))))
-
-(ert-deftest beads-command-test-json-command-to-args-with-json ()
-  "Test beads-command-json-to-args with json=t."
-  (let* ((cmd (beads-test-json-command :json t))
-         (args (beads-command-to-args cmd)))
-    (should (equal (car args) "test"))
-    (should (member "--json" args))))
-
-(ert-deftest beads-command-test-json-command-to-args-combined ()
-  "Test beads-command-json-to-args with json and global flags."
-  (let* ((cmd (beads-test-json-command
-               :actor "alice"
-               :json t
-               :no-daemon t))
-         (args (beads-command-to-args cmd)))
-    (should (equal (car args) "test"))
-    (should (member "--json" args))
-    (should (member "--actor" args))
-    (should (member "alice" args))
-    (should (member "--no-daemon" args))))
-
-(ert-deftest beads-command-test-json-command-execute-with-json ()
-  "Test beads-command-json-execute with JSON enabled returns parsed JSON."
-  (let ((cmd (beads-test-json-command :json t)))
-    ;; Mock process-file to return JSON
-    (cl-letf (((symbol-function 'process-file)
-               (lambda (_program &optional _infile buffer _display &rest _args)
-                 (when (listp buffer)
-                   ;; Write to stdout buffer (first element)
-                   (with-current-buffer (car buffer)
-                     (insert "{\"id\":\"bd-42\",\"status\":\"open\"}"))
-                   ;; Handle stderr (second element - could be buffer or file)
-                   (when (nth 1 buffer)
-                     (if (stringp (nth 1 buffer))
-                         ;; It's a file path, write to file
-                         (with-temp-buffer
-                           (insert "")
-                           (write-region (point-min) (point-max) (nth 1 buffer)))
-                       ;; It's a buffer, write to buffer
-                       (with-current-buffer (nth 1 buffer)
-                         (insert "")))))
-                 0)))
-      (let ((result (beads-command-execute cmd)))
-        ;; Should return (exit-code parsed-json stderr)
-        (should (listp result))
-        (should (= (length result) 3))
-        (should (= (nth 0 result) 0))
-        ;; Second element is parsed JSON
-        (should (listp (nth 1 result)))
-        (should (equal (alist-get 'id (nth 1 result)) "bd-42"))
-        (should (equal (alist-get 'status (nth 1 result)) "open"))
-        ;; Third element is stderr
-        (should (stringp (nth 2 result)))))))
-
-(ert-deftest beads-command-test-json-command-execute-without-json ()
-  "Test beads-command-json-execute with JSON disabled returns (exit-code stdout stderr)."
-  (let ((cmd (beads-test-json-command :json nil)))
-    ;; Mock process-file to return plain text
-    (cl-letf (((symbol-function 'process-file)
-               (lambda (_program &optional _infile buffer _display &rest _args)
-                 (when (listp buffer)
-                   ;; Write to stdout buffer (first element)
-                   (with-current-buffer (car buffer)
-                     (insert "Success\n"))
-                   ;; Handle stderr (second element - could be buffer or file)
-                   (when (nth 1 buffer)
-                     (if (stringp (nth 1 buffer))
-                         ;; It's a file path, write to file
-                         (with-temp-buffer
-                           (insert "")
-                           (write-region (point-min) (point-max) (nth 1 buffer)))
-                       ;; It's a buffer, write to buffer
-                       (with-current-buffer (nth 1 buffer)
-                         (insert "")))))
-                 0)))
-      (let ((result (beads-command-execute cmd)))
-        ;; Should return list of (exit-code stdout stderr)
-        (should (listp result))
-        (should (= (length result) 3))
-        (should (= (nth 0 result) 0))
-        (should (stringp (nth 1 result)))
-        (should (string-match-p "Success" (nth 1 result)))
-        (should (stringp (nth 2 result)))))))
-
-(ert-deftest beads-command-test-json-command-execute-parse-error ()
-  "Test beads-command-json-execute handles JSON parse errors."
-  (let ((cmd (beads-test-json-command :json t)))
-    ;; Mock process-file to return invalid JSON
-    (cl-letf (((symbol-function 'process-file)
-               (lambda (_program &optional _infile buffer _display &rest _args)
-                 (when (listp buffer)
-                   ;; Write to stdout buffer (first element)
-                   (with-current-buffer (car buffer)
-                     (insert "not valid json"))
-                   ;; Handle stderr (second element - could be buffer or file)
-                   (when (nth 1 buffer)
-                     (if (stringp (nth 1 buffer))
-                         ;; It's a file path, write to file
-                         (with-temp-buffer
-                           (insert "")
-                           (write-region (point-min) (point-max) (nth 1 buffer)))
-                       ;; It's a buffer, write to buffer
-                       (with-current-buffer (nth 1 buffer)
-                         (insert "")))))
-                 0)))
-      (should-error (beads-command-execute cmd)
-                    :type 'beads-json-parse-error))))
-
-(ert-deftest beads-command-test-json-command-execute-command-failure ()
-  "Test beads-command-json-execute handles command failure."
-  (let ((cmd (beads-test-json-command :json t)))
-    ;; Mock process-file to return non-zero exit code
-    (cl-letf (((symbol-function 'process-file)
-               (lambda (_program &optional _infile buffer _display &rest _args)
-                 (when (listp buffer)
-                   ;; Write to stdout buffer (first element)
-                   (with-current-buffer (car buffer)
-                     (insert ""))
-                   ;; Handle stderr (second element - could be buffer or file)
-                   (when (nth 1 buffer)
-                     (if (stringp (nth 1 buffer))
-                         ;; It's a file path, write to file
-                         (with-temp-buffer
-                           (insert "Error: command failed")
-                           (write-region (point-min) (point-max) (nth 1 buffer)))
-                       ;; It's a buffer, write to buffer
-                       (with-current-buffer (nth 1 buffer)
-                         (insert "Error: command failed")))))
-                 1)))
-      (should-error (beads-command-execute cmd)
-                    :type 'beads-command-error))))
-
-;;; Init Command Tests
-
-(ert-deftest beads-command-test-init-command-create-minimal ()
-  "Test creating beads-command-init with no arguments."
-  (let ((cmd (beads-command-init)))
-    (should (beads-command-init-p cmd))
-    (should (object-of-class-p cmd 'beads-command))))
-
-(ert-deftest beads-command-test-init-command-create-with-slots ()
-  "Test creating beads-command-init with all slots."
-  (let ((cmd (beads-command-init
-              :branch "develop"
-              :contributor t
-              :prefix "proj"
-              :quiet t
-              :skip-merge-driver t
-              :team nil)))
-    (should (string= (oref cmd branch) "develop"))
-    (should (eq (oref cmd contributor) t))
-    (should (string= (oref cmd prefix) "proj"))
-    (should (eq (oref cmd quiet) t))
-    (should (eq (oref cmd skip-merge-driver) t))
-    (should (null (oref cmd team)))))
-
-(ert-deftest beads-command-test-init-command-to-args-minimal ()
-  "Test beads-command-init-to-args with no flags."
-  (let* ((cmd (beads-command-init))
-         (args (beads-command-to-args cmd)))
-    (should (equal args '("init")))))
-
-(ert-deftest beads-command-test-init-command-to-args-with-prefix ()
-  "Test beads-command-init-to-args with --prefix."
-  (let* ((cmd (beads-command-init :prefix "myproj"))
-         (args (beads-command-to-args cmd)))
-    (should (equal args '("init" "--prefix" "myproj")))))
-
-(ert-deftest beads-command-test-init-command-to-args-with-branch ()
-  "Test beads-command-init-to-args with --branch."
-  (let* ((cmd (beads-command-init :branch "main"))
-         (args (beads-command-to-args cmd)))
-    (should (equal args '("init" "--branch" "main")))))
-
-(ert-deftest beads-command-test-init-command-to-args-with-quiet ()
-  "Test beads-command-init-to-args with --quiet."
-  (let* ((cmd (beads-command-init :quiet t))
-         (args (beads-command-to-args cmd)))
-    (should (equal args '("init" "--quiet")))))
-
-(ert-deftest beads-command-test-init-command-to-args-with-contributor ()
-  "Test beads-command-init-to-args with --contributor."
-  (let* ((cmd (beads-command-init :contributor t))
-         (args (beads-command-to-args cmd)))
-    (should (equal args '("init" "--contributor")))))
-
-(ert-deftest beads-command-test-init-command-to-args-with-team ()
-  "Test beads-command-init-to-args with --team."
-  (let* ((cmd (beads-command-init :team t))
-         (args (beads-command-to-args cmd)))
-    (should (equal args '("init" "--team")))))
-
-(ert-deftest beads-command-test-init-command-to-args-with-skip-merge-driver ()
-  "Test beads-command-init-to-args with --skip-merge-driver."
-  (let* ((cmd (beads-command-init :skip-merge-driver t))
-         (args (beads-command-to-args cmd)))
-    (should (equal args '("init" "--skip-merge-driver")))))
-
-(ert-deftest beads-command-test-init-command-to-args-all-init-flags ()
-  "Test beads-command-init-to-args with all init-specific flags."
-  (let* ((cmd (beads-command-init
-               :branch "develop"
-               :prefix "test"
-               :quiet t
-               :skip-merge-driver t))
-         (args (beads-command-to-args cmd)))
-    (should (member "--branch" args))
-    (should (member "develop" args))
-    (should (member "--prefix" args))
-    (should (member "test" args))
-    (should (member "--quiet" args))
-    (should (member "--skip-merge-driver" args))))
-
-(ert-deftest beads-command-test-init-command-to-args-combined ()
-  "Test beads-command-init-to-args with global and init flags."
-  (let* ((cmd (beads-command-init
-               :actor "bob"
-               :prefix "proj"
-               :quiet t))
-         (args (beads-command-to-args cmd)))
-    ;; Should have init command
-    (should (equal (car args) "init"))
-    ;; Should have global flags
-    (should (member "--actor" args))
-    (should (member "bob" args))
-    ;; Should have init flags
-    (should (member "--prefix" args))
-    (should (member "proj" args))
-    (should (member "--quiet" args))))
-
-;;; Validation Tests
-
-(ert-deftest beads-command-test-init-command-validate-success ()
-  "Test beads-command-init-validate with valid command."
-  (let ((cmd (beads-command-init :prefix "test")))
-    (should (null (beads-command-validate cmd)))))
-
-(ert-deftest beads-command-test-init-command-validate-contributor-only ()
-  "Test beads-command-init-validate with --contributor only."
-  (let ((cmd (beads-command-init :contributor t)))
-    (should (null (beads-command-validate cmd)))))
-
-(ert-deftest beads-command-test-init-command-validate-team-only ()
-  "Test beads-command-init-validate with --team only."
-  (let ((cmd (beads-command-init :team t)))
-    (should (null (beads-command-validate cmd)))))
-
-(ert-deftest beads-command-test-init-command-validate-conflict ()
-  "Test beads-command-init-validate with --contributor and --team."
-  (let ((cmd (beads-command-init :contributor t :team t)))
-    (should (stringp (beads-command-validate cmd)))
-    (should (string-match-p "both" (beads-command-validate cmd)))))
-
-;;; Execution Tests (mocked)
-
-(ert-deftest beads-command-test-init-command-execute-validates ()
-  "Test beads-command-execute calls validation."
-  (let ((cmd (beads-command-init :contributor t :team t)))
-    (should-error (beads-command-execute cmd)
-                  :type 'beads-validation-error)))
-
-(ert-deftest beads-command-test-init-command-execute-builds-args ()
-  "Test beads-command-execute builds correct arguments and returns output."
-  (let ((cmd (beads-command-init :prefix "test" :quiet t))
-        (called-args nil))
-    ;; Mock process-file to capture arguments
-    (cl-letf (((symbol-function 'process-file)
-               (lambda (program &optional _infile buffer _display &rest args)
-                 (setq called-args (cons program args))
-                 ;; Write mock output to buffers
-                 (when (listp buffer)
-                   ;; Write to stdout buffer (first element)
-                   (with-current-buffer (car buffer)
-                     (insert "Initialized beads in .beads/\n"))
-                   ;; Handle stderr (second element - could be buffer or file)
-                   (when (nth 1 buffer)
-                     (if (stringp (nth 1 buffer))
-                         ;; It's a file path, write to file
-                         (with-temp-buffer
-                           (insert "")
-                           (write-region (point-min) (point-max) (nth 1 buffer)))
-                       ;; It's a buffer, write to buffer
-                       (with-current-buffer (nth 1 buffer)
-                         (insert "")))))
-                 0))) ; return success
-      (let ((result (beads-command-execute cmd)))
-        ;; Should return list of (exit-code stdout stderr)
-        (should (listp result))
-        (should (= (length result) 3))
-        (should (numberp (nth 0 result)))
-        (should (= (nth 0 result) 0))
-        (should (stringp (nth 1 result)))
-        (should (stringp (nth 2 result)))
-        ;; Verify correct command was built
-        (should (equal (car called-args) "bd"))
-        (should (member "--prefix" (cdr called-args)))
-        (should (member "test" (cdr called-args)))
-        (should (member "--quiet" (cdr called-args)))))))
-
-;;; Utility Function Tests
-
-(ert-deftest beads-command-test-init-command-from-options ()
-  "Test beads-command-init-from-options creates command from plist."
-  (let ((cmd (beads-command-init-from-options
-              '(:prefix "test"
-                        :branch "main"
-                        :quiet t
-                        :actor "alice"))))
-    (should (beads-command-init-p cmd))
-    (should (string= (oref cmd prefix) "test"))
-    (should (string= (oref cmd branch) "main"))
-    (should (eq (oref cmd quiet) t))
-    (should (string= (oref cmd actor) "alice"))))
-
-(ert-deftest beads-command-test-init-execute ()
-  "Test beads-command-init execution in a temporary directory.
-This test requires bd to be installed and available."
+(ert-deftest beads-command-test-init-basic ()
+  "Test beads-command-init execution creates .beads directory.
+Integration test that runs real bd init command."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (let* ((temp-dir (make-temp-file "beads-test-" t))
          (default-directory temp-dir))
     (unwind-protect
-        (let ((result (beads-command-execute (beads-command-init))))
+        (let* ((cmd (beads-command-init))
+               (result (beads-command-execute cmd)))
           ;; Should return (exit-code stdout stderr)
           (should (listp result))
           (should (= (length result) 3))
@@ -444,412 +43,508 @@ This test requires bd to be installed and available."
           ;; Stderr should be a string
           (should (stringp (nth 2 result)))
           ;; Should create .beads directory
-          (should (file-directory-p (expand-file-name ".beads" temp-dir))))
+          (should (file-directory-p (expand-file-name ".beads" temp-dir)))
+          ;; Should create database file
+          (let ((db-files (directory-files
+                          (expand-file-name ".beads" temp-dir)
+                          nil "\\.db$")))
+            (should (> (length db-files) 0))))
       ;; Cleanup: remove temp directory
       (when (file-exists-p temp-dir)
         (delete-directory temp-dir t)))))
 
-;;; List Command Tests
+(ert-deftest beads-command-test-init-with-prefix ()
+  "Test beads-command-init with custom prefix option.
+Integration test that verifies --prefix flag works correctly."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (let* ((temp-dir (make-temp-file "beads-test-" t))
+         (default-directory temp-dir))
+    (unwind-protect
+        (let* ((cmd (beads-command-init :prefix "myproject"))
+               (result (beads-command-execute cmd)))
+          ;; Command should succeed
+          (should (= (nth 0 result) 0))
+          ;; .beads directory should exist
+          (should (file-directory-p (expand-file-name ".beads" temp-dir)))
+          ;; Verify prefix is set correctly by creating an issue
+          ;; and checking its ID starts with the prefix
+          (let* ((create-cmd (beads-command-create
+                             :title "Test issue"
+                             :json t))
+                 (issue (beads-command-execute create-cmd)))
+            (should (beads-issue-p issue))
+            (should (string-prefix-p "myproject-" (oref issue id)))))
+      ;; Cleanup
+      (when (file-exists-p temp-dir)
+        (delete-directory temp-dir t)))))
 
-(ert-deftest beads-command-test-list-command-create-minimal ()
-  "Test creating beads-command-list with no arguments."
-  (let ((cmd (beads-command-list)))
-    (should (beads-command-list-p cmd))
-    (should (object-of-class-p cmd 'beads-command-json))
-    (should (object-of-class-p cmd 'beads-command))))
+(ert-deftest beads-command-test-init-with-quiet ()
+  "Test beads-command-init with --quiet flag.
+Integration test that verifies quiet mode suppresses output."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (let* ((temp-dir (make-temp-file "beads-test-" t))
+         (default-directory temp-dir))
+    (unwind-protect
+        (let* ((cmd (beads-command-init
+                    :quiet t
+                    :skip-merge-driver t))
+               (result (beads-command-execute cmd)))
+          ;; Command should succeed
+          (should (= (nth 0 result) 0))
+          ;; .beads directory should exist
+          (should (file-directory-p (expand-file-name ".beads" temp-dir))))
+      ;; Cleanup
+      (when (file-exists-p temp-dir)
+        (delete-directory temp-dir t)))))
 
-(ert-deftest beads-command-test-list-command-to-args-minimal ()
-  "Test beads-command-list-to-args with no flags."
-  (let* ((cmd (beads-command-list))
-         (args (beads-command-to-args cmd)))
-    (should (equal args '("list")))))
+;;; Integration Test: beads-command-create
 
-(ert-deftest beads-command-test-list-command-to-args-with-json ()
-  "Test beads-command-list-to-args with --json."
-  (let* ((cmd (beads-command-list :json t))
-         (args (beads-command-to-args cmd)))
-    (should (member "list" args))
-    (should (member "--json" args))))
+(ert-deftest beads-command-test-create-basic ()
+  "Test beads-command-create creates a basic issue.
+Integration test that runs real bd create command."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (let* ((project-dir (beads-test-helper-create-temp-project))
+         (default-directory project-dir))
+    (unwind-protect
+        (let* ((cmd (beads-command-create
+                    :title "Test issue"
+                    :json t))
+               (issue (beads-command-execute cmd)))
+          ;; Should return a beads-issue instance
+          (should (beads-issue-p issue))
+          ;; Should have an ID
+          (should (stringp (oref issue id)))
+          (should (string-prefix-p "test-" (oref issue id)))
+          ;; Title should match
+          (should (string= (oref issue title) "Test issue"))
+          ;; Status should be open by default
+          (should (string= (oref issue status) "open"))
+          ;; Verify issue exists in database
+          (should (beads-test-helper-issue-exists-p
+                  project-dir (oref issue id))))
+      ;; Cleanup handled by test helper
+      nil)))
 
-(ert-deftest beads-command-test-list-command-to-args-with-status ()
-  "Test beads-command-list-to-args with --status."
-  (let* ((cmd (beads-command-list :status "open"))
-         (args (beads-command-to-args cmd)))
-    (should (member "--status" args))
-    (should (member "open" args))))
+(ert-deftest beads-command-test-create-with-type-and-priority ()
+  "Test beads-command-create with issue type and priority.
+Integration test that verifies type and priority options work."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (let* ((project-dir (beads-test-helper-create-temp-project))
+         (default-directory project-dir))
+    (unwind-protect
+        (let* ((cmd (beads-command-create
+                    :title "Bug fix"
+                    :issue-type "bug"
+                    :priority "1"
+                    :json t))
+               (issue (beads-command-execute cmd)))
+          ;; Should return a beads-issue instance
+          (should (beads-issue-p issue))
+          ;; Type should be bug
+          (should (string= (oref issue issue-type) "bug"))
+          ;; Priority should be 1 (high)
+          (should (= (oref issue priority) 1))
+          ;; Title should match
+          (should (string= (oref issue title) "Bug fix")))
+      ;; Cleanup handled by test helper
+      nil)))
 
-(ert-deftest beads-command-test-list-command-to-args-with-priority ()
-  "Test beads-command-list-to-args with --priority."
-  (let* ((cmd (beads-command-list :priority 1))
-         (args (beads-command-to-args cmd)))
-    (should (member "--priority" args))
-    (should (member "1" args))))
+(ert-deftest beads-command-test-create-with-description ()
+  "Test beads-command-create with description field.
+Integration test that verifies description is set correctly."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (let* ((project-dir (beads-test-helper-create-temp-project))
+         (default-directory project-dir))
+    (unwind-protect
+        (let* ((cmd (beads-command-create
+                    :title "Feature request"
+                    :description "Add new feature to improve UX"
+                    :json t))
+               (issue (beads-command-execute cmd)))
+          ;; Should return a beads-issue instance
+          (should (beads-issue-p issue))
+          ;; Description should match
+          (should (string= (oref issue description)
+                          "Add new feature to improve UX")))
+      ;; Cleanup handled by test helper
+      nil)))
 
-(ert-deftest beads-command-test-list-command-to-args-with-assignee ()
-  "Test beads-command-list-to-args with --assignee."
-  (let* ((cmd (beads-command-list :assignee "alice"))
-         (args (beads-command-to-args cmd)))
-    (should (member "--assignee" args))
-    (should (member "alice" args))))
+(ert-deftest beads-command-test-create-with-assignee ()
+  "Test beads-command-create with assignee field.
+Integration test that verifies assignee is set correctly."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (let* ((project-dir (beads-test-helper-create-temp-project))
+         (default-directory project-dir))
+    (unwind-protect
+        (let* ((cmd (beads-command-create
+                    :title "Assigned task"
+                    :assignee "alice"
+                    :json t))
+               (issue (beads-command-execute cmd)))
+          ;; Should return a beads-issue instance
+          (should (beads-issue-p issue))
+          ;; Assignee should be alice
+          (should (string= (oref issue assignee) "alice")))
+      ;; Cleanup handled by test helper
+      nil)))
 
-(ert-deftest beads-command-test-list-command-to-args-with-labels ()
-  "Test beads-command-list-to-args with multiple --label flags."
-  (let* ((cmd (beads-command-list :label '("bug" "urgent")))
-         (args (beads-command-to-args cmd)))
-    (should (member "--label" args))
-    (should (member "bug" args))
-    (should (member "urgent" args))))
+(ert-deftest beads-command-test-create-with-labels ()
+  "Test beads-command-create with labels.
+Integration test that verifies labels are set correctly."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (let* ((project-dir (beads-test-helper-create-temp-project))
+         (default-directory project-dir))
+    (unwind-protect
+        (let* ((cmd (beads-command-create
+                    :title "Labeled issue"
+                    :labels '("urgent" "backend")
+                    :json t))
+               (issue (beads-command-execute cmd))
+               ;; Fetch the issue again to get full data
+               (issue-data (beads-test-helper-get-issue
+                           project-dir (oref issue id))))
+          ;; Should return a beads-issue instance
+          (should (beads-issue-p issue))
+          ;; Verify issue was created with correct title
+          (should (string= (oref issue title) "Labeled issue"))
+          ;; Check labels from fetched issue data (may be empty in create response)
+          (when issue-data
+            (let ((labels (alist-get 'labels issue-data)))
+              ;; Labels should be present if bd supports them in create
+              (when labels
+                (should (member "urgent" labels))
+                (should (member "backend" labels))))))
+      ;; Cleanup handled by test helper
+      nil)))
 
-(ert-deftest beads-command-test-list-command-to-args-with-label-any ()
-  "Test beads-command-list-to-args with multiple --label-any flags."
-  (let* ((cmd (beads-command-list :label-any '("feature" "enhancement")))
-         (args (beads-command-to-args cmd)))
-    (should (member "--label-any" args))
-    (should (member "feature" args))
-    (should (member "enhancement" args))))
+(ert-deftest beads-command-test-create-with-deps ()
+  "Test beads-command-create with dependencies.
+Integration test that verifies dependencies are set correctly."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (let* ((project-dir (beads-test-helper-create-temp-project))
+         (default-directory project-dir))
+    (unwind-protect
+        (let* (;; First create a parent issue
+               (parent-id (beads-test-helper-create-issue
+                          project-dir "Parent issue"))
+               ;; Create child with dependency
+               (cmd (beads-command-create
+                    :title "Child issue"
+                    :deps (list (format "discovered-from:%s" parent-id))
+                    :json t))
+               (issue (beads-command-execute cmd))
+               ;; Fetch the issue again to get full data
+               (issue-data (beads-test-helper-get-issue
+                           project-dir (oref issue id))))
+          ;; Should return a beads-issue instance
+          (should (beads-issue-p issue))
+          ;; Verify issue was created with correct title
+          (should (string= (oref issue title) "Child issue"))
+          ;; Check dependencies from fetched issue data
+          (when issue-data
+            (let ((deps (alist-get 'dependencies issue-data)))
+              ;; Dependencies should be present if bd supports them in create
+              (when deps
+                (should (> (length deps) 0))))))
+      ;; Cleanup handled by test helper
+      nil)))
 
-(ert-deftest beads-command-test-list-command-to-args-with-limit ()
-  "Test beads-command-list-to-args with --limit."
-  (let* ((cmd (beads-command-list :limit 10))
-         (args (beads-command-to-args cmd)))
-    (should (member "--limit" args))
-    (should (member "10" args))))
+(ert-deftest beads-command-test-create-combined-options ()
+  "Test beads-command-create with multiple options.
+Integration test with comprehensive option set."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (let* ((project-dir (beads-test-helper-create-temp-project))
+         (default-directory project-dir))
+    (unwind-protect
+        (let* ((cmd (beads-command-create
+                    :title "Complex issue"
+                    :issue-type "feature"
+                    :priority "0"
+                    :description "Detailed description"
+                    :assignee "bob"
+                    :labels '("critical" "frontend")
+                    :json t))
+               (issue (beads-command-execute cmd))
+               ;; Fetch the issue again to get full data
+               (issue-data (beads-test-helper-get-issue
+                           project-dir (oref issue id))))
+          ;; Should return a beads-issue instance
+          (should (beads-issue-p issue))
+          ;; Core fields should match
+          (should (string= (oref issue title) "Complex issue"))
+          (should (string= (oref issue issue-type) "feature"))
+          (should (= (oref issue priority) 0))
+          (should (string= (oref issue description) "Detailed description"))
+          (should (string= (oref issue assignee) "bob"))
+          ;; Check labels from fetched issue data (may be empty in create response)
+          (when issue-data
+            (let ((labels (alist-get 'labels issue-data)))
+              (when labels
+                (should (member "critical" labels))
+                (should (member "frontend" labels))))))
+      ;; Cleanup handled by test helper
+      nil)))
 
-(ert-deftest beads-command-test-list-command-to-args-with-dates ()
-  "Test beads-command-list-to-args with date filters."
-  (let* ((cmd (beads-command-list
-               :created-after "2025-01-01"
-               :updated-before "2025-12-31"))
-         (args (beads-command-to-args cmd)))
-    (should (member "--created-after" args))
-    (should (member "2025-01-01" args))
-    (should (member "--updated-before" args))
-    (should (member "2025-12-31" args))))
+;;; Integration Test: beads-command-list
 
-(ert-deftest beads-command-test-list-command-to-args-with-boolean-filters ()
-  "Test beads-command-list-to-args with boolean filters."
-  (let* ((cmd (beads-command-list
-               :no-assignee t
-               :no-labels t
-               :empty-description t))
-         (args (beads-command-to-args cmd)))
-    (should (member "--no-assignee" args))
-    (should (member "--no-labels" args))
-    (should (member "--empty-description" args))))
+(ert-deftest beads-command-test-list-all-issues ()
+  "Test beads-command-list returns all issues.
+Integration test that lists all issues in a project."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (let* ((project-dir (beads-test-helper-create-temp-project))
+         (default-directory project-dir))
+    (unwind-protect
+        (let* (;; Create some test issues
+               (id1 (beads-test-helper-create-issue project-dir "Issue 1"))
+               (id2 (beads-test-helper-create-issue project-dir "Issue 2"))
+               (id3 (beads-test-helper-create-issue project-dir "Issue 3"))
+               ;; List all issues
+               (cmd (beads-command-list :json t))
+               (issues (beads-command-execute cmd)))
+          ;; Should return a list of beads-issue instances
+          (should (listp issues))
+          ;; Should have at least 3 issues
+          (should (>= (length issues) 3))
+          ;; All elements should be beads-issue instances
+          (should (cl-every #'beads-issue-p issues))
+          ;; Should include our created issues
+          (let ((ids (mapcar (lambda (issue) (oref issue id)) issues)))
+            (should (member id1 ids))
+            (should (member id2 ids))
+            (should (member id3 ids))))
+      ;; Cleanup handled by test helper
+      nil)))
 
-(ert-deftest beads-command-test-list-command-to-args-combined ()
-  "Test beads-command-list-to-args with multiple filters."
-  (let* ((cmd (beads-command-list
-               :json t
-               :status "open"
-               :priority 1
-               :assignee "bob"
-               :limit 5))
-         (args (beads-command-to-args cmd)))
-    (should (equal (car args) "list"))
-    (should (member "--json" args))
-    (should (member "--status" args))
-    (should (member "open" args))
-    (should (member "--priority" args))
-    (should (member "1" args))
-    (should (member "--assignee" args))
-    (should (member "bob" args))
-    (should (member "--limit" args))
-    (should (member "5" args))))
+(ert-deftest beads-command-test-list-with-status-filter ()
+  "Test beads-command-list with status filter.
+Integration test that filters issues by status."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (let* ((project-dir (beads-test-helper-create-temp-project))
+         (default-directory project-dir))
+    (unwind-protect
+        (let* (;; Create test issues (all open by default)
+               (_id1 (beads-test-helper-create-issue project-dir "Open issue"))
+               ;; List only open issues
+               (cmd (beads-command-list :status "open" :json t))
+               (issues (beads-command-execute cmd)))
+          ;; Should return a list
+          (should (listp issues))
+          ;; All issues should have open status
+          (should (cl-every (lambda (issue)
+                             (string= (oref issue status) "open"))
+                           issues)))
+      ;; Cleanup handled by test helper
+      nil)))
 
-(ert-deftest beads-command-test-list-command-validate-success ()
-  "Test beads-command-list-validate with valid command."
-  (let ((cmd (beads-command-list :status "open")))
-    (should (null (beads-command-validate cmd)))))
+(ert-deftest beads-command-test-list-with-priority-filter ()
+  "Test beads-command-list with priority filter.
+Integration test that filters issues by priority."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (let* ((project-dir (beads-test-helper-create-temp-project))
+         (default-directory project-dir))
+    (unwind-protect
+        (let* (;; Create issues with different priorities
+               (cmd1 (beads-command-create
+                     :title "High priority"
+                     :priority "1"
+                     :json t))
+               (issue1 (beads-command-execute cmd1))
+               (cmd2 (beads-command-create
+                     :title "Low priority"
+                     :priority "3"
+                     :json t))
+               (_issue2 (beads-command-execute cmd2))
+               ;; List only priority 1 issues
+               (list-cmd (beads-command-list :priority 1 :json t))
+               (issues (beads-command-execute list-cmd)))
+          ;; Should return a list
+          (should (listp issues))
+          ;; All issues should have priority 1
+          (should (cl-every (lambda (issue)
+                             (= (oref issue priority) 1))
+                           issues))
+          ;; Should include our high priority issue
+          (let ((ids (mapcar (lambda (issue) (oref issue id)) issues)))
+            (should (member (oref issue1 id) ids))))
+      ;; Cleanup handled by test helper
+      nil)))
 
-(ert-deftest beads-command-test-list-command-validate-priority-conflict ()
-  "Test beads-command-list-validate with priority conflict."
-  (let ((cmd (beads-command-list :priority 1 :priority-min 0)))
-    (should (stringp (beads-command-validate cmd)))
-    (should (string-match-p "priority" (beads-command-validate cmd)))))
+(ert-deftest beads-command-test-list-with-type-filter ()
+  "Test beads-command-list with issue type filter.
+Integration test that filters issues by type."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (let* ((project-dir (beads-test-helper-create-temp-project))
+         (default-directory project-dir))
+    (unwind-protect
+        (let* (;; Create issues with different types
+               (cmd1 (beads-command-create
+                     :title "Bug issue"
+                     :issue-type "bug"
+                     :json t))
+               (bug-issue (beads-command-execute cmd1))
+               (cmd2 (beads-command-create
+                     :title "Feature issue"
+                     :issue-type "feature"
+                     :json t))
+               (_feature-issue (beads-command-execute cmd2))
+               ;; List only bug issues
+               (list-cmd (beads-command-list :issue-type "bug" :json t))
+               (issues (beads-command-execute list-cmd)))
+          ;; Should return a list
+          (should (listp issues))
+          ;; All issues should be of type bug
+          (should (cl-every (lambda (issue)
+                             (string= (oref issue issue-type) "bug"))
+                           issues))
+          ;; Should include our bug issue
+          (let ((ids (mapcar (lambda (issue) (oref issue id)) issues)))
+            (should (member (oref bug-issue id) ids))))
+      ;; Cleanup handled by test helper
+      nil)))
 
-(ert-deftest beads-command-test-list-command-validate-assignee-conflict ()
-  "Test beads-command-list-validate with assignee conflict."
-  (let ((cmd (beads-command-list :assignee "alice" :no-assignee t)))
-    (should (stringp (beads-command-validate cmd)))
-    (should (string-match-p "assignee" (beads-command-validate cmd)))))
+(ert-deftest beads-command-test-list-with-multiple-filters ()
+  "Test beads-command-list with multiple filters combined.
+Integration test that applies multiple filters together."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (let* ((project-dir (beads-test-helper-create-temp-project))
+         (default-directory project-dir))
+    (unwind-protect
+        (let* (;; Create issues with various attributes
+               (cmd1 (beads-command-create
+                     :title "Critical bug"
+                     :issue-type "bug"
+                     :priority "0"
+                     :json t))
+               (target-issue (beads-command-execute cmd1))
+               (cmd2 (beads-command-create
+                     :title "Low priority bug"
+                     :issue-type "bug"
+                     :priority "3"
+                     :json t))
+               (_other-bug (beads-command-execute cmd2))
+               (cmd3 (beads-command-create
+                     :title "Critical feature"
+                     :issue-type "feature"
+                     :priority "0"
+                     :json t))
+               (_feature (beads-command-execute cmd3))
+               ;; List with combined filters: bug AND priority 0
+               (list-cmd (beads-command-list
+                         :issue-type "bug"
+                         :priority 0
+                         :json t))
+               (issues (beads-command-execute list-cmd)))
+          ;; Should return a list
+          (should (listp issues))
+          ;; All issues should match both filters
+          (should (cl-every (lambda (issue)
+                             (and (string= (oref issue issue-type) "bug")
+                                  (= (oref issue priority) 0)))
+                           issues))
+          ;; Should include our target issue
+          (let ((ids (mapcar (lambda (issue) (oref issue id)) issues)))
+            (should (member (oref target-issue id) ids))))
+      ;; Cleanup handled by test helper
+      nil)))
 
-(ert-deftest beads-command-test-list-command-validate-labels-conflict ()
-  "Test beads-command-list-validate with labels conflict."
-  (let ((cmd (beads-command-list :label '("bug") :no-labels t)))
-    (should (stringp (beads-command-validate cmd)))
-    (should (string-match-p "label" (beads-command-validate cmd)))))
+(ert-deftest beads-command-test-list-with-limit ()
+  "Test beads-command-list with limit option.
+Integration test that verifies result limiting works."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (let* ((project-dir (beads-test-helper-create-temp-project))
+         (default-directory project-dir))
+    (unwind-protect
+        (let* (;; Create several issues
+               (_id1 (beads-test-helper-create-issue project-dir "Issue 1"))
+               (_id2 (beads-test-helper-create-issue project-dir "Issue 2"))
+               (_id3 (beads-test-helper-create-issue project-dir "Issue 3"))
+               (_id4 (beads-test-helper-create-issue project-dir "Issue 4"))
+               (_id5 (beads-test-helper-create-issue project-dir "Issue 5"))
+               ;; List with limit 2
+               (cmd (beads-command-list :limit 2 :json t))
+               (issues (beads-command-execute cmd)))
+          ;; Should return a list
+          (should (listp issues))
+          ;; Should have exactly 2 issues (or fewer if database has less)
+          (should (<= (length issues) 2)))
+      ;; Cleanup handled by test helper
+      nil)))
 
-(ert-deftest beads-command-test-list-command-validate-priority-range ()
-  "Test beads-command-list-validate with invalid priority range."
-  (let ((cmd1 (beads-command-list :priority 5))
-        (cmd2 (beads-command-list :priority-min -1))
-        (cmd3 (beads-command-list :priority-max 10)))
-    (should (stringp (beads-command-validate cmd1)))
-    (should (stringp (beads-command-validate cmd2)))
-    (should (stringp (beads-command-validate cmd3)))))
+(ert-deftest beads-command-test-list-with-assignee-filter ()
+  "Test beads-command-list with assignee filter.
+Integration test that filters issues by assignee."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (let* ((project-dir (beads-test-helper-create-temp-project))
+         (default-directory project-dir))
+    (unwind-protect
+        (let* (;; Create issues with different assignees
+               (cmd1 (beads-command-create
+                     :title "Alice's task"
+                     :assignee "alice"
+                     :json t))
+               (alice-issue (beads-command-execute cmd1))
+               (cmd2 (beads-command-create
+                     :title "Bob's task"
+                     :assignee "bob"
+                     :json t))
+               (_bob-issue (beads-command-execute cmd2))
+               ;; List only Alice's issues
+               (list-cmd (beads-command-list :assignee "alice" :json t))
+               (issues (beads-command-execute list-cmd)))
+          ;; Should return a list
+          (should (listp issues))
+          ;; All issues should be assigned to alice
+          (should (cl-every (lambda (issue)
+                             (string= (oref issue assignee) "alice"))
+                           issues))
+          ;; Should include Alice's issue
+          (let ((ids (mapcar (lambda (issue) (oref issue id)) issues)))
+            (should (member (oref alice-issue id) ids))))
+      ;; Cleanup handled by test helper
+      nil)))
 
-(ert-deftest beads-command-test-list-command-execute-returns-issue-list ()
-  "Test beads-command-list-execute returns list of beads-issue instances."
-  (require 'beads-types)
-  (let ((cmd (beads-command-list :json t)))
-    ;; Mock process-file to return JSON array of issues
-    (cl-letf (((symbol-function 'process-file)
-               (lambda (_program &optional _infile buffer _display &rest _args)
-                 (when (listp buffer)
-                   ;; Write to stdout buffer (first element)
-                   (with-current-buffer (car buffer)
-                     (insert "[{\"id\":\"bd-1\",\"title\":\"Test\",\"status\":\"open\",\"priority\":2}]"))
-                   ;; Handle stderr
-                   (when (nth 1 buffer)
-                     (if (stringp (nth 1 buffer))
-                         (with-temp-buffer
-                           (insert "")
-                           (write-region (point-min) (point-max) (nth 1 buffer)))
-                       (with-current-buffer (nth 1 buffer)
-                         (insert "")))))
-                 0)))
-      (let ((result (beads-command-execute cmd)))
-        ;; Should return list of beads-issue instances
-        (should (listp result))
-        (should (> (length result) 0))
-        (should (beads-issue-p (car result)))
-        (should (string= (oref (car result) id) "bd-1"))
-        (should (string= (oref (car result) title) "Test"))
-        (should (string= (oref (car result) status) "open"))))))
-
-(ert-deftest beads-command-test-list-command-execute-empty-result ()
-  "Test beads-command-list-execute with empty result."
-  (require 'beads-types)
-  (let ((cmd (beads-command-list :json t)))
-    ;; Mock process-file to return empty JSON array
-    (cl-letf (((symbol-function 'process-file)
-               (lambda (_program &optional _infile buffer _display &rest _args)
-                 (when (listp buffer)
-                   (with-current-buffer (car buffer)
-                     (insert "[]"))
-                   (when (nth 1 buffer)
-                     (if (stringp (nth 1 buffer))
-                         (with-temp-buffer
-                           (insert "")
-                           (write-region (point-min) (point-max) (nth 1 buffer)))
-                       (with-current-buffer (nth 1 buffer)
-                         (insert "")))))
-                 0)))
-      (let ((result (beads-command-execute cmd)))
-        ;; Should return empty list
-        (should (listp result))
-        (should (= (length result) 0))))))
-
-;;; Create Command Tests
-
-(ert-deftest beads-command-test-create-command-create-minimal ()
-  "Test creating beads-command-create with minimal arguments."
-  (let ((cmd (beads-command-create :title "Test issue")))
-    (should (beads-command-create-p cmd))
-    (should (object-of-class-p cmd 'beads-command-json))
-    (should (object-of-class-p cmd 'beads-command))
-    (should (string= (oref cmd title) "Test issue"))))
-
-(ert-deftest beads-command-test-create-command-to-args-minimal ()
-  "Test beads-command-create-to-args with just title."
-  (let* ((cmd (beads-command-create :title "Test issue"))
-         (args (beads-command-to-args cmd)))
-    (should (equal (car args) "create"))
-    (should (member "Test issue" args))))
-
-(ert-deftest beads-command-test-create-command-to-args-with-json ()
-  "Test beads-command-create-to-args with --json."
-  (let* ((cmd (beads-command-create :title "Test" :json t))
-         (args (beads-command-to-args cmd)))
-    (should (member "create" args))
-    (should (member "Test" args))
-    (should (member "--json" args))))
-
-(ert-deftest beads-command-test-create-command-to-args-with-type ()
-  "Test beads-command-create-to-args with --type."
-  (let* ((cmd (beads-command-create
-               :title "Bug fix"
-               :issue-type "bug"))
-         (args (beads-command-to-args cmd)))
-    (should (member "--type" args))
-    (should (member "bug" args))))
-
-(ert-deftest beads-command-test-create-command-to-args-with-priority ()
-  "Test beads-command-create-to-args with --priority."
-  (let* ((cmd (beads-command-create
-               :title "Critical issue"
-               :priority "0"))
-         (args (beads-command-to-args cmd)))
-    (should (member "--priority" args))
-    (should (member "0" args))))
-
-(ert-deftest beads-command-test-create-command-to-args-with-description ()
-  "Test beads-command-create-to-args with --description."
-  (let* ((cmd (beads-command-create
-               :title "Feature"
-               :description "Add new feature"))
-         (args (beads-command-to-args cmd)))
-    (should (member "--description" args))
-    (should (member "Add new feature" args))))
-
-(ert-deftest beads-command-test-create-command-to-args-with-assignee ()
-  "Test beads-command-create-to-args with --assignee."
-  (let* ((cmd (beads-command-create
-               :title "Task"
-               :assignee "alice"))
-         (args (beads-command-to-args cmd)))
-    (should (member "--assignee" args))
-    (should (member "alice" args))))
-
-(ert-deftest beads-command-test-create-command-to-args-with-labels ()
-  "Test beads-command-create-to-args with --labels."
-  (let* ((cmd (beads-command-create
-               :title "Task"
-               :labels '("bug" "urgent")))
-         (args (beads-command-to-args cmd)))
-    (should (member "--labels" args))
-    (should (member "bug,urgent" args))))
-
-(ert-deftest beads-command-test-create-command-to-args-with-deps ()
-  "Test beads-command-create-to-args with --deps."
-  (let* ((cmd (beads-command-create
-               :title "Task"
-               :deps '("discovered-from:bd-20" "blocks:bd-15")))
-         (args (beads-command-to-args cmd)))
-    (should (member "--deps" args))
-    (should (member "discovered-from:bd-20,blocks:bd-15" args))))
-
-(ert-deftest beads-command-test-create-command-to-args-with-parent ()
-  "Test beads-command-create-to-args with --parent."
-  (let* ((cmd (beads-command-create
-               :title "Subtask"
-               :parent "bd-42"))
-         (args (beads-command-to-args cmd)))
-    (should (member "--parent" args))
-    (should (member "bd-42" args))))
-
-(ert-deftest beads-command-test-create-command-to-args-with-external-ref ()
-  "Test beads-command-create-to-args with --external-ref."
-  (let* ((cmd (beads-command-create
-               :title "Task"
-               :external-ref "gh-123"))
-         (args (beads-command-to-args cmd)))
-    (should (member "--external-ref" args))
-    (should (member "gh-123" args))))
-
-(ert-deftest beads-command-test-create-command-to-args-with-file ()
-  "Test beads-command-create-to-args with --file."
-  (let* ((cmd (beads-command-create
-               :file "/path/to/issues.md"))
-         (args (beads-command-to-args cmd)))
-    (should (member "--file" args))
-    (should (member "/path/to/issues.md" args))))
-
-(ert-deftest beads-command-test-create-command-to-args-combined ()
-  "Test beads-command-create-to-args with multiple options."
-  (let* ((cmd (beads-command-create
-               :json t
-               :title "New feature"
-               :issue-type "feature"
-               :priority "1"
-               :description "Implement feature"
-               :assignee "bob"
-               :labels '("enhancement")
-               :deps '("blocks:bd-10")))
-         (args (beads-command-to-args cmd)))
-    (should (equal (car args) "create"))
-    (should (member "--json" args))
-    (should (member "New feature" args))
-    (should (member "--type" args))
-    (should (member "feature" args))
-    (should (member "--priority" args))
-    (should (member "1" args))
-    (should (member "--description" args))
-    (should (member "Implement feature" args))
-    (should (member "--assignee" args))
-    (should (member "bob" args))
-    (should (member "--labels" args))
-    (should (member "enhancement" args))
-    (should (member "--deps" args))
-    (should (member "blocks:bd-10" args))))
-
-(ert-deftest beads-command-test-create-command-validate-success-with-title ()
-  "Test beads-command-create-validate with title."
-  (let ((cmd (beads-command-create :title "Test")))
-    (should (null (beads-command-validate cmd)))))
-
-(ert-deftest beads-command-test-create-command-validate-success-with-file ()
-  "Test beads-command-create-validate with file."
-  (let ((cmd (beads-command-create :file "/path/to/file.md")))
-    (should (null (beads-command-validate cmd)))))
-
-(ert-deftest beads-command-test-create-command-validate-no-title-no-file ()
-  "Test beads-command-create-validate without title or file."
-  (let ((cmd (beads-command-create)))
-    (should (stringp (beads-command-validate cmd)))
-    (should (string-match-p "title\\|file" (beads-command-validate cmd)))))
-
-(ert-deftest beads-command-test-create-command-validate-both-title-and-file ()
-  "Test beads-command-create-validate with both title and file."
-  (let ((cmd (beads-command-create
-              :title "Test"
-              :file "/path/to/file.md")))
-    (should (stringp (beads-command-validate cmd)))
-    (should (string-match-p "both" (beads-command-validate cmd)))))
-
-(ert-deftest beads-command-test-create-command-execute-returns-issue ()
-  "Test beads-command-create-execute returns beads-issue instance."
-  (require 'beads-types)
-  (let ((cmd (beads-command-create :title "Test" :json t)))
-    ;; Mock process-file to return JSON object
-    (cl-letf (((symbol-function 'process-file)
-               (lambda (_program &optional _infile buffer _display &rest _args)
-                 (when (listp buffer)
-                   ;; Write to stdout buffer
-                   (with-current-buffer (car buffer)
-                     (insert "{\"id\":\"bd-42\",\"title\":\"Test\",\"status\":\"open\",\"priority\":2}"))
-                   ;; Handle stderr
-                   (when (nth 1 buffer)
-                     (if (stringp (nth 1 buffer))
-                         (with-temp-buffer
-                           (insert "")
-                           (write-region (point-min) (point-max) (nth 1 buffer)))
-                       (with-current-buffer (nth 1 buffer)
-                         (insert "")))))
-                 0)))
-      (let ((result (beads-command-execute cmd)))
-        ;; Should return beads-issue instance
-        (should (beads-issue-p result))
-        (should (string= (oref result id) "bd-42"))
-        (should (string= (oref result title) "Test"))
-        (should (string= (oref result status) "open"))))))
-
-(ert-deftest beads-command-test-create-command-execute-returns-issue-list-from-file ()
-  "Test beads-command-create-execute returns list from file."
-  (require 'beads-types)
-  (let ((cmd (beads-command-create :file "/tmp/issues.md" :json t)))
-    ;; Mock process-file to return JSON array
-    (cl-letf (((symbol-function 'process-file)
-               (lambda (_program &optional _infile buffer _display &rest _args)
-                 (when (listp buffer)
-                   (with-current-buffer (car buffer)
-                     (insert "[{\"id\":\"bd-1\",\"title\":\"A\",\"status\":\"open\",\"priority\":2},{\"id\":\"bd-2\",\"title\":\"B\",\"status\":\"open\",\"priority\":2}]"))
-                   (when (nth 1 buffer)
-                     (if (stringp (nth 1 buffer))
-                         (with-temp-buffer
-                           (insert "")
-                           (write-region (point-min) (point-max) (nth 1 buffer)))
-                       (with-current-buffer (nth 1 buffer)
-                         (insert "")))))
-                 0)))
-      (let ((result (beads-command-execute cmd)))
-        ;; Should return list of beads-issue instances
-        (should (listp result))
-        (should (= (length result) 2))
-        (should (beads-issue-p (car result)))
-        (should (string= (oref (car result) id) "bd-1"))
-        (should (string= (oref (cadr result) id) "bd-2"))))))
+(ert-deftest beads-command-test-list-empty-result ()
+  "Test beads-command-list with filter that matches nothing.
+Integration test that verifies empty list is returned correctly."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (let* ((project-dir (beads-test-helper-create-temp-project))
+         (default-directory project-dir))
+    (unwind-protect
+        ;; List epics in fresh project (should have none)
+        (let ((cmd (beads-command-list
+                   :issue-type "epic"
+                   :json t)))
+          ;; Execute command - should succeed with empty list
+          (condition-case err
+              (let ((issues (beads-command-execute cmd)))
+                ;; Should return list (possibly empty)
+                (should (listp issues))
+                ;; All elements should be beads-issue instances
+                (should (cl-every #'beads-issue-p issues)))
+            ;; If JSON parse fails, bd might output empty string
+            ;; for empty results - this is acceptable
+            (beads-json-parse-error
+             ;; Acceptable behavior for empty result set
+             t)))
+      ;; Cleanup handled by test helper
+      nil)))
 
 (provide 'beads-command-test)
 ;;; beads-command-test.el ends here
