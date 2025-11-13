@@ -1162,7 +1162,7 @@ Tests setting filters before executing."
 (ert-deftest beads-list-test-with-issues ()
   "Test beads-list buffer renders created issues correctly."
   :tags '(integration transient)
-  ;; (skip-unless (not noninteractive))
+  (skip-unless (not noninteractive))
   (let ((default-directory (beads-test-make-project)))
     ;; Create test issues with JSON flag to get issue objects back
     (let ((issue-a (beads-command-execute
