@@ -511,5 +511,280 @@ Integration test that closes epics where all children are complete."
           (should (= (length epic-check) 1))
           (should (string= (oref (car epic-check) status) "closed")))))))
 
+;;; Integration Test: beads-command-show
+
+(ert-deftest beads-command-test-show-single-issue ()
+  "Test beads-command-show returns a single issue.
+Integration test that shows details for one issue."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create a test issue
+    (let* ((created (beads-command-create! :title "Test Issue"))
+           (issue-id (oref created id))
+           ;; Show the issue
+           (issue (beads-command-show! :issue-ids (list issue-id))))
+      ;; Should return a beads-issue instance
+      (should (beads-issue-p issue))
+      ;; ID should match
+      (should (string= (oref issue id) issue-id))
+      ;; Title should match
+      (should (string= (oref issue title) "Test Issue")))))
+
+(ert-deftest beads-command-test-show-multiple-issues ()
+  "Test beads-command-show returns multiple issues.
+Integration test that shows details for multiple issues."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create test issues
+    (let* ((issue1 (beads-command-create! :title "Issue 1"))
+           (id1 (oref issue1 id))
+           (issue2 (beads-command-create! :title "Issue 2"))
+           (id2 (oref issue2 id))
+           ;; Show both issues
+           (issues (beads-command-show! :issue-ids (list id1 id2))))
+      ;; Should return a list of beads-issue instances
+      (should (listp issues))
+      (should (= (length issues) 2))
+      ;; All elements should be beads-issue instances
+      (should (cl-every #'beads-issue-p issues))
+      ;; IDs should match
+      (let ((ids (mapcar (lambda (issue) (oref issue id)) issues)))
+        (should (member id1 ids))
+        (should (member id2 ids))))))
+
+;;; Integration Test: beads-command-update
+
+(ert-deftest beads-command-test-update-single-field ()
+  "Test beads-command-update updates a single field.
+Integration test that updates issue title."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create a test issue
+    (let* ((created (beads-command-create! :title "Original Title"))
+           (issue-id (oref created id))
+           ;; Update the title
+           (updated (beads-command-update!
+                     :issue-ids (list issue-id)
+                     :title "Updated Title")))
+      ;; Should return a beads-issue instance
+      (should (beads-issue-p updated))
+      ;; Title should be updated
+      (should (string= (oref updated title) "Updated Title"))
+      ;; ID should remain the same
+      (should (string= (oref updated id) issue-id)))))
+
+(ert-deftest beads-command-test-update-multiple-fields ()
+  "Test beads-command-update updates multiple fields.
+Integration test that updates title, status, and priority."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create a test issue
+    (let* ((created (beads-command-create! :title "Original"))
+           (issue-id (oref created id))
+           ;; Update multiple fields
+           (updated (beads-command-update!
+                     :issue-ids (list issue-id)
+                     :title "Updated"
+                     :status "in_progress"
+                     :priority "1")))
+      ;; Should return a beads-issue instance
+      (should (beads-issue-p updated))
+      ;; All fields should be updated
+      (should (string= (oref updated title) "Updated"))
+      (should (string= (oref updated status) "in_progress"))
+      (should (= (oref updated priority) 1)))))
+
+(ert-deftest beads-command-test-update-with-description ()
+  "Test beads-command-update updates description.
+Integration test that sets/updates description field."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create a test issue
+    (let* ((created (beads-command-create! :title "Test"))
+           (issue-id (oref created id))
+           ;; Update the description
+           (updated (beads-command-update!
+                     :issue-ids (list issue-id)
+                     :description "New description text")))
+      ;; Should return a beads-issue instance
+      (should (beads-issue-p updated))
+      ;; Description should be set
+      (should (string= (oref updated description) "New description text")))))
+
+;;; Integration Test: beads-command-close
+
+(ert-deftest beads-command-test-close-single-issue ()
+  "Test beads-command-close closes a single issue.
+Integration test that closes one issue with a reason."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create a test issue
+    (let* ((created (beads-command-create! :title "To Close"))
+           (issue-id (oref created id))
+           ;; Close the issue
+           (closed (beads-command-close!
+                    :issue-ids (list issue-id)
+                    :reason "Completed")))
+      ;; Should return a beads-issue instance
+      (should (beads-issue-p closed))
+      ;; Status should be closed
+      (should (string= (oref closed status) "closed"))
+      ;; ID should match
+      (should (string= (oref closed id) issue-id)))))
+
+(ert-deftest beads-command-test-close-multiple-issues ()
+  "Test beads-command-close closes multiple issues.
+Integration test that closes several issues at once."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create test issues
+    (let* ((issue1 (beads-command-create! :title "Issue 1"))
+           (id1 (oref issue1 id))
+           (issue2 (beads-command-create! :title "Issue 2"))
+           (id2 (oref issue2 id))
+           ;; Close both issues
+           (closed (beads-command-close!
+                    :issue-ids (list id1 id2)
+                    :reason "All done")))
+      ;; Should return a list of beads-issue instances
+      (should (listp closed))
+      (should (= (length closed) 2))
+      ;; All should be closed
+      (should (cl-every (lambda (issue)
+                          (string= (oref issue status) "closed"))
+                        closed))
+      ;; IDs should match
+      (let ((ids (mapcar (lambda (issue) (oref issue id)) closed)))
+        (should (member id1 ids))
+        (should (member id2 ids))))))
+
+;;; Integration Test: beads-command-ready
+
+(ert-deftest beads-command-test-ready-basic ()
+  "Test beads-command-ready returns ready issues.
+Integration test that lists unblocked open/in-progress issues."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create some test issues (all should be ready by default)
+    (let* ((issue1 (beads-command-create! :title "Ready 1"))
+           (_issue2 (beads-command-create! :title "Ready 2"))
+           ;; Get ready issues
+           (issues (beads-command-ready!)))
+      ;; Should return a list
+      (should (listp issues))
+      ;; Should have at least our created issues
+      (should (>= (length issues) 2))
+      ;; All elements should be beads-issue instances
+      (should (cl-every #'beads-issue-p issues))
+      ;; Should include our first issue
+      (let ((ids (mapcar (lambda (issue) (oref issue id)) issues)))
+        (should (member (oref issue1 id) ids))))))
+
+(ert-deftest beads-command-test-ready-with-priority-filter ()
+  "Test beads-command-ready with priority filter.
+Integration test that filters ready issues by priority."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create issues with different priorities
+    (let* ((high (beads-command-create!
+                  :title "High priority"
+                  :priority "1"))
+           (_low (beads-command-create!
+                  :title "Low priority"
+                  :priority "3"))
+           ;; Get ready issues with priority 1
+           (issues (beads-command-ready! :priority 1)))
+      ;; Should return a list
+      (should (listp issues))
+      ;; All should have priority 1
+      (should (cl-every (lambda (issue)
+                          (= (oref issue priority) 1))
+                        issues))
+      ;; Should include our high priority issue
+      (let ((ids (mapcar (lambda (issue) (oref issue id)) issues)))
+        (should (member (oref high id) ids))))))
+
+(ert-deftest beads-command-test-ready-with-limit ()
+  "Test beads-command-ready with limit option.
+Integration test that verifies result limiting works."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create several issues
+    (beads-command-create! :title "Issue 1")
+    (beads-command-create! :title "Issue 2")
+    (beads-command-create! :title "Issue 3")
+    ;; Get ready issues with limit 2
+    (let ((issues (beads-command-ready! :limit 2)))
+      ;; Should return a list
+      (should (listp issues))
+      ;; Should have at most 2 issues
+      (should (<= (length issues) 2)))))
+
+;;; Integration Test: beads-command-blocked
+
+(ert-deftest beads-command-test-blocked-basic ()
+  "Test beads-command-blocked returns blocked issues.
+Integration test that lists issues with unresolved blockers."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create a blocker and a blocked issue
+    (let* ((blocker (beads-command-create! :title "Blocker"))
+           (blocked (beads-command-create!
+                     :title "Blocked"
+                     :deps (list (concat "blocked-by:" (oref blocker id)))))
+           ;; Get blocked issues
+           (issues (beads-command-blocked!)))
+      ;; Should return a list
+      (should (listp issues))
+      ;; Should include our blocked issue
+      (let ((ids (mapcar (lambda (issue) (oref issue id)) issues)))
+        (should (member (oref blocked id) ids)))
+      ;; All elements should be beads-issue instances
+      (should (cl-every #'beads-issue-p issues)))))
+
+(ert-deftest beads-command-test-blocked-empty-result ()
+  "Test beads-command-blocked with no blocked issues.
+Integration test that verifies empty list when no blockers exist."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create issues without blockers
+    (beads-command-create! :title "Issue 1")
+    (beads-command-create! :title "Issue 2")
+    ;; Get blocked issues (should be none)
+    (let ((issues (beads-command-blocked!)))
+      (should (listp issues))
+      (should (zerop (length issues))))))
+
+;;; Integration Test: beads-command-stats
+
+(ert-deftest beads-command-test-stats-basic ()
+  "Test beads-command-stats returns statistics.
+Integration test that retrieves issue database stats."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create some test issues
+    (beads-command-create! :title "Issue 1")
+    (beads-command-create! :title "Issue 2")
+    ;; Get stats
+    (let ((stats (beads-command-stats!)))
+      ;; Should return parsed JSON (alist or similar)
+      (should stats)
+      ;; Stats should have some structure (implementation-dependent)
+      ;; Just verify it's not nil
+      (should (not (null stats))))))
+
 (provide 'beads-command-test)
 ;;; beads-command-test.el ends here
