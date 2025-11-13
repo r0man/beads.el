@@ -13,6 +13,8 @@
               "~/workspace/beads.el/lisp/test")
   :bind ("C-c b" . beads)
   :hook (after-init . beads)
+  :custom
+  (beads-enable-debug t)
   :config
   (require 'beads-eldoc)
   (beads-eldoc-mode))
