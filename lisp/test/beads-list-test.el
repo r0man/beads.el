@@ -1150,7 +1150,7 @@ Tests setting filters before executing."
   "Test beads-list buffer with empty project (no issues)."
   :tags '(integration transient)
   ;; (skip-unless (not noninteractive))
-  (let ((default-directory (beads-test-make-project)))
+  (let ((default-directory (beads-test-create-project)))
     (beads-test-execute-commands
      (list (kbd "M-x beads-list")
            (kbd "x")))
@@ -1163,7 +1163,7 @@ Tests setting filters before executing."
   "Test beads-list buffer renders created issues correctly."
   :tags '(integration transient)
   (skip-unless (not noninteractive))
-  (let ((default-directory (beads-test-make-project)))
+  (let ((default-directory (beads-test-create-project)))
     ;; Create test issues with JSON flag to get issue objects back
     (let ((issue-a (beads-command-execute
                     (beads-command-create :title "Test issue A"
