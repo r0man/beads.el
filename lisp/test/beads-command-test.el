@@ -17,7 +17,7 @@
 
 ;;; Base Command Tests
 
-(ert-deftest beads-command-base-class-is-abstract ()
+(ert-deftest beads-command-test-base-class-is-abstract ()
   "Verify beads-command cannot be instantiated directly.
 Since EIEIO doesn't provide eieio-class-abstract-p, we verify
 the class has :abstract t in its definition."
@@ -26,27 +26,27 @@ the class has :abstract t in its definition."
   (should-error (beads-command)
                 :type 'error))
 
-(ert-deftest beads-command-to-args-empty ()
+(ert-deftest beads-command-test-to-args-empty ()
   "Test beads-command-init-to-args with no flags set returns just init."
   (let* ((cmd (beads-command-init))
          (args (beads-command-to-args cmd)))
     (should (equal args '("init")))))
 
-(ert-deftest beads-command-to-args-with-actor ()
+(ert-deftest beads-command-test-to-args-with-actor ()
   "Test beads-command-to-args with --actor flag."
   (let* ((cmd (beads-command-init :actor "testuser"))
          (args (beads-command-to-args cmd)))
     (should (member "--actor" args))
     (should (member "testuser" args))))
 
-(ert-deftest beads-command-to-args-with-db ()
+(ert-deftest beads-command-test-to-args-with-db ()
   "Test beads-command-to-args with --db flag."
   (let* ((cmd (beads-command-init :db "/path/to/db"))
          (args (beads-command-to-args cmd)))
     (should (member "--db" args))
     (should (member "/path/to/db" args))))
 
-(ert-deftest beads-command-to-args-with-boolean-flags ()
+(ert-deftest beads-command-test-to-args-with-boolean-flags ()
   "Test beads-command-to-args with boolean flags."
   (let* ((cmd (beads-command-init
                :no-auto-flush t
@@ -57,7 +57,7 @@ the class has :abstract t in its definition."
     (should (member "--no-daemon" args))
     (should (member "--sandbox" args))))
 
-(ert-deftest beads-command-to-args-all-global-flags ()
+(ert-deftest beads-command-test-to-args-all-global-flags ()
   "Test beads-command-to-args with all global flags set."
   (let* ((cmd (beads-command-init
                :actor "alice"
@@ -94,32 +94,32 @@ the class has :abstract t in its definition."
 
 ;; No need to override beads-command-execute - will use parent implementation
 
-(ert-deftest beads-json-command-class-is-abstract ()
+(ert-deftest beads-command-test-json-command-class-is-abstract ()
   "Verify beads-command-json cannot be instantiated directly."
   (should-error (beads-command-json)
                 :type 'error))
 
-(ert-deftest beads-json-command-inherits-from-beads-command ()
+(ert-deftest beads-command-test-json-command-inherits-from-beads-command ()
   "Verify beads-command-json inherits from beads-command."
   (let ((cmd (beads-test-json-command)))
     (should (object-of-class-p cmd 'beads-command-json))
     (should (object-of-class-p cmd 'beads-command))))
 
-(ert-deftest beads-json-command-to-args-without-json ()
+(ert-deftest beads-command-test-json-command-to-args-without-json ()
   "Test beads-command-json-to-args with json=nil."
   (let* ((cmd (beads-test-json-command :json nil))
          (args (beads-command-to-args cmd)))
     (should (equal (car args) "test"))
     (should-not (member "--json" args))))
 
-(ert-deftest beads-json-command-to-args-with-json ()
+(ert-deftest beads-command-test-json-command-to-args-with-json ()
   "Test beads-command-json-to-args with json=t."
   (let* ((cmd (beads-test-json-command :json t))
          (args (beads-command-to-args cmd)))
     (should (equal (car args) "test"))
     (should (member "--json" args))))
 
-(ert-deftest beads-json-command-to-args-combined ()
+(ert-deftest beads-command-test-json-command-to-args-combined ()
   "Test beads-command-json-to-args with json and global flags."
   (let* ((cmd (beads-test-json-command
                :actor "alice"
@@ -132,7 +132,7 @@ the class has :abstract t in its definition."
     (should (member "alice" args))
     (should (member "--no-daemon" args))))
 
-(ert-deftest beads-json-command-execute-with-json ()
+(ert-deftest beads-command-test-json-command-execute-with-json ()
   "Test beads-command-json-execute with JSON enabled returns parsed JSON."
   (let ((cmd (beads-test-json-command :json t)))
     ;; Mock process-file to return JSON
@@ -165,7 +165,7 @@ the class has :abstract t in its definition."
         ;; Third element is stderr
         (should (stringp (nth 2 result)))))))
 
-(ert-deftest beads-json-command-execute-without-json ()
+(ert-deftest beads-command-test-json-command-execute-without-json ()
   "Test beads-command-json-execute with JSON disabled returns (exit-code stdout stderr)."
   (let ((cmd (beads-test-json-command :json nil)))
     ;; Mock process-file to return plain text
@@ -195,7 +195,7 @@ the class has :abstract t in its definition."
         (should (string-match-p "Success" (nth 1 result)))
         (should (stringp (nth 2 result)))))))
 
-(ert-deftest beads-json-command-execute-parse-error ()
+(ert-deftest beads-command-test-json-command-execute-parse-error ()
   "Test beads-command-json-execute handles JSON parse errors."
   (let ((cmd (beads-test-json-command :json t)))
     ;; Mock process-file to return invalid JSON
@@ -219,7 +219,7 @@ the class has :abstract t in its definition."
       (should-error (beads-command-execute cmd)
                     :type 'beads-json-parse-error))))
 
-(ert-deftest beads-json-command-execute-command-failure ()
+(ert-deftest beads-command-test-json-command-execute-command-failure ()
   "Test beads-command-json-execute handles command failure."
   (let ((cmd (beads-test-json-command :json t)))
     ;; Mock process-file to return non-zero exit code
@@ -245,13 +245,13 @@ the class has :abstract t in its definition."
 
 ;;; Init Command Tests
 
-(ert-deftest beads-init-command-create-minimal ()
+(ert-deftest beads-command-test-init-command-create-minimal ()
   "Test creating beads-command-init with no arguments."
   (let ((cmd (beads-command-init)))
     (should (beads-command-init-p cmd))
     (should (object-of-class-p cmd 'beads-command))))
 
-(ert-deftest beads-init-command-create-with-slots ()
+(ert-deftest beads-command-test-init-command-create-with-slots ()
   "Test creating beads-command-init with all slots."
   (let ((cmd (beads-command-init
               :branch "develop"
@@ -267,49 +267,49 @@ the class has :abstract t in its definition."
     (should (eq (oref cmd skip-merge-driver) t))
     (should (null (oref cmd team)))))
 
-(ert-deftest beads-init-command-to-args-minimal ()
+(ert-deftest beads-command-test-init-command-to-args-minimal ()
   "Test beads-command-init-to-args with no flags."
   (let* ((cmd (beads-command-init))
          (args (beads-command-to-args cmd)))
     (should (equal args '("init")))))
 
-(ert-deftest beads-init-command-to-args-with-prefix ()
+(ert-deftest beads-command-test-init-command-to-args-with-prefix ()
   "Test beads-command-init-to-args with --prefix."
   (let* ((cmd (beads-command-init :prefix "myproj"))
          (args (beads-command-to-args cmd)))
     (should (equal args '("init" "--prefix" "myproj")))))
 
-(ert-deftest beads-init-command-to-args-with-branch ()
+(ert-deftest beads-command-test-init-command-to-args-with-branch ()
   "Test beads-command-init-to-args with --branch."
   (let* ((cmd (beads-command-init :branch "main"))
          (args (beads-command-to-args cmd)))
     (should (equal args '("init" "--branch" "main")))))
 
-(ert-deftest beads-init-command-to-args-with-quiet ()
+(ert-deftest beads-command-test-init-command-to-args-with-quiet ()
   "Test beads-command-init-to-args with --quiet."
   (let* ((cmd (beads-command-init :quiet t))
          (args (beads-command-to-args cmd)))
     (should (equal args '("init" "--quiet")))))
 
-(ert-deftest beads-init-command-to-args-with-contributor ()
+(ert-deftest beads-command-test-init-command-to-args-with-contributor ()
   "Test beads-command-init-to-args with --contributor."
   (let* ((cmd (beads-command-init :contributor t))
          (args (beads-command-to-args cmd)))
     (should (equal args '("init" "--contributor")))))
 
-(ert-deftest beads-init-command-to-args-with-team ()
+(ert-deftest beads-command-test-init-command-to-args-with-team ()
   "Test beads-command-init-to-args with --team."
   (let* ((cmd (beads-command-init :team t))
          (args (beads-command-to-args cmd)))
     (should (equal args '("init" "--team")))))
 
-(ert-deftest beads-init-command-to-args-with-skip-merge-driver ()
+(ert-deftest beads-command-test-init-command-to-args-with-skip-merge-driver ()
   "Test beads-command-init-to-args with --skip-merge-driver."
   (let* ((cmd (beads-command-init :skip-merge-driver t))
          (args (beads-command-to-args cmd)))
     (should (equal args '("init" "--skip-merge-driver")))))
 
-(ert-deftest beads-init-command-to-args-all-init-flags ()
+(ert-deftest beads-command-test-init-command-to-args-all-init-flags ()
   "Test beads-command-init-to-args with all init-specific flags."
   (let* ((cmd (beads-command-init
                :branch "develop"
@@ -324,7 +324,7 @@ the class has :abstract t in its definition."
     (should (member "--quiet" args))
     (should (member "--skip-merge-driver" args))))
 
-(ert-deftest beads-init-command-to-args-combined ()
+(ert-deftest beads-command-test-init-command-to-args-combined ()
   "Test beads-command-init-to-args with global and init flags."
   (let* ((cmd (beads-command-init
                :actor "bob"
@@ -343,22 +343,22 @@ the class has :abstract t in its definition."
 
 ;;; Validation Tests
 
-(ert-deftest beads-init-command-validate-success ()
+(ert-deftest beads-command-test-init-command-validate-success ()
   "Test beads-command-init-validate with valid command."
   (let ((cmd (beads-command-init :prefix "test")))
     (should (null (beads-command-validate cmd)))))
 
-(ert-deftest beads-init-command-validate-contributor-only ()
+(ert-deftest beads-command-test-init-command-validate-contributor-only ()
   "Test beads-command-init-validate with --contributor only."
   (let ((cmd (beads-command-init :contributor t)))
     (should (null (beads-command-validate cmd)))))
 
-(ert-deftest beads-init-command-validate-team-only ()
+(ert-deftest beads-command-test-init-command-validate-team-only ()
   "Test beads-command-init-validate with --team only."
   (let ((cmd (beads-command-init :team t)))
     (should (null (beads-command-validate cmd)))))
 
-(ert-deftest beads-init-command-validate-conflict ()
+(ert-deftest beads-command-test-init-command-validate-conflict ()
   "Test beads-command-init-validate with --contributor and --team."
   (let ((cmd (beads-command-init :contributor t :team t)))
     (should (stringp (beads-command-validate cmd)))
@@ -366,13 +366,13 @@ the class has :abstract t in its definition."
 
 ;;; Execution Tests (mocked)
 
-(ert-deftest beads-init-command-execute-validates ()
+(ert-deftest beads-command-test-init-command-execute-validates ()
   "Test beads-command-execute calls validation."
   (let ((cmd (beads-command-init :contributor t :team t)))
     (should-error (beads-command-execute cmd)
                   :type 'beads-validation-error)))
 
-(ert-deftest beads-init-command-execute-builds-args ()
+(ert-deftest beads-command-test-init-command-execute-builds-args ()
   "Test beads-command-execute builds correct arguments and returns output."
   (let ((cmd (beads-command-init :prefix "test" :quiet t))
         (called-args nil))
@@ -412,7 +412,7 @@ the class has :abstract t in its definition."
 
 ;;; Utility Function Tests
 
-(ert-deftest beads-init-command-from-options ()
+(ert-deftest beads-command-test-init-command-from-options ()
   "Test beads-command-init-from-options creates command from plist."
   (let ((cmd (beads-command-init-from-options
               '(:prefix "test"
@@ -425,7 +425,7 @@ the class has :abstract t in its definition."
     (should (eq (oref cmd quiet) t))
     (should (string= (oref cmd actor) "alice"))))
 
-(ert-deftest beads-command-init-execute ()
+(ert-deftest beads-command-test-init-execute ()
   "Test beads-command-init execution in a temporary directory.
 This test requires bd to be installed and available."
   :tags '(:integration)
@@ -451,48 +451,48 @@ This test requires bd to be installed and available."
 
 ;;; List Command Tests
 
-(ert-deftest beads-list-command-create-minimal ()
+(ert-deftest beads-command-test-list-command-create-minimal ()
   "Test creating beads-command-list with no arguments."
   (let ((cmd (beads-command-list)))
     (should (beads-command-list-p cmd))
     (should (object-of-class-p cmd 'beads-command-json))
     (should (object-of-class-p cmd 'beads-command))))
 
-(ert-deftest beads-list-command-to-args-minimal ()
+(ert-deftest beads-command-test-list-command-to-args-minimal ()
   "Test beads-command-list-to-args with no flags."
   (let* ((cmd (beads-command-list))
          (args (beads-command-to-args cmd)))
     (should (equal args '("list")))))
 
-(ert-deftest beads-list-command-to-args-with-json ()
+(ert-deftest beads-command-test-list-command-to-args-with-json ()
   "Test beads-command-list-to-args with --json."
   (let* ((cmd (beads-command-list :json t))
          (args (beads-command-to-args cmd)))
     (should (member "list" args))
     (should (member "--json" args))))
 
-(ert-deftest beads-list-command-to-args-with-status ()
+(ert-deftest beads-command-test-list-command-to-args-with-status ()
   "Test beads-command-list-to-args with --status."
   (let* ((cmd (beads-command-list :status "open"))
          (args (beads-command-to-args cmd)))
     (should (member "--status" args))
     (should (member "open" args))))
 
-(ert-deftest beads-list-command-to-args-with-priority ()
+(ert-deftest beads-command-test-list-command-to-args-with-priority ()
   "Test beads-command-list-to-args with --priority."
   (let* ((cmd (beads-command-list :priority 1))
          (args (beads-command-to-args cmd)))
     (should (member "--priority" args))
     (should (member "1" args))))
 
-(ert-deftest beads-list-command-to-args-with-assignee ()
+(ert-deftest beads-command-test-list-command-to-args-with-assignee ()
   "Test beads-command-list-to-args with --assignee."
   (let* ((cmd (beads-command-list :assignee "alice"))
          (args (beads-command-to-args cmd)))
     (should (member "--assignee" args))
     (should (member "alice" args))))
 
-(ert-deftest beads-list-command-to-args-with-labels ()
+(ert-deftest beads-command-test-list-command-to-args-with-labels ()
   "Test beads-command-list-to-args with multiple --label flags."
   (let* ((cmd (beads-command-list :label '("bug" "urgent")))
          (args (beads-command-to-args cmd)))
@@ -500,7 +500,7 @@ This test requires bd to be installed and available."
     (should (member "bug" args))
     (should (member "urgent" args))))
 
-(ert-deftest beads-list-command-to-args-with-label-any ()
+(ert-deftest beads-command-test-list-command-to-args-with-label-any ()
   "Test beads-command-list-to-args with multiple --label-any flags."
   (let* ((cmd (beads-command-list :label-any '("feature" "enhancement")))
          (args (beads-command-to-args cmd)))
@@ -508,14 +508,14 @@ This test requires bd to be installed and available."
     (should (member "feature" args))
     (should (member "enhancement" args))))
 
-(ert-deftest beads-list-command-to-args-with-limit ()
+(ert-deftest beads-command-test-list-command-to-args-with-limit ()
   "Test beads-command-list-to-args with --limit."
   (let* ((cmd (beads-command-list :limit 10))
          (args (beads-command-to-args cmd)))
     (should (member "--limit" args))
     (should (member "10" args))))
 
-(ert-deftest beads-list-command-to-args-with-dates ()
+(ert-deftest beads-command-test-list-command-to-args-with-dates ()
   "Test beads-command-list-to-args with date filters."
   (let* ((cmd (beads-command-list
                :created-after "2025-01-01"
@@ -526,7 +526,7 @@ This test requires bd to be installed and available."
     (should (member "--updated-before" args))
     (should (member "2025-12-31" args))))
 
-(ert-deftest beads-list-command-to-args-with-boolean-filters ()
+(ert-deftest beads-command-test-list-command-to-args-with-boolean-filters ()
   "Test beads-command-list-to-args with boolean filters."
   (let* ((cmd (beads-command-list
                :no-assignee t
@@ -537,7 +537,7 @@ This test requires bd to be installed and available."
     (should (member "--no-labels" args))
     (should (member "--empty-description" args))))
 
-(ert-deftest beads-list-command-to-args-combined ()
+(ert-deftest beads-command-test-list-command-to-args-combined ()
   "Test beads-command-list-to-args with multiple filters."
   (let* ((cmd (beads-command-list
                :json t
@@ -557,30 +557,30 @@ This test requires bd to be installed and available."
     (should (member "--limit" args))
     (should (member "5" args))))
 
-(ert-deftest beads-list-command-validate-success ()
+(ert-deftest beads-command-test-list-command-validate-success ()
   "Test beads-command-list-validate with valid command."
   (let ((cmd (beads-command-list :status "open")))
     (should (null (beads-command-validate cmd)))))
 
-(ert-deftest beads-list-command-validate-priority-conflict ()
+(ert-deftest beads-command-test-list-command-validate-priority-conflict ()
   "Test beads-command-list-validate with priority conflict."
   (let ((cmd (beads-command-list :priority 1 :priority-min 0)))
     (should (stringp (beads-command-validate cmd)))
     (should (string-match-p "priority" (beads-command-validate cmd)))))
 
-(ert-deftest beads-list-command-validate-assignee-conflict ()
+(ert-deftest beads-command-test-list-command-validate-assignee-conflict ()
   "Test beads-command-list-validate with assignee conflict."
   (let ((cmd (beads-command-list :assignee "alice" :no-assignee t)))
     (should (stringp (beads-command-validate cmd)))
     (should (string-match-p "assignee" (beads-command-validate cmd)))))
 
-(ert-deftest beads-list-command-validate-labels-conflict ()
+(ert-deftest beads-command-test-list-command-validate-labels-conflict ()
   "Test beads-command-list-validate with labels conflict."
   (let ((cmd (beads-command-list :label '("bug") :no-labels t)))
     (should (stringp (beads-command-validate cmd)))
     (should (string-match-p "label" (beads-command-validate cmd)))))
 
-(ert-deftest beads-list-command-validate-priority-range ()
+(ert-deftest beads-command-test-list-command-validate-priority-range ()
   "Test beads-command-list-validate with invalid priority range."
   (let ((cmd1 (beads-command-list :priority 5))
         (cmd2 (beads-command-list :priority-min -1))
@@ -589,7 +589,7 @@ This test requires bd to be installed and available."
     (should (stringp (beads-command-validate cmd2)))
     (should (stringp (beads-command-validate cmd3)))))
 
-(ert-deftest beads-list-command-execute-returns-issue-list ()
+(ert-deftest beads-command-test-list-command-execute-returns-issue-list ()
   "Test beads-command-list-execute returns list of beads-issue instances."
   (require 'beads-types)
   (let ((cmd (beads-command-list :json t)))
@@ -618,7 +618,7 @@ This test requires bd to be installed and available."
         (should (string= (oref (car result) title) "Test"))
         (should (string= (oref (car result) status) "open"))))))
 
-(ert-deftest beads-list-command-execute-empty-result ()
+(ert-deftest beads-command-test-list-command-execute-empty-result ()
   "Test beads-command-list-execute with empty result."
   (require 'beads-types)
   (let ((cmd (beads-command-list :json t)))
@@ -643,7 +643,7 @@ This test requires bd to be installed and available."
 
 ;;; Create Command Tests
 
-(ert-deftest beads-create-command-create-minimal ()
+(ert-deftest beads-command-test-create-command-create-minimal ()
   "Test creating beads-command-create with minimal arguments."
   (let ((cmd (beads-command-create :title "Test issue")))
     (should (beads-command-create-p cmd))
@@ -651,14 +651,14 @@ This test requires bd to be installed and available."
     (should (object-of-class-p cmd 'beads-command))
     (should (string= (oref cmd title) "Test issue"))))
 
-(ert-deftest beads-create-command-to-args-minimal ()
+(ert-deftest beads-command-test-create-command-to-args-minimal ()
   "Test beads-command-create-to-args with just title."
   (let* ((cmd (beads-command-create :title "Test issue"))
          (args (beads-command-to-args cmd)))
     (should (equal (car args) "create"))
     (should (member "Test issue" args))))
 
-(ert-deftest beads-create-command-to-args-with-json ()
+(ert-deftest beads-command-test-create-command-to-args-with-json ()
   "Test beads-command-create-to-args with --json."
   (let* ((cmd (beads-command-create :title "Test" :json t))
          (args (beads-command-to-args cmd)))
@@ -666,7 +666,7 @@ This test requires bd to be installed and available."
     (should (member "Test" args))
     (should (member "--json" args))))
 
-(ert-deftest beads-create-command-to-args-with-type ()
+(ert-deftest beads-command-test-create-command-to-args-with-type ()
   "Test beads-command-create-to-args with --type."
   (let* ((cmd (beads-command-create
                :title "Bug fix"
@@ -675,7 +675,7 @@ This test requires bd to be installed and available."
     (should (member "--type" args))
     (should (member "bug" args))))
 
-(ert-deftest beads-create-command-to-args-with-priority ()
+(ert-deftest beads-command-test-create-command-to-args-with-priority ()
   "Test beads-command-create-to-args with --priority."
   (let* ((cmd (beads-command-create
                :title "Critical issue"
@@ -684,7 +684,7 @@ This test requires bd to be installed and available."
     (should (member "--priority" args))
     (should (member "0" args))))
 
-(ert-deftest beads-create-command-to-args-with-description ()
+(ert-deftest beads-command-test-create-command-to-args-with-description ()
   "Test beads-command-create-to-args with --description."
   (let* ((cmd (beads-command-create
                :title "Feature"
@@ -693,7 +693,7 @@ This test requires bd to be installed and available."
     (should (member "--description" args))
     (should (member "Add new feature" args))))
 
-(ert-deftest beads-create-command-to-args-with-assignee ()
+(ert-deftest beads-command-test-create-command-to-args-with-assignee ()
   "Test beads-command-create-to-args with --assignee."
   (let* ((cmd (beads-command-create
                :title "Task"
@@ -702,7 +702,7 @@ This test requires bd to be installed and available."
     (should (member "--assignee" args))
     (should (member "alice" args))))
 
-(ert-deftest beads-create-command-to-args-with-labels ()
+(ert-deftest beads-command-test-create-command-to-args-with-labels ()
   "Test beads-command-create-to-args with --labels."
   (let* ((cmd (beads-command-create
                :title "Task"
@@ -711,7 +711,7 @@ This test requires bd to be installed and available."
     (should (member "--labels" args))
     (should (member "bug,urgent" args))))
 
-(ert-deftest beads-create-command-to-args-with-deps ()
+(ert-deftest beads-command-test-create-command-to-args-with-deps ()
   "Test beads-command-create-to-args with --deps."
   (let* ((cmd (beads-command-create
                :title "Task"
@@ -720,7 +720,7 @@ This test requires bd to be installed and available."
     (should (member "--deps" args))
     (should (member "discovered-from:bd-20,blocks:bd-15" args))))
 
-(ert-deftest beads-create-command-to-args-with-parent ()
+(ert-deftest beads-command-test-create-command-to-args-with-parent ()
   "Test beads-command-create-to-args with --parent."
   (let* ((cmd (beads-command-create
                :title "Subtask"
@@ -729,7 +729,7 @@ This test requires bd to be installed and available."
     (should (member "--parent" args))
     (should (member "bd-42" args))))
 
-(ert-deftest beads-create-command-to-args-with-external-ref ()
+(ert-deftest beads-command-test-create-command-to-args-with-external-ref ()
   "Test beads-command-create-to-args with --external-ref."
   (let* ((cmd (beads-command-create
                :title "Task"
@@ -738,7 +738,7 @@ This test requires bd to be installed and available."
     (should (member "--external-ref" args))
     (should (member "gh-123" args))))
 
-(ert-deftest beads-create-command-to-args-with-file ()
+(ert-deftest beads-command-test-create-command-to-args-with-file ()
   "Test beads-command-create-to-args with --file."
   (let* ((cmd (beads-command-create
                :file "/path/to/issues.md"))
@@ -746,7 +746,7 @@ This test requires bd to be installed and available."
     (should (member "--file" args))
     (should (member "/path/to/issues.md" args))))
 
-(ert-deftest beads-create-command-to-args-combined ()
+(ert-deftest beads-command-test-create-command-to-args-combined ()
   "Test beads-command-create-to-args with multiple options."
   (let* ((cmd (beads-command-create
                :json t
@@ -774,23 +774,23 @@ This test requires bd to be installed and available."
     (should (member "--deps" args))
     (should (member "blocks:bd-10" args))))
 
-(ert-deftest beads-create-command-validate-success-with-title ()
+(ert-deftest beads-command-test-create-command-validate-success-with-title ()
   "Test beads-command-create-validate with title."
   (let ((cmd (beads-command-create :title "Test")))
     (should (null (beads-command-validate cmd)))))
 
-(ert-deftest beads-create-command-validate-success-with-file ()
+(ert-deftest beads-command-test-create-command-validate-success-with-file ()
   "Test beads-command-create-validate with file."
   (let ((cmd (beads-command-create :file "/path/to/file.md")))
     (should (null (beads-command-validate cmd)))))
 
-(ert-deftest beads-create-command-validate-no-title-no-file ()
+(ert-deftest beads-command-test-create-command-validate-no-title-no-file ()
   "Test beads-command-create-validate without title or file."
   (let ((cmd (beads-command-create)))
     (should (stringp (beads-command-validate cmd)))
     (should (string-match-p "title\\|file" (beads-command-validate cmd)))))
 
-(ert-deftest beads-create-command-validate-both-title-and-file ()
+(ert-deftest beads-command-test-create-command-validate-both-title-and-file ()
   "Test beads-command-create-validate with both title and file."
   (let ((cmd (beads-command-create
               :title "Test"
@@ -798,7 +798,7 @@ This test requires bd to be installed and available."
     (should (stringp (beads-command-validate cmd)))
     (should (string-match-p "both" (beads-command-validate cmd)))))
 
-(ert-deftest beads-create-command-execute-returns-issue ()
+(ert-deftest beads-command-test-create-command-execute-returns-issue ()
   "Test beads-command-create-execute returns beads-issue instance."
   (require 'beads-types)
   (let ((cmd (beads-command-create :title "Test" :json t)))
@@ -825,7 +825,7 @@ This test requires bd to be installed and available."
         (should (string= (oref result title) "Test"))
         (should (string= (oref result status) "open"))))))
 
-(ert-deftest beads-create-command-execute-returns-issue-list-from-file ()
+(ert-deftest beads-command-test-create-command-execute-returns-issue-list-from-file ()
   "Test beads-command-create-execute returns list from file."
   (require 'beads-types)
   (let ((cmd (beads-command-create :file "/tmp/issues.md" :json t)))
