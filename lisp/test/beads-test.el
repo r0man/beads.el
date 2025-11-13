@@ -26,7 +26,7 @@
 (require 'beads)
 (require 'beads-command)
 
-(defun beads-test-make-project ()
+(defun beads-test-create-project ()
   (let ((default-directory (make-temp-file "beads-test-" t)))
     (beads-command-execute (beads-command-init))
     default-directory))
