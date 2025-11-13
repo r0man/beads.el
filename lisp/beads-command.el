@@ -11,11 +11,11 @@
 ;;
 ;; The class hierarchy mirrors bd command structure:
 ;; - beads-command: Base class with global flags (--actor, --db, etc.)
-;;   - beads-json-command: Commands that support --json flag (abstract)
-;;     - beads-create-command: bd create command (future)
-;;     - beads-update-command: bd update command (future)
-;;     - beads-list-command: bd list command (future)
-;;   - beads-init-command: bd init command (no JSON support)
+;;   - beads-command-json: Commands that support --json flag (abstract)
+;;     - beads-command-create: bd create command (future)
+;;     - beads-command-update: bd update command (future)
+;;     - beads-command-list: bd list command (future)
+;;   - beads-command-init: bd init command (no JSON support)
 ;;
 ;; Each command class:
 ;; - Has slots for all applicable flags
@@ -26,7 +26,7 @@
 ;; Usage:
 ;;
 ;;   ;; Create and execute an init command (no JSON support)
-;;   (let ((cmd (beads-init-command
+;;   (let ((cmd (beads-command-init
 ;;               :prefix "myproject"
 ;;               :branch "main"
 ;;               :quiet t)))
@@ -236,7 +236,7 @@ Signals beads-validation-error or beads-command-error on failure."
 
 ;;; JSON Command
 
-(defclass beads-json-command (beads-command)
+(defclass beads-command-json (beads-command)
   ((json
     :initarg :json
     :type boolean
@@ -248,7 +248,7 @@ Enables machine-readable output."))
 Inherits from beads-command and adds --json flag support.
 Use this as parent class for commands that support --json flag.")
 
-(cl-defmethod beads-command-to-args ((command beads-json-command))
+(cl-defmethod beads-command-to-args ((command beads-command-json))
   "Build command arguments including --json flag for JSON COMMAND.
 Calls parent method and adds --json if enabled."
   (with-slots (json) command
@@ -258,7 +258,7 @@ Calls parent method and adds --json if enabled."
         (setq args (append args (list "--json"))))
       args)))
 
-(cl-defmethod beads-command-execute ((command beads-json-command))
+(cl-defmethod beads-command-execute ((command beads-command-json))
   "Execute JSON COMMAND and return (EXIT-CODE STDOUT STDERR).
 When :json is t, STDOUT is parsed JSON (alist/vector).
 When :json is nil, falls back to parent (STDOUT is string).
@@ -295,7 +295,7 @@ beads-json-parse-error on failure."
 
 ;;; Init Command
 
-(defclass beads-init-command (beads-command)
+(defclass beads-command-init (beads-command)
   ((branch
     :initarg :branch
     :type (or null string)
@@ -333,7 +333,7 @@ Non-interactive mode.")
 Initializes bd in the current directory by creating .beads/ directory
 and database file.")
 
-(cl-defmethod beads-command-to-args ((command beads-init-command))
+(cl-defmethod beads-command-to-args ((command beads-command-init))
   "Build full command arguments for init COMMAND.
 Returns list: (\"init\" ...global-flags... ...init-flags...)."
   (with-slots (branch contributor prefix quiet
@@ -377,7 +377,7 @@ Returns list: (\"init\" ...global-flags... ...init-flags...)."
           (setq cmd-args (append cmd-args (list "--team"))))
         cmd-args))))
 
-(cl-defmethod beads-command-validate ((command beads-init-command))
+(cl-defmethod beads-command-validate ((command beads-command-init))
   "Validate init COMMAND.
 Checks for conflicts between options.
 Returns error string or nil if valid."
@@ -391,14 +391,14 @@ Returns error string or nil if valid."
 
 ;;; Utility Functions
 
-(defun beads-init-command-from-options (options)
-  "Create beads-init-command from OPTIONS plist.
+(defun beads-command-init-from-options (options)
+  "Create beads-command-init from OPTIONS plist.
 OPTIONS should be a plist with keys matching slot names:
   :branch, :contributor, :prefix, :quiet, :skip-merge-driver, :team
 Plus global flags:
   :actor, :db, :no-auto-flush, :no-auto-import,
   :no-daemon, :no-db, :sandbox"
-  (apply #'beads-init-command options))
+  (apply #'beads-command-init options))
 
 (provide 'beads-command)
 ;;; beads-command.el ends here
