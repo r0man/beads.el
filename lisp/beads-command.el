@@ -40,30 +40,13 @@
 
 (require 'eieio)
 (require 'beads-types)
+(require 'beads-error)
 (require 'cl-lib)
 (require 'json)
 
 ;; Forward declarations
 (defvar beads-executable)
 (declare-function beads--log "beads")
-
-;;; Error Definitions
-
-(define-error 'beads-error
-  "Beads error"
-  'error)
-
-(define-error 'beads-command-error
-  "Beads command execution error"
-  'beads-error)
-
-(define-error 'beads-json-parse-error
-  "Beads JSON parse error"
-  'beads-error)
-
-(define-error 'beads-validation-error
-  "Beads command validation error"
-  'beads-error)
 
 ;;; Base Command Class
 
