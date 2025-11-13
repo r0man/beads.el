@@ -449,5 +449,197 @@ This test requires bd to be installed and available."
       (when (file-exists-p temp-dir)
         (delete-directory temp-dir t)))))
 
+;;; List Command Tests
+
+(ert-deftest beads-list-command-create-minimal ()
+  "Test creating beads-command-list with no arguments."
+  (let ((cmd (beads-command-list)))
+    (should (beads-command-list-p cmd))
+    (should (object-of-class-p cmd 'beads-command-json))
+    (should (object-of-class-p cmd 'beads-command))))
+
+(ert-deftest beads-list-command-to-args-minimal ()
+  "Test beads-command-list-to-args with no flags."
+  (let* ((cmd (beads-command-list))
+         (args (beads-command-to-args cmd)))
+    (should (equal args '("list")))))
+
+(ert-deftest beads-list-command-to-args-with-json ()
+  "Test beads-command-list-to-args with --json."
+  (let* ((cmd (beads-command-list :json t))
+         (args (beads-command-to-args cmd)))
+    (should (member "list" args))
+    (should (member "--json" args))))
+
+(ert-deftest beads-list-command-to-args-with-status ()
+  "Test beads-command-list-to-args with --status."
+  (let* ((cmd (beads-command-list :status "open"))
+         (args (beads-command-to-args cmd)))
+    (should (member "--status" args))
+    (should (member "open" args))))
+
+(ert-deftest beads-list-command-to-args-with-priority ()
+  "Test beads-command-list-to-args with --priority."
+  (let* ((cmd (beads-command-list :priority 1))
+         (args (beads-command-to-args cmd)))
+    (should (member "--priority" args))
+    (should (member "1" args))))
+
+(ert-deftest beads-list-command-to-args-with-assignee ()
+  "Test beads-command-list-to-args with --assignee."
+  (let* ((cmd (beads-command-list :assignee "alice"))
+         (args (beads-command-to-args cmd)))
+    (should (member "--assignee" args))
+    (should (member "alice" args))))
+
+(ert-deftest beads-list-command-to-args-with-labels ()
+  "Test beads-command-list-to-args with multiple --label flags."
+  (let* ((cmd (beads-command-list :label '("bug" "urgent")))
+         (args (beads-command-to-args cmd)))
+    (should (member "--label" args))
+    (should (member "bug" args))
+    (should (member "urgent" args))))
+
+(ert-deftest beads-list-command-to-args-with-label-any ()
+  "Test beads-command-list-to-args with multiple --label-any flags."
+  (let* ((cmd (beads-command-list :label-any '("feature" "enhancement")))
+         (args (beads-command-to-args cmd)))
+    (should (member "--label-any" args))
+    (should (member "feature" args))
+    (should (member "enhancement" args))))
+
+(ert-deftest beads-list-command-to-args-with-limit ()
+  "Test beads-command-list-to-args with --limit."
+  (let* ((cmd (beads-command-list :limit 10))
+         (args (beads-command-to-args cmd)))
+    (should (member "--limit" args))
+    (should (member "10" args))))
+
+(ert-deftest beads-list-command-to-args-with-dates ()
+  "Test beads-command-list-to-args with date filters."
+  (let* ((cmd (beads-command-list
+               :created-after "2025-01-01"
+               :updated-before "2025-12-31"))
+         (args (beads-command-to-args cmd)))
+    (should (member "--created-after" args))
+    (should (member "2025-01-01" args))
+    (should (member "--updated-before" args))
+    (should (member "2025-12-31" args))))
+
+(ert-deftest beads-list-command-to-args-with-boolean-filters ()
+  "Test beads-command-list-to-args with boolean filters."
+  (let* ((cmd (beads-command-list
+               :no-assignee t
+               :no-labels t
+               :empty-description t))
+         (args (beads-command-to-args cmd)))
+    (should (member "--no-assignee" args))
+    (should (member "--no-labels" args))
+    (should (member "--empty-description" args))))
+
+(ert-deftest beads-list-command-to-args-combined ()
+  "Test beads-command-list-to-args with multiple filters."
+  (let* ((cmd (beads-command-list
+               :json t
+               :status "open"
+               :priority 1
+               :assignee "bob"
+               :limit 5))
+         (args (beads-command-to-args cmd)))
+    (should (equal (car args) "list"))
+    (should (member "--json" args))
+    (should (member "--status" args))
+    (should (member "open" args))
+    (should (member "--priority" args))
+    (should (member "1" args))
+    (should (member "--assignee" args))
+    (should (member "bob" args))
+    (should (member "--limit" args))
+    (should (member "5" args))))
+
+(ert-deftest beads-list-command-validate-success ()
+  "Test beads-command-list-validate with valid command."
+  (let ((cmd (beads-command-list :status "open")))
+    (should (null (beads-command-validate cmd)))))
+
+(ert-deftest beads-list-command-validate-priority-conflict ()
+  "Test beads-command-list-validate with priority conflict."
+  (let ((cmd (beads-command-list :priority 1 :priority-min 0)))
+    (should (stringp (beads-command-validate cmd)))
+    (should (string-match-p "priority" (beads-command-validate cmd)))))
+
+(ert-deftest beads-list-command-validate-assignee-conflict ()
+  "Test beads-command-list-validate with assignee conflict."
+  (let ((cmd (beads-command-list :assignee "alice" :no-assignee t)))
+    (should (stringp (beads-command-validate cmd)))
+    (should (string-match-p "assignee" (beads-command-validate cmd)))))
+
+(ert-deftest beads-list-command-validate-labels-conflict ()
+  "Test beads-command-list-validate with labels conflict."
+  (let ((cmd (beads-command-list :label '("bug") :no-labels t)))
+    (should (stringp (beads-command-validate cmd)))
+    (should (string-match-p "label" (beads-command-validate cmd)))))
+
+(ert-deftest beads-list-command-validate-priority-range ()
+  "Test beads-command-list-validate with invalid priority range."
+  (let ((cmd1 (beads-command-list :priority 5))
+        (cmd2 (beads-command-list :priority-min -1))
+        (cmd3 (beads-command-list :priority-max 10)))
+    (should (stringp (beads-command-validate cmd1)))
+    (should (stringp (beads-command-validate cmd2)))
+    (should (stringp (beads-command-validate cmd3)))))
+
+(ert-deftest beads-list-command-execute-returns-issue-list ()
+  "Test beads-command-list-execute returns list of beads-issue instances."
+  (require 'beads-types)
+  (let ((cmd (beads-command-list :json t)))
+    ;; Mock process-file to return JSON array of issues
+    (cl-letf (((symbol-function 'process-file)
+               (lambda (_program &optional _infile buffer _display &rest _args)
+                 (when (listp buffer)
+                   ;; Write to stdout buffer (first element)
+                   (with-current-buffer (car buffer)
+                     (insert "[{\"id\":\"bd-1\",\"title\":\"Test\",\"status\":\"open\",\"priority\":2}]"))
+                   ;; Handle stderr
+                   (when (nth 1 buffer)
+                     (if (stringp (nth 1 buffer))
+                         (with-temp-buffer
+                           (insert "")
+                           (write-region (point-min) (point-max) (nth 1 buffer)))
+                       (with-current-buffer (nth 1 buffer)
+                         (insert "")))))
+                 0)))
+      (let ((result (beads-command-execute cmd)))
+        ;; Should return list of beads-issue instances
+        (should (listp result))
+        (should (> (length result) 0))
+        (should (beads-issue-p (car result)))
+        (should (string= (oref (car result) id) "bd-1"))
+        (should (string= (oref (car result) title) "Test"))
+        (should (string= (oref (car result) status) "open"))))))
+
+(ert-deftest beads-list-command-execute-empty-result ()
+  "Test beads-command-list-execute with empty result."
+  (require 'beads-types)
+  (let ((cmd (beads-command-list :json t)))
+    ;; Mock process-file to return empty JSON array
+    (cl-letf (((symbol-function 'process-file)
+               (lambda (_program &optional _infile buffer _display &rest _args)
+                 (when (listp buffer)
+                   (with-current-buffer (car buffer)
+                     (insert "[]"))
+                   (when (nth 1 buffer)
+                     (if (stringp (nth 1 buffer))
+                         (with-temp-buffer
+                           (insert "")
+                           (write-region (point-min) (point-max) (nth 1 buffer)))
+                       (with-current-buffer (nth 1 buffer)
+                         (insert "")))))
+                 0)))
+      (let ((result (beads-command-execute cmd)))
+        ;; Should return empty list
+        (should (listp result))
+        (should (= (length result) 0))))))
+
 (provide 'beads-command-test)
 ;;; beads-command-test.el ends here
