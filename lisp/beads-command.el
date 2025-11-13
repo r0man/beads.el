@@ -893,6 +893,113 @@ beads-json-parse-error on failure."
           ;; Non-zero exit code: parent already signaled error
           result)))))
 
+;;; Epic Commands
+
+(defclass beads-command-epic-close-eligible (beads-command-json)
+  ((dry-run
+    :initarg :dry-run
+    :type boolean
+    :initform nil
+    :documentation "Preview what would be closed without making changes
+(--dry-run)."))
+  :documentation "Represents bd epic close-eligible command.
+Close epics where all children are complete.
+When executed with :json t, returns list of closed/eligible epic IDs.")
+
+(cl-defmethod beads-command-line ((command
+                                   beads-command-epic-close-eligible))
+  "Build command arguments for epic close-eligible COMMAND.
+Returns list: (\"epic\" \"close-eligible\" ...global-flags... ...flags...)."
+  (with-slots (dry-run) command
+    (let ((args (list "epic" "close-eligible"))
+          (global-args (cl-call-next-method)))
+      ;; Append global flags (includes --json if enabled)
+      (setq args (append args global-args))
+
+      ;; Boolean flag
+      (when dry-run
+        (setq args (append args (list "--dry-run"))))
+
+      args)))
+
+(cl-defmethod beads-command-validate ((_command
+                                       beads-command-epic-close-eligible))
+  "Validate epic close-eligible COMMAND.
+Default implementation returns nil (valid)."
+  nil)
+
+(cl-defmethod beads-command-execute ((command
+                                      beads-command-epic-close-eligible))
+  "Execute epic close-eligible COMMAND and return result.
+When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
+When :json is t, returns parsed JSON (list of epic IDs or status objects).
+Signals beads-validation-error, beads-command-error, or
+beads-json-parse-error on failure."
+  (with-slots (json) command
+    (if (not json)
+        ;; If json is not enabled, use parent implementation
+        (cl-call-next-method)
+      ;; JSON execution: call parent to get parsed JSON
+      (let* ((result (cl-call-next-method))
+             (exit-code (nth 0 result))
+             (parsed-json (nth 1 result)))
+        ;; Return parsed JSON directly (no conversion needed)
+        (if (zerop exit-code)
+            parsed-json
+          ;; Non-zero exit code: parent already signaled error
+          result)))))
+
+(defclass beads-command-epic-status (beads-command-json)
+  ((eligible-only
+    :initarg :eligible-only
+    :type boolean
+    :initform nil
+    :documentation "Show only epics eligible for closure
+(--eligible-only)."))
+  :documentation "Represents bd epic status command.
+Show epic completion status for all epics or only eligible ones.
+When executed with :json t, returns list of epic status objects.")
+
+(cl-defmethod beads-command-line ((command beads-command-epic-status))
+  "Build command arguments for epic status COMMAND.
+Returns list: (\"epic\" \"status\" ...global-flags... ...flags...)."
+  (with-slots (eligible-only) command
+    (let ((args (list "epic" "status"))
+          (global-args (cl-call-next-method)))
+      ;; Append global flags (includes --json if enabled)
+      (setq args (append args global-args))
+
+      ;; Boolean flag
+      (when eligible-only
+        (setq args (append args (list "--eligible-only"))))
+
+      args)))
+
+(cl-defmethod beads-command-validate ((_command beads-command-epic-status))
+  "Validate epic status COMMAND.
+Default implementation returns nil (valid)."
+  nil)
+
+(cl-defmethod beads-command-execute ((command beads-command-epic-status))
+  "Execute epic status COMMAND and return result.
+When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
+When :json is t, returns parsed JSON (list of epic status objects).
+Signals beads-validation-error, beads-command-error, or
+beads-json-parse-error on failure."
+  (with-slots (json) command
+    (if (not json)
+        ;; If json is not enabled, use parent implementation
+        (cl-call-next-method)
+      ;; JSON execution: call parent to get parsed JSON
+      (let* ((result (cl-call-next-method))
+             (exit-code (nth 0 result))
+             (parsed-json (nth 1 result)))
+        ;; Return parsed JSON directly (no conversion needed)
+        (if (zerop exit-code)
+            parsed-json
+          ;; Non-zero exit code: parent already signaled error
+          result)))))
+
 ;;; Utility Functions
 
 (defun beads-command-init-from-options (options)
@@ -923,6 +1030,18 @@ See `beads-command-create' for available arguments."
 Returns a list of parsed issue objects.
 See `beads-command-list' for available arguments."
   (beads-command-execute (apply #'beads-command-list args)))
+
+(defun beads-command-epic-close-eligible! (&rest args)
+  "Create and execute a beads-command-epic-close-eligible with ARGS.
+Returns the parsed JSON result (list of epic IDs or status objects).
+See `beads-command-epic-close-eligible' for available arguments."
+  (beads-command-execute (apply #'beads-command-epic-close-eligible args)))
+
+(defun beads-command-epic-status! (&rest args)
+  "Create and execute a beads-command-epic-status with ARGS.
+Returns the parsed JSON result (list of epic status objects).
+See `beads-command-epic-status' for available arguments."
+  (beads-command-execute (apply #'beads-command-epic-status args)))
 
 (provide 'beads-command)
 ;;; beads-command.el ends here
