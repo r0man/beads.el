@@ -187,7 +187,8 @@ Signals beads-validation-error or beads-command-error on failure."
   ;; Build full command line
   (let* ((cmd (beads-command-line command))
          (cmd-string (mapconcat #'shell-quote-argument cmd " "))
-         (stderr-file (make-temp-file "beads-stderr-")))
+         (stderr-file (make-temp-file "beads-stderr-"))
+         (start-time (current-time)))
 
     (when (fboundp 'beads--log)
       (beads--log 'info "Running: %s" cmd-string)
@@ -199,12 +200,15 @@ Signals beads-validation-error or beads-command-error on failure."
                                   (car cmd) nil
                                   (list (current-buffer) stderr-file)
                                   nil (cdr cmd)))
+                 (end-time (current-time))
+                 (elapsed (float-time (time-subtract end-time start-time)))
                  (stdout (buffer-string))
                  (stderr (with-temp-buffer
                           (insert-file-contents stderr-file)
                           (buffer-string))))
 
           (when (fboundp 'beads--log)
+            (beads--log 'info "Command completed in %.3fs" elapsed)
             (beads--log 'verbose "Exit code: %d" exit-code)
             (beads--log 'verbose "Stdout: %s" stdout)
             (beads--log 'verbose "Stderr: %s" stderr))
