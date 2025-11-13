@@ -52,3 +52,6 @@ Thumbs.db
 
 # Personal development configuration (not part of package)
 /share/
+.beads/beads.base.jsonl
+.beads/beads.left.jsonl
+.beads/beads.right.jsonl
