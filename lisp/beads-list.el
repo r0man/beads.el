@@ -86,8 +86,13 @@
   :type 'integer
   :group 'beads-list)
 
-(defcustom beads-list-created-width 16
+(defcustom beads-list-created-width 18
   "Width of Created column in issue lists."
+  :type 'integer
+  :group 'beads-list)
+
+(defcustom beads-list-updated-width 18
+  "Width of Updated column in issue lists."
   :type 'integer
   :group 'beads-list)
 
@@ -193,7 +198,7 @@ Use for client-side filtering in the buffer.")
 
 (defun beads-list--format-priority (priority)
   "Format PRIORITY with appropriate face."
-  (let ((priority-str (if priority (format "%d" priority) "")))
+  (let ((priority-str (if priority (format "P%d" priority) "")))
     (propertize priority-str 'face (beads-list--priority-face priority))))
 
 (defun beads-list--format-date (iso-timestamp)
@@ -248,14 +253,17 @@ the value of `beads-list-date-format'."
          (priority (oref issue priority))
          (type (or (oref issue issue-type) ""))
          (created (oref issue created-at))
-         (created-str (beads-list--format-date created)))
+         (created-str (beads-list--format-date created))
+         (updated (oref issue updated-at))
+         (updated-str (beads-list--format-date updated)))
     (list id
           (vector id
+                  type
                   (beads-list--format-status status)
                   (beads-list--format-priority priority)
-                  type
                   title
-                  created-str))))
+                  created-str
+                  updated-str))))
 
 (defun beads-list--populate-buffer (issues command &optional filter)
   "Populate current buffer with ISSUES using COMMAND for refresh.
@@ -833,12 +841,13 @@ transient menu options."
 \\{beads-list-mode-map}"
   (setq tabulated-list-format
         (vector (list "ID" beads-list-id-width t)
+                (list "Type" beads-list-type-width t)
                 (list "Status" beads-list-status-width t)
                 (list "Priority" beads-list-priority-width t
                       :right-align t)
-                (list "Type" beads-list-type-width t)
                 (list "Title" beads-list-title-width t)
-                (list "Created" beads-list-created-width t)))
+                (list "Created" beads-list-created-width t)
+                (list "Updated" beads-list-updated-width t)))
   (setq tabulated-list-padding 2)
   (setq tabulated-list-sort-key (cons "Created" t))
   (tabulated-list-init-header))
