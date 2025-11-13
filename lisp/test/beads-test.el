@@ -26,10 +26,35 @@
 (require 'beads)
 (require 'beads-command)
 
-(defun beads-test-create-project ()
+(defun beads-test-create-project (&rest init-args)
+  "Create a temporary beads project and return its directory.
+INIT-ARGS are keyword arguments passed to beads-command-init when
+initializing the project.  For example:
+
+  (beads-test-create-project :prefix \"myproject\" :quiet t)
+
+If no INIT-ARGS are provided, creates a project with default settings."
   (let ((default-directory (make-temp-file "beads-test-" t)))
-    (beads-command-execute (beads-command-init))
+    (beads-command-execute (apply #'beads-command-init init-args))
     default-directory))
+
+(defmacro beads-test-with-project (init-args &rest body)
+  "Execute BODY with default-directory set to a temporary beads project.
+INIT-ARGS is a list of keyword arguments passed to beads-command-init
+when creating the project.  For example:
+
+  (beads-test-with-project (:prefix \"myproject\" :quiet t)
+    ;; test code here
+    )
+
+For a project with default settings, use an empty list:
+
+  (beads-test-with-project ()
+    ;; test code here
+    )"
+  (declare (indent 1))
+  `(let ((default-directory (beads-test-create-project ,@init-args)))
+     ,@body))
 
 (defun beads-test-execute-commands (cmds)
   (dolist (cmd cmds)
