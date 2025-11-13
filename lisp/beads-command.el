@@ -241,7 +241,7 @@ Signals beads-validation-error or beads-command-error on failure."
   ((json
     :initarg :json
     :type boolean
-    :initform nil
+    :initform t
     :documentation "Output in JSON format (--json).
 Enables machine-readable output."))
   :abstract t
@@ -911,6 +911,26 @@ Plus global flags:
   :actor, :db, :no-auto-flush, :no-auto-import,
   :no-daemon, :no-db, :sandbox"
   (apply #'beads-command-init options))
+
+;;; Execute Helper Functions
+
+(defun beads-command-init! (&rest args)
+  "Create and execute a beads-command-init with ARGS.
+Returns the result of executing the command.
+See `beads-command-init' for available arguments."
+  (beads-command-execute (apply #'beads-command-init args)))
+
+(defun beads-command-create! (&rest args)
+  "Create and execute a beads-command-create with ARGS.
+Returns the parsed issue object.
+See `beads-command-create' for available arguments."
+  (beads-command-execute (apply #'beads-command-create args)))
+
+(defun beads-command-list! (&rest args)
+  "Create and execute a beads-command-list with ARGS.
+Returns a list of parsed issue objects.
+See `beads-command-list' for available arguments."
+  (beads-command-execute (apply #'beads-command-list args)))
 
 (provide 'beads-command)
 ;;; beads-command.el ends here
