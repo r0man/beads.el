@@ -10,8 +10,10 @@
 
 ;;; Code:
 
-(require 'ert)
+(require 'beads-command)
 (require 'beads-list)
+(require 'beads-test)
+(require 'ert)
 
 ;;; Test Data
 
@@ -146,18 +148,18 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-populate-buffer ()
   "Test populating buffer with issues."
   (beads-list-test--with-temp-buffer
-      beads-list-test--sample-issues 'list
-    (should (= (length tabulated-list-entries) 4))
-    (should (eq beads-list--command 'list))
-    ;; Check that raw issues are beads-issue objects
-    (should (= (length beads-list--raw-issues) 4))
-    (should (beads-issue-p (car beads-list--raw-issues)))))
+   beads-list-test--sample-issues 'list
+   (should (= (length tabulated-list-entries) 4))
+   (should (eq beads-list--command 'list))
+   ;; Check that raw issues are beads-issue objects
+   (should (= (length beads-list--raw-issues) 4))
+   (should (beads-issue-p (car beads-list--raw-issues)))))
 
 (ert-deftest beads-list-test-empty-issues ()
   "Test handling of empty issue list."
   (beads-list-test--with-temp-buffer
-      beads-list-test--empty-issues 'list
-    (should (= (length tabulated-list-entries) 0))))
+   beads-list-test--empty-issues 'list
+   (should (= (length tabulated-list-entries) 0))))
 
 (ert-deftest beads-list-test-malformed-data ()
   "Test handling of malformed issue data."
@@ -176,138 +178,138 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-sort-by-id ()
   "Test sorting issues by ID."
   (beads-list-test--with-temp-buffer
-      beads-list-test--sample-issues 'list
-    ;; Re-sort after populate-buffer
-    (setq tabulated-list-sort-key (cons "ID" nil))
-    (tabulated-list-print t)
-    (goto-char (point-min))
-    (forward-line 0)  ; Stay at first line (no visible header in batch)
-    (should (equal (beads-list--current-issue-id) "bd-1"))
-    (forward-line 1)
-    (should (equal (beads-list--current-issue-id) "bd-2"))))
+   beads-list-test--sample-issues 'list
+   ;; Re-sort after populate-buffer
+   (setq tabulated-list-sort-key (cons "ID" nil))
+   (tabulated-list-print t)
+   (goto-char (point-min))
+   (forward-line 0)  ; Stay at first line (no visible header in batch)
+   (should (equal (beads-list--current-issue-id) "bd-1"))
+   (forward-line 1)
+   (should (equal (beads-list--current-issue-id) "bd-2"))))
 
 (ert-deftest beads-list-test-sort-by-priority ()
   "Test sorting issues by priority."
   (beads-list-test--with-temp-buffer
-      beads-list-test--sample-issues 'list
-    ;; Re-sort by Priority (default is now Created)
-    (setq tabulated-list-sort-key (cons "Priority" nil))
-    (tabulated-list-print t)
-    (goto-char (point-min))
-    (forward-line 0)  ; Stay at first line
-    ;; Priority 0 should be first
-    (should (equal (beads-list--current-issue-id) "bd-2"))
-    (forward-line 1)
-    ;; Priority 1 should be second
-    (should (equal (beads-list--current-issue-id) "bd-1"))))
+   beads-list-test--sample-issues 'list
+   ;; Re-sort by Priority (default is now Created)
+   (setq tabulated-list-sort-key (cons "Priority" nil))
+   (tabulated-list-print t)
+   (goto-char (point-min))
+   (forward-line 0)  ; Stay at first line
+   ;; Priority 0 should be first
+   (should (equal (beads-list--current-issue-id) "bd-2"))
+   (forward-line 1)
+   ;; Priority 1 should be second
+   (should (equal (beads-list--current-issue-id) "bd-1"))))
 
 (ert-deftest beads-list-test-sort-by-status ()
   "Test sorting issues by status."
   (beads-list-test--with-temp-buffer
-      beads-list-test--sample-issues 'list
-    ;; Re-sort by Status
-    (setq tabulated-list-sort-key (cons "Status" nil))
-    (tabulated-list-print t)
-    (goto-char (point-min))
-    (forward-line 0)  ; Stay at first line
-    ;; "blocked" comes first alphabetically
-    (should (equal (beads-list--current-issue-id) "bd-3"))))
+   beads-list-test--sample-issues 'list
+   ;; Re-sort by Status
+   (setq tabulated-list-sort-key (cons "Status" nil))
+   (tabulated-list-print t)
+   (goto-char (point-min))
+   (forward-line 0)  ; Stay at first line
+   ;; "blocked" comes first alphabetically
+   (should (equal (beads-list--current-issue-id) "bd-3"))))
 
 (ert-deftest beads-list-test-sort-reverse ()
   "Test reverse sorting."
   (beads-list-test--with-temp-buffer
-      beads-list-test--sample-issues 'list
-    ;; Re-sort by Priority in reverse
-    (setq tabulated-list-sort-key (cons "Priority" t))
-    (tabulated-list-print t)
-    (goto-char (point-min))
-    (forward-line 0)  ; Stay at first line
-    ;; Priority 3 should be first in reverse order
-    (should (equal (beads-list--current-issue-id) "bd-4"))))
+   beads-list-test--sample-issues 'list
+   ;; Re-sort by Priority in reverse
+   (setq tabulated-list-sort-key (cons "Priority" t))
+   (tabulated-list-print t)
+   (goto-char (point-min))
+   (forward-line 0)  ; Stay at first line
+   ;; Priority 3 should be first in reverse order
+   (should (equal (beads-list--current-issue-id) "bd-4"))))
 
 ;;; Navigation Tests
 
 (ert-deftest beads-list-test-next-previous ()
   "Test next and previous navigation."
   (beads-list-test--with-temp-buffer
-      beads-list-test--sample-issues 'list
-    (goto-char (point-min))
-    (forward-line 1)
-    (let ((first-id (beads-list--current-issue-id)))
-      (beads-list-next)
-      (let ((second-id (beads-list--current-issue-id)))
-        (should (not (equal first-id second-id)))
-        (beads-list-previous)
-        (should (equal (beads-list--current-issue-id) first-id))))))
+   beads-list-test--sample-issues 'list
+   (goto-char (point-min))
+   (forward-line 1)
+   (let ((first-id (beads-list--current-issue-id)))
+     (beads-list-next)
+     (let ((second-id (beads-list--current-issue-id)))
+       (should (not (equal first-id second-id)))
+       (beads-list-previous)
+       (should (equal (beads-list--current-issue-id) first-id))))))
 
 (ert-deftest beads-list-test-current-issue-id ()
   "Test getting current issue ID at point."
   (beads-list-test--with-temp-buffer
-      beads-list-test--sample-issues 'list
-    ;; On first entry (no visible header in batch mode)
-    (goto-char (point-min))
-    (should (stringp (beads-list--current-issue-id)))))
+   beads-list-test--sample-issues 'list
+   ;; On first entry (no visible header in batch mode)
+   (goto-char (point-min))
+   (should (stringp (beads-list--current-issue-id)))))
 
 (ert-deftest beads-list-test-get-issue-by-id ()
   "Test retrieving issue data by ID."
   (beads-list-test--with-temp-buffer
-      beads-list-test--sample-issues 'list
-    (let ((issue (beads-list--get-issue-by-id "bd-2")))
-      (should issue)
-      (should (beads-issue-p issue))
-      (should (equal (oref issue title) "Second issue"))
-      (should (equal (oref issue status) "in_progress")))))
+   beads-list-test--sample-issues 'list
+   (let ((issue (beads-list--get-issue-by-id "bd-2")))
+     (should issue)
+     (should (beads-issue-p issue))
+     (should (equal (oref issue title) "Second issue"))
+     (should (equal (oref issue status) "in_progress")))))
 
 ;;; Mark/Unmark Tests
 
 (ert-deftest beads-list-test-mark-single ()
   "Test marking a single issue."
   (beads-list-test--with-temp-buffer
-      beads-list-test--sample-issues 'list
-    (goto-char (point-min))
-    (forward-line 1)
-    (let ((id (beads-list--current-issue-id)))
-      (beads-list-mark)
-      (should (member id beads-list--marked-issues)))))
+   beads-list-test--sample-issues 'list
+   (goto-char (point-min))
+   (forward-line 1)
+   (let ((id (beads-list--current-issue-id)))
+     (beads-list-mark)
+     (should (member id beads-list--marked-issues)))))
 
 (ert-deftest beads-list-test-unmark-single ()
   "Test unmarking a single issue."
   (beads-list-test--with-temp-buffer
-      beads-list-test--sample-issues 'list
-    (goto-char (point-min))
-    (forward-line 1)
-    (let ((id (beads-list--current-issue-id)))
-      (beads-list-mark)
-      (goto-char (point-min))
-      (forward-line 1)
-      (beads-list-unmark)
-      (should-not (member id beads-list--marked-issues)))))
+   beads-list-test--sample-issues 'list
+   (goto-char (point-min))
+   (forward-line 1)
+   (let ((id (beads-list--current-issue-id)))
+     (beads-list-mark)
+     (goto-char (point-min))
+     (forward-line 1)
+     (beads-list-unmark)
+     (should-not (member id beads-list--marked-issues)))))
 
 (ert-deftest beads-list-test-mark-all ()
   "Test marking all issues."
   (beads-list-test--with-temp-buffer
-      beads-list-test--sample-issues 'list
-    (beads-list-mark-all)
-    (should (= (length beads-list--marked-issues) 4))))
+   beads-list-test--sample-issues 'list
+   (beads-list-mark-all)
+   (should (= (length beads-list--marked-issues) 4))))
 
 (ert-deftest beads-list-test-unmark-all ()
   "Test unmarking all issues."
   (beads-list-test--with-temp-buffer
-      beads-list-test--sample-issues 'list
-    (beads-list-mark-all)
-    (should (> (length beads-list--marked-issues) 0))
-    (beads-list-unmark-all)
-    (should (= (length beads-list--marked-issues) 0))))
+   beads-list-test--sample-issues 'list
+   (beads-list-mark-all)
+   (should (> (length beads-list--marked-issues) 0))
+   (beads-list-unmark-all)
+   (should (= (length beads-list--marked-issues) 0))))
 
 (ert-deftest beads-list-test-mark-multiple ()
   "Test marking multiple issues."
   (beads-list-test--with-temp-buffer
-      beads-list-test--sample-issues 'list
-    (goto-char (point-min))
-    (forward-line 2)  ; Skip header
-    (beads-list-mark)
-    (beads-list-mark)
-    (should (= (length beads-list--marked-issues) 2))))
+   beads-list-test--sample-issues 'list
+   (goto-char (point-min))
+   (forward-line 2)  ; Skip header
+   (beads-list-mark)
+   (beads-list-mark)
+   (should (= (length beads-list--marked-issues) 2))))
 
 ;;; Refresh Tests
 
@@ -319,10 +321,10 @@ ISSUES should be a list of alists (test data format)."
                  (setq call-count (1+ call-count))
                  (apply #'vector beads-list-test--sample-issues))))
       (beads-list-test--with-temp-buffer
-          beads-list-test--sample-issues 'list
-        (beads-list-refresh)
-        (should (= call-count 1))
-        (should (= (length tabulated-list-entries) 4))))))
+       beads-list-test--sample-issues 'list
+       (beads-list-refresh)
+       (should (= call-count 1))
+       (should (= (length tabulated-list-entries) 4))))))
 
 (ert-deftest beads-list-test-refresh-preserves-position ()
   "Test that refresh preserves cursor position."
@@ -330,21 +332,21 @@ ISSUES should be a list of alists (test data format)."
              (lambda (&rest _)
                (apply #'vector beads-list-test--sample-issues))))
     (beads-list-test--with-temp-buffer
-        beads-list-test--sample-issues 'list
-      (goto-char (point-min))
-      (forward-line 2)
-      (let ((pos (point)))
-        (beads-list-refresh)
-        (should (= (point) pos))))))
+     beads-list-test--sample-issues 'list
+     (goto-char (point-min))
+     (forward-line 2)
+     (let ((pos (point)))
+       (beads-list-refresh)
+       (should (= (point) pos))))))
 
 (ert-deftest beads-list-test-refresh-empty-result ()
   "Test refresh with empty result."
   (cl-letf (((symbol-function 'beads--run-command)
              (lambda (&rest _) nil)))
     (beads-list-test--with-temp-buffer
-        beads-list-test--sample-issues 'list
-      (beads-list-refresh)
-      (should (= (length tabulated-list-entries) 0)))))
+     beads-list-test--sample-issues 'list
+     (beads-list-refresh)
+     (should (= (length tabulated-list-entries) 0)))))
 
 ;;; Visual Styling Tests
 
@@ -403,7 +405,7 @@ ISSUES should be a list of alists (test data format)."
                                     (if (= (length tabulated-list-entries) 1) "" "s")
                                     (if beads-list--marked-issues
                                         (format " [%d marked]"
-                                               (length beads-list--marked-issues))
+                                                (length beads-list--marked-issues))
                                       "")
                                     (beads-list--format-filter-string)))
                     mode-line-format))
@@ -552,31 +554,31 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-show-without-issue ()
   "Test show command when no issue at point."
   (beads-list-test--with-temp-buffer
-      beads-list-test--empty-issues 'list
-    (goto-char (point-min))
-    (should-error (beads-list-show))))
+   beads-list-test--empty-issues 'list
+   (goto-char (point-min))
+   (should-error (beads-list-show))))
 
 (ert-deftest beads-list-test-mark-without-issue ()
   "Test mark command when no issue at point."
   (beads-list-test--with-temp-buffer
-      beads-list-test--empty-issues 'list
-    (goto-char (point-min))
-    ;; Should not signal error (beads-list-mark uses when-let)
-    (beads-list-mark)
-    (should (= (length beads-list--marked-issues) 0))))
+   beads-list-test--empty-issues 'list
+   (goto-char (point-min))
+   ;; Should not signal error (beads-list-mark uses when-let)
+   (beads-list-mark)
+   (should (= (length beads-list--marked-issues) 0))))
 
 (ert-deftest beads-list-test-duplicate-marks ()
   "Test that marking same issue twice doesn't create duplicates."
   (beads-list-test--with-temp-buffer
-      beads-list-test--sample-issues 'list
-    (goto-char (point-min))
-    (forward-line 1)
-    (beads-list-mark)
-    (let ((count-after-first (length beads-list--marked-issues)))
-      (goto-char (point-min))
-      (forward-line 1)
-      (beads-list-mark)
-      (should (= (length beads-list--marked-issues) count-after-first)))))
+   beads-list-test--sample-issues 'list
+   (goto-char (point-min))
+   (forward-line 1)
+   (beads-list-mark)
+   (let ((count-after-first (length beads-list--marked-issues)))
+     (goto-char (point-min))
+     (forward-line 1)
+     (beads-list-mark)
+     (should (= (length beads-list--marked-issues) count-after-first)))))
 
 (ert-deftest beads-list-test-refresh-without-command ()
   "Test refresh fails gracefully without command."
@@ -597,41 +599,41 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-update-command-without-issue ()
   "Test that beads-list-update errors when no issue at point."
   (beads-list-test--with-temp-buffer
-      beads-list-test--empty-issues 'list
-    (goto-char (point-min))
-    (should-error (beads-list-update))))
+   beads-list-test--empty-issues 'list
+   (goto-char (point-min))
+   (should-error (beads-list-update))))
 
 (ert-deftest beads-list-test-update-command-with-issue ()
   "Test that beads-list-update can be called with issue at point."
   (beads-list-test--with-temp-buffer
-      beads-list-test--sample-issues 'list
-    (goto-char (point-min))
-    (forward-line 1)
-    (let ((id (beads-list--current-issue-id)))
-      (should id)
-      ;; Should be callable (we can't test full execution without mocking)
-      (should (fboundp 'beads-list-update)))))
+   beads-list-test--sample-issues 'list
+   (goto-char (point-min))
+   (forward-line 1)
+   (let ((id (beads-list--current-issue-id)))
+     (should id)
+     ;; Should be callable (we can't test full execution without mocking)
+     (should (fboundp 'beads-list-update)))))
 
 (ert-deftest beads-list-test-show-calls-beads-show ()
   "Test that beads-list-show requires and calls beads-show."
   ;; Pre-load beads-show so require doesn't affect test
   (require 'beads-show)
   (beads-list-test--with-temp-buffer
-      beads-list-test--sample-issues 'list
-    (goto-char (point-min))
-    (forward-line 1)
-    (let ((id (beads-list--current-issue-id))
-          (beads-show-called nil)
-          (beads-show-arg nil))
-      (should id)
-      ;; Mock beads-show to verify it's called
-      (cl-letf (((symbol-function 'beads-show)
-                 (lambda (issue-id)
-                   (setq beads-show-called t
-                         beads-show-arg issue-id))))
-        (beads-list-show)
-        (should beads-show-called)
-        (should (equal beads-show-arg id))))))
+   beads-list-test--sample-issues 'list
+   (goto-char (point-min))
+   (forward-line 1)
+   (let ((id (beads-list--current-issue-id))
+         (beads-show-called nil)
+         (beads-show-arg nil))
+     (should id)
+     ;; Mock beads-show to verify it's called
+     (cl-letf (((symbol-function 'beads-show)
+                (lambda (issue-id)
+                  (setq beads-show-called t
+                        beads-show-arg issue-id))))
+       (beads-list-show)
+       (should beads-show-called)
+       (should (equal beads-show-arg id))))))
 
 ;;; Issue ID Tests with Custom Prefixes
 
@@ -654,35 +656,35 @@ ISSUES should be a list of alists (test data format)."
          (beads-show-called nil)
          (beads-show-arg nil))
     (beads-list-test--with-temp-buffer
-        custom-prefix-issues 'list
-      (goto-char (point-min))
-      ;; Default sort is by Created (descending), so myproject-13 comes first
-      (let ((id (beads-list--current-issue-id)))
-        (should (equal id "myproject-13"))
-        ;; Mock beads-show to verify correct ID is passed
-        (cl-letf (((symbol-function 'beads-show)
-                   (lambda (issue-id)
-                     (setq beads-show-called t
-                           beads-show-arg issue-id))))
-          (beads-list-show)
-          (should beads-show-called)
-          (should (stringp beads-show-arg))
-          (should (equal beads-show-arg "myproject-13"))
-          ;; Verify no text properties or extra whitespace
-          (should (equal beads-show-arg (substring-no-properties beads-show-arg)))
-          (should (string= beads-show-arg (string-trim beads-show-arg))))))))
+     custom-prefix-issues 'list
+     (goto-char (point-min))
+     ;; Default sort is by Created (descending), so myproject-13 comes first
+     (let ((id (beads-list--current-issue-id)))
+       (should (equal id "myproject-13"))
+       ;; Mock beads-show to verify correct ID is passed
+       (cl-letf (((symbol-function 'beads-show)
+                  (lambda (issue-id)
+                    (setq beads-show-called t
+                          beads-show-arg issue-id))))
+         (beads-list-show)
+         (should beads-show-called)
+         (should (stringp beads-show-arg))
+         (should (equal beads-show-arg "myproject-13"))
+         ;; Verify no text properties or extra whitespace
+         (should (equal beads-show-arg (substring-no-properties beads-show-arg)))
+         (should (string= beads-show-arg (string-trim beads-show-arg))))))))
 
 (ert-deftest beads-list-test-issue-id-has-no-text-properties ()
   "Test that issue IDs returned from list have no text properties."
   (beads-list-test--with-temp-buffer
-      beads-list-test--sample-issues 'list
-    (goto-char (point-min))
-    (let ((id (beads-list--current-issue-id)))
-      (should (stringp id))
-      ;; Verify ID has no text properties
-      (should (equal id (substring-no-properties id)))
-      ;; Verify ID has no extra whitespace
-      (should (string= id (string-trim id))))))
+   beads-list-test--sample-issues 'list
+   (goto-char (point-min))
+   (let ((id (beads-list--current-issue-id)))
+     (should (stringp id))
+     ;; Verify ID has no text properties
+     (should (equal id (substring-no-properties id)))
+     ;; Verify ID has no extra whitespace
+     (should (string= id (string-trim id))))))
 
 ;;; Column Width Tests
 
@@ -811,12 +813,12 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-sort-by-created ()
   "Test sorting issues by creation date."
   (beads-list-test--with-temp-buffer
-      beads-list-test--sample-issues 'list
-    ;; Default sort is now by Created (descending)
-    (goto-char (point-min))
-    (forward-line 0)
-    ;; Most recent (bd-2: 2025-10-20T16:36:52Z) should be first
-    (should (equal (beads-list--current-issue-id) "bd-2"))))
+   beads-list-test--sample-issues 'list
+   ;; Default sort is now by Created (descending)
+   (goto-char (point-min))
+   (forward-line 0)
+   ;; Most recent (bd-2: 2025-10-20T16:36:52Z) should be first
+   (should (equal (beads-list--current-issue-id) "bd-2"))))
 
 (ert-deftest beads-list-test-default-sort-is-created ()
   "Test that default sort key is Created column."
@@ -831,14 +833,14 @@ ISSUES should be a list of alists (test data format)."
   :tags '(integration)
   (let ((beads-list-date-format 'absolute))
     (beads-list-test--with-temp-buffer
-        beads-list-test--sample-issues 'list
-      (goto-char (point-min))
-      (forward-line 0)
-      (let* ((alist (car beads-list-test--sample-issues))
-             (issue (beads-list-test--alist-to-issue alist))
-             (entry (beads-list--issue-to-entry issue)))
-        (should (string-match-p "[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}"
-                                (aref (cadr entry) 5)))))))
+     beads-list-test--sample-issues 'list
+     (goto-char (point-min))
+     (forward-line 0)
+     (let* ((alist (car beads-list-test--sample-issues))
+            (issue (beads-list-test--alist-to-issue alist))
+            (entry (beads-list--issue-to-entry issue)))
+       (should (string-match-p "[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}"
+                               (aref (cadr entry) 5)))))))
 
 (ert-deftest beads-list-test-integration-created-width-custom ()
   "Integration test: Created column width is customizable."
@@ -1143,6 +1145,14 @@ Tests setting filters before executing."
                       (kill-buffer)
                       nil)
                   (error err)))))
+
+(ert-deftest beads-list-test-without-issues ()
+  :tags '(integration transient)
+  (let ((default-directory (beads-test-make-project)))
+    (beads-test-execute-commands
+     (list (kbd "M-x beads-list")
+           (kbd "x")))
+    (should (equal "*beads-list*" (buffer-name (current-buffer))))))
 
 ;; Note: beads-list-filter test removed - function verified through keybinding test
 ;; and manual testing. Interactive transient behavior is complex to test automatically.
