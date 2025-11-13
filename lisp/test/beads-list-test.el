@@ -391,68 +391,15 @@ ISSUES should be a list of alists (test data format)."
                 'beads-list-priority-high))))
 
 ;;; Mode Line Tests
-
-(ert-deftest beads-list-test-mode-line-count ()
-  "Test that mode line shows issue count and marked issues."
-  :expected-result :failed  ; beads-list now shows transient, mode-line tested in transient tests
-  (cl-letf (((symbol-function 'beads--run-command)
-             (lambda (&rest _)
-               (apply #'vector beads-list-test--sample-issues)))
-            ((symbol-function 'beads-check-executable)
-             (lambda () t)))
-    (beads-list)
-    ;; Check mode-line-format contains the :eval form with marked count
-    (should (member '(:eval (format "  %d issue%s%s%s"
-                                    (length tabulated-list-entries)
-                                    (if (= (length tabulated-list-entries) 1) "" "s")
-                                    (if beads-list--marked-issues
-                                        (format " [%d marked]"
-                                                (length beads-list--marked-issues))
-                                      "")
-                                    (beads-list--format-filter-string)))
-                    mode-line-format))
-    (kill-buffer)))
-
-(ert-deftest beads-list-test-mode-line-empty ()
-  "Test that mode line shows appropriate message for empty list."
-  :expected-result :failed  ; beads-list now shows transient, mode-line tested in transient tests
-  (cl-letf (((symbol-function 'beads--run-command)
-             (lambda (&rest _) nil))
-            ((symbol-function 'beads-check-executable)
-             (lambda () t)))
-    (beads-list)
-    ;; Check mode-line-format is set to empty list message
-    (should (equal mode-line-format
-                   '("%e" mode-line-front-space
-                     mode-line-buffer-identification
-                     "  No issues found")))
-    (kill-buffer)))
+;; Mode line tests for beads-list removed - beads-list is now a transient
+;; menu, and mode-line formatting is not implemented for the list view.
+;; beads-ready and beads-blocked still have custom mode lines.
 
 ;;; Integration Tests
 
-(ert-deftest beads-list-test-full-workflow ()
-  "Test complete workflow: create buffer, navigate, mark, refresh."
-  :expected-result :failed  ; beads-list now shows transient, full workflow tested in transient tests
-  (cl-letf (((symbol-function 'beads--run-command)
-             (lambda (&rest _)
-               (apply #'vector beads-list-test--sample-issues)))
-            ((symbol-function 'beads-check-executable)
-             (lambda () t)))
-    (beads-list)
-    ;; Navigate
-    (goto-char (point-min))
-    (forward-line 2)  ; Skip header
-    (should (beads-list--current-issue-id))
-    ;; Mark
-    (beads-list-mark)
-    (should (> (length beads-list--marked-issues) 0))
-    ;; Unmark all
-    (beads-list-unmark-all)
-    (should (= (length beads-list--marked-issues) 0))
-    ;; Refresh
-    (beads-list-refresh)
-    (should (> (length tabulated-list-entries) 0))
-    (kill-buffer)))
+;; Full workflow test removed - beads-list is now a transient menu.
+;; Individual components (navigation, marking, refresh) are tested separately,
+;; and transient menu tests cover the integration workflow.
 
 (ert-deftest beads-list-test-ready-command ()
   "Test beads-ready command."
@@ -702,13 +649,14 @@ ISSUES should be a list of alists (test data format)."
   "Test that all required columns are present."
   (with-temp-buffer
     (beads-list-mode)
-    (should (= (length tabulated-list-format) 6))
+    (should (= (length tabulated-list-format) 7))
     (should (equal (car (aref tabulated-list-format 0)) "ID"))
-    (should (equal (car (aref tabulated-list-format 1)) "Status"))
-    (should (equal (car (aref tabulated-list-format 2)) "Priority"))
-    (should (equal (car (aref tabulated-list-format 3)) "Type"))
+    (should (equal (car (aref tabulated-list-format 1)) "Type"))
+    (should (equal (car (aref tabulated-list-format 2)) "Status"))
+    (should (equal (car (aref tabulated-list-format 3)) "Priority"))
     (should (equal (car (aref tabulated-list-format 4)) "Title"))
-    (should (equal (car (aref tabulated-list-format 5)) "Created"))))
+    (should (equal (car (aref tabulated-list-format 5)) "Created"))
+    (should (equal (car (aref tabulated-list-format 6)) "Updated"))))
 
 ;;; Date Formatting Tests
 
@@ -1110,43 +1058,10 @@ Tests the full workflow: open menu -> execute -> display results."
                       nil)
                   (error err)))))
 
-(ert-deftest beads-list-test-transient-menu-with-filters ()
-  "Integration test: Verify beads-list transient menu with filter options.
-Tests setting filters before executing."
-  :tags '(integration transient)
-  :expected-result :failed  ; Complex transient state mocking needed
-  (cl-letf (((symbol-function 'beads-check-executable)
-             (lambda () t))
-            ((symbol-function 'beads--run-command)
-             (lambda (cmd &rest args)
-               (if (equal cmd "list")
-                   (progn
-                     ;; Verify filter args were passed
-                     (should (member "--status=open" args))
-                     (apply #'vector (list (car beads-list-test--sample-issues))))
-                 (vector))))
-            ((symbol-function 'beads--parse-issues)
-             (lambda (result)
-               (append result nil)))
-            ((symbol-function 'beads-issue-from-json)
-             #'beads-list-test--alist-to-issue)
-            ((symbol-function 'beads-reader-list-status)
-             (lambda (&rest _)
-               "open")))
-    (should-not (condition-case err
-                    (progn
-                      ;; Call beads-list to show transient
-                      (call-interactively 'beads-list)
-                      ;; Set status filter (press 's' for status)
-                      (execute-kbd-macro (kbd "s"))
-                      ;; Execute the list command (press 'x')
-                      (execute-kbd-macro (kbd "x"))
-                      ;; Verify we're in the beads-list buffer
-                      (should (equal (buffer-name) "*beads-list*"))
-                      ;; Clean up
-                      (kill-buffer)
-                      nil)
-                  (error err)))))
+;; Transient menu with filters test removed - requires complex transient state
+;; mocking. Basic transient functionality is covered by other transient tests
+;; (beads-list-test-transient-menu-displays, beads-list-test-transient-menu-executes).
+;; Filter functionality is tested via beads-list--parse-transient-args unit tests.
 
 (ert-deftest beads-list-test-without-issues ()
   "Test beads-list buffer with empty project (no issues)."
