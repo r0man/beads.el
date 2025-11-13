@@ -115,7 +115,7 @@ bd create "Add integration tests for sync" -t task -p 2 --json
 # 2. Run quality gates (only if code changes were made)
 guix shell -D -f guix.scm -- eldev -p -dtT compile
 guix shell -D -f guix.scm -- eldev -p -dtT lint
-guix shell -D -f guix.scm -- eldev -p -dtT test
+guix shell -D -f guix.scm -- BD_NO_DAEMON=1 eldev -p -dtT test
 
 # 3. Close finished issues
 bd close bd-42 bd-43 --reason "Completed" --json
@@ -295,12 +295,14 @@ eldev -p -dtT compile
 
 ### Test
 
+Run tests with the environment BD_NO_DAEMON=1 because that is faster.
+
 ```bash
 # With guix (preferred):
-guix shell -D -f guix.scm -- eldev -p -dtT test
+guix shell -D -f guix.scm -- BD_NO_DAEMON=1 eldev -p -dtT test
 
 # Without guix (assumes eldev installed):
-eldev -p -dtT test
+BD_NO_DAEMON=1 eldev -p -dtT test
 ```
 
 ### Lint
