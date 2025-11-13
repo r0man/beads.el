@@ -27,3 +27,4 @@
 ;; Load path includes lisp directory
 (eldev-add-loading-roots 'build "lisp")
 (eldev-add-loading-roots 'test "lisp")
+(eldev-add-loading-roots 'test "lisp/test")
