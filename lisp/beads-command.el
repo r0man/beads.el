@@ -20,7 +20,7 @@
 ;; Each command class:
 ;; - Has slots for all applicable flags
 ;; - Implements beads-command-execute method
-;; - Provides beads-command-to-args for building CLI arguments
+;; - Provides beads-command-line for building full command line
 ;; - Supports validation via beads-command-validate
 ;;
 ;; Usage:
@@ -32,9 +32,9 @@
 ;;               :quiet t)))
 ;;     (beads-command-execute cmd))
 ;;
-;;   ;; Build command arguments without execution
-;;   (beads-command-to-args cmd)
-;;   ;; => ("init" "--prefix" "myproject" "--branch" "main" "--quiet")
+;;   ;; Build full command line without execution
+;;   (beads-command-line cmd)
+;;   ;; => ("bd" "init" "--prefix" "myproject" "--branch" "main" "--quiet")
 
 ;;; Code:
 
@@ -141,10 +141,11 @@ Signals errors:
 Subclasses should not override this; implementations are
 provided for beads-command and beads-json-command.")
 
-(cl-defgeneric beads-command-to-args (command)
-  "Build command-line arguments from COMMAND object.
-Returns a list of strings suitable for passing to beads--run-command.
-Includes global flags and command-specific arguments.")
+(cl-defgeneric beads-command-line (command)
+  "Build full command line from COMMAND object.
+Returns a list of strings starting with the executable (e.g., \"bd\"),
+followed by command name and all flags.
+Example: (\"bd\" \"list\" \"--json\" \"--status\" \"open\")")
 
 (cl-defgeneric beads-command-validate (command)
   "Validate COMMAND and return error string or nil if valid.
@@ -152,9 +153,14 @@ Subclasses should override to add command-specific validation.")
 
 ;;; Base Implementation - Global Flags
 
-(cl-defmethod beads-command-to-args ((command beads-command))
+(cl-defmethod beads-command-line :around ((_command beads-command))
+  "Prepend executable to command line built by primary method.
+This :around method ensures all command lines start with beads-executable."
+  (cons beads-executable (cl-call-next-method)))
+
+(cl-defmethod beads-command-line ((command beads-command))
   "Build global flag arguments from COMMAND.
-Returns list of global flag strings.
+Returns list of global flag strings (without executable).
 Subclasses should call this via `cl-call-next-method' and append
 their command-specific arguments."
   (with-slots (actor db no-auto-flush no-auto-import
@@ -195,9 +201,8 @@ Signals beads-validation-error or beads-command-error on failure."
                   :command command
                   :error error)))
 
-  ;; Build command arguments
-  (let* ((args (beads-command-to-args command))
-         (cmd (cons beads-executable args))
+  ;; Build full command line
+  (let* ((cmd (beads-command-line command))
          (cmd-string (mapconcat #'shell-quote-argument cmd " "))
          (stderr-file (make-temp-file "beads-stderr-")))
 
@@ -249,7 +254,7 @@ Enables machine-readable output."))
 Inherits from beads-command and adds --json flag support.
 Use this as parent class for commands that support --json flag.")
 
-(cl-defmethod beads-command-to-args ((command beads-command-json))
+(cl-defmethod beads-command-line ((command beads-command-json))
   "Build command arguments including --json flag for JSON COMMAND.
 Calls parent method and adds --json if enabled."
   (with-slots (json) command
@@ -334,8 +339,8 @@ Non-interactive mode.")
 Initializes bd in the current directory by creating .beads/ directory
 and database file.")
 
-(cl-defmethod beads-command-to-args ((command beads-command-init))
-  "Build full command arguments for init COMMAND.
+(cl-defmethod beads-command-line ((command beads-command-init))
+  "Build command arguments for init COMMAND (without executable).
 Returns list: (\"init\" ...global-flags... ...init-flags...)."
   (with-slots (branch contributor prefix quiet
                       skip-merge-driver team) command
@@ -547,8 +552,8 @@ Date format: YYYY-MM-DD or RFC3339."))
 Lists issues with optional filtering, sorting, and formatting.
 When executed with :json t, returns a list of beads-issue instances.")
 
-(cl-defmethod beads-command-to-args ((command beads-command-list))
-  "Build full command arguments for list COMMAND.
+(cl-defmethod beads-command-line ((command beads-command-list))
+  "Build command arguments for list COMMAND (without executable).
 Returns list: (\"list\" ...global-flags... ...list-flags...)."
   (with-slots (all assignee closed-after closed-before
                    created-after created-before desc-contains
@@ -787,8 +792,8 @@ Values: bug, feature, task, epic, chore. Default: 'task'."))
 Creates a new issue (or multiple issues from markdown file).
 When executed with :json t, returns the created beads-issue instance(s).")
 
-(cl-defmethod beads-command-to-args ((command beads-command-create))
-  "Build full command arguments for create COMMAND.
+(cl-defmethod beads-command-line ((command beads-command-create))
+  "Build command arguments for create COMMAND (without executable).
 Returns list: (\"create\" ...global-flags... ...create-flags...)."
   (with-slots (title acceptance assignee deps description design
                      external-ref file force from-template id labels
