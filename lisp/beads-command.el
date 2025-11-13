@@ -14,7 +14,7 @@
 ;;   - beads-command-json: Commands that support --json flag (abstract)
 ;;     - beads-command-create: bd create command (future)
 ;;     - beads-command-update: bd update command (future)
-;;     - beads-command-list: bd list command (future)
+;;     - beads-command-list: bd list command
 ;;   - beads-command-init: bd init command (no JSON support)
 ;;
 ;; Each command class:
@@ -39,6 +39,7 @@
 ;;; Code:
 
 (require 'eieio)
+(require 'beads-types)
 (require 'cl-lib)
 (require 'json)
 
@@ -388,6 +389,305 @@ Returns error string or nil if valid."
       "Cannot use both --contributor and --team flags")
      ;; Otherwise valid
      (t nil))))
+
+;;; List Command
+
+(defclass beads-command-list (beads-command-json)
+  ((all
+    :initarg :all
+    :type boolean
+    :initform nil
+    :documentation "Show all issues (--all).
+Default behavior, provided for CLI familiarity.")
+   (assignee
+    :initarg :assignee
+    :type (or null string)
+    :initform nil
+    :documentation "Filter by assignee (-a, --assignee).")
+   (closed-after
+    :initarg :closed-after
+    :type (or null string)
+    :initform nil
+    :documentation "Filter issues closed after date (--closed-after).
+Date format: YYYY-MM-DD or RFC3339.")
+   (closed-before
+    :initarg :closed-before
+    :type (or null string)
+    :initform nil
+    :documentation "Filter issues closed before date (--closed-before).
+Date format: YYYY-MM-DD or RFC3339.")
+   (created-after
+    :initarg :created-after
+    :type (or null string)
+    :initform nil
+    :documentation "Filter issues created after date (--created-after).
+Date format: YYYY-MM-DD or RFC3339.")
+   (created-before
+    :initarg :created-before
+    :type (or null string)
+    :initform nil
+    :documentation "Filter issues created before date (--created-before).
+Date format: YYYY-MM-DD or RFC3339.")
+   (desc-contains
+    :initarg :desc-contains
+    :type (or null string)
+    :initform nil
+    :documentation "Filter by description substring (--desc-contains).
+Case-insensitive.")
+   (empty-description
+    :initarg :empty-description
+    :type boolean
+    :initform nil
+    :documentation "Filter issues with empty description (--empty-description).")
+   (format
+    :initarg :format
+    :type (or null string)
+    :initform nil
+    :documentation "Output format (--format).
+Values: 'digraph', 'dot', or Go template.")
+   (id
+    :initarg :id
+    :type (or null string)
+    :initform nil
+    :documentation "Filter by specific issue IDs (--id).
+Comma-separated, e.g., 'bd-1,bd-5,bd-10'.")
+   (label
+    :initarg :label
+    :type (or null list)
+    :initform nil
+    :documentation "Filter by labels, AND logic (-l, --label).
+Must have ALL labels. Can combine with --label-any.")
+   (label-any
+    :initarg :label-any
+    :type (or null list)
+    :initform nil
+    :documentation "Filter by labels, OR logic (--label-any).
+Must have AT LEAST ONE label. Can combine with --label.")
+   (limit
+    :initarg :limit
+    :type (or null integer)
+    :initform nil
+    :documentation "Limit results (-n, --limit).")
+   (long
+    :initarg :long
+    :type boolean
+    :initform nil
+    :documentation "Show detailed multi-line output (--long).")
+   (no-assignee
+    :initarg :no-assignee
+    :type boolean
+    :initform nil
+    :documentation "Filter issues with no assignee (--no-assignee).")
+   (no-labels
+    :initarg :no-labels
+    :type boolean
+    :initform nil
+    :documentation "Filter issues with no labels (--no-labels).")
+   (notes-contains
+    :initarg :notes-contains
+    :type (or null string)
+    :initform nil
+    :documentation "Filter by notes substring (--notes-contains).
+Case-insensitive.")
+   (priority
+    :initarg :priority
+    :type (or null integer)
+    :initform nil
+    :documentation "Filter by priority (-p, --priority).
+Values: 0-4 (0=critical, 1=high, 2=medium, 3=low, 4=backlog).")
+   (priority-max
+    :initarg :priority-max
+    :type (or null integer)
+    :initform nil
+    :documentation "Filter by maximum priority (--priority-max).
+Inclusive.")
+   (priority-min
+    :initarg :priority-min
+    :type (or null integer)
+    :initform nil
+    :documentation "Filter by minimum priority (--priority-min).
+Inclusive.")
+   (status
+    :initarg :status
+    :type (or null string)
+    :initform nil
+    :documentation "Filter by status (-s, --status).
+Values: open, in_progress, blocked, closed.")
+   (title
+    :initarg :title
+    :type (or null string)
+    :initform nil
+    :documentation "Filter by title text (--title).
+Case-insensitive substring match.")
+   (title-contains
+    :initarg :title-contains
+    :type (or null string)
+    :initform nil
+    :documentation "Filter by title substring (--title-contains).
+Case-insensitive.")
+   (issue-type
+    :initarg :issue-type
+    :type (or null string)
+    :initform nil
+    :documentation "Filter by type (-t, --type).
+Values: bug, feature, task, epic, chore.")
+   (updated-after
+    :initarg :updated-after
+    :type (or null string)
+    :initform nil
+    :documentation "Filter issues updated after date (--updated-after).
+Date format: YYYY-MM-DD or RFC3339.")
+   (updated-before
+    :initarg :updated-before
+    :type (or null string)
+    :initform nil
+    :documentation "Filter issues updated before date (--updated-before).
+Date format: YYYY-MM-DD or RFC3339."))
+  :documentation "Represents bd list command.
+Lists issues with optional filtering, sorting, and formatting.
+When executed with :json t, returns a list of beads-issue instances.")
+
+(cl-defmethod beads-command-to-args ((command beads-command-list))
+  "Build full command arguments for list COMMAND.
+Returns list: (\"list\" ...global-flags... ...list-flags...)."
+  (with-slots (all assignee closed-after closed-before
+                   created-after created-before desc-contains
+                   empty-description format id label label-any
+                   limit long no-assignee no-labels notes-contains
+                   priority priority-max priority-min status
+                   title title-contains issue-type
+                   updated-after updated-before) command
+    (let ((args (list "list"))
+          (global-args (cl-call-next-method)))
+      ;; Append global flags (includes --json if enabled)
+      (setq args (append args global-args))
+
+      ;; Boolean flags
+      (when all
+        (setq args (append args (list "--all"))))
+      (when empty-description
+        (setq args (append args (list "--empty-description"))))
+      (when long
+        (setq args (append args (list "--long"))))
+      (when no-assignee
+        (setq args (append args (list "--no-assignee"))))
+      (when no-labels
+        (setq args (append args (list "--no-labels"))))
+
+      ;; String options
+      (when assignee
+        (setq args (append args (list "--assignee" assignee))))
+      (when closed-after
+        (setq args (append args (list "--closed-after" closed-after))))
+      (when closed-before
+        (setq args (append args (list "--closed-before" closed-before))))
+      (when created-after
+        (setq args (append args (list "--created-after" created-after))))
+      (when created-before
+        (setq args (append args (list "--created-before" created-before))))
+      (when desc-contains
+        (setq args (append args (list "--desc-contains" desc-contains))))
+      (when format
+        (setq args (append args (list "--format" format))))
+      (when id
+        (setq args (append args (list "--id" id))))
+      (when notes-contains
+        (setq args (append args (list "--notes-contains" notes-contains))))
+      (when status
+        (setq args (append args (list "--status" status))))
+      (when title
+        (setq args (append args (list "--title" title))))
+      (when title-contains
+        (setq args (append args (list "--title-contains" title-contains))))
+      (when issue-type
+        (setq args (append args (list "--type" issue-type))))
+      (when updated-after
+        (setq args (append args (list "--updated-after" updated-after))))
+      (when updated-before
+        (setq args (append args (list "--updated-before" updated-before))))
+
+      ;; Integer options
+      (when limit
+        (setq args (append args (list "--limit" (number-to-string limit)))))
+      (when priority
+        (setq args (append args (list "--priority"
+                                      (number-to-string priority)))))
+      (when priority-max
+        (setq args (append args (list "--priority-max"
+                                      (number-to-string priority-max)))))
+      (when priority-min
+        (setq args (append args (list "--priority-min"
+                                      (number-to-string priority-min)))))
+
+      ;; List options (multiple values)
+      (when label
+        (dolist (lbl label)
+          (setq args (append args (list "--label" lbl)))))
+      (when label-any
+        (dolist (lbl label-any)
+          (setq args (append args (list "--label-any" lbl)))))
+
+      args)))
+
+(cl-defmethod beads-command-validate ((command beads-command-list))
+  "Validate list COMMAND.
+Checks for conflicts between options.
+Returns error string or nil if valid."
+  (with-slots (priority priority-max priority-min
+                        assignee no-assignee
+                        label label-any no-labels) command
+    (cond
+     ;; Can't use --priority with --priority-min/max
+     ((and priority (or priority-max priority-min))
+      "Cannot use --priority with --priority-min/--priority-max")
+     ;; Can't use --assignee with --no-assignee
+     ((and assignee no-assignee)
+      "Cannot use both --assignee and --no-assignee")
+     ;; Can't use --label/--label-any with --no-labels
+     ((and no-labels (or label label-any))
+      "Cannot use --label/--label-any with --no-labels")
+     ;; Validate priority range
+     ((and priority (not (<= 0 priority 4)))
+      "Priority must be between 0 and 4")
+     ((and priority-min (not (<= 0 priority-min 4)))
+      "Priority-min must be between 0 and 4")
+     ((and priority-max (not (<= 0 priority-max 4)))
+      "Priority-max must be between 0 and 4")
+     ;; Otherwise valid
+     (t nil))))
+
+(cl-defmethod beads-command-execute ((command beads-command-list))
+  "Execute list COMMAND and return list of beads-issue instances.
+When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
+When :json is t, returns list of beads-issue instances.
+Signals beads-validation-error, beads-command-error, or
+beads-json-parse-error on failure."
+  (with-slots (json) command
+    (if (not json)
+        ;; If json is not enabled, use parent implementation
+        (cl-call-next-method)
+      ;; JSON execution: call parent to get parsed JSON, then convert
+      ;; to beads-issue instances using beads-issue-from-json
+      (let* ((result (cl-call-next-method))
+             (exit-code (nth 0 result))
+             (parsed-json (nth 1 result))
+             (stderr (nth 2 result)))
+        ;; Convert JSON array to list of beads-issue instances
+        (if (zerop exit-code)
+            (condition-case err
+                (let ((issues (mapcar #'beads-issue-from-json
+                                     (append parsed-json nil))))
+                  issues)
+              (error
+               (signal 'beads-json-parse-error
+                       (list (format "Failed to create beads-issue instances: %s"
+                                    (error-message-string err))
+                             :exit-code exit-code
+                             :parsed-json parsed-json
+                             :stderr stderr
+                             :parse-error err))))
+          ;; Non-zero exit code: parent already signaled error
+          result)))))
 
 ;;; Utility Functions
 
