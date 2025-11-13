@@ -24,7 +24,21 @@
 (require 'ert)
 (require 'json)
 (require 'beads)
+(require 'beads-command)
 
+(defun beads-test-make-project ()
+  (let ((default-directory (make-temp-file "beads-test-" t)))
+    (beads-command-execute (beads-init-command))
+    default-directory))
+
+(defun beads-test-execute-commands (cmds)
+  (dolist (cmd cmds)
+    (setq last-command this-command)
+    (setq this-command cmd)
+    (run-hooks 'pre-command-hook)
+    (command-execute cmd)
+    (run-hooks 'post-command-hook)
+    (undo-boundary)))
 
 ;;; ========================================
 ;;; Test Fixtures and Utilities
@@ -860,8 +874,8 @@ STRUCTURE is a list of paths to create (dirs end with /)."
   "Test parsing an issue with minimal fields."
   (beads-test-with-temp-config
    (let* ((minimal-issue '((id . "bd-2")
-                          (title . "Minimal")
-                          (status . "open")))
+                           (title . "Minimal")
+                           (status . "open")))
           (parsed (beads--parse-issue minimal-issue)))
      (should (listp parsed))
      (should (consp parsed))
@@ -887,11 +901,11 @@ STRUCTURE is a list of paths to create (dirs end with /)."
   "Test that JSON field names with underscores are converted correctly."
   (beads-test-with-temp-config
    (let* ((issue '((id . "bd-1")
-                  (issue_type . "feature")
-                  (created_at . "2025-01-15T10:00:00Z")
-                  (updated_at . "2025-01-15T11:00:00Z")
-                  (acceptance_criteria . "Criteria")
-                  (external_ref . "REF-1")))
+                   (issue_type . "feature")
+                   (created_at . "2025-01-15T10:00:00Z")
+                   (updated_at . "2025-01-15T11:00:00Z")
+                   (acceptance_criteria . "Criteria")
+                   (external_ref . "REF-1")))
           (parsed (beads--parse-issue issue)))
      ;; Check that underscored names are accessible with dashed keys
      (should (equal (alist-get 'issue-type parsed) "feature"))
@@ -904,10 +918,10 @@ STRUCTURE is a list of paths to create (dirs end with /)."
   "Test parsing issue with null fields."
   (beads-test-with-temp-config
    (let* ((issue '((id . "bd-1")
-                  (title . "Test")
-                  (description . nil)
-                  (assignee . nil)
-                  (priority . 1)))
+                   (title . "Test")
+                   (description . nil)
+                   (assignee . nil)
+                   (priority . 1)))
           (parsed (beads--parse-issue issue)))
      (should (equal (alist-get 'id parsed) "bd-1"))
      (should (null (alist-get 'description parsed)))
@@ -918,9 +932,9 @@ STRUCTURE is a list of paths to create (dirs end with /)."
   "Test that parsing preserves data types correctly."
   (beads-test-with-temp-config
    (let* ((issue '((id . "bd-1")
-                  (priority . 2)
-                  (status . "open")
-                  (created_at . "2025-01-15T10:00:00Z")))
+                   (priority . 2)
+                   (status . "open")
+                   (created_at . "2025-01-15T10:00:00Z")))
           (parsed (beads--parse-issue issue)))
      ;; Numbers should remain numbers
      (should (numberp (alist-get 'priority parsed)))
@@ -1080,9 +1094,9 @@ STRUCTURE is a list of paths to create (dirs end with /)."
   "Test handling of special characters in issue fields."
   (beads-test-with-temp-config
    (let* ((issue '((id . "bd-1")
-                  (title . "Test \"quotes\" and 'apostrophes'")
-                  (description . "Line 1\nLine 2\tTabbed")
-                  (notes . "Special: <>&\\")))
+                   (title . "Test \"quotes\" and 'apostrophes'")
+                   (description . "Line 1\nLine 2\tTabbed")
+                   (notes . "Special: <>&\\")))
           (parsed (beads--parse-issue issue)))
      (should (equal (alist-get 'title parsed)
                     "Test \"quotes\" and 'apostrophes'"))
@@ -1094,8 +1108,8 @@ STRUCTURE is a list of paths to create (dirs end with /)."
   (beads-test-with-temp-config
    (let* ((long-string (make-string 10000 ?x))
           (issue `((id . "bd-1")
-                  (title . "Test")
-                  (description . ,long-string)))
+                   (title . "Test")
+                   (description . ,long-string)))
           (parsed (beads--parse-issue issue)))
      (should (equal (alist-get 'description parsed) long-string))
      (should (= (length (alist-get 'description parsed)) 10000)))))
@@ -1104,7 +1118,7 @@ STRUCTURE is a list of paths to create (dirs end with /)."
   "Test that numeric IDs remain as strings."
   (beads-test-with-temp-config
    (let* ((issue '((id . "123")
-                  (title . "Numeric ID")))
+                   (title . "Numeric ID")))
           (parsed (beads--parse-issue issue)))
      (should (stringp (alist-get 'id parsed)))
      (should (equal (alist-get 'id parsed) "123")))))
@@ -1113,7 +1127,7 @@ STRUCTURE is a list of paths to create (dirs end with /)."
   "Test handling of zero priority (critical)."
   (beads-test-with-temp-config
    (let* ((issue '((id . "bd-1")
-                  (priority . 0)))
+                   (priority . 0)))
           (parsed (beads--parse-issue issue)))
      (should (numberp (alist-get 'priority parsed)))
      (should (= (alist-get 'priority parsed) 0)))))
@@ -1247,7 +1261,7 @@ STRUCTURE is a list of paths to create (dirs end with /)."
     '(".beads/" "src/" "src/modules/" "src/modules/auth/"))
 
    (let ((default-directory (expand-file-name "src/modules/auth"
-                                               beads-test--temp-dir)))
+                                              beads-test--temp-dir)))
      (should (equal (beads--find-beads-dir)
                     (expand-file-name ".beads" beads-test--temp-dir))))))
 
@@ -1612,7 +1626,7 @@ STRUCTURE is a list of paths to create (dirs end with /)."
          (process-file-called nil))
      (cl-letf (((symbol-function 'process-file)
                 (lambda (program &optional infile destination display
-                                &rest args)
+                                 &rest args)
                   (setq process-file-called t)
                   (when destination
                     (with-current-buffer (current-buffer)
@@ -1630,7 +1644,7 @@ STRUCTURE is a list of paths to create (dirs end with /)."
          (captured-default-directory nil))
      (cl-letf (((symbol-function 'process-file)
                 (lambda (program &optional infile destination display
-                                &rest args)
+                                 &rest args)
                   (setq process-file-called t)
                   (setq captured-default-directory default-directory)
                   (when destination
@@ -1653,7 +1667,7 @@ STRUCTURE is a list of paths to create (dirs end with /)."
            (process-file-called nil))
        (cl-letf (((symbol-function 'process-file)
                   (lambda (program &optional infile destination display
-                                  &rest args)
+                                   &rest args)
                     (setq process-file-called t)
                     (when destination
                       (with-current-buffer (current-buffer)
@@ -1776,7 +1790,7 @@ STRUCTURE is a list of paths to create (dirs end with /)."
                      (list "beads.db")))))
               ((symbol-function 'process-file)
                (lambda (program &optional infile destination display
-                               &rest args)
+                                &rest args)
                  (push 'process-file workflow-steps)
                  (when destination
                    (with-current-buffer (current-buffer)
