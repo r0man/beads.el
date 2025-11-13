@@ -388,5 +388,128 @@ Integration test that verifies empty list is returned correctly."
       (should (listp issues))
       (should (zerop (length issues))))))
 
+;;; Integration Test: beads-command-epic-status
+
+(ert-deftest beads-command-test-epic-status-basic ()
+  "Test beads-command-epic-status shows all epics.
+Integration test that runs real bd epic status command."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create an epic with some children
+    (let* ((epic (beads-command-create!
+                  :title "Test Epic"
+                  :issue-type "epic"))
+           (_child1 (beads-command-create!
+                     :title "Child 1"
+                     :deps (list (concat "child-of:"
+                                        (oref epic id)))))
+           (_child2 (beads-command-create!
+                     :title "Child 2"
+                     :deps (list (concat "child-of:"
+                                        (oref epic id)))))
+           ;; Get epic status
+           (result (beads-command-epic-status!)))
+      ;; Should return parsed JSON
+      (should result)
+      ;; For now, just verify it doesn't error
+      ;; The actual structure depends on bd epic status output
+      )))
+
+(ert-deftest beads-command-test-epic-status-eligible-only ()
+  "Test beads-command-epic-status with --eligible-only flag.
+Integration test that filters to show only eligible epics."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create an epic with all children closed
+    (let* ((epic (beads-command-create!
+                  :title "Complete Epic"
+                  :issue-type "epic"))
+           (child1 (beads-command-create!
+                    :title "Child 1"
+                    :deps (list (concat "child-of:"
+                                       (oref epic id)))))
+           (child2 (beads-command-create!
+                    :title "Child 2"
+                    :deps (list (concat "child-of:"
+                                       (oref epic id))))))
+      ;; Close both children
+      (shell-command (format "bd close %s %s --reason 'Done'"
+                            (oref child1 id)
+                            (oref child2 id)))
+      ;; Get eligible epics
+      (let ((result (beads-command-epic-status! :eligible-only t)))
+        ;; Should return parsed JSON
+        (should result)
+        ;; Should contain information about eligible epics
+        ))))
+
+;;; Integration Test: beads-command-epic-close-eligible
+
+(ert-deftest beads-command-test-epic-close-eligible-dry-run ()
+  "Test beads-command-epic-close-eligible with --dry-run flag.
+Integration test that previews eligible epics without closing."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create an epic with all children closed
+    (let* ((epic (beads-command-create!
+                  :title "Ready Epic"
+                  :issue-type "epic"))
+           (child1 (beads-command-create!
+                    :title "Child 1"
+                    :deps (list (concat "child-of:"
+                                       (oref epic id)))))
+           (child2 (beads-command-create!
+                    :title "Child 2"
+                    :deps (list (concat "child-of:"
+                                       (oref epic id))))))
+      ;; Close both children
+      (shell-command (format "bd close %s %s --reason 'Done'"
+                            (oref child1 id)
+                            (oref child2 id)))
+      ;; Preview close-eligible (should not actually close)
+      (let ((result (beads-command-epic-close-eligible! :dry-run t)))
+        ;; Should return parsed JSON
+        (should result)
+        ;; Epic should still be open
+        (let ((epic-check (beads-command-list!
+                          :id (oref epic id))))
+          (should (= (length epic-check) 1))
+          (should (string= (oref (car epic-check) status) "open")))))))
+
+(ert-deftest beads-command-test-epic-close-eligible-execute ()
+  "Test beads-command-epic-close-eligible actually closes eligible epics.
+Integration test that closes epics where all children are complete."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create an epic with all children closed
+    (let* ((epic (beads-command-create!
+                  :title "Closeable Epic"
+                  :issue-type "epic"))
+           (child1 (beads-command-create!
+                    :title "Child 1"
+                    :deps (list (concat "child-of:"
+                                       (oref epic id)))))
+           (child2 (beads-command-create!
+                    :title "Child 2"
+                    :deps (list (concat "child-of:"
+                                       (oref epic id))))))
+      ;; Close both children
+      (shell-command (format "bd close %s %s --reason 'Done'"
+                            (oref child1 id)
+                            (oref child2 id)))
+      ;; Close eligible epics
+      (let ((result (beads-command-epic-close-eligible!)))
+        ;; Should return parsed JSON
+        (should result)
+        ;; Epic should now be closed
+        (let ((epic-check (beads-command-list!
+                          :id (oref epic id))))
+          (should (= (length epic-check) 1))
+          (should (string= (oref (car epic-check) status) "closed")))))))
+
 (provide 'beads-command-test)
 ;;; beads-command-test.el ends here
