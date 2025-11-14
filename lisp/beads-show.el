@@ -35,6 +35,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-command)
 (require 'button)
 (require 'cl-lib)
 
@@ -1104,8 +1105,24 @@ CURRENT-VALUE is the initial text, CALLBACK is called with result."
     (user-error "No issue ID in current buffer"))
   (condition-case err
       (progn
-        (beads--run-command "update" beads-show--issue-id
-                           field-flag new-value)
+        ;; Map field-flag to command class slot
+        (let* ((slot-keyword
+                (pcase field-flag
+                  ("--title" :title)
+                  ("--description" :description)
+                  ("--status" :status)
+                  ("--priority" :priority)
+                  ("--assignee" :assignee)
+                  ("--acceptance" :acceptance)
+                  ("--design" :design)
+                  ("--notes" :notes)
+                  ("--external-ref" :external-ref)
+                  (_ (error "Unknown field flag: %s" field-flag))))
+               (cmd (apply #'beads-command-update
+                           :issue-ids (list beads-show--issue-id)
+                           slot-keyword new-value
+                           nil)))
+          (beads-command-execute cmd))
         ;; Update local issue data
         (let ((_field-symbol (intern (concat ":"
                                            (replace-regexp-in-string

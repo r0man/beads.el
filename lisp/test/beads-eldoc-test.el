@@ -214,8 +214,8 @@ supports uppercase characters."
 (ert-deftest beads-eldoc-test-fetch-issue-success ()
   "Test successful issue fetching with caching."
   (let ((beads-eldoc--cache (make-hash-table :test 'equal)))
-    (cl-letf (((symbol-function 'beads--run-command)
-               (lambda (&rest _)
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_cmd)
                  beads-eldoc-test--sample-issue)))
       (let ((issue (beads-eldoc--fetch-issue "beads.el-22")))
         ;; Should return parsed issue
@@ -227,8 +227,8 @@ supports uppercase characters."
   "Test that fetch uses cache on second call."
   (let ((beads-eldoc--cache (make-hash-table :test 'equal))
         (call-count 0))
-    (cl-letf (((symbol-function 'beads--run-command)
-               (lambda (&rest _)
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_cmd)
                  (setq call-count (1+ call-count))
                  beads-eldoc-test--sample-issue)))
       ;; First call should fetch from bd
@@ -396,8 +396,8 @@ supports uppercase characters."
   (let ((beads-eldoc--cache (make-hash-table :test 'equal))
         (result-echo nil)
         (result-buffer nil))
-    (cl-letf (((symbol-function 'beads--run-command)
-               (lambda (&rest _)
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_cmd)
                  beads-eldoc-test--sample-issue)))
       (beads-eldoc-test--at-point
           "Implementing beads.el-|22 now" "|"

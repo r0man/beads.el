@@ -730,7 +730,10 @@ transient menu options."
           (dolist (id beads-list--marked-issues)
             (condition-case err
                 (progn
-                  (beads--run-command "update" id "--status" status)
+                  (beads-command-execute
+                   (beads-command-update
+                    :issue-ids (list id)
+                    :status status))
                   (setq success-count (1+ success-count)))
               (error
                (message "Failed to update %s: %s" id
@@ -764,8 +767,10 @@ transient menu options."
           (dolist (id beads-list--marked-issues)
             (condition-case err
                 (progn
-                  (beads--run-command "update" id "--priority"
-                                     (number-to-string priority))
+                  (beads-command-execute
+                   (beads-command-update
+                    :issue-ids (list id)
+                    :priority priority))
                   (setq success-count (1+ success-count)))
               (error
                (message "Failed to update %s: %s" id
@@ -791,9 +796,11 @@ transient menu options."
           (dolist (id beads-list--marked-issues)
             (condition-case err
                 (progn
-                  (if (and reason (not (string-empty-p (string-trim reason))))
-                      (beads--run-command "close" id "--reason" reason)
-                    (beads--run-command "close" id))
+                  (beads-command-execute
+                   (beads-command-close
+                    :issue-ids (list id)
+                    :reason (when (and reason (not (string-empty-p (string-trim reason))))
+                             reason)))
                   (setq success-count (1+ success-count)))
               (error
                (message "Failed to close %s: %s" id
