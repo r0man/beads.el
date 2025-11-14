@@ -477,7 +477,7 @@
 
 (ert-deftest beads-show-test-show-command-creates-buffer ()
   "Test that beads-show creates a buffer with correct name."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command beads-show-test--full-issue)))
     (beads-show "bd-42")
     (should (get-buffer "*beads-show: bd-42*"))
@@ -488,7 +488,7 @@
 
 (ert-deftest beads-show-test-show-command-renders-content ()
   "Test that beads-show renders issue content."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command beads-show-test--full-issue)))
     (beads-show "bd-42")
     (with-current-buffer "*beads-show: bd-42*"
@@ -499,7 +499,7 @@
 
 (ert-deftest beads-show-test-show-command-handles-error ()
   "Test that beads-show handles errors gracefully."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (lambda (&rest args) (error "Database not found"))))
     (beads-show "bd-999")
     (with-current-buffer "*beads-show: bd-999*"
@@ -515,7 +515,7 @@
     (goto-char (point-min))
     (search-forward "bd-42")
     (goto-char (match-beginning 0))
-    (cl-letf (((symbol-function 'beads--run-command)
+    (cl-letf (((symbol-function 'beads-command-execute)
                (beads-show-test--mock-show-command beads-show-test--full-issue)))
       (beads-show-at-point)
       (should (get-buffer "*beads-show: bd-42*"))
@@ -530,7 +530,7 @@
 
 (ert-deftest beads-show-test-refresh-command ()
   "Test beads-refresh-show command."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command beads-show-test--full-issue)))
     (beads-show "bd-42")
     (with-current-buffer "*beads-show: bd-42*"
@@ -555,7 +555,7 @@
 
 (ert-deftest beads-show-test-next-section ()
   "Test navigation to next section."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command beads-show-test--full-issue)))
     (beads-show "bd-42")
     (with-current-buffer "*beads-show: bd-42*"
@@ -567,7 +567,7 @@
 
 (ert-deftest beads-show-test-previous-section ()
   "Test navigation to previous section."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command beads-show-test--full-issue)))
     (beads-show "bd-42")
     (with-current-buffer "*beads-show: bd-42*"
@@ -578,7 +578,7 @@
 
 (ert-deftest beads-show-test-follow-reference ()
   "Test following a reference with RET."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command beads-show-test--full-issue)))
     (beads-show "bd-42")
     (with-current-buffer "*beads-show: bd-42*"
@@ -710,7 +710,7 @@
 
 (ert-deftest beads-show-test-full-workflow ()
   "Test full workflow: show issue, navigate, refresh."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command beads-show-test--full-issue)))
     ;; Show issue
     (beads-show "bd-42")
@@ -738,7 +738,7 @@
 
 (ert-deftest beads-show-test-multiple-buffers ()
   "Test managing multiple show buffers simultaneously."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (lambda (cmd id)
                (cond
                 ((string= id "bd-1") beads-show-test--minimal-issue)
@@ -787,7 +787,7 @@
 
 (ert-deftest beads-show-test-section-level-title ()
   "Test section level detection for title (level 0)."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--outline-issue)))
     (beads-show "bd-200")
@@ -801,7 +801,7 @@
 
 (ert-deftest beads-show-test-section-level-major-section ()
   "Test section level detection for major sections (level 1)."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--outline-issue)))
     (beads-show "bd-200")
@@ -815,7 +815,7 @@
 
 (ert-deftest beads-show-test-section-level-markdown-heading-2 ()
   "Test section level detection for markdown ## heading (level 2)."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--outline-issue)))
     (beads-show "bd-200")
@@ -829,7 +829,7 @@
 
 (ert-deftest beads-show-test-section-level-markdown-heading-3 ()
   "Test section level detection for markdown ### heading (level 3)."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--outline-issue)))
     (beads-show "bd-200")
@@ -843,7 +843,7 @@
 
 (ert-deftest beads-show-test-section-level-not-heading ()
   "Test section level returns nil for non-heading lines."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--outline-issue)))
     (beads-show "bd-200")
@@ -857,7 +857,7 @@
 
 (ert-deftest beads-show-test-outline-next-basic ()
   "Test moving to next heading at any level."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--outline-issue)))
     (beads-show "bd-200")
@@ -877,7 +877,7 @@
 
 (ert-deftest beads-show-test-outline-previous-basic ()
   "Test moving to previous heading at any level."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--outline-issue)))
     (beads-show "bd-200")
@@ -893,7 +893,7 @@
 
 (ert-deftest beads-show-test-outline-next-at-end ()
   "Test outline-next at end of buffer shows message."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--minimal-issue)))
     (beads-show "bd-1")
@@ -908,7 +908,7 @@
 
 (ert-deftest beads-show-test-outline-previous-at-start ()
   "Test outline-previous at start of buffer shows message."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--minimal-issue)))
     (beads-show "bd-1")
@@ -922,7 +922,7 @@
 
 (ert-deftest beads-show-test-outline-next-same-level ()
   "Test moving to next heading at same level."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--outline-issue)))
     (beads-show "bd-200")
@@ -941,7 +941,7 @@
 
 (ert-deftest beads-show-test-outline-previous-same-level ()
   "Test moving to previous heading at same level."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--outline-issue)))
     (beads-show "bd-200")
@@ -961,7 +961,7 @@
 
 (ert-deftest beads-show-test-outline-same-level-not-at-heading ()
   "Test outline-next-same-level errors when not at heading."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--outline-issue)))
     (beads-show "bd-200")
@@ -974,7 +974,7 @@
 
 (ert-deftest beads-show-test-outline-up-from-level-3 ()
   "Test moving up from level 3 heading to parent."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--outline-issue)))
     (beads-show "bd-200")
@@ -995,7 +995,7 @@
 
 (ert-deftest beads-show-test-outline-up-from-level-2 ()
   "Test moving up from level 2 heading to level 1."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--outline-issue)))
     (beads-show "bd-200")
@@ -1014,7 +1014,7 @@
 
 (ert-deftest beads-show-test-outline-up-at-level-0-errors ()
   "Test outline-up at level 0 (title) gives error."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--outline-issue)))
     (beads-show "bd-200")
@@ -1029,7 +1029,7 @@
 
 (ert-deftest beads-show-test-outline-up-not-at-heading ()
   "Test outline-up errors when not at heading."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--outline-issue)))
     (beads-show "bd-200")
@@ -1056,7 +1056,7 @@
 
 (ert-deftest beads-show-test-outline-navigation-sequence ()
   "Test a sequence of outline navigation commands."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--outline-issue)))
     (beads-show "bd-200")
@@ -1096,7 +1096,7 @@
 
 (ert-deftest beads-show-test-forward-paragraph-basic ()
   "Test moving forward by paragraph."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--markdown-rich-issue)))
     (beads-show "bd-100")
@@ -1109,7 +1109,7 @@
 
 (ert-deftest beads-show-test-backward-paragraph-basic ()
   "Test moving backward by paragraph."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--markdown-rich-issue)))
     (beads-show "bd-100")
@@ -1134,7 +1134,7 @@
 
 (ert-deftest beads-show-test-mark-paragraph-basic ()
   "Test marking a paragraph."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--markdown-rich-issue)))
     (beads-show "bd-100")
@@ -1211,7 +1211,7 @@
 
 (ert-deftest beads-show-test-forward-block-from-text ()
   "Test forward-block navigation from regular text."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--block-rich-issue)))
     (beads-show "bd-300")
@@ -1228,7 +1228,7 @@
 
 (ert-deftest beads-show-test-forward-block-skip-fenced-code ()
   "Test forward-block skips entire fenced code block."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--block-rich-issue)))
     (beads-show "bd-300")
@@ -1249,7 +1249,7 @@
 
 (ert-deftest beads-show-test-forward-block-skip-list ()
   "Test forward-block skips entire list."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--block-rich-issue)))
     (beads-show "bd-300")
@@ -1266,7 +1266,7 @@
 
 (ert-deftest beads-show-test-forward-block-skip-blockquote ()
   "Test forward-block skips entire blockquote."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--block-rich-issue)))
     (beads-show "bd-300")
@@ -1283,7 +1283,7 @@
 
 (ert-deftest beads-show-test-forward-block-skip-indented-code ()
   "Test forward-block skips indented code block."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--block-rich-issue)))
     (beads-show "bd-300")
@@ -1300,7 +1300,7 @@
 
 (ert-deftest beads-show-test-backward-block-from-text ()
   "Test backward-block navigation from regular text."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--block-rich-issue)))
     (beads-show "bd-300")
@@ -1317,7 +1317,7 @@
 
 (ert-deftest beads-show-test-backward-block-to-list-start ()
   "Test backward-block moves backward from end of list."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--block-rich-issue)))
     (beads-show "bd-300")
@@ -1335,7 +1335,7 @@
 
 (ert-deftest beads-show-test-backward-block-to-fenced-code-start ()
   "Test backward-block finds start of fenced code block."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--block-rich-issue)))
     (beads-show "bd-300")
@@ -1354,7 +1354,7 @@
 
 (ert-deftest beads-show-test-forward-block-at-end ()
   "Test forward-block at end of buffer shows message."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--minimal-issue)))
     (beads-show "bd-1")
@@ -1368,7 +1368,7 @@
 
 (ert-deftest beads-show-test-backward-block-at-start ()
   "Test backward-block at start of buffer shows message."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--minimal-issue)))
     (beads-show "bd-1")
@@ -1383,7 +1383,7 @@
 
 (ert-deftest beads-show-test-block-navigation-sequence ()
   "Test sequence of forward and backward block navigation."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--block-rich-issue)))
     (beads-show "bd-300")
@@ -1446,7 +1446,7 @@
 
 (ert-deftest beads-show-test-beginning-of-section-at-heading ()
   "Test moving to beginning of section when at heading."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--outline-issue)))
     (beads-show "bd-200")
@@ -1463,7 +1463,7 @@
 
 (ert-deftest beads-show-test-beginning-of-section-in-content ()
   "Test moving to beginning of section from content."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--outline-issue)))
     (beads-show "bd-200")
@@ -1478,7 +1478,7 @@
 
 (ert-deftest beads-show-test-end-of-section-basic ()
   "Test moving to end of section."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--outline-issue)))
     (beads-show "bd-200")
@@ -1495,7 +1495,7 @@
 
 (ert-deftest beads-show-test-mark-section-basic ()
   "Test marking a section."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (beads-show-test--mock-show-command
               beads-show-test--outline-issue)))
     (beads-show "bd-200")

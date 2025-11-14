@@ -241,7 +241,7 @@ supports uppercase characters."
 (ert-deftest beads-eldoc-test-fetch-issue-error ()
   "Test that fetch errors are handled gracefully."
   (let ((beads-eldoc--cache (make-hash-table :test 'equal)))
-    (cl-letf (((symbol-function 'beads--run-command)
+    (cl-letf (((symbol-function 'beads-command-execute)
                (lambda (&rest _)
                  (error "Command failed"))))
       ;; Should return nil on error, not signal
