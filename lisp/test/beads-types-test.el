@@ -22,6 +22,7 @@
 (require 'json)
 (require 'beads-types)
 (require 'beads)
+(require 'beads-list)
 
 
 ;;; ========================================
