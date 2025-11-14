@@ -47,6 +47,8 @@
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "q") #'quit-window)
     (define-key map (kbd "g") #'beads-stats-refresh)
+    (define-key map (kbd "n") #'beads-stats-next)
+    (define-key map (kbd "p") #'beads-stats-previous)
     map)
   "Keymap for `beads-stats-mode'.")
 
@@ -59,6 +61,28 @@
   :group 'beads
   (setq truncate-lines t)
   (setq buffer-read-only t))
+
+;;; Navigation Commands
+
+(defun beads-stats-next ()
+  "Move to the next clickable statistic button."
+  (interactive)
+  (let ((start-pos (point)))
+    (forward-button 1 t t)
+    ;; If we didn't move, we're at the last button - wrap to first
+    (when (= (point) start-pos)
+      (goto-char (point-min))
+      (forward-button 1 t t))))
+
+(defun beads-stats-previous ()
+  "Move to the previous clickable statistic button."
+  (interactive)
+  (let ((start-pos (point)))
+    (backward-button 1 t t)
+    ;; If we didn't move, we're at the first button - wrap to last
+    (when (= (point) start-pos)
+      (goto-char (point-max))
+      (backward-button 1 t t))))
 
 ;;; Button Infrastructure
 
@@ -278,7 +302,9 @@ interactive clickable numbers."
      'default)
     (insert "\n"))
 
-  (goto-char (point-min)))
+  ;; Position point on first button (Total Issues)
+  (goto-char (point-min))
+  (forward-button 1 t t))
 
 (defun beads-stats--fetch-and-display ()
   "Fetch statistics and display them in the current buffer."
