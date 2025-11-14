@@ -244,7 +244,7 @@ interactive clickable numbers."
 (defun beads-stats--fetch-and-display ()
   "Fetch statistics and display them in the current buffer."
   (condition-case err
-      (let* ((json (beads--run-command "stats"))
+      (let* ((json (beads-command-stats!))
              (stats (beads-stats--parse-stats json)))
         (beads-stats--render stats))
     (error
