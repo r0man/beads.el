@@ -44,7 +44,8 @@
 (require 'cl-lib)
 (require 'json)
 
-;; Forward declarations
+;; Forward declarations to avoid circular dependency
+;; (beads.el requires beads-command, so we can't require beads here)
 (defvar beads-executable)
 (declare-function beads--log "beads")
 
@@ -102,16 +103,29 @@ Subclasses should implement beads-command-execute method.")
 
 (cl-defgeneric beads-command-execute (command)
   "Execute COMMAND by building arguments and running bd CLI.
-Always returns a list: (EXIT-CODE STDOUT STDERR)
 
-For non-JSON commands:
+Return value depends on command type and :json slot:
+
+For non-JSON commands (beads-command):
+  Returns (EXIT-CODE STDOUT STDERR) tuple
   STDOUT is the command's standard output as a string
 
-For JSON commands with :json t:
-  STDOUT is the parsed JSON (alist/vector)
+For JSON commands (beads-command-json and subclasses):
+  DEFAULT BEHAVIOR (:json t, the default):
+    Most subclasses return domain objects, NOT raw tuples:
+    - beads-command-list: Returns list of beads-issue instances
+    - beads-command-create: Returns beads-issue instance (or list)
+    - beads-command-show: Returns beads-issue instance (or list)
+    - beads-command-update: Returns beads-issue instance (or list)
+    - beads-command-close: Returns beads-issue instance (or list)
+    - beads-command-ready: Returns list of beads-issue instances
+    - beads-command-blocked: Returns list of beads-issue instances
+    - beads-command-stats: Returns parsed JSON alist
+    - beads-command-epic-*: Returns parsed JSON
 
-For JSON commands with :json nil:
-  STDOUT is the command's standard output as a string
+  With :json nil:
+    Returns (EXIT-CODE STDOUT STDERR) like non-JSON commands
+    STDOUT is the command's standard output as a string
 
 EXIT-CODE is the process exit code (integer)
 STDERR is the command's standard error as a string
@@ -739,10 +753,11 @@ List of label strings.")
 Example: 'bd-a3f8e9'.")
    (priority
     :initarg :priority
-    :type (or null string)
+    :type (or null string integer)
     :initform nil
     :documentation "Priority (-p, --priority).
-Values: 0-4 or P0-P4 (0=highest). Default: '2'.")
+Values: 0-4 or P0-P4 (0=highest). Default: '2'.
+Accepts both integer (1) and string (\"1\" or \"P1\") formats.")
    (repo
     :initarg :repo
     :type (or null string)
@@ -798,7 +813,8 @@ Returns list: (\"create\" ...global-flags... ...create-flags...)."
       (when parent
         (setq args (append args (list "--parent" parent))))
       (when priority
-        (setq args (append args (list "--priority" priority))))
+        (setq args (append args (list "--priority"
+                                      (beads-command--priority-to-string priority)))))
       (when repo
         (setq args (append args (list "--repo" repo))))
       (when issue-type
@@ -1110,10 +1126,11 @@ Examples: 'gh-9', 'jira-ABC'.")
     :documentation "Additional notes (--notes).")
    (priority
     :initarg :priority
-    :type (or null string)
+    :type (or null string integer)
     :initform nil
     :documentation "New priority (-p, --priority).
-Values: 0-4 or P0-P4.")
+Values: 0-4 or P0-P4.
+Accepts both integer (1) and string (\"1\" or \"P1\") formats.")
    (status
     :initarg :status
     :type (or null string)
@@ -1158,7 +1175,8 @@ Returns list: (\"update\" ...global-flags... ...issue-ids... ...flags...)."
       (when notes
         (setq args (append args (list "--notes" notes))))
       (when priority
-        (setq args (append args (list "--priority" priority))))
+        (setq args (append args (list "--priority"
+                                      (beads-command--priority-to-string priority)))))
       (when status
         (setq args (append args (list "--status" status))))
       (when title
@@ -1551,6 +1569,33 @@ beads-json-parse-error on failure."
           result)))))
 
 ;;; Utility Functions
+
+(defun beads-command--priority-to-string (priority)
+  "Convert PRIORITY integer to string for bd command line.
+If PRIORITY is already a string, return it unchanged.
+Returns nil if PRIORITY is nil."
+  (cond
+   ((null priority) nil)
+   ((stringp priority) priority)
+   ((integerp priority) (number-to-string priority))
+   (t (error "Priority must be integer, string, or nil"))))
+
+(defun beads-command--priority-to-integer (priority)
+  "Convert PRIORITY to integer for validation and comparison.
+If PRIORITY is already an integer, return it unchanged.
+If PRIORITY is a string like \"2\" or \"P2\", convert to integer.
+Returns nil if PRIORITY is nil.
+Signals error if PRIORITY cannot be converted."
+  (cond
+   ((null priority) nil)
+   ((integerp priority) priority)
+   ((stringp priority)
+    (if (string-prefix-p "P" priority)
+        ;; Handle "P0", "P1", etc. format
+        (string-to-number (substring priority 1))
+      ;; Handle "0", "1", etc. format
+      (string-to-number priority)))
+   (t (error "Priority must be integer, string, or nil"))))
 
 (defun beads-command-init-from-options (options)
   "Create beads-command-init from OPTIONS plist.
