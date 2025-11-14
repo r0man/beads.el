@@ -47,6 +47,7 @@
 
 (require 'beads)
 (require 'beads-types)
+(require 'beads-command)
 (require 'beads-option)
 (require 'transient)
 
@@ -293,18 +294,11 @@ Uses the bd show command with --json flag to fetch the issue.
 Runs in the directory specified by `default-directory'.
 Returns a beads-issue object or signals an error if not found."
   (interactive "sIssue ID: ")
-  (let ((json (beads--run-command "show" issue-id)))
-    (cond
-     ;; If it's a vector (default json-array-type), unwrap it
-     ((vectorp json)
-      (beads-issue-from-json (aref json 0)))
-     ;; If it's a list containing one alist (json-array-type='list), unwrap it
-     ;; We detect this by checking if 'id is NOT a direct key (meaning it's nested)
-     ((and (listp json) (not (assq 'id json)))
-      (beads-issue-from-json (car json)))
-     ;; Otherwise it's already an alist directly
-     (t
-      (beads-issue-from-json json)))))
+  (let ((result (beads-command-show! :issue-ids (list issue-id))))
+    ;; beads-command-show! returns a list, so unwrap single result
+    (if (listp result)
+        (car result)
+      result)))
 
 (defun beads-issue-list (&optional status)
   "List beads issues from the CLI.
@@ -313,10 +307,9 @@ If STATUS is provided, filters by that status.
 Runs in the directory specified by `default-directory'.
 Returns a list of beads-issue objects."
   (interactive)
-  (let* ((args (when status (list "--status" status)))
-         (json (apply #'beads--run-command "list" args)))
-    (when (vectorp json)
-      (mapcar #'beads-issue-from-json (append json nil)))))
+  (if status
+      (beads-command-list! :status status)
+    (beads-command-list!)))
 
 (defun beads-blocked-issue-list ()
   "List blocked beads issues from the CLI.
@@ -324,16 +317,7 @@ Uses the bd blocked command with --json flag.
 Runs in the directory specified by `default-directory'.
 Returns a list of beads-blocked-issue objects."
   (interactive)
-  (let ((json (beads--run-command "blocked")))
-    (cond
-     ;; Handle vector (default json-array-type)
-     ((vectorp json)
-      (mapcar #'beads-blocked-issue-from-json (append json nil)))
-     ;; Handle list (when json-array-type is 'list)
-     ((listp json)
-      (mapcar #'beads-blocked-issue-from-json json))
-     ;; Return nil for other cases
-     (t nil))))
+  (beads-command-blocked!))
 
 (defun beads-issue-ready (&optional limit)
   "Get ready work from the CLI.
@@ -342,10 +326,9 @@ If LIMIT is provided, limits the number of results.
 Runs in the directory specified by `default-directory'.
 Returns a list of beads-issue objects."
   (interactive)
-  (let* ((args (when limit (list "--limit" (number-to-string limit))))
-         (json (apply #'beads--run-command "ready" args)))
-    (when (vectorp json)
-      (mapcar #'beads-issue-from-json (append json nil)))))
+  (if limit
+      (beads-command-ready! :limit limit)
+    (beads-command-ready!)))
 
 ;;; Transient Menu Integration
 
