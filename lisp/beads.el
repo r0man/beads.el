@@ -390,7 +390,7 @@ Format: (TIMESTAMP . ISSUES-LIST)")
 
 (defun beads--get-cached-issues ()
   "Get cached issue list, refreshing if stale.
-Returns list of issues or nil on error."
+Returns list of `beads-issue' objects or nil on error."
   (let ((now (float-time)))
     (when (or (null beads--completion-cache)
               (> (- now (car beads--completion-cache))
@@ -418,7 +418,7 @@ Call this after creating, updating, or deleting issues."
       (let ((issues (beads--get-cached-issues)))
         (complete-with-action
          action
-         (mapcar (lambda (i) (alist-get 'id i)) issues)
+         (mapcar (lambda (i) (oref i id)) issues)
          string pred)))))
 
 (defun beads--annotate-issue (issue-id)
@@ -426,12 +426,12 @@ Call this after creating, updating, or deleting issues."
   (condition-case nil
       (let* ((issues (beads--get-cached-issues))
              (issue (seq-find (lambda (i)
-                               (string= (alist-get 'id i) issue-id))
+                               (string= (oref i id) issue-id))
                              issues)))
         (when issue
-          (let ((status (alist-get 'status issue))
-                (title (alist-get 'title issue))
-                (priority (alist-get 'priority issue)))
+          (let ((status (oref issue status))
+                (title (oref issue title))
+                (priority (oref issue priority)))
             (format " %s [P%s] %s"
                     (propertize (upcase status)
                               'face (pcase status
@@ -456,9 +456,9 @@ If TRANSFORM is non-nil, return the transformed issue ID."
     (condition-case nil
         (let* ((issues (beads--get-cached-issues))
                (issue (seq-find (lambda (i)
-                                 (string= (alist-get 'id i) issue-id))
+                                 (string= (oref i id) issue-id))
                                issues))
-               (status (when issue (alist-get 'status issue))))
+               (status (when issue (oref issue status))))
           (pcase status
             ("open" "Open")
             ("in_progress" "In Progress")

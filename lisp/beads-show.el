@@ -523,22 +523,23 @@ Returns:
 ;;; Buffer Rendering
 
 (defun beads-show--render-issue (issue)
-  "Render ISSUE data into current buffer."
+  "Render ISSUE data into current buffer.
+ISSUE must be a `beads-issue' EIEIO object."
   (let ((inhibit-read-only t)
-        (id (alist-get 'id issue))
-        (title (alist-get 'title issue))
-        (status (alist-get 'status issue))
-        (priority (alist-get 'priority issue))
-        (type (alist-get 'issue-type issue))
-        (created (alist-get 'created-at issue))
-        (updated (alist-get 'updated-at issue))
-        (closed (alist-get 'closed-at issue))
-        (assignee (alist-get 'assignee issue))
-        (external-ref (alist-get 'external-ref issue))
-        (description (alist-get 'description issue))
-        (acceptance (alist-get 'acceptance-criteria issue))
-        (design (alist-get 'design issue))
-        (notes (alist-get 'notes issue)))
+        (id (oref issue id))
+        (title (oref issue title))
+        (status (oref issue status))
+        (priority (oref issue priority))
+        (type (oref issue issue-type))
+        (created (oref issue created-at))
+        (updated (oref issue updated-at))
+        (closed (oref issue closed-at))
+        (assignee (oref issue assignee))
+        (external-ref (oref issue external-ref))
+        (description (oref issue description))
+        (acceptance (oref issue acceptance-criteria))
+        (design (oref issue design))
+        (notes (oref issue notes)))
 
     (erase-buffer)
 
@@ -604,8 +605,8 @@ Creates or switches to a buffer showing the full issue details."
       (setq default-directory project-dir)
 
       (condition-case err
-          (let ((issue-json (beads-command-show! :issue-id issue-id)))
-            (setq beads-show--issue-data (beads--parse-issue issue-json))
+          (let ((issue (beads-command-show! :issue-ids (list issue-id))))
+            (setq beads-show--issue-data issue)
             (beads-show--render-issue beads-show--issue-data))
         (error
          (let ((inhibit-read-only t))
@@ -637,8 +638,8 @@ Extracts the issue ID from text at point and calls `beads-show'."
 
   (let ((pos (point)))
     (condition-case err
-        (let ((issue-json (beads-command-show! :issue-id beads-show--issue-id)))
-          (setq beads-show--issue-data (beads--parse-issue issue-json))
+        (let ((issue (beads-command-show! :issue-ids (list beads-show--issue-id))))
+          (setq beads-show--issue-data issue)
           (beads-show--render-issue beads-show--issue-data)
           (goto-char (min pos (point-max)))
           (message "Refreshed %s" beads-show--issue-id))
@@ -985,8 +986,8 @@ Set mark at beginning of section, move point to end, and activate region."
               (setq beads-show--issue-id issue-id)
               (setq default-directory project-dir)
               (condition-case err
-                  (let ((issue-json (beads-command-show! :issue-id issue-id)))
-                    (setq beads-show--issue-data (beads--parse-issue issue-json))
+                  (let ((issue (beads-command-show! :issue-ids (list issue-id))))
+                    (setq beads-show--issue-data issue)
                     (beads-show--render-issue beads-show--issue-data))
                 (error
                  (let ((inhibit-read-only t))
@@ -1123,17 +1124,7 @@ CURRENT-VALUE is the initial text, CALLBACK is called with result."
                            slot-keyword new-value
                            nil)))
           (beads-command-execute cmd))
-        ;; Update local issue data
-        (let ((_field-symbol (intern (concat ":"
-                                           (replace-regexp-in-string
-                                            "-" "_"
-                                            (downcase field-name))))))
-          (setf (alist-get (intern (replace-regexp-in-string
-                                   "-" "_"
-                                   (downcase field-name)))
-                          beads-show--issue-data)
-                new-value))
-        ;; Refresh the display
+        ;; Refetch and refresh the display to get latest data
         (beads-refresh-show)
         (message "%s updated" field-name))
     (error
@@ -1161,7 +1152,12 @@ Prompts for field to edit and opens an editing buffer."
                                      (mapcar #'car fields)
                                      nil t))
          (field-key (cdr (assoc field-name fields)))
-         (current-value (alist-get field-key beads-show--issue-data))
+         (current-value (pcase field-key
+                         ('title (oref beads-show--issue-data title))
+                         ('description (oref beads-show--issue-data description))
+                         ('acceptance-criteria (oref beads-show--issue-data acceptance-criteria))
+                         ('design (oref beads-show--issue-data design))
+                         ('notes (oref beads-show--issue-data notes))))
          (is-title (eq field-key 'title)))
 
     (if is-title
