@@ -786,5 +786,365 @@ Integration test that retrieves issue database stats."
       ;; Just verify it's not nil
       (should (not (null stats))))))
 
+;;; Unit Tests: beads-command-line
+
+;; Unit tests for command-line building that don't require bd CLI.
+;; These tests verify argument construction without executing commands.
+
+(ert-deftest beads-command-test-unit-list-command-line-basic ()
+  "Unit test: beads-command-list builds correct arguments."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-list
+               :status "open"
+               :priority 1
+               :no-daemon t))
+         (args (beads-command-line cmd)))
+    (should (listp args))
+    (should (member "list" args))
+    (should (member "--status" args))
+    (should (member "open" args))
+    (should (member "--priority" args))
+    (should (member "1" args))
+    (should (member "--no-daemon" args))
+    (should (member "--json" args))))
+
+(ert-deftest beads-command-test-unit-list-command-line-all-filters ()
+  "Unit test: beads-command-list with all filter options."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-list
+               :status "in_progress"
+               :priority 2
+               :issue-type "bug"
+               :assignee "alice"
+               :limit 10
+               :offset 5))
+         (args (beads-command-line cmd)))
+    (should (member "list" args))
+    (should (member "--status" args))
+    (should (member "in_progress" args))
+    (should (member "--priority" args))
+    (should (member "2" args))
+    (should (member "--type" args))
+    (should (member "bug" args))
+    (should (member "--assignee" args))
+    (should (member "alice" args))
+    (should (member "--limit" args))
+    (should (member "10" args))
+    (should (member "--offset" args))
+    (should (member "5" args))))
+
+(ert-deftest beads-command-test-unit-create-command-line-basic ()
+  "Unit test: beads-command-create builds correct arguments."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-create
+               :title "Test issue"
+               :priority 1
+               :issue-type "bug"))
+         (args (beads-command-line cmd)))
+    (should (member "create" args))
+    (should (member "Test issue" args))
+    (should (member "-p" args))
+    (should (member "1" args))
+    (should (member "-t" args))
+    (should (member "bug" args))
+    (should (member "--json" args))))
+
+(ert-deftest beads-command-test-unit-create-command-line-with-description ()
+  "Unit test: beads-command-create with multiline description."
+  :tags '(:unit)
+  (let* ((desc "Line 1\nLine 2\nLine 3")
+         (cmd (beads-command-create
+               :title "Test"
+               :description desc))
+         (args (beads-command-line cmd)))
+    (should (member "create" args))
+    (should (member "--description" args))
+    (should (member desc args))))
+
+(ert-deftest beads-command-test-unit-create-command-line-with-deps ()
+  "Unit test: beads-command-create with dependencies."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-create
+               :title "Test"
+               :deps "blocks:bd-123,depends-on:bd-456"))
+         (args (beads-command-line cmd)))
+    (should (member "--deps" args))
+    (should (member "blocks:bd-123,depends-on:bd-456" args))))
+
+(ert-deftest beads-command-test-unit-update-command-line-basic ()
+  "Unit test: beads-command-update builds correct arguments."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-update
+               :issue-ids '("bd-123" "bd-456")
+               :status "in_progress"
+               :priority "2"))
+         (args (beads-command-line cmd)))
+    (should (member "update" args))
+    (should (member "bd-123" args))
+    (should (member "bd-456" args))
+    (should (member "--status" args))
+    (should (member "in_progress" args))
+    (should (member "--priority" args))
+    (should (member "2" args))))
+
+(ert-deftest beads-command-test-unit-close-command-line-basic ()
+  "Unit test: beads-command-close builds correct arguments."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-close
+               :issue-ids '("bd-789")
+               :reason "Completed"))
+         (args (beads-command-line cmd)))
+    (should (member "close" args))
+    (should (member "bd-789" args))
+    (should (member "--reason" args))
+    (should (member "Completed" args))
+    (should (member "--json" args))))
+
+(ert-deftest beads-command-test-unit-init-command-line-all-options ()
+  "Unit test: beads-command-init with all options."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-init
+               :branch "develop"
+               :prefix "myproj"
+               :quiet t
+               :contributor t
+               :skip-merge-driver t))
+         (args (beads-command-line cmd)))
+    (should (member "init" args))
+    (should (member "--branch" args))
+    (should (member "develop" args))
+    (should (member "--prefix" args))
+    (should (member "myproj" args))
+    (should (member "--quiet" args))
+    (should (member "--contributor" args))
+    (should (member "--skip-merge-driver" args))))
+
+;;; Unit Tests: beads-command-validate
+
+;; Unit tests for validation logic that don't require bd CLI.
+
+(ert-deftest beads-command-test-unit-create-validate-title-required ()
+  "Unit test: beads-command-create validation requires title."
+  :tags '(:unit)
+  (let ((cmd (beads-command-create :title nil)))
+    (should (stringp (beads-command-validate cmd)))
+    (should (string-match-p "title" (downcase (beads-command-validate cmd))))))
+
+(ert-deftest beads-command-test-unit-create-validate-title-empty ()
+  "Unit test: beads-command-create validation rejects empty title."
+  :tags '(:unit)
+  (let ((cmd (beads-command-create :title "")))
+    (should (stringp (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-test-unit-create-validate-title-whitespace ()
+  "Unit test: beads-command-create validation rejects whitespace title."
+  :tags '(:unit)
+  (let ((cmd (beads-command-create :title "   ")))
+    (should (stringp (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-test-unit-create-validate-priority-range ()
+  "Unit test: beads-command-create validates priority range."
+  :tags '(:unit)
+  ;; Valid priorities (0-4)
+  (dolist (p '(0 1 2 3 4))
+    (let ((cmd (beads-command-create
+                :title "Test"
+                :priority p)))
+      (should-not (beads-command-validate cmd))))
+  ;; Invalid priorities
+  (dolist (p '(-1 5 10))
+    (let ((cmd (beads-command-create
+                :title "Test"
+                :priority p)))
+      (should (stringp (beads-command-validate cmd))))))
+
+(ert-deftest beads-command-test-unit-create-validate-type-valid ()
+  "Unit test: beads-command-create validates issue type."
+  :tags '(:unit)
+  ;; Valid types
+  (dolist (type '("bug" "feature" "task" "epic" "chore"))
+    (let ((cmd (beads-command-create
+                :title "Test"
+                :issue-type type)))
+      (should-not (beads-command-validate cmd))))
+  ;; Invalid type
+  (let ((cmd (beads-command-create
+              :title "Test"
+              :issue-type "invalid-type")))
+    (should (stringp (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-test-unit-create-validate-deps-format ()
+  "Unit test: beads-command-create validates dependency format."
+  :tags '(:unit)
+  ;; Valid dependency formats
+  (dolist (deps '("blocks:bd-123"
+                  "depends-on:bd-456"
+                  "blocks:bd-1,depends-on:bd-2"
+                  "discovered-from:bd-789"))
+    (let ((cmd (beads-command-create
+                :title "Test"
+                :deps deps)))
+      (should-not (beads-command-validate cmd))))
+  ;; Invalid formats (missing colon, invalid characters)
+  (dolist (deps '("invalid"
+                  "blocks-bd-123"
+                  "blocks:"
+                  ":bd-123"))
+    (let ((cmd (beads-command-create
+                :title "Test"
+                :deps deps)))
+      (should (stringp (beads-command-validate cmd))))))
+
+(ert-deftest beads-command-test-unit-close-validate-issue-id-required ()
+  "Unit test: beads-command-close validation requires issue ID."
+  :tags '(:unit)
+  (let ((cmd (beads-command-close :issue-ids nil)))
+    (should (stringp (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-test-unit-close-validate-issue-id-empty ()
+  "Unit test: beads-command-close validation rejects empty issue ID."
+  :tags '(:unit)
+  (let ((cmd (beads-command-close :issue-ids '(""))))
+    (should (stringp (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-test-unit-init-validate-option-conflicts ()
+  "Unit test: beads-command-init validates option conflicts."
+  :tags '(:unit)
+  ;; Can't use both --contributor and --team
+  (let ((cmd (beads-command-init
+              :contributor t
+              :team t)))
+    (should (stringp (beads-command-validate cmd)))
+    (should (string-match-p "contributor\\|team"
+                            (downcase (beads-command-validate cmd))))))
+
+;;; Unit Tests: Edge Cases
+
+;; Unit tests for edge cases: unicode, special characters, nil values.
+
+(ert-deftest beads-command-test-unit-create-unicode-title ()
+  "Unit test: beads-command-create handles unicode in title."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-create
+               :title "测试 Issue 日本語 🚀"))
+         (args (beads-command-line cmd)))
+    (should (member "测试 Issue 日本語 🚀" args))))
+
+(ert-deftest beads-command-test-unit-create-special-chars-title ()
+  "Unit test: beads-command-create handles special characters."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-create
+               :title "Issue with \"quotes\" and 'apostrophes'"))
+         (args (beads-command-line cmd)))
+    (should (member "Issue with \"quotes\" and 'apostrophes'" args))))
+
+(ert-deftest beads-command-test-unit-create-very-long-title ()
+  "Unit test: beads-command-create handles very long title."
+  :tags '(:unit)
+  (let* ((long-title (make-string 500 ?x))
+         (cmd (beads-command-create :title long-title))
+         (args (beads-command-line cmd)))
+    (should (member long-title args))))
+
+(ert-deftest beads-command-test-unit-create-nil-optional-fields ()
+  "Unit test: beads-command-create handles nil optional fields."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-create
+               :title "Test"
+               :description nil
+               :assignee nil
+               :labels nil
+               :deps nil))
+         (args (beads-command-line cmd)))
+    ;; Should not include nil optional fields in args
+    (should-not (member nil args))
+    ;; But should still include required fields
+    (should (member "create" args))
+    (should (member "Test" args))))
+
+(ert-deftest beads-command-test-unit-list-nil-filters ()
+  "Unit test: beads-command-list handles nil filters."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-list
+               :status nil
+               :priority nil
+               :issue-type nil))
+         (args (beads-command-line cmd)))
+    ;; Should not include nil filters
+    (should-not (member nil args))
+    ;; Should still include base command
+    (should (member "list" args))))
+
+(ert-deftest beads-command-test-unit-create-newlines-in-description ()
+  "Unit test: beads-command-create handles newlines in description."
+  :tags '(:unit)
+  (let* ((desc "Line 1\n\nLine 3 with  spaces\n\tTabbed line")
+         (cmd (beads-command-create
+               :title "Test"
+               :description desc))
+         (args (beads-command-line cmd)))
+    (should (member desc args))))
+
+;;; Unit Tests: Class Instantiation
+
+;; Unit tests for class instantiation and defaults.
+
+(ert-deftest beads-command-test-unit-create-instantiation-defaults ()
+  "Unit test: beads-command-create default values."
+  :tags '(:unit)
+  (let ((cmd (beads-command-create :title "Test")))
+    (should (beads-command-create-p cmd))
+    (should (string= (oref cmd title) "Test"))
+    (should (equal (oref cmd json) t))
+    (should-not (oref cmd priority))
+    (should-not (oref cmd issue-type))
+    (should-not (oref cmd description))))
+
+(ert-deftest beads-command-test-unit-list-instantiation-defaults ()
+  "Unit test: beads-command-list default values."
+  :tags '(:unit)
+  (let ((cmd (beads-command-list)))
+    (should (beads-command-list-p cmd))
+    (should (equal (oref cmd json) t))
+    (should-not (oref cmd status))
+    (should-not (oref cmd priority))
+    (should-not (oref cmd limit))))
+
+(ert-deftest beads-command-test-unit-init-instantiation-defaults ()
+  "Unit test: beads-command-init default values."
+  :tags '(:unit)
+  (let ((cmd (beads-command-init)))
+    (should (beads-command-init-p cmd))
+    (should-not (oref cmd branch))
+    (should-not (oref cmd prefix))
+    (should-not (oref cmd quiet))
+    (should-not (oref cmd contributor))
+    (should-not (oref cmd team))))
+
+(ert-deftest beads-command-test-unit-command-inheritance ()
+  "Unit test: verify command class inheritance chain."
+  :tags '(:unit)
+  (let ((cmd (beads-command-create :title "Test")))
+    ;; Should be instance of itself
+    (should (beads-command-create-p cmd))
+    ;; Should be instance of parent classes
+    (should (beads-command-json-p cmd))
+    (should (beads-command-p cmd))
+    ;; Should be an EIEIO object
+    (should (eieio-object-p cmd))))
+
+(ert-deftest beads-command-test-unit-update-instantiation-slots ()
+  "Unit test: beads-command-update slot values."
+  :tags '(:unit)
+  (let ((cmd (beads-command-update
+              :issue-ids '("bd-1" "bd-2")
+              :title "New Title"
+              :status "closed"
+              :priority "3")))
+    (should (equal (oref cmd issue-ids) '("bd-1" "bd-2")))
+    (should (string= (oref cmd title) "New Title"))
+    (should (string= (oref cmd status) "closed"))
+    (should (string= (oref cmd priority) "3"))))
+
 (provide 'beads-command-test)
 ;;; beads-command-test.el ends here
