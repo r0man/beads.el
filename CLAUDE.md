@@ -363,7 +363,7 @@ directory.
 The codebase is organized into focused modules in lisp/:
 
 **Core Infrastructure (beads.el)**
-- Process execution (sync/async) with `beads--run-command`
+- Process execution via EIEIO command classes
 - JSON parsing with `beads--parse-issue` and `beads--parse-issues`
 - Project.el integration with .beads directory discovery
 - Completion system with caching for issue IDs
@@ -392,8 +392,9 @@ The codebase is organized into focused modules in lisp/:
 ### Key Design Patterns
 
 **Process Execution**
-- `beads--run-command`: Synchronous execution, returns parsed JSON
-- `beads--run-command-async`: Async with callback, for long operations
+- EIEIO command classes (`beads-command`, `beads-command-list`, etc.)
+- All commands use `beads-command-execute` method
+- Supports both synchronous and asynchronous execution
 - All commands automatically add --json, --db, --actor flags
 - Uses process-file for Tramp compatibility (remote bd execution)
 - Error handling with user-friendly messages via beads--error
@@ -459,7 +460,7 @@ checks (test, lint, compile) before the work is considered complete.
 **MANDATORY**: Run full test suite after EVERY code change.
 
 - All new functions need ERT tests
-- Mock bd command output using let-binding over beads--run-command
+- Mock bd command output using let-binding over beads-command-execute
 - Test both success and error paths
 - Target >80% code coverage for core modules
 - Use descriptive test names: beads-<module>-<function>-<scenario>
@@ -533,7 +534,7 @@ Optional:
 The bd CLI is the source of truth. All operations go through:
 1. Build command with beads--build-command (adds --json, --db,
    --actor)
-2. Execute with beads--run-command or beads--run-command-async
+2. Execute using EIEIO command classes via beads-command-execute
 3. Parse JSON response with beads--parse-issue(s)
 4. Display in appropriate UI (list, show, or message)
 

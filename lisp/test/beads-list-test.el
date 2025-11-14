@@ -81,8 +81,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-buffer-naming ()
   "Test that buffers are named correctly."
-  ;; Mock beads--run-command to return empty array
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (lambda (&rest _) (vector)))
             ((symbol-function 'beads-blocked-issue-from-json)
              (lambda (json)
@@ -114,7 +113,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-multiple-buffers ()
   "Test that multiple list buffers can coexist."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (lambda (&rest _) (vector)))
             ((symbol-function 'beads-check-executable)
              (lambda () t)))
@@ -318,7 +317,7 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-refresh-command ()
   "Test refreshing the buffer."
   (let ((call-count 0))
-    (cl-letf (((symbol-function 'beads--run-command)
+    (cl-letf (((symbol-function 'beads-command-execute)
                (lambda (&rest _)
                  (setq call-count (1+ call-count))
                  (apply #'vector beads-list-test--sample-issues))))
@@ -330,7 +329,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-refresh-preserves-position ()
   "Test that refresh preserves cursor position."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (lambda (&rest _)
                (apply #'vector beads-list-test--sample-issues))))
     (beads-list-test--with-temp-buffer
@@ -343,7 +342,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-refresh-empty-result ()
   "Test refresh with empty result."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (lambda (&rest _) nil)))
     (beads-list-test--with-temp-buffer
      beads-list-test--sample-issues 'list
@@ -403,7 +402,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-ready-command ()
   "Test beads-ready command."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (lambda (cmd &rest _)
                (if (equal cmd "ready")
                    (apply #'vector (list (car beads-list-test--sample-issues)))
@@ -427,7 +426,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-blocked-command ()
   "Test beads-blocked command."
-  (cl-letf (((symbol-function 'beads--run-command)
+  (cl-letf (((symbol-function 'beads-command-execute)
              (lambda (cmd &rest _)
                (if (equal cmd "blocked")
                    (apply #'vector (list (caddr beads-list-test--sample-issues)))
@@ -986,7 +985,7 @@ https://emacs.stackexchange.com/questions/55386/how-to-automate-user-testing-wit
   :tags '(integration transient)
   (cl-letf (((symbol-function 'beads-check-executable)
              (lambda () t))
-            ((symbol-function 'beads--run-command)
+            ((symbol-function 'beads-command-execute)
              (lambda (cmd &rest _args)
                (if (equal cmd "list")
                    (apply #'vector beads-list-test--sample-issues)
@@ -1014,7 +1013,7 @@ Tests the full workflow: open menu -> execute -> display results."
   :tags '(integration transient)
   (cl-letf (((symbol-function 'beads-check-executable)
              (lambda () t))
-            ((symbol-function 'beads--run-command)
+            ((symbol-function 'beads-command-execute)
              (lambda (cmd &rest _args)
                (if (equal cmd "list")
                    (apply #'vector beads-list-test--sample-issues)

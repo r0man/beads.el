@@ -67,7 +67,6 @@
 (require 'json)
 
 ;; Forward declarations to avoid circular dependencies
-(declare-function beads--run-command "beads")
 (declare-function beads--parse-issue "beads")
 (declare-function beads--parse-issues "beads")
 
@@ -834,7 +833,7 @@ JSON should be the parsed JSON object from bd --json output."
 
 (cl-defmethod beads-issue-filter-to-args ((filter beads-issue-filter))
   "Build bd command arguments from FILTER instance.
-Returns a list of strings suitable for passing to beads--run-command.
+Returns a list of strings suitable for use with beads-command classes.
 Only includes arguments for non-nil filter slots."
   (with-slots (status priority issue-type assignee labels labels-any
                       title-search ids limit title-contains
