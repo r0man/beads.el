@@ -414,67 +414,93 @@ beads-statistics class requires a float."
       (should (= (oref stats average-lead-time) 48.0)))))
 
 (ert-deftest beads-stats-test-button-creation ()
-  "Test beads-stats--make-stat-button creates proper button."
-  (let ((button-text (beads-stats--make-stat-button
-                      "42"
-                      'total
-                      42
-                      'font-lock-constant-face)))
-    ;; Verify it's a string with properties
-    (should (stringp button-text))
-    (should (string= button-text "42"))
+  "Test beads-stats--insert-stat-button creates proper button in buffer."
+  (with-temp-buffer
+    (beads-stats--insert-stat-button
+     "42"
+     'total
+     42
+     'font-lock-constant-face)
 
-    ;; Verify button properties
-    (should (get-text-property 0 'button button-text))
-    (should (eq (get-text-property 0 'category button-text)
-                'beads-stats-button))
-    (should (eq (get-text-property 0 'filter-type button-text) 'total))
-    (should (= (get-text-property 0 'count button-text) 42))
-    (should (eq (get-text-property 0 'face button-text)
-                'font-lock-constant-face))
-    (should (eq (get-text-property 0 'mouse-face button-text) 'highlight))
-    (should (get-text-property 0 'follow-link button-text))
-    (should (get-text-property 0 'help-echo button-text))))
+    ;; Verify button was inserted
+    (should (string= (buffer-string) "42"))
+
+    ;; Verify button properties at the start of the inserted text
+    (goto-char (point-min))
+    (should (button-at (point)))
+    (let ((button (button-at (point))))
+      (should button)
+      (should (eq (button-type button) 'beads-stats-button))
+      (should (eq (button-get button 'filter-type) 'total))
+      (should (= (button-get button 'count) 42))
+      (should (eq (button-get button 'face) 'font-lock-constant-face))
+      (should (eq (button-get button 'mouse-face) 'highlight))
+      (should (button-get button 'follow-link))
+      (should (button-get button 'help-echo)))))
 
 (ert-deftest beads-stats-test-button-help-echo ()
   "Test button help-echo messages are correct."
   ;; Total
-  (let ((button (beads-stats--make-stat-button "100" 'total 100 'default)))
-    (should (string-match-p "all 100 issues"
-                           (get-text-property 0 'help-echo button))))
+  (with-temp-buffer
+    (beads-stats--insert-stat-button "100" 'total 100 'default)
+    (goto-char (point-min))
+    (let ((button (button-at (point))))
+      (should (string-match-p "all 100 issues"
+                             (button-get button 'help-echo)))))
 
   ;; Open
-  (let ((button (beads-stats--make-stat-button "30" 'open 30 'success)))
-    (should (string-match-p "30 open issues"
-                           (get-text-property 0 'help-echo button))))
+  (with-temp-buffer
+    (beads-stats--insert-stat-button "30" 'open 30 'success)
+    (goto-char (point-min))
+    (let ((button (button-at (point))))
+      (should (string-match-p "30 open issues"
+                             (button-get button 'help-echo)))))
 
   ;; In-progress
-  (let ((button (beads-stats--make-stat-button "15" 'in-progress 15 'warning)))
-    (should (string-match-p "15 in-progress issues"
-                           (get-text-property 0 'help-echo button))))
+  (with-temp-buffer
+    (beads-stats--insert-stat-button "15" 'in-progress 15 'warning)
+    (goto-char (point-min))
+    (let ((button (button-at (point))))
+      (should (string-match-p "15 in-progress issues"
+                             (button-get button 'help-echo)))))
 
   ;; Blocked
-  (let ((button (beads-stats--make-stat-button "5" 'blocked 5 'error)))
-    (should (string-match-p "5 blocked issues"
-                           (get-text-property 0 'help-echo button))))
+  (with-temp-buffer
+    (beads-stats--insert-stat-button "5" 'blocked 5 'error)
+    (goto-char (point-min))
+    (let ((button (button-at (point))))
+      (should (string-match-p "5 blocked issues"
+                             (button-get button 'help-echo)))))
 
   ;; Closed
-  (let ((button (beads-stats--make-stat-button "50" 'closed 50 'shadow)))
-    (should (string-match-p "50 closed issues"
-                           (get-text-property 0 'help-echo button))))
+  (with-temp-buffer
+    (beads-stats--insert-stat-button "50" 'closed 50 'shadow)
+    (goto-char (point-min))
+    (let ((button (button-at (point))))
+      (should (string-match-p "50 closed issues"
+                             (button-get button 'help-echo)))))
 
   ;; Ready
-  (let ((button (beads-stats--make-stat-button "25" 'ready 25 'success)))
-    (should (string-match-p "25 ready issues"
-                           (get-text-property 0 'help-echo button)))))
+  (with-temp-buffer
+    (beads-stats--insert-stat-button "25" 'ready 25 'success)
+    (goto-char (point-min))
+    (let ((button (button-at (point))))
+      (should (string-match-p "25 ready issues"
+                             (button-get button 'help-echo))))))
 
 (ert-deftest beads-stats-test-button-action-total ()
-  "Test button action for total filter."
-  (let ((beads-list-called nil))
-    (cl-letf (((symbol-function 'beads-list)
-               (lambda () (setq beads-list-called t))))
+  "Test button action for total filter calls beads-stats--list-all-issues."
+  (let ((list-all-issues-called nil))
+    (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
+              ((symbol-function 'beads-command-execute) (lambda (_cmd) nil))
+              ((symbol-function 'beads-list-mode) (lambda ()))
+              ((symbol-function 'beads-list--populate-buffer)
+               (lambda (_issues _view &optional _cmd)))
+              ((symbol-function 'pop-to-buffer) (lambda (_buf)))
+              ((symbol-function 'beads-stats--list-all-issues)
+               (lambda () (setq list-all-issues-called t))))
       (beads-stats--open-filtered-list 'total 100)
-      (should beads-list-called))))
+      (should list-all-issues-called))))
 
 (ert-deftest beads-stats-test-button-action-ready ()
   "Test button action for ready filter."
@@ -559,17 +585,18 @@ beads-statistics class requires a float."
       (should (search-forward "Total Issues:" nil t))
       ;; Move forward to find the number (with spaces for alignment)
       (skip-chars-forward " ")
-      (let ((button-pos (point)))
-        (should (get-text-property button-pos 'button))
-        (should (eq (get-text-property button-pos 'filter-type) 'total)))
+      (let ((button (button-at (point))))
+        (should button)
+        (should (eq (button-get button 'filter-type) 'total)))
 
       ;; Search through buffer for buttons with different filter types
       ;; Just verify that buttons exist with the correct filter-type properties
       (goto-char (point-min))
       (let ((found-open nil))
         (while (not (eobp))
-          (when (eq (get-text-property (point) 'filter-type) 'open)
-            (setq found-open t))
+          (let ((button (button-at (point))))
+            (when (and button (eq (button-get button 'filter-type) 'open))
+              (setq found-open t)))
           (forward-char 1))
         (should found-open)))))
 
@@ -598,10 +625,10 @@ beads-statistics class requires a float."
       (should (search-forward "Total Issues:" nil t))
       ;; Move forward past spaces to find the number
       (skip-chars-forward " ")
-      (let ((button-pos (point)))
-        (should (get-text-property button-pos 'button))
-        (should (eq (get-text-property button-pos 'filter-type) 'total))
-        (should (= (get-text-property button-pos 'count) 0))))))
+      (let ((button (button-at (point))))
+        (should button)
+        (should (eq (button-get button 'filter-type) 'total))
+        (should (= (button-get button 'count) 0))))))
 
 (provide 'beads-stats-test)
 ;;; beads-stats-test.el ends here
