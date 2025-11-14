@@ -14,6 +14,7 @@
   :bind ("C-c b" . beads)
   :hook (after-init . beads)
   :custom
+  (beads-debug-level 'verbose)
   (beads-enable-debug t)
   :config
   (require 'beads-eldoc)

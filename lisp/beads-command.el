@@ -1585,6 +1585,295 @@ beads-json-parse-error on failure."
           ;; Non-zero exit code: parent already signaled error
           result)))))
 
+;;; Dep Add Command
+
+(defclass beads-command-dep-add (beads-command-json)
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Source issue ID (required positional argument).")
+   (depends-on-id
+    :initarg :depends-on-id
+    :type (or null string)
+    :initform nil
+    :documentation "Target dependency issue ID (required positional argument).")
+   (dep-type
+    :initarg :dep-type
+    :type (or null string)
+    :initform nil
+    :documentation "Dependency type (-t, --type).
+Values: blocks, related, parent-child, discovered-from.
+Default: blocks."))
+  :documentation "Represents bd dep add command.
+Adds a dependency relationship between two issues.
+When executed with :json t, returns parsed JSON result.")
+
+(cl-defmethod beads-command-line ((command beads-command-dep-add))
+  "Build command arguments for dep add COMMAND (without executable).
+Returns list: (\"dep\" \"add\" ...global-flags... issue-id depends-on-id ...)."
+  (with-slots (issue-id depends-on-id dep-type) command
+    (let ((args (list "dep" "add"))
+          (global-args (cl-call-next-method)))
+      ;; Append global flags (includes --json if enabled)
+      (setq args (append args global-args))
+
+      ;; Positional arguments
+      (when issue-id
+        (setq args (append args (list issue-id))))
+      (when depends-on-id
+        (setq args (append args (list depends-on-id))))
+
+      ;; Type flag
+      (when dep-type
+        (setq args (append args (list "--type" dep-type))))
+
+      args)))
+
+(cl-defmethod beads-command-validate ((command beads-command-dep-add))
+  "Validate dep add COMMAND.
+Checks that both issue IDs are provided and type is valid.
+Returns error string or nil if valid."
+  (with-slots (issue-id depends-on-id dep-type) command
+    (or
+     ;; Must have issue-id
+     (and (or (null issue-id) (string-empty-p issue-id))
+          "Must provide issue-id")
+     ;; Must have depends-on-id
+     (and (or (null depends-on-id) (string-empty-p depends-on-id))
+          "Must provide depends-on-id")
+     ;; Validate dep-type if provided
+     (and dep-type
+          (not (member dep-type '("blocks" "related" "parent-child" "discovered-from")))
+          "Type must be one of: blocks, related, parent-child, discovered-from"))))
+
+(cl-defmethod beads-command-execute ((command beads-command-dep-add))
+  "Execute dep add COMMAND and return result.
+When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
+When :json is t, returns parsed JSON result.
+Signals beads-validation-error, beads-command-error, or
+beads-json-parse-error on failure."
+  (with-slots (json) command
+    (if (not json)
+        ;; If json is not enabled, use parent implementation
+        (cl-call-next-method)
+      ;; JSON execution: call parent to get parsed JSON
+      (let* ((result (cl-call-next-method))
+             (exit-code (nth 0 result))
+             (parsed-json (nth 1 result)))
+        ;; Return parsed JSON directly (no conversion needed)
+        (if (zerop exit-code)
+            parsed-json
+          ;; Non-zero exit code: parent already signaled error
+          result)))))
+
+;;; Dep Remove Command
+
+(defclass beads-command-dep-remove (beads-command-json)
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Source issue ID (required positional argument).")
+   (depends-on-id
+    :initarg :depends-on-id
+    :type (or null string)
+    :initform nil
+    :documentation "Target dependency issue ID (required positional argument)."))
+  :documentation "Represents bd dep remove command.
+Removes a dependency relationship between two issues.
+When executed with :json t, returns parsed JSON result.")
+
+(cl-defmethod beads-command-line ((command beads-command-dep-remove))
+  "Build command arguments for dep remove COMMAND (without executable).
+Returns list: (\"dep\" \"remove\" ...global-flags... issue-id depends-on-id)."
+  (with-slots (issue-id depends-on-id) command
+    (let ((args (list "dep" "remove"))
+          (global-args (cl-call-next-method)))
+      ;; Append global flags (includes --json if enabled)
+      (setq args (append args global-args))
+
+      ;; Positional arguments
+      (when issue-id
+        (setq args (append args (list issue-id))))
+      (when depends-on-id
+        (setq args (append args (list depends-on-id))))
+
+      args)))
+
+(cl-defmethod beads-command-validate ((command beads-command-dep-remove))
+  "Validate dep remove COMMAND.
+Checks that both issue IDs are provided.
+Returns error string or nil if valid."
+  (with-slots (issue-id depends-on-id) command
+    (or
+     ;; Must have issue-id
+     (and (or (null issue-id) (string-empty-p issue-id))
+          "Must provide issue-id")
+     ;; Must have depends-on-id
+     (and (or (null depends-on-id) (string-empty-p depends-on-id))
+          "Must provide depends-on-id"))))
+
+(cl-defmethod beads-command-execute ((command beads-command-dep-remove))
+  "Execute dep remove COMMAND and return result.
+When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
+When :json is t, returns parsed JSON result.
+Signals beads-validation-error, beads-command-error, or
+beads-json-parse-error on failure."
+  (with-slots (json) command
+    (if (not json)
+        ;; If json is not enabled, use parent implementation
+        (cl-call-next-method)
+      ;; JSON execution: call parent to get parsed JSON
+      (let* ((result (cl-call-next-method))
+             (exit-code (nth 0 result))
+             (parsed-json (nth 1 result)))
+        ;; Return parsed JSON directly (no conversion needed)
+        (if (zerop exit-code)
+            parsed-json
+          ;; Non-zero exit code: parent already signaled error
+          result)))))
+
+;;; Dep Tree Command
+
+(defclass beads-command-dep-tree (beads-command-json)
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID to show tree for (required positional argument).")
+   (format
+    :initarg :format
+    :type (or null string)
+    :initform nil
+    :documentation "Output format (--format).
+Value: mermaid for Mermaid.js flowchart.")
+   (max-depth
+    :initarg :max-depth
+    :type (or null integer)
+    :initform nil
+    :documentation "Maximum tree depth (-d, --max-depth).
+Safety limit, default: 50.")
+   (reverse
+    :initarg :reverse
+    :type boolean
+    :initform nil
+    :documentation "Show dependent tree instead of dependency tree (--reverse).
+Shows what was discovered from this instead of what blocks this.")
+   (show-all-paths
+    :initarg :show-all-paths
+    :type boolean
+    :initform nil
+    :documentation "Show all paths to nodes (--show-all-paths).
+No deduplication for diamond dependencies."))
+  :documentation "Represents bd dep tree command.
+Shows dependency tree for an issue.
+When executed with :json t, returns parsed JSON tree structure.")
+
+(cl-defmethod beads-command-line ((command beads-command-dep-tree))
+  "Build command arguments for dep tree COMMAND (without executable).
+Returns list: (\"dep\" \"tree\" ...global-flags... issue-id ...)."
+  (with-slots (issue-id format max-depth reverse show-all-paths) command
+    (let ((args (list "dep" "tree"))
+          (global-args (cl-call-next-method)))
+      ;; Append global flags (includes --json if enabled)
+      (setq args (append args global-args))
+
+      ;; Positional argument
+      (when issue-id
+        (setq args (append args (list issue-id))))
+
+      ;; String option
+      (when format
+        (setq args (append args (list "--format" format))))
+
+      ;; Integer option
+      (when max-depth
+        (setq args (append args (list "--max-depth" (number-to-string max-depth)))))
+
+      ;; Boolean flags
+      (when reverse
+        (setq args (append args (list "--reverse"))))
+      (when show-all-paths
+        (setq args (append args (list "--show-all-paths"))))
+
+      args)))
+
+(cl-defmethod beads-command-validate ((command beads-command-dep-tree))
+  "Validate dep tree COMMAND.
+Checks that issue ID is provided and max-depth is positive.
+Returns error string or nil if valid."
+  (with-slots (issue-id max-depth) command
+    (or
+     ;; Must have issue-id
+     (and (or (null issue-id) (string-empty-p issue-id))
+          "Must provide issue-id")
+     ;; Validate max-depth if provided
+     (and max-depth (< max-depth 1)
+          "Max depth must be positive"))))
+
+(cl-defmethod beads-command-execute ((command beads-command-dep-tree))
+  "Execute dep tree COMMAND and return result.
+When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
+When :json is t, returns parsed JSON tree structure.
+Signals beads-validation-error, beads-command-error, or
+beads-json-parse-error on failure."
+  (with-slots (json) command
+    (if (not json)
+        ;; If json is not enabled, use parent implementation
+        (cl-call-next-method)
+      ;; JSON execution: call parent to get parsed JSON
+      (let* ((result (cl-call-next-method))
+             (exit-code (nth 0 result))
+             (parsed-json (nth 1 result)))
+        ;; Return parsed JSON directly (no conversion needed)
+        (if (zerop exit-code)
+            parsed-json
+          ;; Non-zero exit code: parent already signaled error
+          result)))))
+
+;;; Dep Cycles Command
+
+(defclass beads-command-dep-cycles (beads-command-json)
+  ()
+  :documentation "Represents bd dep cycles command.
+Detects dependency cycles in the issue database.
+When executed with :json t, returns parsed JSON with cycle information.")
+
+(cl-defmethod beads-command-line ((_command beads-command-dep-cycles))
+  "Build command arguments for dep cycles COMMAND (without executable).
+Returns list: (\"dep\" \"cycles\" ...global-flags...)."
+  (let ((args (list "dep" "cycles"))
+        (global-args (cl-call-next-method)))
+    ;; Append global flags (includes --json if enabled)
+    (setq args (append args global-args))
+    args))
+
+(cl-defmethod beads-command-validate ((_command beads-command-dep-cycles))
+  "Validate dep cycles COMMAND.
+Default implementation returns nil (valid)."
+  nil)
+
+(cl-defmethod beads-command-execute ((command beads-command-dep-cycles))
+  "Execute dep cycles COMMAND and return result.
+When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
+When :json is t, returns parsed JSON cycle information.
+Signals beads-validation-error, beads-command-error, or
+beads-json-parse-error on failure."
+  (with-slots (json) command
+    (if (not json)
+        ;; If json is not enabled, use parent implementation
+        (cl-call-next-method)
+      ;; JSON execution: call parent to get parsed JSON
+      (let* ((result (cl-call-next-method))
+             (exit-code (nth 0 result))
+             (parsed-json (nth 1 result)))
+        ;; Return parsed JSON directly (no conversion needed)
+        (if (zerop exit-code)
+            parsed-json
+          ;; Non-zero exit code: parent already signaled error
+          result)))))
+
 ;;; Utility Functions
 
 (defun beads-command--priority-to-string (priority)
@@ -1690,6 +1979,30 @@ See `beads-command-blocked' for available arguments."
 Returns the parsed JSON stats object.
 See `beads-command-stats' for available arguments."
   (beads-command-execute (apply #'beads-command-stats args)))
+
+(defun beads-command-dep-add! (&rest args)
+  "Create and execute a beads-command-dep-add with ARGS.
+Returns the parsed JSON result.
+See `beads-command-dep-add' for available arguments."
+  (beads-command-execute (apply #'beads-command-dep-add args)))
+
+(defun beads-command-dep-remove! (&rest args)
+  "Create and execute a beads-command-dep-remove with ARGS.
+Returns the parsed JSON result.
+See `beads-command-dep-remove' for available arguments."
+  (beads-command-execute (apply #'beads-command-dep-remove args)))
+
+(defun beads-command-dep-tree! (&rest args)
+  "Create and execute a beads-command-dep-tree with ARGS.
+Returns the parsed JSON tree structure.
+See `beads-command-dep-tree' for available arguments."
+  (beads-command-execute (apply #'beads-command-dep-tree args)))
+
+(defun beads-command-dep-cycles! (&rest args)
+  "Create and execute a beads-command-dep-cycles with ARGS.
+Returns the parsed JSON with cycle information.
+See `beads-command-dep-cycles' for available arguments."
+  (beads-command-execute (apply #'beads-command-dep-cycles args)))
 
 (provide 'beads-command)
 ;;; beads-command.el ends here
