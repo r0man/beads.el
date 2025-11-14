@@ -630,5 +630,89 @@ beads-statistics class requires a float."
         (should (eq (button-get button 'filter-type) 'total))
         (should (= (button-get button 'count) 0))))))
 
+;;; Navigation Tests
+
+(ert-deftest beads-stats-test-next-navigation ()
+  "Test beads-stats-next moves to next button."
+  (with-temp-buffer
+    (beads-stats-mode)
+    (let ((stats (beads-stats--parse-stats beads-stats-test--sample-stats)))
+      (beads-stats--render stats)
+      ;; Point should start at first button (Total Issues)
+      (should (button-at (point)))
+      (should (eq (button-get (button-at (point)) 'filter-type) 'total))
+
+      ;; Move to next button (Open)
+      (beads-stats-next)
+      (should (button-at (point)))
+      (should (eq (button-get (button-at (point)) 'filter-type) 'open))
+
+      ;; Move to next button (In Progress)
+      (beads-stats-next)
+      (should (button-at (point)))
+      (should (eq (button-get (button-at (point)) 'filter-type)
+                  'in-progress)))))
+
+(ert-deftest beads-stats-test-previous-navigation ()
+  "Test beads-stats-previous moves to previous button."
+  (with-temp-buffer
+    (beads-stats-mode)
+    (let ((stats (beads-stats--parse-stats beads-stats-test--sample-stats)))
+      (beads-stats--render stats)
+      ;; Start at first button, move to third
+      (beads-stats-next)
+      (beads-stats-next)
+      (should (eq (button-get (button-at (point)) 'filter-type)
+                  'in-progress))
+
+      ;; Move back to Open
+      (beads-stats-previous)
+      (should (button-at (point)))
+      (should (eq (button-get (button-at (point)) 'filter-type) 'open))
+
+      ;; Move back to Total
+      (beads-stats-previous)
+      (should (button-at (point)))
+      (should (eq (button-get (button-at (point)) 'filter-type) 'total)))))
+
+(ert-deftest beads-stats-test-next-wraps-to-first ()
+  "Test beads-stats-next wraps to first button from last."
+  (with-temp-buffer
+    (beads-stats-mode)
+    (let ((stats (beads-stats--parse-stats beads-stats-test--sample-stats)))
+      (beads-stats--render stats)
+      ;; Navigate to last button (Ready)
+      (goto-char (point-max))
+      (backward-button 1 t t)
+      (should (eq (button-get (button-at (point)) 'filter-type) 'ready))
+
+      ;; Next from last should wrap to first (Total)
+      (beads-stats-next)
+      (should (button-at (point)))
+      (should (eq (button-get (button-at (point)) 'filter-type) 'total)))))
+
+(ert-deftest beads-stats-test-previous-wraps-to-last ()
+  "Test beads-stats-previous wraps to last button from first."
+  (with-temp-buffer
+    (beads-stats-mode)
+    (let ((stats (beads-stats--parse-stats beads-stats-test--sample-stats)))
+      (beads-stats--render stats)
+      ;; Start at first button (Total)
+      (should (eq (button-get (button-at (point)) 'filter-type) 'total))
+
+      ;; Previous from first should wrap to last (Ready)
+      (beads-stats-previous)
+      (should (button-at (point)))
+      (should (eq (button-get (button-at (point)) 'filter-type) 'ready)))))
+
+(ert-deftest beads-stats-test-render-positions-at-first-button ()
+  "Test that beads-stats--render positions point at first button."
+  (with-temp-buffer
+    (let ((stats (beads-stats--parse-stats beads-stats-test--sample-stats)))
+      (beads-stats--render stats)
+      ;; Point should be positioned at the first button (Total Issues)
+      (should (button-at (point)))
+      (should (eq (button-get (button-at (point)) 'filter-type) 'total)))))
+
 (provide 'beads-stats-test)
 ;;; beads-stats-test.el ends here
