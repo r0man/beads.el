@@ -27,6 +27,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-command)
 (require 'eldoc)
 
 ;;; Customization
@@ -117,8 +118,8 @@ Returns issue alist or nil on error.
 Results are cached for performance."
   (or (beads-eldoc--get-cached-issue issue-id)
       (condition-case err
-          (let ((issue (beads--parse-issue
-                        (beads--run-command "show" issue-id))))
+          (let* ((cmd (beads-command-show :issue-ids (list issue-id)))
+                 (issue (beads-command-execute cmd)))
             (beads-eldoc--cache-issue issue-id issue)
             issue)
         (error
