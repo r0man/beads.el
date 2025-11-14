@@ -420,7 +420,7 @@ Returns a beads-issue-filter object with all applicable filters set."
          (filter (beads-list--parse-transient-args args))
          (cmd-args (beads-issue-filter-to-args filter)))
     (condition-case err
-        (let* ((result (apply #'beads--run-command "list" cmd-args))
+        (let* ((result (apply #'beads-command-list! cmd-args))
                (issue-objects (when (vectorp result)
                                 (mapcar #'beads-issue-from-json (append result nil))))
                (buffer (get-buffer-create "*beads-list*"))
@@ -549,7 +549,7 @@ Transient levels control which filter groups are visible
                      (beads-issue-filter-to-args beads-list--filter)))
          (issues (pcase beads-list--command
                    ('list
-                    (let ((result (apply #'beads--run-command "list" cmd-args)))
+                    (let ((result (apply #'beads-command-list! cmd-args)))
                       (when (vectorp result)
                         (mapcar #'beads-issue-from-json (append result nil)))))
                    ('ready
