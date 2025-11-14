@@ -52,4 +52,4 @@ jobs:
         run: bd version
 
       - name: Run tests
-        run: eldev -p -dtT test
+        run: BD_NO_DAEMON=1 eldev -p -dtT test
