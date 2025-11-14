@@ -29,55 +29,10 @@
 
 ;;; Code:
 
+(require 'beads-custom)
 (require 'json)
 (require 'project)
 (require 'transient)
-
-;;; Customization
-
-(defgroup beads nil
-  "Magit-like interface for Beads issue tracker."
-  :group 'tools
-  :prefix "beads-")
-
-(defcustom beads-executable "bd"
-  "Path to the bd executable."
-  :type 'string
-  :group 'beads)
-
-(defcustom beads-database-path nil
-  "Path to the beads database.
-If nil, bd will auto-discover the database."
-  :type '(choice (const :tag "Auto-discover" nil)
-                 (file :tag "Database path"))
-  :group 'beads)
-
-(defcustom beads-actor nil
-  "Actor name for audit trail.
-If nil, uses $USER environment variable."
-  :type '(choice (const :tag "Use $USER" nil)
-                 (string :tag "Actor name"))
-  :group 'beads)
-
-(defcustom beads-enable-debug nil
-  "Enable debug logging to *beads-debug* buffer."
-  :type 'boolean
-  :group 'beads)
-
-(defcustom beads-debug-level 'info
-  "Debug logging level.
-- `error': Only log errors
-- `info': Log commands and important events (default)
-- `verbose': Log everything including command output"
-  :type '(choice (const :tag "Error only" error)
-                 (const :tag "Info (commands and events)" info)
-                 (const :tag "Verbose (all output)" verbose))
-  :group 'beads)
-
-(defcustom beads-auto-refresh t
-  "Automatically refresh buffers after mutations."
-  :type 'boolean
-  :group 'beads)
 
 ;;; Variables
 
