@@ -32,6 +32,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-command)
 (require 'transient)
 
 ;; Forward declarations
@@ -70,7 +71,9 @@ Format: (TIMESTAMP . LABELS-LIST)")
 (defun beads-label-list-all ()
   "Fetch all labels from bd label list-all.
 Returns a list of label name strings."
-  (let* ((json (beads--run-command "label" "list-all"))
+  (let* ((cmd (beads-command-label-list-all))
+         ;; Execute command, returns parsed JSON array
+         (json (beads-command-execute cmd))
          ;; JSON is array of {\"label\": \"name\", \"count\": N}
          (labels (append json nil)))
     (mapcar (lambda (entry) (alist-get 'label entry)) labels)))
@@ -158,13 +161,15 @@ Returns list of arguments for bd label add command."
     (if errors
         (user-error "Validation failed: %s" (string-join errors "; "))
       (condition-case err
-          (let* ((cmd-args (beads-label-add--build-command-args parsed))
-                 (issue-ids-str (plist-get parsed :issue-ids))
+          (let* ((issue-ids-str (plist-get parsed :issue-ids))
                  (label (plist-get parsed :label))
                  (ids-list (split-string (string-trim issue-ids-str)
                                         "[, ]+" t))
-                 (count (length ids-list)))
-            (apply #'beads--run-command "label" "add" cmd-args)
+                 (count (length ids-list))
+                 (cmd (beads-command-label-add
+                       :issue-ids ids-list
+                       :label label)))
+            (beads-command-execute cmd)
             (message "Added label '%s' to %d issue%s"
                      label count (if (= count 1) "" "s"))
             ;; Invalidate label cache
