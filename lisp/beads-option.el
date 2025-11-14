@@ -981,7 +981,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   "Read issue ID(s) for label operations, with context detection.
 Detects current issue from beads-show or beads-list buffer,
 falls back to `completing-read' for issue ID."
-  (or (beads--detect-issue-id)
+  (or (beads-label--detect-issue-id)
       (completing-read "Issue ID (or comma-separated list): "
                        (beads--issue-completion-table)
                        nil nil)))
