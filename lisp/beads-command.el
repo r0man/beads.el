@@ -1511,9 +1511,9 @@ Default implementation returns nil (valid)."
   nil)
 
 (cl-defmethod beads-command-execute ((command beads-command-blocked))
-  "Execute blocked COMMAND and return list of beads-issue instances.
+  "Execute blocked COMMAND and return list of beads-blocked-issue instances.
 When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
-When :json is t, returns list of beads-issue instances.
+When :json is t, returns list of beads-blocked-issue instances.
 Signals beads-validation-error, beads-command-error, or
 beads-json-parse-error on failure."
   (with-slots (json) command
@@ -1521,20 +1521,20 @@ beads-json-parse-error on failure."
         ;; If json is not enabled, use parent implementation
         (cl-call-next-method)
       ;; JSON execution: call parent to get parsed JSON, then convert
-      ;; to beads-issue instances using beads-issue-from-json
+      ;; to beads-blocked-issue instances using beads-blocked-issue-from-json
       (let* ((result (cl-call-next-method))
              (exit-code (nth 0 result))
              (parsed-json (nth 1 result))
              (stderr (nth 2 result)))
-        ;; Convert JSON array to list of beads-issue instances
+        ;; Convert JSON array to list of beads-blocked-issue instances
         (if (zerop exit-code)
             (condition-case err
-                (let ((issues (mapcar #'beads-issue-from-json
+                (let ((issues (mapcar #'beads-blocked-issue-from-json
                                      (append parsed-json nil))))
                   issues)
               (error
                (signal 'beads-json-parse-error
-                       (list (format "Failed to create beads-issue instances: %s"
+                       (list (format "Failed to create beads-blocked-issue instances: %s"
                                     (error-message-string err))
                              :exit-code exit-code
                              :parsed-json parsed-json

@@ -750,8 +750,8 @@ Integration test that lists issues with unresolved blockers."
       ;; Should include our blocked issue
       (let ((ids (mapcar (lambda (issue) (oref issue id)) issues)))
         (should (member (oref blocked id) ids)))
-      ;; All elements should be beads-issue instances
-      (should (cl-every #'beads-issue-p issues)))))
+      ;; All elements should be beads-blocked-issue instances
+      (should (cl-every #'beads-blocked-issue-p issues)))))
 
 (ert-deftest beads-command-test-blocked-empty-result ()
   "Test beads-command-blocked with no blocked issues.
