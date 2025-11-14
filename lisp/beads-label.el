@@ -36,7 +36,7 @@
 (require 'transient)
 
 ;; Forward declarations
-(declare-function beads--detect-issue-id "beads")
+(declare-function beads-list--current-issue-id "beads-list")
 (declare-function beads-list-refresh "beads-list")
 (declare-function beads-show-refresh "beads-show")
 (declare-function beads-option-read-issue-ids-for-label "beads-option")
@@ -103,6 +103,23 @@ Returns a simple list of label strings for use with `completing-read'."
   (let ((labels (beads--get-cached-labels)))
     ;; Remove duplicates (shouldn't be any from bd, but be safe)
     (delete-dups labels)))
+
+;;; Context Detection
+
+(defun beads-label--detect-issue-id ()
+  "Detect issue ID from current context.
+Returns issue ID string or nil if not found."
+  (or
+   ;; From beads-list buffer
+   (when (derived-mode-p 'beads-list-mode)
+     (beads-list--current-issue-id))
+   ;; From beads-show buffer
+   (when (derived-mode-p 'beads-show-mode)
+     beads-show--issue-id)
+   ;; From buffer name (*beads-show: bd-N*)
+   (when (string-match "\\*beads-show: \\(bd-[0-9]+\\)\\*"
+                      (buffer-name))
+     (match-string 1 (buffer-name)))))
 
 ;;; Label Add Command
 
@@ -395,7 +412,7 @@ Returns list of label strings."
 If called interactively, prompts for issue ID.
 If called from beads-list or beads-show buffers, uses current issue."
   (interactive
-   (list (or (beads--detect-issue-id)
+   (list (or (beads-label--detect-issue-id)
              (completing-read "Issue ID: "
                             (beads--issue-completion-table)
                             nil t))))
