@@ -106,9 +106,24 @@
   "Sample statistics JSON for testing.")
 
 (defmacro beads-types-test--with-mock-command (output &rest body)
-  "Execute BODY with mocked `beads--run-command' returning OUTPUT."
-  `(cl-letf (((symbol-function 'beads--run-command)
-              (lambda (&rest _args) ,output)))
+  "Execute BODY with mocked command helper functions returning OUTPUT."
+  `(cl-letf (((symbol-function 'beads-command-show!)
+              (lambda (&rest _args)
+                ;; beads-command-show! returns a list, extract first element
+                (let ((result (if (vectorp ,output) (aref ,output 0) ,output)))
+                  (list (beads-issue-from-json result)))))
+             ((symbol-function 'beads-command-list!)
+              (lambda (&rest _args)
+                (when (vectorp ,output)
+                  (mapcar #'beads-issue-from-json (append ,output nil)))))
+             ((symbol-function 'beads-command-blocked!)
+              (lambda (&rest _args)
+                (when (vectorp ,output)
+                  (mapcar #'beads-blocked-issue-from-json (append ,output nil)))))
+             ((symbol-function 'beads-command-ready!)
+              (lambda (&rest _args)
+                (when (vectorp ,output)
+                  (mapcar #'beads-issue-from-json (append ,output nil))))))
      ,@body))
 
 
