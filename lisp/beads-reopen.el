@@ -29,6 +29,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-command)
 (require 'beads-list)
 (require 'beads-option)
 (require 'beads-show)
@@ -105,12 +106,11 @@ Returns list of arguments for bd reopen command."
       (condition-case err
           (progn
             (let* ((cmd-args (beads-reopen--build-command-args parsed))
-                   (result (apply #'beads--run-command "reopen" cmd-args))
-                   (issue (beads--parse-issue result))
-                   (issue-id (alist-get 'id issue)))
+                   (issue (apply #'beads-command-reopen! cmd-args))
+                   (issue-id (oref issue id)))
               (message "Reopened issue: %s - %s"
                        issue-id
-                       (alist-get 'title issue))
+                       (oref issue title))
               ;; Invalidate completion cache
               (beads--invalidate-completion-cache)
               ;; Refresh any open beads buffers
