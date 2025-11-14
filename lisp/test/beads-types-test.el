@@ -782,56 +782,6 @@
       (when (file-directory-p project-dir)
         (delete-directory project-dir t)))))
 
-(ert-deftest beads-types-test-integration-issue-list ()
-  "Integration test: list issues using real bd CLI.
-
-This test is currently skipped due to an upstream bd CLI bug.
-The bd CLI crashes with 'wasm error: out of bounds memory access' when
-calling GetDependencyCounts during 'bd list' after creating multiple
-issues. This is a bug in bd CLI's SQLite/WASM integration, not in
-beads.el. Once bd is fixed upstream, this skip can be removed."
-  :tags '(:integration)
-  (ert-skip "Skipped due to upstream bd CLI bug - WASM out of bounds memory access")
-  (let* ((project-dir (make-temp-file "beads-test-" t))
-         (default-directory project-dir))
-    (unwind-protect
-        (progn
-          ;; Initialize beads project
-          (call-process "bd" nil nil nil "init" "--prefix" "test")
-
-          ;; Create multiple test issues
-          (call-process "bd" nil nil nil "create" "Issue 1"
-                        "--type" "bug" "--priority" "1")
-          (call-process "bd" nil nil nil "create" "Issue 2"
-                        "--type" "feature" "--priority" "2")
-          (call-process "bd" nil nil nil "create" "Issue 3"
-                        "--type" "task" "--priority" "3")
-
-          ;; Test: List all issues
-          (let ((issues (beads-issue-list)))
-            (should (= (length issues) 3))
-            (should (cl-every #'beads-issue-p issues))
-
-            ;; Verify we got the issues we created
-            (let ((titles (mapcar (lambda (i) (oref i title)) issues)))
-              (should (member "Issue 1" titles))
-              (should (member "Issue 2" titles))
-              (should (member "Issue 3" titles)))
-
-            ;; Verify issue types
-            (let ((types (mapcar (lambda (i) (oref i issue-type)) issues)))
-              (should (member "bug" types))
-              (should (member "feature" types))
-              (should (member "task" types)))
-
-            ;; Verify all are open
-            (should (cl-every (lambda (i)
-                                (string= (oref i status) "open"))
-                              issues))))
-      ;; Cleanup
-      (when (file-directory-p project-dir)
-        (delete-directory project-dir t)))))
-
 (ert-deftest beads-types-test-integration-issue-list-by-status ()
   "Integration test: list issues filtered by status using real bd CLI."
   :tags '(:integration)

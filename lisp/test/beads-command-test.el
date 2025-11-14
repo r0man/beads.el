@@ -1274,5 +1274,259 @@ Integration test that retrieves issue database stats."
     (should (member "--priority" args))
     (should (member "2" args))))
 
+;;; Integration Tests: beads-command-dep-add
+
+(ert-deftest beads-command-test-dep-add-basic ()
+  "Test beads-command-dep-add adds a dependency.
+Integration test that adds a blocks dependency between two issues."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create two test issues
+    (let* ((issue1 (beads-command-create! :title "Issue 1"))
+           (issue2 (beads-command-create! :title "Issue 2"))
+           (id1 (oref issue1 id))
+           (id2 (oref issue2 id)))
+      ;; Add dependency: issue2 blocks issue1
+      (let ((result (beads-command-dep-add!
+                     :issue-id id1
+                     :depends-on-id id2)))
+        (should result)))))
+
+(ert-deftest beads-command-test-dep-add-with-type ()
+  "Test beads-command-dep-add with custom dependency type.
+Integration test that adds a related dependency."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let* ((issue1 (beads-command-create! :title "Issue 1"))
+           (issue2 (beads-command-create! :title "Issue 2"))
+           (id1 (oref issue1 id))
+           (id2 (oref issue2 id)))
+      (let ((result (beads-command-dep-add!
+                     :issue-id id1
+                     :depends-on-id id2
+                     :dep-type "related")))
+        (should result)))))
+
+;;; Integration Tests: beads-command-dep-remove
+
+(ert-deftest beads-command-test-dep-remove-basic ()
+  "Test beads-command-dep-remove removes a dependency.
+Integration test that removes a dependency between two issues."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let* ((issue1 (beads-command-create! :title "Issue 1"))
+           (issue2 (beads-command-create! :title "Issue 2"))
+           (id1 (oref issue1 id))
+           (id2 (oref issue2 id)))
+      ;; Add dependency first
+      (beads-command-dep-add! :issue-id id1 :depends-on-id id2)
+      ;; Then remove it
+      (let ((result (beads-command-dep-remove!
+                     :issue-id id1
+                     :depends-on-id id2)))
+        (should result)))))
+
+;;; Integration Tests: beads-command-dep-tree
+
+(ert-deftest beads-command-test-dep-tree-basic ()
+  "Test beads-command-dep-tree shows dependency tree.
+Integration test that retrieves the dependency tree for an issue."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let* ((issue1 (beads-command-create! :title "Issue 1"))
+           (id1 (oref issue1 id)))
+      (let ((tree (beads-command-dep-tree! :issue-id id1)))
+        (should tree)))))
+
+(ert-deftest beads-command-test-dep-tree-with-max-depth ()
+  "Test beads-command-dep-tree with max-depth option.
+Integration test that retrieves dependency tree with depth limit."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let* ((issue1 (beads-command-create! :title "Issue 1"))
+           (id1 (oref issue1 id)))
+      (let ((tree (beads-command-dep-tree!
+                   :issue-id id1
+                   :max-depth 5)))
+        (should tree)))))
+
+(ert-deftest beads-command-test-dep-tree-reverse ()
+  "Test beads-command-dep-tree with reverse flag.
+Integration test that shows what depends on this issue."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let* ((issue1 (beads-command-create! :title "Issue 1"))
+           (id1 (oref issue1 id)))
+      (let ((tree (beads-command-dep-tree!
+                   :issue-id id1
+                   :reverse t)))
+        (should tree)))))
+
+;;; Integration Tests: beads-command-dep-cycles
+
+(ert-deftest beads-command-test-dep-cycles-basic ()
+  "Test beads-command-dep-cycles detects cycles.
+Integration test that checks for dependency cycles."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let ((result (beads-command-dep-cycles!)))
+      (should (not (null result))))))
+
+;;; Unit Tests: beads-command-dep-* command-line building
+
+(ert-deftest beads-command-test-dep-add-command-line-basic ()
+  "Unit test: beads-command-dep-add builds correct arguments."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-dep-add
+               :issue-id "bd-1"
+               :depends-on-id "bd-2"))
+         (args (beads-command-line cmd)))
+    (should (member "dep" args))
+    (should (member "add" args))
+    (should (member "bd-1" args))
+    (should (member "bd-2" args))))
+
+(ert-deftest beads-command-test-dep-add-command-line-with-type ()
+  "Unit test: beads-command-dep-add includes dep-type."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-dep-add
+               :issue-id "bd-1"
+               :depends-on-id "bd-2"
+               :dep-type "related"))
+         (args (beads-command-line cmd)))
+    (should (member "--type" args))
+    (should (member "related" args))))
+
+(ert-deftest beads-command-test-dep-remove-command-line-basic ()
+  "Unit test: beads-command-dep-remove builds correct arguments."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-dep-remove
+               :issue-id "bd-1"
+               :depends-on-id "bd-2"))
+         (args (beads-command-line cmd)))
+    (should (member "dep" args))
+    (should (member "remove" args))
+    (should (member "bd-1" args))
+    (should (member "bd-2" args))))
+
+(ert-deftest beads-command-test-dep-tree-command-line-basic ()
+  "Unit test: beads-command-dep-tree builds correct arguments."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-dep-tree :issue-id "bd-1"))
+         (args (beads-command-line cmd)))
+    (should (member "dep" args))
+    (should (member "tree" args))
+    (should (member "bd-1" args))))
+
+(ert-deftest beads-command-test-dep-tree-command-line-with-format ()
+  "Unit test: beads-command-dep-tree includes format option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-dep-tree
+               :issue-id "bd-1"
+               :format "mermaid"))
+         (args (beads-command-line cmd)))
+    (should (member "--format" args))
+    (should (member "mermaid" args))))
+
+(ert-deftest beads-command-test-dep-tree-command-line-with-max-depth ()
+  "Unit test: beads-command-dep-tree includes max-depth option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-dep-tree
+               :issue-id "bd-1"
+               :max-depth 10))
+         (args (beads-command-line cmd)))
+    (should (member "--max-depth" args))
+    (should (member "10" args))))
+
+(ert-deftest beads-command-test-dep-tree-command-line-with-reverse ()
+  "Unit test: beads-command-dep-tree includes reverse flag."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-dep-tree
+               :issue-id "bd-1"
+               :reverse t))
+         (args (beads-command-line cmd)))
+    (should (member "--reverse" args))))
+
+(ert-deftest beads-command-test-dep-tree-command-line-with-show-all-paths ()
+  "Unit test: beads-command-dep-tree includes show-all-paths flag."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-dep-tree
+               :issue-id "bd-1"
+               :show-all-paths t))
+         (args (beads-command-line cmd)))
+    (should (member "--show-all-paths" args))))
+
+(ert-deftest beads-command-test-dep-cycles-command-line-basic ()
+  "Unit test: beads-command-dep-cycles builds correct arguments."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-dep-cycles))
+         (args (beads-command-line cmd)))
+    (should (member "dep" args))
+    (should (member "cycles" args))))
+
+;;; Unit Tests: beads-command-dep-* validation
+
+(ert-deftest beads-command-test-dep-add-validation-missing-issue-id ()
+  "Unit test: dep-add validation fails without issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-add
+              :depends-on-id "bd-2")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-test-dep-add-validation-missing-depends-on ()
+  "Unit test: dep-add validation fails without depends-on-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-add
+              :issue-id "bd-1")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-test-dep-add-validation-success ()
+  "Unit test: dep-add validation succeeds with required fields."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-add
+              :issue-id "bd-1"
+              :depends-on-id "bd-2")))
+    (should (null (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-test-dep-remove-validation-missing-issue-id ()
+  "Unit test: dep-remove validation fails without issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-remove
+              :depends-on-id "bd-2")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-test-dep-remove-validation-success ()
+  "Unit test: dep-remove validation succeeds with required fields."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-remove
+              :issue-id "bd-1"
+              :depends-on-id "bd-2")))
+    (should (null (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-test-dep-tree-validation-missing-issue-id ()
+  "Unit test: dep-tree validation fails without issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-tree)))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-test-dep-tree-validation-success ()
+  "Unit test: dep-tree validation succeeds with issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-tree :issue-id "bd-1")))
+    (should (null (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-test-dep-cycles-validation-success ()
+  "Unit test: dep-cycles validation always succeeds (no required fields)."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-cycles)))
+    (should (null (beads-command-validate cmd)))))
+
 (provide 'beads-command-test)
 ;;; beads-command-test.el ends here

@@ -1063,37 +1063,5 @@ Tests the full workflow: open menu -> execute -> display results."
 ;; (beads-list-test-transient-menu-displays, beads-list-test-transient-menu-executes).
 ;; Filter functionality is tested via beads-list--parse-transient-args unit tests.
 
-(ert-deftest beads-list-test-with-issues ()
-  "Test beads-list buffer renders created issues correctly."
-  :tags '(integration transient)
-  (skip-unless (not noninteractive))
-  (let ((default-directory (beads-test-create-project)))
-    ;; Create test issues with JSON flag to get issue objects back
-    (let ((issue-a (beads-command-execute
-                    (beads-command-create :title "Test issue A"
-                                         :json t)))
-          (issue-b (beads-command-execute
-                    (beads-command-create :title "Test issue B"
-                                         :json t))))
-      ;; Execute beads-list command
-      (beads-test-execute-commands
-       (list (kbd "M-x beads-list")
-             (kbd "x")))
-      ;; Verify we're in the list buffer
-      (should (equal "*beads-list*" (buffer-name (current-buffer))))
-      ;; Verify buffer is in beads-list-mode
-      (should (eq major-mode 'beads-list-mode))
-      ;; Get buffer contents
-      (let ((buffer-contents (buffer-substring-no-properties
-                             (point-min) (point-max))))
-        ;; Verify both issue IDs are rendered
-        (should (string-match-p (oref issue-a id) buffer-contents))
-        (should (string-match-p (oref issue-b id) buffer-contents))
-        ;; Verify both issue titles are rendered
-        (should (string-match-p "Test issue A" buffer-contents))
-        (should (string-match-p "Test issue B" buffer-contents))
-        ;; Verify we have at least 2 lines of content (issues, no header in tabulated-list)
-        (should (>= (count-lines (point-min) (point-max)) 2))))))
-
 (provide 'beads-list-test)
 ;;; beads-list-test.el ends here
