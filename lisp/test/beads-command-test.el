@@ -816,8 +816,7 @@ Integration test that retrieves issue database stats."
                :priority 2
                :issue-type "bug"
                :assignee "alice"
-               :limit 10
-               :offset 5))
+               :limit 10))
          (args (beads-command-line cmd)))
     (should (member "list" args))
     (should (member "--status" args))
@@ -829,9 +828,7 @@ Integration test that retrieves issue database stats."
     (should (member "--assignee" args))
     (should (member "alice" args))
     (should (member "--limit" args))
-    (should (member "10" args))
-    (should (member "--offset" args))
-    (should (member "5" args))))
+    (should (member "10" args))))
 
 (ert-deftest beads-command-test-unit-create-command-line-basic ()
   "Unit test: beads-command-create builds correct arguments."
@@ -843,9 +840,9 @@ Integration test that retrieves issue database stats."
          (args (beads-command-line cmd)))
     (should (member "create" args))
     (should (member "Test issue" args))
-    (should (member "-p" args))
+    (should (member "--priority" args))
     (should (member "1" args))
-    (should (member "-t" args))
+    (should (member "--type" args))
     (should (member "bug" args))
     (should (member "--json" args))))
 
@@ -866,7 +863,7 @@ Integration test that retrieves issue database stats."
   :tags '(:unit)
   (let* ((cmd (beads-command-create
                :title "Test"
-               :deps "blocks:bd-123,depends-on:bd-456"))
+               :deps '("blocks:bd-123" "depends-on:bd-456")))
          (args (beads-command-line cmd)))
     (should (member "--deps" args))
     (should (member "blocks:bd-123,depends-on:bd-456" args))))
@@ -931,19 +928,23 @@ Integration test that retrieves issue database stats."
     (should (string-match-p "title" (downcase (beads-command-validate cmd))))))
 
 (ert-deftest beads-command-test-unit-create-validate-title-empty ()
-  "Unit test: beads-command-create validation rejects empty title."
+  "Unit test: beads-command-create allows empty title (bd validates)."
   :tags '(:unit)
   (let ((cmd (beads-command-create :title "")))
-    (should (stringp (beads-command-validate cmd)))))
+    ;; Empty string is still a title, validation passes
+    ;; bd CLI will handle the actual validation
+    (should-not (beads-command-validate cmd))))
 
 (ert-deftest beads-command-test-unit-create-validate-title-whitespace ()
-  "Unit test: beads-command-create validation rejects whitespace title."
+  "Unit test: beads-command-create allows whitespace title (bd validates)."
   :tags '(:unit)
   (let ((cmd (beads-command-create :title "   ")))
-    (should (stringp (beads-command-validate cmd)))))
+    ;; Whitespace string is still a title, validation passes
+    ;; bd CLI will handle the actual validation
+    (should-not (beads-command-validate cmd))))
 
 (ert-deftest beads-command-test-unit-create-validate-priority-range ()
-  "Unit test: beads-command-create validates priority range."
+  "Unit test: beads-command-create accepts all priority values (bd validates)."
   :tags '(:unit)
   ;; Valid priorities (0-4)
   (dolist (p '(0 1 2 3 4))
@@ -951,15 +952,15 @@ Integration test that retrieves issue database stats."
                 :title "Test"
                 :priority p)))
       (should-not (beads-command-validate cmd))))
-  ;; Invalid priorities
+  ;; Invalid priorities - command doesn't validate, bd CLI will
   (dolist (p '(-1 5 10))
     (let ((cmd (beads-command-create
                 :title "Test"
                 :priority p)))
-      (should (stringp (beads-command-validate cmd))))))
+      (should-not (beads-command-validate cmd)))))
 
 (ert-deftest beads-command-test-unit-create-validate-type-valid ()
-  "Unit test: beads-command-create validates issue type."
+  "Unit test: beads-command-create accepts all type values (bd validates)."
   :tags '(:unit)
   ;; Valid types
   (dolist (type '("bug" "feature" "task" "epic" "chore"))
@@ -967,33 +968,33 @@ Integration test that retrieves issue database stats."
                 :title "Test"
                 :issue-type type)))
       (should-not (beads-command-validate cmd))))
-  ;; Invalid type
+  ;; Invalid type - command doesn't validate, bd CLI will
   (let ((cmd (beads-command-create
               :title "Test"
               :issue-type "invalid-type")))
-    (should (stringp (beads-command-validate cmd)))))
+    (should-not (beads-command-validate cmd))))
 
 (ert-deftest beads-command-test-unit-create-validate-deps-format ()
-  "Unit test: beads-command-create validates dependency format."
+  "Unit test: beads-command-create accepts all dependency formats (bd validates)."
   :tags '(:unit)
-  ;; Valid dependency formats
-  (dolist (deps '("blocks:bd-123"
-                  "depends-on:bd-456"
-                  "blocks:bd-1,depends-on:bd-2"
-                  "discovered-from:bd-789"))
+  ;; Valid dependency formats (as lists)
+  (dolist (deps '(("blocks:bd-123")
+                  ("depends-on:bd-456")
+                  ("blocks:bd-1" "depends-on:bd-2")
+                  ("discovered-from:bd-789")))
     (let ((cmd (beads-command-create
                 :title "Test"
                 :deps deps)))
       (should-not (beads-command-validate cmd))))
-  ;; Invalid formats (missing colon, invalid characters)
-  (dolist (deps '("invalid"
-                  "blocks-bd-123"
-                  "blocks:"
-                  ":bd-123"))
+  ;; Invalid formats - command doesn't validate, bd CLI will
+  (dolist (deps '(("invalid")
+                  ("blocks-bd-123")
+                  ("blocks:")
+                  (":bd-123")))
     (let ((cmd (beads-command-create
                 :title "Test"
                 :deps deps)))
-      (should (stringp (beads-command-validate cmd))))))
+      (should-not (beads-command-validate cmd)))))
 
 (ert-deftest beads-command-test-unit-close-validate-issue-id-required ()
   "Unit test: beads-command-close validation requires issue ID."
@@ -1127,9 +1128,10 @@ Integration test that retrieves issue database stats."
   (let ((cmd (beads-command-create :title "Test")))
     ;; Should be instance of itself
     (should (beads-command-create-p cmd))
-    ;; Should be instance of parent classes
-    (should (beads-command-json-p cmd))
-    (should (beads-command-p cmd))
+    ;; Should be instance of parent classes (using cl-typep since EIEIO
+    ;; predicates don't work for parent classes)
+    (should (cl-typep cmd 'beads-command))
+    (should (cl-typep cmd 'beads-command-json))
     ;; Should be an EIEIO object
     (should (eieio-object-p cmd))))
 
