@@ -1365,6 +1365,154 @@ beads-json-parse-error on failure."
           ;; Non-zero exit code: parent already signaled error
           result)))))
 
+;;; Reopen Command
+
+(defclass beads-command-reopen (beads-command-json)
+  ((issue-ids
+    :initarg :issue-ids
+    :type (or null list)
+    :initform nil
+    :documentation "One or more issue IDs to reopen (positional arguments).
+Example: '(\"bd-1\" \"bd-2\")")
+   (reason
+    :initarg :reason
+    :type (or null string)
+    :initform nil
+    :documentation "Optional reason for reopening (-r, --reason)."))
+  :documentation "Represents bd reopen command.
+Reopens one or more closed issues with an optional reason.
+When executed with :json t, returns beads-issue instance (or list
+of instances when multiple IDs provided).")
+
+(cl-defmethod beads-command-line ((command beads-command-reopen))
+  "Build command arguments for reopen COMMAND (without executable).
+Returns list: (\"reopen\" ...global-flags... ...issue-ids... --reason ...)."
+  (with-slots (issue-ids reason) command
+    (let ((args (list "reopen"))
+          (global-args (cl-call-next-method)))
+      ;; Append global flags (includes --json if enabled)
+      (setq args (append args global-args))
+
+      ;; Append issue IDs (positional arguments)
+      (when issue-ids
+        (setq args (append args issue-ids)))
+
+      ;; Append reason (optional)
+      (when reason
+        (setq args (append args (list "--reason" reason))))
+
+      args)))
+
+(cl-defmethod beads-command-validate ((command beads-command-reopen))
+  "Validate reopen COMMAND.
+Checks that at least one issue ID is provided.
+Returns error string or nil if valid."
+  (with-slots (issue-ids) command
+    (or
+     ;; Must have at least one issue ID
+     (and (or (null issue-ids) (zerop (length issue-ids)))
+          "Must provide at least one issue ID")
+     ;; Validate list content types
+     (beads-command--validate-string-list issue-ids "issue-ids"))))
+
+(cl-defmethod beads-command-execute ((command beads-command-reopen))
+  "Execute reopen COMMAND and return reopened issue(s).
+When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
+When :json is t, returns beads-issue instance (or list of instances
+when multiple IDs provided).
+Signals beads-validation-error, beads-command-error, or
+beads-json-parse-error on failure."
+  (with-slots (json issue-ids) command
+    (if (not json)
+        ;; If json is not enabled, use parent implementation
+        (cl-call-next-method)
+      ;; JSON execution: call parent to get parsed JSON, then convert
+      ;; to beads-issue instance(s) using beads-issue-from-json
+      (let* ((result (cl-call-next-method))
+             (exit-code (nth 0 result))
+             (parsed-json (nth 1 result))
+             (stderr (nth 2 result)))
+        ;; Convert JSON to beads-issue instance(s)
+        ;; Note: bd reopen always returns an array in JSON mode,
+        ;; even for a single issue ID
+        (if (zerop exit-code)
+            (condition-case err
+                (if (eq (type-of parsed-json) 'vector)
+                    ;; bd reopen returns array - convert to issue objects
+                    (let ((issues (mapcar #'beads-issue-from-json
+                                         (append parsed-json nil))))
+                      ;; Return single issue if only one ID, list otherwise
+                      (if (= (length issue-ids) 1)
+                          (car issues)
+                        issues))
+                  ;; Unexpected JSON structure
+                  (signal 'beads-json-parse-error
+                          (list "Unexpected JSON structure from bd reopen"
+                                :exit-code exit-code
+                                :parsed-json parsed-json
+                                :stderr stderr)))
+              (error
+               (signal 'beads-json-parse-error
+                       (list (format "Failed to create beads-issue instance: %s"
+                                    (error-message-string err))
+                             :exit-code exit-code
+                             :parsed-json parsed-json
+                             :stderr stderr
+                             :parse-error err))))
+          ;; Non-zero exit code: parent already signaled error
+          result)))))
+
+;;; Delete Command
+
+(defclass beads-command-delete (beads-command)
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID to delete (positional argument).
+Example: \"bd-1\"")
+   (force
+    :initarg :force
+    :type boolean
+    :initform nil
+    :documentation "Force deletion without preview (--force flag)."))
+  :documentation "Represents bd delete command.
+Deletes an issue with optional --force flag.
+When executed, returns (EXIT-CODE STDOUT STDERR) tuple.")
+
+(cl-defmethod beads-command-line ((command beads-command-delete))
+  "Build command arguments for delete COMMAND (without executable).
+Returns list: (\"delete\" ...global-flags... issue-id [--force])."
+  (with-slots (issue-id force) command
+    (let ((args (list "delete"))
+          (global-args (cl-call-next-method)))
+      ;; Append global flags
+      (setq args (append args global-args))
+
+      ;; Append issue ID (positional argument)
+      (when issue-id
+        (push issue-id args))
+
+      ;; Append --force flag if set
+      (when force
+        (setq args (append args (list "--force"))))
+
+      args)))
+
+(cl-defmethod beads-command-validate ((command beads-command-delete))
+  "Validate delete COMMAND.
+Checks that issue ID is provided.
+Returns error string or nil if valid."
+  (with-slots (issue-id) command
+    (when (or (null issue-id) (string-empty-p issue-id))
+      "Must provide an issue ID")))
+
+(defun beads-command-delete! (&rest args)
+  "Create and execute a beads-command-delete with ARGS.
+Returns (EXIT-CODE STDOUT STDERR) tuple.
+See `beads-command-delete' for available arguments."
+  (beads-command-execute (apply #'beads-command-delete args)))
+
 ;;; Ready Command
 
 (defclass beads-command-ready (beads-command-json)
@@ -1961,6 +2109,12 @@ See `beads-command-update' for available arguments."
 Returns the parsed issue object (or list of issue objects).
 See `beads-command-close' for available arguments."
   (beads-command-execute (apply #'beads-command-close args)))
+
+(defun beads-command-reopen! (&rest args)
+  "Create and execute a beads-command-reopen with ARGS.
+Returns the parsed issue object (or list of issue objects).
+See `beads-command-reopen' for available arguments."
+  (beads-command-execute (apply #'beads-command-reopen args)))
 
 (defun beads-command-ready! (&rest args)
   "Create and execute a beads-command-ready with ARGS.

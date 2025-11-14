@@ -828,8 +828,8 @@ transient menu options."
             (condition-case err
                 (progn
                   (if (and reason (not (string-empty-p (string-trim reason))))
-                      (beads--run-command "reopen" id "--reason" reason)
-                    (beads--run-command "reopen" id))
+                      (beads-command-reopen! :issue-ids (list id) :reason reason)
+                    (beads-command-reopen! :issue-ids (list id)))
                   (setq success-count (1+ success-count)))
               (error
                (message "Failed to reopen %s: %s" id
