@@ -28,6 +28,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-command)
 (require 'beads-types)
 (require 'button)
 
@@ -103,8 +104,8 @@ STATUS should be one of: open, in-progress, or closed."
                        ('closed "closed")
                        (_ (error "Invalid status: %s" status))))
          (buffer-name (format "*beads-list: %s*" status-str))
-         (issues (beads--parse-issues
-                  (beads--run-command "list" "--status" status-str)))
+         (cmd (beads-command-list :status status-str))
+         (issues (beads-command-execute cmd))
          (buffer (get-buffer-create buffer-name))
          (project-dir default-directory))
     (with-current-buffer buffer

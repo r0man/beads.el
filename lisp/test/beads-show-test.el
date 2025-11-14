@@ -1546,25 +1546,23 @@
 (ert-deftest beads-show-test-update-field-description ()
   "Test updating description field."
   (let ((update-called nil)
-        (update-args nil))
-    (cl-letf (((symbol-function 'beads--run-command)
-               (lambda (subcommand &rest args)
-                 ;; Only capture update command, not show
-                 (when (string= subcommand "update")
+        (captured-cmd nil))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (cmd)
+                 ;; Only capture update command
+                 (when (cl-typep cmd 'beads-command-update)
                    (setq update-called t)
-                   (setq update-args (cons subcommand args)))
+                   (setq captured-cmd cmd))
                  ;; Return updated issue data
                  beads-show-test--full-issue)))
       (beads-show-test-with-temp-buffer
        (setq beads-show--issue-id "bd-42")
        (setq beads-show--issue-data (beads--parse-issue
                                      beads-show-test--full-issue))
-       (beads-show--update-field "Description" "-d" "New description text")
+       (beads-show--update-field "Description" "--description" "New description text")
        (should update-called)
-       (should (member "update" update-args))
-       (should (member "bd-42" update-args))
-       (should (member "-d" update-args))
-       (should (member "New description text" update-args))))))
+       (should (equal (oref captured-cmd issue-ids) '("bd-42")))
+       (should (equal (oref captured-cmd description) "New description text"))))))
 
 ;;; ============================================================
 ;;; Integration Tests
