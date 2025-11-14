@@ -396,7 +396,7 @@ Returns list of issues or nil on error."
                  beads--completion-cache-ttl))
       (condition-case nil
           (setq beads--completion-cache
-                (cons now (beads--parse-issues (beads--run-command "list"))))
+                (cons now (beads-command-list!)))
         (error
          (setq beads--completion-cache nil))))
     (cdr beads--completion-cache)))
