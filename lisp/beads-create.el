@@ -222,8 +222,7 @@ dash-style syntax matching bd CLI."
         (user-error "Validation failed: %s" (string-join errors "; "))
       (condition-case err
           (let* ((cmd-args (beads-create--build-command-args parsed))
-                 (result (apply #'beads--run-command "create" cmd-args))
-                 (issue (beads--parse-issue result))
+                 (issue (beads-command-create! :args cmd-args))
                  (issue-id (alist-get 'id issue)))
             (message "Created issue: %s - %s"
                      issue-id
