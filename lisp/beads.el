@@ -577,6 +577,9 @@ Returns t if found, signals error otherwise."
 (autoload 'beads-create "beads-create" "Create a new Beads issue using transient menu." t)
 
 ;;;###autoload
+(autoload 'beads-update "beads-update" "Update a Beads issue using transient menu." t)
+
+;;;###autoload
 (autoload 'beads-close "beads-close" "Close a Beads issue with optional reason." t)
 
 ;;;###autoload
@@ -604,6 +607,12 @@ Returns t if found, signals error otherwise."
 (autoload 'beads-quickstart "beads-misc" "Show Beads quickstart guide." t)
 
 ;;;###autoload
+(autoload 'beads-import "beads-misc" "Import issues from JSON file." t)
+
+;;;###autoload
+(autoload 'beads-export "beads-misc" "Export issues to JSON file." t)
+
+;;;###autoload
 (autoload 'beads-sync "beads-sync" "Synchronize issues with git remote." t)
 
 ;;;###autoload
@@ -614,6 +623,18 @@ Returns t if found, signals error otherwise."
 
 ;;;###autoload
 (autoload 'beads-label-add "beads-label" "Add a label to one or more issues." t)
+
+;;;###autoload
+(autoload 'beads-label-list-all "beads-label" "Return a list of all labels from bd label list-all.")
+
+;;;###autoload
+(autoload 'beads--get-cached-labels "beads-label" "Get labels from cache or fetch if needed.")
+
+;;;###autoload
+(autoload 'beads--invalidate-label-cache "beads-label" "Invalidate the label cache.")
+
+;;;###autoload
+(autoload 'beads--label-completion-table "beads-label" "Return completion table for labels.")
 
 ;;; Footer
 
