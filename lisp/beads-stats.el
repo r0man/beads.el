@@ -80,8 +80,8 @@ Opens filtered issue list based on button's filter-type property."
 FILTER-TYPE can be: total, open, in-progress, closed, blocked, or ready."
   (pcase filter-type
     ('total
-     ;; Show all issues
-     (beads-list))
+     ;; Show all issues directly without transient menu
+     (beads-stats--list-all-issues))
     ('ready
      ;; Show ready issues (existing command)
      (beads-ready))
@@ -93,6 +93,41 @@ FILTER-TYPE can be: total, open, in-progress, closed, blocked, or ready."
      (beads-stats--list-by-status filter-type))
     (_
      (message "Unknown filter type: %s" filter-type))))
+
+(defun beads-stats--list-all-issues ()
+  "Display all issues without showing the transient menu.
+Opens a beads-list buffer with all issues, bypassing the transient menu."
+  (beads-check-executable)
+  (let* ((cmd (beads-command-list))
+         (issues (beads-command-execute cmd))
+         (buffer (get-buffer-create "*beads-list*"))
+         (project-dir default-directory))
+    (with-current-buffer buffer
+      (beads-list-mode)
+      ;; Preserve project context in list buffer
+      (setq default-directory project-dir)
+      (if (not issues)
+          (progn
+            (setq tabulated-list-entries nil)
+            (tabulated-list-print t)
+            (setq mode-line-format
+                  '("%e" mode-line-front-space
+                    mode-line-buffer-identification
+                    "  No issues"))
+            (message "No issues found"))
+        (beads-list--populate-buffer issues 'list cmd)
+        (setq mode-line-format
+              '("%e" mode-line-front-space
+                mode-line-buffer-identification
+                (:eval (format "  %d issue%s%s%s"
+                             (length tabulated-list-entries)
+                             (if (= (length tabulated-list-entries) 1) "" "s")
+                             (if beads-list--marked-issues
+                                 (format " [%d marked]"
+                                        (length beads-list--marked-issues))
+                               "")
+                             (beads-list--format-filter-string)))))))
+    (pop-to-buffer buffer)))
 
 (defun beads-stats--list-by-status (status)
   "Display issues filtered by STATUS.
@@ -135,9 +170,9 @@ STATUS should be one of: open, in-progress, or closed."
                              (beads-list--format-filter-string)))))))
     (pop-to-buffer buffer)))
 
-(defun beads-stats--make-stat-button (text filter-type count face)
-  "Create a clickable stat button with TEXT, FILTER-TYPE, COUNT, and FACE.
-Returns a propertized string that can be inserted into the buffer."
+(defun beads-stats--insert-stat-button (text filter-type count face)
+  "Insert a clickable stat button with TEXT, FILTER-TYPE, COUNT, and FACE.
+Inserts an actual button into the buffer at point."
   (let ((help-text (pcase filter-type
                      ('total (format "Click to view all %d issues" count))
                      ('open (format "Click to view %d open issues" count))
@@ -147,16 +182,15 @@ Returns a propertized string that can be inserted into the buffer."
                      ('blocked
                       (format "Click to view %d blocked issues" count))
                      ('ready (format "Click to view %d ready issues" count))
-                     (_ (format "Click to view %d issues" count)))))
-    (propertize text
-                'face face
-                'mouse-face 'highlight
-                'help-echo help-text
-                'button t
-                'category 'beads-stats-button
-                'filter-type filter-type
-                'count count
-                'follow-link t)))
+                     (_ (format "Click to view %d issues" count))))
+        (start (point)))
+    (insert text)
+    (make-button start (point)
+                 'type 'beads-stats-button
+                 'face face
+                 'help-echo help-text
+                 'filter-type filter-type
+                 'count count)))
 
 ;;; Statistics Display
 
@@ -196,48 +230,53 @@ interactive clickable numbers."
 
     ;; All stats in simple format matching CLI
     ;; Format: "Label:      Number" with right-aligned numbers at column 19
-    (insert (format "%-18s %s\n"
-                   "Total Issues:"
-                   (beads-stats--make-stat-button
-                    (format "%d" (oref stats total-issues))
-                    'total
-                    (oref stats total-issues)
-                    'default)))
-    (insert (format "%-18s %s\n"
-                   "Open:"
-                   (beads-stats--make-stat-button
-                    (format "%d" (oref stats open-issues))
-                    'open
-                    (oref stats open-issues)
-                    'default)))
-    (insert (format "%-18s %s\n"
-                   "In Progress:"
-                   (beads-stats--make-stat-button
-                    (format "%d" (oref stats in-progress-issues))
-                    'in-progress
-                    (oref stats in-progress-issues)
-                    'default)))
-    (insert (format "%-18s %s\n"
-                   "Closed:"
-                   (beads-stats--make-stat-button
-                    (format "%d" (oref stats closed-issues))
-                    'closed
-                    (oref stats closed-issues)
-                    'default)))
-    (insert (format "%-18s %s\n"
-                   "Blocked:"
-                   (beads-stats--make-stat-button
-                    (format "%d" (oref stats blocked-issues))
-                    'blocked
-                    (oref stats blocked-issues)
-                    'default)))
-    (insert (format "%-18s %s\n"
-                   "Ready:"
-                   (beads-stats--make-stat-button
-                    (format "%d" (oref stats ready-issues))
-                    'ready
-                    (oref stats ready-issues)
-                    'default))))
+    (insert (format "%-18s " "Total Issues:"))
+    (beads-stats--insert-stat-button
+     (format "%d" (oref stats total-issues))
+     'total
+     (oref stats total-issues)
+     'default)
+    (insert "\n")
+
+    (insert (format "%-18s " "Open:"))
+    (beads-stats--insert-stat-button
+     (format "%d" (oref stats open-issues))
+     'open
+     (oref stats open-issues)
+     'default)
+    (insert "\n")
+
+    (insert (format "%-18s " "In Progress:"))
+    (beads-stats--insert-stat-button
+     (format "%d" (oref stats in-progress-issues))
+     'in-progress
+     (oref stats in-progress-issues)
+     'default)
+    (insert "\n")
+
+    (insert (format "%-18s " "Closed:"))
+    (beads-stats--insert-stat-button
+     (format "%d" (oref stats closed-issues))
+     'closed
+     (oref stats closed-issues)
+     'default)
+    (insert "\n")
+
+    (insert (format "%-18s " "Blocked:"))
+    (beads-stats--insert-stat-button
+     (format "%d" (oref stats blocked-issues))
+     'blocked
+     (oref stats blocked-issues)
+     'default)
+    (insert "\n")
+
+    (insert (format "%-18s " "Ready:"))
+    (beads-stats--insert-stat-button
+     (format "%d" (oref stats ready-issues))
+     'ready
+     (oref stats ready-issues)
+     'default)
+    (insert "\n"))
 
   (goto-char (point-min)))
 
