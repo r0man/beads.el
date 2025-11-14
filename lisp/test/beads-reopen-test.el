@@ -45,14 +45,16 @@ ARGS should be a list of strings like (\"--id=bd-42\" \"--reason=Needs work\")."
     (when (eq prefix 'beads-reopen--menu)
       args)))
 
-(defun beads-reopen-test--mock-call-process (exit-code output)
-  "Create a mock for `call-process' returning EXIT-CODE and OUTPUT."
-  (lambda (program &optional infile destination display &rest args)
-    (when destination
-      (with-current-buffer (if (bufferp destination)
-                               destination
-                             (current-buffer))
-        (insert output)))
+(defun beads-reopen-test--mock-process-file (exit-code output)
+  "Create a mock for `process-file' returning EXIT-CODE and OUTPUT."
+  (lambda (program &optional infile buffer display &rest args)
+    (when buffer
+      (let ((buf (if (listp buffer)
+                     (car buffer)
+                   buffer)))
+        (when buf
+          (with-current-buffer (if (bufferp buf) buf (current-buffer))
+            (insert output)))))
     exit-code))
 
 ;;; Tests for Argument Parsing
@@ -192,8 +194,8 @@ we just verify the reason is included when provided."
     (cl-letf (((symbol-function 'transient-args)
                (beads-reopen-test--mock-transient-args
                 '("--id=bd-42" "--reason=Needs fixes")))
-              ((symbol-function 'call-process)
-               (beads-reopen-test--mock-call-process 0 json-output)))
+              ((symbol-function 'process-file)
+               (beads-reopen-test--mock-process-file 0 json-output)))
       (should-not (beads-reopen--execute)))))
 
 (ert-deftest beads-reopen-test-execute-validation-failure ()
@@ -216,8 +218,8 @@ we just verify the reason is included when provided."
   (cl-letf (((symbol-function 'transient-args)
              (beads-reopen-test--mock-transient-args
               '("--id=bd-42")))
-            ((symbol-function 'call-process)
-             (beads-reopen-test--mock-call-process 1 "Error: failed")))
+            ((symbol-function 'process-file)
+             (beads-reopen-test--mock-process-file 1 "Error: failed")))
     ;; Should not propagate error, just display message
     (should (stringp (beads-reopen--execute)))))
 
@@ -228,8 +230,8 @@ we just verify the reason is included when provided."
     (cl-letf (((symbol-function 'transient-args)
                (beads-reopen-test--mock-transient-args
                 '("--id=bd-42")))
-              ((symbol-function 'call-process)
-               (beads-reopen-test--mock-call-process 0 json-output)))
+              ((symbol-function 'process-file)
+               (beads-reopen-test--mock-process-file 0 json-output)))
       (should-not (beads-reopen--execute)))))
 
 ;;; Tests for Preview
@@ -287,8 +289,8 @@ we just verify the reason is included when provided."
     (cl-letf (((symbol-function 'transient-args)
                (beads-reopen-test--mock-transient-args
                 '("--id=bd-42" "--reason=Needs more work")))
-              ((symbol-function 'call-process)
-               (beads-reopen-test--mock-call-process 0 json-output)))
+              ((symbol-function 'process-file)
+               (beads-reopen-test--mock-process-file 0 json-output)))
       ;; Parse args
       (let* ((args (funcall (symbol-function 'transient-args)
                             'beads-reopen--menu))
@@ -467,8 +469,8 @@ we just verify the reason is included when provided."
     (cl-letf (((symbol-function 'transient-args)
                (beads-reopen-test--mock-transient-args
                 '("--id=bd-42" "--reason=Reopening for review")))
-              ((symbol-function 'call-process)
-               (beads-reopen-test--mock-call-process 0 json-output)))
+              ((symbol-function 'process-file)
+               (beads-reopen-test--mock-process-file 0 json-output)))
       ;; Execute reopen
       (should-not (beads-reopen--execute)))))
 
@@ -514,8 +516,8 @@ we just verify the reason is included when provided."
     (cl-letf (((symbol-function 'transient-args)
                (beads-reopen-test--mock-transient-args
                 '("--id=bd-42")))
-              ((symbol-function 'call-process)
-               (beads-reopen-test--mock-call-process 0 json-output)))
+              ((symbol-function 'process-file)
+               (beads-reopen-test--mock-process-file 0 json-output)))
 
       ;; Execute reopen
       (beads-reopen--execute)
@@ -547,8 +549,8 @@ we just verify the reason is included when provided."
   (cl-letf (((symbol-function 'transient-args)
              (beads-reopen-test--mock-transient-args
               '("--id=bd-42" "--reason=Reopen")))
-            ((symbol-function 'call-process)
-             (beads-reopen-test--mock-call-process 1 "Error: issue not found")))
+            ((symbol-function 'process-file)
+             (beads-reopen-test--mock-process-file 1 "Error: issue not found")))
 
     ;; Execute should handle error gracefully
     (let ((result (beads-reopen--execute)))

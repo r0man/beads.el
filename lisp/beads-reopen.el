@@ -118,7 +118,8 @@ Returns list of arguments for bd reopen command."
                 (dolist (buf (buffer-list))
                   (with-current-buffer buf
                     (cond
-                     ((derived-mode-p 'beads-list-mode)
+                     ((and (derived-mode-p 'beads-list-mode)
+                           (bound-and-true-p beads-list--command))
                       (beads-list-refresh))
                      ((and (derived-mode-p 'beads-show-mode)
                            (string= beads-show--issue-id issue-id))
