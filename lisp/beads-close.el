@@ -104,8 +104,7 @@ Returns list of arguments for bd close command."
       (condition-case err
           (progn
             (let* ((cmd-args (beads-close--build-command-args parsed))
-                   (result (apply #'beads--run-command "close" cmd-args))
-                   (issue (beads--parse-issue result))
+                   (issue (beads-command-close! :args cmd-args))
                    (issue-id (alist-get 'id issue)))
               (message "Closed issue: %s - %s"
                        issue-id

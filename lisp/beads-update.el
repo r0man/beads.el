@@ -76,8 +76,7 @@ Returns issue ID string or nil if not found."
   "Fetch issue data for ISSUE-ID from bd.
 Returns parsed issue alist or signals error."
   (condition-case err
-      (let ((json (beads--run-command "show" issue-id)))
-        (beads--parse-issue json))
+      (beads-command-show! issue-id)
     (error
      (beads--error "Failed to fetch issue %s: %s"
                    issue-id
@@ -243,8 +242,7 @@ Returns list of arguments for bd update command."
       (condition-case err
           (progn
             (let* ((cmd-args (beads-update--build-command-args parsed))
-                   (result (apply #'beads--run-command "update" cmd-args))
-                   (_issue (beads--parse-issue result)))
+                   (_issue (beads-command-update! beads-update--issue-id :args cmd-args)))
               (message "Updated issue: %s (changed %d field%s)"
                        beads-update--issue-id
                        (length changes)

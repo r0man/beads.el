@@ -127,8 +127,7 @@ Format: ((epic-id . (expanded-p . children)) ...)")
   "Display epic status with progress in interactive buffer."
   (interactive)
   (beads-check-executable)
-  (let* ((result (beads--run-command "epic" "status"))
-         (epics (beads--parse-epic-statuses result))
+  (let* ((epics (beads-command-epic-status!))
          (buffer (get-buffer-create "*beads-epic-status*")))
     (with-current-buffer buffer
       (let ((old-expanded beads-epic-status--expanded))
@@ -268,8 +267,7 @@ Format: ((epic-id . (expanded-p . children)) ...)")
 
 (defun beads-epic-status--fetch-children (epic-id)
   "Fetch all child issues for EPIC-ID using dependency tree."
-  (let* ((result (beads--run-command "dep" "tree" epic-id "--reverse"))
-         (tree-data (if (vectorp result) result (list result))))
+  (let* ((tree-data (beads-command-dep-tree! epic-id :reverse t)))
     ;; Tree nodes are issues with extra fields (depth, parent_id)
     ;; Filter out the epic itself (depth=0) and keep only children
     (cl-remove-if #'null
