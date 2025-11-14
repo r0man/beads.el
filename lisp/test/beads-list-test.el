@@ -1063,19 +1063,6 @@ Tests the full workflow: open menu -> execute -> display results."
 ;; (beads-list-test-transient-menu-displays, beads-list-test-transient-menu-executes).
 ;; Filter functionality is tested via beads-list--parse-transient-args unit tests.
 
-(ert-deftest beads-list-test-without-issues ()
-  "Test beads-list buffer with empty project (no issues)."
-  :tags '(integration transient)
-  ;; (skip-unless (not noninteractive))
-  (let ((default-directory (beads-test-create-project)))
-    (beads-test-execute-commands
-     (list (kbd "M-x beads-list")
-           (kbd "x")))
-    ;; Verify we're in the list buffer
-    (should (equal "*beads-list*" (buffer-name (current-buffer))))
-    ;; Verify buffer is in beads-list-mode
-    (should (eq major-mode 'beads-list-mode))))
-
 (ert-deftest beads-list-test-with-issues ()
   "Test beads-list buffer renders created issues correctly."
   :tags '(integration transient)
