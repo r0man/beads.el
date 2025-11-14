@@ -402,11 +402,11 @@ Integration test that runs real bd epic status command."
                   :issue-type "epic"))
            (_child1 (beads-command-create!
                      :title "Child 1"
-                     :deps (list (concat "child-of:"
+                     :deps (list (concat "parent-child:"
                                         (oref epic id)))))
            (_child2 (beads-command-create!
                      :title "Child 2"
-                     :deps (list (concat "child-of:"
+                     :deps (list (concat "parent-child:"
                                         (oref epic id)))))
            ;; Get epic status
            (result (beads-command-epic-status!)))
@@ -428,11 +428,11 @@ Integration test that filters to show only eligible epics."
                   :issue-type "epic"))
            (child1 (beads-command-create!
                     :title "Child 1"
-                    :deps (list (concat "child-of:"
+                    :deps (list (concat "parent-child:"
                                        (oref epic id)))))
            (child2 (beads-command-create!
                     :title "Child 2"
-                    :deps (list (concat "child-of:"
+                    :deps (list (concat "parent-child:"
                                        (oref epic id))))))
       ;; Close both children
       (shell-command (format "bd close %s %s --reason 'Done'"
@@ -459,11 +459,11 @@ Integration test that previews eligible epics without closing."
                   :issue-type "epic"))
            (child1 (beads-command-create!
                     :title "Child 1"
-                    :deps (list (concat "child-of:"
+                    :deps (list (concat "parent-child:"
                                        (oref epic id)))))
            (child2 (beads-command-create!
                     :title "Child 2"
-                    :deps (list (concat "child-of:"
+                    :deps (list (concat "parent-child:"
                                        (oref epic id))))))
       ;; Close both children
       (shell-command (format "bd close %s %s --reason 'Done'"
@@ -491,11 +491,11 @@ Integration test that closes epics where all children are complete."
                   :issue-type "epic"))
            (child1 (beads-command-create!
                     :title "Child 1"
-                    :deps (list (concat "child-of:"
+                    :deps (list (concat "parent-child:"
                                        (oref epic id)))))
            (child2 (beads-command-create!
                     :title "Child 2"
-                    :deps (list (concat "child-of:"
+                    :deps (list (concat "parent-child:"
                                        (oref epic id))))))
       ;; Close both children
       (shell-command (format "bd close %s %s --reason 'Done'"
@@ -742,7 +742,7 @@ Integration test that lists issues with unresolved blockers."
     (let* ((blocker (beads-command-create! :title "Blocker"))
            (blocked (beads-command-create!
                      :title "Blocked"
-                     :deps (list (concat "blocked-by:" (oref blocker id)))))
+                     :deps (list (concat "blocks:" (oref blocker id)))))
            ;; Get blocked issues
            (issues (beads-command-blocked!)))
       ;; Should return a list

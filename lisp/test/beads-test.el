@@ -25,6 +25,7 @@
 (require 'json)
 (require 'beads)
 (require 'beads-command)
+(require 'beads-label)
 
 (defun beads-test-create-project (&rest init-args)
   "Create a temporary beads project and return its directory.

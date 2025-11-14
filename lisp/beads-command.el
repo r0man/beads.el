@@ -1059,24 +1059,24 @@ beads-json-parse-error on failure."
              (parsed-json (nth 1 result))
              (stderr (nth 2 result)))
         ;; Convert JSON to beads-issue instance(s)
+        ;; Note: bd show always returns an array in JSON mode,
+        ;; even for a single issue ID
         (if (zerop exit-code)
             (condition-case err
-                (cond
-                 ;; Single issue (JSON object)
-                 ((and (eq (type-of parsed-json) 'cons)
-                       (= (length issue-ids) 1))
-                  (beads-issue-from-json parsed-json))
-                 ;; Multiple issues (JSON array)
-                 ((eq (type-of parsed-json) 'vector)
-                  (mapcar #'beads-issue-from-json
-                          (append parsed-json nil)))
-                 ;; Unexpected JSON structure
-                 (t
+                (if (eq (type-of parsed-json) 'vector)
+                    ;; bd show returns array - convert to issue objects
+                    (let ((issues (mapcar #'beads-issue-from-json
+                                         (append parsed-json nil))))
+                      ;; Return single issue if only one ID, list otherwise
+                      (if (= (length issue-ids) 1)
+                          (car issues)
+                        issues))
+                  ;; Unexpected JSON structure
                   (signal 'beads-json-parse-error
                           (list "Unexpected JSON structure from bd show"
                                 :exit-code exit-code
                                 :parsed-json parsed-json
-                                :stderr stderr))))
+                                :stderr stderr)))
               (error
                (signal 'beads-json-parse-error
                        (list (format "Failed to create beads-issue instance: %s"
@@ -1221,24 +1221,24 @@ beads-json-parse-error on failure."
              (parsed-json (nth 1 result))
              (stderr (nth 2 result)))
         ;; Convert JSON to beads-issue instance(s)
+        ;; Note: bd update always returns an array in JSON mode,
+        ;; even for a single issue ID
         (if (zerop exit-code)
             (condition-case err
-                (cond
-                 ;; Single issue (JSON object)
-                 ((and (eq (type-of parsed-json) 'cons)
-                       (= (length issue-ids) 1))
-                  (beads-issue-from-json parsed-json))
-                 ;; Multiple issues (JSON array)
-                 ((eq (type-of parsed-json) 'vector)
-                  (mapcar #'beads-issue-from-json
-                          (append parsed-json nil)))
-                 ;; Unexpected JSON structure
-                 (t
+                (if (eq (type-of parsed-json) 'vector)
+                    ;; bd update returns array - convert to issue objects
+                    (let ((issues (mapcar #'beads-issue-from-json
+                                         (append parsed-json nil))))
+                      ;; Return single issue if only one ID, list otherwise
+                      (if (= (length issue-ids) 1)
+                          (car issues)
+                        issues))
+                  ;; Unexpected JSON structure
                   (signal 'beads-json-parse-error
                           (list "Unexpected JSON structure from bd update"
                                 :exit-code exit-code
                                 :parsed-json parsed-json
-                                :stderr stderr))))
+                                :stderr stderr)))
               (error
                (signal 'beads-json-parse-error
                        (list (format "Failed to create beads-issue instance: %s"
@@ -1322,24 +1322,24 @@ beads-json-parse-error on failure."
              (parsed-json (nth 1 result))
              (stderr (nth 2 result)))
         ;; Convert JSON to beads-issue instance(s)
+        ;; Note: bd close always returns an array in JSON mode,
+        ;; even for a single issue ID
         (if (zerop exit-code)
             (condition-case err
-                (cond
-                 ;; Single issue (JSON object)
-                 ((and (eq (type-of parsed-json) 'cons)
-                       (= (length issue-ids) 1))
-                  (beads-issue-from-json parsed-json))
-                 ;; Multiple issues (JSON array)
-                 ((eq (type-of parsed-json) 'vector)
-                  (mapcar #'beads-issue-from-json
-                          (append parsed-json nil)))
-                 ;; Unexpected JSON structure
-                 (t
+                (if (eq (type-of parsed-json) 'vector)
+                    ;; bd close returns array - convert to issue objects
+                    (let ((issues (mapcar #'beads-issue-from-json
+                                         (append parsed-json nil))))
+                      ;; Return single issue if only one ID, list otherwise
+                      (if (= (length issue-ids) 1)
+                          (car issues)
+                        issues))
+                  ;; Unexpected JSON structure
                   (signal 'beads-json-parse-error
                           (list "Unexpected JSON structure from bd close"
                                 :exit-code exit-code
                                 :parsed-json parsed-json
-                                :stderr stderr))))
+                                :stderr stderr)))
               (error
                (signal 'beads-json-parse-error
                        (list (format "Failed to create beads-issue instance: %s"
