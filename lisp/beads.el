@@ -29,6 +29,7 @@
 
 ;;; Code:
 
+(require 'beads-command)
 (require 'beads-custom)
 (require 'json)
 (require 'project)

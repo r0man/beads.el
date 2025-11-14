@@ -604,7 +604,7 @@ Creates or switches to a buffer showing the full issue details."
       (setq default-directory project-dir)
 
       (condition-case err
-          (let ((issue-json (beads--run-command "show" issue-id)))
+          (let ((issue-json (beads-command-show! :issue-id issue-id)))
             (setq beads-show--issue-data (beads--parse-issue issue-json))
             (beads-show--render-issue beads-show--issue-data))
         (error
@@ -637,7 +637,7 @@ Extracts the issue ID from text at point and calls `beads-show'."
 
   (let ((pos (point)))
     (condition-case err
-        (let ((issue-json (beads--run-command "show" beads-show--issue-id)))
+        (let ((issue-json (beads-command-show! :issue-id beads-show--issue-id)))
           (setq beads-show--issue-data (beads--parse-issue issue-json))
           (beads-show--render-issue beads-show--issue-data)
           (goto-char (min pos (point-max)))
@@ -985,7 +985,7 @@ Set mark at beginning of section, move point to end, and activate region."
               (setq beads-show--issue-id issue-id)
               (setq default-directory project-dir)
               (condition-case err
-                  (let ((issue-json (beads--run-command "show" issue-id)))
+                  (let ((issue-json (beads-command-show! :issue-id issue-id)))
                     (setq beads-show--issue-data (beads--parse-issue issue-json))
                     (beads-show--render-issue beads-show--issue-data))
                 (error
