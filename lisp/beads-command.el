@@ -213,15 +213,15 @@ Signals beads-validation-error or beads-command-error on failure."
             (beads--log 'verbose "Stdout: %s" stdout)
             (beads--log 'verbose "Stderr: %s" stderr))
 
-            (if (zerop exit-code)
-                (list exit-code stdout stderr)
-              ;; Signal error with complete information
-              (signal 'beads-command-error
-                      (list (format "Command failed with exit code %d" exit-code)
-                            :command cmd-string
-                            :exit-code exit-code
-                            :stdout stdout
-                            :stderr stderr)))))
+          (if (zerop exit-code)
+              (list exit-code stdout stderr)
+            ;; Signal error with complete information
+            (signal 'beads-command-error
+                    (list (format "Command failed with exit code %d" exit-code)
+                          :command cmd-string
+                          :exit-code exit-code
+                          :stdout stdout
+                          :stderr stderr)))))
 
       ;; Cleanup temp file
       (when (file-exists-p stderr-file)
@@ -331,44 +331,24 @@ and database file.")
 Returns list: (\"init\" ...global-flags... ...init-flags...)."
   (with-slots (branch contributor prefix quiet
                       skip-merge-driver team) command
-    (let ((args (list "init"))
+    (let ((cmd-args (list "init"))
           (global-args (cl-call-next-method)))
-      ;; Append global flags
-      (setq args (append args global-args))
-      ;; Init-specific boolean flags
-      (when contributor (push "--contributor" args))
-      (when quiet (push "--quiet" args))
-      (when skip-merge-driver (push "--skip-merge-driver" args))
-      (when team (push "--team" args))
-      ;; Init-specific string options
+      ;; Global args
+      (setq cmd-args (append cmd-args global-args))
+      ;; Init-specific args
       (when branch
-        (push "--branch" args)
-        (push branch args))
+        (setq cmd-args (append cmd-args (list "--branch" branch))))
+      (when contributor
+        (setq cmd-args (append cmd-args (list "--contributor"))))
       (when prefix
-        (push "--prefix" args)
-        (push prefix args))
-      ;; Note: args are in reverse order due to push
-      ;; But "init" is at the front, so we need to handle this carefully
-      ;; Let's rebuild in correct order
-      (let ((cmd-args nil))
-        ;; Command name first
-        (push "init" cmd-args)
-        ;; Global args
-        (setq cmd-args (append cmd-args global-args))
-        ;; Init-specific args
-        (when branch
-          (setq cmd-args (append cmd-args (list "--branch" branch))))
-        (when contributor
-          (setq cmd-args (append cmd-args (list "--contributor"))))
-        (when prefix
-          (setq cmd-args (append cmd-args (list "--prefix" prefix))))
-        (when quiet
-          (setq cmd-args (append cmd-args (list "--quiet"))))
-        (when skip-merge-driver
-          (setq cmd-args (append cmd-args (list "--skip-merge-driver"))))
-        (when team
-          (setq cmd-args (append cmd-args (list "--team"))))
-        cmd-args))))
+        (setq cmd-args (append cmd-args (list "--prefix" prefix))))
+      (when quiet
+        (setq cmd-args (append cmd-args (list "--quiet"))))
+      (when skip-merge-driver
+        (setq cmd-args (append cmd-args (list "--skip-merge-driver"))))
+      (when team
+        (setq cmd-args (append cmd-args (list "--team"))))
+      cmd-args)))
 
 (cl-defmethod beads-command-validate ((command beads-command-init))
   "Validate init COMMAND.
