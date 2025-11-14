@@ -40,7 +40,7 @@ If nil, bd will auto-discover the database by searching for a
 
 (defcustom beads-actor nil
   "Actor name for audit trail.
-If nil, uses the $USER environment variable. This value is used
+If nil, uses the $USER environment variable.  This value is used
 for tracking who performs actions in the issue tracker."
   :type '(choice (const :tag "Use $USER" nil)
                  (string :tag "Actor name"))
