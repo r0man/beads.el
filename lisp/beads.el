@@ -578,7 +578,19 @@ Returns t if found, signals error otherwise."
 (autoload 'beads-graph-issue "beads-graph" "Show dependency graph focused on issue." t)
 
 ;;;###autoload
+(autoload 'beads-label "beads-label" "Manage labels for issues." t)
+
+;;;###autoload
 (autoload 'beads-label-add "beads-label" "Add a label to one or more issues." t)
+
+;;;###autoload
+(autoload 'beads-label-remove "beads-label" "Remove a label from one or more issues." t)
+
+;;;###autoload
+(autoload 'beads-label-list-interactive "beads-label" "List labels for an issue." t)
+
+;;;###autoload
+(autoload 'beads-label-list-all-view "beads-label" "Display all labels in a tabulated list buffer." t)
 
 ;;;###autoload
 (autoload 'beads-label-list-all "beads-label" "Return a list of all labels from bd label list-all.")
