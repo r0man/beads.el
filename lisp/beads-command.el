@@ -99,6 +99,20 @@ Disables daemon and auto-sync."))
 Contains slots for global flags that apply to all commands.
 Subclasses should implement beads-command-execute method.")
 
+;;; Helper Functions
+
+(defun beads-command--validate-string-list (value field-name)
+  "Validate that VALUE is nil or a list of strings.
+FIELD-NAME is used in error messages.
+Returns error string or nil if valid."
+  (cond
+   ((null value) nil)
+   ((not (listp value))
+    (format "%s must be a list, got %s" field-name (type-of value)))
+   ((not (cl-every #'stringp value))
+    (format "%s must contain only strings" field-name))
+   (t nil)))
+
 ;;; Generic Methods
 
 (cl-defgeneric beads-command-execute (command)
@@ -622,25 +636,26 @@ Returns error string or nil if valid."
   (with-slots (priority priority-max priority-min
                         assignee no-assignee
                         label label-any no-labels) command
-    (cond
+    (or
      ;; Can't use --priority with --priority-min/max
-     ((and priority (or priority-max priority-min))
-      "Cannot use --priority with --priority-min/--priority-max")
+     (and priority (or priority-max priority-min)
+          "Cannot use --priority with --priority-min/--priority-max")
      ;; Can't use --assignee with --no-assignee
-     ((and assignee no-assignee)
-      "Cannot use both --assignee and --no-assignee")
+     (and assignee no-assignee
+          "Cannot use both --assignee and --no-assignee")
      ;; Can't use --label/--label-any with --no-labels
-     ((and no-labels (or label label-any))
-      "Cannot use --label/--label-any with --no-labels")
+     (and no-labels (or label label-any)
+          "Cannot use --label/--label-any with --no-labels")
      ;; Validate priority range
-     ((and priority (not (<= 0 priority 4)))
-      "Priority must be between 0 and 4")
-     ((and priority-min (not (<= 0 priority-min 4)))
-      "Priority-min must be between 0 and 4")
-     ((and priority-max (not (<= 0 priority-max 4)))
-      "Priority-max must be between 0 and 4")
-     ;; Otherwise valid
-     (t nil))))
+     (and priority (not (<= 0 priority 4))
+          "Priority must be between 0 and 4")
+     (and priority-min (not (<= 0 priority-min 4))
+          "Priority-min must be between 0 and 4")
+     (and priority-max (not (<= 0 priority-max 4))
+          "Priority-max must be between 0 and 4")
+     ;; Validate list content types
+     (beads-command--validate-string-list label "label")
+     (beads-command--validate-string-list label-any "label-any"))))
 
 (cl-defmethod beads-command-execute ((command beads-command-list))
   "Execute list COMMAND and return list of beads-issue instances.
@@ -832,16 +847,17 @@ Returns list: (\"create\" ...global-flags... ...create-flags...)."
   "Validate create COMMAND.
 Checks for required fields and conflicts between options.
 Returns error string or nil if valid."
-  (with-slots (title file) command
-    (cond
+  (with-slots (title file deps labels) command
+    (or
      ;; Must have either title or file
-     ((and (not title) (not file))
-      "Must provide either title or --file")
+     (and (not title) (not file)
+          "Must provide either title or --file")
      ;; Can't use both title and file
-     ((and title file)
-      "Cannot use both title and --file")
-     ;; Otherwise valid
-     (t nil))))
+     (and title file
+          "Cannot use both title and --file")
+     ;; Validate list content types
+     (beads-command--validate-string-list deps "deps")
+     (beads-command--validate-string-list labels "labels"))))
 
 (cl-defmethod beads-command-execute ((command beads-command-create))
   "Execute create COMMAND and return created issue(s).
@@ -1030,12 +1046,12 @@ Returns list: (\"show\" ...global-flags... ...issue-ids...)."
 Checks that at least one issue ID is provided.
 Returns error string or nil if valid."
   (with-slots (issue-ids) command
-    (cond
+    (or
      ;; Must have at least one issue ID
-     ((or (null issue-ids) (zerop (length issue-ids)))
-      "Must provide at least one issue ID")
-     ;; Otherwise valid
-     (t nil))))
+     (and (or (null issue-ids) (zerop (length issue-ids)))
+          "Must provide at least one issue ID")
+     ;; Validate list content types
+     (beads-command--validate-string-list issue-ids "issue-ids"))))
 
 (cl-defmethod beads-command-execute ((command beads-command-show))
   "Execute show COMMAND and return issue(s).
@@ -1190,16 +1206,16 @@ Checks that at least one issue ID and one field to update is provided.
 Returns error string or nil if valid."
   (with-slots (issue-ids acceptance assignee description design
                          external-ref notes priority status title) command
-    (cond
+    (or
      ;; Must have at least one issue ID
-     ((or (null issue-ids) (zerop (length issue-ids)))
-      "Must provide at least one issue ID")
+     (and (or (null issue-ids) (zerop (length issue-ids)))
+          "Must provide at least one issue ID")
      ;; Must have at least one field to update
-     ((not (or acceptance assignee description design external-ref
-               notes priority status title))
-      "Must provide at least one field to update")
-     ;; Otherwise valid
-     (t nil))))
+     (and (not (or acceptance assignee description design external-ref
+                   notes priority status title))
+          "Must provide at least one field to update")
+     ;; Validate list content types
+     (beads-command--validate-string-list issue-ids "issue-ids"))))
 
 (cl-defmethod beads-command-execute ((command beads-command-update))
   "Execute update COMMAND and return updated issue(s).
@@ -1292,15 +1308,15 @@ Returns list: (\"close\" ...global-flags... ...issue-ids... --reason ...)."
 Checks that at least one issue ID and a reason are provided.
 Returns error string or nil if valid."
   (with-slots (issue-ids reason) command
-    (cond
+    (or
      ;; Must have at least one issue ID
-     ((or (null issue-ids) (zerop (length issue-ids)))
-      "Must provide at least one issue ID")
+     (and (or (null issue-ids) (zerop (length issue-ids)))
+          "Must provide at least one issue ID")
      ;; Must have a reason
-     ((or (null reason) (string-empty-p reason))
-      "Must provide a reason for closing")
-     ;; Otherwise valid
-     (t nil))))
+     (and (or (null reason) (string-empty-p reason))
+          "Must provide a reason for closing")
+     ;; Validate list content types
+     (beads-command--validate-string-list issue-ids "issue-ids"))))
 
 (cl-defmethod beads-command-execute ((command beads-command-close))
   "Execute close COMMAND and return closed issue(s).
@@ -1427,16 +1443,17 @@ Returns list: (\"ready\" ...global-flags... ...flags...)."
   "Validate ready COMMAND.
 Checks for valid sort and priority values.
 Returns error string or nil if valid."
-  (with-slots (sort priority) command
-    (cond
+  (with-slots (sort priority label label-any) command
+    (or
      ;; Validate sort value
-     ((and sort (not (member sort '("hybrid" "priority" "oldest"))))
-      "Sort must be one of: hybrid, priority, oldest")
+     (and sort (not (member sort '("hybrid" "priority" "oldest")))
+          "Sort must be one of: hybrid, priority, oldest")
      ;; Validate priority range
-     ((and priority (not (<= 0 priority 4)))
-      "Priority must be between 0 and 4")
-     ;; Otherwise valid
-     (t nil))))
+     (and priority (not (<= 0 priority 4))
+          "Priority must be between 0 and 4")
+     ;; Validate list content types
+     (beads-command--validate-string-list label "label")
+     (beads-command--validate-string-list label-any "label-any"))))
 
 (cl-defmethod beads-command-execute ((command beads-command-ready))
   "Execute ready COMMAND and return list of beads-issue instances.

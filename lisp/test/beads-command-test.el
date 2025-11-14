@@ -1148,5 +1148,131 @@ Integration test that retrieves issue database stats."
     (should (string= (oref cmd status) "closed"))
     (should (string= (oref cmd priority) "3"))))
 
+;; Additional validation tests
+
+(ert-deftest beads-command-test-list-validate-priority-conflicts ()
+  "List validation detects priority conflicts."
+  :tags '(:unit)
+  (let ((cmd (beads-command-list :priority 1 :priority-min 0)))
+    (should (stringp (beads-command-validate cmd)))
+    (should (string-match-p "priority" (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-test-list-validate-assignee-conflicts ()
+  "List validation detects assignee conflicts."
+  :tags '(:unit)
+  (let ((cmd (beads-command-list :assignee "user" :no-assignee t)))
+    (should (stringp (beads-command-validate cmd)))
+    (should (string-match-p "assignee" (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-test-list-validate-label-conflicts ()
+  "List validation detects label conflicts."
+  :tags '(:unit)
+  (let ((cmd (beads-command-list :label '("bug") :no-labels t)))
+    (should (stringp (beads-command-validate cmd)))
+    (should (string-match-p "label" (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-test-list-validate-priority-range ()
+  "List validation checks priority range."
+  :tags '(:unit)
+  (let ((cmd1 (beads-command-list :priority 5))
+        (cmd2 (beads-command-list :priority-min -1))
+        (cmd3 (beads-command-list :priority-max 10)))
+    (should (stringp (beads-command-validate cmd1)))
+    (should (stringp (beads-command-validate cmd2)))
+    (should (stringp (beads-command-validate cmd3)))))
+
+(ert-deftest beads-command-test-list-validate-valid ()
+  "List validation accepts valid configuration."
+  :tags '(:unit)
+  (let ((cmd (beads-command-list :priority 1 :status "open")))
+    (should-not (beads-command-validate cmd))))
+
+(ert-deftest beads-command-test-update-validate-issue-ids ()
+  "Update validation requires issue IDs."
+  :tags '(:unit)
+  (let ((cmd (beads-command-update)))
+    (should (stringp (beads-command-validate cmd)))
+    (should (string-match-p "issue" (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-test-ready-validate-priority-range ()
+  "Ready validation checks priority range."
+  :tags '(:unit)
+  (let ((cmd (beads-command-ready :priority 5)))
+    (should (stringp (beads-command-validate cmd)))
+    (should (string-match-p "Priority" (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-test-show-validate-issue-ids ()
+  "Show validation requires issue IDs."
+  :tags '(:unit)
+  (let ((cmd (beads-command-show)))
+    (should (stringp (beads-command-validate cmd)))
+    (should (string-match-p "issue" (beads-command-validate cmd)))))
+
+;; Additional argument building tests
+
+(ert-deftest beads-command-test-list-command-line-with-filters ()
+  "List command-line includes all filters."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-list
+               :status "open"
+               :priority 1
+               :assignee "user"
+               :label '("bug" "feature")))
+         (args (beads-command-line cmd)))
+    (should (member "list" args))
+    (should (member "--status" args))
+    (should (member "open" args))
+    (should (member "--priority" args))
+    (should (member "1" args))
+    (should (member "--assignee" args))
+    (should (member "user" args))
+    (should (member "--label" args))
+    (should (member "bug" args))
+    (should (member "feature" args))
+    (should (member "--json" args))))
+
+(ert-deftest beads-command-test-list-command-line-with-boolean-flags ()
+  "List command-line includes boolean flags."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-list
+               :no-assignee t
+               :no-labels t))
+         (args (beads-command-line cmd)))
+    (should (member "--no-assignee" args))
+    (should (member "--no-labels" args))))
+
+(ert-deftest beads-command-test-update-command-line-multiple-issues ()
+  "Update command-line handles multiple issue IDs."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-update
+               :issue-ids '("bd-1" "bd-2" "bd-3")
+               :status "closed"))
+         (args (beads-command-line cmd)))
+    (should (member "update" args))
+    (should (member "bd-1" args))
+    (should (member "bd-2" args))
+    (should (member "bd-3" args))
+    (should (member "--status" args))
+    (should (member "closed" args))))
+
+(ert-deftest beads-command-test-ready-command-line-with-limit ()
+  "Ready command-line includes limit."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-ready :limit 10))
+         (args (beads-command-line cmd)))
+    (should (member "ready" args))
+    (should (member "--limit" args))
+    (should (member "10" args))))
+
+(ert-deftest beads-command-test-create-command-line-integer-priority ()
+  "Create command-line handles integer priority."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-create
+               :title "Test"
+               :priority 2))
+         (args (beads-command-line cmd)))
+    (should (member "--priority" args))
+    (should (member "2" args))))
+
 (provide 'beads-command-test)
 ;;; beads-command-test.el ends here
