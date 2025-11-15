@@ -995,20 +995,48 @@ Default implementation returns nil (valid)."
 (cl-defmethod beads-command-execute ((command beads-command-epic-status))
   "Execute epic status COMMAND and return result.
 When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
-When :json is t, returns parsed JSON (list of epic status objects).
+When :json is t, returns list of beads-epic-status instances.
 Signals beads-validation-error, beads-command-error, or
 beads-json-parse-error on failure."
   (with-slots (json) command
     (if (not json)
         ;; If json is not enabled, use parent implementation
         (cl-call-next-method)
-      ;; JSON execution: call parent to get parsed JSON
+      ;; JSON execution: call parent to get parsed JSON, then convert
+      ;; to beads-epic-status instance(s)
       (let* ((result (cl-call-next-method))
              (exit-code (nth 0 result))
-             (parsed-json (nth 1 result)))
-        ;; Return parsed JSON directly (no conversion needed)
+             (parsed-json (nth 1 result))
+             (stderr (nth 2 result)))
+        ;; Convert JSON to beads-epic-status instance(s)
         (if (zerop exit-code)
-            parsed-json
+            (condition-case err
+                (cond
+                 ;; Empty result (nil)
+                 ((null parsed-json)
+                  nil)
+                 ;; JSON array of epic status objects
+                 ((eq (type-of parsed-json) 'vector)
+                  (mapcar #'beads-epic-status-from-json
+                          (append parsed-json nil)))
+                 ;; Single epic status (unlikely, but handle it)
+                 ((eq (type-of parsed-json) 'cons)
+                  (list (beads-epic-status-from-json parsed-json)))
+                 ;; Unexpected JSON structure
+                 (t
+                  (signal 'beads-json-parse-error
+                          (list "Unexpected JSON structure from bd epic status"
+                                :exit-code exit-code
+                                :parsed-json parsed-json
+                                :stderr stderr))))
+              (error
+               (signal 'beads-json-parse-error
+                       (list (format "Failed to create beads-epic-status instance: %s"
+                                    (error-message-string err))
+                             :exit-code exit-code
+                             :parsed-json parsed-json
+                             :stderr stderr
+                             :parse-error err))))
           ;; Non-zero exit code: parent already signaled error
           result)))))
 

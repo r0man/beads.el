@@ -744,23 +744,23 @@ STRUCTURE is a list of paths to create (dirs end with /)."
   "Test parsing a complete issue with all fields."
   (beads-test-with-temp-config
    (let ((parsed (beads--parse-issue beads-test--sample-issue)))
-     (should (listp parsed))
-     (should (consp parsed))
-     (should (equal (alist-get 'id parsed) "bd-1"))
-     (should (equal (alist-get 'title parsed) "Test Issue"))
-     (should (equal (alist-get 'description parsed) "Test description"))
-     (should (equal (alist-get 'status parsed) "open"))
-     (should (= (alist-get 'priority parsed) 1))
-     (should (equal (alist-get 'issue-type parsed) "bug"))
-     (should (equal (alist-get 'created-at parsed)
+     (should (beads-issue-p parsed))
+     (should (beads-issue-p parsed))
+     (should (equal (oref parsed id) "bd-1"))
+     (should (equal (oref parsed title) "Test Issue"))
+     (should (equal (oref parsed description) "Test description"))
+     (should (equal (oref parsed status) "open"))
+     (should (= (oref parsed priority) 1))
+     (should (equal (oref parsed issue-type) "bug"))
+     (should (equal (oref parsed created-at)
                     "2025-01-15T10:00:00Z"))
-     (should (equal (alist-get 'updated-at parsed)
+     (should (equal (oref parsed updated-at)
                     "2025-01-15T10:00:00Z"))
-     (should (equal (alist-get 'acceptance-criteria parsed) "Must work"))
-     (should (equal (alist-get 'design parsed) "Simple design"))
-     (should (equal (alist-get 'notes parsed) "Some notes"))
-     (should (equal (alist-get 'assignee parsed) "alice"))
-     (should (equal (alist-get 'external-ref parsed) "EXT-123")))))
+     (should (equal (oref parsed acceptance-criteria) "Must work"))
+     (should (equal (oref parsed design) "Simple design"))
+     (should (equal (oref parsed notes) "Some notes"))
+     (should (equal (oref parsed assignee) "alice"))
+     (should (equal (oref parsed external-ref) "EXT-123")))))
 
 (ert-deftest beads-test-parse-issue-minimal ()
   "Test parsing an issue with minimal fields."
@@ -769,25 +769,25 @@ STRUCTURE is a list of paths to create (dirs end with /)."
                            (title . "Minimal")
                            (status . "open")))
           (parsed (beads--parse-issue minimal-issue)))
-     (should (listp parsed))
-     (should (consp parsed))
-     (should (equal (alist-get 'id parsed) "bd-2"))
-     (should (equal (alist-get 'title parsed) "Minimal"))
-     (should (equal (alist-get 'status parsed) "open"))
+     (should (beads-issue-p parsed))
+     (should (beads-issue-p parsed))
+     (should (equal (oref parsed id) "bd-2"))
+     (should (equal (oref parsed title) "Minimal"))
+     (should (equal (oref parsed status) "open"))
      ;; Missing fields should be nil
-     (should (null (alist-get 'description parsed)))
-     (should (null (alist-get 'priority parsed)))
-     (should (null (alist-get 'issue-type parsed))))))
+     (should (null (oref parsed description)))
+     (should (null (oref parsed priority)))
+     (should (null (oref parsed issue-type))))))
 
 (ert-deftest beads-test-parse-issue-from-vector ()
   "Test parsing issue from a single-element vector."
   (beads-test-with-temp-config
    (let* ((issue-vector (vector beads-test--sample-issue))
           (parsed (beads--parse-issue issue-vector)))
-     (should (listp parsed))
-     (should (consp parsed))
-     (should (equal (alist-get 'id parsed) "bd-1"))
-     (should (equal (alist-get 'title parsed) "Test Issue")))))
+     (should (beads-issue-p parsed))
+     (should (beads-issue-p parsed))
+     (should (equal (oref parsed id) "bd-1"))
+     (should (equal (oref parsed title) "Test Issue")))))
 
 (ert-deftest beads-test-parse-issue-underscore-conversion ()
   "Test that JSON field names with underscores are converted correctly."
@@ -800,11 +800,11 @@ STRUCTURE is a list of paths to create (dirs end with /)."
                    (external_ref . "REF-1")))
           (parsed (beads--parse-issue issue)))
      ;; Check that underscored names are accessible with dashed keys
-     (should (equal (alist-get 'issue-type parsed) "feature"))
-     (should (equal (alist-get 'created-at parsed) "2025-01-15T10:00:00Z"))
-     (should (equal (alist-get 'updated-at parsed) "2025-01-15T11:00:00Z"))
-     (should (equal (alist-get 'acceptance-criteria parsed) "Criteria"))
-     (should (equal (alist-get 'external-ref parsed) "REF-1")))))
+     (should (equal (oref parsed issue-type) "feature"))
+     (should (equal (oref parsed created-at) "2025-01-15T10:00:00Z"))
+     (should (equal (oref parsed updated-at) "2025-01-15T11:00:00Z"))
+     (should (equal (oref parsed acceptance-criteria) "Criteria"))
+     (should (equal (oref parsed external-ref) "REF-1")))))
 
 (ert-deftest beads-test-parse-issue-null-fields ()
   "Test parsing issue with null fields."
@@ -815,10 +815,10 @@ STRUCTURE is a list of paths to create (dirs end with /)."
                    (assignee . nil)
                    (priority . 1)))
           (parsed (beads--parse-issue issue)))
-     (should (equal (alist-get 'id parsed) "bd-1"))
-     (should (null (alist-get 'description parsed)))
-     (should (null (alist-get 'assignee parsed)))
-     (should (= (alist-get 'priority parsed) 1)))))
+     (should (equal (oref parsed id) "bd-1"))
+     (should (null (oref parsed description)))
+     (should (null (oref parsed assignee)))
+     (should (= (oref parsed priority) 1)))))
 
 (ert-deftest beads-test-parse-issue-preserves-types ()
   "Test that parsing preserves data types correctly."
@@ -829,11 +829,11 @@ STRUCTURE is a list of paths to create (dirs end with /)."
                    (created_at . "2025-01-15T10:00:00Z")))
           (parsed (beads--parse-issue issue)))
      ;; Numbers should remain numbers
-     (should (numberp (alist-get 'priority parsed)))
-     (should (= (alist-get 'priority parsed) 2))
+     (should (numberp (oref parsed priority)))
+     (should (= (oref parsed priority) 2))
      ;; Strings should remain strings
-     (should (stringp (alist-get 'status parsed)))
-     (should (stringp (alist-get 'created-at parsed))))))
+     (should (stringp (oref parsed status)))
+     (should (stringp (oref parsed created-at))))))
 
 ;;; Tests for beads--parse-issues
 
@@ -845,19 +845,22 @@ STRUCTURE is a list of paths to create (dirs end with /)."
      (should (= (length parsed) 3))
      ;; Check first issue
      (let ((first (car parsed)))
-       (should (equal (alist-get 'id first) "bd-1"))
-       (should (equal (alist-get 'title first) "First Issue"))
-       (should (= (alist-get 'priority first) 1)))
+       (should (beads-issue-p first))
+       (should (equal (oref first id) "bd-1"))
+       (should (equal (oref first title) "First Issue"))
+       (should (= (oref first priority) 1)))
      ;; Check second issue
      (let ((second (cadr parsed)))
-       (should (equal (alist-get 'id second) "bd-2"))
-       (should (equal (alist-get 'title second) "Second Issue"))
-       (should (= (alist-get 'priority second) 2)))
+       (should (beads-issue-p second))
+       (should (equal (oref second id) "bd-2"))
+       (should (equal (oref second title) "Second Issue"))
+       (should (= (oref second priority) 2)))
      ;; Check third issue
      (let ((third (caddr parsed)))
-       (should (equal (alist-get 'id third) "bd-3"))
-       (should (equal (alist-get 'title third) "Third Issue"))
-       (should (= (alist-get 'priority third) 3))))))
+       (should (beads-issue-p third))
+       (should (equal (oref third id) "bd-3"))
+       (should (equal (oref third title) "Third Issue"))
+       (should (= (oref third priority) 3))))))
 
 (ert-deftest beads-test-parse-issues-empty-array ()
   "Test parsing empty issues array."
@@ -873,8 +876,9 @@ STRUCTURE is a list of paths to create (dirs end with /)."
      (should (listp parsed))
      (should (= (length parsed) 1))
      (let ((issue (car parsed)))
-       (should (equal (alist-get 'id issue) "bd-1"))
-       (should (equal (alist-get 'title issue) "Test Issue"))))))
+       (should (beads-issue-p issue))
+       (should (equal (oref issue id) "bd-1"))
+       (should (equal (oref issue title) "Test Issue"))))))
 
 (ert-deftest beads-test-parse-issues-nil-input ()
   "Test parsing with nil input."
@@ -892,9 +896,9 @@ STRUCTURE is a list of paths to create (dirs end with /)."
   "Test that parsing maintains issue order."
   (beads-test-with-temp-config
    (let ((parsed (beads--parse-issues beads-test--sample-issues-array)))
-     (should (equal (alist-get 'id (nth 0 parsed)) "bd-1"))
-     (should (equal (alist-get 'id (nth 1 parsed)) "bd-2"))
-     (should (equal (alist-get 'id (nth 2 parsed)) "bd-3")))))
+     (should (equal (oref (nth 0 parsed) id) "bd-1"))
+     (should (equal (oref (nth 1 parsed) id) "bd-2"))
+     (should (equal (oref (nth 2 parsed) id) "bd-3")))))
 
 
 (ert-deftest beads-test-edge-case-large-json-array ()
@@ -903,8 +907,8 @@ STRUCTURE is a list of paths to create (dirs end with /)."
    (let* ((large-array (make-vector 100 beads-test--sample-issue))
           (parsed (beads--parse-issues large-array)))
      (should (= (length parsed) 100))
-     (should (equal (alist-get 'id (car parsed)) "bd-1"))
-     (should (equal (alist-get 'id (car (last parsed))) "bd-1")))))
+     (should (equal (oref (car parsed) id) "bd-1"))
+     (should (equal (oref (car (last parsed)) id) "bd-1")))))
 
 (ert-deftest beads-test-edge-case-special-characters-in-strings ()
   "Test handling of special characters in issue fields."
@@ -914,10 +918,10 @@ STRUCTURE is a list of paths to create (dirs end with /)."
                    (description . "Line 1\nLine 2\tTabbed")
                    (notes . "Special: <>&\\")))
           (parsed (beads--parse-issue issue)))
-     (should (equal (alist-get 'title parsed)
+     (should (equal (oref parsed title)
                     "Test \"quotes\" and 'apostrophes'"))
-     (should (string-match-p "\n" (alist-get 'description parsed)))
-     (should (string-match-p "\t" (alist-get 'description parsed))))))
+     (should (string-match-p "\n" (oref parsed description)))
+     (should (string-match-p "\t" (oref parsed description))))))
 
 (ert-deftest beads-test-edge-case-very-long-strings ()
   "Test handling of very long string values."
@@ -927,8 +931,8 @@ STRUCTURE is a list of paths to create (dirs end with /)."
                    (title . "Test")
                    (description . ,long-string)))
           (parsed (beads--parse-issue issue)))
-     (should (equal (alist-get 'description parsed) long-string))
-     (should (= (length (alist-get 'description parsed)) 10000)))))
+     (should (equal (oref parsed description) long-string))
+     (should (= (length (oref parsed description)) 10000)))))
 
 (ert-deftest beads-test-edge-case-numeric-string-id ()
   "Test that numeric IDs remain as strings."
@@ -936,8 +940,8 @@ STRUCTURE is a list of paths to create (dirs end with /)."
    (let* ((issue '((id . "123")
                    (title . "Numeric ID")))
           (parsed (beads--parse-issue issue)))
-     (should (stringp (alist-get 'id parsed)))
-     (should (equal (alist-get 'id parsed) "123")))))
+     (should (stringp (oref parsed id)))
+     (should (equal (oref parsed id) "123")))))
 
 (ert-deftest beads-test-edge-case-zero-priority ()
   "Test handling of zero priority (critical)."
@@ -945,8 +949,8 @@ STRUCTURE is a list of paths to create (dirs end with /)."
    (let* ((issue '((id . "bd-1")
                    (priority . 0)))
           (parsed (beads--parse-issue issue)))
-     (should (numberp (alist-get 'priority parsed)))
-     (should (= (alist-get 'priority parsed) 0)))))
+     (should (numberp (oref parsed priority)))
+     (should (= (oref parsed priority) 0)))))
 
 (ert-deftest beads-test-performance-parse-many-issues ()
   "Test parsing performance with many issues."

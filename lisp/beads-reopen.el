@@ -38,14 +38,15 @@
 ;;; Utility Functions
 
 (defun beads-reopen--parse-transient-args (args)
-  "Parse transient ARGS list into a plist.
-Returns (:issue-id STRING :reason STRING).
+  "Parse transient ARGS list into a beads-command-reopen instance.
+Returns a beads-command-reopen object populated with values from ARGS.
 
 This uses transient's standard argument parsing with dash-style flags."
   (let* ((issue-id (transient-arg-value "--id=" args))
          (reason (transient-arg-value "--reason=" args)))
-    (list :issue-id issue-id
-          :reason reason)))
+    (beads-command-reopen
+     :issue-ids (when issue-id (list issue-id))
+     :reason reason)))
 
 (defun beads-reopen--detect-issue-id ()
   "Detect issue ID from current context.
@@ -69,27 +70,13 @@ Returns error message string if invalid, nil if valid."
             (string-empty-p (string-trim issue-id)))
     "Issue ID is required"))
 
-(defun beads-reopen--validate-all (parsed)
-  "Validate all parameters from PARSED plist.
+(defun beads-reopen--validate-all (cmd)
+  "Validate all parameters from CMD beads-command-reopen instance.
 Returns list of error messages, or nil if all valid."
   (delq nil
         (list (beads-reopen--validate-issue-id
-               (plist-get parsed :issue-id)))))
-
-(defun beads-reopen--build-command-args (parsed)
-  "Build command arguments from PARSED plist.
-Returns list of arguments for bd reopen command."
-  (let (args)
-    ;; Push in reverse order for push/nreverse pattern
-    ;; Issue ID goes first (will be first after nreverse)
-    (push (plist-get parsed :issue-id) args)
-    ;; Add reason flag if provided
-    (when-let ((reason (plist-get parsed :reason)))
-      (let ((trimmed (string-trim reason)))
-        (unless (string-empty-p trimmed)
-          (push "--reason" args)
-          (push trimmed args))))
-    (nreverse args)))
+               (when (oref cmd issue-ids)
+                 (car (oref cmd issue-ids)))))))
 
 ;;; Suffix Commands
 
@@ -99,32 +86,29 @@ Returns list of arguments for bd reopen command."
   :description "Reopen issue"
   (interactive)
   (let* ((args (transient-args 'beads-reopen--menu))
-         (parsed (beads-reopen--parse-transient-args args))
-         (errors (beads-reopen--validate-all parsed)))
+         (cmd (beads-reopen--parse-transient-args args))
+         (errors (beads-reopen--validate-all cmd)))
     (if errors
         (user-error "Validation failed: %s" (string-join errors "; "))
       (condition-case err
-          (progn
-            (let* ((cmd-args (beads-reopen--build-command-args parsed))
-                   (issue (apply #'beads-command-reopen! cmd-args))
-                   (issue-id (oref issue id)))
-              (message "Reopened issue: %s - %s"
-                       issue-id
-                       (oref issue title))
-              ;; Invalidate completion cache
-              (beads--invalidate-completion-cache)
-              ;; Refresh any open beads buffers
-              (when beads-auto-refresh
-                (dolist (buf (buffer-list))
-                  (with-current-buffer buf
-                    (cond
-                     ((and (derived-mode-p 'beads-list-mode)
-                           (bound-and-true-p beads-list--command))
-                      (beads-list-refresh))
-                     ((and (derived-mode-p 'beads-show-mode)
-                           (string= beads-show--issue-id issue-id))
-                      (beads-refresh-show))))))
-              nil))
+          (let ((issue (beads-command-execute cmd)))
+            (message "Reopened issue: %s - %s"
+                     (oref issue id)
+                     (oref issue title))
+            ;; Invalidate completion cache
+            (beads--invalidate-completion-cache)
+            ;; Refresh any open beads buffers
+            (when beads-auto-refresh
+              (dolist (buf (buffer-list))
+                (with-current-buffer buf
+                  (cond
+                   ((and (derived-mode-p 'beads-list-mode)
+                         (bound-and-true-p beads-list--command))
+                    (beads-list-refresh))
+                   ((and (derived-mode-p 'beads-show-mode)
+                         (string= beads-show--issue-id (oref issue id)))
+                    (beads-refresh-show))))))
+            nil)
         (error
          (let ((err-msg (format "Failed to reopen issue: %s"
                                (error-message-string err))))
@@ -151,16 +135,15 @@ Returns list of arguments for bd reopen command."
   :transient t
   (interactive)
   (let* ((args (transient-args 'beads-reopen--menu))
-         (parsed (beads-reopen--parse-transient-args args))
-         (errors (beads-reopen--validate-all parsed)))
+         (cmd (beads-reopen--parse-transient-args args))
+         (errors (beads-reopen--validate-all cmd)))
     (if errors
         (let ((err-msg (format "Validation errors: %s"
                               (string-join errors "; "))))
           (message "%s" err-msg)
           err-msg)
-      (let* ((cmd-args (beads-reopen--build-command-args parsed))
-             (cmd (apply #'beads--build-command "reopen" cmd-args))
-             (cmd-string (mapconcat #'shell-quote-argument cmd " "))
+      (let* ((cmd-list (beads-command-line cmd))
+             (cmd-string (mapconcat #'shell-quote-argument cmd-list " "))
              (preview-msg (format "Command: %s" cmd-string)))
         (message "%s" preview-msg)
         preview-msg))))
