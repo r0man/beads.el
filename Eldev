@@ -5,6 +5,13 @@
 (eldev-use-package-archive 'gnu)
 (eldev-use-package-archive 'melpa)
 
+;; Enable undercover.el for code coverage tracking
+(eldev-use-plugin 'undercover)
+
+;; Configure undercover to track coverage for all lisp/*.el files except tests
+;; This excludes lisp/test/* files from coverage instrumentation
+(setf eldev-undercover-fileset '("lisp/*.el" ":not" "lisp/test/*.el"))
+
 (setq eldev-project-main-file "lisp/beads.el")
 
 ;; Ensure we upgrade built-in packages (like transient) with newer versions from archives
