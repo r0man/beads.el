@@ -318,7 +318,7 @@ coverage instrumentation to work).
 UNDERCOVER_FORCE=1 BD_NO_DAEMON=1 guix shell -D -f guix.scm -- eldev -s -dtT test
 
 # The -s flag enables source loading mode (required for undercover)
-# Coverage reports are generated in coverage/ directory
+# Coverage reports are saved to coverage/lcov.info (LCOV format)
 ```
 
 **Important notes:**
@@ -331,6 +331,7 @@ UNDERCOVER_FORCE=1 BD_NO_DAEMON=1 guix shell -D -f guix.scm -- eldev -s -dtT tes
 **Configuration:**
 - Coverage fileset: Defined in Eldev via `eldev-undercover-fileset`
 - Currently tracks: `lisp/*.el` excluding `lisp/test/*.el`
+- Report location: `coverage/lcov.info` (LCOV format)
 - Plugin enabled via: `(eldev-use-plugin 'undercover)` in Eldev file
 
 ### Lint
