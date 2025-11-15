@@ -15,7 +15,9 @@
 ;; Configure undercover report generation
 ;; Save coverage report to coverage/lcov.info for local and CI use
 (setf eldev-undercover-report-file "coverage/lcov.info")
-(setf eldev-undercover-report-format 'lcov)
+;; Force undercover to always generate reports (even outside CI)
+;; The :report-format must be in options, not a separate variable
+(setf eldev-undercover-options '(:report-format lcov :send-report nil))
 
 (setq eldev-project-main-file "lisp/beads.el")
 

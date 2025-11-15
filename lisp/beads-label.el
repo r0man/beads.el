@@ -241,27 +241,9 @@ Returns list of arguments for bd label add command."
 
 ;;; Main Transient Menu
 
-;; Transient menu definition is deferred until beads-option is loaded
+;; Transient menu definition moved to beads-option.el
 ;; to avoid circular dependency (beads-option requires beads-label)
-;;;###autoload (autoload 'beads-label-add "beads-label" nil t)
-(with-eval-after-load 'beads-option
-  (transient-define-prefix beads-label-add ()
-    "Add a label to one or more issues.
-
-This transient menu provides an interactive interface for adding
-labels to issues using the bd label add command."
-    ["Arguments"
-     ("i" "Issue ID(s)" "--issue-ids="
-      :reader beads-reader-label-issue-ids
-      :prompt "Issue ID(s) (comma-separated): ")
-     ("l" "Label" "--label="
-      :reader beads-reader-label-name
-      :prompt "Label name: ")]
-    beads-option-global-section
-    ["Actions"
-     ("a" "Add label" beads-label-add--execute)
-     ("P" "Preview command" beads-label-add--preview)
-     ("r" "Reset fields" beads-label-add--reset)]))
+;; See beads-label-add in beads-option.el
 
 ;;; Label Remove Command
 
@@ -382,27 +364,9 @@ Returns list of arguments for bd label remove command."
 
 ;;; Main Transient Menu
 
-;; Transient menu definition is deferred until beads-option is loaded
+;; Transient menu definition moved to beads-option.el
 ;; to avoid circular dependency (beads-option requires beads-label)
-;;;###autoload (autoload 'beads-label-remove "beads-label" nil t)
-(with-eval-after-load 'beads-option
-  (transient-define-prefix beads-label-remove ()
-    "Remove a label from one or more issues.
-
-This transient menu provides an interactive interface for removing
-labels from issues using the bd label remove command."
-    ["Arguments"
-     ("i" "Issue ID(s)" "--issue-ids="
-      :reader beads-reader-label-issue-ids
-      :prompt "Issue ID(s) (comma-separated): ")
-     ("l" "Label" "--label="
-      :reader beads-reader-label-name
-      :prompt "Label name: ")]
-    beads-option-global-section
-    ["Actions"
-     ("r" "Remove label" beads-label-remove--execute)
-     ("P" "Preview command" beads-label-remove--preview)
-     ("R" "Reset fields" beads-label-remove--reset)]))
+;; See beads-label-remove in beads-option.el
 
 ;;; Label List Command
 
