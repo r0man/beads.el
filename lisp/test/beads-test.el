@@ -1491,8 +1491,11 @@ STRUCTURE is a list of paths to create (dirs end with /)."
        (let ((result (beads-label-list-all)))
          (should (listp result))
          (should (= (length result) 2))
-         (should (member "backend" result))
-         (should (member "frontend" result)))))))
+         ;; Result should be list of objects with 'label and 'count
+         (should (cl-some (lambda (obj) (equal (alist-get 'label obj) "backend")) result))
+         (should (cl-some (lambda (obj) (equal (alist-get 'label obj) "frontend")) result))
+         ;; Verify count fields exist
+         (should (cl-every (lambda (obj) (numberp (alist-get 'count obj))) result)))))))
 
 (ert-deftest beads-test-label-list-all-empty ()
   "Test label list-all with no labels."
@@ -1515,7 +1518,8 @@ STRUCTURE is a list of paths to create (dirs end with /)."
        ;; First call should populate cache
        (let ((result1 (beads--get-cached-labels)))
          (should (listp result1))
-         (should (member "test" result1))
+         ;; Result should be list of objects with 'label field
+         (should (cl-some (lambda (obj) (equal (alist-get 'label obj) "test")) result1))
 
          ;; Cache should be populated
          (should beads--label-cache)
@@ -1541,7 +1545,8 @@ STRUCTURE is a list of paths to create (dirs end with /)."
      (cl-letf (((symbol-function 'process-file)
                 (beads-test--mock-call-process 0 json-output1)))
        (let ((result1 (beads--get-cached-labels)))
-         (should (member "old" result1))
+         ;; Result should contain object with label "old"
+         (should (cl-some (lambda (obj) (equal (alist-get 'label obj) "old")) result1))
 
          ;; Wait for cache to expire
          (sleep-for 1.1)
@@ -1550,8 +1555,9 @@ STRUCTURE is a list of paths to create (dirs end with /)."
          (cl-letf (((symbol-function 'process-file)
                     (beads-test--mock-call-process 0 json-output2)))
            (let ((result2 (beads--get-cached-labels)))
-             (should (member "new" result2))
-             (should-not (member "old" result2)))))))))
+             ;; Result should contain object with label "new" but not "old"
+             (should (cl-some (lambda (obj) (equal (alist-get 'label obj) "new")) result2))
+             (should-not (cl-some (lambda (obj) (equal (alist-get 'label obj) "old")) result2)))))))))
 
 (ert-deftest beads-test-label-cache-invalidation ()
   "Test that cache can be manually invalidated."
@@ -1599,7 +1605,12 @@ STRUCTURE is a list of paths to create (dirs end with /)."
   "Test that label completion table removes any duplicate labels."
   (beads-test-with-temp-config
    ;; Manually set cache with duplicates (shouldn't happen, but test defensively)
-   (setq beads--label-cache (cons (float-time) '("test" "test" "other")))
+   ;; Cache now stores objects, not strings
+   (setq beads--label-cache
+         (cons (float-time)
+               (list (list (cons 'label "test") (cons 'count 1))
+                     (list (cons 'label "test") (cons 'count 2))
+                     (list (cons 'label "other") (cons 'count 1)))))
 
    (let ((table (beads--label-completion-table)))
      (should (listp table))
