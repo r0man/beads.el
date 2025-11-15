@@ -39,12 +39,9 @@
 (declare-function beads-list--current-issue-id "beads-list")
 (declare-function beads-list-refresh "beads-list")
 (declare-function beads-show-refresh "beads-show")
-(declare-function beads-option-read-issue-ids-for-label "beads-option")
-(declare-function beads-option-read-label-name "beads-option")
-
-;; Circular dependency note: beads-option requires beads-label for
-;; beads--label-completion-table.  We avoid the cycle by only forward-declaring
-;; the reader functions and loading beads-option dynamically.
+(declare-function beads-reader-label-issue-ids "beads-reader")
+(declare-function beads-reader-label-name "beads-reader")
+(defvar beads-show--issue-id)
 
 ;;; Customization
 
@@ -70,17 +67,17 @@ Format: (TIMESTAMP . LABELS-LIST)")
 
 (defun beads-label-list-all ()
   "Fetch all labels from bd label list-all.
-Returns a list of label name strings."
+Returns a list of label objects, each with \\='label and \\='count fields."
   (let* ((cmd (beads-command-label-list-all))
          ;; Execute command, returns parsed JSON array
          (json (beads-command-execute cmd))
          ;; JSON is array of {\"label\": \"name\", \"count\": N}
          (labels (append json nil)))
-    (mapcar (lambda (entry) (alist-get 'label entry)) labels)))
+    labels))
 
 (defun beads--get-cached-labels ()
   "Get cached label list, refreshing if stale.
-Returns list of label name strings or nil on error."
+Returns list of label objects (with \\='label and \\='count fields) or nil on error."
   (let ((now (float-time)))
     (when (or (null beads--label-cache)
               (> (- now (car beads--label-cache))
@@ -100,9 +97,11 @@ Call this after adding or removing labels."
 (defun beads--label-completion-table ()
   "Return completion table of unique label names.
 Returns a simple list of label strings for use with `completing-read'."
-  (let ((labels (beads--get-cached-labels)))
-    ;; Remove duplicates (shouldn't be any from bd, but be safe)
-    (delete-dups labels)))
+  (let ((label-objects (beads--get-cached-labels)))
+    ;; Extract label names from objects and remove duplicates
+    (delete-dups
+     (mapcar (lambda (entry) (alist-get 'label entry))
+             label-objects))))
 
 ;;; Context Detection
 
@@ -239,25 +238,27 @@ Returns list of arguments for bd label add command."
 
 ;;; Main Transient Menu
 
+;; Transient menu definition is deferred until beads-option is loaded
+;; to avoid circular dependency (beads-option requires beads-label)
 ;;;###autoload (autoload 'beads-label-add "beads-label" nil t)
-(transient-define-prefix beads-label-add ()
-  "Add a label to one or more issues.
+(with-eval-after-load 'beads-option
+  (transient-define-prefix beads-label-add ()
+    "Add a label to one or more issues.
 
 This transient menu provides an interactive interface for adding
 labels to issues using the bd label add command."
-  :init-value (lambda (_) (require 'beads-option))
-  ["Arguments"
-   ("i" "Issue ID(s)" "--issue-ids="
-    :reader beads-option-read-issue-ids-for-label
-    :prompt "Issue ID(s) (comma-separated): ")
-   ("l" "Label" "--label="
-    :reader beads-option-read-label-name
-    :prompt "Label name: ")]
-  beads-option-global-section
-  ["Actions"
-   ("a" "Add label" beads-label-add--execute)
-   ("P" "Preview command" beads-label-add--preview)
-   ("r" "Reset fields" beads-label-add--reset)])
+    ["Arguments"
+     ("i" "Issue ID(s)" "--issue-ids="
+      :reader beads-reader-label-issue-ids
+      :prompt "Issue ID(s) (comma-separated): ")
+     ("l" "Label" "--label="
+      :reader beads-reader-label-name
+      :prompt "Label name: ")]
+    beads-option-global-section
+    ["Actions"
+     ("a" "Add label" beads-label-add--execute)
+     ("P" "Preview command" beads-label-add--preview)
+     ("r" "Reset fields" beads-label-add--reset)]))
 
 ;;; Label Remove Command
 
@@ -378,25 +379,27 @@ Returns list of arguments for bd label remove command."
 
 ;;; Main Transient Menu
 
+;; Transient menu definition is deferred until beads-option is loaded
+;; to avoid circular dependency (beads-option requires beads-label)
 ;;;###autoload (autoload 'beads-label-remove "beads-label" nil t)
-(transient-define-prefix beads-label-remove ()
-  "Remove a label from one or more issues.
+(with-eval-after-load 'beads-option
+  (transient-define-prefix beads-label-remove ()
+    "Remove a label from one or more issues.
 
 This transient menu provides an interactive interface for removing
 labels from issues using the bd label remove command."
-  :init-value (lambda (_) (require 'beads-option))
-  ["Arguments"
-   ("i" "Issue ID(s)" "--issue-ids="
-    :reader beads-option-read-issue-ids-for-label
-    :prompt "Issue ID(s) (comma-separated): ")
-   ("l" "Label" "--label="
-    :reader beads-option-read-label-name
-    :prompt "Label name: ")]
-  beads-option-global-section
-  ["Actions"
-   ("r" "Remove label" beads-label-remove--execute)
-   ("P" "Preview command" beads-label-remove--preview)
-   ("R" "Reset fields" beads-label-remove--reset)])
+    ["Arguments"
+     ("i" "Issue ID(s)" "--issue-ids="
+      :reader beads-reader-label-issue-ids
+      :prompt "Issue ID(s) (comma-separated): ")
+     ("l" "Label" "--label="
+      :reader beads-reader-label-name
+      :prompt "Label name: ")]
+    beads-option-global-section
+    ["Actions"
+     ("r" "Remove label" beads-label-remove--execute)
+     ("P" "Preview command" beads-label-remove--preview)
+     ("R" "Reset fields" beads-label-remove--reset)]))
 
 ;;; Label List Command
 
