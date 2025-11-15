@@ -55,3 +55,4 @@ Thumbs.db
 .beads/beads.base.jsonl
 .beads/beads.left.jsonl
 .beads/beads.right.jsonl
+coverage/

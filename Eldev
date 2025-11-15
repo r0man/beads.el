@@ -12,6 +12,11 @@
 ;; This excludes lisp/test/* files from coverage instrumentation
 (setf eldev-undercover-fileset '("lisp/*.el" ":not" "lisp/test/*.el"))
 
+;; Configure undercover report generation
+;; Save coverage report to coverage/lcov.info for local and CI use
+(setf eldev-undercover-report-file "coverage/lcov.info")
+(setf eldev-undercover-report-format 'lcov)
+
 (setq eldev-project-main-file "lisp/beads.el")
 
 ;; Ensure we upgrade built-in packages (like transient) with newer versions from archives
