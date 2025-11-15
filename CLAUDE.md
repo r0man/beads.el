@@ -305,6 +305,34 @@ BD_NO_DAEMON=1 guix shell -D -f guix.scm -- eldev -p -dtT test
 BD_NO_DAEMON=1 eldev -p -dtT test
 ```
 
+### Code Coverage
+
+The project uses undercover.el for code coverage tracking. Coverage is
+automatically collected when running tests in source mode (required for
+coverage instrumentation to work).
+
+**Running tests with coverage:**
+
+```bash
+# Local coverage (requires UNDERCOVER_FORCE=1 outside CI):
+UNDERCOVER_FORCE=1 BD_NO_DAEMON=1 guix shell -D -f guix.scm -- eldev -s -dtT test
+
+# The -s flag enables source loading mode (required for undercover)
+# Coverage reports are generated in coverage/ directory
+```
+
+**Important notes:**
+- Coverage tracking requires `-s` (source) loading mode, NOT `-p` (packaged)
+- Undercover doesn't work with byte-compiled files
+- Coverage is configured to track all lisp/*.el files except lisp/test/*
+- On CI systems, coverage is automatically enabled without UNDERCOVER_FORCE
+- Reports support LCOV, SimpleCov, Coveralls, and Codecov formats
+
+**Configuration:**
+- Coverage fileset: Defined in Eldev via `eldev-undercover-fileset`
+- Currently tracks: `lisp/*.el` excluding `lisp/test/*.el`
+- Plugin enabled via: `(eldev-use-plugin 'undercover)` in Eldev file
+
 ### Lint
 
 ```bash
