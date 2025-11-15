@@ -34,9 +34,12 @@
       (let ((result (beads-label-list-all)))
         (should (listp result))
         (should (= (length result) 3))
-        (should (member "backend" result))
-        (should (member "frontend" result))
-        (should (member "bug" result))))))
+        ;; Result should be list of objects with 'label and 'count
+        (should (cl-some (lambda (obj) (equal (alist-get 'label obj) "backend")) result))
+        (should (cl-some (lambda (obj) (equal (alist-get 'label obj) "frontend")) result))
+        (should (cl-some (lambda (obj) (equal (alist-get 'label obj) "bug")) result))
+        ;; Verify count fields exist
+        (should (cl-every (lambda (obj) (numberp (alist-get 'count obj))) result))))))
 
 (ert-deftest beads-label-test-cache-works ()
   "Test that label cache stores and retrieves labels."
@@ -49,7 +52,8 @@
       ;; First call should populate cache
       (let ((result1 (beads--get-cached-labels)))
         (should (listp result1))
-        (should (member "backend" result1))
+        ;; Result should be list of objects with 'label field
+        (should (cl-some (lambda (obj) (equal (alist-get 'label obj) "backend")) result1))
 
         ;; Cache should be populated
         (should beads--label-cache)
