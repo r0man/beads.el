@@ -398,28 +398,15 @@ If TRANSFORM is non-nil, return the transformed issue ID."
 
 (defun beads--parse-issue (json)
   "Parse issue from JSON object.
-Returns an alist with issue fields."
+Returns a beads-issue EIEIO instance."
   (let ((issue (if (vectorp json) (aref json 0) json)))
-    `((id . ,(alist-get 'id issue))
-      (title . ,(alist-get 'title issue))
-      (description . ,(alist-get 'description issue))
-      (status . ,(alist-get 'status issue))
-      (priority . ,(alist-get 'priority issue))
-      (issue-type . ,(alist-get 'issue_type issue))
-      (created-at . ,(alist-get 'created_at issue))
-      (updated-at . ,(alist-get 'updated_at issue))
-      (closed-at . ,(alist-get 'closed_at issue))
-      (acceptance-criteria . ,(alist-get 'acceptance_criteria issue))
-      (design . ,(alist-get 'design issue))
-      (notes . ,(alist-get 'notes issue))
-      (assignee . ,(alist-get 'assignee issue))
-      (external-ref . ,(alist-get 'external_ref issue)))))
+    (beads-issue-from-json issue)))
 
 (defun beads--parse-issues (json)
   "Parse list of issues from JSON array.
-Returns a list of issue alists."
+Returns a list of beads-issue EIEIO instances."
   (when (and json (vectorp json))
-    (mapcar #'beads--parse-issue (append json nil))))
+    (mapcar #'beads-issue-from-json (append json nil))))
 
 ;;; Public API
 

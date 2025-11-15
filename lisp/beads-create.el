@@ -40,12 +40,8 @@
 ;;; Utility Functions
 
 (defun beads-create--parse-transient-args (args)
-  "Parse transient ARGS list into a plist.
-Returns (:title STRING :type STRING :priority NUMBER
-         :description STRING :custom-id STRING :dependencies STRING
-         :acceptance STRING :assignee STRING :design STRING
-         :external-ref STRING :labels STRING :force BOOLEAN
-         :parent STRING :repo STRING :from-template STRING :file STRING).
+  "Parse transient ARGS list into a beads-command-create instance.
+Returns a beads-command-create object populated with values from ARGS.
 
 This uses transient's standard argument parsing with dash-style flags."
   (let* ((title (transient-arg-value "--title=" args))
@@ -54,33 +50,40 @@ This uses transient's standard argument parsing with dash-style flags."
          (priority (when priority-str (string-to-number priority-str)))
          (description (transient-arg-value "--description=" args))
          (custom-id (transient-arg-value "--id=" args))
-         (dependencies (transient-arg-value "--deps=" args))
+         (dependencies-str (transient-arg-value "--deps=" args))
+         (dependencies (when (and dependencies-str
+                                  (not (string-empty-p (string-trim dependencies-str))))
+                         (split-string (string-trim dependencies-str) "," t "[ \t]+")))
          (acceptance (transient-arg-value "--acceptance=" args))
          (assignee (transient-arg-value "--assignee=" args))
          (design (transient-arg-value "--design=" args))
          (external-ref (transient-arg-value "--external-ref=" args))
-         (labels (transient-arg-value "--labels=" args))
+         (labels-str (transient-arg-value "--labels=" args))
+         (labels (when (and labels-str
+                           (not (string-empty-p (string-trim labels-str))))
+                   (split-string (string-trim labels-str) "," t "[ \t]+")))
          (force (transient-arg-value "--force" args))
          (parent (transient-arg-value "--parent=" args))
          (repo (transient-arg-value "--repo=" args))
          (from-template (transient-arg-value "--from-template=" args))
          (file (transient-arg-value "--file=" args)))
-    (list :title title
-          :type type
-          :priority priority
-          :description description
-          :custom-id custom-id
-          :dependencies dependencies
-          :acceptance acceptance
-          :assignee assignee
-          :design design
-          :external-ref external-ref
-          :labels labels
-          :force force
-          :parent parent
-          :repo repo
-          :from-template from-template
-          :file file)))
+    (beads-command-create
+     :title title
+     :issue-type type
+     :priority priority
+     :description description
+     :id custom-id
+     :deps dependencies
+     :acceptance acceptance
+     :assignee assignee
+     :design design
+     :external-ref external-ref
+     :labels labels
+     :force force
+     :parent parent
+     :repo repo
+     :from-template from-template
+     :file file)))
 
 (defun beads-create--validate-title (title)
   "Validate that TITLE is set.
@@ -116,97 +119,17 @@ Returns error message string if invalid, nil if valid."
              dependencies)
       "Dependencies must be in format: type:issue-id (e.g., blocks:bd-a1b2)")))
 
-(defun beads-create--validate-all (parsed)
-  "Validate all parameters from PARSED plist.
+(defun beads-create--validate-all (cmd)
+  "Validate all parameters from CMD beads-command-create instance.
 Returns list of error messages, or nil if all valid."
   (delq nil
-        (list (beads-create--validate-title (plist-get parsed :title))
-              (beads-create--validate-type (plist-get parsed :type))
-              (beads-create--validate-priority
-               (plist-get parsed :priority))
+        (list (beads-create--validate-title (oref cmd title))
+              (beads-create--validate-type (oref cmd issue-type))
+              (beads-create--validate-priority (oref cmd priority))
               (beads-create--validate-dependencies
-               (plist-get parsed :dependencies)))))
-
-(defun beads-create--build-command-args (parsed)
-  "Build command arguments from PARSED plist.
-Returns list of arguments for bd create command.
-
-Title is passed as positional argument, other flags use standard
-dash-style syntax matching bd CLI."
-  (let (args)
-    ;; Push in reverse order for push/nreverse pattern
-    ;; Title goes first (will be first after nreverse)
-    (push (plist-get parsed :title) args)
-    ;; For flag-value pairs: push value first, then flag (reversed after nreverse)
-    (when-let ((type (plist-get parsed :type)))
-      (push "-t" args)
-      (push type args))
-    (when-let ((priority (plist-get parsed :priority)))
-      (push "-p" args)
-      (push (number-to-string priority) args))
-    (when-let ((desc (plist-get parsed :description)))
-      (let ((trimmed (string-trim desc)))
-        (unless (string-empty-p trimmed)
-          (push "-d" args)
-          (push trimmed args))))
-    (when-let ((acceptance (plist-get parsed :acceptance)))
-      (let ((trimmed (string-trim acceptance)))
-        (unless (string-empty-p trimmed)
-          (push "--acceptance" args)
-          (push trimmed args))))
-    (when-let ((assignee (plist-get parsed :assignee)))
-      (let ((trimmed (string-trim assignee)))
-        (unless (string-empty-p trimmed)
-          (push "-a" args)
-          (push trimmed args))))
-    (when-let ((design (plist-get parsed :design)))
-      (let ((trimmed (string-trim design)))
-        (unless (string-empty-p trimmed)
-          (push "--design" args)
-          (push trimmed args))))
-    (when-let ((external-ref (plist-get parsed :external-ref)))
-      (let ((trimmed (string-trim external-ref)))
-        (unless (string-empty-p trimmed)
-          (push "--external-ref" args)
-          (push trimmed args))))
-    (when-let ((labels (plist-get parsed :labels)))
-      (let ((trimmed (string-trim labels)))
-        (unless (string-empty-p trimmed)
-          (push "-l" args)
-          (push trimmed args))))
-    (when-let ((id (plist-get parsed :custom-id)))
-      (let ((trimmed (string-trim id)))
-        (unless (string-empty-p trimmed)
-          (push "--id" args)
-          (push trimmed args))))
-    (when-let ((deps (plist-get parsed :dependencies)))
-      (let ((trimmed (string-trim deps)))
-        (unless (string-empty-p trimmed)
-          (push "--deps" args)
-          (push trimmed args))))
-    (when-let ((parent (plist-get parsed :parent)))
-      (let ((trimmed (string-trim parent)))
-        (unless (string-empty-p trimmed)
-          (push "--parent" args)
-          (push trimmed args))))
-    (when-let ((repo (plist-get parsed :repo)))
-      (let ((trimmed (string-trim repo)))
-        (unless (string-empty-p trimmed)
-          (push "--repo" args)
-          (push trimmed args))))
-    (when-let ((from-template (plist-get parsed :from-template)))
-      (let ((trimmed (string-trim from-template)))
-        (unless (string-empty-p trimmed)
-          (push "--from-template" args)
-          (push trimmed args))))
-    (when-let ((file (plist-get parsed :file)))
-      (let ((trimmed (string-trim file)))
-        (unless (string-empty-p trimmed)
-          (push "-f" args)
-          (push trimmed args))))
-    (when (plist-get parsed :force)
-      (push "--force" args))
-    (nreverse args)))
+               ;; Convert deps list back to string format for validation
+               (when (oref cmd deps)
+                 (string-join (oref cmd deps) ","))))))
 
 ;;; Suffix Commands
 
@@ -216,22 +139,20 @@ dash-style syntax matching bd CLI."
   :description "Create issue"
   (interactive)
   (let* ((args (transient-args 'beads-create))
-         (parsed (beads-create--parse-transient-args args))
-         (errors (beads-create--validate-all parsed)))
+         (cmd (beads-create--parse-transient-args args))
+         (errors (beads-create--validate-all cmd)))
     (if errors
         (user-error "Validation failed: %s" (string-join errors "; "))
       (condition-case err
-          (let* ((cmd-args (beads-create--build-command-args parsed))
-                 (issue (beads-command-create! :args cmd-args))
-                 (issue-id (alist-get 'id issue)))
+          (let ((issue (beads-command-execute cmd)))
             (message "Created issue: %s - %s"
-                     issue-id
-                     (alist-get 'title issue))
+                     (oref issue id)
+                     (oref issue title))
             ;; Invalidate completion cache
             (beads--invalidate-completion-cache)
             ;; Optionally show the created issue in a proper buffer
-            (when (y-or-n-p (format "Show issue %s? " issue-id))
-              (beads-show issue-id))
+            (when (y-or-n-p (format "Show issue %s? " (oref issue id)))
+              (beads-show (oref issue id)))
             nil)
         (error
          (let ((err-msg (format "Failed to create issue: %s"
@@ -259,16 +180,15 @@ dash-style syntax matching bd CLI."
   :transient t
   (interactive)
   (let* ((args (transient-args 'beads-create))
-         (parsed (beads-create--parse-transient-args args))
-         (errors (beads-create--validate-all parsed)))
+         (cmd (beads-create--parse-transient-args args))
+         (errors (beads-create--validate-all cmd)))
     (if errors
         (let ((err-msg (format "Validation errors: %s"
                                (string-join errors "; "))))
           (message "%s" err-msg)
           err-msg)
-      (let* ((cmd-args (beads-create--build-command-args parsed))
-             (cmd (apply #'beads--build-command "create" cmd-args))
-             (cmd-string (mapconcat #'shell-quote-argument cmd " "))
+      (let* ((cmd-list (beads-command-line cmd))
+             (cmd-string (mapconcat #'shell-quote-argument cmd-list " "))
              (preview-msg (format "Command: %s" cmd-string)))
         (message "%s" preview-msg)
         preview-msg))))

@@ -320,7 +320,7 @@ ISSUES should be a list of alists (test data format)."
     (cl-letf (((symbol-function 'beads-command-execute)
                (lambda (&rest _)
                  (setq call-count (1+ call-count))
-                 (apply #'vector beads-list-test--sample-issues))))
+                 (apply #'vector (mapcar #'beads-issue-from-json beads-list-test--sample-issues)))))
       (beads-list-test--with-temp-buffer
        beads-list-test--sample-issues 'list
        (beads-list-refresh)
@@ -331,7 +331,7 @@ ISSUES should be a list of alists (test data format)."
   "Test that refresh preserves cursor position."
   (cl-letf (((symbol-function 'beads-command-execute)
              (lambda (&rest _)
-               (apply #'vector beads-list-test--sample-issues))))
+               (apply #'vector (mapcar #'beads-issue-from-json beads-list-test--sample-issues)))))
     (beads-list-test--with-temp-buffer
      beads-list-test--sample-issues 'list
      (goto-char (point-min))
@@ -987,14 +987,10 @@ https://emacs.stackexchange.com/questions/55386/how-to-automate-user-testing-wit
              (lambda () t))
             ((symbol-function 'beads-command-execute)
              (lambda (cmd &rest _args)
-               (if (equal cmd "list")
-                   (apply #'vector beads-list-test--sample-issues)
-                 (vector))))
-            ((symbol-function 'beads--parse-issues)
-             (lambda (result)
-               (append result nil)))
-            ((symbol-function 'beads-issue-from-json)
-             #'beads-list-test--alist-to-issue))
+               (if (cl-typep cmd 'beads-command-list)
+                   (mapcar #'beads-list-test--alist-to-issue
+                           beads-list-test--sample-issues)
+                 nil))))
     ;; Test that transient menu can be invoked without error
     (should-not (condition-case err
                     (progn
@@ -1015,14 +1011,10 @@ Tests the full workflow: open menu -> execute -> display results."
              (lambda () t))
             ((symbol-function 'beads-command-execute)
              (lambda (cmd &rest _args)
-               (if (equal cmd "list")
-                   (apply #'vector beads-list-test--sample-issues)
-                 (vector))))
-            ((symbol-function 'beads--parse-issues)
-             (lambda (result)
-               (append result nil)))
-            ((symbol-function 'beads-issue-from-json)
-             #'beads-list-test--alist-to-issue))
+               (if (cl-typep cmd 'beads-command-list)
+                   (mapcar #'beads-list-test--alist-to-issue
+                           beads-list-test--sample-issues)
+                 nil))))
     (should-not (condition-case err
                     (progn
                       ;; Call beads-list to show transient

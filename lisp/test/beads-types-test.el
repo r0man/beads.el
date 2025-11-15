@@ -349,7 +349,7 @@
     (should (beads-issue-p issue))
     (should (string= (oref issue id) "bd-1"))
     (should (string= (oref issue title) "Minimal"))
-    (should (string= (oref issue description) ""))
+    (should (null (oref issue description)))
     (should (null (oref issue design)))
     (should (null (oref issue assignee)))))
 

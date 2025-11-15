@@ -47,22 +47,25 @@
 
 (ert-deftest beads-close-test-parse-args-empty ()
   "Test parsing empty arguments."
-  (let ((parsed (beads-close--parse-transient-args '())))
-    (should (null (plist-get parsed :issue-id)))
-    (should (null (plist-get parsed :reason)))))
+  (let ((cmd (beads-close--parse-transient-args '())))
+    (should (beads-command-close-p cmd))
+    (should (null (oref cmd issue-ids)))
+    (should (null (oref cmd reason)))))
 
 (ert-deftest beads-close-test-parse-args-issue-id ()
   "Test parsing issue ID argument."
-  (let ((parsed (beads-close--parse-transient-args '("--id=bd-42"))))
-    (should (equal (plist-get parsed :issue-id) "bd-42"))
-    (should (null (plist-get parsed :reason)))))
+  (let ((cmd (beads-close--parse-transient-args '("--id=bd-42"))))
+    (should (beads-command-close-p cmd))
+    (should (equal (oref cmd issue-ids) '("bd-42")))
+    (should (null (oref cmd reason)))))
 
 (ert-deftest beads-close-test-parse-args-reason ()
   "Test parsing reason argument."
-  (let ((parsed (beads-close--parse-transient-args
-                 '("--id=bd-42" "--reason=Fixed the bug"))))
-    (should (equal (plist-get parsed :issue-id) "bd-42"))
-    (should (equal (plist-get parsed :reason) "Fixed the bug"))))
+  (let ((cmd (beads-close--parse-transient-args
+              '("--id=bd-42" "--reason=Fixed the bug"))))
+    (should (beads-command-close-p cmd))
+    (should (equal (oref cmd issue-ids) '("bd-42")))
+    (should (equal (oref cmd reason) "Fixed the bug"))))
 
 
 ;;; Tests for Context Detection
@@ -103,52 +106,25 @@
 
 (ert-deftest beads-close-test-validate-all-success ()
   "Test validate-all with valid parameters."
-  (let ((parsed (beads-close--parse-transient-args '("--id=bd-42"))))
+  (let ((parsed (beads-close--parse-transient-args
+                 '("--id=bd-42" "--reason=Fixed"))))
     (should (null (beads-close--validate-all parsed)))))
 
 (ert-deftest beads-close-test-validate-all-failure ()
-  "Test validate-all with missing issue ID."
+  "Test validate-all with missing issue ID and reason."
   (let ((parsed (beads-close--parse-transient-args '())))
     (let ((errors (beads-close--validate-all parsed)))
       (should errors)
       (should (listp errors))
-      (should (= (length errors) 1)))))
-
-;;; Tests for Command Building
-
-(ert-deftest beads-close-test-build-command-args-minimal ()
-  "Test building command args with only issue ID."
-  (let* ((parsed (beads-close--parse-transient-args '("--id=bd-42")))
-         (args (beads-close--build-command-args parsed)))
-    (should (equal args '("bd-42")))))
-
-(ert-deftest beads-close-test-build-command-args-with-reason ()
-  "Test building command args with issue ID and reason."
-  (let* ((parsed (beads-close--parse-transient-args
-                  '("--id=bd-42" "--reason=Fixed the bug")))
-         (args (beads-close--build-command-args parsed)))
-    (should (equal args '("bd-42" "--reason" "Fixed the bug")))))
-
-(ert-deftest beads-close-test-build-command-args-empty-reason ()
-  "Test that empty reason is not included."
-  (let* ((parsed (beads-close--parse-transient-args
-                  '("--id=bd-42" "--reason=")))
-         (args (beads-close--build-command-args parsed)))
-    (should (equal args '("bd-42")))))
-
-(ert-deftest beads-close-test-build-command-args-whitespace-reason ()
-  "Test that whitespace-only reason is not included."
-  (let* ((parsed (beads-close--parse-transient-args
-                  '("--id=bd-42" "--reason=   \n\t  ")))
-         (args (beads-close--build-command-args parsed)))
-    (should (equal args '("bd-42")))))
+      (should (= (length errors) 2)))))
 
 
 ;;; Tests for Execution
 
 (ert-deftest beads-close-test-execute-success ()
   "Test successful issue closing."
-  (let ((json-output (json-encode beads-close-test--sample-close-response)))
+  ;; bd close returns an array in JSON mode, even for a single issue
+  (let ((json-output (json-encode (vector beads-close-test--sample-close-response))))
     (cl-letf (((symbol-function 'transient-args)
                (lambda (_prefix) '("--id=bd-42" "--reason=Fixed")))
               ((symbol-function 'call-process)
@@ -170,20 +146,18 @@
 (ert-deftest beads-close-test-execute-command-failure ()
   "Test execution handles bd command failure."
   (cl-letf (((symbol-function 'transient-args)
-             (lambda (_prefix) '("--id=bd-42")))
+             (lambda (_prefix) '("--id=bd-42" "--reason=Fixed")))
             ((symbol-function 'call-process)
              (beads-close-test--mock-call-process 1 "Error: failed")))
     ;; Should not propagate error, just display message
     (should (stringp (beads-close--execute)))))
 
 (ert-deftest beads-close-test-execute-without-reason ()
-  "Test execution without reason (optional)."
-  (let ((json-output (json-encode beads-close-test--sample-close-response)))
-    (cl-letf (((symbol-function 'transient-args)
-               (lambda (_prefix) '("--id=bd-42")))
-              ((symbol-function 'call-process)
-               (beads-close-test--mock-call-process 0 json-output)))
-      (should-not (beads-close--execute)))))
+  "Test execution without reason fails with validation error."
+  (cl-letf (((symbol-function 'transient-args)
+             (lambda (_prefix) '("--id=bd-42"))))
+    ;; Should fail with user-error because reason is required
+    (should-error (beads-close--execute) :type 'user-error)))
 
 ;;; Tests for Preview
 
@@ -232,19 +206,14 @@
 
 (ert-deftest beads-close-test-full-workflow ()
   "Test complete workflow from setting params to closing."
-  (let ((parsed (beads-close--parse-transient-args
-                 '("--id=bd-42" "--reason=Completed successfully"))))
+  (let ((cmd (beads-close--parse-transient-args
+              '("--id=bd-42" "--reason=Completed successfully"))))
     ;; Validate
-    (should (null (beads-close--validate-all parsed)))
-
-    ;; Build command
-    (let ((args (beads-close--build-command-args parsed)))
-      (should (member "bd-42" args))
-      (should (member "--reason" args))
-      (should (member "Completed successfully" args)))
+    (should (null (beads-close--validate-all cmd)))
 
     ;; Execute (mocked)
-    (let ((json-output (json-encode beads-close-test--sample-close-response)))
+    ;; bd close returns an array in JSON mode, even for a single issue
+    (let ((json-output (json-encode (vector beads-close-test--sample-close-response))))
       (cl-letf (((symbol-function 'transient-args)
                  (lambda (_prefix)
                    '("--id=bd-42" "--reason=Completed successfully")))
@@ -271,59 +240,14 @@
     (setq-local beads-show--issue-id "bd-99")
     (should (equal (beads-close--detect-issue-id) "bd-99"))))
 
-;;; Edge Cases
-
-(ert-deftest beads-close-test-edge-case-unicode-reason ()
-  "Test closing issue with Unicode characters in reason."
-  (let* ((parsed (beads-close--parse-transient-args
-                  '("--id=bd-42" "--reason=Fixed 测试 issue with émojis 😀")))
-         (args (beads-close--build-command-args parsed)))
-    (should (member "Fixed 测试 issue with émojis 😀" args))))
-
-(ert-deftest beads-close-test-edge-case-very-long-reason ()
-  "Test closing issue with very long reason."
-  (let* ((long-reason (make-string 500 ?x))
-         (parsed (beads-close--parse-transient-args
-                  (list "--id=bd-42" (concat "--reason=" long-reason))))
-         (args (beads-close--build-command-args parsed)))
-    (should (member long-reason args))))
-
-(ert-deftest beads-close-test-edge-case-reason-with-quotes ()
-  "Test closing issue with quotes in reason."
-  (let* ((parsed (beads-close--parse-transient-args
-                  '("--id=bd-42"
-                    "--reason=Fixed \"critical\" issue with 'quotes'")))
-         (args (beads-close--build-command-args parsed)))
-    (should (member "--reason" args))))
-
-(ert-deftest beads-close-test-edge-case-special-issue-id ()
-  "Test closing issue with special characters in ID."
-  (let* ((parsed (beads-close--parse-transient-args
-                  '("--id=custom-123-xyz")))
-         (args (beads-close--build-command-args parsed)))
-    (should (member "custom-123-xyz" args))))
-
-;;; Performance Tests
-
-(ert-deftest beads-close-test-performance-command-building ()
-  "Test command building performance."
-  :tags '(:performance)
-  (let ((parsed (beads-close--parse-transient-args
-                 '("--id=bd-42" "--reason=Fixed")))
-        (start-time (current-time)))
-    (dotimes (_ 1000)
-      (beads-close--build-command-args parsed))
-    (let ((elapsed (float-time (time-subtract (current-time) start-time))))
-      ;; Should build 1000 commands in under 0.5 seconds
-      (should (< elapsed 0.5)))))
 
 (ert-deftest beads-close-test-performance-validation ()
   "Test validation performance."
   :tags '(:performance)
-  (let ((parsed (beads-close--parse-transient-args '("--id=bd-42")))
+  (let ((cmd (beads-close--parse-transient-args '("--id=bd-42" "--reason=Fixed")))
         (start-time (current-time)))
     (dotimes (_ 1000)
-      (beads-close--validate-all parsed))
+      (beads-close--validate-all cmd))
     (let ((elapsed (float-time (time-subtract (current-time) start-time))))
       ;; Should validate 1000 times in under 0.5 seconds
       (should (< elapsed 0.5)))))
