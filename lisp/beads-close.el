@@ -37,14 +37,15 @@
 ;;; Utility Functions
 
 (defun beads-close--parse-transient-args (args)
-  "Parse transient ARGS list into a plist.
-Returns (:issue-id STRING :reason STRING).
+  "Parse transient ARGS list into a beads-command-close instance.
+Returns a beads-command-close object populated with values from ARGS.
 
 This uses transient's standard argument parsing with dash-style flags."
   (let* ((issue-id (transient-arg-value "--id=" args))
          (reason (transient-arg-value "--reason=" args)))
-    (list :issue-id issue-id
-          :reason reason)))
+    (beads-command-close
+     :issue-ids (when issue-id (list issue-id))
+     :reason reason)))
 
 (defun beads-close--detect-issue-id ()
   "Detect issue ID from current context.
@@ -68,26 +69,21 @@ Returns error message string if invalid, nil if valid."
             (string-empty-p (string-trim issue-id)))
     "Issue ID is required"))
 
-(defun beads-close--validate-all (parsed)
-  "Validate all parameters from PARSED plist.
+(defun beads-close--validate-reason (reason)
+  "Validate that REASON is set.
+Returns error message string if invalid, nil if valid."
+  (when (or (null reason)
+            (string-empty-p (string-trim reason)))
+    "Reason is required"))
+
+(defun beads-close--validate-all (cmd)
+  "Validate all parameters from CMD beads-command-close instance.
 Returns list of error messages, or nil if all valid."
   (delq nil
-        (list (beads-close--validate-issue-id (plist-get parsed :issue-id)))))
-
-(defun beads-close--build-command-args (parsed)
-  "Build command arguments from PARSED plist.
-Returns list of arguments for bd close command."
-  (let (args)
-    ;; Push in reverse order for push/nreverse pattern
-    ;; Issue ID goes first (will be first after nreverse)
-    (push (plist-get parsed :issue-id) args)
-    ;; Add reason flag if provided
-    (when-let ((reason (plist-get parsed :reason)))
-      (let ((trimmed (string-trim reason)))
-        (unless (string-empty-p trimmed)
-          (push "--reason" args)
-          (push trimmed args))))
-    (nreverse args)))
+        (list (beads-close--validate-issue-id
+               (when (oref cmd issue-ids)
+                 (car (oref cmd issue-ids))))
+              (beads-close--validate-reason (oref cmd reason)))))
 
 ;;; Suffix Commands
 
@@ -97,31 +93,28 @@ Returns list of arguments for bd close command."
   :description "Close issue"
   (interactive)
   (let* ((args (transient-args 'beads-close))
-         (parsed (beads-close--parse-transient-args args))
-         (errors (beads-close--validate-all parsed)))
+         (cmd (beads-close--parse-transient-args args))
+         (errors (beads-close--validate-all cmd)))
     (if errors
         (user-error "Validation failed: %s" (string-join errors "; "))
       (condition-case err
-          (progn
-            (let* ((cmd-args (beads-close--build-command-args parsed))
-                   (issue (beads-command-close! :args cmd-args))
-                   (issue-id (alist-get 'id issue)))
-              (message "Closed issue: %s - %s"
-                       issue-id
-                       (alist-get 'title issue))
-              ;; Invalidate completion cache
-              (beads--invalidate-completion-cache)
-              ;; Refresh any open beads buffers
-              (when beads-auto-refresh
-                (dolist (buf (buffer-list))
-                  (with-current-buffer buf
-                    (cond
-                     ((derived-mode-p 'beads-list-mode)
-                      (beads-list-refresh))
-                     ((and (derived-mode-p 'beads-show-mode)
-                           (string= beads-show--issue-id issue-id))
-                      (beads-refresh-show))))))
-              nil))
+          (let ((issue (beads-command-execute cmd)))
+            (message "Closed issue: %s - %s"
+                     (oref issue id)
+                     (oref issue title))
+            ;; Invalidate completion cache
+            (beads--invalidate-completion-cache)
+            ;; Refresh any open beads buffers
+            (when beads-auto-refresh
+              (dolist (buf (buffer-list))
+                (with-current-buffer buf
+                  (cond
+                   ((derived-mode-p 'beads-list-mode)
+                    (beads-list-refresh))
+                   ((and (derived-mode-p 'beads-show-mode)
+                         (string= beads-show--issue-id (oref issue id)))
+                    (beads-refresh-show))))))
+            nil)
         (error
          (let ((err-msg (format "Failed to close issue: %s"
                                (error-message-string err))))
@@ -148,15 +141,14 @@ Returns list of arguments for bd close command."
   :transient t
   (interactive)
   (let* ((args (transient-args 'beads-close))
-         (parsed (beads-close--parse-transient-args args))
-         (errors (beads-close--validate-all parsed)))
+         (cmd (beads-close--parse-transient-args args))
+         (errors (beads-close--validate-all cmd)))
     (if errors
         (let ((err-msg (format "Validation errors: %s" (string-join errors "; "))))
           (message "%s" err-msg)
           err-msg)
-      (let* ((cmd-args (beads-close--build-command-args parsed))
-             (cmd (apply #'beads--build-command "close" cmd-args))
-             (cmd-string (mapconcat #'shell-quote-argument cmd " "))
+      (let* ((cmd-list (beads-command-line cmd))
+             (cmd-string (mapconcat #'shell-quote-argument cmd-list " "))
              (preview-msg (format "Command: %s" cmd-string)))
         (message "%s" preview-msg)
         preview-msg))))

@@ -25,7 +25,7 @@
 ;;; Test Fixtures
 
 (defvar beads-reopen-test--sample-reopen-response
-  '((id . "bd-42")
+  [((id . "bd-42")
     (title . "Test Issue")
     (description . "Test description")
     (status . "open")
@@ -33,8 +33,9 @@
     (issue_type . "bug")
     (created_at . "2025-01-15T10:00:00Z")
     (updated_at . "2025-01-15T10:10:00Z")
-    (closed_at))
-  "Sample response from bd reopen command.")
+    (closed_at))]
+  "Sample response from bd reopen command.
+Note: bd reopen always returns a JSON array, even for a single issue.")
 
 ;;; Test Utilities
 
@@ -61,40 +62,45 @@ ARGS should be a list of strings like (\"--id=bd-42\" \"--reason=Needs work\")."
 
 (ert-deftest beads-reopen-test-parse-args-empty ()
   "Test parsing empty argument list."
-  (let ((parsed (beads-reopen--parse-transient-args nil)))
-    (should (null (plist-get parsed :issue-id)))
-    (should (null (plist-get parsed :reason)))))
+  (let ((cmd (beads-reopen--parse-transient-args nil)))
+    (should (beads-command-reopen-p cmd))
+    (should (null (oref cmd issue-ids)))
+    (should (null (oref cmd reason)))))
 
 (ert-deftest beads-reopen-test-parse-args-issue-id-only ()
   "Test parsing with only issue ID."
-  (let ((parsed (beads-reopen--parse-transient-args
-                 '("--id=bd-42"))))
-    (should (equal (plist-get parsed :issue-id) "bd-42"))
-    (should (null (plist-get parsed :reason)))))
+  (let ((cmd (beads-reopen--parse-transient-args
+              '("--id=bd-42"))))
+    (should (beads-command-reopen-p cmd))
+    (should (equal (oref cmd issue-ids) '("bd-42")))
+    (should (null (oref cmd reason)))))
 
 (ert-deftest beads-reopen-test-parse-args-all-fields ()
   "Test parsing with all fields."
-  (let ((parsed (beads-reopen--parse-transient-args
-                 '("--id=bd-42"
-                   "--reason=Needs more work"))))
-    (should (equal (plist-get parsed :issue-id) "bd-42"))
-    (should (equal (plist-get parsed :reason) "Needs more work"))))
+  (let ((cmd (beads-reopen--parse-transient-args
+              '("--id=bd-42"
+                "--reason=Needs more work"))))
+    (should (beads-command-reopen-p cmd))
+    (should (equal (oref cmd issue-ids) '("bd-42")))
+    (should (equal (oref cmd reason) "Needs more work"))))
 
 (ert-deftest beads-reopen-test-parse-args-issue-id-with-special-chars ()
   "Test parsing issue ID containing special characters."
-  (let ((parsed (beads-reopen--parse-transient-args
-                 '("--id=custom-123-xyz"))))
-    (should (equal (plist-get parsed :issue-id) "custom-123-xyz"))))
+  (let ((cmd (beads-reopen--parse-transient-args
+              '("--id=custom-123-xyz"))))
+    (should (beads-command-reopen-p cmd))
+    (should (equal (oref cmd issue-ids) '("custom-123-xyz")))))
 
 (ert-deftest beads-reopen-test-parse-args-multiline-reason ()
   "Test parsing multiline reason.
 Note: In real usage, multiline values are handled by the transient class.
 For testing, we just verify the value is parsed correctly."
-  (let ((parsed (beads-reopen--parse-transient-args
-                 '("--id=bd-42"
-                   "--reason=Line 1 Line 2 Line 3"))))
-    (should (equal (plist-get parsed :issue-id) "bd-42"))
-    (should (plist-get parsed :reason))))
+  (let ((cmd (beads-reopen--parse-transient-args
+              '("--id=bd-42"
+                "--reason=Line 1 Line 2 Line 3"))))
+    (should (beads-command-reopen-p cmd))
+    (should (equal (oref cmd issue-ids) '("bd-42")))
+    (should (oref cmd reason))))
 
 ;;; Tests for Context Detection
 
@@ -141,49 +147,6 @@ For testing, we just verify the value is parsed correctly."
       (should (listp errors))
       (should (= (length errors) 1)))))
 
-;;; Tests for Command Building
-
-(ert-deftest beads-reopen-test-build-command-args-minimal ()
-  "Test building command args with only issue ID."
-  (let* ((parsed (beads-reopen--parse-transient-args
-                  '("--id=bd-42")))
-         (args (beads-reopen--build-command-args parsed)))
-    (should (equal args '("bd-42")))))
-
-(ert-deftest beads-reopen-test-build-command-args-with-reason ()
-  "Test building command args with issue ID and reason."
-  (let* ((parsed (beads-reopen--parse-transient-args
-                  '("--id=bd-42"
-                    "--reason=Needs more work")))
-         (args (beads-reopen--build-command-args parsed)))
-    (should (equal args '("bd-42" "--reason" "Needs more work")))))
-
-(ert-deftest beads-reopen-test-build-command-args-empty-reason ()
-  "Test that empty reason is not included."
-  (let* ((parsed (beads-reopen--parse-transient-args
-                  '("--id=bd-42"
-                    "--reason=")))
-         (args (beads-reopen--build-command-args parsed)))
-    (should (equal args '("bd-42")))))
-
-(ert-deftest beads-reopen-test-build-command-args-whitespace-reason ()
-  "Test that whitespace-only reason is not included."
-  (let* ((parsed (beads-reopen--parse-transient-args
-                  '("--id=bd-42"
-                    "--reason=   \n\t  ")))
-         (args (beads-reopen--build-command-args parsed)))
-    (should (equal args '("bd-42")))))
-
-(ert-deftest beads-reopen-test-build-command-args-multiline-reason ()
-  "Test building command args with multiline reason.
-Note: Multiline text is handled by transient's editor, so in tests
-we just verify the reason is included when provided."
-  (let* ((parsed (beads-reopen--parse-transient-args
-                  '("--id=bd-42"
-                    "--reason=Needs fixes and more testing")))
-         (args (beads-reopen--build-command-args parsed)))
-    (should (member "--reason" args))
-    (should (member "Needs fixes and more testing" args))))
 
 ;;; Tests for Execution
 
@@ -294,64 +257,12 @@ we just verify the reason is included when provided."
       ;; Parse args
       (let* ((args (funcall (symbol-function 'transient-args)
                             'beads-reopen--menu))
-             (parsed (beads-reopen--parse-transient-args args)))
+             (cmd (beads-reopen--parse-transient-args args)))
         ;; Validate
-        (should (null (beads-reopen--validate-all parsed)))
-        ;; Build command
-        (let ((cmd-args (beads-reopen--build-command-args parsed)))
-          (should (member "bd-42" cmd-args))
-          (should (member "--reason" cmd-args))
-          (should (member "Needs more work" cmd-args)))
+        (should (null (beads-reopen--validate-all cmd)))
         ;; Execute
         (should-not (beads-reopen--execute))))))
 
-;;; Edge Cases
-
-(ert-deftest beads-reopen-test-edge-case-unicode-reason ()
-  "Test reopening issue with Unicode characters in reason."
-  (let* ((parsed (beads-reopen--parse-transient-args
-                  '("--id=bd-42"
-                    "--reason=Reopen 测试 issue with émojis 😀")))
-         (args (beads-reopen--build-command-args parsed)))
-    (should (member "Reopen 测试 issue with émojis 😀" args))))
-
-(ert-deftest beads-reopen-test-edge-case-very-long-reason ()
-  "Test reopening issue with very long reason."
-  (let* ((long-reason (make-string 500 ?x))
-         (parsed (beads-reopen--parse-transient-args
-                  `("--id=bd-42"
-                    ,(concat "--reason=" long-reason))))
-         (args (beads-reopen--build-command-args parsed)))
-    (should (member long-reason args))))
-
-(ert-deftest beads-reopen-test-edge-case-reason-with-quotes ()
-  "Test reopening issue with quotes in reason."
-  (let* ((parsed (beads-reopen--parse-transient-args
-                  '("--id=bd-42"
-                    "--reason=Reopen \"urgent\" issue with 'quotes'")))
-         (args (beads-reopen--build-command-args parsed)))
-    (should (member "--reason" args))))
-
-(ert-deftest beads-reopen-test-edge-case-special-issue-id ()
-  "Test reopening issue with special characters in ID."
-  (let* ((parsed (beads-reopen--parse-transient-args
-                  '("--id=custom-123-xyz")))
-         (args (beads-reopen--build-command-args parsed)))
-    (should (member "custom-123-xyz" args))))
-
-;;; Performance Tests
-
-(ert-deftest beads-reopen-test-performance-command-building ()
-  "Test command building performance."
-  :tags '(:performance)
-  (let ((parsed (beads-reopen--parse-transient-args
-                 '("--id=bd-42" "--reason=Needs fixes"))))
-    (let ((start-time (current-time)))
-      (dotimes (_ 1000)
-        (beads-reopen--build-command-args parsed))
-      (let ((elapsed (float-time (time-subtract (current-time) start-time))))
-        ;; Should build 1000 commands in under 0.5 seconds
-        (should (< elapsed 0.5))))))
 
 (ert-deftest beads-reopen-test-performance-validation ()
   "Test validation performance."
@@ -437,19 +348,6 @@ we just verify the reason is included when provided."
     (beads-list-mode)
     (let ((binding (lookup-key beads-list-mode-map (kbd "B o"))))
       (should (eq binding 'beads-list-bulk-reopen)))))
-
-(ert-deftest beads-reopen-test-command-building-workflow ()
-  "Integration test: Test complete command building workflow."
-  :tags '(integration)
-  (let ((parsed (beads-reopen--parse-transient-args
-                 '("--id=bd-42" "--reason=Needs more work"))))
-    ;; Should not error during validation
-    (should-not (beads-reopen--validate-all parsed))
-    ;; Should build valid command args
-    (let ((args (beads-reopen--build-command-args parsed)))
-      (should (equal (car args) "bd-42"))
-      (should (member "--reason" args))
-      (should (member "Needs more work" args)))))
 
 (ert-deftest beads-reopen-test-main-menu-integration ()
   "Integration test: Verify beads-reopen in main menu."
@@ -563,13 +461,14 @@ we just verify the reason is included when provided."
 Note: In real usage, transient handles multiline editing.
 We verify that reasons are properly passed through."
   :tags '(integration)
-  (let ((parsed (beads-reopen--parse-transient-args
-                 '("--id=bd-42" "--reason=Line 1 Line 2 Line 3"))))
-    ;; Build command args
-    (let ((args (beads-reopen--build-command-args parsed)))
-      ;; Should include reason
-      (should (member "--reason" args))
-      (should (member "Line 1 Line 2 Line 3" args)))))
+  (let ((cmd (beads-reopen--parse-transient-args
+              '("--id=bd-42" "--reason=Line 1 Line 2 Line 3"))))
+    ;; Should parse reason correctly
+    (should (equal (oref cmd reason) "Line 1 Line 2 Line 3"))
+    ;; Should build valid command
+    (let ((cmd-list (beads-command-line cmd)))
+      (should (member "--reason" cmd-list))
+      (should (member "Line 1 Line 2 Line 3" cmd-list)))))
 
 (ert-deftest beads-reopen-test-context-priority ()
   "Integration test: Context detection priority."
