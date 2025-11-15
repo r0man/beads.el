@@ -307,31 +307,38 @@ BD_NO_DAEMON=1 eldev -p -dtT test
 
 ### Code Coverage
 
-The project uses undercover.el for code coverage tracking. Coverage is
-automatically collected when running tests in source mode (required for
-coverage instrumentation to work).
+The project uses undercover.el for code coverage tracking via the Eldev
+plugin. The `-U` (or `--undercover-report`) flag enables coverage and
+generates a report.
 
 **Running tests with coverage:**
 
 ```bash
-# Local coverage (requires UNDERCOVER_FORCE=1 outside CI):
-UNDERCOVER_FORCE=1 BD_NO_DAEMON=1 guix shell -D -f guix.scm -- eldev -s -dtT test
+# With guix (recommended):
+CI=true BD_NO_DAEMON=1 guix shell -D -f guix.scm -- eldev -dtT test -U coverage/report.json
 
-# The -s flag enables source loading mode (required for undercover)
-# Coverage reports are saved to coverage/lcov.info (LCOV format)
+# Without guix (assumes eldev installed):
+CI=true BD_NO_DAEMON=1 eldev -dtT test -U coverage/report.json
+
+# The CI=true environment variable is required to enable coverage generation
+# The -U flag specifies the report output path and format
 ```
 
+**Report formats:**
+You can generate different report formats by changing the file extension:
+- `coverage/report.json` - SimpleCov JSON format (recommended, works reliably)
+- `coverage/report.txt` - Text format
+- Note: LCOV format (.lcov/.info) currently has issues with auto-detection
+
 **Important notes:**
-- Coverage tracking requires `-s` (source) loading mode, NOT `-p` (packaged)
-- Undercover doesn't work with byte-compiled files
-- Coverage is configured to track all lisp/*.el files except lisp/test/*
-- On CI systems, coverage is automatically enabled without UNDERCOVER_FORCE
-- Reports support LCOV, SimpleCov, Coveralls, and Codecov formats
+- `CI=true` environment variable is required (undercover only generates reports in CI mode)
+- The `-U` flag automatically enables source loading mode (no `-s` needed)
+- Undercover cannot instrument byte-compiled files
+- Coverage is configured to track all `lisp/*.el` files except `lisp/test/*`
 
 **Configuration:**
 - Coverage fileset: Defined in Eldev via `eldev-undercover-fileset`
 - Currently tracks: `lisp/*.el` excluding `lisp/test/*.el`
-- Report location: `coverage/lcov.info` (LCOV format)
 - Plugin enabled via: `(eldev-use-plugin 'undercover)` in Eldev file
 
 ### Lint
