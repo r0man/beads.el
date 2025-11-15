@@ -154,5 +154,52 @@
     (let ((args (beads-label-add--build-command-args parsed)))
       (should (equal args '("bd-1" "bd-2" "bd-3" "frontend"))))))
 
+;;; ============================================================
+;;; Label List-All View Tests
+;;; ============================================================
+
+(ert-deftest beads-label-test-current-label ()
+  "Test extracting current label from tabulated list."
+  (cl-letf (((symbol-function 'tabulated-list-get-id)
+             (lambda () "backend")))
+    (should (equal (beads-label-list-all--current-label) "backend"))))
+
+(ert-deftest beads-label-test-current-label-nil ()
+  "Test extracting current label when no label at point."
+  (cl-letf (((symbol-function 'tabulated-list-get-id)
+             (lambda () nil)))
+    (should-not (beads-label-list-all--current-label))))
+
+(ert-deftest beads-label-test-show-issues-no-label ()
+  "Test showing issues when no label at point."
+  (cl-letf (((symbol-function 'tabulated-list-get-id)
+             (lambda () nil)))
+    (should-error (beads-label-list-all-show-issues)
+                  :type 'user-error)))
+
+(ert-deftest beads-label-test-show-issues-with-label ()
+  "Test showing issues for a label."
+  (let ((beads-label-test--mock-issues
+         (list (beads-issue :id "bd-1" :title "Test 1"
+                           :status "open" :priority 2)
+               (beads-issue :id "bd-2" :title "Test 2"
+                           :status "in_progress" :priority 1))))
+    (cl-letf (((symbol-function 'tabulated-list-get-id)
+               (lambda () "backend"))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd) beads-label-test--mock-issues))
+              ((symbol-function 'beads-list-mode)
+               (lambda () (setq major-mode 'beads-list-mode)))
+              ((symbol-function 'beads-list--populate-buffer)
+               (lambda (issues _cmd _cmd-obj)
+                 (should (= (length issues) 2))))
+              ((symbol-function 'pop-to-buffer)
+               (lambda (_buffer) nil)))
+      (let ((default-directory "/tmp/"))
+        (beads-label-list-all-show-issues)
+        ;; Should create buffer with correct name
+        (should (get-buffer "*beads-list: label=backend*"))
+        (kill-buffer "*beads-list: label=backend*")))))
+
 (provide 'beads-label-test)
 ;;; beads-label-test.el ends here

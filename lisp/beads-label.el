@@ -37,11 +37,14 @@
 
 ;; Forward declarations
 (declare-function beads-list--current-issue-id "beads-list")
+(declare-function beads-list--populate-buffer "beads-list")
+(declare-function beads-list-mode "beads-list")
 (declare-function beads-list-refresh "beads-list")
 (declare-function beads-show-refresh "beads-show")
 (declare-function beads-reader-label-issue-ids "beads-reader")
 (declare-function beads-reader-label-name "beads-reader")
 (defvar beads-show--issue-id)
+(defvar beads-list--marked-issues)
 
 ;;; Customization
 
@@ -427,9 +430,53 @@ If called from beads-list or beads-show buffers, uses current issue."
 
 ;;; Label List-All View Command
 
+(defun beads-label-list-all--current-label ()
+  "Return the label name at point, or nil."
+  (tabulated-list-get-id))
+
+(defun beads-label-list-all-show-issues ()
+  "Show all issues with the label at point in a beads-list buffer."
+  (interactive)
+  ;; Save label before leaving the buffer
+  (let ((label (beads-label-list-all--current-label)))
+    (unless label
+      (user-error "No label at point"))
+    (require 'beads-list)
+    (require 'beads-command)
+    (let* ((cmd (beads-command-list :label (list label)))
+           (issues (beads-command-execute cmd))
+           (buffer (get-buffer-create (format "*beads-list: label=%s*" label)))
+           (project-dir default-directory))
+      (with-current-buffer buffer
+        (beads-list-mode)
+        (setq default-directory project-dir)
+        (if (not issues)
+            (progn
+              (setq tabulated-list-entries nil)
+              (tabulated-list-print t)
+              (setq mode-line-format
+                    (list "%e" 'mode-line-front-space
+                          'mode-line-buffer-identification
+                          (format "  No issues with label '%s'" label)))
+              (message "No issues found with label '%s'" label))
+          (beads-list--populate-buffer issues 'list cmd)
+          (setq mode-line-format
+                (list "%e" 'mode-line-front-space
+                      'mode-line-buffer-identification
+                      '(:eval (format "  %d issue%s with label '%s'%s"
+                                    (length tabulated-list-entries)
+                                    (if (= (length tabulated-list-entries) 1) "" "s")
+                                    label
+                                    (if beads-list--marked-issues
+                                        (format " [%d marked]"
+                                               (length beads-list--marked-issues))
+                                      "")))))))
+      (pop-to-buffer buffer))))
+
 (defvar beads-label-list-all-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map tabulated-list-mode-map)
+    (define-key map (kbd "RET") #'beads-label-list-all-show-issues)
     (define-key map (kbd "g") #'beads-label-list-all-refresh)
     (define-key map (kbd "q") #'quit-window)
     map)
@@ -438,6 +485,12 @@ If called from beads-list or beads-show buffers, uses current issue."
 (define-derived-mode beads-label-list-all-mode tabulated-list-mode
   "Beads-Labels"
   "Major mode for displaying all beads labels.
+
+Key bindings:
+\\<beads-label-list-all-mode-map>
+\\[beads-label-list-all-show-issues] - Show issues with the label at point
+\\[beads-label-list-all-refresh] - Refresh the label list
+\\[quit-window] - Quit the label list window
 
 \\{beads-label-list-all-mode-map}"
   (setq tabulated-list-format
