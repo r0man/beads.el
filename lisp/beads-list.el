@@ -47,6 +47,7 @@
 
 (require 'beads)
 (require 'beads-types)
+(require 'beads-command)
 (require 'beads-option)
 (require 'transient)
 
@@ -167,8 +168,8 @@ The `absolute' format sorts correctly in chronological order."
 (defvar-local beads-list--marked-issues nil
   "List of marked issue IDs.")
 
-(defvar-local beads-list--filter nil
-  "Current beads-issue-filter object (nil means no filter).
+(defvar-local beads-list--command-obj nil
+  "Current beads-command-list object (nil means no filter).
 Use for client-side filtering in the buffer.")
 
 ;;; Utilities
@@ -265,12 +266,12 @@ the value of `beads-list-date-format'."
                   created-str
                   updated-str))))
 
-(defun beads-list--populate-buffer (issues command &optional filter)
+(defun beads-list--populate-buffer (issues command &optional command-obj)
   "Populate current buffer with ISSUES using COMMAND for refresh.
-Optional FILTER is a beads-issue-filter object for context."
+Optional COMMAND-OBJ is a beads-command-list object for context."
   (setq beads-list--command command
         beads-list--raw-issues issues
-        beads-list--filter filter)
+        beads-list--command-obj command-obj)
   (setq tabulated-list-entries
         (mapcar #'beads-list--issue-to-entry issues))
   (tabulated-list-print t))
@@ -293,18 +294,11 @@ Uses the bd show command with --json flag to fetch the issue.
 Runs in the directory specified by `default-directory'.
 Returns a beads-issue object or signals an error if not found."
   (interactive "sIssue ID: ")
-  (let ((json (beads--run-command "show" issue-id)))
-    (cond
-     ;; If it's a vector (default json-array-type), unwrap it
-     ((vectorp json)
-      (beads-issue-from-json (aref json 0)))
-     ;; If it's a list containing one alist (json-array-type='list), unwrap it
-     ;; We detect this by checking if 'id is NOT a direct key (meaning it's nested)
-     ((and (listp json) (not (assq 'id json)))
-      (beads-issue-from-json (car json)))
-     ;; Otherwise it's already an alist directly
-     (t
-      (beads-issue-from-json json)))))
+  (let ((result (beads-command-show! :issue-ids (list issue-id))))
+    ;; beads-command-show! returns a list, so unwrap single result
+    (if (listp result)
+        (car result)
+      result)))
 
 (defun beads-issue-list (&optional status)
   "List beads issues from the CLI.
@@ -313,10 +307,9 @@ If STATUS is provided, filters by that status.
 Runs in the directory specified by `default-directory'.
 Returns a list of beads-issue objects."
   (interactive)
-  (let* ((args (when status (list "--status" status)))
-         (json (apply #'beads--run-command "list" args)))
-    (when (vectorp json)
-      (mapcar #'beads-issue-from-json (append json nil)))))
+  (if status
+      (beads-command-list! :status status)
+    (beads-command-list!)))
 
 (defun beads-blocked-issue-list ()
   "List blocked beads issues from the CLI.
@@ -324,16 +317,7 @@ Uses the bd blocked command with --json flag.
 Runs in the directory specified by `default-directory'.
 Returns a list of beads-blocked-issue objects."
   (interactive)
-  (let ((json (beads--run-command "blocked")))
-    (cond
-     ;; Handle vector (default json-array-type)
-     ((vectorp json)
-      (mapcar #'beads-blocked-issue-from-json (append json nil)))
-     ;; Handle list (when json-array-type is 'list)
-     ((listp json)
-      (mapcar #'beads-blocked-issue-from-json json))
-     ;; Return nil for other cases
-     (t nil))))
+  (beads-command-blocked!))
 
 (defun beads-issue-ready (&optional limit)
   "Get ready work from the CLI.
@@ -342,65 +326,64 @@ If LIMIT is provided, limits the number of results.
 Runs in the directory specified by `default-directory'.
 Returns a list of beads-issue objects."
   (interactive)
-  (let* ((args (when limit (list "--limit" (number-to-string limit))))
-         (json (apply #'beads--run-command "ready" args)))
-    (when (vectorp json)
-      (mapcar #'beads-issue-from-json (append json nil)))))
+  (if limit
+      (beads-command-ready! :limit limit)
+    (beads-command-ready!)))
 
 ;;; Transient Menu Integration
 
 (defun beads-list--parse-transient-args (args)
-  "Parse transient ARGS list into a beads-issue-filter object.
-Returns a beads-issue-filter object with all applicable filters set."
-  (let ((filter (beads-issue-filter)))
+  "Parse transient ARGS list into a beads-command-list object.
+Returns a beads-command-list object with all applicable filters set."
+  (let ((command (beads-command-list)))
     ;; Boolean switches
     (when (member "--all" args)
-      (oset filter all t))
+      (oset command all t))
     (when (member "--no-assignee" args)
-      (oset filter no-assignee t))
+      (oset command no-assignee t))
     (when (member "--empty-description" args)
-      (oset filter empty-description t))
+      (oset command empty-description t))
     (when (member "--no-labels" args)
-      (oset filter no-labels t))
+      (oset command no-labels t))
     (when (member "--long" args)
-      (oset filter long t))
+      (oset command long t))
     ;; String options
     (when-let ((assignee (transient-arg-value "--assignee=" args)))
-      (oset filter assignee assignee))
+      (oset command assignee assignee))
     (when-let ((closed-after (transient-arg-value "--closed-after=" args)))
-      (oset filter closed-after closed-after))
+      (oset command closed-after closed-after))
     (when-let ((closed-before (transient-arg-value "--closed-before=" args)))
-      (oset filter closed-before closed-before))
+      (oset command closed-before closed-before))
     (when-let ((created-after (transient-arg-value "--created-after=" args)))
-      (oset filter created-after created-after))
+      (oset command created-after created-after))
     (when-let ((created-before (transient-arg-value
                                  "--created-before=" args)))
-      (oset filter created-before created-before))
+      (oset command created-before created-before))
     (when-let ((desc-contains (transient-arg-value
                                 "--desc-contains=" args)))
-      (oset filter description-contains desc-contains))
+      (oset command description-contains desc-contains))
     (when-let ((format (transient-arg-value "--format=" args)))
-      (oset filter format format))
+      (oset command format format))
     (when-let ((id (transient-arg-value "--id=" args)))
-      (oset filter ids id))
+      (oset command ids (list id)))
     (when-let ((notes-contains (transient-arg-value
                                  "--notes-contains=" args)))
-      (oset filter notes-contains notes-contains))
+      (oset command notes-contains notes-contains))
     (when-let ((status (transient-arg-value "--status=" args)))
-      (oset filter status status))
+      (oset command status status))
     (when-let ((title (transient-arg-value "--title=" args)))
-      (oset filter title-search title))
+      (oset command title title))
     (when-let ((title-contains (transient-arg-value
                                  "--title-contains=" args)))
-      (oset filter title-contains title-contains))
+      (oset command title-contains title-contains))
     (when-let ((type (transient-arg-value "--type=" args)))
-      (oset filter issue-type type))
+      (oset command issue-type type))
     (when-let ((updated-after (transient-arg-value
                                 "--updated-after=" args)))
-      (oset filter updated-after updated-after))
+      (oset command updated-after updated-after))
     (when-let ((updated-before (transient-arg-value
                                  "--updated-before=" args)))
-      (oset filter updated-before updated-before))
+      (oset command updated-before updated-before))
     ;; Repeatable options (collect all values)
     (let ((label-values nil)
           (label-any-values nil))
@@ -410,21 +393,21 @@ Returns a beads-issue-filter object with all applicable filters set."
         (when (string-prefix-p "--label-any=" arg)
           (push (substring arg (length "--label-any=")) label-any-values)))
       (when label-values
-        (oset filter labels (nreverse label-values)))
+        (oset command labels (nreverse label-values)))
       (when label-any-values
-        (oset filter labels-any (nreverse label-any-values))))
+        (oset command labels-any (nreverse label-any-values))))
     ;; Numeric options
     (when-let ((limit-str (transient-arg-value "--limit=" args)))
-      (oset filter limit (string-to-number limit-str)))
+      (oset command limit (string-to-number limit-str)))
     (when-let ((priority-str (transient-arg-value "--priority=" args)))
-      (oset filter priority (string-to-number priority-str)))
+      (oset command priority (string-to-number priority-str)))
     (when-let ((priority-min-str (transient-arg-value
                                     "--priority-min=" args)))
-      (oset filter priority-min (string-to-number priority-min-str)))
+      (oset command priority-min (string-to-number priority-min-str)))
     (when-let ((priority-max-str (transient-arg-value
                                     "--priority-max=" args)))
-      (oset filter priority-max (string-to-number priority-max-str)))
-    filter))
+      (oset command priority-max (string-to-number priority-max-str)))
+    command))
 
 ;;; Transient Suffix Commands
 
@@ -434,12 +417,9 @@ Returns a beads-issue-filter object with all applicable filters set."
   :description "List issues"
   (interactive)
   (let* ((args (transient-args 'beads-list))
-         (filter (beads-list--parse-transient-args args))
-         (cmd-args (beads-issue-filter-to-args filter)))
+         (command (beads-list--parse-transient-args args)))
     (condition-case err
-        (let* ((result (apply #'beads--run-command "list" cmd-args))
-               (issue-objects (when (vectorp result)
-                                (mapcar #'beads-issue-from-json (append result nil))))
+        (let* ((issue-objects (beads-command-execute command))
                (buffer (get-buffer-create "*beads-list*"))
                (project-dir default-directory))
           (with-current-buffer buffer
@@ -450,7 +430,7 @@ Returns a beads-issue-filter object with all applicable filters set."
                   (setq tabulated-list-entries nil)
                   (tabulated-list-print t)
                   (message "No issues found"))
-              (beads-list--populate-buffer issue-objects 'list filter)
+              (beads-list--populate-buffer issue-objects 'list command)
               (message "Found %d issue%s"
                        (length issue-objects)
                        (if (= (length issue-objects) 1) "" "s"))))
@@ -477,9 +457,9 @@ Returns a beads-issue-filter object with all applicable filters set."
   :transient t
   (interactive)
   (let* ((args (transient-args 'beads-list))
-         (filter (beads-list--parse-transient-args args))
-         (cmd-args (beads-issue-filter-to-args filter))
-         (cmd (apply #'beads--build-command "list" cmd-args))
+         (command (beads-list--parse-transient-args args))
+         (cmd-line (beads-command-line command))
+         (cmd (cons beads-executable cmd-line))
          (cmd-string (mapconcat #'shell-quote-argument cmd " ")))
     (message "Command: %s" cmd-string)))
 
@@ -562,13 +542,11 @@ Transient levels control which filter groups are visible
   (interactive)
   (unless beads-list--command
     (user-error "No command associated with this buffer"))
-  (let* ((cmd-args (when beads-list--filter
-                     (beads-issue-filter-to-args beads-list--filter)))
-         (issues (pcase beads-list--command
+  (let* ((issues (pcase beads-list--command
                    ('list
-                    (let ((result (apply #'beads--run-command "list" cmd-args)))
-                      (when (vectorp result)
-                        (mapcar #'beads-issue-from-json (append result nil)))))
+                    (if beads-list--command-obj
+                        (beads-command-execute beads-list--command-obj)
+                      (beads-command-list!)))
                    ('ready
                     (beads-issue-ready))
                    ('blocked
@@ -580,7 +558,7 @@ Transient levels control which filter groups are visible
           (setq tabulated-list-entries nil)
           (tabulated-list-print t)
           (message "No issues found"))
-      (beads-list--populate-buffer issues beads-list--command beads-list--filter)
+      (beads-list--populate-buffer issues beads-list--command beads-list--command-obj)
       (goto-char pos)
       (message "Refreshed %d issue%s"
                (length issues)
@@ -716,13 +694,16 @@ Uses tabulated-list built-in sorting."
 If in a beads-list buffer, the current filter is used to pre-populate the
 transient menu options."
   (interactive)
-  (when (and (boundp 'beads-list--filter) beads-list--filter)
-    ;; Convert current filter to transient args
-    (let ((args (beads-issue-filter-to-args beads-list--filter)))
+  (when (and (boundp 'beads-list--command-obj) beads-list--command-obj)
+    ;; Convert current command to transient args
+    (let ((cmd-line (beads-command-line beads-list--command-obj)))
+      ;; Remove "list" from the beginning since transient will add it
+      (when (and cmd-line (string= (car cmd-line) "list"))
+        (setq cmd-line (cdr cmd-line)))
       ;; Set the transient value with current filter
-      (put 'beads-list 'transient--value args)
+      (put 'beads-list 'transient--value cmd-line)
       ;; Also add to history for persistence
-      (put 'beads-list 'transient--history (list args))))
+      (put 'beads-list 'transient--history (list cmd-line))))
   ;; Open the transient menu
   (call-interactively #'beads-list))
 
@@ -747,7 +728,10 @@ transient menu options."
           (dolist (id beads-list--marked-issues)
             (condition-case err
                 (progn
-                  (beads--run-command "update" id "--status" status)
+                  (beads-command-execute
+                   (beads-command-update
+                    :issue-ids (list id)
+                    :status status))
                   (setq success-count (1+ success-count)))
               (error
                (message "Failed to update %s: %s" id
@@ -781,8 +765,10 @@ transient menu options."
           (dolist (id beads-list--marked-issues)
             (condition-case err
                 (progn
-                  (beads--run-command "update" id "--priority"
-                                     (number-to-string priority))
+                  (beads-command-execute
+                   (beads-command-update
+                    :issue-ids (list id)
+                    :priority priority))
                   (setq success-count (1+ success-count)))
               (error
                (message "Failed to update %s: %s" id
@@ -808,9 +794,11 @@ transient menu options."
           (dolist (id beads-list--marked-issues)
             (condition-case err
                 (progn
-                  (if (and reason (not (string-empty-p (string-trim reason))))
-                      (beads--run-command "close" id "--reason" reason)
-                    (beads--run-command "close" id))
+                  (beads-command-execute
+                   (beads-command-close
+                    :issue-ids (list id)
+                    :reason (when (and reason (not (string-empty-p (string-trim reason))))
+                             reason)))
                   (setq success-count (1+ success-count)))
               (error
                (message "Failed to close %s: %s" id
@@ -838,8 +826,8 @@ transient menu options."
             (condition-case err
                 (progn
                   (if (and reason (not (string-empty-p (string-trim reason))))
-                      (beads--run-command "reopen" id "--reason" reason)
-                    (beads--run-command "reopen" id))
+                      (beads-command-reopen! :issue-ids (list id) :reason reason)
+                    (beads-command-reopen! :issue-ids (list id)))
                   (setq success-count (1+ success-count)))
               (error
                (message "Failed to reopen %s: %s" id

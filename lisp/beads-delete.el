@@ -32,6 +32,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-command)
 (require 'beads-list)
 (require 'beads-show)
 
@@ -100,7 +101,7 @@ Returns the preview buffer."
 
 (defun beads-delete--execute-deletion (issue-id)
   "Execute the deletion of ISSUE-ID with --force flag."
-  (let ((result (beads--run-command "delete" issue-id "--force")))
+  (let ((result (beads-command-delete! :issue-id issue-id :force t)))
     (message "Deleted issue %s" issue-id)
     ;; Invalidate completion cache
     (beads--invalidate-completion-cache)

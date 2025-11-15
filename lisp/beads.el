@@ -29,6 +29,7 @@
 
 ;;; Code:
 
+(require 'beads-command)
 (require 'beads-custom)
 (require 'json)
 (require 'project)
@@ -299,85 +300,6 @@ take precedence over defcustom settings."
     ;; Reverse to get correct order
     (nreverse parts)))
 
-(defun beads--run-command (subcommand &rest args)
-  "Run bd SUBCOMMAND with ARGS synchronously.
-Returns parsed JSON output or signals error.
-Works over Tramp when `default-directory' is a remote path."
-  (let* ((cmd (apply #'beads--build-command subcommand args))
-         (cmd-string (mapconcat #'shell-quote-argument cmd " ")))
-    (beads--log 'info "Running: %s" cmd-string)
-    (beads--log 'verbose "In directory: %s" default-directory)
-    (with-temp-buffer
-      (let* ((exit-code (apply #'process-file
-                               (car cmd) nil '(t t) nil (cdr cmd)))
-             (output (buffer-string)))
-        (beads--log 'verbose "Exit code: %d" exit-code)
-        (beads--log 'verbose "Output: %s" output)
-        (if (zerop exit-code)
-            (condition-case err
-                (let ((json-object-type 'alist)
-                      (json-array-type 'vector)
-                      (json-key-type 'symbol))
-                  (json-read-from-string output))
-              (error
-               (when (not noninteractive)
-                 (beads--display-error-buffer cmd-string exit-code
-                                              output
-                                              "(stderr merged with stdout)"))
-               (beads--error "Failed to parse JSON: %s"
-                             (error-message-string err))))
-          ;; Display error buffer and signal error
-          (when (not noninteractive)
-            (beads--display-error-buffer cmd-string exit-code
-                                         output
-                                         "(stderr merged with stdout)"))
-          (beads--error "Command failed (exit %d): %s"
-                        exit-code output))))))
-
-(defun beads--run-command-async (callback subcommand &rest args)
-  "Run bd SUBCOMMAND with ARGS asynchronously.
-Call CALLBACK with parsed JSON output when complete.
-Works over Tramp when `default-directory' is a remote path."
-  (let* ((cmd (apply #'beads--build-command subcommand args))
-         (cmd-string (mapconcat #'shell-quote-argument cmd " "))
-         (buffer (generate-new-buffer " *beads-async*")))
-    (beads--log 'info "Running async: %s" cmd-string)
-    (beads--log 'verbose "In directory: %s" default-directory)
-    (let ((proc (apply #'start-file-process
-                       "beads-async" buffer
-                       (car cmd) (cdr cmd))))
-      (set-process-sentinel
-       proc
-       (lambda (process _event)
-         (when (eq (process-status process) 'exit)
-           (let ((exit-code (process-exit-status process)))
-             (with-current-buffer (process-buffer process)
-               (let ((output (buffer-string)))
-                 (beads--log 'verbose "Async exit code: %d" exit-code)
-                 (beads--log 'verbose "Async output: %s" output)
-                 (if (zerop exit-code)
-                     (condition-case err
-                         (let ((json-object-type 'alist)
-                               (json-array-type 'vector)
-                               (json-key-type 'symbol))
-                           (funcall callback (json-read-from-string output)))
-                       (error
-                        (when (not noninteractive)
-                          (beads--display-error-buffer cmd-string exit-code
-                                                       output
-                                                       "(stderr mixed with stdout)"))
-                        (beads--error "Failed to parse JSON: %s"
-                                      (error-message-string err))))
-                   ;; Display error buffer and signal error
-                   (when (not noninteractive)
-                     (beads--display-error-buffer cmd-string exit-code
-                                                  output
-                                                  "(stderr mixed with stdout)"))
-                   (beads--error "Async command failed (exit %d): %s"
-                                 exit-code output))))
-             (kill-buffer (process-buffer process))))))
-      proc)))
-
 ;;; Completion Support
 
 (defvar beads--completion-cache nil
@@ -389,14 +311,14 @@ Format: (TIMESTAMP . ISSUES-LIST)")
 
 (defun beads--get-cached-issues ()
   "Get cached issue list, refreshing if stale.
-Returns list of issues or nil on error."
+Returns list of `beads-issue' objects or nil on error."
   (let ((now (float-time)))
     (when (or (null beads--completion-cache)
               (> (- now (car beads--completion-cache))
                  beads--completion-cache-ttl))
       (condition-case nil
           (setq beads--completion-cache
-                (cons now (beads--parse-issues (beads--run-command "list"))))
+                (cons now (beads-command-list!)))
         (error
          (setq beads--completion-cache nil))))
     (cdr beads--completion-cache)))
@@ -417,7 +339,7 @@ Call this after creating, updating, or deleting issues."
       (let ((issues (beads--get-cached-issues)))
         (complete-with-action
          action
-         (mapcar (lambda (i) (alist-get 'id i)) issues)
+         (mapcar (lambda (i) (oref i id)) issues)
          string pred)))))
 
 (defun beads--annotate-issue (issue-id)
@@ -425,12 +347,12 @@ Call this after creating, updating, or deleting issues."
   (condition-case nil
       (let* ((issues (beads--get-cached-issues))
              (issue (seq-find (lambda (i)
-                               (string= (alist-get 'id i) issue-id))
+                               (string= (oref i id) issue-id))
                              issues)))
         (when issue
-          (let ((status (alist-get 'status issue))
-                (title (alist-get 'title issue))
-                (priority (alist-get 'priority issue)))
+          (let ((status (oref issue status))
+                (title (oref issue title))
+                (priority (oref issue priority)))
             (format " %s [P%s] %s"
                     (propertize (upcase status)
                               'face (pcase status
@@ -455,9 +377,9 @@ If TRANSFORM is non-nil, return the transformed issue ID."
     (condition-case nil
         (let* ((issues (beads--get-cached-issues))
                (issue (seq-find (lambda (i)
-                                 (string= (alist-get 'id i) issue-id))
+                                 (string= (oref i id) issue-id))
                                issues))
-               (status (when issue (alist-get 'status issue))))
+               (status (when issue (oref issue status))))
           (pcase status
             ("open" "Open")
             ("in_progress" "In Progress")
@@ -476,28 +398,15 @@ If TRANSFORM is non-nil, return the transformed issue ID."
 
 (defun beads--parse-issue (json)
   "Parse issue from JSON object.
-Returns an alist with issue fields."
+Returns a beads-issue EIEIO instance."
   (let ((issue (if (vectorp json) (aref json 0) json)))
-    `((id . ,(alist-get 'id issue))
-      (title . ,(alist-get 'title issue))
-      (description . ,(alist-get 'description issue))
-      (status . ,(alist-get 'status issue))
-      (priority . ,(alist-get 'priority issue))
-      (issue-type . ,(alist-get 'issue_type issue))
-      (created-at . ,(alist-get 'created_at issue))
-      (updated-at . ,(alist-get 'updated_at issue))
-      (closed-at . ,(alist-get 'closed_at issue))
-      (acceptance-criteria . ,(alist-get 'acceptance_criteria issue))
-      (design . ,(alist-get 'design issue))
-      (notes . ,(alist-get 'notes issue))
-      (assignee . ,(alist-get 'assignee issue))
-      (external-ref . ,(alist-get 'external_ref issue)))))
+    (beads-issue-from-json issue)))
 
 (defun beads--parse-issues (json)
   "Parse list of issues from JSON array.
-Returns a list of issue alists."
+Returns a list of beads-issue EIEIO instances."
   (when (and json (vectorp json))
-    (mapcar #'beads--parse-issue (append json nil))))
+    (mapcar #'beads-issue-from-json (append json nil))))
 
 ;;; Public API
 
@@ -577,7 +486,19 @@ Returns t if found, signals error otherwise."
 (autoload 'beads-graph-issue "beads-graph" "Show dependency graph focused on issue." t)
 
 ;;;###autoload
+(autoload 'beads-label "beads-label" "Manage labels for issues." t)
+
+;;;###autoload
 (autoload 'beads-label-add "beads-label" "Add a label to one or more issues." t)
+
+;;;###autoload
+(autoload 'beads-label-remove "beads-label" "Remove a label from one or more issues." t)
+
+;;;###autoload
+(autoload 'beads-label-list-interactive "beads-label" "List labels for an issue." t)
+
+;;;###autoload
+(autoload 'beads-label-list-all-view "beads-label" "Display all labels in a tabulated list buffer." t)
 
 ;;;###autoload
 (autoload 'beads-label-list-all "beads-label" "Return a list of all labels from bd label list-all.")

@@ -34,9 +34,12 @@
       (let ((result (beads-label-list-all)))
         (should (listp result))
         (should (= (length result) 3))
-        (should (member "backend" result))
-        (should (member "frontend" result))
-        (should (member "bug" result))))))
+        ;; Result should be list of objects with 'label and 'count
+        (should (cl-some (lambda (obj) (equal (alist-get 'label obj) "backend")) result))
+        (should (cl-some (lambda (obj) (equal (alist-get 'label obj) "frontend")) result))
+        (should (cl-some (lambda (obj) (equal (alist-get 'label obj) "bug")) result))
+        ;; Verify count fields exist
+        (should (cl-every (lambda (obj) (numberp (alist-get 'count obj))) result))))))
 
 (ert-deftest beads-label-test-cache-works ()
   "Test that label cache stores and retrieves labels."
@@ -49,7 +52,8 @@
       ;; First call should populate cache
       (let ((result1 (beads--get-cached-labels)))
         (should (listp result1))
-        (should (member "backend" result1))
+        ;; Result should be list of objects with 'label field
+        (should (cl-some (lambda (obj) (equal (alist-get 'label obj) "backend")) result1))
 
         ;; Cache should be populated
         (should beads--label-cache)
@@ -149,6 +153,53 @@
   (let ((parsed '(:issue-ids "bd-1, bd-2, bd-3" :label "frontend")))
     (let ((args (beads-label-add--build-command-args parsed)))
       (should (equal args '("bd-1" "bd-2" "bd-3" "frontend"))))))
+
+;;; ============================================================
+;;; Label List-All View Tests
+;;; ============================================================
+
+(ert-deftest beads-label-test-current-label ()
+  "Test extracting current label from tabulated list."
+  (cl-letf (((symbol-function 'tabulated-list-get-id)
+             (lambda () "backend")))
+    (should (equal (beads-label-list-all--current-label) "backend"))))
+
+(ert-deftest beads-label-test-current-label-nil ()
+  "Test extracting current label when no label at point."
+  (cl-letf (((symbol-function 'tabulated-list-get-id)
+             (lambda () nil)))
+    (should-not (beads-label-list-all--current-label))))
+
+(ert-deftest beads-label-test-show-issues-no-label ()
+  "Test showing issues when no label at point."
+  (cl-letf (((symbol-function 'tabulated-list-get-id)
+             (lambda () nil)))
+    (should-error (beads-label-list-all-show-issues)
+                  :type 'user-error)))
+
+(ert-deftest beads-label-test-show-issues-with-label ()
+  "Test showing issues for a label."
+  (let ((beads-label-test--mock-issues
+         (list (beads-issue :id "bd-1" :title "Test 1"
+                           :status "open" :priority 2)
+               (beads-issue :id "bd-2" :title "Test 2"
+                           :status "in_progress" :priority 1))))
+    (cl-letf (((symbol-function 'tabulated-list-get-id)
+               (lambda () "backend"))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd) beads-label-test--mock-issues))
+              ((symbol-function 'beads-list-mode)
+               (lambda () (setq major-mode 'beads-list-mode)))
+              ((symbol-function 'beads-list--populate-buffer)
+               (lambda (issues _cmd _cmd-obj)
+                 (should (= (length issues) 2))))
+              ((symbol-function 'pop-to-buffer)
+               (lambda (_buffer) nil)))
+      (let ((default-directory "/tmp/"))
+        (beads-label-list-all-show-issues)
+        ;; Should create buffer with correct name
+        (should (get-buffer "*beads-list: label=backend*"))
+        (kill-buffer "*beads-list: label=backend*")))))
 
 (provide 'beads-label-test)
 ;;; beads-label-test.el ends here

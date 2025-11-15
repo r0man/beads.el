@@ -24,6 +24,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-command)
 (require 'beads-option)
 (require 'transient)
 
@@ -106,10 +107,10 @@ Returns error message string if invalid, nil if valid."
     (if error-msg
         (user-error "Cannot add dependency: %s" error-msg)
       (condition-case err
-          (let* ((result (beads--run-command "dep" "add"
-                                             issue-id
-                                             depends-on-id
-                                             "--type" type))
+          (let* ((result (beads-command-dep-add!
+                          :issue-id issue-id
+                          :depends-on-id depends-on-id
+                          :dep-type type))
                  (formatted (beads-dep--format-dependency result)))
             (message "Dependency added: %s" formatted)
             (beads--invalidate-completion-cache)
@@ -222,9 +223,9 @@ Returns error message string if invalid, nil if valid."
     (if error-msg
         (user-error "Cannot remove dependency: %s" error-msg)
       (condition-case err
-          (let* ((result (beads--run-command "dep" "remove"
-                                             issue-id
-                                             depends-on-id))
+          (let* ((result (beads-command-dep-remove!
+                          :issue-id issue-id
+                          :depends-on-id depends-on-id))
                  (status (alist-get 'status result)))
             (message "Dependency %s: %s -> %s"
                      (propertize status 'face 'success)
@@ -391,8 +392,8 @@ context or prompt the user."
   (when (and (derived-mode-p 'beads-dep-tree-mode)
              beads-dep-tree--issue-id)
     (message "Refreshing dependency tree...")
-    (let* ((issues (beads--run-command "dep" "tree"
-                                       beads-dep-tree--issue-id)))
+    (let* ((issues (beads-command-dep-tree!
+                    :issue-id beads-dep-tree--issue-id)))
       (beads-dep-tree--render (append issues nil)
                               beads-dep-tree--issue-id)
       (message "Dependency tree refreshed"))))
@@ -408,7 +409,7 @@ If ISSUE-ID is not provided, prompt for it or detect from context."
   (beads-check-executable)
   (when (or (null issue-id) (string-empty-p issue-id))
     (user-error "Issue ID is required"))
-  (let* ((issues (beads--run-command "dep" "tree" issue-id))
+  (let* ((issues (beads-command-dep-tree! :issue-id issue-id))
          (buffer (get-buffer-create (format "*beads-dep-tree: %s*"
                                            issue-id))))
     (with-current-buffer buffer
@@ -474,7 +475,7 @@ If ISSUE-ID is not provided, prompt for it or detect from context."
   (interactive)
   (when (derived-mode-p 'beads-dep-cycles-mode)
     (message "Checking for dependency cycles...")
-    (let ((cycles (beads--run-command "dep" "cycles")))
+    (let ((cycles (beads-command-dep-cycles!)))
       (beads-dep-cycles--render cycles)
       (message "Dependency cycles check complete"))))
 
@@ -483,7 +484,7 @@ If ISSUE-ID is not provided, prompt for it or detect from context."
   "Check for dependency cycles and display results."
   (interactive)
   (beads-check-executable)
-  (let* ((cycles (beads--run-command "dep" "cycles"))
+  (let* ((cycles (beads-command-dep-cycles!))
          (buffer (get-buffer-create "*beads-dep-cycles*")))
     (with-current-buffer buffer
       (beads-dep-cycles-mode)

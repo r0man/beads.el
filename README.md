@@ -576,7 +576,7 @@ lisp/
 ### Key Design Patterns
 
 **Process Execution:**
-- Synchronous: `beads--run-command` for quick operations
+- EIEIO command classes: `beads-command`, `beads-command-list`, etc.
 - All commands use `--json` flag for structured output
 - Error handling with user-friendly messages
 

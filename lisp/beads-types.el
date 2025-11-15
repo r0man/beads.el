@@ -67,7 +67,6 @@
 (require 'json)
 
 ;; Forward declarations to avoid circular dependencies
-(declare-function beads--run-command "beads")
 (declare-function beads--parse-issue "beads")
 (declare-function beads--parse-issues "beads")
 
@@ -206,7 +205,8 @@
 (defclass beads-issue ()
   ((id
     :initarg :id
-    :type string
+    :type (or null string)
+    :initform nil
     :documentation "Unique issue identifier (e.g., 'bd-a1b2').")
    (content-hash
     :initarg :content-hash
@@ -215,12 +215,13 @@
     :documentation "SHA256 hash of canonical content (for de-duplication).")
    (title
     :initarg :title
-    :type string
+    :type (or null string)
+    :initform nil
     :documentation "Issue title (max 500 characters).")
    (description
     :initarg :description
-    :type string
-    :initform ""
+    :type (or null string)
+    :initform nil
     :documentation "Detailed issue description.")
    (design
     :initarg :design
@@ -239,12 +240,13 @@
     :documentation "Additional notes or progress updates.")
    (status
     :initarg :status
-    :type string
+    :type (or null string)
+    :initform nil
     :documentation "Current status (open, in_progress, blocked, closed).")
    (priority
     :initarg :priority
-    :type integer
-    :initform 2
+    :type (or null integer)
+    :initform nil
     :documentation "Priority level (0=lowest, 4=highest).")
    (issue-type
     :initarg :issue-type
@@ -283,8 +285,8 @@
     :documentation "External reference (e.g., 'gh-9', 'jira-ABC').")
    (compaction-level
     :initarg :compaction-level
-    :type integer
-    :initform 0
+    :type (or null integer)
+    :initform nil
     :documentation "Compaction level (0=uncompacted).")
    (compacted-at
     :initarg :compacted-at
@@ -298,8 +300,8 @@
     :documentation "Git commit hash when compacted.")
    (original-size
     :initarg :original-size
-    :type integer
-    :initform 0
+    :type (or null integer)
+    :initform nil
     :documentation "Original size before compaction.")
    (source-repo
     :initarg :source-repo
@@ -683,12 +685,12 @@ JSON should be the parsed JSON object from bd --json output."
    :id (alist-get 'id json)
    :content-hash (alist-get 'content_hash json)
    :title (alist-get 'title json)
-   :description (or (alist-get 'description json) "")
+   :description (alist-get 'description json)
    :design (alist-get 'design json)
    :acceptance-criteria (alist-get 'acceptance_criteria json)
    :notes (alist-get 'notes json)
    :status (alist-get 'status json)
-   :priority (or (alist-get 'priority json) 2)
+   :priority (alist-get 'priority json)
    :issue-type (alist-get 'issue_type json)
    :assignee (alist-get 'assignee json)
    :estimated-minutes (alist-get 'estimated_minutes json)
@@ -696,10 +698,10 @@ JSON should be the parsed JSON object from bd --json output."
    :updated-at (alist-get 'updated_at json)
    :closed-at (alist-get 'closed_at json)
    :external-ref (alist-get 'external_ref json)
-   :compaction-level (or (alist-get 'compaction_level json) 0)
+   :compaction-level (alist-get 'compaction_level json)
    :compacted-at (alist-get 'compacted_at json)
    :compacted-at-commit (alist-get 'compacted_at_commit json)
-   :original-size (or (alist-get 'original_size json) 0)
+   :original-size (alist-get 'original_size json)
    :source-repo (alist-get 'source_repo json)
    :labels (append (alist-get 'labels json) nil)
    :dependencies (when-let ((deps (alist-get 'dependencies json)))
@@ -749,12 +751,12 @@ JSON should be the parsed JSON object from bd --json output."
    :id (alist-get 'id json)
    :content-hash (alist-get 'content_hash json)
    :title (alist-get 'title json)
-   :description (or (alist-get 'description json) "")
+   :description (alist-get 'description json)
    :design (alist-get 'design json)
    :acceptance-criteria (alist-get 'acceptance_criteria json)
    :notes (alist-get 'notes json)
    :status (alist-get 'status json)
-   :priority (or (alist-get 'priority json) 2)
+   :priority (alist-get 'priority json)
    :issue-type (alist-get 'issue_type json)
    :assignee (alist-get 'assignee json)
    :estimated-minutes (alist-get 'estimated_minutes json)
@@ -762,10 +764,10 @@ JSON should be the parsed JSON object from bd --json output."
    :updated-at (alist-get 'updated_at json)
    :closed-at (alist-get 'closed_at json)
    :external-ref (alist-get 'external_ref json)
-   :compaction-level (or (alist-get 'compaction_level json) 0)
+   :compaction-level (alist-get 'compaction_level json)
    :compacted-at (alist-get 'compacted_at json)
    :compacted-at-commit (alist-get 'compacted_at_commit json)
-   :original-size (or (alist-get 'original_size json) 0)
+   :original-size (alist-get 'original_size json)
    :source-repo (alist-get 'source_repo json)
    :labels (append (alist-get 'labels json) nil)
    :dependencies (when-let ((deps (alist-get 'dependencies json)))
@@ -781,12 +783,12 @@ JSON should be the parsed JSON object from bd --json output."
    :id (alist-get 'id json)
    :content-hash (alist-get 'content_hash json)
    :title (alist-get 'title json)
-   :description (or (alist-get 'description json) "")
+   :description (alist-get 'description json)
    :design (alist-get 'design json)
    :acceptance-criteria (alist-get 'acceptance_criteria json)
    :notes (alist-get 'notes json)
    :status (alist-get 'status json)
-   :priority (or (alist-get 'priority json) 2)
+   :priority (alist-get 'priority json)
    :issue-type (alist-get 'issue_type json)
    :assignee (alist-get 'assignee json)
    :estimated-minutes (alist-get 'estimated_minutes json)
@@ -794,10 +796,10 @@ JSON should be the parsed JSON object from bd --json output."
    :updated-at (alist-get 'updated_at json)
    :closed-at (alist-get 'closed_at json)
    :external-ref (alist-get 'external_ref json)
-   :compaction-level (or (alist-get 'compaction_level json) 0)
+   :compaction-level (alist-get 'compaction_level json)
    :compacted-at (alist-get 'compacted_at json)
    :compacted-at-commit (alist-get 'compacted_at_commit json)
-   :original-size (or (alist-get 'original_size json) 0)
+   :original-size (alist-get 'original_size json)
    :source-repo (alist-get 'source_repo json)
    :labels (append (alist-get 'labels json) nil)
    :dependencies (when-let ((deps (alist-get 'dependencies json)))
@@ -834,7 +836,7 @@ JSON should be the parsed JSON object from bd --json output."
 
 (cl-defmethod beads-issue-filter-to-args ((filter beads-issue-filter))
   "Build bd command arguments from FILTER instance.
-Returns a list of strings suitable for passing to beads--run-command.
+Returns a list of strings suitable for use with beads-command classes.
 Only includes arguments for non-nil filter slots."
   (with-slots (status priority issue-type assignee labels labels-any
                       title-search ids limit title-contains

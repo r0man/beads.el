@@ -165,6 +165,9 @@ Key bindings:
    :description "Manage dependencies"
    ("d" "Dependencies menu" beads-dep)
    ("v" "Visual graph" beads-graph-all)]
+  ["Labels"
+   :description "Manage labels"
+   ("L" "Label menu" beads-label)]
   ["Admin"
    :description "Project administration"
    ("i" "Init project" beads-init)

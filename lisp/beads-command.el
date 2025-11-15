@@ -995,20 +995,48 @@ Default implementation returns nil (valid)."
 (cl-defmethod beads-command-execute ((command beads-command-epic-status))
   "Execute epic status COMMAND and return result.
 When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
-When :json is t, returns parsed JSON (list of epic status objects).
+When :json is t, returns list of beads-epic-status instances.
 Signals beads-validation-error, beads-command-error, or
 beads-json-parse-error on failure."
   (with-slots (json) command
     (if (not json)
         ;; If json is not enabled, use parent implementation
         (cl-call-next-method)
-      ;; JSON execution: call parent to get parsed JSON
+      ;; JSON execution: call parent to get parsed JSON, then convert
+      ;; to beads-epic-status instance(s)
       (let* ((result (cl-call-next-method))
              (exit-code (nth 0 result))
-             (parsed-json (nth 1 result)))
-        ;; Return parsed JSON directly (no conversion needed)
+             (parsed-json (nth 1 result))
+             (stderr (nth 2 result)))
+        ;; Convert JSON to beads-epic-status instance(s)
         (if (zerop exit-code)
-            parsed-json
+            (condition-case err
+                (cond
+                 ;; Empty result (nil)
+                 ((null parsed-json)
+                  nil)
+                 ;; JSON array of epic status objects
+                 ((eq (type-of parsed-json) 'vector)
+                  (mapcar #'beads-epic-status-from-json
+                          (append parsed-json nil)))
+                 ;; Single epic status (unlikely, but handle it)
+                 ((eq (type-of parsed-json) 'cons)
+                  (list (beads-epic-status-from-json parsed-json)))
+                 ;; Unexpected JSON structure
+                 (t
+                  (signal 'beads-json-parse-error
+                          (list "Unexpected JSON structure from bd epic status"
+                                :exit-code exit-code
+                                :parsed-json parsed-json
+                                :stderr stderr))))
+              (error
+               (signal 'beads-json-parse-error
+                       (list (format "Failed to create beads-epic-status instance: %s"
+                                    (error-message-string err))
+                             :exit-code exit-code
+                             :parsed-json parsed-json
+                             :stderr stderr
+                             :parse-error err))))
           ;; Non-zero exit code: parent already signaled error
           result)))))
 
@@ -1365,6 +1393,154 @@ beads-json-parse-error on failure."
           ;; Non-zero exit code: parent already signaled error
           result)))))
 
+;;; Reopen Command
+
+(defclass beads-command-reopen (beads-command-json)
+  ((issue-ids
+    :initarg :issue-ids
+    :type (or null list)
+    :initform nil
+    :documentation "One or more issue IDs to reopen (positional arguments).
+Example: '(\"bd-1\" \"bd-2\")")
+   (reason
+    :initarg :reason
+    :type (or null string)
+    :initform nil
+    :documentation "Optional reason for reopening (-r, --reason)."))
+  :documentation "Represents bd reopen command.
+Reopens one or more closed issues with an optional reason.
+When executed with :json t, returns beads-issue instance (or list
+of instances when multiple IDs provided).")
+
+(cl-defmethod beads-command-line ((command beads-command-reopen))
+  "Build command arguments for reopen COMMAND (without executable).
+Returns list: (\"reopen\" ...global-flags... ...issue-ids... --reason ...)."
+  (with-slots (issue-ids reason) command
+    (let ((args (list "reopen"))
+          (global-args (cl-call-next-method)))
+      ;; Append global flags (includes --json if enabled)
+      (setq args (append args global-args))
+
+      ;; Append issue IDs (positional arguments)
+      (when issue-ids
+        (setq args (append args issue-ids)))
+
+      ;; Append reason (optional)
+      (when reason
+        (setq args (append args (list "--reason" reason))))
+
+      args)))
+
+(cl-defmethod beads-command-validate ((command beads-command-reopen))
+  "Validate reopen COMMAND.
+Checks that at least one issue ID is provided.
+Returns error string or nil if valid."
+  (with-slots (issue-ids) command
+    (or
+     ;; Must have at least one issue ID
+     (and (or (null issue-ids) (zerop (length issue-ids)))
+          "Must provide at least one issue ID")
+     ;; Validate list content types
+     (beads-command--validate-string-list issue-ids "issue-ids"))))
+
+(cl-defmethod beads-command-execute ((command beads-command-reopen))
+  "Execute reopen COMMAND and return reopened issue(s).
+When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
+When :json is t, returns beads-issue instance (or list of instances
+when multiple IDs provided).
+Signals beads-validation-error, beads-command-error, or
+beads-json-parse-error on failure."
+  (with-slots (json issue-ids) command
+    (if (not json)
+        ;; If json is not enabled, use parent implementation
+        (cl-call-next-method)
+      ;; JSON execution: call parent to get parsed JSON, then convert
+      ;; to beads-issue instance(s) using beads-issue-from-json
+      (let* ((result (cl-call-next-method))
+             (exit-code (nth 0 result))
+             (parsed-json (nth 1 result))
+             (stderr (nth 2 result)))
+        ;; Convert JSON to beads-issue instance(s)
+        ;; Note: bd reopen always returns an array in JSON mode,
+        ;; even for a single issue ID
+        (if (zerop exit-code)
+            (condition-case err
+                (if (eq (type-of parsed-json) 'vector)
+                    ;; bd reopen returns array - convert to issue objects
+                    (let ((issues (mapcar #'beads-issue-from-json
+                                         (append parsed-json nil))))
+                      ;; Return single issue if only one ID, list otherwise
+                      (if (= (length issue-ids) 1)
+                          (car issues)
+                        issues))
+                  ;; Unexpected JSON structure
+                  (signal 'beads-json-parse-error
+                          (list "Unexpected JSON structure from bd reopen"
+                                :exit-code exit-code
+                                :parsed-json parsed-json
+                                :stderr stderr)))
+              (error
+               (signal 'beads-json-parse-error
+                       (list (format "Failed to create beads-issue instance: %s"
+                                    (error-message-string err))
+                             :exit-code exit-code
+                             :parsed-json parsed-json
+                             :stderr stderr
+                             :parse-error err))))
+          ;; Non-zero exit code: parent already signaled error
+          result)))))
+
+;;; Delete Command
+
+(defclass beads-command-delete (beads-command)
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID to delete (positional argument).
+Example: \"bd-1\"")
+   (force
+    :initarg :force
+    :type boolean
+    :initform nil
+    :documentation "Force deletion without preview (--force flag)."))
+  :documentation "Represents bd delete command.
+Deletes an issue with optional --force flag.
+When executed, returns (EXIT-CODE STDOUT STDERR) tuple.")
+
+(cl-defmethod beads-command-line ((command beads-command-delete))
+  "Build command arguments for delete COMMAND (without executable).
+Returns list: (\"delete\" ...global-flags... issue-id [--force])."
+  (with-slots (issue-id force) command
+    (let ((args (list "delete"))
+          (global-args (cl-call-next-method)))
+      ;; Append global flags
+      (setq args (append args global-args))
+
+      ;; Append issue ID (positional argument)
+      (when issue-id
+        (push issue-id args))
+
+      ;; Append --force flag if set
+      (when force
+        (setq args (append args (list "--force"))))
+
+      args)))
+
+(cl-defmethod beads-command-validate ((command beads-command-delete))
+  "Validate delete COMMAND.
+Checks that issue ID is provided.
+Returns error string or nil if valid."
+  (with-slots (issue-id) command
+    (when (or (null issue-id) (string-empty-p issue-id))
+      "Must provide an issue ID")))
+
+(defun beads-command-delete! (&rest args)
+  "Create and execute a beads-command-delete with ARGS.
+Returns (EXIT-CODE STDOUT STDERR) tuple.
+See `beads-command-delete' for available arguments."
+  (beads-command-execute (apply #'beads-command-delete args)))
+
 ;;; Ready Command
 
 (defclass beads-command-ready (beads-command-json)
@@ -1511,9 +1687,9 @@ Default implementation returns nil (valid)."
   nil)
 
 (cl-defmethod beads-command-execute ((command beads-command-blocked))
-  "Execute blocked COMMAND and return list of beads-issue instances.
+  "Execute blocked COMMAND and return list of beads-blocked-issue instances.
 When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
-When :json is t, returns list of beads-issue instances.
+When :json is t, returns list of beads-blocked-issue instances.
 Signals beads-validation-error, beads-command-error, or
 beads-json-parse-error on failure."
   (with-slots (json) command
@@ -1521,20 +1697,20 @@ beads-json-parse-error on failure."
         ;; If json is not enabled, use parent implementation
         (cl-call-next-method)
       ;; JSON execution: call parent to get parsed JSON, then convert
-      ;; to beads-issue instances using beads-issue-from-json
+      ;; to beads-blocked-issue instances using beads-blocked-issue-from-json
       (let* ((result (cl-call-next-method))
              (exit-code (nth 0 result))
              (parsed-json (nth 1 result))
              (stderr (nth 2 result)))
-        ;; Convert JSON array to list of beads-issue instances
+        ;; Convert JSON array to list of beads-blocked-issue instances
         (if (zerop exit-code)
             (condition-case err
-                (let ((issues (mapcar #'beads-issue-from-json
+                (let ((issues (mapcar #'beads-blocked-issue-from-json
                                      (append parsed-json nil))))
                   issues)
               (error
                (signal 'beads-json-parse-error
-                       (list (format "Failed to create beads-issue instances: %s"
+                       (list (format "Failed to create beads-blocked-issue instances: %s"
                                     (error-message-string err))
                              :exit-code exit-code
                              :parsed-json parsed-json
@@ -1874,6 +2050,249 @@ beads-json-parse-error on failure."
           ;; Non-zero exit code: parent already signaled error
           result)))))
 
+;;; Label List-All Command
+
+(defclass beads-command-label-list-all (beads-command-json)
+  ()
+  :documentation "Represents bd label list-all command.
+Shows all labels with usage counts.
+When executed with :json t, returns parsed JSON label list.")
+
+(cl-defmethod beads-command-line ((_command beads-command-label-list-all))
+  "Build command arguments for label list-all COMMAND (without executable).
+Returns list: (\"label\" \"list-all\" ...global-flags...)."
+  (let ((args (list "label" "list-all"))
+        (global-args (cl-call-next-method)))
+    ;; Append global flags (includes --json if enabled)
+    (setq args (append args global-args))
+    args))
+
+(cl-defmethod beads-command-validate ((_command beads-command-label-list-all))
+  "Validate label list-all COMMAND.
+Default implementation returns nil (valid)."
+  nil)
+
+(cl-defmethod beads-command-execute ((command beads-command-label-list-all))
+  "Execute label list-all COMMAND and return result.
+When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
+When :json is t, returns parsed JSON array of label objects.
+Signals beads-validation-error, beads-command-error, or
+beads-json-parse-error on failure."
+  (with-slots (json) command
+    (if (not json)
+        ;; If json is not enabled, use parent implementation
+        (cl-call-next-method)
+      ;; JSON execution: call parent to get parsed JSON
+      (let* ((result (cl-call-next-method))
+             (exit-code (nth 0 result))
+             (parsed-json (nth 1 result)))
+        ;; Return parsed JSON directly (no conversion needed)
+        (if (zerop exit-code)
+            parsed-json
+          ;; Non-zero exit code: parent already signaled error
+          result)))))
+
+;;; Label Add Command
+
+(defclass beads-command-label-add (beads-command-json)
+  ((issue-ids
+    :initarg :issue-ids
+    :type (or null list)
+    :initform nil
+    :documentation "One or more issue IDs (positional arguments).
+Example: '(\"bd-1\" \"bd-2\")")
+   (label
+    :initarg :label
+    :type (or null string)
+    :initform nil
+    :documentation "Label name to add (positional argument)."))
+  :documentation "Represents bd label add command.
+Adds a label to one or more issues.
+When executed with :json t, returns parsed JSON result.")
+
+(cl-defmethod beads-command-line ((command beads-command-label-add))
+  "Build command arguments for label add COMMAND (without executable).
+Returns list: (\"label\" \"add\" ...global-flags... ...issue-ids... label)."
+  (with-slots (issue-ids label) command
+    (let ((args (list "label" "add"))
+          (global-args (cl-call-next-method)))
+      ;; Append global flags (includes --json if enabled)
+      (setq args (append args global-args))
+
+      ;; Append issue IDs (positional arguments)
+      (when issue-ids
+        (setq args (append args issue-ids)))
+
+      ;; Append label (positional argument)
+      (when label
+        (setq args (append args (list label))))
+
+      args)))
+
+(cl-defmethod beads-command-validate ((command beads-command-label-add))
+  "Validate label add COMMAND.
+Checks that at least one issue ID and a label are provided.
+Returns error string or nil if valid."
+  (with-slots (issue-ids label) command
+    (or
+     ;; Must have at least one issue ID
+     (and (or (null issue-ids) (zerop (length issue-ids)))
+          "Must provide at least one issue ID")
+     ;; Must have a label
+     (and (or (null label) (string-empty-p label))
+          "Must provide a label name")
+     ;; Validate list content types
+     (beads-command--validate-string-list issue-ids "issue-ids"))))
+
+(cl-defmethod beads-command-execute ((command beads-command-label-add))
+  "Execute label add COMMAND and return result.
+When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
+When :json is t, returns parsed JSON result.
+Signals beads-validation-error, beads-command-error, or
+beads-json-parse-error on failure."
+  (with-slots (json) command
+    (if (not json)
+        ;; If json is not enabled, use parent implementation
+        (cl-call-next-method)
+      ;; JSON execution: call parent to get parsed JSON
+      (let* ((result (cl-call-next-method))
+             (exit-code (nth 0 result))
+             (parsed-json (nth 1 result)))
+        ;; Return parsed JSON directly (no conversion needed)
+        (if (zerop exit-code)
+            parsed-json
+          ;; Non-zero exit code: parent already signaled error
+          result)))))
+
+;;; Label Remove Command
+
+(defclass beads-command-label-remove (beads-command-json)
+  ((issue-ids
+    :initarg :issue-ids
+    :type (or null list)
+    :initform nil
+    :documentation "One or more issue IDs (positional arguments).
+Example: '(\"bd-1\" \"bd-2\")")
+   (label
+    :initarg :label
+    :type (or null string)
+    :initform nil
+    :documentation "Label name to remove (positional argument)."))
+  :documentation "Represents bd label remove command.
+Removes a label from one or more issues.
+When executed with :json t, returns parsed JSON result.")
+
+(cl-defmethod beads-command-line ((command beads-command-label-remove))
+  "Build command arguments for label remove COMMAND (without executable).
+Returns list: (\"label\" \"remove\" ...global-flags... ...issue-ids... label)."
+  (with-slots (issue-ids label) command
+    (let ((args (list "label" "remove"))
+          (global-args (cl-call-next-method)))
+      ;; Append global flags (includes --json if enabled)
+      (setq args (append args global-args))
+
+      ;; Append issue IDs (positional arguments)
+      (when issue-ids
+        (setq args (append args issue-ids)))
+
+      ;; Append label (positional argument)
+      (when label
+        (setq args (append args (list label))))
+
+      args)))
+
+(cl-defmethod beads-command-validate ((command beads-command-label-remove))
+  "Validate label remove COMMAND.
+Checks that at least one issue ID and a label are provided.
+Returns error string or nil if valid."
+  (with-slots (issue-ids label) command
+    (or
+     ;; Must have at least one issue ID
+     (and (or (null issue-ids) (zerop (length issue-ids)))
+          "Must provide at least one issue ID")
+     ;; Must have a label
+     (and (or (null label) (string-empty-p label))
+          "Must provide a label name")
+     ;; Validate list content types
+     (beads-command--validate-string-list issue-ids "issue-ids"))))
+
+(cl-defmethod beads-command-execute ((command beads-command-label-remove))
+  "Execute label remove COMMAND and return result.
+When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
+When :json is t, returns parsed JSON result.
+Signals beads-validation-error, beads-command-error, or
+beads-json-parse-error on failure."
+  (with-slots (json) command
+    (if (not json)
+        ;; If json is not enabled, use parent implementation
+        (cl-call-next-method)
+      ;; JSON execution: call parent to get parsed JSON
+      (let* ((result (cl-call-next-method))
+             (exit-code (nth 0 result))
+             (parsed-json (nth 1 result)))
+        ;; Return parsed JSON directly (no conversion needed)
+        (if (zerop exit-code)
+            parsed-json
+          ;; Non-zero exit code: parent already signaled error
+          result)))))
+
+;;; Label List Command
+
+(defclass beads-command-label-list (beads-command-json)
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID to list labels for (positional argument).
+Example: \"bd-1\""))
+  :documentation "Represents bd label list command.
+Lists all labels for a specific issue.
+When executed with :json t, returns parsed JSON result.")
+
+(cl-defmethod beads-command-line ((command beads-command-label-list))
+  "Build command arguments for label list COMMAND (without executable).
+Returns list: (\"label\" \"list\" ...global-flags... issue-id)."
+  (with-slots (issue-id) command
+    (let ((args (list "label" "list"))
+          (global-args (cl-call-next-method)))
+      ;; Append global flags (includes --json if enabled)
+      (setq args (append args global-args))
+
+      ;; Append issue ID (positional argument)
+      (when issue-id
+        (setq args (append args (list issue-id))))
+
+      args)))
+
+(cl-defmethod beads-command-validate ((command beads-command-label-list))
+  "Validate label list COMMAND.
+Checks that an issue ID is provided.
+Returns error string or nil if valid."
+  (with-slots (issue-id) command
+    ;; Must have an issue ID
+    (and (or (null issue-id) (string-empty-p issue-id))
+         "Must provide an issue ID")))
+
+(cl-defmethod beads-command-execute ((command beads-command-label-list))
+  "Execute label list COMMAND and return result.
+When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
+When :json is t, returns parsed JSON result (array of label strings).
+Signals beads-validation-error, beads-command-error, or
+beads-json-parse-error on failure."
+  (with-slots (json) command
+    (if (not json)
+        ;; If json is not enabled, use parent implementation
+        (cl-call-next-method)
+      ;; JSON execution: call parent to get parsed JSON
+      (let* ((result (cl-call-next-method))
+             (exit-code (nth 0 result))
+             (parsed-json (nth 1 result)))
+        ;; Return parsed JSON directly (no conversion needed)
+        (if (zerop exit-code)
+            parsed-json
+          ;; Non-zero exit code: parent already signaled error
+          result)))))
+
 ;;; Utility Functions
 
 (defun beads-command--priority-to-string (priority)
@@ -1962,6 +2381,12 @@ Returns the parsed issue object (or list of issue objects).
 See `beads-command-close' for available arguments."
   (beads-command-execute (apply #'beads-command-close args)))
 
+(defun beads-command-reopen! (&rest args)
+  "Create and execute a beads-command-reopen with ARGS.
+Returns the parsed issue object (or list of issue objects).
+See `beads-command-reopen' for available arguments."
+  (beads-command-execute (apply #'beads-command-reopen args)))
+
 (defun beads-command-ready! (&rest args)
   "Create and execute a beads-command-ready with ARGS.
 Returns a list of parsed issue objects.
@@ -2003,6 +2428,30 @@ See `beads-command-dep-tree' for available arguments."
 Returns the parsed JSON with cycle information.
 See `beads-command-dep-cycles' for available arguments."
   (beads-command-execute (apply #'beads-command-dep-cycles args)))
+
+(defun beads-command-label-list-all! (&rest args)
+  "Create and execute a beads-command-label-list-all with ARGS.
+Returns the parsed JSON array of label objects.
+See `beads-command-label-list-all' for available arguments."
+  (beads-command-execute (apply #'beads-command-label-list-all args)))
+
+(defun beads-command-label-add! (&rest args)
+  "Create and execute a beads-command-label-add with ARGS.
+Returns the parsed JSON result.
+See `beads-command-label-add' for available arguments."
+  (beads-command-execute (apply #'beads-command-label-add args)))
+
+(defun beads-command-label-remove! (&rest args)
+  "Create and execute a beads-command-label-remove with ARGS.
+Returns the parsed JSON result.
+See `beads-command-label-remove' for available arguments."
+  (beads-command-execute (apply #'beads-command-label-remove args)))
+
+(defun beads-command-label-list! (&rest args)
+  "Create and execute a beads-command-label-list with ARGS.
+Returns the parsed JSON array of label strings.
+See `beads-command-label-list' for available arguments."
+  (beads-command-execute (apply #'beads-command-label-list args)))
 
 (provide 'beads-command)
 ;;; beads-command.el ends here

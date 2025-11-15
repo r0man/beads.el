@@ -75,14 +75,14 @@
 
 ;;; Test Utilities
 
-(defun beads-epic-status-test--mock-call-process (exit-code output)
-  "Create a mock for `call-process' returning EXIT-CODE and OUTPUT."
-  (lambda (program &optional infile destination display &rest args)
-    (when destination
-      (with-current-buffer (if (bufferp destination)
-                               destination
-                             (current-buffer))
-        (insert output)))
+(defun beads-epic-status-test--mock-process-file (exit-code output)
+  "Create a mock for `process-file' returning EXIT-CODE and OUTPUT."
+  (lambda (program &optional infile buffer display &rest args)
+    (when buffer
+      (let ((buf (if (listp buffer) (car buffer) buffer)))
+        (when buf
+          (with-current-buffer (if (bufferp buf) buf (current-buffer))
+            (insert output)))))
     exit-code))
 
 ;;; Tests for Epic Status Parsing
@@ -267,8 +267,8 @@
   (let* ((json-output (json-encode
                        (list beads-epic-status-test--sample-epic-1)))
          (beads-list-called nil))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-epic-status-test--mock-call-process 0 json-output)))
+    (cl-letf (((symbol-function 'process-file)
+               (beads-epic-status-test--mock-process-file 0 json-output)))
       (beads-epic)
       (with-current-buffer "*beads-epic-status*"
         ;; Check that expanded state was initialized
@@ -292,8 +292,8 @@
                          '((depth . 1) (parent_id . "beads.el-7bea"))))
          (tree-nodes (list epic-node child1 child2))
          (json-output (json-encode tree-nodes)))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-epic-status-test--mock-call-process 0 json-output)))
+    (cl-letf (((symbol-function 'process-file)
+               (beads-epic-status-test--mock-process-file 0 json-output)))
       (let ((result (beads-epic-status--fetch-children "beads.el-7bea")))
         (should (= (length result) 2))
         (should (beads-issue-p (car result)))
@@ -354,8 +354,8 @@
   "Test that beads-epic creates a buffer."
   (let ((json-output (json-encode
                       (list beads-epic-status-test--sample-epic-1))))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-epic-status-test--mock-call-process 0 json-output)))
+    (cl-letf (((symbol-function 'process-file)
+               (beads-epic-status-test--mock-process-file 0 json-output)))
       (beads-epic)
       (should (get-buffer "*beads-epic-status*"))
       (kill-buffer "*beads-epic-status*"))))
@@ -364,8 +364,8 @@
   "Test that beads-epic sets the correct mode."
   (let ((json-output (json-encode
                       (list beads-epic-status-test--sample-epic-1))))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-epic-status-test--mock-call-process 0 json-output)))
+    (cl-letf (((symbol-function 'process-file)
+               (beads-epic-status-test--mock-process-file 0 json-output)))
       (beads-epic)
       (with-current-buffer "*beads-epic-status*"
         (should (eq major-mode 'beads-epic-status-mode)))
@@ -375,8 +375,8 @@
   "Test that beads-epic displays epic content."
   (let ((json-output (json-encode
                       (list beads-epic-status-test--sample-epic-1))))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-epic-status-test--mock-call-process 0 json-output)))
+    (cl-letf (((symbol-function 'process-file)
+               (beads-epic-status-test--mock-process-file 0 json-output)))
       (beads-epic)
       (with-current-buffer "*beads-epic-status*"
         (let ((content (buffer-string)))
@@ -387,8 +387,8 @@
 (ert-deftest beads-epic-status-test-command-empty-result ()
   "Test beads-epic with no epics."
   (let ((json-output (json-encode '())))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-epic-status-test--mock-call-process 0 json-output)))
+    (cl-letf (((symbol-function 'process-file)
+               (beads-epic-status-test--mock-process-file 0 json-output)))
       (beads-epic)
       (with-current-buffer "*beads-epic-status*"
         (let ((content (buffer-string)))
@@ -401,8 +401,8 @@
   "Test that beads-epic-status-refresh updates the buffer."
   (let ((json-output (json-encode
                       (list beads-epic-status-test--sample-epic-1))))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-epic-status-test--mock-call-process 0 json-output)))
+    (cl-letf (((symbol-function 'process-file)
+               (beads-epic-status-test--mock-process-file 0 json-output)))
       (beads-epic)
       (with-current-buffer "*beads-epic-status*"
         ;; Modify buffer to test refresh
@@ -420,8 +420,8 @@
   "Test that refresh preserves expanded state."
   (let ((json-output (json-encode
                       (list beads-epic-status-test--sample-epic-1))))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-epic-status-test--mock-call-process 0 json-output)))
+    (cl-letf (((symbol-function 'process-file)
+               (beads-epic-status-test--mock-process-file 0 json-output)))
       (beads-epic)
       (with-current-buffer "*beads-epic-status*"
         ;; Set some expanded state
@@ -441,8 +441,8 @@
   (let ((json-output (json-encode
                       (list beads-epic-status-test--sample-epic-1
                             beads-epic-status-test--sample-epic-2))))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-epic-status-test--mock-call-process 0 json-output)))
+    (cl-letf (((symbol-function 'process-file)
+               (beads-epic-status-test--mock-process-file 0 json-output)))
       ;; Open epic status
       (beads-epic)
       (should (get-buffer "*beads-epic-status*"))
@@ -487,8 +487,8 @@
             (closed_children . 0)
             (eligible_for_close . :json-false)))
          (json-output (json-encode (list zero-children-epic))))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-epic-status-test--mock-call-process 0 json-output)))
+    (cl-letf (((symbol-function 'process-file)
+               (beads-epic-status-test--mock-process-file 0 json-output)))
       (beads-epic)
       (with-current-buffer "*beads-epic-status*"
         (let ((content (buffer-string)))
@@ -501,8 +501,8 @@
   "Test epic with 100% completion."
   (let ((json-output (json-encode
                       (list beads-epic-status-test--eligible-epic))))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-epic-status-test--mock-call-process 0 json-output)))
+    (cl-letf (((symbol-function 'process-file)
+               (beads-epic-status-test--mock-process-file 0 json-output)))
       (beads-epic)
       (with-current-buffer "*beads-epic-status*"
         (let ((content (buffer-string)))

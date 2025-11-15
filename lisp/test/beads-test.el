@@ -12,7 +12,6 @@
 ;; - Logging functionality (beads--log)
 ;; - Error handling (beads--error)
 ;; - Executable checking (beads-check-executable)
-;; - Process execution (beads--run-command, async)
 ;; - JSON parsing (beads--parse-issue, beads--parse-issues)
 ;; - Command building (beads--build-command)
 ;; - Project.el integration (find-project-root, find-beads-dir)
@@ -737,139 +736,6 @@ STRUCTURE is a list of paths to create (dirs end with /)."
 
 
 ;;; ========================================
-;;; Process Execution Tests (Synchronous)
-;;; ========================================
-
-
-(ert-deftest beads-test-run-command-success ()
-  "Test successful command execution with valid JSON."
-  (beads-test-with-temp-config
-   (let ((json-output (json-encode beads-test--sample-issue)))
-     (cl-letf (((symbol-function 'process-file)
-                (beads-test--mock-call-process 0 json-output)))
-       (let ((result (beads--run-command "show" "bd-1")))
-         (should (listp result))
-         (should (consp result))
-         (should (equal (alist-get 'id result) "bd-1"))
-         (should (equal (alist-get 'title result) "Test Issue")))))))
-
-(ert-deftest beads-test-run-command-array-output ()
-  "Test command execution with JSON array output."
-  (beads-test-with-temp-config
-   (let ((json-output (json-encode beads-test--sample-issues-array)))
-     (cl-letf (((symbol-function 'process-file)
-                (beads-test--mock-call-process 0 json-output)))
-       (let ((result (beads--run-command "list")))
-         (should (vectorp result))
-         (should (= (length result) 3)))))))
-
-(ert-deftest beads-test-run-command-empty-object ()
-  "Test command execution with empty JSON object."
-  (beads-test-with-temp-config
-   (cl-letf (((symbol-function 'process-file)
-              (beads-test--mock-call-process 0 "{}")))
-     (let ((result (beads--run-command "stats")))
-       (should (listp result))
-       (should (null (cdr result)))))))
-
-(ert-deftest beads-test-run-command-empty-array ()
-  "Test command execution with empty JSON array."
-  (beads-test-with-temp-config
-   (cl-letf (((symbol-function 'process-file)
-              (beads-test--mock-call-process 0 "[]")))
-     (let ((result (beads--run-command "ready")))
-       (should (vectorp result))
-       (should (= (length result) 0))))))
-
-(ert-deftest beads-test-run-command-non-zero-exit ()
-  "Test command execution with non-zero exit code."
-  (beads-test-with-temp-config
-   (cl-letf (((symbol-function 'process-file)
-              (beads-test--mock-call-process 1 "Error: issue not found")))
-     (should-error
-      (beads--run-command "show" "bd-999")
-      :type 'user-error))))
-
-(ert-deftest beads-test-run-command-invalid-json ()
-  "Test command execution with invalid JSON output."
-  (beads-test-with-temp-config
-   (cl-letf (((symbol-function 'process-file)
-              (beads-test--mock-call-process 0 "not valid json")))
-     (should-error
-      (beads--run-command "list")
-      :type 'user-error))))
-
-(ert-deftest beads-test-run-command-malformed-json ()
-  "Test command execution with malformed JSON."
-  (beads-test-with-temp-config
-   (cl-letf (((symbol-function 'process-file)
-              (beads-test--mock-call-process 0 "{\"key\": \"value\"")))
-     (should-error
-      (beads--run-command "show" "bd-1")
-      :type 'user-error))))
-
-(ert-deftest beads-test-run-command-null-value ()
-  "Test command execution with JSON containing null values."
-  (beads-test-with-temp-config
-   (let ((json-output "{\"id\":\"bd-1\",\"title\":null,\"priority\":1}"))
-     (cl-letf (((symbol-function 'process-file)
-                (beads-test--mock-call-process 0 json-output)))
-       (let ((result (beads--run-command "show" "bd-1")))
-         (should (listp result))
-         (should (consp result))
-         (should (equal (alist-get 'id result) "bd-1"))
-         (should (null (alist-get 'title result)))
-         (should (= (alist-get 'priority result) 1)))))))
-
-(ert-deftest beads-test-run-command-nested-json ()
-  "Test command execution with nested JSON structures."
-  (beads-test-with-temp-config
-   (let ((json-output "{\"id\":\"bd-1\",\"metadata\":{\"tags\":[\"a\",\"b\"]}}"))
-     (cl-letf (((symbol-function 'process-file)
-                (beads-test--mock-call-process 0 json-output)))
-       (let ((result (beads--run-command "show" "bd-1")))
-         (should (listp result))
-         (should (consp result))
-         (should (listp (alist-get 'metadata result)))
-         (should (consp (alist-get 'metadata result)))
-         (let ((tags (alist-get 'tags (alist-get 'metadata result))))
-           (should (vectorp tags))
-           (should (equal (aref tags 0) "a"))))))))
-
-(ert-deftest beads-test-run-command-unicode-content ()
-  "Test command execution with Unicode characters in JSON."
-  (beads-test-with-temp-config
-   (let ((json-output "{\"id\":\"bd-1\",\"title\":\"测试 \u00e9 \u263a\"}"))
-     (cl-letf (((symbol-function 'process-file)
-                (beads-test--mock-call-process 0 json-output)))
-       (let ((result (beads--run-command "show" "bd-1")))
-         (should (listp result))
-         (should (consp result))
-         (should (string-match-p "测试" (alist-get 'title result))))))))
-
-(ert-deftest beads-test-run-command-error-message-captured ()
-  "Test that error messages from bd are captured and reported."
-  (beads-test-with-temp-config
-   (let ((error-msg "Error: database locked"))
-     (cl-letf (((symbol-function 'process-file)
-                (beads-test--mock-call-process 1 error-msg)))
-       (condition-case err
-           (progn
-             (beads--run-command "list")
-             (should nil)) ; Should not reach here
-         (user-error
-          (should (string-match-p "database locked"
-                                  (error-message-string err)))))))))
-
-
-;;; ========================================
-;;; Process Execution Tests (Asynchronous)
-;;; ========================================
-
-
-
-
-;;; ========================================
 ;;; JSON Parsing Tests
 ;;; ========================================
 
@@ -878,23 +744,23 @@ STRUCTURE is a list of paths to create (dirs end with /)."
   "Test parsing a complete issue with all fields."
   (beads-test-with-temp-config
    (let ((parsed (beads--parse-issue beads-test--sample-issue)))
-     (should (listp parsed))
-     (should (consp parsed))
-     (should (equal (alist-get 'id parsed) "bd-1"))
-     (should (equal (alist-get 'title parsed) "Test Issue"))
-     (should (equal (alist-get 'description parsed) "Test description"))
-     (should (equal (alist-get 'status parsed) "open"))
-     (should (= (alist-get 'priority parsed) 1))
-     (should (equal (alist-get 'issue-type parsed) "bug"))
-     (should (equal (alist-get 'created-at parsed)
+     (should (beads-issue-p parsed))
+     (should (beads-issue-p parsed))
+     (should (equal (oref parsed id) "bd-1"))
+     (should (equal (oref parsed title) "Test Issue"))
+     (should (equal (oref parsed description) "Test description"))
+     (should (equal (oref parsed status) "open"))
+     (should (= (oref parsed priority) 1))
+     (should (equal (oref parsed issue-type) "bug"))
+     (should (equal (oref parsed created-at)
                     "2025-01-15T10:00:00Z"))
-     (should (equal (alist-get 'updated-at parsed)
+     (should (equal (oref parsed updated-at)
                     "2025-01-15T10:00:00Z"))
-     (should (equal (alist-get 'acceptance-criteria parsed) "Must work"))
-     (should (equal (alist-get 'design parsed) "Simple design"))
-     (should (equal (alist-get 'notes parsed) "Some notes"))
-     (should (equal (alist-get 'assignee parsed) "alice"))
-     (should (equal (alist-get 'external-ref parsed) "EXT-123")))))
+     (should (equal (oref parsed acceptance-criteria) "Must work"))
+     (should (equal (oref parsed design) "Simple design"))
+     (should (equal (oref parsed notes) "Some notes"))
+     (should (equal (oref parsed assignee) "alice"))
+     (should (equal (oref parsed external-ref) "EXT-123")))))
 
 (ert-deftest beads-test-parse-issue-minimal ()
   "Test parsing an issue with minimal fields."
@@ -903,25 +769,25 @@ STRUCTURE is a list of paths to create (dirs end with /)."
                            (title . "Minimal")
                            (status . "open")))
           (parsed (beads--parse-issue minimal-issue)))
-     (should (listp parsed))
-     (should (consp parsed))
-     (should (equal (alist-get 'id parsed) "bd-2"))
-     (should (equal (alist-get 'title parsed) "Minimal"))
-     (should (equal (alist-get 'status parsed) "open"))
+     (should (beads-issue-p parsed))
+     (should (beads-issue-p parsed))
+     (should (equal (oref parsed id) "bd-2"))
+     (should (equal (oref parsed title) "Minimal"))
+     (should (equal (oref parsed status) "open"))
      ;; Missing fields should be nil
-     (should (null (alist-get 'description parsed)))
-     (should (null (alist-get 'priority parsed)))
-     (should (null (alist-get 'issue-type parsed))))))
+     (should (null (oref parsed description)))
+     (should (null (oref parsed priority)))
+     (should (null (oref parsed issue-type))))))
 
 (ert-deftest beads-test-parse-issue-from-vector ()
   "Test parsing issue from a single-element vector."
   (beads-test-with-temp-config
    (let* ((issue-vector (vector beads-test--sample-issue))
           (parsed (beads--parse-issue issue-vector)))
-     (should (listp parsed))
-     (should (consp parsed))
-     (should (equal (alist-get 'id parsed) "bd-1"))
-     (should (equal (alist-get 'title parsed) "Test Issue")))))
+     (should (beads-issue-p parsed))
+     (should (beads-issue-p parsed))
+     (should (equal (oref parsed id) "bd-1"))
+     (should (equal (oref parsed title) "Test Issue")))))
 
 (ert-deftest beads-test-parse-issue-underscore-conversion ()
   "Test that JSON field names with underscores are converted correctly."
@@ -934,11 +800,11 @@ STRUCTURE is a list of paths to create (dirs end with /)."
                    (external_ref . "REF-1")))
           (parsed (beads--parse-issue issue)))
      ;; Check that underscored names are accessible with dashed keys
-     (should (equal (alist-get 'issue-type parsed) "feature"))
-     (should (equal (alist-get 'created-at parsed) "2025-01-15T10:00:00Z"))
-     (should (equal (alist-get 'updated-at parsed) "2025-01-15T11:00:00Z"))
-     (should (equal (alist-get 'acceptance-criteria parsed) "Criteria"))
-     (should (equal (alist-get 'external-ref parsed) "REF-1")))))
+     (should (equal (oref parsed issue-type) "feature"))
+     (should (equal (oref parsed created-at) "2025-01-15T10:00:00Z"))
+     (should (equal (oref parsed updated-at) "2025-01-15T11:00:00Z"))
+     (should (equal (oref parsed acceptance-criteria) "Criteria"))
+     (should (equal (oref parsed external-ref) "REF-1")))))
 
 (ert-deftest beads-test-parse-issue-null-fields ()
   "Test parsing issue with null fields."
@@ -949,10 +815,10 @@ STRUCTURE is a list of paths to create (dirs end with /)."
                    (assignee . nil)
                    (priority . 1)))
           (parsed (beads--parse-issue issue)))
-     (should (equal (alist-get 'id parsed) "bd-1"))
-     (should (null (alist-get 'description parsed)))
-     (should (null (alist-get 'assignee parsed)))
-     (should (= (alist-get 'priority parsed) 1)))))
+     (should (equal (oref parsed id) "bd-1"))
+     (should (null (oref parsed description)))
+     (should (null (oref parsed assignee)))
+     (should (= (oref parsed priority) 1)))))
 
 (ert-deftest beads-test-parse-issue-preserves-types ()
   "Test that parsing preserves data types correctly."
@@ -963,11 +829,11 @@ STRUCTURE is a list of paths to create (dirs end with /)."
                    (created_at . "2025-01-15T10:00:00Z")))
           (parsed (beads--parse-issue issue)))
      ;; Numbers should remain numbers
-     (should (numberp (alist-get 'priority parsed)))
-     (should (= (alist-get 'priority parsed) 2))
+     (should (numberp (oref parsed priority)))
+     (should (= (oref parsed priority) 2))
      ;; Strings should remain strings
-     (should (stringp (alist-get 'status parsed)))
-     (should (stringp (alist-get 'created-at parsed))))))
+     (should (stringp (oref parsed status)))
+     (should (stringp (oref parsed created-at))))))
 
 ;;; Tests for beads--parse-issues
 
@@ -979,19 +845,22 @@ STRUCTURE is a list of paths to create (dirs end with /)."
      (should (= (length parsed) 3))
      ;; Check first issue
      (let ((first (car parsed)))
-       (should (equal (alist-get 'id first) "bd-1"))
-       (should (equal (alist-get 'title first) "First Issue"))
-       (should (= (alist-get 'priority first) 1)))
+       (should (beads-issue-p first))
+       (should (equal (oref first id) "bd-1"))
+       (should (equal (oref first title) "First Issue"))
+       (should (= (oref first priority) 1)))
      ;; Check second issue
      (let ((second (cadr parsed)))
-       (should (equal (alist-get 'id second) "bd-2"))
-       (should (equal (alist-get 'title second) "Second Issue"))
-       (should (= (alist-get 'priority second) 2)))
+       (should (beads-issue-p second))
+       (should (equal (oref second id) "bd-2"))
+       (should (equal (oref second title) "Second Issue"))
+       (should (= (oref second priority) 2)))
      ;; Check third issue
      (let ((third (caddr parsed)))
-       (should (equal (alist-get 'id third) "bd-3"))
-       (should (equal (alist-get 'title third) "Third Issue"))
-       (should (= (alist-get 'priority third) 3))))))
+       (should (beads-issue-p third))
+       (should (equal (oref third id) "bd-3"))
+       (should (equal (oref third title) "Third Issue"))
+       (should (= (oref third priority) 3))))))
 
 (ert-deftest beads-test-parse-issues-empty-array ()
   "Test parsing empty issues array."
@@ -1007,8 +876,9 @@ STRUCTURE is a list of paths to create (dirs end with /)."
      (should (listp parsed))
      (should (= (length parsed) 1))
      (let ((issue (car parsed)))
-       (should (equal (alist-get 'id issue) "bd-1"))
-       (should (equal (alist-get 'title issue) "Test Issue"))))))
+       (should (beads-issue-p issue))
+       (should (equal (oref issue id) "bd-1"))
+       (should (equal (oref issue title) "Test Issue"))))))
 
 (ert-deftest beads-test-parse-issues-nil-input ()
   "Test parsing with nil input."
@@ -1026,86 +896,10 @@ STRUCTURE is a list of paths to create (dirs end with /)."
   "Test that parsing maintains issue order."
   (beads-test-with-temp-config
    (let ((parsed (beads--parse-issues beads-test--sample-issues-array)))
-     (should (equal (alist-get 'id (nth 0 parsed)) "bd-1"))
-     (should (equal (alist-get 'id (nth 1 parsed)) "bd-2"))
-     (should (equal (alist-get 'id (nth 2 parsed)) "bd-3")))))
+     (should (equal (oref (nth 0 parsed) id) "bd-1"))
+     (should (equal (oref (nth 1 parsed) id) "bd-2"))
+     (should (equal (oref (nth 2 parsed) id) "bd-3")))))
 
-
-;;; ========================================
-;;; Process Integration Tests
-;;; ========================================
-
-
-(ert-deftest beads-test-command-to-parse ()
-  "Test full flow from command execution to issue parsing."
-  (beads-test-with-temp-config
-   (let ((json-output (json-encode beads-test--sample-issues-array)))
-     (cl-letf (((symbol-function 'process-file)
-                (beads-test--mock-call-process 0 json-output)))
-       (let* ((result (beads--run-command "list"))
-              (parsed (beads--parse-issues result)))
-         (should (listp parsed))
-         (should (= (length parsed) 3))
-         (should (equal (alist-get 'id (car parsed)) "bd-1")))))))
-
-(ert-deftest beads-test-single-issue-show ()
-  "Test showing a single issue end-to-end."
-  (beads-test-with-temp-config
-   (let ((json-output (json-encode beads-test--sample-issue)))
-     (cl-letf (((symbol-function 'process-file)
-                (beads-test--mock-call-process 0 json-output)))
-       (let* ((result (beads--run-command "show" "bd-1"))
-              (parsed (beads--parse-issue result)))
-         (should (listp parsed))
-         (should (consp parsed))
-         (should (equal (alist-get 'id parsed) "bd-1"))
-         (should (equal (alist-get 'title parsed) "Test Issue"))
-         (should (equal (alist-get 'status parsed) "open")))))))
-
-(ert-deftest beads-test-with-global-flags ()
-  "Test command execution with global flags applied."
-  (beads-test-with-temp-config
-   (let ((beads-actor "test-user")
-         (beads-database-path "/tmp/test.db")
-         (json-output "[]")
-         (captured-command nil))
-     (cl-letf (((symbol-function 'process-file)
-                (lambda (program &optional infile destination display &rest args)
-                  (setq captured-command (cons program args))
-                  (when destination
-                    (with-current-buffer (current-buffer)
-                      (insert json-output)))
-                  0)))
-       (beads--run-command "ready")
-       (should (member "--actor" captured-command))
-       (should (member "test-user" captured-command))
-       (should (member "--db" captured-command))
-       (should (member "/tmp/test.db" captured-command))
-       (should (member "--json" captured-command))))))
-
-
-;;; ========================================
-;;; Edge Cases and Error Conditions
-;;; ========================================
-
-
-(ert-deftest beads-test-edge-case-empty-string-output ()
-  "Test handling of empty string output from command."
-  (beads-test-with-temp-config
-   (cl-letf (((symbol-function 'process-file)
-              (beads-test--mock-call-process 0 "")))
-     (should-error
-      (beads--run-command "list")
-      :type 'user-error))))
-
-(ert-deftest beads-test-edge-case-whitespace-only-output ()
-  "Test handling of whitespace-only output."
-  (beads-test-with-temp-config
-   (cl-letf (((symbol-function 'process-file)
-              (beads-test--mock-call-process 0 "   \n\t  ")))
-     (should-error
-      (beads--run-command "list")
-      :type 'user-error))))
 
 (ert-deftest beads-test-edge-case-large-json-array ()
   "Test parsing a large number of issues."
@@ -1113,8 +907,8 @@ STRUCTURE is a list of paths to create (dirs end with /)."
    (let* ((large-array (make-vector 100 beads-test--sample-issue))
           (parsed (beads--parse-issues large-array)))
      (should (= (length parsed) 100))
-     (should (equal (alist-get 'id (car parsed)) "bd-1"))
-     (should (equal (alist-get 'id (car (last parsed))) "bd-1")))))
+     (should (equal (oref (car parsed) id) "bd-1"))
+     (should (equal (oref (car (last parsed)) id) "bd-1")))))
 
 (ert-deftest beads-test-edge-case-special-characters-in-strings ()
   "Test handling of special characters in issue fields."
@@ -1124,10 +918,10 @@ STRUCTURE is a list of paths to create (dirs end with /)."
                    (description . "Line 1\nLine 2\tTabbed")
                    (notes . "Special: <>&\\")))
           (parsed (beads--parse-issue issue)))
-     (should (equal (alist-get 'title parsed)
+     (should (equal (oref parsed title)
                     "Test \"quotes\" and 'apostrophes'"))
-     (should (string-match-p "\n" (alist-get 'description parsed)))
-     (should (string-match-p "\t" (alist-get 'description parsed))))))
+     (should (string-match-p "\n" (oref parsed description)))
+     (should (string-match-p "\t" (oref parsed description))))))
 
 (ert-deftest beads-test-edge-case-very-long-strings ()
   "Test handling of very long string values."
@@ -1137,8 +931,8 @@ STRUCTURE is a list of paths to create (dirs end with /)."
                    (title . "Test")
                    (description . ,long-string)))
           (parsed (beads--parse-issue issue)))
-     (should (equal (alist-get 'description parsed) long-string))
-     (should (= (length (alist-get 'description parsed)) 10000)))))
+     (should (equal (oref parsed description) long-string))
+     (should (= (length (oref parsed description)) 10000)))))
 
 (ert-deftest beads-test-edge-case-numeric-string-id ()
   "Test that numeric IDs remain as strings."
@@ -1146,8 +940,8 @@ STRUCTURE is a list of paths to create (dirs end with /)."
    (let* ((issue '((id . "123")
                    (title . "Numeric ID")))
           (parsed (beads--parse-issue issue)))
-     (should (stringp (alist-get 'id parsed)))
-     (should (equal (alist-get 'id parsed) "123")))))
+     (should (stringp (oref parsed id)))
+     (should (equal (oref parsed id) "123")))))
 
 (ert-deftest beads-test-edge-case-zero-priority ()
   "Test handling of zero priority (critical)."
@@ -1155,44 +949,8 @@ STRUCTURE is a list of paths to create (dirs end with /)."
    (let* ((issue '((id . "bd-1")
                    (priority . 0)))
           (parsed (beads--parse-issue issue)))
-     (should (numberp (alist-get 'priority parsed)))
-     (should (= (alist-get 'priority parsed) 0)))))
-
-
-;;; ========================================
-;;; Debug Logging Tests
-;;; ========================================
-
-
-(ert-deftest beads-test-debug-logging-enabled ()
-  "Test that debug logging works when enabled."
-  (beads-test-with-temp-config
-   (let ((beads-enable-debug t)
-         (beads-debug-level 'verbose)
-         (json-output "{}"))
-     (cl-letf (((symbol-function 'process-file)
-                (beads-test--mock-call-process 0 json-output)))
-       (with-current-buffer (get-buffer-create "*beads-debug*")
-         (erase-buffer))
-       (beads--run-command "list")
-       (with-current-buffer "*beads-debug*"
-         (should (> (buffer-size) 0))
-         (should (string-match-p "Running:" (buffer-string)))
-         (should (string-match-p "Exit code:" (buffer-string))))))))
-
-(ert-deftest beads-test-debug-logging-disabled ()
-  "Test that no logging occurs when debug is disabled."
-  (beads-test-with-temp-config
-   (let ((beads-enable-debug nil)
-         (json-output "{}"))
-     (cl-letf (((symbol-function 'process-file)
-                (beads-test--mock-call-process 0 json-output)))
-       (when (get-buffer "*beads-debug*")
-         (kill-buffer "*beads-debug*"))
-       (beads--run-command "list")
-       (should (null (get-buffer "*beads-debug*")))))))
-
-
+     (should (numberp (oref parsed priority)))
+     (should (= (oref parsed priority) 0)))))
 
 (ert-deftest beads-test-performance-parse-many-issues ()
   "Test parsing performance with many issues."
@@ -1643,103 +1401,6 @@ STRUCTURE is a list of paths to create (dirs end with /)."
 ;;; Tramp Remote Support Tests
 ;;; ========================================
 
-
-(ert-deftest beads-tramp-test-run-command-with-local-path ()
-  "Test that process-file is used with local default-directory."
-  (beads-tramp-test-with-temp-config
-   (let ((default-directory "/tmp/")
-         (json-output "{}")
-         (process-file-called nil))
-     (cl-letf (((symbol-function 'process-file)
-                (lambda (program &optional infile destination display
-                                 &rest args)
-                  (setq process-file-called t)
-                  (when destination
-                    (with-current-buffer (current-buffer)
-                      (insert json-output)))
-                  0)))
-       (beads--run-command "list")
-       (should process-file-called)))))
-
-(ert-deftest beads-tramp-test-run-command-with-tramp-path ()
-  "Test that process-file respects Tramp default-directory."
-  (beads-tramp-test-with-temp-config
-   (let ((default-directory "/ssh:remote:/home/user/project/")
-         (json-output "{}")
-         (process-file-called nil)
-         (captured-default-directory nil))
-     (cl-letf (((symbol-function 'process-file)
-                (lambda (program &optional infile destination display
-                                 &rest args)
-                  (setq process-file-called t)
-                  (setq captured-default-directory default-directory)
-                  (when destination
-                    (with-current-buffer (current-buffer)
-                      (insert json-output)))
-                  0)))
-       (beads--run-command "list")
-       (should process-file-called)
-       (should (string= captured-default-directory
-                        "/ssh:remote:/home/user/project/"))))))
-
-(ert-deftest beads-tramp-test-run-command-different-tramp-methods ()
-  "Test process-file with different Tramp methods."
-  (beads-tramp-test-with-temp-config
-   (dolist (path '("/ssh:host:/path/"
-                   "/scp:host:/path/"
-                   "/sudo:root@localhost:/root/"))
-     (let ((default-directory path)
-           (json-output "{}")
-           (process-file-called nil))
-       (cl-letf (((symbol-function 'process-file)
-                  (lambda (program &optional infile destination display
-                                   &rest args)
-                    (setq process-file-called t)
-                    (when destination
-                      (with-current-buffer (current-buffer)
-                        (insert json-output)))
-                    0)))
-         (beads--run-command "list")
-         (should process-file-called))))))
-
-;;; Tests for Tramp-aware asynchronous execution
-
-(ert-deftest beads-tramp-test-run-command-async-with-local-path ()
-  "Test that start-file-process is used with local default-directory."
-  (beads-tramp-test-with-temp-config
-   (let ((default-directory "/tmp/")
-         (start-file-process-called nil))
-     (cl-letf (((symbol-function 'start-file-process)
-                (lambda (name buffer program &rest args)
-                  (setq start-file-process-called t)
-                  (make-process
-                   :name name
-                   :buffer buffer
-                   :command (list "true")
-                   :noquery t))))
-       (beads--run-command-async (lambda (_result) nil) "list")
-       (should start-file-process-called)))))
-
-(ert-deftest beads-tramp-test-run-command-async-with-tramp-path ()
-  "Test that start-file-process respects Tramp default-directory."
-  (beads-tramp-test-with-temp-config
-   (let ((default-directory "/ssh:remote:/home/user/project/")
-         (start-file-process-called nil)
-         (captured-default-directory nil))
-     (cl-letf (((symbol-function 'start-file-process)
-                (lambda (name buffer program &rest args)
-                  (setq start-file-process-called t)
-                  (setq captured-default-directory default-directory)
-                  (make-process
-                   :name name
-                   :buffer buffer
-                   :command (list "true")
-                   :noquery t))))
-       (beads--run-command-async (lambda (_result) nil) "list")
-       (should start-file-process-called)
-       (should (string= captured-default-directory
-                        "/ssh:remote:/home/user/project/"))))))
-
 ;;; Tests for project discovery over Tramp
 
 (ert-deftest beads-tramp-test-find-beads-dir-with-tramp ()
@@ -1789,122 +1450,6 @@ STRUCTURE is a list of paths to create (dirs end with /)."
        (should (member "/home/user/.beads/beads.db" cmd))
        (should-not (member "/ssh:host:/home/user/.beads/beads.db" cmd))))))
 
-;;; Tests for end-to-end Tramp workflow
-
-(ert-deftest beads-tramp-test-full-workflow-with-tramp ()
-  "Test complete workflow: find project, get DB, run command over Tramp."
-  (let ((default-directory "/ssh:remote:/home/user/project/src/")
-        (beads--project-cache (make-hash-table :test 'equal))
-        (beads-database-path nil)
-        (json-output "[{\"id\":\"bd-1\",\"title\":\"Remote Issue\"}]")
-        (workflow-steps '()))
-    (cl-letf (((symbol-function 'beads--find-project-root)
-               (lambda ()
-                 (push 'find-project-root workflow-steps)
-                 "/ssh:remote:/home/user/project/"))
-              ((symbol-function 'locate-dominating-file)
-               (lambda (file name)
-                 (push 'locate-dominating-file workflow-steps)
-                 (when (equal name ".beads")
-                   "/ssh:remote:/home/user/project/")))
-              ((symbol-function 'directory-files)
-               (lambda (directory &optional full match _nosort)
-                 (push 'directory-files workflow-steps)
-                 (when (and match (string-match-p "\\.db$" "beads.db"))
-                   (if full
-                       (list (concat directory "beads.db"))
-                     (list "beads.db")))))
-              ((symbol-function 'process-file)
-               (lambda (program &optional infile destination display
-                                &rest args)
-                 (push 'process-file workflow-steps)
-                 (when destination
-                   (with-current-buffer (current-buffer)
-                     (insert json-output)))
-                 0)))
-      ;; Find .beads directory
-      (let ((beads-dir (beads--find-beads-dir)))
-        (should beads-dir)
-        (should (string-prefix-p "/ssh:remote:" beads-dir)))
-
-      ;; Get database path
-      (let ((db-path (beads--get-database-path)))
-        (should db-path)
-        (should (string-prefix-p "/ssh:remote:" db-path)))
-
-      ;; Run command
-      (let ((result (beads--run-command "list")))
-        (should (vectorp result))
-        (should (= (length result) 1)))
-
-      ;; Verify all steps were executed
-      (should (member 'process-file workflow-steps))
-      (should (member 'locate-dominating-file workflow-steps)))))
-
-;;; Tests for debug logging with Tramp
-
-(ert-deftest beads-tramp-test-debug-logging-shows-remote-directory ()
-  "Test that debug logging includes remote directory information."
-  (beads-tramp-test-with-temp-config
-   (let ((beads-enable-debug t)
-         (beads-debug-level 'verbose)
-         (default-directory "/ssh:remote:/home/user/project/")
-         (json-output "{}"))
-     (cl-letf (((symbol-function 'process-file)
-                (lambda (program &optional infile destination display &rest args)
-                  (when destination
-                    (with-current-buffer (if (bufferp destination)
-                                             destination
-                                           (current-buffer))
-                      (insert json-output)))
-                  0)))
-       (with-current-buffer (get-buffer-create "*beads-debug*")
-         (erase-buffer))
-       (beads--run-command "list")
-       (with-current-buffer "*beads-debug*"
-         (should (> (buffer-size) 0))
-         (should (string-match-p "/ssh:remote:" (buffer-string)))
-         (should (string-match-p "In directory:" (buffer-string))))))))
-
-;;; Edge cases and error handling
-
-(ert-deftest beads-tramp-test-command-failure-over-tramp ()
-  "Test that command failures over Tramp are handled correctly."
-  (beads-tramp-test-with-temp-config
-   (let ((default-directory "/ssh:remote:/home/user/project/")
-         (error-msg "Error: connection refused"))
-     (cl-letf (((symbol-function 'process-file)
-                (lambda (program &optional infile destination display &rest args)
-                  (when destination
-                    (with-current-buffer (if (bufferp destination)
-                                             destination
-                                           (current-buffer))
-                      (insert error-msg)))
-                  1)))
-       (should-error
-        (beads--run-command "list")
-        :type 'user-error)))))
-
-(ert-deftest beads-tramp-test-json-parsing-over-tramp ()
-  "Test JSON parsing works correctly over Tramp."
-  (beads-tramp-test-with-temp-config
-   (let ((default-directory "/ssh:remote:/home/user/project/")
-         (json-output "{\"id\":\"bd-1\",\"title\":\"远程问题\",\"priority\":1}"))
-     (cl-letf (((symbol-function 'process-file)
-                (lambda (program &optional infile destination display &rest args)
-                  (when destination
-                    (with-current-buffer (if (bufferp destination)
-                                             destination
-                                           (current-buffer))
-                      (insert json-output)))
-                  0)))
-       (let ((result (beads--run-command "show" "bd-1")))
-         (should (listp result))
-         (should (consp result))
-         (should (equal (alist-get 'id result) "bd-1"))
-         (should (string-match-p "远程" (alist-get 'title result)))
-         (should (= (alist-get 'priority result) 1)))))))
-
 (provide 'beads-tramp-test)
 
 ;;; ============================================================
@@ -1946,8 +1491,11 @@ STRUCTURE is a list of paths to create (dirs end with /)."
        (let ((result (beads-label-list-all)))
          (should (listp result))
          (should (= (length result) 2))
-         (should (member "backend" result))
-         (should (member "frontend" result)))))))
+         ;; Result should be list of objects with 'label and 'count
+         (should (cl-some (lambda (obj) (equal (alist-get 'label obj) "backend")) result))
+         (should (cl-some (lambda (obj) (equal (alist-get 'label obj) "frontend")) result))
+         ;; Verify count fields exist
+         (should (cl-every (lambda (obj) (numberp (alist-get 'count obj))) result)))))))
 
 (ert-deftest beads-test-label-list-all-empty ()
   "Test label list-all with no labels."
@@ -1970,7 +1518,8 @@ STRUCTURE is a list of paths to create (dirs end with /)."
        ;; First call should populate cache
        (let ((result1 (beads--get-cached-labels)))
          (should (listp result1))
-         (should (member "test" result1))
+         ;; Result should be list of objects with 'label field
+         (should (cl-some (lambda (obj) (equal (alist-get 'label obj) "test")) result1))
 
          ;; Cache should be populated
          (should beads--label-cache)
@@ -1996,7 +1545,8 @@ STRUCTURE is a list of paths to create (dirs end with /)."
      (cl-letf (((symbol-function 'process-file)
                 (beads-test--mock-call-process 0 json-output1)))
        (let ((result1 (beads--get-cached-labels)))
-         (should (member "old" result1))
+         ;; Result should contain object with label "old"
+         (should (cl-some (lambda (obj) (equal (alist-get 'label obj) "old")) result1))
 
          ;; Wait for cache to expire
          (sleep-for 1.1)
@@ -2005,8 +1555,9 @@ STRUCTURE is a list of paths to create (dirs end with /)."
          (cl-letf (((symbol-function 'process-file)
                     (beads-test--mock-call-process 0 json-output2)))
            (let ((result2 (beads--get-cached-labels)))
-             (should (member "new" result2))
-             (should-not (member "old" result2)))))))))
+             ;; Result should contain object with label "new" but not "old"
+             (should (cl-some (lambda (obj) (equal (alist-get 'label obj) "new")) result2))
+             (should-not (cl-some (lambda (obj) (equal (alist-get 'label obj) "old")) result2)))))))))
 
 (ert-deftest beads-test-label-cache-invalidation ()
   "Test that cache can be manually invalidated."
@@ -2054,7 +1605,12 @@ STRUCTURE is a list of paths to create (dirs end with /)."
   "Test that label completion table removes any duplicate labels."
   (beads-test-with-temp-config
    ;; Manually set cache with duplicates (shouldn't happen, but test defensively)
-   (setq beads--label-cache (cons (float-time) '("test" "test" "other")))
+   ;; Cache now stores objects, not strings
+   (setq beads--label-cache
+         (cons (float-time)
+               (list (list (cons 'label "test") (cons 'count 1))
+                     (list (cons 'label "test") (cons 'count 2))
+                     (list (cons 'label "other") (cons 'count 1)))))
 
    (let ((table (beads--label-completion-table)))
      (should (listp table))
