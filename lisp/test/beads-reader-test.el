@@ -456,5 +456,67 @@
     (let ((result (beads-reader-issue-labels nil nil nil)))
       (should (equal result "")))))
 
+;;; ============================================================
+;;; Tests for Label Reader Functions
+;;; ============================================================
+
+(ert-deftest beads-reader-test-label-issue-ids-detected ()
+  "Test label issue IDs reader with detected issue from context."
+  (cl-letf (((symbol-function 'beads-label--detect-issue-id)
+             (lambda () "bd-42")))
+    (let ((result (beads-reader-label-issue-ids nil nil nil)))
+      (should (equal result "bd-42")))))
+
+(ert-deftest beads-reader-test-label-issue-ids-single ()
+  "Test label issue IDs reader selecting single issue."
+  (cl-letf (((symbol-function 'beads-label--detect-issue-id)
+             (lambda () nil))
+            ((symbol-function 'beads--issue-completion-table)
+             (lambda () '("bd-1" "bd-2" "bd-3")))
+            ((symbol-function 'completing-read-multiple)
+             (lambda (&rest _args) '("bd-1"))))
+    (let ((result (beads-reader-label-issue-ids nil nil nil)))
+      (should (equal result "bd-1")))))
+
+(ert-deftest beads-reader-test-label-issue-ids-multiple ()
+  "Test label issue IDs reader selecting multiple issues."
+  (cl-letf (((symbol-function 'beads-label--detect-issue-id)
+             (lambda () nil))
+            ((symbol-function 'beads--issue-completion-table)
+             (lambda () '("bd-1" "bd-2" "bd-3")))
+            ((symbol-function 'completing-read-multiple)
+             (lambda (&rest _args) '("bd-1" "bd-2" "bd-3"))))
+    (let ((result (beads-reader-label-issue-ids nil nil nil)))
+      (should (equal result "bd-1,bd-2,bd-3")))))
+
+(ert-deftest beads-reader-test-label-issue-ids-empty ()
+  "Test label issue IDs reader when nothing selected."
+  (cl-letf (((symbol-function 'beads-label--detect-issue-id)
+             (lambda () nil))
+            ((symbol-function 'beads--issue-completion-table)
+             (lambda () '("bd-1" "bd-2" "bd-3")))
+            ((symbol-function 'completing-read-multiple)
+             (lambda (&rest _args) '())))
+    (let ((result (beads-reader-label-issue-ids nil nil nil)))
+      (should (equal result "")))))
+
+(ert-deftest beads-reader-test-label-name-with-labels ()
+  "Test label name reader with available labels."
+  (cl-letf (((symbol-function 'beads--label-completion-table)
+             (lambda () '("backend" "frontend" "urgent")))
+            ((symbol-function 'completing-read)
+             (lambda (&rest _args) "backend")))
+    (let ((result (beads-reader-label-name nil nil nil)))
+      (should (equal result "backend")))))
+
+(ert-deftest beads-reader-test-label-name-no-labels ()
+  "Test label name reader falls back when no labels available."
+  (cl-letf (((symbol-function 'beads--label-completion-table)
+             (lambda () nil))
+            ((symbol-function 'read-string)
+             (lambda (&rest _args) "new-label")))
+    (let ((result (beads-reader-label-name nil nil nil)))
+      (should (equal result "new-label")))))
+
 (provide 'beads-reader-test)
 ;;; beads-reader-test.el ends here

@@ -391,5 +391,31 @@ PROMPT is shown to the user."
                    '("bug" "feature" "task" "epic" "chore")
                    nil t))
 
+;;; ============================================================
+;;; Label-specific Reader Functions
+;;; ============================================================
+
+(defun beads-reader-label-issue-ids (_prompt _initial-input _history)
+  "Read issue ID(s) for label operations, with context detection.
+Detects current issue from beads-show or beads-list buffer,
+falls back to `completing-read-multiple' for selecting multiple issue IDs."
+  (let ((detected-id (beads-label--detect-issue-id)))
+    (if detected-id
+        detected-id
+      (let ((selected (completing-read-multiple
+                       "Issue ID(s) (use crm-separator to select multiple): "
+                       (beads--issue-completion-table)
+                       nil nil)))
+        (if selected
+            (mapconcat #'identity selected ",")
+          "")))))
+
+(defun beads-reader-label-name (_prompt _initial-input _history)
+  "Read label name with auto-completion from existing labels."
+  (let ((labels (beads--label-completion-table)))
+    (if labels
+        (completing-read "Label name: " labels nil nil)
+      (read-string "Label name: "))))
+
 (provide 'beads-reader)
 ;;; beads-reader.el ends here
