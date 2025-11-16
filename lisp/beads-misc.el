@@ -22,6 +22,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-command)
 (require 'beads-option)
 (require 'transient)
 
@@ -30,50 +31,6 @@
 (declare-function beads-list-refresh "beads-list")
 (declare-function beads-show--issue-id "beads-show")
 (declare-function beads-refresh-show "beads-show")
-
-;;; ============================================================
-;;; bd quickstart
-;;; ============================================================
-
-(defun beads-quickstart--execute ()
-  "Execute bd quickstart and display in buffer."
-  (condition-case err
-      (let* ((output (with-temp-buffer
-                       (let ((exit-code
-                              (call-process beads-executable nil t nil
-                                            "quickstart")))
-                         (unless (zerop exit-code)
-                           (error "Command failed: %s" (buffer-string)))
-                         (buffer-string))))
-             (buf (get-buffer-create "*beads-quickstart*")))
-        (with-current-buffer buf
-          (let ((inhibit-read-only t))
-            (erase-buffer)
-            (insert output)
-            (goto-char (point-min))
-            (special-mode)
-            (local-set-key (kbd "q") 'quit-window)
-            (local-set-key (kbd "g")
-                           (lambda ()
-                             (interactive)
-                             (beads-quickstart--execute)))
-            ;; Make the buffer more readable
-            (visual-line-mode 1)
-            (setq header-line-format
-                  "Beads Quick Start Guide - Press 'q' to quit")))
-        (display-buffer buf)
-        (message "Beads quickstart guide")
-        nil)
-    (error
-     (beads--error "Failed to get quickstart guide: %s"
-                   (error-message-string err)))))
-
-;;;###autoload
-(defun beads-quickstart ()
-  "Show Beads quickstart guide."
-  (interactive)
-  (beads-check-executable)
-  (beads-quickstart--execute))
 
 ;;; ============================================================
 ;;; bd export
