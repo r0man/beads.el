@@ -390,6 +390,29 @@ Returns error string or nil if valid."
      ;; Otherwise valid
      (t nil))))
 
+;;; Quickstart Command
+
+(defclass beads-command-quickstart (beads-command)
+  ()
+  :documentation "Represents bd quickstart command.
+Displays a quick start guide showing common bd workflows and patterns.
+This command has no command-specific flags, only global flags.")
+
+(cl-defmethod beads-command-line ((command beads-command-quickstart))
+  "Build command arguments for quickstart COMMAND (without executable).
+Returns list: (\"quickstart\" ...global-flags...)."
+  (let ((cmd-args (list "quickstart"))
+        (global-args (cl-call-next-method)))
+    ;; Global args
+    (setq cmd-args (append cmd-args global-args))
+    cmd-args))
+
+(cl-defmethod beads-command-validate ((_command beads-command-quickstart))
+  "Validate quickstart COMMAND.
+No validation needed (no command-specific arguments).
+Returns nil (always valid)."
+  nil)
+
 ;;; List Command
 
 (defclass beads-command-list (beads-command-json)
@@ -2338,6 +2361,13 @@ Plus global flags:
 Returns the result of executing the command.
 See `beads-command-init' for available arguments."
   (beads-command-execute (apply #'beads-command-init args)))
+
+(defun beads-command-quickstart! (&rest args)
+  "Create and execute a beads-command-quickstart with ARGS.
+Returns (EXIT-CODE STDOUT STDERR) tuple.
+STDOUT contains the quickstart guide text.
+See `beads-command-quickstart' for available arguments."
+  (beads-command-execute (apply #'beads-command-quickstart args)))
 
 (defun beads-command-create! (&rest args)
   "Create and execute a beads-command-create with ARGS.

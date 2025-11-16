@@ -84,6 +84,40 @@ Integration test that verifies quiet mode suppresses output."
     ;; .beads directory should exist
     (should (file-directory-p (expand-file-name ".beads" temp-dir)))))
 
+;;; Integration Test: beads-command-quickstart
+
+(ert-deftest beads-command-test-quickstart-basic ()
+  "Test beads-command-quickstart execution returns quickstart guide.
+Integration test that runs real bd quickstart command."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (let* ((cmd (beads-command-quickstart))
+         (result (beads-command-execute cmd))
+         (exit-code (nth 0 result))
+         (stdout (nth 1 result)))
+    ;; Command should succeed
+    (should (= exit-code 0))
+    ;; Output should contain quickstart content
+    (should (stringp stdout))
+    (should (> (length stdout) 0))
+    ;; Should contain common quickstart keywords
+    (should (or (string-match-p "quick" (downcase stdout))
+                (string-match-p "start" (downcase stdout))
+                (string-match-p "bd" stdout)))))
+
+(ert-deftest beads-command-test-quickstart-helper ()
+  "Test beads-command-quickstart! helper function.
+Integration test that verifies the convenience function works."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (let* ((result (beads-command-quickstart!))
+         (exit-code (nth 0 result))
+         (stdout (nth 1 result)))
+    ;; Should return tuple (EXIT-CODE STDOUT STDERR)
+    (should (= exit-code 0))
+    (should (stringp stdout))
+    (should (> (length stdout) 0))))
+
 ;;; Integration Test: beads-command-create
 
 (ert-deftest beads-command-test-create-basic ()
