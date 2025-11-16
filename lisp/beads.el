@@ -468,7 +468,7 @@ Returns t if found, signals error otherwise."
 (autoload 'beads-dep-cycles "beads-dep" "Check for dependency cycles." t)
 
 ;;;###autoload
-(autoload 'beads-quickstart "beads-misc" "Show Beads quickstart guide." t)
+(autoload 'beads-quickstart "beads-quickstart" "Show Beads quickstart guide." t)
 
 ;;;###autoload
 (autoload 'beads-import "beads-misc" "Import issues from JSON file." t)
