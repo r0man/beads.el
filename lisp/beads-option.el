@@ -623,6 +623,31 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "-n"
   :argument "--no-auto-flush")
 
+(transient-define-infix beads-option-export-force ()
+  "Toggle force flag."
+  :class 'transient-switch
+  :description "--force (export even if empty)"
+  :key "-f"
+  :argument "--force")
+
+(transient-define-infix beads-option-export-format ()
+  "Set the export format."
+  :class 'transient-option
+  :description "--format"
+  :key "-F"
+  :argument "--format="
+  :prompt "Format: "
+  :choices '("jsonl"))
+
+(transient-define-infix beads-option-export-status ()
+  "Filter by status."
+  :class 'transient-option
+  :description "--status"
+  :key "-s"
+  :argument "--status="
+  :prompt "Status: "
+  :choices '("open" "in_progress" "closed" "blocked"))
+
 (transient-define-infix beads-option-import-input ()
   "Set the input file path."
   :class 'transient-option
