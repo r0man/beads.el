@@ -329,8 +329,8 @@ by checking if the function is available after requiring beads-main."
 ;;; Tests for beads-import command
 
 (ert-deftest beads-main-test-import-is-transient-prefix ()
-  "Test that beads-import--menu is a transient prefix."
-  (should (get 'beads-import--menu 'transient--prefix)))
+  "Test that beads-import is a transient prefix."
+  (should (get 'beads-import 'transient--prefix)))
 
 (ert-deftest beads-main-test-import-execute-defined ()
   "Test that beads-import execute command is defined."

@@ -658,18 +658,55 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :reader #'beads-reader-import-input)
 
 (transient-define-infix beads-option-import-dry-run ()
-  "Toggle dry-run flag."
+  "Preview collision detection without making changes."
   :class 'transient-switch
   :description "--dry-run"
   :key "-d"
   :argument "--dry-run")
 
-(transient-define-infix beads-option-import-resolve-collisions ()
-  "Toggle resolve-collisions flag."
+(transient-define-infix beads-option-import-skip-existing ()
+  "Skip existing issues instead of updating them."
   :class 'transient-switch
-  :description "--resolve-collisions"
+  :description "--skip-existing"
+  :key "-s"
+  :argument "--skip-existing")
+
+(transient-define-infix beads-option-import-clear-duplicate-external-refs ()
+  "Clear duplicate external_ref values (keeps first occurrence)."
+  :class 'transient-switch
+  :description "--clear-duplicate-external-refs"
+  :key "-c"
+  :argument "--clear-duplicate-external-refs")
+
+(transient-define-infix beads-option-import-dedupe-after ()
+  "Detect and report content duplicates after import."
+  :class 'transient-switch
+  :description "--dedupe-after"
+  :key "-D"
+  :argument "--dedupe-after")
+
+(transient-define-infix beads-option-import-rename-on-import ()
+  "Rename imported issues to match database prefix."
+  :class 'transient-switch
+  :description "--rename-on-import"
   :key "-r"
-  :argument "--resolve-collisions")
+  :argument "--rename-on-import")
+
+(transient-define-infix beads-option-import-strict ()
+  "Fail on dependency errors instead of treating them as warnings."
+  :class 'transient-switch
+  :description "--strict"
+  :key "-S"
+  :argument "--strict")
+
+(transient-define-infix beads-option-import-orphan-handling ()
+  "How to handle missing parent issues."
+  :class 'transient-option
+  :description "--orphan-handling"
+  :key "-o"
+  :argument "--orphan-handling="
+  :prompt "Orphan handling: "
+  :choices '("strict" "resurrect" "skip" "allow"))
 
 (transient-define-infix beads-option-init-prefix ()
   "Set the issue ID prefix."
