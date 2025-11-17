@@ -219,9 +219,29 @@
   "Test that import dry-run infix is defined."
   (should (commandp 'beads-option-import-dry-run)))
 
-(ert-deftest beads-option-test-import-resolve-collisions-infix-exists ()
-  "Test that import resolve-collisions infix is defined."
-  (should (commandp 'beads-option-import-resolve-collisions)))
+(ert-deftest beads-option-test-import-skip-existing-infix-exists ()
+  "Test that import skip-existing infix is defined."
+  (should (commandp 'beads-option-import-skip-existing)))
+
+(ert-deftest beads-option-test-import-clear-duplicate-external-refs-infix-exists ()
+  "Test that import clear-duplicate-external-refs infix is defined."
+  (should (commandp 'beads-option-import-clear-duplicate-external-refs)))
+
+(ert-deftest beads-option-test-import-dedupe-after-infix-exists ()
+  "Test that import dedupe-after infix is defined."
+  (should (commandp 'beads-option-import-dedupe-after)))
+
+(ert-deftest beads-option-test-import-rename-on-import-infix-exists ()
+  "Test that import rename-on-import infix is defined."
+  (should (commandp 'beads-option-import-rename-on-import)))
+
+(ert-deftest beads-option-test-import-strict-infix-exists ()
+  "Test that import strict infix is defined."
+  (should (commandp 'beads-option-import-strict)))
+
+(ert-deftest beads-option-test-import-orphan-handling-infix-exists ()
+  "Test that import orphan-handling infix is defined."
+  (should (commandp 'beads-option-import-orphan-handling)))
 
 (ert-deftest beads-option-test-init-prefix-infix-exists ()
   "Test that init prefix infix is defined."

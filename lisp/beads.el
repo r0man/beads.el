@@ -471,7 +471,7 @@ Returns t if found, signals error otherwise."
 (autoload 'beads-quickstart "beads-quickstart" "Show Beads quickstart guide." t)
 
 ;;;###autoload
-(autoload 'beads-import "beads-misc" "Import issues from JSON file." t)
+(autoload 'beads-import "beads-import" "Import issues from JSONL." t)
 
 ;;;###autoload
 (autoload 'beads-export "beads-export" "Export issues to JSONL format." t)
