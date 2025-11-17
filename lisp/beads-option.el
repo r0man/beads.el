@@ -726,6 +726,42 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :prompt "Database path: "
   :reader #'beads-reader-init-db)
 
+(transient-define-infix beads-option-init-branch ()
+  "Set the git branch for beads commits."
+  :class 'transient-option
+  :description "--branch"
+  :key "-b"
+  :argument "--branch="
+  :prompt "Git branch: ")
+
+(transient-define-infix beads-option-init-contributor ()
+  "Run OSS contributor setup wizard."
+  :class 'transient-switch
+  :description "--contributor"
+  :key "-c"
+  :argument "--contributor")
+
+(transient-define-infix beads-option-init-quiet ()
+  "Suppress output (quiet mode)."
+  :class 'transient-switch
+  :description "--quiet"
+  :key "-q"
+  :argument "--quiet")
+
+(transient-define-infix beads-option-init-skip-merge-driver ()
+  "Skip git merge driver setup (non-interactive)."
+  :class 'transient-switch
+  :description "--skip-merge-driver"
+  :key "-s"
+  :argument "--skip-merge-driver")
+
+(transient-define-infix beads-option-init-team ()
+  "Run team workflow setup wizard."
+  :class 'transient-switch
+  :description "--team"
+  :key "-t"
+  :argument "--team")
+
 ;;; ============================================================
 ;;; Transient Infix Definitions - beads-list
 ;;; ============================================================

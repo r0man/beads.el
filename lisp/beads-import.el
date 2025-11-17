@@ -115,7 +115,7 @@ Displays import output in *beads-import* buffer."
 (transient-define-suffix beads-import--execute-command ()
   "Execute the bd import command."
   :key "x"
-  :description "Import from JSONL"
+  :description "Import"
   (interactive)
   (let* ((args (transient-args 'beads-import))
          (command (beads-import--parse-transient-args args)))
@@ -130,7 +130,7 @@ Displays import output in *beads-import* buffer."
 
 (transient-define-suffix beads-import--preview ()
   "Preview the bd import command without executing."
-  :key "p"
+  :key "P"
   :description "Preview command"
   :transient t
   (interactive)
@@ -145,7 +145,7 @@ Displays import output in *beads-import* buffer."
 (transient-define-suffix beads-import--reset ()
   "Reset all import parameters."
   :key "R"
-  :description "Reset fields"
+  :description "Reset all fields"
   :transient t
   (interactive)
   (when (y-or-n-p "Reset all fields? ")
@@ -172,9 +172,8 @@ Displays import output in *beads-import* buffer."
    (beads-option-import-orphan-handling)]
   ["Actions"
    ("x" "Import" beads-import--execute-command)
-   ("P" "Preview" beads-import--preview)
-   ("R" "Reset fields" beads-import--reset)
-   ("q" "Quit" transient-quit-one)])
+   ("P" "Preview command" beads-import--preview)
+   ("R" "Reset all fields" beads-import--reset)])
 
 ;;; Footer
 

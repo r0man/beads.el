@@ -78,8 +78,8 @@ Returns list of error messages, or nil if all valid."
 
 (transient-define-suffix beads-export--execute-command ()
   "Execute the bd export command."
-  :key "e"
-  :description "Export to JSONL"
+  :key "x"
+  :description "Export"
   (interactive)
   (let* ((args (transient-args 'beads-export))
          (command (beads-export--parse-transient-args args)))
@@ -94,7 +94,7 @@ Returns list of error messages, or nil if all valid."
 
 (transient-define-suffix beads-export--preview ()
   "Preview the bd export command without executing."
-  :key "p"
+  :key "P"
   :description "Preview command"
   :transient t
   (interactive)
@@ -109,7 +109,7 @@ Returns list of error messages, or nil if all valid."
 (transient-define-suffix beads-export--reset ()
   "Reset all export parameters."
   :key "R"
-  :description "Reset fields"
+  :description "Reset all fields"
   :transient t
   (interactive)
   (when (y-or-n-p "Reset all fields? ")
@@ -132,9 +132,8 @@ Returns list of error messages, or nil if all valid."
    (beads-option-export-no-auto-flush)]
   ["Actions"
    ("x" "Export" beads-export--execute-command)
-   ("P" "Preview" beads-export--preview)
-   ("R" "Reset fields" beads-export--reset)
-   ("q" "Quit" transient-quit-one)])
+   ("P" "Preview command" beads-export--preview)
+   ("R" "Reset all fields" beads-export--reset)])
 
 ;;; Footer
 
