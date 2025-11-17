@@ -8,7 +8,7 @@
 ;;; Commentary:
 
 ;; Comprehensive ERT tests for beads-misc.el transient menus.
-;; Tests cover: export, import, init, and quickstart commands.
+;; Tests cover: import and init commands.
 
 ;;; Code:
 
@@ -50,77 +50,6 @@
                              (current-buffer))
         (insert output)))
     exit-code))
-
-
-;;; ============================================================
-;;; bd export tests
-;;; ============================================================
-
-(ert-deftest beads-misc-test-export-format-value-set ()
-  "Test export formatting when value is set."
-  (let ((result (beads-export--format-value "/tmp/test.jsonl")))
-    (should (stringp result))
-    (should (string-match-p "test.jsonl" result))))
-
-(ert-deftest beads-misc-test-export-format-value-nil ()
-  "Test export formatting when value is nil."
-  (let ((result (beads-export--format-value nil)))
-    (should (stringp result))
-    (should (string-match-p "unset" result))))
-
-(ert-deftest beads-misc-test-export-execute-success ()
-  "Test successful export execution."
-  (cl-letf (((symbol-function 'call-process)
-             (beads-misc-test--mock-call-process 0 "")))
-    (should-not (beads-export--execute "/tmp/test.jsonl" nil))))
-
-(ert-deftest beads-misc-test-export-execute-with-no-auto-flush ()
-  "Test export with no-auto-flush flag."
-  (let ((captured-args nil))
-    (cl-letf (((symbol-function 'call-process)
-               (lambda (program &optional infile destination display
-                                &rest args)
-                 (setq captured-args args)
-                 0)))
-      (beads-export--execute "/tmp/test.jsonl" t)
-      (should (member "--no-auto-flush" captured-args)))))
-
-(ert-deftest beads-misc-test-export-execute-failure ()
-  "Test export execution failure."
-  (cl-letf (((symbol-function 'call-process)
-             (beads-misc-test--mock-call-process 1 "Error")))
-    (should-error (beads-export--execute "/tmp/test.jsonl" nil))))
-
-(ert-deftest beads-misc-test-export-execute-command-args ()
-  "Test export command includes correct arguments."
-  (let ((captured-args nil))
-    (cl-letf (((symbol-function 'call-process)
-               (lambda (program &optional infile destination display
-                                &rest args)
-                 (setq captured-args args)
-                 0)))
-      (beads-export--execute "/tmp/custom.jsonl" nil)
-      (should (member "export" captured-args))
-      (should (member "-o" captured-args))
-      (should (member "/tmp/custom.jsonl" captured-args)))))
-
-(ert-deftest beads-misc-test-export-transient-defined ()
-  "Test that beads-export transient is defined."
-  (should (fboundp 'beads-export)))
-
-(ert-deftest beads-misc-test-export-transient-is-prefix ()
-  "Test that beads-export--menu is a transient prefix."
-  (should (get 'beads-export--menu 'transient--prefix)))
-
-(ert-deftest beads-misc-test-export-infix-commands-defined ()
-  "Test that export infix commands are defined."
-  (should (fboundp 'beads-option-export-output))
-  (should (fboundp 'beads-option-export-no-auto-flush)))
-
-(ert-deftest beads-misc-test-export-suffix-commands-defined ()
-  "Test that export suffix commands are defined."
-  (should (fboundp 'beads-export--execute-command))
-  (should (fboundp 'beads-export--reset)))
 
 ;;; ============================================================
 ;;; bd import tests
@@ -365,11 +294,6 @@
   "Integration test: Verify beads-import command exists."
   :tags '(integration)
   (should (fboundp 'beads-import)))
-
-(ert-deftest beads-misc-test-export-command-exists ()
-  "Integration test: Verify beads-export command exists."
-  :tags '(integration)
-  (should (fboundp 'beads-export)))
 
 (provide 'beads-misc-test)
 ;;; beads-misc-test.el ends here
