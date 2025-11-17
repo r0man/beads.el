@@ -207,6 +207,131 @@ Integration test that verifies the convenience function works."
         (when (file-exists-p temp-file)
           (delete-file temp-file))))))
 
+;;; Integration Test: beads-command-import
+
+(ert-deftest beads-command-test-import-basic ()
+  "Test beads-command-import imports from a file.
+Integration test that runs real bd import command."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create and export an issue first
+    (beads-command-create! :title "Import test issue")
+    (let ((temp-file (make-temp-file "beads-import-test-" nil ".jsonl")))
+      (unwind-protect
+          (progn
+            ;; Export to temp file
+            (beads-command-export! :output temp-file)
+            ;; Create a new project to import into
+            (beads-test-with-project ()
+              ;; Import from temp file (use rename-on-import for prefix mismatch)
+              (let ((result (beads-command-import! :input temp-file
+                                                   :rename-on-import t)))
+                ;; Should return (EXIT-CODE STDOUT STDERR) tuple
+                (should (listp result))
+                (should (= 3 (length result)))
+                (should (= 0 (nth 0 result)))  ;; Exit code should be 0
+                ;; Verify issue was imported
+                (let ((issues (beads-command-list!)))
+                  (should (> (length issues) 0))
+                  (should (cl-some
+                           (lambda (issue)
+                             (string= (oref issue title)
+                                      "Import test issue"))
+                           issues))))))
+        ;; Clean up temp file
+        (when (file-exists-p temp-file)
+          (delete-file temp-file))))))
+
+(ert-deftest beads-command-test-import-with-dry-run ()
+  "Test beads-command-import with --dry-run flag.
+Integration test that verifies dry-run doesn't modify database."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create and export an issue
+    (beads-command-create! :title "Dry run test issue")
+    (let ((temp-file (make-temp-file "beads-import-test-" nil ".jsonl")))
+      (unwind-protect
+          (progn
+            ;; Export to temp file
+            (beads-command-export! :output temp-file)
+            ;; Create new project and import with dry-run
+            (beads-test-with-project ()
+              (let ((result (beads-command-import! :input temp-file
+                                                   :dry-run t
+                                                   :rename-on-import t)))
+                ;; Should return (EXIT-CODE STDOUT STDERR) tuple
+                (should (listp result))
+                (should (= 3 (length result)))
+                (should (= 0 (nth 0 result)))  ;; Exit code should be 0
+                ;; Database should still be empty (dry-run)
+                (let ((issues (beads-command-list!)))
+                  (should (= (length issues) 0))))))
+        ;; Clean up temp file
+        (when (file-exists-p temp-file)
+          (delete-file temp-file))))))
+
+(ert-deftest beads-command-test-import-with-skip-existing ()
+  "Test beads-command-import with --skip-existing flag.
+Integration test that verifies skip-existing doesn't update issues."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create initial issue
+    (let ((issue (beads-command-create! :title "Original title")))
+      (let ((temp-file (make-temp-file "beads-import-test-" nil ".jsonl")))
+        (unwind-protect
+            (progn
+              ;; Export to temp file
+              (beads-command-export! :output temp-file)
+              ;; Modify issue title in database
+              (beads-command-update! :issue-ids (list (oref issue id))
+                                     :title "Modified title")
+              ;; Import with skip-existing (should not update)
+              (let ((result (beads-command-import! :input temp-file
+                                                   :skip-existing t)))
+                ;; Should return (EXIT-CODE STDOUT STDERR) tuple
+                (should (listp result))
+                (should (= 3 (length result)))
+                (should (= 0 (nth 0 result)))  ;; Exit code should be 0
+                ;; Issue should still have modified title
+                (let ((updated-issue (beads-command-show!
+                                      :issue-ids (list (oref issue id)))))
+                  (should (string= (oref updated-issue title)
+                                   "Modified title")))))
+          ;; Clean up temp file
+          (when (file-exists-p temp-file)
+            (delete-file temp-file)))))))
+
+(ert-deftest beads-command-test-import-helper ()
+  "Test beads-command-import! helper function.
+Integration test that verifies the convenience function works."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create and export an issue
+    (beads-command-create! :title "Helper test issue")
+    (let ((temp-file (make-temp-file "beads-import-test-" nil ".jsonl")))
+      (unwind-protect
+          (progn
+            ;; Export to temp file
+            (beads-command-export! :output temp-file)
+            ;; Create new project and test helper function
+            (beads-test-with-project ()
+              (let ((result (beads-command-import! :input temp-file
+                                                   :rename-on-import t)))
+                ;; Should return (EXIT-CODE STDOUT STDERR) tuple
+                (should (listp result))
+                (should (= 3 (length result)))
+                (should (= 0 (nth 0 result)))  ;; Exit code should be 0
+                ;; Verify issue was imported
+                (let ((issues (beads-command-list!)))
+                  (should (> (length issues) 0))))))
+        ;; Clean up temp file
+        (when (file-exists-p temp-file)
+          (delete-file temp-file))))))
+
 ;;; Integration Test: beads-command-create
 
 (ert-deftest beads-command-test-create-basic ()
