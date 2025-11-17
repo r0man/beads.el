@@ -474,7 +474,7 @@ Returns t if found, signals error otherwise."
 (autoload 'beads-import "beads-misc" "Import issues from JSON file." t)
 
 ;;;###autoload
-(autoload 'beads-export "beads-misc" "Export issues to JSON file." t)
+(autoload 'beads-export "beads-export" "Export issues to JSONL format." t)
 
 ;;;###autoload
 (autoload 'beads-sync "beads-sync" "Synchronize issues with git remote." t)

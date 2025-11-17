@@ -11,7 +11,6 @@
 ;; - bd close: Close issues with reason
 ;; - bd dep: Dependency management (add, remove, tree, list)
 ;; - bd stats: Project statistics
-;; - bd export: Export to JSONL
 ;; - bd import: Import from JSONL
 ;; - bd init: Initialize beads project
 ;;
@@ -31,101 +30,6 @@
 (declare-function beads-list-refresh "beads-list")
 (declare-function beads-show--issue-id "beads-show")
 (declare-function beads-refresh-show "beads-show")
-
-;;; ============================================================
-;;; bd export
-;;; ============================================================
-
-;;; Utility Functions
-
-(defun beads-export--format-value (value)
-  "Format VALUE for display in transient menu."
-  (if value
-      (propertize (format " [%s]" value) 'face 'transient-value)
-    (propertize " [unset]" 'face 'transient-inactive-value)))
-
-(defun beads-export--get-default-output ()
-  "Get default output path (.beads/issues.jsonl)."
-  (when-let* ((beads-dir (beads--find-beads-dir)))
-    (expand-file-name "issues.jsonl" beads-dir)))
-
-(defun beads-export--parse-transient-args (args)
-  "Parse transient ARGS and return plist with export parameters.
-Returns (:output OUTPUT :no-auto-flush NO-AUTO-FLUSH)."
-  (list :output (transient-arg-value "--output=" args)
-        :no-auto-flush (transient-arg-value "--no-auto-flush" args)))
-
-;;; Suffix Commands
-
-(defun beads-export--execute (output-path no-auto-flush)
-  "Execute bd export to OUTPUT-PATH with NO-AUTO-FLUSH flag."
-  (condition-case err
-      (let (args)
-        ;; Build args in reverse order for push/nreverse
-        (when no-auto-flush
-          (push "--no-auto-flush" args))
-        (push output-path args)
-        (push "-o" args)
-        (push "export" args)
-        (setq args (nreverse args))
-        (with-temp-buffer
-          (let ((exit-code (apply #'call-process
-                                  beads-executable nil t nil args)))
-            (unless (zerop exit-code)
-              (error "Export failed: %s" (buffer-string)))))
-        (message "Exported to: %s" output-path)
-        nil)
-    (error
-     (beads--error "Failed to export: %s"
-                   (error-message-string err)))))
-
-(transient-define-suffix beads-export--execute-command ()
-  "Execute the bd export command."
-  :key "e"
-  :description "Export to JSONL"
-  (interactive)
-  (let* ((args (transient-args 'beads-export--menu))
-         (params (beads-export--parse-transient-args args))
-         (output (or (plist-get params :output)
-                     (beads-export--get-default-output)))
-         (no-auto-flush (plist-get params :no-auto-flush)))
-    (when (or (null output) (string-empty-p (string-trim output)))
-      (user-error "Output path is required"))
-    (beads-export--execute output no-auto-flush)))
-
-(transient-define-suffix beads-export--reset ()
-  "Reset all export parameters."
-  :key "R"
-  :description "Reset fields"
-  :transient t
-  (interactive)
-  (when (y-or-n-p "Reset all fields? ")
-    (transient-reset)
-    (transient--redisplay)
-    (message "Fields reset")))
-
-;;; Main Transient Menu
-
-(transient-define-prefix beads-export--menu ()
-  "Transient menu for exporting issues to JSONL."
-  :value (lambda () nil)
-  ["Export Parameters"
-   (beads-option-export-output)
-   (beads-option-export-no-auto-flush)]
-  ["Actions"
-   ("e" "Export" beads-export--execute-command)
-   ("R" "Reset fields" beads-export--reset)
-   ("q" "Quit" transient-quit-one)])
-
-;;;###autoload
-(defun beads-export ()
-  "Export issues to JSONL.
-
-This command provides an interface for exporting issues to
-JSONL format.  The default output is .beads/issues.jsonl."
-  (interactive)
-  (beads-check-executable)
-  (call-interactively #'beads-export--menu))
 
 ;;; ============================================================
 ;;; bd import

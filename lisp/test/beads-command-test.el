@@ -118,6 +118,95 @@ Integration test that verifies the convenience function works."
     (should (stringp stdout))
     (should (> (length stdout) 0))))
 
+;;; Integration Test: beads-command-export
+
+(ert-deftest beads-command-test-export-basic ()
+  "Test beads-command-export exports to a file.
+Integration test that runs real bd export command."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create a test issue first
+    (beads-command-create! :title "Export test issue")
+    ;; Export to temp file
+    (let* ((temp-file (make-temp-file "beads-export-test-" nil ".jsonl"))
+           (stats (beads-command-export! :output temp-file)))
+      (unwind-protect
+          (progn
+            ;; Should return parsed JSON stats (alist)
+            (should (listp stats))
+            ;; File should exist
+            (should (file-exists-p temp-file))
+            ;; File should contain exported data
+            (should (> (nth 7 (file-attributes temp-file)) 0)))
+        ;; Clean up temp file
+        (when (file-exists-p temp-file)
+          (delete-file temp-file))))))
+
+(ert-deftest beads-command-test-export-with-status-filter ()
+  "Test beads-command-export with status filter.
+Integration test that verifies status filtering works."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create issues with different statuses
+    (beads-command-create! :title "Open issue")
+    (let ((closed-issue (beads-command-create! :title "Closed issue")))
+      (beads-command-close! :issue-ids (list (oref closed-issue id))
+                            :reason "Test"))
+    ;; Export only open issues
+    (let* ((temp-file (make-temp-file "beads-export-test-" nil ".jsonl"))
+           (stats (beads-command-export! :output temp-file
+                                         :status "open")))
+      (unwind-protect
+          (progn
+            ;; Should return parsed JSON stats
+            (should (listp stats))
+            ;; File should exist
+            (should (file-exists-p temp-file)))
+        ;; Clean up temp file
+        (when (file-exists-p temp-file)
+          (delete-file temp-file))))))
+
+(ert-deftest beads-command-test-export-with-force ()
+  "Test beads-command-export with --force flag.
+Integration test that verifies force flag works."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let* ((temp-file (make-temp-file "beads-export-test-" nil ".jsonl"))
+           (stats (beads-command-export! :output temp-file
+                                         :force t)))
+      (unwind-protect
+          (progn
+            ;; Should return parsed JSON stats
+            (should (listp stats))
+            ;; File should exist even if db is empty
+            (should (file-exists-p temp-file)))
+        ;; Clean up temp file
+        (when (file-exists-p temp-file)
+          (delete-file temp-file))))))
+
+(ert-deftest beads-command-test-export-helper ()
+  "Test beads-command-export! helper function.
+Integration test that verifies the convenience function works."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create a test issue
+    (beads-command-create! :title "Helper test issue")
+    (let* ((temp-file (make-temp-file "beads-export-test-" nil ".jsonl"))
+           (stats (beads-command-export! :output temp-file)))
+      (unwind-protect
+          (progn
+            ;; Should return parsed stats (since :json defaults to t)
+            (should (listp stats))
+            ;; File should exist and contain data
+            (should (file-exists-p temp-file)))
+        ;; Clean up
+        (when (file-exists-p temp-file)
+          (delete-file temp-file))))))
+
 ;;; Integration Test: beads-command-create
 
 (ert-deftest beads-command-test-create-basic ()

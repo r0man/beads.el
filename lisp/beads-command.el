@@ -413,6 +413,143 @@ No validation needed (no command-specific arguments).
 Returns nil (always valid)."
   nil)
 
+;;; Export Command
+
+(defclass beads-command-export (beads-command-json)
+  ((force
+    :initarg :force
+    :type boolean
+    :initform nil
+    :documentation "Force export even if database is empty (--force).")
+   (format
+    :initarg :format
+    :type (or null string)
+    :initform nil
+    :documentation "Export format (-f, --format).
+Default: jsonl.")
+   (output
+    :initarg :output
+    :type (or null string)
+    :initform nil
+    :documentation "Output file (-o, --output).
+Default: stdout.")
+   (status
+    :initarg :status
+    :type (or null string)
+    :initform nil
+    :documentation "Filter by status (-s, --status)."))
+  :documentation "Represents bd export command.
+Export all issues to JSON Lines format (one JSON object per line).
+Issues are sorted by ID for consistent diffs.")
+
+(cl-defmethod beads-command-line ((command beads-command-export))
+  "Build command arguments for export COMMAND (without executable).
+Returns list: (\"export\" ...flags... ...global-flags...)."
+  (with-slots (force format output status) command
+    (let ((cmd-args (list "export"))
+          (global-args (cl-call-next-method)))
+      ;; Command-specific flags
+      (when force
+        (setq cmd-args (append cmd-args (list "--force"))))
+      (when format
+        (setq cmd-args (append cmd-args (list "-f" format))))
+      (when output
+        (setq cmd-args (append cmd-args (list "-o" output))))
+      (when status
+        (setq cmd-args (append cmd-args (list "-s" status))))
+      ;; Global args (includes --json if enabled)
+      (setq cmd-args (append cmd-args global-args))
+      cmd-args)))
+
+(cl-defmethod beads-command-validate ((command beads-command-export))
+  "Validate export COMMAND.
+Returns error string or nil if valid."
+  (with-slots (format status) command
+    (cond
+     ;; Validate format if provided
+     ((and format (not (member format '("jsonl"))))
+      (format "Invalid format: %s (must be jsonl)" format))
+     ;; Validate status if provided
+     ((and status (not (member status '("open" "in_progress" "closed" "blocked"))))
+      (format "Invalid status: %s (must be one of: open, in_progress, closed, blocked)" status))
+     ;; Otherwise valid
+     (t nil))))
+
+(cl-defmethod beads-command-execute ((command beads-command-export))
+  "Execute export COMMAND and return result.
+Unlike most commands, bd export writes JSON stats to stderr, not stdout.
+When :json is nil, returns (EXIT-CODE STDOUT STDERR).
+When :json is t, returns parsed JSON from STDERR (not STDOUT).
+Signals beads-validation-error, beads-command-error, or
+beads-json-parse-error on failure."
+  ;; Validate first
+  (when-let ((error (beads-command-validate command)))
+    (signal 'beads-validation-error
+            (list (format "Command validation failed: %s" error)
+                  :command command
+                  :error error)))
+
+  ;; Build full command line
+  (let* ((cmd (beads-command-line command))
+         (cmd-string (mapconcat #'shell-quote-argument cmd " "))
+         (stderr-file (make-temp-file "beads-stderr-"))
+         (start-time (current-time)))
+
+    (when (fboundp 'beads--log)
+      (beads--log 'info "Running: %s" cmd-string)
+      (beads--log 'verbose "In directory: %s" default-directory))
+
+    (unwind-protect
+        (with-temp-buffer
+          (let* ((exit-code (apply #'process-file
+                                  (car cmd) nil
+                                  (list (current-buffer) stderr-file)
+                                  nil (cdr cmd)))
+                 (end-time (current-time))
+                 (elapsed (float-time (time-subtract end-time start-time)))
+                 (stdout (buffer-string))
+                 (stderr (with-temp-buffer
+                          (insert-file-contents stderr-file)
+                          (buffer-string))))
+
+          (when (fboundp 'beads--log)
+            (beads--log 'info "Command completed in %.3fs" elapsed)
+            (beads--log 'verbose "Exit code: %d" exit-code)
+            (beads--log 'verbose "Stdout: %s" stdout)
+            (beads--log 'verbose "Stderr: %s" stderr))
+
+          (if (zerop exit-code)
+              (with-slots (json) command
+                (if (not json)
+                    ;; No JSON parsing, return raw output
+                    (list exit-code stdout stderr)
+                  ;; Parse JSON from stderr (not stdout!)
+                  (condition-case err
+                      (let* ((json-object-type 'alist)
+                             (json-array-type 'vector)
+                             (json-key-type 'symbol)
+                             (parsed-json (json-read-from-string stderr)))
+                        (list exit-code parsed-json stderr))
+                    (error
+                     (signal 'beads-json-parse-error
+                             (list (format "Failed to parse JSON from stderr: %s"
+                                           (error-message-string err))
+                                   :exit-code exit-code
+                                   :stdout stdout
+                                   :stderr stderr
+                                   :parse-error err))))))
+            ;; Signal error with complete information
+            (signal 'beads-command-error
+                    (list (format "Command failed with exit code %d" exit-code)
+                          :command cmd-string
+                          :exit-code exit-code
+                          :stdout stdout
+                          :stderr stderr)))))
+
+      ;; Cleanup temp file
+      (when (file-exists-p stderr-file)
+        (delete-file stderr-file)))))
+
 ;;; List Command
 
 (defclass beads-command-list (beads-command-json)
@@ -2368,6 +2505,13 @@ Returns (EXIT-CODE STDOUT STDERR) tuple.
 STDOUT contains the quickstart guide text.
 See `beads-command-quickstart' for available arguments."
   (beads-command-execute (apply #'beads-command-quickstart args)))
+
+(defun beads-command-export! (&rest args)
+  "Create and execute a beads-command-export with ARGS.
+When :json is t (default), returns parsed JSON export statistics.
+When :json is nil, returns (EXIT-CODE STDOUT STDERR) tuple.
+See `beads-command-export' for available arguments."
+  (beads-command-execute (apply #'beads-command-export args)))
 
 (defun beads-command-create! (&rest args)
   "Create and execute a beads-command-create with ARGS.
