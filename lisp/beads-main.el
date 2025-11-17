@@ -38,7 +38,7 @@
 (require 'beads-delete)
 (require 'beads-stats)
 (require 'beads-dep)
-(require 'beads-misc)
+(require 'beads-init)
 (require 'beads-sync)
 (require 'beads-epic-status)
 (require 'transient)
@@ -153,7 +153,7 @@ Key bindings:
    ("t" "Stats" beads-stats)]
   ["Epic"
    :description "Epic management"
-   ("E" "Epic status" beads-epic)]
+   ("e" "Epic status" beads-epic)]
   ["Create/Edit"
    :description "Create and modify issues"
    ("c" "Create issue" beads-create)
@@ -171,7 +171,7 @@ Key bindings:
   ["Admin"
    :description "Project administration"
    ("i" "Init project" beads-init)
-   ("e" "Export to JSONL" beads-export)
+   ("E" "Export to JSONL" beads-export)
    ("I" "Import from JSONL" beads-import)
    ("S" "Sync with remote" beads-sync)]
   ["Other"
