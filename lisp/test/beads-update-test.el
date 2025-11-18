@@ -318,5 +318,64 @@
     (setq-local beads-show--issue-id "bd-99")
     (should (equal (beads-update--detect-issue-id) "bd-99"))))
 
+(ert-deftest beads-update-test-full-update-workflow ()
+  "Integration test: Full workflow of creating and updating an issue.
+Tests the complete flow: create issue, update multiple fields, verify changes."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (require 'beads-test-helper)
+  ;; Create temporary project
+  (let ((project-dir (beads-test-helper-create-temp-project)))
+    (unwind-protect
+        (let ((default-directory project-dir))
+          ;; Create a test issue
+          (let* ((created-issue (beads-command-create!
+                                 :json t
+                                 :title "Test Issue for Update"
+                                 :description "Original description"
+                                 :priority 2
+                                 :issue-type "task"))
+                 (issue-id (oref created-issue id)))
+
+            ;; Verify issue was created
+            (should (stringp issue-id))
+            (should (string-match-p "^test-" issue-id))
+
+            ;; Update the issue using beads-command-update
+            (let ((updated-issue (beads-command-update!
+                                  :json t
+                                  :issue-ids (list issue-id)
+                                  :title "Updated Test Issue"
+                                  :description "Updated description"
+                                  :status "in_progress"
+                                  :priority 1
+                                  :notes "Added some notes")))
+
+              ;; Verify the update returned an issue
+              (should (beads-issue-p updated-issue))
+              (should (equal (oref updated-issue id) issue-id))
+
+              ;; Verify fields were updated
+              (should (equal (oref updated-issue title) "Updated Test Issue"))
+              (should (equal (oref updated-issue description)
+                           "Updated description"))
+              (should (equal (oref updated-issue status) "in_progress"))
+              (should (equal (oref updated-issue priority) 1))
+              (should (equal (oref updated-issue notes) "Added some notes"))
+
+              ;; Fetch the issue again to verify persistence
+              (let ((fetched-issue (beads-command-show!
+                                    :json t
+                                    :issue-ids (list issue-id))))
+                (should (beads-issue-p fetched-issue))
+                (should (equal (oref fetched-issue title)
+                             "Updated Test Issue"))
+                (should (equal (oref fetched-issue status) "in_progress"))
+                (should (equal (oref fetched-issue priority) 1))))))
+
+      ;; Cleanup
+      (when (file-directory-p project-dir)
+        (delete-directory project-dir t)))))
+
 (provide 'beads-update-test)
 ;;; beads-update-test.el ends here
