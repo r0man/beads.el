@@ -263,5 +263,281 @@ Text references to be updated:
     (let ((binding (lookup-key beads-list-mode-map (kbd "D"))))
       (should (eq binding 'beads-list-delete)))))
 
+(ert-deftest beads-delete-test-full-workflow-with-confirmation ()
+  "Integration test: Full delete workflow with user confirmation.
+Tests the complete flow: preview -> confirm -> execute -> cleanup."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (require 'beads-test)
+  (beads-test-with-project ()
+    ;; First create an issue to delete
+    (let* ((issue (beads-command-create! :title "Issue to Delete"
+                                         :issue-type "task"))
+           (issue-id (oref issue id))
+           (preview-buffer-name (format "*beads-delete-preview: %s*" issue-id))
+           (preview-shown nil))
+      ;; Track cache invalidation and user interaction
+      (let ((result
+             (beads-test-with-cache-tracking
+               (cl-letf (((symbol-function 'yes-or-no-p)
+                          (lambda (prompt)
+                            (should (string-match-p issue-id prompt))
+                            t))  ; Confirm deletion
+                         ((symbol-function 'pop-to-buffer)
+                          (lambda (buffer)
+                            (setq preview-shown t)
+                            (should (bufferp buffer))
+                            (should (string-match-p issue-id
+                                                    (buffer-name buffer)))
+                            nil)))
+                 ;; Execute delete with confirmation
+                 (beads-delete issue-id)))))
+
+        ;; Verify preview was shown
+        (should preview-shown)
+
+        ;; Verify cache was invalidated
+        (should (plist-get result :completion-cache-invalidated))
+
+        ;; Verify issue no longer exists
+        (let ((issues (beads-command-list!)))
+          (should-not (seq-find
+                       (lambda (i) (equal (oref i id) issue-id))
+                       issues)))
+
+        ;; Verify preview buffer was cleaned up
+        (should-not (get-buffer preview-buffer-name))))))
+
+(ert-deftest beads-delete-test-full-workflow-user-cancels ()
+  "Integration test: Full delete workflow when user cancels.
+Tests that issue is NOT deleted when user says no to confirmation."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (require 'beads-test)
+  (beads-test-with-project ()
+    ;; First create an issue
+    (let* ((issue (beads-command-create! :title "Issue Not to Delete"
+                                         :issue-type "task"))
+           (issue-id (oref issue id))
+           (preview-shown nil))
+      ;; Try to delete but cancel
+      (let ((result
+             (beads-test-with-cache-tracking
+               (cl-letf (((symbol-function 'yes-or-no-p)
+                          (lambda (prompt)
+                            (should (string-match-p issue-id prompt))
+                            nil))  ; Cancel deletion
+                         ((symbol-function 'pop-to-buffer)
+                          (lambda (buffer)
+                            (setq preview-shown t)
+                            (should (bufferp buffer))
+                            (should (string-match-p issue-id
+                                                    (buffer-name buffer)))
+                            nil)))
+                 (beads-delete issue-id)))))
+
+        ;; Verify preview was shown even though user cancelled
+        (should preview-shown)
+
+        ;; Verify cache was NOT invalidated (no deletion occurred)
+        (should-not (plist-get result :completion-cache-invalidated))
+
+        ;; Verify issue still exists
+        (let* ((issues (beads-command-list!))
+               (found (seq-find
+                       (lambda (i) (equal (oref i id) issue-id))
+                       issues)))
+          (should found)
+          (should (equal (oref found title) "Issue Not to Delete")))))))
+
+(ert-deftest beads-delete-test-context-from-list-buffer ()
+  "Integration test: Delete from beads-list-mode buffer.
+Tests that delete detects issue ID from list buffer context."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (require 'beads-test)
+  (beads-test-with-project ()
+    ;; Create an issue
+    (let* ((issue (beads-command-create! :title "List Context Delete"
+                                         :issue-type "task"))
+           (issue-id (oref issue id)))
+      ;; Simulate being in a list buffer
+      (with-temp-buffer
+        (beads-list-mode)
+        (cl-letf (((symbol-function 'beads-list--current-issue-id)
+                   (lambda () issue-id))
+                  ((symbol-function 'yes-or-no-p)
+                   (lambda (_) t))
+                  ((symbol-function 'pop-to-buffer)
+                   (lambda (buffer) nil)))
+          ;; Delete should use detected ID
+          (beads-list-delete))
+
+        ;; Verify issue was deleted
+        (let ((issues (beads-command-list!)))
+          (should-not (seq-find
+                       (lambda (i) (equal (oref i id) issue-id))
+                       issues)))))))
+
+(ert-deftest beads-delete-test-context-from-show-buffer ()
+  "Integration test: Delete from beads-show-mode buffer.
+Tests that delete detects issue ID from show buffer context."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (require 'beads-test)
+  (beads-test-with-project ()
+    ;; Create an issue
+    (let* ((issue (beads-command-create! :title "Show Context Delete"
+                                         :issue-type "task"))
+           (issue-id (oref issue id)))
+      ;; Simulate being in a show buffer
+      (with-temp-buffer
+        (beads-show-mode)
+        (setq-local beads-show--issue-id issue-id)
+        (cl-letf (((symbol-function 'yes-or-no-p)
+                   (lambda (_) t))
+                  ((symbol-function 'pop-to-buffer)
+                   (lambda (buffer) nil)))
+          ;; Delete should use detected ID
+          (call-interactively #'beads-delete))
+
+        ;; Verify issue was deleted
+        (let ((issues (beads-command-list!)))
+          (should-not (seq-find
+                       (lambda (i) (equal (oref i id) issue-id))
+                       issues)))))))
+
+(ert-deftest beads-delete-test-preview-buffer-displayed ()
+  "Integration test: Verify preview buffer is displayed before confirmation.
+Tests that preview content is shown to user."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (require 'beads-test)
+  (beads-test-with-project ()
+    (let* ((issue (beads-command-create! :title "Preview Test Issue"))
+           (issue-id (oref issue id))
+           (preview-buffer-shown nil))
+      (cl-letf (((symbol-function 'pop-to-buffer)
+                 (lambda (buffer)
+                   (setq preview-buffer-shown t)
+                   (should (bufferp buffer))
+                   (should (string-match-p issue-id (buffer-name buffer)))))
+                ((symbol-function 'yes-or-no-p)
+                 (lambda (_) t)))
+        (beads-delete issue-id)
+        (should preview-buffer-shown)))))
+
+(ert-deftest beads-delete-test-cleanup-buffers-after-deletion ()
+  "Integration test: Verify buffers are cleaned up after deletion.
+Tests that show and preview buffers are killed."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (require 'beads-test)
+  (beads-test-with-project ()
+    (let* ((issue (beads-command-create! :title "Cleanup Test"))
+           (issue-id (oref issue id)))
+      ;; Create show buffer manually
+      (with-current-buffer (get-buffer-create
+                            (format "*beads-show %s*" issue-id))
+        (special-mode))
+
+      (cl-letf (((symbol-function 'yes-or-no-p)
+                 (lambda (_) t))
+                ((symbol-function 'pop-to-buffer)
+                 (lambda (buffer) nil)))
+        (beads-delete issue-id))
+
+      ;; Verify buffers were killed
+      (should-not (get-buffer (format "*beads-show %s*" issue-id)))
+      (should-not (get-buffer
+                   (format "*beads-delete-preview: %s*" issue-id))))))
+
+;;; ============================================================
+;;; Error Recovery Tests
+;;; ============================================================
+
+(ert-deftest beads-delete-test-error-recovery-preview-failure ()
+  "Error recovery test: Preview command fails.
+Tests graceful error handling when preview command fails."
+  :tags '(:integration :error-recovery)
+  (require 'beads-test)
+  (cl-letf (((symbol-function 'process-file)
+             (beads-test--mock-call-process 1 "Error: issue not found")))
+    (should-error (beads-delete--get-preview "bd-nonexistent"))))
+
+(ert-deftest beads-delete-test-error-recovery-executable-not-found ()
+  "Error recovery test: bd executable not found.
+Tests error handling when bd command is not in PATH."
+  :tags '(:integration :error-recovery)
+  (require 'beads-test)
+  (cl-letf (((symbol-function 'beads-check-executable)
+             (lambda () (error "bd executable not found"))))
+    (should-error (beads-delete "bd-42"))))
+
+(ert-deftest beads-delete-test-error-recovery-permission-denied ()
+  "Error recovery test: Permission denied during deletion.
+Tests handling when user lacks permissions."
+  :tags '(:integration :error-recovery)
+  (require 'beads-test)
+  (cl-letf (((symbol-function 'process-file)
+             (beads-test--mock-call-process
+              1 "Error: permission denied")))
+    (should-error (beads-delete--execute-deletion "bd-42"))))
+
+(ert-deftest beads-delete-test-error-recovery-database-locked ()
+  "Error recovery test: Database locked during deletion.
+Tests handling when database is locked."
+  :tags '(:integration :error-recovery)
+  (require 'beads-test)
+  (cl-letf (((symbol-function 'process-file)
+             (beads-test--mock-call-process
+              1 "Error: database is locked")))
+    (should-error (beads-delete--execute-deletion "bd-42"))))
+
+(ert-deftest beads-delete-test-error-recovery-issue-not-found ()
+  "Error recovery test: Issue not found.
+Tests handling when trying to delete non-existent issue."
+  :tags '(:integration :error-recovery)
+  (require 'beads-test)
+  (cl-letf (((symbol-function 'process-file)
+             (beads-test--mock-call-process
+              1 "Error: issue not found")))
+    (should-error (beads-delete--get-preview "bd-nonexistent"))))
+
+(ert-deftest beads-delete-test-error-recovery-invalid-json-response ()
+  "Error recovery test: bd returns invalid JSON.
+Tests handling when deletion returns malformed JSON."
+  :tags '(:integration :error-recovery)
+  (require 'beads-test)
+  (cl-letf (((symbol-function 'process-file)
+             (beads-test--mock-call-process 0 "not valid json")))
+    (should-error (beads-delete--execute-deletion "bd-42"))))
+
+(ert-deftest beads-delete-test-error-recovery-cache-not-invalidated-on-error ()
+  "Error recovery test: Cache not invalidated on error.
+Tests that cache is only invalidated on successful deletion."
+  :tags '(:integration :error-recovery)
+  (require 'beads-test)
+  (let ((cache-invalidated nil))
+    (cl-letf (((symbol-function 'process-file)
+               (beads-test--mock-call-process 1 "Error"))
+              ((symbol-function 'beads--invalidate-completion-cache)
+               (lambda () (setq cache-invalidated t))))
+      (should-error (beads-delete--execute-deletion "bd-42"))
+      ;; Cache should not be invalidated on error
+      (should-not cache-invalidated))))
+
+(ert-deftest beads-delete-test-error-recovery-no-database ()
+  "Error recovery test: No .beads directory.
+Tests handling when beads is not initialized."
+  :tags '(:integration :error-recovery)
+  (require 'beads-test)
+  (cl-letf (((symbol-function 'beads--get-database-path)
+             (lambda () nil))
+            ((symbol-function 'process-file)
+             (beads-test--mock-call-process
+              1 "Error: no .beads directory found")))
+    (should-error (beads-delete--get-preview "bd-42"))))
+
 (provide 'beads-delete-test)
 ;;; beads-delete-test.el ends here

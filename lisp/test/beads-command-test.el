@@ -1776,5 +1776,69 @@ Integration test that checks for dependency cycles."
   (let ((cmd (beads-command-dep-cycles)))
     (should (null (beads-command-validate cmd)))))
 
+;;; Unit Tests: beads-command-delete
+
+(ert-deftest beads-command-test-delete-command-line-basic ()
+  "Unit test: delete command-line with just issue-id.
+Regression test for bug where issue-id was prepended instead of appended."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-delete :issue-id "bd-42"))
+         (args (beads-command-line cmd)))
+    ;; Should be: ("bd" "delete" <...global-flags...> "bd-42")
+    ;; NOT: ("bd" "bd-42" "delete" <...global-flags...>)
+    (should (equal (car args) beads-executable))
+    (should (equal (nth 1 args) "delete"))
+    (should (member "bd-42" args))
+    ;; Issue ID should come AFTER "delete"
+    (should (> (cl-position "bd-42" args :test #'equal)
+               (cl-position "delete" args :test #'equal)))))
+
+(ert-deftest beads-command-test-delete-command-line-with-force ()
+  "Unit test: delete command-line with --force flag."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-delete :issue-id "bd-123" :force t))
+         (args (beads-command-line cmd)))
+    ;; Should contain all elements in correct order
+    (should (equal (car args) beads-executable))
+    (should (equal (nth 1 args) "delete"))
+    (should (member "bd-123" args))
+    (should (member "--force" args))
+    ;; Order should be: bd delete ... bd-123 ... --force
+    (let ((delete-pos (cl-position "delete" args :test #'equal))
+          (id-pos (cl-position "bd-123" args :test #'equal))
+          (force-pos (cl-position "--force" args :test #'equal)))
+      (should (< delete-pos id-pos))
+      (should (< id-pos force-pos)))))
+
+(ert-deftest beads-command-test-delete-command-line-without-force ()
+  "Unit test: delete command-line without --force should not include flag."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-delete :issue-id "bd-99" :force nil))
+         (args (beads-command-line cmd)))
+    (should (equal (car args) beads-executable))
+    (should (equal (nth 1 args) "delete"))
+    (should (member "bd-99" args))
+    (should-not (member "--force" args))))
+
+(ert-deftest beads-command-test-delete-validation-requires-issue-id ()
+  "Unit test: delete validation fails without issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-delete)))
+    (should (stringp (beads-command-validate cmd)))
+    (should (string-match-p "issue ID" (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-test-delete-validation-empty-issue-id ()
+  "Unit test: delete validation fails with empty issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-delete :issue-id "")))
+    (should (stringp (beads-command-validate cmd)))
+    (should (string-match-p "issue ID" (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-test-delete-validation-success ()
+  "Unit test: delete validation succeeds with valid issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-delete :issue-id "bd-42")))
+    (should (null (beads-command-validate cmd)))))
+
 (provide 'beads-command-test)
 ;;; beads-command-test.el ends here
