@@ -337,7 +337,7 @@ Tests the complete flow: create issue, update multiple fields, verify changes."
 
       ;; Verify issue was created
       (should (stringp issue-id))
-      (should (string-match-p "^test-" issue-id))
+      (should (string-match-p "^beads-test-" issue-id))
 
       ;; Update the issue using beads-command-update
       (let ((updated-issue (beads-command-update!
@@ -369,7 +369,7 @@ Tests the complete flow: create issue, update multiple fields, verify changes."
           (should (equal (oref fetched-issue title)
                          "Updated Test Issue"))
           (should (equal (oref fetched-issue status) "in_progress"))
-          (should (equal (oref fetched-issue priority) 1))))))))
+          (should (equal (oref fetched-issue priority) 1)))))))
 
 (provide 'beads-update-test)
 ;;; beads-update-test.el ends here
