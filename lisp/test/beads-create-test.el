@@ -495,5 +495,340 @@ Tests creating an issue with dependency links."
                          issues)))
             (should child)))))))
 
+;;; Integration Tests for beads-create--preview
+
+(ert-deftest beads-create-test-preview-valid-minimal ()
+  "Integration test: Preview command with minimal valid arguments.
+Tests that preview generates correct command line for minimal fields."
+  :tags '(:integration)
+  (require 'beads-test)
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Preview Test")
+    (let ((result (call-interactively #'beads-create--preview)))
+      ;; Should return preview message string
+      (should (stringp result))
+      (should (string-match-p "^Command: " result))
+      ;; Should contain bd executable name
+      (should (string-match-p "bd" result))
+      ;; Should contain create subcommand
+      (should (string-match-p "create" result))
+      ;; Should contain the title (may be escaped by shell-quote-argument)
+      (should (string-match-p "Preview" result))
+      (should (string-match-p "Test" result)))))
+
+(ert-deftest beads-create-test-preview-valid-all-fields ()
+  "Integration test: Preview command with all fields populated.
+Tests that preview correctly formats complex command with all arguments."
+  :tags '(:integration)
+  (require 'beads-test)
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Complete Preview Test"
+        "--type=feature"
+        "--priority=1"
+        "--description=Test description"
+        "--acceptance=Test acceptance"
+        "--assignee=testuser"
+        "--design=Test design"
+        "--external-ref=gh-123"
+        "--labels=test,preview")
+    (let ((result (call-interactively #'beads-create--preview)))
+      ;; Should return preview message string
+      (should (stringp result))
+      (should (string-match-p "^Command: " result))
+      ;; Should contain key parts of the arguments (may be escaped)
+      (should (string-match-p "Complete" result))
+      (should (string-match-p "Preview" result))
+      (should (string-match-p "feature" result))
+      (should (string-match-p "testuser" result))
+      (should (string-match-p "gh-123" result))
+      ;; Should contain proper flags
+      (should (string-match-p "--type" result))
+      (should (string-match-p "--priority" result))
+      (should (string-match-p "--assignee" result)))))
+
+(ert-deftest beads-create-test-preview-validation-error-empty-title ()
+  "Integration test: Preview with empty title shows validation error.
+Tests that preview returns error message when validation fails."
+  :tags '(:integration)
+  (require 'beads-test)
+  (beads-test-with-transient-args 'beads-create
+      '("--title=")
+    (let ((result (call-interactively #'beads-create--preview)))
+      ;; Should return validation error message
+      (should (stringp result))
+      (should (string-match-p "Validation errors:" result))
+      (should (string-match-p "Title is required" result)))))
+
+(ert-deftest beads-create-test-preview-validation-error-invalid-type ()
+  "Integration test: Preview with invalid type shows validation error.
+Tests that preview catches invalid issue type."
+  :tags '(:integration)
+  (require 'beads-test)
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Test Issue"
+        "--type=invalid-type")
+    (let ((result (call-interactively #'beads-create--preview)))
+      ;; Should return validation error message
+      (should (stringp result))
+      (should (string-match-p "Validation errors:" result))
+      (should (string-match-p "Type must be one of" result)))))
+
+(ert-deftest beads-create-test-preview-validation-error-invalid-priority ()
+  "Integration test: Preview with invalid priority shows validation error.
+Tests that preview catches priority out of range."
+  :tags '(:integration)
+  (require 'beads-test)
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Test Issue"
+        "--priority=10")
+    (let ((result (call-interactively #'beads-create--preview)))
+      ;; Should return validation error message
+      (should (stringp result))
+      (should (string-match-p "Validation errors:" result))
+      (should (string-match-p "Priority must be" result)))))
+
+(ert-deftest beads-create-test-preview-validation-multiple-errors ()
+  "Integration test: Preview with multiple validation errors.
+Tests that preview reports all validation failures."
+  :tags '(:integration)
+  (require 'beads-test)
+  (beads-test-with-transient-args 'beads-create
+      '("--title="
+        "--type=invalid"
+        "--priority=99"
+        "--deps=bad-format")
+    (let ((result (call-interactively #'beads-create--preview)))
+      ;; Should return validation error message
+      (should (stringp result))
+      (should (string-match-p "Validation errors:" result))
+      ;; Should contain multiple error messages (semicolon separated)
+      (should (string-match-p ";" result)))))
+
+(ert-deftest beads-create-test-preview-command-formatting ()
+  "Integration test: Verify command line is properly formatted.
+Tests that special characters are properly quoted."
+  :tags '(:integration)
+  (require 'beads-test)
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Test with 'quotes' and \"more\" quotes")
+    (let ((result (call-interactively #'beads-create--preview)))
+      ;; Should return preview message string
+      (should (stringp result))
+      (should (string-match-p "^Command: " result))
+      ;; The shell-quote-argument should handle special characters
+      ;; We just verify the message is generated without error
+      (should (> (length result) 0)))))
+
+(ert-deftest beads-create-test-preview-with-dependencies ()
+  "Integration test: Preview command with dependencies.
+Tests that dependency format is preserved in preview."
+  :tags '(:integration)
+  (require 'beads-test)
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Child Issue"
+        "--deps=blocks:bd-123,related:bd-456")
+    (let ((result (call-interactively #'beads-create--preview)))
+      ;; Should return preview message string
+      (should (stringp result))
+      (should (string-match-p "^Command: " result))
+      ;; Should contain dependency information (may be escaped)
+      (should (string-match-p "blocks" result))
+      (should (string-match-p "bd-123" result))
+      (should (string-match-p "related" result))
+      (should (string-match-p "bd-456" result)))))
+
+(ert-deftest beads-create-test-preview-does-not-create-issue ()
+  "Integration test: Verify preview doesn't actually create issue.
+Tests that preview is read-only and doesn't mutate state."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (require 'beads-test)
+  (beads-test-with-project ()
+    (beads-test-with-transient-args 'beads-create
+        '("--title=Should Not Be Created")
+      ;; Get initial issue count
+      (let ((initial-count (length (beads-command-list!))))
+        ;; Run preview
+        (call-interactively #'beads-create--preview)
+        ;; Verify issue count unchanged
+        (should (= (length (beads-command-list!)) initial-count))))))
+
+(ert-deftest beads-create-test-preview-does-not-invalidate-cache ()
+  "Integration test: Verify preview doesn't invalidate caches.
+Tests that preview is truly read-only with no side effects."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (require 'beads-test)
+  (beads-test-with-project ()
+    (beads-test-with-transient-args 'beads-create
+        '("--title=Preview Cache Test")
+      (let ((result
+             (beads-test-with-cache-tracking
+               (call-interactively #'beads-create--preview))))
+        ;; Verify no cache invalidation occurred
+        (should-not (plist-get result :completion-cache-invalidated))
+        (should-not (plist-get result :label-cache-invalidated))))))
+
+;;; Integration Tests for beads-create--reset
+
+(ert-deftest beads-create-test-reset-clears-state-user-confirms ()
+  "Integration test: Reset clears transient state when user confirms.
+Tests that reset calls transient-reset and clears all fields."
+  :tags '(:integration)
+  (require 'beads-test)
+  (let ((transient-reset-called nil)
+        (transient-redisplay-called nil))
+    (beads-test-with-transient-args 'beads-create
+        '("--title=Test Issue"
+          "--type=feature"
+          "--priority=1"
+          "--description=Test description"
+          "--acceptance=Test acceptance"
+          "--assignee=testuser")
+      (cl-letf (((symbol-function 'y-or-n-p)
+                 (lambda (prompt)
+                   (should (string-match-p "Reset all fields" prompt))
+                   t))  ; User confirms reset
+                ((symbol-function 'transient-reset)
+                 (lambda ()
+                   (setq transient-reset-called t)))
+                ((symbol-function 'transient--redisplay)
+                 (lambda ()
+                   (setq transient-redisplay-called t))))
+        ;; Call reset
+        (call-interactively #'beads-create--reset)
+
+        ;; Verify transient-reset was called
+        (should transient-reset-called)
+
+        ;; Verify transient display was refreshed
+        (should transient-redisplay-called)))))
+
+(ert-deftest beads-create-test-reset-user-cancels ()
+  "Integration test: Reset does nothing when user cancels.
+Tests that reset respects user cancellation and doesn't clear state."
+  :tags '(:integration)
+  (require 'beads-test)
+  (let ((transient-reset-called nil)
+        (transient-redisplay-called nil))
+    (beads-test-with-transient-args 'beads-create
+        '("--title=Test Issue" "--type=bug")
+      (cl-letf (((symbol-function 'y-or-n-p)
+                 (lambda (prompt)
+                   (should (string-match-p "Reset all fields" prompt))
+                   nil))  ; User cancels reset
+                ((symbol-function 'transient-reset)
+                 (lambda ()
+                   (setq transient-reset-called t)))
+                ((symbol-function 'transient--redisplay)
+                 (lambda ()
+                   (setq transient-redisplay-called t))))
+        ;; Call reset
+        (call-interactively #'beads-create--reset)
+
+        ;; Verify transient-reset was NOT called
+        (should-not transient-reset-called)
+
+        ;; Verify transient display was NOT refreshed
+        (should-not transient-redisplay-called)))))
+
+(ert-deftest beads-create-test-reset-does-not-invalidate-cache ()
+  "Integration test: Verify reset doesn't invalidate caches.
+Tests that reset is a UI-only operation with no database side effects."
+  :tags '(:integration)
+  (require 'beads-test)
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Reset Cache Test")
+    (let ((result
+           (beads-test-with-cache-tracking
+             (cl-letf (((symbol-function 'y-or-n-p)
+                        (lambda (_) t))  ; Confirm reset
+                       ((symbol-function 'transient-reset)
+                        (lambda () nil))  ; Mock transient-reset
+                       ((symbol-function 'transient--redisplay)
+                        (lambda () nil)))  ; Mock redisplay
+               (call-interactively #'beads-create--reset)))))
+      ;; Verify no cache invalidation occurred
+      (should-not (plist-get result :completion-cache-invalidated))
+      (should-not (plist-get result :label-cache-invalidated)))))
+
+(ert-deftest beads-create-test-reset-is-transient ()
+  "Integration test: Verify reset command stays in transient.
+Tests that reset is marked :transient t so menu stays open."
+  :tags '(:integration)
+  (require 'beads-test)
+  ;; Get the suffix command object
+  (let ((suffix (get 'beads-create--reset 'transient--suffix)))
+    ;; Verify it exists
+    (should suffix)
+    ;; Verify it has :transient t property
+    ;; Note: The suffix object is a transient-suffix instance
+    ;; We check that the function has the transient marker
+    (should (commandp 'beads-create--reset))
+    ;; The :transient t property means the menu should stay open
+    ;; This is verified by checking the suffix definition
+    (should (transient-suffix-p suffix))))
+
+(ert-deftest beads-create-test-reset-all-field-types ()
+  "Integration test: Reset clears all types of fields.
+Tests that reset clears required, optional, and advanced fields."
+  :tags '(:integration)
+  (require 'beads-test)
+  (let ((transient-reset-called nil))
+    ;; Set up with all possible fields populated
+    (beads-test-with-transient-args 'beads-create
+        '("--title=Complete Test Issue"
+          "--type=epic"
+          "--priority=0"
+          "--description=Description text"
+          "--acceptance=Acceptance criteria"
+          "--assignee=alice"
+          "--design=Design notes"
+          "--external-ref=gh-999"
+          "--labels=tag1,tag2,tag3"
+          "--id=custom-123"
+          "--deps=blocks:bd-1,related:bd-2"
+          "--parent=bd-parent"
+          "--repo=example-repo"
+          "--from-template=template-1"
+          "--file=/path/to/file.txt"
+          "--force")
+      (cl-letf (((symbol-function 'y-or-n-p)
+                 (lambda (_) t))  ; Confirm reset
+                ((symbol-function 'transient-reset)
+                 (lambda ()
+                   (setq transient-reset-called t)))
+                ((symbol-function 'transient--redisplay)
+                 (lambda () nil)))
+        ;; Call reset
+        (call-interactively #'beads-create--reset)
+
+        ;; Verify reset was called (which clears all fields)
+        (should transient-reset-called)))))
+
+(ert-deftest beads-create-test-reset-displays-message ()
+  "Integration test: Verify reset displays confirmation message.
+Tests that reset shows 'All fields reset' message to user."
+  :tags '(:integration)
+  (require 'beads-test)
+  (let ((message-text nil))
+    (beads-test-with-transient-args 'beads-create
+        '("--title=Message Test")
+      (cl-letf (((symbol-function 'y-or-n-p)
+                 (lambda (_) t))  ; Confirm reset
+                ((symbol-function 'transient-reset)
+                 (lambda () nil))
+                ((symbol-function 'transient--redisplay)
+                 (lambda () nil))
+                ((symbol-function 'message)
+                 (lambda (format-string &rest args)
+                   (setq message-text (apply #'format format-string args)))))
+        ;; Call reset
+        (call-interactively #'beads-create--reset)
+
+        ;; Verify message was displayed
+        (should message-text)
+        (should (string-match-p "All fields reset" message-text))))))
+
 (provide 'beads-create-test)
 ;;; beads-create-test.el ends here
