@@ -65,6 +65,57 @@ For a project with default settings, use an empty list:
     (run-hooks 'post-command-hook)
     (undo-boundary)))
 
+(defun beads-test-create-issue (title &optional type priority description)
+  "Create an issue with TITLE in the current project directory.
+Optional TYPE, PRIORITY, and DESCRIPTION can be specified.
+Returns the issue ID of the created issue."
+  (let* ((cmd (beads-command-create
+               :title title
+               :type type
+               :priority priority
+               :description description))
+         (result (beads-command-execute cmd)))
+    (alist-get 'id result)))
+
+(defun beads-test-issue-exists-p (issue-id)
+  "Check if ISSUE-ID exists in the current project directory.
+Returns non-nil if the issue exists, nil otherwise."
+  (condition-case nil
+      (progn
+        (beads-command-execute (beads-command-show :issue-ids (list issue-id)))
+        t)
+    (error nil)))
+
+(defun beads-test-delete-issue (issue-id)
+  "Delete ISSUE-ID in the current project directory.
+Uses the bd delete command with --force flag."
+  (let ((beads-executable "bd"))
+    (call-process beads-executable nil nil nil
+                  "delete" "--force" issue-id)))
+
+(defun beads-test-get-issue (issue-id)
+  "Get issue data for ISSUE-ID in the current project directory.
+Returns the parsed issue object (alist), or nil if not found."
+  (condition-case nil
+      (let ((result (beads-command-execute
+                     (beads-command-show :issue-ids (list issue-id)))))
+        ;; beads-command-show with single ID returns the issue directly
+        ;; (not wrapped in an array)
+        (if (listp result)
+            (if (vectorp (car result))
+                ;; If it's a vector, extract the first element
+                (aref (car result) 0)
+              ;; Otherwise it's the issue itself
+              result)
+          nil))
+    (error nil)))
+
+(defun beads-test-kbd-do (keys)
+  "Execute keyboard macro from KEYS list.
+KEYS is a list of key sequence strings that will be joined
+and executed as a keyboard macro."
+  (execute-kbd-macro (kbd (string-join keys " "))))
+
 ;;; ========================================
 ;;; Test Fixtures and Utilities
 ;;; ========================================
