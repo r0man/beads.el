@@ -266,7 +266,7 @@ PROMPT is shown to the user."
                    nil t beads-dep--dep-type))
 
 ;;; ============================================================
-;;; beads-misc (export/import/init) Reader Functions
+;;; Export/Import/Init/Quickstart Reader Functions
 ;;; ============================================================
 
 (defun beads-reader-export-output (_prompt _initial-input _history)

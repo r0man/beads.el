@@ -15,8 +15,8 @@
 ;; - Integration with beads-list and beads-show buffers
 ;;
 ;; The module follows the pattern established in other beads modules
-;; (beads-dep, beads-misc, etc.) with state variables, reader functions,
-;; and transient-based command interfaces.
+;; (beads-dep, beads-export, beads-import, etc.) with state variables,
+;; reader functions, and transient-based command interfaces.
 ;;
 ;; Usage:
 ;;
