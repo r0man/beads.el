@@ -1248,5 +1248,236 @@ Note: Currently skipped - bd CLI has issues with multiline arguments via shell."
             (should (equal (oref created acceptance-criteria)
                            multiline-acceptance))))))))
 
+;;; Error Recovery Tests
+
+(ert-deftest beads-create-test-error-recovery-executable-not-found ()
+  "Error recovery test: bd executable not found.
+Tests graceful degradation when bd command is not in PATH."
+  :tags '(:integration :error-recovery)
+  (require 'beads-test)
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Test Issue")
+    ;; Mock executable-find to return nil (bd not found)
+    (cl-letf (((symbol-function 'executable-find)
+               (lambda (program)
+                 (when (equal program beads-executable)
+                   nil))))  ; bd not found
+      ;; Mock beads-command-execute to simulate "command not found" error
+      (cl-letf (((symbol-function 'beads-command-execute)
+                 (lambda (_)
+                   (error "Searching for program: No such file or directory, bd"))))
+        ;; Execute should catch error and return error message
+        (let ((result (call-interactively #'beads-create--execute)))
+          ;; Should return error message, not signal error
+          (should (stringp result))
+          (should (string-match-p "Failed to create issue" result)))))))
+
+(ert-deftest beads-create-test-error-recovery-nonzero-exit-code ()
+  "Error recovery test: bd command returns non-zero exit code.
+Tests handling when bd create fails with error exit status."
+  :tags '(:integration :error-recovery)
+  (require 'beads-test)
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Test Issue")
+    ;; Mock beads-command-execute to simulate bd returning error
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_)
+                 (error "Process bd exited abnormally with code 1"))))
+      ;; Execute should catch error and return error message
+      (let ((result (call-interactively #'beads-create--execute)))
+        ;; Should return error message, not signal error
+        (should (stringp result))
+        (should (string-match-p "Failed to create issue" result))))))
+
+(ert-deftest beads-create-test-error-recovery-invalid-json-response ()
+  "Error recovery test: bd returns invalid JSON.
+Tests handling when bd command returns malformed JSON output."
+  :tags '(:integration :error-recovery)
+  (require 'beads-test)
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Test Issue")
+    ;; Mock beads-command-execute to simulate JSON parsing error
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_)
+                 (error "JSON parse error: unexpected character"))))
+      ;; Execute should catch error and return error message
+      (let ((result (call-interactively #'beads-create--execute)))
+        ;; Should return error message, not signal error
+        (should (stringp result))
+        (should (string-match-p "Failed to create issue" result))))))
+
+(ert-deftest beads-create-test-error-recovery-empty-json-response ()
+  "Error recovery test: bd returns empty output.
+Tests handling when bd command succeeds but returns empty JSON."
+  :tags '(:integration :error-recovery)
+  (require 'beads-test)
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Test Issue")
+    ;; Mock beads-command-execute to simulate empty response
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_)
+                 (error "No JSON output from bd command"))))
+      ;; Execute should catch error and return error message
+      (let ((result (call-interactively #'beads-create--execute)))
+        ;; Should return error message, not signal error
+        (should (stringp result))
+        (should (string-match-p "Failed to create issue" result))))))
+
+(ert-deftest beads-create-test-error-recovery-permission-denied ()
+  "Error recovery test: Permission denied accessing .beads directory.
+Tests handling when user lacks permissions to write to database."
+  :tags '(:integration :error-recovery)
+  (require 'beads-test)
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Test Issue")
+    ;; Mock beads-command-execute to simulate permission error
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_)
+                 (error "Permission denied: .beads/issues.db"))))
+      ;; Execute should catch error and return error message
+      (let ((result (call-interactively #'beads-create--execute)))
+        ;; Should return error message, not signal error
+        (should (stringp result))
+        (should (string-match-p "Failed to create issue" result))))))
+
+(ert-deftest beads-create-test-error-recovery-database-locked ()
+  "Error recovery test: Database is locked by another process.
+Tests handling when database is locked (concurrent access)."
+  :tags '(:integration :error-recovery)
+  (require 'beads-test)
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Test Issue")
+    ;; Mock beads-command-execute to simulate database lock error
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_)
+                 (error "database is locked"))))
+      ;; Execute should catch error and return error message
+      (let ((result (call-interactively #'beads-create--execute)))
+        ;; Should return error message, not signal error
+        (should (stringp result))
+        (should (string-match-p "Failed to create issue" result))))))
+
+(ert-deftest beads-create-test-error-recovery-network-filesystem-timeout ()
+  "Error recovery test: Network filesystem timeout.
+Tests handling when .beads directory is on slow/failing network mount."
+  :tags '(:integration :error-recovery)
+  (require 'beads-test)
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Test Issue")
+    ;; Mock beads-command-execute to simulate I/O timeout
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_)
+                 (error "I/O error: Connection timed out"))))
+      ;; Execute should catch error and return error message
+      (let ((result (call-interactively #'beads-create--execute)))
+        ;; Should return error message, not signal error
+        (should (stringp result))
+        (should (string-match-p "Failed to create issue" result))))))
+
+(ert-deftest beads-create-test-error-recovery-disk-full ()
+  "Error recovery test: Disk full error.
+Tests handling when disk space is exhausted."
+  :tags '(:integration :error-recovery)
+  (require 'beads-test)
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Test Issue")
+    ;; Mock beads-command-execute to simulate disk full error
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_)
+                 (error "No space left on device"))))
+      ;; Execute should catch error and return error message
+      (let ((result (call-interactively #'beads-create--execute)))
+        ;; Should return error message, not signal error
+        (should (stringp result))
+        (should (string-match-p "Failed to create issue" result))))))
+
+(ert-deftest beads-create-test-error-recovery-invalid-dependency-reference ()
+  "Error recovery test: Invalid dependency reference.
+Tests handling when dependency references non-existent issue."
+  :tags '(:integration :error-recovery)
+  (require 'beads-test)
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Test Issue"
+        "--deps=blocks:bd-nonexistent")
+    ;; Mock beads-command-execute to simulate invalid dependency error
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_)
+                 (error "Dependency not found: bd-nonexistent"))))
+      ;; Execute should catch error and return error message
+      (let ((result (call-interactively #'beads-create--execute)))
+        ;; Should return error message, not signal error
+        (should (stringp result))
+        (should (string-match-p "Failed to create issue" result))))))
+
+(ert-deftest beads-create-test-error-recovery-duplicate-custom-id ()
+  "Error recovery test: Duplicate custom ID.
+Tests handling when custom ID is already taken (without --force)."
+  :tags '(:integration :error-recovery)
+  (require 'beads-test)
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Test Issue"
+        "--id=duplicate-id")
+    ;; Mock beads-command-execute to simulate duplicate ID error
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_)
+                 (error "Issue ID already exists: duplicate-id"))))
+      ;; Execute should catch error and return error message
+      (let ((result (call-interactively #'beads-create--execute)))
+        ;; Should return error message, not signal error
+        (should (stringp result))
+        (should (string-match-p "Failed to create issue" result))))))
+
+(ert-deftest beads-create-test-error-recovery-tramp-connection-failure ()
+  "Error recovery test: TRAMP connection failure.
+Tests handling when remote connection fails during TRAMP operations."
+  :tags '(:integration :error-recovery :tramp)
+  (require 'beads-test)
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Test Issue")
+    ;; Mock beads-command-execute to simulate TRAMP error
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_)
+                 (error "TRAMP: Connection closed"))))
+      ;; Execute should catch error and return error message
+      (let ((result (call-interactively #'beads-create--execute)))
+        ;; Should return error message, not signal error
+        (should (stringp result))
+        (should (string-match-p "Failed to create issue" result))))))
+
+(ert-deftest beads-create-test-error-recovery-cache-not-invalidated-on-error ()
+  "Error recovery test: Cache should not be invalidated on error.
+Tests that completion cache is only invalidated on successful creation."
+  :tags '(:integration :error-recovery)
+  (require 'beads-test)
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Test Issue")
+    (let ((result
+           (beads-test-with-cache-tracking
+             (cl-letf (((symbol-function 'beads-command-execute)
+                        (lambda (_)
+                          (error "Simulated bd failure"))))
+               ;; Execute should fail
+               (call-interactively #'beads-create--execute)))))
+      ;; Verify cache was NOT invalidated (error path)
+      (should-not (plist-get result :completion-cache-invalidated))
+      (should-not (plist-get result :label-cache-invalidated)))))
+
+(ert-deftest beads-create-test-error-recovery-no-database-initialized ()
+  "Error recovery test: No beads database initialized.
+Tests handling when .beads directory doesn't exist."
+  :tags '(:integration :error-recovery)
+  (require 'beads-test)
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Test Issue")
+    ;; Mock beads-command-execute to simulate no database error
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_)
+                 (error "No .beads directory found. Run 'bd init' first."))))
+      ;; Execute should catch error and return error message
+      (let ((result (call-interactively #'beads-create--execute)))
+        ;; Should return error message, not signal error
+        (should (stringp result))
+        (should (string-match-p "Failed to create issue" result))))))
+
 (provide 'beads-create-test)
 ;;; beads-create-test.el ends here
