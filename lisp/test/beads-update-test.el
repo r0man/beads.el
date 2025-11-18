@@ -15,6 +15,7 @@
 (require 'ert)
 (require 'json)
 (require 'beads)
+(require 'beads-types)
 (require 'beads-list)
 (require 'beads-show)
 (require 'beads-update)
@@ -22,19 +23,20 @@
 ;;; Test Fixtures
 
 (defvar beads-update-test--sample-issue
-  '((id . "bd-42")
-    (title . "Test Issue")
-    (description . "Test description")
-    (status . "open")
-    (priority . 1)
-    (issue-type . "bug")
-    (created-at . "2025-01-15T10:00:00Z")
-    (updated-at . "2025-01-15T10:00:00Z")
-    (acceptance-criteria . "Test acceptance")
-    (design . "Test design")
-    (notes . "Test notes")
-    (assignee . "testuser")
-    (external-ref . "gh-123"))
+  (beads-issue
+   :id "bd-42"
+   :title "Test Issue"
+   :description "Test description"
+   :status "open"
+   :priority 1
+   :issue-type "bug"
+   :created-at "2025-01-15T10:00:00Z"
+   :updated-at "2025-01-15T10:00:00Z"
+   :acceptance-criteria "Test acceptance"
+   :design "Test design"
+   :notes "Test notes"
+   :assignee "testuser"
+   :external-ref "gh-123")
   "Sample issue data for testing.")
 
 (defvar beads-update-test--sample-update-response
@@ -253,11 +255,12 @@
 
 (ert-deftest beads-update-test-edge-case-empty-string-to-value ()
   "Test changing from empty string to value."
-  (let* ((issue-with-empty '((id . "bd-42")
-                             (title . "Test")
-                             (status . "open")
-                             (priority . 1)
-                             (assignee . "")))
+  (let* ((issue-with-empty (beads-issue
+                            :id "bd-42"
+                            :title "Test"
+                            :status "open"
+                            :priority 1
+                            :assignee ""))
          (beads-update--issue-id "bd-42")
          (beads-update--original-data issue-with-empty)
          (cmd (beads-update--parse-transient-args
@@ -268,10 +271,11 @@
 
 (ert-deftest beads-update-test-edge-case-nil-to-value ()
   "Test changing from nil to value."
-  (let* ((issue-with-nil '((id . "bd-42")
-                          (title . "Test")
-                          (status . "open")
-                          (priority . 1)))
+  (let* ((issue-with-nil (beads-issue
+                          :id "bd-42"
+                          :title "Test"
+                          :status "open"
+                          :priority 1))
          (beads-update--issue-id "bd-42")
          (beads-update--original-data issue-with-nil)
          (cmd (beads-update--parse-transient-args
