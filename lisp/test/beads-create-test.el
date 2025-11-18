@@ -288,6 +288,213 @@ directly in the transient-define-prefix definition."
       ;; Verify it succeeded (no error from invalid layout reference)
       (should setup-succeeded))))
 
+;;; Integration Tests for beads-create--execute
+
+(ert-deftest beads-create-test-execute-minimal-fields ()
+  "Integration test: Create issue with minimal required fields.
+Tests successful creation with only title set."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (require 'beads-test)
+  (beads-test-with-project ()
+    (beads-test-with-transient-args 'beads-create
+        '("--title=Minimal Test Issue")
+      (let ((show-called nil)
+            (result
+             (beads-test-with-cache-tracking
+               (cl-letf (((symbol-function 'y-or-n-p)
+                          (lambda (_) nil))  ; Don't show issue
+                         ((symbol-function 'beads-show)
+                          (lambda (_) (setq show-called t))))
+                 ;; Execute the create command
+                 (call-interactively #'beads-create--execute)))))
+
+        ;; Verify cache was invalidated
+        (should (plist-get result :completion-cache-invalidated))
+
+        ;; Verify show wasn't called (we said no)
+        (should-not show-called)
+
+        ;; Verify the issue was created by listing all issues
+        (let ((issues (beads-command-list! :json t)))
+          (should (seq-find
+                   (lambda (issue)
+                     (equal (oref issue title) "Minimal Test Issue"))
+                   issues)))))))
+
+(ert-deftest beads-create-test-execute-all-fields ()
+  "Integration test: Create issue with all fields populated.
+Tests successful creation with title, type, priority, description, etc."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (require 'beads-test)
+  (beads-test-with-project ()
+    (beads-test-with-transient-args 'beads-create
+        '("--title=Complete Test Issue"
+          "--type=feature"
+          "--priority=1"
+          "--description=Full description text"
+          "--acceptance=Acceptance criteria here"
+          "--assignee=testuser"
+          "--design=Design notes"
+          "--external-ref=gh-999"
+          "--labels=test,integration")
+      (let ((result
+             (beads-test-with-cache-tracking
+               (cl-letf (((symbol-function 'y-or-n-p)
+                          (lambda (_) nil)))  ; Don't show issue
+                 ;; Execute the create command
+                 (call-interactively #'beads-create--execute)))))
+
+        ;; Verify cache was invalidated
+        (should (plist-get result :completion-cache-invalidated))
+
+        ;; Verify all fields by fetching the created issue
+        (let* ((issues (beads-command-list! :json t))
+               (created (seq-find
+                         (lambda (issue)
+                           (equal (oref issue title) "Complete Test Issue"))
+                         issues)))
+          (should created)
+          (should (equal (oref created issue-type) "feature"))
+          (should (equal (oref created priority) 1))
+          (should (equal (oref created description) "Full description text"))
+          (should (equal (oref created acceptance-criteria)
+                         "Acceptance criteria here"))
+          (should (equal (oref created assignee) "testuser"))
+          (should (equal (oref created design) "Design notes"))
+          (should (equal (oref created external-ref) "gh-999"))
+          ;; Labels are returned sorted alphabetically by bd
+          (should (equal (oref created labels) '("integration" "test"))))))))
+
+(ert-deftest beads-create-test-execute-validation-failure ()
+  "Integration test: Test validation failure paths.
+Verifies that beads-create--execute properly rejects invalid input."
+  :tags '(:integration)
+  (require 'beads-test)
+  ;; Test with empty title - should fail validation
+  (beads-test-with-transient-args 'beads-create
+      '("--title=")
+    (should-error (call-interactively #'beads-create--execute)
+                  :type 'user-error))
+
+  ;; Test with invalid type
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Test" "--type=invalid-type")
+    (should-error (call-interactively #'beads-create--execute)
+                  :type 'user-error))
+
+  ;; Test with invalid priority
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Test" "--priority=10")
+    (should-error (call-interactively #'beads-create--execute)
+                  :type 'user-error))
+
+  ;; Test with invalid dependencies format
+  (beads-test-with-transient-args 'beads-create
+      '("--title=Test" "--deps=invalid-format")
+    (should-error (call-interactively #'beads-create--execute)
+                  :type 'user-error)))
+
+(ert-deftest beads-create-test-execute-command-failure ()
+  "Integration test: Test bd command failure handling.
+Verifies error handling when the bd create command fails."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (require 'beads-test)
+  (beads-test-with-project ()
+    (beads-test-with-transient-args 'beads-create
+        '("--title=Test Issue")
+      ;; Mock beads-command-execute to simulate bd failure
+      (cl-letf (((symbol-function 'beads-command-execute)
+                 (lambda (_)
+                   (error "bd create failed: database locked"))))
+        ;; Should not signal error, but should return error message
+        (let ((result (call-interactively #'beads-create--execute)))
+          (should (stringp result))
+          (should (string-match-p "Failed to create issue" result)))))))
+
+(ert-deftest beads-create-test-execute-cache-invalidation ()
+  "Integration test: Verify cache invalidation after successful creation.
+Tests that beads--invalidate-completion-cache is called."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (require 'beads-test)
+  (beads-test-with-project ()
+    (beads-test-with-transient-args 'beads-create
+        '("--title=Cache Test Issue")
+      (let ((result
+             (beads-test-with-cache-tracking
+               (cl-letf (((symbol-function 'y-or-n-p)
+                          (lambda (_) nil)))  ; Don't show issue
+                 ;; Execute create
+                 (call-interactively #'beads-create--execute)))))
+
+        ;; Verify completion cache was invalidated
+        (should (plist-get result :completion-cache-invalidated))
+
+        ;; Label cache should also be invalidated if labels were set
+        ;; (not in this test, so it should be nil)
+        (should-not (plist-get result :label-cache-invalidated))))))
+
+(ert-deftest beads-create-test-execute-show-workflow ()
+  "Integration test: Test show-issue prompt workflow.
+Verifies that beads-show is called when user says yes."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (require 'beads-test)
+  (beads-test-with-project ()
+    (beads-test-with-transient-args 'beads-create
+        '("--title=Show Workflow Test")
+      (let ((show-called nil)
+            (shown-issue-id nil))
+        (cl-letf (((symbol-function 'y-or-n-p)
+                   (lambda (prompt)
+                     (should (string-match-p "Show issue" prompt))
+                     t))  ; Yes, show the issue
+                  ((symbol-function 'beads-show)
+                   (lambda (issue-id)
+                     (setq show-called t)
+                     (setq shown-issue-id issue-id))))
+          ;; Execute create
+          (call-interactively #'beads-create--execute)
+
+          ;; Verify show was called
+          (should show-called)
+          (should shown-issue-id)
+          (should (string-match-p "^beads-test-" shown-issue-id)))))))
+
+(ert-deftest beads-create-test-execute-with-dependencies ()
+  "Integration test: Create issue with dependencies.
+Tests creating an issue with dependency links."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (require 'beads-test)
+  (beads-test-with-project ()
+    ;; First create a parent issue
+    (let* ((parent (beads-command-create!
+                    :json t
+                    :title "Parent Issue"
+                    :issue-type "epic"))
+           (parent-id (oref parent id)))
+
+      ;; Now create a child issue that blocks the parent
+      (beads-test-with-transient-args 'beads-create
+          (list "--title=Child Issue"
+                (format "--deps=blocks:%s" parent-id))
+        (cl-letf (((symbol-function 'y-or-n-p)
+                   (lambda (_) nil)))
+          ;; Execute and ensure it doesn't error
+          ;; Note: Dependencies may need to be set via separate bd dep command
+          (call-interactively #'beads-create--execute)
+
+          ;; Verify the child issue was created
+          (let* ((issues (beads-command-list! :json t))
+                 (child (seq-find
+                         (lambda (issue)
+                           (equal (oref issue title) "Child Issue"))
+                         issues)))
+            (should child)))))))
 
 (provide 'beads-create-test)
 ;;; beads-create-test.el ends here
