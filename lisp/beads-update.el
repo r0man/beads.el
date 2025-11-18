@@ -77,7 +77,7 @@ Returns issue ID string or nil if not found."
   "Fetch issue data for ISSUE-ID from bd.
 Returns parsed issue alist or signals error."
   (condition-case err
-      (beads-command-show! issue-id)
+      (beads-command-show! :json t :issue-ids (list issue-id))
     (error
      (beads--error "Failed to fetch issue %s: %s"
                    issue-id
@@ -91,8 +91,13 @@ Sets beads-update--issue-id and beads-update--original-data."
         (beads-update--fetch-issue issue-id)))
 
 (defun beads-update--get-original (field)
-  "Get original value of FIELD from original-data."
-  (alist-get field beads-update--original-data))
+  "Get original value of FIELD from original-data.
+FIELD is a symbol like `status', `priority', etc.
+Original-data is a beads-issue instance."
+  (when beads-update--original-data
+    (condition-case nil
+        (eieio-oref beads-update--original-data field)
+      (invalid-slot-name nil))))
 
 (defun beads-update--parse-transient-args (args)
   "Parse transient ARGS list into a beads-command-update instance.
