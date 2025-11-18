@@ -1871,7 +1871,7 @@ Returns list: (\"delete\" ...global-flags... issue-id [--force])."
 
       ;; Append issue ID (positional argument)
       (when issue-id
-        (push issue-id args))
+        (setq args (append args (list issue-id))))
 
       ;; Append --force flag if set
       (when force
