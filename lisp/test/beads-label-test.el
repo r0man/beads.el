@@ -160,23 +160,20 @@
 
 (ert-deftest beads-label-test-current-label ()
   "Test extracting current label from tabulated list."
-  ;; Since beads-label-list-all--current-label is just a wrapper around
-  ;; tabulated-list-get-id, we test that it returns the expected value
-  ;; when mocked
-  (cl-letf (((symbol-function 'beads-label-list-all--current-label)
+  (cl-letf (((symbol-function 'tabulated-list-get-id)
              (lambda () "backend")))
     (should (equal (beads-label-list-all--current-label) "backend"))))
 
 (ert-deftest beads-label-test-current-label-nil ()
   "Test extracting current label when no label at point."
   ;; Test that the function returns nil when there's no label
-  (cl-letf (((symbol-function 'beads-label-list-all--current-label)
+  (cl-letf (((symbol-function 'tabulated-list-get-id)
              (lambda () nil)))
     (should-not (beads-label-list-all--current-label))))
 
 (ert-deftest beads-label-test-show-issues-no-label ()
   "Test showing issues when no label at point."
-  (cl-letf (((symbol-function 'beads-label-list-all--current-label)
+  (cl-letf (((symbol-function 'tabulated-list-get-id)
              (lambda () nil)))
     (should-error (beads-label-list-all-show-issues)
                   :type 'user-error)))
@@ -188,7 +185,7 @@
                            :status "open" :priority 2)
                (beads-issue :id "bd-2" :title "Test 2"
                            :status "in_progress" :priority 1))))
-    (cl-letf (((symbol-function 'beads-label-list-all--current-label)
+    (cl-letf (((symbol-function 'tabulated-list-get-id)
                (lambda () "backend"))
               ((symbol-function 'beads-command-execute)
                (lambda (_cmd) beads-label-test--mock-issues))

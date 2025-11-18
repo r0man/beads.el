@@ -396,6 +396,7 @@ If called from beads-list or beads-show buffers, uses current issue."
 
 (defun beads-label-list-all--current-label ()
   "Return the label name at point, or nil."
+  (declare (compiler-macro nil)) ; Prevent inlining for testability
   (tabulated-list-get-id))
 
 (defun beads-label-list-all-show-issues ()
