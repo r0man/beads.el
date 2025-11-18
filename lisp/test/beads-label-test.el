@@ -14,7 +14,7 @@
 (require 'ert)
 (require 'beads)
 (require 'beads-label)
-(require 'beads-test-helper)
+(require 'beads-test)
 
 ;;; Test Fixtures
 
