@@ -54,6 +54,7 @@
 ;;; Forward Declarations
 
 (declare-function beads-update "beads-update" (&optional issue-id))
+(declare-function beads-reopen "beads-reopen" (&optional issue-id))
 
 ;;; Customization
 
