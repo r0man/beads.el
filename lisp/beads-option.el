@@ -604,7 +604,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :reader #'beads-reader-dep-type)
 
 ;;; ============================================================
-;;; Transient Infix Definitions - beads-misc (export/import/init)
+;;; Transient Infix Definitions - Export/Import/Init/Quickstart
 ;;; ============================================================
 
 (transient-define-infix beads-option-export-output ()
