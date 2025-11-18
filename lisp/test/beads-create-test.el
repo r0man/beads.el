@@ -316,7 +316,7 @@ Tests successful creation with only title set."
         (should-not show-called)
 
         ;; Verify the issue was created by listing all issues
-        (let ((issues (beads-command-list! :json t)))
+        (let ((issues (beads-command-list!)))
           (should (seq-find
                    (lambda (issue)
                      (equal (oref issue title) "Minimal Test Issue"))
@@ -350,7 +350,7 @@ Tests successful creation with title, type, priority, description, etc."
         (should (plist-get result :completion-cache-invalidated))
 
         ;; Verify all fields by fetching the created issue
-        (let* ((issues (beads-command-list! :json t))
+        (let* ((issues (beads-command-list!))
                (created (seq-find
                          (lambda (issue)
                            (equal (oref issue title) "Complete Test Issue"))
@@ -473,7 +473,6 @@ Tests creating an issue with dependency links."
   (beads-test-with-project ()
     ;; First create a parent issue
     (let* ((parent (beads-command-create!
-                    :json t
                     :title "Parent Issue"
                     :issue-type "epic"))
            (parent-id (oref parent id)))
@@ -489,7 +488,7 @@ Tests creating an issue with dependency links."
           (call-interactively #'beads-create--execute)
 
           ;; Verify the child issue was created
-          (let* ((issues (beads-command-list! :json t))
+          (let* ((issues (beads-command-list!))
                  (child (seq-find
                          (lambda (issue)
                            (equal (oref issue title) "Child Issue"))
