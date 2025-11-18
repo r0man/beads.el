@@ -16,7 +16,7 @@
 (require 'ert)
 (require 'beads-export)
 (require 'beads-command)
-(require 'beads-test-helper)
+(require 'beads-test)
 
 ;;; Unit Tests - Validation
 
