@@ -95,19 +95,10 @@ Uses the bd delete command with --force flag."
 
 (defun beads-test-get-issue (issue-id)
   "Get issue data for ISSUE-ID in the current project directory.
-Returns the parsed issue object (alist), or nil if not found."
+Returns a beads-issue EIEIO object, or nil if not found."
   (condition-case nil
-      (let ((result (beads-command-execute
-                     (beads-command-show :issue-ids (list issue-id)))))
-        ;; beads-command-show with single ID returns the issue directly
-        ;; (not wrapped in an array)
-        (if (listp result)
-            (if (vectorp (car result))
-                ;; If it's a vector, extract the first element
-                (aref (car result) 0)
-              ;; Otherwise it's the issue itself
-              result)
-          nil))
+      (beads-command-execute
+       (beads-command-show :issue-ids (list issue-id)))
     (error nil)))
 
 (defun beads-test-kbd-do (keys)
@@ -115,6 +106,114 @@ Returns the parsed issue object (alist), or nil if not found."
 KEYS is a list of key sequence strings that will be joined
 and executed as a keyboard macro."
   (execute-kbd-macro (kbd (string-join keys " "))))
+
+;;; ========================================
+;;; Transient Testing Utilities
+;;; ========================================
+
+(defmacro beads-test-with-transient-args (prefix args &rest body)
+  "Execute BODY with transient-args mocked for PREFIX to return ARGS.
+
+PREFIX is the transient prefix symbol (e.g., \\='beads-create).
+ARGS is a list of argument strings (e.g., (\"--title=Test\"
+\"--type=bug\")).
+
+This is useful for testing suffix commands that call
+(transient-args \\='prefix) to get their arguments.
+
+Example:
+  (beads-test-with-transient-args \\='beads-create
+      (\"--title=Test Issue\" \"--type=bug\")
+    (beads-create--execute))"
+  (declare (indent 2))
+  `(cl-letf (((symbol-function 'transient-args)
+              (lambda (p)
+                (when (eq p ,prefix)
+                  ,args))))
+     ,@body))
+
+(defmacro beads-test-with-cache-tracking (&rest body)
+  "Execute BODY while tracking cache invalidation calls.
+
+This macro sets up tracking for both the issue completion cache
+and label cache invalidation. After BODY executes, you can check
+if caches were invalidated.
+
+Returns a plist with :completion-cache-invalidated and
+:label-cache-invalidated keys set to t if the respective caches
+were invalidated.
+
+Example:
+  (let ((result
+         (beads-test-with-cache-tracking
+           (beads-create--execute))))
+    (should (plist-get result :completion-cache-invalidated)))"
+  `(let ((completion-invalidated nil)
+         (label-invalidated nil))
+     (cl-letf (((symbol-function 'beads--invalidate-completion-cache)
+                (lambda () (setq completion-invalidated t)))
+               ((symbol-function 'beads--invalidate-label-cache)
+                (lambda () (setq label-invalidated t))))
+       ,@body
+       (list :completion-cache-invalidated completion-invalidated
+             :label-cache-invalidated label-invalidated))))
+
+(defmacro beads-test-with-buffer-tracking (&rest body)
+  "Execute BODY while tracking buffer refresh calls.
+
+This macro tracks calls to buffer refresh functions like
+`revert-buffer' and `beads-list-refresh'.
+
+Returns a plist with :buffers-refreshed set to a list of buffer
+names that were refreshed during BODY execution.
+
+Example:
+  (let ((result
+         (beads-test-with-buffer-tracking
+           (beads-create--execute))))
+    (should (member \"*beads-list*\"
+                    (plist-get result :buffers-refreshed))))"
+  `(let ((refreshed-buffers nil))
+     (cl-letf (((symbol-function 'revert-buffer)
+                (lambda (&optional _ignore-auto _noconfirm _preserve-modes)
+                  (push (buffer-name) refreshed-buffers)))
+               ((symbol-function 'beads-list-refresh)
+                (lambda ()
+                  (push (buffer-name) refreshed-buffers))))
+       ,@body
+       (list :buffers-refreshed (nreverse refreshed-buffers)))))
+
+(defmacro beads-test-with-mocked-interaction (&rest body)
+  "Execute BODY with common interactive prompts mocked.
+
+This macro mocks common interactive functions like
+`yes-or-no-p', `y-or-n-p', and `read-string' to avoid requiring
+user interaction during tests.
+
+By default:
+- `yes-or-no-p' and `y-or-n-p' return t
+- `read-string' returns empty string
+- `completing-read' returns first choice
+
+You can override these by binding the functions yourself after
+this macro.
+
+Example:
+  (beads-test-with-mocked-interaction
+    (beads-create--execute))"
+  `(cl-letf (((symbol-function 'yes-or-no-p)
+              (lambda (_prompt) t))
+             ((symbol-function 'y-or-n-p)
+              (lambda (_prompt) t))
+             ((symbol-function 'read-string)
+              (lambda (_prompt &optional _initial _history _default _inherit)
+                ""))
+             ((symbol-function 'completing-read)
+              (lambda (_prompt collection &rest _args)
+                (if (listp collection)
+                    (car collection)
+                  ""))))
+     ,@body))
 
 ;;; ========================================
 ;;; Test Fixtures and Utilities
