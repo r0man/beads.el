@@ -396,8 +396,9 @@ If called from beads-list or beads-show buffers, uses current issue."
 
 (defun beads-label-list-all--current-label ()
   "Return the label name at point, or nil."
-  (declare (compiler-macro nil)) ; Prevent inlining for testability
-  (tabulated-list-get-id))
+  ;; Use symbol-function + funcall to prevent byte-compiler inlining.
+  ;; This ensures cl-letf can properly mock tabulated-list-get-id in tests.
+  (funcall (symbol-function 'tabulated-list-get-id)))
 
 (defun beads-label-list-all-show-issues ()
   "Show all issues with the label at point in a beads-list buffer."
