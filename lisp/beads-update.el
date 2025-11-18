@@ -42,6 +42,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-command)
 (require 'beads-option)
 (require 'beads-list)
 (require 'beads-show)
@@ -94,10 +95,9 @@ Sets beads-update--issue-id and beads-update--original-data."
   (alist-get field beads-update--original-data))
 
 (defun beads-update--parse-transient-args (args)
-  "Parse transient ARGS list into a plist.
-Returns (:status STRING :priority NUMBER :title STRING
-         :description STRING :acceptance STRING :design STRING
-         :notes STRING :assignee STRING :external-ref STRING).
+  "Parse transient ARGS list into a beads-command-update instance.
+Returns a beads-command-update command object with populated slots
+from the parsed transient arguments.
 
 This uses transient's standard argument parsing with dash-style flags."
   (let* ((status (transient-arg-value "--status=" args))
@@ -110,119 +110,67 @@ This uses transient's standard argument parsing with dash-style flags."
          (notes (transient-arg-value "--notes=" args))
          (assignee (transient-arg-value "--assignee=" args))
          (external-ref (transient-arg-value "--external-ref=" args)))
-    (list :status status
-          :priority priority
-          :title title
-          :description description
-          :acceptance acceptance
-          :design design
-          :notes notes
-          :assignee assignee
-          :external-ref external-ref)))
+    (beads-command-update
+     :json t
+     :issue-ids (when beads-update--issue-id
+                  (list beads-update--issue-id))
+     :status status
+     :priority priority
+     :title title
+     :description description
+     :acceptance acceptance
+     :design design
+     :notes notes
+     :assignee assignee
+     :external-ref external-ref)))
 
-(defun beads-update--get-changed-fields (parsed)
-  "Return alist of fields that have been changed in PARSED plist.
+(defun beads-update--get-changed-fields (cmd)
+  "Return alist of fields that have been changed in CMD.
 Only includes fields where current value differs from original."
   (let ((changes nil))
-    (when-let ((status (plist-get parsed :status)))
-      (unless (equal status (beads-update--get-original 'status))
-        (push (cons 'status status) changes)))
-    (when-let ((priority (plist-get parsed :priority)))
-      (unless (equal priority (beads-update--get-original 'priority))
-        (push (cons 'priority priority) changes)))
-    (when-let ((title (plist-get parsed :title)))
-      (unless (equal title (beads-update--get-original 'title))
-        (push (cons 'title title) changes)))
-    (when-let ((description (plist-get parsed :description)))
-      (unless (equal description (beads-update--get-original 'description))
-        (push (cons 'description description) changes)))
-    (when-let ((acceptance (plist-get parsed :acceptance)))
-      (unless (equal acceptance
-                     (beads-update--get-original 'acceptance-criteria))
-        (push (cons 'acceptance acceptance) changes)))
-    (when-let ((design (plist-get parsed :design)))
-      (unless (equal design (beads-update--get-original 'design))
-        (push (cons 'design design) changes)))
-    (when-let ((notes (plist-get parsed :notes)))
-      (unless (equal notes (beads-update--get-original 'notes))
-        (push (cons 'notes notes) changes)))
-    (when-let ((assignee (plist-get parsed :assignee)))
-      (unless (equal assignee (beads-update--get-original 'assignee))
-        (push (cons 'assignee assignee) changes)))
-    (when-let ((external-ref (plist-get parsed :external-ref)))
-      (unless (equal external-ref
-                     (beads-update--get-original 'external-ref))
-        (push (cons 'external-ref external-ref) changes)))
-    (nreverse changes)))
+    (with-slots (status priority title description acceptance design
+                       notes assignee external-ref) cmd
+      (when status
+        (unless (equal status (beads-update--get-original 'status))
+          (push (cons 'status status) changes)))
+      (when priority
+        (unless (equal priority (beads-update--get-original 'priority))
+          (push (cons 'priority priority) changes)))
+      (when title
+        (unless (equal title (beads-update--get-original 'title))
+          (push (cons 'title title) changes)))
+      (when description
+        (unless (equal description
+                       (beads-update--get-original 'description))
+          (push (cons 'description description) changes)))
+      (when acceptance
+        (unless (equal acceptance
+                       (beads-update--get-original 'acceptance-criteria))
+          (push (cons 'acceptance acceptance) changes)))
+      (when design
+        (unless (equal design (beads-update--get-original 'design))
+          (push (cons 'design design) changes)))
+      (when notes
+        (unless (equal notes (beads-update--get-original 'notes))
+          (push (cons 'notes notes) changes)))
+      (when assignee
+        (unless (equal assignee (beads-update--get-original 'assignee))
+          (push (cons 'assignee assignee) changes)))
+      (when external-ref
+        (unless (equal external-ref
+                       (beads-update--get-original 'external-ref))
+          (push (cons 'external-ref external-ref) changes)))
+      (nreverse changes))))
 
-(defun beads-update--validate-status (status)
-  "Validate that STATUS is valid.
-Returns error message string if invalid, nil if valid."
-  (when (and status
-            (not (member status
-                        '("open" "in_progress" "blocked" "closed"))))
-    "Status must be one of: open, in_progress, blocked, closed"))
-
-(defun beads-update--validate-priority (priority)
-  "Validate that PRIORITY is valid.
-Returns error message string if invalid, nil if valid."
-  (when (and priority
-            (not (and (numberp priority)
-                     (>= priority 0)
-                     (<= priority 4))))
-    "Priority must be a number between 0 and 4"))
-
-(defun beads-update--validate-all (parsed)
-  "Validate all parameters from PARSED plist.
+(defun beads-update--validate-all (cmd)
+  "Validate all parameters from CMD command instance.
 Returns list of error messages, or nil if all valid."
-  (delq nil
-        (list (beads-update--validate-status (plist-get parsed :status))
-              (beads-update--validate-priority
-               (plist-get parsed :priority)))))
-
-(defun beads-update--build-command-args (parsed)
-  "Build command arguments from PARSED plist.
-Returns list of arguments for bd update command."
-  (unless beads-update--issue-id
-    (user-error "No issue ID set"))
-  (let (args
-        (changes (beads-update--get-changed-fields parsed)))
-    (when (null changes)
-      (user-error "No fields have been changed"))
-    ;; Push in reverse order for push/nreverse pattern
-    ;; Issue ID goes first (will be first after nreverse)
-    (push beads-update--issue-id args)
-    ;; Collect flag arguments (process changes in original order)
-    (dolist (change changes)
-      (pcase (car change)
-        ('status
-         (push "-s" args)
-         (push (cdr change) args))
-        ('priority
-         (push "-p" args)
-         (push (number-to-string (cdr change)) args))
-        ('title
-         (push "--title" args)
-         (push (cdr change) args))
-        ('description
-         (push "--description" args)
-         (push (cdr change) args))
-        ('acceptance
-         (push "--acceptance" args)
-         (push (cdr change) args))
-        ('design
-         (push "--design" args)
-         (push (cdr change) args))
-        ('notes
-         (push "--notes" args)
-         (push (cdr change) args))
-        ('assignee
-         (push "-a" args)
-         (push (cdr change) args))
-        ('external-ref
-         (push "--external-ref" args)
-         (push (cdr change) args))))
-    (nreverse args)))
+  (let ((error-msg (beads-command-validate cmd))
+        (changes (beads-update--get-changed-fields cmd)))
+    (delq nil
+          (list
+           error-msg
+           (when (null changes) "No fields have been changed")))))
 
 ;;; Suffix Commands
 
@@ -232,17 +180,14 @@ Returns list of arguments for bd update command."
   :description "Update issue"
   (interactive)
   (let* ((args (transient-args 'beads-update))
-         (parsed (beads-update--parse-transient-args args))
-         (errors (beads-update--validate-all parsed))
-         (changes (beads-update--get-changed-fields parsed)))
-    (when (null changes)
-      (user-error "No fields have been changed"))
+         (cmd (beads-update--parse-transient-args args))
+         (errors (beads-update--validate-all cmd))
+         (changes (beads-update--get-changed-fields cmd)))
     (if errors
         (user-error "Validation failed: %s" (string-join errors "; "))
       (condition-case err
           (progn
-            (let* ((cmd-args (beads-update--build-command-args parsed))
-                   (_issue (beads-command-update! beads-update--issue-id :args cmd-args)))
+            (let ((_issue (beads-command-execute cmd)))
               (message "Updated issue: %s (changed %d field%s)"
                        beads-update--issue-id
                        (length changes)
@@ -290,18 +235,18 @@ Returns list of arguments for bd update command."
   :transient t
   (interactive)
   (let* ((args (transient-args 'beads-update))
-         (parsed (beads-update--parse-transient-args args))
-         (errors (beads-update--validate-all parsed)))
+         (cmd (beads-update--parse-transient-args args))
+         (errors (beads-update--validate-all cmd)))
     (if errors
         (let ((err-msg (format "Validation errors: %s"
                                (string-join errors "; "))))
           (message "%s" err-msg)
           err-msg)
       (condition-case err
-          (let* ((cmd-args (beads-update--build-command-args parsed))
-                 (cmd (apply #'beads--build-command "update" cmd-args))
-                 (cmd-string (mapconcat #'shell-quote-argument cmd " "))
-                 (changes (beads-update--get-changed-fields parsed))
+          (let* ((cmd-line (beads-command-line cmd))
+                 (full-cmd (cons beads-executable cmd-line))
+                 (cmd-string (mapconcat #'shell-quote-argument full-cmd " "))
+                 (changes (beads-update--get-changed-fields cmd))
                  (preview-msg (format "Command: %s\nChanges: %s"
                                      cmd-string
                                      (mapconcat (lambda (c)
