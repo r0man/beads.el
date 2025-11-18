@@ -1844,7 +1844,7 @@ beads-json-parse-error on failure."
 
 ;;; Delete Command
 
-(defclass beads-command-delete (beads-command)
+(defclass beads-command-delete (beads-command-json)
   ((issue-id
     :initarg :issue-id
     :type (or null string)
@@ -1858,7 +1858,8 @@ Example: \"bd-1\"")
     :documentation "Force deletion without preview (--force flag)."))
   :documentation "Represents bd delete command.
 Deletes an issue with optional --force flag.
-When executed, returns (EXIT-CODE STDOUT STDERR) tuple.")
+When executed, returns (EXIT-CODE PARSED-JSON STDERR) tuple where
+PARSED-JSON is the deleted issue object.")
 
 (cl-defmethod beads-command-line ((command beads-command-delete))
   "Build command arguments for delete COMMAND (without executable).
