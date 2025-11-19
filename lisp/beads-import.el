@@ -171,9 +171,9 @@ Displays import output in *beads-import* buffer."
    (beads-option-import-strict)
    (beads-option-import-orphan-handling)]
   ["Actions"
-   ("x" "Import" beads-import--execute-command)
-   ("P" "Preview command" beads-import--preview)
-   ("R" "Reset all fields" beads-import--reset)])
+   (beads-import--execute-command)
+   (beads-import--preview)
+   (beads-import--reset)])
 
 ;;; Footer
 

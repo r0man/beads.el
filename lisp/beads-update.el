@@ -181,7 +181,7 @@ Returns list of error messages, or nil if all valid."
 
 (transient-define-suffix beads-update--execute ()
   "Execute the bd update command with changed parameters."
-  :key "u"
+  :key "x"
   :description "Update issue"
   (interactive)
   (let* ((args (transient-args 'beads-update))
@@ -222,7 +222,7 @@ Returns list of error messages, or nil if all valid."
 
 (transient-define-suffix beads-update--reset ()
   "Reset all changed parameters to their original values."
-  :key "r"
+  :key "R"
   :description "Reset all changes"
   :transient t
   (interactive)
@@ -285,9 +285,9 @@ Returns list of error messages, or nil if all valid."
    (beads-option-update-notes-multiline)]
   beads-option-global-section
   ["Actions"
-   ("u" "Update issue" beads-update--execute)
-   ("P" "Preview command" beads-update--preview)
-   ("r" "Reset all changes" beads-update--reset)
+   (beads-update--execute)
+   (beads-update--preview)
+   (beads-update--reset)
    ("q" "Quit" transient-quit-one)])
 
 ;;;###autoload
