@@ -1479,5 +1479,94 @@ Tests handling when .beads directory doesn't exist."
         (should (stringp result))
         (should (string-match-p "Failed to create issue" result))))))
 
+;;; Full UI Interaction Tests (Proof of Concept)
+
+(ert-deftest beads-create-test-full-ui-interaction-kbd-macro ()
+  "Proof-of-concept: Test full user interaction via kbd macros.
+Tests the complete workflow: invoke transient, set fields, execute.
+NOTE: Must combine transient key + input in SINGLE kbd macro call."
+  :tags '(:integration :slow :ui :proof-of-concept)
+  (skip-unless (executable-find beads-executable))
+  (require 'beads-test)
+  (beads-test-with-project ()
+    ;; Invoke the transient menu
+    (funcall-interactively #'beads-create)
+
+    ;; Set fields: MUST combine key + input in single macro
+    (execute-kbd-macro (kbd "t UI SPC Test SPC Bug RET"))  ; Title
+    (execute-kbd-macro (kbd "- t bug RET"))                 ; Type
+    (execute-kbd-macro (kbd "- p 1 RET"))                   ; Priority
+
+    ;; Execute create: press "x"
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_) nil)))  ; Skip confirmation
+      (execute-kbd-macro (kbd "x")))
+
+    ;; Verify the issue was created
+    (let* ((issues (beads-command-list!))
+           (created (seq-find
+                     (lambda (issue)
+                       (equal (oref issue title) "UI Test Bug"))
+                     issues)))
+      (should created)
+      (should (equal (oref created issue-type) "bug"))
+      (should (equal (oref created priority) 1)))))
+
+(ert-deftest beads-create-test-full-ui-interaction-simplified ()
+  "Simplified proof-of-concept: Test with combined kbd sequences.
+Tests if we can combine all keypresses into fewer execute-kbd-macro calls."
+  :tags '(:integration :slow :ui :proof-of-concept)
+  (skip-unless (executable-find beads-executable))
+  (require 'beads-test)
+  (beads-test-with-project ()
+    ;; Invoke the transient menu
+    (funcall-interactively #'beads-create)
+
+    ;; Set all fields with combined macros
+    (execute-kbd-macro (kbd "t Simple SPC Test RET"))  ; Title
+    (execute-kbd-macro (kbd "- t feature RET"))         ; Type
+    (execute-kbd-macro (kbd "- p 2 RET"))               ; Priority
+
+    ;; Execute
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_) nil)))
+      (execute-kbd-macro (kbd "x")))
+
+    ;; Verify
+    (let* ((issues (beads-command-list!))
+           (created (seq-find
+                     (lambda (issue)
+                       (equal (oref issue title) "Simple Test"))
+                     issues)))
+      (should created)
+      (should (equal (oref created issue-type) "feature"))
+      (should (equal (oref created priority) 2)))))
+
+(ert-deftest beads-create-test-full-ui-interaction-title-only ()
+  "Minimal proof-of-concept: Test with only title (required field).
+Tests the simplest possible workflow through the UI."
+  :tags '(:integration :slow :ui :proof-of-concept)
+  (skip-unless (executable-find beads-executable))
+  (require 'beads-test)
+  (beads-test-with-project ()
+    ;; Invoke transient
+    (funcall-interactively #'beads-create)
+
+    ;; Set only title (required)
+    (execute-kbd-macro (kbd "t Minimal SPC Test RET"))
+
+    ;; Execute
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_) nil)))
+      (execute-kbd-macro (kbd "x")))
+
+    ;; Verify
+    (let* ((issues (beads-command-list!))
+           (created (seq-find
+                     (lambda (issue)
+                       (equal (oref issue title) "Minimal Test"))
+                     issues)))
+      (should created))))
+
 (provide 'beads-create-test)
 ;;; beads-create-test.el ends here
