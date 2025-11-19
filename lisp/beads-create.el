@@ -135,7 +135,7 @@ Returns list of error messages, or nil if all valid."
 
 (transient-define-suffix beads-create--execute ()
   "Execute the bd create command with current parameters."
-  :key "c"
+  :key "x"
   :description "Create issue"
   (interactive)
   (let* ((args (transient-args 'beads-create))
@@ -162,7 +162,7 @@ Returns list of error messages, or nil if all valid."
 
 (transient-define-suffix beads-create--reset ()
   "Reset all parameters to their default values."
-  :key "r"
+  :key "R"
   :description "Reset all fields"
   :transient t
   (interactive)
@@ -245,9 +245,9 @@ Transient levels control which field groups are visible (cycle with C-x l):
   beads-create--advanced-section
   beads-option-global-section
   ["Actions"
-   ("x" "Create issue" beads-create--execute)
-   ("P" "Preview command" beads-create--preview)
-   ("R" "Reset all fields" beads-create--reset)])
+   (beads-create--execute)
+   (beads-create--preview)
+   (beads-create--reset)])
 
 (provide 'beads-create)
 ;;; beads-create.el ends here

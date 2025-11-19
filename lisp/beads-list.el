@@ -442,7 +442,7 @@ Returns a beads-command-list object with all applicable filters set."
 
 (transient-define-suffix beads-list--transient-reset ()
   "Reset all filter parameters to their default values."
-  :key "r"
+  :key "R"
   :description "Reset all filters"
   :transient t
   (interactive)

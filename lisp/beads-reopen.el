@@ -156,9 +156,9 @@ Returns list of error messages, or nil if all valid."
    (beads-option-reopen-issue-id)
    (beads-option-reopen-reason)]
   ["Actions"
-   ("x" "Reopen issue" beads-reopen--execute)
-   ("P" "Preview command" beads-reopen--preview)
-   ("R" "Reset fields" beads-reopen--reset)
+   (beads-reopen--execute)
+   (beads-reopen--preview)
+   (beads-reopen--reset)
    ("q" "Quit" transient-quit-one)])
 
 ;;;###autoload

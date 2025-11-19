@@ -96,6 +96,7 @@ Returns error message string if invalid, nil if valid."
 
 (transient-define-suffix beads-dep-add--execute ()
   "Execute add dependency command."
+  :key "x"
   :description "Add dependency"
   (interactive)
   (let* ((args (transient-args 'beads-dep-add))
@@ -125,6 +126,7 @@ Returns error message string if invalid, nil if valid."
 
 (transient-define-suffix beads-dep-add--preview ()
   "Preview add dependency command."
+  :key "P"
   :description "Preview command"
   :transient t
   (interactive)
@@ -143,6 +145,7 @@ Returns error message string if invalid, nil if valid."
 
 (transient-define-suffix beads-dep-add--reset ()
   "Reset add dependency fields."
+  :key "R"
   :description "Reset fields"
   :transient t
   (interactive)
@@ -166,9 +169,9 @@ Returns error message string if invalid, nil if valid."
    (beads-option-dep-add-depends-on-id)
    (beads-option-dep-add-type)]
   ["Actions"
-   ("a" "Add dependency" beads-dep-add--execute)
-   ("P" "Preview command" beads-dep-add--preview)
-   ("R" "Reset fields" beads-dep-add--reset)
+   (beads-dep-add--execute)
+   (beads-dep-add--preview)
+   (beads-dep-add--reset)
    ("q" "Quit" transient-quit-one)])
 
 ;;;###autoload
@@ -213,6 +216,7 @@ Returns error message string if invalid, nil if valid."
 
 (transient-define-suffix beads-dep-remove--execute ()
   "Execute remove dependency command."
+  :key "x"
   :description "Remove dependency"
   (interactive)
   (let* ((args (transient-args 'beads-dep-remove))
@@ -243,6 +247,7 @@ Returns error message string if invalid, nil if valid."
 
 (transient-define-suffix beads-dep-remove--preview ()
   "Preview remove dependency command."
+  :key "P"
   :description "Preview command"
   :transient t
   (interactive)
@@ -259,6 +264,7 @@ Returns error message string if invalid, nil if valid."
 
 (transient-define-suffix beads-dep-remove--reset ()
   "Reset remove dependency fields."
+  :key "R"
   :description "Reset fields"
   :transient t
   (interactive)
@@ -281,9 +287,9 @@ Returns error message string if invalid, nil if valid."
    (beads-option-dep-remove-issue-id)
    (beads-option-dep-remove-depends-on-id)]
   ["Actions"
-   ("r" "Remove dependency" beads-dep-remove--execute)
-   ("P" "Preview command" beads-dep-remove--preview)
-   ("R" "Reset fields" beads-dep-remove--reset)
+   (beads-dep-remove--execute)
+   (beads-dep-remove--preview)
+   (beads-dep-remove--reset)
    ("q" "Quit" transient-quit-one)])
 
 ;;;###autoload

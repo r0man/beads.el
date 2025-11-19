@@ -1107,9 +1107,9 @@ labels to issues using the bd label add command."
     :prompt "Label name: ")]
   beads-option-global-section
   ["Actions"
-   ("a" "Add label" beads-label-add--execute)
-   ("P" "Preview command" beads-label-add--preview)
-   ("r" "Reset fields" beads-label-add--reset)])
+   (beads-label-add--execute)
+   (beads-label-add--preview)
+   (beads-label-add--reset)])
 
 ;;;###autoload (autoload 'beads-label-remove "beads-option" nil t)
 (transient-define-prefix beads-label-remove ()
@@ -1126,9 +1126,9 @@ labels from issues using the bd label remove command."
     :prompt "Label name: ")]
   beads-option-global-section
   ["Actions"
-   ("r" "Remove label" beads-label-remove--execute)
-   ("P" "Preview command" beads-label-remove--preview)
-   ("R" "Reset fields" beads-label-remove--reset)])
+   (beads-label-remove--execute)
+   (beads-label-remove--preview)
+   (beads-label-remove--reset)])
 
 (provide 'beads-option)
 ;;; beads-option.el ends here

@@ -171,7 +171,7 @@ Returns list of arguments for bd label add command."
 
 (transient-define-suffix beads-label-add--execute ()
   "Execute the bd label add command with current parameters."
-  :key "a"
+  :key "x"
   :description "Add label"
   (interactive)
   (let* ((args (transient-args 'beads-label-add))
@@ -209,7 +209,7 @@ Returns list of arguments for bd label add command."
 
 (transient-define-suffix beads-label-add--reset ()
   "Reset all parameters to their default values."
-  :key "r"
+  :key "R"
   :description "Reset fields"
   :transient t
   (interactive)
@@ -293,7 +293,7 @@ Returns list of arguments for bd label remove command."
 
 (transient-define-suffix beads-label-remove--execute ()
   "Execute the bd label remove command with current parameters."
-  :key "r"
+  :key "x"
   :description "Remove label"
   (interactive)
   (let* ((args (transient-args 'beads-label-remove))

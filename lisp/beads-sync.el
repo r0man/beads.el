@@ -146,7 +146,7 @@ NO-PUSH: skip pushing to remote"
 
 (transient-define-suffix beads-sync--execute-command ()
   "Execute the bd sync command."
-  :key "s"
+  :key "x"
   :description "Sync with remote"
   (interactive)
   (beads-check-executable)
@@ -223,9 +223,9 @@ Use --dry-run to preview changes without making them."
    (beads-option-sync-no-pull)
    (beads-option-sync-no-push)]
   ["Actions"
-   ("s" "Sync" beads-sync--execute-command)
-   ("P" "Preview command" beads-sync--preview)
-   ("R" "Reset fields" beads-sync--reset)
+   (beads-sync--execute-command)
+   (beads-sync--preview)
+   (beads-sync--reset)
    ("q" "Quit" transient-quit-one)])
 
 (provide 'beads-sync)
