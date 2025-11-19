@@ -21,40 +21,7 @@
 (require 'json)
 (require 'beads)
 (require 'beads-create)
-
-;;; Test Fixtures
-
-(defvar beads-create-test--sample-create-response
-  '((id . "bd-42")
-    (title . "Test Issue")
-    (description . "Test description")
-    (status . "open")
-    (priority . 1)
-    (issue_type . "bug")
-    (created_at . "2025-01-15T10:00:00Z")
-    (updated_at . "2025-01-15T10:00:00Z"))
-  "Sample response from bd create command.")
-
-;;; Test Utilities
-
-(defun beads-create-test--mock-transient-args (args)
-  "Create a mock for `transient-args' returning ARGS.
-ARGS should be a list of strings like (\"--title=Test\" \"--type=bug\")."
-  (lambda (prefix)
-    (when (eq prefix 'beads-create)
-      args)))
-
-(defun beads-create-test--mock-process-file (exit-code output)
-  "Create a mock for `process-file' returning EXIT-CODE and OUTPUT."
-  (lambda (program &optional infile buffer display &rest args)
-    (when buffer
-      (let ((buf (if (listp buffer)
-                     (car buffer)
-                   buffer)))
-        (when buf
-          (with-current-buffer (if (bufferp buf) buf (current-buffer))
-            (insert output)))))
-    exit-code))
+(require 'beads-test)
 
 ;;; Tests for Argument Parsing
 
@@ -295,7 +262,6 @@ directly in the transient-define-prefix definition."
 Tests successful creation with only title set using full UI workflow."
   :tags '(:integration :slow :ui)
   (skip-unless (executable-find beads-executable))
-  (require 'beads-test)
   (beads-test-with-project ()
     (let ((show-called nil)
           (result
@@ -336,7 +302,6 @@ Key: Multiline fields work by combining infix + text + commit in SINGLE macro.
 Example: (execute-kbd-macro (kbd \"- d Full SPC text C-c C-c\"))"
   :tags '(:integration :slow :ui)
   (skip-unless (executable-find beads-executable))
-  (require 'beads-test)
   (beads-test-with-project ()
     (let ((result
            (beads-test-with-cache-tracking
@@ -389,7 +354,6 @@ Example: (execute-kbd-macro (kbd \"- d Full SPC text C-c C-c\"))"
   "Integration test: Test validation failure paths.
 Verifies that beads-create--execute properly rejects invalid input."
   :tags '(:integration)
-  (require 'beads-test)
   ;; Test with empty title - should fail validation
   (beads-test-with-transient-args 'beads-create
       '("--title=")
@@ -419,7 +383,6 @@ Verifies that beads-create--execute properly rejects invalid input."
 Verifies error handling when the bd create command fails."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (require 'beads-test)
   (beads-test-with-project ()
     (beads-test-with-transient-args 'beads-create
         '("--title=Test Issue")
@@ -437,7 +400,6 @@ Verifies error handling when the bd create command fails."
 Tests that beads--invalidate-completion-cache is called."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (require 'beads-test)
   (beads-test-with-project ()
     (beads-test-with-transient-args 'beads-create
         '("--title=Cache Test Issue")
@@ -460,7 +422,6 @@ Tests that beads--invalidate-completion-cache is called."
 Verifies that beads-show is called when user says yes using full UI workflow."
   :tags '(:integration :slow :ui)
   (skip-unless (executable-find beads-executable))
-  (require 'beads-test)
   (beads-test-with-project ()
     (let ((show-called nil)
           (shown-issue-id nil))
@@ -492,7 +453,6 @@ Verifies that beads-show is called when user says yes using full UI workflow."
 Tests creating an issue with dependency links using full UI workflow."
   :tags '(:integration :slow :ui)
   (skip-unless (executable-find beads-executable))
-  (require 'beads-test)
   (beads-test-with-project ()
     ;; First create a parent issue
     (let* ((parent (beads-command-create!
@@ -529,7 +489,6 @@ Tests creating an issue with dependency links using full UI workflow."
   "Integration test: Preview command with minimal valid arguments.
 Tests that preview generates correct command line for minimal fields."
   :tags '(:integration)
-  (require 'beads-test)
   (beads-test-with-transient-args 'beads-create
       '("--title=Preview Test")
     (let ((result (call-interactively #'beads-create--preview)))
@@ -548,7 +507,6 @@ Tests that preview generates correct command line for minimal fields."
   "Integration test: Preview command with all fields populated.
 Tests that preview correctly formats complex command with all arguments."
   :tags '(:integration)
-  (require 'beads-test)
   (beads-test-with-transient-args 'beads-create
       '("--title=Complete Preview Test"
         "--type=feature"
@@ -578,7 +536,6 @@ Tests that preview correctly formats complex command with all arguments."
   "Integration test: Preview with empty title shows validation error.
 Tests that preview returns error message when validation fails."
   :tags '(:integration)
-  (require 'beads-test)
   (beads-test-with-transient-args 'beads-create
       '("--title=")
     (let ((result (call-interactively #'beads-create--preview)))
@@ -591,7 +548,6 @@ Tests that preview returns error message when validation fails."
   "Integration test: Preview with invalid type shows validation error.
 Tests that preview catches invalid issue type."
   :tags '(:integration)
-  (require 'beads-test)
   (beads-test-with-transient-args 'beads-create
       '("--title=Test Issue"
         "--type=invalid-type")
@@ -605,7 +561,6 @@ Tests that preview catches invalid issue type."
   "Integration test: Preview with invalid priority shows validation error.
 Tests that preview catches priority out of range."
   :tags '(:integration)
-  (require 'beads-test)
   (beads-test-with-transient-args 'beads-create
       '("--title=Test Issue"
         "--priority=10")
@@ -619,7 +574,6 @@ Tests that preview catches priority out of range."
   "Integration test: Preview with multiple validation errors.
 Tests that preview reports all validation failures."
   :tags '(:integration)
-  (require 'beads-test)
   (beads-test-with-transient-args 'beads-create
       '("--title="
         "--type=invalid"
@@ -636,7 +590,6 @@ Tests that preview reports all validation failures."
   "Integration test: Verify command line is properly formatted.
 Tests that special characters are properly quoted."
   :tags '(:integration)
-  (require 'beads-test)
   (beads-test-with-transient-args 'beads-create
       '("--title=Test with 'quotes' and \"more\" quotes")
     (let ((result (call-interactively #'beads-create--preview)))
@@ -651,7 +604,6 @@ Tests that special characters are properly quoted."
   "Integration test: Preview command with dependencies.
 Tests that dependency format is preserved in preview."
   :tags '(:integration)
-  (require 'beads-test)
   (beads-test-with-transient-args 'beads-create
       '("--title=Child Issue"
         "--deps=blocks:bd-123,related:bd-456")
@@ -670,7 +622,6 @@ Tests that dependency format is preserved in preview."
 Tests that preview is read-only and doesn't mutate state."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (require 'beads-test)
   (beads-test-with-project ()
     (beads-test-with-transient-args 'beads-create
         '("--title=Should Not Be Created")
@@ -686,7 +637,6 @@ Tests that preview is read-only and doesn't mutate state."
 Tests that preview is truly read-only with no side effects."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (require 'beads-test)
   (beads-test-with-project ()
     (beads-test-with-transient-args 'beads-create
         '("--title=Preview Cache Test")
@@ -703,7 +653,6 @@ Tests that preview is truly read-only with no side effects."
   "Integration test: Reset clears transient state when user confirms.
 Tests that reset calls transient-reset and clears all fields."
   :tags '(:integration)
-  (require 'beads-test)
   (let ((transient-reset-called nil)
         (transient-redisplay-called nil))
     (beads-test-with-transient-args 'beads-create
@@ -736,7 +685,6 @@ Tests that reset calls transient-reset and clears all fields."
   "Integration test: Reset does nothing when user cancels.
 Tests that reset respects user cancellation and doesn't clear state."
   :tags '(:integration)
-  (require 'beads-test)
   (let ((transient-reset-called nil)
         (transient-redisplay-called nil))
     (beads-test-with-transient-args 'beads-create
@@ -764,7 +712,6 @@ Tests that reset respects user cancellation and doesn't clear state."
   "Integration test: Verify reset doesn't invalidate caches.
 Tests that reset is a UI-only operation with no database side effects."
   :tags '(:integration)
-  (require 'beads-test)
   (beads-test-with-transient-args 'beads-create
       '("--title=Reset Cache Test")
     (let ((result
@@ -784,7 +731,6 @@ Tests that reset is a UI-only operation with no database side effects."
   "Integration test: Verify reset command stays in transient.
 Tests that reset is marked :transient t so menu stays open."
   :tags '(:integration)
-  (require 'beads-test)
   ;; Get the suffix command object
   (let ((suffix (get 'beads-create--reset 'transient--suffix)))
     ;; Verify it exists
@@ -801,7 +747,6 @@ Tests that reset is marked :transient t so menu stays open."
   "Integration test: Reset clears all types of fields.
 Tests that reset clears required, optional, and advanced fields."
   :tags '(:integration)
-  (require 'beads-test)
   (let ((transient-reset-called nil))
     ;; Set up with all possible fields populated
     (beads-test-with-transient-args 'beads-create
@@ -838,7 +783,6 @@ Tests that reset clears required, optional, and advanced fields."
   "Integration test: Verify reset displays confirmation message.
 Tests that reset shows 'All fields reset' message to user."
   :tags '(:integration)
-  (require 'beads-test)
   (let ((message-text nil))
     (beads-test-with-transient-args 'beads-create
         '("--title=Message Test")
@@ -859,13 +803,17 @@ Tests that reset shows 'All fields reset' message to user."
         (should (string-match-p "All fields reset" message-text))))))
 
 ;;; Edge Case Tests
+;;
+;; Note: Tests for multiline fields (description, acceptance-criteria, design)
+;; via shell arguments are not included due to a known limitation in the bd CLI
+;; with multiline argument handling. These tests can be added when the bd CLI
+;; improves its multiline support.
 
 (ert-deftest beads-create-test-edge-case-unicode-title ()
   "Edge case test: Unicode characters in title.
 Tests that titles with various Unicode characters are handled correctly."
   :tags '(:integration :slow :edge-case)
   (skip-unless (executable-find beads-executable))
-  (require 'beads-test)
   (beads-test-with-project ()
     (let ((unicode-titles
            '("Issue with emoji 🐛🔧✨"
@@ -891,44 +839,12 @@ Tests that titles with various Unicode characters are handled correctly."
               (should created)
               (should (equal (oref created title) title)))))))))
 
-(ert-deftest beads-create-test-edge-case-unicode-description ()
-  "Edge case test: Unicode characters in description.
-Tests that descriptions with various Unicode characters are preserved.
-Note: Currently skipped - bd CLI has issues with multiline arguments via shell."
-  :tags '(:integration :slow :edge-case :known-limitation)
-  (skip-unless (executable-find beads-executable))
-  (ert-skip "bd CLI multiline argument handling needs improvement")
-  (require 'beads-test)
-  (beads-test-with-project ()
-    (let ((unicode-desc "Bug report:
-• First issue ✓
-• Second issue ✗
-📋 Details: こんにちは"))
-      (beads-test-with-transient-args 'beads-create
-          (list "--title=Unicode Description Test"
-                (format "--description=%s" unicode-desc))
-        (cl-letf (((symbol-function 'y-or-n-p)
-                   (lambda (_) nil)))
-          ;; Execute create
-          (call-interactively #'beads-create--execute)
-
-          ;; Verify description was preserved
-          (let* ((issues (beads-command-list!))
-                 (created (seq-find
-                           (lambda (issue)
-                             (equal (oref issue title)
-                                    "Unicode Description Test"))
-                           issues)))
-            (should created)
-            (should (equal (oref created description) unicode-desc))))))))
-
 (ert-deftest beads-create-test-edge-case-very-long-title ()
   "Edge case test: Long title (>255 characters).
 Tests that reasonably long titles are handled correctly.
 Note: Using 300 chars instead of 1500 to stay within shell/bd limits."
   :tags '(:integration :slow :edge-case)
   (skip-unless (executable-find beads-executable))
-  (require 'beads-test)
   (beads-test-with-project ()
     ;; Create a 300 character title (more realistic limit)
     (let ((long-title (concat "Issue with long title: "
@@ -951,47 +867,12 @@ Note: Using 300 chars instead of 1500 to stay within shell/bd limits."
             (should (equal (length (oref created title))
                            (length long-title)))))))))
 
-(ert-deftest beads-create-test-edge-case-very-long-description ()
-  "Edge case test: Long description (>500 characters).
-Tests that long descriptions are preserved completely.
-Note: Currently skipped - bd CLI has issues with multiline arguments via shell."
-  :tags '(:integration :slow :edge-case :known-limitation)
-  (skip-unless (executable-find beads-executable))
-  (ert-skip "bd CLI multiline argument handling needs improvement")
-  (require 'beads-test)
-  (beads-test-with-project ()
-    ;; Create a ~600 character description
-    (let ((long-desc (mapconcat
-                      (lambda (n)
-                        (format "Paragraph %d: %s\n" n (make-string 80 ?x)))
-                      (number-sequence 1 5)
-                      "")))
-      (should (> (length long-desc) 500))
-      (beads-test-with-transient-args 'beads-create
-          (list "--title=Long Description Test"
-                (format "--description=%s" long-desc))
-        (cl-letf (((symbol-function 'y-or-n-p)
-                   (lambda (_) nil)))
-          ;; Execute create
-          (call-interactively #'beads-create--execute)
-
-          ;; Verify description was preserved
-          (let* ((issues (beads-command-list!))
-                 (created (seq-find
-                           (lambda (issue)
-                             (equal (oref issue title)
-                                    "Long Description Test"))
-                           issues)))
-            (should created)
-            (should (equal (oref created description) long-desc))))))))
-
 (ert-deftest beads-create-test-edge-case-special-characters-title ()
   "Edge case test: Special characters requiring shell escaping in title.
 Tests that special shell characters are properly handled.
 Note: Some characters like newlines/tabs may be normalized by bd."
   :tags '(:integration :slow :edge-case)
   (skip-unless (executable-find beads-executable))
-  (require 'beads-test)
   (beads-test-with-project ()
     ;; Test special characters that should work
     (let ((special-titles
@@ -1016,44 +897,11 @@ Note: Some characters like newlines/tabs may be normalized by bd."
               (should created)
               (should (equal (oref created title) title)))))))))
 
-(ert-deftest beads-create-test-edge-case-multiline-description ()
-  "Edge case test: Multiline description with blank lines.
-Tests that multiline descriptions are preserved correctly.
-Note: Currently skipped - bd CLI has issues with multiline arguments via shell."
-  :tags '(:integration :slow :edge-case :known-limitation)
-  (skip-unless (executable-find beads-executable))
-  (ert-skip "bd CLI multiline argument handling needs improvement")
-  (require 'beads-test)
-  (beads-test-with-project ()
-    (let ((multiline-desc "First line of description
-Second line with more details
-Third line with conclusion
-
-Fifth line after blank line"))
-      (beads-test-with-transient-args 'beads-create
-          (list "--title=Multiline Description Test"
-                (format "--description=%s" multiline-desc))
-        (cl-letf (((symbol-function 'y-or-n-p)
-                   (lambda (_) nil)))
-          ;; Execute create
-          (call-interactively #'beads-create--execute)
-
-          ;; Verify multiline description was preserved
-          (let* ((issues (beads-command-list!))
-                 (created (seq-find
-                           (lambda (issue)
-                             (equal (oref issue title)
-                                    "Multiline Description Test"))
-                           issues)))
-            (should created)
-            (should (equal (oref created description) multiline-desc))))))))
-
 (ert-deftest beads-create-test-edge-case-empty-vs-nil-description ()
   "Edge case test: Empty string vs nil for optional description field.
 Tests distinction between empty string and nil value."
   :tags '(:integration :slow :edge-case)
   (skip-unless (executable-find beads-executable))
-  (require 'beads-test)
   (beads-test-with-project ()
     ;; Test with nil description (field not provided)
     (beads-test-with-transient-args 'beads-create
@@ -1094,7 +942,6 @@ Tests distinction between empty string and nil value."
 Tests all valid priority values including boundaries."
   :tags '(:integration :slow :edge-case)
   (skip-unless (executable-find beads-executable))
-  (require 'beads-test)
   (beads-test-with-project ()
     (dolist (priority '(0 1 2 3 4))
       (let ((title (format "Priority %d Test" priority)))
@@ -1120,7 +967,6 @@ Tests all valid priority values including boundaries."
 Tests that omitting priority uses bd default behavior."
   :tags '(:integration :slow :edge-case)
   (skip-unless (executable-find beads-executable))
-  (require 'beads-test)
   (beads-test-with-project ()
     (beads-test-with-transient-args 'beads-create
         '("--title=Default Priority Test")
@@ -1144,7 +990,6 @@ Tests that omitting priority uses bd default behavior."
 Tests that all supported issue types work correctly."
   :tags '(:integration :slow :edge-case)
   (skip-unless (executable-find beads-executable))
-  (require 'beads-test)
   (beads-test-with-project ()
     (dolist (type '("bug" "feature" "task" "epic" "chore"))
       (let ((title (format "Type %s Test" type)))
@@ -1169,7 +1014,6 @@ Tests that all supported issue types work correctly."
   "Edge case test: Fields containing only whitespace.
 Tests that whitespace-only values are properly rejected or normalized."
   :tags '(:integration)
-  (require 'beads-test)
   ;; Title with only spaces should fail validation
   (beads-test-with-transient-args 'beads-create
       '("--title=    ")
@@ -1193,7 +1037,6 @@ Tests that whitespace-only values are properly rejected or normalized."
 Tests handling of multiple labels in comma-separated format."
   :tags '(:integration :slow :edge-case)
   (skip-unless (executable-find beads-executable))
-  (require 'beads-test)
   (beads-test-with-project ()
     (let ((many-labels "label1,label2,label3,label4,label5,label6,label7,label8,label9,label10"))
       (beads-test-with-transient-args 'beads-create
@@ -1219,7 +1062,6 @@ Tests handling of multiple labels in comma-separated format."
 Tests that labels with hyphens, underscores, and numbers work."
   :tags '(:integration :slow :edge-case)
   (skip-unless (executable-find beads-executable))
-  (require 'beads-test)
   (beads-test-with-project ()
     (let ((special-labels "bug-fix,v2.0,high_priority,test-123"))
       (beads-test-with-transient-args 'beads-create
@@ -1244,135 +1086,38 @@ Tests that labels with hyphens, underscores, and numbers work."
             (should (member "test-123" (oref created labels)))
             (should (member "v2.0" (oref created labels)))))))))
 
-(ert-deftest beads-create-test-edge-case-newlines-in-acceptance-criteria ()
-  "Edge case test: Multiline acceptance criteria.
-Tests that acceptance criteria field handles multiple lines correctly.
-Note: Currently skipped - bd CLI has issues with multiline arguments via shell."
-  :tags '(:integration :slow :edge-case :known-limitation)
-  (skip-unless (executable-find beads-executable))
-  (ert-skip "bd CLI multiline argument handling needs improvement")
-  (require 'beads-test)
-  (beads-test-with-project ()
-    (let ((multiline-acceptance "- User can login
-- User can logout
-- Session expires after 1 hour
-- Password must be 8+ characters"))
-      (beads-test-with-transient-args 'beads-create
-          (list "--title=Multiline Acceptance Test"
-                (format "--acceptance=%s" multiline-acceptance))
-        (cl-letf (((symbol-function 'y-or-n-p)
-                   (lambda (_) nil)))
-          ;; Execute create
-          (call-interactively #'beads-create--execute)
-
-          ;; Verify acceptance criteria was preserved
-          (let* ((issues (beads-command-list!))
-                 (created (seq-find
-                           (lambda (issue)
-                             (equal (oref issue title)
-                                    "Multiline Acceptance Test"))
-                           issues)))
-            (should created)
-            (should (equal (oref created acceptance-criteria)
-                           multiline-acceptance))))))))
-
 ;;; Error Recovery Tests
 
-(ert-deftest beads-create-test-error-recovery-executable-not-found ()
-  "Error recovery test: bd executable not found.
-Tests graceful degradation when bd command is not in PATH."
+(ert-deftest beads-create-test-error-recovery-generic ()
+  "Error recovery test: Generic error handling.
+Tests that beads-create--execute catches errors from bd execution and
+returns error messages instead of signaling errors. This covers all error
+types: command not found, JSON parsing errors, database errors, I/O errors,
+permission errors, TRAMP failures, etc."
   :tags '(:integration :error-recovery)
-  (require 'beads-test)
   (beads-test-with-transient-args 'beads-create
       '("--title=Test Issue")
-    ;; Mock executable-find to return nil (bd not found)
-    (cl-letf (((symbol-function 'executable-find)
-               (lambda (program)
-                 (when (equal program beads-executable)
-                   nil))))  ; bd not found
-      ;; Mock beads-command-execute to simulate "command not found" error
+    ;; Test various error messages to ensure generic error handling
+    (dolist (error-msg '("Searching for program: No such file or directory, bd"
+                         "Process bd exited abnormally with code 1"
+                         "JSON parse error: unexpected character"
+                         "Permission denied: .beads/issues.db"
+                         "I/O error: Connection timed out"
+                         "No .beads directory found. Run 'bd init' first."))
       (cl-letf (((symbol-function 'beads-command-execute)
                  (lambda (_)
-                   (error "Searching for program: No such file or directory, bd"))))
+                   (error "%s" error-msg))))
         ;; Execute should catch error and return error message
         (let ((result (call-interactively #'beads-create--execute)))
-          ;; Should return error message, not signal error
+          ;; Should return error message string, not signal error
           (should (stringp result))
           (should (string-match-p "Failed to create issue" result)))))))
 
-(ert-deftest beads-create-test-error-recovery-nonzero-exit-code ()
-  "Error recovery test: bd command returns non-zero exit code.
-Tests handling when bd create fails with error exit status."
-  :tags '(:integration :error-recovery)
-  (require 'beads-test)
-  (beads-test-with-transient-args 'beads-create
-      '("--title=Test Issue")
-    ;; Mock beads-command-execute to simulate bd returning error
-    (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_)
-                 (error "Process bd exited abnormally with code 1"))))
-      ;; Execute should catch error and return error message
-      (let ((result (call-interactively #'beads-create--execute)))
-        ;; Should return error message, not signal error
-        (should (stringp result))
-        (should (string-match-p "Failed to create issue" result))))))
-
-(ert-deftest beads-create-test-error-recovery-invalid-json-response ()
-  "Error recovery test: bd returns invalid JSON.
-Tests handling when bd command returns malformed JSON output."
-  :tags '(:integration :error-recovery)
-  (require 'beads-test)
-  (beads-test-with-transient-args 'beads-create
-      '("--title=Test Issue")
-    ;; Mock beads-command-execute to simulate JSON parsing error
-    (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_)
-                 (error "JSON parse error: unexpected character"))))
-      ;; Execute should catch error and return error message
-      (let ((result (call-interactively #'beads-create--execute)))
-        ;; Should return error message, not signal error
-        (should (stringp result))
-        (should (string-match-p "Failed to create issue" result))))))
-
-(ert-deftest beads-create-test-error-recovery-empty-json-response ()
-  "Error recovery test: bd returns empty output.
-Tests handling when bd command succeeds but returns empty JSON."
-  :tags '(:integration :error-recovery)
-  (require 'beads-test)
-  (beads-test-with-transient-args 'beads-create
-      '("--title=Test Issue")
-    ;; Mock beads-command-execute to simulate empty response
-    (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_)
-                 (error "No JSON output from bd command"))))
-      ;; Execute should catch error and return error message
-      (let ((result (call-interactively #'beads-create--execute)))
-        ;; Should return error message, not signal error
-        (should (stringp result))
-        (should (string-match-p "Failed to create issue" result))))))
-
-(ert-deftest beads-create-test-error-recovery-permission-denied ()
-  "Error recovery test: Permission denied accessing .beads directory.
-Tests handling when user lacks permissions to write to database."
-  :tags '(:integration :error-recovery)
-  (require 'beads-test)
-  (beads-test-with-transient-args 'beads-create
-      '("--title=Test Issue")
-    ;; Mock beads-command-execute to simulate permission error
-    (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_)
-                 (error "Permission denied: .beads/issues.db"))))
-      ;; Execute should catch error and return error message
-      (let ((result (call-interactively #'beads-create--execute)))
-        ;; Should return error message, not signal error
-        (should (stringp result))
-        (should (string-match-p "Failed to create issue" result))))))
-
 (ert-deftest beads-create-test-error-recovery-database-locked ()
-  "Error recovery test: Database is locked by another process.
-Tests handling when database is locked (concurrent access)."
+  "Error recovery test: Database locked by another process.
+Tests handling of common database contention error (example of specific
+error case)."
   :tags '(:integration :error-recovery)
-  (require 'beads-test)
   (beads-test-with-transient-args 'beads-create
       '("--title=Test Issue")
     ;; Mock beads-command-execute to simulate database lock error
@@ -1385,98 +1130,11 @@ Tests handling when database is locked (concurrent access)."
         (should (stringp result))
         (should (string-match-p "Failed to create issue" result))))))
 
-(ert-deftest beads-create-test-error-recovery-network-filesystem-timeout ()
-  "Error recovery test: Network filesystem timeout.
-Tests handling when .beads directory is on slow/failing network mount."
-  :tags '(:integration :error-recovery)
-  (require 'beads-test)
-  (beads-test-with-transient-args 'beads-create
-      '("--title=Test Issue")
-    ;; Mock beads-command-execute to simulate I/O timeout
-    (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_)
-                 (error "I/O error: Connection timed out"))))
-      ;; Execute should catch error and return error message
-      (let ((result (call-interactively #'beads-create--execute)))
-        ;; Should return error message, not signal error
-        (should (stringp result))
-        (should (string-match-p "Failed to create issue" result))))))
-
-(ert-deftest beads-create-test-error-recovery-disk-full ()
-  "Error recovery test: Disk full error.
-Tests handling when disk space is exhausted."
-  :tags '(:integration :error-recovery)
-  (require 'beads-test)
-  (beads-test-with-transient-args 'beads-create
-      '("--title=Test Issue")
-    ;; Mock beads-command-execute to simulate disk full error
-    (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_)
-                 (error "No space left on device"))))
-      ;; Execute should catch error and return error message
-      (let ((result (call-interactively #'beads-create--execute)))
-        ;; Should return error message, not signal error
-        (should (stringp result))
-        (should (string-match-p "Failed to create issue" result))))))
-
-(ert-deftest beads-create-test-error-recovery-invalid-dependency-reference ()
-  "Error recovery test: Invalid dependency reference.
-Tests handling when dependency references non-existent issue."
-  :tags '(:integration :error-recovery)
-  (require 'beads-test)
-  (beads-test-with-transient-args 'beads-create
-      '("--title=Test Issue"
-        "--deps=blocks:bd-nonexistent")
-    ;; Mock beads-command-execute to simulate invalid dependency error
-    (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_)
-                 (error "Dependency not found: bd-nonexistent"))))
-      ;; Execute should catch error and return error message
-      (let ((result (call-interactively #'beads-create--execute)))
-        ;; Should return error message, not signal error
-        (should (stringp result))
-        (should (string-match-p "Failed to create issue" result))))))
-
-(ert-deftest beads-create-test-error-recovery-duplicate-custom-id ()
-  "Error recovery test: Duplicate custom ID.
-Tests handling when custom ID is already taken (without --force)."
-  :tags '(:integration :error-recovery)
-  (require 'beads-test)
-  (beads-test-with-transient-args 'beads-create
-      '("--title=Test Issue"
-        "--id=duplicate-id")
-    ;; Mock beads-command-execute to simulate duplicate ID error
-    (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_)
-                 (error "Issue ID already exists: duplicate-id"))))
-      ;; Execute should catch error and return error message
-      (let ((result (call-interactively #'beads-create--execute)))
-        ;; Should return error message, not signal error
-        (should (stringp result))
-        (should (string-match-p "Failed to create issue" result))))))
-
-(ert-deftest beads-create-test-error-recovery-tramp-connection-failure ()
-  "Error recovery test: TRAMP connection failure.
-Tests handling when remote connection fails during TRAMP operations."
-  :tags '(:integration :error-recovery :tramp)
-  (require 'beads-test)
-  (beads-test-with-transient-args 'beads-create
-      '("--title=Test Issue")
-    ;; Mock beads-command-execute to simulate TRAMP error
-    (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_)
-                 (error "TRAMP: Connection closed"))))
-      ;; Execute should catch error and return error message
-      (let ((result (call-interactively #'beads-create--execute)))
-        ;; Should return error message, not signal error
-        (should (stringp result))
-        (should (string-match-p "Failed to create issue" result))))))
-
 (ert-deftest beads-create-test-error-recovery-cache-not-invalidated-on-error ()
-  "Error recovery test: Cache should not be invalidated on error.
-Tests that completion cache is only invalidated on successful creation."
+  "Error recovery test: Cache not invalidated on error.
+Tests that completion cache is only invalidated on successful creation,
+not when errors occur during execution."
   :tags '(:integration :error-recovery)
-  (require 'beads-test)
   (beads-test-with-transient-args 'beads-create
       '("--title=Test Issue")
     (let ((result
@@ -1489,23 +1147,6 @@ Tests that completion cache is only invalidated on successful creation."
       ;; Verify cache was NOT invalidated (error path)
       (should-not (plist-get result :completion-cache-invalidated))
       (should-not (plist-get result :label-cache-invalidated)))))
-
-(ert-deftest beads-create-test-error-recovery-no-database-initialized ()
-  "Error recovery test: No beads database initialized.
-Tests handling when .beads directory doesn't exist."
-  :tags '(:integration :error-recovery)
-  (require 'beads-test)
-  (beads-test-with-transient-args 'beads-create
-      '("--title=Test Issue")
-    ;; Mock beads-command-execute to simulate no database error
-    (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_)
-                 (error "No .beads directory found. Run 'bd init' first."))))
-      ;; Execute should catch error and return error message
-      (let ((result (call-interactively #'beads-create--execute)))
-        ;; Should return error message, not signal error
-        (should (stringp result))
-        (should (string-match-p "Failed to create issue" result))))))
 
 (provide 'beads-create-test)
 ;;; beads-create-test.el ends here
