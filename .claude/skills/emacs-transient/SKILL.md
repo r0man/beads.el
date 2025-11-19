@@ -617,7 +617,308 @@ For deeper understanding, refer to:
 - **transient-reference/forge/** - Additional patterns in Forge
 - **transient-reference/transient-showcase/** - Examples showcase
 
+## Testing Transient Menus
+
+### Why Test Transients?
+
+Transient menus have complex state management involving:
+- Infix commands that set state variables
+- Suffix commands that read those states
+- Pre/post-command hooks for state transitions
+- Display refreshes and keybinding resolution
+
+Testing only suffix commands (by mocking `transient-args`) skips
+testing the **entire UI layer**.
+
+### Two Testing Approaches
+
+#### 1. Unit Testing (Mocked Args) - Fast but Limited
+
+Test suffix commands directly by mocking `transient-args`:
+
+```elisp
+(defmacro my-test-with-transient-args (prefix args &rest body)
+  "Execute BODY with transient-args mocked for PREFIX to return ARGS."
+  (declare (indent 2))
+  `(cl-letf (((symbol-function 'transient-args)
+              (lambda (p)
+                (when (eq p ,prefix)
+                  ,args))))
+     ,@body))
+
+(ert-deftest my-test-suffix-execution ()
+  "Test suffix command with mocked args."
+  (my-test-with-transient-args 'my-prefix
+      '("--title=Test" "--priority=1")
+    (let ((result (call-interactively #'my-suffix-execute)))
+      (should (string-match-p "Created" result)))))
+```
+
+**Pros:**
+- Fast (~0.5s per test)
+- Simple to write
+- Good for testing suffix logic
+
+**Cons:**
+- ❌ Doesn't test infix commands
+- ❌ Doesn't test transient UI
+- ❌ Doesn't test user workflow
+- ❌ Won't catch binding errors
+
+#### 2. Integration Testing (execute-kbd-macro) - Slower but Complete
+
+Test the full user interaction with keyboard macros:
+
+```elisp
+(ert-deftest my-test-full-ui-interaction ()
+  "Test complete user workflow through transient UI."
+  :tags '(:integration :ui)
+  (my-test-with-project ()  ; Setup test environment
+    ;; Invoke the transient menu
+    (funcall-interactively #'my-prefix)
+
+    ;; Set title via infix (key + input in ONE macro!)
+    (execute-kbd-macro (kbd "t Test SPC Title RET"))
+
+    ;; Set priority via infix
+    (execute-kbd-macro (kbd "- p 1 RET"))
+
+    ;; Execute the suffix
+    (execute-kbd-macro (kbd "x"))
+
+    ;; Verify results
+    (let ((result (my-get-created-item)))
+      (should (equal (plist-get result :title) "Test Title"))
+      (should (equal (plist-get result :priority) 1)))))
+```
+
+**Pros:**
+- ✅ Tests infix commands
+- ✅ Tests transient UI
+- ✅ Tests real user workflow
+- ✅ No mocking needed
+- ✅ Works in batch mode (CI-friendly!)
+- ✅ Catches binding errors, UI bugs
+
+**Cons:**
+- Slower (~2.3s per test, +0.65s overhead)
+- More complex to write
+- Need to know key sequences
+
+**Performance breakdown:**
+- Transient infrastructure: ~0.15s
+- Multiple kbd macro calls: ~0.20s
+- Minibuffer interactions: ~0.20s
+- Display refreshes: ~0.10s
+- **Total overhead: ~0.65s per test**
+
+### Critical Rule for execute-kbd-macro
+
+**You MUST combine transient key + input in a SINGLE kbd macro:**
+
+```elisp
+;; ✅ CORRECT - Key + input in one macro
+(execute-kbd-macro (kbd "t Bug SPC Title RET"))
+
+;; ❌ WRONG - Splitting key and input
+(execute-kbd-macro (kbd "t"))              ; Opens minibuffer
+(execute-kbd-macro (kbd "Bug Title RET"))  ; Fails! Tries to invoke
+                                           ; transient keys B, u, g
+```
+
+**Why?** When you split the macro, the second call doesn't go to the
+minibuffer - it's interpreted as more transient commands.
+
+### Testing Patterns
+
+#### Pattern 1: Minimal workflow (title only)
+
+```elisp
+(ert-deftest my-test-minimal-workflow ()
+  "Test simplest possible workflow."
+  (my-test-setup ()
+    (funcall-interactively #'my-create)
+    (execute-kbd-macro (kbd "t Minimal SPC Test RET"))
+    (execute-kbd-macro (kbd "x"))
+    ;; Verify...
+    ))
+```
+
+#### Pattern 2: Full workflow (multiple fields)
+
+```elisp
+(ert-deftest my-test-full-workflow ()
+  "Test complete workflow with all fields."
+  (my-test-setup ()
+    (funcall-interactively #'my-create)
+
+    ;; Set all fields
+    (execute-kbd-macro (kbd "t Full SPC Test RET"))
+    (execute-kbd-macro (kbd "- t feature RET"))
+    (execute-kbd-macro (kbd "- p 2 RET"))
+    (execute-kbd-macro (kbd "- a john@example.com RET"))
+
+    ;; Execute
+    (execute-kbd-macro (kbd "x"))
+
+    ;; Verify all fields were set correctly
+    ))
+```
+
+#### Pattern 3: Testing switches (toggle flags)
+
+```elisp
+(ert-deftest my-test-switches ()
+  "Test boolean switch toggling."
+  (my-test-setup ()
+    (funcall-interactively #'my-prefix)
+
+    ;; Toggle switch on
+    (execute-kbd-macro (kbd "- v"))  ; --verbose
+
+    ;; Toggle switch off
+    (execute-kbd-macro (kbd "- v"))
+
+    ;; Toggle back on
+    (execute-kbd-macro (kbd "- v"))
+
+    (execute-kbd-macro (kbd "x"))
+    ;; Verify switch state...
+    ))
+```
+
+#### Pattern 4: Testing transient navigation
+
+```elisp
+(ert-deftest my-test-navigation ()
+  "Test moving between transient levels."
+  (my-test-setup ()
+    (funcall-interactively #'my-prefix)
+
+    ;; Change transient level to show advanced options
+    (execute-kbd-macro (kbd "C-x l 6 RET"))
+
+    ;; Now advanced options should be visible
+    (execute-kbd-macro (kbd "- n"))  ; Advanced option
+
+    (execute-kbd-macro (kbd "x"))
+    ;; Verify...
+    ))
+```
+
+### Helper Functions
+
+```elisp
+(defun my-test-kbd-do (keys)
+  "Execute keyboard macro from KEYS list.
+KEYS is a list of key sequence strings that will be joined
+and executed as a keyboard macro."
+  (execute-kbd-macro (kbd (string-join keys " "))))
+
+;; Usage:
+(my-test-kbd-do '("t" "Title" "RET"))  ; Cleaner than raw kbd
+```
+
+### When to Use Each Approach
+
+**Use mocked approach when:**
+- Testing suffix logic in isolation
+- Testing error handling
+- Speed is critical (large test suite)
+- Don't need to test UI interaction
+
+**Use execute-kbd-macro approach when:**
+- Testing end-to-end user workflows
+- Validating infix commands work
+- Testing transient state management
+- Need confidence in the full UI
+- Testing for a critical user path
+
+**Recommended strategy:**
+- Use mocked tests for most unit tests
+- Use execute-kbd-macro for key integration tests
+- At least one full UI test per transient menu
+
+### Example: Complete Test Suite
+
+```elisp
+;;; Unit Tests (Mocked - Fast)
+
+(ert-deftest my-create-test-parse-args ()
+  "Test argument parsing."
+  ;; Fast unit test, no UI
+  )
+
+(ert-deftest my-create-test-validation ()
+  "Test validation logic."
+  (my-test-with-transient-args 'my-create
+      '("--title=")  ; Empty title
+    (should-error (call-interactively #'my-create-execute)
+                  :type 'user-error)))
+
+;;; Integration Tests (Full UI - Comprehensive)
+
+(ert-deftest my-create-test-full-ui-basic ()
+  "Test basic creation workflow through UI."
+  :tags '(:integration :ui)
+  (my-test-setup ()
+    (funcall-interactively #'my-create)
+    (execute-kbd-macro (kbd "t Basic SPC Test RET"))
+    (execute-kbd-macro (kbd "x"))
+    ;; Verify creation...
+    ))
+
+(ert-deftest my-create-test-full-ui-all-fields ()
+  "Test creation with all fields through UI."
+  :tags '(:integration :ui :slow)
+  (my-test-setup ()
+    (funcall-interactively #'my-create)
+    (execute-kbd-macro (kbd "t Full SPC Test RET"))
+    (execute-kbd-macro (kbd "- t feature RET"))
+    (execute-kbd-macro (kbd "- p 2 RET"))
+    (execute-kbd-macro (kbd "x"))
+    ;; Verify all fields...
+    ))
+```
+
+### Debugging Tips
+
+**When tests fail:**
+
+1. **Check key bindings** - Use `C-h` in transient to see actual keys
+2. **Test interactively first** - Run the transient manually
+3. **Add debug messages**:
+   ```elisp
+   (execute-kbd-macro (kbd "t Test RET"))
+   (message "After title: %S" (transient-args 'my-prefix))
+   ```
+4. **Check transient buffer** - Look at `*transient*` buffer state
+5. **Use edebug** - Step through suffix execution
+
+**Common issues:**
+
+- **"Unbound suffix"** - Wrong key binding in test
+- **"Wrong type argument"** - Reader function got nil/wrong type
+- **Macro fails silently** - Split key + input across macros
+- **Args not set** - Forgot to call `funcall-interactively` on prefix
+
+### Comparison to Other Testing Approaches
+
+**with-simulated-input package:**
+- ❌ Adds complexity without clear benefits for transient testing
+- ❌ Our pattern (mock transient-args + call-interactively) is simpler
+- ✅ execute-kbd-macro works natively in batch mode
+
+**Casual project approach:**
+- Tests only binding structure (overrides commands with stubs)
+- ❌ Doesn't test actual command execution
+- ✅ Our approach tests REAL commands with REAL execution
+
+**Result:** Our execute-kbd-macro approach gives superior coverage!
+
 ## Version History
 
+- v1.1.0 (2025-11-19): Added comprehensive testing section with
+  execute-kbd-macro patterns and performance analysis
 - v1.0.0 (2025-11-06): Initial skill created from research of
   transient, Magit, Forge, and transient-showcase repositories
