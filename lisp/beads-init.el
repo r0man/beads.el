@@ -139,9 +139,9 @@ the initialization."
     (beads-option-init-quiet)
     (beads-option-init-skip-merge-driver)]]
   ["Actions"
-   ("x" "Initialize" beads-init--execute)
-   ("P" "Preview command" beads-init--preview)
-   ("R" "Reset all fields" beads-init--reset)])
+   (beads-init--execute)
+   (beads-init--preview)
+   (beads-init--reset)])
 
 ;;; Footer
 

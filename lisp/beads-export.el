@@ -131,9 +131,9 @@ Returns list of error messages, or nil if all valid."
    (beads-option-export-force)
    (beads-option-export-no-auto-flush)]
   ["Actions"
-   ("x" "Export" beads-export--execute-command)
-   ("P" "Preview command" beads-export--preview)
-   ("R" "Reset all fields" beads-export--reset)])
+   (beads-export--execute-command)
+   (beads-export--preview)
+   (beads-export--reset)])
 
 ;;; Footer
 

@@ -123,7 +123,7 @@ Returns list of error messages, or nil if all valid."
 
 (transient-define-suffix beads-close--reset ()
   "Reset all parameters to their default values."
-  :key "r"
+  :key "R"
   :description "Reset fields"
   :transient t
   (interactive)
@@ -162,9 +162,9 @@ Returns list of error messages, or nil if all valid."
    (beads-option-close-reason)]
   beads-option-global-section
   ["Actions"
-   ("x" "Close issue" beads-close--execute)
-   ("P" "Preview command" beads-close--preview)
-   ("r" "Reset fields" beads-close--reset)
+   (beads-close--execute)
+   (beads-close--preview)
+   (beads-close--reset)
    ("q" "Quit" transient-quit-one)])
 
 ;;;###autoload
