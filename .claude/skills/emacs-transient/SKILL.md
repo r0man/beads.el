@@ -902,6 +902,46 @@ and executed as a keyboard macro."
 - **Macro fails silently** - Split key + input across macros
 - **Args not set** - Forgot to call `funcall-interactively` on prefix
 
+### Testing Multiline Editor Fields
+
+Fields that open dedicated editor buffers for multiline input (description,
+notes, comments) **DO work** with `execute-kbd-macro` using the same principle
+as simple fields: **combine everything in a SINGLE macro**.
+
+**Pattern:**
+
+```elisp
+(funcall-interactively #'my-create)
+
+;; ✅ CORRECT - Combine infix + text + commit in ONE macro
+(execute-kbd-macro (kbd "- d Full SPC description SPC text C-c C-c"))
+(execute-kbd-macro (kbd "- A Acceptance SPC criteria C-c C-c"))
+```
+
+**Why this works:**
+1. `- d` opens the editor buffer
+2. `Full SPC description SPC text` types into that buffer (it's now active)
+3. `C-c C-c` commits and returns to transient menu
+4. All happens in single macro execution, so context is preserved
+
+**What DOESN'T work (split across macros):**
+
+```elisp
+;; ❌ WRONG - Split into separate macros
+(execute-kbd-macro (kbd "- d"))               ; Opens editor
+(execute-kbd-macro (kbd "My description"))     ; Fails! Wrong context
+(execute-kbd-macro (kbd "C-c C-c"))           ; Fails! Wrong context
+```
+
+When you split into multiple `execute-kbd-macro` calls, each call starts from
+the current buffer context, which may not be the editor buffer that was opened.
+
+**Summary:**
+- ✅ Simple minibuffer prompts work (combine key + input + RET)
+- ✅ Switches/toggles work (just the key)
+- ✅ **Multiline editor fields work** (combine key + text + C-c C-c)
+- ❌ Splitting any interaction across multiple macro calls fails
+
 ### Comparison to Other Testing Approaches
 
 **with-simulated-input package:**

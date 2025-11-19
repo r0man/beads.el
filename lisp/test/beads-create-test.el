@@ -292,80 +292,98 @@ directly in the transient-define-prefix definition."
 
 (ert-deftest beads-create-test-execute-minimal-fields ()
   "Integration test: Create issue with minimal required fields.
-Tests successful creation with only title set."
-  :tags '(:integration :slow)
+Tests successful creation with only title set using full UI workflow."
+  :tags '(:integration :slow :ui)
   (skip-unless (executable-find beads-executable))
   (require 'beads-test)
   (beads-test-with-project ()
-    (beads-test-with-transient-args 'beads-create
-        '("--title=Minimal Test Issue")
-      (let ((show-called nil)
-            (result
-             (beads-test-with-cache-tracking
-               (cl-letf (((symbol-function 'y-or-n-p)
-                          (lambda (_) nil))  ; Don't show issue
-                         ((symbol-function 'beads-show)
-                          (lambda (_) (setq show-called t))))
-                 ;; Execute the create command
-                 (call-interactively #'beads-create--execute)))))
+    (let ((show-called nil)
+          (result
+           (beads-test-with-cache-tracking
+             (cl-letf (((symbol-function 'y-or-n-p)
+                        (lambda (_) nil))  ; Don't show issue
+                       ((symbol-function 'beads-show)
+                        (lambda (_) (setq show-called t))))
+               ;; Invoke transient menu
+               (funcall-interactively #'beads-create)
 
-        ;; Verify cache was invalidated
-        (should (plist-get result :completion-cache-invalidated))
+               ;; Set title field
+               (execute-kbd-macro (kbd "t Minimal SPC Test SPC Issue RET"))
 
-        ;; Verify show wasn't called (we said no)
-        (should-not show-called)
+               ;; Execute create command
+               (execute-kbd-macro (kbd "x"))))))
 
-        ;; Verify the issue was created by listing all issues
-        (let ((issues (beads-command-list!)))
-          (should (seq-find
-                   (lambda (issue)
-                     (equal (oref issue title) "Minimal Test Issue"))
-                   issues)))))))
+      ;; Verify cache was invalidated
+      (should (plist-get result :completion-cache-invalidated))
+
+      ;; Verify show wasn't called (we said no)
+      (should-not show-called)
+
+      ;; Verify the issue was created by listing all issues
+      (let ((issues (beads-command-list!)))
+        (should (seq-find
+                 (lambda (issue)
+                   (equal (oref issue title) "Minimal Test Issue"))
+                 issues))))))
 
 (ert-deftest beads-create-test-execute-all-fields ()
   "Integration test: Create issue with all fields populated.
-Tests successful creation with title, type, priority, description, etc."
-  :tags '(:integration :slow)
+Tests successful creation with ALL field types using full UI workflow,
+including simple fields (title, type, priority, assignee, labels, external-ref)
+and multiline fields (description, acceptance, design).
+
+Key: Multiline fields work by combining infix + text + commit in SINGLE macro.
+Example: (execute-kbd-macro (kbd \"- d Full SPC text C-c C-c\"))"
+  :tags '(:integration :slow :ui)
   (skip-unless (executable-find beads-executable))
   (require 'beads-test)
   (beads-test-with-project ()
-    (beads-test-with-transient-args 'beads-create
-        '("--title=Complete Test Issue"
-          "--type=feature"
-          "--priority=1"
-          "--description=Full description text"
-          "--acceptance=Acceptance criteria here"
-          "--assignee=testuser"
-          "--design=Design notes"
-          "--external-ref=gh-999"
-          "--labels=test,integration")
-      (let ((result
-             (beads-test-with-cache-tracking
-               (cl-letf (((symbol-function 'y-or-n-p)
-                          (lambda (_) nil)))  ; Don't show issue
-                 ;; Execute the create command
-                 (call-interactively #'beads-create--execute)))))
+    (let ((result
+           (beads-test-with-cache-tracking
+             (cl-letf (((symbol-function 'y-or-n-p)
+                        (lambda (_) nil)))  ; Don't show issue
+               ;; Invoke transient menu
+               (funcall-interactively #'beads-create)
 
-        ;; Verify cache was invalidated
-        (should (plist-get result :completion-cache-invalidated))
+               ;; Set simple fields via kbd macros
+               (execute-kbd-macro (kbd "t Complete SPC Test SPC Issue RET"))
+               (execute-kbd-macro (kbd "- t feature RET"))
+               (execute-kbd-macro (kbd "- p 1 RET"))
+               (execute-kbd-macro (kbd "- a testuser RET"))
+               ;; Use unique external-ref to avoid UNIQUE constraint violations
+               (execute-kbd-macro (kbd (format "- x gh-%d RET" (random 99999))))
+               (execute-kbd-macro (kbd "- l test,integration RET"))
 
-        ;; Verify all fields by fetching the created issue
-        (let* ((issues (beads-command-list!))
-               (created (seq-find
-                         (lambda (issue)
-                           (equal (oref issue title) "Complete Test Issue"))
-                         issues)))
-          (should created)
-          (should (equal (oref created issue-type) "feature"))
-          (should (equal (oref created priority) 1))
-          (should (equal (oref created description) "Full description text"))
-          (should (equal (oref created acceptance-criteria)
-                         "Acceptance criteria here"))
-          (should (equal (oref created assignee) "testuser"))
-          (should (equal (oref created design) "Design notes"))
-          (should (equal (oref created external-ref) "gh-999"))
-          ;; Labels are returned sorted alphabetically by bd
-          (should (equal (oref created labels) '("integration" "test"))))))))
+               ;; Set multiline fields - combine infix + text + commit in SINGLE macro
+               (execute-kbd-macro (kbd "- d Full SPC description SPC text C-c C-c"))
+               (execute-kbd-macro (kbd "- A Acceptance SPC criteria SPC here C-c C-c"))
+               (execute-kbd-macro (kbd "- G Design SPC notes C-c C-c"))
+
+               ;; Execute create command
+               (execute-kbd-macro (kbd "x"))))))
+
+      ;; Verify cache was invalidated
+      (should (plist-get result :completion-cache-invalidated))
+
+      ;; Verify all fields by fetching the created issue
+      (let* ((issues (beads-command-list!))
+             (created (seq-find
+                       (lambda (issue)
+                         (equal (oref issue title) "Complete Test Issue"))
+                       issues)))
+        (should created)
+        (should (equal (oref created issue-type) "feature"))
+        (should (equal (oref created priority) 1))
+        (should (equal (oref created assignee) "testuser"))
+        ;; External-ref is random to avoid UNIQUE constraint violations
+        (should (string-match-p "^gh-[0-9]+$" (oref created external-ref)))
+        ;; Labels are returned sorted alphabetically by bd
+        (should (equal (oref created labels) '("integration" "test")))
+        ;; Multiline fields
+        (should (equal (oref created description) "Full description text"))
+        (should (equal (oref created acceptance-criteria)
+                       "Acceptance criteria here"))
+        (should (equal (oref created design) "Design notes"))))))
 
 (ert-deftest beads-create-test-execute-validation-failure ()
   "Integration test: Test validation failure paths.
@@ -439,35 +457,40 @@ Tests that beads--invalidate-completion-cache is called."
 
 (ert-deftest beads-create-test-execute-show-workflow ()
   "Integration test: Test show-issue prompt workflow.
-Verifies that beads-show is called when user says yes."
-  :tags '(:integration :slow)
+Verifies that beads-show is called when user says yes using full UI workflow."
+  :tags '(:integration :slow :ui)
   (skip-unless (executable-find beads-executable))
   (require 'beads-test)
   (beads-test-with-project ()
-    (beads-test-with-transient-args 'beads-create
-        '("--title=Show Workflow Test")
-      (let ((show-called nil)
-            (shown-issue-id nil))
-        (cl-letf (((symbol-function 'y-or-n-p)
-                   (lambda (prompt)
-                     (should (string-match-p "Show issue" prompt))
-                     t))  ; Yes, show the issue
-                  ((symbol-function 'beads-show)
-                   (lambda (issue-id)
-                     (setq show-called t)
-                     (setq shown-issue-id issue-id))))
-          ;; Execute create
-          (call-interactively #'beads-create--execute)
+    (let ((show-called nil)
+          (shown-issue-id nil))
+      (cl-letf (((symbol-function 'y-or-n-p)
+                 (lambda (prompt)
+                   (should (string-match-p "Show issue" prompt))
+                   t))  ; Yes, show the issue
+                ((symbol-function 'beads-show)
+                 (lambda (issue-id)
+                   (setq show-called t)
+                   (setq shown-issue-id issue-id))))
+        ;; Invoke transient menu
+        (funcall-interactively #'beads-create)
 
-          ;; Verify show was called
-          (should show-called)
-          (should shown-issue-id)
-          (should (string-match-p "^beads-test-" shown-issue-id)))))))
+        ;; Set title field
+        (execute-kbd-macro (kbd "t Show SPC Workflow SPC Test RET"))
+
+        ;; Execute create command
+        (execute-kbd-macro (kbd "x"))
+
+        ;; Verify show was called
+        (should show-called)
+        (should shown-issue-id)
+        ;; Issue ID should match pattern: project-prefix-<random-id>
+        (should (string-match-p "^[a-z0-9.-]+-[a-z0-9]+$" shown-issue-id))))))
 
 (ert-deftest beads-create-test-execute-with-dependencies ()
   "Integration test: Create issue with dependencies.
-Tests creating an issue with dependency links."
-  :tags '(:integration :slow)
+Tests creating an issue with dependency links using full UI workflow."
+  :tags '(:integration :slow :ui)
   (skip-unless (executable-find beads-executable))
   (require 'beads-test)
   (beads-test-with-project ()
@@ -477,23 +500,28 @@ Tests creating an issue with dependency links."
                     :issue-type "epic"))
            (parent-id (oref parent id)))
 
-      ;; Now create a child issue that blocks the parent
-      (beads-test-with-transient-args 'beads-create
-          (list "--title=Child Issue"
-                (format "--deps=blocks:%s" parent-id))
-        (cl-letf (((symbol-function 'y-or-n-p)
-                   (lambda (_) nil)))
-          ;; Execute and ensure it doesn't error
-          ;; Note: Dependencies may need to be set via separate bd dep command
-          (call-interactively #'beads-create--execute)
+      ;; Now create a child issue that blocks the parent via UI
+      (cl-letf (((symbol-function 'y-or-n-p)
+                 (lambda (_) nil)))
+        ;; Invoke transient menu
+        (funcall-interactively #'beads-create)
 
-          ;; Verify the child issue was created
-          (let* ((issues (beads-command-list!))
-                 (child (seq-find
-                         (lambda (issue)
-                           (equal (oref issue title) "Child Issue"))
-                         issues)))
-            (should child)))))))
+        ;; Set title field
+        (execute-kbd-macro (kbd "t Child SPC Issue RET"))
+
+        ;; Set dependencies (format: type:id)
+        (execute-kbd-macro (kbd (format "- D blocks:%s RET" parent-id)))
+
+        ;; Execute create command
+        (execute-kbd-macro (kbd "x"))
+
+        ;; Verify the child issue was created
+        (let* ((issues (beads-command-list!))
+               (child (seq-find
+                       (lambda (issue)
+                         (equal (oref issue title) "Child Issue"))
+                       issues)))
+          (should child))))))
 
 ;;; Integration Tests for beads-create--preview
 
@@ -1478,95 +1506,6 @@ Tests handling when .beads directory doesn't exist."
         ;; Should return error message, not signal error
         (should (stringp result))
         (should (string-match-p "Failed to create issue" result))))))
-
-;;; Full UI Interaction Tests (Proof of Concept)
-
-(ert-deftest beads-create-test-full-ui-interaction-kbd-macro ()
-  "Proof-of-concept: Test full user interaction via kbd macros.
-Tests the complete workflow: invoke transient, set fields, execute.
-NOTE: Must combine transient key + input in SINGLE kbd macro call."
-  :tags '(:integration :slow :ui :proof-of-concept)
-  (skip-unless (executable-find beads-executable))
-  (require 'beads-test)
-  (beads-test-with-project ()
-    ;; Invoke the transient menu
-    (funcall-interactively #'beads-create)
-
-    ;; Set fields: MUST combine key + input in single macro
-    (execute-kbd-macro (kbd "t UI SPC Test SPC Bug RET"))  ; Title
-    (execute-kbd-macro (kbd "- t bug RET"))                 ; Type
-    (execute-kbd-macro (kbd "- p 1 RET"))                   ; Priority
-
-    ;; Execute create: press "x"
-    (cl-letf (((symbol-function 'y-or-n-p)
-               (lambda (_) nil)))  ; Skip confirmation
-      (execute-kbd-macro (kbd "x")))
-
-    ;; Verify the issue was created
-    (let* ((issues (beads-command-list!))
-           (created (seq-find
-                     (lambda (issue)
-                       (equal (oref issue title) "UI Test Bug"))
-                     issues)))
-      (should created)
-      (should (equal (oref created issue-type) "bug"))
-      (should (equal (oref created priority) 1)))))
-
-(ert-deftest beads-create-test-full-ui-interaction-simplified ()
-  "Simplified proof-of-concept: Test with combined kbd sequences.
-Tests if we can combine all keypresses into fewer execute-kbd-macro calls."
-  :tags '(:integration :slow :ui :proof-of-concept)
-  (skip-unless (executable-find beads-executable))
-  (require 'beads-test)
-  (beads-test-with-project ()
-    ;; Invoke the transient menu
-    (funcall-interactively #'beads-create)
-
-    ;; Set all fields with combined macros
-    (execute-kbd-macro (kbd "t Simple SPC Test RET"))  ; Title
-    (execute-kbd-macro (kbd "- t feature RET"))         ; Type
-    (execute-kbd-macro (kbd "- p 2 RET"))               ; Priority
-
-    ;; Execute
-    (cl-letf (((symbol-function 'y-or-n-p)
-               (lambda (_) nil)))
-      (execute-kbd-macro (kbd "x")))
-
-    ;; Verify
-    (let* ((issues (beads-command-list!))
-           (created (seq-find
-                     (lambda (issue)
-                       (equal (oref issue title) "Simple Test"))
-                     issues)))
-      (should created)
-      (should (equal (oref created issue-type) "feature"))
-      (should (equal (oref created priority) 2)))))
-
-(ert-deftest beads-create-test-full-ui-interaction-title-only ()
-  "Minimal proof-of-concept: Test with only title (required field).
-Tests the simplest possible workflow through the UI."
-  :tags '(:integration :slow :ui :proof-of-concept)
-  (skip-unless (executable-find beads-executable))
-  (require 'beads-test)
-  (beads-test-with-project ()
-    ;; Invoke transient
-    (funcall-interactively #'beads-create)
-
-    ;; Set only title (required)
-    (execute-kbd-macro (kbd "t Minimal SPC Test RET"))
-
-    ;; Execute
-    (cl-letf (((symbol-function 'y-or-n-p)
-               (lambda (_) nil)))
-      (execute-kbd-macro (kbd "x")))
-
-    ;; Verify
-    (let* ((issues (beads-command-list!))
-           (created (seq-find
-                     (lambda (issue)
-                       (equal (oref issue title) "Minimal Test"))
-                     issues)))
-      (should created))))
 
 (provide 'beads-create-test)
 ;;; beads-create-test.el ends here
