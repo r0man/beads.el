@@ -355,25 +355,25 @@ Example: (execute-kbd-macro (kbd \"- d Full SPC text C-c C-c\"))"
 Verifies that beads-create--execute properly rejects invalid input."
   :tags '(:integration)
   ;; Test with empty title - should fail validation
-  (beads-test-with-transient-args 'beads-create--menu
+  (beads-test-with-transient-args 'beads-create
       '("--title=")
     (should-error (call-interactively #'beads-create--execute)
                   :type 'user-error))
 
   ;; Test with invalid type
-  (beads-test-with-transient-args 'beads-create--menu
+  (beads-test-with-transient-args 'beads-create
       '("--title=Test" "--type=invalid-type")
     (should-error (call-interactively #'beads-create--execute)
                   :type 'user-error))
 
   ;; Test with invalid priority
-  (beads-test-with-transient-args 'beads-create--menu
+  (beads-test-with-transient-args 'beads-create
       '("--title=Test" "--priority=10")
     (should-error (call-interactively #'beads-create--execute)
                   :type 'user-error))
 
   ;; Test with invalid dependencies format
-  (beads-test-with-transient-args 'beads-create--menu
+  (beads-test-with-transient-args 'beads-create
       '("--title=Test" "--deps=invalid-format")
     (should-error (call-interactively #'beads-create--execute)
                   :type 'user-error)))
@@ -384,7 +384,7 @@ Verifies error handling when the bd create command fails."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-project ()
-    (beads-test-with-transient-args 'beads-create--menu
+    (beads-test-with-transient-args 'beads-create
         '("--title=Test Issue")
       ;; Mock beads-command-execute to simulate bd failure
       (cl-letf (((symbol-function 'beads-command-execute)
@@ -401,7 +401,7 @@ Tests that beads--invalidate-completion-cache is called."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-project ()
-    (beads-test-with-transient-args 'beads-create--menu
+    (beads-test-with-transient-args 'beads-create
         '("--title=Cache Test Issue")
       (let ((result
              (beads-test-with-cache-tracking
@@ -489,7 +489,7 @@ Tests creating an issue with dependency links using full UI workflow."
   "Integration test: Preview command with minimal valid arguments.
 Tests that preview generates correct command line for minimal fields."
   :tags '(:integration)
-  (beads-test-with-transient-args 'beads-create--menu
+  (beads-test-with-transient-args 'beads-create
       '("--title=Preview Test")
     (let ((result (call-interactively #'beads-create--preview)))
       ;; Should return preview message string
@@ -507,7 +507,7 @@ Tests that preview generates correct command line for minimal fields."
   "Integration test: Preview command with all fields populated.
 Tests that preview correctly formats complex command with all arguments."
   :tags '(:integration)
-  (beads-test-with-transient-args 'beads-create--menu
+  (beads-test-with-transient-args 'beads-create
       '("--title=Complete Preview Test"
         "--type=feature"
         "--priority=1"
@@ -536,7 +536,7 @@ Tests that preview correctly formats complex command with all arguments."
   "Integration test: Preview with empty title shows validation error.
 Tests that preview returns error message when validation fails."
   :tags '(:integration)
-  (beads-test-with-transient-args 'beads-create--menu
+  (beads-test-with-transient-args 'beads-create
       '("--title=")
     (let ((result (call-interactively #'beads-create--preview)))
       ;; Should return validation error message
@@ -548,7 +548,7 @@ Tests that preview returns error message when validation fails."
   "Integration test: Preview with invalid type shows validation error.
 Tests that preview catches invalid issue type."
   :tags '(:integration)
-  (beads-test-with-transient-args 'beads-create--menu
+  (beads-test-with-transient-args 'beads-create
       '("--title=Test Issue"
         "--type=invalid-type")
     (let ((result (call-interactively #'beads-create--preview)))
@@ -561,7 +561,7 @@ Tests that preview catches invalid issue type."
   "Integration test: Preview with invalid priority shows validation error.
 Tests that preview catches priority out of range."
   :tags '(:integration)
-  (beads-test-with-transient-args 'beads-create--menu
+  (beads-test-with-transient-args 'beads-create
       '("--title=Test Issue"
         "--priority=10")
     (let ((result (call-interactively #'beads-create--preview)))
@@ -574,7 +574,7 @@ Tests that preview catches priority out of range."
   "Integration test: Preview with multiple validation errors.
 Tests that preview reports all validation failures."
   :tags '(:integration)
-  (beads-test-with-transient-args 'beads-create--menu
+  (beads-test-with-transient-args 'beads-create
       '("--title="
         "--type=invalid"
         "--priority=99"
@@ -590,7 +590,7 @@ Tests that preview reports all validation failures."
   "Integration test: Verify command line is properly formatted.
 Tests that special characters are properly quoted."
   :tags '(:integration)
-  (beads-test-with-transient-args 'beads-create--menu
+  (beads-test-with-transient-args 'beads-create
       '("--title=Test with 'quotes' and \"more\" quotes")
     (let ((result (call-interactively #'beads-create--preview)))
       ;; Should return preview message string
@@ -604,7 +604,7 @@ Tests that special characters are properly quoted."
   "Integration test: Preview command with dependencies.
 Tests that dependency format is preserved in preview."
   :tags '(:integration)
-  (beads-test-with-transient-args 'beads-create--menu
+  (beads-test-with-transient-args 'beads-create
       '("--title=Child Issue"
         "--deps=blocks:bd-123,related:bd-456")
     (let ((result (call-interactively #'beads-create--preview)))
@@ -623,7 +623,7 @@ Tests that preview is read-only and doesn't mutate state."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-project ()
-    (beads-test-with-transient-args 'beads-create--menu
+    (beads-test-with-transient-args 'beads-create
         '("--title=Should Not Be Created")
       ;; Get initial issue count
       (let ((initial-count (length (beads-command-list!))))
@@ -638,7 +638,7 @@ Tests that preview is truly read-only with no side effects."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-project ()
-    (beads-test-with-transient-args 'beads-create--menu
+    (beads-test-with-transient-args 'beads-create
         '("--title=Preview Cache Test")
       (let ((result
              (beads-test-with-cache-tracking
@@ -655,7 +655,7 @@ Tests that reset calls transient-reset and clears all fields."
   :tags '(:integration)
   (let ((transient-reset-called nil)
         (transient-redisplay-called nil))
-    (beads-test-with-transient-args 'beads-create--menu
+    (beads-test-with-transient-args 'beads-create
         '("--title=Test Issue"
           "--type=feature"
           "--priority=1"
@@ -687,7 +687,7 @@ Tests that reset respects user cancellation and doesn't clear state."
   :tags '(:integration)
   (let ((transient-reset-called nil)
         (transient-redisplay-called nil))
-    (beads-test-with-transient-args 'beads-create--menu
+    (beads-test-with-transient-args 'beads-create
         '("--title=Test Issue" "--type=bug")
       (cl-letf (((symbol-function 'y-or-n-p)
                  (lambda (prompt)
@@ -712,7 +712,7 @@ Tests that reset respects user cancellation and doesn't clear state."
   "Integration test: Verify reset doesn't invalidate caches.
 Tests that reset is a UI-only operation with no database side effects."
   :tags '(:integration)
-  (beads-test-with-transient-args 'beads-create--menu
+  (beads-test-with-transient-args 'beads-create
       '("--title=Reset Cache Test")
     (let ((result
            (beads-test-with-cache-tracking
@@ -749,7 +749,7 @@ Tests that reset clears required, optional, and advanced fields."
   :tags '(:integration)
   (let ((transient-reset-called nil))
     ;; Set up with all possible fields populated
-    (beads-test-with-transient-args 'beads-create--menu
+    (beads-test-with-transient-args 'beads-create
         '("--title=Complete Test Issue"
           "--type=epic"
           "--priority=0"
@@ -784,7 +784,7 @@ Tests that reset clears required, optional, and advanced fields."
 Tests that reset shows 'All fields reset' message to user."
   :tags '(:integration)
   (let ((message-text nil))
-    (beads-test-with-transient-args 'beads-create--menu
+    (beads-test-with-transient-args 'beads-create
         '("--title=Message Test")
       (cl-letf (((symbol-function 'y-or-n-p)
                  (lambda (_) t))  ; Confirm reset
@@ -823,7 +823,7 @@ Tests that titles with various Unicode characters are handled correctly."
              "Título en español con ñ and á"
              "Mixed: ASCII + 中文 + ελληνικά")))
       (dolist (title unicode-titles)
-        (beads-test-with-transient-args 'beads-create--menu
+        (beads-test-with-transient-args 'beads-create
             (list (format "--title=%s" title))
           (cl-letf (((symbol-function 'y-or-n-p)
                      (lambda (_) nil)))  ; Don't show issue
@@ -850,7 +850,7 @@ Note: Using 300 chars instead of 1500 to stay within shell/bd limits."
     (let ((long-title (concat "Issue with long title: "
                               (make-string 277 ?x))))
       (should (> (length long-title) 255))
-      (beads-test-with-transient-args 'beads-create--menu
+      (beads-test-with-transient-args 'beads-create
           (list (format "--title=%s" long-title))
         (cl-letf (((symbol-function 'y-or-n-p)
                    (lambda (_) nil)))
@@ -881,7 +881,7 @@ Note: Some characters like newlines/tabs may be normalized by bd."
              "Issue with ampersand & pipe |"
              "Issue with asterisk * and question ?")))
       (dolist (title special-titles)
-        (beads-test-with-transient-args 'beads-create--menu
+        (beads-test-with-transient-args 'beads-create
             (list (format "--title=%s" title))
           (cl-letf (((symbol-function 'y-or-n-p)
                      (lambda (_) nil)))
@@ -904,7 +904,7 @@ Tests distinction between empty string and nil value."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-project ()
     ;; Test with nil description (field not provided)
-    (beads-test-with-transient-args 'beads-create--menu
+    (beads-test-with-transient-args 'beads-create
         '("--title=Nil Description Test")
       (cl-letf (((symbol-function 'y-or-n-p)
                  (lambda (_) nil)))
@@ -920,7 +920,7 @@ Tests distinction between empty string and nil value."
                       (string-empty-p (oref created description)))))))
 
     ;; Test with empty string description
-    (beads-test-with-transient-args 'beads-create--menu
+    (beads-test-with-transient-args 'beads-create
         '("--title=Empty Description Test"
           "--description=")
       (cl-letf (((symbol-function 'y-or-n-p)
@@ -945,7 +945,7 @@ Tests all valid priority values including boundaries."
   (beads-test-with-project ()
     (dolist (priority '(0 1 2 3 4))
       (let ((title (format "Priority %d Test" priority)))
-        (beads-test-with-transient-args 'beads-create--menu
+        (beads-test-with-transient-args 'beads-create
             (list (format "--title=%s" title)
                   (format "--priority=%d" priority))
           (cl-letf (((symbol-function 'y-or-n-p)
@@ -968,7 +968,7 @@ Tests that omitting priority uses bd default behavior."
   :tags '(:integration :slow :edge-case)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-project ()
-    (beads-test-with-transient-args 'beads-create--menu
+    (beads-test-with-transient-args 'beads-create
         '("--title=Default Priority Test")
       (cl-letf (((symbol-function 'y-or-n-p)
                  (lambda (_) nil)))
@@ -993,7 +993,7 @@ Tests that all supported issue types work correctly."
   (beads-test-with-project ()
     (dolist (type '("bug" "feature" "task" "epic" "chore"))
       (let ((title (format "Type %s Test" type)))
-        (beads-test-with-transient-args 'beads-create--menu
+        (beads-test-with-transient-args 'beads-create
             (list (format "--title=%s" title)
                   (format "--type=%s" type))
           (cl-letf (((symbol-function 'y-or-n-p)
@@ -1015,19 +1015,19 @@ Tests that all supported issue types work correctly."
 Tests that whitespace-only values are properly rejected or normalized."
   :tags '(:integration)
   ;; Title with only spaces should fail validation
-  (beads-test-with-transient-args 'beads-create--menu
+  (beads-test-with-transient-args 'beads-create
       '("--title=    ")
     (should-error (call-interactively #'beads-create--execute)
                   :type 'user-error))
 
   ;; Title with only tabs should fail validation
-  (beads-test-with-transient-args 'beads-create--menu
+  (beads-test-with-transient-args 'beads-create
       '("--title=\t\t\t")
     (should-error (call-interactively #'beads-create--execute)
                   :type 'user-error))
 
   ;; Title with mixed whitespace should fail validation
-  (beads-test-with-transient-args 'beads-create--menu
+  (beads-test-with-transient-args 'beads-create
       '("--title= \t \n ")
     (should-error (call-interactively #'beads-create--execute)
                   :type 'user-error)))
@@ -1039,7 +1039,7 @@ Tests handling of multiple labels in comma-separated format."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-project ()
     (let ((many-labels "label1,label2,label3,label4,label5,label6,label7,label8,label9,label10"))
-      (beads-test-with-transient-args 'beads-create--menu
+      (beads-test-with-transient-args 'beads-create
           (list "--title=Many Labels Test"
                 (format "--labels=%s" many-labels))
         (cl-letf (((symbol-function 'y-or-n-p)
@@ -1064,7 +1064,7 @@ Tests that labels with hyphens, underscores, and numbers work."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-project ()
     (let ((special-labels "bug-fix,v2.0,high_priority,test-123"))
-      (beads-test-with-transient-args 'beads-create--menu
+      (beads-test-with-transient-args 'beads-create
           (list "--title=Special Labels Test"
                 (format "--labels=%s" special-labels))
         (cl-letf (((symbol-function 'y-or-n-p)
@@ -1095,7 +1095,7 @@ returns error messages instead of signaling errors. This covers all error
 types: command not found, JSON parsing errors, database errors, I/O errors,
 permission errors, TRAMP failures, etc."
   :tags '(:integration :error-recovery)
-  (beads-test-with-transient-args 'beads-create--menu
+  (beads-test-with-transient-args 'beads-create
       '("--title=Test Issue")
     ;; Test various error messages to ensure generic error handling
     (dolist (error-msg '("Searching for program: No such file or directory, bd"
@@ -1118,7 +1118,7 @@ permission errors, TRAMP failures, etc."
 Tests handling of common database contention error (example of specific
 error case)."
   :tags '(:integration :error-recovery)
-  (beads-test-with-transient-args 'beads-create--menu
+  (beads-test-with-transient-args 'beads-create
       '("--title=Test Issue")
     ;; Mock beads-command-execute to simulate database lock error
     (cl-letf (((symbol-function 'beads-command-execute)
@@ -1135,7 +1135,7 @@ error case)."
 Tests that completion cache is only invalidated on successful creation,
 not when errors occur during execution."
   :tags '(:integration :error-recovery)
-  (beads-test-with-transient-args 'beads-create--menu
+  (beads-test-with-transient-args 'beads-create
       '("--title=Test Issue")
     (let ((result
            (beads-test-with-cache-tracking
