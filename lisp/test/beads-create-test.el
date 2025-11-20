@@ -272,10 +272,8 @@ Tests successful creation with only title set using full UI workflow."
                        (lambda (_) (setq show-called t))))
               ;; Invoke transient menu
               (funcall-interactively #'beads-create)
-              ;; Set title field
-              (beads-test-interact '("t Minimal SPC Test SPC Issue RET"))
-              ;; Execute create command
-              (beads-test-interact '("x"))))))
+              (beads-test-interact '("t Minimal SPC Test SPC Issue RET"
+                                     "x"))))))
 
       ;; Verify cache was invalidated
       (should (plist-get result :completion-cache-invalidated))
@@ -308,21 +306,17 @@ Example: (beads-test-interact '(\"- d Full SPC text C-c C-c\"))"
               ;; Invoke transient menu
               (funcall-interactively #'beads-create)
               ;; Set simple fields via kbd macros
-              (beads-test-interact '("t Complete SPC Test SPC Issue RET"))
-              (beads-test-interact '("- t feature RET"))
-              (beads-test-interact '("- p 1 RET"))
-              (beads-test-interact '("- a testuser RET"))
-              ;; Use unique external-ref to avoid UNIQUE constraint violations
-              (beads-test-interact (list (format "- x gh-%d RET" (random 99999))))
-              (beads-test-interact '("- l test,integration RET"))
-
-              ;; Set multiline fields - combine infix + text + commit in SINGLE macro
-              (beads-test-interact '("- d Full SPC description SPC text C-c C-c"))
-              (beads-test-interact '("- A Acceptance SPC criteria SPC here C-c C-c"))
-              (beads-test-interact '("- G Design SPC notes C-c C-c"))
-              ;; Execute create command
-              (beads-test-interact '("x"))))))
-
+              (beads-test-interact
+               (list "t Complete SPC Test SPC Issue RET"
+                     "- t feature RET"
+                     "- p 1 RET"
+                     "- a testuser RET"
+                     (format "- x gh-%d RET" (random 99999))
+                     "- l test,integration RET"
+                     "- d Full SPC description SPC text C-c C-c"
+                     "- A Acceptance SPC criteria SPC here C-c C-c"
+                     "- G Design SPC notes C-c C-c"
+                     "x"))))))
       ;; Verify cache was invalidated
       (should (plist-get result :completion-cache-invalidated))
 
@@ -431,13 +425,8 @@ Verifies that beads-show is called when user says yes using full UI workflow."
                    (setq shown-issue-id issue-id))))
         ;; Invoke transient menu
         (funcall-interactively #'beads-create)
-
-        ;; Set title field
-        (beads-test-interact '("t Show SPC Workflow SPC Test RET"))
-
-        ;; Execute create command
-        (beads-test-interact '("x"))
-
+        (beads-test-interact '("t Show SPC Workflow SPC Test RET"
+                               "x"))
         ;; Verify show was called
         (should show-called)
         (should shown-issue-id)
@@ -455,22 +444,15 @@ Tests creating an issue with dependency links using full UI workflow."
                     :title "Parent Issue"
                     :issue-type "epic"))
            (parent-id (oref parent id)))
-
       ;; Now create a child issue that blocks the parent via UI
       (cl-letf (((symbol-function 'y-or-n-p)
                  (lambda (_) nil)))
         ;; Invoke transient menu
         (funcall-interactively #'beads-create)
-
-        ;; Set title field
-        (beads-test-interact '("t Child SPC Issue RET"))
-
-        ;; Set dependencies (format: type:id)
-        (beads-test-interact (list (format "- D blocks:%s RET" parent-id)))
-
-        ;; Execute create command
-        (beads-test-interact '("x"))
-
+        (beads-test-interact
+         (list "t Child SPC Issue RET"
+               (format "- D blocks:%s RET" parent-id)
+               "x"))
         ;; Verify the child issue was created
         (let* ((issues (beads-command-list!))
                (child (seq-find
