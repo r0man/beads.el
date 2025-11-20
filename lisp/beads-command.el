@@ -1199,7 +1199,7 @@ Returns list: (\"create\" ...global-flags... ...create-flags...)."
   "Validate create COMMAND.
 Checks for required fields and conflicts between options.
 Returns error string or nil if valid."
-  (with-slots (title file deps labels) command
+  (with-slots (title file deps labels issue-type priority) command
     (or
      ;; Must have either title or file
      (and (not title) (not file)
@@ -1207,6 +1207,25 @@ Returns error string or nil if valid."
      ;; Can't use both title and file
      (and title file
           "Cannot use both title and --file")
+     ;; Title validation (if provided, cannot be empty)
+     (and title (string-empty-p (string-trim title))
+          "Title cannot be empty")
+     ;; Type validation
+     (and issue-type
+          (not (member issue-type '("bug" "feature" "task" "epic" "chore")))
+          "Type must be one of: bug, feature, task, epic, chore")
+     ;; Priority validation (accepts number or string)
+     (and priority
+          (let ((p (if (stringp priority) (string-to-number priority) priority)))
+            (not (and (numberp p) (>= p 0) (<= p 4))))
+          "Priority must be a number between 0 and 4")
+     ;; Dependency format validation
+     (and deps
+          (not (seq-every-p
+                (lambda (dep)
+                  (string-match-p "^[a-z-]+:[A-Za-z0-9._-]+$" dep))
+                deps))
+          "Dependencies must be in format: type:issue-id")
      ;; Validate list content types
      (beads-command--validate-string-list deps "deps")
      (beads-command--validate-string-list labels "labels"))))

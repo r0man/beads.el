@@ -85,52 +85,6 @@ This uses transient's standard argument parsing with dash-style flags."
      :from-template from-template
      :file file)))
 
-(defun beads-create--validate-title (title)
-  "Validate that TITLE is set.
-Returns error message string if invalid, nil if valid."
-  (when (or (null title)
-            (string-empty-p (string-trim title)))
-    "Title is required"))
-
-(defun beads-create--validate-type (type)
-  "Validate that TYPE is valid.
-Returns error message string if invalid, nil if valid."
-  (when (and type
-             (not (member type
-                          '("bug" "feature" "task" "epic" "chore"))))
-    "Type must be one of: bug, feature, task, epic, chore"))
-
-(defun beads-create--validate-priority (priority)
-  "Validate that PRIORITY is valid.
-Returns error message string if invalid, nil if valid."
-  (when (and priority
-             (not (and (numberp priority)
-                       (>= priority 0)
-                       (<= priority 4))))
-    "Priority must be a number between 0 and 4"))
-
-(defun beads-create--validate-dependencies (dependencies)
-  "Validate dependency format in DEPENDENCIES.
-Returns error message string if invalid, nil if valid."
-  (when (and dependencies
-             (not (string-empty-p (string-trim dependencies))))
-    (unless (string-match-p
-             "^[a-z-]+:[A-Za-z0-9._-]+\\(,[a-z-]+:[A-Za-z0-9._-]+\\)*$"
-             dependencies)
-      "Dependencies must be in format: type:issue-id (e.g., blocks:bd-a1b2)")))
-
-(defun beads-create--validate-all (cmd)
-  "Validate all parameters from CMD beads-command-create instance.
-Returns list of error messages, or nil if all valid."
-  (delq nil
-        (list (beads-create--validate-title (oref cmd title))
-              (beads-create--validate-type (oref cmd issue-type))
-              (beads-create--validate-priority (oref cmd priority))
-              (beads-create--validate-dependencies
-               ;; Convert deps list back to string format for validation
-               (when (oref cmd deps)
-                 (string-join (oref cmd deps) ","))))))
-
 ;;; Suffix Commands
 
 (transient-define-suffix beads-create--execute ()
@@ -140,9 +94,9 @@ Returns list of error messages, or nil if all valid."
   (interactive)
   (let* ((args (transient-args 'beads-create))
          (cmd (beads-create--parse-transient-args args))
-         (errors (beads-create--validate-all cmd)))
-    (if errors
-        (user-error "Validation failed: %s" (string-join errors "; "))
+         (error-msg (beads-command-validate cmd)))
+    (if error-msg
+        (user-error "Validation failed: %s" error-msg)
       (condition-case err
           (let ((issue (beads-command-execute cmd)))
             (message "Created issue: %s - %s"
@@ -181,12 +135,11 @@ Returns list of error messages, or nil if all valid."
   (interactive)
   (let* ((args (transient-args 'beads-create))
          (cmd (beads-create--parse-transient-args args))
-         (errors (beads-create--validate-all cmd)))
-    (if errors
-        (let ((err-msg (format "Validation errors: %s"
-                               (string-join errors "; "))))
-          (message "%s" err-msg)
-          err-msg)
+         (error-msg (beads-command-validate cmd)))
+    (if error-msg
+        (let ((msg (format "Validation errors: %s" error-msg)))
+          (message "%s" msg)
+          msg)
       (let* ((cmd-list (beads-command-line cmd))
              (cmd-string (mapconcat #'shell-quote-argument cmd-list " "))
              (preview-msg (format "Command: %s" cmd-string)))

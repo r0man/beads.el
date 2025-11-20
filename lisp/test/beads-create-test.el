@@ -83,105 +83,130 @@ For testing, we pass the multiline string on a single line with escaped \\n."
 
 (ert-deftest beads-create-test-validate-title-nil ()
   "Test title validation when title is nil."
-  (should (beads-create--validate-title nil)))
+  (let ((cmd (beads-command-create :title nil)))
+    (should (beads-command-validate cmd))))
 
 (ert-deftest beads-create-test-validate-title-empty ()
   "Test title validation when title is empty."
-  (should (beads-create--validate-title "")))
+  (let ((cmd (beads-command-create :title "")))
+    (should (beads-command-validate cmd))))
 
 (ert-deftest beads-create-test-validate-title-whitespace ()
   "Test title validation when title is only whitespace."
-  (should (beads-create--validate-title "   \n\t  ")))
+  (let ((cmd (beads-command-create :title "   \n\t  ")))
+    (should (beads-command-validate cmd))))
 
 (ert-deftest beads-create-test-validate-title-valid ()
   "Test title validation when title is valid."
-  (should (null (beads-create--validate-title "Valid Title"))))
+  (let ((cmd (beads-command-create :title "Valid Title")))
+    (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-create-test-validate-type-nil ()
   "Test type validation when type is nil."
-  (should (null (beads-create--validate-type nil))))
+  (let ((cmd (beads-command-create :title "Test" :issue-type nil)))
+    (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-create-test-validate-type-valid-bug ()
   "Test type validation with valid bug type."
-  (should (null (beads-create--validate-type "bug"))))
+  (let ((cmd (beads-command-create :title "Test" :issue-type "bug")))
+    (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-create-test-validate-type-valid-feature ()
   "Test type validation with valid feature type."
-  (should (null (beads-create--validate-type "feature"))))
+  (let ((cmd (beads-command-create :title "Test" :issue-type "feature")))
+    (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-create-test-validate-type-valid-task ()
   "Test type validation with valid task type."
-  (should (null (beads-create--validate-type "task"))))
+  (let ((cmd (beads-command-create :title "Test" :issue-type "task")))
+    (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-create-test-validate-type-valid-epic ()
   "Test type validation with valid epic type."
-  (should (null (beads-create--validate-type "epic"))))
+  (let ((cmd (beads-command-create :title "Test" :issue-type "epic")))
+    (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-create-test-validate-type-valid-chore ()
   "Test type validation with valid chore type."
-  (should (null (beads-create--validate-type "chore"))))
+  (let ((cmd (beads-command-create :title "Test" :issue-type "chore")))
+    (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-create-test-validate-type-invalid ()
   "Test type validation with invalid type."
-  (should (beads-create--validate-type "invalid")))
+  (let ((cmd (beads-command-create :title "Test" :issue-type "invalid")))
+    (should (beads-command-validate cmd))))
 
 (ert-deftest beads-create-test-validate-priority-nil ()
   "Test priority validation when priority is nil."
-  (should (null (beads-create--validate-priority nil))))
+  (let ((cmd (beads-command-create :title "Test" :priority nil)))
+    (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-create-test-validate-priority-zero ()
   "Test priority validation with zero (critical)."
-  (should (null (beads-create--validate-priority 0))))
+  (let ((cmd (beads-command-create :title "Test" :priority 0)))
+    (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-create-test-validate-priority-one ()
   "Test priority validation with one."
-  (should (null (beads-create--validate-priority 1))))
+  (let ((cmd (beads-command-create :title "Test" :priority 1)))
+    (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-create-test-validate-priority-four ()
   "Test priority validation with four (backlog)."
-  (should (null (beads-create--validate-priority 4))))
+  (let ((cmd (beads-command-create :title "Test" :priority 4)))
+    (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-create-test-validate-priority-negative ()
   "Test priority validation with negative number."
-  (should (beads-create--validate-priority -1)))
+  (let ((cmd (beads-command-create :title "Test" :priority -1)))
+    (should (beads-command-validate cmd))))
 
 (ert-deftest beads-create-test-validate-priority-too-high ()
   "Test priority validation with number too high."
-  (should (beads-create--validate-priority 5)))
+  (let ((cmd (beads-command-create :title "Test" :priority 5)))
+    (should (beads-command-validate cmd))))
 
 (ert-deftest beads-create-test-validate-priority-string ()
-  "Test priority validation with string instead of number."
-  (should (beads-create--validate-priority "1")))
+  "Test priority validation accepts valid string numbers."
+  (let ((cmd (beads-command-create :title "Test" :priority "1")))
+    (should-not (beads-command-validate cmd))))
 
 (ert-deftest beads-create-test-validate-dependencies-nil ()
   "Test dependencies validation when nil."
-  (should (null (beads-create--validate-dependencies nil))))
+  (let ((cmd (beads-command-create :title "Test" :deps nil)))
+    (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-create-test-validate-dependencies-valid-single ()
   "Test dependencies validation with single valid dependency."
-  (should (null (beads-create--validate-dependencies "blocks:bd-1"))))
+  (let ((cmd (beads-command-create :title "Test" :deps '("blocks:bd-1"))))
+    (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-create-test-validate-dependencies-valid-multiple ()
   "Test dependencies validation with multiple valid dependencies."
-  (should (null (beads-create--validate-dependencies
-                 "blocks:bd-1,related:bd-2"))))
+  (let ((cmd (beads-command-create :title "Test"
+                                   :deps '("blocks:bd-1" "related:bd-2"))))
+    (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-create-test-validate-dependencies-valid-discovered ()
   "Test dependencies validation with discovered-from type."
-  (should (null (beads-create--validate-dependencies
-                 "discovered-from:bd-10"))))
+  (let ((cmd (beads-command-create :title "Test"
+                                   :deps '("discovered-from:bd-10"))))
+    (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-create-test-validate-dependencies-invalid-format ()
   "Test dependencies validation with invalid format."
-  (should (beads-create--validate-dependencies "invalid")))
+  (let ((cmd (beads-command-create :title "Test" :deps '("invalid"))))
+    (should (beads-command-validate cmd))))
 
 (ert-deftest beads-create-test-validate-dependencies-missing-colon ()
   "Test dependencies validation without colon separator."
-  (should (beads-create--validate-dependencies "blocksbd-1")))
+  (let ((cmd (beads-command-create :title "Test" :deps '("blocksbd-1"))))
+    (should (beads-command-validate cmd))))
 
 (ert-deftest beads-create-test-validate-dependencies-invalid-characters ()
   "Test dependencies validation with invalid characters."
-  (should (beads-create--validate-dependencies "blocks:BD@123")))
+  (let ((cmd (beads-command-create :title "Test" :deps '("blocks:BD@123"))))
+    (should (beads-command-validate cmd))))
 
 (ert-deftest beads-create-test-validate-all-success ()
   "Test validate-all with all valid parameters."
@@ -189,18 +214,16 @@ For testing, we pass the multiline string on a single line with escaped \\n."
               '("--title=Valid Title"
                 "--type=bug"
                 "--priority=1"))))
-    (should (null (beads-create--validate-all cmd)))))
+    (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-create-test-validate-all-multiple-errors ()
-  "Test validate-all with multiple validation errors."
+  "Test validate-all with multiple validation errors.
+Note: beads-command-validate returns first error, not all errors."
   (let ((cmd (beads-create--parse-transient-args
               '("--title="
                 "--type=invalid"
                 "--priority=10"))))
-    (let ((errors (beads-create--validate-all cmd)))
-      (should errors)
-      (should (listp errors))
-      (should (> (length errors) 1)))))
+    (should (beads-command-validate cmd))))
 
 
 (ert-deftest beads-create-test-infix-commands-new-fields ()
@@ -520,7 +543,7 @@ Tests that preview returns error message when validation fails."
       ;; Should return validation error message
       (should (stringp result))
       (should (string-match-p "Validation errors:" result))
-      (should (string-match-p "Title is required" result)))))
+      (should (string-match-p "title" (downcase result))))))
 
 (ert-deftest beads-create-test-preview-validation-error-invalid-type ()
   "Integration test: Preview with invalid type shows validation error.
@@ -550,7 +573,8 @@ Tests that preview catches priority out of range."
 
 (ert-deftest beads-create-test-preview-validation-multiple-errors ()
   "Integration test: Preview with multiple validation errors.
-Tests that preview reports all validation failures."
+Tests that preview reports first validation failure.
+Note: beads-command-validate returns first error, not all errors."
   :tags '(:integration)
   (beads-test-with-transient-args 'beads-create
       '("--title="
@@ -560,9 +584,7 @@ Tests that preview reports all validation failures."
     (let ((result (call-interactively #'beads-create--preview)))
       ;; Should return validation error message
       (should (stringp result))
-      (should (string-match-p "Validation errors:" result))
-      ;; Should contain multiple error messages (semicolon separated)
-      (should (string-match-p ";" result)))))
+      (should (string-match-p "Validation errors:" result)))))
 
 (ert-deftest beads-create-test-preview-command-formatting ()
   "Integration test: Verify command line is properly formatted.
