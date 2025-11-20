@@ -138,11 +138,13 @@ similar to git commit message editing.")
   (let* ((value (oref obj value))
          (field-name (oref obj field-name))
          (transient-buf (current-buffer))
+         (project-dir default-directory)  ; Preserve default-directory
          (result nil))
     ;; Create a temporary buffer for editing
     (let* ((buffer-name (format "*beads-%s*" (downcase field-name)))
            (buffer (generate-new-buffer buffer-name)))
       (switch-to-buffer buffer)
+      (setq default-directory project-dir)  ; Set default-directory in edit buffer
       (when value
         (insert value))
       ;; Use markdown-mode if available, otherwise text-mode
