@@ -71,6 +71,15 @@ For a project with default settings, use an empty list:
     (run-hooks 'post-command-hook)
     (undo-boundary)))
 
+(defun beads-test-interact (cmds)
+  "Execute the keyboard macro commands in CMDS.
+Use this over `execute-kbd-macro' in order to not change
+`default-directory.'"
+  (let ((directory default-directory))
+    (dolist (cmd cmds)
+      (execute-kbd-macro (kbd cmd))
+      (setq default-directory directory))))
+
 (defun beads-test-create-issue (title &optional type priority description)
   "Create an issue with TITLE in the current project directory.
 Optional TYPE, PRIORITY, and DESCRIPTION can be specified.
@@ -106,12 +115,6 @@ Returns a beads-issue EIEIO object, or nil if not found."
       (beads-command-execute
        (beads-command-show :issue-ids (list issue-id)))
     (error nil)))
-
-(defun beads-test-kbd-do (keys)
-  "Execute keyboard macro from KEYS list.
-KEYS is a list of key sequence strings that will be joined
-and executed as a keyboard macro."
-  (execute-kbd-macro (kbd (string-join keys " "))))
 
 ;;; ========================================
 ;;; Transient Testing Utilities
