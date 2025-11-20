@@ -19,6 +19,9 @@
 ;; The package dependencies are defined in lisp/beads.el Package-Requires header
 (setq package-install-upgrade-built-in t)
 
+;; Runtime dependencies (for older Emacs versions without built-in transient)
+(eldev-add-extra-dependencies 'runtime '(transient))
+
 ;; Development dependencies
 (eldev-add-extra-dependencies 'test '(ert))
 (eldev-add-extra-dependencies 'lint '(package-lint))
