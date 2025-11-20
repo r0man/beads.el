@@ -84,6 +84,254 @@ Integration test that verifies quiet mode suppresses output."
     ;; .beads directory should exist
     (should (file-directory-p (expand-file-name ".beads" temp-dir)))))
 
+;;; Integration Test: beads-command-quickstart
+
+(ert-deftest beads-command-test-quickstart-basic ()
+  "Test beads-command-quickstart execution returns quickstart guide.
+Integration test that runs real bd quickstart command."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (let* ((cmd (beads-command-quickstart))
+         (result (beads-command-execute cmd))
+         (exit-code (nth 0 result))
+         (stdout (nth 1 result)))
+    ;; Command should succeed
+    (should (= exit-code 0))
+    ;; Output should contain quickstart content
+    (should (stringp stdout))
+    (should (> (length stdout) 0))
+    ;; Should contain common quickstart keywords
+    (should (or (string-match-p "quick" (downcase stdout))
+                (string-match-p "start" (downcase stdout))
+                (string-match-p "bd" stdout)))))
+
+(ert-deftest beads-command-test-quickstart-helper ()
+  "Test beads-command-quickstart! helper function.
+Integration test that verifies the convenience function works."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (let* ((result (beads-command-quickstart!))
+         (exit-code (nth 0 result))
+         (stdout (nth 1 result)))
+    ;; Should return tuple (EXIT-CODE STDOUT STDERR)
+    (should (= exit-code 0))
+    (should (stringp stdout))
+    (should (> (length stdout) 0))))
+
+;;; Integration Test: beads-command-export
+
+(ert-deftest beads-command-test-export-basic ()
+  "Test beads-command-export exports to a file.
+Integration test that runs real bd export command."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create a test issue first
+    (beads-command-create! :title "Export test issue")
+    ;; Export to temp file
+    (let* ((temp-file (make-temp-file "beads-export-test-" nil ".jsonl"))
+           (stats (beads-command-export! :output temp-file)))
+      (unwind-protect
+          (progn
+            ;; Should return parsed JSON stats (alist)
+            (should (listp stats))
+            ;; File should exist
+            (should (file-exists-p temp-file))
+            ;; File should contain exported data
+            (should (> (nth 7 (file-attributes temp-file)) 0)))
+        ;; Clean up temp file
+        (when (file-exists-p temp-file)
+          (delete-file temp-file))))))
+
+(ert-deftest beads-command-test-export-with-status-filter ()
+  "Test beads-command-export with status filter.
+Integration test that verifies status filtering works."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create issues with different statuses
+    (beads-command-create! :title "Open issue")
+    (let ((closed-issue (beads-command-create! :title "Closed issue")))
+      (beads-command-close! :issue-ids (list (oref closed-issue id))
+                            :reason "Test"))
+    ;; Export only open issues
+    (let* ((temp-file (make-temp-file "beads-export-test-" nil ".jsonl"))
+           (stats (beads-command-export! :output temp-file
+                                         :status "open")))
+      (unwind-protect
+          (progn
+            ;; Should return parsed JSON stats
+            (should (listp stats))
+            ;; File should exist
+            (should (file-exists-p temp-file)))
+        ;; Clean up temp file
+        (when (file-exists-p temp-file)
+          (delete-file temp-file))))))
+
+(ert-deftest beads-command-test-export-with-force ()
+  "Test beads-command-export with --force flag.
+Integration test that verifies force flag works."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let* ((temp-file (make-temp-file "beads-export-test-" nil ".jsonl"))
+           (stats (beads-command-export! :output temp-file
+                                         :force t)))
+      (unwind-protect
+          (progn
+            ;; Should return parsed JSON stats
+            (should (listp stats))
+            ;; File should exist even if db is empty
+            (should (file-exists-p temp-file)))
+        ;; Clean up temp file
+        (when (file-exists-p temp-file)
+          (delete-file temp-file))))))
+
+(ert-deftest beads-command-test-export-helper ()
+  "Test beads-command-export! helper function.
+Integration test that verifies the convenience function works."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create a test issue
+    (beads-command-create! :title "Helper test issue")
+    (let* ((temp-file (make-temp-file "beads-export-test-" nil ".jsonl"))
+           (stats (beads-command-export! :output temp-file)))
+      (unwind-protect
+          (progn
+            ;; Should return parsed stats (since :json defaults to t)
+            (should (listp stats))
+            ;; File should exist and contain data
+            (should (file-exists-p temp-file)))
+        ;; Clean up
+        (when (file-exists-p temp-file)
+          (delete-file temp-file))))))
+
+;;; Integration Test: beads-command-import
+
+(ert-deftest beads-command-test-import-basic ()
+  "Test beads-command-import imports from a file.
+Integration test that runs real bd import command."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create and export an issue first
+    (beads-command-create! :title "Import test issue")
+    (let ((temp-file (make-temp-file "beads-import-test-" nil ".jsonl")))
+      (unwind-protect
+          (progn
+            ;; Export to temp file
+            (beads-command-export! :output temp-file)
+            ;; Create a new project to import into
+            (beads-test-with-project ()
+              ;; Import from temp file (use rename-on-import for prefix mismatch)
+              (let ((result (beads-command-import! :input temp-file
+                                                   :rename-on-import t)))
+                ;; Should return (EXIT-CODE STDOUT STDERR) tuple
+                (should (listp result))
+                (should (= 3 (length result)))
+                (should (= 0 (nth 0 result)))  ;; Exit code should be 0
+                ;; Verify issue was imported
+                (let ((issues (beads-command-list!)))
+                  (should (> (length issues) 0))
+                  (should (cl-some
+                           (lambda (issue)
+                             (string= (oref issue title)
+                                      "Import test issue"))
+                           issues))))))
+        ;; Clean up temp file
+        (when (file-exists-p temp-file)
+          (delete-file temp-file))))))
+
+(ert-deftest beads-command-test-import-with-dry-run ()
+  "Test beads-command-import with --dry-run flag.
+Integration test that verifies dry-run doesn't modify database."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create and export an issue
+    (beads-command-create! :title "Dry run test issue")
+    (let ((temp-file (make-temp-file "beads-import-test-" nil ".jsonl")))
+      (unwind-protect
+          (progn
+            ;; Export to temp file
+            (beads-command-export! :output temp-file)
+            ;; Create new project and import with dry-run
+            (beads-test-with-project ()
+              (let ((result (beads-command-import! :input temp-file
+                                                   :dry-run t
+                                                   :rename-on-import t)))
+                ;; Should return (EXIT-CODE STDOUT STDERR) tuple
+                (should (listp result))
+                (should (= 3 (length result)))
+                (should (= 0 (nth 0 result)))  ;; Exit code should be 0
+                ;; Database should still be empty (dry-run)
+                (let ((issues (beads-command-list!)))
+                  (should (= (length issues) 0))))))
+        ;; Clean up temp file
+        (when (file-exists-p temp-file)
+          (delete-file temp-file))))))
+
+(ert-deftest beads-command-test-import-with-skip-existing ()
+  "Test beads-command-import with --skip-existing flag.
+Integration test that verifies skip-existing doesn't update issues."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create initial issue
+    (let ((issue (beads-command-create! :title "Original title")))
+      (let ((temp-file (make-temp-file "beads-import-test-" nil ".jsonl")))
+        (unwind-protect
+            (progn
+              ;; Export to temp file
+              (beads-command-export! :output temp-file)
+              ;; Modify issue title in database
+              (beads-command-update! :issue-ids (list (oref issue id))
+                                     :title "Modified title")
+              ;; Import with skip-existing (should not update)
+              (let ((result (beads-command-import! :input temp-file
+                                                   :skip-existing t)))
+                ;; Should return (EXIT-CODE STDOUT STDERR) tuple
+                (should (listp result))
+                (should (= 3 (length result)))
+                (should (= 0 (nth 0 result)))  ;; Exit code should be 0
+                ;; Issue should still have modified title
+                (let ((updated-issue (beads-command-show!
+                                      :issue-ids (list (oref issue id)))))
+                  (should (string= (oref updated-issue title)
+                                   "Modified title")))))
+          ;; Clean up temp file
+          (when (file-exists-p temp-file)
+            (delete-file temp-file)))))))
+
+(ert-deftest beads-command-test-import-helper ()
+  "Test beads-command-import! helper function.
+Integration test that verifies the convenience function works."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create and export an issue
+    (beads-command-create! :title "Helper test issue")
+    (let ((temp-file (make-temp-file "beads-import-test-" nil ".jsonl")))
+      (unwind-protect
+          (progn
+            ;; Export to temp file
+            (beads-command-export! :output temp-file)
+            ;; Create new project and test helper function
+            (beads-test-with-project ()
+              (let ((result (beads-command-import! :input temp-file
+                                                   :rename-on-import t)))
+                ;; Should return (EXIT-CODE STDOUT STDERR) tuple
+                (should (listp result))
+                (should (= 3 (length result)))
+                (should (= 0 (nth 0 result)))  ;; Exit code should be 0
+                ;; Verify issue was imported
+                (let ((issues (beads-command-list!)))
+                  (should (> (length issues) 0))))))
+        ;; Clean up temp file
+        (when (file-exists-p temp-file)
+          (delete-file temp-file))))))
+
 ;;; Integration Test: beads-command-create
 
 (ert-deftest beads-command-test-create-basic ()
@@ -928,23 +1176,23 @@ Integration test that retrieves issue database stats."
     (should (string-match-p "title" (downcase (beads-command-validate cmd))))))
 
 (ert-deftest beads-command-test-unit-create-validate-title-empty ()
-  "Unit test: beads-command-create allows empty title (bd validates)."
+  "Unit test: beads-command-create rejects empty title."
   :tags '(:unit)
   (let ((cmd (beads-command-create :title "")))
-    ;; Empty string is still a title, validation passes
-    ;; bd CLI will handle the actual validation
-    (should-not (beads-command-validate cmd))))
+    ;; Empty string should fail validation
+    (should (stringp (beads-command-validate cmd)))
+    (should (string-match-p "empty" (downcase (beads-command-validate cmd))))))
 
 (ert-deftest beads-command-test-unit-create-validate-title-whitespace ()
-  "Unit test: beads-command-create allows whitespace title (bd validates)."
+  "Unit test: beads-command-create rejects whitespace-only title."
   :tags '(:unit)
   (let ((cmd (beads-command-create :title "   ")))
-    ;; Whitespace string is still a title, validation passes
-    ;; bd CLI will handle the actual validation
-    (should-not (beads-command-validate cmd))))
+    ;; Whitespace-only string should fail validation
+    (should (stringp (beads-command-validate cmd)))
+    (should (string-match-p "empty" (downcase (beads-command-validate cmd))))))
 
 (ert-deftest beads-command-test-unit-create-validate-priority-range ()
-  "Unit test: beads-command-create accepts all priority values (bd validates)."
+  "Unit test: beads-command-create validates priority range."
   :tags '(:unit)
   ;; Valid priorities (0-4)
   (dolist (p '(0 1 2 3 4))
@@ -952,15 +1200,16 @@ Integration test that retrieves issue database stats."
                 :title "Test"
                 :priority p)))
       (should-not (beads-command-validate cmd))))
-  ;; Invalid priorities - command doesn't validate, bd CLI will
+  ;; Invalid priorities - should fail validation
   (dolist (p '(-1 5 10))
     (let ((cmd (beads-command-create
                 :title "Test"
                 :priority p)))
-      (should-not (beads-command-validate cmd)))))
+      (should (stringp (beads-command-validate cmd)))
+      (should (string-match-p "priority" (downcase (beads-command-validate cmd)))))))
 
 (ert-deftest beads-command-test-unit-create-validate-type-valid ()
-  "Unit test: beads-command-create accepts all type values (bd validates)."
+  "Unit test: beads-command-create validates type values."
   :tags '(:unit)
   ;; Valid types
   (dolist (type '("bug" "feature" "task" "epic" "chore"))
@@ -968,14 +1217,15 @@ Integration test that retrieves issue database stats."
                 :title "Test"
                 :issue-type type)))
       (should-not (beads-command-validate cmd))))
-  ;; Invalid type - command doesn't validate, bd CLI will
+  ;; Invalid type - should fail validation
   (let ((cmd (beads-command-create
               :title "Test"
               :issue-type "invalid-type")))
-    (should-not (beads-command-validate cmd))))
+    (should (stringp (beads-command-validate cmd)))
+    (should (string-match-p "type" (downcase (beads-command-validate cmd))))))
 
 (ert-deftest beads-command-test-unit-create-validate-deps-format ()
-  "Unit test: beads-command-create accepts all dependency formats (bd validates)."
+  "Unit test: beads-command-create validates dependency format."
   :tags '(:unit)
   ;; Valid dependency formats (as lists)
   (dolist (deps '(("blocks:bd-123")
@@ -986,7 +1236,7 @@ Integration test that retrieves issue database stats."
                 :title "Test"
                 :deps deps)))
       (should-not (beads-command-validate cmd))))
-  ;; Invalid formats - command doesn't validate, bd CLI will
+  ;; Invalid formats - should fail validation
   (dolist (deps '(("invalid")
                   ("blocks-bd-123")
                   ("blocks:")
@@ -994,7 +1244,8 @@ Integration test that retrieves issue database stats."
     (let ((cmd (beads-command-create
                 :title "Test"
                 :deps deps)))
-      (should-not (beads-command-validate cmd)))))
+      (should (stringp (beads-command-validate cmd)))
+      (should (string-match-p "depend" (downcase (beads-command-validate cmd)))))))
 
 (ert-deftest beads-command-test-unit-close-validate-issue-id-required ()
   "Unit test: beads-command-close validation requires issue ID."
@@ -1526,6 +1777,70 @@ Integration test that checks for dependency cycles."
   "Unit test: dep-cycles validation always succeeds (no required fields)."
   :tags '(:unit)
   (let ((cmd (beads-command-dep-cycles)))
+    (should (null (beads-command-validate cmd)))))
+
+;;; Unit Tests: beads-command-delete
+
+(ert-deftest beads-command-test-delete-command-line-basic ()
+  "Unit test: delete command-line with just issue-id.
+Regression test for bug where issue-id was prepended instead of appended."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-delete :issue-id "bd-42"))
+         (args (beads-command-line cmd)))
+    ;; Should be: ("bd" "delete" <...global-flags...> "bd-42")
+    ;; NOT: ("bd" "bd-42" "delete" <...global-flags...>)
+    (should (equal (car args) beads-executable))
+    (should (equal (nth 1 args) "delete"))
+    (should (member "bd-42" args))
+    ;; Issue ID should come AFTER "delete"
+    (should (> (cl-position "bd-42" args :test #'equal)
+               (cl-position "delete" args :test #'equal)))))
+
+(ert-deftest beads-command-test-delete-command-line-with-force ()
+  "Unit test: delete command-line with --force flag."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-delete :issue-id "bd-123" :force t))
+         (args (beads-command-line cmd)))
+    ;; Should contain all elements in correct order
+    (should (equal (car args) beads-executable))
+    (should (equal (nth 1 args) "delete"))
+    (should (member "bd-123" args))
+    (should (member "--force" args))
+    ;; Order should be: bd delete ... bd-123 ... --force
+    (let ((delete-pos (cl-position "delete" args :test #'equal))
+          (id-pos (cl-position "bd-123" args :test #'equal))
+          (force-pos (cl-position "--force" args :test #'equal)))
+      (should (< delete-pos id-pos))
+      (should (< id-pos force-pos)))))
+
+(ert-deftest beads-command-test-delete-command-line-without-force ()
+  "Unit test: delete command-line without --force should not include flag."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-delete :issue-id "bd-99" :force nil))
+         (args (beads-command-line cmd)))
+    (should (equal (car args) beads-executable))
+    (should (equal (nth 1 args) "delete"))
+    (should (member "bd-99" args))
+    (should-not (member "--force" args))))
+
+(ert-deftest beads-command-test-delete-validation-requires-issue-id ()
+  "Unit test: delete validation fails without issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-delete)))
+    (should (stringp (beads-command-validate cmd)))
+    (should (string-match-p "issue ID" (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-test-delete-validation-empty-issue-id ()
+  "Unit test: delete validation fails with empty issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-delete :issue-id "")))
+    (should (stringp (beads-command-validate cmd)))
+    (should (string-match-p "issue ID" (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-test-delete-validation-success ()
+  "Unit test: delete validation succeeds with valid issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-delete :issue-id "bd-42")))
     (should (null (beads-command-validate cmd)))))
 
 (provide 'beads-command-test)

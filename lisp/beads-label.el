@@ -15,8 +15,8 @@
 ;; - Integration with beads-list and beads-show buffers
 ;;
 ;; The module follows the pattern established in other beads modules
-;; (beads-dep, beads-misc, etc.) with state variables, reader functions,
-;; and transient-based command interfaces.
+;; (beads-dep, beads-export, beads-import, etc.) with state variables,
+;; reader functions, and transient-based command interfaces.
 ;;
 ;; Usage:
 ;;
@@ -171,7 +171,7 @@ Returns list of arguments for bd label add command."
 
 (transient-define-suffix beads-label-add--execute ()
   "Execute the bd label add command with current parameters."
-  :key "a"
+  :key "x"
   :description "Add label"
   (interactive)
   (let* ((args (transient-args 'beads-label-add))
@@ -209,7 +209,7 @@ Returns list of arguments for bd label add command."
 
 (transient-define-suffix beads-label-add--reset ()
   "Reset all parameters to their default values."
-  :key "r"
+  :key "R"
   :description "Reset fields"
   :transient t
   (interactive)
@@ -293,7 +293,7 @@ Returns list of arguments for bd label remove command."
 
 (transient-define-suffix beads-label-remove--execute ()
   "Execute the bd label remove command with current parameters."
-  :key "r"
+  :key "x"
   :description "Remove label"
   (interactive)
   (let* ((args (transient-args 'beads-label-remove))
@@ -396,7 +396,9 @@ If called from beads-list or beads-show buffers, uses current issue."
 
 (defun beads-label-list-all--current-label ()
   "Return the label name at point, or nil."
-  (tabulated-list-get-id))
+  ;; Use symbol-function + funcall to prevent byte-compiler inlining.
+  ;; This ensures cl-letf can properly mock tabulated-list-get-id in tests.
+  (funcall (symbol-function 'tabulated-list-get-id)))
 
 (defun beads-label-list-all-show-issues ()
   "Show all issues with the label at point in a beads-list buffer."
@@ -409,11 +411,9 @@ If called from beads-list or beads-show buffers, uses current issue."
     (require 'beads-command)
     (let* ((cmd (beads-command-list :label (list label)))
            (issues (beads-command-execute cmd))
-           (buffer (get-buffer-create (format "*beads-list: label=%s*" label)))
-           (project-dir default-directory))
+           (buffer (get-buffer-create (format "*beads-list: label=%s*" label))))
       (with-current-buffer buffer
         (beads-list-mode)
-        (setq default-directory project-dir)
         (if (not issues)
             (progn
               (setq tabulated-list-entries nil)

@@ -46,14 +46,16 @@
 ;;; Code:
 
 (require 'beads)
-(require 'beads-types)
 (require 'beads-command)
 (require 'beads-option)
+(require 'beads-show)
+(require 'beads-types)
 (require 'transient)
 
 ;;; Forward Declarations
 
 (declare-function beads-update "beads-update" (&optional issue-id))
+(declare-function beads-reopen "beads-reopen" (&optional issue-id))
 
 ;;; Customization
 
@@ -420,11 +422,9 @@ Returns a beads-command-list object with all applicable filters set."
          (command (beads-list--parse-transient-args args)))
     (condition-case err
         (let* ((issue-objects (beads-command-execute command))
-               (buffer (get-buffer-create "*beads-list*"))
-               (project-dir default-directory))
+               (buffer (get-buffer-create "*beads-list*")))
           (with-current-buffer buffer
             (beads-list-mode)
-            (setq default-directory project-dir)
             (if (not issue-objects)
                 (progn
                   (setq tabulated-list-entries nil)
@@ -441,7 +441,7 @@ Returns a beads-command-list object with all applicable filters set."
 
 (transient-define-suffix beads-list--transient-reset ()
   "Reset all filter parameters to their default values."
-  :key "r"
+  :key "R"
   :description "Reset all filters"
   :transient t
   (interactive)
@@ -568,11 +568,7 @@ Transient levels control which filter groups are visible
   "Show details for the issue at point."
   (interactive)
   (if-let* ((id (beads-list--current-issue-id)))
-      (let ((project-dir default-directory))
-        (require 'beads-show)
-        ;; Preserve project context when showing issue
-        (let ((default-directory project-dir))
-          (beads-show id)))
+      (beads-show id)
     (user-error "No issue at point")))
 
 (defun beads-list-quit ()
@@ -910,11 +906,9 @@ transient menu options."
   (interactive)
   (beads-check-executable)
   (let ((issues (beads-issue-ready))
-        (buffer (get-buffer-create "*beads-ready*"))
-        (project-dir default-directory))
+        (buffer (get-buffer-create "*beads-ready*")))
     (with-current-buffer buffer
       (beads-list-mode)
-      (setq default-directory project-dir)
       (if (not issues)
           (progn
             (setq tabulated-list-entries nil)
@@ -943,11 +937,9 @@ transient menu options."
   (interactive)
   (beads-check-executable)
   (let ((issues (beads-blocked-issue-list))
-        (buffer (get-buffer-create "*beads-blocked*"))
-        (project-dir default-directory))
+        (buffer (get-buffer-create "*beads-blocked*")))
     (with-current-buffer buffer
       (beads-list-mode)
-      (setq default-directory project-dir)
       (if (not issues)
           (progn
             (setq tabulated-list-entries nil)

@@ -468,13 +468,13 @@ Returns t if found, signals error otherwise."
 (autoload 'beads-dep-cycles "beads-dep" "Check for dependency cycles." t)
 
 ;;;###autoload
-(autoload 'beads-quickstart "beads-misc" "Show Beads quickstart guide." t)
+(autoload 'beads-quickstart "beads-quickstart" "Show Beads quickstart guide." t)
 
 ;;;###autoload
-(autoload 'beads-import "beads-misc" "Import issues from JSON file." t)
+(autoload 'beads-import "beads-import" "Import issues from JSONL." t)
 
 ;;;###autoload
-(autoload 'beads-export "beads-misc" "Export issues to JSON file." t)
+(autoload 'beads-export "beads-export" "Export issues to JSONL format." t)
 
 ;;;###autoload
 (autoload 'beads-sync "beads-sync" "Synchronize issues with git remote." t)

@@ -124,12 +124,9 @@ Opens a beads-list buffer with all issues, bypassing the transient menu."
   (beads-check-executable)
   (let* ((cmd (beads-command-list))
          (issues (beads-command-execute cmd))
-         (buffer (get-buffer-create "*beads-list*"))
-         (project-dir default-directory))
+         (buffer (get-buffer-create "*beads-list*")))
     (with-current-buffer buffer
       (beads-list-mode)
-      ;; Preserve project context in list buffer
-      (setq default-directory project-dir)
       (if (not issues)
           (progn
             (setq tabulated-list-entries nil)
@@ -165,12 +162,9 @@ STATUS should be one of: open, in-progress, or closed."
          (buffer-name (format "*beads-list: %s*" status-str))
          (cmd (beads-command-list :status status-str))
          (issues (beads-command-execute cmd))
-         (buffer (get-buffer-create buffer-name))
-         (project-dir default-directory))
+         (buffer (get-buffer-create buffer-name)))
     (with-current-buffer buffer
       (beads-list-mode)
-      ;; Preserve project context in list buffer
-      (setq default-directory project-dir)
       (if (not issues)
           (progn
             (setq tabulated-list-entries nil)

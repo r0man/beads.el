@@ -309,8 +309,8 @@ by checking if the function is available after requiring beads-main."
 ;;; Tests for beads-init command
 
 (ert-deftest beads-main-test-init-is-transient-prefix ()
-  "Test that beads-init--menu is a transient prefix."
-  (should (get 'beads-init--menu 'transient--prefix)))
+  "Test that beads-init is a transient prefix."
+  (should (get 'beads-init 'transient--prefix)))
 
 (ert-deftest beads-main-test-init-execute-defined ()
   "Test that beads-init execute command is defined."
@@ -319,8 +319,8 @@ by checking if the function is available after requiring beads-main."
 ;;; Tests for beads-export command
 
 (ert-deftest beads-main-test-export-is-transient-prefix ()
-  "Test that beads-export--menu is a transient prefix."
-  (should (get 'beads-export--menu 'transient--prefix)))
+  "Test that beads-export is a transient prefix."
+  (should (get 'beads-export 'transient--prefix)))
 
 (ert-deftest beads-main-test-export-execute-defined ()
   "Test that beads-export execute command is defined."
@@ -329,8 +329,8 @@ by checking if the function is available after requiring beads-main."
 ;;; Tests for beads-import command
 
 (ert-deftest beads-main-test-import-is-transient-prefix ()
-  "Test that beads-import--menu is a transient prefix."
-  (should (get 'beads-import--menu 'transient--prefix)))
+  "Test that beads-import is a transient prefix."
+  (should (get 'beads-import 'transient--prefix)))
 
 (ert-deftest beads-main-test-import-execute-defined ()
   "Test that beads-import execute command is defined."

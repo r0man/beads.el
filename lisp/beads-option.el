@@ -604,7 +604,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :reader #'beads-reader-dep-type)
 
 ;;; ============================================================
-;;; Transient Infix Definitions - beads-misc (export/import/init)
+;;; Transient Infix Definitions - Export/Import/Init/Quickstart
 ;;; ============================================================
 
 (transient-define-infix beads-option-export-output ()
@@ -623,6 +623,31 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "-n"
   :argument "--no-auto-flush")
 
+(transient-define-infix beads-option-export-force ()
+  "Toggle force flag."
+  :class 'transient-switch
+  :description "--force (export even if empty)"
+  :key "-f"
+  :argument "--force")
+
+(transient-define-infix beads-option-export-format ()
+  "Set the export format."
+  :class 'transient-option
+  :description "--format"
+  :key "-F"
+  :argument "--format="
+  :prompt "Format: "
+  :choices '("jsonl"))
+
+(transient-define-infix beads-option-export-status ()
+  "Filter by status."
+  :class 'transient-option
+  :description "--status"
+  :key "-s"
+  :argument "--status="
+  :prompt "Status: "
+  :choices '("open" "in_progress" "closed" "blocked"))
+
 (transient-define-infix beads-option-import-input ()
   "Set the input file path."
   :class 'transient-option
@@ -633,18 +658,55 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :reader #'beads-reader-import-input)
 
 (transient-define-infix beads-option-import-dry-run ()
-  "Toggle dry-run flag."
+  "Preview collision detection without making changes."
   :class 'transient-switch
   :description "--dry-run"
   :key "-d"
   :argument "--dry-run")
 
-(transient-define-infix beads-option-import-resolve-collisions ()
-  "Toggle resolve-collisions flag."
+(transient-define-infix beads-option-import-skip-existing ()
+  "Skip existing issues instead of updating them."
   :class 'transient-switch
-  :description "--resolve-collisions"
+  :description "--skip-existing"
+  :key "-s"
+  :argument "--skip-existing")
+
+(transient-define-infix beads-option-import-clear-duplicate-external-refs ()
+  "Clear duplicate external_ref values (keeps first occurrence)."
+  :class 'transient-switch
+  :description "--clear-duplicate-external-refs"
+  :key "-c"
+  :argument "--clear-duplicate-external-refs")
+
+(transient-define-infix beads-option-import-dedupe-after ()
+  "Detect and report content duplicates after import."
+  :class 'transient-switch
+  :description "--dedupe-after"
+  :key "-D"
+  :argument "--dedupe-after")
+
+(transient-define-infix beads-option-import-rename-on-import ()
+  "Rename imported issues to match database prefix."
+  :class 'transient-switch
+  :description "--rename-on-import"
   :key "-r"
-  :argument "--resolve-collisions")
+  :argument "--rename-on-import")
+
+(transient-define-infix beads-option-import-strict ()
+  "Fail on dependency errors instead of treating them as warnings."
+  :class 'transient-switch
+  :description "--strict"
+  :key "-S"
+  :argument "--strict")
+
+(transient-define-infix beads-option-import-orphan-handling ()
+  "How to handle missing parent issues."
+  :class 'transient-option
+  :description "--orphan-handling"
+  :key "-o"
+  :argument "--orphan-handling="
+  :prompt "Orphan handling: "
+  :choices '("strict" "resurrect" "skip" "allow"))
 
 (transient-define-infix beads-option-init-prefix ()
   "Set the issue ID prefix."
@@ -663,6 +725,42 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :argument "--db="
   :prompt "Database path: "
   :reader #'beads-reader-init-db)
+
+(transient-define-infix beads-option-init-branch ()
+  "Set the git branch for beads commits."
+  :class 'transient-option
+  :description "--branch"
+  :key "-b"
+  :argument "--branch="
+  :prompt "Git branch: ")
+
+(transient-define-infix beads-option-init-contributor ()
+  "Run OSS contributor setup wizard."
+  :class 'transient-switch
+  :description "--contributor"
+  :key "-c"
+  :argument "--contributor")
+
+(transient-define-infix beads-option-init-quiet ()
+  "Suppress output (quiet mode)."
+  :class 'transient-switch
+  :description "--quiet"
+  :key "-q"
+  :argument "--quiet")
+
+(transient-define-infix beads-option-init-skip-merge-driver ()
+  "Skip git merge driver setup (non-interactive)."
+  :class 'transient-switch
+  :description "--skip-merge-driver"
+  :key "-s"
+  :argument "--skip-merge-driver")
+
+(transient-define-infix beads-option-init-team ()
+  "Run team workflow setup wizard."
+  :class 'transient-switch
+  :description "--team"
+  :key "-t"
+  :argument "--team")
 
 ;;; ============================================================
 ;;; Transient Infix Definitions - beads-list
@@ -1009,9 +1107,9 @@ labels to issues using the bd label add command."
     :prompt "Label name: ")]
   beads-option-global-section
   ["Actions"
-   ("a" "Add label" beads-label-add--execute)
-   ("P" "Preview command" beads-label-add--preview)
-   ("r" "Reset fields" beads-label-add--reset)])
+   (beads-label-add--execute)
+   (beads-label-add--preview)
+   (beads-label-add--reset)])
 
 ;;;###autoload (autoload 'beads-label-remove "beads-option" nil t)
 (transient-define-prefix beads-label-remove ()
@@ -1028,9 +1126,9 @@ labels from issues using the bd label remove command."
     :prompt "Label name: ")]
   beads-option-global-section
   ["Actions"
-   ("r" "Remove label" beads-label-remove--execute)
-   ("P" "Preview command" beads-label-remove--preview)
-   ("R" "Reset fields" beads-label-remove--reset)])
+   (beads-label-remove--execute)
+   (beads-label-remove--preview)
+   (beads-label-remove--reset)])
 
 (provide 'beads-option)
 ;;; beads-option.el ends here

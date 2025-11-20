@@ -14,7 +14,7 @@
 (require 'ert)
 (require 'beads)
 (require 'beads-label)
-(require 'beads-test-helper)
+(require 'beads-test)
 
 ;;; Test Fixtures
 
@@ -166,6 +166,7 @@
 
 (ert-deftest beads-label-test-current-label-nil ()
   "Test extracting current label when no label at point."
+  ;; Test that the function returns nil when there's no label
   (cl-letf (((symbol-function 'tabulated-list-get-id)
              (lambda () nil)))
     (should-not (beads-label-list-all--current-label))))

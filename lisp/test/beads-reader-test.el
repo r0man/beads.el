@@ -321,7 +321,7 @@
         (should (equal result "parent-child"))))))
 
 ;;; ============================================================
-;;; Tests for beads-misc (export/import/init) Reader Functions
+;;; Tests for Export/Import/Init/Quickstart Reader Functions
 ;;; ============================================================
 
 (ert-deftest beads-reader-test-export-output-exists ()
