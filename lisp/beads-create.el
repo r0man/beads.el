@@ -131,12 +131,6 @@ Returns list of error messages, or nil if all valid."
                (when (oref cmd deps)
                  (string-join (oref cmd deps) ","))))))
 
-;;; Variables
-
-(defvar beads-create--default-directory nil
-  "Captured default-directory when transient menu was invoked.
-Used to ensure bd commands run in the correct directory.")
-
 ;;; Suffix Commands
 
 (transient-define-suffix beads-create--execute ()
@@ -144,11 +138,9 @@ Used to ensure bd commands run in the correct directory.")
   :key "x"
   :description "Create issue"
   (interactive)
-  (let* ((args (transient-args 'beads-create--menu))
+  (let* ((args (transient-args 'beads-create))
          (cmd (beads-create--parse-transient-args args))
-         (errors (beads-create--validate-all cmd))
-         ;; Use captured default-directory from when transient was invoked
-         (default-directory (or beads-create--default-directory default-directory)))
+         (errors (beads-create--validate-all cmd)))
     (if errors
         (user-error "Validation failed: %s" (string-join errors "; "))
       (condition-case err
@@ -187,11 +179,9 @@ Used to ensure bd commands run in the correct directory.")
   :description "Preview command"
   :transient t
   (interactive)
-  (let* ((args (transient-args 'beads-create--menu))
+  (let* ((args (transient-args 'beads-create))
          (cmd (beads-create--parse-transient-args args))
-         (errors (beads-create--validate-all cmd))
-         ;; Use captured default-directory from when transient was invoked
-         (default-directory (or beads-create--default-directory default-directory)))
+         (errors (beads-create--validate-all cmd)))
     (if errors
         (let ((err-msg (format "Validation errors: %s"
                                (string-join errors "; "))))
@@ -203,43 +193,40 @@ Used to ensure bd commands run in the correct directory.")
         (message "%s" preview-msg)
         preview-msg))))
 
+;;; Transient Groups
+
+(transient-define-group beads-create--required-section
+  [:level 1 "Required"
+          (beads-option-issue-title)])
+
+(transient-define-group beads-create--issue-attributes-section
+  [:level 2 "Issue attributes"
+          (beads-option-issue-type)
+          (beads-option-issue-priority)
+          (beads-option-issue-assignee)
+          (beads-option-issue-labels)])
+
+(transient-define-group beads-create--content-section
+  [:level 3 "Content"
+          (beads-option-issue-description)
+          (beads-option-issue-acceptance)
+          (beads-option-issue-design)])
+
+(transient-define-group beads-create--advanced-section
+  [:level 4 "Advanced"
+          (beads-option-issue-external-ref)
+          (beads-option-create-custom-id)
+          (beads-option-create-dependencies)
+          (beads-option-create-parent)
+          (beads-option-create-repo)
+          (beads-option-create-from-template)
+          (beads-option-create-file)
+          (beads-option-create-force)])
+
 ;;; Main Transient Menu
 
-(transient-define-prefix beads-create--menu ()
-  "Internal transient menu for beads-create.
-Do not call directly; use `beads-create' instead."
-  ["Required"
-   :level 1
-   (beads-option-issue-title)]
-  ["Issue attributes"
-   :level 2
-   (beads-option-issue-type)
-   (beads-option-issue-priority)
-   (beads-option-issue-assignee)
-   (beads-option-issue-labels)]
-  ["Content"
-   :level 3
-   (beads-option-issue-description)
-   (beads-option-issue-acceptance)
-   (beads-option-issue-design)]
-  ["Advanced"
-   :level 4
-   (beads-option-issue-external-ref)
-   (beads-option-create-custom-id)
-   (beads-option-create-dependencies)
-   (beads-option-create-parent)
-   (beads-option-create-repo)
-   (beads-option-create-from-template)
-   (beads-option-create-file)
-   (beads-option-create-force)]
-  beads-option-global-section
-  ["Actions"
-   (beads-create--execute)
-   (beads-create--preview)
-   (beads-create--reset)])
-
-;;;###autoload
-(defun beads-create ()
+;;;###autoload (autoload 'beads-create "beads-create" nil t)
+(transient-define-prefix beads-create ()
   "Create a new issue in Beads.
 
 This transient menu provides an interactive interface for setting
@@ -252,10 +239,15 @@ Transient levels control which field groups are visible (cycle with C-x l):
   Level 3: Content (description, acceptance, design)  [default]
   Level 4: Advanced (external-ref, custom-id, dependencies, etc.)
   Level 7: Global options (actor, db, json flags, etc.)"
-  (interactive)
-  ;; Capture default-directory when transient is invoked
-  (setq beads-create--default-directory default-directory)
-  (transient-setup 'beads-create--menu))
+  beads-create--required-section
+  beads-create--issue-attributes-section
+  beads-create--content-section
+  beads-create--advanced-section
+  beads-option-global-section
+  ["Actions"
+   (beads-create--execute)
+   (beads-create--preview)
+   (beads-create--reset)])
 
 (provide 'beads-create)
 ;;; beads-create.el ends here
