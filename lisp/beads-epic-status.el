@@ -286,10 +286,9 @@ Format: ((epic-id . (expanded-p . children)) ...)")
   (if-let* ((epic-id (get-text-property (point) 'epic-id)))
       (progn
         (require 'beads-list)
-        (let ((default-directory default-directory))
-          (beads-list-issues
-           (beads-issue-filter
-            :deps (format "parent-child:%s" epic-id)))))
+        (beads-list-issues
+         (beads-issue-filter
+          :deps (format "parent-child:%s" epic-id))))
     (user-error "No epic at point")))
 
 (defun beads-epic-status-next ()

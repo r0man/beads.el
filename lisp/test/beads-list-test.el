@@ -980,7 +980,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-transient-menu-displays ()
   "Integration test: Verify beads-list transient menu displays without errors.
-Uses execute-kbd-macro technique from:
+Uses beads-test-interact technique from:
 https://emacs.stackexchange.com/questions/55386/how-to-automate-user-testing-with-elisp"
   :tags '(integration transient)
   (cl-letf (((symbol-function 'beads-check-executable)
@@ -999,7 +999,7 @@ https://emacs.stackexchange.com/questions/55386/how-to-automate-user-testing-wit
                       ;; Verify transient is active
                       (should (transient-active-prefix 'beads-list))
                       ;; Quit the transient
-                      (execute-kbd-macro (kbd "q"))
+                      (beads-test-interact '("q"))
                       nil)
                   (error err)))))
 
@@ -1020,7 +1020,7 @@ Tests the full workflow: open menu -> execute -> display results."
                       ;; Call beads-list to show transient
                       (call-interactively 'beads-list)
                       ;; Execute the list command (press 'x')
-                      (execute-kbd-macro (kbd "x"))
+                      (beads-test-interact '("x"))
                       ;; Verify we're now in the beads-list buffer
                       (should (equal (buffer-name) "*beads-list*"))
                       (should (eq major-mode 'beads-list-mode))
@@ -1041,11 +1041,11 @@ Tests the full workflow: open menu -> execute -> display results."
                       ;; Call beads-list to show transient
                       (call-interactively 'beads-list)
                       ;; Press 'P' to preview command
-                      (execute-kbd-macro (kbd "P"))
+                      (beads-test-interact '("P"))
                       ;; Verify transient is still active (preview is transient)
                       (should (transient-active-prefix 'beads-list))
                       ;; Quit the transient
-                      (execute-kbd-macro (kbd "q"))
+                      (beads-test-interact '("q"))
                       nil)
                   (error err)))))
 

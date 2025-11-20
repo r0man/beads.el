@@ -266,18 +266,16 @@ Tests successful creation with only title set using full UI workflow."
     (let ((show-called nil)
           (result
            (beads-test-with-cache-tracking
-             (cl-letf (((symbol-function 'y-or-n-p)
-                        (lambda (_) nil))  ; Don't show issue
-                       ((symbol-function 'beads-show)
-                        (lambda (_) (setq show-called t))))
-               ;; Invoke transient menu
-               (funcall-interactively #'beads-create)
-
-               ;; Set title field
-               (execute-kbd-macro (kbd "t Minimal SPC Test SPC Issue RET"))
-
-               ;; Execute create command
-               (execute-kbd-macro (kbd "x"))))))
+            (cl-letf (((symbol-function 'y-or-n-p)
+                       (lambda (_) nil))  ; Don't show issue
+                      ((symbol-function 'beads-show)
+                       (lambda (_) (setq show-called t))))
+              ;; Invoke transient menu
+              (funcall-interactively #'beads-create)
+              ;; Set title field
+              (beads-test-interact '("t Minimal SPC Test SPC Issue RET"))
+              ;; Execute create command
+              (beads-test-interact '("x"))))))
 
       ;; Verify cache was invalidated
       (should (plist-get result :completion-cache-invalidated))
@@ -299,33 +297,31 @@ including simple fields (title, type, priority, assignee, labels, external-ref)
 and multiline fields (description, acceptance, design).
 
 Key: Multiline fields work by combining infix + text + commit in SINGLE macro.
-Example: (execute-kbd-macro (kbd \"- d Full SPC text C-c C-c\"))"
+Example: (beads-test-interact '(\"- d Full SPC text C-c C-c\"))"
   :tags '(:integration :slow :ui)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-project ()
     (let ((result
            (beads-test-with-cache-tracking
-             (cl-letf (((symbol-function 'y-or-n-p)
-                        (lambda (_) nil)))  ; Don't show issue
-               ;; Invoke transient menu
-               (funcall-interactively #'beads-create)
+            (cl-letf (((symbol-function 'y-or-n-p)
+                       (lambda (_) nil)))  ; Don't show issue
+              ;; Invoke transient menu
+              (funcall-interactively #'beads-create)
+              ;; Set simple fields via kbd macros
+              (beads-test-interact '("t Complete SPC Test SPC Issue RET"))
+              (beads-test-interact '("- t feature RET"))
+              (beads-test-interact '("- p 1 RET"))
+              (beads-test-interact '("- a testuser RET"))
+              ;; Use unique external-ref to avoid UNIQUE constraint violations
+              (beads-test-interact (list (format "- x gh-%d RET" (random 99999))))
+              (beads-test-interact '("- l test,integration RET"))
 
-               ;; Set simple fields via kbd macros
-               (execute-kbd-macro (kbd "t Complete SPC Test SPC Issue RET"))
-               (execute-kbd-macro (kbd "- t feature RET"))
-               (execute-kbd-macro (kbd "- p 1 RET"))
-               (execute-kbd-macro (kbd "- a testuser RET"))
-               ;; Use unique external-ref to avoid UNIQUE constraint violations
-               (execute-kbd-macro (kbd (format "- x gh-%d RET" (random 99999))))
-               (execute-kbd-macro (kbd "- l test,integration RET"))
-
-               ;; Set multiline fields - combine infix + text + commit in SINGLE macro
-               (execute-kbd-macro (kbd "- d Full SPC description SPC text C-c C-c"))
-               (execute-kbd-macro (kbd "- A Acceptance SPC criteria SPC here C-c C-c"))
-               (execute-kbd-macro (kbd "- G Design SPC notes C-c C-c"))
-
-               ;; Execute create command
-               (execute-kbd-macro (kbd "x"))))))
+              ;; Set multiline fields - combine infix + text + commit in SINGLE macro
+              (beads-test-interact '("- d Full SPC description SPC text C-c C-c"))
+              (beads-test-interact '("- A Acceptance SPC criteria SPC here C-c C-c"))
+              (beads-test-interact '("- G Design SPC notes C-c C-c"))
+              ;; Execute create command
+              (beads-test-interact '("x"))))))
 
       ;; Verify cache was invalidated
       (should (plist-get result :completion-cache-invalidated))
@@ -405,10 +401,10 @@ Tests that beads--invalidate-completion-cache is called."
         '("--title=Cache Test Issue")
       (let ((result
              (beads-test-with-cache-tracking
-               (cl-letf (((symbol-function 'y-or-n-p)
-                          (lambda (_) nil)))  ; Don't show issue
-                 ;; Execute create
-                 (call-interactively #'beads-create--execute)))))
+              (cl-letf (((symbol-function 'y-or-n-p)
+                         (lambda (_) nil)))  ; Don't show issue
+                ;; Execute create
+                (call-interactively #'beads-create--execute)))))
 
         ;; Verify completion cache was invalidated
         (should (plist-get result :completion-cache-invalidated))
@@ -437,10 +433,10 @@ Verifies that beads-show is called when user says yes using full UI workflow."
         (funcall-interactively #'beads-create)
 
         ;; Set title field
-        (execute-kbd-macro (kbd "t Show SPC Workflow SPC Test RET"))
+        (beads-test-interact '("t Show SPC Workflow SPC Test RET"))
 
         ;; Execute create command
-        (execute-kbd-macro (kbd "x"))
+        (beads-test-interact '("x"))
 
         ;; Verify show was called
         (should show-called)
@@ -467,13 +463,13 @@ Tests creating an issue with dependency links using full UI workflow."
         (funcall-interactively #'beads-create)
 
         ;; Set title field
-        (execute-kbd-macro (kbd "t Child SPC Issue RET"))
+        (beads-test-interact '("t Child SPC Issue RET"))
 
         ;; Set dependencies (format: type:id)
-        (execute-kbd-macro (kbd (format "- D blocks:%s RET" parent-id)))
+        (beads-test-interact (list (format "- D blocks:%s RET" parent-id)))
 
         ;; Execute create command
-        (execute-kbd-macro (kbd "x"))
+        (beads-test-interact '("x"))
 
         ;; Verify the child issue was created
         (let* ((issues (beads-command-list!))
@@ -642,7 +638,7 @@ Tests that preview is truly read-only with no side effects."
         '("--title=Preview Cache Test")
       (let ((result
              (beads-test-with-cache-tracking
-               (call-interactively #'beads-create--preview))))
+              (call-interactively #'beads-create--preview))))
         ;; Verify no cache invalidation occurred
         (should-not (plist-get result :completion-cache-invalidated))
         (should-not (plist-get result :label-cache-invalidated))))))
@@ -716,13 +712,13 @@ Tests that reset is a UI-only operation with no database side effects."
       '("--title=Reset Cache Test")
     (let ((result
            (beads-test-with-cache-tracking
-             (cl-letf (((symbol-function 'y-or-n-p)
-                        (lambda (_) t))  ; Confirm reset
-                       ((symbol-function 'transient-reset)
-                        (lambda () nil))  ; Mock transient-reset
-                       ((symbol-function 'transient--redisplay)
-                        (lambda () nil)))  ; Mock redisplay
-               (call-interactively #'beads-create--reset)))))
+            (cl-letf (((symbol-function 'y-or-n-p)
+                       (lambda (_) t))  ; Confirm reset
+                      ((symbol-function 'transient-reset)
+                       (lambda () nil))  ; Mock transient-reset
+                      ((symbol-function 'transient--redisplay)
+                       (lambda () nil)))  ; Mock redisplay
+              (call-interactively #'beads-create--reset)))))
       ;; Verify no cache invalidation occurred
       (should-not (plist-get result :completion-cache-invalidated))
       (should-not (plist-get result :label-cache-invalidated)))))
@@ -1139,11 +1135,11 @@ not when errors occur during execution."
       '("--title=Test Issue")
     (let ((result
            (beads-test-with-cache-tracking
-             (cl-letf (((symbol-function 'beads-command-execute)
-                        (lambda (_)
-                          (error "Simulated bd failure"))))
-               ;; Execute should fail
-               (call-interactively #'beads-create--execute)))))
+            (cl-letf (((symbol-function 'beads-command-execute)
+                       (lambda (_)
+                         (error "Simulated bd failure"))))
+              ;; Execute should fail
+              (call-interactively #'beads-create--execute)))))
       ;; Verify cache was NOT invalidated (error path)
       (should-not (plist-get result :completion-cache-invalidated))
       (should-not (plist-get result :label-cache-invalidated)))))

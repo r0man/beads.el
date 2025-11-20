@@ -596,14 +596,10 @@ Creates or switches to a buffer showing the full issue details."
                          (beads--issue-completion-table)
                          nil t nil 'beads--issue-id-history)))
   (let* ((buffer-name (format "*beads-show: %s*" issue-id))
-         (buffer (get-buffer-create buffer-name))
-         (project-dir default-directory))  ; Capture current project context
+         (buffer (get-buffer-create buffer-name)))
     (with-current-buffer buffer
       (beads-show-mode)
       (setq beads-show--issue-id issue-id)
-      ;; Preserve project context in show buffer
-      (setq default-directory project-dir)
-
       (condition-case err
           (let ((issue (beads-command-show! :issue-ids (list issue-id))))
             (setq beads-show--issue-data issue)
@@ -980,23 +976,21 @@ Set mark at beginning of section, move point to end, and activate region."
         (if-let* ((buf (get-buffer buffer-name)))
             (switch-to-buffer-other-window buf)
           ;; Buffer doesn't exist, create it
-          (let ((project-dir default-directory))
-            (with-current-buffer (get-buffer-create buffer-name)
-              (beads-show-mode)
-              (setq beads-show--issue-id issue-id)
-              (setq default-directory project-dir)
-              (condition-case err
-                  (let ((issue (beads-command-show! :issue-ids (list issue-id))))
-                    (setq beads-show--issue-data issue)
-                    (beads-show--render-issue beads-show--issue-data))
-                (error
-                 (let ((inhibit-read-only t))
-                   (erase-buffer)
-                   (insert (propertize "Error loading issue\n\n"
+          (with-current-buffer (get-buffer-create buffer-name)
+            (beads-show-mode)
+            (setq beads-show--issue-id issue-id)
+            (condition-case err
+                (let ((issue (beads-command-show! :issue-ids (list issue-id))))
+                  (setq beads-show--issue-data issue)
+                  (beads-show--render-issue beads-show--issue-data))
+              (error
+               (let ((inhibit-read-only t))
+                 (erase-buffer)
+                 (insert (propertize "Error loading issue\n\n"
                                      'face 'error))
-                   (insert (format "%s" (error-message-string err)))
-                   (goto-char (point-min))))))
-            (switch-to-buffer-other-window buffer-name))))
+                 (insert (format "%s" (error-message-string err)))
+                 (goto-char (point-min))))))
+          (switch-to-buffer-other-window buffer-name)))
     (message "No issue reference at point")))
 
 (defun beads-show-next-reference ()
@@ -1067,8 +1061,7 @@ CURRENT-VALUE is the initial text, CALLBACK is called with result."
   (let* ((buffer-name (format "*beads-edit-%s*" (downcase field-name)))
          (buffer (generate-new-buffer buffer-name))
          (parent-buffer (current-buffer))
-         (_parent-issue-id beads-show--issue-id)
-         (project-dir default-directory))
+         (_parent-issue-id beads-show--issue-id))
     (switch-to-buffer buffer)
     (when current-value
       (insert current-value))
@@ -1081,7 +1074,6 @@ CURRENT-VALUE is the initial text, CALLBACK is called with result."
     (setq header-line-format
           (format "Edit %s: C-c C-c to save, C-c C-k to cancel"
                   field-name))
-    (setq default-directory project-dir)
     ;; Set up keybindings
     (let ((finish-func (lambda ()
                         (interactive)

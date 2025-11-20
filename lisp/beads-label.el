@@ -411,11 +411,9 @@ If called from beads-list or beads-show buffers, uses current issue."
     (require 'beads-command)
     (let* ((cmd (beads-command-list :label (list label)))
            (issues (beads-command-execute cmd))
-           (buffer (get-buffer-create (format "*beads-list: label=%s*" label)))
-           (project-dir default-directory))
+           (buffer (get-buffer-create (format "*beads-list: label=%s*" label))))
       (with-current-buffer buffer
         (beads-list-mode)
-        (setq default-directory project-dir)
         (if (not issues)
             (progn
               (setq tabulated-list-entries nil)
