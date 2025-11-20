@@ -1176,23 +1176,23 @@ Integration test that retrieves issue database stats."
     (should (string-match-p "title" (downcase (beads-command-validate cmd))))))
 
 (ert-deftest beads-command-test-unit-create-validate-title-empty ()
-  "Unit test: beads-command-create allows empty title (bd validates)."
+  "Unit test: beads-command-create rejects empty title."
   :tags '(:unit)
   (let ((cmd (beads-command-create :title "")))
-    ;; Empty string is still a title, validation passes
-    ;; bd CLI will handle the actual validation
-    (should-not (beads-command-validate cmd))))
+    ;; Empty string should fail validation
+    (should (stringp (beads-command-validate cmd)))
+    (should (string-match-p "empty" (downcase (beads-command-validate cmd))))))
 
 (ert-deftest beads-command-test-unit-create-validate-title-whitespace ()
-  "Unit test: beads-command-create allows whitespace title (bd validates)."
+  "Unit test: beads-command-create rejects whitespace-only title."
   :tags '(:unit)
   (let ((cmd (beads-command-create :title "   ")))
-    ;; Whitespace string is still a title, validation passes
-    ;; bd CLI will handle the actual validation
-    (should-not (beads-command-validate cmd))))
+    ;; Whitespace-only string should fail validation
+    (should (stringp (beads-command-validate cmd)))
+    (should (string-match-p "empty" (downcase (beads-command-validate cmd))))))
 
 (ert-deftest beads-command-test-unit-create-validate-priority-range ()
-  "Unit test: beads-command-create accepts all priority values (bd validates)."
+  "Unit test: beads-command-create validates priority range."
   :tags '(:unit)
   ;; Valid priorities (0-4)
   (dolist (p '(0 1 2 3 4))
@@ -1200,15 +1200,16 @@ Integration test that retrieves issue database stats."
                 :title "Test"
                 :priority p)))
       (should-not (beads-command-validate cmd))))
-  ;; Invalid priorities - command doesn't validate, bd CLI will
+  ;; Invalid priorities - should fail validation
   (dolist (p '(-1 5 10))
     (let ((cmd (beads-command-create
                 :title "Test"
                 :priority p)))
-      (should-not (beads-command-validate cmd)))))
+      (should (stringp (beads-command-validate cmd)))
+      (should (string-match-p "priority" (downcase (beads-command-validate cmd)))))))
 
 (ert-deftest beads-command-test-unit-create-validate-type-valid ()
-  "Unit test: beads-command-create accepts all type values (bd validates)."
+  "Unit test: beads-command-create validates type values."
   :tags '(:unit)
   ;; Valid types
   (dolist (type '("bug" "feature" "task" "epic" "chore"))
@@ -1216,14 +1217,15 @@ Integration test that retrieves issue database stats."
                 :title "Test"
                 :issue-type type)))
       (should-not (beads-command-validate cmd))))
-  ;; Invalid type - command doesn't validate, bd CLI will
+  ;; Invalid type - should fail validation
   (let ((cmd (beads-command-create
               :title "Test"
               :issue-type "invalid-type")))
-    (should-not (beads-command-validate cmd))))
+    (should (stringp (beads-command-validate cmd)))
+    (should (string-match-p "type" (downcase (beads-command-validate cmd))))))
 
 (ert-deftest beads-command-test-unit-create-validate-deps-format ()
-  "Unit test: beads-command-create accepts all dependency formats (bd validates)."
+  "Unit test: beads-command-create validates dependency format."
   :tags '(:unit)
   ;; Valid dependency formats (as lists)
   (dolist (deps '(("blocks:bd-123")
@@ -1234,7 +1236,7 @@ Integration test that retrieves issue database stats."
                 :title "Test"
                 :deps deps)))
       (should-not (beads-command-validate cmd))))
-  ;; Invalid formats - command doesn't validate, bd CLI will
+  ;; Invalid formats - should fail validation
   (dolist (deps '(("invalid")
                   ("blocks-bd-123")
                   ("blocks:")
@@ -1242,7 +1244,8 @@ Integration test that retrieves issue database stats."
     (let ((cmd (beads-command-create
                 :title "Test"
                 :deps deps)))
-      (should-not (beads-command-validate cmd)))))
+      (should (stringp (beads-command-validate cmd)))
+      (should (string-match-p "depend" (downcase (beads-command-validate cmd)))))))
 
 (ert-deftest beads-command-test-unit-close-validate-issue-id-required ()
   "Unit test: beads-command-close validation requires issue ID."
