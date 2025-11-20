@@ -1163,8 +1163,8 @@ Prompts for field to edit and opens an editing buffer."
        current-value
        (lambda (new-value)
          (let ((flag (pcase field-key
-                      ('description "-d")
-                      ('acceptance-criteria "--acceptance-criteria")
+                      ('description "--description")
+                      ('acceptance-criteria "--acceptance")
                       ('design "--design")
                       ('notes "--notes"))))
            (beads-show--update-field field-name flag new-value)))))))

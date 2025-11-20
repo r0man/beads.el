@@ -1673,5 +1673,173 @@
     ;; Show mode should be active
     (should (eq major-mode 'beads-show-mode))))
 
+;;; Integration Test for Field Editing
+
+(ert-deftest beads-show-test-edit-multiline-field-integration ()
+  "Integration test: Edit multiline field and verify update.
+Tests the full workflow: create issue -> show -> edit description -> verify update."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create an issue with initial description
+    (let* ((initial-desc "Initial description text")
+           (issue (beads-command-create!
+                   :title "Test Issue for Field Editing"
+                   :description initial-desc
+                   :issue-type "task"
+                   :priority 2))
+           (issue-id (oref issue id))
+           (updated-desc "Updated description text"))
+
+      ;; Show the issue
+      (beads-show issue-id)
+      (should (equal (buffer-name) (format "*beads-show: %s*" issue-id)))
+      (should (eq major-mode 'beads-show-mode))
+
+      ;; Mock completing-read to select "Description" field
+      (cl-letf (((symbol-function 'completing-read)
+                 (lambda (prompt collection &rest _args)
+                   (should (string-match-p "Edit field" prompt))
+                   "Description")))
+
+        ;; Trigger field editing with C-c C-e
+        (beads-test-interact '("C-c C-e"))
+
+        ;; Should now be in edit buffer
+        (should (string-match-p "\\*beads-edit-description\\*" (buffer-name)))
+
+        ;; Verify initial content
+        (should (string= (buffer-substring-no-properties (point-min) (point-max))
+                        initial-desc))
+
+        ;; Clear and insert new description
+        (erase-buffer)
+        (insert updated-desc)
+
+        ;; Save the edit with C-c C-c
+        (beads-test-interact '("C-c C-c"))
+
+        ;; Should be back in show buffer
+        (should (string-match-p "\\*beads-show:" (buffer-name)))
+
+        ;; Fetch the issue again to verify it was updated
+        (let ((updated-issue (beads-command-show! :issue-ids (list issue-id))))
+          (should updated-issue)
+          (should (equal (oref updated-issue description) updated-desc))))
+
+      ;; Clean up
+      (when (get-buffer (format "*beads-show: %s*" issue-id))
+        (kill-buffer (format "*beads-show: %s*" issue-id))))))
+
+(ert-deftest beads-show-test-edit-acceptance-criteria-integration ()
+  "Integration test: Edit acceptance criteria field and verify update.
+Tests editing a different multiline field to ensure all fields work."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create an issue with initial acceptance criteria
+    (let* ((initial-ac "- [ ] Must do X\n- [ ] Must do Y")
+           (issue (beads-command-create!
+                   :title "Test Issue for AC Editing"
+                   :acceptance initial-ac
+                   :issue-type "feature"
+                   :priority 1))
+           (issue-id (oref issue id))
+           (updated-ac "- [x] Must do X\n- [x] Must do Y\n- [ ] Must do Z"))
+
+      ;; Show the issue
+      (beads-show issue-id)
+      (should (equal (buffer-name) (format "*beads-show: %s*" issue-id)))
+
+      ;; Mock completing-read to select "Acceptance Criteria" field
+      (cl-letf (((symbol-function 'completing-read)
+                 (lambda (prompt collection &rest _args)
+                   (should (string-match-p "Edit field" prompt))
+                   "Acceptance Criteria")))
+
+        ;; Trigger field editing
+        (beads-test-interact '("C-c C-e"))
+
+        ;; Should be in edit buffer
+        (should (string-match-p "\\*beads-edit-acceptance criteria\\*" (buffer-name)))
+
+        ;; Verify initial content
+        (should (string= (buffer-substring-no-properties (point-min) (point-max))
+                        initial-ac))
+
+        ;; Replace with updated content
+        (erase-buffer)
+        (insert updated-ac)
+
+        ;; Save the edit
+        (beads-test-interact '("C-c C-c"))
+
+        ;; Verify we're back in show buffer
+        (should (string-match-p "\\*beads-show:" (buffer-name)))
+
+        ;; Fetch and verify the update
+        (let ((updated-issue (beads-command-show! :issue-ids (list issue-id))))
+          (should updated-issue)
+          (should (equal (oref updated-issue acceptance-criteria) updated-ac))))
+
+      ;; Clean up
+      (when (get-buffer (format "*beads-show: %s*" issue-id))
+        (kill-buffer (format "*beads-show: %s*" issue-id))))))
+
+(ert-deftest beads-show-test-edit-notes-field-integration ()
+  "Integration test: Edit notes field and verify update.
+Tests editing the notes field specifically.
+Note: Notes cannot be set at creation time, only via update."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create an issue without notes (notes not supported in create command)
+    (let* ((issue (beads-command-create!
+                   :title "Test Issue for Notes Editing"
+                   :description "Test issue for notes editing"
+                   :issue-type "bug"
+                   :priority 0))
+           (issue-id (oref issue id))
+           (initial-notes "Initial notes about the issue")
+           (updated-notes "Updated notes with more details"))
+
+      ;; First, add initial notes via update command
+      (beads-command-execute
+       (beads-command-update :issue-ids (list issue-id)
+                            :notes initial-notes))
+
+      ;; Show the issue
+      (beads-show issue-id)
+
+      ;; Mock completing-read to select "Notes" field
+      (cl-letf (((symbol-function 'completing-read)
+                 (lambda (prompt collection &rest _args)
+                   "Notes")))
+
+        ;; Trigger field editing
+        (beads-test-interact '("C-c C-e"))
+
+        ;; Should be in edit buffer
+        (should (string-match-p "\\*beads-edit-notes\\*" (buffer-name)))
+
+        ;; Verify initial content is present
+        (should (string= (buffer-substring-no-properties (point-min) (point-max))
+                        initial-notes))
+
+        ;; Replace content
+        (erase-buffer)
+        (insert updated-notes)
+
+        ;; Save
+        (beads-test-interact '("C-c C-c"))
+
+        ;; Verify update
+        (let ((updated-issue (beads-command-show! :issue-ids (list issue-id))))
+          (should (equal (oref updated-issue notes) updated-notes))))
+
+      ;; Clean up
+      (when (get-buffer (format "*beads-show: %s*" issue-id))
+        (kill-buffer (format "*beads-show: %s*" issue-id))))))
+
 (provide 'beads-show-test)
 ;;; beads-show-test.el ends here
