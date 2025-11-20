@@ -53,8 +53,14 @@ For a project with default settings, use an empty list:
     ;; test code here
     )"
   (declare (indent 1))
-  `(let ((default-directory (beads-test-create-project ,@init-args)))
-     ,@body))
+  `(let ((default-directory (beads-test-create-project ,@init-args))
+         (beads--project-cache (make-hash-table :test 'equal)))
+     ;; Mock beads--find-project-root to return nil, forcing beads--find-beads-dir
+     ;; to use default-directory (the temp test project) instead of discovering
+     ;; the main repository via project.el
+     (cl-letf (((symbol-function 'beads--find-project-root)
+                (lambda () nil)))
+       ,@body)))
 
 (defun beads-test-execute-commands (cmds)
   (dolist (cmd cmds)
