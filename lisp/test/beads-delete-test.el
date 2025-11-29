@@ -398,8 +398,10 @@ Tests that delete detects issue ID from show buffer context."
                    (lambda (_) t))
                   ((symbol-function 'pop-to-buffer)
                    (lambda (buffer) nil)))
-          ;; Delete should use detected ID
-          (call-interactively #'beads-delete))
+          ;; Verify context detection works
+          (should (equal (beads-delete--detect-issue-id) issue-id))
+          ;; Delete using the detected ID directly (not interactively)
+          (beads-delete issue-id))
 
         ;; Verify issue was deleted
         (let ((issues (beads-command-list!)))

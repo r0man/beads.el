@@ -26,6 +26,17 @@
 (require 'beads-command)
 (require 'beads-label)
 
+(defun beads-test--generate-prefix ()
+  "Generate a unique test prefix without hyphens.
+Uses a format like `beadsTestXXXXXX' where XXXXXX is random.
+This format works with bd's --rename-on-import flag which parses
+issue IDs by splitting on the first hyphen."
+  (let ((chars "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
+        (suffix ""))
+    (dotimes (_ 6)
+      (setq suffix (concat suffix (string (aref chars (random (length chars)))))))
+    (concat "beadsTest" suffix)))
+
 (defun beads-test-create-project (&rest init-args)
   "Create a temporary beads project and return its directory.
 INIT-ARGS are keyword arguments passed to beads-command-init when
@@ -33,10 +44,56 @@ initializing the project.  For example:
 
   (beads-test-create-project :prefix \"myproject\" :quiet t)
 
-If no INIT-ARGS are provided, creates a project with default settings."
-  (let ((default-directory (make-temp-file "beads-test-" t)))
-    (beads-command-execute (apply #'beads-command-init init-args))
+If no INIT-ARGS are provided, creates a project with a unique
+auto-generated prefix (without hyphens, for --rename-on-import
+compatibility).
+
+The project is initialized with git to enable proper JSONL auto-sync."
+  (let* ((default-directory (make-temp-file "beads-test-" t))
+         ;; Generate a unique prefix if none specified
+         (effective-args (if (plist-member init-args :prefix)
+                             init-args
+                           (append (list :prefix (beads-test--generate-prefix))
+                                   init-args))))
+    ;; Initialize git first - required for bd's JSONL auto-sync
+    (call-process "git" nil nil nil "init" "-q")
+    (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
+    (call-process "git" nil nil nil "config" "user.name" "Beads Test")
+    (beads-command-execute (apply #'beads-command-init effective-args))
     default-directory))
+
+(defun beads-test--clear-transient-state ()
+  "Clear any active transient state to ensure test isolation.
+This is needed because transient can leave state that affects subsequent tests."
+  ;; Exit transient mode if active (ignore errors as transient may be corrupted)
+  (ignore-errors
+    (when (fboundp 'transient-quit-all)
+      (transient-quit-all)))
+  ;; Reset all transient internal state variables
+  (when (boundp 'transient--prefix)
+    (setq transient--prefix nil))
+  (when (boundp 'transient--suffixes)
+    (setq transient--suffixes nil))
+  (when (boundp 'transient-current-prefix)
+    (setq transient-current-prefix nil))
+  (when (boundp 'transient-current-suffixes)
+    (setq transient-current-suffixes nil))
+  (when (boundp 'transient-current-command)
+    (setq transient-current-command nil))
+  ;; Additional transient state that may need clearing
+  (when (boundp 'transient--exitp)
+    (setq transient--exitp nil))
+  (when (boundp 'transient--stack)
+    (setq transient--stack nil))
+  (when (boundp 'transient--buffer-name)
+    (setq transient--buffer-name nil))
+  (when (boundp 'transient--window)
+    (setq transient--window nil))
+  (when (boundp 'transient--showp)
+    (setq transient--showp nil))
+  ;; Remove any lingering transient keymaps from minor mode map
+  (when (boundp 'overriding-terminal-local-map)
+    (setq overriding-terminal-local-map nil)))
 
 (defmacro beads-test-with-project (init-args &rest body)
   "Execute BODY with default-directory set to a temporary beads project.
@@ -55,12 +112,17 @@ For a project with default settings, use an empty list:
   (declare (indent 1))
   `(let ((default-directory (beads-test-create-project ,@init-args))
          (beads--project-cache (make-hash-table :test 'equal)))
+     ;; Clear any active transient state from previous tests
+     (beads-test--clear-transient-state)
      ;; Mock beads--find-project-root to return nil, forcing beads--find-beads-dir
      ;; to use default-directory (the temp test project) instead of discovering
      ;; the main repository via project.el
      (cl-letf (((symbol-function 'beads--find-project-root)
                 (lambda () nil)))
-       ,@body)))
+       (unwind-protect
+           (progn ,@body)
+         ;; Clear transient state after test too
+         (beads-test--clear-transient-state)))))
 
 (defun beads-test-execute-commands (cmds)
   (dolist (cmd cmds)
