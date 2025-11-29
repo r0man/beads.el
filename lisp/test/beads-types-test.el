@@ -811,9 +811,10 @@
           (call-process "bd" nil nil nil "init" "--prefix" "test")
 
           ;; Create issues with different statuses
+          ;; Note: bd v0.26.0+ warns when creating issues without description
           (with-temp-buffer
             (call-process "bd" nil t nil "create" "Open Issue"
-                          "--json")
+                          "--description" "Test issue" "--json")
             (goto-char (point-min))
             (let* ((json-object-type 'alist)
                    (json-array-type 'list)
@@ -828,7 +829,7 @@
 
           (with-temp-buffer
             (call-process "bd" nil t nil "create" "To Be Closed"
-                          "--json")
+                          "--description" "Test issue" "--json")
             (goto-char (point-min))
             (let* ((json-object-type 'alist)
                    (json-array-type 'list)
@@ -913,9 +914,10 @@
           (call-process "bd" nil nil nil "init" "--prefix" "test")
 
           ;; Create two issues and make one depend on the other
+          ;; Note: bd v0.26.0+ warns when creating issues without description
           (with-temp-buffer
             (call-process "bd" nil t nil "create" "Blocking Issue"
-                          "--json")
+                          "--description" "Test issue" "--json")
             (goto-char (point-min))
             (let* ((json-object-type 'alist)
                    (json-array-type 'list)
@@ -925,7 +927,7 @@
 
               (erase-buffer)
               (call-process "bd" nil t nil "create" "Blocked Issue"
-                            "--json")
+                            "--description" "Test issue" "--json")
               (goto-char (point-min))
               (let* ((result2 (json-read))
                      (blocked-id (alist-get 'id result2)))
