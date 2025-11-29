@@ -39,6 +39,8 @@
 
 (ert-deftest beads-import-test-get-default-input ()
   "Test getting default input path."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
   (beads-test-with-project ()
     (let ((default-input (beads-import--get-default-input)))
       (should (stringp default-input))

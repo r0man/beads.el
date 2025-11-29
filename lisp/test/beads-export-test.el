@@ -39,6 +39,8 @@
 
 (ert-deftest beads-export-test-get-default-output ()
   "Test getting default output path."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
   (beads-test-with-project ()
     (let ((default-output (beads-export--get-default-output)))
       (should (stringp default-output))
