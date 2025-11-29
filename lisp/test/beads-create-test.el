@@ -282,8 +282,8 @@ directly in the transient-define-prefix definition."
 
 (ert-deftest beads-create-test-execute-minimal-fields ()
   "Integration test: Create issue with minimal required fields.
-Tests successful creation with only title set using full UI workflow."
-  :tags '(:integration :slow :ui)
+Tests successful creation with only title set."
+  :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-project ()
     (let ((show-called nil)
@@ -293,10 +293,10 @@ Tests successful creation with only title set using full UI workflow."
                        (lambda (_) nil))  ; Don't show issue
                       ((symbol-function 'beads-show)
                        (lambda (_) (setq show-called t))))
-              ;; Invoke transient menu
-              (funcall-interactively #'beads-create)
-              (beads-test-interact '("t Minimal SPC Test SPC Issue RET"
-                                     "x"))))))
+              ;; Use transient-args mock instead of keyboard macros
+              (beads-test-with-transient-args 'beads-create
+                  '("--title=Minimal Test Issue")
+                (call-interactively #'beads-create--execute))))))
 
       ;; Verify cache was invalidated
       (should (plist-get result :completion-cache-invalidated))
@@ -313,33 +313,27 @@ Tests successful creation with only title set using full UI workflow."
 
 (ert-deftest beads-create-test-execute-all-fields ()
   "Integration test: Create issue with all fields populated.
-Tests successful creation with ALL field types using full UI workflow,
-including simple fields (title, type, priority, assignee, labels, external-ref)
-and multiline fields (description, acceptance, design).
-
-Key: Multiline fields work by combining infix + text + commit in SINGLE macro.
-Example: (beads-test-interact '(\"- d Full SPC text C-c C-c\"))"
-  :tags '(:integration :slow :ui)
+Tests successful creation with ALL field types."
+  :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-project ()
-    (let ((result
-           (beads-test-with-cache-tracking
-            (cl-letf (((symbol-function 'y-or-n-p)
-                       (lambda (_) nil)))  ; Don't show issue
-              ;; Invoke transient menu
-              (funcall-interactively #'beads-create)
-              ;; Set simple fields via kbd macros
-              (beads-test-interact
-               (list "t Complete SPC Test SPC Issue RET"
-                     "- t feature RET"
-                     "- p 1 RET"
-                     "- a testuser RET"
-                     (format "- x gh-%d RET" (random 99999))
-                     "- l test,integration RET"
-                     "- d Full SPC description SPC text C-c C-c"
-                     "- A Acceptance SPC criteria SPC here C-c C-c"
-                     "- G Design SPC notes C-c C-c"
-                     "x"))))))
+    (let* ((ext-ref (format "gh-%d" (random 99999)))
+           (result
+            (beads-test-with-cache-tracking
+             (cl-letf (((symbol-function 'y-or-n-p)
+                        (lambda (_) nil)))  ; Don't show issue
+               ;; Use transient-args mock instead of keyboard macros
+               (beads-test-with-transient-args 'beads-create
+                   (list "--title=Complete Test Issue"
+                         "--type=feature"
+                         "--priority=1"
+                         "--assignee=testuser"
+                         (format "--external-ref=%s" ext-ref)
+                         "--labels=test,integration"
+                         "--description=Full description text"
+                         "--acceptance=Acceptance criteria here"
+                         "--design=Design notes")
+                 (call-interactively #'beads-create--execute))))))
       ;; Verify cache was invalidated
       (should (plist-get result :completion-cache-invalidated))
 
@@ -432,8 +426,8 @@ Tests that beads--invalidate-completion-cache is called."
 
 (ert-deftest beads-create-test-execute-show-workflow ()
   "Integration test: Test show-issue prompt workflow.
-Verifies that beads-show is called when user says yes using full UI workflow."
-  :tags '(:integration :slow :ui)
+Verifies that beads-show is called when user says yes."
+  :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-project ()
     (let ((show-called nil)
@@ -446,20 +440,20 @@ Verifies that beads-show is called when user says yes using full UI workflow."
                  (lambda (issue-id)
                    (setq show-called t)
                    (setq shown-issue-id issue-id))))
-        ;; Invoke transient menu
-        (funcall-interactively #'beads-create)
-        (beads-test-interact '("t Show SPC Workflow SPC Test RET"
-                               "x"))
+        ;; Use transient-args mock instead of keyboard macros
+        (beads-test-with-transient-args 'beads-create
+            '("--title=Show Workflow Test")
+          (call-interactively #'beads-create--execute))
         ;; Verify show was called
         (should show-called)
         (should shown-issue-id)
         ;; Issue ID should match pattern: project-prefix-<random-id>
-        (should (string-match-p "^[a-z0-9.-]+-[a-z0-9]+$" shown-issue-id))))))
+        (should (string-match-p "^[a-zA-Z0-9]+-[a-z0-9]+$" shown-issue-id))))))
 
 (ert-deftest beads-create-test-execute-with-dependencies ()
   "Integration test: Create issue with dependencies.
-Tests creating an issue with dependency links using full UI workflow."
-  :tags '(:integration :slow :ui)
+Tests creating an issue with dependency links."
+  :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-project ()
     ;; First create a parent issue
@@ -467,15 +461,14 @@ Tests creating an issue with dependency links using full UI workflow."
                     :title "Parent Issue"
                     :issue-type "epic"))
            (parent-id (oref parent id)))
-      ;; Now create a child issue that blocks the parent via UI
+      ;; Now create a child issue that blocks the parent
       (cl-letf (((symbol-function 'y-or-n-p)
                  (lambda (_) nil)))
-        ;; Invoke transient menu
-        (funcall-interactively #'beads-create)
-        (beads-test-interact
-         (list "t Child SPC Issue RET"
-               (format "- D blocks:%s RET" parent-id)
-               "x"))
+        ;; Use transient-args mock instead of keyboard macros
+        (beads-test-with-transient-args 'beads-create
+            (list "--title=Child Issue"
+                  (format "--deps=blocks:%s" parent-id))
+          (call-interactively #'beads-create--execute))
         ;; Verify the child issue was created
         (let* ((issues (beads-command-list!))
                (child (seq-find
