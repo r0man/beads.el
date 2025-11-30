@@ -5,32 +5,6 @@
 (eldev-use-package-archive 'gnu)
 (eldev-use-package-archive 'melpa)
 
-;; =============================================================================
-;; CRITICAL: Force newer transient from GNU ELPA over the built-in version
-;; =============================================================================
-;;
-;; Emacs 29+ and 30+ have a BUILT-IN transient at an older version (~0.3.x)
-;; that doesn't have `transient-define-group` (added in v0.9.0).
-;;
-;; The problem:
-;; 1. When `(require 'transient)` runs, it finds the built-in version first
-;; 2. The built-in provides the 'transient feature
-;; 3. Once a feature is provided, require doesn't reload it
-;; 4. Our code uses transient-define-group which doesn't exist in the built-in
-;;
-;; The solution:
-;; Use `package-install-upgrade-built-in` to tell Emacs to prefer newer
-;; installed packages over built-in ones. This variable must be set BEFORE
-;; any package operations occur. Eldev manages package installation, so we
-;; just set this variable and let Eldev handle the rest.
-;; =============================================================================
-
-;; Ensure package-install-upgrade-built-in is set before any package operations
-;; This tells Emacs to prefer installed packages over built-in ones
-;; Note: This variable was added in Emacs 29.1, so we check if it exists first
-(when (boundp 'package-install-upgrade-built-in)
-  (setq package-install-upgrade-built-in t))
-
 ;; Enable undercover.el for code coverage tracking
 (eldev-use-plugin 'undercover)
 
@@ -76,31 +50,17 @@
 
 (setq eldev-project-main-file "lisp/beads.el")
 
-;; Runtime dependencies - require transient 0.11.0 (latest from GNU ELPA)
-;; Using extended dependency format to specify minimum version
-(eldev-add-extra-dependencies 'runtime '(:package transient :version "0.11.0"))
-;; Also add transient as a build dependency to ensure it's available during byte-compilation
-(eldev-add-extra-dependencies 'build '(:package transient :version "0.11.0"))
+;; Ensure we upgrade built-in packages (like transient) with newer versions from archives
+;; This is critical for Emacs 29+ where transient is built-in but may be outdated
+;; The package dependencies are defined in lisp/beads.el Package-Requires header
+(setq package-install-upgrade-built-in t)
+
+;; Runtime dependencies (for older Emacs versions without built-in transient)
+(eldev-add-extra-dependencies 'runtime '(transient))
 
 ;; Development dependencies
 (eldev-add-extra-dependencies 'test '(ert))
 (eldev-add-extra-dependencies 'lint '(package-lint))
-
-;; IMPORTANT: Ensure transient is ACTIVATED before byte-compilation.
-;; In packaged mode (-p), eldev byte-compiles the package before running tests.
-;; During byte-compilation, transient-define-group must be available as a macro.
-;;
-;; The build-system-hook runs before compilation, so we ensure transient
-;; is loaded here. Eldev handles package activation and dependency loading.
-(add-hook 'eldev-build-system-hook
-          (lambda ()
-            ;; Load project dependencies (Eldev handles package activation)
-            (eldev-load-project-dependencies 'build nil t)
-            ;; Explicitly require transient to ensure it's loaded
-            (require 'transient)
-            ;; Verify we have the right version
-            (unless (fboundp 'transient-define-group)
-              (error "transient-define-group not found! Need transient >= 0.9.0"))))
 
 ;; Exclude worktree, share, and reference directories from everything
 (setf eldev-standard-excludes

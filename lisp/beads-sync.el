@@ -30,11 +30,9 @@
 
 ;;; Code:
 
-;; IMPORTANT: transient must be required FIRST because this file uses
-;; transient macros that must be defined at compile time.
-(require 'transient)
 (require 'beads)
 (require 'beads-option)
+(require 'transient)
 (require 'compile)
 
 ;;; Forward declarations
