@@ -15,39 +15,6 @@
 ;; Use codecov format and don't auto-send
 (setf eldev-undercover-config '(codecov dontsend))
 
-;; IMPORTANT: Fix transient edebug specs BEFORE undercover instruments files.
-;;
-;; Undercover uses edebug to instrument code for coverage. Edebug needs
-;; proper specs for macros like `transient-define-prefix` to parse them.
-;;
-;; PROBLEM: Transient's edebug spec for transient-define-prefix uses
-;; `[&rest vectorp]` which only allows vectors. But transient supports
-;; including pre-defined groups by symbol reference (via transient-define-group).
-;; This causes "Failed matching" errors when edebug tries to parse prefixes
-;; that use symbol references like `beads-option-global-section`.
-;;
-;; SOLUTION: Override the edebug specs to accept both vectors and symbols
-;; using `[&rest [&or symbolp vectorp]]`. This must happen:
-;; 1. After transient is loaded (so we can override its specs)
-;; 2. Before undercover sets up its file handlers
-;;
-;; By adding this hook without APPEND, it runs before undercover's hook.
-(add-hook 'eldev-test-hook
-          (lambda ()
-            ;; Ensure transient is loaded (Eldev handles package activation)
-            (require 'transient)
-            ;; Override edebug specs to allow symbol references for groups
-            ;; The original spec uses [&rest vectorp] but we need to allow
-            ;; symbols for groups defined with transient-define-group
-            (def-edebug-spec transient-define-prefix
-              (&define name lambda-list
-                       [&optional lambda-doc]
-                       [&rest keywordp sexp]
-                       [&rest [&or symbolp vectorp]]
-                       [&optional ("interactive" interactive) def-body]))
-            (def-edebug-spec transient-define-group
-              (&define name [&rest [&or symbolp vectorp]]))))
-
 (setq eldev-project-main-file "lisp/beads.el")
 
 ;; Ensure we upgrade built-in packages (like transient) with newer versions from archives
