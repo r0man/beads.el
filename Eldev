@@ -27,7 +27,9 @@
 
 ;; Ensure package-install-upgrade-built-in is set before any package operations
 ;; This tells Emacs to prefer installed packages over built-in ones
-(setq package-install-upgrade-built-in t)
+;; Note: This variable was added in Emacs 29.1, so we check if it exists first
+(when (boundp 'package-install-upgrade-built-in)
+  (setq package-install-upgrade-built-in t))
 
 ;; Enable undercover.el for code coverage tracking
 (eldev-use-plugin 'undercover)
