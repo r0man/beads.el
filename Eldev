@@ -59,10 +59,22 @@
 
 ;; Runtime dependencies (for older Emacs versions without built-in transient)
 (eldev-add-extra-dependencies 'runtime '(transient))
+;; Also add transient as a build dependency to ensure it's available during byte-compilation
+(eldev-add-extra-dependencies 'build '(transient))
 
 ;; Development dependencies
 (eldev-add-extra-dependencies 'test '(ert))
 (eldev-add-extra-dependencies 'lint '(package-lint))
+
+;; IMPORTANT: Ensure transient is loaded BEFORE byte-compilation.
+;; In packaged mode (-p), eldev byte-compiles the package before running tests.
+;; During byte-compilation, transient-define-group must be available as a macro.
+;; Without this hook, the package fails to compile with:
+;;   "Symbol's function definition is void: transient-define-group"
+(add-hook 'eldev-build-system-hook
+          (lambda ()
+            (eldev-load-project-dependencies 'build nil t)
+            (require 'transient)))
 
 ;; Exclude worktree, share, and reference directories from everything
 (setf eldev-standard-excludes

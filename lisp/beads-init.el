@@ -26,10 +26,12 @@
 
 ;;; Code:
 
+;; IMPORTANT: transient must be required FIRST because this file uses
+;; transient macros that must be defined at compile time.
+(require 'transient)
 (require 'beads)
 (require 'beads-command)
 (require 'beads-option)
-(require 'transient)
 
 ;;; Utility Functions
 

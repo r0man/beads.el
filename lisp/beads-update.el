@@ -41,12 +41,14 @@
 
 ;;; Code:
 
+;; IMPORTANT: transient must be required FIRST because this file uses
+;; transient macros that must be defined at compile time.
+(require 'transient)
 (require 'beads)
 (require 'beads-command)
 (require 'beads-option)
 (require 'beads-list)
 (require 'beads-show)
-(require 'transient)
 
 ;;; State Management
 

@@ -28,6 +28,9 @@
 
 ;;; Code:
 
+;; IMPORTANT: transient must be required FIRST because this file uses
+;; transient macros that must be defined at compile time.
+(require 'transient)
 (require 'beads)
 (require 'beads-list)
 (require 'beads-show)
@@ -41,7 +44,6 @@
 (require 'beads-init)
 (require 'beads-sync)
 (require 'beads-epic-status)
-(require 'transient)
 
 ;;; Variables
 

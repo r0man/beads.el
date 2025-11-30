@@ -30,9 +30,11 @@
 
 ;;; Code:
 
+;; IMPORTANT: transient must be required FIRST because this file uses
+;; transient-define-group which is a macro that must be defined at compile time.
+(require 'transient)
 (require 'beads)
 (require 'beads-option)
-(require 'transient)
 
 ;; Forward declarations
 (declare-function beads-show "beads-show")
