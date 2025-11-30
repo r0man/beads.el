@@ -45,14 +45,12 @@
 
 ;;; Code:
 
-;; IMPORTANT: transient must be required FIRST because this file uses
-;; transient-define-group which is a macro that must be defined at compile time.
-(require 'transient)
 (require 'beads)
 (require 'beads-command)
 (require 'beads-option)
 (require 'beads-show)
 (require 'beads-types)
+(require 'transient)
 
 ;;; Forward Declarations
 
