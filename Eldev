@@ -19,30 +19,15 @@
 ;; 4. Our code uses transient-define-group which doesn't exist in the built-in
 ;;
 ;; The solution:
-;; Force the newer GNU ELPA transient to be loaded BEFORE any of our code
-;; is compiled or loaded. We do this at TOP LEVEL (not in hooks) because
-;; hooks run too late - by the time "Activating project package" happens,
-;; byte-compilation has already failed.
-;;
-;; This must happen AFTER eldev-use-package-archive but BEFORE any code
-;; that might load transient.
+;; Use `package-install-upgrade-built-in` to tell Emacs to prefer newer
+;; installed packages over built-in ones. This variable must be set BEFORE
+;; any package operations occur. Eldev manages package installation, so we
+;; just set this variable and let Eldev handle the rest.
 ;; =============================================================================
 
 ;; Ensure package-install-upgrade-built-in is set before any package operations
+;; This tells Emacs to prefer installed packages over built-in ones
 (setq package-install-upgrade-built-in t)
-
-;; Force unload built-in transient if it's loaded, so we can load the newer one
-(when (featurep 'transient)
-  (unload-feature 'transient t))
-
-;; Initialize package system and activate all installed packages
-;; This ensures the GNU ELPA transient (0.11.0) is active, not the built-in
-(require 'package)
-(package-initialize)
-(package-activate-all)
-
-;; Now load transient - this should get the newer version
-(require 'transient nil t)
 
 ;; Enable undercover.el for code coverage tracking
 (eldev-use-plugin 'undercover)
@@ -73,9 +58,7 @@
 ;; By adding this hook without APPEND, it runs before undercover's hook.
 (add-hook 'eldev-test-hook
           (lambda ()
-            ;; Force package activation to ensure transient is available
-            (package-activate-all)
-            ;; Ensure transient is loaded
+            ;; Ensure transient is loaded (Eldev handles package activation)
             (require 'transient)
             ;; Override edebug specs to allow symbol references for groups
             ;; The original spec uses [&rest vectorp] but we need to allow
@@ -105,14 +88,11 @@
 ;; In packaged mode (-p), eldev byte-compiles the package before running tests.
 ;; During byte-compilation, transient-define-group must be available as a macro.
 ;;
-;; The build-system-hook runs before compilation, so we force transient
-;; activation here. We use package-activate-all to ensure the newer
-;; installed version is used instead of the built-in.
+;; The build-system-hook runs before compilation, so we ensure transient
+;; is loaded here. Eldev handles package activation and dependency loading.
 (add-hook 'eldev-build-system-hook
           (lambda ()
-            ;; Force all packages to activate (prefers newer installed over built-in)
-            (package-activate-all)
-            ;; Load project dependencies
+            ;; Load project dependencies (Eldev handles package activation)
             (eldev-load-project-dependencies 'build nil t)
             ;; Explicitly require transient to ensure it's loaded
             (require 'transient)
