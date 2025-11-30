@@ -91,11 +91,11 @@
 
 (setq eldev-project-main-file "lisp/beads.el")
 
-;; Runtime dependencies - require transient >= 0.9.0 for transient-define-group
+;; Runtime dependencies - require transient 0.11.0 (latest from GNU ELPA)
 ;; Using extended dependency format to specify minimum version
-(eldev-add-extra-dependencies 'runtime '(:package transient :version "0.9.0"))
+(eldev-add-extra-dependencies 'runtime '(:package transient :version "0.11.0"))
 ;; Also add transient as a build dependency to ensure it's available during byte-compilation
-(eldev-add-extra-dependencies 'build '(:package transient :version "0.9.0"))
+(eldev-add-extra-dependencies 'build '(:package transient :version "0.11.0"))
 
 ;; Development dependencies
 (eldev-add-extra-dependencies 'test '(ert))

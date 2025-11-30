@@ -4,7 +4,7 @@
 
 ;; Author: Beads Contributors
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "27.1") (transient "0.10.1"))
+;; Package-Requires: ((emacs "28.1") (transient "0.11.0"))
 ;; Keywords: tools, project, issues
 ;; URL: https://github.com/josephburnett/beads
 
