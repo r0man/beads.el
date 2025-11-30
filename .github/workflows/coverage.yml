@@ -20,7 +20,7 @@ jobs:
           version: '30.2'
 
       - name: Cache Eldev dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.emacs.d/eldev
           key: ${{ runner.os }}-eldev-coverage-${{ hashFiles('Eldev') }}
@@ -42,11 +42,11 @@ jobs:
         run: bd version
 
       - name: Run tests with coverage
-        run: CI=true BD_NO_DAEMON=1 eldev -dtT test -u on -U coverage/coverage.json
+        run: CI=true BD_NO_DAEMON=1 eldev -p -dtT test -U coverage/report.json
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
-          files: coverage/coverage.json
-          fail_ci_if_error: true
+          files: coverage/report.json
+          fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
