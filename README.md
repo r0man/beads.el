@@ -1,5 +1,8 @@
 # beads.el - Magit-like Interface for Beads Issue Tracker
 
+[![Test](https://github.com/r0man/beads.el/actions/workflows/test.yml/badge.svg)](https://github.com/r0man/beads.el/actions/workflows/test.yml)
+[![Coverage](https://codecov.io/gh/r0man/beads.el/branch/main/graph/badge.svg)](https://codecov.io/gh/r0man/beads.el)
+
 ⚠️ Status: Experimental
 
 A comprehensive Emacs interface for [Beads](https://github.com/steveyegge/beads),
