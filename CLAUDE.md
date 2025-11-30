@@ -341,6 +341,26 @@ You can generate different report formats by changing the file extension:
 - Currently tracks: `lisp/*.el` excluding `lisp/test/*.el`
 - Plugin enabled via: `(eldev-use-plugin 'undercover)` in Eldev file
 
+### GitHub Actions Workflows
+
+The project uses two GitHub Actions workflows:
+
+**Test Workflow** (`.github/workflows/test.yml`):
+- Runs tests across multiple Emacs versions (28.2, 29.4, 30.2, snapshot)
+- Triggered on push/PR to main branch
+- Uses matrix strategy for parallel testing
+
+**Coverage Workflow** (`.github/workflows/coverage.yml`):
+- Runs tests with coverage instrumentation (single Emacs version)
+- Uploads coverage reports to Codecov
+- Triggered on push/PR to main branch
+- Uses `fail_ci_if_error: false` to avoid blocking PRs on Codecov outages
+
+**Codecov Configuration** (`codecov.yml`):
+- Target coverage threshold: 80%
+- Threshold tolerance: 2%
+- Comments on PRs with coverage diff
+
 ### Lint
 
 ```bash
