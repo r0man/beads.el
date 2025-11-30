@@ -42,11 +42,14 @@ jobs:
         run: bd version
 
       - name: Run tests with coverage
-        run: CI=true BD_NO_DAEMON=1 eldev -p -dtT test -U coverage/report.json
+        # Use source loading mode (-s) instead of packaged mode (-p) because
+        # undercover cannot instrument byte-compiled files.
+        # The Eldev file configures codecov format via eldev-undercover-config.
+        run: CI=true BD_NO_DAEMON=1 eldev -s -dtT test -U coverage/codecov.json
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
-          files: coverage/report.json
+          files: coverage/codecov.json
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}

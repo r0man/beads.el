@@ -315,29 +315,32 @@ generates a report.
 
 ```bash
 # With guix (recommended):
-CI=true BD_NO_DAEMON=1 guix shell -D -f guix.scm -- eldev -dtT test -U coverage/report.json
+CI=true BD_NO_DAEMON=1 guix shell -D -f guix.scm -- eldev -s -dtT test -U coverage/codecov.json
 
 # Without guix (assumes eldev installed):
-CI=true BD_NO_DAEMON=1 eldev -dtT test -U coverage/report.json
+CI=true BD_NO_DAEMON=1 eldev -s -dtT test -U coverage/codecov.json
 
 # The CI=true environment variable is required to enable coverage generation
-# The -U flag specifies the report output path and format
+# The -U flag specifies the report output path
+# The -s flag enables source loading mode (required for coverage)
 ```
 
 **Report formats:**
-You can generate different report formats by changing the file extension:
-- `coverage/report.json` - SimpleCov JSON format (recommended, works reliably)
-- `coverage/report.txt` - Text format
-- Note: LCOV format (.lcov/.info) currently has issues with auto-detection
+The report format is configured in the Eldev file via `eldev-undercover-config`:
+- `codecov` - Codecov-compatible JSON format (configured for CI)
+- `coveralls` - Coveralls format
+- `simplecov` - SimpleCov JSON format (not compatible with Codecov's parser)
+- `text` - Human-readable text format
 
 **Important notes:**
 - `CI=true` environment variable is required (undercover only generates reports in CI mode)
-- The `-U` flag automatically enables source loading mode (no `-s` needed)
-- Undercover cannot instrument byte-compiled files
+- You MUST use `-s` (source loading mode), NOT `-p` (packaged mode) for coverage
+- Undercover cannot instrument byte-compiled files (packaged mode byte-compiles)
 - Coverage is configured to track all `lisp/*.el` files except `lisp/test/*`
 
 **Configuration:**
 - Coverage fileset: Defined in Eldev via `eldev-undercover-fileset`
+- Report format: Defined in Eldev via `eldev-undercover-config` (set to `codecov`)
 - Currently tracks: `lisp/*.el` excluding `lisp/test/*.el`
 - Plugin enabled via: `(eldev-use-plugin 'undercover)` in Eldev file
 
