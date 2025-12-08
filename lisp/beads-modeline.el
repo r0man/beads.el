@@ -178,7 +178,10 @@ Refreshes the status cache."
 
 (defun beads-modeline--help-echo (status)
   "Return help-echo text for STATUS."
-  (format "Beads daemon: %s\nmouse-1: Open daemon menu\nmouse-3: Refresh status"
+  (format "Beads daemon: %s\n\
+mouse-1: Open daemon menu\n\
+mouse-3: Refresh status\n\
+Keyboard: M-x beads-daemon or M-x beads RET P"
           (pcase status
             ('running "Running")
             ('stopped "Stopped")
