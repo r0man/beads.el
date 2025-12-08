@@ -210,9 +210,10 @@ Returns t if queue is empty (default confirmation)."
     :type list
     :initform nil
     :documentation "List of assertion functions to run after execution."))
-  :abstract t
-  :documentation "Abstract base class for all test actions.
-Subclasses must implement `beads-test-action-execute'.")
+  ;; NOTE: Not :abstract because we instantiate this directly for error
+  ;; reporting placeholders (e.g., "Setup" or "Assertion N" actions).
+  :documentation "Base class for all test actions.
+Subclasses should implement `beads-test-action-execute'.")
 
 (cl-defgeneric beads-test-action-execute (action context)
   "Execute ACTION within CONTEXT.
@@ -743,16 +744,26 @@ _CONTEXT is the test context (unused, kept for API consistency)."
                  (or (null priority)
                      (equal (oref issue priority) priority)))
         (setq found issue)))
-    (should found)
+    (unless found
+      (let ((criteria (string-join
+                       (delq nil
+                             (list (when title (format "title=%S" title))
+                                   (when issue-type (format "type=%S" issue-type))
+                                   (when priority (format "priority=%S" priority))))
+                       ", "))
+            (existing (mapcar (lambda (i) (oref i title)) issues)))
+        (ert-fail (format "No issue found matching [%s]. Existing issues: %S"
+                          criteria existing))))
     found))
 
 (defun beads-test-assert-issue-exists (_context issue-id)
   "Assert that ISSUE-ID exists in the project.
 _CONTEXT is the test context (unused, kept for API consistency)."
   (let ((issues (beads-command-list!)))
-    (should (seq-find (lambda (issue)
-                        (equal (oref issue id) issue-id))
-                      issues))))
+    (unless (seq-find (lambda (issue) (equal (oref issue id) issue-id)) issues)
+      (ert-fail (format "Issue %S not found. Existing IDs: %S"
+                        issue-id
+                        (mapcar (lambda (i) (oref i id)) issues))))))
 
 (defun beads-test-assert-issue-has (_context issue-id &rest props)
   "Assert that ISSUE-ID has properties PROPS.
@@ -760,53 +771,75 @@ PROPS is a plist of :status, :priority, :title, etc.
 _CONTEXT is the test context (unused, kept for API consistency)."
   (let* ((issues (beads-command-list!))
          (issue (seq-find (lambda (i) (equal (oref i id) issue-id)) issues)))
-    (should issue)
+    (unless issue
+      (ert-fail (format "Issue %S not found. Existing IDs: %S"
+                        issue-id
+                        (mapcar (lambda (i) (oref i id)) issues))))
     (let ((status (plist-get props :status))
           (priority (plist-get props :priority))
           (title (plist-get props :title)))
       (when status
-        (should (equal (oref issue status) status)))
+        (unless (equal (oref issue status) status)
+          (ert-fail (format "Issue %s: expected status=%S, got %S"
+                            issue-id status (oref issue status)))))
       (when priority
-        (should (equal (oref issue priority) priority)))
+        (unless (equal (oref issue priority) priority)
+          (ert-fail (format "Issue %s: expected priority=%S, got %S"
+                            issue-id priority (oref issue priority)))))
       (when title
-        (should (equal (oref issue title) title))))
+        (unless (equal (oref issue title) title)
+          (ert-fail (format "Issue %s: expected title=%S, got %S"
+                            issue-id title (oref issue title))))))
     issue))
 
 (defun beads-test-assert-issue-count (_context expected)
   "Assert that EXPECTED number of issues exist.
 _CONTEXT is the test context (unused, kept for API consistency)."
-  (let ((issues (beads-command-list!)))
-    (should (= (length issues) expected))))
+  (let* ((issues (beads-command-list!))
+         (actual (length issues)))
+    (unless (= actual expected)
+      (ert-fail (format "Expected %d issues, got %d. Issues: %S"
+                        expected actual
+                        (mapcar (lambda (i) (oref i title)) issues))))))
 
 (defun beads-test-assert-completion-cache-invalidated (context)
   "Assert that the completion cache was invalidated.
 CONTEXT is the test context."
-  (should (oref context completion-cache-invalidated)))
+  (unless (oref context completion-cache-invalidated)
+    (ert-fail "Completion cache was not invalidated")))
 
 (defun beads-test-assert-label-cache-invalidated (context)
   "Assert that the label cache was invalidated.
 CONTEXT is the test context."
-  (should (oref context label-cache-invalidated)))
+  (unless (oref context label-cache-invalidated)
+    (ert-fail "Label cache was not invalidated")))
 
 (defun beads-test-assert-no-errors (context)
   "Assert that no errors were signaled during the workflow.
 CONTEXT is the test context."
-  (should (null (oref context errors))))
+  (when (oref context errors)
+    (ert-fail (format "Expected no errors, but got: %S" (oref context errors)))))
 
 (defun beads-test-assert-error-signaled (context error-type)
   "Assert that an error of ERROR-TYPE was signaled.
 CONTEXT is the test context."
-  (should (assq error-type (oref context errors))))
+  (unless (assq error-type (oref context errors))
+    (ert-fail (format "Expected error %S, but got: %S"
+                      error-type (oref context errors)))))
 
 (defun beads-test-assert-message-displayed (context pattern)
   "Assert that a message matching PATTERN was displayed.
 CONTEXT is the test context."
-  (let ((found nil))
+  (let ((found nil)
+        (all-messages nil))
     (dolist (msg (oref context messages))
       (let ((formatted (apply #'format (car msg) (cdr msg))))
+        (push formatted all-messages)
         (when (string-match-p pattern formatted)
           (setq found t))))
-    (should found)))
+    (unless found
+      (ert-fail (format "No message matched pattern %S. Messages: %S"
+                        pattern (nreverse all-messages))))))
 
 (defun beads-test-assert-buffer-exists (context buffer-name-pattern)
   "Assert that a buffer matching BUFFER-NAME-PATTERN was created.
@@ -815,7 +848,10 @@ CONTEXT is the test context."
     (dolist (buf (oref context created-buffers))
       (when (string-match-p buffer-name-pattern buf)
         (setq found t)))
-    (should found)))
+    (unless found
+      (ert-fail (format "No buffer matched pattern %S. Buffers: %S"
+                        buffer-name-pattern
+                        (oref context created-buffers))))))
 
 ;;; ============================================================
 ;;; Buffer/List Actions
