@@ -70,12 +70,17 @@
 ;;   M-x beads-daemons-list RET     ; Open daemons list buffer
 ;;
 ;; In the list buffer:
-;;   g - Refresh the list
+;;   m - Mark daemon at point
+;;   u - Unmark daemon at point
+;;   U - Unmark all daemons
+;;   * ! or * * - Mark all daemons
+;;   * u - Unmark all daemons (ibuffer-style)
 ;;   s - Stop daemon at point
 ;;   r - Restart daemon at point
 ;;   l - View log for daemon at point
+;;   K - Kill marked daemons (or all if none marked)
 ;;   H - Show health report for all daemons
-;;   K - Kill all daemons
+;;   g - Refresh the list
 ;;   q - Quit
 
 ;;; Code:
@@ -207,6 +212,9 @@ Returns a `beads-daemons-killall-result' object."
   "Cached daemon data for current list buffer.
 A list of `beads-daemon-info' objects.")
 
+(defvar-local beads-daemons-list--marked nil
+  "List of marked daemon targets (workspace paths or PIDs).")
+
 (defvar-local beads-daemons-list--refresh-timer nil
   "Timer for auto-refresh in daemons list buffer.")
 
@@ -215,6 +223,13 @@ A list of `beads-daemon-info' objects.")
     ;; Refresh/quit
     (define-key map (kbd "g") #'beads-daemons-list-refresh)
     (define-key map (kbd "q") #'quit-window)
+    ;; Marking
+    (define-key map (kbd "m") #'beads-daemons-list-mark)
+    (define-key map (kbd "u") #'beads-daemons-list-unmark)
+    (define-key map (kbd "U") #'beads-daemons-list-unmark-all)
+    (define-key map (kbd "* !") #'beads-daemons-list-mark-all)
+    (define-key map (kbd "* *") #'beads-daemons-list-mark-all)
+    (define-key map (kbd "* u") #'beads-daemons-list-unmark-all)
     ;; Actions on daemon at point
     (define-key map (kbd "s") #'beads-daemons-list-stop)
     (define-key map (kbd "r") #'beads-daemons-list-restart)
@@ -341,6 +356,47 @@ Arguments IGNORE-AUTO and NOCONFIRM are ignored."
                   (beads-daemons-list--format-lock lock-active lock-holder)))))
 
 ;;; ============================================================
+;;; Marking Commands
+;;; ============================================================
+
+(defun beads-daemons-list-mark ()
+  "Mark the daemon at point."
+  (interactive)
+  (when-let ((target (beads-daemons-list--get-target-at-point)))
+    (unless (member target beads-daemons-list--marked)
+      (push target beads-daemons-list--marked))
+    (tabulated-list-put-tag ">" t)))
+
+(defun beads-daemons-list-unmark ()
+  "Unmark the daemon at point."
+  (interactive)
+  (when-let ((target (beads-daemons-list--get-target-at-point)))
+    (setq beads-daemons-list--marked
+          (delete target beads-daemons-list--marked))
+    (tabulated-list-put-tag " " t)))
+
+(defun beads-daemons-list-mark-all ()
+  "Mark all daemons in the current buffer."
+  (interactive)
+  (save-excursion
+    (goto-char (point-min))
+    (while (not (eobp))
+      (when (beads-daemons-list--get-target-at-point)
+        (beads-daemons-list-mark))
+      (forward-line 0))))  ; Don't advance, mark does that
+
+(defun beads-daemons-list-unmark-all ()
+  "Unmark all daemons in the current buffer."
+  (interactive)
+  (setq beads-daemons-list--marked nil)
+  (save-excursion
+    (goto-char (point-min))
+    (while (not (eobp))
+      (when (beads-daemons-list--get-target-at-point)
+        (tabulated-list-put-tag " "))
+      (forward-line 1))))
+
+;;; ============================================================
 ;;; List Buffer Commands
 ;;; ============================================================
 
@@ -430,20 +486,41 @@ Arguments IGNORE-AUTO and NOCONFIRM are ignored."
          (message "Error fetching logs: %s" (error-message-string err)))))))
 
 (defun beads-daemons-list-killall ()
-  "Kill all running daemons."
+  "Kill daemons.
+If there are marked daemons, kill only those.
+Otherwise, kill all running daemons."
   (interactive)
-  (let ((count (length beads-daemons-list--data)))
-    (when (y-or-n-p (format "Kill all %d daemon(s)? " count))
-      (condition-case err
-          (let ((result (beads-daemons--killall)))
-            (message "Stopped: %d, Failed: %d"
-                     (or (oref result stopped) 0)
-                     (or (oref result failed) 0))
+  (if beads-daemons-list--marked
+      ;; Kill marked daemons one by one
+      (let ((count (length beads-daemons-list--marked)))
+        (when (y-or-n-p (format "Kill %d marked daemon(s)? " count))
+          (let ((stopped 0)
+                (failed 0))
+            (dolist (target beads-daemons-list--marked)
+              (condition-case nil
+                  (let ((result (beads-daemons--stop target)))
+                    (if (oref result stopped)
+                        (cl-incf stopped)
+                      (cl-incf failed)))
+                (error (cl-incf failed))))
+            (message "Stopped: %d, Failed: %d" stopped failed)
             (beads--invalidate-completion-cache)
+            (beads-daemons-list-unmark-all)
             (sit-for 1)
-            (beads-daemons-list-refresh))
-        (error
-         (message "Error killing daemons: %s" (error-message-string err)))))))
+            (beads-daemons-list-refresh))))
+    ;; Kill all daemons
+    (let ((count (length beads-daemons-list--data)))
+      (when (y-or-n-p (format "Kill all %d daemon(s)? " count))
+        (condition-case err
+            (let ((result (beads-daemons--killall)))
+              (message "Stopped: %d, Failed: %d"
+                       (or (oref result stopped) 0)
+                       (or (oref result failed) 0))
+              (beads--invalidate-completion-cache)
+              (sit-for 1)
+              (beads-daemons-list-refresh))
+          (error
+           (message "Error killing daemons: %s" (error-message-string err))))))))
 
 (defun beads-daemons-list-health ()
   "Show health report for all daemons."
@@ -461,7 +538,7 @@ Arguments IGNORE-AUTO and NOCONFIRM are ignored."
 (defun beads-daemons-list-help ()
   "Show help for daemons list mode."
   (interactive)
-  (message "g:refresh  s:stop  r:restart  l:log  K:killall  H:health  q:quit"))
+  (message "m:mark  u:unmark  U:unmark-all  K:kill  s:stop  r:restart  l:log  H:health  g:refresh  q:quit"))
 
 ;;;###autoload
 (defun beads-daemons-list ()
