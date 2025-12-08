@@ -46,7 +46,7 @@ Integration test that runs real bd init command."
     ;; Should create database file
     (let ((db-files (directory-files
                      (expand-file-name ".beads" temp-dir)
-                     nil "\\.db$")))
+                     nil "\\.db\\'")))
       (should (> (length db-files) 0)))))
 
 (ert-deftest beads-command-test-init-with-prefix ()
