@@ -468,14 +468,14 @@
        (beads-daemon-dashboard)
        (unwind-protect
            (progn
-             (should (get-buffer "*beads-daemon-status*"))
-             (with-current-buffer "*beads-daemon-status*"
+             (should (get-buffer "*beads-daemon*"))
+             (with-current-buffer "*beads-daemon*"
                (should (derived-mode-p 'beads-daemon-status-mode))
                (should (string-match-p "Running" (buffer-string)))
                (should (string-match-p "130264" (buffer-string)))
                (should (string-match-p "healthy" (buffer-string)))))
-         (when (get-buffer "*beads-daemon-status*")
-           (kill-buffer "*beads-daemon-status*")))))))
+         (when (get-buffer "*beads-daemon*")
+           (kill-buffer "*beads-daemon*")))))))
 
 (provide 'beads-daemon-test)
 ;;; beads-daemon-test.el ends here

@@ -484,7 +484,7 @@ Returns a propertized string showing running state and health."
 Shows comprehensive daemon information including status, health,
 metrics, and operations."
   (interactive)
-  (let* ((buffer-name "*beads-daemon-status*")
+  (let* ((buffer-name "*beads-daemon*")
          (buffer (get-buffer-create buffer-name)))
     (with-current-buffer buffer
       (beads-daemon-status-mode)
