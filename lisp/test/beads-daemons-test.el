@@ -532,6 +532,27 @@
   (should (eq (lookup-key beads-daemons-list-mode-map "H")
               'beads-daemons-list-health)))
 
+(ert-deftest beads-daemons-test-list-revert-buffer-function ()
+  "Test that revert-buffer-function is set in daemons list mode."
+  (with-temp-buffer
+    (beads-daemons-list-mode)
+    (should (eq revert-buffer-function
+                #'beads-daemons-list--revert-buffer))))
+
+(ert-deftest beads-daemons-test-list-revert-buffer-calls-refresh ()
+  "Test that revert-buffer-function calls the refresh function."
+  (beads-test-with-temp-config
+   (let ((json-output (json-encode beads-daemons-test--sample-list-json))
+         (refresh-called nil))
+     (cl-letf (((symbol-function 'process-file)
+                (beads-test--mock-call-process 0 json-output))
+               ((symbol-function 'beads-daemons-list-refresh)
+                (lambda () (setq refresh-called t))))
+       (with-temp-buffer
+         (beads-daemons-list-mode)
+         (beads-daemons-list--revert-buffer nil nil)
+         (should refresh-called))))))
+
 ;;; ============================================================
 ;;; List Buffer Integration Tests
 ;;; ============================================================

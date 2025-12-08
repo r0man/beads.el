@@ -167,12 +167,18 @@ An alist with keys `status', `health', and `metrics'.")
     map)
   "Keymap for `beads-daemon-status-mode'.")
 
+(defun beads-daemon-status--revert-buffer (_ignore-auto _noconfirm)
+  "Revert function for daemon status buffer.
+Arguments IGNORE-AUTO and NOCONFIRM are ignored."
+  (beads-daemon-status-refresh))
+
 (define-derived-mode beads-daemon-status-mode special-mode "Beads-Daemon"
   "Major mode for displaying daemon status information.
 
 \\{beads-daemon-status-mode-map}"
   (setq truncate-lines t)
   (setq buffer-read-only t)
+  (setq-local revert-buffer-function #'beads-daemon-status--revert-buffer)
   ;; Set up auto-refresh timer if configured
   (when (and beads-daemon-status-auto-refresh
              (numberp beads-daemon-status-auto-refresh))
