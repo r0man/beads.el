@@ -442,6 +442,72 @@
     (should (eq revert-buffer-function
                 #'beads-daemon-status--revert-buffer))))
 
+(ert-deftest beads-daemon-test-status-imenu-create-index-function ()
+  "Test that imenu-create-index-function is set in daemon status mode."
+  (with-temp-buffer
+    (beads-daemon-status-mode)
+    (should (eq imenu-create-index-function
+                #'beads-daemon-status--imenu-create-index))))
+
+(ert-deftest beads-daemon-test-status-imenu-create-index-empty ()
+  "Test imenu index creation with empty buffer."
+  (with-temp-buffer
+    (beads-daemon-status-mode)
+    (let ((index (beads-daemon-status--imenu-create-index)))
+      (should (null index)))))
+
+(ert-deftest beads-daemon-test-status-imenu-create-index-sections ()
+  "Test imenu index creation finds all sections."
+  (with-temp-buffer
+    (beads-daemon-status-mode)
+    (let ((inhibit-read-only t))
+      ;; Insert content similar to actual daemon status buffer
+      (insert "Daemon Status\n")
+      (insert "═════════════\n\n")
+      (insert "Status\n")
+      (insert "──────\n")
+      (insert "State:          Running\n\n")
+      (insert "Configuration\n")
+      (insert "─────────────\n")
+      (insert "Log file:       /tmp/daemon.log\n\n")
+      (insert "Health\n")
+      (insert "──────\n")
+      (insert "DB Response:    4.50 ms\n\n")
+      (insert "Operations\n")
+      (insert "──────────\n")
+      (insert "  Operation     Count\n\n")
+      (insert "Resources\n")
+      (insert "─────────\n")
+      (insert "Memory:         5 MB\n"))
+    (let ((index (beads-daemon-status--imenu-create-index)))
+      ;; Should find all 5 sections
+      (should (= (length index) 5))
+      ;; Check section names
+      (should (assoc "Status" index))
+      (should (assoc "Configuration" index))
+      (should (assoc "Health" index))
+      (should (assoc "Operations" index))
+      (should (assoc "Resources" index))
+      ;; Check positions are in order
+      (let ((positions (mapcar #'cdr index)))
+        (should (equal positions (sort (copy-sequence positions) #'<)))))))
+
+(ert-deftest beads-daemon-test-status-imenu-create-index-stopped ()
+  "Test imenu index creation when daemon is stopped (fewer sections)."
+  (with-temp-buffer
+    (beads-daemon-status-mode)
+    (let ((inhibit-read-only t))
+      ;; Insert content similar to stopped daemon buffer
+      (insert "Daemon Status\n")
+      (insert "═════════════\n\n")
+      (insert "Status\n")
+      (insert "──────\n")
+      (insert "State:          Stopped\n"))
+    (let ((index (beads-daemon-status--imenu-create-index)))
+      ;; Should find only Status section
+      (should (= (length index) 1))
+      (should (assoc "Status" index)))))
+
 (ert-deftest beads-daemon-test-status-revert-buffer-calls-refresh ()
   "Test that revert-buffer-function calls the refresh function."
   (beads-test-with-temp-config
