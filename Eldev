@@ -31,6 +31,29 @@
 ;;
 ;; NOTE: This only affects source mode (`-s`) used by Coverage workflow.
 ;; Packaged mode (`-p`) used by Test workflow doesn't use edebug.
+
+;; Define the edebug spec fix function
+(defun beads--fix-transient-edebug-specs ()
+  "Override transient edebug specs to allow symbol references for groups.
+This is required for undercover coverage instrumentation to work with
+transient-define-prefix forms that include symbols defined by
+transient-define-group."
+  (def-edebug-spec transient-define-prefix
+    (&define name lambda-list
+             [&optional lambda-doc]
+             [&rest keywordp sexp]
+             [&rest [&or symbolp vectorp]]
+             [&optional ("interactive" interactive) def-body]))
+  (def-edebug-spec transient-define-group
+    (&define name [&rest [&or symbolp vectorp]])))
+
+;; Use eval-after-load to ensure our specs are set whenever transient loads.
+;; This handles the case where transient is loaded/reloaded after our hook runs.
+(eval-after-load 'transient
+  '(when (eq eldev-project-loading-mode 'source)
+     (beads--fix-transient-edebug-specs)))
+
+;; Also run in the test hook to handle initial setup
 (add-hook 'eldev-test-hook
           (lambda ()
             ;; Only run in source mode (for coverage instrumentation)
@@ -38,19 +61,36 @@
               ;; Force package activation to get ELPA transient
               ;; (not the older built-in version in Emacs 29+/30+)
               (package-activate-all)
-              ;; Ensure transient is loaded before overriding its specs
+              ;; Ensure transient is loaded - this will trigger eval-after-load
               (require 'transient)
-              ;; Override edebug specs to allow symbol references for groups
-              (def-edebug-spec transient-define-prefix
-                (&define name lambda-list
-                         [&optional lambda-doc]
-                         [&rest keywordp sexp]
-                         [&rest [&or symbolp vectorp]]
-                         [&optional ("interactive" interactive) def-body]))
-              (def-edebug-spec transient-define-group
-                (&define name [&rest [&or symbolp vectorp]])))))
+              ;; Also call directly in case transient was already loaded
+              (beads--fix-transient-edebug-specs))))
 
 (setq eldev-project-main-file "lisp/beads.el")
+
+;; Fix EMACS_TEST_JUNIT_REPORT to write to the specified path.
+;;
+;; ERT's ert-write-junit-test-report ignores the EMACS_TEST_JUNIT_REPORT value
+;; when determining the output filename - it uses ert-load-file-name instead.
+;; This advice fixes that by writing to the env var path when set.
+(defun beads--fix-junit-report-path (orig-fn stats)
+  "Advice to write JUnit report to EMACS_TEST_JUNIT_REPORT path.
+ORIG-FN is the original function, STATS is the test statistics."
+  (if-let ((report-path (getenv "EMACS_TEST_JUNIT_REPORT")))
+      ;; Write to the specified path instead of the default location
+      (let ((ert-load-file-name report-path))
+        (funcall orig-fn stats)
+        ;; The file was written with .xml extension, rename if needed
+        (let ((xml-path (file-name-with-extension report-path "xml")))
+          (unless (string= xml-path report-path)
+            (when (file-exists-p xml-path)
+              (rename-file xml-path report-path t)))))
+    ;; No env var set, use default behavior
+    (funcall orig-fn stats)))
+
+;; Apply the advice when ERT is loaded
+(eval-after-load 'ert
+  '(advice-add 'ert-write-junit-test-report :around #'beads--fix-junit-report-path))
 
 ;; Ensure we upgrade built-in packages (like transient) with newer versions from archives
 ;; This is critical for Emacs 29+ where transient is built-in but may be outdated
