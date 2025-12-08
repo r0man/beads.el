@@ -30,28 +30,25 @@
 ;; using `[&rest [&or symbolp vectorp]]`.
 ;;
 ;; NOTE: This only affects source mode (`-s`) used by Coverage workflow.
-;; In packaged mode, we just load transient (which Eldev already activates).
-;; In source mode, we need package-activate-all to ensure newer ELPA transient.
+;; Packaged mode (`-p`) used by Test workflow doesn't use edebug.
 (add-hook 'eldev-test-hook
           (lambda ()
-            ;; In source mode, force package activation to get ELPA transient
-            ;; (not the older built-in version in Emacs 29+/30+).
-            ;; In packaged mode, Eldev already handles package activation.
+            ;; Only run in source mode (for coverage instrumentation)
             (when (eq eldev-project-loading-mode 'source)
-              (package-activate-all))
-            ;; Ensure transient is loaded before overriding its specs
-            (require 'transient)
-            ;; Override edebug specs to allow symbol references for groups
-            ;; This is needed for coverage instrumentation in source mode
-            ;; but is harmless in packaged mode (where edebug isn't used)
-            (def-edebug-spec transient-define-prefix
-              (&define name lambda-list
-                       [&optional lambda-doc]
-                       [&rest keywordp sexp]
-                       [&rest [&or symbolp vectorp]]
-                       [&optional ("interactive" interactive) def-body]))
-            (def-edebug-spec transient-define-group
-              (&define name [&rest [&or symbolp vectorp]]))))
+              ;; Force package activation to get ELPA transient
+              ;; (not the older built-in version in Emacs 29+/30+)
+              (package-activate-all)
+              ;; Ensure transient is loaded before overriding its specs
+              (require 'transient)
+              ;; Override edebug specs to allow symbol references for groups
+              (def-edebug-spec transient-define-prefix
+                (&define name lambda-list
+                         [&optional lambda-doc]
+                         [&rest keywordp sexp]
+                         [&rest [&or symbolp vectorp]]
+                         [&optional ("interactive" interactive) def-body]))
+              (def-edebug-spec transient-define-group
+                (&define name [&rest [&or symbolp vectorp]])))))
 
 (setq eldev-project-main-file "lisp/beads.el")
 
