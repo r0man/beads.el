@@ -3,6 +3,7 @@
 ;; Eldev configuration for beads.el
 
 (eldev-use-package-archive 'gnu)
+(eldev-use-package-archive 'nongnu)
 (eldev-use-package-archive 'melpa)
 
 ;; Enable undercover.el for code coverage tracking
@@ -58,9 +59,11 @@ transient-define-group."
           (lambda ()
             ;; Only run in source mode (for coverage instrumentation)
             (when (eq eldev-project-loading-mode 'source)
-              ;; Force package activation to get ELPA transient
-              ;; (not the older built-in version in Emacs 29+/30+)
-              (package-activate-all)
+              ;; Activate transient package to get ELPA version
+              ;; (not the older built-in version in Emacs 29+/30+).
+              ;; Using package-activate instead of package-activate-all
+              ;; for more targeted activation.
+              (package-activate 'transient)
               ;; Ensure transient is loaded - this will trigger eval-after-load
               (require 'transient)
               ;; Also call directly in case transient was already loaded
@@ -94,9 +97,10 @@ ORIG-FN is the original function, STATS is the test statistics."
 
 ;; Runtime dependencies using extended dependency format with explicit versions.
 ;; transient 0.10.1 is required for transient-define-group and other features.
-;; Specify :archive 'gnu to ensure we get it from GNU ELPA (not the built-in).
+;; Allow both GNU and NonGNU ELPA since transient 0.11.0 requires cond-let
+;; which is only available in NonGNU ELPA.
 (eldev-add-extra-dependencies 'runtime
-                              '(:package transient :version "0.10.1" :archive gnu))
+                              '(:package transient :version "0.10.1"))
 
 ;; Development dependencies using extended dependency format
 (eldev-add-extra-dependencies 'test
