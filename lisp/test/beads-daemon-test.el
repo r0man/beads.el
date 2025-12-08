@@ -435,6 +435,27 @@
   (should (eq (lookup-key beads-daemon-status-mode-map "?")
               'beads-daemon-status-help)))
 
+(ert-deftest beads-daemon-test-status-revert-buffer-function ()
+  "Test that revert-buffer-function is set in daemon status mode."
+  (with-temp-buffer
+    (beads-daemon-status-mode)
+    (should (eq revert-buffer-function
+                #'beads-daemon-status--revert-buffer))))
+
+(ert-deftest beads-daemon-test-status-revert-buffer-calls-refresh ()
+  "Test that revert-buffer-function calls the refresh function."
+  (beads-test-with-temp-config
+   (let ((json-output (json-encode beads-daemon-test--sample-status-json))
+         (refresh-called nil))
+     (cl-letf (((symbol-function 'process-file)
+                (beads-test--mock-call-process 0 json-output))
+               ((symbol-function 'beads-daemon-status-refresh)
+                (lambda () (setq refresh-called t))))
+       (with-temp-buffer
+         (beads-daemon-status-mode)
+         (beads-daemon-status--revert-buffer nil nil)
+         (should refresh-called))))))
+
 ;;; ============================================================
 ;;; Status Buffer Integration Tests
 ;;; ============================================================

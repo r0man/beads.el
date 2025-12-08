@@ -173,6 +173,11 @@ A list of `beads-daemon-info' objects.")
     map)
   "Keymap for `beads-daemons-list-mode'.")
 
+(defun beads-daemons-list--revert-buffer (_ignore-auto _noconfirm)
+  "Revert function for daemons list buffer.
+Arguments IGNORE-AUTO and NOCONFIRM are ignored."
+  (beads-daemons-list-refresh))
+
 (define-derived-mode beads-daemons-list-mode tabulated-list-mode "Beads-Daemons"
   "Major mode for displaying list of bd daemons.
 
@@ -187,6 +192,7 @@ A list of `beads-daemon-info' objects.")
   (setq tabulated-list-padding 2)
   (setq tabulated-list-sort-key '("Workspace" . nil))
   (tabulated-list-init-header)
+  (setq-local revert-buffer-function #'beads-daemons-list--revert-buffer)
   ;; Set up auto-refresh timer if configured
   (when (and beads-daemons-list-auto-refresh
              (numberp beads-daemons-list-auto-refresh))
