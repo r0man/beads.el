@@ -793,5 +793,213 @@
       (should (member "Content" group-names))
       (should (member "Advanced" group-names)))))
 
+;;; ============================================================
+;;; Tests for beads-command-update Slot Properties
+;;; ============================================================
+
+;; These tests verify that beads-command-update has correct slot properties
+;; after migration to use beads-meta.
+
+(ert-deftest beads-meta-update-slot-property-status ()
+  "Test that status slot has correct metadata."
+  ;; CLI properties
+  (should (equal "--status" (beads-meta-slot-property
+                             'beads-command-update 'status :long-option)))
+  (should (equal "-s" (beads-meta-slot-property
+                       'beads-command-update 'status :short-option)))
+  (should (eq :string (beads-meta-slot-property
+                       'beads-command-update 'status :option-type)))
+  ;; Transient properties
+  (should (equal "s" (beads-meta-slot-property
+                      'beads-command-update 'status :transient-key)))
+  (should (equal "Status" (beads-meta-slot-property
+                           'beads-command-update 'status :transient-description)))
+  (should (eq 'transient-option (beads-meta-slot-property
+                                 'beads-command-update 'status :transient-class)))
+  (should (equal "--status=" (beads-meta-slot-property
+                              'beads-command-update 'status :transient-argument)))
+  (should (equal '("open" "in_progress" "blocked" "closed")
+                 (beads-meta-slot-property
+                  'beads-command-update 'status :transient-choices)))
+  (should (equal "Status & Priority" (beads-meta-slot-property
+                                      'beads-command-update 'status
+                                      :transient-group)))
+  (should (equal 1 (beads-meta-slot-property
+                    'beads-command-update 'status :transient-level)))
+  (should (equal 1 (beads-meta-slot-property
+                    'beads-command-update 'status :transient-order))))
+
+(ert-deftest beads-meta-update-slot-property-priority ()
+  "Test that priority slot has correct metadata."
+  ;; CLI properties
+  (should (equal "--priority" (beads-meta-slot-property
+                               'beads-command-update 'priority :long-option)))
+  (should (equal "-p" (beads-meta-slot-property
+                       'beads-command-update 'priority :short-option)))
+  ;; Transient properties
+  (should (equal "p" (beads-meta-slot-property
+                      'beads-command-update 'priority :transient-key)))
+  (should (equal "Status & Priority" (beads-meta-slot-property
+                                      'beads-command-update 'priority
+                                      :transient-group))))
+
+(ert-deftest beads-meta-update-slot-property-title ()
+  "Test that title slot has correct metadata."
+  ;; CLI properties
+  (should (equal "--title" (beads-meta-slot-property
+                            'beads-command-update 'title :long-option)))
+  ;; Transient properties
+  (should (equal "t" (beads-meta-slot-property
+                      'beads-command-update 'title :transient-key)))
+  (should (equal "Basic Info" (beads-meta-slot-property
+                               'beads-command-update 'title :transient-group))))
+
+(ert-deftest beads-meta-update-slot-property-assignee ()
+  "Test that assignee slot has correct metadata."
+  ;; CLI properties
+  (should (equal "--assignee" (beads-meta-slot-property
+                               'beads-command-update 'assignee :long-option)))
+  (should (equal "-a" (beads-meta-slot-property
+                       'beads-command-update 'assignee :short-option)))
+  ;; Transient properties
+  (should (equal "a" (beads-meta-slot-property
+                      'beads-command-update 'assignee :transient-key)))
+  (should (equal "Basic Info" (beads-meta-slot-property
+                               'beads-command-update 'assignee :transient-group))))
+
+(ert-deftest beads-meta-update-slot-property-external-ref ()
+  "Test that external-ref slot has correct metadata."
+  ;; CLI properties
+  (should (equal "--external-ref" (beads-meta-slot-property
+                                   'beads-command-update 'external-ref
+                                   :long-option)))
+  ;; Transient properties
+  (should (equal "x" (beads-meta-slot-property
+                      'beads-command-update 'external-ref :transient-key)))
+  (should (equal "Basic Info" (beads-meta-slot-property
+                               'beads-command-update 'external-ref
+                               :transient-group))))
+
+(ert-deftest beads-meta-update-slot-property-description ()
+  "Test that description slot has correct metadata."
+  ;; CLI properties
+  (should (equal "--description" (beads-meta-slot-property
+                                  'beads-command-update 'description
+                                  :long-option)))
+  (should (equal "-d" (beads-meta-slot-property
+                       'beads-command-update 'description :short-option)))
+  ;; Transient properties
+  (should (equal "d" (beads-meta-slot-property
+                      'beads-command-update 'description :transient-key)))
+  (should (eq 'beads-create-transient-multiline
+              (beads-meta-slot-property
+               'beads-command-update 'description :transient-class)))
+  (should (equal "Description" (beads-meta-slot-property
+                                'beads-command-update 'description
+                                :transient-field-name)))
+  (should (equal "Content" (beads-meta-slot-property
+                            'beads-command-update 'description
+                            :transient-group))))
+
+(ert-deftest beads-meta-update-slot-property-acceptance ()
+  "Test that acceptance slot has correct metadata."
+  ;; CLI properties
+  (should (equal "--acceptance" (beads-meta-slot-property
+                                 'beads-command-update 'acceptance
+                                 :long-option)))
+  ;; Transient properties
+  (should (equal "A" (beads-meta-slot-property
+                      'beads-command-update 'acceptance :transient-key)))
+  (should (eq 'beads-create-transient-multiline
+              (beads-meta-slot-property
+               'beads-command-update 'acceptance :transient-class)))
+  (should (equal "Acceptance Criteria" (beads-meta-slot-property
+                                        'beads-command-update 'acceptance
+                                        :transient-field-name))))
+
+(ert-deftest beads-meta-update-slot-property-design ()
+  "Test that design slot has correct metadata."
+  ;; CLI properties
+  (should (equal "--design" (beads-meta-slot-property
+                             'beads-command-update 'design :long-option)))
+  ;; Transient properties
+  (should (equal "G" (beads-meta-slot-property
+                      'beads-command-update 'design :transient-key)))
+  (should (eq 'beads-create-transient-multiline
+              (beads-meta-slot-property
+               'beads-command-update 'design :transient-class)))
+  (should (equal "Design" (beads-meta-slot-property
+                           'beads-command-update 'design :transient-field-name))))
+
+(ert-deftest beads-meta-update-slot-property-notes ()
+  "Test that notes slot has correct metadata."
+  ;; CLI properties
+  (should (equal "--notes" (beads-meta-slot-property
+                            'beads-command-update 'notes :long-option)))
+  ;; Transient properties
+  (should (equal "N" (beads-meta-slot-property
+                      'beads-command-update 'notes :transient-key)))
+  (should (eq 'beads-create-transient-multiline
+              (beads-meta-slot-property
+               'beads-command-update 'notes :transient-class)))
+  (should (equal "Notes" (beads-meta-slot-property
+                          'beads-command-update 'notes :transient-field-name))))
+
+(ert-deftest beads-meta-update-transient-slots ()
+  "Test that all expected slots have transient keys."
+  (let ((slots (beads-meta-transient-slots 'beads-command-update)))
+    ;; Should have all the transient-enabled slots
+    (should (memq 'status slots))
+    (should (memq 'priority slots))
+    (should (memq 'title slots))
+    (should (memq 'assignee slots))
+    (should (memq 'external-ref slots))
+    (should (memq 'description slots))
+    (should (memq 'acceptance slots))
+    (should (memq 'design slots))
+    (should (memq 'notes slots))))
+
+(ert-deftest beads-meta-update-option-slots ()
+  "Test that non-positional CLI options are identified."
+  (let ((options (beads-meta-option-slots 'beads-command-update)))
+    ;; Should include various options
+    (should (memq 'status options))
+    (should (memq 'priority options))
+    (should (memq 'title options))
+    (should (memq 'assignee options))
+    (should (memq 'external-ref options))
+    (should (memq 'description options))
+    (should (memq 'acceptance options))
+    (should (memq 'design options))
+    (should (memq 'notes options))
+    ;; Should NOT include issue-ids (no :long-option)
+    (should-not (memq 'issue-ids options))))
+
+(ert-deftest beads-meta-update-generate-infix-specs ()
+  "Test that infix specs can be generated from beads-command-update."
+  (let ((specs (beads-meta-generate-infix-specs
+                'beads-command-update "beads-update")))
+    ;; Should have specs for all transient-enabled slots
+    (should (>= (length specs) 9))
+    ;; Check for specific infixes
+    (let ((status-spec (cl-find-if
+                        (lambda (s)
+                          (eq 'beads-update-infix-status (plist-get s :name)))
+                        specs)))
+      (should status-spec)
+      (should (equal "s" (plist-get status-spec :key))))))
+
+(ert-deftest beads-meta-update-generate-group-specs ()
+  "Test that group specs can be generated from beads-command-update."
+  (let ((groups (beads-meta-generate-group-specs
+                 'beads-command-update "beads-update")))
+    ;; Should have multiple groups
+    (should (>= (length groups) 3))
+    ;; Check for expected groups
+    (let ((group-names (mapcar (lambda (g) (plist-get g :description)) groups)))
+      (should (member "Status & Priority" group-names))
+      (should (member "Basic Info" group-names))
+      (should (member "Content" group-names)))))
+
 (provide 'beads-meta-test)
 ;;; beads-meta-test.el ends here
