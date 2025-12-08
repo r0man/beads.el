@@ -574,5 +574,124 @@
          (when (get-buffer "*beads-daemons*")
            (kill-buffer "*beads-daemons*")))))))
 
+;;; ============================================================
+;;; Cache Invalidation Tests
+;;; ============================================================
+
+(ert-deftest beads-daemons-test-list-stop-invalidates-cache ()
+  "Test that daemons list stop invalidates completion cache."
+  (beads-test-with-temp-config
+   (let ((stop-json (json-encode beads-daemons-test--sample-stop-json))
+         (cache-invalidated nil)
+         (daemon (beads-daemon-info
+                  :workspace-path "/home/user/project1"
+                  :pid 12345)))
+     (cl-letf (((symbol-function 'process-file)
+                (beads-test--mock-call-process 0 stop-json))
+               ((symbol-function 'beads--invalidate-completion-cache)
+                (lambda () (setq cache-invalidated t)))
+               ((symbol-function 'y-or-n-p)
+                (lambda (_prompt) t))
+               ((symbol-function 'beads-daemons-list-refresh)
+                (lambda () nil))
+               ((symbol-function 'beads-daemons-list--get-daemon-at-point)
+                (lambda () daemon)))
+       (with-temp-buffer
+         (beads-daemons-list-mode)
+         (beads-daemons-list-stop)
+         (should cache-invalidated))))))
+
+(ert-deftest beads-daemons-test-list-restart-invalidates-cache ()
+  "Test that daemons list restart invalidates completion cache."
+  (beads-test-with-temp-config
+   (let ((restart-json (json-encode beads-daemons-test--sample-restart-json))
+         (cache-invalidated nil)
+         (daemon (beads-daemon-info
+                  :workspace-path "/home/user/project1"
+                  :pid 12345)))
+     (cl-letf (((symbol-function 'process-file)
+                (beads-test--mock-call-process 0 restart-json))
+               ((symbol-function 'beads--invalidate-completion-cache)
+                (lambda () (setq cache-invalidated t)))
+               ((symbol-function 'y-or-n-p)
+                (lambda (_prompt) t))
+               ((symbol-function 'sit-for)
+                (lambda (_sec) nil))
+               ((symbol-function 'beads-daemons-list-refresh)
+                (lambda () nil))
+               ((symbol-function 'beads-daemons-list--get-daemon-at-point)
+                (lambda () daemon)))
+       (with-temp-buffer
+         (beads-daemons-list-mode)
+         (beads-daemons-list-restart)
+         (should cache-invalidated))))))
+
+(ert-deftest beads-daemons-test-list-killall-invalidates-cache ()
+  "Test that daemons list killall invalidates completion cache."
+  (beads-test-with-temp-config
+   (let ((killall-json (json-encode beads-daemons-test--sample-killall-json))
+         (cache-invalidated nil))
+     (cl-letf (((symbol-function 'process-file)
+                (beads-test--mock-call-process 0 killall-json))
+               ((symbol-function 'beads--invalidate-completion-cache)
+                (lambda () (setq cache-invalidated t)))
+               ((symbol-function 'y-or-n-p)
+                (lambda (_prompt) t))
+               ((symbol-function 'sit-for)
+                (lambda (_sec) nil))
+               ((symbol-function 'beads-daemons-list-refresh)
+                (lambda () nil)))
+       (with-temp-buffer
+         (beads-daemons-list-mode)
+         (setq beads-daemons-list--data '(daemon1 daemon2))
+         (beads-daemons-list-killall)
+         (should cache-invalidated))))))
+
+(ert-deftest beads-daemons-test-transient-stop-invalidates-cache ()
+  "Test that daemons transient stop invalidates completion cache."
+  (beads-test-with-temp-config
+   (let ((stop-json (json-encode beads-daemons-test--sample-stop-json))
+         (cache-invalidated nil))
+     (cl-letf (((symbol-function 'process-file)
+                (beads-test--mock-call-process 0 stop-json))
+               ((symbol-function 'beads--invalidate-completion-cache)
+                (lambda () (setq cache-invalidated t)))
+               ((symbol-function 'y-or-n-p)
+                (lambda (_prompt) t))
+               ((symbol-function 'transient-args)
+                (lambda (_prefix) '("--target=/home/user/project1"))))
+       (beads-daemons--do-stop)
+       (should cache-invalidated)))))
+
+(ert-deftest beads-daemons-test-transient-restart-invalidates-cache ()
+  "Test that daemons transient restart invalidates completion cache."
+  (beads-test-with-temp-config
+   (let ((restart-json (json-encode beads-daemons-test--sample-restart-json))
+         (cache-invalidated nil))
+     (cl-letf (((symbol-function 'process-file)
+                (beads-test--mock-call-process 0 restart-json))
+               ((symbol-function 'beads--invalidate-completion-cache)
+                (lambda () (setq cache-invalidated t)))
+               ((symbol-function 'y-or-n-p)
+                (lambda (_prompt) t))
+               ((symbol-function 'transient-args)
+                (lambda (_prefix) '("--target=/home/user/project1"))))
+       (beads-daemons--do-restart)
+       (should cache-invalidated)))))
+
+(ert-deftest beads-daemons-test-transient-killall-invalidates-cache ()
+  "Test that daemons transient killall invalidates completion cache."
+  (beads-test-with-temp-config
+   (let ((killall-json (json-encode beads-daemons-test--sample-killall-json))
+         (cache-invalidated nil))
+     (cl-letf (((symbol-function 'process-file)
+                (beads-test--mock-call-process 0 killall-json))
+               ((symbol-function 'beads--invalidate-completion-cache)
+                (lambda () (setq cache-invalidated t)))
+               ((symbol-function 'y-or-n-p)
+                (lambda (_prompt) t)))
+       (beads-daemons--do-killall)
+       (should cache-invalidated)))))
+
 (provide 'beads-daemons-test)
 ;;; beads-daemons-test.el ends here

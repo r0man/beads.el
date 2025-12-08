@@ -31,6 +31,7 @@
 ;; Forward declarations
 (defvar beads-executable)
 (declare-function beads--log "beads")
+(declare-function beads--invalidate-completion-cache "beads")
 
 ;;; ============================================================
 ;;; Customization
@@ -415,6 +416,7 @@ Returns a propertized string showing running state and health."
       (condition-case err
           (progn
             (beads-command-execute (beads-daemon-command-stop))
+            (beads--invalidate-completion-cache)
             (message "Daemon stopped")
             (beads-daemon-status-refresh))
         (error
@@ -429,6 +431,7 @@ Returns a propertized string showing running state and health."
           (beads-command-execute (beads-daemon-command-stop))
           (sit-for 0.5))
         (beads-command-execute (beads-daemon-command-start))
+        (beads--invalidate-completion-cache)
         (message "Daemon restarted")
         (sit-for 0.5)
         (beads-daemon-status-refresh))
@@ -610,6 +613,7 @@ metrics, and operations."
           (progn
             (beads-command-execute cmd)
             (beads-daemon-start--reset-state)
+            (beads--invalidate-completion-cache)
             (message "Daemon started successfully"))
         (error
          (message "Failed to start daemon: %s" (error-message-string err)))))))
@@ -650,6 +654,7 @@ metrics, and operations."
       (condition-case err
           (progn
             (beads-command-execute (beads-daemon-command-stop))
+            (beads--invalidate-completion-cache)
             (message "Daemon stopped"))
         (error
          (message "Failed to stop daemon: %s" (error-message-string err)))))))
@@ -665,6 +670,7 @@ metrics, and operations."
           (beads-command-execute (beads-daemon-command-stop))
           (sit-for 0.5))
         (beads-command-execute (beads-daemon-command-start))
+        (beads--invalidate-completion-cache)
         (message "Daemon restarted"))
     (error
      (message "Failed to restart daemon: %s" (error-message-string err)))))
