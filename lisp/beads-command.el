@@ -39,6 +39,7 @@
 ;;; Code:
 
 (require 'eieio)
+(require 'beads-meta)  ; Must be before defclass to install advice
 (require 'beads-types)
 (require 'beads-error)
 (require 'cl-lib)
@@ -1105,93 +1106,306 @@ Does not modify command slots."
     :type (or null string)
     :initform nil
     :documentation "Issue title (positional or --title).
-First positional argument or explicit --title flag.")
+First positional argument or explicit --title flag."
+    ;; CLI properties - title is a positional argument
+    :positional 1
+    ;; Transient properties
+    :transient-key "t"
+    :transient-description "Title (required)"
+    :transient-class transient-option
+    :transient-argument "--title="
+    :transient-prompt "Issue title: "
+    :transient-reader beads-reader-issue-title
+    :transient-group "Required"
+    :transient-level 1
+    :transient-order 1
+    ;; Validation
+    :required t)
    (acceptance
     :initarg :acceptance
     :type (or null string)
     :initform nil
-    :documentation "Acceptance criteria (--acceptance).")
+    :documentation "Acceptance criteria (--acceptance)."
+    ;; CLI properties
+    :long-option "--acceptance"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-A"
+    :transient-description "Acceptance criteria"
+    :transient-class beads-create-transient-multiline
+    :transient-argument "--acceptance="
+    :transient-field-name "Acceptance Criteria"
+    :transient-group "Content"
+    :transient-level 3
+    :transient-order 2)
    (assignee
     :initarg :assignee
     :type (or null string)
     :initform nil
-    :documentation "Assignee (-a, --assignee).")
+    :documentation "Assignee (-a, --assignee)."
+    ;; CLI properties
+    :long-option "--assignee"
+    :short-option "-a"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-a"
+    :transient-description "Assignee"
+    :transient-class transient-option
+    :transient-argument "--assignee="
+    :transient-prompt "Assignee: "
+    :transient-reader beads-reader-issue-assignee
+    :transient-group "Issue attributes"
+    :transient-level 2
+    :transient-order 3)
    (deps
     :initarg :deps
     :type (or null list)
     :initform nil
     :documentation "Dependencies (--deps).
 List of strings in format 'type:id' or 'id'.
-Examples: 'discovered-from:bd-20', 'blocks:bd-15', 'bd-20'.")
+Examples: 'discovered-from:bd-20', 'blocks:bd-15', 'bd-20'."
+    ;; CLI properties
+    :long-option "--deps"
+    :option-type :list
+    :option-separator ","
+    ;; Transient properties
+    :transient-key "-D"
+    :transient-description "Dependencies"
+    :transient-class transient-option
+    :transient-argument "--deps="
+    :transient-prompt "Dependencies (type:id,...): "
+    :transient-reader beads-reader-create-dependencies
+    :transient-group "Advanced"
+    :transient-level 4
+    :transient-order 3)
    (description
     :initarg :description
     :type (or null string)
     :initform nil
-    :documentation "Issue description (-d, --description).")
+    :documentation "Issue description (-d, --description)."
+    ;; CLI properties
+    :long-option "--description"
+    :short-option "-d"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-d"
+    :transient-description "Description"
+    :transient-class beads-create-transient-multiline
+    :transient-argument "--description="
+    :transient-field-name "Description"
+    :transient-group "Content"
+    :transient-level 3
+    :transient-order 1)
    (design
     :initarg :design
     :type (or null string)
     :initform nil
-    :documentation "Design notes (--design).")
+    :documentation "Design notes (--design)."
+    ;; CLI properties
+    :long-option "--design"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-G"
+    :transient-description "Design notes"
+    :transient-class beads-create-transient-multiline
+    :transient-argument "--design="
+    :transient-field-name "Design"
+    :transient-group "Content"
+    :transient-level 3
+    :transient-order 3)
    (external-ref
     :initarg :external-ref
     :type (or null string)
     :initform nil
     :documentation "External reference (--external-ref).
-Examples: 'gh-9', 'jira-ABC'.")
+Examples: 'gh-9', 'jira-ABC'."
+    ;; CLI properties
+    :long-option "--external-ref"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-x"
+    :transient-description "External reference"
+    :transient-class transient-option
+    :transient-argument "--external-ref="
+    :transient-prompt "External reference: "
+    :transient-reader beads-reader-issue-external-ref
+    :transient-group "Advanced"
+    :transient-level 4
+    :transient-order 1)
    (file
     :initarg :file
     :type (or null string)
     :initform nil
-    :documentation "Create multiple issues from markdown file (-f, --file).")
+    :documentation "Create multiple issues from markdown file (-f, --file)."
+    ;; CLI properties
+    :long-option "--file"
+    :short-option "-f"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-F"
+    :transient-description "Create from file"
+    :transient-class transient-option
+    :transient-argument "--file="
+    :transient-prompt "Markdown file: "
+    :transient-reader beads-reader-create-file
+    :transient-group "Advanced"
+    :transient-level 4
+    :transient-order 7)
    (force
     :initarg :force
     :type boolean
     :initform nil
-    :documentation "Force creation even if prefix doesn't match (--force).")
+    :documentation "Force creation even if prefix doesn't match (--force)."
+    ;; CLI properties
+    :long-option "--force"
+    :option-type :boolean
+    ;; Transient properties
+    :transient-key "-f"
+    :transient-description "Force creation"
+    :transient-class transient-switch
+    :transient-argument "--force"
+    :transient-group "Advanced"
+    :transient-level 4
+    :transient-order 8)
    (from-template
     :initarg :from-template
     :type (or null string)
     :initform nil
     :documentation "Create issue from template (--from-template).
-Examples: 'epic', 'bug', 'feature'.")
+Examples: 'epic', 'bug', 'feature'."
+    ;; CLI properties
+    :long-option "--from-template"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-T"
+    :transient-description "From template"
+    :transient-class transient-option
+    :transient-argument "--from-template="
+    :transient-prompt "Template (epic, bug, feature): "
+    :transient-reader beads-reader-create-from-template
+    :transient-group "Advanced"
+    :transient-level 4
+    :transient-order 6)
    (id
     :initarg :id
     :type (or null string)
     :initform nil
     :documentation "Explicit issue ID (--id).
-Example: 'bd-42' for partitioning.")
+Example: 'bd-42' for partitioning."
+    ;; CLI properties
+    :long-option "--id"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-i"
+    :transient-description "Custom ID"
+    :transient-class transient-option
+    :transient-argument "--id="
+    :transient-prompt "Custom ID: "
+    :transient-reader beads-reader-create-custom-id
+    :transient-group "Advanced"
+    :transient-level 4
+    :transient-order 2)
    (labels
     :initarg :labels
     :type (or null list)
     :initform nil
     :documentation "Labels (-l, --labels).
-List of label strings.")
+List of label strings."
+    ;; CLI properties
+    :long-option "--labels"
+    :short-option "-l"
+    :option-type :list
+    :option-separator ","
+    ;; Transient properties
+    :transient-key "-l"
+    :transient-description "Labels"
+    :transient-class transient-option
+    :transient-argument "--labels="
+    :transient-prompt "Labels (comma-separated): "
+    :transient-reader beads-reader-issue-labels
+    :transient-group "Issue attributes"
+    :transient-level 2
+    :transient-order 4)
    (parent
     :initarg :parent
     :type (or null string)
     :initform nil
     :documentation "Parent issue ID for hierarchical child (--parent).
-Example: 'bd-a3f8e9'.")
+Example: 'bd-a3f8e9'."
+    ;; CLI properties
+    :long-option "--parent"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-P"
+    :transient-description "Parent issue ID"
+    :transient-class transient-option
+    :transient-argument "--parent="
+    :transient-prompt "Parent issue ID (e.g., bd-a3f8e9): "
+    :transient-reader beads-reader-create-parent
+    :transient-group "Advanced"
+    :transient-level 4
+    :transient-order 4)
    (priority
     :initarg :priority
     :type (or null string integer)
     :initform nil
     :documentation "Priority (-p, --priority).
 Values: 0-4 or P0-P4 (0=highest). Default: '2'.
-Accepts both integer (1) and string (\"1\" or \"P1\") formats.")
+Accepts both integer (1) and string (\"1\" or \"P1\") formats."
+    ;; CLI properties
+    :long-option "--priority"
+    :short-option "-p"
+    :option-type :string  ; Keep as string for P0-P4 format
+    ;; Transient properties
+    :transient-key "-p"
+    :transient-description "Priority"
+    :transient-class transient-option
+    :transient-argument "--priority="
+    :transient-prompt "Priority: "
+    :transient-reader beads-reader-issue-priority
+    :transient-group "Issue attributes"
+    :transient-level 2
+    :transient-order 2)
    (repo
     :initarg :repo
     :type (or null string)
     :initform nil
     :documentation "Target repository for issue (--repo).
-Overrides auto-routing.")
+Overrides auto-routing."
+    ;; CLI properties
+    :long-option "--repo"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-r"
+    :transient-description "Target repository"
+    :transient-class transient-option
+    :transient-argument "--repo="
+    :transient-prompt "Target repository: "
+    :transient-reader beads-reader-create-repo
+    :transient-group "Advanced"
+    :transient-level 4
+    :transient-order 5)
    (issue-type
     :initarg :issue-type
     :type (or null string)
     :initform nil
     :documentation "Issue type (-t, --type).
-Values: bug, feature, task, epic, chore. Default: 'task'."))
+Values: bug, feature, task, epic, chore. Default: 'task'."
+    ;; CLI properties
+    :long-option "--type"
+    :short-option "-t"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-t"
+    :transient-description "Type"
+    :transient-class transient-option
+    :transient-argument "--type="
+    :transient-prompt "Type: "
+    :transient-choices ("bug" "feature" "task" "epic" "chore")
+    :transient-reader beads-reader-issue-type
+    :transient-group "Issue attributes"
+    :transient-level 2
+    :transient-order 1))
   :documentation "Represents bd create command.
 Creates a new issue (or multiple issues from markdown file).
 When executed with :json t, returns the created beads-issue instance(s).")
