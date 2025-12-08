@@ -227,7 +227,9 @@
     (should (stringp help))
     (should (string-match-p "Running" help))
     (should (string-match-p "mouse-1" help))
-    (should (string-match-p "mouse-3" help))))
+    (should (string-match-p "mouse-3" help))
+    (should (string-match-p "Keyboard" help))
+    (should (string-match-p "beads-daemon" help))))
 
 (ert-deftest beads-modeline-test-help-echo-stopped ()
   "Test help-echo for stopped state."
