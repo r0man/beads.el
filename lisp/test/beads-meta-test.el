@@ -1118,5 +1118,82 @@
     (let ((group-names (mapcar (lambda (g) (plist-get g :description)) groups)))
       (should (member "Close Issue" group-names)))))
 
+;;; ============================================================
+;;; Tests for beads-command-show Slot Properties
+;;; ============================================================
+
+;; These tests verify that beads-command-show has correct slot properties
+;; after migration to use beads-meta.
+
+(ert-deftest beads-meta-show-slot-property-issue-ids ()
+  "Test that issue-ids slot has correct metadata."
+  ;; Transient properties
+  (should (equal "i" (beads-meta-slot-property
+                      'beads-command-show 'issue-ids :transient-key)))
+  (should (equal "Issue ID (required)" (beads-meta-slot-property
+                                        'beads-command-show 'issue-ids
+                                        :transient-description)))
+  (should (eq 'transient-option (beads-meta-slot-property
+                                 'beads-command-show 'issue-ids
+                                 :transient-class)))
+  (should (equal "--id=" (beads-meta-slot-property
+                          'beads-command-show 'issue-ids :transient-argument)))
+  (should (equal "Issue ID: " (beads-meta-slot-property
+                               'beads-command-show 'issue-ids
+                               :transient-prompt)))
+  (should (eq 'beads-reader-issue-id (beads-meta-slot-property
+                                      'beads-command-show 'issue-ids
+                                      :transient-reader)))
+  (should (equal "Show Issue" (beads-meta-slot-property
+                               'beads-command-show 'issue-ids
+                               :transient-group)))
+  (should (equal 1 (beads-meta-slot-property
+                    'beads-command-show 'issue-ids :transient-level)))
+  (should (equal 1 (beads-meta-slot-property
+                    'beads-command-show 'issue-ids :transient-order)))
+  ;; Validation
+  (should (eq t (beads-meta-slot-property
+                 'beads-command-show 'issue-ids :required))))
+
+(ert-deftest beads-meta-show-transient-slots ()
+  "Test that all expected slots have transient keys."
+  (let ((slots (beads-meta-transient-slots 'beads-command-show)))
+    ;; Should have only issue-ids slot with transient key
+    (should (memq 'issue-ids slots))
+    ;; Should have exactly 1 slot with transient key
+    (should (= 1 (length slots)))))
+
+(ert-deftest beads-meta-show-option-slots ()
+  "Test that option slots are identified correctly."
+  (let ((options (beads-meta-option-slots 'beads-command-show)))
+    ;; Should NOT include issue-ids (no :long-option, no :positional)
+    (should-not (memq 'issue-ids options))
+    ;; Should be empty since issue-ids is the only slot
+    (should (null options))))
+
+(ert-deftest beads-meta-show-generate-infix-specs ()
+  "Test that infix specs can be generated from beads-command-show."
+  (let ((specs (beads-meta-generate-infix-specs
+                'beads-command-show "beads-show")))
+    ;; Should have spec for issue-ids slot
+    (should (= 1 (length specs)))
+    ;; Check for specific infix
+    (let ((issue-ids-spec (cl-find-if
+                           (lambda (s)
+                             (eq 'beads-show-infix-issue-ids (plist-get s :name)))
+                           specs)))
+      (should issue-ids-spec)
+      (should (equal "i" (plist-get issue-ids-spec :key))))))
+
+(ert-deftest beads-meta-show-generate-group-specs ()
+  "Test that group specs can be generated from beads-command-show."
+  (let ((groups (beads-meta-generate-group-specs
+                 'beads-command-show "beads-show")))
+    ;; Should have exactly one group (Show Issue)
+    (should (= 1 (length groups)))
+    ;; Check for expected group
+    (let ((group-names (mapcar (lambda (g) (plist-get g :description)) groups)))
+      (should (member "Show Issue" group-names)))))
+
 (provide 'beads-meta-test)
 ;;; beads-meta-test.el ends here
