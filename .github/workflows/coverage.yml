@@ -41,6 +41,9 @@ jobs:
       - name: Verify Beads installation
         run: bd version
 
+      - name: Create coverage directory
+        run: mkdir -p coverage
+
       - name: Run tests with coverage
         # Use source loading mode (-s) instead of packaged mode (-p) because
         # undercover cannot instrument byte-compiled files.
