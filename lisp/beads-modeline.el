@@ -285,14 +285,16 @@ Sets `mode-line-process' to show the daemon status indicator."
     (setq beads-modeline--refresh-timer nil)))
 
 (defun beads-modeline--timer-refresh ()
-  "Refresh status from timer callback."
+  "Refresh status from timer callback.
+Uses `with-demoted-errors' to avoid interrupting user on failure."
   ;; Only refresh if there are beads buffers visible
-  (when (cl-some (lambda (win)
-                   (with-current-buffer (window-buffer win)
-                     (beads-modeline--in-beads-buffer-p)))
-                 (window-list))
-    (beads-modeline--refresh-status)
-    (force-mode-line-update t)))
+  (with-demoted-errors "beads-modeline: %S"
+    (when (cl-some (lambda (win)
+                     (with-current-buffer (window-buffer win)
+                       (beads-modeline--in-beads-buffer-p)))
+                   (window-list))
+      (beads-modeline--refresh-status)
+      (force-mode-line-update t))))
 
 ;;;###autoload
 (define-minor-mode beads-modeline-mode
