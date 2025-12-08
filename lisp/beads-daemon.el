@@ -8,18 +8,65 @@
 ;;; Commentary:
 
 ;; This module provides the transient menu interface for managing the
-;; bd daemon.  The daemon handles automatic syncing of issues with git
-;; remote.
+;; bd daemon for the CURRENT PROJECT.  The daemon handles automatic
+;; syncing of issues with git remote.
+;;
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;; beads-daemon vs beads-daemons: Which Should I Use?
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;;
+;; beads-daemon (this module):
+;;   - Manages the daemon for the CURRENT project/repository
+;;   - Use when working within a single project
+;;   - Commands: M-x beads-daemon, M-x beads-daemon-dashboard
+;;   - Bound to 'D' in beads-main menu
+;;
+;; beads-daemons (beads-daemons.el):
+;;   - Manages ALL daemons across all repositories system-wide
+;;   - Use when you need to see/control daemons globally
+;;   - Commands: M-x beads-daemons, M-x beads-daemons-list
+;;   - Shows daemons from all worktrees and repositories
+;;
+;; Rule of thumb:
+;;   - Working on one project? Use `beads-daemon'
+;;   - Managing multiple projects or troubleshooting? Use `beads-daemons'
+;;
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;; Module Structure
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ;;
 ;; The core daemon command classes, data structures, and parsing functions
 ;; are defined in beads-command.el.  This module provides:
 ;; - Transient menus for daemon management
 ;; - High-level API functions
 ;; - Interactive commands
+;; - Dashboard buffer with detailed status display
 ;;
-;; Usage:
-;;   M-x beads-daemon RET    ; Open daemon transient menu
-;;   M-x beads-daemon-show-status RET  ; Show daemon status
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;; Mode-line Integration
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;;
+;; See beads-modeline.el for mode-line indicator configuration.
+;; Enable with: (beads-modeline-mode 1)
+;;
+;; Example configuration in init.el:
+;;
+;;   ;; Enable mode-line indicator globally
+;;   (add-hook 'after-init-hook #'beads-modeline-mode)
+;;
+;;   ;; Customize the indicator prefix (default is ":bd")
+;;   (setq beads-modeline-prefix " bd")
+;;
+;;   ;; Set status refresh interval in seconds (default 30)
+;;   (setq beads-modeline-refresh-interval 60)
+;;
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;; Usage
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;;
+;;   M-x beads-daemon RET           ; Open daemon transient menu
+;;   M-x beads-daemon-dashboard RET ; Open detailed status buffer
+;;   M-x beads-daemon-show-status RET  ; Quick status in minibuffer
 
 ;;; Code:
 

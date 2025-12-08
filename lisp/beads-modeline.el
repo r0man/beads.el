@@ -8,10 +8,10 @@
 ;;; Commentary:
 
 ;; This module provides a non-intrusive mode-line indicator showing
-;; the daemon status.  The indicator displays:
-;;   - (green) running
-;;   - (gray) stopped
-;;   - (yellow) degraded
+;; the daemon status for the CURRENT PROJECT.  The indicator displays:
+;;   - (green) running - daemon is active and healthy
+;;   - (gray) stopped - daemon is not running
+;;   - (yellow) degraded - daemon has health issues
 ;;
 ;; The indicator uses Emacs's standard `mode-line-process' variable,
 ;; which appears immediately after the major mode name.  This follows
@@ -25,7 +25,65 @@
 ;; The daemon status is cached with a configurable refresh interval
 ;; to avoid excessive polling.
 ;;
-;; Usage:
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;; Quick Start
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;;
+;; Add to your init.el:
+;;
+;;   (add-hook 'after-init-hook #'beads-modeline-mode)
+;;
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;; Configuration Examples
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;;
+;; Basic setup with defaults:
+;;
+;;   (beads-modeline-mode 1)
+;;
+;; Customize the prefix string (appears before status icon):
+;;
+;;   ;; Default is ":bd" - shows as ":bd●" when running
+;;   (setq beads-modeline-prefix " bd")   ; Shows as " bd●"
+;;   (setq beads-modeline-prefix "")      ; Shows just "●"
+;;
+;; Control refresh frequency:
+;;
+;;   ;; Refresh every 60 seconds instead of default 30
+;;   (setq beads-modeline-refresh-interval 60)
+;;
+;;   ;; Disable automatic refresh (only updates on mode-line redraw)
+;;   (setq beads-modeline-refresh-interval nil)
+;;
+;; Customize faces (colors):
+;;
+;;   ;; Use custom colors for the status indicator
+;;   (set-face-attribute 'beads-modeline-running nil
+;;                       :foreground "green")
+;;   (set-face-attribute 'beads-modeline-stopped nil
+;;                       :foreground "gray50")
+;;   (set-face-attribute 'beads-modeline-degraded nil
+;;                       :foreground "orange")
+;;
+;; Complete init.el example:
+;;
+;;   (use-package beads
+;;     :config
+;;     (setq beads-modeline-prefix " bd")
+;;     (setq beads-modeline-refresh-interval 60)
+;;     (beads-modeline-mode 1))
+;;
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;; Related Modules
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;;
+;; - beads-daemon.el: Manage daemon for current project (M-x beads-daemon)
+;; - beads-daemons.el: Manage all daemons system-wide (M-x beads-daemons)
+;;
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;; Usage
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;;
 ;;   (beads-modeline-mode 1)    ; Enable globally
 ;;   (beads-modeline-mode -1)   ; Disable globally
 ;;
