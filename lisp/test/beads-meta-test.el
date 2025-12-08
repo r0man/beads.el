@@ -1001,5 +1001,122 @@
       (should (member "Basic Info" group-names))
       (should (member "Content" group-names)))))
 
+;;; ============================================================
+;;; Tests for beads-command-close Slot Properties
+;;; ============================================================
+
+;; These tests verify that beads-command-close has correct slot properties
+;; after migration to use beads-meta.
+
+(ert-deftest beads-meta-close-slot-property-issue-ids ()
+  "Test that issue-ids slot has correct metadata."
+  ;; Transient properties
+  (should (equal "i" (beads-meta-slot-property
+                      'beads-command-close 'issue-ids :transient-key)))
+  (should (equal "Issue ID (required)" (beads-meta-slot-property
+                                        'beads-command-close 'issue-ids
+                                        :transient-description)))
+  (should (eq 'transient-option (beads-meta-slot-property
+                                 'beads-command-close 'issue-ids
+                                 :transient-class)))
+  (should (equal "--id=" (beads-meta-slot-property
+                          'beads-command-close 'issue-ids :transient-argument)))
+  (should (equal "Issue ID: " (beads-meta-slot-property
+                               'beads-command-close 'issue-ids
+                               :transient-prompt)))
+  (should (eq 'beads-reader-close-issue-id (beads-meta-slot-property
+                                            'beads-command-close 'issue-ids
+                                            :transient-reader)))
+  (should (equal "Close Issue" (beads-meta-slot-property
+                                'beads-command-close 'issue-ids
+                                :transient-group)))
+  (should (equal 1 (beads-meta-slot-property
+                    'beads-command-close 'issue-ids :transient-level)))
+  (should (equal 1 (beads-meta-slot-property
+                    'beads-command-close 'issue-ids :transient-order)))
+  ;; Validation
+  (should (eq t (beads-meta-slot-property
+                 'beads-command-close 'issue-ids :required))))
+
+(ert-deftest beads-meta-close-slot-property-reason ()
+  "Test that reason slot has correct metadata."
+  ;; CLI properties
+  (should (equal "--reason" (beads-meta-slot-property
+                             'beads-command-close 'reason :long-option)))
+  (should (equal "-r" (beads-meta-slot-property
+                       'beads-command-close 'reason :short-option)))
+  (should (eq :string (beads-meta-slot-property
+                       'beads-command-close 'reason :option-type)))
+  ;; Transient properties
+  (should (equal "r" (beads-meta-slot-property
+                      'beads-command-close 'reason :transient-key)))
+  (should (equal "--reason" (beads-meta-slot-property
+                             'beads-command-close 'reason
+                             :transient-description)))
+  (should (eq 'beads-create-transient-multiline (beads-meta-slot-property
+                                                 'beads-command-close 'reason
+                                                 :transient-class)))
+  (should (equal "--reason=" (beads-meta-slot-property
+                              'beads-command-close 'reason :transient-argument)))
+  (should (equal "Close Reason" (beads-meta-slot-property
+                                 'beads-command-close 'reason
+                                 :transient-field-name)))
+  (should (equal "Close Issue" (beads-meta-slot-property
+                                'beads-command-close 'reason :transient-group)))
+  (should (equal 1 (beads-meta-slot-property
+                    'beads-command-close 'reason :transient-level)))
+  (should (equal 2 (beads-meta-slot-property
+                    'beads-command-close 'reason :transient-order)))
+  ;; Validation
+  (should (eq t (beads-meta-slot-property
+                 'beads-command-close 'reason :required))))
+
+(ert-deftest beads-meta-close-transient-slots ()
+  "Test that all expected slots have transient keys."
+  (let ((slots (beads-meta-transient-slots 'beads-command-close)))
+    ;; Should have both transient-enabled slots
+    (should (memq 'issue-ids slots))
+    (should (memq 'reason slots))
+    ;; Should have exactly 2 slots with transient keys
+    (should (= 2 (length slots)))))
+
+(ert-deftest beads-meta-close-option-slots ()
+  "Test that option slots are identified correctly."
+  (let ((options (beads-meta-option-slots 'beads-command-close)))
+    ;; Should include reason (has :long-option)
+    (should (memq 'reason options))
+    ;; Should NOT include issue-ids (no :long-option, no :positional)
+    (should-not (memq 'issue-ids options))))
+
+(ert-deftest beads-meta-close-generate-infix-specs ()
+  "Test that infix specs can be generated from beads-command-close."
+  (let ((specs (beads-meta-generate-infix-specs
+                'beads-command-close "beads-close")))
+    ;; Should have specs for both transient-enabled slots
+    (should (= 2 (length specs)))
+    ;; Check for specific infixes
+    (let ((issue-ids-spec (cl-find-if
+                           (lambda (s)
+                             (eq 'beads-close-infix-issue-ids (plist-get s :name)))
+                           specs)))
+      (should issue-ids-spec)
+      (should (equal "i" (plist-get issue-ids-spec :key))))
+    (let ((reason-spec (cl-find-if
+                        (lambda (s)
+                          (eq 'beads-close-infix-reason (plist-get s :name)))
+                        specs)))
+      (should reason-spec)
+      (should (equal "r" (plist-get reason-spec :key))))))
+
+(ert-deftest beads-meta-close-generate-group-specs ()
+  "Test that group specs can be generated from beads-command-close."
+  (let ((groups (beads-meta-generate-group-specs
+                 'beads-command-close "beads-close")))
+    ;; Should have exactly one group (Close Issue)
+    (should (= 1 (length groups)))
+    ;; Check for expected group
+    (let ((group-names (mapcar (lambda (g) (plist-get g :description)) groups)))
+      (should (member "Close Issue" group-names)))))
+
 (provide 'beads-meta-test)
 ;;; beads-meta-test.el ends here
