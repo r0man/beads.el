@@ -392,6 +392,42 @@ PROMPT is shown to the user."
                    nil t))
 
 ;;; ============================================================
+;;; beads-daemon Reader Functions
+;;; ============================================================
+
+(defun beads-reader-daemon-interval (prompt initial-input history)
+  "Read sync interval for daemon start command.
+PROMPT is shown to the user.  INITIAL-INPUT provides initial value.
+HISTORY is the history list to use.  Defaults to \"5s\"."
+  (read-string prompt (or initial-input "5s") history))
+
+(defun beads-reader-daemon-log (prompt initial-input _history)
+  "Read log file path for daemon start command.
+PROMPT is shown to the user.  INITIAL-INPUT provides initial value."
+  (read-file-name prompt nil nil nil initial-input))
+
+;;; ============================================================
+;;; beads-daemons Reader Functions
+;;; ============================================================
+
+(defun beads-reader-daemons-search (prompt initial-input _history)
+  "Read search directory for daemons list command.
+PROMPT is shown to the user.  INITIAL-INPUT provides initial value."
+  (read-directory-name prompt nil nil nil initial-input))
+
+(defun beads-reader-daemons-target (prompt initial-input history)
+  "Read target workspace or PID for daemons command.
+PROMPT is shown to the user.  INITIAL-INPUT provides initial value.
+HISTORY is the history list to use."
+  (read-string prompt initial-input history))
+
+(defun beads-reader-daemons-lines (prompt _initial-input history)
+  "Read number of log lines for daemons log command.
+PROMPT is shown to the user.  HISTORY is the history list to use.
+Defaults to 50."
+  (read-number prompt 50 history))
+
+;;; ============================================================
 ;;; Label-specific Reader Functions
 ;;; ============================================================
 

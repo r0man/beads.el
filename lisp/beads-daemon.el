@@ -24,6 +24,7 @@
 ;;; Code:
 
 (require 'beads-command)
+(require 'beads-reader)
 (require 'cl-lib)
 (require 'eieio)
 (require 'transient)
@@ -580,8 +581,7 @@ metrics, and operations."
   :key "-i"
   :description "Sync interval"
   :argument "--interval="
-  :reader (lambda (prompt _initial _history)
-            (read-string prompt "5s")))
+  :reader #'beads-reader-daemon-interval)
 
 (transient-define-infix beads-daemon-start--infix-log ()
   "Set log file path."
@@ -589,8 +589,7 @@ metrics, and operations."
   :key "-L"
   :description "Log file path"
   :argument "--log="
-  :reader (lambda (prompt _initial _history)
-            (read-file-name prompt)))
+  :reader #'beads-reader-daemon-log)
 
 ;;; ============================================================
 ;;; Transient Suffix Commands

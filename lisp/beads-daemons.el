@@ -28,6 +28,7 @@
 ;;; Code:
 
 (require 'beads-command)
+(require 'beads-reader)
 (require 'cl-lib)
 (require 'eieio)
 (require 'iso8601)
@@ -446,8 +447,7 @@ Arguments IGNORE-AUTO and NOCONFIRM are ignored."
   :description "Search directory"
   :argument "--search="
   :multi-value t
-  :reader (lambda (prompt _initial _history)
-            (read-directory-name prompt)))
+  :reader #'beads-reader-daemons-search)
 
 (transient-define-infix beads-daemons--infix-target ()
   "Set target workspace or PID."
@@ -455,8 +455,7 @@ Arguments IGNORE-AUTO and NOCONFIRM are ignored."
   :key "-t"
   :description "Target (workspace/PID)"
   :argument "--target="
-  :reader (lambda (prompt _initial _history)
-            (read-string prompt)))
+  :reader #'beads-reader-daemons-target)
 
 (transient-define-infix beads-daemons--infix-lines ()
   "Set number of log lines."
@@ -464,8 +463,7 @@ Arguments IGNORE-AUTO and NOCONFIRM are ignored."
   :key "-n"
   :description "Log lines"
   :argument "--lines="
-  :reader (lambda (prompt _initial _history)
-            (read-number prompt 50)))
+  :reader #'beads-reader-daemons-lines)
 
 (transient-define-infix beads-daemons--infix-force ()
   "Toggle force flag for killall."

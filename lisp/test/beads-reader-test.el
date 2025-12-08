@@ -518,5 +518,96 @@
     (let ((result (beads-reader-label-name nil nil nil)))
       (should (equal result "new-label")))))
 
+;;; ============================================================
+;;; Tests for beads-daemon Reader Functions
+;;; ============================================================
+
+(ert-deftest beads-reader-test-daemon-interval-exists ()
+  "Test that beads-reader-daemon-interval is defined."
+  (should (fboundp 'beads-reader-daemon-interval)))
+
+(ert-deftest beads-reader-test-daemon-interval ()
+  "Test reading sync interval for daemon start."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (prompt initial history)
+               (should (equal initial "5s"))
+               "10s")))
+    (let ((result (beads-reader-daemon-interval "Interval: " nil nil)))
+      (should (equal result "10s")))))
+
+(ert-deftest beads-reader-test-daemon-interval-default ()
+  "Test daemon interval reader uses default value."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (prompt initial history)
+               initial)))
+    (let ((result (beads-reader-daemon-interval "Interval: " nil nil)))
+      (should (equal result "5s")))))
+
+(ert-deftest beads-reader-test-daemon-interval-with-initial ()
+  "Test daemon interval reader uses initial-input when provided."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (prompt initial history)
+               initial)))
+    (let ((result (beads-reader-daemon-interval "Interval: " "30s" nil)))
+      (should (equal result "30s")))))
+
+(ert-deftest beads-reader-test-daemon-log-exists ()
+  "Test that beads-reader-daemon-log is defined."
+  (should (fboundp 'beads-reader-daemon-log)))
+
+(ert-deftest beads-reader-test-daemon-log ()
+  "Test reading log file path for daemon start."
+  (cl-letf (((symbol-function 'read-file-name)
+             (lambda (&rest _args) "/var/log/daemon.log")))
+    (let ((result (beads-reader-daemon-log "Log file: " nil nil)))
+      (should (equal result "/var/log/daemon.log")))))
+
+;;; ============================================================
+;;; Tests for beads-daemons Reader Functions
+;;; ============================================================
+
+(ert-deftest beads-reader-test-daemons-search-exists ()
+  "Test that beads-reader-daemons-search is defined."
+  (should (fboundp 'beads-reader-daemons-search)))
+
+(ert-deftest beads-reader-test-daemons-search ()
+  "Test reading search directory for daemons list."
+  (cl-letf (((symbol-function 'read-directory-name)
+             (lambda (&rest _args) "/home/user/projects/")))
+    (let ((result (beads-reader-daemons-search "Search dir: " nil nil)))
+      (should (equal result "/home/user/projects/")))))
+
+(ert-deftest beads-reader-test-daemons-target-exists ()
+  "Test that beads-reader-daemons-target is defined."
+  (should (fboundp 'beads-reader-daemons-target)))
+
+(ert-deftest beads-reader-test-daemons-target ()
+  "Test reading target workspace or PID for daemons command."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (&rest _args) "12345")))
+    (let ((result (beads-reader-daemons-target "Target: " nil nil)))
+      (should (equal result "12345")))))
+
+(ert-deftest beads-reader-test-daemons-lines-exists ()
+  "Test that beads-reader-daemons-lines is defined."
+  (should (fboundp 'beads-reader-daemons-lines)))
+
+(ert-deftest beads-reader-test-daemons-lines ()
+  "Test reading number of log lines for daemons log command."
+  (cl-letf (((symbol-function 'read-number)
+             (lambda (prompt default history)
+               (should (equal default 50))
+               100)))
+    (let ((result (beads-reader-daemons-lines "Lines: " nil nil)))
+      (should (equal result 100)))))
+
+(ert-deftest beads-reader-test-daemons-lines-default ()
+  "Test daemons lines reader uses default value."
+  (cl-letf (((symbol-function 'read-number)
+             (lambda (_prompt default history)
+               default)))
+    (let ((result (beads-reader-daemons-lines "Lines: " nil nil)))
+      (should (equal result 50)))))
+
 (provide 'beads-reader-test)
 ;;; beads-reader-test.el ends here
