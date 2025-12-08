@@ -21,12 +21,12 @@ jobs:
           version: '30.2'
 
       - name: Cache Eldev dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.emacs.d/eldev
-          key: ${{ runner.os }}-eldev-${{ hashFiles('Eldev') }}
+          key: ${{ runner.os }}-eldev-lint-v3-${{ hashFiles('Eldev') }}
           restore-keys: |
-            ${{ runner.os }}-eldev-
+            ${{ runner.os }}-eldev-lint-v3-
 
       - name: Install Eldev
         run: curl --fail --silent --show-error --location https://raw.github.com/doublep/eldev/master/webinstall/github-eldev | sh
