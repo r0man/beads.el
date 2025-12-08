@@ -7,23 +7,76 @@
 
 ;;; Commentary:
 
-;; This module provides the interface for managing multiple bd daemons
-;; across all repositories and worktrees.  Unlike beads-daemon.el which
-;; manages a single project's daemon, this module provides system-wide
-;; daemon management.
+;; This module provides the interface for managing ALL bd daemons
+;; across all repositories and worktrees SYSTEM-WIDE.
 ;;
-;; Features:
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;; beads-daemons vs beads-daemon: Which Should I Use?
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;;
+;; beads-daemons (this module):
+;;   - Manages ALL daemons across all repositories system-wide
+;;   - Use when you need to see/control daemons globally
+;;   - Commands: M-x beads-daemons, M-x beads-daemons-list
+;;   - Shows daemons from all worktrees and repositories
+;;   - Useful for troubleshooting or managing multiple projects
+;;
+;; beads-daemon (beads-daemon.el):
+;;   - Manages the daemon for the CURRENT project/repository
+;;   - Use when working within a single project
+;;   - Commands: M-x beads-daemon, M-x beads-daemon-dashboard
+;;   - Bound to 'D' in beads-main menu
+;;
+;; Rule of thumb:
+;;   - Working on one project? Use `beads-daemon'
+;;   - Managing multiple projects or troubleshooting? Use `beads-daemons'
+;;
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;; Features
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;;
 ;; - List all running daemons across repositories
-;; - Health check all daemons
+;; - Health check all daemons (healthy/stale/mismatched)
 ;; - Stop/restart specific daemons by workspace or PID
 ;; - View logs for any daemon
-;; - Kill all daemons at once
+;; - Kill all daemons at once (with optional SIGKILL force)
 ;;
 ;; The command classes and data structures are defined in beads-command.el.
 ;;
-;; Usage:
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;; Mode-line Integration
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;;
+;; See beads-modeline.el for mode-line indicator configuration.
+;; The mode-line shows daemon status for the CURRENT project (per-buffer).
+;; Enable with: (beads-modeline-mode 1)
+;;
+;; Example configuration in init.el:
+;;
+;;   ;; Enable mode-line indicator globally
+;;   (add-hook 'after-init-hook #'beads-modeline-mode)
+;;
+;;   ;; Customize the indicator prefix (default is ":bd")
+;;   (setq beads-modeline-prefix " bd")
+;;
+;;   ;; Set status refresh interval in seconds (default 30)
+;;   (setq beads-modeline-refresh-interval 60)
+;;
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;; Usage
+;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+;;
 ;;   M-x beads-daemons RET          ; Open daemons transient menu
 ;;   M-x beads-daemons-list RET     ; Open daemons list buffer
+;;
+;; In the list buffer:
+;;   g - Refresh the list
+;;   s - Stop daemon at point
+;;   r - Restart daemon at point
+;;   l - View log for daemon at point
+;;   H - Show health report for all daemons
+;;   K - Kill all daemons
+;;   q - Quit
 
 ;;; Code:
 
