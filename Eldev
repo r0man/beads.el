@@ -59,12 +59,17 @@
 (when (boundp 'package-install-upgrade-built-in)
   (setq package-install-upgrade-built-in t))
 
-;; Runtime dependencies (for older Emacs versions without built-in transient)
-(eldev-add-extra-dependencies 'runtime '(transient))
+;; Runtime dependencies using extended dependency format with explicit versions.
+;; transient 0.10.1 is required for transient-define-group and other features.
+;; Specify :archive 'gnu to ensure we get it from GNU ELPA (not the built-in).
+(eldev-add-extra-dependencies 'runtime
+                              '(:package transient :version "0.10.1" :archive gnu))
 
-;; Development dependencies
-(eldev-add-extra-dependencies 'test '(ert))
-(eldev-add-extra-dependencies 'lint '(package-lint))
+;; Development dependencies using extended dependency format
+(eldev-add-extra-dependencies 'test
+                              '(:package ert))
+(eldev-add-extra-dependencies 'lint
+                              '(:package package-lint :archive melpa))
 
 ;; Exclude worktree, share, and reference directories from everything
 (setf eldev-standard-excludes
