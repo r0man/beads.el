@@ -173,6 +173,19 @@ An alist with keys `status', `health', and `metrics'.")
 Arguments IGNORE-AUTO and NOCONFIRM are ignored."
   (beads-daemon-status-refresh))
 
+(defun beads-daemon-status--imenu-create-index ()
+  "Create an imenu index for daemon status buffer sections.
+Returns an alist of (NAME . POSITION) entries for each section header."
+  (let ((index nil)
+        (section-regexp "^\\([A-Z][a-zA-Z ]+\\)\n─+$"))
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward section-regexp nil t)
+        (let ((name (match-string 1))
+              (pos (match-beginning 0)))
+          (push (cons name pos) index))))
+    (nreverse index)))
+
 (define-derived-mode beads-daemon-status-mode special-mode "Beads-Daemon"
   "Major mode for displaying daemon status information.
 
@@ -180,6 +193,9 @@ Arguments IGNORE-AUTO and NOCONFIRM are ignored."
   (setq truncate-lines t)
   (setq buffer-read-only t)
   (setq-local revert-buffer-function #'beads-daemon-status--revert-buffer)
+  ;; Set up imenu support for section navigation
+  (setq-local imenu-create-index-function
+              #'beads-daemon-status--imenu-create-index)
   ;; Set up auto-refresh timer if configured
   (when (and beads-daemon-status-auto-refresh
              (numberp beads-daemon-status-auto-refresh))
