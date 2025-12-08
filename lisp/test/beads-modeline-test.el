@@ -280,7 +280,7 @@
 
 (ert-deftest beads-modeline-test-in-beads-buffer-by-name-various ()
   "Test buffer detection with various beads buffer names."
-  (dolist (name '("*beads-list*" "*beads-show*" "*beads-daemon-status*"
+  (dolist (name '("*beads-list*" "*beads-show*" "*beads-daemon*"
                   "*beads-daemons*" "*beads-graph*"))
     (with-temp-buffer
       (rename-buffer name t)
