@@ -1838,5 +1838,526 @@ Regression test for bug where issue-id was prepended instead of appended."
   (let ((cmd (beads-command-delete :issue-id "bd-42")))
     (should (null (beads-command-validate cmd)))))
 
+;;; ============================================================
+;;; Daemon Data Structure Tests (EIEIO Classes)
+;;; ============================================================
+
+(defvar beads-command-test--daemon-status-json
+  '((running . t)
+    (pid . 130264)
+    (started . "2025-12-08 11:10:36")
+    (log_path . "/home/user/.beads/daemon.log"))
+  "Sample daemon status JSON for testing.")
+
+(defvar beads-command-test--daemon-health-json
+  '((status . "healthy")
+    (version . "0.28.0")
+    (client_version . "0.0.0")
+    (compatible . t)
+    (uptime_seconds . 24081.247)
+    (db_response_ms . 4.105)
+    (active_connections . 1)
+    (max_connections . 100)
+    (memory_alloc_mb . 5))
+  "Sample daemon health JSON for testing.")
+
+(defvar beads-command-test--daemon-metrics-json
+  `((timestamp . "2025-12-08T17:51:57.308003235+01:00")
+    (uptime_seconds . 24083)
+    (operations . ,(vector
+                    '((operation . "health")
+                      (total_count . 99)
+                      (success_count . 99)
+                      (error_count . 0)
+                      (latency . ((min_ms . 2.56)
+                                  (p50_ms . 3.58)
+                                  (p95_ms . 7.01)
+                                  (p99_ms . 8.70)
+                                  (max_ms . 8.70)
+                                  (avg_ms . 3.89))))
+                    '((operation . "list")
+                      (total_count . 4)
+                      (success_count . 4)
+                      (error_count . 0)
+                      (latency . ((min_ms . 6.67)
+                                  (p50_ms . 14.89)
+                                  (p95_ms . 21.40)
+                                  (p99_ms . 21.40)
+                                  (max_ms . 21.40)
+                                  (avg_ms . 14.46))))))
+    (total_connections . 51)
+    (active_connections . 1)
+    (rejected_connections . 0)
+    (memory_alloc_mb . 5)
+    (memory_sys_mb . 21)
+    (goroutine_count . 12))
+  "Sample daemon metrics JSON for testing.")
+
+(ert-deftest beads-command-test-daemon-status-class-create ()
+  "Test creating beads-daemon-status EIEIO object."
+  :tags '(:unit :daemon)
+  (let ((status (beads-daemon-status
+                 :running t
+                 :pid 12345
+                 :started "2025-12-08 10:00:00"
+                 :log-path "/tmp/daemon.log")))
+    (should (beads-daemon-status-p status))
+    (should (eq (oref status running) t))
+    (should (= (oref status pid) 12345))
+    (should (equal (oref status started) "2025-12-08 10:00:00"))
+    (should (equal (oref status log-path) "/tmp/daemon.log"))))
+
+(ert-deftest beads-command-test-daemon-status-class-default ()
+  "Test beads-daemon-status EIEIO object with default values."
+  :tags '(:unit :daemon)
+  (let ((status (beads-daemon-status)))
+    (should (beads-daemon-status-p status))
+    (should (null (oref status running)))
+    (should (null (oref status pid)))
+    (should (null (oref status started)))
+    (should (null (oref status log-path)))))
+
+(ert-deftest beads-command-test-daemon-health-class-create ()
+  "Test creating beads-daemon-health EIEIO object."
+  :tags '(:unit :daemon)
+  (let ((health (beads-daemon-health
+                 :status "healthy"
+                 :version "0.28.0"
+                 :client-version "0.0.0"
+                 :compatible t
+                 :uptime-seconds 3600.5
+                 :db-response-ms 4.5
+                 :active-connections 2
+                 :max-connections 100
+                 :memory-alloc-mb 8)))
+    (should (beads-daemon-health-p health))
+    (should (equal (oref health status) "healthy"))
+    (should (equal (oref health version) "0.28.0"))
+    (should (equal (oref health client-version) "0.0.0"))
+    (should (eq (oref health compatible) t))
+    (should (= (oref health uptime-seconds) 3600.5))
+    (should (= (oref health db-response-ms) 4.5))
+    (should (= (oref health active-connections) 2))
+    (should (= (oref health max-connections) 100))
+    (should (= (oref health memory-alloc-mb) 8))))
+
+(ert-deftest beads-command-test-daemon-operation-class-create ()
+  "Test creating beads-daemon-operation EIEIO object."
+  :tags '(:unit :daemon)
+  (let ((op (beads-daemon-operation
+             :operation "health"
+             :total-count 100
+             :success-count 99
+             :error-count 1
+             :latency '((avg_ms . 5.0) (p99_ms . 10.0)))))
+    (should (beads-daemon-operation-p op))
+    (should (equal (oref op operation) "health"))
+    (should (= (oref op total-count) 100))
+    (should (= (oref op success-count) 99))
+    (should (= (oref op error-count) 1))
+    (should (equal (alist-get 'avg_ms (oref op latency)) 5.0))))
+
+(ert-deftest beads-command-test-daemon-metrics-class-create ()
+  "Test creating beads-daemon-metrics EIEIO object."
+  :tags '(:unit :daemon)
+  (let* ((ops (list (beads-daemon-operation
+                     :operation "health"
+                     :total-count 10
+                     :success-count 10
+                     :error-count 0)))
+         (metrics (beads-daemon-metrics
+                   :timestamp "2025-12-08T12:00:00Z"
+                   :uptime-seconds 7200
+                   :operations ops
+                   :total-connections 50
+                   :active-connections 2
+                   :rejected-connections 0
+                   :memory-alloc-mb 5
+                   :memory-sys-mb 20
+                   :goroutine-count 12)))
+    (should (beads-daemon-metrics-p metrics))
+    (should (equal (oref metrics timestamp) "2025-12-08T12:00:00Z"))
+    (should (= (oref metrics uptime-seconds) 7200))
+    (should (= (length (oref metrics operations)) 1))
+    (should (= (oref metrics total-connections) 50))
+    (should (= (oref metrics active-connections) 2))
+    (should (= (oref metrics rejected-connections) 0))
+    (should (= (oref metrics memory-alloc-mb) 5))
+    (should (= (oref metrics memory-sys-mb) 20))
+    (should (= (oref metrics goroutine-count) 12))))
+
+;;; ============================================================
+;;; Daemon JSON Parsing Tests
+;;; ============================================================
+
+(ert-deftest beads-command-test-daemon-parse-status-running ()
+  "Test parsing running daemon status JSON."
+  :tags '(:unit :daemon)
+  (let ((status (beads-daemon--parse-status
+                 beads-command-test--daemon-status-json)))
+    (should (beads-daemon-status-p status))
+    (should (eq (oref status running) t))
+    (should (= (oref status pid) 130264))
+    (should (equal (oref status started) "2025-12-08 11:10:36"))
+    (should (equal (oref status log-path)
+                   "/home/user/.beads/daemon.log"))))
+
+(ert-deftest beads-command-test-daemon-parse-status-stopped ()
+  "Test parsing stopped daemon status JSON."
+  :tags '(:unit :daemon)
+  (let ((status (beads-daemon--parse-status
+                 '((running . :json-false)
+                   (pid . nil)
+                   (started . nil)
+                   (log_path . nil)))))
+    (should (beads-daemon-status-p status))
+    (should (null (oref status running)))
+    (should (null (oref status pid)))
+    (should (null (oref status started)))))
+
+(ert-deftest beads-command-test-daemon-parse-status-empty ()
+  "Test parsing empty/nil status JSON."
+  :tags '(:unit :daemon)
+  (let ((status (beads-daemon--parse-status nil)))
+    (should (beads-daemon-status-p status))
+    (should (null (oref status running)))))
+
+(ert-deftest beads-command-test-daemon-parse-health ()
+  "Test parsing daemon health JSON."
+  :tags '(:unit :daemon)
+  (let ((health (beads-daemon--parse-health
+                 beads-command-test--daemon-health-json)))
+    (should (beads-daemon-health-p health))
+    (should (equal (oref health status) "healthy"))
+    (should (equal (oref health version) "0.28.0"))
+    (should (equal (oref health client-version) "0.0.0"))
+    (should (eq (oref health compatible) t))
+    (should (= (oref health uptime-seconds) 24081.247))
+    (should (= (oref health db-response-ms) 4.105))
+    (should (= (oref health active-connections) 1))
+    (should (= (oref health max-connections) 100))
+    (should (= (oref health memory-alloc-mb) 5))))
+
+(ert-deftest beads-command-test-daemon-parse-health-empty ()
+  "Test parsing empty/nil health JSON."
+  :tags '(:unit :daemon)
+  (let ((health (beads-daemon--parse-health nil)))
+    (should (beads-daemon-health-p health))
+    (should (null (oref health status)))))
+
+(ert-deftest beads-command-test-daemon-parse-operation ()
+  "Test parsing operation statistics JSON."
+  :tags '(:unit :daemon)
+  (let ((op (beads-daemon--parse-operation
+             '((operation . "health")
+               (total_count . 99)
+               (success_count . 99)
+               (error_count . 0)
+               (latency . ((avg_ms . 3.89) (p99_ms . 8.70)))))))
+    (should (beads-daemon-operation-p op))
+    (should (equal (oref op operation) "health"))
+    (should (= (oref op total-count) 99))
+    (should (= (oref op success-count) 99))
+    (should (= (oref op error-count) 0))
+    (should (= (alist-get 'avg_ms (oref op latency)) 3.89))))
+
+(ert-deftest beads-command-test-daemon-parse-metrics ()
+  "Test parsing daemon metrics JSON."
+  :tags '(:unit :daemon)
+  (let ((metrics (beads-daemon--parse-metrics
+                  beads-command-test--daemon-metrics-json)))
+    (should (beads-daemon-metrics-p metrics))
+    (should (string-prefix-p "2025-12-08"
+                             (oref metrics timestamp)))
+    (should (= (oref metrics uptime-seconds) 24083))
+    (should (= (length (oref metrics operations)) 2))
+    (should (= (oref metrics total-connections) 51))
+    (should (= (oref metrics active-connections) 1))
+    (should (= (oref metrics rejected-connections) 0))
+    (should (= (oref metrics memory-alloc-mb) 5))
+    (should (= (oref metrics memory-sys-mb) 21))
+    (should (= (oref metrics goroutine-count) 12))
+    ;; Check first operation
+    (let ((first-op (car (oref metrics operations))))
+      (should (beads-daemon-operation-p first-op))
+      (should (equal (oref first-op operation) "health")))))
+
+(ert-deftest beads-command-test-daemon-parse-metrics-empty-operations ()
+  "Test parsing metrics JSON with empty operations."
+  :tags '(:unit :daemon)
+  (let ((metrics (beads-daemon--parse-metrics
+                  '((timestamp . "2025-12-08T12:00:00Z")
+                    (operations . [])
+                    (total_connections . 0)))))
+    (should (beads-daemon-metrics-p metrics))
+    (should (null (oref metrics operations)))))
+
+;;; ============================================================
+;;; Daemon Utility Function Tests
+;;; ============================================================
+
+(ert-deftest beads-command-test-daemon-format-uptime-seconds ()
+  "Test formatting uptime in seconds."
+  :tags '(:unit :daemon)
+  (should (equal (beads-daemon--format-uptime 30) "30s"))
+  (should (equal (beads-daemon--format-uptime 59) "59s")))
+
+(ert-deftest beads-command-test-daemon-format-uptime-minutes ()
+  "Test formatting uptime in minutes."
+  :tags '(:unit :daemon)
+  (should (equal (beads-daemon--format-uptime 60) "1m 0s"))
+  (should (equal (beads-daemon--format-uptime 90) "1m 30s"))
+  (should (equal (beads-daemon--format-uptime 3599) "59m 59s")))
+
+(ert-deftest beads-command-test-daemon-format-uptime-hours ()
+  "Test formatting uptime in hours."
+  :tags '(:unit :daemon)
+  (should (equal (beads-daemon--format-uptime 3600) "1h 0m 0s"))
+  (should (equal (beads-daemon--format-uptime 7265) "2h 1m 5s"))
+  (should (equal (beads-daemon--format-uptime 86399) "23h 59m 59s")))
+
+(ert-deftest beads-command-test-daemon-format-uptime-days ()
+  "Test formatting uptime in days."
+  :tags '(:unit :daemon)
+  (should (equal (beads-daemon--format-uptime 86400) "1d 0h 0m"))
+  (should (equal (beads-daemon--format-uptime 172800) "2d 0h 0m"))
+  (should (equal (beads-daemon--format-uptime 93600) "1d 2h 0m")))
+
+(ert-deftest beads-command-test-daemon-format-uptime-nil ()
+  "Test formatting nil uptime."
+  :tags '(:unit :daemon)
+  (should (equal (beads-daemon--format-uptime nil) "N/A")))
+
+(ert-deftest beads-command-test-daemon-format-uptime-negative ()
+  "Test formatting negative uptime."
+  :tags '(:unit :daemon)
+  (should (equal (beads-daemon--format-uptime -1) "N/A")))
+
+(ert-deftest beads-command-test-daemon-format-uptime-float ()
+  "Test formatting float uptime (truncates to integer)."
+  :tags '(:unit :daemon)
+  (should (equal (beads-daemon--format-uptime 65.7) "1m 5s")))
+
+(ert-deftest beads-command-test-daemon-format-uptime-zero ()
+  "Test formatting zero uptime."
+  :tags '(:unit :daemon)
+  (should (equal (beads-daemon--format-uptime 0) "0s")))
+
+(ert-deftest beads-command-test-daemon-format-bytes-mb ()
+  "Test formatting bytes in megabytes."
+  :tags '(:unit :daemon)
+  (should (equal (beads-daemon--format-bytes 5) "5 MB"))
+  (should (equal (beads-daemon--format-bytes 100) "100 MB"))
+  (should (equal (beads-daemon--format-bytes 1023) "1023 MB")))
+
+(ert-deftest beads-command-test-daemon-format-bytes-gb ()
+  "Test formatting bytes in gigabytes."
+  :tags '(:unit :daemon)
+  (should (equal (beads-daemon--format-bytes 1024) "1.0 GB"))
+  (should (equal (beads-daemon--format-bytes 2048) "2.0 GB"))
+  (should (equal (beads-daemon--format-bytes 1536) "1.5 GB")))
+
+(ert-deftest beads-command-test-daemon-format-bytes-nil ()
+  "Test formatting nil bytes."
+  :tags '(:unit :daemon)
+  (should (equal (beads-daemon--format-bytes nil) "N/A")))
+
+(ert-deftest beads-command-test-daemon-format-bytes-negative ()
+  "Test formatting negative bytes."
+  :tags '(:unit :daemon)
+  (should (equal (beads-daemon--format-bytes -1) "N/A")))
+
+(ert-deftest beads-command-test-daemon-format-bytes-zero ()
+  "Test formatting zero bytes."
+  :tags '(:unit :daemon)
+  (should (equal (beads-daemon--format-bytes 0) "0 MB")))
+
+(ert-deftest beads-command-test-daemon-format-latency ()
+  "Test formatting latency statistics."
+  :tags '(:unit :daemon)
+  (let ((latency '((avg_ms . 5.5) (p99_ms . 10.2))))
+    (should (equal (beads-daemon--format-latency latency)
+                   "avg: 5.50ms, p99: 10.20ms"))))
+
+(ert-deftest beads-command-test-daemon-format-latency-nil ()
+  "Test formatting nil latency."
+  :tags '(:unit :daemon)
+  (should (equal (beads-daemon--format-latency nil) "N/A")))
+
+(ert-deftest beads-command-test-daemon-format-latency-missing-fields ()
+  "Test formatting latency with missing fields."
+  :tags '(:unit :daemon)
+  (let ((latency '((min_ms . 1.0))))  ; missing avg_ms and p99_ms
+    (should (string-match-p "avg: 0.00ms"
+                            (beads-daemon--format-latency latency)))))
+
+;;; ============================================================
+;;; Daemon Command Class Tests
+;;; ============================================================
+
+(ert-deftest beads-command-test-daemon-status-line ()
+  "Test building daemon status command line."
+  :tags '(:unit :daemon)
+  (let ((cmd (beads-daemon-command-status)))
+    (let ((cmd-line (beads-command-line cmd)))
+      (should (member "daemon" cmd-line))
+      (should (member "--status" cmd-line))
+      (should (member "--json" cmd-line)))))
+
+(ert-deftest beads-command-test-daemon-health-line ()
+  "Test building daemon health command line."
+  :tags '(:unit :daemon)
+  (let ((cmd (beads-daemon-command-health)))
+    (let ((cmd-line (beads-command-line cmd)))
+      (should (member "daemon" cmd-line))
+      (should (member "--health" cmd-line))
+      (should (member "--json" cmd-line)))))
+
+(ert-deftest beads-command-test-daemon-metrics-line ()
+  "Test building daemon metrics command line."
+  :tags '(:unit :daemon)
+  (let ((cmd (beads-daemon-command-metrics)))
+    (let ((cmd-line (beads-command-line cmd)))
+      (should (member "daemon" cmd-line))
+      (should (member "--metrics" cmd-line))
+      (should (member "--json" cmd-line)))))
+
+(ert-deftest beads-command-test-daemon-start-line-minimal ()
+  "Test building daemon start command line with no options."
+  :tags '(:unit :daemon)
+  (let ((cmd (beads-daemon-command-start)))
+    (let ((cmd-line (beads-command-line cmd)))
+      (should (member "daemon" cmd-line))
+      (should (member "--start" cmd-line))
+      (should (member "--json" cmd-line)))))
+
+(ert-deftest beads-command-test-daemon-start-line-with-options ()
+  "Test building daemon start command line with all options."
+  :tags '(:unit :daemon)
+  (let ((cmd (beads-daemon-command-start
+              :auto-commit t
+              :auto-push t
+              :foreground t
+              :local t
+              :interval "10s"
+              :log "/tmp/test.log")))
+    (let ((cmd-line (beads-command-line cmd)))
+      (should (member "daemon" cmd-line))
+      (should (member "--start" cmd-line))
+      (should (member "--auto-commit" cmd-line))
+      (should (member "--auto-push" cmd-line))
+      (should (member "--foreground" cmd-line))
+      (should (member "--local" cmd-line))
+      (should (member "--interval" cmd-line))
+      (should (member "10s" cmd-line))
+      (should (member "--log" cmd-line))
+      (should (member "/tmp/test.log" cmd-line))
+      (should (member "--json" cmd-line)))))
+
+(ert-deftest beads-command-test-daemon-stop-line ()
+  "Test building daemon stop command line."
+  :tags '(:unit :daemon)
+  (let ((cmd (beads-daemon-command-stop)))
+    (let ((cmd-line (beads-command-line cmd)))
+      (should (member "daemon" cmd-line))
+      (should (member "--stop" cmd-line))
+      (should (member "--json" cmd-line)))))
+
+;;; ============================================================
+;;; Daemon Command Validation Tests
+;;; ============================================================
+
+(ert-deftest beads-command-test-daemon-start-validate-valid-interval ()
+  "Test validation of valid interval formats."
+  :tags '(:unit :daemon)
+  (dolist (interval '("5s" "10s" "1m" "30m" "1h" "0.5s" "100ms"))
+    (let ((cmd (beads-daemon-command-start :interval interval)))
+      (should-not (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-test-daemon-start-validate-invalid-interval ()
+  "Test validation of invalid interval formats."
+  :tags '(:unit :daemon)
+  (dolist (interval '("5" "10seconds" "1 minute" "abc" "5x"))
+    (let ((cmd (beads-daemon-command-start :interval interval)))
+      (should (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-test-daemon-start-validate-no-interval ()
+  "Test validation passes when no interval specified."
+  :tags '(:unit :daemon)
+  (let ((cmd (beads-daemon-command-start)))
+    (should-not (beads-command-validate cmd))))
+
+;;; ============================================================
+;;; Daemon Command Execution Tests (Mocked)
+;;; ============================================================
+
+(ert-deftest beads-command-test-daemon-execute-status ()
+  "Test executing daemon status command with mocked output."
+  :tags '(:integration :daemon)
+  (beads-test-with-temp-config
+   (let ((json-output (json-encode beads-command-test--daemon-status-json)))
+     (cl-letf (((symbol-function 'process-file)
+                (beads-test--mock-call-process 0 json-output)))
+       (let ((status (beads-command-execute (beads-daemon-command-status))))
+         (should (beads-daemon-status-p status))
+         (should (eq (oref status running) t))
+         (should (= (oref status pid) 130264)))))))
+
+(ert-deftest beads-command-test-daemon-execute-health ()
+  "Test executing daemon health command with mocked output."
+  :tags '(:integration :daemon)
+  (beads-test-with-temp-config
+   (let ((json-output (json-encode beads-command-test--daemon-health-json)))
+     (cl-letf (((symbol-function 'process-file)
+                (beads-test--mock-call-process 0 json-output)))
+       (let ((health (beads-command-execute (beads-daemon-command-health))))
+         (should (beads-daemon-health-p health))
+         (should (equal (oref health status) "healthy"))
+         (should (equal (oref health version) "0.28.0")))))))
+
+(ert-deftest beads-command-test-daemon-execute-metrics ()
+  "Test executing daemon metrics command with mocked output."
+  :tags '(:integration :daemon)
+  (beads-test-with-temp-config
+   (let ((json-output (json-encode beads-command-test--daemon-metrics-json)))
+     (cl-letf (((symbol-function 'process-file)
+                (beads-test--mock-call-process 0 json-output)))
+       (let ((metrics (beads-command-execute (beads-daemon-command-metrics))))
+         (should (beads-daemon-metrics-p metrics))
+         (should (= (oref metrics uptime-seconds) 24083))
+         (should (= (length (oref metrics operations)) 2)))))))
+
+;;; ============================================================
+;;; Daemon Edge Case Tests
+;;; ============================================================
+
+(ert-deftest beads-command-test-daemon-parse-status-missing-fields ()
+  "Test parsing status JSON with missing fields."
+  :tags '(:unit :daemon)
+  (let ((status (beads-daemon--parse-status '((running . t)))))
+    (should (beads-daemon-status-p status))
+    (should (eq (oref status running) t))
+    (should (null (oref status pid)))
+    (should (null (oref status started)))
+    (should (null (oref status log-path)))))
+
+(ert-deftest beads-command-test-daemon-parse-health-missing-fields ()
+  "Test parsing health JSON with missing fields."
+  :tags '(:unit :daemon)
+  (let ((health (beads-daemon--parse-health '((status . "healthy")))))
+    (should (beads-daemon-health-p health))
+    (should (equal (oref health status) "healthy"))
+    (should (null (oref health version)))
+    (should (null (oref health uptime-seconds)))))
+
+(ert-deftest beads-command-test-daemon-parse-metrics-nil-operations ()
+  "Test parsing metrics JSON with nil operations."
+  :tags '(:unit :daemon)
+  (let ((metrics (beads-daemon--parse-metrics
+                  '((timestamp . "2025-12-08T12:00:00Z")
+                    (operations . nil)))))
+    (should (beads-daemon-metrics-p metrics))
+    (should (null (oref metrics operations)))))
+
 (provide 'beads-command-test)
 ;;; beads-command-test.el ends here
