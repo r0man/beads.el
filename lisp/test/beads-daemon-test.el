@@ -247,5 +247,235 @@
      (let ((header (beads-daemon--format-header)))
        (should (string-match-p "Stopped" header))))))
 
+;;; ============================================================
+;;; Status Buffer Mode Tests
+;;; ============================================================
+
+(ert-deftest beads-daemon-test-status-mode-defined ()
+  "Test that daemon status mode is defined."
+  (should (fboundp 'beads-daemon-status-mode)))
+
+(ert-deftest beads-daemon-test-status-buffer-command-defined ()
+  "Test that daemon dashboard command is defined."
+  (should (fboundp 'beads-daemon-dashboard))
+  (should (commandp 'beads-daemon-dashboard)))
+
+(ert-deftest beads-daemon-test-status-refresh-defined ()
+  "Test that status refresh command is defined."
+  (should (fboundp 'beads-daemon-status-refresh))
+  (should (commandp 'beads-daemon-status-refresh)))
+
+;;; ============================================================
+;;; Status Buffer Rendering Tests
+;;; ============================================================
+
+(ert-deftest beads-daemon-test-status-format-state-running ()
+  "Test formatting state when daemon is running and healthy."
+  (let* ((status (beads-daemon-status :running t :pid 12345))
+         (health (beads-daemon-health :status "healthy")))
+    (let ((result (beads-daemon-status--format-state status health)))
+      (should (string-match-p "Running" result))
+      (should (string-match-p "healthy" result)))))
+
+(ert-deftest beads-daemon-test-status-format-state-stopped ()
+  "Test formatting state when daemon is stopped."
+  (let ((result (beads-daemon-status--format-state nil nil)))
+    (should (string-match-p "Stopped" result))))
+
+(ert-deftest beads-daemon-test-status-insert-header ()
+  "Test inserting header lines."
+  (with-temp-buffer
+    (beads-daemon-status--insert-header "Label:" "value")
+    (should (string-match-p "Label:" (buffer-string)))
+    (should (string-match-p "value" (buffer-string)))))
+
+(ert-deftest beads-daemon-test-status-insert-section-header ()
+  "Test inserting section headers."
+  (with-temp-buffer
+    (beads-daemon-status--insert-section-header "Test Section")
+    (should (string-match-p "Test Section" (buffer-string)))
+    (should (string-match-p "─" (buffer-string)))))
+
+(ert-deftest beads-daemon-test-status-render-status-section ()
+  "Test rendering the status section."
+  (with-temp-buffer
+    (let* ((status (beads-daemon-status :running t :pid 12345
+                                        :started "2025-12-08 12:00:00"))
+           (health (beads-daemon-health :status "healthy"
+                                        :uptime-seconds 3600)))
+      (beads-daemon-status--render-status-section status health)
+      (should (string-match-p "Status" (buffer-string)))
+      (should (string-match-p "Running" (buffer-string)))
+      (should (string-match-p "12345" (buffer-string)))
+      (should (string-match-p "1h" (buffer-string))))))
+
+(ert-deftest beads-daemon-test-status-render-operations-table ()
+  "Test rendering the operations table."
+  (with-temp-buffer
+    (let* ((op1 (beads-daemon-operation
+                 :operation "health"
+                 :total-count 100
+                 :success-count 100
+                 :error-count 0
+                 :latency '((avg_ms . 3.5) (p99_ms . 8.0))))
+           (op2 (beads-daemon-operation
+                 :operation "list"
+                 :total-count 10
+                 :success-count 8
+                 :error-count 2
+                 :latency '((avg_ms . 15.0) (p99_ms . 25.0))))
+           (metrics (beads-daemon-metrics :operations (list op1 op2))))
+      (beads-daemon-status--render-operations-table metrics)
+      (should (string-match-p "Operations" (buffer-string)))
+      (should (string-match-p "health" (buffer-string)))
+      (should (string-match-p "list" (buffer-string)))
+      (should (string-match-p "100" (buffer-string)))
+      (should (string-match-p "Total:" (buffer-string))))))
+
+(ert-deftest beads-daemon-test-status-render-operations-table-empty ()
+  "Test rendering operations table with no data."
+  (with-temp-buffer
+    (beads-daemon-status--render-operations-table nil)
+    (should (string-match-p "No operation data available" (buffer-string)))))
+
+(ert-deftest beads-daemon-test-status-render-health-section ()
+  "Test rendering the health section."
+  (with-temp-buffer
+    (let ((health (beads-daemon-health
+                   :db-response-ms 4.5
+                   :active-connections 1
+                   :max-connections 100
+                   :memory-alloc-mb 5)))
+      (beads-daemon-status--render-health-section health)
+      (should (string-match-p "Health" (buffer-string)))
+      (should (string-match-p "DB Response" (buffer-string)))
+      (should (string-match-p "4.50" (buffer-string)))
+      (should (string-match-p "1 / 100" (buffer-string))))))
+
+(ert-deftest beads-daemon-test-status-render-resources-section ()
+  "Test rendering the resources section."
+  (with-temp-buffer
+    (let ((metrics (beads-daemon-metrics
+                    :memory-alloc-mb 5
+                    :memory-sys-mb 20
+                    :goroutine-count 12
+                    :total-connections 50
+                    :active-connections 1
+                    :rejected-connections 0)))
+      (beads-daemon-status--render-resources-section metrics)
+      (should (string-match-p "Resources" (buffer-string)))
+      (should (string-match-p "5 MB" (buffer-string)))
+      (should (string-match-p "20 MB" (buffer-string)))
+      (should (string-match-p "12" (buffer-string))))))
+
+(ert-deftest beads-daemon-test-status-render-buffer-running ()
+  "Test rendering complete status buffer when daemon is running."
+  (with-temp-buffer
+    (let* ((status (beads-daemon-status
+                    :running t :pid 12345
+                    :started "2025-12-08 12:00:00"
+                    :log-path "/tmp/daemon.log"))
+           (health (beads-daemon-health
+                    :status "healthy"
+                    :version "0.28.0"
+                    :uptime-seconds 3600
+                    :db-response-ms 4.5
+                    :active-connections 1
+                    :max-connections 100
+                    :memory-alloc-mb 5))
+           (metrics (beads-daemon-metrics
+                     :operations nil
+                     :memory-alloc-mb 5
+                     :memory-sys-mb 20
+                     :goroutine-count 12)))
+      (beads-daemon-status--render-buffer status health metrics)
+      (should (string-match-p "Daemon Status" (buffer-string)))
+      (should (string-match-p "Running" (buffer-string)))
+      (should (string-match-p "12345" (buffer-string)))
+      (should (string-match-p "Configuration" (buffer-string)))
+      (should (string-match-p "Health" (buffer-string)))
+      (should (string-match-p "Resources" (buffer-string))))))
+
+(ert-deftest beads-daemon-test-status-render-buffer-stopped ()
+  "Test rendering status buffer when daemon is stopped."
+  (with-temp-buffer
+    (beads-daemon-status--render-buffer nil nil nil)
+    (should (string-match-p "Daemon Status" (buffer-string)))
+    (should (string-match-p "Stopped" (buffer-string)))
+    ;; Should not have extended sections
+    (should-not (string-match-p "Configuration" (buffer-string)))
+    (should-not (string-match-p "Operations" (buffer-string)))))
+
+;;; ============================================================
+;;; Status Buffer Keymap Tests
+;;; ============================================================
+
+(ert-deftest beads-daemon-test-status-keymap-defined ()
+  "Test that status mode keymap is properly defined."
+  (should (keymapp beads-daemon-status-mode-map))
+  ;; Check key bindings
+  (should (eq (lookup-key beads-daemon-status-mode-map "g")
+              'beads-daemon-status-refresh))
+  (should (eq (lookup-key beads-daemon-status-mode-map "q")
+              'quit-window))
+  (should (eq (lookup-key beads-daemon-status-mode-map "s")
+              'beads-daemon-start))
+  (should (eq (lookup-key beads-daemon-status-mode-map "S")
+              'beads-daemon-status--stop))
+  (should (eq (lookup-key beads-daemon-status-mode-map "r")
+              'beads-daemon-status--restart))
+  (should (eq (lookup-key beads-daemon-status-mode-map "l")
+              'beads-daemon-status--view-log))
+  (should (eq (lookup-key beads-daemon-status-mode-map "L")
+              'beads-daemon-status--tail-log))
+  (should (eq (lookup-key beads-daemon-status-mode-map "n")
+              'beads-daemon-status-next-section))
+  (should (eq (lookup-key beads-daemon-status-mode-map "p")
+              'beads-daemon-status-previous-section))
+  (should (eq (lookup-key beads-daemon-status-mode-map "?")
+              'beads-daemon-status-help)))
+
+;;; ============================================================
+;;; Status Buffer Integration Tests
+;;; ============================================================
+
+(ert-deftest beads-daemon-test-status-buffer-creation ()
+  "Test that status buffer can be created with mocked data."
+  :tags '(integration)
+  (beads-test-with-temp-config
+   (let ((status-json (json-encode beads-daemon-test--sample-status-json))
+         (health-json (json-encode beads-daemon-test--sample-health-json))
+         (metrics-json (json-encode beads-daemon-test--sample-metrics-json))
+         (call-count 0))
+     (cl-letf (((symbol-function 'process-file)
+                (lambda (program &optional infile destination display &rest args)
+                  (setq call-count (1+ call-count))
+                  ;; Handle destination being a list (buffer stderr-file)
+                  (let ((output-buffer (cond
+                                        ((bufferp destination) destination)
+                                        ((consp destination) (car destination))
+                                        (t nil))))
+                    (when output-buffer
+                      (with-current-buffer output-buffer
+                        (cond
+                         ((member "--status" args)
+                          (insert status-json))
+                         ((member "--health" args)
+                          (insert health-json))
+                         ((member "--metrics" args)
+                          (insert metrics-json))))))
+                  0)))
+       (beads-daemon-dashboard)
+       (unwind-protect
+           (progn
+             (should (get-buffer "*beads-daemon-status*"))
+             (with-current-buffer "*beads-daemon-status*"
+               (should (derived-mode-p 'beads-daemon-status-mode))
+               (should (string-match-p "Running" (buffer-string)))
+               (should (string-match-p "130264" (buffer-string)))
+               (should (string-match-p "healthy" (buffer-string)))))
+         (when (get-buffer "*beads-daemon-status*")
+           (kill-buffer "*beads-daemon-status*")))))))
+
 (provide 'beads-daemon-test)
 ;;; beads-daemon-test.el ends here

@@ -3309,5 +3309,567 @@ See `beads-daemon-command-start' for available arguments."
 See `beads-daemon-command-stop' for available arguments."
   (beads-command-execute (apply #'beads-daemon-command-stop args)))
 
+;;; ============================================================
+;;; Multi-Daemon Data Structures (EIEIO Classes)
+;;; ============================================================
+
+(defclass beads-daemon-info ()
+  ((workspace-path
+    :initarg :workspace-path
+    :type (or null string)
+    :initform nil
+    :documentation "Path to the workspace/repository.")
+   (database-path
+    :initarg :database-path
+    :type (or null string)
+    :initform nil
+    :documentation "Path to the beads database.")
+   (socket-path
+    :initarg :socket-path
+    :type (or null string)
+    :initform nil
+    :documentation "Path to the daemon socket.")
+   (pid
+    :initarg :pid
+    :type (or null integer)
+    :initform nil
+    :documentation "Process ID of the daemon.")
+   (version
+    :initarg :version
+    :type (or null string)
+    :initform nil
+    :documentation "Daemon version string.")
+   (uptime-seconds
+    :initarg :uptime-seconds
+    :type (or null number)
+    :initform nil
+    :documentation "Uptime in seconds (float).")
+   (last-activity-time
+    :initarg :last-activity-time
+    :type (or null string)
+    :initform nil
+    :documentation "Last activity timestamp (RFC3339 string).")
+   (exclusive-lock-active
+    :initarg :exclusive-lock-active
+    :type boolean
+    :initform nil
+    :documentation "Whether an exclusive lock is held.")
+   (exclusive-lock-holder
+    :initarg :exclusive-lock-holder
+    :type (or null string)
+    :initform nil
+    :documentation "Name of the exclusive lock holder.")
+   (alive
+    :initarg :alive
+    :type boolean
+    :initform nil
+    :documentation "Whether the daemon process is alive.")
+   (error
+    :initarg :error
+    :type (or null string)
+    :initform nil
+    :documentation "Error message if daemon is not alive."))
+  "EIEIO class holding daemon info from `bd daemons list'.")
+
+(defclass beads-daemons-health-daemon ()
+  ((workspace
+    :initarg :workspace
+    :type (or null string)
+    :initform nil
+    :documentation "Path to the workspace/repository.")
+   (socket-path
+    :initarg :socket-path
+    :type (or null string)
+    :initform nil
+    :documentation "Path to the daemon socket.")
+   (pid
+    :initarg :pid
+    :type (or null integer)
+    :initform nil
+    :documentation "Process ID of the daemon.")
+   (version
+    :initarg :version
+    :type (or null string)
+    :initform nil
+    :documentation "Daemon version string.")
+   (status
+    :initarg :status
+    :type (or null string)
+    :initform nil
+    :documentation "Health status: healthy, stale, version_mismatch.")
+   (issue
+    :initarg :issue
+    :type (or null string)
+    :initform nil
+    :documentation "Description of any issue.")
+   (version-mismatch
+    :initarg :version-mismatch
+    :type boolean
+    :initform nil
+    :documentation "Whether there is a version mismatch."))
+  "EIEIO class holding daemon health info from `bd daemons health'.")
+
+(defclass beads-daemons-health-report ()
+  ((total
+    :initarg :total
+    :type (or null integer)
+    :initform nil
+    :documentation "Total number of daemons.")
+   (healthy
+    :initarg :healthy
+    :type (or null integer)
+    :initform nil
+    :documentation "Number of healthy daemons.")
+   (stale
+    :initarg :stale
+    :type (or null integer)
+    :initform nil
+    :documentation "Number of stale daemons.")
+   (mismatched
+    :initarg :mismatched
+    :type (or null integer)
+    :initform nil
+    :documentation "Number of version-mismatched daemons.")
+   (unresponsive
+    :initarg :unresponsive
+    :type (or null integer)
+    :initform nil
+    :documentation "Number of unresponsive daemons.")
+   (daemons
+    :initarg :daemons
+    :type list
+    :initform nil
+    :documentation "List of beads-daemons-health-daemon objects."))
+  "EIEIO class holding health report from `bd daemons health'.")
+
+(defclass beads-daemons-stop-result ()
+  ((workspace
+    :initarg :workspace
+    :type (or null string)
+    :initform nil
+    :documentation "Path to the workspace/repository.")
+   (pid
+    :initarg :pid
+    :type (or null integer)
+    :initform nil
+    :documentation "Process ID of the stopped daemon.")
+   (stopped
+    :initarg :stopped
+    :type boolean
+    :initform nil
+    :documentation "Whether the daemon was stopped."))
+  "EIEIO class holding stop result from `bd daemons stop'.")
+
+(defclass beads-daemons-restart-result ()
+  ((workspace
+    :initarg :workspace
+    :type (or null string)
+    :initform nil
+    :documentation "Path to the workspace/repository.")
+   (action
+    :initarg :action
+    :type (or null string)
+    :initform nil
+    :documentation "Action taken (e.g., \"restarted\")."))
+  "EIEIO class holding restart result from `bd daemons restart'.")
+
+(defclass beads-daemons-logs-result ()
+  ((workspace
+    :initarg :workspace
+    :type (or null string)
+    :initform nil
+    :documentation "Path to the workspace/repository.")
+   (log-path
+    :initarg :log-path
+    :type (or null string)
+    :initform nil
+    :documentation "Path to the log file.")
+   (content
+    :initarg :content
+    :type (or null string)
+    :initform nil
+    :documentation "Log file content."))
+  "EIEIO class holding logs result from `bd daemons logs'.")
+
+(defclass beads-daemons-killall-failure ()
+  ((workspace
+    :initarg :workspace
+    :type (or null string)
+    :initform nil
+    :documentation "Path to the workspace/repository.")
+   (pid
+    :initarg :pid
+    :type (or null integer)
+    :initform nil
+    :documentation "Process ID of the daemon.")
+   (error
+    :initarg :error
+    :type (or null string)
+    :initform nil
+    :documentation "Error message."))
+  "EIEIO class holding a killall failure.")
+
+(defclass beads-daemons-killall-result ()
+  ((stopped
+    :initarg :stopped
+    :type (or null integer)
+    :initform nil
+    :documentation "Number of daemons stopped.")
+   (failed
+    :initarg :failed
+    :type (or null integer)
+    :initform nil
+    :documentation "Number of daemons that failed to stop.")
+   (failures
+    :initarg :failures
+    :type list
+    :initform nil
+    :documentation "List of beads-daemons-killall-failure objects."))
+  "EIEIO class holding killall result from `bd daemons killall'.")
+
+;;; ============================================================
+;;; Multi-Daemon JSON Parsing Functions
+;;; ============================================================
+
+(defun beads-daemons--parse-info (json)
+  "Parse daemon info from JSON alist.
+JSON should be one element from `bd daemons list --json' array.
+Returns a `beads-daemon-info' object."
+  (beads-daemon-info
+   :workspace-path (alist-get 'WorkspacePath json)
+   :database-path (alist-get 'DatabasePath json)
+   :socket-path (alist-get 'SocketPath json)
+   :pid (alist-get 'PID json)
+   :version (alist-get 'Version json)
+   :uptime-seconds (alist-get 'UptimeSeconds json)
+   :last-activity-time (alist-get 'LastActivityTime json)
+   :exclusive-lock-active (eq (alist-get 'ExclusiveLockActive json) t)
+   :exclusive-lock-holder (alist-get 'ExclusiveLockHolder json)
+   :alive (eq (alist-get 'Alive json) t)
+   :error (alist-get 'Error json)))
+
+(defun beads-daemons--parse-info-list (json)
+  "Parse list of daemon info from JSON array.
+JSON should be the parsed result from `bd daemons list --json'.
+Returns a list of `beads-daemon-info' objects."
+  (if (or (null json) (and (vectorp json) (= (length json) 0)))
+      nil
+    (mapcar #'beads-daemons--parse-info (append json nil))))
+
+(defun beads-daemons--parse-health-daemon (json)
+  "Parse daemon health info from JSON alist.
+Returns a `beads-daemons-health-daemon' object."
+  (beads-daemons-health-daemon
+   :workspace (alist-get 'workspace json)
+   :socket-path (alist-get 'socket_path json)
+   :pid (alist-get 'pid json)
+   :version (alist-get 'version json)
+   :status (alist-get 'status json)
+   :issue (alist-get 'issue json)
+   :version-mismatch (eq (alist-get 'version_mismatch json) t)))
+
+(defun beads-daemons--parse-health-report (json)
+  "Parse health report from JSON alist.
+JSON should be the parsed result from `bd daemons health --json'.
+Returns a `beads-daemons-health-report' object."
+  (let* ((daemons-json (alist-get 'daemons json))
+         (daemons (when daemons-json
+                    (mapcar #'beads-daemons--parse-health-daemon
+                            (append daemons-json nil)))))
+    (beads-daemons-health-report
+     :total (alist-get 'total json)
+     :healthy (alist-get 'healthy json)
+     :stale (alist-get 'stale json)
+     :mismatched (alist-get 'mismatched json)
+     :unresponsive (alist-get 'unresponsive json)
+     :daemons daemons)))
+
+(defun beads-daemons--parse-stop-result (json)
+  "Parse stop result from JSON alist.
+JSON should be the parsed result from `bd daemons stop --json'.
+Returns a `beads-daemons-stop-result' object."
+  (beads-daemons-stop-result
+   :workspace (alist-get 'workspace json)
+   :pid (alist-get 'pid json)
+   :stopped (eq (alist-get 'stopped json) t)))
+
+(defun beads-daemons--parse-restart-result (json)
+  "Parse restart result from JSON alist.
+JSON should be the parsed result from `bd daemons restart --json'.
+Returns a `beads-daemons-restart-result' object."
+  (beads-daemons-restart-result
+   :workspace (alist-get 'workspace json)
+   :action (alist-get 'action json)))
+
+(defun beads-daemons--parse-logs-result (json)
+  "Parse logs result from JSON alist.
+JSON should be the parsed result from `bd daemons logs --json'.
+Returns a `beads-daemons-logs-result' object."
+  (beads-daemons-logs-result
+   :workspace (alist-get 'workspace json)
+   :log-path (alist-get 'log_path json)
+   :content (alist-get 'content json)))
+
+(defun beads-daemons--parse-killall-failure (json)
+  "Parse killall failure from JSON alist.
+Returns a `beads-daemons-killall-failure' object."
+  (beads-daemons-killall-failure
+   :workspace (alist-get 'Workspace json)
+   :pid (alist-get 'PID json)
+   :error (alist-get 'Error json)))
+
+(defun beads-daemons--parse-killall-result (json)
+  "Parse killall result from JSON alist.
+JSON should be the parsed result from `bd daemons killall --json'.
+Returns a `beads-daemons-killall-result' object."
+  (let* ((failures-json (alist-get 'Failures json))
+         (failures (when failures-json
+                     (mapcar #'beads-daemons--parse-killall-failure
+                             (append failures-json nil)))))
+    (beads-daemons-killall-result
+     :stopped (alist-get 'Stopped json)
+     :failed (alist-get 'Failed json)
+     :failures failures)))
+
+;;; ============================================================
+;;; Multi-Daemon Command Classes
+;;; ============================================================
+
+(defclass beads-daemons-command (beads-command-json)
+  ((search
+    :initarg :search
+    :type list
+    :initform nil
+    :documentation "Directories to search for daemons (--search)."))
+  :abstract t
+  :documentation "Abstract base class for multi-daemon commands.
+All multi-daemon commands inherit from this class.")
+
+(cl-defmethod beads-command-line ((command beads-daemons-command))
+  "Build base command line for multi-daemon COMMAND."
+  (with-slots (search) command
+    (let ((global-args (cl-call-next-method))
+          (args nil))
+      ;; Add --search flags for each directory
+      (dolist (dir search)
+        (setq args (append args (list "--search" dir))))
+      (append args global-args))))
+
+;;; List Command
+
+(defclass beads-daemons-command-list (beads-daemons-command)
+  ((no-cleanup
+    :initarg :no-cleanup
+    :type boolean
+    :initform nil
+    :documentation "Skip auto-cleanup of stale sockets (--no-cleanup)."))
+  :documentation "Command to list all running daemons.
+Executes: bd daemons list [--search DIRS] [--no-cleanup] --json")
+
+(cl-defmethod beads-command-line ((command beads-daemons-command-list))
+  "Build command line for daemons list COMMAND."
+  (with-slots (no-cleanup) command
+    (let ((parent-args (cl-call-next-method))
+          (args (list "daemons" "list")))
+      (when no-cleanup
+        (setq args (append args (list "--no-cleanup"))))
+      (append args parent-args))))
+
+(cl-defmethod beads-command-execute ((_command beads-daemons-command-list))
+  "Execute daemons list COMMAND and return list of beads-daemon-info."
+  (let* ((result (cl-call-next-method))
+         (json (nth 1 result)))
+    (beads-daemons--parse-info-list json)))
+
+;;; Health Command
+
+(defclass beads-daemons-command-health (beads-daemons-command)
+  ()
+  :documentation "Command to check health of all daemons.
+Executes: bd daemons health [--search DIRS] --json")
+
+(cl-defmethod beads-command-line ((_command beads-daemons-command-health))
+  "Build command line for daemons health COMMAND."
+  (let ((parent-args (cl-call-next-method)))
+    (append (list "daemons" "health") parent-args)))
+
+(cl-defmethod beads-command-execute ((_command beads-daemons-command-health))
+  "Execute daemons health COMMAND and return beads-daemons-health-report."
+  (let* ((result (cl-call-next-method))
+         (json (nth 1 result)))
+    (beads-daemons--parse-health-report json)))
+
+;;; Stop Command
+
+(defclass beads-daemons-command-stop (beads-command-json)
+  ((target
+    :initarg :target
+    :type (or null string)
+    :initform nil
+    :documentation "Workspace path or PID to stop."))
+  :documentation "Command to stop a specific daemon.
+Executes: bd daemons stop <workspace-path|pid> --json")
+
+(cl-defmethod beads-command-line ((command beads-daemons-command-stop))
+  "Build command line for daemons stop COMMAND."
+  (with-slots (target) command
+    (let ((global-args (cl-call-next-method)))
+      (append (list "daemons" "stop" (or target "")) global-args))))
+
+(cl-defmethod beads-command-validate ((command beads-daemons-command-stop))
+  "Validate daemons stop COMMAND."
+  (with-slots (target) command
+    (unless (and target (not (string-empty-p target)))
+      "Target (workspace path or PID) is required")))
+
+(cl-defmethod beads-command-execute ((_command beads-daemons-command-stop))
+  "Execute daemons stop COMMAND and return beads-daemons-stop-result."
+  (let* ((result (cl-call-next-method))
+         (json (nth 1 result)))
+    (beads-daemons--parse-stop-result json)))
+
+;;; Restart Command
+
+(defclass beads-daemons-command-restart (beads-daemons-command)
+  ((target
+    :initarg :target
+    :type (or null string)
+    :initform nil
+    :documentation "Workspace path or PID to restart."))
+  :documentation "Command to restart a specific daemon.
+Executes: bd daemons restart <workspace-path|pid> [--search DIRS] --json")
+
+(cl-defmethod beads-command-line ((command beads-daemons-command-restart))
+  "Build command line for daemons restart COMMAND."
+  (with-slots (target) command
+    (let ((parent-args (cl-call-next-method)))
+      (append (list "daemons" "restart" (or target "")) parent-args))))
+
+(cl-defmethod beads-command-validate ((command beads-daemons-command-restart))
+  "Validate daemons restart COMMAND."
+  (with-slots (target) command
+    (unless (and target (not (string-empty-p target)))
+      "Target (workspace path or PID) is required")))
+
+(cl-defmethod beads-command-execute ((_command beads-daemons-command-restart))
+  "Execute daemons restart COMMAND and return beads-daemons-restart-result."
+  (let* ((result (cl-call-next-method))
+         (json (nth 1 result)))
+    (beads-daemons--parse-restart-result json)))
+
+;;; Logs Command
+
+(defclass beads-daemons-command-logs (beads-command-json)
+  ((target
+    :initarg :target
+    :type (or null string)
+    :initform nil
+    :documentation "Workspace path or PID to view logs for.")
+   (follow
+    :initarg :follow
+    :type boolean
+    :initform nil
+    :documentation "Follow log output like tail -f (--follow).")
+   (lines
+    :initarg :lines
+    :type (or null integer)
+    :initform nil
+    :documentation "Number of lines to show from end (--lines)."))
+  :documentation "Command to view logs for a specific daemon.
+Executes: bd daemons logs <workspace-path|pid> [-f] [-n LINES] --json")
+
+(cl-defmethod beads-command-line ((command beads-daemons-command-logs))
+  "Build command line for daemons logs COMMAND."
+  (with-slots (target follow lines) command
+    (let ((global-args (cl-call-next-method))
+          (args (list "daemons" "logs" (or target ""))))
+      (when follow
+        (setq args (append args (list "--follow"))))
+      (when lines
+        (setq args (append args (list "--lines" (number-to-string lines)))))
+      (append args global-args))))
+
+(cl-defmethod beads-command-validate ((command beads-daemons-command-logs))
+  "Validate daemons logs COMMAND."
+  (with-slots (target lines) command
+    (cond
+     ((not (and target (not (string-empty-p target))))
+      "Target (workspace path or PID) is required")
+     ((and lines (< lines 1))
+      "Lines must be a positive integer")
+     (t nil))))
+
+(cl-defmethod beads-command-execute ((_command beads-daemons-command-logs))
+  "Execute daemons logs COMMAND and return beads-daemons-logs-result."
+  (let* ((result (cl-call-next-method))
+         (json (nth 1 result)))
+    (beads-daemons--parse-logs-result json)))
+
+;;; Killall Command
+
+(defclass beads-daemons-command-killall (beads-daemons-command)
+  ((force
+    :initarg :force
+    :type boolean
+    :initform nil
+    :documentation "Force kill with SIGKILL if graceful shutdown fails."))
+  :documentation "Command to stop all running daemons.
+Executes: bd daemons killall [--search DIRS] [--force] --json")
+
+(cl-defmethod beads-command-line ((command beads-daemons-command-killall))
+  "Build command line for daemons killall COMMAND."
+  (with-slots (force) command
+    (let ((parent-args (cl-call-next-method))
+          (args (list "daemons" "killall")))
+      (when force
+        (setq args (append args (list "--force"))))
+      (append args parent-args))))
+
+(cl-defmethod beads-command-execute ((_command beads-daemons-command-killall))
+  "Execute daemons killall COMMAND and return beads-daemons-killall-result."
+  (let* ((result (cl-call-next-method))
+         (json (nth 1 result)))
+    (beads-daemons--parse-killall-result json)))
+
+;;; ============================================================
+;;; Multi-Daemon Convenience Functions
+;;; ============================================================
+
+(defun beads-command-daemons-list! (&rest args)
+  "Create and execute a beads-daemons-command-list with ARGS.
+Returns a list of `beads-daemon-info' objects.
+See `beads-daemons-command-list' for available arguments."
+  (beads-command-execute (apply #'beads-daemons-command-list args)))
+
+(defun beads-command-daemons-health! (&rest args)
+  "Create and execute a beads-daemons-command-health with ARGS.
+Returns a `beads-daemons-health-report' object.
+See `beads-daemons-command-health' for available arguments."
+  (beads-command-execute (apply #'beads-daemons-command-health args)))
+
+(defun beads-command-daemons-stop! (&rest args)
+  "Create and execute a beads-daemons-command-stop with ARGS.
+Returns a `beads-daemons-stop-result' object.
+See `beads-daemons-command-stop' for available arguments."
+  (beads-command-execute (apply #'beads-daemons-command-stop args)))
+
+(defun beads-command-daemons-restart! (&rest args)
+  "Create and execute a beads-daemons-command-restart with ARGS.
+Returns a `beads-daemons-restart-result' object.
+See `beads-daemons-command-restart' for available arguments."
+  (beads-command-execute (apply #'beads-daemons-command-restart args)))
+
+(defun beads-command-daemons-logs! (&rest args)
+  "Create and execute a beads-daemons-command-logs with ARGS.
+Returns a `beads-daemons-logs-result' object.
+See `beads-daemons-command-logs' for available arguments."
+  (beads-command-execute (apply #'beads-daemons-command-logs args)))
+
+(defun beads-command-daemons-killall! (&rest args)
+  "Create and execute a beads-daemons-command-killall with ARGS.
+Returns a `beads-daemons-killall-result' object.
+See `beads-daemons-command-killall' for available arguments."
+  (beads-command-execute (apply #'beads-daemons-command-killall args)))
+
 (provide 'beads-command)
 ;;; beads-command.el ends here

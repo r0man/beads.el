@@ -42,6 +42,7 @@
 (require 'beads-sync)
 (require 'beads-epic-status)
 (require 'beads-daemon)
+(require 'beads-daemons)
 (require 'transient)
 
 ;;; Variables
@@ -141,7 +142,7 @@ Key bindings:
                       D (delete)
   Dependencies:       d (dep submenu)
   Admin:              i (init), e (export), I (import), S (sync),
-                      P (daemon)
+                      P (daemon), A (all daemons)
   Other:              g (refresh), q (quit)"
   [:description
    (lambda () (beads-main--format-project-header))
@@ -176,7 +177,8 @@ Key bindings:
    ("E" "Export to JSONL" beads-export)
    ("I" "Import from JSONL" beads-import)
    ("S" "Sync with remote" beads-sync)
-   ("P" "Daemon" beads-daemon)]
+   ("P" "Daemon (project)" beads-daemon)
+   ("A" "All daemons" beads-daemons)]
   ["Other"
    :description "Other commands"
    ("?" "Quickstart guide" beads-quickstart)
