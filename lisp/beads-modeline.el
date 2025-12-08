@@ -11,22 +11,26 @@
 ;; the daemon status.  The indicator displays:
 ;;   - (green) running
 ;;   - (gray) stopped
-;;   (yellow) degraded
+;;   - (yellow) degraded
+;;
+;; The indicator uses Emacs's standard `mode-line-process' variable,
+;; which appears immediately after the major mode name.  This follows
+;; the convention used by shell-mode, compilation-mode, and other
+;; process-oriented modes.
 ;;
 ;; Clicking the indicator opens the daemon transient menu.  The
-;; indicator is only shown in beads-related buffers.
+;; indicator is only shown in beads-related buffers via buffer-local
+;; `mode-line-process' values set by a hook.
 ;;
 ;; The daemon status is cached with a configurable refresh interval
 ;; to avoid excessive polling.
-;;
-;; Inspired by eglot/lsp-mode mode-line patterns.
 ;;
 ;; Usage:
 ;;   (beads-modeline-mode 1)    ; Enable globally
 ;;   (beads-modeline-mode -1)   ; Disable globally
 ;;
-;; Or add to individual buffers:
-;;   (add-hook 'beads-list-mode-hook #'beads-modeline-setup)
+;; When enabled, the mode automatically installs hooks to set up
+;; the mode-line indicator in beads buffers.
 
 ;;; Code:
 
@@ -55,16 +59,7 @@ mode-line redisplay)."
                  (const :tag "No automatic refresh" nil))
   :group 'beads-modeline)
 
-(defcustom beads-modeline-position 'after-mode-name
-  "Position of the daemon indicator in the mode-line.
-Possible values:
-- `after-mode-name': After the major mode name
-- `end': At the end of the mode-line"
-  :type '(choice (const :tag "After mode name" after-mode-name)
-                 (const :tag "End of mode-line" end))
-  :group 'beads-modeline)
-
-(defcustom beads-modeline-prefix " bd"
+(defcustom beads-modeline-prefix ":bd"
   "Prefix string shown before the status indicator.
 Set to empty string to show only the status icon."
   :type 'string
@@ -192,16 +187,15 @@ Refreshes the status cache."
 
 (defun beads-modeline-segment ()
   "Return the mode-line segment for daemon status.
-Returns nil if not in a beads-related buffer."
-  (when (beads-modeline--in-beads-buffer-p)
-    (let ((status (beads-modeline--get-status)))
-      (propertize
-       (concat (propertize beads-modeline-prefix 'face 'beads-modeline-prefix)
-               " "
-               (beads-modeline--status-icon status))
-       'help-echo (beads-modeline--help-echo status)
-       'mouse-face 'mode-line-highlight
-       'local-map beads-modeline--keymap))))
+This is evaluated in each beads buffer's `mode-line-process'."
+  (let ((status (beads-modeline--get-status)))
+    (propertize
+     (concat (propertize beads-modeline-prefix 'face 'beads-modeline-prefix)
+             " "
+             (beads-modeline--status-icon status))
+     'help-echo (beads-modeline--help-echo status)
+     'mouse-face 'mode-line-highlight
+     'local-map beads-modeline--keymap)))
 
 (defun beads-modeline--in-beads-buffer-p ()
   "Return non-nil if current buffer is a beads-related buffer."
@@ -221,28 +215,52 @@ Returns nil if not in a beads-related buffer."
 
 (defvar beads-modeline--mode-line-construct
   '(:eval (beads-modeline-segment))
-  "Mode-line construct for the daemon indicator.")
+  "Mode-line construct for the daemon indicator.
+This is set as the buffer-local `mode-line-process' in beads buffers.")
+
+(defvar beads-modeline--hooks
+  '(beads-list-mode-hook
+    beads-show-mode-hook
+    beads-stats-mode-hook
+    beads-graph-mode-hook
+    beads-daemon-status-mode-hook
+    beads-daemons-list-mode-hook
+    beads-label-list-all-mode-hook)
+  "List of hooks to install the mode-line indicator on.")
+
+(defun beads-modeline--setup-buffer ()
+  "Set up the mode-line indicator for the current buffer.
+Sets `mode-line-process' to show the daemon status indicator."
+  (setq-local mode-line-process beads-modeline--mode-line-construct))
+
+(defun beads-modeline--teardown-buffer ()
+  "Remove the mode-line indicator from the current buffer."
+  (when (eq mode-line-process beads-modeline--mode-line-construct)
+    (kill-local-variable 'mode-line-process)))
 
 (defun beads-modeline--install ()
-  "Install the mode-line segment."
-  (unless (memq beads-modeline--mode-line-construct mode-line-misc-info)
-    (pcase beads-modeline-position
-      ('end
-       (setq-default mode-line-misc-info
-                     (append mode-line-misc-info
-                             (list beads-modeline--mode-line-construct))))
-      ('after-mode-name
-       (setq-default mode-line-misc-info
-                     (cons beads-modeline--mode-line-construct
-                           mode-line-misc-info)))))
+  "Install the mode-line indicator on all beads mode hooks."
+  ;; Add hook to all beads modes
+  (dolist (hook beads-modeline--hooks)
+    (add-hook hook #'beads-modeline--setup-buffer))
+  ;; Set up existing beads buffers
+  (dolist (buf (buffer-list))
+    (with-current-buffer buf
+      (when (beads-modeline--in-beads-buffer-p)
+        (beads-modeline--setup-buffer))))
   ;; Start refresh timer if configured
   (beads-modeline--start-timer))
 
 (defun beads-modeline--uninstall ()
-  "Uninstall the mode-line segment."
-  (setq-default mode-line-misc-info
-                (delq beads-modeline--mode-line-construct
-                      (default-value 'mode-line-misc-info)))
+  "Uninstall the mode-line indicator from all beads mode hooks."
+  ;; Remove hooks
+  (dolist (hook beads-modeline--hooks)
+    (remove-hook hook #'beads-modeline--setup-buffer))
+  ;; Teardown existing beads buffers
+  (dolist (buf (buffer-list))
+    (with-current-buffer buf
+      (when (beads-modeline--in-beads-buffer-p)
+        (beads-modeline--teardown-buffer))))
   ;; Stop refresh timer
   (beads-modeline--stop-timer)
   ;; Clear cache
@@ -289,10 +307,13 @@ Clicking the indicator opens the daemon transient menu."
 ;;;###autoload
 (defun beads-modeline-setup ()
   "Set up mode-line indicator for the current buffer.
-Call this from mode hooks to enable the indicator for specific modes."
+Call this from mode hooks to enable the indicator for specific modes.
+This enables the global minor mode if not already enabled, and sets
+up the buffer-local mode-line-process."
   (interactive)
   (unless beads-modeline-mode
-    (beads-modeline-mode 1)))
+    (beads-modeline-mode 1))
+  (beads-modeline--setup-buffer))
 
 (provide 'beads-modeline)
 ;;; beads-modeline.el ends here

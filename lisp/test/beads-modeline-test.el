@@ -48,14 +48,19 @@
   `(let ((beads-modeline--status-cache nil)
          (beads-modeline--refresh-timer nil)
          (beads-modeline-refresh-interval 30)
-         (beads-modeline-mode nil))
+         (beads-modeline-mode nil)
+         (saved-hooks (mapcar (lambda (h) (cons h (symbol-value h)))
+                              beads-modeline--hooks)))
      (unwind-protect
          (progn ,@body)
        ;; Cleanup
        (when beads-modeline--refresh-timer
          (cancel-timer beads-modeline--refresh-timer)
          (setq beads-modeline--refresh-timer nil))
-       (setq beads-modeline--status-cache nil))))
+       (setq beads-modeline--status-cache nil)
+       ;; Restore hooks
+       (dolist (pair saved-hooks)
+         (set (car pair) (cdr pair))))))
 
 ;;; ============================================================
 ;;; Cache Tests
@@ -234,24 +239,28 @@
   (let ((help (beads-modeline--help-echo 'degraded)))
     (should (string-match-p "Degraded" help))))
 
-(ert-deftest beads-modeline-test-segment-returns-nil-in-non-beads-buffer ()
-  "Test that segment returns nil in non-beads buffer."
-  (beads-modeline-test-with-clean-state
-    (with-temp-buffer
-      (should-not (beads-modeline-segment)))))
-
-(ert-deftest beads-modeline-test-segment-returns-string-in-beads-buffer ()
-  "Test that segment returns string in beads-named buffer."
+(ert-deftest beads-modeline-test-segment-always-returns-string ()
+  "Test that segment always returns a string (buffer detection is via hooks)."
   (beads-modeline-test-with-clean-state
     (cl-letf (((symbol-function 'beads-daemon--get-status)
                (lambda () beads-modeline-test--sample-status-running))
               ((symbol-function 'beads-daemon--get-health)
                (lambda () beads-modeline-test--sample-health-healthy)))
       (with-temp-buffer
-        (rename-buffer "*beads-test*" t)
+        ;; Segment always returns string - buffer filtering is done by hooks
+        (should (stringp (beads-modeline-segment)))))))
+
+(ert-deftest beads-modeline-test-segment-has-expected-properties ()
+  "Test that segment has expected text and properties."
+  (beads-modeline-test-with-clean-state
+    (cl-letf (((symbol-function 'beads-daemon--get-status)
+               (lambda () beads-modeline-test--sample-status-running))
+              ((symbol-function 'beads-daemon--get-health)
+               (lambda () beads-modeline-test--sample-health-healthy)))
+      (with-temp-buffer
         (let ((segment (beads-modeline-segment)))
           (should (stringp segment))
-          (should (string-match-p "bd" segment))
+          (should (string-match-p ":bd" segment))
           (should (get-text-property 0 'help-echo segment))
           (should (get-text-property 0 'local-map segment)))))))
 
@@ -263,7 +272,6 @@
               ((symbol-function 'beads-daemon--get-health)
                (lambda () beads-modeline-test--sample-health-healthy)))
       (with-temp-buffer
-        (rename-buffer "*beads-test*" t)
         (let ((segment (beads-modeline-segment)))
           (should (eq (get-text-property 0 'mouse-face segment)
                       'mode-line-highlight)))))))
@@ -307,29 +315,27 @@
         (should beads-modeline-mode)
       (beads-modeline-mode -1))))
 
-(ert-deftest beads-modeline-test-mode-installs-construct ()
-  "Test that enabling mode installs the mode-line construct."
+(ert-deftest beads-modeline-test-mode-installs-hooks ()
+  "Test that enabling mode installs hooks on beads modes."
   (beads-modeline-test-with-clean-state
-    (let ((orig-misc-info (default-value 'mode-line-misc-info)))
-      (unwind-protect
-          (progn
-            (beads-modeline-mode 1)
-            (should (memq beads-modeline--mode-line-construct
-                          (default-value 'mode-line-misc-info))))
-        (beads-modeline-mode -1)
-        (setq-default mode-line-misc-info orig-misc-info)))))
+    (unwind-protect
+        (progn
+          (beads-modeline-mode 1)
+          ;; Check that hooks are installed
+          (dolist (hook beads-modeline--hooks)
+            (should (memq #'beads-modeline--setup-buffer
+                          (symbol-value hook)))))
+      (beads-modeline-mode -1))))
 
-(ert-deftest beads-modeline-test-mode-uninstalls-construct ()
-  "Test that disabling mode uninstalls the mode-line construct."
+(ert-deftest beads-modeline-test-mode-uninstalls-hooks ()
+  "Test that disabling mode removes hooks from beads modes."
   (beads-modeline-test-with-clean-state
-    (let ((orig-misc-info (default-value 'mode-line-misc-info)))
-      (unwind-protect
-          (progn
-            (beads-modeline-mode 1)
-            (beads-modeline-mode -1)
-            (should-not (memq beads-modeline--mode-line-construct
-                              (default-value 'mode-line-misc-info))))
-        (setq-default mode-line-misc-info orig-misc-info)))))
+    (beads-modeline-mode 1)
+    (beads-modeline-mode -1)
+    ;; Check that hooks are removed
+    (dolist (hook beads-modeline--hooks)
+      (should-not (memq #'beads-modeline--setup-buffer
+                        (symbol-value hook))))))
 
 (ert-deftest beads-modeline-test-mode-starts-timer ()
   "Test that enabling mode starts the refresh timer."
@@ -371,6 +377,32 @@
 ;;; Setup Function Tests
 ;;; ============================================================
 
+(ert-deftest beads-modeline-test-setup-buffer-sets-mode-line-process ()
+  "Test that setup-buffer sets mode-line-process."
+  (beads-modeline-test-with-clean-state
+    (with-temp-buffer
+      (should-not mode-line-process)
+      (beads-modeline--setup-buffer)
+      (should (eq mode-line-process beads-modeline--mode-line-construct)))))
+
+(ert-deftest beads-modeline-test-teardown-buffer-clears-mode-line-process ()
+  "Test that teardown-buffer clears mode-line-process."
+  (beads-modeline-test-with-clean-state
+    (with-temp-buffer
+      (beads-modeline--setup-buffer)
+      (should mode-line-process)
+      (beads-modeline--teardown-buffer)
+      (should-not mode-line-process))))
+
+(ert-deftest beads-modeline-test-teardown-preserves-other-mode-line-process ()
+  "Test that teardown doesn't clear mode-line-process set by other modes."
+  (beads-modeline-test-with-clean-state
+    (with-temp-buffer
+      (setq-local mode-line-process '(:eval "other"))
+      (beads-modeline--teardown-buffer)
+      ;; Should not clear since it wasn't our construct
+      (should (equal mode-line-process '(:eval "other"))))))
+
 (ert-deftest beads-modeline-test-setup-enables-mode ()
   "Test that setup enables the minor mode."
   (beads-modeline-test-with-clean-state
@@ -380,6 +412,16 @@
           (beads-modeline-setup)
           (should beads-modeline-mode))
       (beads-modeline-mode -1))))
+
+(ert-deftest beads-modeline-test-setup-sets-buffer-local-mode-line-process ()
+  "Test that setup sets buffer-local mode-line-process."
+  (beads-modeline-test-with-clean-state
+    (with-temp-buffer
+      (unwind-protect
+          (progn
+            (beads-modeline-setup)
+            (should (eq mode-line-process beads-modeline--mode-line-construct)))
+        (beads-modeline-mode -1)))))
 
 (ert-deftest beads-modeline-test-setup-is-interactive ()
   "Test that setup is an interactive command."
@@ -397,10 +439,6 @@
   "Test refresh-interval customization."
   (should (get 'beads-modeline-refresh-interval 'custom-type)))
 
-(ert-deftest beads-modeline-test-customization-position ()
-  "Test position customization."
-  (should (get 'beads-modeline-position 'custom-type)))
-
 (ert-deftest beads-modeline-test-customization-prefix ()
   "Test prefix customization."
   (should (get 'beads-modeline-prefix 'custom-type)))
@@ -408,15 +446,14 @@
 (ert-deftest beads-modeline-test-prefix-in-segment ()
   "Test that prefix appears in segment."
   (beads-modeline-test-with-clean-state
-    (let ((beads-modeline-prefix " TEST"))
+    (let ((beads-modeline-prefix ":TEST"))
       (cl-letf (((symbol-function 'beads-daemon--get-status)
                  (lambda () beads-modeline-test--sample-status-running))
                 ((symbol-function 'beads-daemon--get-health)
                  (lambda () beads-modeline-test--sample-health-healthy)))
         (with-temp-buffer
-          (rename-buffer "*beads-test*" t)
           (let ((segment (beads-modeline-segment)))
-            (should (string-match-p "TEST" segment))))))))
+            (should (string-match-p ":TEST" segment))))))))
 
 (ert-deftest beads-modeline-test-empty-prefix ()
   "Test segment with empty prefix."
@@ -427,7 +464,6 @@
                 ((symbol-function 'beads-daemon--get-health)
                  (lambda () beads-modeline-test--sample-health-healthy)))
         (with-temp-buffer
-          (rename-buffer "*beads-test*" t)
           (let ((segment (beads-modeline-segment)))
             ;; Should have space + icon (● U+25CF)
             (should (string= (substring-no-properties segment) " \u25cf"))))))))
