@@ -398,7 +398,7 @@ Returns error string or nil if valid."
 Displays a quick start guide showing common bd workflows and patterns.
 This command has no command-specific flags, only global flags.")
 
-(cl-defmethod beads-command-line ((command beads-command-quickstart))
+(cl-defmethod beads-command-line ((_command beads-command-quickstart))
   "Build command arguments for quickstart COMMAND (without executable).
 Returns list: (\"quickstart\" ...global-flags...)."
   (let ((cmd-args (list "quickstart"))
@@ -2845,6 +2845,469 @@ See `beads-command-label-remove' for available arguments."
 Returns the parsed JSON array of label strings.
 See `beads-command-label-list' for available arguments."
   (beads-command-execute (apply #'beads-command-label-list args)))
+
+;;; ============================================================
+;;; Daemon Data Structures (EIEIO Classes)
+;;; ============================================================
+
+(defclass beads-daemon-status ()
+  ((running
+    :initarg :running
+    :type boolean
+    :initform nil
+    :documentation "Whether daemon is running.")
+   (pid
+    :initarg :pid
+    :type (or null integer)
+    :initform nil
+    :documentation "Process ID.")
+   (started
+    :initarg :started
+    :type (or null string)
+    :initform nil
+    :documentation "Start timestamp string (e.g., \"2025-12-08 11:10:36\").")
+   (log-path
+    :initarg :log-path
+    :type (or null string)
+    :initform nil
+    :documentation "Path to daemon log file."))
+  "EIEIO class holding daemon status information.")
+
+(defclass beads-daemon-health ()
+  ((status
+    :initarg :status
+    :type (or null string)
+    :initform nil
+    :documentation "Health status string (e.g., \"healthy\").")
+   (version
+    :initarg :version
+    :type (or null string)
+    :initform nil
+    :documentation "Daemon version string.")
+   (client-version
+    :initarg :client-version
+    :type (or null string)
+    :initform nil
+    :documentation "Client version string.")
+   (compatible
+    :initarg :compatible
+    :type boolean
+    :initform nil
+    :documentation "Whether client/daemon versions are compatible.")
+   (uptime-seconds
+    :initarg :uptime-seconds
+    :type (or null number)
+    :initform nil
+    :documentation "Uptime in seconds (float).")
+   (db-response-ms
+    :initarg :db-response-ms
+    :type (or null number)
+    :initform nil
+    :documentation "Database response time in milliseconds (float).")
+   (active-connections
+    :initarg :active-connections
+    :type (or null integer)
+    :initform nil
+    :documentation "Current active connections.")
+   (max-connections
+    :initarg :max-connections
+    :type (or null integer)
+    :initform nil
+    :documentation "Maximum allowed connections.")
+   (memory-alloc-mb
+    :initarg :memory-alloc-mb
+    :type (or null integer)
+    :initform nil
+    :documentation "Allocated memory in megabytes."))
+  "EIEIO class holding daemon health information.")
+
+(defclass beads-daemon-operation ()
+  ((operation
+    :initarg :operation
+    :type (or null string)
+    :initform nil
+    :documentation "Operation name (e.g., \"health\", \"list\").")
+   (total-count
+    :initarg :total-count
+    :type (or null integer)
+    :initform nil
+    :documentation "Total number of operations.")
+   (success-count
+    :initarg :success-count
+    :type (or null integer)
+    :initform nil
+    :documentation "Number of successful operations.")
+   (error-count
+    :initarg :error-count
+    :type (or null integer)
+    :initform nil
+    :documentation "Number of failed operations.")
+   (latency
+    :initarg :latency
+    :type list
+    :initform nil
+    :documentation "Latency statistics (alist with min_ms, p50_ms, etc.)."))
+  "EIEIO class holding operation statistics.")
+
+(defclass beads-daemon-metrics ()
+  ((timestamp
+    :initarg :timestamp
+    :type (or null string)
+    :initform nil
+    :documentation "Metrics timestamp (ISO 8601 string).")
+   (uptime-seconds
+    :initarg :uptime-seconds
+    :type (or null integer)
+    :initform nil
+    :documentation "Uptime in seconds.")
+   (operations
+    :initarg :operations
+    :type list
+    :initform nil
+    :documentation "List of beads-daemon-operation objects.")
+   (total-connections
+    :initarg :total-connections
+    :type (or null integer)
+    :initform nil
+    :documentation "Total connections since start.")
+   (active-connections
+    :initarg :active-connections
+    :type (or null integer)
+    :initform nil
+    :documentation "Current active connections.")
+   (rejected-connections
+    :initarg :rejected-connections
+    :type (or null integer)
+    :initform nil
+    :documentation "Rejected connections count.")
+   (memory-alloc-mb
+    :initarg :memory-alloc-mb
+    :type (or null integer)
+    :initform nil
+    :documentation "Allocated memory in megabytes.")
+   (memory-sys-mb
+    :initarg :memory-sys-mb
+    :type (or null integer)
+    :initform nil
+    :documentation "System memory in megabytes.")
+   (goroutine-count
+    :initarg :goroutine-count
+    :type (or null integer)
+    :initform nil
+    :documentation "Number of goroutines."))
+  "EIEIO class holding detailed daemon metrics.")
+
+;;; ============================================================
+;;; Daemon JSON Parsing Functions
+;;; ============================================================
+
+(defun beads-daemon--parse-status (json)
+  "Parse daemon status from JSON alist.
+JSON should be the parsed result from `bd daemon --status --json'.
+Returns a `beads-daemon-status' object."
+  (beads-daemon-status
+   :running (eq (alist-get 'running json) t)
+   :pid (alist-get 'pid json)
+   :started (alist-get 'started json)
+   :log-path (alist-get 'log_path json)))
+
+(defun beads-daemon--parse-health (json)
+  "Parse daemon health from JSON alist.
+JSON should be the parsed result from `bd daemon --health --json'.
+Returns a `beads-daemon-health' object."
+  (beads-daemon-health
+   :status (alist-get 'status json)
+   :version (alist-get 'version json)
+   :client-version (alist-get 'client_version json)
+   :compatible (eq (alist-get 'compatible json) t)
+   :uptime-seconds (alist-get 'uptime_seconds json)
+   :db-response-ms (alist-get 'db_response_ms json)
+   :active-connections (alist-get 'active_connections json)
+   :max-connections (alist-get 'max_connections json)
+   :memory-alloc-mb (alist-get 'memory_alloc_mb json)))
+
+(defun beads-daemon--parse-operation (json)
+  "Parse operation statistics from JSON alist.
+Returns a `beads-daemon-operation' object."
+  (beads-daemon-operation
+   :operation (alist-get 'operation json)
+   :total-count (alist-get 'total_count json)
+   :success-count (alist-get 'success_count json)
+   :error-count (alist-get 'error_count json)
+   :latency (alist-get 'latency json)))
+
+(defun beads-daemon--parse-metrics (json)
+  "Parse daemon metrics from JSON alist.
+JSON should be the parsed result from `bd daemon --metrics --json'.
+Returns a `beads-daemon-metrics' object."
+  (let* ((ops-json (alist-get 'operations json))
+         (operations (when ops-json
+                       (mapcar #'beads-daemon--parse-operation
+                               (append ops-json nil)))))
+    (beads-daemon-metrics
+     :timestamp (alist-get 'timestamp json)
+     :uptime-seconds (alist-get 'uptime_seconds json)
+     :operations operations
+     :total-connections (alist-get 'total_connections json)
+     :active-connections (alist-get 'active_connections json)
+     :rejected-connections (alist-get 'rejected_connections json)
+     :memory-alloc-mb (alist-get 'memory_alloc_mb json)
+     :memory-sys-mb (alist-get 'memory_sys_mb json)
+     :goroutine-count (alist-get 'goroutine_count json))))
+
+;;; ============================================================
+;;; Daemon Utility Functions
+;;; ============================================================
+
+(defun beads-daemon--format-uptime (seconds)
+  "Format SECONDS as human-readable uptime string.
+Returns a string like \"6h 32m 15s\" or \"2d 4h 30m\"."
+  (if (or (null seconds) (< seconds 0))
+      "N/A"
+    (let* ((secs (truncate seconds))
+           (days (/ secs 86400))
+           (hours (/ (% secs 86400) 3600))
+           (mins (/ (% secs 3600) 60))
+           (s (% secs 60)))
+      (cond
+       ((>= days 1)
+        (format "%dd %dh %dm" days hours mins))
+       ((>= hours 1)
+        (format "%dh %dm %ds" hours mins s))
+       ((>= mins 1)
+        (format "%dm %ds" mins s))
+       (t
+        (format "%ds" s))))))
+
+(defun beads-daemon--format-bytes (megabytes)
+  "Format MEGABYTES as human-readable string.
+Returns a string like \"5 MB\" or \"1.2 GB\"."
+  (if (or (null megabytes) (< megabytes 0))
+      "N/A"
+    (if (>= megabytes 1024)
+        (format "%.1f GB" (/ megabytes 1024.0))
+      (format "%d MB" megabytes))))
+
+(defun beads-daemon--format-latency (latency-alist)
+  "Format LATENCY-ALIST as human-readable string.
+LATENCY-ALIST contains keys like min_ms, p50_ms, p95_ms, etc."
+  (if (null latency-alist)
+      "N/A"
+    (let ((avg (alist-get 'avg_ms latency-alist))
+          (p99 (alist-get 'p99_ms latency-alist)))
+      (format "avg: %.2fms, p99: %.2fms"
+              (or avg 0)
+              (or p99 0)))))
+
+;;; ============================================================
+;;; Daemon Command Classes
+;;; ============================================================
+
+(defclass beads-daemon-command (beads-command-json)
+  ()
+  :abstract t
+  :documentation "Abstract base class for daemon commands.
+All daemon commands inherit from this class which provides
+--json flag support via beads-command-json.")
+
+;;; Status Command
+
+(defclass beads-daemon-command-status (beads-daemon-command)
+  ()
+  :documentation "Command to get daemon status.
+Executes: bd daemon --status --json")
+
+(cl-defmethod beads-command-line ((_command beads-daemon-command-status))
+  "Build command line for daemon status COMMAND."
+  (let ((global-args (cl-call-next-method)))
+    (append (list "daemon" "--status") global-args)))
+
+(cl-defmethod beads-command-execute ((_command beads-daemon-command-status))
+  "Execute daemon status COMMAND and return beads-daemon-status struct."
+  (let* ((result (cl-call-next-method))
+         (json (nth 1 result)))
+    (beads-daemon--parse-status json)))
+
+;;; Health Command
+
+(defclass beads-daemon-command-health (beads-daemon-command)
+  ()
+  :documentation "Command to get daemon health.
+Executes: bd daemon --health --json")
+
+(cl-defmethod beads-command-line ((_command beads-daemon-command-health))
+  "Build command line for daemon health COMMAND."
+  (let ((global-args (cl-call-next-method)))
+    (append (list "daemon" "--health") global-args)))
+
+(cl-defmethod beads-command-execute ((_command beads-daemon-command-health))
+  "Execute daemon health COMMAND and return beads-daemon-health struct."
+  (let* ((result (cl-call-next-method))
+         (json (nth 1 result)))
+    (beads-daemon--parse-health json)))
+
+;;; Metrics Command
+
+(defclass beads-daemon-command-metrics (beads-daemon-command)
+  ()
+  :documentation "Command to get daemon metrics.
+Executes: bd daemon --metrics --json")
+
+(cl-defmethod beads-command-line ((_command beads-daemon-command-metrics))
+  "Build command line for daemon metrics COMMAND."
+  (let ((global-args (cl-call-next-method)))
+    (append (list "daemon" "--metrics") global-args)))
+
+(cl-defmethod beads-command-execute ((_command beads-daemon-command-metrics))
+  "Execute daemon metrics COMMAND and return beads-daemon-metrics struct."
+  (let* ((result (cl-call-next-method))
+         (json (nth 1 result)))
+    (beads-daemon--parse-metrics json)))
+
+;;; Start Command
+
+(defclass beads-daemon-command-start (beads-daemon-command)
+  ((auto-commit
+    :initarg :auto-commit
+    :type boolean
+    :initform nil
+    :documentation "Automatically commit changes (--auto-commit).")
+   (auto-push
+    :initarg :auto-push
+    :type boolean
+    :initform nil
+    :documentation "Automatically push commits (--auto-push).")
+   (foreground
+    :initarg :foreground
+    :type boolean
+    :initform nil
+    :documentation "Run in foreground (--foreground).
+Don't daemonize; useful for debugging.")
+   (local
+    :initarg :local
+    :type boolean
+    :initform nil
+    :documentation "Run in local-only mode (--local).
+No git required, no sync.")
+   (interval
+    :initarg :interval
+    :type (or null string)
+    :initform nil
+    :documentation "Sync check interval (--interval).
+Go duration string like \"5s\", \"10s\", \"1m\".")
+   (log
+    :initarg :log
+    :type (or null string)
+    :initform nil
+    :documentation "Log file path (--log).
+Default: .beads/daemon.log"))
+  :documentation "Command to start the daemon.
+Executes: bd daemon --start [options] --json")
+
+(cl-defmethod beads-command-line ((command beads-daemon-command-start))
+  "Build command line for daemon start COMMAND."
+  (with-slots (auto-commit auto-push foreground local interval log) command
+    (let ((global-args (cl-call-next-method))
+          (args (list "daemon" "--start")))
+      ;; Boolean flags
+      (when auto-commit
+        (setq args (append args (list "--auto-commit"))))
+      (when auto-push
+        (setq args (append args (list "--auto-push"))))
+      (when foreground
+        (setq args (append args (list "--foreground"))))
+      (when local
+        (setq args (append args (list "--local"))))
+      ;; String options
+      (when interval
+        (setq args (append args (list "--interval" interval))))
+      (when log
+        (setq args (append args (list "--log" log))))
+      ;; Append global args (includes --json)
+      (append args global-args))))
+
+(cl-defmethod beads-command-validate ((command beads-daemon-command-start))
+  "Validate daemon start COMMAND."
+  (with-slots (interval) command
+    (cond
+     ;; Validate interval format (Go duration)
+     ((and interval
+           (not (string-match-p
+                 "^[0-9]+\\(\\.[0-9]+\\)?\\(ns\\|us\\|µs\\|ms\\|s\\|m\\|h\\)$"
+                 interval)))
+      (format "Invalid interval format: %s (use Go duration like 5s, 1m)"
+              interval))
+     (t nil))))
+
+(cl-defmethod beads-command-execute ((_command beads-daemon-command-start))
+  "Execute daemon start COMMAND and return status."
+  ;; Start doesn't return JSON on success, just succeeds or fails
+  ;; We'll call the parent but catch non-JSON responses
+  (condition-case _err
+      (let* ((result (cl-call-next-method))
+             (json (nth 1 result)))
+        ;; If we got JSON, parse it as status
+        (if (and json (listp json))
+            (beads-daemon--parse-status json)
+          ;; Otherwise return success indicator
+          (beads-daemon-status :running t)))
+    (beads-json-parse-error
+     ;; Start may return non-JSON on success
+     (beads-daemon-status :running t))))
+
+;;; Stop Command
+
+(defclass beads-daemon-command-stop (beads-daemon-command)
+  ()
+  :documentation "Command to stop the daemon.
+Executes: bd daemon --stop --json")
+
+(cl-defmethod beads-command-line ((_command beads-daemon-command-stop))
+  "Build command line for daemon stop COMMAND."
+  (let ((global-args (cl-call-next-method)))
+    (append (list "daemon" "--stop") global-args)))
+
+(cl-defmethod beads-command-execute ((_command beads-daemon-command-stop))
+  "Execute daemon stop COMMAND."
+  ;; Stop doesn't return meaningful JSON
+  (condition-case _err
+      (cl-call-next-method)
+    (beads-json-parse-error
+     ;; Stop may return non-JSON on success
+     nil)))
+
+;;; ============================================================
+;;; Daemon Convenience Functions
+;;; ============================================================
+
+(defun beads-command-daemon-status! (&rest args)
+  "Create and execute a beads-daemon-command-status with ARGS.
+Returns a `beads-daemon-status' object.
+See `beads-daemon-command-status' for available arguments."
+  (beads-command-execute (apply #'beads-daemon-command-status args)))
+
+(defun beads-command-daemon-health! (&rest args)
+  "Create and execute a beads-daemon-command-health with ARGS.
+Returns a `beads-daemon-health' object.
+See `beads-daemon-command-health' for available arguments."
+  (beads-command-execute (apply #'beads-daemon-command-health args)))
+
+(defun beads-command-daemon-metrics! (&rest args)
+  "Create and execute a beads-daemon-command-metrics with ARGS.
+Returns a `beads-daemon-metrics' object.
+See `beads-daemon-command-metrics' for available arguments."
+  (beads-command-execute (apply #'beads-daemon-command-metrics args)))
+
+(defun beads-command-daemon-start! (&rest args)
+  "Create and execute a beads-daemon-command-start with ARGS.
+Returns a `beads-daemon-status' object.
+See `beads-daemon-command-start' for available arguments."
+  (beads-command-execute (apply #'beads-daemon-command-start args)))
+
+(defun beads-command-daemon-stop! (&rest args)
+  "Create and execute a beads-daemon-command-stop with ARGS.
+See `beads-daemon-command-stop' for available arguments."
+  (beads-command-execute (apply #'beads-daemon-command-stop args)))
 
 (provide 'beads-command)
 ;;; beads-command.el ends here
