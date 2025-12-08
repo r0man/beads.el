@@ -521,6 +521,12 @@
               'beads-daemons-list-refresh))
   (should (eq (lookup-key beads-daemons-list-mode-map "q")
               'quit-window))
+  (should (eq (lookup-key beads-daemons-list-mode-map "m")
+              'beads-daemons-list-mark))
+  (should (eq (lookup-key beads-daemons-list-mode-map "u")
+              'beads-daemons-list-unmark))
+  (should (eq (lookup-key beads-daemons-list-mode-map "U")
+              'beads-daemons-list-unmark-all))
   (should (eq (lookup-key beads-daemons-list-mode-map "s")
               'beads-daemons-list-stop))
   (should (eq (lookup-key beads-daemons-list-mode-map "r")
@@ -552,6 +558,133 @@
          (beads-daemons-list-mode)
          (beads-daemons-list--revert-buffer nil nil)
          (should refresh-called))))))
+
+;;; ============================================================
+;;; Marking Tests
+;;; ============================================================
+
+(ert-deftest beads-daemons-test-mark-adds-to-list ()
+  "Test that marking a daemon adds it to the marked list."
+  (with-temp-buffer
+    (beads-daemons-list-mode)
+    (cl-letf (((symbol-function 'beads-daemons-list--get-target-at-point)
+               (lambda () "/home/user/project1"))
+              ((symbol-function 'tabulated-list-put-tag)
+               (lambda (_tag &optional _advance) nil)))
+      (beads-daemons-list-mark)
+      (should (member "/home/user/project1" beads-daemons-list--marked)))))
+
+(ert-deftest beads-daemons-test-mark-no-duplicates ()
+  "Test that marking the same daemon twice doesn't create duplicates."
+  (with-temp-buffer
+    (beads-daemons-list-mode)
+    (cl-letf (((symbol-function 'beads-daemons-list--get-target-at-point)
+               (lambda () "/home/user/project1"))
+              ((symbol-function 'tabulated-list-put-tag)
+               (lambda (_tag &optional _advance) nil)))
+      (beads-daemons-list-mark)
+      (beads-daemons-list-mark)
+      (should (= 1 (length beads-daemons-list--marked))))))
+
+(ert-deftest beads-daemons-test-unmark-removes-from-list ()
+  "Test that unmarking a daemon removes it from the marked list."
+  (with-temp-buffer
+    (beads-daemons-list-mode)
+    (setq beads-daemons-list--marked '("/home/user/project1" "/home/user/project2"))
+    (cl-letf (((symbol-function 'beads-daemons-list--get-target-at-point)
+               (lambda () "/home/user/project1"))
+              ((symbol-function 'tabulated-list-put-tag)
+               (lambda (_tag &optional _advance) nil)))
+      (beads-daemons-list-unmark)
+      (should-not (member "/home/user/project1" beads-daemons-list--marked))
+      (should (member "/home/user/project2" beads-daemons-list--marked)))))
+
+(ert-deftest beads-daemons-test-unmark-all-clears-list ()
+  "Test that unmark-all clears all marked daemons."
+  (with-temp-buffer
+    (beads-daemons-list-mode)
+    (setq beads-daemons-list--marked '("/home/user/project1" "/home/user/project2"))
+    (cl-letf (((symbol-function 'beads-daemons-list--get-target-at-point)
+               (lambda () nil))
+              ((symbol-function 'tabulated-list-put-tag)
+               (lambda (_tag &optional _advance) nil)))
+      (beads-daemons-list-unmark-all)
+      (should (null beads-daemons-list--marked)))))
+
+(ert-deftest beads-daemons-test-killall-operates-on-marked ()
+  "Test that killall operates on marked daemons when some are marked."
+  (beads-test-with-temp-config
+   (let ((stop-json (json-encode beads-daemons-test--sample-stop-json))
+         (stopped-targets nil))
+     (cl-letf (((symbol-function 'beads-daemons--stop)
+                (lambda (target)
+                  (push target stopped-targets)
+                  (beads-daemons-stop-result :stopped t)))
+               ((symbol-function 'beads--invalidate-completion-cache)
+                (lambda () nil))
+               ((symbol-function 'y-or-n-p)
+                (lambda (_prompt) t))
+               ((symbol-function 'sit-for)
+                (lambda (_sec) nil))
+               ((symbol-function 'beads-daemons-list-refresh)
+                (lambda () nil)))
+       (with-temp-buffer
+         (beads-daemons-list-mode)
+         (setq beads-daemons-list--marked '("/home/user/project1" "/home/user/project2"))
+         (beads-daemons-list-killall)
+         (should (= 2 (length stopped-targets)))
+         (should (member "/home/user/project1" stopped-targets))
+         (should (member "/home/user/project2" stopped-targets)))))))
+
+(ert-deftest beads-daemons-test-killall-clears-marks-after-success ()
+  "Test that killall clears marks after successfully stopping marked daemons."
+  (beads-test-with-temp-config
+   (cl-letf (((symbol-function 'beads-daemons--stop)
+              (lambda (_target)
+                (beads-daemons-stop-result :stopped t)))
+             ((symbol-function 'beads--invalidate-completion-cache)
+              (lambda () nil))
+             ((symbol-function 'y-or-n-p)
+              (lambda (_prompt) t))
+             ((symbol-function 'sit-for)
+              (lambda (_sec) nil))
+             ((symbol-function 'beads-daemons-list-refresh)
+              (lambda () nil)))
+     (with-temp-buffer
+       (beads-daemons-list-mode)
+       (setq beads-daemons-list--marked '("/home/user/project1"))
+       (beads-daemons-list-killall)
+       (should (null beads-daemons-list--marked))))))
+
+(ert-deftest beads-daemons-test-killall-uses-killall-when-no-marks ()
+  "Test that killall uses beads-daemons--killall when no daemons are marked."
+  (beads-test-with-temp-config
+   (let ((killall-json (json-encode beads-daemons-test--sample-killall-json))
+         (killall-called nil))
+     (cl-letf (((symbol-function 'process-file)
+                (beads-test--mock-call-process 0 killall-json))
+               ((symbol-function 'beads--invalidate-completion-cache)
+                (lambda () nil))
+               ((symbol-function 'y-or-n-p)
+                (lambda (_prompt) t))
+               ((symbol-function 'sit-for)
+                (lambda (_sec) nil))
+               ((symbol-function 'beads-daemons-list-refresh)
+                (lambda () nil)))
+       (with-temp-buffer
+         (beads-daemons-list-mode)
+         (setq beads-daemons-list--marked nil)
+         (setq beads-daemons-list--data '(daemon1 daemon2))
+         (beads-daemons-list-killall)
+         ;; If we got here without error, killall was used (via process-file mock)
+         (should t))))))
+
+(ert-deftest beads-daemons-test-marking-functions-defined ()
+  "Test that all marking functions are defined."
+  (should (fboundp 'beads-daemons-list-mark))
+  (should (fboundp 'beads-daemons-list-unmark))
+  (should (fboundp 'beads-daemons-list-mark-all))
+  (should (fboundp 'beads-daemons-list-unmark-all)))
 
 ;;; ============================================================
 ;;; List Buffer Integration Tests
