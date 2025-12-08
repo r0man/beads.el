@@ -650,5 +650,148 @@
   (should (eq 'beads-create--parse-transient-args
               (beads-meta-generate-parse-function-name "beads-create"))))
 
+;;; ============================================================
+;;; Tests for beads-command-create Slot Properties
+;;; ============================================================
+
+;; These tests verify that beads-command-create has correct slot properties
+;; after migration to use beads-meta.
+
+(require 'beads-command)
+
+(ert-deftest beads-meta-create-slot-property-title ()
+  "Test that title slot has correct metadata."
+  ;; Title is positional
+  (should (equal 1 (beads-meta-slot-property
+                    'beads-command-create 'title :positional)))
+  ;; Transient properties
+  (should (equal "t" (beads-meta-slot-property
+                      'beads-command-create 'title :transient-key)))
+  (should (equal "Title (required)" (beads-meta-slot-property
+                                     'beads-command-create 'title
+                                     :transient-description)))
+  (should (equal "Required" (beads-meta-slot-property
+                             'beads-command-create 'title :transient-group)))
+  (should (eq t (beads-meta-slot-property
+                 'beads-command-create 'title :required))))
+
+(ert-deftest beads-meta-create-slot-property-priority ()
+  "Test that priority slot has correct metadata."
+  ;; CLI properties
+  (should (equal "--priority" (beads-meta-slot-property
+                               'beads-command-create 'priority :long-option)))
+  (should (equal "-p" (beads-meta-slot-property
+                       'beads-command-create 'priority :short-option)))
+  ;; Transient properties
+  (should (equal "-p" (beads-meta-slot-property
+                       'beads-command-create 'priority :transient-key)))
+  (should (equal "Issue attributes" (beads-meta-slot-property
+                                     'beads-command-create 'priority
+                                     :transient-group))))
+
+(ert-deftest beads-meta-create-slot-property-issue-type ()
+  "Test that issue-type slot has correct metadata."
+  ;; CLI properties
+  (should (equal "--type" (beads-meta-slot-property
+                           'beads-command-create 'issue-type :long-option)))
+  (should (equal "-t" (beads-meta-slot-property
+                       'beads-command-create 'issue-type :short-option)))
+  ;; Transient choices
+  (should (equal '("bug" "feature" "task" "epic" "chore")
+                 (beads-meta-slot-property
+                  'beads-command-create 'issue-type :transient-choices))))
+
+(ert-deftest beads-meta-create-slot-property-force ()
+  "Test that force slot (boolean) has correct metadata."
+  ;; CLI properties
+  (should (equal "--force" (beads-meta-slot-property
+                            'beads-command-create 'force :long-option)))
+  (should (eq :boolean (beads-meta-slot-property
+                        'beads-command-create 'force :option-type)))
+  ;; Transient properties
+  (should (eq 'transient-switch (beads-meta-slot-property
+                                 'beads-command-create 'force :transient-class))))
+
+(ert-deftest beads-meta-create-slot-property-labels ()
+  "Test that labels slot (list) has correct metadata."
+  ;; CLI properties
+  (should (equal "--labels" (beads-meta-slot-property
+                             'beads-command-create 'labels :long-option)))
+  (should (eq :list (beads-meta-slot-property
+                     'beads-command-create 'labels :option-type)))
+  (should (equal "," (beads-meta-slot-property
+                      'beads-command-create 'labels :option-separator))))
+
+(ert-deftest beads-meta-create-slot-property-deps ()
+  "Test that deps slot (list) has correct metadata."
+  ;; CLI properties
+  (should (equal "--deps" (beads-meta-slot-property
+                           'beads-command-create 'deps :long-option)))
+  (should (eq :list (beads-meta-slot-property
+                     'beads-command-create 'deps :option-type)))
+  (should (equal "," (beads-meta-slot-property
+                      'beads-command-create 'deps :option-separator))))
+
+(ert-deftest beads-meta-create-transient-slots ()
+  "Test that all expected slots have transient keys."
+  (let ((slots (beads-meta-transient-slots 'beads-command-create)))
+    ;; Should have all the transient-enabled slots
+    (should (memq 'title slots))
+    (should (memq 'priority slots))
+    (should (memq 'issue-type slots))
+    (should (memq 'description slots))
+    (should (memq 'assignee slots))
+    (should (memq 'labels slots))
+    (should (memq 'deps slots))
+    (should (memq 'force slots))))
+
+(ert-deftest beads-meta-create-positional-slots ()
+  "Test that title is correctly identified as positional."
+  (let ((positionals (beads-meta-positional-slots 'beads-command-create)))
+    ;; Should have title as positional 1
+    (should (= 1 (length positionals)))
+    (should (eq 'title (caar positionals)))
+    (should (= 1 (cdar positionals)))))
+
+(ert-deftest beads-meta-create-option-slots ()
+  "Test that non-positional CLI options are identified."
+  (let ((options (beads-meta-option-slots 'beads-command-create)))
+    ;; Should include various options
+    (should (memq 'priority options))
+    (should (memq 'issue-type options))
+    (should (memq 'assignee options))
+    (should (memq 'labels options))
+    (should (memq 'deps options))
+    (should (memq 'force options))
+    ;; Should NOT include title (it's positional)
+    (should-not (memq 'title options))))
+
+(ert-deftest beads-meta-create-generate-infix-specs ()
+  "Test that infix specs can be generated from beads-command-create."
+  (let ((specs (beads-meta-generate-infix-specs
+                'beads-command-create "beads-create")))
+    ;; Should have specs for all transient-enabled slots
+    (should (> (length specs) 10))
+    ;; Check for specific infixes
+    (let ((title-spec (cl-find-if
+                       (lambda (s)
+                         (eq 'beads-create-infix-title (plist-get s :name)))
+                       specs)))
+      (should title-spec)
+      (should (equal "t" (plist-get title-spec :key))))))
+
+(ert-deftest beads-meta-create-generate-group-specs ()
+  "Test that group specs can be generated from beads-command-create."
+  (let ((groups (beads-meta-generate-group-specs
+                 'beads-command-create "beads-create")))
+    ;; Should have multiple groups
+    (should (>= (length groups) 4))
+    ;; Check for expected groups
+    (let ((group-names (mapcar (lambda (g) (plist-get g :description)) groups)))
+      (should (member "Required" group-names))
+      (should (member "Issue attributes" group-names))
+      (should (member "Content" group-names))
+      (should (member "Advanced" group-names)))))
+
 (provide 'beads-meta-test)
 ;;; beads-meta-test.el ends here
