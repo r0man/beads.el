@@ -812,156 +812,492 @@ Does not modify command slots."
 ;;; List Command
 
 (defclass beads-command-list (beads-command-json)
-  ((all
-    :initarg :all
-    :type boolean
-    :initform nil
-    :documentation "Show all issues (--all).
-Default behavior, provided for CLI familiarity.")
-   (assignee
-    :initarg :assignee
+  ((status
+    :initarg :status
     :type (or null string)
     :initform nil
-    :documentation "Filter by assignee (-a, --assignee).")
-   (closed-after
-    :initarg :closed-after
-    :type (or null string)
-    :initform nil
-    :documentation "Filter issues closed after date (--closed-after).
-Date format: YYYY-MM-DD or RFC3339.")
-   (closed-before
-    :initarg :closed-before
-    :type (or null string)
-    :initform nil
-    :documentation "Filter issues closed before date (--closed-before).
-Date format: YYYY-MM-DD or RFC3339.")
-   (created-after
-    :initarg :created-after
-    :type (or null string)
-    :initform nil
-    :documentation "Filter issues created after date (--created-after).
-Date format: YYYY-MM-DD or RFC3339.")
-   (created-before
-    :initarg :created-before
-    :type (or null string)
-    :initform nil
-    :documentation "Filter issues created before date (--created-before).
-Date format: YYYY-MM-DD or RFC3339.")
-   (desc-contains
-    :initarg :desc-contains
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by description substring (--desc-contains).
-Case-insensitive.")
-   (empty-description
-    :initarg :empty-description
-    :type boolean
-    :initform nil
-    :documentation "Filter issues with empty description (--empty-description).")
-   (format
-    :initarg :format
-    :type (or null string)
-    :initform nil
-    :documentation "Output format (--format).
-Values: 'digraph', 'dot', or Go template.")
-   (id
-    :initarg :id
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by specific issue IDs (--id).
-Comma-separated, e.g., 'bd-1,bd-5,bd-10'.")
-   (label
-    :initarg :label
-    :type (or null list)
-    :initform nil
-    :documentation "Filter by labels, AND logic (-l, --label).
-Must have ALL labels. Can combine with --label-any.")
-   (label-any
-    :initarg :label-any
-    :type (or null list)
-    :initform nil
-    :documentation "Filter by labels, OR logic (--label-any).
-Must have AT LEAST ONE label. Can combine with --label.")
-   (limit
-    :initarg :limit
-    :type (or null integer)
-    :initform nil
-    :documentation "Limit results (-n, --limit).")
-   (long
-    :initarg :long
-    :type boolean
-    :initform nil
-    :documentation "Show detailed multi-line output (--long).")
-   (no-assignee
-    :initarg :no-assignee
-    :type boolean
-    :initform nil
-    :documentation "Filter issues with no assignee (--no-assignee).")
-   (no-labels
-    :initarg :no-labels
-    :type boolean
-    :initform nil
-    :documentation "Filter issues with no labels (--no-labels).")
-   (notes-contains
-    :initarg :notes-contains
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by notes substring (--notes-contains).
-Case-insensitive.")
+    :documentation "Filter by status (-s, --status).
+Values: open, in_progress, blocked, closed."
+    ;; CLI properties
+    :long-option "--status"
+    :short-option "-s"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-s"
+    :transient-description "--status"
+    :transient-class transient-option
+    :transient-argument "--status="
+    :transient-prompt "Status: "
+    :transient-reader beads-reader-list-status
+    :transient-group "Basic Filters"
+    :transient-level 1
+    :transient-order 1)
    (priority
     :initarg :priority
     :type (or null integer)
     :initform nil
     :documentation "Filter by priority (-p, --priority).
-Values: 0-4 (0=critical, 1=high, 2=medium, 3=low, 4=backlog).")
-   (priority-max
-    :initarg :priority-max
-    :type (or null integer)
-    :initform nil
-    :documentation "Filter by maximum priority (--priority-max).
-Inclusive.")
-   (priority-min
-    :initarg :priority-min
-    :type (or null integer)
-    :initform nil
-    :documentation "Filter by minimum priority (--priority-min).
-Inclusive.")
-   (status
-    :initarg :status
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by status (-s, --status).
-Values: open, in_progress, blocked, closed.")
-   (title
-    :initarg :title
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by title text (--title).
-Case-insensitive substring match.")
-   (title-contains
-    :initarg :title-contains
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by title substring (--title-contains).
-Case-insensitive.")
+Values: 0-4 (0=critical, 1=high, 2=medium, 3=low, 4=backlog)."
+    ;; CLI properties
+    :long-option "--priority"
+    :short-option "-p"
+    :option-type :integer
+    ;; Transient properties
+    :transient-key "-P"
+    :transient-description "--priority"
+    :transient-class transient-option
+    :transient-argument "--priority="
+    :transient-prompt "Priority: "
+    :transient-reader beads-reader-list-priority
+    :transient-group "Basic Filters"
+    :transient-level 1
+    :transient-order 2)
    (issue-type
     :initarg :issue-type
     :type (or null string)
     :initform nil
     :documentation "Filter by type (-t, --type).
-Values: bug, feature, task, epic, chore.")
+Values: bug, feature, task, epic, chore."
+    ;; CLI properties
+    :long-option "--type"
+    :short-option "-t"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-T"
+    :transient-description "--type"
+    :transient-class transient-option
+    :transient-argument "--type="
+    :transient-prompt "Type: "
+    :transient-reader beads-reader-list-type
+    :transient-group "Basic Filters"
+    :transient-level 1
+    :transient-order 3)
+   (assignee
+    :initarg :assignee
+    :type (or null string)
+    :initform nil
+    :documentation "Filter by assignee (-a, --assignee)."
+    ;; CLI properties
+    :long-option "--assignee"
+    :short-option "-a"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-a"
+    :transient-description "--assignee"
+    :transient-class transient-option
+    :transient-argument "--assignee="
+    :transient-prompt "Assignee: "
+    :transient-reader beads-reader-list-assignee
+    :transient-group "Basic Filters"
+    :transient-level 1
+    :transient-order 4)
+   (title
+    :initarg :title
+    :type (or null string)
+    :initform nil
+    :documentation "Filter by title text (--title).
+Case-insensitive substring match."
+    ;; CLI properties
+    :long-option "--title"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-ti"
+    :transient-description "--title"
+    :transient-class transient-option
+    :transient-argument "--title="
+    :transient-prompt "Title: "
+    :transient-reader beads-reader-list-title
+    :transient-group "Text Search"
+    :transient-level 2
+    :transient-order 1)
+   (title-contains
+    :initarg :title-contains
+    :type (or null string)
+    :initform nil
+    :documentation "Filter by title substring (--title-contains).
+Case-insensitive."
+    ;; CLI properties
+    :long-option "--title-contains"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-tc"
+    :transient-description "--title-contains"
+    :transient-class transient-option
+    :transient-argument "--title-contains="
+    :transient-prompt "Title contains: "
+    :transient-reader beads-reader-list-title-contains
+    :transient-group "Text Search"
+    :transient-level 2
+    :transient-order 2)
+   (desc-contains
+    :initarg :desc-contains
+    :type (or null string)
+    :initform nil
+    :documentation "Filter by description substring (--desc-contains).
+Case-insensitive."
+    ;; CLI properties
+    :long-option "--desc-contains"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-d"
+    :transient-description "--desc-contains"
+    :transient-class transient-option
+    :transient-argument "--desc-contains="
+    :transient-prompt "Description contains: "
+    :transient-reader beads-reader-list-desc-contains
+    :transient-group "Text Search"
+    :transient-level 2
+    :transient-order 3)
+   (notes-contains
+    :initarg :notes-contains
+    :type (or null string)
+    :initform nil
+    :documentation "Filter by notes substring (--notes-contains).
+Case-insensitive."
+    ;; CLI properties
+    :long-option "--notes-contains"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-nc"
+    :transient-description "--notes-contains"
+    :transient-class transient-option
+    :transient-argument "--notes-contains="
+    :transient-prompt "Notes contains: "
+    :transient-reader beads-reader-list-notes-contains
+    :transient-group "Text Search"
+    :transient-level 2
+    :transient-order 4)
+   (created-after
+    :initarg :created-after
+    :type (or null string)
+    :initform nil
+    :documentation "Filter issues created after date (--created-after).
+Date format: YYYY-MM-DD or RFC3339."
+    ;; CLI properties
+    :long-option "--created-after"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-Ca"
+    :transient-description "--created-after"
+    :transient-class transient-option
+    :transient-argument "--created-after="
+    :transient-prompt "Created after: "
+    :transient-reader beads-reader-list-date
+    :transient-group "Date Filters"
+    :transient-level 3
+    :transient-order 1)
+   (created-before
+    :initarg :created-before
+    :type (or null string)
+    :initform nil
+    :documentation "Filter issues created before date (--created-before).
+Date format: YYYY-MM-DD or RFC3339."
+    ;; CLI properties
+    :long-option "--created-before"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-Cb"
+    :transient-description "--created-before"
+    :transient-class transient-option
+    :transient-argument "--created-before="
+    :transient-prompt "Created before: "
+    :transient-reader beads-reader-list-date
+    :transient-group "Date Filters"
+    :transient-level 3
+    :transient-order 2)
    (updated-after
     :initarg :updated-after
     :type (or null string)
     :initform nil
     :documentation "Filter issues updated after date (--updated-after).
-Date format: YYYY-MM-DD or RFC3339.")
+Date format: YYYY-MM-DD or RFC3339."
+    ;; CLI properties
+    :long-option "--updated-after"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-ua"
+    :transient-description "--updated-after"
+    :transient-class transient-option
+    :transient-argument "--updated-after="
+    :transient-prompt "Updated after: "
+    :transient-reader beads-reader-list-date
+    :transient-group "Date Filters"
+    :transient-level 3
+    :transient-order 3)
    (updated-before
     :initarg :updated-before
     :type (or null string)
     :initform nil
     :documentation "Filter issues updated before date (--updated-before).
-Date format: YYYY-MM-DD or RFC3339."))
+Date format: YYYY-MM-DD or RFC3339."
+    ;; CLI properties
+    :long-option "--updated-before"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-ub"
+    :transient-description "--updated-before"
+    :transient-class transient-option
+    :transient-argument "--updated-before="
+    :transient-prompt "Updated before: "
+    :transient-reader beads-reader-list-date
+    :transient-group "Date Filters"
+    :transient-level 3
+    :transient-order 4)
+   (closed-after
+    :initarg :closed-after
+    :type (or null string)
+    :initform nil
+    :documentation "Filter issues closed after date (--closed-after).
+Date format: YYYY-MM-DD or RFC3339."
+    ;; CLI properties
+    :long-option "--closed-after"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-ca"
+    :transient-description "--closed-after"
+    :transient-class transient-option
+    :transient-argument "--closed-after="
+    :transient-prompt "Closed after: "
+    :transient-reader beads-reader-list-date
+    :transient-group "Date Filters"
+    :transient-level 3
+    :transient-order 5)
+   (closed-before
+    :initarg :closed-before
+    :type (or null string)
+    :initform nil
+    :documentation "Filter issues closed before date (--closed-before).
+Date format: YYYY-MM-DD or RFC3339."
+    ;; CLI properties
+    :long-option "--closed-before"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-cb"
+    :transient-description "--closed-before"
+    :transient-class transient-option
+    :transient-argument "--closed-before="
+    :transient-prompt "Closed before: "
+    :transient-reader beads-reader-list-date
+    :transient-group "Date Filters"
+    :transient-level 3
+    :transient-order 6)
+   (priority-min
+    :initarg :priority-min
+    :type (or null integer)
+    :initform nil
+    :documentation "Filter by minimum priority (--priority-min).
+Inclusive."
+    ;; CLI properties
+    :long-option "--priority-min"
+    :option-type :integer
+    ;; Transient properties
+    :transient-key "-p<"
+    :transient-description "--priority-min"
+    :transient-class transient-option
+    :transient-argument "--priority-min="
+    :transient-prompt "Min priority: "
+    :transient-reader beads-reader-list-priority-min
+    :transient-group "Advanced Filters"
+    :transient-level 4
+    :transient-order 1)
+   (priority-max
+    :initarg :priority-max
+    :type (or null integer)
+    :initform nil
+    :documentation "Filter by maximum priority (--priority-max).
+Inclusive."
+    ;; CLI properties
+    :long-option "--priority-max"
+    :option-type :integer
+    ;; Transient properties
+    :transient-key "-p>"
+    :transient-description "--priority-max"
+    :transient-class transient-option
+    :transient-argument "--priority-max="
+    :transient-prompt "Max priority: "
+    :transient-reader beads-reader-list-priority-max
+    :transient-group "Advanced Filters"
+    :transient-level 4
+    :transient-order 2)
+   (label
+    :initarg :label
+    :type (or null list)
+    :initform nil
+    :documentation "Filter by labels, AND logic (-l, --label).
+Must have ALL labels. Can combine with --label-any."
+    ;; CLI properties
+    :long-option "--label"
+    :short-option "-l"
+    :option-type :list
+    :option-separator nil  ; Each label is a separate --label arg
+    ;; Transient properties
+    :transient-key "-l"
+    :transient-description "--label"
+    :transient-class transient-option
+    :transient-argument "--label="
+    :transient-prompt "Label (AND): "
+    :transient-reader beads-reader-list-label
+    :transient-group "Advanced Filters"
+    :transient-level 4
+    :transient-order 3)
+   (label-any
+    :initarg :label-any
+    :type (or null list)
+    :initform nil
+    :documentation "Filter by labels, OR logic (--label-any).
+Must have AT LEAST ONE label. Can combine with --label."
+    ;; CLI properties
+    :long-option "--label-any"
+    :option-type :list
+    :option-separator nil  ; Each label is a separate --label-any arg
+    ;; Transient properties
+    :transient-key "-L"
+    :transient-description "--label-any"
+    :transient-class transient-option
+    :transient-argument "--label-any="
+    :transient-prompt "Label (OR): "
+    :transient-reader beads-reader-list-label
+    :transient-group "Advanced Filters"
+    :transient-level 4
+    :transient-order 4)
+   (id
+    :initarg :id
+    :type (or null string)
+    :initform nil
+    :documentation "Filter by specific issue IDs (--id).
+Comma-separated, e.g., 'bd-1,bd-5,bd-10'."
+    ;; CLI properties
+    :long-option "--id"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-i"
+    :transient-description "--id"
+    :transient-class transient-option
+    :transient-argument "--id="
+    :transient-prompt "Issue IDs: "
+    :transient-reader beads-reader-list-id
+    :transient-group "Advanced Filters"
+    :transient-level 4
+    :transient-order 5)
+   (no-assignee
+    :initarg :no-assignee
+    :type boolean
+    :initform nil
+    :documentation "Filter issues with no assignee (--no-assignee)."
+    ;; CLI properties
+    :long-option "--no-assignee"
+    :option-type :boolean
+    ;; Transient properties
+    :transient-key "-A"
+    :transient-description "--no-assignee"
+    :transient-class transient-switch
+    :transient-argument "--no-assignee"
+    :transient-group "Advanced Filters"
+    :transient-level 4
+    :transient-order 6)
+   (empty-description
+    :initarg :empty-description
+    :type boolean
+    :initform nil
+    :documentation "Filter issues with empty description (--empty-description)."
+    ;; CLI properties
+    :long-option "--empty-description"
+    :option-type :boolean
+    ;; Transient properties
+    :transient-key "-E"
+    :transient-description "--empty-description"
+    :transient-class transient-switch
+    :transient-argument "--empty-description"
+    :transient-group "Advanced Filters"
+    :transient-level 4
+    :transient-order 7)
+   (no-labels
+    :initarg :no-labels
+    :type boolean
+    :initform nil
+    :documentation "Filter issues with no labels (--no-labels)."
+    ;; CLI properties
+    :long-option "--no-labels"
+    :option-type :boolean
+    ;; Transient properties
+    :transient-key "-N"
+    :transient-description "--no-labels"
+    :transient-class transient-switch
+    :transient-argument "--no-labels"
+    :transient-group "Advanced Filters"
+    :transient-level 4
+    :transient-order 8)
+   (limit
+    :initarg :limit
+    :type (or null integer)
+    :initform nil
+    :documentation "Limit results (-n, --limit)."
+    ;; CLI properties
+    :long-option "--limit"
+    :short-option "-n"
+    :option-type :integer
+    ;; Transient properties
+    :transient-key "-n"
+    :transient-description "--limit"
+    :transient-class transient-option
+    :transient-argument "--limit="
+    :transient-prompt "Limit: "
+    :transient-reader beads-reader-list-limit
+    :transient-group "Output Options"
+    :transient-level 5
+    :transient-order 1)
+   (long
+    :initarg :long
+    :type boolean
+    :initform nil
+    :documentation "Show detailed multi-line output (--long)."
+    ;; CLI properties
+    :long-option "--long"
+    :option-type :boolean
+    ;; Transient properties
+    :transient-key "-Lo"
+    :transient-description "--long"
+    :transient-class transient-switch
+    :transient-argument "--long"
+    :transient-group "Output Options"
+    :transient-level 5
+    :transient-order 2)
+   (format
+    :initarg :format
+    :type (or null string)
+    :initform nil
+    :documentation "Output format (--format).
+Values: 'digraph', 'dot', or Go template."
+    ;; CLI properties
+    :long-option "--format"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-f"
+    :transient-description "--format"
+    :transient-class transient-option
+    :transient-argument "--format="
+    :transient-prompt "Format: "
+    :transient-reader beads-reader-list-format
+    :transient-group "Output Options"
+    :transient-level 5
+    :transient-order 3)
+   (all
+    :initarg :all
+    :type boolean
+    :initform nil
+    :documentation "Show all issues (--all).
+Default behavior, provided for CLI familiarity."
+    ;; CLI properties
+    :long-option "--all"
+    :option-type :boolean
+    ;; Transient properties
+    :transient-key "-al"
+    :transient-description "--all"
+    :transient-class transient-switch
+    :transient-argument "--all"
+    :transient-group "Output Options"
+    :transient-level 5
+    :transient-order 4))
   :documentation "Represents bd list command.
 Lists issues with optional filtering, sorting, and formatting.
 When executed with :json t, returns a list of beads-issue instances.")
