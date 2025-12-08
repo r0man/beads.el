@@ -92,13 +92,6 @@ ORIG-FN is the original function, STATS is the test statistics."
 (eval-after-load 'ert
   '(advice-add 'ert-write-junit-test-report :around #'beads--fix-junit-report-path))
 
-;; Ensure we upgrade built-in packages (like transient) with newer versions from archives
-;; This is critical for Emacs 29+ where transient is built-in but may be outdated
-;; The package dependencies are defined in lisp/beads.el Package-Requires header
-;; Note: This variable was added in Emacs 29.1, so we check if it exists first
-(when (boundp 'package-install-upgrade-built-in)
-  (setq package-install-upgrade-built-in t))
-
 ;; Runtime dependencies using extended dependency format with explicit versions.
 ;; transient 0.10.1 is required for transient-define-group and other features.
 ;; Specify :archive 'gnu to ensure we get it from GNU ELPA (not the built-in).
