@@ -29,28 +29,26 @@
 ;; SOLUTION: Override the edebug specs to accept both vectors and symbols
 ;; using `[&rest [&or symbolp vectorp]]`.
 ;;
-;; NOTE: This only affects source mode (`-s`) used by Coverage workflow.
-;; Packaged mode (`-p`) used by Test workflow doesn't use edebug.
-;; We check eldev-project-loading-mode to skip this in packaged mode.
+;; NOTE: This fixes edebug specs for transient macros used in coverage workflow.
+;; The package-activate-all call makes this safe for all loading modes.
 (add-hook 'eldev-test-hook
           (lambda ()
-            ;; Only override edebug specs in source mode (for coverage)
-            ;; In packaged mode, files are byte-compiled and edebug isn't used
-            (when (eq eldev-project-loading-mode 'source)
-              ;; Force package activation to ensure transient from ELPA is available
-              ;; (not the older built-in version in Emacs 29+/30+)
-              (package-activate-all)
-              ;; Ensure transient is loaded before overriding its specs
-              (require 'transient)
-              ;; Override edebug specs to allow symbol references for groups
-              (def-edebug-spec transient-define-prefix
-                (&define name lambda-list
-                         [&optional lambda-doc]
-                         [&rest keywordp sexp]
-                         [&rest [&or symbolp vectorp]]
-                         [&optional ("interactive" interactive) def-body]))
-              (def-edebug-spec transient-define-group
-                (&define name [&rest [&or symbolp vectorp]])))))
+            ;; Force package activation to ensure transient from ELPA is available
+            ;; (not the older built-in version in Emacs 29+/30+)
+            (package-activate-all)
+            ;; Ensure transient is loaded before overriding its specs
+            (require 'transient)
+            ;; Override edebug specs to allow symbol references for groups
+            ;; This is needed for coverage instrumentation in source mode
+            ;; but is harmless in packaged mode (where edebug isn't used)
+            (def-edebug-spec transient-define-prefix
+              (&define name lambda-list
+                       [&optional lambda-doc]
+                       [&rest keywordp sexp]
+                       [&rest [&or symbolp vectorp]]
+                       [&optional ("interactive" interactive) def-body]))
+            (def-edebug-spec transient-define-group
+              (&define name [&rest [&or symbolp vectorp]]))))
 
 (setq eldev-project-main-file "lisp/beads.el")
 
