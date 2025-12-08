@@ -23,9 +23,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.emacs.d/eldev
-          key: ${{ runner.os }}-eldev-coverage-${{ hashFiles('Eldev') }}
+          key: ${{ runner.os }}-eldev-coverage-v2-${{ hashFiles('Eldev') }}
           restore-keys: |
-            ${{ runner.os }}-eldev-coverage-
+            ${{ runner.os }}-eldev-coverage-v2-
 
       - name: Install Eldev
         run: curl --fail --silent --show-error --location https://raw.github.com/doublep/eldev/master/webinstall/github-eldev | sh
