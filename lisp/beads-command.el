@@ -1728,55 +1728,173 @@ Does not modify command slots."
     :initform nil
     :documentation "One or more issue IDs to update (positional arguments).
 Example: '(\"bd-1\" \"bd-2\")")
-   (acceptance
-    :initarg :acceptance
+   (status
+    :initarg :status
     :type (or null string)
     :initform nil
-    :documentation "Acceptance criteria (--acceptance).")
-   (assignee
-    :initarg :assignee
-    :type (or null string)
-    :initform nil
-    :documentation "New assignee (-a, --assignee).")
-   (description
-    :initarg :description
-    :type (or null string)
-    :initform nil
-    :documentation "Issue description (-d, --description).")
-   (design
-    :initarg :design
-    :type (or null string)
-    :initform nil
-    :documentation "Design notes (--design).")
-   (external-ref
-    :initarg :external-ref
-    :type (or null string)
-    :initform nil
-    :documentation "External reference (--external-ref).
-Examples: 'gh-9', 'jira-ABC'.")
-   (notes
-    :initarg :notes
-    :type (or null string)
-    :initform nil
-    :documentation "Additional notes (--notes).")
+    :documentation "New status (-s, --status).
+Values: open, in_progress, blocked, closed."
+    ;; CLI properties
+    :long-option "--status"
+    :short-option "-s"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "s"
+    :transient-description "Status"
+    :transient-class transient-option
+    :transient-argument "--status="
+    :transient-prompt "Status: "
+    :transient-choices ("open" "in_progress" "blocked" "closed")
+    :transient-reader beads-reader-update-status
+    :transient-group "Status & Priority"
+    :transient-level 1
+    :transient-order 1)
    (priority
     :initarg :priority
     :type (or null string integer)
     :initform nil
     :documentation "New priority (-p, --priority).
 Values: 0-4 or P0-P4.
-Accepts both integer (1) and string (\"1\" or \"P1\") formats.")
-   (status
-    :initarg :status
-    :type (or null string)
-    :initform nil
-    :documentation "New status (-s, --status).
-Values: open, in_progress, blocked, closed.")
+Accepts both integer (1) and string (\"1\" or \"P1\") formats."
+    ;; CLI properties
+    :long-option "--priority"
+    :short-option "-p"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "p"
+    :transient-description "Priority"
+    :transient-class transient-option
+    :transient-argument "--priority="
+    :transient-prompt "Priority: "
+    :transient-reader beads-reader-issue-priority
+    :transient-group "Status & Priority"
+    :transient-level 1
+    :transient-order 2)
    (title
     :initarg :title
     :type (or null string)
     :initform nil
-    :documentation "New title (--title)."))
+    :documentation "New title (--title)."
+    ;; CLI properties
+    :long-option "--title"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "t"
+    :transient-description "Title"
+    :transient-class transient-option
+    :transient-argument "--title="
+    :transient-prompt "Issue title: "
+    :transient-reader beads-reader-issue-title
+    :transient-group "Basic Info"
+    :transient-level 2
+    :transient-order 1)
+   (assignee
+    :initarg :assignee
+    :type (or null string)
+    :initform nil
+    :documentation "New assignee (-a, --assignee)."
+    ;; CLI properties
+    :long-option "--assignee"
+    :short-option "-a"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "a"
+    :transient-description "Assignee"
+    :transient-class transient-option
+    :transient-argument "--assignee="
+    :transient-prompt "Assignee: "
+    :transient-reader beads-reader-issue-assignee
+    :transient-group "Basic Info"
+    :transient-level 2
+    :transient-order 2)
+   (external-ref
+    :initarg :external-ref
+    :type (or null string)
+    :initform nil
+    :documentation "External reference (--external-ref).
+Examples: 'gh-9', 'jira-ABC'."
+    ;; CLI properties
+    :long-option "--external-ref"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "x"
+    :transient-description "External reference"
+    :transient-class transient-option
+    :transient-argument "--external-ref="
+    :transient-prompt "External reference: "
+    :transient-reader beads-reader-issue-external-ref
+    :transient-group "Basic Info"
+    :transient-level 2
+    :transient-order 3)
+   (description
+    :initarg :description
+    :type (or null string)
+    :initform nil
+    :documentation "Issue description (-d, --description)."
+    ;; CLI properties
+    :long-option "--description"
+    :short-option "-d"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "d"
+    :transient-description "Description"
+    :transient-class beads-create-transient-multiline
+    :transient-argument "--description="
+    :transient-field-name "Description"
+    :transient-group "Content"
+    :transient-level 3
+    :transient-order 1)
+   (acceptance
+    :initarg :acceptance
+    :type (or null string)
+    :initform nil
+    :documentation "Acceptance criteria (--acceptance)."
+    ;; CLI properties
+    :long-option "--acceptance"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "A"
+    :transient-description "Acceptance criteria"
+    :transient-class beads-create-transient-multiline
+    :transient-argument "--acceptance="
+    :transient-field-name "Acceptance Criteria"
+    :transient-group "Content"
+    :transient-level 3
+    :transient-order 2)
+   (design
+    :initarg :design
+    :type (or null string)
+    :initform nil
+    :documentation "Design notes (--design)."
+    ;; CLI properties
+    :long-option "--design"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "G"
+    :transient-description "Design notes"
+    :transient-class beads-create-transient-multiline
+    :transient-argument "--design="
+    :transient-field-name "Design"
+    :transient-group "Content"
+    :transient-level 3
+    :transient-order 3)
+   (notes
+    :initarg :notes
+    :type (or null string)
+    :initform nil
+    :documentation "Additional notes (--notes)."
+    ;; CLI properties
+    :long-option "--notes"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "N"
+    :transient-description "Notes"
+    :transient-class beads-create-transient-multiline
+    :transient-argument "--notes="
+    :transient-field-name "Notes"
+    :transient-group "Content"
+    :transient-level 3
+    :transient-order 4))
   :documentation "Represents bd update command.
 Updates one or more issues with new field values.
 When executed with :json t, returns beads-issue instance (or list
