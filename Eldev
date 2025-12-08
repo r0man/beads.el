@@ -29,13 +29,16 @@
 ;; SOLUTION: Override the edebug specs to accept both vectors and symbols
 ;; using `[&rest [&or symbolp vectorp]]`.
 ;;
-;; NOTE: This fixes edebug specs for transient macros used in coverage workflow.
-;; The package-activate-all call makes this safe for all loading modes.
+;; NOTE: This only affects source mode (`-s`) used by Coverage workflow.
+;; In packaged mode, we just load transient (which Eldev already activates).
+;; In source mode, we need package-activate-all to ensure newer ELPA transient.
 (add-hook 'eldev-test-hook
           (lambda ()
-            ;; Force package activation to ensure transient from ELPA is available
-            ;; (not the older built-in version in Emacs 29+/30+)
-            (package-activate-all)
+            ;; In source mode, force package activation to get ELPA transient
+            ;; (not the older built-in version in Emacs 29+/30+).
+            ;; In packaged mode, Eldev already handles package activation.
+            (when (eq eldev-project-loading-mode 'source)
+              (package-activate-all))
             ;; Ensure transient is loaded before overriding its specs
             (require 'transient)
             ;; Override edebug specs to allow symbol references for groups
