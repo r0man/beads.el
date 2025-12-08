@@ -37,6 +37,9 @@
             ;; Only override edebug specs in source mode (for coverage)
             ;; In packaged mode, files are byte-compiled and edebug isn't used
             (when (eq eldev-project-loading-mode 'source)
+              ;; Force package activation to ensure transient from ELPA is available
+              ;; (not the older built-in version in Emacs 29+/30+)
+              (package-activate-all)
               ;; Ensure transient is loaded before overriding its specs
               (require 'transient)
               ;; Override edebug specs to allow symbol references for groups
@@ -54,7 +57,9 @@
 ;; Ensure we upgrade built-in packages (like transient) with newer versions from archives
 ;; This is critical for Emacs 29+ where transient is built-in but may be outdated
 ;; The package dependencies are defined in lisp/beads.el Package-Requires header
-(setq package-install-upgrade-built-in t)
+;; Note: This variable was added in Emacs 29.1, so we check if it exists first
+(when (boundp 'package-install-upgrade-built-in)
+  (setq package-install-upgrade-built-in t))
 
 ;; Runtime dependencies (for older Emacs versions without built-in transient)
 (eldev-add-extra-dependencies 'runtime '(transient))
