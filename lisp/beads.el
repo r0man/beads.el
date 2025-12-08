@@ -512,6 +512,14 @@ Returns t if found, signals error otherwise."
 ;;;###autoload
 (autoload 'beads--label-completion-table "beads-label" "Return completion table for labels.")
 
+;;;###autoload
+(autoload 'beads-modeline-mode "beads-modeline"
+  "Toggle daemon status indicator in the mode-line." t)
+
+;;;###autoload
+(autoload 'beads-modeline-setup "beads-modeline"
+  "Set up mode-line indicator for the current buffer." t)
+
 ;;; Footer
 
 (provide 'beads)
