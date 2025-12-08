@@ -54,20 +54,25 @@ transient-define-group."
   '(when (eq eldev-project-loading-mode 'source)
      (beads--fix-transient-edebug-specs)))
 
-;; Also run in the test hook to handle initial setup
-(add-hook 'eldev-test-hook
-          (lambda ()
-            ;; Only run in source mode (for coverage instrumentation)
-            (when (eq eldev-project-loading-mode 'source)
-              ;; Activate transient package to get ELPA version
-              ;; (not the older built-in version in Emacs 29+/30+).
-              ;; Using package-activate instead of package-activate-all
-              ;; for more targeted activation.
-              (package-activate 'transient)
-              ;; Ensure transient is loaded - this will trigger eval-after-load
-              (require 'transient)
-              ;; Also call directly in case transient was already loaded
-              (beads--fix-transient-edebug-specs))))
+;; Ensure transient is properly loaded before undercover instrumentation.
+;;
+;; CRITICAL: The eldev-test-hook runs BEFORE dependencies are installed,
+;; so we cannot load transient there. Instead, we use eval-after-load
+;; which triggers when transient is actually loaded (after installation).
+;;
+;; The eval-after-load above handles setting edebug specs, but we also
+;; need to ensure transient-define-group is available as a function
+;; (not just as an edebug spec) when undercover instruments files.
+;;
+;; Hook into eldev's dependency loading to ensure transient is required
+;; after it's installed but before files are instrumented.
+(advice-add 'eldev-load-extra-dependencies :after
+            (lambda (&rest _)
+              (when (eq eldev-project-loading-mode 'source)
+                ;; Now transient should be installed, require it
+                (require 'transient nil t)
+                ;; Apply edebug spec fix
+                (beads--fix-transient-edebug-specs))))
 
 (setq eldev-project-main-file "lisp/beads.el")
 
