@@ -35,6 +35,32 @@
 ;;   ;; Build full command line without execution
 ;;   (beads-command-line cmd)
 ;;   ;; => ("bd" "init" "--prefix" "myproject" "--branch" "main" "--quiet")
+;;
+;; Naming Conventions:
+;;
+;; This module follows consistent naming conventions across three domains:
+;;
+;; 1. EIEIO Slots (Emacs Lisp): kebab-case
+;;    - issue-type, created-at, depends-on-id, no-auto-flush
+;;    - Used in slot definitions and :initarg keywords
+;;
+;; 2. JSON Fields (bd --json output): snake_case
+;;    - issue_type, created_at, depends_on_id
+;;    - This is what the Go-based bd CLI outputs
+;;    - Conversion handled in beads-types.el (e.g., beads-issue-from-json)
+;;
+;; 3. CLI Flags (bd command line): kebab-case with -- prefix
+;;    - --issue-type, --created-at, --no-auto-flush
+;;    - Built by beads-command-line methods
+;;
+;; Example mapping for a single field:
+;;   EIEIO slot:   issue-type     (in defclass, accessed via oref)
+;;   JSON key:     issue_type     (in bd --json output)
+;;   CLI flag:     --type         (note: some flags have short forms)
+;;
+;; The beads-command-line methods convert EIEIO slot values to CLI args,
+;; while beads-*-from-json functions in beads-types.el convert JSON
+;; responses back to EIEIO objects.
 
 ;;; Code:
 
