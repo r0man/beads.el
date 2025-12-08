@@ -498,5 +498,143 @@
          (when (get-buffer "*beads-daemon*")
            (kill-buffer "*beads-daemon*")))))))
 
+;;; ============================================================
+;;; Cache Invalidation Tests
+;;; ============================================================
+
+(ert-deftest beads-daemon-test-start-invalidates-cache ()
+  "Test that daemon start invalidates completion cache."
+  (beads-test-with-temp-config
+   (let ((json-output (json-encode '((running . t) (pid . 12345))))
+         (cache-invalidated nil))
+     (cl-letf (((symbol-function 'process-file)
+                (beads-test--mock-call-process 0 json-output))
+               ((symbol-function 'beads--invalidate-completion-cache)
+                (lambda () (setq cache-invalidated t))))
+       (beads-daemon-start--execute)
+       (should cache-invalidated)))))
+
+(ert-deftest beads-daemon-test-stop-invalidates-cache ()
+  "Test that daemon stop invalidates completion cache."
+  (beads-test-with-temp-config
+   (let ((status-json (json-encode '((running . t) (pid . 12345))))
+         (stop-json (json-encode '((stopped . t))))
+         (cache-invalidated nil)
+         (call-count 0))
+     (cl-letf (((symbol-function 'process-file)
+                (lambda (program &optional infile destination display &rest args)
+                  (setq call-count (1+ call-count))
+                  (let ((output-buffer (cond
+                                        ((bufferp destination) destination)
+                                        ((consp destination) (car destination))
+                                        (t nil))))
+                    (when output-buffer
+                      (with-current-buffer output-buffer
+                        (cond
+                         ;; First call is status check
+                         ((= call-count 1) (insert status-json))
+                         ;; Second call is stop
+                         (t (insert stop-json))))))
+                  0))
+               ((symbol-function 'beads--invalidate-completion-cache)
+                (lambda () (setq cache-invalidated t)))
+               ((symbol-function 'y-or-n-p)
+                (lambda (_prompt) t)))
+       (beads-daemon--stop)
+       (should cache-invalidated)))))
+
+(ert-deftest beads-daemon-test-restart-invalidates-cache ()
+  "Test that daemon restart invalidates completion cache."
+  (beads-test-with-temp-config
+   (let ((status-json (json-encode '((running . t) (pid . 12345))))
+         (stop-json (json-encode '((stopped . t))))
+         (start-json (json-encode '((running . t) (pid . 12346))))
+         (cache-invalidated nil)
+         (call-count 0))
+     (cl-letf (((symbol-function 'process-file)
+                (lambda (program &optional infile destination display &rest args)
+                  (setq call-count (1+ call-count))
+                  (let ((output-buffer (cond
+                                        ((bufferp destination) destination)
+                                        ((consp destination) (car destination))
+                                        (t nil))))
+                    (when output-buffer
+                      (with-current-buffer output-buffer
+                        (cond
+                         ((= call-count 1) (insert status-json))
+                         ((= call-count 2) (insert stop-json))
+                         (t (insert start-json))))))
+                  0))
+               ((symbol-function 'beads--invalidate-completion-cache)
+                (lambda () (setq cache-invalidated t)))
+               ((symbol-function 'sit-for)
+                (lambda (_sec) nil)))
+       (beads-daemon--restart)
+       (should cache-invalidated)))))
+
+(ert-deftest beads-daemon-test-status-stop-invalidates-cache ()
+  "Test that daemon status buffer stop invalidates completion cache."
+  (beads-test-with-temp-config
+   (let ((status-json (json-encode '((running . t) (pid . 12345))))
+         (stop-json (json-encode '((stopped . t))))
+         (cache-invalidated nil)
+         (call-count 0))
+     (cl-letf (((symbol-function 'process-file)
+                (lambda (program &optional infile destination display &rest args)
+                  (setq call-count (1+ call-count))
+                  (let ((output-buffer (cond
+                                        ((bufferp destination) destination)
+                                        ((consp destination) (car destination))
+                                        (t nil))))
+                    (when output-buffer
+                      (with-current-buffer output-buffer
+                        (cond
+                         ((= call-count 1) (insert status-json))
+                         (t (insert stop-json))))))
+                  0))
+               ((symbol-function 'beads--invalidate-completion-cache)
+                (lambda () (setq cache-invalidated t)))
+               ((symbol-function 'y-or-n-p)
+                (lambda (_prompt) t))
+               ((symbol-function 'beads-daemon-status-refresh)
+                (lambda () nil)))
+       (with-temp-buffer
+         (beads-daemon-status-mode)
+         (beads-daemon-status--stop)
+         (should cache-invalidated))))))
+
+(ert-deftest beads-daemon-test-status-restart-invalidates-cache ()
+  "Test that daemon status buffer restart invalidates completion cache."
+  (beads-test-with-temp-config
+   (let ((status-json (json-encode '((running . t) (pid . 12345))))
+         (stop-json (json-encode '((stopped . t))))
+         (start-json (json-encode '((running . t) (pid . 12346))))
+         (cache-invalidated nil)
+         (call-count 0))
+     (cl-letf (((symbol-function 'process-file)
+                (lambda (program &optional infile destination display &rest args)
+                  (setq call-count (1+ call-count))
+                  (let ((output-buffer (cond
+                                        ((bufferp destination) destination)
+                                        ((consp destination) (car destination))
+                                        (t nil))))
+                    (when output-buffer
+                      (with-current-buffer output-buffer
+                        (cond
+                         ((= call-count 1) (insert status-json))
+                         ((= call-count 2) (insert stop-json))
+                         (t (insert start-json))))))
+                  0))
+               ((symbol-function 'beads--invalidate-completion-cache)
+                (lambda () (setq cache-invalidated t)))
+               ((symbol-function 'sit-for)
+                (lambda (_sec) nil))
+               ((symbol-function 'beads-daemon-status-refresh)
+                (lambda () nil)))
+       (with-temp-buffer
+         (beads-daemon-status-mode)
+         (beads-daemon-status--restart)
+         (should cache-invalidated))))))
+
 (provide 'beads-daemon-test)
 ;;; beads-daemon-test.el ends here

@@ -37,6 +37,7 @@
 ;; Forward declarations
 (defvar beads-executable)
 (declare-function beads--log "beads")
+(declare-function beads--invalidate-completion-cache "beads")
 (declare-function beads-daemon--format-uptime "beads-command")
 
 ;;; ============================================================
@@ -326,6 +327,7 @@ Arguments IGNORE-AUTO and NOCONFIRM are ignored."
                     (message "Stopped daemon for %s (PID %s)"
                              (or (oref result workspace) target)
                              (or (oref result pid) "?"))
+                    (beads--invalidate-completion-cache)
                     (beads-daemons-list-refresh))
                 (message "Failed to stop daemon")))
           (error
@@ -342,6 +344,7 @@ Arguments IGNORE-AUTO and NOCONFIRM are ignored."
             (let ((result (beads-daemons--restart target)))
               (message "Restarted daemon for %s"
                        (or (oref result workspace) target))
+              (beads--invalidate-completion-cache)
               (sit-for 1)
               (beads-daemons-list-refresh))
           (error
@@ -382,6 +385,7 @@ Arguments IGNORE-AUTO and NOCONFIRM are ignored."
             (message "Stopped: %d, Failed: %d"
                      (or (oref result stopped) 0)
                      (or (oref result failed) 0))
+            (beads--invalidate-completion-cache)
             (sit-for 1)
             (beads-daemons-list-refresh))
         (error
@@ -518,9 +522,11 @@ Arguments IGNORE-AUTO and NOCONFIRM are ignored."
         (condition-case err
             (let ((result (beads-daemons--stop target)))
               (if (oref result stopped)
-                  (message "Stopped daemon for %s (PID %s)"
-                           (or (oref result workspace) target)
-                           (or (oref result pid) "?"))
+                  (progn
+                    (message "Stopped daemon for %s (PID %s)"
+                             (or (oref result workspace) target)
+                             (or (oref result pid) "?"))
+                    (beads--invalidate-completion-cache))
                 (message "Failed to stop daemon")))
           (error
            (message "Error: %s" (error-message-string err))))))))
@@ -538,7 +544,8 @@ Arguments IGNORE-AUTO and NOCONFIRM are ignored."
         (condition-case err
             (let ((result (beads-daemons--restart target)))
               (message "Restarted daemon for %s"
-                       (or (oref result workspace) target)))
+                       (or (oref result workspace) target))
+              (beads--invalidate-completion-cache))
           (error
            (message "Error: %s" (error-message-string err))))))))
 
@@ -583,7 +590,8 @@ Arguments IGNORE-AUTO and NOCONFIRM are ignored."
           (let ((result (beads-daemons--killall force)))
             (message "Stopped: %d, Failed: %d"
                      (or (oref result stopped) 0)
-                     (or (oref result failed) 0)))
+                     (or (oref result failed) 0))
+            (beads--invalidate-completion-cache))
         (error
          (message "Error: %s" (error-message-string err)))))))
 
