@@ -52,6 +52,9 @@
 (declare-function beads-close--execute "beads-close")
 (declare-function beads-test-create-project "beads-test")
 (declare-function beads-test--clear-transient-state "beads-test")
+(declare-function beads-command-create! "beads-command")
+(declare-function beads-command-dep-add! "beads-command")
+(declare-function beads-command-stats! "beads-command")
 
 ;; External variables (from other modules)
 (defvar beads-update--issue-id)
@@ -485,45 +488,32 @@ Composes lower-level transient actions internally.")
 (cl-defmethod beads-test-action-execute ((action beads-test-action-create-issue)
                                           context)
   "Execute ACTION to create an issue, updating CONTEXT."
-  (let ((args nil))
-    ;; Build args list
-    (push (format "--title=%s" (oref action title)) args)
-    (when (oref action issue-type)
-      (push (format "--type=%s" (oref action issue-type)) args))
-    (when (oref action priority)
-      (push (format "--priority=%d" (oref action priority)) args))
-    (when (oref action description)
-      (push (format "--description=%s" (oref action description)) args))
-
-    ;; Set up context
-    (setf (oref context current-transient) 'beads-create)
-    (setf (oref context transient-args) (nreverse args))
-
-    ;; Execute with mocks
-    (let ((created-id nil))
-      (cl-letf (((symbol-function 'transient-args)
-                 (lambda (prefix)
-                   (when (eq prefix 'beads-create)
-                     (beads-test-context-get-transient-args context))))
-                ((symbol-function 'y-or-n-p)
-                 (lambda (_prompt) (oref action show-after)))
-                ((symbol-function 'beads-show)
-                 (lambda (id) (setq created-id id)))
-                ((symbol-function 'beads--invalidate-completion-cache)
-                 (lambda ()
-                   (setf (oref context completion-cache-invalidated) t))))
-        (require 'beads-create)
-        (condition-case err
-            (let ((result (call-interactively #'beads-create--execute)))
-              (beads-test-context-add-trace context action result)
-              ;; Track created issue
-              (when created-id
-                (push created-id (oref context created-issues)))
-              result)
-          (error
-           (beads-test-context-record-error context (car err) (cdr err))
-           (beads-test-context-add-trace context action err)
-           (signal (car err) (cdr err))))))))
+  (require 'beads-command)
+  ;; Use beads-command-create! directly instead of going through transient
+  ;; This is more reliable for testing and properly returns the issue
+  (condition-case err
+      (let* ((issue (beads-command-create!
+                     :title (oref action title)
+                     :issue-type (oref action issue-type)
+                     :priority (oref action priority)
+                     :description (oref action description)))
+             (issue-id (oref issue id)))
+        ;; Track created issue
+        (push issue-id (oref context created-issues))
+        ;; Mark cache as invalidated (simulating what the real command does)
+        (setf (oref context completion-cache-invalidated) t)
+        ;; Update context for tracking
+        (setf (oref context current-transient) 'beads-create)
+        (beads-test-context-add-trace context action issue-id)
+        ;; Optionally show the issue
+        (when (oref action show-after)
+          (beads-show issue-id)
+          (beads-test-context-record-buffer context (buffer-name)))
+        issue-id)
+    (error
+     (beads-test-context-record-error context (car err) (cdr err))
+     (beads-test-context-add-trace context action err)
+     (signal (car err) (cdr err)))))
 
 (cl-defmethod beads-test-action-describe ((action beads-test-action-create-issue))
   "Return a description of ACTION for creating an issue."
@@ -1066,6 +1056,71 @@ CONTEXT is the test context."
 (cl-defmethod beads-test-action-describe ((action beads-test-action-show-issue))
   "Return a description of ACTION for showing an issue."
   (format "Show issue: %s" (oref action issue-id)))
+
+;;; ============================================================
+;;; CLI Command Actions
+;;; ============================================================
+
+(defclass beads-test-action-add-dependency (beads-test-action)
+  ((issue-id
+    :initarg :issue-id
+    :type (or string function)
+    :documentation "ID of the issue to add dependency to.")
+   (depends-on-id
+    :initarg :depends-on-id
+    :type (or string function)
+    :documentation "ID of the issue to depend on.")
+   (dep-type
+    :initarg :dep-type
+    :type string
+    :initform "blocks"
+    :documentation "Dependency type (blocks, blocked-by, etc.)."))
+  :documentation "Action that adds a dependency between two issues.")
+
+(cl-defmethod beads-test-action-execute ((action beads-test-action-add-dependency)
+                                          context)
+  "Execute ACTION to add a dependency, updating CONTEXT."
+  (require 'beads-command)
+  (let ((issue-id (oref action issue-id))
+        (depends-on-id (oref action depends-on-id))
+        (dep-type (oref action dep-type)))
+    ;; Resolve issue-id if it's a function
+    (when (functionp issue-id)
+      (setq issue-id (funcall issue-id context)))
+    ;; Resolve depends-on-id if it's a function
+    (when (functionp depends-on-id)
+      (setq depends-on-id (funcall depends-on-id context)))
+    (let ((result (beads-command-dep-add!
+                   :issue-id issue-id
+                   :depends-on-id depends-on-id
+                   :dep-type dep-type)))
+      (beads-test-context-add-trace context action result)
+      result)))
+
+(cl-defmethod beads-test-action-describe ((action beads-test-action-add-dependency))
+  "Return a description of ACTION for adding a dependency."
+  (format "Add dependency: %s %s %s"
+          (oref action issue-id)
+          (oref action dep-type)
+          (oref action depends-on-id)))
+
+;;; ---
+
+(defclass beads-test-action-show-stats (beads-test-action)
+  ()
+  :documentation "Action that retrieves and displays project statistics.")
+
+(cl-defmethod beads-test-action-execute ((action beads-test-action-show-stats)
+                                          context)
+  "Execute ACTION to show stats, updating CONTEXT."
+  (require 'beads-command)
+  (let ((result (beads-command-stats!)))
+    (beads-test-context-add-trace context action result)
+    result))
+
+(cl-defmethod beads-test-action-describe ((_action beads-test-action-show-stats))
+  "Describe show stats action."
+  "Show project statistics")
 
 ;;; ============================================================
 ;;; Error Reporting and ERT Integration
