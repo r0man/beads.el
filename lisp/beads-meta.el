@@ -99,6 +99,8 @@
     :transient-reader
     :transient-choices
     :transient-prompt
+    :transient-argument
+    :transient-field-name
     :transient-level
     :transient-group
     :transient-order
