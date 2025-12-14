@@ -42,12 +42,20 @@
 ;;   B p     - Bulk update priority for marked issues
 ;;   B c     - Bulk close marked issues
 ;;   B o     - Bulk reopen marked issues
+;;   C-c C-s - Sesman session management prefix:
+;;     s     - Start new session
+;;     q     - Quit current session
+;;     r     - Restart current session
+;;     b     - Open session browser
+;;     i     - Show session info
+;;     l     - Link session to buffer
 
 ;;; Code:
 
 (require 'beads)
 (require 'beads-command)
 (require 'beads-option)
+(require 'beads-sesman)
 (require 'beads-show)
 (require 'beads-types)
 (require 'transient)
@@ -917,6 +925,9 @@ transient menu options."
 
     ;; AI Agent integration
     (define-key map (kbd "A") #'beads-agent-start-at-point) ; start agent
+
+    ;; Sesman session management (CIDER/ESS convention)
+    (define-key map (kbd "C-c C-s") beads-sesman-map)
 
     ;; Bulk operations (like Magit) - create prefix map for B
     (let ((bulk-map (make-sparse-keymap)))
