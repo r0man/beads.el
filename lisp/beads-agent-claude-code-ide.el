@@ -34,9 +34,11 @@
 (declare-function claude-code-ide-switch-to-buffer "claude-code-ide")
 (declare-function claude-code-ide-send-prompt "claude-code-ide")
 (declare-function claude-code-ide-mcp--get-session-for-project "claude-code-ide-mcp")
+(declare-function claude-code-ide-emacs-tools-setup "claude-code-ide-emacs-tools")
 
 ;; Declare external variables
 (defvar claude-code-ide-cli-extra-flags)
+(defvar claude-code-ide-enable-mcp-server)
 
 ;;; Backend Class
 
@@ -82,6 +84,11 @@ Returns the MCP session handle."
   (unless (executable-find "claude")
     (error "Claude command not found in PATH.  Install: npm install -g @anthropic-ai/claude-code"))
   (require 'claude-code-ide)
+  ;; Ensure Emacs MCP tools are set up (idempotent check via enable flag)
+  (when (and (not (bound-and-true-p claude-code-ide-enable-mcp-server))
+             (require 'claude-code-ide-emacs-tools nil t)
+             (fboundp 'claude-code-ide-emacs-tools-setup))
+    (claude-code-ide-emacs-tools-setup))
   ;; default-directory is set by beads-agent-start (may be worktree)
   ;; Bind BD_NO_DAEMON=1 to disable bd daemon (not supported in worktrees)
   ;; We bind both process-environment and vterm-environment to ensure the
