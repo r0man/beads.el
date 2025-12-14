@@ -11,6 +11,8 @@
 ;; to start/stop AI agents working on issues, track sessions, and
 ;; navigate between issues and agent buffers.
 ;;
+;; Architecture:
+;;
 ;; The architecture uses an abstract backend system that allows
 ;; different AI agent implementations to be plugged in:
 ;; - claude-code-ide.el (primary, fully implemented)
@@ -18,8 +20,41 @@
 ;; - claudemacs (placeholder)
 ;; - claude-code.el (placeholder)
 ;;
-;; Sessions are stored in-memory only (ephemeral) and cleared on
-;; Emacs restart.
+;; See `beads-agent-backend.el' for the backend protocol definition.
+;;
+;; Session Management (via Sesman):
+;;
+;; Sessions are managed using sesman (Session Manager), which provides:
+;; - Context-aware session selection based on buffer/directory/project
+;; - Standard keybindings for session management (C-c C-s prefix)
+;; - Interactive session browser (M-x beads-sesman-browser)
+;; - Automatic session linking to worktree and project directories
+;;
+;; Session Naming Convention:
+;;   Sessions are named "<issue-id>@<directory>", e.g.:
+;;   - beads.el-42@~/projects/beads.el/        (main repo)
+;;   - beads.el-42@~/projects/beads.el-42/     (worktree)
+;;
+;; Context Linking:
+;;   Each session is linked to three context types:
+;;   1. Agent buffer - the terminal where the AI agent runs
+;;   2. Worktree directory (primary) - for context in worktree buffers
+;;   3. Main project (fallback) - for context from anywhere in project
+;;
+;;   This triple linking enables sesman to automatically select the
+;;   correct session whether you're in the agent buffer, editing files
+;;   in a worktree, or working anywhere in the main repository.
+;;
+;; See `beads-sesman.el' for the sesman integration implementation.
+;;
+;; Git Worktree Support:
+;;
+;; When `beads-agent-use-worktrees' is non-nil (default), each agent
+;; session gets its own git worktree for isolation:
+;; - Worktrees are created as siblings to the main repo
+;; - Named after the issue ID (e.g., ~/projects/beads.el-42/)
+;; - Branch is created with the same name as the issue ID
+;; - Issues are automatically imported from the main repo's JSONL
 ;;
 ;; Usage:
 ;;
@@ -36,6 +71,13 @@
 ;;
 ;;   ;; Open agent menu
 ;;   M-x beads-agent RET
+;;
+;;   ;; Sesman session management (bind beads-sesman-map to a prefix)
+;;   C-c C-s s - Start new session
+;;   C-c C-s q - Quit current session
+;;   C-c C-s r - Restart current session
+;;   C-c C-s b - Open session browser
+;;   C-c C-s l - Link session to current context
 
 ;;; Code:
 
@@ -910,16 +952,61 @@ sessions cleaned up."
 (defun beads-agent-start-at-point ()
   "Start AI agent for issue at point, or jump to existing session.
 If a session already exists for this issue, jump to it instead of
-starting a new one."
+starting a new one.
+
+When called from `beads-list-mode' or `beads-show-mode', the list/show
+buffer is kept visible and the agent buffer opens in the other window."
   (interactive)
   (if-let ((id (beads-agent--detect-issue-id)))
       ;; Check for existing session first
       (if-let ((sessions (beads-agent--get-sessions-for-issue id)))
-          ;; Session exists - jump to it
-          (beads-agent-jump (oref (car sessions) id))
+          ;; Session exists - jump to it in other window if in list/show mode
+          (beads-agent--jump-other-window-if-applicable
+           (oref (car sessions) id))
         ;; No session - start new one
-        (beads-agent-start id))
+        ;; If we're in list/show mode, arrange windows to keep list visible
+        (beads-agent--start-preserving-list-buffer id))
     (call-interactively #'beads-agent-start)))
+
+(defun beads-agent--in-list-or-show-mode-p ()
+  "Return non-nil if current buffer is in `beads-list-mode' or `beads-show-mode'."
+  (or (derived-mode-p 'beads-list-mode)
+      (derived-mode-p 'beads-show-mode)))
+
+(defun beads-agent--jump-other-window-if-applicable (session-id)
+  "Jump to SESSION-ID buffer, using other window if in list/show mode."
+  (if (beads-agent--in-list-or-show-mode-p)
+      (let ((list-buffer (current-buffer)))
+        (beads-agent-jump session-id)
+        ;; Ensure list buffer is still visible
+        (unless (get-buffer-window list-buffer)
+          (display-buffer list-buffer '(display-buffer-reuse-window))))
+    (beads-agent-jump session-id)))
+
+(defun beads-agent--start-preserving-list-buffer (issue-id)
+  "Start agent for ISSUE-ID, keeping list/show buffer visible.
+When called from `beads-list-mode' or `beads-show-mode', splits the
+window to show the agent in the other window while keeping the
+list/show buffer visible."
+  (if (beads-agent--in-list-or-show-mode-p)
+      (let ((list-buffer (current-buffer)))
+        ;; Split window if there's only one
+        (when (= (length (window-list)) 1)
+          (split-window-right))
+        ;; Start the agent (async) - it will take over a window
+        (beads-agent-start issue-id)
+        ;; Schedule a check to restore list visibility after agent starts
+        (run-with-timer
+         0.5 nil
+         (lambda ()
+           (when (buffer-live-p list-buffer)
+             ;; If list buffer is not visible, display it
+             (unless (get-buffer-window list-buffer)
+               (display-buffer list-buffer
+                               '(display-buffer-reuse-window
+                                 (inhibit-same-window . t))))))))
+    ;; Not in list/show mode - just start normally
+    (beads-agent-start issue-id)))
 
 ;;;###autoload
 (defun beads-agent-jump-at-point ()
