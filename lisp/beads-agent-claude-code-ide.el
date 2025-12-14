@@ -86,28 +86,30 @@ Returns the MCP session handle."
   ;; Bind BD_NO_DAEMON=1 to disable bd daemon (not supported in worktrees)
   ;; We bind both process-environment and vterm-environment to ensure the
   ;; variable is available regardless of how the terminal is launched:
-  ;; - process-environment: standard Emacs process spawning
-  ;; - vterm-environment: vterm terminal emulator (alist format)
+  ;; - process-environment: standard Emacs process spawning ("VAR=value")
+  ;; - vterm-environment: vterm terminal emulator (also "VAR=value" strings)
   ;; Pass initial prompt as positional CLI argument via extra-flags
   (let* ((working-dir default-directory)
          (process-environment (cons "BD_NO_DAEMON=1" process-environment))
-         ;; vterm uses alist format ("VAR" . "value"), not "VAR=value"
+         ;; vterm-environment expects strings in "VAR=value" format
          (vterm-environment (if (boundp 'vterm-environment)
-                                (cons '("BD_NO_DAEMON" . "1")
-                                      vterm-environment)
-                              nil))
+                                (cons "BD_NO_DAEMON=1" vterm-environment)
+                              (list "BD_NO_DAEMON=1")))
          ;; Pass initial prompt as positional argument
          (claude-code-ide-cli-extra-flags (shell-quote-argument prompt)))
     ;; Start claude-code-ide with the prompt as CLI argument
     (condition-case err
-        (progn
-          (claude-code-ide)
-          ;; Return session handle (may be nil if MCP not yet connected)
-          (when (fboundp 'claude-code-ide-mcp--get-session-for-project)
-            (claude-code-ide-mcp--get-session-for-project working-dir)))
+        (claude-code-ide)
       (error
        (error "Failed to start claude-code-ide: %s"
-              (error-message-string err))))))
+              (error-message-string err))))
+    ;; Return session handle (may be nil if MCP not yet connected or if
+    ;; Claude failed to start).  Getting the session can fail with "Invalid
+    ;; buffer" if Claude exited immediately, so catch errors here.
+    (when (fboundp 'claude-code-ide-mcp--get-session-for-project)
+      (condition-case nil
+          (claude-code-ide-mcp--get-session-for-project working-dir)
+        (error nil)))))
 
 (cl-defmethod beads-agent-backend-stop
     ((_backend beads-agent-backend-claude-code-ide) session)
