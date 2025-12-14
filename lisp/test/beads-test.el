@@ -95,6 +95,26 @@ This is needed because transient can leave state that affects subsequent tests."
   (when (boundp 'overriding-terminal-local-map)
     (setq overriding-terminal-local-map nil)))
 
+(defun beads-test--mock-command-result (data)
+  "Create a mock command result with DATA in the data slot.
+Use this to mock `beads-command-execute' returns in tests.
+
+Since `beads-command-execute' returns the command object itself
+with populated slots, tests that mock this function need to return
+an object with a `data' slot.
+
+Uses `beads-command-init' as a concrete command class since the
+base `beads-command' class is abstract.
+
+Example:
+  (cl-letf (((symbol-function \\='beads-command-execute)
+             (lambda (_cmd) (beads-test--mock-command-result my-data))))
+    ...)"
+  ;; Use beads-command-init as a concrete class (beads-command is abstract)
+  (let ((cmd (beads-command-init)))
+    (oset cmd data data)
+    cmd))
+
 (defmacro beads-test-with-project (init-args &rest body)
   "Execute BODY with default-directory set to a temporary beads project.
 INIT-ARGS is a list of keyword arguments passed to beads-command-init

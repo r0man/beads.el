@@ -82,11 +82,11 @@ Returns list of error messages, or nil if all valid."
 Displays import output in *beads-import* buffer."
   (condition-case err
       (progn
-        ;; Execute the import command (returns (EXIT-CODE STDOUT STDERR))
-        (let* ((result (beads-command-execute command))
-               (_exit-code (nth 0 result))  ; Unused, but part of result tuple
-               (stdout (nth 1 result))
-               (stderr (nth 2 result))
+        ;; Execute the import command
+        (beads-command-execute command)
+        ;; After execution, slots are populated - read from them
+        (let* ((stdout (oref command stdout))
+               (stderr (oref command stderr))
                ;; Combine stdout and stderr for display
                (output (concat (when (and stdout (not (string-empty-p stdout)))
                                  (concat stdout "\n"))
@@ -107,7 +107,8 @@ Displays import output in *beads-import* buffer."
             (if dry-run
                 (message "Dry run completed (see *beads-import* buffer)")
               (message "Import completed from: %s" input)))
-          result))
+          ;; Return the data slot value
+          (oref command data)))
     (error
      (beads--error "Failed to import: %s"
                    (error-message-string err)))))
