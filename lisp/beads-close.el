@@ -98,23 +98,25 @@ Returns list of error messages, or nil if all valid."
     (if errors
         (user-error "Validation failed: %s" (string-join errors "; "))
       (condition-case err
-          (let ((issue (beads-command-execute cmd)))
-            (message "Closed issue: %s - %s"
-                     (oref issue id)
-                     (oref issue title))
-            ;; Invalidate completion cache
-            (beads--invalidate-completion-cache)
-            ;; Refresh any open beads buffers
-            (when beads-auto-refresh
-              (dolist (buf (buffer-list))
-                (with-current-buffer buf
-                  (cond
-                   ((derived-mode-p 'beads-list-mode)
-                    (beads-list-refresh))
-                   ((and (derived-mode-p 'beads-show-mode)
-                         (string= beads-show--issue-id (oref issue id)))
-                    (beads-refresh-show))))))
-            nil)
+          (progn
+            (beads-command-execute cmd)
+            (let ((issue (oref cmd data)))
+              (message "Closed issue: %s - %s"
+                       (oref issue id)
+                       (oref issue title))
+              ;; Invalidate completion cache
+              (beads--invalidate-completion-cache)
+              ;; Refresh any open beads buffers
+              (when beads-auto-refresh
+                (dolist (buf (buffer-list))
+                  (with-current-buffer buf
+                    (cond
+                     ((derived-mode-p 'beads-list-mode)
+                      (beads-list-refresh))
+                     ((and (derived-mode-p 'beads-show-mode)
+                           (string= beads-show--issue-id (oref issue id)))
+                      (beads-refresh-show))))))
+              nil))
         (error
          (let ((err-msg (format "Failed to close issue: %s"
                                (error-message-string err))))
