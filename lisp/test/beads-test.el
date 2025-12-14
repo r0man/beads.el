@@ -1408,13 +1408,15 @@ STRUCTURE is a list of paths to create (dirs end with /)."
          (lookup-count 0))
 
      ;; Mock locate-dominating-file to count calls and return nil
-     ;; Also mock project-current to avoid additional calls
+     ;; Also mock project-current and worktree functions to avoid additional calls
      (cl-letf (((symbol-function 'locate-dominating-file)
                 (lambda (_file _name)
                   (setq lookup-count (1+ lookup-count))
                   nil))
                ((symbol-function 'project-current)
-                (lambda (&optional _maybe-prompt) nil)))
+                (lambda (&optional _maybe-prompt) nil))
+               ((symbol-function 'beads--find-main-repo-from-worktree)
+                (lambda () nil)))
 
        ;; First call
        (should (null (beads--find-beads-dir src-dir)))

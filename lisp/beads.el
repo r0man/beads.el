@@ -218,17 +218,56 @@ Returns nil if not in a project."
       (with-no-warnings
         (car (project-roots proj))))))
 
+;;; Git Worktree Support
+
+(defun beads--in-git-worktree-p ()
+  "Return non-nil if current directory is in a git worktree.
+In worktrees, .git is a file containing `gitdir: ...' instead of a directory.
+Works from nested directories within the worktree."
+  (when-let ((git-dir (locate-dominating-file default-directory ".git")))
+    (let ((dot-git (expand-file-name ".git" git-dir)))
+      (and (file-exists-p dot-git)
+           (not (file-directory-p dot-git))))))
+
+(defun beads--find-main-repo-from-worktree ()
+  "Find the main git repository path when in a worktree.
+Uses `git rev-parse --git-common-dir' which returns the shared .git directory.
+Returns the main repository path, or nil if not in a worktree or on error."
+  (when (beads--in-git-worktree-p)
+    (let ((default-directory (or (beads--find-project-root) default-directory)))
+      (with-temp-buffer
+        (when (zerop (process-file "git" nil t nil
+                                   "rev-parse" "--git-common-dir"))
+          (let ((git-common-dir (string-trim (buffer-string))))
+            (when (and git-common-dir
+                       (not (string-empty-p git-common-dir))
+                       (not (string-prefix-p "fatal:" git-common-dir)))
+              ;; git-common-dir is the .git directory, we need its parent
+              (file-name-directory
+               (directory-file-name (expand-file-name git-common-dir))))))))))
+
 (defun beads--find-beads-dir (&optional directory)
   "Find .beads directory starting from DIRECTORY.
 If DIRECTORY is nil, uses current buffer's directory or project root.
-Returns the path to .beads directory or nil if not found."
+Returns the path to .beads directory or nil if not found.
+
+Search order:
+1. Walk up from DIRECTORY looking for .beads (normal case)
+2. If in a git worktree, check the main repository for .beads"
   (let* ((start-dir (or directory
                         (beads--find-project-root)
                         default-directory))
          (cached (gethash start-dir beads--project-cache)))
     (if cached
         cached
+      ;; Try local discovery first
       (let ((beads-dir (locate-dominating-file start-dir ".beads")))
+        ;; If not found locally, check if we're in a worktree
+        (unless beads-dir
+          (when-let ((main-repo (beads--find-main-repo-from-worktree)))
+            (let ((main-beads (expand-file-name ".beads" main-repo)))
+              (when (file-directory-p main-beads)
+                (setq beads-dir main-repo)))))
         (when beads-dir
           (let ((full-path (expand-file-name ".beads" beads-dir)))
             (puthash start-dir full-path beads--project-cache)
