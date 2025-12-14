@@ -391,9 +391,9 @@ Returns a beads-agent-backend instance or signals an error."
       (user-error "No AI agent backends available.
 
 To use AI agents, you need:
-1. Install claude-code-ide.el package
-2. Install Claude Code CLI: npm install -g @anthropic-ai/claude-code
-3. Ensure `claude' command is in your PATH
+2. Install claude-code-ide.el package
+3. Install Claude Code CLI: npm install -g @anthropic-ai/claude-code
+4. Ensure `claude' command is in your PATH
 
 See: https://github.com/anthropics/claude-code"))
     (cond
