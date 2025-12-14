@@ -51,8 +51,12 @@ This is the primary, fully-implemented backend.")
 (cl-defmethod beads-agent-backend-available-p
     ((_backend beads-agent-backend-claude-code-ide))
   "Check if claude-code-ide is available.
-Verifies both the package is loaded AND the claude command exists."
-  (and (or (featurep 'claude-code-ide)
+Verifies the package is loaded, web-server is available, and claude exists."
+  (and ;; Check web-server.el is available (required for MCP)
+       (or (featurep 'web-server)
+           (require 'web-server nil t))
+       ;; Check claude-code-ide package
+       (or (featurep 'claude-code-ide)
            (require 'claude-code-ide nil t))
        (fboundp 'claude-code-ide)
        (fboundp 'claude-code-ide-stop)
@@ -70,9 +74,13 @@ Verifies both the package is loaded AND the claude command exists."
 ISSUE is ignored as claude-code-ide works per-project.
 The working directory is determined by the caller (may be a worktree).
 Returns the MCP session handle."
-  ;; Ensure web-server is loaded before claude-code-ide to avoid
-  ;; "Symbol's function definition is void: ws-process" errors.
-  (require 'web-server nil t)
+  ;; Pre-flight checks with helpful error messages
+  (unless (or (featurep 'web-server) (require 'web-server nil t))
+    (error "Web-server.el not found.  Install it via: M-x package-install RET web-server RET"))
+  (unless (or (featurep 'claude-code-ide) (require 'claude-code-ide nil t))
+    (error "Claude-code-ide.el not found.  See: https://github.com/anthropics/claude-code"))
+  (unless (executable-find "claude")
+    (error "Claude command not found in PATH.  Install: npm install -g @anthropic-ai/claude-code"))
   (require 'claude-code-ide)
   ;; default-directory is set by beads-agent-start (may be worktree)
   ;; Bind BD_NO_DAEMON=1 to disable bd daemon (not supported in worktrees)
