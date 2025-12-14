@@ -85,7 +85,12 @@ The project-dir then refers to the main repo.")
    (backend-session
     :initarg :backend-session
     :initform nil
-    :documentation "Backend-specific session object/handle."))
+    :documentation "Backend-specific session object/handle.
+This is the return value from `beads-agent-backend-start'.
+In sesman sessions, this becomes the second element of the tuple:
+  (session-name BACKEND-SESSION beads-agent-session)
+Backends use this to track their internal session state.
+The value is opaque to beads-sesman and passed through unchanged."))
   :documentation "Represents an active AI agent session.")
 
 ;;; Session Accessors (for use by other modules without requiring EIEIO)
@@ -118,7 +123,15 @@ This should check if the required package is loaded and functional.")
   "Start BACKEND working on ISSUE with PROMPT.
 ISSUE is a beads-issue object.
 PROMPT is a string to send to the agent.
-Returns a backend-specific session handle or signals an error.")
+
+Returns a backend-specific session handle or signals an error.
+The handle is stored in the `backend-session' slot of the
+`beads-agent-session' object and used as part of the sesman
+session tuple: (session-name backend-handle beads-agent-session).
+
+The handle should be suitable for display in sesman's session
+browser and for identifying the backend's notion of the session.
+For example, claude-code-ide returns an MCP session handle.")
 
 (cl-defgeneric beads-agent-backend-stop (backend session)
   "Stop SESSION running on BACKEND.
@@ -136,6 +149,21 @@ SESSION is a beads-agent-session object.")
   "Send PROMPT to active SESSION on BACKEND.
 SESSION is a beads-agent-session object.
 PROMPT is a string to send to the agent.")
+
+(cl-defgeneric beads-agent-backend-session-name (backend session)
+  "Return display name for SESSION on BACKEND.
+SESSION is a beads-agent-session object.
+The returned name is used as the sesman session identifier.
+
+Default implementation returns \"<issue-id>@<working-dir>\" format.
+Backends may override this to use custom naming schemes."
+  ;; Default implementation uses issue-id@working-dir format
+  ;; backend arg exists for method dispatch but isn't used in default
+  (ignore backend)
+  (let ((issue-id (oref session issue-id))
+        (working-dir (or (oref session worktree-dir)
+                         (oref session project-dir))))
+    (format "%s@%s" issue-id (abbreviate-file-name working-dir))))
 
 ;;; Backend Registry
 
