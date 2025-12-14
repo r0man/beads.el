@@ -106,6 +106,8 @@ ORIG-FN is the original function, STATS is the test statistics."
 ;; which is only available in NonGNU ELPA.
 (eldev-add-extra-dependencies 'runtime
                               '(:package transient :version "0.10.1"))
+(eldev-add-extra-dependencies 'runtime
+                              '(:package sesman :version "0.3.2"))
 
 ;; Development dependencies using extended dependency format
 (eldev-add-extra-dependencies 'test

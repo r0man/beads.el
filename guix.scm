@@ -34,7 +34,7 @@
       #:lisp-directory "lisp"
       #:exclude #~(cons ".*-test\\.el$" %default-exclude)))
     (propagated-inputs
-     (list emacs-transient))
+     (list emacs-transient emacs-sesman))
     (native-inputs
      (list emacs-eldev emacs-package-lint emacs-undercover
            emacs-claude-code-ide))
