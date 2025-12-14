@@ -520,7 +520,6 @@ WORKTREE-DIR is optional worktree directory."
   (should (lookup-key beads-sesman-map "q"))
   (should (lookup-key beads-sesman-map "r"))
   (should (lookup-key beads-sesman-map "b"))
-  (should (lookup-key beads-sesman-map "i"))
   (should (lookup-key beads-sesman-map "l")))
 
 (ert-deftest beads-sesman-test-keymap-bindings ()
@@ -529,69 +528,15 @@ WORKTREE-DIR is optional worktree directory."
   (should (eq (lookup-key beads-sesman-map "q") #'beads-sesman-quit))
   (should (eq (lookup-key beads-sesman-map "r") #'beads-sesman-restart))
   (should (eq (lookup-key beads-sesman-map "b") #'beads-sesman-browser))
-  (should (eq (lookup-key beads-sesman-map "i") #'beads-sesman-info))
   (should (eq (lookup-key beads-sesman-map "l") #'beads-sesman-link)))
 
-;;; Tests for beads-sesman-mode
+;;; Tests for Hook Registration
 
-(ert-deftest beads-sesman-test-mode-initially-off ()
-  "Test sesman mode is off by default."
-  ;; Mode should not be enabled by default
-  (let ((beads-sesman-mode nil))
-    (remove-hook 'beads-agent-state-change-hook
-                 #'beads-sesman--state-change-handler)
-    (should-not (member #'beads-sesman--state-change-handler
-                        beads-agent-state-change-hook))))
-
-(ert-deftest beads-sesman-test-mode-enable-adds-hook ()
-  "Test enabling mode adds the state change hook."
-  (let ((beads-sesman-mode nil))
-    (remove-hook 'beads-agent-state-change-hook
-                 #'beads-sesman--state-change-handler)
-    (unwind-protect
-        (progn
-          (beads-sesman-mode 1)
-          (should (member #'beads-sesman--state-change-handler
-                          beads-agent-state-change-hook)))
-      (beads-sesman-mode -1))))
-
-(ert-deftest beads-sesman-test-mode-disable-removes-hook ()
-  "Test disabling mode removes the state change hook."
-  (let ((beads-sesman-mode nil))
-    (unwind-protect
-        (progn
-          ;; Enable first
-          (beads-sesman-mode 1)
-          (should (member #'beads-sesman--state-change-handler
-                          beads-agent-state-change-hook))
-          ;; Then disable
-          (beads-sesman-mode -1)
-          (should-not (member #'beads-sesman--state-change-handler
-                              beads-agent-state-change-hook)))
-      (beads-sesman-mode -1))))
-
-(ert-deftest beads-sesman-test-mode-enable-disable-cycle ()
-  "Test enabling/disabling mode adds/removes hook correctly."
-  (let ((original-mode beads-sesman-mode))
-    (unwind-protect
-        (progn
-          ;; Ensure mode is off
-          (beads-sesman-mode -1)
-          (should-not beads-sesman-mode)
-          ;; Turn on
-          (beads-sesman-mode 1)
-          (should beads-sesman-mode)
-          (should (member #'beads-sesman--state-change-handler
-                          beads-agent-state-change-hook))
-          ;; Turn off
-          (beads-sesman-mode -1)
-          (should-not beads-sesman-mode)
-          (should-not (member #'beads-sesman--state-change-handler
-                              beads-agent-state-change-hook)))
-      ;; Restore original state
-      (if original-mode
-          (beads-sesman-mode 1)
-        (beads-sesman-mode -1)))))
+(ert-deftest beads-sesman-test-hook-always-registered ()
+  "Test sesman hook is registered when beads-sesman is loaded."
+  ;; The hook should always be registered (added at load time)
+  (should (member #'beads-sesman--state-change-handler
+                  beads-agent-state-change-hook)))
 
 ;;; Integration Tests
 ;;
@@ -603,11 +548,8 @@ WORKTREE-DIR is optional worktree directory."
   "Integration test: full session lifecycle with real sesman.
 Tests that beads-agent--create-session correctly registers with sesman
 via the hook, and that query/destroy functions work correctly."
-  ;; Save original state to restore later
-  (let ((original-sessions (copy-sequence (sesman-sessions 'beads)))
-        (original-mode beads-sesman-mode))
-    ;; Enable sesman mode for the test
-    (beads-sesman-mode 1)
+  ;; Save original sessions to restore later
+  (let ((original-sessions (copy-sequence (sesman-sessions 'beads))))
     (unwind-protect
         (let* ((test-issue-id "integration-test-issue")
                (test-project "/tmp/integration-test")
@@ -645,18 +587,11 @@ via the hook, and that query/destroy functions work correctly."
       ;; Cleanup: remove any test sessions that might have leaked
       (dolist (sesman-session (sesman-sessions 'beads))
         (unless (member sesman-session original-sessions)
-          (sesman-unregister 'beads sesman-session)))
-      ;; Restore original mode state
-      (if original-mode
-          (beads-sesman-mode 1)
-        (beads-sesman-mode -1)))))
+          (sesman-unregister 'beads sesman-session))))))
 
 (ert-deftest beads-sesman-integration-multiple-sessions ()
   "Integration test: multiple sessions for different issues."
-  (let ((original-sessions (copy-sequence (sesman-sessions 'beads)))
-        (original-mode beads-sesman-mode))
-    ;; Enable sesman mode for the test
-    (beads-sesman-mode 1)
+  (let ((original-sessions (copy-sequence (sesman-sessions 'beads))))
     (unwind-protect
         (let* ((s1 (beads-agent--create-session
                     "issue-1" "mock" "/tmp/p1" 'h1))
@@ -695,11 +630,7 @@ via the hook, and that query/destroy functions work correctly."
       ;; Cleanup
       (dolist (sesman-session (sesman-sessions 'beads))
         (unless (member sesman-session original-sessions)
-          (sesman-unregister 'beads sesman-session)))
-      ;; Restore original mode state
-      (if original-mode
-          (beads-sesman-mode 1)
-        (beads-sesman-mode -1)))))
+          (sesman-unregister 'beads sesman-session))))))
 
 (provide 'beads-sesman-test)
 ;;; beads-sesman-test.el ends here

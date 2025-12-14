@@ -189,26 +189,6 @@ SESSION is the beads-agent-session object."
     ('started (beads-sesman--register-session session))
     ('stopped (beads-sesman--unregister-session session))))
 
-;;; Minor Mode
-
-;;;###autoload
-(define-minor-mode beads-sesman-mode
-  "Toggle sesman integration for beads agent sessions.
-
-When enabled, beads agent sessions are automatically registered with
-sesman, providing context-aware session selection based on buffer,
-directory, or project.
-
-This mode controls whether the state change hook is active.  When
-disabled, beads works without sesman integration."
-  :global t
-  :group 'beads
-  (if beads-sesman-mode
-      (add-hook 'beads-agent-state-change-hook
-                #'beads-sesman--state-change-handler)
-    (remove-hook 'beads-agent-state-change-hook
-                 #'beads-sesman--state-change-handler)))
-
 ;;; User-Facing Commands
 
 ;;;###autoload
@@ -241,13 +221,6 @@ disabled, beads works without sesman integration."
     (sesman-browser)))
 
 ;;;###autoload
-(defun beads-sesman-info ()
-  "Display info about current beads sessions."
-  (interactive)
-  (let ((sesman-system 'beads))
-    (sesman-info)))
-
-;;;###autoload
 (defun beads-sesman-link ()
   "Link a beads session to the current context."
   (interactive)
@@ -262,11 +235,17 @@ disabled, beads works without sesman integration."
     (define-key map (kbd "q") #'beads-sesman-quit)
     (define-key map (kbd "r") #'beads-sesman-restart)
     (define-key map (kbd "b") #'beads-sesman-browser)
-    (define-key map (kbd "i") #'beads-sesman-info)
     (define-key map (kbd "l") #'beads-sesman-link)
     map)
   "Keymap for beads sesman commands.
 Intended to be bound under a global prefix key.")
+
+;;; Hook Registration
+;;
+;; Register the state change handler unconditionally when this file is loaded.
+;; This ensures sesman integration is always active when beads-sesman is required.
+
+(add-hook 'beads-agent-state-change-hook #'beads-sesman--state-change-handler)
 
 (provide 'beads-sesman)
 ;;; beads-sesman.el ends here
