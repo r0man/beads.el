@@ -280,6 +280,29 @@ Returns nil if auto-discovery should be used."
       (when-let* ((beads-dir (beads--find-beads-dir)))
         (car (directory-files beads-dir t "\\.db\\'")))))
 
+;;; Worktree Warning
+
+(defvar beads--worktree-warned nil
+  "Non-nil if worktree daemon warning has been shown this session.")
+
+(defun beads--maybe-warn-worktree ()
+  "Display warning if in worktree without --no-daemon protection.
+The warning is only shown once per session to avoid being intrusive.
+Returns non-nil if a warning was displayed."
+  (when (and beads-worktree-warn-daemon
+             (not beads--worktree-warned)
+             (beads--in-git-worktree-p)
+             (not beads-global-no-daemon)
+             (not (getenv "BEADS_NO_DAEMON"))
+             (not (getenv "BD_NO_DAEMON")))
+    (setq beads--worktree-warned t)
+    (display-warning
+     'beads
+     "Git worktree detected! Daemon may commit to wrong branch.
+Consider: M-x beads RET then 'O n' to set --no-daemon"
+     :warning)
+    t))
+
 ;;; Process Execution
 
 (defun beads--build-command (subcommand &rest args)
@@ -319,7 +342,10 @@ take precedence over defcustom settings."
       (push "--no-auto-flush" parts))
     (when beads-global-no-auto-import
       (push "--no-auto-import" parts))
-    (when beads-global-no-daemon
+    ;; --no-daemon: explicit setting or auto-enabled in worktrees
+    (when (or beads-global-no-daemon
+              (and beads-worktree-auto-no-daemon
+                   (beads--in-git-worktree-p)))
       (push "--no-daemon" parts))
     (when beads-global-no-db
       (push "--no-db" parts))
@@ -446,6 +472,40 @@ Returns a beads-issue EIEIO instance."
 Returns a list of beads-issue EIEIO instances."
   (when (and json (vectorp json))
     (mapcar #'beads-issue-from-json (append json nil))))
+
+;;; Info/Debug Command
+
+;;;###autoload
+(defun beads-info ()
+  "Display information about beads configuration in current context.
+Shows worktree status, database path, and --no-daemon settings.
+Useful for debugging configuration issues."
+  (interactive)
+  (let* ((in-worktree (beads--in-git-worktree-p))
+         (main-repo (when in-worktree (beads--find-main-repo-from-worktree)))
+         (beads-dir (beads--find-beads-dir))
+         (db-path (beads--get-database-path))
+         (no-daemon-active (or beads-global-no-daemon
+                               (and beads-worktree-auto-no-daemon in-worktree)
+                               (getenv "BEADS_NO_DAEMON")
+                               (getenv "BD_NO_DAEMON"))))
+    (message "Beads Info:
+  In worktree: %s
+  Main repo: %s
+  .beads dir: %s
+  Database: %s
+  --no-daemon: %s%s"
+             (if in-worktree "yes" "no")
+             (or main-repo "N/A")
+             (or beads-dir "NOT FOUND")
+             (or db-path "NOT FOUND")
+             (if no-daemon-active "enabled" "disabled")
+             (cond
+              (beads-global-no-daemon " (via transient)")
+              ((and beads-worktree-auto-no-daemon in-worktree) " (auto-worktree)")
+              ((getenv "BEADS_NO_DAEMON") " (via BEADS_NO_DAEMON)")
+              ((getenv "BD_NO_DAEMON") " (via BD_NO_DAEMON)")
+              (t "")))))
 
 ;;; Public API
 
