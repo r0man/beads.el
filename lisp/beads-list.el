@@ -443,7 +443,8 @@ Returns a beads-command-list object with all applicable filters set."
   (let* ((args (transient-args 'beads-list))
          (command (beads-list--parse-transient-args args)))
     (condition-case err
-        (let* ((issue-objects (beads-command-execute command))
+        (let* ((_ (beads-command-execute command))
+               (issue-objects (oref command data))
                (buffer (get-buffer-create "*beads-list*")))
           (with-current-buffer buffer
             (beads-list-mode)
@@ -568,7 +569,7 @@ When SILENT is non-nil, suppress messages (for hook-triggered refreshes)."
   (let* ((issues (pcase beads-list--command
                    ('list
                     (if beads-list--command-obj
-                        (beads-command-execute beads-list--command-obj)
+                        (oref (beads-command-execute beads-list--command-obj) data)
                       (beads-command-list!)))
                    ('ready
                     (beads-issue-ready))

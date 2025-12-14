@@ -82,21 +82,9 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-buffer-naming ()
   "Test that buffers are named correctly."
   (cl-letf (((symbol-function 'beads-command-execute)
-             (lambda (&rest _) (vector)))
-            ((symbol-function 'beads-blocked-issue-from-json)
-             (lambda (json)
-               (beads-blocked-issue
-                :id (or (alist-get 'id json) "")
-                :title (or (alist-get 'title json) "")
-                :status (or (alist-get 'status json) "open")
-                :priority (or (alist-get 'priority json) 2))))
-            ((symbol-function 'beads-issue-from-json)
-             (lambda (json)
-               (beads-issue
-                :id (or (alist-get 'id json) "")
-                :title (or (alist-get 'title json) "")
-                :status (or (alist-get 'status json) "open")
-                :priority (or (alist-get 'priority json) 2))))
+             (lambda (&rest _)
+               ;; Return empty vector of issues
+               (beads-test--mock-command-result (vector))))
             ((symbol-function 'beads-check-executable)
              (lambda () t)))
     ;; Note: beads-list now shows transient menu, not immediate buffer
@@ -114,7 +102,7 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-multiple-buffers ()
   "Test that multiple list buffers can coexist."
   (cl-letf (((symbol-function 'beads-command-execute)
-             (lambda (&rest _) (vector)))
+             (lambda (&rest _) (beads-test--mock-command-result (vector))))
             ((symbol-function 'beads-check-executable)
              (lambda () t)))
     ;; Use beads-ready and beads-blocked instead of beads-list
@@ -322,7 +310,8 @@ ISSUES should be a list of alists (test data format)."
     (cl-letf (((symbol-function 'beads-command-execute)
                (lambda (&rest _)
                  (setq call-count (1+ call-count))
-                 (apply #'vector (mapcar #'beads-issue-from-json beads-list-test--sample-issues)))))
+                 (beads-test--mock-command-result
+                  (apply #'vector (mapcar #'beads-issue-from-json beads-list-test--sample-issues))))))
       (beads-list-test--with-temp-buffer
        beads-list-test--sample-issues 'list
        (beads-list-refresh)
@@ -333,7 +322,8 @@ ISSUES should be a list of alists (test data format)."
   "Test that refresh preserves cursor position."
   (cl-letf (((symbol-function 'beads-command-execute)
              (lambda (&rest _)
-               (apply #'vector (mapcar #'beads-issue-from-json beads-list-test--sample-issues)))))
+               (beads-test--mock-command-result
+                (apply #'vector (mapcar #'beads-issue-from-json beads-list-test--sample-issues))))))
     (beads-list-test--with-temp-buffer
      beads-list-test--sample-issues 'list
      (goto-char (point-min))
@@ -345,7 +335,7 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-refresh-empty-result ()
   "Test refresh with empty result."
   (cl-letf (((symbol-function 'beads-command-execute)
-             (lambda (&rest _) nil)))
+             (lambda (&rest _) (beads-test--mock-command-result nil))))
     (beads-list-test--with-temp-buffer
      beads-list-test--sample-issues 'list
      (beads-list-refresh)
@@ -405,20 +395,17 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-ready-command ()
   "Test beads-ready command."
   (cl-letf (((symbol-function 'beads-command-execute)
-             (lambda (cmd &rest _)
-               (if (equal cmd "ready")
-                   (apply #'vector (list (car beads-list-test--sample-issues)))
-                 (vector))))
-            ((symbol-function 'beads-issue-from-json)
-             (lambda (json)
-               ;; Convert alist to beads-issue object
-               (beads-issue
-                :id (alist-get 'id json)
-                :title (alist-get 'title json)
-                :status (alist-get 'status json)
-                :priority (alist-get 'priority json)
-                :issue-type (alist-get 'issue-type json)
-                :created-at (alist-get 'created-at json))))
+             (lambda (_cmd &rest _)
+               ;; Return issue objects, not raw alists
+               (let ((alist (car beads-list-test--sample-issues)))
+                 (beads-test--mock-command-result
+                  (vector (beads-issue
+                           :id (alist-get 'id alist)
+                           :title (alist-get 'title alist)
+                           :status (alist-get 'status alist)
+                           :priority (alist-get 'priority alist)
+                           :issue-type (alist-get 'issue-type alist)
+                           :created-at (alist-get 'created-at alist)))))))
             ((symbol-function 'beads-check-executable)
              (lambda () t)))
     (beads-ready)
@@ -429,20 +416,17 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-blocked-command ()
   "Test beads-blocked command."
   (cl-letf (((symbol-function 'beads-command-execute)
-             (lambda (cmd &rest _)
-               (if (equal cmd "blocked")
-                   (apply #'vector (list (caddr beads-list-test--sample-issues)))
-                 (vector))))
-            ((symbol-function 'beads-blocked-issue-from-json)
-             (lambda (json)
-               ;; Convert alist to beads-blocked-issue object
-               (beads-blocked-issue
-                :id (alist-get 'id json)
-                :title (alist-get 'title json)
-                :status (alist-get 'status json)
-                :priority (alist-get 'priority json)
-                :issue-type (alist-get 'issue-type json)
-                :created-at (alist-get 'created-at json))))
+             (lambda (_cmd &rest _)
+               ;; Return issue objects, not raw alists
+               (let ((alist (caddr beads-list-test--sample-issues)))
+                 (beads-test--mock-command-result
+                  (vector (beads-blocked-issue
+                           :id (alist-get 'id alist)
+                           :title (alist-get 'title alist)
+                           :status (alist-get 'status alist)
+                           :priority (alist-get 'priority alist)
+                           :issue-type (alist-get 'issue-type alist)
+                           :created-at (alist-get 'created-at alist)))))))
             ((symbol-function 'beads-check-executable)
              (lambda () t)))
     (beads-blocked)
@@ -1002,10 +986,14 @@ Tests that executing with mocked transient-args creates a list buffer."
              (lambda () t))
             ((symbol-function 'beads-command-execute)
              (lambda (cmd &rest _args)
-               (if (cl-typep cmd 'beads-command-list)
-                   (mapcar #'beads-list-test--alist-to-issue
-                           beads-list-test--sample-issues)
-                 nil))))
+               ;; Set data on the passed-in command object
+               (oset cmd data
+                     (if (cl-typep cmd 'beads-command-list)
+                         (apply #'vector
+                                (mapcar #'beads-list-test--alist-to-issue
+                                        beads-list-test--sample-issues))
+                       nil))
+               cmd)))
     ;; Mock transient-args and call the execute suffix directly
     (beads-test-with-transient-args 'beads-list nil
       (beads-list--transient-execute))
