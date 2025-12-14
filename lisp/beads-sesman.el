@@ -48,6 +48,14 @@
 (declare-function beads-agent-stop "beads-agent")
 (declare-function beads-agent--read-issue-id "beads-agent")
 
+;;; Customization
+
+(defcustom beads-sesman-restart-delay 0.5
+  "Delay in seconds before restarting a session.
+This allows cleanup to complete before starting a new agent."
+  :type 'number
+  :group 'beads)
+
 ;;; Session Naming
 
 (defun beads-sesman--session-name (session)
@@ -90,7 +98,7 @@ Stop the session then start a new one for the same issue."
     (let ((issue-id (oref beads-session issue-id)))
       (sesman-quit-session 'beads session)
       ;; Small delay to allow cleanup
-      (run-at-time 0.5 nil
+      (run-at-time beads-sesman-restart-delay nil
                    (lambda ()
                      (beads-agent-start issue-id))))))
 
