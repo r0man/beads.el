@@ -22,6 +22,11 @@
 
 ;;; Test Fixtures
 
+;; Concrete test backend class for testing generic methods
+(defclass beads-sesman-test--backend (beads-agent-backend)
+  ((name :initform "test-backend"))
+  :documentation "Test backend for beads-sesman tests.")
+
 (defvar beads-sesman-test--mock-session nil
   "Mock beads-agent-session for tests.")
 
@@ -81,6 +86,90 @@ WORKTREE-DIR is optional worktree directory."
         (should (string-match-p "^issue-456@" name))
         ;; Should use worktree, not project
         (should (string-match-p "worktree" name)))
+    (beads-sesman-test--teardown)))
+
+(ert-deftest beads-sesman-test-session-name-fallback ()
+  "Test session name uses fallback when backend not found."
+  (beads-sesman-test--setup)
+  (unwind-protect
+      ;; Mock session has backend-name "mock" which is not registered
+      (cl-letf (((symbol-function 'beads-agent--get-backend)
+                 (lambda (_name) nil)))
+        (let ((name (beads-sesman--session-name beads-sesman-test--mock-session)))
+          (should (stringp name))
+          (should (string-match-p "^test-123@" name))))
+    (beads-sesman-test--teardown)))
+
+(ert-deftest beads-sesman-test-session-name-uses-generic ()
+  "Test session name delegates to backend generic when available."
+  (beads-sesman-test--setup)
+  (unwind-protect
+      (let ((generic-called nil)
+            (mock-backend 'fake-backend))
+        (cl-letf (((symbol-function 'beads-agent--get-backend)
+                   (lambda (name)
+                     (when (equal name "mock")
+                       mock-backend)))
+                  ((symbol-function 'beads-agent-backend-session-name)
+                   (lambda (backend session)
+                     (setq generic-called (list backend session))
+                     "custom-session-name")))
+          (let ((name (beads-sesman--session-name beads-sesman-test--mock-session)))
+            ;; Should have called the generic
+            (should generic-called)
+            (should (eq (car generic-called) mock-backend))
+            (should (eq (cadr generic-called) beads-sesman-test--mock-session))
+            ;; Should return the custom name
+            (should (equal name "custom-session-name")))))
+    (beads-sesman-test--teardown)))
+
+;;; Tests for Backend Session Name Generic
+
+(ert-deftest beads-sesman-test-backend-session-name-default ()
+  "Test default implementation of backend session name generic."
+  (beads-sesman-test--setup)
+  (unwind-protect
+      ;; Use the default generic implementation with concrete test backend
+      (let* ((mock-backend (beads-sesman-test--backend))
+             (name (beads-agent-backend-session-name
+                    mock-backend beads-sesman-test--mock-session)))
+        (should (stringp name))
+        (should (string-match-p "^test-123@" name))
+        (should (string-match-p "/tmp/project" name)))
+    (beads-sesman-test--teardown)))
+
+(ert-deftest beads-sesman-test-backend-session-name-with-worktree ()
+  "Test backend session name default uses worktree when available."
+  (beads-sesman-test--setup)
+  (unwind-protect
+      (let* ((session (beads-sesman-test--make-mock-session
+                       "bd-42" "/tmp/main" "/tmp/worktrees/bd-42"))
+             (mock-backend (beads-sesman-test--backend))
+             (name (beads-agent-backend-session-name mock-backend session)))
+        (should (stringp name))
+        (should (string-match-p "^bd-42@" name))
+        (should (string-match-p "worktrees" name)))
+    (beads-sesman-test--teardown)))
+
+;; Custom backend class for testing method override
+(defclass beads-sesman-test--custom-naming-backend (beads-agent-backend)
+  ((name :initform "custom-naming-backend"))
+  :documentation "Test backend with custom session naming.")
+
+(cl-defmethod beads-agent-backend-session-name
+    ((_backend beads-sesman-test--custom-naming-backend) session)
+  "Return custom session name format."
+  (format "CUSTOM:%s" (oref session issue-id)))
+
+(ert-deftest beads-sesman-test-backend-session-name-custom-override ()
+  "Test that backends can override session naming via cl-defmethod."
+  (beads-sesman-test--setup)
+  (unwind-protect
+      (let* ((custom-backend (beads-sesman-test--custom-naming-backend))
+             (name (beads-agent-backend-session-name
+                    custom-backend beads-sesman-test--mock-session)))
+        ;; Should use the custom format, not the default
+        (should (equal name "CUSTOM:test-123")))
     (beads-sesman-test--teardown)))
 
 ;;; Tests for Sesman Session Creation

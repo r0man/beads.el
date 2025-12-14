@@ -52,11 +52,15 @@
 
 (defun beads-sesman--session-name (session)
   "Generate sesman session name from SESSION.
-Format: <issue-id>@<working-dir>"
-  (let ((issue-id (oref session issue-id))
-        (working-dir (or (oref session worktree-dir)
-                         (oref session project-dir))))
-    (format "%s@%s" issue-id (abbreviate-file-name working-dir))))
+Delegates to `beads-agent-backend-session-name' for backend-specific naming.
+Falls back to \"<issue-id>@<working-dir>\" if backend not found."
+  (if-let ((backend (beads-agent--get-backend (oref session backend-name))))
+      (beads-agent-backend-session-name backend session)
+    ;; Fallback if backend not found (defensive)
+    (let ((issue-id (oref session issue-id))
+          (working-dir (or (oref session worktree-dir)
+                           (oref session project-dir))))
+      (format "%s@%s" issue-id (abbreviate-file-name working-dir)))))
 
 ;;; Sesman Generics Implementation
 
