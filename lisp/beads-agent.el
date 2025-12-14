@@ -680,6 +680,44 @@ If SESSION-ID is nil, prompts for selection from active sessions."
     (beads-agent--destroy-session session-id)
     (message "Stopped session %s" session-id)))
 
+(defun beads-agent-stop-async (session-id &optional callback)
+  "Stop agent session SESSION-ID asynchronously.
+CALLBACK is called with no arguments when stop completes.
+This function returns immediately without blocking."
+  (let ((session (beads-agent--get-session session-id)))
+    (if (not session)
+        ;; Session not found - call callback and return
+        (when callback (funcall callback))
+      ;; Session exists - stop it
+      (let ((backend (beads-agent--get-backend (oref session backend-name))))
+        (if backend
+            (beads-agent-backend-stop-async
+             backend session
+             (lambda ()
+               (beads-agent--destroy-session session-id)
+               (message "Stopped session %s" session-id)
+               (when callback (funcall callback))))
+          ;; No backend - just destroy the session
+          (beads-agent--destroy-session session-id)
+          (message "Stopped session %s" session-id)
+          (when callback (funcall callback)))))))
+
+(defun beads-agent-stop-all-async (&optional callback)
+  "Stop all agent sessions asynchronously.
+CALLBACK is called with no arguments when all sessions are stopped.
+This function returns immediately without blocking."
+  (let ((sessions (beads-agent--get-all-sessions)))
+    (if (null sessions)
+        (when callback (funcall callback))
+      (let ((remaining (length sessions)))
+        (dolist (session sessions)
+          (beads-agent-stop-async
+           (oref session id)
+           (lambda ()
+             (cl-decf remaining)
+             (when (zerop remaining)
+               (when callback (funcall callback))))))))))
+
 ;;;###autoload
 (defun beads-agent-jump (&optional session-id)
   "Jump to buffer for agent session SESSION-ID.
