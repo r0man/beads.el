@@ -1791,5 +1791,153 @@ Regression test for bug where issue-id was prepended instead of appended."
   (let ((cmd (beads-command-delete :issue-id "bd-42")))
     (should (null (beads-command-validate cmd)))))
 
+;;; Unit Tests: beads-command-execute-async
+
+(ert-deftest beads-command-test-async-returns-process ()
+  "Unit test: async execution returns a process object."
+  :tags '(:unit)
+  (skip-unless (executable-find beads-executable))
+  ;; Use quickstart which doesn't need a database
+  (let* ((cmd (beads-command-quickstart))
+         (process (beads-command-execute-async cmd)))
+    (unwind-protect
+        (should (processp process))
+      ;; Clean up - wait for process to exit first or force kill
+      (when (processp process)
+        (let ((timeout 30))
+          (while (and (process-live-p process) (> timeout 0))
+            (sleep-for 0.1)
+            (setq timeout (1- timeout))))
+        (when (process-live-p process)
+          (let ((kill-buffer-query-functions nil))
+            (delete-process process)))))))
+
+(ert-deftest beads-command-test-async-callback ()
+  "Unit test: async execution calls callback with command object."
+  :tags '(:unit)
+  (skip-unless (executable-find beads-executable))
+  (let* ((cmd (beads-command-quickstart))
+         (callback-cmd nil)
+         (callback-called nil)
+         (process (beads-command-execute-async
+                   cmd
+                   (lambda (result-cmd)
+                     (setq callback-called t)
+                     (setq callback-cmd result-cmd)))))
+    (unwind-protect
+        (progn
+          ;; Wait for process to complete (max 5 seconds)
+          (let ((timeout 50))
+            (while (and (process-live-p process) (> timeout 0))
+              (sleep-for 0.1)
+              (setq timeout (1- timeout))))
+          ;; Callback should have been called
+          (should callback-called)
+          ;; Callback should receive the command object
+          (should (eq callback-cmd cmd))
+          ;; Command slots should be populated
+          (should (= (oref callback-cmd exit-code) 0))
+          (should (stringp (oref callback-cmd stdout)))
+          (should (stringp (oref callback-cmd stderr))))
+      ;; Clean up
+      (when (processp process)
+        (let ((kill-buffer-query-functions nil))
+          (when (process-live-p process)
+            (delete-process process)))))))
+
+(ert-deftest beads-command-test-async-error-exit-code ()
+  "Unit test: async execution sets non-zero exit code on failure."
+  :tags '(:unit)
+  (skip-unless (executable-find beads-executable))
+  ;; Use a command that will fail (show nonexistent issue)
+  (let* ((cmd (beads-command-show :issue-ids '("nonexistent-issue-12345")))
+         (callback-cmd nil)
+         (process (beads-command-execute-async
+                   cmd
+                   (lambda (result-cmd)
+                     (setq callback-cmd result-cmd)))))
+    (unwind-protect
+        (progn
+          ;; Wait for process to complete (max 5 seconds)
+          (let ((timeout 50))
+            (while (and (processp process) (process-live-p process) (> timeout 0))
+              (sleep-for 0.1)
+              (setq timeout (1- timeout))))
+          ;; Callback should have been called
+          (should callback-cmd)
+          ;; Exit code should be non-zero
+          (should (not (zerop (oref callback-cmd exit-code)))))
+      ;; Clean up
+      (when (processp process)
+        (let ((kill-buffer-query-functions nil))
+          (when (process-live-p process)
+            (delete-process process)))))))
+
+(ert-deftest beads-command-test-async-json-parsing ()
+  "Unit test: async JSON command sets data slot with parsed JSON."
+  :tags '(:unit :integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create an issue first
+    (beads-command-create! :title "Async test issue")
+    ;; Now list issues asynchronously
+    (let* ((cmd (beads-command-list))
+           (callback-cmd nil)
+           (process (beads-command-execute-async
+                     cmd
+                     (lambda (result-cmd)
+                       (setq callback-cmd result-cmd)))))
+      (unwind-protect
+          (progn
+            ;; Wait for process to complete
+            (let ((timeout 50))
+              (while (and (process-live-p process) (> timeout 0))
+                (sleep-for 0.1)
+                (setq timeout (1- timeout))))
+            ;; Callback should have been called
+            (should callback-cmd)
+            ;; Exit code should be 0
+            (should (zerop (oref callback-cmd exit-code)))
+            ;; Data slot should contain parsed JSON (vector of issues)
+            (should (oref callback-cmd data))
+            (should (vectorp (oref callback-cmd data))))
+        ;; Clean up
+        (when (processp process)
+          (let ((kill-buffer-query-functions nil))
+            (when (process-live-p process)
+              (delete-process process))))))))
+
+(ert-deftest beads-command-test-async-validation-error ()
+  "Unit test: async execution raises validation error immediately."
+  :tags '(:unit)
+  ;; init command with conflicting options should fail validation
+  (should-error
+   (beads-command-execute-async
+    (beads-command-init :contributor t :team t)
+    (lambda (_cmd) (error "Should not be called")))
+   :type 'beads-validation-error))
+
+(ert-deftest beads-command-test-async-process-cancellation ()
+  "Unit test: async process can be cancelled."
+  :tags '(:unit)
+  (skip-unless (executable-find beads-executable))
+  ;; Use a command that might take some time
+  (let* ((cmd (beads-command-quickstart))
+         (callback-called nil)
+         (process (beads-command-execute-async
+                   cmd
+                   (lambda (_cmd)
+                     (setq callback-called t)))))
+    ;; Process should exist
+    (should (processp process))
+    ;; Kill the process immediately (suppress kill queries)
+    (let ((kill-buffer-query-functions nil))
+      (when (process-live-p process)
+        (delete-process process)))
+    ;; Give time for sentinel to run
+    (sleep-for 0.2)
+    ;; Process should be dead
+    (should (not (process-live-p process)))))
+
 (provide 'beads-command-test)
 ;;; beads-command-test.el ends here
