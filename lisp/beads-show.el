@@ -31,12 +31,21 @@
 ;;
 ;; Field editing:
 ;; - C-c C-e: Edit field (prompts for field selection)
+;;
+;; Sesman session management (C-c C-s prefix):
+;; - C-c C-s s: Start new session
+;; - C-c C-s q: Quit current session
+;; - C-c C-s r: Restart current session
+;; - C-c C-s b: Open session browser
+;; - C-c C-s i: Show session info
+;; - C-c C-s l: Link session to buffer
 
 ;;; Code:
 
 (require 'beads)
 (require 'beads-command)
 (require 'beads-agent)
+(require 'beads-sesman)
 (require 'button)
 (require 'cl-lib)
 
@@ -187,6 +196,9 @@
     ;; AI Agent integration
     (define-key map (kbd "A") #'beads-agent-start-at-point)
     (define-key map (kbd "J") #'beads-agent-jump-at-point)
+
+    ;; Sesman session management (CIDER/ESS convention)
+    (define-key map (kbd "C-c C-s") beads-sesman-map)
     map)
   "Keymap for `beads-show-mode'.")
 
