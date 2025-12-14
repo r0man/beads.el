@@ -35,7 +35,8 @@
     (propagated-inputs
      (list emacs-transient))
     (native-inputs
-     (list emacs-eldev emacs-package-lint emacs-undercover))
+     (list emacs-eldev emacs-package-lint emacs-undercover
+           emacs-claude-code-ide))
     (home-page "https://github.com/r0man/beads.el")
     (synopsis "Magit-like Emacs interface for the Beads issue tracker")
     (description

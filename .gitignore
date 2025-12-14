@@ -56,3 +56,4 @@ Thumbs.db
 .beads/beads.left.jsonl
 .beads/beads.right.jsonl
 coverage/
+/.beads/.local_version

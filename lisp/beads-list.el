@@ -56,6 +56,8 @@
 
 (declare-function beads-update "beads-update" (&optional issue-id))
 (declare-function beads-reopen "beads-reopen" (&optional issue-id))
+(declare-function beads-agent--get-sessions-for-issue "beads-agent")
+(declare-function beads-agent-start-at-point "beads-agent")
 
 ;;; Customization
 
@@ -96,6 +98,11 @@
 
 (defcustom beads-list-updated-width 18
   "Width of Updated column in issue lists."
+  :type 'integer
+  :group 'beads-list)
+
+(defcustom beads-list-agent-width 5
+  "Width of Agent column in issue lists."
   :type 'integer
   :group 'beads-list)
 
@@ -157,6 +164,11 @@ The `absolute' format sorts correctly in chronological order."
 (defface beads-list-priority-low
   '((t :inherit shadow))
   "Face for priority 3-4 (low/backlog)."
+  :group 'beads-list)
+
+(defface beads-list-agent-active
+  '((t :inherit success :weight bold))
+  "Face for issues with active AI agent sessions."
   :group 'beads-list)
 
 ;;; Variables
@@ -248,6 +260,14 @@ the value of `beads-list-date-format'."
         (_
          (format-time-string "%Y-%m-%d %H:%M" time))))))
 
+(defun beads-list--format-agent (issue-id)
+  "Format agent status indicator for ISSUE-ID.
+Returns \"AI\" with face if session exists, empty string otherwise."
+  (if (and (fboundp 'beads-agent--get-sessions-for-issue)
+           (beads-agent--get-sessions-for-issue issue-id))
+      (propertize "AI" 'face 'beads-list-agent-active)
+    ""))
+
 (defun beads-list--issue-to-entry (issue)
   "Convert ISSUE (beads-issue object) to tabulated-list entry."
   (let* ((id (oref issue id))
@@ -258,12 +278,14 @@ the value of `beads-list-date-format'."
          (created (oref issue created-at))
          (created-str (beads-list--format-date created))
          (updated (oref issue updated-at))
-         (updated-str (beads-list--format-date updated)))
+         (updated-str (beads-list--format-date updated))
+         (agent-str (beads-list--format-agent id)))
     (list id
           (vector id
                   type
                   (beads-list--format-status status)
                   (beads-list--format-priority priority)
+                  agent-str
                   title
                   created-str
                   updated-str))))
@@ -537,8 +559,9 @@ Transient levels control which filter groups are visible
 
 ;;; Commands
 
-(defun beads-list-refresh ()
-  "Refresh the current issue list buffer."
+(defun beads-list-refresh (&optional silent)
+  "Refresh the current issue list buffer.
+When SILENT is non-nil, suppress messages (for hook-triggered refreshes)."
   (interactive)
   (unless beads-list--command
     (user-error "No command associated with this buffer"))
@@ -557,12 +580,32 @@ Transient levels control which filter groups are visible
         (progn
           (setq tabulated-list-entries nil)
           (tabulated-list-print t)
-          (message "No issues found"))
+          (unless silent (message "No issues found")))
       (beads-list--populate-buffer issues beads-list--command beads-list--command-obj)
       (goto-char pos)
-      (message "Refreshed %d issue%s"
-               (length issues)
-               (if (= (length issues) 1) "" "s")))))
+      (unless silent
+        (message "Refreshed %d issue%s"
+                 (length issues)
+                 (if (= (length issues) 1) "" "s"))))))
+
+(defun beads-list-refresh-all ()
+  "Refresh all visible beads-list buffers.
+This is useful when agent state changes to update the AI indicator column."
+  (interactive)
+  (dolist (buffer (buffer-list))
+    (when (and (buffer-live-p buffer)
+               (with-current-buffer buffer
+                 (derived-mode-p 'beads-list-mode)))
+      (with-current-buffer buffer
+        (condition-case nil
+            (beads-list-refresh 'silent)
+          (error nil))))))  ; Ignore errors from individual buffer refreshes
+
+(defun beads-list--on-agent-state-change (_action _session)
+  "Handle agent state change by refreshing all beads-list buffers.
+Update the AI indicator column when sessions start or stop.
+ACTION and SESSION are provided by `beads-agent-state-change-hook'."
+  (beads-list-refresh-all))
 
 (defun beads-list-show ()
   "Show details for the issue at point."
@@ -871,6 +914,9 @@ transient menu options."
     (define-key map (kbd "S") #'beads-list-sort)           ; sort menu
     (define-key map (kbd "l") #'beads-list-filter)         ; filter (open transient with current filter)
 
+    ;; AI Agent integration
+    (define-key map (kbd "A") #'beads-agent-start-at-point) ; start agent
+
     ;; Bulk operations (like Magit) - create prefix map for B
     (let ((bulk-map (make-sparse-keymap)))
       (define-key bulk-map (kbd "s") #'beads-list-bulk-update-status)
@@ -891,6 +937,7 @@ transient menu options."
                 (list "Status" beads-list-status-width t)
                 (list "Priority" beads-list-priority-width t
                       :right-align t)
+                (list "Agent" beads-list-agent-width t)
                 (list "Title" beads-list-title-width t)
                 (list "Created" beads-list-created-width t)
                 (list "Updated" beads-list-updated-width t)))
@@ -961,6 +1008,14 @@ transient menu options."
                                         (length beads-list--marked-issues))
                                "")))))))
     (pop-to-buffer buffer)))
+
+;;; Hook Registration
+
+;; Register our hook function to refresh list buffers when agent state changes.
+;; Declare the variable so we can add to it even if beads-agent-backend isn't
+;; loaded yet.  When beads-agent-backend loads, it will use our hook.
+(defvar beads-agent-state-change-hook)
+(add-hook 'beads-agent-state-change-hook #'beads-list--on-agent-state-change)
 
 ;;; Footer
 

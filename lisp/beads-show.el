@@ -36,6 +36,7 @@
 
 (require 'beads)
 (require 'beads-command)
+(require 'beads-agent)
 (require 'button)
 (require 'cl-lib)
 
@@ -182,6 +183,10 @@
     (define-key map (kbd "RET") #'beads-show-follow-reference)
     (define-key map (kbd "C-c C-o") #'beads-show-follow-reference)  ; markdown-mode alias
     (define-key map (kbd "o") #'beads-show-follow-reference-other-window)
+
+    ;; AI Agent integration
+    (define-key map (kbd "A") #'beads-agent-start-at-point)
+    (define-key map (kbd "J") #'beads-agent-jump-at-point)
     map)
   "Keymap for `beads-show-mode'.")
 
@@ -260,6 +265,30 @@ CONTENT can be a string or nil (empty sections are skipped)."
       (beads-show--fontify-markdown start (point))
       ;; Make issue references clickable
       (beads-show--buttonize-references start (point)))))
+
+(defun beads-show--insert-agent-section (issue-id)
+  "Insert agent sessions section for ISSUE-ID if sessions exist."
+  (when (and (fboundp 'beads-agent--get-sessions-for-issue)
+             (fboundp 'beads-agent--session-active-p))
+    (let ((sessions (beads-agent--get-sessions-for-issue issue-id)))
+      (when sessions
+        (insert beads-show-section-separator)
+        (insert (propertize "Agent Sessions" 'face 'beads-show-header-face))
+        (insert "\n")
+        (insert (propertize (make-string 14 ?─) 'face 'beads-show-header-face))
+        (insert "\n\n")
+        (dolist (session sessions)
+          (let* ((backend (beads-agent-session-backend-name session))
+                 (started (beads-agent-session-started-at session))
+                 (active (beads-agent--session-active-p session))
+                 (status-str (if active
+                                 (propertize "active" 'face 'success)
+                               (propertize "stopped" 'face 'shadow))))
+            (insert (format "  %s: %s [%s]\n"
+                            (propertize backend 'face 'font-lock-constant-face)
+                            (beads-show--format-date started)
+                            status-str))))
+        (insert "\n")))))
 
 (defun beads-show--fontify-markdown (start end)
   "Apply basic markdown fontification between START and END."
@@ -576,6 +605,9 @@ ISSUE must be a `beads-issue' EIEIO object."
     (beads-show--insert-section "Acceptance Criteria" acceptance)
     (beads-show--insert-section "Design" design)
     (beads-show--insert-section "Notes" notes)
+
+    ;; Agent sessions (if any)
+    (beads-show--insert-agent-section id)
 
     ;; Footer
     (insert beads-show-section-separator)
