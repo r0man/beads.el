@@ -93,7 +93,26 @@ Load from JSONL, no SQLite database.")
     :type boolean
     :initform nil
     :documentation "Sandbox mode (--sandbox).
-Disables daemon and auto-sync."))
+Disables daemon and auto-sync.")
+   ;; Async execution result slots
+   (exit-code
+    :initarg :exit-code
+    :type (or null integer)
+    :initform nil
+    :documentation "Exit code from async execution.
+Set by `beads-command-execute-async' when command completes.")
+   (stdout
+    :initarg :stdout
+    :type (or null string)
+    :initform nil
+    :documentation "Standard output from async execution.
+Set by `beads-command-execute-async' when command completes.")
+   (stderr
+    :initarg :stderr
+    :type (or null string)
+    :initform nil
+    :documentation "Standard error from async execution.
+Set by `beads-command-execute-async' when command completes."))
   :abstract t
   :documentation "Abstract base class for all bd commands.
 Contains slots for global flags that apply to all commands.
@@ -263,7 +282,13 @@ Signals beads-validation-error or beads-command-error on failure."
     :type boolean
     :initform t
     :documentation "Output in JSON format (--json).
-Enables machine-readable output."))
+Enables machine-readable output.")
+   (data
+    :initarg :data
+    :initform nil
+    :documentation "Parsed JSON data after async execution.
+This slot is populated by `beads-command-execute-async' when the
+command completes successfully and JSON parsing succeeds."))
   :abstract t
   :documentation "Abstract base class for bd commands that support JSON output.
 Inherits from beads-command and adds --json flag support.
@@ -313,6 +338,128 @@ beads-json-parse-error on failure."
           ;; Non-zero exit code: parent already signaled error,
           ;; but we shouldn't reach here
           result)))))
+
+;;; Async Command Execution
+
+(cl-defgeneric beads-command-execute-async (command &optional callback)
+  "Execute COMMAND asynchronously without blocking Emacs.
+
+CALLBACK is called with COMMAND when execution completes.
+The command object contains the result data in its slots.
+
+Signals `beads-validation-error' immediately if validation fails.
+
+Return value: process object (use `delete-process' to cancel).
+
+For all commands, these slots are populated:
+  - `exit-code': Process exit code (0 = success)
+  - `stdout': Standard output as string
+  - `stderr': Standard error as string
+
+For JSON commands (beads-command-json with :json t):
+  - `data': Parsed JSON on success, nil on failure
+
+Example usage:
+
+  (beads-command-execute-async
+   (beads-command-list :status \"open\")
+   (lambda (cmd)
+     (if (oref cmd data)
+         (message \"Got %d issues\" (length (oref cmd data)))
+       (message \"Failed: %s\" (oref cmd stderr)))))")
+
+(cl-defmethod beads-command-execute-async ((command beads-command)
+                                           &optional callback)
+  "Execute non-JSON COMMAND asynchronously.
+CALLBACK receives the COMMAND object when complete.
+The command's `exit-code', `stdout', and `stderr' slots are populated.
+Signals `beads-validation-error' immediately if validation fails.
+Returns process object."
+  ;; Validate first - raise error immediately
+  (when-let ((validation-error (beads-command-validate command)))
+    (signal 'beads-validation-error
+            (list (format "Command validation failed: %s" validation-error)
+                  :command command
+                  :error validation-error)))
+
+  ;; Validation passed - build command line and execute
+  (let* ((cmd (beads-command-line command))
+         (cmd-string (mapconcat #'shell-quote-argument cmd " "))
+         (stdout-buffer (generate-new-buffer " *beads-async-stdout*"))
+         (stderr-buffer (generate-new-buffer " *beads-async-stderr*"))
+         (start-time (current-time))
+         process)
+
+    (when (fboundp 'beads--log)
+      (beads--log 'info "Running async: %s" cmd-string)
+      (beads--log 'verbose "In directory: %s" default-directory))
+
+    (setq process
+          (make-process
+           :name "beads-async"
+           :buffer stdout-buffer
+           :stderr stderr-buffer
+           :command cmd
+           :connection-type 'pipe
+           :sentinel
+           (lambda (proc _event)
+             (when (memq (process-status proc) '(exit signal))
+               (let* ((proc-exit-code (process-exit-status proc))
+                      (end-time (current-time))
+                      (elapsed (float-time (time-subtract end-time start-time)))
+                      (proc-stdout (with-current-buffer stdout-buffer
+                                     (buffer-string)))
+                      (proc-stderr (with-current-buffer stderr-buffer
+                                     (buffer-string))))
+
+                 (when (fboundp 'beads--log)
+                   (beads--log 'info "Async command completed in %.3fs" elapsed)
+                   (beads--log 'verbose "Exit code: %d" proc-exit-code)
+                   (beads--log 'verbose "Stdout: %s" proc-stdout)
+                   (beads--log 'verbose "Stderr: %s" proc-stderr))
+
+                 ;; Clean up buffers (suppress kill queries for these temp buffers)
+                 (let ((kill-buffer-query-functions nil))
+                   (kill-buffer stdout-buffer)
+                   (kill-buffer stderr-buffer))
+
+                 ;; Store results in command object
+                 (oset command exit-code proc-exit-code)
+                 (oset command stdout proc-stdout)
+                 (oset command stderr proc-stderr)
+
+                 ;; Call callback with command object
+                 (when callback
+                   (funcall callback command)))))))
+    process))
+
+(cl-defmethod beads-command-execute-async ((command beads-command-json)
+                                           &optional callback)
+  "Execute JSON COMMAND asynchronously with JSON parsing.
+CALLBACK receives the COMMAND object when complete.
+On success, the `data' slot is set to the parsed JSON.
+The `exit-code', `stdout', and `stderr' slots are always populated.
+Returns process object."
+  (with-slots (json) command
+    (if (not json)
+        ;; If json is not enabled, use parent implementation
+        (cl-call-next-method)
+      ;; Wrap callback to parse JSON and set data slot
+      (cl-call-next-method
+       command
+       (lambda (cmd)
+         ;; Parse JSON and set data slot if execution succeeded
+         (when (zerop (oref cmd exit-code))
+           (condition-case nil
+               (let* ((json-object-type 'alist)
+                      (json-array-type 'vector)
+                      (json-key-type 'symbol)
+                      (parsed-json (json-read-from-string (oref cmd stdout))))
+                 (oset cmd data parsed-json))
+             (error nil)))  ;; JSON parsing failed, leave data as nil
+         ;; Call original callback with command object
+         (when callback
+           (funcall callback cmd)))))))
 
 ;;; Init Command
 
@@ -398,8 +545,8 @@ Returns error string or nil if valid."
 Displays a quick start guide showing common bd workflows and patterns.
 This command has no command-specific flags, only global flags.")
 
-(cl-defmethod beads-command-line ((command beads-command-quickstart))
-  "Build command arguments for quickstart COMMAND (without executable).
+(cl-defmethod beads-command-line ((_command beads-command-quickstart))
+  "Build command arguments for quickstart command (without executable).
 Returns list: (\"quickstart\" ...global-flags...)."
   (let ((cmd-args (list "quickstart"))
         (global-args (cl-call-next-method)))
