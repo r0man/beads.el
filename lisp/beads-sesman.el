@@ -167,8 +167,25 @@ SESSION is the beads-agent-session object."
     ('started (beads-sesman--register-session session))
     ('stopped (beads-sesman--unregister-session session))))
 
-;; Register the hook handler
-(add-hook 'beads-agent-state-change-hook #'beads-sesman--state-change-handler)
+;;; Minor Mode
+
+;;;###autoload
+(define-minor-mode beads-sesman-mode
+  "Toggle sesman integration for beads agent sessions.
+
+When enabled, beads agent sessions are automatically registered with
+sesman, providing context-aware session selection based on buffer,
+directory, or project.
+
+This mode controls whether the state change hook is active.  When
+disabled, beads works without sesman integration."
+  :global t
+  :group 'beads
+  (if beads-sesman-mode
+      (add-hook 'beads-agent-state-change-hook
+                #'beads-sesman--state-change-handler)
+    (remove-hook 'beads-agent-state-change-hook
+                 #'beads-sesman--state-change-handler)))
 
 ;;; User-Facing Commands
 
