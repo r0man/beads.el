@@ -293,5 +293,99 @@ WORKTREE-DIR is optional worktree directory."
   (should (member #'beads-sesman--state-change-handler
                   beads-agent-state-change-hook)))
 
+;;; Integration Tests
+;;
+;; These tests exercise the full session lifecycle using the real
+;; sesman integration (not mocked), verifying that sessions flow
+;; correctly through create → register → query → destroy.
+
+(ert-deftest beads-sesman-integration-full-lifecycle ()
+  "Integration test: full session lifecycle with real sesman.
+Tests that beads-agent--create-session correctly registers with sesman
+via the hook, and that query/destroy functions work correctly."
+  ;; Save original sesman sessions to restore later
+  (let ((original-sessions (copy-sequence (sesman-sessions 'beads))))
+    (unwind-protect
+        (let* ((test-issue-id "integration-test-issue")
+               (test-project "/tmp/integration-test")
+               ;; Create session - this runs hook which registers with sesman
+               (session (beads-agent--create-session
+                         test-issue-id
+                         "mock-backend"
+                         test-project
+                         'mock-handle)))
+          ;; Verify session was created
+          (should (beads-agent-session-p session))
+          (should (equal (oref session issue-id) test-issue-id))
+
+          ;; Verify session is queryable via sesman
+          (let ((found (beads-agent--get-session (oref session id))))
+            (should found)
+            (should (eq found session)))
+
+          ;; Verify get-sessions-for-issue works
+          (let ((issue-sessions (beads-agent--get-sessions-for-issue test-issue-id)))
+            (should (= (length issue-sessions) 1))
+            (should (eq (car issue-sessions) session)))
+
+          ;; Verify get-all-sessions includes our session
+          (let ((all-sessions (beads-agent--get-all-sessions)))
+            (should (member session all-sessions)))
+
+          ;; Destroy session - this runs hook which unregisters from sesman
+          (beads-agent--destroy-session (oref session id))
+
+          ;; Verify session is gone
+          (should (null (beads-agent--get-session (oref session id))))
+          (should (null (beads-agent--get-sessions-for-issue test-issue-id))))
+
+      ;; Cleanup: remove any test sessions that might have leaked
+      (dolist (sesman-session (sesman-sessions 'beads))
+        (unless (member sesman-session original-sessions)
+          (sesman-unregister 'beads sesman-session))))))
+
+(ert-deftest beads-sesman-integration-multiple-sessions ()
+  "Integration test: multiple sessions for different issues."
+  (let ((original-sessions (copy-sequence (sesman-sessions 'beads))))
+    (unwind-protect
+        (let* ((s1 (beads-agent--create-session
+                    "issue-1" "mock" "/tmp/p1" 'h1))
+               (s2 (beads-agent--create-session
+                    "issue-2" "mock" "/tmp/p2" 'h2))
+               (s3 (beads-agent--create-session
+                    "issue-1" "mock" "/tmp/p3" 'h3)))  ; Same issue as s1
+
+          ;; Verify all sessions queryable
+          (should (= (length (beads-agent--get-all-sessions))
+                     (+ (length original-sessions) 3)))
+
+          ;; Verify issue-1 has two sessions
+          (let ((issue-1-sessions (beads-agent--get-sessions-for-issue "issue-1")))
+            (should (= (length issue-1-sessions) 2))
+            (should (member s1 issue-1-sessions))
+            (should (member s3 issue-1-sessions)))
+
+          ;; Verify issue-2 has one session
+          (let ((issue-2-sessions (beads-agent--get-sessions-for-issue "issue-2")))
+            (should (= (length issue-2-sessions) 1))
+            (should (eq (car issue-2-sessions) s2)))
+
+          ;; Destroy one session from issue-1
+          (beads-agent--destroy-session (oref s1 id))
+          (should (= (length (beads-agent--get-sessions-for-issue "issue-1")) 1))
+
+          ;; Destroy remaining sessions
+          (beads-agent--destroy-session (oref s2 id))
+          (beads-agent--destroy-session (oref s3 id))
+
+          ;; Verify all test sessions gone
+          (should (null (beads-agent--get-sessions-for-issue "issue-1")))
+          (should (null (beads-agent--get-sessions-for-issue "issue-2"))))
+
+      ;; Cleanup
+      (dolist (sesman-session (sesman-sessions 'beads))
+        (unless (member sesman-session original-sessions)
+          (sesman-unregister 'beads sesman-session))))))
+
 (provide 'beads-sesman-test)
 ;;; beads-sesman-test.el ends here
