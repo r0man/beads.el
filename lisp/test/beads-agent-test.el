@@ -59,6 +59,14 @@ List of sesman session lists: ((name handle beads-session) ...).")
   (oset backend active-sessions
         (delete (oref session id) (oref backend active-sessions))))
 
+(cl-defmethod beads-agent-backend-stop-async
+    ((backend beads-agent-backend-mock) session callback)
+  "Mock stopping a session asynchronously.
+Calls sync stop immediately for testing purposes."
+  (beads-agent-backend-stop backend session)
+  (when callback
+    (funcall callback)))
+
 (cl-defmethod beads-agent-backend-session-active-p
     ((backend beads-agent-backend-mock) session)
   "Mock session active check."
@@ -678,6 +686,142 @@ While normally not desired, the system should handle this gracefully."
           ;; Both should be associated with the same issue
           (let ((sessions (beads-agent--get-sessions-for-issue issue-id)))
             (should (= (length sessions) 2)))))
+    (beads-agent-test--teardown)))
+
+;;; =========================================================================
+;;; Async Stop Tests
+;;; =========================================================================
+
+(ert-deftest beads-agent-test-backend-stop-async ()
+  "Test async stop via mock backend."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let ((session (beads-agent--create-session
+                        "bd-async" "mock" "/tmp" 'handle))
+              (callback-called nil))
+          (beads-agent-backend-stop-async
+           beads-agent-test--mock-backend
+           session
+           (lambda () (setq callback-called t)))
+          ;; Callback should have been called (mock is sync)
+          (should callback-called)
+          ;; Stop should have been called
+          (should (oref beads-agent-test--mock-backend stop-called))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-stop-async-single ()
+  "Test beads-agent-stop-async for single session."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let* ((session (beads-agent--create-session
+                         "bd-single" "mock" "/tmp" 'handle))
+               (session-id (oref session id))
+               (callback-called nil))
+          (push session-id
+                (oref beads-agent-test--mock-backend active-sessions))
+          ;; Should have 1 session
+          (should (= (length (beads-agent--get-all-sessions)) 1))
+          ;; Stop async
+          (beads-agent-stop-async
+           session-id
+           (lambda () (setq callback-called t)))
+          ;; Callback should have been called
+          (should callback-called)
+          ;; Session should be gone
+          (should (= (length (beads-agent--get-all-sessions)) 0))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-stop-async-nonexistent ()
+  "Test beads-agent-stop-async with nonexistent session."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let ((callback-called nil))
+          ;; Stop nonexistent session
+          (beads-agent-stop-async
+           "nonexistent-session-id"
+           (lambda () (setq callback-called t)))
+          ;; Callback should still be called
+          (should callback-called)))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-stop-all-async ()
+  "Test beads-agent-stop-all-async stops multiple sessions."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let ((issues '("bd-a" "bd-b" "bd-c"))
+              (callback-called nil))
+          ;; Create sessions
+          (dolist (issue-id issues)
+            (let ((session (beads-agent--create-session
+                            issue-id "mock" "/tmp" 'handle)))
+              (push (oref session id)
+                    (oref beads-agent-test--mock-backend active-sessions))))
+          ;; Should have 3 sessions
+          (should (= (length (beads-agent--get-all-sessions)) 3))
+          ;; Stop all async
+          (beads-agent-stop-all-async
+           (lambda () (setq callback-called t)))
+          ;; Callback should have been called
+          (should callback-called)
+          ;; All sessions should be gone
+          (should (= (length (beads-agent--get-all-sessions)) 0))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-stop-all-async-empty ()
+  "Test beads-agent-stop-all-async with no sessions."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let ((callback-called nil))
+          ;; No sessions
+          (should (= (length (beads-agent--get-all-sessions)) 0))
+          ;; Stop all async (should work with empty list)
+          (beads-agent-stop-all-async
+           (lambda () (setq callback-called t)))
+          ;; Callback should have been called
+          (should callback-called)))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-stop-all-async-lifecycle ()
+  "Test full lifecycle with async stop."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let ((issues '("test-a" "test-b" "test-c"))
+              (phase1-done nil)
+              (phase2-done nil))
+          ;; Phase 1: Start sessions
+          (dolist (issue-id issues)
+            (let ((session (beads-agent--create-session
+                            issue-id "mock" "/tmp" 'handle)))
+              (push (oref session id)
+                    (oref beads-agent-test--mock-backend active-sessions))))
+          (should (= (length (beads-agent--get-all-sessions)) 3))
+          (setq phase1-done t)
+
+          ;; Phase 2: Stop all async
+          (beads-agent-stop-all-async
+           (lambda () (setq phase2-done t)))
+          (should phase2-done)
+          (should (= (length (beads-agent--get-all-sessions)) 0))
+
+          ;; Phase 3: Restart sessions
+          (dolist (issue-id issues)
+            (let ((session (beads-agent--create-session
+                            issue-id "mock" "/tmp" 'new-handle)))
+              (push (oref session id)
+                    (oref beads-agent-test--mock-backend active-sessions))))
+          (should (= (length (beads-agent--get-all-sessions)) 3))))
     (beads-agent-test--teardown)))
 
 ;;; Footer

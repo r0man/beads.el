@@ -137,6 +137,24 @@ For example, claude-code-ide returns an MCP session handle.")
   "Stop SESSION running on BACKEND.
 SESSION is a beads-agent-session object.")
 
+(cl-defgeneric beads-agent-backend-stop-async (backend session callback)
+  "Stop SESSION running on BACKEND asynchronously.
+SESSION is a beads-agent-session object.
+CALLBACK is called with no arguments when stop completes.
+
+This method should return immediately without blocking.
+The actual stop operation may happen asynchronously.
+
+Default implementation calls sync `beads-agent-backend-stop' via
+`run-at-time' to avoid blocking the UI, then invokes CALLBACK."
+  ;; Default implementation uses run-at-time to make sync stop non-blocking
+  (run-at-time
+   0 nil
+   (lambda ()
+     (beads-agent-backend-stop backend session)
+     (when callback
+       (funcall callback)))))
+
 (cl-defgeneric beads-agent-backend-session-active-p (backend session)
   "Return non-nil if SESSION is still active on BACKEND.
 SESSION is a beads-agent-session object.")
