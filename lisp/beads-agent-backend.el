@@ -14,7 +14,18 @@
 ;; - Session class for tracking active sessions (beads-agent-session)
 ;; - Protocol (generic methods) that backends must implement
 ;; - Backend registry for registration and lookup
-;; - Session storage and management
+;; - Session query functions (storage delegated to sesman)
+;;
+;; Session Storage Architecture:
+;;
+;; Sessions are stored in sesman (Session Manager) rather than local
+;; hash tables.  This provides context-aware session selection and
+;; standard Emacs session management UI.  The flow is:
+;;
+;; 1. `beads-agent--create-session' creates session object and runs hook
+;; 2. Hook handler in beads-sesman.el registers session with sesman
+;; 3. Query functions iterate `(sesman-sessions 'beads)' to find sessions
+;; 4. `beads-agent--destroy-session' runs hook to unregister from sesman
 ;;
 ;; Backend implementations should require this module and implement
 ;; the protocol methods.  They should NOT require beads-agent.el to
@@ -26,6 +37,7 @@
 
 (require 'eieio)
 (require 'cl-lib)
+(require 'sesman)
 
 ;;; EIEIO Classes
 
@@ -125,15 +137,7 @@ SESSION is a beads-agent-session object.")
 SESSION is a beads-agent-session object.
 PROMPT is a string to send to the agent.")
 
-;;; Session Storage (In-Memory)
-
-(defvar beads-agent--sessions (make-hash-table :test 'equal)
-  "Hash table of active sessions, keyed by session ID.
-Values are beads-agent-session objects.")
-
-(defvar beads-agent--issue-sessions (make-hash-table :test 'equal)
-  "Hash table mapping issue-id to list of session IDs.
-Used for quick lookup of sessions by issue.")
+;;; Backend Registry
 
 (defvar beads-agent--backends nil
   "List of registered beads-agent-backend instances.
@@ -189,6 +193,10 @@ BACKEND must be an instance of a beads-agent-backend subclass."
           (beads-agent--get-available-backends)))
 
 ;;; Session Management Functions
+;;
+;; Sessions are stored in sesman (via beads-sesman.el hook handler).
+;; The hook `beads-agent-state-change-hook' triggers registration/unregistration.
+;; Query functions iterate sesman sessions to find beads-agent-session objects.
 
 (defun beads-agent--generate-session-id ()
   "Generate unique session ID using timestamp and random."
@@ -205,7 +213,10 @@ BACKEND-NAME is the name of the backend.
 PROJECT-DIR is the main project directory.
 BACKEND-SESSION is the backend-specific session handle.
 WORKTREE-DIR is the git worktree directory, if using worktrees.
-Returns the created beads-agent-session object."
+Returns the created beads-agent-session object.
+
+Note: Session storage is handled by `beads-agent-state-change-hook'.
+The hook handler in beads-sesman.el registers the session with sesman."
   (let* ((session-id (beads-agent--generate-session-id))
          (session (beads-agent-session
                    :id session-id
@@ -215,47 +226,47 @@ Returns the created beads-agent-session object."
                    :worktree-dir worktree-dir
                    :started-at (format-time-string "%Y-%m-%dT%H:%M:%S%z")
                    :backend-session backend-session)))
-    ;; Store in sessions hash
-    (puthash session-id session beads-agent--sessions)
-    ;; Update issue-sessions mapping
-    (let ((existing (gethash issue-id beads-agent--issue-sessions)))
-      (puthash issue-id (cons session-id existing)
-               beads-agent--issue-sessions))
-    ;; Run state change hook
+    ;; Run state change hook - this triggers sesman registration
     (beads-agent--run-state-change-hook 'started session)
     session))
 
 (defun beads-agent--destroy-session (session-id)
-  "Remove session SESSION-ID from all tracking structures."
-  (when-let ((session (gethash session-id beads-agent--sessions)))
-    (let* ((issue-id (oref session issue-id))
-           (issue-sessions (gethash issue-id beads-agent--issue-sessions)))
-      ;; Remove from issue mapping
-      (puthash issue-id (delete session-id issue-sessions)
-               beads-agent--issue-sessions)
-      ;; Clean up empty list
-      (when (null (gethash issue-id beads-agent--issue-sessions))
-        (remhash issue-id beads-agent--issue-sessions)))
-    ;; Remove from sessions hash
-    (remhash session-id beads-agent--sessions)
-    ;; Run state change hook (after removal, but with session data)
+  "Remove session SESSION-ID from tracking.
+Looks up the session from sesman and runs the state change hook,
+which triggers unregistration from sesman."
+  (when-let ((session (beads-agent--get-session session-id)))
+    ;; Run state change hook - this triggers sesman unregistration
     (beads-agent--run-state-change-hook 'stopped session)))
 
 (defun beads-agent--get-session (session-id)
-  "Get session by SESSION-ID, or nil if not found."
-  (gethash session-id beads-agent--sessions))
+  "Get session by SESSION-ID, or nil if not found.
+Searches all sesman sessions for a beads-agent-session with matching ID."
+  (cl-loop for sesman-session in (sesman-sessions 'beads)
+           for beads-session = (nth 2 sesman-session)
+           when (and beads-session
+                     (equal (oref beads-session id) session-id))
+           return beads-session))
 
 (defun beads-agent--get-sessions-for-issue (issue-id)
   "Get all sessions for ISSUE-ID as a list of session objects."
-  (let ((session-ids (gethash issue-id beads-agent--issue-sessions)))
-    (delq nil (mapcar #'beads-agent--get-session session-ids))))
+  (cl-loop for sesman-session in (sesman-sessions 'beads)
+           for beads-session = (nth 2 sesman-session)
+           when (and beads-session
+                     (equal (oref beads-session issue-id) issue-id))
+           collect beads-session))
 
 (defun beads-agent--get-all-sessions ()
-  "Get all active sessions as a list."
-  (let (sessions)
-    (maphash (lambda (_k v) (push v sessions))
-             beads-agent--sessions)
-    sessions))
+  "Get all active sessions as a list of beads-agent-session objects."
+  (cl-loop for sesman-session in (sesman-sessions 'beads)
+           for beads-session = (nth 2 sesman-session)
+           when beads-session
+           collect beads-session))
+
+(defun beads-agent--current-session ()
+  "Get current session based on buffer context.
+Uses sesman's context-aware session selection."
+  (when-let ((sesman-session (sesman-current-session 'beads)))
+    (nth 2 sesman-session)))
 
 (defun beads-agent--session-active-p (session)
   "Check if SESSION is still active."
@@ -264,4 +275,12 @@ Returns the created beads-agent-session object."
     (beads-agent-backend-session-active-p backend session)))
 
 (provide 'beads-agent-backend)
+
+;;; Load Sesman Integration
+;;
+;; Session storage is delegated to sesman via beads-sesman.el.
+;; This require ensures the hook handler is registered.
+;; Must come after `provide' to avoid circular dependency.
+(require 'beads-sesman)
+
 ;;; beads-agent-backend.el ends here
