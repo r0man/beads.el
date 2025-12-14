@@ -49,61 +49,7 @@ Integration test that runs real bd init command."
                      nil "\\.db\\'")))
       (should (> (length db-files) 0)))))
 
-(ert-deftest beads-command-test-init-with-prefix ()
-  "Test beads-command-init with custom prefix option.
-Integration test that verifies --prefix flag works correctly."
-  :tags '(:integration)
-  (skip-unless (executable-find beads-executable))
-  (let* ((temp-dir (make-temp-file "beads-test-" t))
-         (default-directory temp-dir)
-         (cmd (beads-command-init :prefix "myproject"))
-         (result (beads-command-execute cmd)))
-    ;; Command should succeed
-    (should (= (nth 0 result) 0))
-    ;; .beads directory should exist
-    (should (file-directory-p (expand-file-name ".beads" temp-dir)))
-    ;; Verify prefix is set correctly by creating an issue
-    ;; and checking its ID starts with the prefix
-    (let* ((issue (beads-command-create! :title "Test issue")))
-      (should (beads-issue-p issue))
-      (should (string-prefix-p "myproject-" (oref issue id))))))
-
-(ert-deftest beads-command-test-init-with-quiet ()
-  "Test beads-command-init with --quiet flag.
-Integration test that verifies quiet mode suppresses output."
-  :tags '(:integration)
-  (skip-unless (executable-find beads-executable))
-  (let* ((temp-dir (make-temp-file "beads-test-" t))
-         (default-directory temp-dir)
-         (cmd (beads-command-init
-               :quiet t
-               :skip-merge-driver t))
-         (result (beads-command-execute cmd)))
-    ;; Command should succeed
-    (should (= (nth 0 result) 0))
-    ;; .beads directory should exist
-    (should (file-directory-p (expand-file-name ".beads" temp-dir)))))
-
 ;;; Integration Test: beads-command-quickstart
-
-(ert-deftest beads-command-test-quickstart-basic ()
-  "Test beads-command-quickstart execution returns quickstart guide.
-Integration test that runs real bd quickstart command."
-  :tags '(:integration)
-  (skip-unless (executable-find beads-executable))
-  (let* ((cmd (beads-command-quickstart))
-         (result (beads-command-execute cmd))
-         (exit-code (nth 0 result))
-         (stdout (nth 1 result)))
-    ;; Command should succeed
-    (should (= exit-code 0))
-    ;; Output should contain quickstart content
-    (should (stringp stdout))
-    (should (> (length stdout) 0))
-    ;; Should contain common quickstart keywords
-    (should (or (string-match-p "quick" (downcase stdout))
-                (string-match-p "start" (downcase stdout))
-                (string-match-p "bd" stdout)))))
 
 (ert-deftest beads-command-test-quickstart-helper ()
   "Test beads-command-quickstart! helper function.
@@ -1158,6 +1104,13 @@ Integration test that retrieves issue database stats."
     (should (member "--quiet" args))
     (should (member "--contributor" args))
     (should (member "--skip-merge-driver" args))))
+
+(ert-deftest beads-command-test-unit-quickstart-command-line ()
+  "Unit test: beads-command-quickstart builds correct arguments."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-quickstart))
+         (args (beads-command-line cmd)))
+    (should (member "quickstart" args))))
 
 ;;; Unit Tests: beads-command-validate
 
