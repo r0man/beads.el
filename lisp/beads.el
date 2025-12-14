@@ -512,6 +512,10 @@ Returns t if found, signals error otherwise."
 ;;;###autoload
 (autoload 'beads--label-completion-table "beads-label" "Return completion table for labels.")
 
+;;;###autoload
+(autoload 'beads-eldoc-mode "beads-eldoc"
+  "Global minor mode to enable eldoc support for beads issue references." t)
+
 ;;; Footer
 
 (provide 'beads)

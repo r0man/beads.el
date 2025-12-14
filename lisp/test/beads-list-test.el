@@ -138,15 +138,15 @@ ISSUES should be a list of alists (test data format)."
          (entry (beads-list--issue-to-entry issue)))
     (should (equal (car entry) "bd-1"))
     (should (vectorp (cadr entry)))
-    (should (= (length (cadr entry)) 7))
+    (should (= (length (cadr entry)) 8))
     ;; Check ID column
     (should (equal (aref (cadr entry) 0) "bd-1"))
-    ;; Check title column
-    (should (equal (aref (cadr entry) 4) "First issue"))
-    ;; Check created column exists
-    (should (stringp (aref (cadr entry) 5)))
-    ;; Check updated column exists
-    (should (stringp (aref (cadr entry) 6)))))
+    ;; Check title column (index 5, after Agent column)
+    (should (equal (aref (cadr entry) 5) "First issue"))
+    ;; Check created column exists (index 6)
+    (should (stringp (aref (cadr entry) 6)))
+    ;; Check updated column exists (index 7)
+    (should (stringp (aref (cadr entry) 7)))))
 
 (ert-deftest beads-list-test-populate-buffer ()
   "Test populating buffer with issues."
@@ -650,14 +650,15 @@ ISSUES should be a list of alists (test data format)."
   "Test that all required columns are present."
   (with-temp-buffer
     (beads-list-mode)
-    (should (= (length tabulated-list-format) 7))
+    (should (= (length tabulated-list-format) 8))
     (should (equal (car (aref tabulated-list-format 0)) "ID"))
     (should (equal (car (aref tabulated-list-format 1)) "Type"))
     (should (equal (car (aref tabulated-list-format 2)) "Status"))
     (should (equal (car (aref tabulated-list-format 3)) "Priority"))
-    (should (equal (car (aref tabulated-list-format 4)) "Title"))
-    (should (equal (car (aref tabulated-list-format 5)) "Created"))
-    (should (equal (car (aref tabulated-list-format 6)) "Updated"))))
+    (should (equal (car (aref tabulated-list-format 4)) "Agent"))
+    (should (equal (car (aref tabulated-list-format 5)) "Title"))
+    (should (equal (car (aref tabulated-list-format 6)) "Created"))
+    (should (equal (car (aref tabulated-list-format 7)) "Updated"))))
 
 ;;; Date Formatting Tests
 
@@ -756,10 +757,10 @@ ISSUES should be a list of alists (test data format)."
         (alist (car beads-list-test--sample-issues))
         (issue (beads-list-test--alist-to-issue (car beads-list-test--sample-issues))))
     (let ((entry (beads-list--issue-to-entry issue)))
-      ;; Created should be in column 5 (6th element, 0-indexed)
-      (should (stringp (aref (cadr entry) 5)))
+      ;; Created should be in column 6 (7th element, 0-indexed)
+      (should (stringp (aref (cadr entry) 6)))
       (should (string-match-p "2025-10-20"
-                              (aref (cadr entry) 5))))))
+                              (aref (cadr entry) 6))))))
 
 (ert-deftest beads-list-test-sort-by-created ()
   "Test sorting issues by creation date."
@@ -791,7 +792,7 @@ ISSUES should be a list of alists (test data format)."
             (issue (beads-list-test--alist-to-issue alist))
             (entry (beads-list--issue-to-entry issue)))
        (should (string-match-p "[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}"
-                               (aref (cadr entry) 5)))))))
+                               (aref (cadr entry) 6)))))))
 
 (ert-deftest beads-list-test-integration-created-width-custom ()
   "Integration test: Created column width is customizable."
@@ -799,7 +800,7 @@ ISSUES should be a list of alists (test data format)."
   (let ((beads-list-created-width 20))
     (with-temp-buffer
       (beads-list-mode)
-      (let ((format (aref tabulated-list-format 5)))
+      (let ((format (aref tabulated-list-format 6)))
         (should (equal (car format) "Created"))
         (should (= (cadr format) 20))))))
 

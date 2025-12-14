@@ -41,6 +41,7 @@
 (require 'beads-init)
 (require 'beads-sync)
 (require 'beads-epic-status)
+(require 'beads-agent)
 (require 'transient)
 
 ;;; Variables
@@ -139,6 +140,7 @@ Key bindings:
   Create/Edit:        c (create), u (update), x (close), o (reopen),
                       D (delete)
   Dependencies:       d (dep submenu)
+  Agent:              A (agent menu)
   Admin:              i (init), e (export), I (import), S (sync)
   Other:              g (refresh), q (quit)"
   [:description
@@ -168,6 +170,9 @@ Key bindings:
   ["Labels"
    :description "Manage labels"
    ("L" "Label menu" beads-label)]
+  ["Agent"
+   :description "AI Agent integration"
+   ("A" "Agent menu" beads-agent)]
   ["Admin"
    :description "Project administration"
    ("i" "Init project" beads-init)
