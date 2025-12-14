@@ -74,6 +74,24 @@ refresh after operations like create, update, or close."
   :type 'boolean
   :group 'beads)
 
+;;; Git Worktree Settings
+
+(defcustom beads-worktree-warn-daemon t
+  "Warn when using daemon mode in a git worktree.
+When non-nil, beads will display a warning when operating in a
+git worktree without --no-daemon protection.  The daemon may
+commit to the wrong branch when used in worktrees."
+  :type 'boolean
+  :group 'beads)
+
+(defcustom beads-worktree-auto-no-daemon nil
+  "Automatically use --no-daemon when in a git worktree.
+When non-nil, beads will automatically add --no-daemon to all
+bd commands when running inside a git worktree.  This prevents
+the daemon from accidentally committing to the wrong branch."
+  :type 'boolean
+  :group 'beads)
+
 ;;; Provide
 
 (provide 'beads-custom)
