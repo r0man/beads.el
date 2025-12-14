@@ -102,8 +102,12 @@ Returns the MCP session handle."
          (vterm-environment (if (boundp 'vterm-environment)
                                 (cons "BD_NO_DAEMON=1" vterm-environment)
                               (list "BD_NO_DAEMON=1")))
-         ;; Pass initial prompt as positional argument
-         (claude-code-ide-cli-extra-flags (shell-quote-argument prompt)))
+         ;; Append initial prompt to user's extra flags (preserve user settings)
+         (claude-code-ide-cli-extra-flags
+          (string-trim
+           (concat (or claude-code-ide-cli-extra-flags "")
+                   " "
+                   (shell-quote-argument prompt)))))
     ;; Start claude-code-ide with the prompt as CLI argument
     (condition-case err
         (claude-code-ide)
