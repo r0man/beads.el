@@ -536,7 +536,6 @@ The `beads-sesman-map` provides these commands (bind to a prefix like `C-c C-s`)
 | `q` | `beads-sesman-quit`    | Quit current session     |
 | `r` | `beads-sesman-restart` | Restart current session  |
 | `b` | `beads-sesman-browser` | Open session browser     |
-| `i` | `beads-sesman-info`    | Show session info        |
 | `l` | `beads-sesman-link`    | Link session to context  |
 
 **Example configuration:**
@@ -544,9 +543,8 @@ The `beads-sesman-map` provides these commands (bind to a prefix like `C-c C-s`)
 ```elisp
 (use-package beads
   :load-path "~/path/to/beads.el/lisp"
-  :bind-keymap ("C-c C-s" . beads-sesman-map)
-  :config
-  (beads-sesman-mode 1))  ; Enable sesman integration
+  :bind-keymap ("C-c C-s" . beads-sesman-map))
+;; Sesman integration is automatically enabled when beads-sesman is loaded
 ```
 
 ### Agent Menu
