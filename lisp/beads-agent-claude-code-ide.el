@@ -166,6 +166,25 @@ If no Claude Code session exists, starts a new one automatically."
   (let ((default-directory (beads-agent-session-working-dir session)))
     (claude-code-ide-send-prompt prompt)))
 
+(cl-defmethod beads-agent-backend-get-buffer
+    ((_backend beads-agent-backend-claude-code-ide) session)
+  "Return the claude-code-ide buffer for SESSION.
+Uses `claude-code-ide-switch-to-buffer' within `save-window-excursion'
+to locate the buffer without visibly changing windows.
+Returns nil if not found.
+
+Note: This does NOT check `beads-agent-backend-session-active-p' because
+the vterm buffer exists immediately after `claude-code-ide' is called,
+even before the MCP session is established.  This allows buffer linking
+to work during session registration."
+  (require 'claude-code-ide)
+  (let ((default-directory (beads-agent-session-working-dir session)))
+    (condition-case nil
+        (save-window-excursion
+          (claude-code-ide-switch-to-buffer)
+          (current-buffer))
+      (error nil))))
+
 ;;; Registration
 
 ;; Register the backend when this file is loaded

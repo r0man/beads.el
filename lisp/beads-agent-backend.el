@@ -183,6 +183,17 @@ Backends may override this to use custom naming schemes."
                          (oref session project-dir))))
     (format "%s@%s" issue-id (abbreviate-file-name working-dir))))
 
+(cl-defgeneric beads-agent-backend-get-buffer (backend session)
+  "Return the buffer for SESSION on BACKEND, or nil if not available.
+SESSION is a beads-agent-session object.
+Used by sesman to link the session buffer for context-aware selection.
+
+Default implementation returns nil.  Backends should override this
+to return their agent buffer if available."
+  ;; Default: no buffer available
+  (ignore backend session)
+  nil)
+
 ;;; Backend Registry
 
 (defvar beads-agent--backends nil

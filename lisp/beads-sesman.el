@@ -22,10 +22,15 @@
 ;;   - backend-handle: Opaque handle from the AI backend
 ;;   - beads-agent-session: EIEIO object with full metadata
 ;;
-;; Dual Context Linking:
-;;   Sessions are linked to both:
-;;   1. Worktree directory (primary) - for context in worktree buffers
-;;   2. Main project directory (fallback) - for context from main repo
+;; Context Linking:
+;;   Sessions are linked to three context types:
+;;   1. Buffer (agent buffer) - for context when in the agent's terminal
+;;   2. Worktree directory (primary) - for context in worktree buffers
+;;   3. Main project directory (fallback) - for context from main repo
+;;
+;;   This enables `sesman-current-session' to find the right session
+;;   whether you're in the agent buffer, editing files in the worktree,
+;;   or working in the main repository.
 ;;
 ;; Usage:
 ;;   ;; Start a session (will be registered with sesman)
@@ -148,7 +153,8 @@ Return (name backend-handle beads-agent-session)."
 
 (defun beads-sesman--register-session (beads-session)
   "Register BEADS-SESSION with sesman and link to contexts.
-Link to both worktree directory (primary) and main project (fallback)."
+Link to worktree directory (primary), main project (fallback),
+and the agent buffer (if available)."
   (let ((sesman-session (beads-sesman--make-sesman-session beads-session)))
     ;; Register with sesman
     (sesman-register 'beads sesman-session)
@@ -157,7 +163,15 @@ Link to both worktree directory (primary) and main project (fallback)."
       (sesman-link-session 'beads sesman-session 'directory worktree))
     ;; Link to main project (fallback context)
     (sesman-link-session 'beads sesman-session 'project
-                         (oref beads-session project-dir))))
+                         (oref beads-session project-dir))
+    ;; Link to agent buffer if available
+    (when-let* ((backend (beads-agent--get-backend (oref beads-session backend-name)))
+                (buffer (beads-agent-backend-get-buffer backend beads-session)))
+      (when (buffer-live-p buffer)
+        (sesman-link-session 'beads sesman-session 'buffer buffer)
+        ;; Set sesman-system in the buffer so sesman commands work there
+        (with-current-buffer buffer
+          (setq-local sesman-system 'beads))))))
 
 (defun beads-sesman--unregister-session (beads-session)
   "Unregister BEADS-SESSION from sesman."
