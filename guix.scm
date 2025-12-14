@@ -29,7 +29,8 @@
     (build-system emacs-build-system)
     (arguments
      (list
-      #:tests? #f  ; Tests require bd CLI and mock setup
+      #:emacs emacs  ; Use full Emacs with GnuTLS support
+      #:tests? #f    ; Tests require bd CLI and mock setup
       #:lisp-directory "lisp"
       #:exclude #~(cons ".*-test\\.el$" %default-exclude)))
     (propagated-inputs
