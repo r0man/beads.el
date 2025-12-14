@@ -233,6 +233,32 @@ WORKTREE-DIR is optional worktree directory."
         (should-not (sesman-more-relevant-p 'beads older-sesman newer-sesman)))
     (beads-sesman-test--teardown)))
 
+(ert-deftest beads-sesman-test-more-relevant-p-nil-sessions ()
+  "Test sesman-more-relevant-p handles nil beads sessions."
+  (beads-sesman-test--setup)
+  (unwind-protect
+      (let* ((valid-session (beads-sesman-test--make-mock-session))
+             (valid-sesman (beads-sesman--make-sesman-session valid-session))
+             (nil-sesman '("name" handle nil)))
+        ;; Both combinations with nil should return nil
+        (should-not (sesman-more-relevant-p 'beads nil-sesman valid-sesman))
+        (should-not (sesman-more-relevant-p 'beads valid-sesman nil-sesman))
+        ;; Both nil should return nil
+        (should-not (sesman-more-relevant-p 'beads nil-sesman nil-sesman)))
+    (beads-sesman-test--teardown)))
+
+(ert-deftest beads-sesman-test-more-relevant-p-equal-timestamps ()
+  "Test sesman-more-relevant-p with equal timestamps."
+  (beads-sesman-test--setup)
+  (unwind-protect
+      (let* ((session1 (beads-sesman-test--make-mock-session))
+             (session2 (beads-sesman-test--make-mock-session "other-id"))
+             (sesman1 (beads-sesman--make-sesman-session session1))
+             (sesman2 (beads-sesman--make-sesman-session session2)))
+        ;; Same timestamp - neither should be more relevant
+        (should-not (sesman-more-relevant-p 'beads sesman1 sesman2)))
+    (beads-sesman-test--teardown)))
+
 (ert-deftest beads-sesman-test-session-info ()
   "Test sesman-session-info returns display info."
   (beads-sesman-test--setup)
@@ -249,6 +275,137 @@ WORKTREE-DIR is optional worktree directory."
           (should (cl-some (lambda (s) (and s (string-match-p "Backend:" s)))
                            strings))))
     (beads-sesman-test--teardown)))
+
+(ert-deftest beads-sesman-test-session-info-nil-beads-session ()
+  "Test sesman-session-info handles nil beads session."
+  (let ((info (sesman-session-info 'beads '("name" handle nil))))
+    (should (null info))))
+
+(ert-deftest beads-sesman-test-session-info-with-worktree ()
+  "Test sesman-session-info includes worktree when present."
+  (beads-sesman-test--setup)
+  (unwind-protect
+      (let* ((session (beads-sesman-test--make-mock-session
+                       "test-id" "/tmp/main" "/tmp/worktree/test-id"))
+             (sesman-session (beads-sesman--make-sesman-session session))
+             (info (sesman-session-info 'beads sesman-session)))
+        (should (plist-get info :strings))
+        ;; Check worktree is included
+        (let ((strings (plist-get info :strings)))
+          (should (cl-some (lambda (s) (and s (string-match-p "Worktree:" s)))
+                           strings))))
+    (beads-sesman-test--teardown)))
+
+(ert-deftest beads-sesman-test-session-info-objects-contains-handle ()
+  "Test sesman-session-info :objects contains backend handle."
+  (beads-sesman-test--setup)
+  (unwind-protect
+      (let* ((sesman-session (beads-sesman--make-sesman-session
+                              beads-sesman-test--mock-session))
+             (info (sesman-session-info 'beads sesman-session))
+             (objects (plist-get info :objects)))
+        (should (member 'mock-handle objects)))
+    (beads-sesman-test--teardown)))
+
+(ert-deftest beads-sesman-test-start-session ()
+  "Test sesman-start-session prompts for issue and starts agent."
+  (let ((read-issue-called nil)
+        (agent-start-called nil))
+    (cl-letf (((symbol-function 'beads-agent--read-issue-id)
+               (lambda ()
+                 (setq read-issue-called t)
+                 "test-issue-42"))
+              ((symbol-function 'beads-agent-start)
+               (lambda (issue-id)
+                 (setq agent-start-called issue-id))))
+      (let ((result (sesman-start-session 'beads)))
+        ;; Should return nil (async registration via hook)
+        (should (null result))
+        ;; Should have prompted for issue
+        (should read-issue-called)
+        ;; Should have started agent with the issue ID
+        (should (equal agent-start-called "test-issue-42"))))))
+
+(ert-deftest beads-sesman-test-quit-session ()
+  "Test sesman-quit-session stops the agent."
+  (beads-sesman-test--setup)
+  (unwind-protect
+      (let ((stop-called nil))
+        (cl-letf (((symbol-function 'beads-agent-stop)
+                   (lambda (session-id)
+                     (setq stop-called session-id))))
+          (let ((sesman-session (beads-sesman--make-sesman-session
+                                  beads-sesman-test--mock-session)))
+            (sesman-quit-session 'beads sesman-session)
+            ;; Should have called stop with the session ID
+            (should (equal stop-called "session-123")))))
+    (beads-sesman-test--teardown)))
+
+(ert-deftest beads-sesman-test-quit-session-nil-beads-session ()
+  "Test sesman-quit-session handles nil beads session gracefully."
+  (let ((stop-called nil))
+    (cl-letf (((symbol-function 'beads-agent-stop)
+               (lambda (_) (setq stop-called t))))
+      ;; Session with nil at position 2
+      (sesman-quit-session 'beads '("name" handle nil))
+      ;; Should not have called stop
+      (should-not stop-called))))
+
+(ert-deftest beads-sesman-test-restart-session ()
+  "Test sesman-restart-session quits and restarts with same issue."
+  (beads-sesman-test--setup)
+  (unwind-protect
+      (let ((quit-called nil)
+            (timer-fn nil)
+            (timer-delay nil))
+        (cl-letf (((symbol-function 'sesman-quit-session)
+                   (lambda (system session)
+                     (setq quit-called (list system session))))
+                  ((symbol-function 'run-at-time)
+                   (lambda (delay _repeat fn)
+                     (setq timer-delay delay)
+                     (setq timer-fn fn)
+                     'mock-timer)))
+          (let ((sesman-session (beads-sesman--make-sesman-session
+                                  beads-sesman-test--mock-session)))
+            (sesman-restart-session 'beads sesman-session)
+            ;; Should have called quit
+            (should quit-called)
+            (should (eq (car quit-called) 'beads))
+            ;; Should have scheduled restart
+            (should timer-fn)
+            (should (= timer-delay 0.5))
+            ;; Simulate timer firing
+            (let ((agent-start-called nil))
+              (cl-letf (((symbol-function 'beads-agent-start)
+                         (lambda (issue-id)
+                           (setq agent-start-called issue-id))))
+                (funcall timer-fn)
+                ;; Should restart with same issue ID
+                (should (equal agent-start-called "test-123")))))))
+    (beads-sesman-test--teardown)))
+
+(ert-deftest beads-sesman-test-restart-session-nil-beads-session ()
+  "Test sesman-restart-session handles nil beads session gracefully."
+  (let ((quit-called nil))
+    (cl-letf (((symbol-function 'sesman-quit-session)
+               (lambda (_system _session) (setq quit-called t))))
+      ;; Session with nil at position 2
+      (sesman-restart-session 'beads '("name" handle nil))
+      ;; Should not have called quit
+      (should-not quit-called))))
+
+(ert-deftest beads-sesman-test-project ()
+  "Test sesman-project returns project root."
+  (cl-letf (((symbol-function 'beads--find-project-root)
+             (lambda () "/path/to/project")))
+    (should (equal (sesman-project 'beads) "/path/to/project"))))
+
+(ert-deftest beads-sesman-test-project-nil ()
+  "Test sesman-project handles nil project root."
+  (cl-letf (((symbol-function 'beads--find-project-root)
+             (lambda () nil)))
+    (should (null (sesman-project 'beads)))))
 
 ;;; Tests for User Commands
 
