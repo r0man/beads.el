@@ -200,6 +200,16 @@ to return their agent buffer if available."
   "List of registered beads-agent-backend instances.
 Backends are sorted by priority (lower = preferred).")
 
+(defvar beads-agent--issue-outcomes (make-hash-table :test #'equal)
+  "Hash table mapping issue-id to last agent outcome.
+Values are symbols: `finished', `failed', or nil.
+This is used by `beads-list' to show colored status indicators.")
+
+(defun beads-agent--get-issue-outcome (issue-id)
+  "Get the last agent outcome for ISSUE-ID.
+Returns `finished', `failed', or nil if no outcome recorded."
+  (gethash issue-id beads-agent--issue-outcomes))
+
 ;;; State Change Hook
 
 (defvar beads-agent-state-change-hook nil
@@ -212,7 +222,18 @@ This hook is called after the state change is complete.
 Use this to refresh UI elements like `beads-list' buffers.")
 
 (defun beads-agent--run-state-change-hook (action session)
-  "Run `beads-agent-state-change-hook' with ACTION and SESSION."
+  "Run `beads-agent-state-change-hook' with ACTION and SESSION.
+Also records the outcome in `beads-agent--issue-outcomes' for UI display."
+  ;; Record outcome for UI display
+  (when-let ((issue-id (and session (oref session issue-id))))
+    (pcase action
+      ('started
+       ;; Clear previous outcome when starting fresh
+       (remhash issue-id beads-agent--issue-outcomes))
+      ('stopped
+       (puthash issue-id 'finished beads-agent--issue-outcomes))
+      ('failed
+       (puthash issue-id 'failed beads-agent--issue-outcomes))))
   (run-hook-with-args 'beads-agent-state-change-hook action session))
 
 ;;; Backend Registry Functions

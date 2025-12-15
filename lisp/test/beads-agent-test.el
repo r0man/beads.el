@@ -277,6 +277,72 @@ SESSION is the beads-agent-session object."
           (should (= (length all) 3))))
     (beads-agent-test--teardown)))
 
+;;; Tests for Issue Outcomes
+
+(ert-deftest beads-agent-test-get-issue-outcome-none ()
+  "Test getting outcome when no outcome recorded."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (progn
+        ;; Clear any existing outcomes
+        (clrhash beads-agent--issue-outcomes)
+        (should (null (beads-agent--get-issue-outcome "bd-123"))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-get-issue-outcome-finished ()
+  "Test getting finished outcome."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (progn
+        (clrhash beads-agent--issue-outcomes)
+        (puthash "bd-123" 'finished beads-agent--issue-outcomes)
+        (should (eq (beads-agent--get-issue-outcome "bd-123") 'finished)))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-get-issue-outcome-failed ()
+  "Test getting failed outcome."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (progn
+        (clrhash beads-agent--issue-outcomes)
+        (puthash "bd-123" 'failed beads-agent--issue-outcomes)
+        (should (eq (beads-agent--get-issue-outcome "bd-123") 'failed)))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-outcome-cleared-on-start ()
+  "Test that outcome is cleared when a new session starts."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (clrhash beads-agent--issue-outcomes)
+        ;; Set a previous outcome
+        (puthash "bd-123" 'finished beads-agent--issue-outcomes)
+        (should (eq (beads-agent--get-issue-outcome "bd-123") 'finished))
+        ;; Start a new session
+        (beads-agent--create-session "bd-123" "mock" "/tmp" 'h1)
+        ;; Outcome should be cleared
+        (should (null (beads-agent--get-issue-outcome "bd-123"))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-outcome-set-on-stop ()
+  "Test that outcome is set to finished when session stops."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (clrhash beads-agent--issue-outcomes)
+        ;; Create and then destroy a session
+        (let* ((session (beads-agent--create-session "bd-123" "mock" "/tmp" 'h1))
+               (session-id (oref session id)))
+          ;; Outcome should be nil while running (cleared on start)
+          (should (null (beads-agent--get-issue-outcome "bd-123")))
+          ;; Destroy the session
+          (beads-agent--destroy-session session-id)
+          ;; Outcome should now be 'finished
+          (should (eq (beads-agent--get-issue-outcome "bd-123") 'finished))))
+    (beads-agent-test--teardown)))
+
 ;;; Tests for Context Building
 
 (ert-deftest beads-agent-test-build-prompt ()

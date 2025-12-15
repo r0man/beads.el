@@ -66,6 +66,8 @@
 (declare-function beads-reopen "beads-reopen" (&optional issue-id))
 (declare-function beads-agent--get-sessions-for-issue "beads-agent")
 (declare-function beads-agent-start-at-point "beads-agent")
+(declare-function beads-agent--get-issue-outcome "beads-agent-backend")
+(declare-function beads-agent-session-backend-name "beads-agent-backend")
 
 ;;; Customization
 
@@ -109,8 +111,9 @@
   :type 'integer
   :group 'beads-list)
 
-(defcustom beads-list-agent-width 5
-  "Width of Agent column in issue lists."
+(defcustom beads-list-agent-width 12
+  "Width of Agent column in issue lists.
+Should be wide enough to show the status indicator and backend name."
   :type 'integer
   :group 'beads-list)
 
@@ -174,9 +177,22 @@ The `absolute' format sorts correctly in chronological order."
   "Face for priority 3-4 (low/backlog)."
   :group 'beads-list)
 
-(defface beads-list-agent-active
+(defface beads-list-agent-working
+  '((t :inherit warning :weight bold))
+  "Face for agent working indicator (yellow circle).
+Inherits from `warning' face for theme consistency."
+  :group 'beads-list)
+
+(defface beads-list-agent-finished
   '((t :inherit success :weight bold))
-  "Face for issues with active AI agent sessions."
+  "Face for agent finished indicator (green circle).
+Inherits from `success' face for theme consistency."
+  :group 'beads-list)
+
+(defface beads-list-agent-failed
+  '((t :inherit error :weight bold))
+  "Face for agent failed indicator (red circle).
+Inherits from `error' face for theme consistency."
   :group 'beads-list)
 
 ;;; Variables
@@ -270,11 +286,37 @@ the value of `beads-list-date-format'."
 
 (defun beads-list--format-agent (issue-id)
   "Format agent status indicator for ISSUE-ID.
-Returns \"AI\" with face if session exists, empty string otherwise."
-  (if (and (fboundp 'beads-agent--get-sessions-for-issue)
-           (beads-agent--get-sessions-for-issue issue-id))
-      (propertize "AI" 'face 'beads-list-agent-active)
-    ""))
+Returns a colored circle (●) indicating agent status:
+  - Yellow: agent currently working
+  - Green: agent finished successfully
+  - Red: agent failed
+The circle is followed by the backend name when available.
+Each indicator includes a help-echo tooltip for accessibility."
+  (let ((sessions (and (fboundp 'beads-agent--get-sessions-for-issue)
+                       (beads-agent--get-sessions-for-issue issue-id)))
+        (outcome (and (fboundp 'beads-agent--get-issue-outcome)
+                      (beads-agent--get-issue-outcome issue-id))))
+    (cond
+     ;; Active session - yellow circle
+     (sessions
+      (let ((backend-name (and (fboundp 'beads-agent-session-backend-name)
+                               (beads-agent-session-backend-name (car sessions)))))
+        (if backend-name
+            (propertize (format "● %s" backend-name)
+                        'face 'beads-list-agent-working
+                        'help-echo (format "Agent working: %s" backend-name))
+          (propertize "●" 'face 'beads-list-agent-working
+                      'help-echo "Agent working"))))
+     ;; Finished - green circle
+     ((eq outcome 'finished)
+      (propertize "●" 'face 'beads-list-agent-finished
+                  'help-echo "Agent finished successfully"))
+     ;; Failed - red circle
+     ((eq outcome 'failed)
+      (propertize "●" 'face 'beads-list-agent-failed
+                  'help-echo "Agent failed"))
+     ;; No agent activity
+     (t ""))))
 
 (defun beads-list--issue-to-entry (issue)
   "Convert ISSUE (beads-issue object) to tabulated-list entry."
@@ -1027,7 +1069,8 @@ transient menu options."
 ;; Declare the variable so we can add to it even if beads-agent-backend isn't
 ;; loaded yet.  When beads-agent-backend loads, it will use our hook.
 (defvar beads-agent-state-change-hook)
-(add-hook 'beads-agent-state-change-hook #'beads-list--on-agent-state-change)
+;; Append to end of hook list so this runs AFTER sesman registers the session
+(add-hook 'beads-agent-state-change-hook #'beads-list--on-agent-state-change t)
 
 ;;; Footer
 

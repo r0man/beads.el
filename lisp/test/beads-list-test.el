@@ -961,6 +961,95 @@ ISSUES should be a list of alists (test data format)."
     ;; List mode should be active
     (should (eq major-mode 'beads-list-mode))))
 
+;;; Agent Status Indicator Tests
+
+(ert-deftest beads-list-test-agent-faces-defined ()
+  "Test that all agent status faces are defined."
+  (should (facep 'beads-list-agent-working))
+  (should (facep 'beads-list-agent-finished))
+  (should (facep 'beads-list-agent-failed)))
+
+(ert-deftest beads-list-test-format-agent-no-activity ()
+  "Test format-agent returns empty string when no agent activity."
+  (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+             (lambda (_id) nil))
+            ((symbol-function 'beads-agent--get-issue-outcome)
+             (lambda (_id) nil)))
+    (should (equal (beads-list--format-agent "bd-1") ""))))
+
+(ert-deftest beads-list-test-format-agent-working ()
+  "Test format-agent shows yellow circle when agent is working."
+  (let ((mock-session (list 'mock-session)))
+    (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+               (lambda (_id) mock-session))
+              ((symbol-function 'beads-agent--get-issue-outcome)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent-session-backend-name)
+               (lambda (_session) "claude")))
+      (let ((result (beads-list--format-agent "bd-1")))
+        (should (string-prefix-p "●" result))
+        (should (string-match-p "claude" result))
+        (should (eq (get-text-property 0 'face result)
+                    'beads-list-agent-working))
+        ;; Verify help-echo tooltip
+        (should (string-match-p "claude"
+                                (get-text-property 0 'help-echo result)))))))
+
+(ert-deftest beads-list-test-format-agent-working-no-backend-name ()
+  "Test format-agent shows yellow circle even without backend name."
+  (let ((mock-session (list 'mock-session)))
+    (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+               (lambda (_id) mock-session))
+              ((symbol-function 'beads-agent--get-issue-outcome)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent-session-backend-name)
+               (lambda (_session) nil)))
+      (let ((result (beads-list--format-agent "bd-1")))
+        (should (string= (substring-no-properties result) "●"))
+        (should (eq (get-text-property 0 'face result)
+                    'beads-list-agent-working))
+        (should (get-text-property 0 'help-echo result))))))
+
+(ert-deftest beads-list-test-format-agent-finished ()
+  "Test format-agent shows green circle when agent finished."
+  (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+             (lambda (_id) nil))
+            ((symbol-function 'beads-agent--get-issue-outcome)
+             (lambda (_id) 'finished)))
+    (let ((result (beads-list--format-agent "bd-1")))
+      (should (string= (substring-no-properties result) "●"))
+      (should (eq (get-text-property 0 'face result)
+                  'beads-list-agent-finished))
+      (should (string-match-p "finished"
+                              (get-text-property 0 'help-echo result))))))
+
+(ert-deftest beads-list-test-format-agent-failed ()
+  "Test format-agent shows red circle when agent failed."
+  (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+             (lambda (_id) nil))
+            ((symbol-function 'beads-agent--get-issue-outcome)
+             (lambda (_id) 'failed)))
+    (let ((result (beads-list--format-agent "bd-1")))
+      (should (string= (substring-no-properties result) "●"))
+      (should (eq (get-text-property 0 'face result)
+                  'beads-list-agent-failed))
+      (should (string-match-p "failed"
+                              (get-text-property 0 'help-echo result))))))
+
+(ert-deftest beads-list-test-format-agent-active-takes-priority ()
+  "Test format-agent shows working status even if outcome exists.
+Active session should take priority over previous outcome."
+  (let ((mock-session (list 'mock-session)))
+    (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+               (lambda (_id) mock-session))
+              ((symbol-function 'beads-agent--get-issue-outcome)
+               (lambda (_id) 'finished))  ; Previous outcome exists
+              ((symbol-function 'beads-agent-session-backend-name)
+               (lambda (_session) nil)))
+      (let ((result (beads-list--format-agent "bd-1")))
+        (should (eq (get-text-property 0 'face result)
+                    'beads-list-agent-working))))))
+
 ;;; Footer
 
 ;;; Transient Menu Integration Tests
