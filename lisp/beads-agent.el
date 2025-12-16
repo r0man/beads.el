@@ -822,28 +822,9 @@ If SESSION-ID is nil, uses session for current issue or prompts."
       (beads-agent-backend-send-prompt backend session prompt)
       (message "Sent prompt to session %s" session-id))))
 
-;;;###autoload
-(defun beads-agent-list-sessions ()
-  "List all active agent sessions."
-  (interactive)
-  (let ((sessions (beads-agent--get-all-sessions)))
-    (if (null sessions)
-        (message "No active sessions")
-      (with-help-window "*beads-agent-sessions*"
-        (with-current-buffer "*beads-agent-sessions*"
-          (insert "Active Agent Sessions\n")
-          (insert "=====================\n\n")
-          (dolist (session sessions)
-            (insert (format "Session: %s\n" (oref session id)))
-            (insert (format "  Issue:    %s\n" (oref session issue-id)))
-            (insert (format "  Backend:  %s\n" (oref session backend-name)))
-            (insert (format "  Started:  %s\n" (oref session started-at)))
-            (insert (format "  Active:   %s\n"
-                            (if (beads-agent--session-active-p session)
-                                "yes" "no")))
-            (when-let ((worktree (oref session worktree-dir)))
-              (insert (format "  Worktree: %s\n" worktree)))
-            (insert "\n")))))))
+;;; Forward Declaration for Agent List
+
+(declare-function beads-agent-list "beads-agent-list")
 
 ;;;###autoload
 (defun beads-agent-cleanup-stale-sessions ()
@@ -909,7 +890,7 @@ sessions cleaned up."
   :key "l"
   :description "List active sessions"
   (interactive)
-  (call-interactively #'beads-agent-list-sessions))
+  (call-interactively #'beads-agent-list))
 
 (transient-define-suffix beads-agent--cleanup-suffix ()
   "Clean up stale sessions."
@@ -1032,5 +1013,10 @@ If no session exists for the current issue, starts a new agent session."
 (require 'beads-agent-claude-code nil t)
 (require 'beads-agent-claudemacs nil t)
 (require 'beads-agent-efrit nil t)
+
+;;; Load Agent List Module
+
+;; Load the tabulated-list UI for agent sessions.
+(require 'beads-agent-list)
 
 ;;; beads-agent.el ends here
