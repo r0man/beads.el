@@ -338,24 +338,25 @@ Each alist contains: id, title, status, priority, issue_type."
     (error nil)))
 
 (defun beads-show--format-sub-issue-status (status)
-  "Return a short formatted STATUS indicator for sub-issues."
-  (let ((indicator (pcase status
-                     ("open" "○")
-                     ("in_progress" "◐")
-                     ("blocked" "⊘")
-                     ("closed" "●")
-                     (_ "?")))
-        (face (pcase status
-                ("open" 'beads-show-status-open-face)
-                ("in_progress" 'beads-show-status-in-progress-face)
-                ("blocked" 'beads-show-status-blocked-face)
-                ("closed" 'beads-show-status-closed-face)
-                (_ 'default))))
-    (propertize indicator 'face face)))
+  "Return formatted STATUS string with face, like completion annotations."
+  (propertize (upcase status)
+              'face (pcase status
+                      ("open" 'success)
+                      ("in_progress" 'warning)
+                      ("blocked" 'error)
+                      ("closed" 'shadow)
+                      (_ 'default))))
+
+(defun beads-show--truncate-title (title max-len)
+  "Truncate TITLE to MAX-LEN characters with ellipsis if needed."
+  (if (and title (> (length title) max-len))
+      (concat (substring title 0 (- max-len 3)) "...")
+    (or title "Untitled")))
 
 (defun beads-show--insert-sub-issues-section (epic-id)
   "Insert sub-issues section for EPIC-ID if it has children.
-Shows direct child issues with their status and makes IDs clickable."
+Shows direct child issues in completion-style format:
+ID [P#] [type] STATUS - title."
   (when-let* ((sub-issues (beads-show--get-sub-issues epic-id)))
     (let* ((total (length sub-issues))
            (closed (seq-count (lambda (item)
@@ -381,28 +382,29 @@ Shows direct child issues with their status and makes IDs clickable."
             (let* ((id (alist-get 'id issue))
                    (title (alist-get 'title issue))
                    (issue-status (alist-get 'status issue))
-                   (status-indicator (beads-show--format-sub-issue-status
-                                      issue-status))
-                   ;; Truncate long titles
-                   (max-title-len 60)
-                   (display-title (if (and title (> (length title) max-title-len))
-                                      (concat (substring title 0 max-title-len)
-                                              "...")
-                                    (or title "Untitled")))
+                   (priority (or (alist-get 'priority issue) 2))
+                   (issue-type (or (alist-get 'issue_type issue) "task"))
                    (id-start (point)))
+              ;; Format: ID [P#] [type] STATUS - title
               (insert "  ")
-              (insert status-indicator)
-              (insert " ")
               ;; Insert ID as button
               (insert id)
-              (make-button id-start (+ id-start 2 1 (length id))
+              (make-button id-start (+ id-start 2 (length id))
                            'issue-id id
                            'action #'beads-show--button-action
                            'follow-link t
                            'help-echo (format "Show %s" id)
                            'face 'beads-show-sub-issue-id-face)
+              ;; Priority
+              (insert (format " [P%s]" priority))
+              ;; Type
+              (insert (format " [%s]" issue-type))
+              ;; Status with face
               (insert " ")
-              (insert (propertize display-title
+              (insert (beads-show--format-sub-issue-status issue-status))
+              ;; Title
+              (insert " - ")
+              (insert (propertize (beads-show--truncate-title title 50)
                                   'face 'beads-show-sub-issue-title-face))
               (insert "\n")))))
       (insert "\n"))))

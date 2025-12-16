@@ -1914,13 +1914,13 @@ Note: Notes cannot be set at creation time, only via update."
 (defvar beads-show-test--sub-issues-data
   (vector
    '((id . "bd-epic-1") (title . "Epic: Build feature X") (status . "open")
-     (depth . 0) (parent_id . "bd-epic-1"))
+     (priority . 1) (issue_type . "epic") (depth . 0) (parent_id . "bd-epic-1"))
    '((id . "bd-sub-1") (title . "Implement core module") (status . "closed")
-     (depth . 1) (parent_id . "bd-epic-1"))
+     (priority . 1) (issue_type . "task") (depth . 1) (parent_id . "bd-epic-1"))
    '((id . "bd-sub-2") (title . "Write tests") (status . "in_progress")
-     (depth . 1) (parent_id . "bd-epic-1"))
+     (priority . 2) (issue_type . "task") (depth . 1) (parent_id . "bd-epic-1"))
    '((id . "bd-sub-3") (title . "Update documentation") (status . "open")
-     (depth . 1) (parent_id . "bd-epic-1")))
+     (priority . 3) (issue_type . "task") (depth . 1) (parent_id . "bd-epic-1")))
   "Mock dep tree response with sub-issues.")
 
 (ert-deftest beads-show-test-get-sub-issues-returns-depth-1-only ()
@@ -1953,14 +1953,14 @@ Note: Notes cannot be set at creation time, only via update."
       (should (null sub-issues)))))
 
 (ert-deftest beads-show-test-format-sub-issue-status ()
-  "Test status indicators for sub-issues."
-  (should (string-match-p "○" (beads-show--format-sub-issue-status "open")))
-  (should (string-match-p "◐" (beads-show--format-sub-issue-status "in_progress")))
-  (should (string-match-p "⊘" (beads-show--format-sub-issue-status "blocked")))
-  (should (string-match-p "●" (beads-show--format-sub-issue-status "closed"))))
+  "Test status formatting for sub-issues (completion-style)."
+  (should (string-match-p "OPEN" (beads-show--format-sub-issue-status "open")))
+  (should (string-match-p "IN_PROGRESS" (beads-show--format-sub-issue-status "in_progress")))
+  (should (string-match-p "BLOCKED" (beads-show--format-sub-issue-status "blocked")))
+  (should (string-match-p "CLOSED" (beads-show--format-sub-issue-status "closed"))))
 
 (ert-deftest beads-show-test-insert-sub-issues-section-renders ()
-  "Test that sub-issues section renders correctly."
+  "Test that sub-issues section renders correctly in completion-style format."
   (beads-show-test-with-temp-buffer
    (cl-letf (((symbol-function 'beads-command-dep-tree!)
               (lambda (&rest _args)
@@ -1976,9 +1976,17 @@ Note: Notes cannot be set at creation time, only via update."
          (should (string-match-p "bd-sub-1" content))
          (should (string-match-p "bd-sub-2" content))
          (should (string-match-p "bd-sub-3" content))
-         ;; Should have titles
-         (should (string-match-p "Implement core module" content))
-         (should (string-match-p "Write tests" content)))))))
+         ;; Should have priority indicators
+         (should (string-match-p "\\[P1\\]" content))
+         (should (string-match-p "\\[P2\\]" content))
+         ;; Should have type indicators
+         (should (string-match-p "\\[task\\]" content))
+         ;; Should have status text
+         (should (string-match-p "CLOSED" content))
+         (should (string-match-p "IN_PROGRESS" content))
+         ;; Should have titles after dash
+         (should (string-match-p "- Implement core module" content))
+         (should (string-match-p "- Write tests" content)))))))
 
 (ert-deftest beads-show-test-insert-sub-issues-section-no-children ()
   "Test that sub-issues section is not rendered when no children."
