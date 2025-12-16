@@ -31,6 +31,7 @@
 ;;; Code:
 
 (require 'beads-agent-backend)
+(require 'seq)
 
 ;;; External Function Declarations
 
@@ -39,12 +40,34 @@
 (declare-function claude-code-kill "claude-code")
 (declare-function claude-code-switch-to-buffer "claude-code")
 (declare-function claude-code-send-command "claude-code")
-(declare-function claude-code--find-claude-buffers-for-directory "claude-code")
-(declare-function claude-code--term-send-string "claude-code")
 
 ;; Declare external variables to avoid compiler warnings
 (defvar vterm-environment)
 (defvar claude-code-program-switches)
+
+;;; Helper Functions
+
+(defun beads-agent-claude-code--find-buffers (dir)
+  "Find Claude buffers for directory DIR.
+Claude buffers are named `*claude:DIRECTORY*' or `*claude:DIRECTORY:INSTANCE*'
+where DIRECTORY is the abbreviated truename of the directory.
+
+NOTE: This reimplements claude-code's buffer naming convention.
+If upstream changes the format, this function may need updating."
+  ;; Use directory-file-name to strip trailing slash for consistent matching
+  (let* ((normalized-dir (directory-file-name
+                          (abbreviate-file-name (file-truename dir))))
+         (prefix (concat "*claude:" normalized-dir)))
+    (seq-filter
+     (lambda (buf)
+       (let ((name (buffer-name buf)))
+         (and (string-prefix-p prefix name)
+              ;; Must end with * or :INSTANCE*
+              (or (string= name (concat prefix "*"))
+                  (and (> (length name) (length prefix))
+                       (eq (aref name (length prefix)) ?:)
+                       (string-suffix-p "*" name))))))
+     (buffer-list))))
 
 ;;; Backend Class
 
@@ -101,13 +124,10 @@ Returns the Claude buffer as the session handle."
                   (list "--" prompt))))
     ;; Start claude-code in the working directory with prompt as CLI arg
     (condition-case err
-        (let ((buffer nil))
+        (progn
           (claude-code)
           ;; Get the buffer that was just created
-          (when (fboundp 'claude-code--find-claude-buffers-for-directory)
-            (setq buffer (car (claude-code--find-claude-buffers-for-directory
-                               working-dir))))
-          buffer)
+          (car (beads-agent-claude-code--find-buffers working-dir)))
       (error
        (error "Failed to start claude-code: %s"
               (error-message-string err))))))
@@ -124,14 +144,12 @@ Returns the Claude buffer as the session handle."
   "Check if claude-code SESSION is active.
 Returns non-nil if the Claude buffer for the session's directory exists
 and has a live process."
-  (require 'claude-code)
-  (let ((working-dir (beads-agent-session-working-dir session)))
-    (when (fboundp 'claude-code--find-claude-buffers-for-directory)
-      (let ((buffers (claude-code--find-claude-buffers-for-directory working-dir)))
-        (and buffers
-             (buffer-live-p (car buffers))
-             ;; Check if buffer has an active process
-             (get-buffer-process (car buffers)))))))
+  (let* ((working-dir (beads-agent-session-working-dir session))
+         (buffers (beads-agent-claude-code--find-buffers working-dir)))
+    (and buffers
+         (buffer-live-p (car buffers))
+         ;; Check if buffer has an active process
+         (get-buffer-process (car buffers)))))
 
 (cl-defmethod beads-agent-backend-switch-to-buffer
     ((backend beads-agent-backend-claude-code) session)
@@ -160,10 +178,8 @@ If no Claude Code session exists, starts a new one automatically."
 (cl-defmethod beads-agent-backend-get-buffer
     ((_backend beads-agent-backend-claude-code) session)
   "Return the claude-code buffer for SESSION, or nil if not available."
-  (require 'claude-code)
   (let ((working-dir (beads-agent-session-working-dir session)))
-    (when (fboundp 'claude-code--find-claude-buffers-for-directory)
-      (car (claude-code--find-claude-buffers-for-directory working-dir)))))
+    (car (beads-agent-claude-code--find-buffers working-dir))))
 
 ;;; Registration
 
