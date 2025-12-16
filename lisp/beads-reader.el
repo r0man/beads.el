@@ -417,5 +417,21 @@ falls back to `completing-read-multiple' for selecting multiple issue IDs."
         (completing-read "Label name: " labels nil nil)
       (read-string "Label name: "))))
 
+;;; ============================================================
+;;; Agent-specific Reader Functions
+;;; ============================================================
+
+(defun beads-reader-agent-backend (_prompt _initial-input _history)
+  "Read AI agent backend name with completion.
+Returns a backend name string from available backends."
+  (require 'beads-agent)
+  (let* ((available (beads-agent--get-available-backends))
+         (names (mapcar (lambda (b) (oref b name)) available))
+         (default (when (bound-and-true-p beads-agent-default-backend)
+                    (car (member beads-agent-default-backend names)))))
+    (if (null names)
+        (user-error "No AI agent backends available")
+      (completing-read "Backend: " names nil t default))))
+
 (provide 'beads-reader)
 ;;; beads-reader.el ends here

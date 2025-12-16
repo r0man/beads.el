@@ -857,12 +857,111 @@ sessions cleaned up."
             session-count (if (= session-count 1) "" "s")
             backend-count (if (= backend-count 1) "" "s"))))
 
+;;; beads-agent-start-menu - Sub-menu for starting agents
+
+;; Forward declare reader functions (defined in beads-reader.el)
+(declare-function beads-reader-issue-id "beads-reader")
+(declare-function beads-reader-agent-backend "beads-reader")
+
+(defun beads-agent-start--format-header ()
+  "Format header for agent start menu."
+  (let* ((backends (beads-agent--get-available-backends))
+         (backend-count (length backends))
+         (context-id (beads-agent--detect-issue-id)))
+    (concat "Start AI Agent"
+            (when context-id
+              (format " [context: %s]" context-id))
+            (format " (%d backend%s available)"
+                    backend-count (if (= backend-count 1) "" "s")))))
+
+(transient-define-infix beads-agent-start--infix-issue-id ()
+  "Set the issue ID to start agent on."
+  :class 'transient-option
+  :description "Issue"
+  :key "i"
+  :argument "--issue="
+  :prompt "Issue: "
+  :reader #'beads-reader-issue-id)
+
+(transient-define-infix beads-agent-start--infix-backend ()
+  "Set the backend to use for the agent."
+  :class 'transient-option
+  :description "Backend"
+  :key "b"
+  :argument "--backend="
+  :prompt "Backend: "
+  :reader #'beads-reader-agent-backend)
+
+(transient-define-suffix beads-agent-start--execute ()
+  "Execute agent start with current parameters."
+  :key "x"
+  :description "Start agent"
+  (interactive)
+  (let* ((args (transient-args 'beads-agent-start-menu))
+         (issue-id (transient-arg-value "--issue=" args))
+         (backend-name (transient-arg-value "--backend=" args)))
+    (unless issue-id
+      (user-error "Issue ID is required"))
+    (beads-agent-start issue-id backend-name)))
+
+(transient-define-suffix beads-agent-start--preview ()
+  "Preview the agent start configuration."
+  :key "v"
+  :description "Preview"
+  :transient t
+  (interactive)
+  (let* ((args (transient-args 'beads-agent-start-menu))
+         (issue-id (transient-arg-value "--issue=" args))
+         (backend-name (transient-arg-value "--backend=" args))
+         (worktree-status (if beads-agent-use-worktrees "yes" "no")))
+    (message "Start agent: issue=%s backend=%s worktree=%s"
+             (or issue-id "[not set]")
+             (or backend-name "[auto-select]")
+             worktree-status)))
+
+(transient-define-suffix beads-agent-start--reset ()
+  "Reset all parameters to defaults."
+  :key "R"
+  :description "Reset"
+  :transient t
+  (interactive)
+  (transient-reset)
+  (message "Parameters reset"))
+
+;;;###autoload (autoload 'beads-agent-start-menu "beads-agent" nil t)
+(transient-define-prefix beads-agent-start-menu ()
+  "Start an AI agent on an issue.
+
+This menu allows configuring the agent start parameters:
+- Issue ID: The issue to work on (auto-detected from context)
+- Backend: The AI backend to use (auto-selected if not specified)
+
+The agent will work in a git worktree if `beads-agent-use-worktrees'
+is enabled (default)."
+  [:description
+   (lambda () (beads-agent-start--format-header))]
+  ["Options"
+   (beads-agent-start--infix-issue-id)
+   (beads-agent-start--infix-backend)]
+  ["Actions"
+   (beads-agent-start--execute)
+   (beads-agent-start--preview)
+   (beads-agent-start--reset)
+   ("q" "Quit" transient-quit-one)]
+  (interactive)
+  ;; Pre-populate issue-id from context if available
+  (let ((context-id (beads-agent--detect-issue-id)))
+    (when context-id
+      (transient-set-value 'beads-agent-start-menu
+                           (list (concat "--issue=" context-id)))))
+  (transient-setup 'beads-agent-start-menu))
+
 (transient-define-suffix beads-agent--start-suffix ()
   "Start agent on an issue."
   :key "s"
   :description "Start agent on issue"
   (interactive)
-  (call-interactively #'beads-agent-start))
+  (call-interactively #'beads-agent-start-menu))
 
 (transient-define-suffix beads-agent--stop-suffix ()
   "Stop an agent session."
