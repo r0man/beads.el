@@ -1898,5 +1898,160 @@ Note: Notes cannot be set at creation time, only via update."
        ;; The function should have been called during render
        (should insert-called)))))
 
+;;; Tests for Sub-issues Section (Epics)
+
+(defvar beads-show-test--epic-issue
+  '((id . "bd-epic-1")
+    (title . "Epic: Build feature X")
+    (description . "This epic tracks the full implementation")
+    (status . "open")
+    (priority . 1)
+    (issue_type . "epic")
+    (created_at . "2025-01-15T10:00:00Z")
+    (updated_at . "2025-01-15T10:00:00Z"))
+  "Sample epic issue.")
+
+(defvar beads-show-test--sub-issues-data
+  (vector
+   '((id . "bd-epic-1") (title . "Epic: Build feature X") (status . "open")
+     (depth . 0) (parent_id . "bd-epic-1"))
+   '((id . "bd-sub-1") (title . "Implement core module") (status . "closed")
+     (depth . 1) (parent_id . "bd-epic-1"))
+   '((id . "bd-sub-2") (title . "Write tests") (status . "in_progress")
+     (depth . 1) (parent_id . "bd-epic-1"))
+   '((id . "bd-sub-3") (title . "Update documentation") (status . "open")
+     (depth . 1) (parent_id . "bd-epic-1")))
+  "Mock dep tree response with sub-issues.")
+
+(ert-deftest beads-show-test-get-sub-issues-returns-depth-1-only ()
+  "Test that beads-show--get-sub-issues filters to depth=1 only."
+  (cl-letf (((symbol-function 'beads-command-dep-tree!)
+             (lambda (&rest _args)
+               beads-show-test--sub-issues-data)))
+    (let ((sub-issues (beads-show--get-sub-issues "bd-epic-1")))
+      ;; Should return 3 sub-issues (depth=1), not the root (depth=0)
+      (should (= (length sub-issues) 3))
+      ;; All should have depth=1
+      (dolist (item sub-issues)
+        (should (= (alist-get 'depth item) 1))))))
+
+(ert-deftest beads-show-test-get-sub-issues-handles-error ()
+  "Test that beads-show--get-sub-issues returns nil on error."
+  (cl-letf (((symbol-function 'beads-command-dep-tree!)
+             (lambda (&rest _args)
+               (error "Command failed"))))
+    (let ((sub-issues (beads-show--get-sub-issues "bd-epic-1")))
+      (should (null sub-issues)))))
+
+(ert-deftest beads-show-test-get-sub-issues-empty-tree ()
+  "Test that beads-show--get-sub-issues handles epic with no children."
+  (cl-letf (((symbol-function 'beads-command-dep-tree!)
+             (lambda (&rest _args)
+               ;; Only root, no children
+               (vector '((id . "bd-epic-1") (depth . 0))))))
+    (let ((sub-issues (beads-show--get-sub-issues "bd-epic-1")))
+      (should (null sub-issues)))))
+
+(ert-deftest beads-show-test-format-sub-issue-status ()
+  "Test status indicators for sub-issues."
+  (should (string-match-p "○" (beads-show--format-sub-issue-status "open")))
+  (should (string-match-p "◐" (beads-show--format-sub-issue-status "in_progress")))
+  (should (string-match-p "⊘" (beads-show--format-sub-issue-status "blocked")))
+  (should (string-match-p "●" (beads-show--format-sub-issue-status "closed"))))
+
+(ert-deftest beads-show-test-insert-sub-issues-section-renders ()
+  "Test that sub-issues section renders correctly."
+  (beads-show-test-with-temp-buffer
+   (cl-letf (((symbol-function 'beads-command-dep-tree!)
+              (lambda (&rest _args)
+                beads-show-test--sub-issues-data)))
+     (let ((inhibit-read-only t))
+       (beads-show--insert-sub-issues-section "bd-epic-1")
+       (let ((content (buffer-substring-no-properties (point-min) (point-max))))
+         ;; Should have the header
+         (should (string-match-p "Sub-issues" content))
+         ;; Should show completion count (1/3 completed)
+         (should (string-match-p "1/3 completed" content))
+         ;; Should have all sub-issue IDs
+         (should (string-match-p "bd-sub-1" content))
+         (should (string-match-p "bd-sub-2" content))
+         (should (string-match-p "bd-sub-3" content))
+         ;; Should have titles
+         (should (string-match-p "Implement core module" content))
+         (should (string-match-p "Write tests" content)))))))
+
+(ert-deftest beads-show-test-insert-sub-issues-section-no-children ()
+  "Test that sub-issues section is not rendered when no children."
+  (beads-show-test-with-temp-buffer
+   (cl-letf (((symbol-function 'beads-command-dep-tree!)
+              (lambda (&rest _args)
+                (vector '((id . "bd-epic-1") (depth . 0))))))
+     (let ((inhibit-read-only t)
+           (start (point)))
+       (beads-show--insert-sub-issues-section "bd-epic-1")
+       ;; Should not have inserted anything
+       (should (= (point) start))))))
+
+(ert-deftest beads-show-test-insert-sub-issues-clickable-ids ()
+  "Test that sub-issue IDs are clickable buttons."
+  (beads-show-test-with-temp-buffer
+   (cl-letf (((symbol-function 'beads-command-dep-tree!)
+              (lambda (&rest _args)
+                beads-show-test--sub-issues-data)))
+     (let ((inhibit-read-only t))
+       (beads-show--insert-sub-issues-section "bd-epic-1")
+       (goto-char (point-min))
+       ;; Should find buttons for sub-issue IDs
+       (should (search-forward "bd-sub-1" nil t))
+       ;; Check that there's a button at that location
+       (goto-char (match-beginning 0))
+       (should (button-at (point)))))))
+
+(ert-deftest beads-show-test-render-epic-includes-sub-issues ()
+  "Test that render-issue includes sub-issues section for epics."
+  (beads-show-test-with-temp-buffer
+   (let ((parsed-issue (beads--parse-issue beads-show-test--epic-issue)))
+     (cl-letf (((symbol-function 'beads-command-dep-tree!)
+                (lambda (&rest _args)
+                  beads-show-test--sub-issues-data))
+               ((symbol-function 'beads-agent--get-sessions-for-issue)
+                (lambda (_) nil)))
+       (beads-show--render-issue parsed-issue)
+       (let ((content (buffer-substring-no-properties (point-min) (point-max))))
+         ;; Should have sub-issues section
+         (should (string-match-p "Sub-issues" content))
+         ;; Should show completion count
+         (should (string-match-p "1/3 completed" content)))))))
+
+(ert-deftest beads-show-test-render-non-epic-no-sub-issues ()
+  "Test that render-issue does NOT include sub-issues for non-epics."
+  (beads-show-test-with-temp-buffer
+   (let ((parsed-issue (beads--parse-issue beads-show-test--full-issue)))
+     ;; This should NOT be called for non-epics
+     (let ((dep-tree-called nil))
+       (cl-letf (((symbol-function 'beads-command-dep-tree!)
+                  (lambda (&rest _args)
+                    (setq dep-tree-called t)
+                    (vector)))
+                 ((symbol-function 'beads-agent--get-sessions-for-issue)
+                  (lambda (_) nil)))
+         (beads-show--render-issue parsed-issue)
+         ;; Should NOT call dep-tree for non-epic
+         (should-not dep-tree-called))))))
+
+(ert-deftest beads-show-test-sub-issues-grouped-by-status ()
+  "Test that sub-issues are grouped by status (in_progress first)."
+  (beads-show-test-with-temp-buffer
+   (cl-letf (((symbol-function 'beads-command-dep-tree!)
+              (lambda (&rest _args)
+                beads-show-test--sub-issues-data)))
+     (let ((inhibit-read-only t))
+       (beads-show--insert-sub-issues-section "bd-epic-1")
+       (let ((content (buffer-substring-no-properties (point-min) (point-max))))
+         ;; in_progress issues should appear before open ones
+         (let ((in-progress-pos (string-match "bd-sub-2" content))
+               (open-pos (string-match "bd-sub-3" content)))
+           (should (< in-progress-pos open-pos))))))))
+
 (provide 'beads-show-test)
 ;;; beads-show-test.el ends here
