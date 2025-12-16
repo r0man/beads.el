@@ -16,6 +16,7 @@
 (require 'ert)
 (require 'beads)
 (require 'beads-show)
+(require 'beads-agent-backend)
 (require 'button)
 
 ;;; Test Fixtures
@@ -1798,6 +1799,104 @@ Note: Notes cannot be set at creation time, only via update."
         (dolist (buffer (buffer-list))
           (when (string-match-p "\\*beads-\\(show\\|edit\\)" (buffer-name buffer))
             (kill-buffer buffer)))))))
+
+;;; Tests for Agent Integration
+
+(ert-deftest beads-show-test-agent-keybinding-A ()
+  "Test that A keybinding is bound to beads-agent-start-at-point."
+  (beads-show-test-with-temp-buffer
+   (should (eq (lookup-key beads-show-mode-map (kbd "A"))
+              #'beads-agent-start-at-point))))
+
+(ert-deftest beads-show-test-agent-keybinding-J ()
+  "Test that J keybinding is bound to beads-agent-jump-at-point."
+  (beads-show-test-with-temp-buffer
+   (should (eq (lookup-key beads-show-mode-map (kbd "J"))
+              #'beads-agent-jump-at-point))))
+
+(ert-deftest beads-show-test-insert-agent-section-no-sessions ()
+  "Test that agent section is not rendered when no sessions exist."
+  (beads-show-test-with-temp-buffer
+   ;; Mock beads-agent--get-sessions-for-issue to return nil
+   (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+              (lambda (_issue-id) nil)))
+     (let ((inhibit-read-only t)
+           (start (point)))
+       (beads-show--insert-agent-section "bd-42")
+       ;; Should not have inserted anything
+       (should (= (point) start))))))
+
+(ert-deftest beads-show-test-insert-agent-section-with-sessions ()
+  "Test that agent section is rendered when sessions exist."
+  (beads-show-test-with-temp-buffer
+   ;; Create a mock session object
+   (let ((mock-session (beads-agent-session
+                        :id "session-123"
+                        :issue-id "bd-42"
+                        :backend-name "claude-code-ide"
+                        :project-dir "/home/user/project"
+                        :started-at "2025-01-15T10:30:45")))
+     ;; Mock the functions
+     (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+                (lambda (_issue-id) (list mock-session)))
+               ((symbol-function 'beads-agent--session-active-p)
+                (lambda (_session) t)))
+       (let ((inhibit-read-only t)
+             (start (point)))
+         (beads-show--insert-agent-section "bd-42")
+         ;; Should have inserted content
+         (should (> (point) start))
+         ;; Should contain "Agent Sessions" header
+         (should (string-match-p "Agent Sessions"
+                               (buffer-substring-no-properties
+                                start (point))))
+         ;; Should contain backend name
+         (should (string-match-p "claude-code-ide"
+                               (buffer-substring-no-properties
+                                start (point))))
+         ;; Should contain status
+         (should (string-match-p "active"
+                               (buffer-substring-no-properties
+                                start (point)))))))))
+
+(ert-deftest beads-show-test-insert-agent-section-inactive-session ()
+  "Test that agent section shows stopped status for inactive sessions."
+  (beads-show-test-with-temp-buffer
+   ;; Create a mock session object
+   (let ((mock-session (beads-agent-session
+                        :id "session-456"
+                        :issue-id "bd-42"
+                        :backend-name "efrit"
+                        :project-dir "/home/user/project"
+                        :started-at "2025-01-14T08:00:00")))
+     ;; Mock the functions - session is not active
+     (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+                (lambda (_issue-id) (list mock-session)))
+               ((symbol-function 'beads-agent--session-active-p)
+                (lambda (_session) nil)))
+       (let ((inhibit-read-only t)
+             (start (point)))
+         (beads-show--insert-agent-section "bd-42")
+         ;; Should have inserted content
+         (should (> (point) start))
+         ;; Should contain "stopped" status
+         (should (string-match-p "stopped"
+                               (buffer-substring-no-properties
+                                start (point)))))))))
+
+(ert-deftest beads-show-test-render-issue-includes-agent-section ()
+  "Test that beads-show--render-issue calls insert-agent-section."
+  (beads-show-test-with-temp-buffer
+   (let ((insert-called nil)
+         (parsed-issue (beads--parse-issue beads-show-test--full-issue)))
+     ;; Mock the agent session functions
+     (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+                (lambda (_issue-id)
+                  (setq insert-called t)
+                  nil)))
+       (beads-show--render-issue parsed-issue)
+       ;; The function should have been called during render
+       (should insert-called)))))
 
 (provide 'beads-show-test)
 ;;; beads-show-test.el ends here
