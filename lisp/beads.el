@@ -30,6 +30,7 @@
 ;;; Code:
 
 (require 'beads-command)
+(require 'beads-completion)
 (require 'beads-custom)
 (require 'json)
 (require 'project)
@@ -365,93 +366,19 @@ take precedence over defcustom settings."
     ;; Reverse to get correct order
     (nreverse parts)))
 
-;;; Completion Support
+;;; Completion Support (aliases for backward compatibility)
 
-(defvar beads--completion-cache nil
-  "Cache for issue list used in completion.
-Format: (TIMESTAMP . ISSUES-LIST)")
+;; The completion implementation is in beads-completion.el.
+;; These aliases maintain backward compatibility with existing code.
 
-(defvar beads--completion-cache-ttl 5
-  "Time-to-live for completion cache in seconds.")
+(defalias 'beads--issue-completion-table #'beads-completion-issue-table
+  "Return completion table for issue IDs with title-aware matching.")
 
-(defun beads--get-cached-issues ()
-  "Get cached issue list, refreshing if stale.
-Returns list of `beads-issue' objects or nil on error."
-  (let ((now (float-time)))
-    (when (or (null beads--completion-cache)
-              (> (- now (car beads--completion-cache))
-                 beads--completion-cache-ttl))
-      (condition-case nil
-          (setq beads--completion-cache
-                (cons now (beads-command-list!)))
-        (error
-         (setq beads--completion-cache nil))))
-    (cdr beads--completion-cache)))
+(defalias 'beads--invalidate-completion-cache #'beads-completion-invalidate-cache
+  "Invalidate the completion cache.")
 
-(defun beads--invalidate-completion-cache ()
-  "Invalidate the completion cache.
-Call this after creating, updating, or deleting issues."
-  (setq beads--completion-cache nil))
-
-(defun beads--issue-completion-table ()
-  "Return completion table for issue IDs with annotations."
-  (lambda (string pred action)
-    (if (eq action 'metadata)
-        '(metadata
-          (category . beads-issue)
-          (annotation-function . beads--annotate-issue)
-          (group-function . beads--group-issue))
-      (let ((issues (beads--get-cached-issues)))
-        (complete-with-action
-         action
-         (mapcar (lambda (i) (oref i id)) issues)
-         string pred)))))
-
-(defun beads--annotate-issue (issue-id)
-  "Annotate ISSUE-ID with status and title for completion."
-  (condition-case nil
-      (let* ((issues (beads--get-cached-issues))
-             (issue (seq-find (lambda (i)
-                               (string= (oref i id) issue-id))
-                             issues)))
-        (when issue
-          (let ((status (oref issue status))
-                (title (oref issue title))
-                (priority (oref issue priority)))
-            (format " %s [P%s] %s"
-                    (propertize (upcase status)
-                              'face (pcase status
-                                     ("open" 'success)
-                                     ("in_progress" 'warning)
-                                     ("blocked" 'error)
-                                     ("closed" 'shadow)
-                                     (_ 'default)))
-                    priority
-                    (if (> (length title) beads-display-value-max-length)
-                        (concat (substring title 0
-                                          (- beads-display-value-max-length 3))
-                               "...")
-                      title)))))
-    (error "")))
-
-(defun beads--group-issue (issue-id transform)
-  "Group ISSUE-ID by status for completion.
-If TRANSFORM is non-nil, return the transformed issue ID."
-  (if transform
-      issue-id
-    (condition-case nil
-        (let* ((issues (beads--get-cached-issues))
-               (issue (seq-find (lambda (i)
-                                 (string= (oref i id) issue-id))
-                               issues))
-               (status (when issue (oref issue status))))
-          (pcase status
-            ("open" "Open")
-            ("in_progress" "In Progress")
-            ("blocked" "Blocked")
-            ("closed" "Closed")
-            (_ "Other")))
-      (error "Other"))))
+(defalias 'beads--get-cached-issues #'beads-completion--get-cached-issues
+  "Get cached issue list, refreshing if stale.")
 
 (defvar beads--issue-id-history nil
   "History list for issue ID completion.")
