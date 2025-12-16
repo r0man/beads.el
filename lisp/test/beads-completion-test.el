@@ -230,16 +230,10 @@ Annotation functions may return nil or empty string for missing data."
   (should (string= "" (beads-completion--truncate-string nil 10))))
 
 ;;; Style Registration Tests
-
-(ert-deftest beads-completion-test-style-registered ()
-  "Test that beads-issue-title completion style is registered."
-  (should (assq 'beads-issue-title completion-styles-alist)))
-
-(ert-deftest beads-completion-test-category-override ()
-  "Test that beads-issue category has style override."
-  (let ((override (assq 'beads-issue completion-category-overrides)))
-    (should override)
-    (should (memq 'beads-issue-title (cdr (assq 'styles (cdr override)))))))
+;;
+;; Note: Custom style registration is currently disabled due to
+;; compatibility issues with Emacs completion machinery.
+;; The basic completion style works correctly for CAPF.
 
 ;;; Metadata Tests
 
@@ -276,6 +270,120 @@ Annotation functions may return nil or empty string for missing data."
     (should beads-completion--cache)
     (beads--invalidate-completion-cache)
     (should (null beads-completion--cache))))
+
+;;; Completion-at-Point (CAPF) Tests
+
+(ert-deftest beads-completion-test-capf-returns-nil-in-empty-buffer ()
+  "Test CAPF returns nil when buffer is empty."
+  (with-temp-buffer
+    (should (null (beads-completion-at-point)))))
+
+(ert-deftest beads-completion-test-capf-returns-nil-at-whitespace ()
+  "Test CAPF returns nil when at whitespace."
+  (with-temp-buffer
+    (insert "   ")
+    (should (null (beads-completion-at-point)))))
+
+(ert-deftest beads-completion-test-capf-returns-nil-at-number ()
+  "Test CAPF returns nil when at a plain number (not starting with letter)."
+  (with-temp-buffer
+    (insert "12345")
+    (should (null (beads-completion-at-point)))))
+
+(ert-deftest beads-completion-test-capf-returns-nil-single-char ()
+  "Test CAPF returns nil when text is only one character."
+  (with-temp-buffer
+    (insert "b")
+    (should (null (beads-completion-at-point)))))
+
+(ert-deftest beads-completion-test-capf-triggers-with-two-chars ()
+  "Test CAPF triggers with 2+ characters."
+  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+    (with-temp-buffer
+      (insert "bd")
+      (should (beads-completion-at-point)))))
+
+(ert-deftest beads-completion-test-capf-at-partial-id ()
+  "Test CAPF returns correct bounds and table at partial issue ID."
+  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+    (with-temp-buffer
+      (insert "bd-ab")
+      (let ((result (beads-completion-at-point)))
+        (should result)
+        (should (= 1 (nth 0 result)))  ; START
+        (should (= 6 (nth 1 result)))  ; END (point-max)
+        (should (functionp (nth 2 result)))  ; TABLE
+        (should (eq 'no (plist-get (nthcdr 3 result) :exclusive)))))))
+
+(ert-deftest beads-completion-test-capf-at-project-prefix ()
+  "Test CAPF works with various project prefixes."
+  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+    ;; Test with beads.el- prefix
+    (with-temp-buffer
+      (insert "beads.el-")
+      (let ((result (beads-completion-at-point)))
+        (should result)
+        (should (= 1 (nth 0 result)))
+        (should (= 10 (nth 1 result)))))
+    ;; Test with worker- prefix
+    (with-temp-buffer
+      (insert "worker-")
+      (let ((result (beads-completion-at-point)))
+        (should result)
+        (should (= 1 (nth 0 result)))
+        (should (= 8 (nth 1 result)))))))
+
+(ert-deftest beads-completion-test-capf-mid-word ()
+  "Test CAPF detects ID when cursor is in the middle of text."
+  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+    (with-temp-buffer
+      (insert "bd-abc1")
+      (goto-char 4)  ; Position after "bd-"
+      (let ((result (beads-completion-at-point)))
+        (should result)
+        (should (= 1 (nth 0 result)))
+        (should (= 8 (nth 1 result)))))))
+
+(ert-deftest beads-completion-test-capf-with-surrounding-text ()
+  "Test CAPF works when issue ID is surrounded by other text."
+  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+    (with-temp-buffer
+      (insert "See issue bd-abc for details")
+      (goto-char 16)  ; Position at "bd-abc"
+      (let ((result (beads-completion-at-point)))
+        (should result)
+        (should (= 11 (nth 0 result)))
+        (should (= 17 (nth 1 result)))))))
+
+(ert-deftest beads-completion-test-capf-exclusive-no ()
+  "Test CAPF sets :exclusive to no."
+  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+    (with-temp-buffer
+      (insert "bd-")
+      (let ((result (beads-completion-at-point)))
+        (should result)
+        (should (eq 'no (plist-get (nthcdr 3 result) :exclusive)))))))
+
+;;; Minor Mode Tests
+
+(ert-deftest beads-completion-test-mode-adds-to-capf ()
+  "Test that enabling beads-completion-mode adds to completion-at-point-functions."
+  (unwind-protect
+      (progn
+        (beads-completion-mode 1)
+        ;; Should be in buffer-local value
+        (should (memq 'beads-completion-at-point
+                      (buffer-local-value 'completion-at-point-functions
+                                          (current-buffer)))))
+    (beads-completion-mode -1)))
+
+(ert-deftest beads-completion-test-mode-removes-from-capf ()
+  "Test that disabling beads-completion-mode removes from completion-at-point-functions."
+  (beads-completion-mode 1)
+  (beads-completion-mode -1)
+  (should-not (memq 'beads-completion-at-point
+                    (buffer-local-value 'completion-at-point-functions
+                                        (current-buffer)))))
 
 (provide 'beads-completion-test)
 ;;; beads-completion-test.el ends here
