@@ -518,5 +518,31 @@
     (let ((result (beads-reader-label-name nil nil nil)))
       (should (equal result "new-label")))))
 
+;;; ============================================================
+;;; Agent Reader Tests
+;;; ============================================================
+
+(ert-deftest beads-reader-test-agent-backend ()
+  "Test agent backend reader with available backends."
+  (cl-letf (((symbol-function 'beads-agent--get-available-backends)
+             (lambda () (list (make-instance 'beads-reader-test--mock-backend))))
+            ((symbol-function 'completing-read)
+             (lambda (_prompt coll &rest _args)
+               (car coll))))
+    (let ((result (beads-reader-agent-backend nil nil nil)))
+      (should (equal result "test-backend")))))
+
+(ert-deftest beads-reader-test-agent-backend-no-backends ()
+  "Test agent backend reader with no available backends."
+  (cl-letf (((symbol-function 'beads-agent--get-available-backends)
+             (lambda () nil)))
+    (should-error (beads-reader-agent-backend nil nil nil)
+                  :type 'user-error)))
+
+;; Mock backend for testing
+(defclass beads-reader-test--mock-backend ()
+  ((name :initform "test-backend"))
+  :documentation "Mock backend for reader tests.")
+
 (provide 'beads-reader-test)
 ;;; beads-reader-test.el ends here

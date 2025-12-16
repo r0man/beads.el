@@ -890,6 +890,64 @@ While normally not desired, the system should handle this gracefully."
           (should (= (length (beads-agent--get-all-sessions)) 3))))
     (beads-agent-test--teardown)))
 
+;;; =========================================================================
+;;; Transient Menu Tests
+;;; =========================================================================
+
+(ert-deftest beads-agent-test-transient-prefix-defined ()
+  "Test that beads-agent transient prefix is defined."
+  (should (fboundp 'beads-agent))
+  (should (get 'beads-agent 'transient--prefix)))
+
+(ert-deftest beads-agent-test-start-menu-prefix-defined ()
+  "Test that beads-agent-start-menu transient prefix is defined."
+  (should (fboundp 'beads-agent-start-menu))
+  (should (get 'beads-agent-start-menu 'transient--prefix)))
+
+(ert-deftest beads-agent-test-start-menu-infixes-defined ()
+  "Test that beads-agent-start-menu infixes are defined."
+  ;; Issue ID infix
+  (should (fboundp 'beads-agent-start--infix-issue-id))
+  (should (get 'beads-agent-start--infix-issue-id 'transient--suffix))
+  ;; Backend infix
+  (should (fboundp 'beads-agent-start--infix-backend))
+  (should (get 'beads-agent-start--infix-backend 'transient--suffix)))
+
+(ert-deftest beads-agent-test-start-menu-suffixes-defined ()
+  "Test that beads-agent-start-menu suffixes are defined."
+  ;; Execute suffix
+  (should (fboundp 'beads-agent-start--execute))
+  (should (get 'beads-agent-start--execute 'transient--suffix))
+  ;; Preview suffix
+  (should (fboundp 'beads-agent-start--preview))
+  (should (get 'beads-agent-start--preview 'transient--suffix))
+  ;; Reset suffix
+  (should (fboundp 'beads-agent-start--reset))
+  (should (get 'beads-agent-start--reset 'transient--suffix)))
+
+(ert-deftest beads-agent-test-start-format-header ()
+  "Test format header for start menu."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads-agent--detect-issue-id)
+                 (lambda () nil)))
+        (let ((header (beads-agent-start--format-header)))
+          (should (stringp header))
+          (should (string-match-p "Start AI Agent" header))
+          (should (string-match-p "1 backend" header))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-start-format-header-with-context ()
+  "Test format header for start menu with detected context."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads-agent--detect-issue-id)
+                 (lambda () "bd-42")))
+        (let ((header (beads-agent-start--format-header)))
+          (should (stringp header))
+          (should (string-match-p "context: bd-42" header))))
+    (beads-agent-test--teardown)))
+
 ;;; Footer
 
 (provide 'beads-agent-test)
