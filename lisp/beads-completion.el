@@ -119,10 +119,11 @@ string if only one match, or STRING itself if multiple matches."
     (cond
      ((null matches) nil)
      ((and (= (length matches) 1)
-           (string= string (car matches)))
+           (string= string (substring-no-properties (car matches))))
       t)
      ((= (length matches) 1)
-      (car matches))
+      ;; Return plain string - properties cause issues with completion machinery
+      (substring-no-properties (car matches)))
      (t string))))  ;; Multiple matches - return input unchanged
 
 (defun beads-completion--issue-style-all (string table pred point)
@@ -132,12 +133,14 @@ TABLE is the completion table, PRED is the predicate, POINT is ignored."
   (let* ((all (all-completions "" table pred))
          (pattern (regexp-quote string))
          (case-fold-search t))
-    (seq-filter
-     (lambda (candidate)
-       (let ((title (get-text-property 0 'beads-title candidate)))
-         (or (string-match-p pattern candidate)
-             (and title (string-match-p pattern title)))))
-     all)))
+    ;; Return plain strings - keep properties only for filtering
+    (mapcar #'substring-no-properties
+            (seq-filter
+             (lambda (candidate)
+               (let ((title (get-text-property 0 'beads-title candidate)))
+                 (or (string-match-p pattern candidate)
+                     (and title (string-match-p pattern title)))))
+             all))))
 
 ;;; Shared Utilities
 
@@ -149,18 +152,76 @@ TABLE is the completion table, PRED is the predicate, POINT is ignored."
 
 ;;; Registration
 
-;; Add style (idempotent - won't duplicate)
-(unless (assq 'beads-issue-title completion-styles-alist)
-  (add-to-list 'completion-styles-alist
-               '(beads-issue-title
-                 beads-completion--issue-style-try
-                 beads-completion--issue-style-all
-                 "Match beads issue by ID or title.")))
+;; Custom completion style for title-aware matching.
+;; Temporarily disabled due to compatibility issues with completion machinery.
+;; The basic style works fine for now.
+;;
+;; (unless (assq 'beads-issue-title completion-styles-alist)
+;;   (add-to-list 'completion-styles-alist
+;;                '(beads-issue-title
+;;                  beads-completion--issue-style-try
+;;                  beads-completion--issue-style-all
+;;                  "Match beads issue by ID or title.")))
+;;
+;; (unless (assq 'beads-issue completion-category-overrides)
+;;   (add-to-list 'completion-category-overrides
+;;                '(beads-issue (styles beads-issue-title basic))))
 
-;; Only set category override if user hasn't customized
-(unless (assq 'beads-issue completion-category-overrides)
-  (add-to-list 'completion-category-overrides
-               '(beads-issue (styles beads-issue-title basic))))
+;;; Completion-at-Point (CAPF) Support
+
+(defun beads-completion-at-point ()
+  "Completion-at-point function for beads issue IDs.
+Detects partial issue ID at point and offers completions.
+Triggers when there are 2+ characters starting with a letter."
+  (let ((case-fold-search nil))
+    (save-excursion
+      ;; Move backward to find start of potential issue ID
+      (skip-chars-backward "a-zA-Z0-9._-")
+      (let ((start (point)))
+        (skip-chars-forward "a-zA-Z0-9._-")
+        (let* ((end (point))
+               (len (- end start)))
+          ;; Trigger with 2+ chars starting with a letter
+          (when (and (>= len 2)
+                     (save-excursion
+                       (goto-char start)
+                       (looking-at "[a-zA-Z]")))
+            (list start end
+                  (beads-completion-issue-table)
+                  :exclusive 'no)))))))
+
+(defun beads-completion--setup ()
+  "Add beads CAPF to current buffer."
+  (unless (memq #'beads-completion-at-point completion-at-point-functions)
+    (setq-local completion-at-point-functions
+                (cons #'beads-completion-at-point completion-at-point-functions))))
+
+(defun beads-completion--teardown ()
+  "Remove beads CAPF from current buffer."
+  (setq-local completion-at-point-functions
+              (remq #'beads-completion-at-point completion-at-point-functions)))
+
+;;;###autoload
+(define-minor-mode beads-completion-mode
+  "Global minor mode for beads issue ID in-buffer completion.
+When enabled, issue IDs can be completed in any buffer using
+\\[completion-at-point] (typically M-TAB or C-M-i)."
+  :global t
+  :group 'beads
+  :lighter nil
+  (if beads-completion-mode
+      (progn
+        ;; Add to all existing buffers
+        (dolist (buf (buffer-list))
+          (with-current-buffer buf
+            (beads-completion--setup)))
+        ;; Add to future buffers
+        (add-hook 'after-change-major-mode-hook #'beads-completion--setup))
+    ;; Remove from all buffers
+    (dolist (buf (buffer-list))
+      (with-current-buffer buf
+        (beads-completion--teardown)))
+    (remove-hook 'after-change-major-mode-hook #'beads-completion--setup)))
 
 (provide 'beads-completion)
 ;;; beads-completion.el ends here
