@@ -133,6 +133,21 @@
   "Face for markdown headings."
   :group 'beads-show)
 
+(defface beads-show-sub-issue-id-face
+  '((t :inherit link))
+  "Face for sub-issue IDs in epic view."
+  :group 'beads-show)
+
+(defface beads-show-sub-issue-title-face
+  '((t :inherit default))
+  "Face for sub-issue titles in epic view."
+  :group 'beads-show)
+
+(defface beads-show-sub-issue-progress-face
+  '((t :inherit font-lock-comment-face))
+  "Face for sub-issue progress summary."
+  :group 'beads-show)
+
 ;;; Variables
 
 (defvar-local beads-show--issue-id nil
@@ -301,6 +316,96 @@ CONTENT can be a string or nil (empty sections are skipped)."
                             (beads-show--format-date started)
                             status-str))))
         (insert "\n")))))
+
+(defun beads-show--get-sub-issues (epic-id)
+  "Fetch sub-issues for EPIC-ID.
+Returns a list of alists containing sub-issue data, or nil if no sub-issues.
+Each alist contains: id, title, status, priority, issue_type."
+  (condition-case nil
+      (let* ((tree-data (beads-command-dep-tree!
+                         :issue-id epic-id
+                         :reverse t
+                         :max-depth 1))
+             ;; tree-data is a vector or list of alists
+             (items (if (vectorp tree-data)
+                        (append tree-data nil)
+                      tree-data)))
+        ;; Filter to only include direct children (depth = 1)
+        (seq-filter (lambda (item)
+                      (let ((depth (alist-get 'depth item)))
+                        (and depth (= depth 1))))
+                    items))
+    (error nil)))
+
+(defun beads-show--format-sub-issue-status (status)
+  "Return a short formatted STATUS indicator for sub-issues."
+  (let ((indicator (pcase status
+                     ("open" "○")
+                     ("in_progress" "◐")
+                     ("blocked" "⊘")
+                     ("closed" "●")
+                     (_ "?")))
+        (face (pcase status
+                ("open" 'beads-show-status-open-face)
+                ("in_progress" 'beads-show-status-in-progress-face)
+                ("blocked" 'beads-show-status-blocked-face)
+                ("closed" 'beads-show-status-closed-face)
+                (_ 'default))))
+    (propertize indicator 'face face)))
+
+(defun beads-show--insert-sub-issues-section (epic-id)
+  "Insert sub-issues section for EPIC-ID if it has children.
+Shows direct child issues with their status and makes IDs clickable."
+  (when-let* ((sub-issues (beads-show--get-sub-issues epic-id)))
+    (let* ((total (length sub-issues))
+           (closed (seq-count (lambda (item)
+                                (equal (alist-get 'status item) "closed"))
+                              sub-issues))
+           ;; Group by status for organized display
+           (by-status (seq-group-by (lambda (item)
+                                      (alist-get 'status item))
+                                    sub-issues))
+           (status-order '("in_progress" "open" "blocked" "closed")))
+      (insert beads-show-section-separator)
+      (insert (propertize "Sub-issues" 'face 'beads-show-header-face))
+      (insert "  ")
+      (insert (propertize (format "(%d/%d completed)" closed total)
+                          'face 'beads-show-sub-issue-progress-face))
+      (insert "\n")
+      (insert (propertize (make-string 10 ?─) 'face 'beads-show-header-face))
+      (insert "\n\n")
+      ;; Display sub-issues grouped by status
+      (dolist (status status-order)
+        (when-let* ((issues (alist-get status by-status nil nil #'equal)))
+          (dolist (issue issues)
+            (let* ((id (alist-get 'id issue))
+                   (title (alist-get 'title issue))
+                   (issue-status (alist-get 'status issue))
+                   (status-indicator (beads-show--format-sub-issue-status
+                                      issue-status))
+                   ;; Truncate long titles
+                   (max-title-len 60)
+                   (display-title (if (and title (> (length title) max-title-len))
+                                      (concat (substring title 0 max-title-len)
+                                              "...")
+                                    (or title "Untitled")))
+                   (id-start (point)))
+              (insert "  ")
+              (insert status-indicator)
+              (insert " ")
+              ;; Insert ID as button
+              (insert id)
+              (make-button id-start (+ id-start 2 1 (length id))
+                           'issue-id id
+                           'action #'beads-show--button-action
+                           'follow-link t
+                           'help-echo (format "Show %s" id)
+                           'face 'beads-show-sub-issue-id-face)
+              (insert " ")
+              (insert (propertize display-title
+                                  'face 'beads-show-sub-issue-title-face))
+              (insert "\n")))))
+      (insert "\n"))))
 
 (defun beads-show--fontify-markdown (start end)
   "Apply basic markdown fontification between START and END."
@@ -611,6 +716,10 @@ ISSUE must be a `beads-issue' EIEIO object."
     (beads-show--insert-header "Updated" (beads-show--format-date updated))
     (when (and closed (not (string-empty-p closed)))
       (beads-show--insert-header "Closed" (beads-show--format-date closed)))
+
+    ;; Sub-issues section for epics
+    (when (equal type "epic")
+      (beads-show--insert-sub-issues-section id))
 
     ;; Text sections
     (beads-show--insert-section "Description" description)
