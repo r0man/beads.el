@@ -118,7 +118,7 @@ ORIG-FN is the original function, STATS is the test statistics."
 ;; Exclude worktree, share, and reference directories from everything
 (setf eldev-standard-excludes
       `(:or ,eldev-standard-excludes "worktree/**" "share/**"
-            "transient-reference/**" "beads-reference/**"))
+            "transient-reference/**" "beads-reference/**" "efrit-reference/**"))
 
 ;; Test files location
 (setf eldev-test-fileset '("lisp/test/*.el"))
