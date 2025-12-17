@@ -63,7 +63,8 @@ Currently only `efrit-do' is supported."
 
 (defclass beads-agent-backend-efrit (beads-agent-backend)
   ((name :initform "efrit")
-   (priority :initform 20))
+   (priority :initform 20)
+   (description :initform "Emacs-native AI agent framework"))
   :documentation "Backend for efrit integration.
 Provides async command execution via efrit-do with progress tracking.")
 

@@ -44,7 +44,8 @@
 
 (defclass beads-agent-backend-claude-code-ide (beads-agent-backend)
   ((name :initform "claude-code-ide")
-   (priority :initform 10))
+   (priority :initform 10)
+   (description :initform "MCP-based Claude Code integration"))
   :documentation "Backend for claude-code-ide.el integration.
 This is the primary, fully-implemented backend.")
 

@@ -66,7 +66,8 @@ Set to a string for custom error message.")
 
 (defclass beads-agent-backend-mock (beads-agent-backend)
   ((name :initform "mock")
-   (priority :initform 100))
+   (priority :initform 100)
+   (description :initform "Testing backend (not for production use)"))
   :documentation "Mock backend for testing beads-agent.
 Simulates all protocol methods without external dependencies.")
 

@@ -24,6 +24,9 @@
 
 (require 'beads-command)
 
+;; Forward declaration for customization variable defined in beads-custom.el
+(defvar beads-completion-show-unavailable-backends)
+
 ;;; Completion Cache
 
 (defvar beads-completion--cache nil
@@ -222,6 +225,68 @@ When enabled, issue IDs can be completed in any buffer using
       (with-current-buffer buf
         (beads-completion--teardown)))
     (remove-hook 'after-change-major-mode-hook #'beads-completion--setup)))
+
+;;; Backend Completion Support
+
+(defun beads-completion-backend-table ()
+  "Return completion table for AI agent backends with annotations.
+This table provides metadata for rich completion experiences with Vertico,
+Ivy, or other completion frameworks.
+
+Which backends appear in the table depends on the value of
+`beads-completion-show-unavailable-backends':
+- When non-nil (default): all registered backends are shown
+- When nil: only available backends are shown
+
+The completion category is `beads-agent-backend', which allows
+marginalia to automatically use the annotation function."
+  (require 'beads-agent-backend)
+  (require 'beads-custom)
+  (lambda (string pred action)
+    (if (eq action 'metadata)
+        '(metadata
+          (category . beads-agent-backend)
+          (annotation-function . beads-completion--backend-annotate)
+          (group-function . beads-completion--backend-group))
+      (let ((backends (if beads-completion-show-unavailable-backends
+                          (beads-agent--get-all-backends)
+                        (beads-agent--get-available-backends))))
+        (complete-with-action
+         action
+         (mapcar (lambda (b)
+                   (propertize (oref b name)
+                               'beads-backend b
+                               'beads-available (beads-agent-backend-available-p b)))
+                 backends)
+         string pred)))))
+
+(defun beads-completion--backend-annotate (candidate)
+  "Annotate backend CANDIDATE with priority, availability, and description.
+Returns a string like \" [P10] Available - MCP-based Claude Code integration\"."
+  (condition-case nil
+      (let* ((backend (get-text-property 0 'beads-backend candidate))
+             (available (get-text-property 0 'beads-available candidate)))
+        (when backend
+          (let ((priority (oref backend priority))
+                (description (oref backend description)))
+            (concat
+             (format " [P%d] %s"
+                     priority
+                     (if available
+                         (propertize "Available" 'face 'success)
+                       (propertize "Unavailable" 'face 'shadow)))
+             (when (and description (not (string-empty-p description)))
+               (format " - %s" description))))))
+    (error "")))
+
+(defun beads-completion--backend-group (candidate transform)
+  "Group backend CANDIDATE by availability.
+If TRANSFORM is non-nil, return CANDIDATE unchanged.
+Otherwise, return the group name (\"Available\" or \"Unavailable\")."
+  (if transform
+      candidate
+    (let ((available (get-text-property 0 'beads-available candidate)))
+      (if available "Available" "Unavailable"))))
 
 (provide 'beads-completion)
 ;;; beads-completion.el ends here
