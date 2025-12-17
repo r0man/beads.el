@@ -19,6 +19,7 @@
 (require 'ert)
 (require 'beads-completion)
 (require 'beads-types)
+(require 'beads-agent-backend)
 
 ;;; Test Helpers
 
@@ -384,6 +385,219 @@ Annotation functions may return nil or empty string for missing data."
   (should-not (memq 'beads-completion-at-point
                     (buffer-local-value 'completion-at-point-functions
                                         (current-buffer)))))
+
+;;; Backend Completion Tests
+
+;; Mock backend class for testing
+(defclass beads-completion-test--mock-backend (beads-agent-backend)
+  ((available :initarg :available :initform t))
+  :documentation "Mock backend for completion tests.")
+
+(cl-defmethod beads-agent-backend-available-p
+  ((backend beads-completion-test--mock-backend))
+  "Return availability status for mock BACKEND."
+  (oref backend available))
+
+(defun beads-completion-test--make-mock-backends ()
+  "Create a list of mock backends for testing."
+  (list
+   (beads-completion-test--mock-backend
+    :name "claudemacs" :priority 10 :available t
+    :description "AI pair programming via eat terminal")
+   (beads-completion-test--mock-backend
+    :name "agent-shell" :priority 20 :available t
+    :description "AI agent via shell integration")
+   (beads-completion-test--mock-backend
+    :name "dummy-backend" :priority 99 :available nil
+    :description "Unavailable test backend")))
+
+(ert-deftest beads-completion-test-backend-table-metadata ()
+  "Test that backend completion table provides correct metadata."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends))
+    (let* ((table (beads-completion-backend-table))
+           (metadata (funcall table "" nil 'metadata)))
+      (should (eq 'metadata (car metadata)))
+      (should (eq 'beads-agent-backend (cdr (assq 'category metadata))))
+      (should (eq 'beads-completion--backend-annotate
+                  (cdr (assq 'annotation-function metadata))))
+      (should (eq 'beads-completion--backend-group
+                  (cdr (assq 'group-function metadata)))))))
+
+(ert-deftest beads-completion-test-backend-table-candidates ()
+  "Test that backend completion table returns all backends."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends))
+    (let* ((table (beads-completion-backend-table))
+           (candidates (all-completions "" table nil)))
+      (should (= 3 (length candidates)))
+      (should (member "claudemacs" candidates))
+      (should (member "agent-shell" candidates))
+      (should (member "dummy-backend" candidates)))))
+
+(ert-deftest beads-completion-test-backend-candidates-have-properties ()
+  "Test that backend candidates have expected text properties."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends))
+    (let* ((table (beads-completion-backend-table))
+           (candidates (all-completions "" table nil)))
+      (dolist (candidate candidates)
+        (should (get-text-property 0 'beads-backend candidate))
+        ;; Check that beads-available property exists (it may be t or nil)
+        (should (plist-member (text-properties-at 0 candidate) 'beads-available))))))
+
+(ert-deftest beads-completion-test-backend-available-property ()
+  "Test that beads-available property reflects actual availability."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends))
+    (let* ((table (beads-completion-backend-table))
+           (candidates (all-completions "" table nil))
+           (claudemacs (seq-find (lambda (c) (string= "claudemacs" c)) candidates))
+           (dummy (seq-find (lambda (c) (string= "dummy-backend" c)) candidates)))
+      (should (eq t (get-text-property 0 'beads-available claudemacs)))
+      (should (eq nil (get-text-property 0 'beads-available dummy))))))
+
+(ert-deftest beads-completion-test-backend-annotate-available ()
+  "Test annotation for available backend includes description."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends))
+    (let* ((table (beads-completion-backend-table))
+           (candidates (all-completions "" table nil))
+           (claudemacs (seq-find (lambda (c) (string= "claudemacs" c)) candidates))
+           (annotation (beads-completion--backend-annotate claudemacs)))
+      (should annotation)
+      (should (string-match-p "\\[P10\\]" annotation))
+      (should (string-match-p "Available" annotation))
+      (should (string-match-p "AI pair programming via eat terminal" annotation)))))
+
+(ert-deftest beads-completion-test-backend-annotate-unavailable ()
+  "Test annotation for unavailable backend includes description."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends))
+    (let* ((table (beads-completion-backend-table))
+           (candidates (all-completions "" table nil))
+           (dummy (seq-find (lambda (c) (string= "dummy-backend" c)) candidates))
+           (annotation (beads-completion--backend-annotate dummy)))
+      (should annotation)
+      (should (string-match-p "\\[P99\\]" annotation))
+      (should (string-match-p "Unavailable" annotation))
+      (should (string-match-p "Unavailable test backend" annotation)))))
+
+(ert-deftest beads-completion-test-backend-annotate-handles-nil ()
+  "Test that backend annotation handles invalid input gracefully."
+  (should (string= "" (beads-completion--backend-annotate nil)))
+  (should (null (beads-completion--backend-annotate "nonexistent"))))
+
+(ert-deftest beads-completion-test-backend-annotate-empty-description ()
+  "Test annotation for backend with empty description."
+  (let ((backends (list (beads-completion-test--mock-backend
+                         :name "no-desc" :priority 50 :available t
+                         :description ""))))
+    (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+               (lambda () backends)))
+      (let* ((table (beads-completion-backend-table))
+             (candidates (all-completions "" table nil))
+             (no-desc (car candidates))
+             (annotation (beads-completion--backend-annotate no-desc)))
+        (should annotation)
+        (should (string-match-p "\\[P50\\]" annotation))
+        (should (string-match-p "Available" annotation))
+        ;; Should NOT contain " - " since description is empty
+        (should-not (string-match-p " - " annotation))))))
+
+(ert-deftest beads-completion-test-backend-group-available ()
+  "Test grouping for available backends."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends))
+    (let* ((table (beads-completion-backend-table))
+           (candidates (all-completions "" table nil))
+           (claudemacs (seq-find (lambda (c) (string= "claudemacs" c)) candidates)))
+      (should (string= "Available"
+                       (beads-completion--backend-group claudemacs nil))))))
+
+(ert-deftest beads-completion-test-backend-group-unavailable ()
+  "Test grouping for unavailable backends."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends))
+    (let* ((table (beads-completion-backend-table))
+           (candidates (all-completions "" table nil))
+           (dummy (seq-find (lambda (c) (string= "dummy-backend" c)) candidates)))
+      (should (string= "Unavailable"
+                       (beads-completion--backend-group dummy nil))))))
+
+(ert-deftest beads-completion-test-backend-group-transform ()
+  "Test that group function returns candidate when transform is non-nil."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends))
+    (let* ((table (beads-completion-backend-table))
+           (candidates (all-completions "" table nil))
+           (candidate (car candidates)))
+      (should (string= candidate
+                       (beads-completion--backend-group candidate t))))))
+
+;;; Show Unavailable Backends Customization Tests
+
+(ert-deftest beads-completion-test-backend-table-shows-all-when-setting-t ()
+  "Test that all backends are shown when show-unavailable is t."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends)
+            ((symbol-function 'beads-agent--get-available-backends)
+             (lambda ()
+               (seq-filter #'beads-agent-backend-available-p
+                           (beads-completion-test--make-mock-backends)))))
+    (let ((beads-completion-show-unavailable-backends t))
+      (let* ((table (beads-completion-backend-table))
+             (candidates (all-completions "" table nil)))
+        (should (= 3 (length candidates)))
+        (should (member "claudemacs" candidates))
+        (should (member "agent-shell" candidates))
+        (should (member "dummy-backend" candidates))))))
+
+(ert-deftest beads-completion-test-backend-table-hides-unavailable-when-setting-nil ()
+  "Test that only available backends are shown when show-unavailable is nil."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends)
+            ((symbol-function 'beads-agent--get-available-backends)
+             (lambda ()
+               (seq-filter #'beads-agent-backend-available-p
+                           (beads-completion-test--make-mock-backends)))))
+    (let ((beads-completion-show-unavailable-backends nil))
+      (let* ((table (beads-completion-backend-table))
+             (candidates (all-completions "" table nil)))
+        (should (= 2 (length candidates)))
+        (should (member "claudemacs" candidates))
+        (should (member "agent-shell" candidates))
+        (should-not (member "dummy-backend" candidates))))))
+
+(ert-deftest beads-completion-test-backend-table-default-shows-all ()
+  "Test that default value of show-unavailable-backends is t."
+  ;; This test verifies the default behavior matches the documented default
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends)
+            ((symbol-function 'beads-agent--get-available-backends)
+             (lambda ()
+               (seq-filter #'beads-agent-backend-available-p
+                           (beads-completion-test--make-mock-backends)))))
+    ;; Use default value (should be t)
+    (let* ((table (beads-completion-backend-table))
+           (candidates (all-completions "" table nil)))
+      ;; With default t, all 3 backends should be visible
+      (should (= 3 (length candidates))))))
+
+(ert-deftest beads-completion-test-backend-available-property-when-hiding ()
+  "Test that available property is correct even when hiding unavailable."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends)
+            ((symbol-function 'beads-agent--get-available-backends)
+             (lambda ()
+               (seq-filter #'beads-agent-backend-available-p
+                           (beads-completion-test--make-mock-backends)))))
+    (let ((beads-completion-show-unavailable-backends nil))
+      (let* ((table (beads-completion-backend-table))
+             (candidates (all-completions "" table nil)))
+        ;; All candidates should have beads-available = t since we only show available
+        (dolist (candidate candidates)
+          (should (eq t (get-text-property 0 'beads-available candidate))))))))
 
 (provide 'beads-completion-test)
 ;;; beads-completion-test.el ends here

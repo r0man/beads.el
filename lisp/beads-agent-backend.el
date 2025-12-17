@@ -50,7 +50,13 @@
     :initarg :priority
     :type integer
     :initform 50
-    :documentation "Priority for auto-selection (lower = preferred)."))
+    :documentation "Priority for auto-selection (lower = preferred).")
+   (description
+    :initarg :description
+    :type string
+    :initform ""
+    :documentation "Brief description of what this backend does.
+Shown in completion annotations to help users choose backends."))
   :abstract t
   :documentation "Abstract base class for AI agent backends.
 Subclasses must implement all generic methods defined below.")
@@ -264,6 +270,12 @@ BACKEND must be an instance of a beads-agent-backend subclass."
   "Return list of available backends, sorted by priority."
   (cl-remove-if-not #'beads-agent-backend-available-p
                     beads-agent--backends))
+
+(defun beads-agent--get-all-backends ()
+  "Return list of all registered backends, sorted by priority.
+Unlike `beads-agent--get-available-backends', this returns all
+backends including those that are currently unavailable."
+  beads-agent--backends)
 
 (defun beads-agent--backend-names ()
   "Return list of available backend names."

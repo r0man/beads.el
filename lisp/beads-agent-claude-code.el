@@ -76,7 +76,8 @@ If upstream changes the format, this function may need updating."
 
 (defclass beads-agent-backend-claude-code (beads-agent-backend)
   ((name :initform "claude-code")
-   (priority :initform 40))
+   (priority :initform 40)
+   (description :initform "Lightweight Claude Code via vterm/eat"))
   :documentation "Backend for claude-code.el integration.
 Uses stevemolitor's claude-code package for terminal-based Claude sessions.")
 

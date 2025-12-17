@@ -98,7 +98,8 @@ Returns list of buffers in `agent-shell-mode' with matching `default-directory'.
 
 (defclass beads-agent-backend-agent-shell (beads-agent-backend)
   ((name :initform "agent-shell")
-   (priority :initform 15))
+   (priority :initform 15)
+   (description :initform "AI agent via shell integration"))
   :documentation "Backend for agent-shell integration.
 Uses xenodium's agent-shell package for AI agent sessions.")
 

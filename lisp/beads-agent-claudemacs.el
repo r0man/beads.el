@@ -113,7 +113,8 @@ Returns a list of matching buffers, most recent first."
 
 (defclass beads-agent-backend-claudemacs (beads-agent-backend)
   ((name :initform "claudemacs")
-   (priority :initform 35))
+   (priority :initform 35)
+   (description :initform "AI pair programming via eat terminal"))
   :documentation "Backend for claudemacs integration.
 Uses cpoile's claudemacs package for AI pair programming sessions.")
 
