@@ -422,16 +422,37 @@ falls back to `completing-read-multiple' for selecting multiple issue IDs."
 ;;; ============================================================
 
 (defun beads-reader-agent-backend (_prompt _initial-input _history)
-  "Read AI agent backend name with completion.
-Returns a backend name string from available backends."
-  (require 'beads-agent)
-  (let* ((available (beads-agent--get-available-backends))
-         (names (mapcar (lambda (b) (oref b name)) available))
+  "Read AI agent backend name with rich completion.
+Returns a backend name string.  Shows all registered backends with
+annotations indicating priority and availability status.
+
+With Vertico or similar completion frameworks, backends are grouped
+by availability and annotated with priority (e.g., \"[P10] Available\").
+
+Only available backends can be selected, but unavailable ones are
+shown for informational purposes.
+
+Signals an error if no backends are registered or if no backends
+are available."
+  (require 'beads-agent-backend)
+  (require 'beads-completion)
+  (let* ((all-backends (beads-agent--get-all-backends))
+         (available-names (mapcar (lambda (b) (oref b name))
+                                  (beads-agent--get-available-backends)))
          (default (when (bound-and-true-p beads-agent-default-backend)
-                    (car (member beads-agent-default-backend names)))))
-    (if (null names)
-        (user-error "No AI agent backends available")
-      (completing-read "Backend: " names nil t default))))
+                    (car (member beads-agent-default-backend available-names)))))
+    (cond
+     ((null all-backends)
+      (user-error "No AI agent backends registered"))
+     ((null available-names)
+      (user-error "No AI agent backends available"))
+     (t
+      (completing-read "Backend: "
+                       (beads-completion-backend-table)
+                       (lambda (cand)
+                         (member (if (consp cand) (car cand) cand)
+                                 available-names))
+                       t default)))))
 
 (provide 'beads-reader)
 ;;; beads-reader.el ends here

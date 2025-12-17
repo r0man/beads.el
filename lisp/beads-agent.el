@@ -427,7 +427,10 @@ This is needed because bd daemon doesn't work well across worktrees."
 
 (defun beads-agent--select-backend ()
   "Select backend: use default if set, else prompt from available.
-Returns a beads-agent-backend instance or signals an error."
+Returns a beads-agent-backend instance or signals an error.
+
+When prompting, uses rich completion with annotations showing
+priority and availability status."
   (let ((available (beads-agent--get-available-backends)))
     (unless available
       (user-error "No AI agent backends available.
@@ -448,10 +451,16 @@ See: https://github.com/anthropics/claude-code"))
      ;; Single backend available
      ((= (length available) 1)
       (car available))
-     ;; Multiple backends - prompt user
+     ;; Multiple backends - prompt user with rich completion
      (t
-      (let* ((names (mapcar (lambda (b) (oref b name)) available))
-             (choice (completing-read "Select backend: " names nil t)))
+      (require 'beads-completion)
+      (let* ((available-names (mapcar (lambda (b) (oref b name)) available))
+             (choice (completing-read "Select backend: "
+                                      (beads-completion-backend-table)
+                                      (lambda (cand)
+                                        (member (if (consp cand) (car cand) cand)
+                                                available-names))
+                                      t)))
         (beads-agent--get-backend choice))))))
 
 ;;; Context Building
