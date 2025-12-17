@@ -24,7 +24,7 @@
 ;;
 ;; 1. `beads-agent--create-session' creates session object and runs hook
 ;; 2. Hook handler in beads-sesman.el registers session with sesman
-;; 3. Query functions iterate `(sesman-sessions 'beads)' to find sessions
+;; 3. Query functions iterate `(sesman-sessions beads-sesman-system)' to find sessions
 ;; 4. `beads-agent--destroy-session' runs hook to unregister from sesman
 ;;
 ;; Backend implementations should require this module and implement
@@ -38,6 +38,9 @@
 (require 'eieio)
 (require 'cl-lib)
 (require 'sesman)
+
+;; Forward declaration - defined in beads-sesman.el (required at end of file)
+(defvar beads-sesman-system)
 
 ;;; EIEIO Classes
 
@@ -331,7 +334,7 @@ which triggers unregistration from sesman."
 (defun beads-agent--get-session (session-id)
   "Get session by SESSION-ID, or nil if not found.
 Searches all sesman sessions for a beads-agent-session with matching ID."
-  (cl-loop for sesman-session in (sesman-sessions 'beads)
+  (cl-loop for sesman-session in (sesman-sessions beads-sesman-system)
            for beads-session = (nth 2 sesman-session)
            when (and beads-session
                      (equal (oref beads-session id) session-id))
@@ -339,7 +342,7 @@ Searches all sesman sessions for a beads-agent-session with matching ID."
 
 (defun beads-agent--get-sessions-for-issue (issue-id)
   "Get all sessions for ISSUE-ID as a list of session objects."
-  (cl-loop for sesman-session in (sesman-sessions 'beads)
+  (cl-loop for sesman-session in (sesman-sessions beads-sesman-system)
            for beads-session = (nth 2 sesman-session)
            when (and beads-session
                      (equal (oref beads-session issue-id) issue-id))
@@ -347,7 +350,7 @@ Searches all sesman sessions for a beads-agent-session with matching ID."
 
 (defun beads-agent--get-all-sessions ()
   "Get all active sessions as a list of beads-agent-session objects."
-  (cl-loop for sesman-session in (sesman-sessions 'beads)
+  (cl-loop for sesman-session in (sesman-sessions beads-sesman-system)
            for beads-session = (nth 2 sesman-session)
            when beads-session
            collect beads-session))
@@ -355,7 +358,7 @@ Searches all sesman sessions for a beads-agent-session with matching ID."
 (defun beads-agent--current-session ()
   "Get current session based on buffer context.
 Uses sesman's context-aware session selection."
-  (when-let ((sesman-session (sesman-current-session 'beads)))
+  (when-let ((sesman-session (sesman-current-session beads-sesman-system)))
     (nth 2 sesman-session)))
 
 (defun beads-agent--session-active-p (session)

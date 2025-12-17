@@ -34,10 +34,10 @@
 ;;
 ;; Usage:
 ;;   ;; Start a session (will be registered with sesman)
-;;   (sesman-start-session 'beads)
+;;   (sesman-start-session 'Beads)
 ;;
 ;;   ;; Get current session for buffer context
-;;   (sesman-current-session 'beads)
+;;   (sesman-current-session 'Beads)
 ;;
 ;;   ;; Open session browser
 ;;   M-x beads-sesman-browser
@@ -52,6 +52,12 @@
 (declare-function beads-agent-start "beads-agent")
 (declare-function beads-agent-stop "beads-agent")
 (declare-function beads-agent--read-issue-id "beads-agent")
+
+;;; Constants
+
+(defconst beads-sesman-system 'Beads
+  "Sesman system name for beads sessions.
+This symbol identifies beads sessions in sesman's registry.")
 
 ;;; Customization
 
@@ -77,7 +83,7 @@ Falls back to \"<issue-id>@<working-dir>\" if backend not found."
 
 ;;; Sesman Generics Implementation
 
-(cl-defmethod sesman-start-session ((_system (eql beads)))
+(cl-defmethod sesman-start-session ((_system (eql Beads)))
   "Start a new beads session asynchronously.
 Prompt for issue ID and backend, then start the agent.
 
@@ -90,34 +96,34 @@ the agent has started to get the session."
     ;; Return nil - session registration happens via hook when agent starts
     nil))
 
-(cl-defmethod sesman-quit-session ((_system (eql beads)) session)
+(cl-defmethod sesman-quit-session ((_system (eql Beads)) session)
   "Quit beads SESSION.
 SESSION is a sesman session list (name backend-handle beads-agent-session)."
   (when-let ((beads-session (nth 2 session)))
     (beads-agent-stop (oref beads-session id))))
 
-(cl-defmethod sesman-restart-session ((_system (eql beads)) session)
+(cl-defmethod sesman-restart-session ((_system (eql Beads)) session)
   "Restart beads SESSION.
 Stop the session then start a new one for the same issue."
   (when-let ((beads-session (nth 2 session)))
     (let ((issue-id (oref beads-session issue-id)))
-      (sesman-quit-session 'beads session)
+      (sesman-quit-session beads-sesman-system session)
       ;; Small delay to allow cleanup
       (run-at-time beads-sesman-restart-delay nil
                    (lambda ()
                      (beads-agent-start issue-id))))))
 
-(cl-defmethod sesman-project ((_system (eql beads)))
+(cl-defmethod sesman-project ((_system (eql Beads)))
   "Return project root for current directory.
 Used by sesman for project-based context linking."
   (beads--find-project-root))
 
-(cl-defmethod sesman-context-types ((_system (eql beads)))
+(cl-defmethod sesman-context-types ((_system (eql Beads)))
   "Return context types understood by beads.
 Sessions can be linked to buffers, directories, or projects."
   '(buffer directory project))
 
-(cl-defmethod sesman-more-relevant-p ((_system (eql beads)) session1 session2)
+(cl-defmethod sesman-more-relevant-p ((_system (eql Beads)) session1 session2)
   "Compare SESSION1 and SESSION2 for relevance.
 Use recency-based comparison (more recent = more relevant)."
   (let ((s1 (nth 2 session1))
@@ -125,7 +131,7 @@ Use recency-based comparison (more recent = more relevant)."
     (when (and s1 s2)
       (string> (oref s1 started-at) (oref s2 started-at)))))
 
-(cl-defmethod sesman-session-info ((_system (eql beads)) session)
+(cl-defmethod sesman-session-info ((_system (eql Beads)) session)
   "Return display info for SESSION.
 Return plist with :objects, :strings for sesman-browser display."
   (let* ((beads-session (nth 2 session))
@@ -157,27 +163,27 @@ Link to worktree directory (primary), main project (fallback),
 and the agent buffer (if available)."
   (let ((sesman-session (beads-sesman--make-sesman-session beads-session)))
     ;; Register with sesman
-    (sesman-register 'beads sesman-session)
+    (sesman-register beads-sesman-system sesman-session)
     ;; Link to worktree directory (primary context)
     (when-let ((worktree (oref beads-session worktree-dir)))
-      (sesman-link-session 'beads sesman-session 'directory worktree))
+      (sesman-link-session beads-sesman-system sesman-session 'directory worktree))
     ;; Link to main project (fallback context)
-    (sesman-link-session 'beads sesman-session 'project
+    (sesman-link-session beads-sesman-system sesman-session 'project
                          (oref beads-session project-dir))
     ;; Link to agent buffer if available
     (when-let* ((backend (beads-agent--get-backend (oref beads-session backend-name)))
                 (buffer (beads-agent-backend-get-buffer backend beads-session)))
       (when (buffer-live-p buffer)
-        (sesman-link-session 'beads sesman-session 'buffer buffer)
+        (sesman-link-session beads-sesman-system sesman-session 'buffer buffer)
         ;; Set sesman-system in the buffer so sesman commands work there
         (with-current-buffer buffer
-          (setq-local sesman-system 'beads))))))
+          (setq-local sesman-system beads-sesman-system))))))
 
 (defun beads-sesman--unregister-session (beads-session)
   "Unregister BEADS-SESSION from sesman."
   (let ((name (beads-sesman--session-name beads-session)))
-    (sesman-unregister 'beads
-                       (sesman-session 'beads name))))
+    (sesman-unregister beads-sesman-system
+                       (sesman-session beads-sesman-system name))))
 
 ;;; Hook Integration
 
@@ -195,36 +201,36 @@ SESSION is the beads-agent-session object."
 (defun beads-sesman-start ()
   "Start a new beads session via sesman."
   (interactive)
-  (sesman-start-session 'beads))
+  (sesman-start-session beads-sesman-system))
 
 ;;;###autoload
 (defun beads-sesman-quit ()
   "Quit the current beads session."
   (interactive)
-  (if-let ((session (sesman-current-session 'beads)))
-      (sesman-quit-session 'beads session)
+  (if-let ((session (sesman-current-session beads-sesman-system)))
+      (sesman-quit-session beads-sesman-system session)
     (user-error "No current beads session")))
 
 ;;;###autoload
 (defun beads-sesman-restart ()
   "Restart the current beads session."
   (interactive)
-  (if-let ((session (sesman-current-session 'beads)))
-      (sesman-restart-session 'beads session)
+  (if-let ((session (sesman-current-session beads-sesman-system)))
+      (sesman-restart-session beads-sesman-system session)
     (user-error "No current beads session")))
 
 ;;;###autoload
 (defun beads-sesman-browser ()
   "Open the sesman browser for beads sessions."
   (interactive)
-  (let ((sesman-system 'beads))
+  (let ((sesman-system beads-sesman-system))
     (sesman-browser)))
 
 ;;;###autoload
 (defun beads-sesman-link ()
   "Link a beads session to the current context."
   (interactive)
-  (let ((sesman-system 'beads))
+  (let ((sesman-system beads-sesman-system))
     (call-interactively #'sesman-link-with-buffer)))
 
 ;;; Keymap

@@ -296,7 +296,7 @@ WORKTREE-DIR is optional worktree directory."
 
 (ert-deftest beads-sesman-test-context-types ()
   "Test sesman-context-types returns expected types."
-  (let ((types (sesman-context-types 'beads)))
+  (let ((types (sesman-context-types beads-sesman-system)))
     (should (listp types))
     (should (member 'buffer types))
     (should (member 'directory types))
@@ -317,9 +317,9 @@ WORKTREE-DIR is optional worktree directory."
              (older-sesman (beads-sesman--make-sesman-session older))
              (newer-sesman (beads-sesman--make-sesman-session newer)))
         ;; Newer should be more relevant than older
-        (should (sesman-more-relevant-p 'beads newer-sesman older-sesman))
+        (should (sesman-more-relevant-p beads-sesman-system newer-sesman older-sesman))
         ;; Older should NOT be more relevant than newer
-        (should-not (sesman-more-relevant-p 'beads older-sesman newer-sesman)))
+        (should-not (sesman-more-relevant-p beads-sesman-system older-sesman newer-sesman)))
     (beads-sesman-test--teardown)))
 
 (ert-deftest beads-sesman-test-more-relevant-p-nil-sessions ()
@@ -330,10 +330,10 @@ WORKTREE-DIR is optional worktree directory."
              (valid-sesman (beads-sesman--make-sesman-session valid-session))
              (nil-sesman '("name" handle nil)))
         ;; Both combinations with nil should return nil
-        (should-not (sesman-more-relevant-p 'beads nil-sesman valid-sesman))
-        (should-not (sesman-more-relevant-p 'beads valid-sesman nil-sesman))
+        (should-not (sesman-more-relevant-p beads-sesman-system nil-sesman valid-sesman))
+        (should-not (sesman-more-relevant-p beads-sesman-system valid-sesman nil-sesman))
         ;; Both nil should return nil
-        (should-not (sesman-more-relevant-p 'beads nil-sesman nil-sesman)))
+        (should-not (sesman-more-relevant-p beads-sesman-system nil-sesman nil-sesman)))
     (beads-sesman-test--teardown)))
 
 (ert-deftest beads-sesman-test-more-relevant-p-equal-timestamps ()
@@ -345,7 +345,7 @@ WORKTREE-DIR is optional worktree directory."
              (sesman1 (beads-sesman--make-sesman-session session1))
              (sesman2 (beads-sesman--make-sesman-session session2)))
         ;; Same timestamp - neither should be more relevant
-        (should-not (sesman-more-relevant-p 'beads sesman1 sesman2)))
+        (should-not (sesman-more-relevant-p beads-sesman-system sesman1 sesman2)))
     (beads-sesman-test--teardown)))
 
 (ert-deftest beads-sesman-test-session-info ()
@@ -354,7 +354,7 @@ WORKTREE-DIR is optional worktree directory."
   (unwind-protect
       (let* ((sesman-session (beads-sesman--make-sesman-session
                               beads-sesman-test--mock-session))
-             (info (sesman-session-info 'beads sesman-session)))
+             (info (sesman-session-info beads-sesman-system sesman-session)))
         (should (plist-get info :objects))
         (should (plist-get info :strings))
         ;; Check strings contain expected info
@@ -367,7 +367,7 @@ WORKTREE-DIR is optional worktree directory."
 
 (ert-deftest beads-sesman-test-session-info-nil-beads-session ()
   "Test sesman-session-info handles nil beads session."
-  (let ((info (sesman-session-info 'beads '("name" handle nil))))
+  (let ((info (sesman-session-info beads-sesman-system '("name" handle nil))))
     (should (null info))))
 
 (ert-deftest beads-sesman-test-session-info-with-worktree ()
@@ -377,7 +377,7 @@ WORKTREE-DIR is optional worktree directory."
       (let* ((session (beads-sesman-test--make-mock-session
                        "test-id" "/tmp/main" "/tmp/worktree/test-id"))
              (sesman-session (beads-sesman--make-sesman-session session))
-             (info (sesman-session-info 'beads sesman-session)))
+             (info (sesman-session-info beads-sesman-system sesman-session)))
         (should (plist-get info :strings))
         ;; Check worktree is included
         (let ((strings (plist-get info :strings)))
@@ -407,7 +407,7 @@ WORKTREE-DIR is optional worktree directory."
               ((symbol-function 'beads-agent-start)
                (lambda (issue-id)
                  (setq agent-start-called issue-id))))
-      (let ((result (sesman-start-session 'beads)))
+      (let ((result (sesman-start-session beads-sesman-system)))
         ;; Should return nil (async registration via hook)
         (should (null result))
         ;; Should have prompted for issue
@@ -425,7 +425,7 @@ WORKTREE-DIR is optional worktree directory."
                      (setq stop-called session-id))))
           (let ((sesman-session (beads-sesman--make-sesman-session
                                   beads-sesman-test--mock-session)))
-            (sesman-quit-session 'beads sesman-session)
+            (sesman-quit-session beads-sesman-system sesman-session)
             ;; Should have called stop with the session ID
             (should (equal stop-called "session-123")))))
     (beads-sesman-test--teardown)))
@@ -436,7 +436,7 @@ WORKTREE-DIR is optional worktree directory."
     (cl-letf (((symbol-function 'beads-agent-stop)
                (lambda (_) (setq stop-called t))))
       ;; Session with nil at position 2
-      (sesman-quit-session 'beads '("name" handle nil))
+      (sesman-quit-session beads-sesman-system '("name" handle nil))
       ;; Should not have called stop
       (should-not stop-called))))
 
@@ -457,10 +457,10 @@ WORKTREE-DIR is optional worktree directory."
                      'mock-timer)))
           (let ((sesman-session (beads-sesman--make-sesman-session
                                   beads-sesman-test--mock-session)))
-            (sesman-restart-session 'beads sesman-session)
+            (sesman-restart-session beads-sesman-system sesman-session)
             ;; Should have called quit
             (should quit-called)
-            (should (eq (car quit-called) 'beads))
+            (should (eq (car quit-called) beads-sesman-system))
             ;; Should have scheduled restart
             (should timer-fn)
             (should (= timer-delay 0.5))
@@ -480,7 +480,7 @@ WORKTREE-DIR is optional worktree directory."
     (cl-letf (((symbol-function 'sesman-quit-session)
                (lambda (_system _session) (setq quit-called t))))
       ;; Session with nil at position 2
-      (sesman-restart-session 'beads '("name" handle nil))
+      (sesman-restart-session beads-sesman-system '("name" handle nil))
       ;; Should not have called quit
       (should-not quit-called))))
 
@@ -488,13 +488,13 @@ WORKTREE-DIR is optional worktree directory."
   "Test sesman-project returns project root."
   (cl-letf (((symbol-function 'beads--find-project-root)
              (lambda () "/path/to/project")))
-    (should (equal (sesman-project 'beads) "/path/to/project"))))
+    (should (equal (sesman-project beads-sesman-system) "/path/to/project"))))
 
 (ert-deftest beads-sesman-test-project-nil ()
   "Test sesman-project handles nil project root."
   (cl-letf (((symbol-function 'beads--find-project-root)
              (lambda () nil)))
-    (should (null (sesman-project 'beads)))))
+    (should (null (sesman-project beads-sesman-system)))))
 
 ;;; Tests for User Commands
 
@@ -549,7 +549,7 @@ WORKTREE-DIR is optional worktree directory."
 Tests that beads-agent--create-session correctly registers with sesman
 via the hook, and that query/destroy functions work correctly."
   ;; Save original sessions to restore later
-  (let ((original-sessions (copy-sequence (sesman-sessions 'beads))))
+  (let ((original-sessions (copy-sequence (sesman-sessions beads-sesman-system))))
     (unwind-protect
         (let* ((test-issue-id "integration-test-issue")
                (test-project "/tmp/integration-test")
@@ -585,13 +585,13 @@ via the hook, and that query/destroy functions work correctly."
           (should (null (beads-agent--get-sessions-for-issue test-issue-id))))
 
       ;; Cleanup: remove any test sessions that might have leaked
-      (dolist (sesman-session (sesman-sessions 'beads))
+      (dolist (sesman-session (sesman-sessions beads-sesman-system))
         (unless (member sesman-session original-sessions)
-          (sesman-unregister 'beads sesman-session))))))
+          (sesman-unregister beads-sesman-system sesman-session))))))
 
 (ert-deftest beads-sesman-integration-multiple-sessions ()
   "Integration test: multiple sessions for different issues."
-  (let ((original-sessions (copy-sequence (sesman-sessions 'beads))))
+  (let ((original-sessions (copy-sequence (sesman-sessions beads-sesman-system))))
     (unwind-protect
         (let* ((s1 (beads-agent--create-session
                     "issue-1" "mock" "/tmp/p1" 'h1))
@@ -628,9 +628,9 @@ via the hook, and that query/destroy functions work correctly."
           (should (null (beads-agent--get-sessions-for-issue "issue-2"))))
 
       ;; Cleanup
-      (dolist (sesman-session (sesman-sessions 'beads))
+      (dolist (sesman-session (sesman-sessions beads-sesman-system))
         (unless (member sesman-session original-sessions)
-          (sesman-unregister 'beads sesman-session))))))
+          (sesman-unregister beads-sesman-system sesman-session))))))
 
 (provide 'beads-sesman-test)
 ;;; beads-sesman-test.el ends here
