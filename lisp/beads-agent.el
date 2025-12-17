@@ -1111,6 +1111,7 @@ If no session exists for the current issue, starts a new agent session."
 (require 'beads-agent-claude-code-ide nil t)
 (require 'beads-agent-claude-code nil t)
 (require 'beads-agent-claudemacs nil t)
+(require 'beads-agent-agent-shell nil t)
 (require 'beads-agent-efrit nil t)
 
 ;;; Load Agent List Module
