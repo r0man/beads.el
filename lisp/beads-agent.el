@@ -884,6 +884,142 @@ sessions cleaned up."
                cleaned (if (= cleaned 1) "" "s")))
     cleaned))
 
+;;; Per-Issue Agent Menu
+
+(defvar beads-agent-issue--current-issue-id nil
+  "Current issue ID for the per-issue agent menu.
+Set by `beads-agent-issue' before displaying the menu.")
+
+(defun beads-agent--session-display-name (session)
+  "Return display name for SESSION in per-issue menu.
+Format: \"#N (backend-name)\" where N is extracted from session ID."
+  (let ((session-id (oref session id))
+        (backend (oref session backend-name)))
+    (if-let ((num (beads-agent--session-number-from-id session-id)))
+        (format "#%d (%s)" num backend)
+      ;; Fallback for old format sessions
+      (format "%s (%s)" (oref session id) backend))))
+
+(defun beads-agent-issue--format-header ()
+  "Format header for per-issue agent menu."
+  (let* ((issue-id beads-agent-issue--current-issue-id)
+         (sessions (beads-agent--get-sessions-for-issue issue-id))
+         (count (length sessions)))
+    (format "Agents for %s [%d active]" issue-id count)))
+
+(defun beads-agent-issue--get-sessions ()
+  "Get sessions for current issue, sorted by session number."
+  (let ((sessions (beads-agent--get-sessions-for-issue
+                   beads-agent-issue--current-issue-id)))
+    (sort sessions
+          (lambda (a b)
+            (let ((num-a (or (beads-agent--session-number-from-id (oref a id)) 0))
+                  (num-b (or (beads-agent--session-number-from-id (oref b id)) 0)))
+              (< num-a num-b))))))
+
+(transient-define-suffix beads-agent-issue--start-new ()
+  "Start a new agent for the current issue."
+  :key "s"
+  :description "Start new agent"
+  (interactive)
+  (beads-agent-start beads-agent-issue--current-issue-id)
+  ;; Refresh the menu after a delay to show new session
+  (run-at-time 1 nil #'transient--redisplay))
+
+(transient-define-suffix beads-agent-issue--stop-one ()
+  "Stop one agent session for the current issue."
+  :key "k"
+  :description "Stop one agent"
+  (interactive)
+  (let* ((sessions (beads-agent-issue--get-sessions)))
+    (if (null sessions)
+        (message "No active agents for %s" beads-agent-issue--current-issue-id)
+      (let* ((choices (mapcar (lambda (s)
+                                (cons (beads-agent--session-display-name s)
+                                      (oref s id)))
+                              sessions))
+             (choice (completing-read "Stop agent: " choices nil t))
+             (session-id (cdr (assoc choice choices))))
+        (beads-agent-stop session-id)
+        (transient--redisplay)))))
+
+(transient-define-suffix beads-agent-issue--stop-all ()
+  "Stop all agents for the current issue."
+  :key "K"
+  :description "Stop all agents"
+  (interactive)
+  (let* ((sessions (beads-agent-issue--get-sessions))
+         (count (length sessions)))
+    (if (zerop count)
+        (message "No active agents for %s" beads-agent-issue--current-issue-id)
+      (when (y-or-n-p (format "Stop all %d agent%s for %s? "
+                              count (if (= count 1) "" "s")
+                              beads-agent-issue--current-issue-id))
+        (dolist (session sessions)
+          (beads-agent-stop (oref session id)))
+        (message "Stopped %d agent%s" count (if (= count 1) "" "s"))
+        (transient--redisplay)))))
+
+(transient-define-suffix beads-agent-issue--refresh ()
+  "Refresh the per-issue menu."
+  :key "g"
+  :description "Refresh"
+  :transient t
+  (interactive)
+  (transient--redisplay))
+
+(defun beads-agent-issue--make-jump-suffix (session index)
+  "Create a jump suffix for SESSION at INDEX (1-based)."
+  (let ((key (format "j%d" index))
+        (desc (beads-agent--session-display-name session))
+        (session-id (oref session id)))
+    `(,key ,desc
+           (lambda ()
+             (interactive)
+             (beads-agent-jump ,session-id)))))
+
+(defun beads-agent-issue--setup-agents ()
+  "Return vector of jump suffixes for active agents."
+  (let* ((sessions (beads-agent-issue--get-sessions))
+         (suffixes nil)
+         (index 1))
+    (dolist (session sessions)
+      (push (beads-agent-issue--make-jump-suffix session index) suffixes)
+      (cl-incf index))
+    (if suffixes
+        (vconcat (nreverse suffixes))
+      [("" "No active agents" ignore)])))
+
+;;;###autoload (autoload 'beads-agent-issue "beads-agent" nil t)
+(transient-define-prefix beads-agent-issue (issue-id)
+  "Manage AI agents for a specific issue.
+
+Shows all active agents for ISSUE-ID with jump keys to switch
+to each agent's buffer.
+
+ISSUE-ID is required; detected from context or prompted."
+  [:description
+   (lambda () (beads-agent-issue--format-header))]
+  ["Active Agents"
+   :class transient-column
+   :setup-children
+   (lambda (_)
+     (mapcar (lambda (spec)
+               (transient-parse-suffix
+                'beads-agent-issue spec))
+             (append (beads-agent-issue--setup-agents) nil)))]
+  ["Actions"
+   (beads-agent-issue--start-new)
+   (beads-agent-issue--stop-one)
+   (beads-agent-issue--stop-all)]
+  ["Other"
+   (beads-agent-issue--refresh)
+   ("q" "Quit" transient-quit-one)]
+  (interactive (list (or (beads-agent--detect-issue-id)
+                         (beads-agent--read-issue-id))))
+  (setq beads-agent-issue--current-issue-id issue-id)
+  (transient-setup 'beads-agent-issue))
+
 ;;; Transient Menu
 
 (defun beads-agent--format-header ()
@@ -1084,20 +1220,19 @@ is enabled (default)."
 
 ;;;###autoload
 (defun beads-agent-start-at-point ()
-  "Start AI agent for issue at point, or jump to existing session.
-If a session already exists for this issue, jump to it instead of
-starting a new one.
+  "Start AI agent for issue at point, or manage existing agents.
+If agents exist for this issue, show the management menu.
+Otherwise, start an agent directly.
 
 When called from `beads-list-mode' or `beads-show-mode', the list/show
 buffer is kept visible and the agent buffer opens in the other window."
   (interactive)
   (if-let ((id (beads-agent--detect-issue-id)))
-      ;; Check for existing session first
-      (if-let ((sessions (beads-agent--get-sessions-for-issue id)))
-          ;; Session exists - jump to it in other window if in list/show mode
-          (beads-agent--jump-other-window-if-applicable
-           (oref (car sessions) id))
-        ;; No session - start new one
+      ;; Check for existing sessions first
+      (if (beads-agent--get-sessions-for-issue id)
+          ;; Sessions exist - show management menu
+          (beads-agent-issue id)
+        ;; No sessions - start new agent directly
         ;; If we're in list/show mode, arrange windows to keep list visible
         (beads-agent--start-preserving-list-buffer id))
     (call-interactively #'beads-agent-start)))

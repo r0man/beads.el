@@ -188,15 +188,95 @@ SESSION is the beads-agent-session object."
 
 ;;; Tests for Session Management
 
+;;; Tests for Session Numbering
+
+(ert-deftest beads-agent-test-session-number-from-id ()
+  "Test extracting session number from ID."
+  ;; Valid formats
+  (should (= (beads-agent--session-number-from-id "bd-123#1") 1))
+  (should (= (beads-agent--session-number-from-id "bd-123#42") 42))
+  (should (= (beads-agent--session-number-from-id "my-project#100") 100))
+  ;; Edge cases with special characters in issue ID
+  (should (= (beads-agent--session-number-from-id "beads.el-abc#5") 5))
+  ;; Invalid formats
+  (should (null (beads-agent--session-number-from-id "bd-123")))
+  (should (null (beads-agent--session-number-from-id "session-20251217-abcd")))
+  (should (null (beads-agent--session-number-from-id nil)))
+  (should (null (beads-agent--session-number-from-id "")))
+  ;; Number must be at the end
+  (should (null (beads-agent--session-number-from-id "bd-123#1extra"))))
+
+(ert-deftest beads-agent-test-next-session-number-empty ()
+  "Test next session number when no sessions exist."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        ;; No sessions exist
+        (should (= (beads-agent--next-session-number "bd-123") 1)))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-next-session-number-existing ()
+  "Test next session number with existing sessions."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        ;; Create some sessions
+        (beads-agent--create-session "bd-123" "mock" "/tmp" 'h1)
+        (beads-agent--create-session "bd-123" "mock" "/tmp" 'h2)
+        ;; Next should be 3
+        (should (= (beads-agent--next-session-number "bd-123") 3)))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-next-session-number-per-issue ()
+  "Test that session numbers are independent per issue."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        ;; Create sessions for different issues
+        (beads-agent--create-session "bd-123" "mock" "/tmp" 'h1)
+        (beads-agent--create-session "bd-123" "mock" "/tmp" 'h2)
+        (beads-agent--create-session "bd-456" "mock" "/tmp" 'h3)
+        ;; Each issue has independent numbering
+        (should (= (beads-agent--next-session-number "bd-123") 3))
+        (should (= (beads-agent--next-session-number "bd-456") 2))
+        (should (= (beads-agent--next-session-number "bd-789") 1)))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-next-session-number-gaps ()
+  "Test that gaps in numbering don't affect next number."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        ;; Create sessions
+        (let ((s1 (beads-agent--create-session "bd-123" "mock" "/tmp" 'h1))
+              (s2 (beads-agent--create-session "bd-123" "mock" "/tmp" 'h2)))
+          ;; Destroy session 1, leaving a gap
+          (beads-agent--destroy-session (oref s1 id))
+          ;; Should still return max+1, not reuse the gap
+          (should (= (beads-agent--next-session-number "bd-123") 3))))
+    (beads-agent-test--teardown)))
+
 (ert-deftest beads-agent-test-generate-session-id ()
-  "Test session ID generation."
-  (let ((id1 (beads-agent--generate-session-id))
-        (id2 (beads-agent--generate-session-id)))
-    (should (stringp id1))
-    (should (stringp id2))
-    (should (string-prefix-p "session-" id1))
-    ;; IDs should be unique (with high probability)
-    (should (not (equal id1 id2)))))
+  "Test session ID generation with numbered format."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        ;; First session for an issue should be #1
+        (let ((id1 (beads-agent--generate-session-id "bd-123")))
+          (should (equal id1 "bd-123#1")))
+        ;; After creating a session, next should be #2
+        (beads-agent--create-session "bd-123" "mock" "/tmp" 'h1)
+        (let ((id2 (beads-agent--generate-session-id "bd-123")))
+          (should (equal id2 "bd-123#2")))
+        ;; Different issue starts at #1
+        (let ((id3 (beads-agent--generate-session-id "bd-456")))
+          (should (equal id3 "bd-456#1"))))
+    (beads-agent-test--teardown)))
 
 (ert-deftest beads-agent-test-create-session ()
   "Test session creation."
@@ -1089,6 +1169,248 @@ behavior is to always prompt unless a default is configured."
         (let ((header (beads-agent-start--format-header)))
           (should (stringp header))
           (should (string-match-p "context: bd-42" header))))
+    (beads-agent-test--teardown)))
+
+;;; =========================================================================
+;;; Per-Issue Agent Menu Tests
+;;; =========================================================================
+
+(ert-deftest beads-agent-test-issue-menu-prefix-defined ()
+  "Test that beads-agent-issue transient prefix is defined."
+  (should (fboundp 'beads-agent-issue))
+  (should (get 'beads-agent-issue 'transient--prefix)))
+
+(ert-deftest beads-agent-test-session-display-name-format ()
+  "Test session display name format."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let ((session (beads-agent--create-session
+                        "bd-123" "mock" "/tmp" 'handle)))
+          (let ((display-name (beads-agent--session-display-name session)))
+            ;; Should match "#N (backend)" format
+            (should (stringp display-name))
+            (should (string-match-p "^#[0-9]+ (mock)$" display-name)))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-issue-format-header ()
+  "Test per-issue menu header format."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        ;; Set up the context
+        (setq beads-agent-issue--current-issue-id "bd-test")
+        ;; Create some sessions for the issue
+        (beads-agent--create-session "bd-test" "mock" "/tmp" 'h1)
+        (beads-agent--create-session "bd-test" "mock" "/tmp" 'h2)
+        (let ((header (beads-agent-issue--format-header)))
+          (should (stringp header))
+          (should (string-match-p "bd-test" header))
+          (should (string-match-p "2 active" header))))
+    (setq beads-agent-issue--current-issue-id nil)
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-issue-get-sessions-sorted ()
+  "Test that per-issue sessions are returned sorted by number."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (setq beads-agent-issue--current-issue-id "bd-sorted")
+        ;; Create sessions (they get sequential numbers)
+        (beads-agent--create-session "bd-sorted" "mock" "/tmp" 'h1)
+        (beads-agent--create-session "bd-sorted" "mock" "/tmp" 'h2)
+        (beads-agent--create-session "bd-sorted" "mock" "/tmp" 'h3)
+        (let ((sessions (beads-agent-issue--get-sessions)))
+          (should (= (length sessions) 3))
+          ;; Verify sorted by session number
+          (let ((nums (mapcar (lambda (s)
+                                (beads-agent--session-number-from-id (oref s id)))
+                              sessions)))
+            (should (equal nums '(1 2 3))))))
+    (setq beads-agent-issue--current-issue-id nil)
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-issue-setup-agents-empty ()
+  "Test setup-agents returns placeholder when no agents."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (setq beads-agent-issue--current-issue-id "bd-empty")
+        ;; No sessions for this issue
+        (let ((suffixes (beads-agent-issue--setup-agents)))
+          ;; Should return a vector with placeholder
+          (should (vectorp suffixes))
+          (should (= (length suffixes) 1))))
+    (setq beads-agent-issue--current-issue-id nil)
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-issue-setup-agents-with-sessions ()
+  "Test setup-agents returns jump suffixes for each agent."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (setq beads-agent-issue--current-issue-id "bd-agents")
+        ;; Create 2 sessions
+        (beads-agent--create-session "bd-agents" "mock" "/tmp" 'h1)
+        (beads-agent--create-session "bd-agents" "mock" "/tmp" 'h2)
+        (let ((suffixes (beads-agent-issue--setup-agents)))
+          ;; Should return a vector with 2 jump suffixes
+          (should (vectorp suffixes))
+          (should (= (length suffixes) 2))))
+    (setq beads-agent-issue--current-issue-id nil)
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-issue-make-jump-suffix ()
+  "Test that jump suffix is created with correct key and description."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let ((session (beads-agent--create-session
+                        "bd-jump" "mock" "/tmp" 'handle)))
+          (let ((suffix (beads-agent-issue--make-jump-suffix session 1)))
+            ;; Suffix should be (key desc lambda)
+            (should (listp suffix))
+            (should (equal (car suffix) "j1"))  ; j1 for index 1
+            (should (stringp (cadr suffix)))    ; description
+            (should (functionp (caddr suffix))))))
+    (beads-agent-test--teardown)))
+
+;;; =========================================================================
+;;; Context-Sensitive Start Tests (beads-agent-start-at-point)
+;;; =========================================================================
+
+(ert-deftest beads-agent-test-start-at-point-no-sessions-starts-directly ()
+  "Test that start-at-point starts agent directly when no sessions exist."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions)
+                ((symbol-function 'beads-agent--detect-issue-id)
+                 (lambda () "bd-direct"))
+                ((symbol-function 'beads-agent--start-preserving-list-buffer)
+                 (lambda (id)
+                   ;; Track that this was called with correct ID
+                   (should (equal id "bd-direct"))
+                   'start-called))
+                ((symbol-function 'beads-agent-issue)
+                 (lambda (&rest _)
+                   (error "Should not show menu when no sessions"))))
+        ;; No sessions exist for this issue
+        (should (null (beads-agent--get-sessions-for-issue "bd-direct")))
+        ;; Call start-at-point - should call start function, not menu
+        (beads-agent-start-at-point))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-start-at-point-with-sessions-shows-menu ()
+  "Test that start-at-point shows management menu when sessions exist."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions)
+                ((symbol-function 'beads-agent--detect-issue-id)
+                 (lambda () "bd-menu"))
+                ((symbol-function 'beads-agent--start-preserving-list-buffer)
+                 (lambda (&rest _)
+                   (error "Should not start when sessions exist")))
+                ((symbol-function 'beads-agent-issue)
+                 (lambda (id)
+                   ;; Track that menu was called with correct ID
+                   (should (equal id "bd-menu"))
+                   'menu-called)))
+        ;; Create a session for this issue
+        (beads-agent--create-session "bd-menu" "mock" "/tmp" 'handle)
+        (should (beads-agent--get-sessions-for-issue "bd-menu"))
+        ;; Call start-at-point - should call menu, not start
+        (beads-agent-start-at-point))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-start-at-point-no-context-prompts ()
+  "Test that start-at-point prompts when no issue ID detected."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((start-called nil))
+        (cl-letf (((symbol-function 'sesman-sessions)
+                   #'beads-agent-test--mock-sesman-sessions)
+                  ((symbol-function 'beads-agent--detect-issue-id)
+                   (lambda () nil))
+                  ;; Need to mock as interactive command for call-interactively
+                  ((symbol-function 'beads-agent-start)
+                   (lambda (&optional _issue-id _backend _prompt)
+                     (interactive)
+                     (setq start-called t))))
+          ;; Call start-at-point with no detected ID
+          ;; Should fall through to interactive beads-agent-start
+          (beads-agent-start-at-point)
+          (should start-called)))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-start-at-point-transition-after-stop ()
+  "Test transition: sessions exist -> stop all -> direct start again."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((menu-called 0)
+            (start-called 0))
+        (cl-letf (((symbol-function 'sesman-sessions)
+                   #'beads-agent-test--mock-sesman-sessions)
+                  ((symbol-function 'beads-agent--detect-issue-id)
+                   (lambda () "bd-transition"))
+                  ((symbol-function 'beads-agent--start-preserving-list-buffer)
+                   (lambda (id)
+                     (should (equal id "bd-transition"))
+                     (cl-incf start-called)))
+                  ((symbol-function 'beads-agent-issue)
+                   (lambda (id)
+                     (should (equal id "bd-transition"))
+                     (cl-incf menu-called))))
+          ;; Phase 1: No sessions - should start directly
+          (beads-agent-start-at-point)
+          (should (= start-called 1))
+          (should (= menu-called 0))
+
+          ;; Phase 2: Create session - should show menu
+          (let ((session (beads-agent--create-session
+                          "bd-transition" "mock" "/tmp" 'handle)))
+            (beads-agent-start-at-point)
+            (should (= start-called 1))  ; unchanged
+            (should (= menu-called 1))
+
+            ;; Phase 3: Stop session - should go back to direct start
+            (beads-agent--destroy-session (oref session id)))
+          (beads-agent-start-at-point)
+          (should (= start-called 2))
+          (should (= menu-called 1))))  ; unchanged
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-start-at-point-cross-issue-independence ()
+  "Test that sessions for other issues don't affect current issue."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((detected-issue "bd-current")
+            (start-called nil)
+            (menu-called nil))
+        (cl-letf (((symbol-function 'sesman-sessions)
+                   #'beads-agent-test--mock-sesman-sessions)
+                  ((symbol-function 'beads-agent--detect-issue-id)
+                   (lambda () detected-issue))
+                  ((symbol-function 'beads-agent--start-preserving-list-buffer)
+                   (lambda (_) (setq start-called t)))
+                  ((symbol-function 'beads-agent-issue)
+                   (lambda (_) (setq menu-called t))))
+          ;; Create sessions for OTHER issues, not the current one
+          (beads-agent--create-session "bd-other-1" "mock" "/tmp" 'h1)
+          (beads-agent--create-session "bd-other-2" "mock" "/tmp" 'h2)
+          ;; Current issue has no sessions
+          (should (null (beads-agent--get-sessions-for-issue "bd-current")))
+          ;; Should start directly, not show menu
+          (beads-agent-start-at-point)
+          (should start-called)
+          (should (null menu-called))))
     (beads-agent-test--teardown)))
 
 ;;; Footer
