@@ -127,11 +127,13 @@
                   (lambda (b) (equal (oref b name) "claude-code"))
                   beads-agent--backends)))
     (should backend)
-    ;; The backend should report unavailable if claude-code isn't loaded
-    ;; and can't be required (which is the case in our test environment)
-    (unless (featurep 'claude-code)
-      ;; Without the claude-code package, availability should be nil
-      ;; (assuming claude executable is in PATH - we test package check)
+    ;; When claude-code package and claude executable are both available,
+    ;; the backend should report available
+    (if (and (or (featurep 'claude-code)
+                 (require 'claude-code nil t))
+             (executable-find "claude"))
+        (should (beads-agent-backend-available-p backend))
+      ;; Otherwise it should be unavailable
       (should (not (beads-agent-backend-available-p backend))))))
 
 (provide 'beads-agent-claude-code-test)
