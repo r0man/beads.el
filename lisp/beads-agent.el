@@ -15,10 +15,10 @@
 ;;
 ;; The architecture uses an abstract backend system that allows
 ;; different AI agent implementations to be plugged in:
-;; - claude-code-ide.el (primary, fully implemented)
-;; - efrit (placeholder)
-;; - claudemacs (placeholder)
-;; - claude-code.el (placeholder)
+;; - claude-code-ide.el (MCP-based integration)
+;; - claude-code.el (terminal-based integration)
+;; - claudemacs (AI pair programming with eat terminal)
+;; - efrit (Emacs-native AI agent framework)
 ;;
 ;; See `beads-agent-backend.el' for the backend protocol definition.
 ;;
