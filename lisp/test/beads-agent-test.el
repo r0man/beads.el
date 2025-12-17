@@ -891,6 +891,149 @@ While normally not desired, the system should handle this gracefully."
     (beads-agent-test--teardown)))
 
 ;;; =========================================================================
+;;; Backend Selection Tests
+;;; =========================================================================
+
+(ert-deftest beads-agent-test-select-backend-uses-default ()
+  "Test that select-backend uses default when set and available."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent-default-backend "mock")
+            (prompt-called nil))
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (&rest _)
+                     (setq prompt-called t)
+                     "mock")))
+          (let ((backend (beads-agent--select-backend)))
+            ;; Should return mock backend
+            (should (equal (oref backend name) "mock"))
+            ;; Should NOT have prompted - uses default
+            (should (null prompt-called)))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-select-backend-prompts-without-default ()
+  "Test that select-backend prompts when no default set."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent-default-backend nil)
+            (prompt-called nil))
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (&rest _)
+                     (setq prompt-called t)
+                     "mock")))
+          (let ((backend (beads-agent--select-backend)))
+            ;; Should return mock backend
+            (should (equal (oref backend name) "mock"))
+            ;; Should have prompted - no default set
+            (should prompt-called))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-select-backend-prompts-for-single ()
+  "Test that select-backend prompts even with single backend available.
+Previously it auto-selected when only one was available, but the new
+behavior is to always prompt unless a default is configured."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent-default-backend nil)
+            (prompt-called nil))
+        ;; Only one backend is registered (mock)
+        (should (= (length (beads-agent--get-available-backends)) 1))
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (&rest _)
+                     (setq prompt-called t)
+                     "mock")))
+          (beads-agent--select-backend)
+          ;; Should still prompt even though only one backend
+          (should prompt-called)))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-select-backend-unavailable-default ()
+  "Test that select-backend prompts if default is unavailable."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent-default-backend "nonexistent")
+            (prompt-called nil))
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (&rest _)
+                     (setq prompt-called t)
+                     "mock")))
+          (let ((backend (beads-agent--select-backend)))
+            ;; Should return mock backend (from prompt)
+            (should (equal (oref backend name) "mock"))
+            ;; Should have prompted because default doesn't exist
+            (should prompt-called))))
+    (beads-agent-test--teardown)))
+
+;;; =========================================================================
+;;; Switch Backend Tests
+;;; =========================================================================
+
+(ert-deftest beads-agent-test-switch-backend-function-exists ()
+  "Test that beads-agent-switch-backend is defined."
+  (should (fboundp 'beads-agent-switch-backend)))
+
+(ert-deftest beads-agent-test-switch-backend-sets-default ()
+  "Test that switch-backend sets beads-agent-default-backend."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent-default-backend nil))
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (&rest _) "mock")))
+          (beads-agent-switch-backend)
+          ;; Should have set the default
+          (should (equal beads-agent-default-backend "mock"))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-switch-backend-shows-current ()
+  "Test that switch-backend shows current backend in prompt."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent-default-backend "existing")
+            (prompt-seen nil))
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (prompt &rest _)
+                     (setq prompt-seen prompt)
+                     "mock")))
+          (beads-agent-switch-backend)
+          ;; Prompt should show current backend
+          (should (string-match-p "current: existing" prompt-seen))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-switch-backend-save-option ()
+  "Test that switch-backend can save to customize."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent-default-backend nil)
+            (customize-called nil))
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (&rest _) "mock"))
+                  ((symbol-function 'customize-save-variable)
+                   (lambda (var val)
+                     (setq customize-called (list var val)))))
+          ;; Call with save=t
+          (beads-agent-switch-backend t)
+          ;; Should have called customize-save-variable
+          (should customize-called)
+          (should (eq (car customize-called) 'beads-agent-default-backend))
+          (should (equal (cadr customize-called) "mock"))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-switch-backend-no-backends ()
+  "Test that switch-backend errors with no backends available."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (progn
+        ;; Clear backends
+        (setq beads-agent--backends nil)
+        (should-error (beads-agent-switch-backend) :type 'user-error))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-switch-backend-suffix-exists ()
+  "Test that beads-agent--switch-backend-suffix is defined."
+  (should (fboundp 'beads-agent--switch-backend-suffix))
+  (should (get 'beads-agent--switch-backend-suffix 'transient--suffix)))
+
+;;; =========================================================================
 ;;; Transient Menu Tests
 ;;; =========================================================================
 
