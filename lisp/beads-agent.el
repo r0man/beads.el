@@ -426,7 +426,7 @@ This is needed because bd daemon doesn't work well across worktrees."
 ;;; Backend Selection
 
 (defun beads-agent--select-backend ()
-  "Select backend: use default if set, else prompt from available.
+  "Select backend: use default if set and available, else prompt.
 Returns a beads-agent-backend instance or signals an error.
 
 When prompting, uses rich completion with annotations showing
@@ -448,10 +448,7 @@ See: https://github.com/anthropics/claude-code"))
            (beads-agent-backend-available-p
             (beads-agent--get-backend beads-agent-default-backend)))
       (beads-agent--get-backend beads-agent-default-backend))
-     ;; Single backend available
-     ((= (length available) 1)
-      (car available))
-     ;; Multiple backends - prompt user with rich completion
+     ;; No default set - always prompt user, even if only one available
      (t
       (require 'beads-completion)
       (let* ((available-names (mapcar (lambda (b) (oref b name)) available))
@@ -462,6 +459,39 @@ See: https://github.com/anthropics/claude-code"))
                                                 available-names))
                                       t)))
         (beads-agent--get-backend choice))))))
+
+;;;###autoload
+(defun beads-agent-switch-backend (&optional save)
+  "Switch default backend by selecting from available backends.
+Uses rich completion with annotations showing priority and descriptions.
+
+When called interactively with a prefix argument (\\[universal-argument]),
+or when SAVE is non-nil, persist the selection to the custom file.
+
+This sets `beads-agent-default-backend' so that future agent sessions
+will automatically use the selected backend without prompting."
+  (interactive "P")
+  (require 'beads-completion)
+  (let* ((available (beads-agent--get-available-backends)))
+    (unless available
+      (user-error "No AI agent backends available"))
+    (let* ((available-names (mapcar (lambda (b) (oref b name)) available))
+           (current beads-agent-default-backend)
+           (prompt (if current
+                       (format "Switch backend (current: %s): " current)
+                     "Select default backend: "))
+           (choice (completing-read prompt
+                                    (beads-completion-backend-table)
+                                    (lambda (cand)
+                                      (member (if (consp cand) (car cand) cand)
+                                              available-names))
+                                    t)))
+      (setq beads-agent-default-backend choice)
+      (when save
+        (customize-save-variable 'beads-agent-default-backend choice))
+      (message "Default backend set to %s%s"
+               choice
+               (if save " (saved)" "")))))
 
 ;;; Context Building
 
@@ -1017,6 +1047,19 @@ is enabled (default)."
   (interactive)
   (transient--redisplay))
 
+(transient-define-suffix beads-agent--switch-backend-suffix ()
+  "Switch the default backend."
+  :key "B"
+  :description (lambda ()
+                 (if beads-agent-default-backend
+                     (format "Switch backend (current: %s)"
+                             beads-agent-default-backend)
+                   "Set default backend"))
+  :transient t
+  (interactive)
+  (call-interactively #'beads-agent-switch-backend)
+  (transient--redisplay))
+
 ;;;###autoload (autoload 'beads-agent "beads-agent" nil t)
 (transient-define-prefix beads-agent ()
   "AI Agent integration for Beads issues."
@@ -1031,6 +1074,8 @@ is enabled (default)."
   ["Session Management"
    (beads-agent--list-suffix)
    (beads-agent--cleanup-suffix)]
+  ["Configuration"
+   (beads-agent--switch-backend-suffix)]
   ["Other"
    (beads-agent--refresh-suffix)
    ("q" "Quit" transient-quit-one)])
