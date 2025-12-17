@@ -20,13 +20,38 @@
 (require 'ert)
 (require 'beads-agent-backend)
 
-;; Define a mock agent-shell-mode BEFORE loading beads-agent-agent-shell.
-;; This prevents the real (broken in batch mode) agent-shell-mode from being used.
-;; We're testing the backend logic, not agent-shell itself.
+;; Prevent the real agent-shell from being loaded.
+;; The real agent-shell-mode has a bug that causes (void-function keymap)
+;; in batch Emacs mode. We need to completely block it from loading.
+;; See: https://github.com/xenodium/shell-maker/issues/XXX
+
+;; First, remove any agent-shell autoloads that might trigger loading
+(dolist (sym '(agent-shell-mode agent-shell agent-shell-start))
+  (when (fboundp sym)
+    (fmakunbound sym)))
+
+;; Pretend agent-shell is already loaded so require won't load it
+(provide 'agent-shell)
+
+;; Define mock functions that the backend checks for
+(defun agent-shell-start (&rest _args)
+  "Mock agent-shell-start for testing."
+  nil)
+
+(defun agent-shell-insert (&rest _args)
+  "Mock agent-shell-insert for testing."
+  nil)
+
+;; Define mock variable that the backend checks
+(defvar agent-shell-agent-configs '((mock-config))
+  "Mock agent configs for testing.")
+
+;; Define a mock agent-shell-mode for testing.
+;; This must happen AFTER we block the real package.
 (define-derived-mode agent-shell-mode special-mode "AgentShell"
   "Mock agent-shell-mode for testing.")
 
-;; Now load the backend - it will see our mock mode already defined
+;; Now load the backend - it will see our mock mode
 (require 'beads-agent-agent-shell)
 
 ;;; Buffer Finding Tests

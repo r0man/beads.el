@@ -188,10 +188,15 @@
                   (lambda (b) (equal (oref b name) "claudemacs"))
                   beads-agent--backends)))
     (should backend)
-    ;; The backend should report unavailable if claudemacs isn't loaded
-    ;; and can't be required (which is the case in our test environment)
-    (unless (featurep 'claudemacs)
-      ;; Without the claudemacs package, availability should be nil
+    ;; When claudemacs, eat, and claude executable are all available,
+    ;; the backend should report available
+    (if (and (or (featurep 'claudemacs)
+                 (require 'claudemacs nil t))
+             (or (featurep 'eat)
+                 (require 'eat nil t))
+             (executable-find "claude"))
+        (should (beads-agent-backend-available-p backend))
+      ;; Otherwise it should be unavailable
       (should (not (beads-agent-backend-available-p backend))))))
 
 ;;; Customization Tests
