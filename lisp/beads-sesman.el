@@ -72,14 +72,15 @@ This allows cleanup to complete before starting a new agent."
 (defun beads-sesman--session-name (session)
   "Generate sesman session name from SESSION.
 Delegates to `beads-agent-backend-session-name' for backend-specific naming.
-Falls back to \"<issue-id>@<working-dir>\" if backend not found."
+Falls back to \"<session-id>@<working-dir>\" if backend not found,
+where session-id is in `issue-id#N' format."
   (if-let ((backend (beads-agent--get-backend (oref session backend-name))))
       (beads-agent-backend-session-name backend session)
     ;; Fallback if backend not found (defensive)
-    (let ((issue-id (oref session issue-id))
+    (let ((session-id (oref session id))
           (working-dir (or (oref session worktree-dir)
                            (oref session project-dir))))
-      (format "%s@%s" issue-id (abbreviate-file-name working-dir)))))
+      (format "%s@%s" session-id (abbreviate-file-name working-dir)))))
 
 ;;; Sesman Generics Implementation
 
@@ -141,6 +142,7 @@ Return plist with :objects, :strings for sesman-browser display."
        :objects (list backend-handle)
        :strings (delq nil
                       (list
+                       (format "Session: %s" (oref beads-session id))
                        (format "Issue: %s" (oref beads-session issue-id))
                        (format "Backend: %s" (oref beads-session backend-name))
                        (format "Started: %s" (oref beads-session started-at))

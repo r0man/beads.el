@@ -68,7 +68,7 @@ Subclasses must implement all generic methods defined below.")
   ((id
     :initarg :id
     :type string
-    :documentation "Unique session identifier (UUID).")
+    :documentation "Unique session identifier in `issue-id#N' format.")
    (issue-id
     :initarg :issue-id
     :type string
@@ -182,15 +182,16 @@ PROMPT is a string to send to the agent.")
 SESSION is a beads-agent-session object.
 The returned name is used as the sesman session identifier.
 
-Default implementation returns \"<issue-id>@<working-dir>\" format.
+Default implementation returns \"<session-id>@<working-dir>\" format,
+where session-id is in `issue-id#N' format for numbered sessions.
 Backends may override this to use custom naming schemes."
-  ;; Default implementation uses issue-id@working-dir format
+  ;; Default implementation uses session-id@working-dir format
   ;; backend arg exists for method dispatch but isn't used in default
   (ignore backend)
-  (let ((issue-id (oref session issue-id))
+  (let ((session-id (oref session id))
         (working-dir (or (oref session worktree-dir)
                          (oref session project-dir))))
-    (format "%s@%s" issue-id (abbreviate-file-name working-dir))))
+    (format "%s@%s" session-id (abbreviate-file-name working-dir))))
 
 (cl-defgeneric beads-agent-backend-get-buffer (backend session)
   "Return the buffer for SESSION on BACKEND, or nil if not available.
@@ -291,11 +292,27 @@ backends including those that are currently unavailable."
 ;; The hook `beads-agent-state-change-hook' triggers registration/unregistration.
 ;; Query functions iterate sesman sessions to find beads-agent-session objects.
 
-(defun beads-agent--generate-session-id ()
-  "Generate unique session ID using timestamp and random."
-  (format "session-%s-%04x"
-          (format-time-string "%Y%m%d%H%M%S")
-          (random 65536)))
+(defun beads-agent--session-number-from-id (session-id)
+  "Extract session number from SESSION-ID in `issue-id#N' format.
+Returns N as an integer, or nil if SESSION-ID doesn't match the format."
+  (when (and session-id (string-match "#\\([0-9]+\\)\\'" session-id))
+    (string-to-number (match-string 1 session-id))))
+
+(defun beads-agent--next-session-number (issue-id)
+  "Find the next available session number for ISSUE-ID.
+Scans all existing sessions for ISSUE-ID and returns max+1.
+Returns 1 if no sessions exist for the issue.
+Session numbers never reuse - gaps in numbering are ignored."
+  (let ((max-num 0))
+    (dolist (session (beads-agent--get-sessions-for-issue issue-id))
+      (when-let ((num (beads-agent--session-number-from-id (oref session id))))
+        (setq max-num (max max-num num))))
+    (1+ max-num)))
+
+(defun beads-agent--generate-session-id (issue-id)
+  "Generate unique session ID for ISSUE-ID.
+Returns ID in `issue-id#N' format where N is the next available number."
+  (format "%s#%d" issue-id (beads-agent--next-session-number issue-id)))
 
 (defun beads-agent--create-session (issue-id backend-name project-dir
                                              backend-session
@@ -310,7 +327,7 @@ Returns the created beads-agent-session object.
 
 Note: Session storage is handled by `beads-agent-state-change-hook'.
 The hook handler in beads-sesman.el registers the session with sesman."
-  (let* ((session-id (beads-agent--generate-session-id))
+  (let* ((session-id (beads-agent--generate-session-id issue-id))
          (session (beads-agent-session
                    :id session-id
                    :issue-id issue-id

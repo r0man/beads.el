@@ -36,22 +36,30 @@
 (defvar beads-sesman-test--session-links nil
   "List of (session context-type context-value) links.")
 
-(defun beads-sesman-test--make-mock-session (&optional issue-id project-dir worktree-dir)
+(defvar beads-sesman-test--session-counter 0
+  "Counter for generating unique session numbers in tests.")
+
+(defun beads-sesman-test--make-mock-session (&optional issue-id project-dir worktree-dir session-num)
   "Create a mock beads-agent-session.
 ISSUE-ID defaults to \"test-123\".
 PROJECT-DIR defaults to \"/tmp/project\".
-WORKTREE-DIR is optional worktree directory."
-  (beads-agent-session
-   :id "session-123"
-   :issue-id (or issue-id "test-123")
-   :backend-name "mock"
-   :project-dir (or project-dir "/tmp/project")
-   :worktree-dir worktree-dir
-   :started-at "2025-01-01T12:00:00+0000"
-   :backend-session 'mock-handle))
+WORKTREE-DIR is optional worktree directory.
+SESSION-NUM is the session number (defaults to auto-incrementing counter)."
+  (let* ((issue (or issue-id "test-123"))
+         (num (or session-num (cl-incf beads-sesman-test--session-counter)))
+         (session-id (format "%s#%d" issue num)))
+    (beads-agent-session
+     :id session-id
+     :issue-id issue
+     :backend-name "mock"
+     :project-dir (or project-dir "/tmp/project")
+     :worktree-dir worktree-dir
+     :started-at "2025-01-01T12:00:00+0000"
+     :backend-session 'mock-handle)))
 
 (defun beads-sesman-test--setup ()
   "Set up test fixtures."
+  (setq beads-sesman-test--session-counter 0)
   (setq beads-sesman-test--mock-session
         (beads-sesman-test--make-mock-session))
   (setq beads-sesman-test--registered-sessions nil)
@@ -71,7 +79,8 @@ WORKTREE-DIR is optional worktree directory."
   (unwind-protect
       (let ((name (beads-sesman--session-name beads-sesman-test--mock-session)))
         (should (stringp name))
-        (should (string-match-p "^test-123@" name))
+        ;; Format is now session-id@path where session-id is issue-id#N
+        (should (string-match-p "^test-123#1@" name))
         (should (string-match-p "/tmp/project" name)))
     (beads-sesman-test--teardown)))
 
@@ -83,7 +92,8 @@ WORKTREE-DIR is optional worktree directory."
                        "issue-456" "/tmp/main" "/tmp/worktree/issue-456"))
              (name (beads-sesman--session-name session)))
         (should (stringp name))
-        (should (string-match-p "^issue-456@" name))
+        ;; Format is now session-id@path where session-id is issue-id#N
+        (should (string-match-p "^issue-456#" name))
         ;; Should use worktree, not project
         (should (string-match-p "worktree" name)))
     (beads-sesman-test--teardown)))
@@ -97,7 +107,8 @@ WORKTREE-DIR is optional worktree directory."
                  (lambda (_name) nil)))
         (let ((name (beads-sesman--session-name beads-sesman-test--mock-session)))
           (should (stringp name))
-          (should (string-match-p "^test-123@" name))))
+          ;; Fallback uses session-id (issue-id#N format)
+          (should (string-match-p "^test-123#1@" name))))
     (beads-sesman-test--teardown)))
 
 (ert-deftest beads-sesman-test-session-name-uses-generic ()
@@ -134,7 +145,8 @@ WORKTREE-DIR is optional worktree directory."
              (name (beads-agent-backend-session-name
                     mock-backend beads-sesman-test--mock-session)))
         (should (stringp name))
-        (should (string-match-p "^test-123@" name))
+        ;; Default uses session-id (issue-id#N format)
+        (should (string-match-p "^test-123#1@" name))
         (should (string-match-p "/tmp/project" name)))
     (beads-sesman-test--teardown)))
 
@@ -147,7 +159,8 @@ WORKTREE-DIR is optional worktree directory."
              (mock-backend (beads-sesman-test--backend))
              (name (beads-agent-backend-session-name mock-backend session)))
         (should (stringp name))
-        (should (string-match-p "^bd-42@" name))
+        ;; Uses session-id (issue-id#N format)
+        (should (string-match-p "^bd-42#" name))
         (should (string-match-p "worktrees" name)))
     (beads-sesman-test--teardown)))
 
@@ -170,6 +183,26 @@ WORKTREE-DIR is optional worktree directory."
                     custom-backend beads-sesman-test--mock-session)))
         ;; Should use the custom format, not the default
         (should (equal name "CUSTOM:test-123")))
+    (beads-sesman-test--teardown)))
+
+(ert-deftest beads-sesman-test-session-name-numbered-format ()
+  "Test that session names use numbered format for multiple sessions."
+  (beads-sesman-test--setup)
+  (unwind-protect
+      (let* ((session1 (beads-sesman-test--make-mock-session "bd-1" "/tmp" nil 1))
+             (session2 (beads-sesman-test--make-mock-session "bd-1" "/tmp" nil 2))
+             (session3 (beads-sesman-test--make-mock-session "bd-2" "/tmp" nil 1))
+             (mock-backend (beads-sesman-test--backend))
+             (name1 (beads-agent-backend-session-name mock-backend session1))
+             (name2 (beads-agent-backend-session-name mock-backend session2))
+             (name3 (beads-agent-backend-session-name mock-backend session3)))
+        ;; Same issue, different session numbers
+        (should (string-match-p "^bd-1#1@" name1))
+        (should (string-match-p "^bd-1#2@" name2))
+        ;; Different issue, session #1
+        (should (string-match-p "^bd-2#1@" name3))
+        ;; Names for same issue should be distinguishable
+        (should-not (equal name1 name2)))
     (beads-sesman-test--teardown)))
 
 ;;; Tests for Sesman Session Creation
@@ -426,8 +459,8 @@ WORKTREE-DIR is optional worktree directory."
           (let ((sesman-session (beads-sesman--make-sesman-session
                                   beads-sesman-test--mock-session)))
             (sesman-quit-session beads-sesman-system sesman-session)
-            ;; Should have called stop with the session ID
-            (should (equal stop-called "session-123")))))
+            ;; Should have called stop with the session ID (now in issue-id#N format)
+            (should (equal stop-called "test-123#1")))))
     (beads-sesman-test--teardown)))
 
 (ert-deftest beads-sesman-test-quit-session-nil-beads-session ()
