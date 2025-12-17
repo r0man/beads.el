@@ -49,20 +49,23 @@
 
 (defun beads-agent-claude-code--find-buffers (dir)
   "Find Claude buffers for directory DIR.
-Claude buffers are named `*claude:DIRECTORY*' or `*claude:DIRECTORY:INSTANCE*'
-where DIRECTORY is the abbreviated truename of the directory.
+Claude buffers are named `*claude:DIRECTORY/*' or
+`*claude:DIRECTORY/:INSTANCE*' where DIRECTORY is the abbreviated
+truename of the directory with trailing slash.
 
 NOTE: This reimplements claude-code's buffer naming convention.
 If upstream changes the format, this function may need updating."
-  ;; Use directory-file-name to strip trailing slash for consistent matching
-  (let* ((normalized-dir (directory-file-name
+  ;; Use file-name-as-directory to ensure trailing slash, matching claude-code's
+  ;; buffer naming convention (it uses abbreviate-file-name on directory which
+  ;; preserves trailing slash from project-root/file-name-directory)
+  (let* ((normalized-dir (file-name-as-directory
                           (abbreviate-file-name (file-truename dir))))
          (prefix (concat "*claude:" normalized-dir)))
     (seq-filter
      (lambda (buf)
        (let ((name (buffer-name buf)))
          (and (string-prefix-p prefix name)
-              ;; Must end with * or :INSTANCE*
+              ;; Must end with * (main buffer) or :INSTANCE* (named instance)
               (or (string= name (concat prefix "*"))
                   (and (> (length name) (length prefix))
                        (eq (aref name (length prefix)) ?:)
