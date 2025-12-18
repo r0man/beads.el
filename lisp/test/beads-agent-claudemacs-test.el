@@ -206,5 +206,61 @@
   (should (boundp 'beads-agent-claudemacs-tool))
   (should (eq beads-agent-claudemacs-tool 'claude)))
 
+;;; GV-Setter Fix Tests
+
+(ert-deftest beads-agent-claudemacs-test-bell-handler-advice-variable-exists ()
+  "Test that the bell handler advice variable exists."
+  (should (boundp 'beads-agent-claudemacs--bell-handler-advice-installed)))
+
+(ert-deftest beads-agent-claudemacs-test-setup-bell-handler-fixed-exists ()
+  "Test that the fixed bell handler function exists."
+  (should (fboundp 'beads-agent-claudemacs--setup-bell-handler-fixed)))
+
+(ert-deftest beads-agent-claudemacs-test-advice-function-exists ()
+  "Test that the advice function for bell handler exists."
+  (should (fboundp 'beads-agent-claudemacs--advice-setup-bell-handler)))
+
+(ert-deftest beads-agent-claudemacs-test-ensure-gv-setter-function-exists ()
+  "Test that the ensure gv-setter function exists."
+  (should (fboundp 'beads-agent-claudemacs--ensure-eat-gv-setter)))
+
+(ert-deftest beads-agent-claudemacs-test-install-advice-function-exists ()
+  "Test that the install advice helper function exists."
+  (should (fboundp 'beads-agent-claudemacs--install-bell-handler-advice)))
+
+(ert-deftest beads-agent-claudemacs-test-setup-bell-handler-fixed-no-error ()
+  "Test that fixed bell handler runs without error when claudemacs not loaded.
+When there is no claudemacs buffer, the function should silently do nothing."
+  ;; Should not error when claudemacs is not loaded/no buffers exist
+  (should (null (beads-agent-claudemacs--setup-bell-handler-fixed))))
+
+(ert-deftest beads-agent-claudemacs-test-advice-passes-through-success ()
+  "Test that advice passes through when original function succeeds."
+  (let ((called nil))
+    ;; Create a mock original function that succeeds
+    (let ((result (beads-agent-claudemacs--advice-setup-bell-handler
+                   (lambda () (setq called t) 'success))))
+      (should called)
+      (should (eq result 'success)))))
+
+(ert-deftest beads-agent-claudemacs-test-advice-catches-setf-error ()
+  "Test that advice catches the specific setf error and uses fallback."
+  ;; Create a mock that simulates the setf error
+  (let ((fallback-called nil))
+    (cl-letf (((symbol-function 'beads-agent-claudemacs--setup-bell-handler-fixed)
+               (lambda () (setq fallback-called t))))
+      ;; Simulate the void-function error for (setf eat-term-parameter)
+      (beads-agent-claudemacs--advice-setup-bell-handler
+       (lambda () (signal 'void-function '(\(setf\ eat-term-parameter\)))))
+      (should fallback-called))))
+
+(ert-deftest beads-agent-claudemacs-test-advice-rethrows-other-errors ()
+  "Test that advice re-throws errors that are not the setf error."
+  ;; Other void-function errors should be re-raised
+  (should-error
+   (beads-agent-claudemacs--advice-setup-bell-handler
+    (lambda () (signal 'void-function '(some-other-function))))
+   :type 'void-function))
+
 (provide 'beads-agent-claudemacs-test)
 ;;; beads-agent-claudemacs-test.el ends here
