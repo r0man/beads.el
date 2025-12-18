@@ -162,19 +162,23 @@ Returns the agent-shell buffer as the session handle."
     (dolist (buf buffers)
       (when (buffer-live-p buf)
         (with-current-buffer buf
-          ;; Interrupt any running request first
-          (when (get-buffer-process buf)
-            (condition-case nil
-                (when (fboundp 'agent-shell-interrupt)
-                  (agent-shell-interrupt t))
-              (error nil)))
-          ;; Kill the process
-          (when-let ((proc (get-buffer-process buf)))
-            (condition-case nil
-                (delete-process proc)
-              (error nil)))
-          ;; Kill the buffer
-          (kill-buffer buf))))))
+          ;; Bind inhibit-read-only to allow process sentinel to modify buffer.
+          ;; Agent-shell buffers are read-only, but the process sentinel needs
+          ;; to write cleanup messages when the process terminates.
+          (let ((inhibit-read-only t))
+            ;; Interrupt any running request first
+            (when (get-buffer-process buf)
+              (condition-case nil
+                  (when (fboundp 'agent-shell-interrupt)
+                    (agent-shell-interrupt t))
+                (error nil)))
+            ;; Kill the process
+            (when-let ((proc (get-buffer-process buf)))
+              (condition-case nil
+                  (delete-process proc)
+                (error nil)))
+            ;; Kill the buffer
+            (kill-buffer buf)))))))
 
 (cl-defmethod beads-agent-backend-session-active-p
     ((_backend beads-agent-backend-agent-shell) session)

@@ -182,13 +182,17 @@ Returns the claudemacs buffer as the session handle."
     (dolist (buf buffers)
       (when (buffer-live-p buf)
         (with-current-buffer buf
-          ;; Kill the terminal process first
-          (when (get-buffer-process buf)
-            (condition-case nil
-                (eat-kill-process)
-              (error nil)))
-          ;; Then kill the buffer
-          (kill-buffer buf))))))
+          ;; Bind inhibit-read-only to allow process sentinel to modify buffer.
+          ;; Claudemacs buffers may be read-only, but the process sentinel needs
+          ;; to write cleanup messages when the process terminates.
+          (let ((inhibit-read-only t))
+            ;; Kill the terminal process first
+            (when (get-buffer-process buf)
+              (condition-case nil
+                  (eat-kill-process)
+                (error nil)))
+            ;; Then kill the buffer
+            (kill-buffer buf)))))))
 
 (cl-defmethod beads-agent-backend-session-active-p
     ((_backend beads-agent-backend-claudemacs) session)
