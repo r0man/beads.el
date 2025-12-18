@@ -651,17 +651,23 @@ PROMPT is the optional pre-built prompt."
   (beads-agent--fetch-issue-async
    issue-id
    (lambda (issue)
-     (let ((prompt (or prompt (beads-agent--build-prompt issue))))
+     ;; Restore default-directory for async callbacks.
+     ;; Process sentinels run with arbitrary default-directory, but
+     ;; worktree functions need the project directory for git commands.
+     (let ((default-directory project-dir)
+           (prompt (or prompt (beads-agent--build-prompt issue))))
        ;; Step 2: Setup worktree if needed (async)
        (if beads-agent-use-worktrees
            (beads-agent--ensure-worktree-async
             issue-id
             (lambda (success result)
-              (if success
-                  ;; Step 3: Update status (async)
-                  (beads-agent--continue-start
-                   issue-id backend project-dir result prompt issue)
-                (message "Failed to create worktree: %s" result))))
+              ;; Also restore here for nested async callbacks
+              (let ((default-directory project-dir))
+                (if success
+                    ;; Step 3: Update status (async)
+                    (beads-agent--continue-start
+                     issue-id backend project-dir result prompt issue)
+                  (message "Failed to create worktree: %s" result)))))
          ;; No worktree, continue directly
          (beads-agent--continue-start
           issue-id backend project-dir nil prompt issue))))))
@@ -703,7 +709,11 @@ CALLBACK receives a beads-issue object."
                         (json-array-type 'vector)
                         (json-str (beads-agent--extract-json output))
                         (json-data (json-read-from-string json-str))
-                        (issue (beads--parse-issue json-data)))
+                        ;; bd show returns an array, extract first element
+                        (issue-data (if (vectorp json-data)
+                                        (aref json-data 0)
+                                      json-data))
+                        (issue (beads--parse-issue issue-data)))
                    (funcall callback issue))
                (error
                 (message "Failed to parse issue: %s" (error-message-string err)))))))))))
@@ -921,6 +931,7 @@ Format: \"#N (backend-name)\" where N is extracted from session ID."
   "Start a new agent for the current issue."
   :key "s"
   :description "Start new agent"
+  :transient t
   (interactive)
   (beads-agent-start beads-agent-issue--current-issue-id)
   ;; Refresh the menu after a delay to show new session
@@ -930,6 +941,7 @@ Format: \"#N (backend-name)\" where N is extracted from session ID."
   "Stop one agent session for the current issue."
   :key "k"
   :description "Stop one agent"
+  :transient t
   (interactive)
   (let* ((sessions (beads-agent-issue--get-sessions)))
     (if (null sessions)
@@ -947,6 +959,7 @@ Format: \"#N (backend-name)\" where N is extracted from session ID."
   "Stop all agents for the current issue."
   :key "K"
   :description "Stop all agents"
+  :transient t
   (interactive)
   (let* ((sessions (beads-agent-issue--get-sessions))
          (count (length sessions)))
