@@ -40,6 +40,72 @@
 (require 'beads-agent-backend)
 (require 'seq)
 
+;;; Eat GV-Setter Fix
+;;
+;; The claudemacs package uses `setf' with `eat-term-parameter', which requires
+;; eat's `gv-setter' to be defined.  If claudemacs was byte-compiled without eat
+;; loaded, the setf expansion fails with "(void-function (setf eat-term-parameter))".
+;;
+;; This fix ensures:
+;; 1. Eat is loaded before claudemacs (so `gv-setter' is available at load time)
+;; 2. A fallback advice that uses `eat-term-set-parameter' directly if setf fails
+
+(declare-function eat-term-set-parameter "eat")
+(declare-function claudemacs--get-buffer "claudemacs")
+(declare-function claudemacs--bell-handler "claudemacs")
+
+(defvar beads-agent-claudemacs--bell-handler-advice-installed nil
+  "Non-nil if the bell handler advice has been installed.")
+
+(defun beads-agent-claudemacs--setup-bell-handler-fixed ()
+  "Set up the bell handler using direct setter instead of setf.
+This avoids the `gv-setter' issue when claudemacs is byte-compiled
+without eat loaded."
+  (when (and (fboundp 'claudemacs--get-buffer)
+             (claudemacs--get-buffer))
+    (with-current-buffer (claudemacs--get-buffer)
+      (when (and (boundp 'eat-terminal) (symbol-value 'eat-terminal))
+        ;; Use the direct setter function instead of setf
+        (eat-term-set-parameter (symbol-value 'eat-terminal)
+                                'ring-bell-function
+                                (when (fboundp 'claudemacs--bell-handler)
+                                  #'claudemacs--bell-handler))))))
+
+(defun beads-agent-claudemacs--advice-setup-bell-handler (orig-fun)
+  "Advice for `claudemacs-setup-bell-handler' to handle `gv-setter' issues.
+ORIG-FUN is the original function.  If it fails with the setf error,
+we use the direct setter instead."
+  (condition-case err
+      (funcall orig-fun)
+    (void-function
+     ;; The escaped symbol `\(setf\ eat-term-parameter\)' represents the
+     ;; generalized variable setter function name "(setf eat-term-parameter)".
+     ;; Emacs creates these symbols for setf expansions.
+     (if (eq (cadr err) '\(setf\ eat-term-parameter\))
+         (beads-agent-claudemacs--setup-bell-handler-fixed)
+       (signal (car err) (cdr err))))))
+
+(defun beads-agent-claudemacs--install-bell-handler-advice ()
+  "Install advice on `claudemacs-setup-bell-handler' if not already installed."
+  (unless beads-agent-claudemacs--bell-handler-advice-installed
+    (when (fboundp 'claudemacs-setup-bell-handler)
+      (advice-add 'claudemacs-setup-bell-handler :around
+                  #'beads-agent-claudemacs--advice-setup-bell-handler)
+      (setq beads-agent-claudemacs--bell-handler-advice-installed t))))
+
+(defun beads-agent-claudemacs--ensure-eat-gv-setter ()
+  "Ensure eat's `gv-setter' for `eat-term-parameter' is available.
+This must be called before claudemacs is loaded."
+  ;; Load eat first to ensure gv-setter is defined
+  (when (or (featurep 'eat) (require 'eat nil t))
+    ;; Verify the gv-setter is available by checking if eat-term-set-parameter exists
+    (unless (fboundp 'eat-term-set-parameter)
+      (warn "eat-term-set-parameter not found - bell handler may fail"))
+    ;; Install advice as fallback if claudemacs is already loaded
+    ;; Otherwise, advice will be installed after require in beads-agent-backend-start
+    (when (featurep 'claudemacs)
+      (beads-agent-claudemacs--install-bell-handler-advice))))
+
 ;;; External Function Declarations
 
 ;; From claudemacs.el - session management
@@ -124,15 +190,17 @@ Uses cpoile's claudemacs package for AI pair programming sessions.")
     ((_backend beads-agent-backend-claudemacs))
   "Check if claudemacs is available.
 Verifies the package is loaded and key functions exist."
-  (and ;; Check claudemacs package
+  (and ;; Check eat terminal emulator FIRST (needed for gv-setter)
+       (or (featurep 'eat)
+           (require 'eat nil t))
+       ;; Ensure gv-setter workaround is in place
+       (progn (beads-agent-claudemacs--ensure-eat-gv-setter) t)
+       ;; Check claudemacs package
        (or (featurep 'claudemacs)
            (require 'claudemacs nil t))
        (fboundp 'claudemacs--start)
        (fboundp 'claudemacs-kill)
        (fboundp 'claudemacs--send-message-to-claude)
-       ;; Check eat terminal emulator
-       (or (featurep 'eat)
-           (require 'eat nil t))
        ;; Verify claude command is available in PATH
        (executable-find "claude")))
 
@@ -143,13 +211,18 @@ ISSUE is ignored as claudemacs works per-project/workspace.
 The working directory is determined by the caller (may be a worktree).
 Returns the claudemacs buffer as the session handle."
   ;; Pre-flight checks with helpful error messages
-  (unless (or (featurep 'claudemacs) (require 'claudemacs nil t))
-    (error "Claudemacs not found.  Install from: https://github.com/cpoile/claudemacs"))
+  ;; Load eat FIRST to ensure gv-setter for eat-term-parameter is available
   (unless (or (featurep 'eat) (require 'eat nil t))
     (error "Eat terminal emulator not found.  Install from MELPA: M-x package-install RET eat"))
+  ;; Ensure gv-setter workaround is in place before loading claudemacs
+  (beads-agent-claudemacs--ensure-eat-gv-setter)
+  (unless (or (featurep 'claudemacs) (require 'claudemacs nil t))
+    (error "Claudemacs not found.  Install from: https://github.com/cpoile/claudemacs"))
   (unless (executable-find "claude")
     (error "Claude command not found in PATH.  Install: npm install -g @anthropic-ai/claude-code"))
   (require 'claudemacs)
+  ;; Install bell handler advice now that claudemacs is loaded
+  (beads-agent-claudemacs--install-bell-handler-advice)
   ;; default-directory is set by beads-agent-start (may be worktree)
   ;; Bind BD_NO_DAEMON=1 to disable bd daemon (not supported in worktrees)
   (let* ((working-dir default-directory)
