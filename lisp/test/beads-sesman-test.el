@@ -19,6 +19,7 @@
 (require 'ert)
 (require 'beads-sesman)
 (require 'beads-agent-backend)
+(require 'beads-agent)
 
 ;;; Test Fixtures
 
@@ -806,6 +807,51 @@ via the hook, and that query/destroy functions work correctly."
       ;; Cleanup
       (when (buffer-live-p test-buffer)
         (kill-buffer test-buffer))
+      (dolist (sesman-session (sesman-sessions beads-sesman-system))
+        (unless (member sesman-session original-sessions)
+          (sesman-unregister beads-sesman-system sesman-session))))))
+
+(ert-deftest beads-sesman-test-buffer-kill-integration ()
+  "Integration test: killing buffer with session ID triggers full cleanup.
+This test verifies the complete flow without mocking beads-agent-stop,
+ensuring the real cleanup path is exercised."
+  (let ((original-sessions (copy-sequence (sesman-sessions beads-sesman-system)))
+        (original-agent-sessions (copy-sequence (beads-agent--get-all-sessions)))
+        (test-buffer (generate-new-buffer "*test-agent-integration*")))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-agent--get-backend)
+                   (lambda (_name) 'mock-backend))
+                  ((symbol-function 'beads-agent-backend-get-buffer)
+                   (lambda (_backend _session) test-buffer))
+                  ;; Mock stop to track calls but still perform cleanup
+                  ((symbol-function 'beads-agent-backend-stop)
+                   (lambda (_backend _session) nil)))
+          (let* ((session (beads-agent--create-session
+                           "integration-test" "mock" "/tmp/project" 'handle))
+                 (session-id (oref session id)))
+            ;; Verify initial state
+            (should (= 1 (length (beads-agent--get-all-sessions))))
+            (should (beads-agent--get-session session-id))
+            (with-current-buffer test-buffer
+              (should beads-sesman--buffer-session-id)
+              (should (equal beads-sesman--buffer-session-id session-id))
+              (should (memq #'beads-sesman--buffer-kill-handler kill-buffer-hook)))
+            ;; Kill the buffer - this should trigger the full cleanup chain:
+            ;; kill-buffer-hook -> beads-sesman--buffer-kill-handler
+            ;;   -> beads-agent-stop -> beads-agent--destroy-session
+            ;;   -> beads-sesman--state-change-handler ('stopped)
+            ;;   -> beads-sesman--unregister-session
+            (kill-buffer test-buffer)
+            ;; Verify session was cleaned up
+            (should (= 0 (length (beads-agent--get-all-sessions))))
+            (should (null (beads-agent--get-session session-id)))))
+      ;; Cleanup - restore original state
+      (when (buffer-live-p test-buffer)
+        (kill-buffer test-buffer))
+      ;; Cleanup any remaining sessions
+      (dolist (session (beads-agent--get-all-sessions))
+        (unless (member session original-agent-sessions)
+          (beads-agent--destroy-session (oref session id))))
       (dolist (sesman-session (sesman-sessions beads-sesman-system))
         (unless (member sesman-session original-sessions)
           (sesman-unregister beads-sesman-system sesman-session))))))
