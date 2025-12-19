@@ -931,17 +931,13 @@ Format: \"#N (backend-name)\" where N is extracted from session ID."
   "Start a new agent for the current issue."
   :key "s"
   :description "Start new agent"
-  :transient t
   (interactive)
-  (beads-agent-start beads-agent-issue--current-issue-id)
-  ;; Refresh the menu after a delay to show new session
-  (run-at-time 1 nil #'transient--redisplay))
+  (beads-agent-start beads-agent-issue--current-issue-id))
 
 (transient-define-suffix beads-agent-issue--stop-one ()
   "Stop one agent session for the current issue."
   :key "k"
   :description "Stop one agent"
-  :transient t
   (interactive)
   (let* ((sessions (beads-agent-issue--get-sessions)))
     (if (null sessions)
@@ -952,14 +948,12 @@ Format: \"#N (backend-name)\" where N is extracted from session ID."
                               sessions))
              (choice (completing-read "Stop agent: " choices nil t))
              (session-id (cdr (assoc choice choices))))
-        (beads-agent-stop session-id)
-        (transient--redisplay)))))
+        (beads-agent-stop session-id)))))
 
 (transient-define-suffix beads-agent-issue--stop-all ()
   "Stop all agents for the current issue."
   :key "K"
   :description "Stop all agents"
-  :transient t
   (interactive)
   (let* ((sessions (beads-agent-issue--get-sessions))
          (count (length sessions)))
@@ -970,8 +964,7 @@ Format: \"#N (backend-name)\" where N is extracted from session ID."
                               beads-agent-issue--current-issue-id))
         (dolist (session sessions)
           (beads-agent-stop (oref session id)))
-        (message "Stopped %d agent%s" count (if (= count 1) "" "s"))
-        (transient--redisplay)))))
+        (message "Stopped %d agent%s" count (if (= count 1) "" "s"))))))
 
 (transient-define-suffix beads-agent-issue--refresh ()
   "Refresh the per-issue menu."

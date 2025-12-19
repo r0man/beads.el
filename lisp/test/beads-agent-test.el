@@ -1413,6 +1413,78 @@ behavior is to always prompt unless a default is configured."
           (should (null menu-called))))
     (beads-agent-test--teardown)))
 
+;;; =========================================================================
+;;; Transient Suffix Behavior Tests (Issue beads.el-r5bd)
+;;; =========================================================================
+
+;; These tests verify that transient suffixes have correct :transient
+;; properties:
+;; - Actions that complete work (start, stop, jump) should close transient
+;; - Actions for preview/settings should keep transient open
+
+(defun beads-agent-test--suffix-transient-p (suffix-symbol)
+  "Return the :transient property of SUFFIX-SYMBOL.
+Returns t if suffix stays open, nil if it closes (unbound or nil)."
+  (when-let ((suffix (get suffix-symbol 'transient--suffix)))
+    (and (slot-boundp suffix 'transient)
+         (slot-value suffix 'transient))))
+
+(ert-deftest beads-agent-test-issue-start-new-closes-transient ()
+  "Test that starting a new agent closes the per-issue menu.
+After starting an agent, user should return to their previous context."
+  (should (null (beads-agent-test--suffix-transient-p
+                 'beads-agent-issue--start-new))))
+
+(ert-deftest beads-agent-test-issue-stop-one-closes-transient ()
+  "Test that stopping one agent closes the per-issue menu.
+After stopping an agent, user should return to their previous context."
+  (should (null (beads-agent-test--suffix-transient-p
+                 'beads-agent-issue--stop-one))))
+
+(ert-deftest beads-agent-test-issue-stop-all-closes-transient ()
+  "Test that stopping all agents closes the per-issue menu.
+After stopping all agents, user should return to their previous context."
+  (should (null (beads-agent-test--suffix-transient-p
+                 'beads-agent-issue--stop-all))))
+
+(ert-deftest beads-agent-test-issue-refresh-stays-open ()
+  "Test that refresh keeps the per-issue menu open.
+Refreshing is a preview action that should not exit the transient."
+  (should (eq t (beads-agent-test--suffix-transient-p
+                 'beads-agent-issue--refresh))))
+
+(ert-deftest beads-agent-test-main-menu-cleanup-stays-open ()
+  "Test that cleanup suffix keeps the main menu open.
+Cleanup shows feedback and user may want to continue."
+  (should (eq t (beads-agent-test--suffix-transient-p
+                 'beads-agent--cleanup-suffix))))
+
+(ert-deftest beads-agent-test-main-menu-refresh-stays-open ()
+  "Test that refresh suffix keeps the main menu open."
+  (should (eq t (beads-agent-test--suffix-transient-p
+                 'beads-agent--refresh-suffix))))
+
+(ert-deftest beads-agent-test-main-menu-switch-backend-stays-open ()
+  "Test that switch-backend suffix keeps the main menu open.
+Settings changes should allow continued configuration."
+  (should (eq t (beads-agent-test--suffix-transient-p
+                 'beads-agent--switch-backend-suffix))))
+
+(ert-deftest beads-agent-test-start-menu-preview-stays-open ()
+  "Test that preview suffix in start menu stays open."
+  (should (eq t (beads-agent-test--suffix-transient-p
+                 'beads-agent-start--preview))))
+
+(ert-deftest beads-agent-test-start-menu-reset-stays-open ()
+  "Test that reset suffix in start menu stays open."
+  (should (eq t (beads-agent-test--suffix-transient-p
+                 'beads-agent-start--reset))))
+
+(ert-deftest beads-agent-test-start-menu-execute-closes ()
+  "Test that execute suffix in start menu closes."
+  (should (null (beads-agent-test--suffix-transient-p
+                 'beads-agent-start--execute))))
+
 ;;; Footer
 
 (provide 'beads-agent-test)
