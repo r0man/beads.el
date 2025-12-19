@@ -77,6 +77,11 @@ Subclasses must implement all generic methods defined below.")
     :initarg :backend-name
     :type string
     :documentation "Name of the backend running this session.")
+   (agent-type-name
+    :initarg :agent-type-name
+    :initform nil
+    :documentation "Name of the agent type for this session (e.g., \"Task\", \"Review\").
+When nil, the session was started without specifying an agent type.")
    (project-dir
     :initarg :project-dir
     :type string
@@ -107,6 +112,10 @@ The value is opaque to beads-sesman and passed through unchanged."))
 (defun beads-agent-session-backend-name (session)
   "Return the backend name for SESSION."
   (oref session backend-name))
+
+(defun beads-agent-session-type-name (session)
+  "Return the agent type name for SESSION, or nil if not set."
+  (oref session agent-type-name))
 
 (defun beads-agent-session-started-at (session)
   "Return the started-at timestamp for SESSION."
@@ -202,6 +211,20 @@ Default implementation returns nil.  Backends should override this
 to return their agent buffer if available."
   ;; Default: no buffer available
   (ignore backend session)
+  nil)
+
+(cl-defgeneric beads-agent-backend-supports-plan-mode-p (backend)
+  "Return non-nil if BACKEND supports plan mode.
+BACKEND is a `beads-agent-backend' object.
+
+Plan mode is used by certain agent types (e.g., Plan) that require
+the backend to support special planning functionality via a --plan
+flag or similar mechanism.
+
+Default implementation returns nil.  Backends that support plan mode
+should override this to return t."
+  ;; Default: plan mode not supported
+  (ignore backend)
   nil)
 
 ;;; Backend Registry
@@ -316,13 +339,14 @@ Returns ID in `issue-id#N' format where N is the next available number."
 
 (defun beads-agent--create-session (issue-id backend-name project-dir
                                              backend-session
-                                             &optional worktree-dir)
+                                             &optional worktree-dir agent-type-name)
   "Create and register a new session.
 ISSUE-ID is the issue being worked on.
 BACKEND-NAME is the name of the backend.
 PROJECT-DIR is the main project directory.
 BACKEND-SESSION is the backend-specific session handle.
 WORKTREE-DIR is the git worktree directory, if using worktrees.
+AGENT-TYPE-NAME is the name of the agent type (e.g., \"Task\", \"Review\").
 Returns the created beads-agent-session object.
 
 Note: Session storage is handled by `beads-agent-state-change-hook'.
@@ -332,6 +356,7 @@ The hook handler in beads-sesman.el registers the session with sesman."
                    :id session-id
                    :issue-id issue-id
                    :backend-name backend-name
+                   :agent-type-name agent-type-name
                    :project-dir project-dir
                    :worktree-dir worktree-dir
                    :started-at (format-time-string "%Y-%m-%dT%H:%M:%S%z")
