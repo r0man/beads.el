@@ -152,6 +152,12 @@ Return plist with :objects, :strings for sesman-browser display."
 
 ;;; Session Registration Helpers
 
+(defvar-local beads-sesman--buffer-session-id nil
+  "Session ID for the agent session associated with this buffer.
+Set when an agent buffer is linked to a sesman session.
+Used by `beads-sesman--buffer-kill-handler' to clean up the session
+when the buffer is killed manually.")
+
 (defun beads-sesman--make-sesman-session (beads-session)
   "Create sesman session list from BEADS-SESSION.
 Return (name backend-handle beads-agent-session)."
@@ -159,10 +165,29 @@ Return (name backend-handle beads-agent-session)."
         (oref beads-session backend-session)
         beads-session))
 
+(defun beads-sesman--buffer-kill-handler ()
+  "Handle agent buffer being killed.
+Cleans up the associated session when an agent buffer is killed
+manually (e.g., via `kill-buffer' or \\`C-x k').
+
+This ensures the beads-list view reflects the actual session state
+rather than showing stale agent indicators."
+  (when beads-sesman--buffer-session-id
+    ;; Use beads-agent-stop to properly clean up the session.
+    ;; This triggers the state-change hook which unregisters from sesman.
+    (condition-case nil
+        (when (fboundp 'beads-agent-stop)
+          (beads-agent-stop beads-sesman--buffer-session-id))
+      ;; Ignore errors during cleanup - buffer is already being killed
+      (error nil))))
+
 (defun beads-sesman--register-session (beads-session)
   "Register BEADS-SESSION with sesman and link to contexts.
 Link to worktree directory (primary), main project (fallback),
-and the agent buffer (if available)."
+and the agent buffer (if available).
+
+When linking to an agent buffer, also sets up a `kill-buffer-hook'
+to clean up the session if the buffer is killed manually."
   (let ((sesman-session (beads-sesman--make-sesman-session beads-session)))
     ;; Register with sesman
     (sesman-register beads-sesman-system sesman-session)
@@ -177,13 +202,26 @@ and the agent buffer (if available)."
                 (buffer (beads-agent-backend-get-buffer backend beads-session)))
       (when (buffer-live-p buffer)
         (sesman-link-session beads-sesman-system sesman-session 'buffer buffer)
-        ;; Set sesman-system in the buffer so sesman commands work there
+        ;; Set up buffer for session management
         (with-current-buffer buffer
-          (setq-local sesman-system beads-sesman-system))))))
+          (setq-local sesman-system beads-sesman-system)
+          ;; Track session ID for cleanup on buffer kill
+          (setq-local beads-sesman--buffer-session-id (oref beads-session id))
+          ;; Add kill-buffer-hook to clean up session when buffer is killed
+          (add-hook 'kill-buffer-hook #'beads-sesman--buffer-kill-handler nil t))))))
 
 (defun beads-sesman--unregister-session (beads-session)
-  "Unregister BEADS-SESSION from sesman."
+  "Unregister BEADS-SESSION from sesman.
+Also clears the buffer-local session ID to prevent the `kill-buffer-hook'
+from attempting a redundant cleanup when the buffer is eventually killed."
   (let ((name (beads-sesman--session-name beads-session)))
+    ;; Clear buffer-local session ID to prevent double-cleanup
+    (when-let* ((backend (beads-agent--get-backend (oref beads-session backend-name)))
+                (buffer (beads-agent-backend-get-buffer backend beads-session)))
+      (when (buffer-live-p buffer)
+        (with-current-buffer buffer
+          (setq-local beads-sesman--buffer-session-id nil))))
+    ;; Unregister from sesman
     (sesman-unregister beads-sesman-system
                        (sesman-session beads-sesman-system name))))
 
