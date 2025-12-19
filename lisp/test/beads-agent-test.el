@@ -1485,6 +1485,116 @@ Settings changes should allow continued configuration."
   (should (null (beads-agent-test--suffix-transient-p
                  'beads-agent-start--execute))))
 
+;;; Tests for Agent Type Name Slot
+
+(ert-deftest beads-agent-test-session-type-name-slot ()
+  "Test that session has agent-type-name slot."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let ((session (beads-agent--create-session
+                        "bd-123" "mock" "/tmp" 'handle nil "Task")))
+          (should (equal (oref session agent-type-name) "Task"))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-session-type-name-accessor ()
+  "Test beads-agent-session-type-name accessor function."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let ((session (beads-agent--create-session
+                        "bd-456" "mock" "/tmp" 'handle nil "Review")))
+          (should (equal (beads-agent-session-type-name session) "Review"))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-session-type-name-nil-when-not-set ()
+  "Test that agent-type-name is nil when not provided."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        ;; Create session without type name (backwards compatibility)
+        (let ((session (beads-agent--create-session
+                        "bd-789" "mock" "/tmp" 'handle)))
+          (should (null (beads-agent-session-type-name session)))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-session-type-name-with-worktree ()
+  "Test session creation with both worktree and agent type name."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let ((session (beads-agent--create-session
+                        "bd-101" "mock" "/main/repo" 'handle
+                        "/worktrees/bd-101" "QA")))
+          (should (equal (oref session worktree-dir) "/worktrees/bd-101"))
+          (should (equal (beads-agent-session-type-name session) "QA"))))
+    (beads-agent-test--teardown)))
+
+;;; =========================================================================
+;;; Tests for Plan Mode Support
+;;; =========================================================================
+
+(ert-deftest beads-agent-test-supports-plan-mode-generic-exists ()
+  "Test that beads-agent-backend-supports-plan-mode-p is defined."
+  (should (fboundp 'beads-agent-backend-supports-plan-mode-p)))
+
+(ert-deftest beads-agent-test-supports-plan-mode-default-nil ()
+  "Test that the default implementation returns nil."
+  (beads-agent-test--setup)
+  (unwind-protect
+      ;; Mock backend uses default implementation, should return nil
+      (should (null (beads-agent-backend-supports-plan-mode-p
+                     beads-agent-test--mock-backend)))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-supports-plan-mode-dispatches-correctly ()
+  "Test that plan mode check dispatches on backend type."
+  (beads-agent-test--setup)
+  (unwind-protect
+      ;; Get the mock backend and verify dispatch works
+      (let ((backend (beads-agent--get-backend "mock")))
+        (should backend)
+        (should (null (beads-agent-backend-supports-plan-mode-p backend))))
+    (beads-agent-test--teardown)))
+
+;;; Mock Backend with Plan Mode Support for Testing
+
+(defclass beads-agent-backend-mock-with-plan (beads-agent-backend)
+  ((name :initform "mock-with-plan")
+   (priority :initform 100))
+  :documentation "Mock backend that supports plan mode.")
+
+(cl-defmethod beads-agent-backend-available-p
+    ((_backend beads-agent-backend-mock-with-plan))
+  "Mock backend is always available."
+  t)
+
+(cl-defmethod beads-agent-backend-supports-plan-mode-p
+    ((_backend beads-agent-backend-mock-with-plan))
+  "This mock backend supports plan mode."
+  t)
+
+(ert-deftest beads-agent-test-supports-plan-mode-can-be-overridden ()
+  "Test that subclass can override to return t."
+  (let ((backend (beads-agent-backend-mock-with-plan)))
+    (should (beads-agent-backend-supports-plan-mode-p backend))))
+
+(ert-deftest beads-agent-test-supports-plan-mode-different-backends ()
+  "Test that different backends return different values."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((mock-no-plan beads-agent-test--mock-backend)
+            (mock-with-plan (beads-agent-backend-mock-with-plan)))
+        ;; Regular mock should not support plan mode
+        (should (null (beads-agent-backend-supports-plan-mode-p mock-no-plan)))
+        ;; Mock with plan should support it
+        (should (beads-agent-backend-supports-plan-mode-p mock-with-plan)))
+    (beads-agent-test--teardown)))
+
 ;;; Footer
 
 (provide 'beads-agent-test)
