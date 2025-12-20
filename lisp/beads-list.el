@@ -74,6 +74,7 @@
 (declare-function beads-agent-stop-at-point "beads-agent")
 (declare-function beads-agent-jump-at-point "beads-agent")
 (declare-function beads-agent--get-issue-outcome "beads-agent-backend")
+(declare-function beads-agent--session-instance-number "beads-agent-backend")
 (declare-function beads-agent-session-backend-name "beads-agent-backend")
 (declare-function beads-agent-session-type-name "beads-agent-backend")
 
@@ -119,9 +120,10 @@
   :type 'integer
   :group 'beads-list)
 
-(defcustom beads-list-agent-width 6
+(defcustom beads-list-agent-width 15
   "Width of Agents column in issue lists.
-Shows a single letter for the agent type (T/R/P/Q/C)."
+Shows agent type and number for each active session (e.g., T#1 R#2).
+Default width accommodates ~3 agents (5 chars each with spaces)."
   :type 'integer
   :group 'beads-list)
 
@@ -292,32 +294,52 @@ the value of `beads-list-date-format'."
         (_
          (format-time-string "%Y-%m-%d %H:%M" time))))))
 
+(defun beads-list--format-agent-indicator (type-name instance-n face)
+  "Format a single agent indicator.
+TYPE-NAME is the agent type (e.g., \"Task\").
+INSTANCE-N is the session instance number.
+FACE is the face to apply.
+Returns a propertized string like \"T#1\"."
+  (let* ((letter (if type-name (substring type-name 0 1) "●"))
+         (indicator (if instance-n
+                        (format "%s#%d" letter instance-n)
+                      letter)))
+    (propertize indicator 'face face)))
+
 (defun beads-list--format-agent (issue-id)
   "Format agent status indicator for ISSUE-ID.
-Returns a single letter indicating agent type with colored face:
+Shows all active sessions with type and instance number (e.g., T#1 R#2).
+When no active sessions, shows last outcome indicator.
+Colors indicate status:
   - Yellow: agent currently working
   - Green: agent finished successfully
   - Red: agent failed
 Letters are: T=Task, R=Review, P=Plan, Q=QA, C=Custom.
-Each indicator includes a help-echo tooltip for accessibility."
+Instance numbers match the buffer names (*beads-agent[ID][Type#N]*)."
   (let ((sessions (and (fboundp 'beads-agent--get-sessions-for-issue)
                        (beads-agent--get-sessions-for-issue issue-id)))
         (outcome (and (fboundp 'beads-agent--get-issue-outcome)
                       (beads-agent--get-issue-outcome issue-id))))
     (cond
-     ;; Active session - show type letter in yellow
+     ;; Active sessions - show all with numbered format
      (sessions
-      (let* ((session (car sessions))
-             (type-name (and (fboundp 'beads-agent-session-type-name)
-                             (beads-agent-session-type-name session)))
-             (letter (if type-name
-                         (substring type-name 0 1)
-                       "●")))
-        (propertize letter
-                    'face 'beads-list-agent-working
-                    'help-echo (format "Agent working: %s" (or type-name "default")))))
-     ;; Finished - show last letter in green
-     ;; Outcome is now (letter . outcome) cons or just symbol for backward compat
+      (let ((indicators
+             (mapcar
+              (lambda (session)
+                (let* ((type-name (and (fboundp 'beads-agent-session-type-name)
+                                       (beads-agent-session-type-name session)))
+                       (instance-n (and (fboundp
+                                         'beads-agent--session-instance-number)
+                                        (beads-agent--session-instance-number
+                                         session))))
+                  (beads-list--format-agent-indicator
+                   type-name instance-n 'beads-list-agent-working)))
+              sessions)))
+        (propertize (string-join indicators " ")
+                    'help-echo (format "%d agent%s working"
+                                       (length sessions)
+                                       (if (= (length sessions) 1) "" "s")))))
+     ;; Finished - show last indicator in green
      ((and (consp outcome) (eq (cdr outcome) 'finished))
       (propertize (car outcome)
                   'face 'beads-list-agent-finished
@@ -326,7 +348,7 @@ Each indicator includes a help-echo tooltip for accessibility."
       (propertize "●"
                   'face 'beads-list-agent-finished
                   'help-echo "Agent finished successfully"))
-     ;; Failed - show last letter in red
+     ;; Failed - show last indicator in red
      ((and (consp outcome) (eq (cdr outcome) 'failed))
       (propertize (car outcome)
                   'face 'beads-list-agent-failed
