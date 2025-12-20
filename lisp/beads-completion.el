@@ -136,14 +136,13 @@ TABLE is the completion table, PRED is the predicate, POINT is ignored."
   (let* ((all (all-completions "" table pred))
          (pattern (regexp-quote string))
          (case-fold-search t))
-    ;; Return plain strings - keep properties only for filtering
-    (mapcar #'substring-no-properties
-            (seq-filter
-             (lambda (candidate)
-               (let ((title (get-text-property 0 'beads-title candidate)))
-                 (or (string-match-p pattern candidate)
-                     (and title (string-match-p pattern title)))))
-             all))))
+    ;; Keep text properties - needed for annotation and grouping functions
+    (seq-filter
+     (lambda (candidate)
+       (let ((title (get-text-property 0 'beads-title candidate)))
+         (or (string-match-p pattern candidate)
+             (and title (string-match-p pattern title)))))
+     all)))
 
 ;;; Shared Utilities
 
@@ -321,14 +320,13 @@ TABLE is the completion table, PRED is the predicate, POINT is ignored."
   (let* ((all (all-completions "" table pred))
          (pattern (regexp-quote string))
          (case-fold-search t))
-    ;; Return plain strings - keep properties only for filtering
-    (mapcar #'substring-no-properties
-            (seq-filter
-             (lambda (candidate)
-               (let ((description (get-text-property 0 'beads-description candidate)))
-                 (or (string-match-p pattern candidate)
-                     (and description (string-match-p pattern description)))))
-             all))))
+    ;; Keep text properties - needed for annotation and grouping functions
+    (seq-filter
+     (lambda (candidate)
+       (let ((description (get-text-property 0 'beads-description candidate)))
+         (or (string-match-p pattern candidate)
+             (and description (string-match-p pattern description)))))
+     all)))
 
 ;; Add backend completion style (idempotent - won't duplicate)
 (unless (assq 'beads-backend-description completion-styles-alist)
