@@ -26,6 +26,7 @@
 ;;; Code:
 
 (require 'beads-agent-backend)
+(require 'seq)
 
 ;; Declare external functions to avoid compiler warnings
 (declare-function ws-process "web-server")
@@ -39,6 +40,23 @@
 ;; Declare external variables
 (defvar claude-code-ide-cli-extra-flags)
 (defvar claude-code-ide-enable-mcp-server)
+
+;;; Helper Functions
+
+(defun beads-agent-claude-code-ide--find-buffers (dir)
+  "Find Claude Code IDE buffers for directory DIR.
+Claude Code IDE buffers are named `*Claude Code: DIRECTORY_NAME*' where
+DIRECTORY_NAME is the directory basename.
+
+NOTE: This reimplements claude-code-ide's buffer naming convention.
+If upstream changes the format, this function may need updating."
+  (let* ((normalized-dir (file-truename (expand-file-name dir)))
+         (dir-name (file-name-nondirectory (directory-file-name normalized-dir)))
+         (expected-name (format "*Claude Code: %s*" dir-name)))
+    (seq-filter
+     (lambda (buf)
+       (string= (buffer-name buf) expected-name))
+     (buffer-list))))
 
 ;;; Backend Class
 
@@ -148,27 +166,15 @@ Explicitly kills the session buffer since beads renames it and
 (cl-defmethod beads-agent-backend-switch-to-buffer
     ((backend beads-agent-backend-claude-code-ide) session)
   "Switch to claude-code-ide buffer for SESSION using BACKEND.
-If no Claude Code session exists, starts a new one automatically.
-Uses \"other window\" display to preserve the current window layout."
-  ;; First try the session's stored buffer (renamed to beads format)
-  (let ((stored-buffer (beads-agent-session-buffer session)))
-    (if (and stored-buffer (buffer-live-p stored-buffer))
-        (beads-agent--pop-to-buffer-other-window stored-buffer)
-      ;; Fall back to claude-code-ide's normal switching behavior
-      (require 'claude-code-ide)
-      (let ((default-directory (beads-agent-session-working-dir session)))
-        ;; Check if Claude Code session exists before trying to switch
-        (if (beads-agent-backend-session-active-p backend session)
-            ;; Try to switch, but fall back to starting new if it fails
-            ;; (the MCP session might exist but the buffer could be killed)
-            (condition-case nil
-                (claude-code-ide-switch-to-buffer)
-              (error
-               (message "Claude Code session expired, starting new one...")
-               (claude-code-ide)))
-          ;; No active session - start a new one
-          (message "Claude Code session expired, starting new one...")
-          (claude-code-ide))))))
+Uses the stored buffer (renamed to beads format) when available,
+falls back to pattern-based lookup.  This is designed for jumping to
+existing sessions - use `beads-agent-start' to create new sessions."
+  ;; Use get-buffer which has proper fallback logic
+  (if-let ((buffer (beads-agent-backend-get-buffer backend session)))
+      (when (buffer-live-p buffer)
+        (beads-agent--pop-to-buffer-other-window buffer))
+    ;; Buffer not found - session may have been killed
+    (message "Agent buffer not found for session")))
 
 (cl-defmethod beads-agent-backend-send-prompt
     ((_backend beads-agent-backend-claude-code-ide) session prompt)
@@ -179,10 +185,9 @@ Uses \"other window\" display to preserve the current window layout."
 
 (cl-defmethod beads-agent-backend-get-buffer
     ((_backend beads-agent-backend-claude-code-ide) session)
-  "Return the claude-code-ide buffer for SESSION.
+  "Return the claude-code-ide buffer for SESSION, or nil if not available.
 First checks if the session has a stored buffer (after renaming),
-then falls back to using `claude-code-ide-switch-to-buffer'.
-Returns nil if not found.
+then falls back to pattern-based buffer lookup.
 
 Note: This does NOT check `beads-agent-backend-session-active-p' because
 the vterm buffer exists immediately after `claude-code-ide' is called,
@@ -192,14 +197,10 @@ to work during session registration."
   (let ((stored-buffer (beads-agent-session-buffer session)))
     (if (and stored-buffer (buffer-live-p stored-buffer))
         stored-buffer
-      ;; Fall back to claude-code-ide's buffer lookup
-      (require 'claude-code-ide)
-      (let ((default-directory (beads-agent-session-working-dir session)))
-        (condition-case nil
-            (save-window-excursion
-              (claude-code-ide-switch-to-buffer)
-              (current-buffer))
-          (error nil))))))
+      ;; Fall back to pattern-based lookup by working directory.
+      ;; This finds the original *Claude Code: ...* buffer before renaming.
+      (let ((working-dir (beads-agent-session-working-dir session)))
+        (car (beads-agent-claude-code-ide--find-buffers working-dir))))))
 
 ;;; Registration
 

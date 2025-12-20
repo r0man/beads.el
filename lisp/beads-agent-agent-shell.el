@@ -190,31 +190,17 @@ and has a live process."
          (cl-some #'beads-agent-agent-shell--buffer-active-p buffers))))
 
 (cl-defmethod beads-agent-backend-switch-to-buffer
-    ((_backend beads-agent-backend-agent-shell) session)
-  "Switch to agent-shell buffer for SESSION.
-If no agent-shell session exists, starts a new one automatically.
-Uses \"other window\" display to preserve the current window layout."
-  ;; First try the session's stored buffer (renamed to beads format)
-  (let ((stored-buffer (beads-agent-session-buffer session)))
-    (if (and stored-buffer (buffer-live-p stored-buffer))
-        (beads-agent--pop-to-buffer-other-window stored-buffer)
-      ;; Fall back to agent-shell's normal switching behavior
-      (require 'agent-shell)
-      (let* ((working-dir (beads-agent-session-working-dir session))
-             (buffers (beads-agent-agent-shell--find-buffers working-dir))
-             (active-buf (cl-find-if #'beads-agent-agent-shell--buffer-active-p
-                                     buffers)))
-        (if active-buf
-            ;; Session exists - switch to it
-            (beads-agent--pop-to-buffer-other-window active-buf)
-          ;; No active session - start a new one
-          (message "Agent-shell session expired, starting new one...")
-          (let ((default-directory working-dir)
-                (config (or beads-agent-agent-shell-config
-                            (and (boundp 'agent-shell-preferred-agent-config)
-                                 agent-shell-preferred-agent-config)
-                            (car agent-shell-agent-configs))))
-            (agent-shell-start :config config)))))))
+    ((backend beads-agent-backend-agent-shell) session)
+  "Switch to agent-shell buffer for SESSION using BACKEND.
+Uses the stored buffer (renamed to beads format) when available,
+falls back to pattern-based lookup.  This is designed for jumping to
+existing sessions - use `beads-agent-start' to create new sessions."
+  ;; Use get-buffer which has proper fallback logic
+  (if-let ((buffer (beads-agent-backend-get-buffer backend session)))
+      (when (buffer-live-p buffer)
+        (beads-agent--pop-to-buffer-other-window buffer))
+    ;; Buffer not found - session may have been killed
+    (message "Agent buffer not found for session")))
 
 (cl-defmethod beads-agent-backend-send-prompt
     ((_backend beads-agent-backend-agent-shell) session prompt)
