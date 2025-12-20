@@ -72,9 +72,17 @@ without eat loaded."
                                   #'claudemacs--bell-handler))))))
 
 (defun beads-agent-claudemacs--advice-setup-bell-handler (orig-fun)
-  "Advice for `claudemacs-setup-bell-handler' to handle `gv-setter' issues.
-ORIG-FUN is the original function.  If it fails with the setf error,
-we use the direct setter instead."
+  "Advice for `claudemacs-setup-bell-handler' to handle various errors.
+ORIG-FUN is the original function.
+
+This advice handles multiple failure modes:
+1. `void-function' for setf `gv-setter' issues when claudemacs was
+   byte-compiled without eat loaded
+2. `wrong-type-argument' when beads has renamed the buffer and
+   `claudemacs--get-current-session-buffer' returns nil
+
+In both cases, we fall back to our fixed implementation that finds
+the buffer by mode rather than by name pattern."
   (condition-case err
       (funcall orig-fun)
     (void-function
@@ -83,7 +91,13 @@ we use the direct setter instead."
      ;; Emacs creates these symbols for setf expansions.
      (if (eq (cadr err) '\(setf\ eat-term-parameter\))
          (beads-agent-claudemacs--setup-bell-handler-fixed)
-       (signal (car err) (cdr err))))))
+       (signal (car err) (cdr err))))
+    (wrong-type-argument
+     ;; This happens when claudemacs--get-current-session-buffer returns nil
+     ;; because beads renamed the buffer from *claudemacs:...* to *beads-agent[...]*
+     ;; and the name pattern no longer matches.
+     ;; Our fixed implementation finds buffers by mode, not by name.
+     (beads-agent-claudemacs--setup-bell-handler-fixed))))
 
 (defun beads-agent-claudemacs--install-bell-handler-advice ()
   "Install advice on `claudemacs-setup-bell-handler' if not already installed."
