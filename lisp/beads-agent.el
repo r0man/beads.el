@@ -791,6 +791,11 @@ are passed through from `beads-agent--continue-start'."
                                 process-environment))
          (default-directory working-dir)
          (agent-type-name (when agent-type (oref agent-type name))))
+    ;; Prepare window layout: if single window, split right so agent appears
+    ;; on the right side. This happens here (after backend selection) to avoid
+    ;; splitting during the "select backend" prompt.
+    (when (one-window-p t)
+      (select-window (split-window-right)))
     (condition-case err
         (let* ((backend-session (beads-agent-backend-start backend issue prompt))
                (session (beads-agent--create-session
@@ -1431,20 +1436,9 @@ This is the core implementation for all type-specific start commands."
                   (beads-agent--jump-other-window-if-applicable (oref selected id))
                 (message "No agent selected"))))
           ;; Start new agent of this type
-          (if (beads-agent--in-list-or-show-mode-p)
-              (let ((list-buffer (current-buffer)))
-                (when (= (length (window-list)) 1)
-                  (split-window-right))
-                (beads-agent-start id nil nil type-name)
-                (run-with-timer
-                 0.5 nil
-                 (lambda ()
-                   (when (buffer-live-p list-buffer)
-                     (unless (get-buffer-window list-buffer)
-                       (display-buffer list-buffer
-                                       '(display-buffer-reuse-window
-                                         (inhibit-same-window . t))))))))
-            (beads-agent-start id nil nil type-name))))
+          ;; Note: Window splitting is handled in beads-agent--start-backend-async
+          ;; to occur after backend selection, not before
+          (beads-agent-start id nil nil type-name)))
     (user-error "No issue at point")))
 
 ;;;###autoload
