@@ -163,20 +163,11 @@ Marks the session handle as inactive and kills the buffer."
 (cl-defmethod beads-agent-backend-switch-to-buffer
     ((backend beads-agent-backend-mock) session)
   "Switch to buffer for mock SESSION via BACKEND."
-  (let ((buffer (or (beads-agent-backend-get-buffer backend session)
-                    ;; Try to find by expected name (recovery for old sessions)
-                    (get-buffer (beads-agent--generate-buffer-name-for-session
-                                 session)))))
-    (cond
-     ((and buffer (buffer-live-p buffer))
-      ;; Store buffer if we recovered it by name
-      (unless (beads-agent-session-buffer session)
-        (beads-agent-session-set-buffer session buffer))
-      (beads-agent--pop-to-buffer-other-window buffer))
-     (buffer
-      (user-error "Agent buffer has been killed"))
-     (t
-      (user-error "No buffer found for session %s" (oref session id))))))
+  (if-let ((buffer (beads-agent-backend-get-buffer backend session)))
+      (if (buffer-live-p buffer)
+          (beads-agent--pop-to-buffer-other-window buffer)
+        (user-error "Agent buffer has been killed"))
+    (user-error "No buffer found for session %s" (oref session id))))
 
 (cl-defmethod beads-agent-backend-send-prompt
     ((_backend beads-agent-backend-mock) session prompt)
