@@ -505,6 +505,38 @@ or nil if the buffer name doesn't match the expected format."
         "\\*beads-agent\\[.+\\]\\[.+#[0-9]+\\]\\*"
         buffer-name)))
 
+;;; Window Management
+;;
+;; Agent buffers should open in the "other window" without creating new
+;; windows.  This provides a consistent, predictable window layout when
+;; working with agents from the issue list or show views.
+
+(defun beads-agent--display-buffer-other-window (buffer)
+  "Display BUFFER in another window without creating new windows.
+If multiple windows exist, displays in a window other than the current one.
+If only one window exists, displays in the same window.
+This provides a predictable window layout for agent buffers.
+
+Returns the window displaying BUFFER."
+  (display-buffer
+   buffer
+   '((display-buffer-reuse-window
+      display-buffer-use-some-window)
+     (inhibit-same-window . t)
+     (inhibit-switch-frame . t))))
+
+(defun beads-agent--pop-to-buffer-other-window (buffer)
+  "Switch to BUFFER in another window without creating new windows.
+Like `pop-to-buffer', but uses the \"other window\" semantics:
+- If multiple windows exist, uses a window other than the current one
+- If only one window exists, uses the same window
+- Never creates new windows
+
+This is the recommended way to display agent buffers."
+  (let ((window (beads-agent--display-buffer-other-window buffer)))
+    (when window
+      (select-window window))))
+
 (defun beads-agent--find-buffers-by-issue (issue-id)
   "Find all beads agent buffers for ISSUE-ID.
 Returns a list of buffer objects."

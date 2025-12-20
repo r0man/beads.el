@@ -121,11 +121,12 @@ Returns the efrit session handle."
 
 (cl-defmethod beads-agent-backend-switch-to-buffer
     ((_backend beads-agent-backend-efrit) session)
-  "Switch to efrit progress buffer for SESSION."
+  "Switch to efrit progress buffer for SESSION.
+Uses \"other window\" display to preserve the current window layout."
   ;; First try the session's stored buffer (renamed to beads format)
   (let ((stored-buffer (beads-agent-session-buffer session)))
     (if (and stored-buffer (buffer-live-p stored-buffer))
-        (pop-to-buffer stored-buffer)
+        (beads-agent--pop-to-buffer-other-window stored-buffer)
       ;; Fall back to efrit's normal switching behavior
       (require 'efrit-do)
       (require 'efrit-progress)

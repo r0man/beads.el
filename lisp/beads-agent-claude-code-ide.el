@@ -144,11 +144,12 @@ Returns the MCP session handle."
 (cl-defmethod beads-agent-backend-switch-to-buffer
     ((backend beads-agent-backend-claude-code-ide) session)
   "Switch to claude-code-ide buffer for SESSION using BACKEND.
-If no Claude Code session exists, starts a new one automatically."
+If no Claude Code session exists, starts a new one automatically.
+Uses \"other window\" display to preserve the current window layout."
   ;; First try the session's stored buffer (renamed to beads format)
   (let ((stored-buffer (beads-agent-session-buffer session)))
     (if (and stored-buffer (buffer-live-p stored-buffer))
-        (pop-to-buffer stored-buffer)
+        (beads-agent--pop-to-buffer-other-window stored-buffer)
       ;; Fall back to claude-code-ide's normal switching behavior
       (require 'claude-code-ide)
       (let ((default-directory (beads-agent-session-working-dir session)))
