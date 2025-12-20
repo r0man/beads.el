@@ -156,29 +156,37 @@ Returns the agent-shell buffer as the session handle."
 
 (cl-defmethod beads-agent-backend-stop
     ((_backend beads-agent-backend-agent-shell) session)
-  "Stop agent-shell SESSION."
+  "Stop agent-shell SESSION.
+Let agent-shell's `kill-buffer-hook' handle cleanup properly.
+If cleanup fails, fall back to forced cleanup."
   (let* ((working-dir (beads-agent-session-working-dir session))
          (buffers (beads-agent-agent-shell--find-buffers working-dir)))
     (dolist (buf buffers)
       (when (buffer-live-p buf)
         (with-current-buffer buf
-          ;; Bind inhibit-read-only to allow process sentinel to modify buffer.
-          ;; Agent-shell buffers are read-only, but the process sentinel needs
-          ;; to write cleanup messages when the process terminates.
-          (let ((inhibit-read-only t))
-            ;; Interrupt any running request first
-            (when (get-buffer-process buf)
-              (condition-case nil
-                  (when (fboundp 'agent-shell-interrupt)
-                    (agent-shell-interrupt t))
-                (error nil)))
-            ;; Kill the process
-            (when-let ((proc (get-buffer-process buf)))
-              (condition-case nil
-                  (delete-process proc)
-                (error nil)))
-            ;; Kill the buffer
-            (kill-buffer buf)))))))
+          ;; Interrupt any running request first
+          (condition-case nil
+              (when (and (get-buffer-process buf)
+                         (fboundp 'agent-shell-interrupt))
+                (agent-shell-interrupt t))
+            (error nil)))
+        ;; Kill buffer, letting agent-shell's cleanup hook run normally.
+        ;; Wrap in condition-case to handle potential cleanup errors
+        ;; (e.g., "Not in a shell" or "Client already shut down").
+        (condition-case nil
+            (kill-buffer buf)
+          (error
+           ;; If cleanup failed, force-kill the buffer.
+           ;; Clear all buffer-local kill-buffer-hook entries and kill directly.
+           (when (buffer-live-p buf)
+             (with-current-buffer buf
+               (let ((inhibit-read-only t))
+                 ;; Clear all buffer-local kill-buffer-hook to avoid repeated errors
+                 (kill-local-variable 'kill-buffer-hook)
+                 ;; Kill any process
+                 (when-let ((proc (get-buffer-process buf)))
+                   (ignore-errors (delete-process proc)))))
+             (ignore-errors (kill-buffer buf)))))))))
 
 (cl-defmethod beads-agent-backend-session-active-p
     ((_backend beads-agent-backend-agent-shell) session)
