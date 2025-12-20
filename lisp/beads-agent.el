@@ -95,6 +95,7 @@
 (declare-function beads-list--current-issue-id "beads-list")
 (declare-function beads-show--issue-id "beads-show")
 (defvar beads-show--issue-id)
+(defvar beads-sesman--buffer-session-id)
 
 ;;; Customization
 
@@ -843,6 +844,12 @@ If SESSION-ID is nil, prompts for selection from active sessions."
     (unless session
       (user-error "Session not found: %s" session-id))
     (when-let ((backend (beads-agent--get-backend (oref session backend-name))))
+      ;; Clear buffer-local session ID BEFORE killing buffer to prevent
+      ;; kill-buffer-hook from calling beads-agent-stop recursively.
+      (when-let ((buffer (beads-agent-backend-get-buffer backend session)))
+        (when (buffer-live-p buffer)
+          (with-current-buffer buffer
+            (setq-local beads-sesman--buffer-session-id nil))))
       (beads-agent-backend-stop backend session))
     (beads-agent--destroy-session session-id)
     (message "Stopped session %s" session-id)))
@@ -858,12 +865,19 @@ This function returns immediately without blocking."
       ;; Session exists - stop it
       (let ((backend (beads-agent--get-backend (oref session backend-name))))
         (if backend
-            (beads-agent-backend-stop-async
-             backend session
-             (lambda ()
-               (beads-agent--destroy-session session-id)
-               (message "Stopped session %s" session-id)
-               (when callback (funcall callback))))
+            (progn
+              ;; Clear buffer-local session ID BEFORE killing buffer to prevent
+              ;; kill-buffer-hook from calling beads-agent-stop recursively.
+              (when-let ((buffer (beads-agent-backend-get-buffer backend session)))
+                (when (buffer-live-p buffer)
+                  (with-current-buffer buffer
+                    (setq-local beads-sesman--buffer-session-id nil))))
+              (beads-agent-backend-stop-async
+               backend session
+               (lambda ()
+                 (beads-agent--destroy-session session-id)
+                 (message "Stopped session %s" session-id)
+                 (when callback (funcall callback)))))
           ;; No backend - just destroy the session
           (beads-agent--destroy-session session-id)
           (message "Stopped session %s" session-id)
