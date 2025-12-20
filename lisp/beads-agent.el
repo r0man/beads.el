@@ -453,14 +453,27 @@ See: https://github.com/anthropics/claude-code"))
      ;; No default set - always prompt user, even if only one available
      (t
       (require 'beads-completion)
+      (require 'beads-custom)
       (let* ((available-names (mapcar (lambda (b) (oref b name)) available))
+             ;; When showing unavailable backends, don't filter the list
+             ;; (they appear grayed out).  Validate selection after.
+             (predicate (unless beads-completion-show-unavailable-backends
+                          (lambda (cand)
+                            (member (if (consp cand) (car cand) cand)
+                                    available-names))))
              (choice (completing-read "Select backend: "
                                       (beads-completion-backend-table)
-                                      (lambda (cand)
-                                        (member (if (consp cand) (car cand) cand)
-                                                available-names))
-                                      t)))
-        (beads-agent--get-backend choice))))))
+                                      predicate
+                                      t))
+             (backend (beads-agent--get-backend choice)))
+        ;; Validate selection when unavailable backends were shown
+        (when (and beads-completion-show-unavailable-backends
+                   (not (beads-agent-backend-available-p backend)))
+          (user-error "Backend '%s' is not available.  %s"
+                      choice
+                      (or (oref backend description)
+                          "Install the required package")))
+        backend)))))
 
 ;;;###autoload
 (defun beads-agent-switch-backend (&optional save)
@@ -474,6 +487,7 @@ This sets `beads-agent-default-backend' so that future agent sessions
 will automatically use the selected backend without prompting."
   (interactive "P")
   (require 'beads-completion)
+  (require 'beads-custom)
   (let* ((available (beads-agent--get-available-backends)))
     (unless available
       (user-error "No AI agent backends available"))
@@ -482,12 +496,23 @@ will automatically use the selected backend without prompting."
            (prompt (if current
                        (format "Switch backend (current: %s): " current)
                      "Select default backend: "))
+           ;; When showing unavailable backends, don't filter the list.
+           (predicate (unless beads-completion-show-unavailable-backends
+                        (lambda (cand)
+                          (member (if (consp cand) (car cand) cand)
+                                  available-names))))
            (choice (completing-read prompt
                                     (beads-completion-backend-table)
-                                    (lambda (cand)
-                                      (member (if (consp cand) (car cand) cand)
-                                              available-names))
-                                    t)))
+                                    predicate
+                                    t))
+           (backend (beads-agent--get-backend choice)))
+      ;; Validate selection when unavailable backends were shown
+      (when (and beads-completion-show-unavailable-backends
+                 (not (beads-agent-backend-available-p backend)))
+        (user-error "Backend '%s' is not available.  %s"
+                    choice
+                    (or (oref backend description)
+                        "Install the required package")))
       (setq beads-agent-default-backend choice)
       (when save
         (customize-save-variable 'beads-agent-default-backend choice))
