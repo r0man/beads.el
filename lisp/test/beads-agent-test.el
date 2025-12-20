@@ -412,15 +412,19 @@ SESSION is the beads-agent-session object."
       (cl-letf (((symbol-function 'sesman-sessions)
                  #'beads-agent-test--mock-sesman-sessions))
         (clrhash beads-agent--issue-outcomes)
-        ;; Create and then destroy a session
-        (let* ((session (beads-agent--create-session "bd-123" "mock" "/tmp" 'h1))
+        ;; Create and then destroy a session with agent type
+        (let* ((session (beads-agent--create-session
+                         "bd-123" "mock" "/tmp" 'h1 nil "Task"))
                (session-id (oref session id)))
           ;; Outcome should be nil while running (cleared on start)
           (should (null (beads-agent--get-issue-outcome "bd-123")))
           ;; Destroy the session
           (beads-agent--destroy-session session-id)
-          ;; Outcome should now be 'finished
-          (should (eq (beads-agent--get-issue-outcome "bd-123") 'finished))))
+          ;; Outcome should now be (letter . finished) cons
+          (let ((outcome (beads-agent--get-issue-outcome "bd-123")))
+            (should (consp outcome))
+            (should (equal (car outcome) "T"))
+            (should (eq (cdr outcome) 'finished)))))
     (beads-agent-test--teardown)))
 
 ;;; Tests for Context Building
@@ -1532,67 +1536,6 @@ Settings changes should allow continued configuration."
                         "/worktrees/bd-101" "QA")))
           (should (equal (oref session worktree-dir) "/worktrees/bd-101"))
           (should (equal (beads-agent-session-type-name session) "QA"))))
-    (beads-agent-test--teardown)))
-
-;;; =========================================================================
-;;; Tests for Plan Mode Support
-;;; =========================================================================
-
-(ert-deftest beads-agent-test-supports-plan-mode-generic-exists ()
-  "Test that beads-agent-backend-supports-plan-mode-p is defined."
-  (should (fboundp 'beads-agent-backend-supports-plan-mode-p)))
-
-(ert-deftest beads-agent-test-supports-plan-mode-default-nil ()
-  "Test that the default implementation returns nil."
-  (beads-agent-test--setup)
-  (unwind-protect
-      ;; Mock backend uses default implementation, should return nil
-      (should (null (beads-agent-backend-supports-plan-mode-p
-                     beads-agent-test--mock-backend)))
-    (beads-agent-test--teardown)))
-
-(ert-deftest beads-agent-test-supports-plan-mode-dispatches-correctly ()
-  "Test that plan mode check dispatches on backend type."
-  (beads-agent-test--setup)
-  (unwind-protect
-      ;; Get the mock backend and verify dispatch works
-      (let ((backend (beads-agent--get-backend "mock")))
-        (should backend)
-        (should (null (beads-agent-backend-supports-plan-mode-p backend))))
-    (beads-agent-test--teardown)))
-
-;;; Mock Backend with Plan Mode Support for Testing
-
-(defclass beads-agent-backend-mock-with-plan (beads-agent-backend)
-  ((name :initform "mock-with-plan")
-   (priority :initform 100))
-  :documentation "Mock backend that supports plan mode.")
-
-(cl-defmethod beads-agent-backend-available-p
-    ((_backend beads-agent-backend-mock-with-plan))
-  "Mock backend is always available."
-  t)
-
-(cl-defmethod beads-agent-backend-supports-plan-mode-p
-    ((_backend beads-agent-backend-mock-with-plan))
-  "This mock backend supports plan mode."
-  t)
-
-(ert-deftest beads-agent-test-supports-plan-mode-can-be-overridden ()
-  "Test that subclass can override to return t."
-  (let ((backend (beads-agent-backend-mock-with-plan)))
-    (should (beads-agent-backend-supports-plan-mode-p backend))))
-
-(ert-deftest beads-agent-test-supports-plan-mode-different-backends ()
-  "Test that different backends return different values."
-  (beads-agent-test--setup)
-  (unwind-protect
-      (let ((mock-no-plan beads-agent-test--mock-backend)
-            (mock-with-plan (beads-agent-backend-mock-with-plan)))
-        ;; Regular mock should not support plan mode
-        (should (null (beads-agent-backend-supports-plan-mode-p mock-no-plan)))
-        ;; Mock with plan should support it
-        (should (beads-agent-backend-supports-plan-mode-p mock-with-plan)))
     (beads-agent-test--teardown)))
 
 ;;; Footer

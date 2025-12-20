@@ -59,6 +59,50 @@ This prompt is combined with issue context when starting a QA agent."
   :type 'string
   :group 'beads-agent-types)
 
+(defcustom beads-agent-plan-prompt
+  "You are a planning agent. Your task is to create a detailed implementation \
+plan WITHOUT making any changes.
+
+# Critical Constraints
+
+- DO NOT modify any files - only read and analyze
+- DO NOT execute commands that change state (no writes, no git commits)
+- DO NOT create new files or directories
+- ONLY use read operations: read files, search code, explore the codebase
+
+# Your Task
+
+Create a comprehensive implementation plan that includes:
+
+1. **Analysis of Current State**
+   - Understand the existing codebase structure
+   - Identify relevant files and components
+   - Note patterns and conventions used
+
+2. **Implementation Strategy**
+   - Break down the work into specific, actionable steps
+   - Identify files that need to be modified or created
+   - Consider dependencies between changes
+
+3. **Risk Assessment**
+   - Potential breaking changes
+   - Edge cases to handle
+   - Testing requirements
+
+4. **Acceptance Criteria Mapping**
+   - How each acceptance criterion will be satisfied
+   - What tests should verify each criterion
+
+# Output Format
+
+Provide a structured plan that a human or another AI agent can follow
+to implement the changes. Be specific about file paths, function names,
+and the nature of changes needed."
+  "Prompt template for the Plan agent.
+This prompt instructs the agent to plan without making changes."
+  :type 'string
+  :group 'beads-agent-types)
+
 ;;; Task Agent
 
 (defconst beads-agent-type-task--prompt
@@ -101,8 +145,7 @@ Based on beads task-agent.md agent specification.")
 (defclass beads-agent-type-task (beads-agent-type)
   ((name :initform "Task")
    (letter :initform "T")
-   (description :initform "Autonomous task completion agent")
-   (requires-plan-mode :initform nil))
+   (description :initform "Autonomous task completion agent"))
   :documentation "Task agent type for autonomous task completion.
 Uses a structured prompt that guides the agent through understanding,
 executing, and verifying task completion.")
@@ -121,8 +164,7 @@ executing, and verifying task completion.")
 (defclass beads-agent-type-review (beads-agent-type)
   ((name :initform "Review")
    (letter :initform "R")
-   (description :initform "Code review agent")
-   (requires-plan-mode :initform nil))
+   (description :initform "Code review agent"))
   :documentation "Review agent type for code review.
 Uses the customizable `beads-agent-review-prompt' template.")
 
@@ -141,26 +183,26 @@ Uses the customizable `beads-agent-review-prompt' template.")
 (defclass beads-agent-type-plan (beads-agent-type)
   ((name :initform "Plan")
    (letter :initform "P")
-   (description :initform "Planning agent (requires plan mode)")
-   (prompt-template :initform nil)
-   (requires-plan-mode :initform t))
+   (description :initform "Planning agent (read-only analysis)"))
   :documentation "Plan agent type for implementation planning.
-Requires backend plan mode support (e.g., --plan flag).
-Returns nil from `beads-agent-type-build-prompt' because the
-backend uses a special plan mode instead of a prompt.")
+Uses a prompt that instructs the agent to analyze and plan without
+making changes.  Works with any backend.")
 
 (cl-defmethod beads-agent-type-build-prompt ((_type beads-agent-type-plan)
-                                              _issue)
-  "Return nil for TYPE and ISSUE; Plan agent relies on --plan flag, not prompt."
-  nil)
+                                              issue)
+  "Build plan prompt for TYPE with ISSUE using the defcustom template."
+  (let ((issue-id (plist-get issue :id))
+        (issue-title (plist-get issue :title))
+        (issue-desc (or (plist-get issue :description) "")))
+    (format "%s\n\n## Issue: %s\n\n**Title:** %s\n\n**Description:**\n%s"
+            beads-agent-plan-prompt issue-id issue-title issue-desc)))
 
 ;;; QA Agent
 
 (defclass beads-agent-type-qa (beads-agent-type)
   ((name :initform "QA")
    (letter :initform "Q")
-   (description :initform "Testing and quality assurance agent")
-   (requires-plan-mode :initform nil))
+   (description :initform "Testing and quality assurance agent"))
   :documentation "QA agent type for testing and verification.
 Uses the customizable `beads-agent-qa-prompt' template.")
 
@@ -179,8 +221,7 @@ Uses the customizable `beads-agent-qa-prompt' template.")
   ((name :initform "Custom")
    (letter :initform "C")
    (description :initform "User-provided prompt at runtime")
-   (prompt-template :initform nil)
-   (requires-plan-mode :initform nil))
+   (prompt-template :initform nil))
   :documentation "Custom agent type with user-provided prompt.
 Prompts the user for a prompt string via the minibuffer.")
 

@@ -43,9 +43,8 @@
 (defclass beads-agent-type-mock-plan (beads-agent-type)
   ((name :initform "Plan")
    (letter :initform "P")
-   (description :initform "Planning agent")
-   (requires-plan-mode :initform t))
-  :documentation "Mock agent type requiring plan mode.")
+   (description :initform "Planning agent"))
+  :documentation "Mock plan agent type for testing.")
 
 ;;; Mock Backend for Validation Tests
 
@@ -126,16 +125,6 @@
         (should (equal (oref type prompt-template) "Mock prompt template")))
     (beads-agent-type-test--teardown)))
 
-(ert-deftest beads-agent-type-test-slot-requires-plan-mode ()
-  "Test requires-plan-mode slot accessor."
-  (beads-agent-type-test--setup)
-  (unwind-protect
-      (progn
-        (let ((type (beads-agent-type-mock)))
-          (should (eq (oref type requires-plan-mode) nil)))
-        (let ((type (beads-agent-type-mock-plan)))
-          (should (eq (oref type requires-plan-mode) t))))
-    (beads-agent-type-test--teardown)))
 
 (ert-deftest beads-agent-type-test-slot-initarg ()
   "Test that slots can be set via initargs."
@@ -399,78 +388,6 @@
             (should (string-match "Round Trip" prompt)))))
     (beads-agent-type-test--teardown)))
 
-;;; Tests for Plan Mode Validation
-
-;; Mock backend without plan mode support
-(defclass beads-agent-type-test-backend-no-plan ()
-  ((name :initarg :name :initform "no-plan-backend" :type string))
-  :documentation "Mock backend without plan mode support.")
-
-;; Mock backend with plan mode support
-(defclass beads-agent-type-test-backend-with-plan ()
-  ((name :initarg :name :initform "with-plan-backend" :type string))
-  :documentation "Mock backend with plan mode support.")
-
-;; Add method implementations for plan mode
-(cl-defmethod beads-agent-backend-supports-plan-mode-p
-    ((_backend beads-agent-type-test-backend-no-plan))
-  "This mock backend does not support plan mode."
-  nil)
-
-(cl-defmethod beads-agent-backend-supports-plan-mode-p
-    ((_backend beads-agent-type-test-backend-with-plan))
-  "This mock backend supports plan mode."
-  t)
-
-(ert-deftest beads-agent-type-test-validate-plan-mode-required-fails ()
-  "Test that validation fails when plan mode required but backend doesn't support."
-  (beads-agent-type-test--setup)
-  (unwind-protect
-      (let ((type (beads-agent-type-mock-plan))
-            (backend (beads-agent-type-test-backend-no-plan)))
-        (should-error
-         (beads-agent-type-validate-backend type backend)
-         :type 'error))
-    (beads-agent-type-test--teardown)))
-
-(ert-deftest beads-agent-type-test-validate-plan-mode-required-succeeds ()
-  "Test that validation succeeds when backend supports plan mode."
-  (beads-agent-type-test--setup)
-  (unwind-protect
-      (let ((type (beads-agent-type-mock-plan))
-            (backend (beads-agent-type-test-backend-with-plan)))
-        (should (beads-agent-type-validate-backend type backend)))
-    (beads-agent-type-test--teardown)))
-
-(ert-deftest beads-agent-type-test-validate-error-message-includes-names ()
-  "Test that validation error includes type and backend names."
-  (beads-agent-type-test--setup)
-  (unwind-protect
-      (let ((type (beads-agent-type-mock-plan))
-            (backend (beads-agent-type-test-backend-no-plan)))
-        (condition-case err
-            (progn
-              (beads-agent-type-validate-backend type backend)
-              (should nil))  ; Should not reach here
-          (error
-           (let ((msg (error-message-string err)))
-             (should (string-match-p "Plan" msg))
-             (should (string-match-p "no-plan-backend" msg))
-             (should (string-match-p "plan mode" msg))))))
-    (beads-agent-type-test--teardown)))
-
-(ert-deftest beads-agent-type-test-validate-non-plan-type-any-backend ()
-  "Test that types not requiring plan mode work with any backend."
-  (beads-agent-type-test--setup)
-  (unwind-protect
-      (let ((type (beads-agent-type-mock))  ; No plan mode required
-            (backend-no-plan (beads-agent-type-test-backend-no-plan))
-            (backend-with-plan (beads-agent-type-test-backend-with-plan)))
-        ;; Should work with backend that doesn't support plan mode
-        (should (beads-agent-type-validate-backend type backend-no-plan))
-        ;; Should also work with backend that does support plan mode
-        (should (beads-agent-type-validate-backend type backend-with-plan)))
-    (beads-agent-type-test--teardown)))
 
 (provide 'beads-agent-type-test)
 

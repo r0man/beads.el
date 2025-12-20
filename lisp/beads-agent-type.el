@@ -62,14 +62,7 @@ Shown in completion annotations to help users choose types.")
     :initform nil
     :documentation "Template string for building prompts, or nil.
 When non-nil, this is combined with issue context to build the agent prompt.
-When nil, the type must override `beads-agent-type-build-prompt'.")
-   (requires-plan-mode
-    :initarg :requires-plan-mode
-    :type boolean
-    :initform nil
-    :documentation "Whether this type requires backend plan mode support.
-When non-nil, `beads-agent-type-validate-backend' checks if the backend
-supports plan mode and signals an error if not."))
+When nil, the type must override `beads-agent-type-build-prompt'."))
   :abstract t
   :documentation "Abstract base class for AI agent types.
 Subclasses define specific agent behaviors and can override generic methods.
@@ -109,23 +102,12 @@ BACKEND is a `beads-agent-backend' object.
 Returns non-nil if valid, or signals an error with a descriptive message
 if the backend is incompatible.
 
-Default implementation checks `requires-plan-mode' slot.
-Subclasses may override for additional validation.")
+Default implementation always returns t (all types work with all backends).
+Subclasses may override for custom validation.")
 
-(cl-defmethod beads-agent-type-validate-backend ((type beads-agent-type)
-                                                  backend)
-  "Validate BACKEND is compatible with TYPE by checking requires-plan-mode."
-  (when (oref type requires-plan-mode)
-    ;; Check if backend supports plan mode
-    ;; We use fboundp check since the method may not be defined yet
-    (let ((supports-plan-mode
-           (and (fboundp 'beads-agent-backend-supports-plan-mode-p)
-                (beads-agent-backend-supports-plan-mode-p backend))))
-      (unless supports-plan-mode
-        (error "Agent type %s requires plan mode, but backend %s does not support it"
-               (oref type name)
-               (oref backend name)))))
-  ;; Return t on success
+(cl-defmethod beads-agent-type-validate-backend ((_type beads-agent-type)
+                                                  _backend)
+  "Validate BACKEND is compatible with TYPE.  Always return t."
   t)
 
 (cl-defgeneric beads-agent-type-letter-display (type)
