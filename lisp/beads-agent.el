@@ -86,6 +86,7 @@
 (require 'json)
 (require 'beads)
 (require 'beads-command)
+(require 'beads-completion)
 (require 'beads-agent-backend)
 (require 'beads-agent-type)
 (require 'beads-agent-types)
@@ -633,10 +634,8 @@ Returns issue ID string or nil if not found."
 (defun beads-agent--read-issue-id ()
   "Read issue ID with completion, using context if available."
   (or (beads-agent--detect-issue-id)
-      (completing-read
-       "Issue: "
-       (beads--issue-completion-table)
-       nil t nil 'beads--issue-id-history)))
+      (beads-completion-read-issue
+       "Issue: " nil t nil 'beads--issue-id-history)))
 
 ;;; Public API Functions
 

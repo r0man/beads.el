@@ -155,20 +155,26 @@ TABLE is the completion table, PRED is the predicate, POINT is ignored."
 
 ;;; Registration
 
-;; Custom completion style for title-aware matching.
-;; Temporarily disabled due to compatibility issues with completion machinery.
-;; The basic style works fine for now.
-;;
-;; (unless (assq 'beads-issue-title completion-styles-alist)
-;;   (add-to-list 'completion-styles-alist
-;;                '(beads-issue-title
-;;                  beads-completion--issue-style-try
-;;                  beads-completion--issue-style-all
-;;                  "Match beads issue by ID or title.")))
-;;
-;; (unless (assq 'beads-issue completion-category-overrides)
-;;   (add-to-list 'completion-category-overrides
-;;                '(beads-issue (styles beads-issue-title basic))))
+;; Add custom completion style (idempotent - won't duplicate)
+(unless (assq 'beads-issue-title completion-styles-alist)
+  (add-to-list 'completion-styles-alist
+               '(beads-issue-title
+                 beads-completion--issue-style-try
+                 beads-completion--issue-style-all
+                 "Match beads issue by ID or title.")))
+
+(defun beads-completion-read-issue (prompt &optional predicate require-match
+                                           initial-input history default)
+  "Read an issue ID with title-aware completion.
+PROMPT is the prompt string.  PREDICATE, REQUIRE-MATCH, INITIAL-INPUT,
+HISTORY, and DEFAULT are passed to `completing-read'.
+This function enables the custom `beads-issue-title' completion style
+for matching on both issue ID and title."
+  (let ((completion-category-overrides
+         (cons '(beads-issue (styles beads-issue-title basic))
+               completion-category-overrides)))
+    (completing-read prompt (beads-completion-issue-table)
+                     predicate require-match initial-input history default)))
 
 ;;; Completion-at-Point (CAPF) Support
 
@@ -239,7 +245,8 @@ Which backends appear in the table depends on the value of
 - When nil: only available backends are shown
 
 The completion category is `beads-agent-backend', which allows
-marginalia to automatically use the annotation function."
+marginalia to automatically use the annotation function.  The custom
+completion style allows matching on backend description as well as name."
   (require 'beads-agent-backend)
   (require 'beads-custom)
   (lambda (string pred action)
@@ -256,6 +263,7 @@ marginalia to automatically use the annotation function."
          (mapcar (lambda (b)
                    (propertize (oref b name)
                                'beads-backend b
+                               'beads-description (oref b description)
                                'beads-available (beads-agent-backend-available-p b)))
                  backends)
          string pred)))))
@@ -287,6 +295,61 @@ Otherwise, return the group name (\"Available\" or \"Unavailable\")."
       candidate
     (let ((available (get-text-property 0 'beads-available candidate)))
       (if available "Available" "Unavailable"))))
+
+;;; Backend Completion Style
+
+(defun beads-completion--backend-style-try (string table pred point)
+  "Try completion of STRING with description-aware matching.
+TABLE is the completion table, PRED is the predicate, POINT is the position.
+Return nil if no matches, t if STRING is exact unique match, single match
+string if only one match, or STRING itself if multiple matches."
+  (let ((matches (beads-completion--backend-style-all string table pred point)))
+    (cond
+     ((null matches) nil)
+     ((and (= (length matches) 1)
+           (string= string (substring-no-properties (car matches))))
+      t)
+     ((= (length matches) 1)
+      ;; Return plain string - properties cause issues with completion machinery
+      (substring-no-properties (car matches)))
+     (t string))))  ;; Multiple matches - return input unchanged
+
+(defun beads-completion--backend-style-all (string table pred point)
+  "Return backend completions matching STRING against name or description.
+TABLE is the completion table, PRED is the predicate, POINT is ignored."
+  (ignore point)
+  (let* ((all (all-completions "" table pred))
+         (pattern (regexp-quote string))
+         (case-fold-search t))
+    ;; Return plain strings - keep properties only for filtering
+    (mapcar #'substring-no-properties
+            (seq-filter
+             (lambda (candidate)
+               (let ((description (get-text-property 0 'beads-description candidate)))
+                 (or (string-match-p pattern candidate)
+                     (and description (string-match-p pattern description)))))
+             all))))
+
+;; Add backend completion style (idempotent - won't duplicate)
+(unless (assq 'beads-backend-description completion-styles-alist)
+  (add-to-list 'completion-styles-alist
+               '(beads-backend-description
+                 beads-completion--backend-style-try
+                 beads-completion--backend-style-all
+                 "Match beads backend by name or description.")))
+
+(defun beads-completion-read-backend (prompt &optional predicate require-match
+                                              initial-input history default)
+  "Read a backend name with description-aware completion.
+PROMPT is the prompt string.  PREDICATE, REQUIRE-MATCH, INITIAL-INPUT,
+HISTORY, and DEFAULT are passed to `completing-read'.
+This function enables the custom `beads-backend-description' completion style
+for matching on both backend name and description."
+  (let ((completion-category-overrides
+         (cons '(beads-agent-backend (styles beads-backend-description basic))
+               completion-category-overrides)))
+    (completing-read prompt (beads-completion-backend-table)
+                     predicate require-match initial-input history default)))
 
 (provide 'beads-completion)
 ;;; beads-completion.el ends here

@@ -43,6 +43,7 @@
 
 (require 'beads)
 (require 'beads-command)
+(require 'beads-completion)
 (require 'beads-option)
 (require 'beads-list)
 (require 'beads-show)
@@ -303,10 +304,8 @@ If ISSUE-ID is provided, use it directly.  Otherwise, detect from
 context or prompt the user."
   (interactive
    (list (or (beads-update--detect-issue-id)
-            (completing-read
-             "Update issue: "
-             (beads--issue-completion-table)
-             nil t nil 'beads--issue-id-history))))
+            (beads-completion-read-issue
+             "Update issue: " nil t nil 'beads--issue-id-history))))
   ;; Load issue data before showing menu
   (beads-check-executable)
   (unless issue-id

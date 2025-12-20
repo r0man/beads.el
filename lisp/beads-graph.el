@@ -30,6 +30,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-completion)
 
 ;;; Customization
 
@@ -320,8 +321,7 @@ Returns the path to the generated image file."
 (defun beads-graph-issue (issue-id)
   "Show dependency graph focused on ISSUE-ID."
   (interactive
-   (list (completing-read "Graph for issue: "
-                         (beads--issue-completion-table)
+   (list (beads-completion-read-issue "Graph for issue: "
                          nil t nil 'beads--issue-id-history)))
   (beads-check-executable)
   (beads-graph--check-dot)

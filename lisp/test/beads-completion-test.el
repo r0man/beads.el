@@ -231,10 +231,25 @@ Annotation functions may return nil or empty string for missing data."
   (should (string= "" (beads-completion--truncate-string nil 10))))
 
 ;;; Style Registration Tests
-;;
-;; Note: Custom style registration is currently disabled due to
-;; compatibility issues with Emacs completion machinery.
-;; The basic completion style works correctly for CAPF.
+
+(ert-deftest beads-completion-test-style-registered ()
+  "Test that beads-issue-title completion style is registered."
+  (should (assq 'beads-issue-title completion-styles-alist)))
+
+;;; Read Issue Function Tests
+
+(ert-deftest beads-completion-test-read-issue-uses-title-style ()
+  "Test that beads-completion-read-issue enables title-aware completion."
+  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (prompt table &rest _args)
+                 ;; Verify category override is set
+                 (should (assq 'beads-issue completion-category-overrides))
+                 ;; completion-category-overrides format: ((cat (styles ...)))
+                 (let ((override (cdr (assq 'beads-issue completion-category-overrides))))
+                   (should (member '(styles beads-issue-title basic) override)))
+                 "bd-abc1")))
+      (should (string= "bd-abc1" (beads-completion-read-issue "Test: "))))))
 
 ;;; Metadata Tests
 
@@ -598,6 +613,93 @@ Annotation functions may return nil or empty string for missing data."
         ;; All candidates should have beads-available = t since we only show available
         (dolist (candidate candidates)
           (should (eq t (get-text-property 0 'beads-available candidate))))))))
+
+;;; Backend Description-Aware Completion Tests
+
+(ert-deftest beads-completion-test-backend-style-match-name ()
+  "Test that backend completion style matches on name."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends))
+    (let* ((table (beads-completion-backend-table))
+           (matches (beads-completion--backend-style-all "claudemacs" table nil nil)))
+      (should (= 1 (length matches)))
+      (should (string= "claudemacs" (car matches))))))
+
+(ert-deftest beads-completion-test-backend-style-match-description ()
+  "Test that backend completion style matches on description."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends))
+    (let* ((table (beads-completion-backend-table))
+           (matches (beads-completion--backend-style-all "terminal" table nil nil)))
+      (should (= 1 (length matches)))
+      (should (string= "claudemacs" (car matches))))))
+
+(ert-deftest beads-completion-test-backend-style-match-description-partial ()
+  "Test that backend completion style matches partial description."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends))
+    (let* ((table (beads-completion-backend-table))
+           (matches (beads-completion--backend-style-all "shell integration" table nil nil)))
+      (should (= 1 (length matches)))
+      (should (string= "agent-shell" (car matches))))))
+
+(ert-deftest beads-completion-test-backend-style-case-insensitive ()
+  "Test that backend matching is case-insensitive."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends))
+    (let* ((table (beads-completion-backend-table))
+           (matches-lower (beads-completion--backend-style-all "terminal" table nil nil))
+           (matches-upper (beads-completion--backend-style-all "TERMINAL" table nil nil))
+           (matches-mixed (beads-completion--backend-style-all "Terminal" table nil nil)))
+      (should (= 1 (length matches-lower)))
+      (should (= 1 (length matches-upper)))
+      (should (= 1 (length matches-mixed)))
+      (should (string= "claudemacs" (car matches-lower)))
+      (should (string= "claudemacs" (car matches-upper)))
+      (should (string= "claudemacs" (car matches-mixed))))))
+
+(ert-deftest beads-completion-test-backend-style-no-match ()
+  "Test that backend style returns empty list when no match."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends))
+    (let* ((table (beads-completion-backend-table))
+           (matches (beads-completion--backend-style-all "nonexistent" table nil nil)))
+      (should (= 0 (length matches))))))
+
+(ert-deftest beads-completion-test-backend-style-try-single-match ()
+  "Test try-completion returns single match when only one."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends))
+    (let* ((table (beads-completion-backend-table))
+           (result (beads-completion--backend-style-try "terminal" table nil nil)))
+      (should (string= "claudemacs" result)))))
+
+(ert-deftest beads-completion-test-backend-style-registered ()
+  "Test that beads-backend-description completion style is registered."
+  (should (assq 'beads-backend-description completion-styles-alist)))
+
+(ert-deftest beads-completion-test-read-backend-uses-description-style ()
+  "Test that beads-completion-read-backend enables description-aware completion."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends)
+            ((symbol-function 'completing-read)
+             (lambda (prompt table &rest _args)
+               ;; Verify category override is set
+               (should (assq 'beads-agent-backend completion-category-overrides))
+               ;; completion-category-overrides format: ((cat (styles ...)))
+               (let ((override (cdr (assq 'beads-agent-backend completion-category-overrides))))
+                 (should (member '(styles beads-backend-description basic) override)))
+               "claudemacs")))
+    (should (string= "claudemacs" (beads-completion-read-backend "Test: ")))))
+
+(ert-deftest beads-completion-test-backend-candidates-have-description-property ()
+  "Test that backend candidates have description text property."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends))
+    (let* ((table (beads-completion-backend-table))
+           (candidates (all-completions "" table nil)))
+      (dolist (candidate candidates)
+        (should (plist-member (text-properties-at 0 candidate) 'beads-description))))))
 
 (provide 'beads-completion-test)
 ;;; beads-completion-test.el ends here

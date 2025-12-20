@@ -44,6 +44,7 @@
 
 (require 'beads)
 (require 'beads-command)
+(require 'beads-completion)
 (require 'beads-agent)
 (require 'beads-sesman)
 (require 'button)
@@ -750,11 +751,11 @@ ISSUE must be a `beads-issue' EIEIO object."
 ;;;###autoload
 (defun beads-show (issue-id)
   "Show detailed view of issue with ISSUE-ID.
-Creates or switches to a buffer showing the full issue details."
+Creates or switches to a buffer showing the full issue details.
+Completion matches on both issue ID and title."
   (interactive
-   (list (completing-read "Show issue: "
-                         (beads--issue-completion-table)
-                         nil t nil 'beads--issue-id-history)))
+   (list (beads-completion-read-issue "Show issue: " nil t nil
+                                      'beads--issue-id-history)))
   (let* ((buffer-name (format "*beads-show: %s*" issue-id))
          (buffer (get-buffer-create buffer-name)))
     (with-current-buffer buffer

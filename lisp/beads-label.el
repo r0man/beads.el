@@ -33,6 +33,7 @@
 
 (require 'beads)
 (require 'beads-command)
+(require 'beads-completion)
 (require 'transient)
 
 ;; Forward declarations
@@ -384,9 +385,7 @@ If called interactively, prompts for issue ID.
 If called from beads-list or beads-show buffers, uses current issue."
   (interactive
    (list (or (beads-label--detect-issue-id)
-             (completing-read "Issue ID: "
-                            (beads--issue-completion-table)
-                            nil t))))
+             (beads-completion-read-issue "Issue ID: " nil t))))
   (let ((labels (beads-label-list issue-id)))
     (if labels
         (message "Labels for %s: %s" issue-id
