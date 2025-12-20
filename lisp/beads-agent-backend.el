@@ -161,14 +161,18 @@ This should check if the required package is loaded and functional.")
 ISSUE is a beads-issue object.
 PROMPT is a string to send to the agent.
 
-Returns a backend-specific session handle or signals an error.
-The handle is stored in the `backend-session' slot of the
-`beads-agent-session' object and used as part of the sesman
-session tuple: (session-name backend-handle beads-agent-session).
+Returns a cons cell (BACKEND-SESSION . BUFFER) where:
+- BACKEND-SESSION is a backend-specific session handle (can be nil)
+- BUFFER is the Emacs buffer for the agent session
 
-The handle should be suitable for display in sesman's session
-browser and for identifying the backend's notion of the session.
-For example, claude-code-ide returns an MCP session handle.")
+The BACKEND-SESSION is stored in the `backend-session' slot of the
+`beads-agent-session' object.  The BUFFER is stored in the `buffer'
+slot after being renamed to the beads naming convention.
+
+If BUFFER is nil, the caller will not be able to find the agent's
+buffer.  Most backends should return the buffer they create.
+
+Signals an error on failure.")
 
 (cl-defgeneric beads-agent-backend-stop (backend session)
   "Stop SESSION running on BACKEND.
@@ -226,11 +230,14 @@ Backends may override this to use custom naming schemes."
 SESSION is a beads-agent-session object.
 Used by sesman to link the session buffer for context-aware selection.
 
-Default implementation returns nil.  Backends should override this
-to return their agent buffer if available."
-  ;; Default: no buffer available
-  (ignore backend session)
-  nil)
+Default implementation returns the buffer stored in the session's
+`buffer' slot.  This is set automatically when the session is created
+from the return value of `beads-agent-backend-start'.
+
+Backends generally don't need to override this method."
+  ;; Default: return stored buffer
+  (ignore backend)
+  (beads-agent-session-buffer session))
 
 ;;; Backend Registry
 

@@ -127,7 +127,7 @@ Verifies the package is loaded and key functions exist."
   "Start agent-shell session with PROMPT.
 ISSUE is ignored as agent-shell works per-project/workspace.
 The working directory is determined by the caller (may be a worktree).
-Returns the agent-shell buffer as the session handle."
+Returns cons cell (BACKEND-SESSION . BUFFER)."
   ;; Pre-flight checks with helpful error messages
   (unless (or (featurep 'agent-shell) (require 'agent-shell nil t))
     (error "Agent-shell not found.  Install from: https://github.com/xenodium/agent-shell"))
@@ -152,11 +152,12 @@ Returns the agent-shell buffer as the session handle."
             (error "Agent-shell session started but no buffer returned"))
           ;; Send the initial prompt
           (with-current-buffer buffer
-            (agent-shell-insert :text prompt :submit t))
-          buffer)
+            (agent-shell-insert :text prompt :submit t)))
       (error
        (error "Failed to start agent-shell: %s"
-              (error-message-string err))))))
+              (error-message-string err))))
+    ;; Return (nil . buffer) - agent-shell has no separate session handle
+    (cons nil buffer)))
 
 (cl-defmethod beads-agent-backend-stop
     ((_backend beads-agent-backend-agent-shell) session)
@@ -191,16 +192,12 @@ and has a live process."
 
 (cl-defmethod beads-agent-backend-switch-to-buffer
     ((backend beads-agent-backend-agent-shell) session)
-  "Switch to agent-shell buffer for SESSION using BACKEND.
-Uses the stored buffer (renamed to beads format) when available,
-falls back to pattern-based lookup.  This is designed for jumping to
-existing sessions - use `beads-agent-start' to create new sessions."
-  ;; Use get-buffer which has proper fallback logic
+  "Switch to agent-shell buffer for SESSION using BACKEND."
   (if-let ((buffer (beads-agent-backend-get-buffer backend session)))
-      (when (buffer-live-p buffer)
-        (beads-agent--pop-to-buffer-other-window buffer))
-    ;; Buffer not found - session may have been killed
-    (message "Agent buffer not found for session")))
+      (if (buffer-live-p buffer)
+          (beads-agent--pop-to-buffer-other-window buffer)
+        (user-error "Agent buffer has been killed"))
+    (user-error "No buffer found for agent session")))
 
 (cl-defmethod beads-agent-backend-send-prompt
     ((_backend beads-agent-backend-agent-shell) session prompt)
@@ -215,19 +212,8 @@ existing sessions - use `beads-agent-start' to create new sessions."
           (agent-shell-insert :text prompt :submit t))
       (error "No active agent-shell session for %s" working-dir))))
 
-(cl-defmethod beads-agent-backend-get-buffer
-    ((_backend beads-agent-backend-agent-shell) session)
-  "Return the agent-shell buffer for SESSION, or nil if not available.
-First checks if the session has a stored buffer (after renaming),
-then falls back to pattern-based buffer lookup."
-  ;; First check the session's stored buffer (set after renaming)
-  (let ((stored-buffer (beads-agent-session-buffer session)))
-    (if (and stored-buffer (buffer-live-p stored-buffer))
-        stored-buffer
-      ;; Fall back to pattern-based lookup
-      (let* ((working-dir (beads-agent-session-working-dir session))
-             (buffers (beads-agent-agent-shell--find-buffers working-dir)))
-        (cl-find-if #'beads-agent-agent-shell--buffer-active-p buffers)))))
+;; Note: beads-agent-backend-get-buffer uses the default implementation
+;; from beads-agent-backend.el which returns the stored session buffer.
 
 ;;; Registration
 

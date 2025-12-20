@@ -296,16 +296,17 @@
 
 (ert-deftest beads-agent-agent-shell-test-session-not-active-without-process ()
   "Test session-active-p returns nil when buffer exists but has no process."
-  (let ((test-buf (generate-new-buffer "*agent-shell-no-proc*"))
-        (backend (seq-find
-                  (lambda (b) (equal (oref b name) "agent-shell"))
-                  beads-agent--backends))
-        (session (beads-agent-session
-                  :id "test-session"
-                  :issue-id "test-1"
-                  :backend-name "agent-shell"
-                  :project-dir "/home/roman/workspace/test/"
-                  :started-at "2025-01-01T00:00:00+0000")))
+  (let* ((test-buf (generate-new-buffer "*agent-shell-no-proc*"))
+         (backend (seq-find
+                   (lambda (b) (equal (oref b name) "agent-shell"))
+                   beads-agent--backends))
+         (session (beads-agent-session
+                   :id "test-session"
+                   :issue-id "test-1"
+                   :backend-name "agent-shell"
+                   :project-dir "/home/roman/workspace/test/"
+                   :started-at "2025-01-01T00:00:00+0000"
+                   :buffer test-buf)))
     (unwind-protect
         (progn
           (with-current-buffer test-buf
@@ -318,17 +319,18 @@
 ;;; Get Buffer Tests
 
 (ert-deftest beads-agent-agent-shell-test-get-buffer-returns-active ()
-  "Test get-buffer returns the active buffer."
-  (let ((test-buf (generate-new-buffer "*agent-shell-get*"))
-        (backend (seq-find
-                  (lambda (b) (equal (oref b name) "agent-shell"))
-                  beads-agent--backends))
-        (session (beads-agent-session
-                  :id "test-session"
-                  :issue-id "test-1"
-                  :backend-name "agent-shell"
-                  :project-dir "/home/roman/workspace/test/"
-                  :started-at "2025-01-01T00:00:00+0000")))
+  "Test get-buffer returns the stored buffer."
+  (let* ((test-buf (generate-new-buffer "*agent-shell-get*"))
+         (backend (seq-find
+                   (lambda (b) (equal (oref b name) "agent-shell"))
+                   beads-agent--backends))
+         (session (beads-agent-session
+                   :id "test-session"
+                   :issue-id "test-1"
+                   :backend-name "agent-shell"
+                   :project-dir "/home/roman/workspace/test/"
+                   :started-at "2025-01-01T00:00:00+0000"
+                   :buffer test-buf)))
     (unwind-protect
         (progn
           (with-current-buffer test-buf
@@ -356,18 +358,19 @@
 ;;; Worktree Directory Tests
 
 (ert-deftest beads-agent-agent-shell-test-uses-worktree-dir-when-set ()
-  "Test that session uses worktree-dir when set."
-  (let ((test-buf (generate-new-buffer "*agent-shell-worktree*"))
-        (backend (seq-find
-                  (lambda (b) (equal (oref b name) "agent-shell"))
-                  beads-agent--backends))
-        (session (beads-agent-session
-                  :id "test-session"
-                  :issue-id "test-1"
-                  :backend-name "agent-shell"
-                  :project-dir "/home/roman/workspace/main/"
-                  :worktree-dir "/home/roman/workspace/worktree/"
-                  :started-at "2025-01-01T00:00:00+0000")))
+  "Test that session uses worktree-dir when set and buffer is stored."
+  (let* ((test-buf (generate-new-buffer "*agent-shell-worktree*"))
+         (backend (seq-find
+                   (lambda (b) (equal (oref b name) "agent-shell"))
+                   beads-agent--backends))
+         (session (beads-agent-session
+                   :id "test-session"
+                   :issue-id "test-1"
+                   :backend-name "agent-shell"
+                   :project-dir "/home/roman/workspace/main/"
+                   :worktree-dir "/home/roman/workspace/worktree/"
+                   :started-at "2025-01-01T00:00:00+0000"
+                   :buffer test-buf)))
     (unwind-protect
         (progn
           ;; Buffer is in worktree-dir, not project-dir
@@ -375,7 +378,7 @@
             (agent-shell-mode)
             (setq default-directory "/home/roman/workspace/worktree/"))
           (let ((proc (start-process "test" test-buf "sleep" "10")))
-            ;; Should find buffer in worktree-dir
+            ;; Should find buffer stored in session
             (should (beads-agent-backend-session-active-p backend session))
             (should (eq test-buf (beads-agent-backend-get-buffer
                                   backend session)))

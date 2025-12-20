@@ -94,7 +94,7 @@ Verifies the package is loaded, web-server is available, and claude exists."
   "Start claude-code-ide session with PROMPT.
 ISSUE is ignored as claude-code-ide works per-project.
 The working directory is determined by the caller (may be a worktree).
-Returns the MCP session handle."
+Returns cons cell (BACKEND-SESSION . BUFFER)."
   ;; Pre-flight checks with helpful error messages
   (unless (or (featurep 'web-server) (require 'web-server nil t))
     (error "Web-server.el not found.  Install it via: M-x package-install RET web-server RET"))
@@ -126,20 +126,25 @@ Returns the MCP session handle."
           (string-trim
            (concat (or claude-code-ide-cli-extra-flags "")
                    " "
-                   (shell-quote-argument prompt)))))
+                   (shell-quote-argument prompt))))
+         backend-session
+         buffer)
     ;; Start claude-code-ide with the prompt as CLI argument
     (condition-case err
         (claude-code-ide)
       (error
        (error "Failed to start claude-code-ide: %s"
               (error-message-string err))))
-    ;; Return session handle (may be nil if MCP not yet connected or if
-    ;; Claude failed to start).  Getting the session can fail with "Invalid
-    ;; buffer" if Claude exited immediately, so catch errors here.
+    ;; Get the buffer that was just created (before any renaming)
+    (setq buffer (car (beads-agent-claude-code-ide--find-buffers working-dir)))
+    ;; Get MCP session handle (may be nil if not yet connected)
     (when (fboundp 'claude-code-ide-mcp--get-session-for-project)
       (condition-case nil
-          (claude-code-ide-mcp--get-session-for-project working-dir)
-        (error nil)))))
+          (setq backend-session
+                (claude-code-ide-mcp--get-session-for-project working-dir))
+        (error nil)))
+    ;; Return (backend-session . buffer)
+    (cons backend-session buffer)))
 
 (cl-defmethod beads-agent-backend-stop
     ((backend beads-agent-backend-claude-code-ide) session)
@@ -165,16 +170,12 @@ Explicitly kills the session buffer since beads renames it and
 
 (cl-defmethod beads-agent-backend-switch-to-buffer
     ((backend beads-agent-backend-claude-code-ide) session)
-  "Switch to claude-code-ide buffer for SESSION using BACKEND.
-Uses the stored buffer (renamed to beads format) when available,
-falls back to pattern-based lookup.  This is designed for jumping to
-existing sessions - use `beads-agent-start' to create new sessions."
-  ;; Use get-buffer which has proper fallback logic
+  "Switch to claude-code-ide buffer for SESSION using BACKEND."
   (if-let ((buffer (beads-agent-backend-get-buffer backend session)))
-      (when (buffer-live-p buffer)
-        (beads-agent--pop-to-buffer-other-window buffer))
-    ;; Buffer not found - session may have been killed
-    (message "Agent buffer not found for session")))
+      (if (buffer-live-p buffer)
+          (beads-agent--pop-to-buffer-other-window buffer)
+        (user-error "Agent buffer has been killed"))
+    (user-error "No buffer found for agent session")))
 
 (cl-defmethod beads-agent-backend-send-prompt
     ((_backend beads-agent-backend-claude-code-ide) session prompt)
@@ -183,24 +184,8 @@ existing sessions - use `beads-agent-start' to create new sessions."
   (let ((default-directory (beads-agent-session-working-dir session)))
     (claude-code-ide-send-prompt prompt)))
 
-(cl-defmethod beads-agent-backend-get-buffer
-    ((_backend beads-agent-backend-claude-code-ide) session)
-  "Return the claude-code-ide buffer for SESSION, or nil if not available.
-First checks if the session has a stored buffer (after renaming),
-then falls back to pattern-based buffer lookup.
-
-Note: This does NOT check `beads-agent-backend-session-active-p' because
-the vterm buffer exists immediately after `claude-code-ide' is called,
-even before the MCP session is established.  This allows buffer linking
-to work during session registration."
-  ;; First check the session's stored buffer (set after renaming)
-  (let ((stored-buffer (beads-agent-session-buffer session)))
-    (if (and stored-buffer (buffer-live-p stored-buffer))
-        stored-buffer
-      ;; Fall back to pattern-based lookup by working directory.
-      ;; This finds the original *Claude Code: ...* buffer before renaming.
-      (let ((working-dir (beads-agent-session-working-dir session)))
-        (car (beads-agent-claude-code-ide--find-buffers working-dir))))))
+;; Note: beads-agent-backend-get-buffer uses the default implementation
+;; from beads-agent-backend.el which returns the stored session buffer.
 
 ;;; Registration
 
