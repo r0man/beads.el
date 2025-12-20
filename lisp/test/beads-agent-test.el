@@ -411,8 +411,10 @@ SESSION is the beads-agent-session object."
         (should (null (beads-agent--get-issue-outcome "bd-123"))))
     (beads-agent-test--teardown)))
 
-(ert-deftest beads-agent-test-outcome-set-on-stop ()
-  "Test that outcome is set to finished when session stops."
+(ert-deftest beads-agent-test-outcome-cleared-on-stop ()
+  "Test that outcome is cleared when session stops.
+Stopped agents should not show indicators - only active or failed agents
+should have indicators displayed."
   (beads-agent-test--setup)
   (unwind-protect
       (cl-letf (((symbol-function 'sesman-sessions)
@@ -426,11 +428,8 @@ SESSION is the beads-agent-session object."
           (should (null (beads-agent--get-issue-outcome "bd-123")))
           ;; Destroy the session
           (beads-agent--destroy-session session-id)
-          ;; Outcome should now be (letter . finished) cons
-          (let ((outcome (beads-agent--get-issue-outcome "bd-123")))
-            (should (consp outcome))
-            (should (equal (car outcome) "T"))
-            (should (eq (cdr outcome) 'finished)))))
+          ;; Outcome should be cleared (nil) - stopped agents don't show indicators
+          (should (null (beads-agent--get-issue-outcome "bd-123")))))
     (beads-agent-test--teardown)))
 
 ;;; Tests for Context Building
