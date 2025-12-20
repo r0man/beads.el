@@ -764,22 +764,21 @@ CALLBACK receives a beads-issue object."
                (error
                 (message "Failed to parse issue: %s" (error-message-string err)))))))))))
 
-(defun beads-agent--rename-and-store-buffer (backend session)
-  "Rename backend buffer to beads format and store in SESSION.
-Gets the buffer from BACKEND, renames it to the beads naming convention,
-and stores it in the session's buffer slot for efficient lookup.
+(defun beads-agent--rename-and-store-buffer (session buffer)
+  "Rename BUFFER to beads format and store in SESSION.
+Renames the buffer to the beads naming convention and stores it in
+the session's buffer slot for efficient lookup.
 The buffer is renamed to format: *beads-agent[ISSUE-ID][TYPE#N]*"
-  (when-let ((buffer (beads-agent-backend-get-buffer backend session)))
-    (when (buffer-live-p buffer)
-      (let* ((issue-id (oref session issue-id))
-             (type-name (or (oref session agent-type-name) "Agent"))
-             (instance-n (beads-agent--next-typed-instance-number issue-id type-name))
-             (new-name (beads-agent--generate-buffer-name issue-id type-name instance-n)))
-        ;; Rename the buffer
-        (with-current-buffer buffer
-          (rename-buffer new-name t))
-        ;; Store in session
-        (beads-agent-session-set-buffer session buffer)))))
+  (when (and buffer (buffer-live-p buffer))
+    (let* ((issue-id (oref session issue-id))
+           (type-name (or (oref session agent-type-name) "Agent"))
+           (instance-n (beads-agent--next-typed-instance-number issue-id type-name))
+           (new-name (beads-agent--generate-buffer-name issue-id type-name instance-n)))
+      ;; Rename the buffer
+      (with-current-buffer buffer
+        (rename-buffer new-name t))
+      ;; Store in session
+      (beads-agent-session-set-buffer session buffer))))
 
 (defun beads-agent--start-backend-async (issue-id backend project-dir worktree-dir
                                                   prompt issue agent-type)
@@ -800,7 +799,10 @@ are passed through from `beads-agent--continue-start'."
                    display-buffer-in-side-window)
                   (side . right)
                   (window-width . 0.5)))
-               (backend-session (beads-agent-backend-start backend issue prompt))
+               ;; backend-start returns (backend-session . buffer)
+               (start-result (beads-agent-backend-start backend issue prompt))
+               (backend-session (car start-result))
+               (buffer (cdr start-result))
                (session (beads-agent--create-session
                          issue-id
                          (oref backend name)
@@ -809,7 +811,7 @@ are passed through from `beads-agent--continue-start'."
                          worktree-dir
                          agent-type-name)))
           ;; Rename backend buffer to beads format and store in session
-          (beads-agent--rename-and-store-buffer backend session)
+          (beads-agent--rename-and-store-buffer session buffer)
           (message "Started %s agent session %s on %s%s"
                    (or agent-type-name "default")
                    (oref session id) issue-id

@@ -1805,14 +1805,20 @@ Settings changes should allow continued configuration."
   (unwind-protect
       (let* ((mock-backend (beads-agent-mock-get-instance))
              (issue (beads-issue :id "bd-mockbuf" :title "Test")))
-        (let ((handle (beads-agent-backend-start mock-backend issue "test prompt")))
+        ;; backend-start now returns (backend-session . buffer)
+        (let* ((start-result (beads-agent-backend-start mock-backend issue "test prompt"))
+               (handle (car start-result))
+               (buffer (cdr start-result)))
           (should handle)
-          ;; Handle should have a buffer
+          (should buffer)
+          ;; Handle should have a buffer slot
           (should (oref handle buffer))
           (should (buffer-live-p (oref handle buffer)))
+          ;; The returned buffer should match the handle's buffer
+          (should (eq buffer (oref handle buffer)))
           ;; Buffer should have mock prefix
           (should (string-prefix-p "*mock-agent-"
-                                   (buffer-name (oref handle buffer))))))
+                                   (buffer-name buffer)))))
     (beads-agent-mock-reset)))
 
 (ert-deftest beads-agent-test-mock-backend-get-buffer ()
@@ -1824,13 +1830,19 @@ Settings changes should allow continued configuration."
                  #'beads-agent-test--mock-sesman-sessions))
         (let* ((mock-backend (beads-agent-mock-get-instance))
                (issue (beads-issue :id "bd-getbuf" :title "Test"))
-               (handle (beads-agent-backend-start mock-backend issue "test prompt"))
+               ;; backend-start now returns (backend-session . buffer)
+               (start-result (beads-agent-backend-start mock-backend issue "test prompt"))
+               (handle (car start-result))
+               (buffer (cdr start-result))
                (session (beads-agent--create-session
                          "bd-getbuf" "mock" "/tmp" handle)))
-          ;; Before setting stored buffer, should return mock handle's buffer
+          ;; Store the buffer in session (as caller would)
+          (beads-agent-session-set-buffer session buffer)
+          ;; get-buffer returns the session's stored buffer
           (let ((buf (beads-agent-backend-get-buffer mock-backend session)))
             (should buf)
-            (should (buffer-live-p buf)))
+            (should (buffer-live-p buf))
+            (should (eq buf buffer)))
           ;; Set a different buffer as stored
           (let ((stored-buf (get-buffer-create "*stored-test*")))
             (unwind-protect
@@ -1852,8 +1864,10 @@ Settings changes should allow continued configuration."
                  #'beads-agent-test--mock-sesman-sessions))
         (let* ((mock-backend (beads-agent-mock-get-instance))
                (issue (beads-issue :id "bd-stopbuf" :title "Test"))
-               (handle (beads-agent-backend-start mock-backend issue "test prompt"))
-               (buffer (oref handle buffer))
+               ;; backend-start now returns (backend-session . buffer)
+               (start-result (beads-agent-backend-start mock-backend issue "test prompt"))
+               (handle (car start-result))
+               (buffer (cdr start-result))
                (session (beads-agent--create-session
                          "bd-stopbuf" "mock" "/tmp" handle)))
           ;; Buffer should exist
@@ -1874,8 +1888,10 @@ Settings changes should allow continued configuration."
         ;; Create several sessions
         (dotimes (_ 3)
           (let* ((issue (beads-issue :id "bd-reset" :title "Test"))
-                 (handle (beads-agent-backend-start mock-backend issue "test")))
-            (push (oref handle buffer) buffers)))
+                 ;; backend-start now returns (backend-session . buffer)
+                 (start-result (beads-agent-backend-start mock-backend issue "test"))
+                 (buffer (cdr start-result)))
+            (push buffer buffers)))
         ;; All buffers should exist
         (should (cl-every #'buffer-live-p buffers))
         ;; Reset
@@ -1896,12 +1912,14 @@ Settings changes should allow continued configuration."
         (beads-agent--reset-typed-instance-counters)
         (let* ((mock-backend (beads-agent-mock-get-instance))
                (issue (beads-issue :id "bd-rename" :title "Test"))
-               (handle (beads-agent-backend-start mock-backend issue "test prompt"))
-               (_original-buffer (oref handle buffer))
+               ;; backend-start now returns (backend-session . buffer)
+               (start-result (beads-agent-backend-start mock-backend issue "test prompt"))
+               (handle (car start-result))
+               (original-buffer (cdr start-result))
                (session (beads-agent--create-session
                          "bd-rename" "mock" "/tmp" handle nil "Task")))
-          ;; Rename and store
-          (beads-agent--rename-and-store-buffer mock-backend session)
+          ;; Rename and store (new signature: session buffer)
+          (beads-agent--rename-and-store-buffer session original-buffer)
           ;; Buffer should be renamed to beads format
           (let ((stored-buffer (beads-agent-session-buffer session)))
             (should stored-buffer)
@@ -1927,10 +1945,14 @@ Settings changes should allow continued configuration."
           ;; Create three sessions with same type
           (dotimes (_i 3)
             (let* ((issue (beads-issue :id "bd-inc" :title "Test"))
-                   (handle (beads-agent-backend-start mock-backend issue "test"))
+                   ;; backend-start now returns (backend-session . buffer)
+                   (start-result (beads-agent-backend-start mock-backend issue "test"))
+                   (handle (car start-result))
+                   (buffer (cdr start-result))
                    (session (beads-agent--create-session
                              "bd-inc" "mock" "/tmp" handle nil "Task")))
-              (beads-agent--rename-and-store-buffer mock-backend session)
+              ;; Rename and store (new signature: session buffer)
+              (beads-agent--rename-and-store-buffer session buffer)
               (push session sessions)))
           ;; Check buffer names have incrementing counters
           (let ((names (mapcar (lambda (s)
@@ -1957,10 +1979,14 @@ Settings changes should allow continued configuration."
           ;; Create one session for each type
           (dolist (type-name types)
             (let* ((issue (beads-issue :id "bd-types" :title "Test"))
-                   (handle (beads-agent-backend-start mock-backend issue "test"))
+                   ;; backend-start now returns (backend-session . buffer)
+                   (start-result (beads-agent-backend-start mock-backend issue "test"))
+                   (handle (car start-result))
+                   (buffer (cdr start-result))
                    (session (beads-agent--create-session
                              "bd-types" "mock" "/tmp" handle nil type-name)))
-              (beads-agent--rename-and-store-buffer mock-backend session)
+              ;; Rename and store (new signature: session buffer)
+              (beads-agent--rename-and-store-buffer session buffer)
               (push (cons type-name session) sessions)))
           ;; Each type should be #1
           (dolist (pair sessions)

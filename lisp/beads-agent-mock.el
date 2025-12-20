@@ -107,7 +107,7 @@ Created during start to allow testing buffer renaming."))
 (cl-defmethod beads-agent-backend-start
     ((_backend beads-agent-backend-mock) issue prompt)
   "Start mock session with ISSUE and PROMPT.
-Returns a mock session handle.  Signals error if
+Returns cons cell (BACKEND-SESSION . BUFFER).  Signals error if
 `beads-agent-mock-start-should-error' is set.
 Creates a temporary buffer for testing buffer renaming."
   (when beads-agent-mock-start-should-error
@@ -129,7 +129,8 @@ Creates a temporary buffer for testing buffer renaming."
                   :active t
                   :buffer buffer)))
     (puthash handle-id handle beads-agent-mock--sessions)
-    handle))
+    ;; Return (backend-session . buffer)
+    (cons handle buffer)))
 
 (cl-defmethod beads-agent-backend-stop
     ((_backend beads-agent-backend-mock) session)
@@ -161,12 +162,12 @@ Marks the session handle as inactive and kills the buffer."
 
 (cl-defmethod beads-agent-backend-switch-to-buffer
     ((backend beads-agent-backend-mock) session)
-  "Switch to buffer for mock SESSION via BACKEND.
-Uses the session's stored buffer if available.
-Uses \"other window\" display to preserve the current window layout."
+  "Switch to buffer for mock SESSION via BACKEND."
   (if-let ((buffer (beads-agent-backend-get-buffer backend session)))
-      (beads-agent--pop-to-buffer-other-window buffer)
-    (message "Mock: no buffer available for session")))
+      (if (buffer-live-p buffer)
+          (beads-agent--pop-to-buffer-other-window buffer)
+        (user-error "Agent buffer has been killed"))
+    (user-error "No buffer found for agent session")))
 
 (cl-defmethod beads-agent-backend-send-prompt
     ((_backend beads-agent-backend-mock) session prompt)

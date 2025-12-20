@@ -82,19 +82,22 @@ Verifies efrit-do package is loadable and key functions exist."
   "Start efrit session with PROMPT.
 ISSUE is ignored as efrit works per-project.
 The working directory is determined by the caller (may be a worktree).
-Returns the efrit session handle."
+Returns cons cell (BACKEND-SESSION . BUFFER)."
   ;; Pre-flight checks
   (unless (or (featurep 'efrit-do) (require 'efrit-do nil t))
     (error "Efrit not found.  Install from: https://github.com/steveyegge/efrit"))
   (require 'efrit-do)
   (require 'efrit-session-core)
+  (require 'efrit-progress)
   ;; Bind BD_NO_DAEMON=1 to disable bd daemon (not supported in worktrees)
   (let ((process-environment (cons "BD_NO_DAEMON=1" process-environment)))
     ;; Start efrit-do with the prompt
     (condition-case err
-        (let ((session (efrit-do prompt)))
-          ;; efrit-do returns the session object directly
-          session)
+        (let* ((efrit-session (efrit-do prompt))
+               (buffer (when efrit-session
+                         (efrit-progress-get-buffer (efrit-session-id efrit-session)))))
+          ;; Return (efrit-session . buffer)
+          (cons efrit-session buffer))
       (error
        (error "Failed to start efrit: %s" (error-message-string err))))))
 
@@ -121,16 +124,12 @@ Returns the efrit session handle."
 
 (cl-defmethod beads-agent-backend-switch-to-buffer
     ((backend beads-agent-backend-efrit) session)
-  "Switch to efrit progress buffer for SESSION using BACKEND.
-Uses the stored buffer (renamed to beads format) when available,
-falls back to efrit's buffer lookup.  This is designed for jumping to
-existing sessions - use `beads-agent-start' to create new sessions."
-  ;; Use get-buffer which has proper fallback logic
+  "Switch to efrit progress buffer for SESSION using BACKEND."
   (if-let ((buffer (beads-agent-backend-get-buffer backend session)))
-      (when (buffer-live-p buffer)
-        (beads-agent--pop-to-buffer-other-window buffer))
-    ;; Buffer not found - session may have been killed
-    (message "Agent buffer not found for session")))
+      (if (buffer-live-p buffer)
+          (beads-agent--pop-to-buffer-other-window buffer)
+        (user-error "Agent buffer has been killed"))
+    (user-error "No buffer found for agent session")))
 
 (cl-defmethod beads-agent-backend-send-prompt
     ((_backend beads-agent-backend-efrit) session prompt)
@@ -147,20 +146,8 @@ Uses efrit's injection mechanism to add guidance to the active session."
       (require 'efrit-do)
       (efrit-do prompt))))
 
-(cl-defmethod beads-agent-backend-get-buffer
-    ((_backend beads-agent-backend-efrit) session)
-  "Return the efrit progress buffer for SESSION, or nil if not available.
-First checks if the session has a stored buffer (after renaming),
-then falls back to efrit's buffer lookup."
-  ;; First check the session's stored buffer (set after renaming)
-  (let ((stored-buffer (beads-agent-session-buffer session)))
-    (if (and stored-buffer (buffer-live-p stored-buffer))
-        stored-buffer
-      ;; Fall back to efrit's buffer lookup
-      (require 'efrit-progress)
-      (let ((efrit-session (oref session backend-session)))
-        (when efrit-session
-          (efrit-progress-get-buffer (efrit-session-id efrit-session)))))))
+;; Note: beads-agent-backend-get-buffer uses the default implementation
+;; from beads-agent-backend.el which returns the stored session buffer.
 
 ;;; Registration
 
