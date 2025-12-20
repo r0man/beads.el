@@ -126,14 +126,19 @@ Returns the efrit session handle."
 (cl-defmethod beads-agent-backend-switch-to-buffer
     ((_backend beads-agent-backend-efrit) session)
   "Switch to efrit progress buffer for SESSION."
-  (require 'efrit-do)
-  (require 'efrit-progress)
-  (let ((efrit-session (oref session backend-session)))
-    (if efrit-session
-        ;; Use efrit-do-show-progress with the session ID
-        (efrit-do-show-progress (efrit-session-id efrit-session))
-      ;; Fallback: just show the default progress buffer
-      (efrit-do-show-progress))))
+  ;; First try the session's stored buffer (renamed to beads format)
+  (let ((stored-buffer (beads-agent-session-buffer session)))
+    (if (and stored-buffer (buffer-live-p stored-buffer))
+        (pop-to-buffer stored-buffer)
+      ;; Fall back to efrit's normal switching behavior
+      (require 'efrit-do)
+      (require 'efrit-progress)
+      (let ((efrit-session (oref session backend-session)))
+        (if efrit-session
+            ;; Use efrit-do-show-progress with the session ID
+            (efrit-do-show-progress (efrit-session-id efrit-session))
+          ;; Fallback: just show the default progress buffer
+          (efrit-do-show-progress))))))
 
 (cl-defmethod beads-agent-backend-send-prompt
     ((_backend beads-agent-backend-efrit) session prompt)
@@ -152,11 +157,18 @@ Uses efrit's injection mechanism to add guidance to the active session."
 
 (cl-defmethod beads-agent-backend-get-buffer
     ((_backend beads-agent-backend-efrit) session)
-  "Return the efrit progress buffer for SESSION, or nil if not available."
-  (require 'efrit-progress)
-  (let ((efrit-session (oref session backend-session)))
-    (when efrit-session
-      (efrit-progress-get-buffer (efrit-session-id efrit-session)))))
+  "Return the efrit progress buffer for SESSION, or nil if not available.
+First checks if the session has a stored buffer (after renaming),
+then falls back to efrit's buffer lookup."
+  ;; First check the session's stored buffer (set after renaming)
+  (let ((stored-buffer (beads-agent-session-buffer session)))
+    (if (and stored-buffer (buffer-live-p stored-buffer))
+        stored-buffer
+      ;; Fall back to efrit's buffer lookup
+      (require 'efrit-progress)
+      (let ((efrit-session (oref session backend-session)))
+        (when efrit-session
+          (efrit-progress-get-buffer (efrit-session-id efrit-session)))))))
 
 ;;; Registration
 

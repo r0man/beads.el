@@ -194,22 +194,27 @@ and has a live process."
     ((_backend beads-agent-backend-agent-shell) session)
   "Switch to agent-shell buffer for SESSION.
 If no agent-shell session exists, starts a new one automatically."
-  (require 'agent-shell)
-  (let* ((working-dir (beads-agent-session-working-dir session))
-         (buffers (beads-agent-agent-shell--find-buffers working-dir))
-         (active-buf (cl-find-if #'beads-agent-agent-shell--buffer-active-p
-                                 buffers)))
-    (if active-buf
-        ;; Session exists - switch to it
-        (pop-to-buffer active-buf)
-      ;; No active session - start a new one
-      (message "Agent-shell session expired, starting new one...")
-      (let ((default-directory working-dir)
-            (config (or beads-agent-agent-shell-config
-                        (and (boundp 'agent-shell-preferred-agent-config)
-                             agent-shell-preferred-agent-config)
-                        (car agent-shell-agent-configs))))
-        (agent-shell-start :config config)))))
+  ;; First try the session's stored buffer (renamed to beads format)
+  (let ((stored-buffer (beads-agent-session-buffer session)))
+    (if (and stored-buffer (buffer-live-p stored-buffer))
+        (pop-to-buffer stored-buffer)
+      ;; Fall back to agent-shell's normal switching behavior
+      (require 'agent-shell)
+      (let* ((working-dir (beads-agent-session-working-dir session))
+             (buffers (beads-agent-agent-shell--find-buffers working-dir))
+             (active-buf (cl-find-if #'beads-agent-agent-shell--buffer-active-p
+                                     buffers)))
+        (if active-buf
+            ;; Session exists - switch to it
+            (pop-to-buffer active-buf)
+          ;; No active session - start a new one
+          (message "Agent-shell session expired, starting new one...")
+          (let ((default-directory working-dir)
+                (config (or beads-agent-agent-shell-config
+                            (and (boundp 'agent-shell-preferred-agent-config)
+                                 agent-shell-preferred-agent-config)
+                            (car agent-shell-agent-configs))))
+            (agent-shell-start :config config)))))))
 
 (cl-defmethod beads-agent-backend-send-prompt
     ((_backend beads-agent-backend-agent-shell) session prompt)
@@ -226,10 +231,17 @@ If no agent-shell session exists, starts a new one automatically."
 
 (cl-defmethod beads-agent-backend-get-buffer
     ((_backend beads-agent-backend-agent-shell) session)
-  "Return the agent-shell buffer for SESSION, or nil if not available."
-  (let* ((working-dir (beads-agent-session-working-dir session))
-         (buffers (beads-agent-agent-shell--find-buffers working-dir)))
-    (cl-find-if #'beads-agent-agent-shell--buffer-active-p buffers)))
+  "Return the agent-shell buffer for SESSION, or nil if not available.
+First checks if the session has a stored buffer (after renaming),
+then falls back to pattern-based buffer lookup."
+  ;; First check the session's stored buffer (set after renaming)
+  (let ((stored-buffer (beads-agent-session-buffer session)))
+    (if (and stored-buffer (buffer-live-p stored-buffer))
+        stored-buffer
+      ;; Fall back to pattern-based lookup
+      (let* ((working-dir (beads-agent-session-working-dir session))
+             (buffers (beads-agent-agent-shell--find-buffers working-dir)))
+        (cl-find-if #'beads-agent-agent-shell--buffer-active-p buffers)))))
 
 ;;; Registration
 

@@ -145,20 +145,25 @@ Returns the MCP session handle."
     ((backend beads-agent-backend-claude-code-ide) session)
   "Switch to claude-code-ide buffer for SESSION using BACKEND.
 If no Claude Code session exists, starts a new one automatically."
-  (require 'claude-code-ide)
-  (let ((default-directory (beads-agent-session-working-dir session)))
-    ;; Check if Claude Code session exists before trying to switch
-    (if (beads-agent-backend-session-active-p backend session)
-        ;; Try to switch, but fall back to starting new if it fails
-        ;; (the MCP session might exist but the buffer could be killed)
-        (condition-case nil
-            (claude-code-ide-switch-to-buffer)
-          (error
-           (message "Claude Code session expired, starting new one...")
-           (claude-code-ide)))
-      ;; No active session - start a new one
-      (message "Claude Code session expired, starting new one...")
-      (claude-code-ide))))
+  ;; First try the session's stored buffer (renamed to beads format)
+  (let ((stored-buffer (beads-agent-session-buffer session)))
+    (if (and stored-buffer (buffer-live-p stored-buffer))
+        (pop-to-buffer stored-buffer)
+      ;; Fall back to claude-code-ide's normal switching behavior
+      (require 'claude-code-ide)
+      (let ((default-directory (beads-agent-session-working-dir session)))
+        ;; Check if Claude Code session exists before trying to switch
+        (if (beads-agent-backend-session-active-p backend session)
+            ;; Try to switch, but fall back to starting new if it fails
+            ;; (the MCP session might exist but the buffer could be killed)
+            (condition-case nil
+                (claude-code-ide-switch-to-buffer)
+              (error
+               (message "Claude Code session expired, starting new one...")
+               (claude-code-ide)))
+          ;; No active session - start a new one
+          (message "Claude Code session expired, starting new one...")
+          (claude-code-ide))))))
 
 (cl-defmethod beads-agent-backend-send-prompt
     ((_backend beads-agent-backend-claude-code-ide) session prompt)
@@ -170,21 +175,26 @@ If no Claude Code session exists, starts a new one automatically."
 (cl-defmethod beads-agent-backend-get-buffer
     ((_backend beads-agent-backend-claude-code-ide) session)
   "Return the claude-code-ide buffer for SESSION.
-Uses `claude-code-ide-switch-to-buffer' within `save-window-excursion'
-to locate the buffer without visibly changing windows.
+First checks if the session has a stored buffer (after renaming),
+then falls back to using `claude-code-ide-switch-to-buffer'.
 Returns nil if not found.
 
 Note: This does NOT check `beads-agent-backend-session-active-p' because
 the vterm buffer exists immediately after `claude-code-ide' is called,
 even before the MCP session is established.  This allows buffer linking
 to work during session registration."
-  (require 'claude-code-ide)
-  (let ((default-directory (beads-agent-session-working-dir session)))
-    (condition-case nil
-        (save-window-excursion
-          (claude-code-ide-switch-to-buffer)
-          (current-buffer))
-      (error nil))))
+  ;; First check the session's stored buffer (set after renaming)
+  (let ((stored-buffer (beads-agent-session-buffer session)))
+    (if (and stored-buffer (buffer-live-p stored-buffer))
+        stored-buffer
+      ;; Fall back to claude-code-ide's buffer lookup
+      (require 'claude-code-ide)
+      (let ((default-directory (beads-agent-session-working-dir session)))
+        (condition-case nil
+            (save-window-excursion
+              (claude-code-ide-switch-to-buffer)
+              (current-buffer))
+          (error nil))))))
 
 ;;; Registration
 

@@ -281,18 +281,23 @@ and has a live process."
     ((_backend beads-agent-backend-claudemacs) session)
   "Switch to claudemacs buffer for SESSION.
 If no claudemacs session exists, starts a new one automatically."
-  (require 'claudemacs)
-  (let* ((working-dir (beads-agent-session-working-dir session))
-         (buffers (beads-agent-claudemacs--find-buffers working-dir))
-         (active-buf (cl-find-if #'beads-agent-claudemacs--buffer-has-process-p
-                                 buffers)))
-    (if active-buf
-        ;; Session exists - switch to it
-        (pop-to-buffer active-buf)
-      ;; No active session - start a new one
-      (message "Claudemacs session expired, starting new one...")
-      (let ((default-directory working-dir))
-        (claudemacs--start working-dir)))))
+  ;; First try the session's stored buffer (renamed to beads format)
+  (let ((stored-buffer (beads-agent-session-buffer session)))
+    (if (and stored-buffer (buffer-live-p stored-buffer))
+        (pop-to-buffer stored-buffer)
+      ;; Fall back to claudemacs's normal switching behavior
+      (require 'claudemacs)
+      (let* ((working-dir (beads-agent-session-working-dir session))
+             (buffers (beads-agent-claudemacs--find-buffers working-dir))
+             (active-buf (cl-find-if #'beads-agent-claudemacs--buffer-has-process-p
+                                     buffers)))
+        (if active-buf
+            ;; Session exists - switch to it
+            (pop-to-buffer active-buf)
+          ;; No active session - start a new one
+          (message "Claudemacs session expired, starting new one...")
+          (let ((default-directory working-dir))
+            (claudemacs--start working-dir)))))))
 
 (cl-defmethod beads-agent-backend-send-prompt
     ((_backend beads-agent-backend-claudemacs) session prompt)
@@ -309,10 +314,17 @@ If no claudemacs session exists, starts a new one automatically."
 
 (cl-defmethod beads-agent-backend-get-buffer
     ((_backend beads-agent-backend-claudemacs) session)
-  "Return the claudemacs buffer for SESSION, or nil if not available."
-  (let* ((working-dir (beads-agent-session-working-dir session))
-         (buffers (beads-agent-claudemacs--find-buffers working-dir)))
-    (cl-find-if #'beads-agent-claudemacs--buffer-has-process-p buffers)))
+  "Return the claudemacs buffer for SESSION, or nil if not available.
+First checks if the session has a stored buffer (after renaming),
+then falls back to pattern-based buffer lookup."
+  ;; First check the session's stored buffer (set after renaming)
+  (let ((stored-buffer (beads-agent-session-buffer session)))
+    (if (and stored-buffer (buffer-live-p stored-buffer))
+        stored-buffer
+      ;; Fall back to pattern-based lookup
+      (let* ((working-dir (beads-agent-session-working-dir session))
+             (buffers (beads-agent-claudemacs--find-buffers working-dir)))
+        (cl-find-if #'beads-agent-claudemacs--buffer-has-process-p buffers)))))
 
 ;;; Registration
 
