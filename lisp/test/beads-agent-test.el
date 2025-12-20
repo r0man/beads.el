@@ -1198,9 +1198,10 @@ behavior is to always prompt unless a default is configured."
         (let ((session (beads-agent--create-session
                         "bd-123" "mock" "/tmp" 'handle)))
           (let ((display-name (beads-agent--session-display-name session)))
-            ;; Should match "#N (backend)" format
+            ;; Should match "Type#N (backend)" format
+            ;; Default type is "Agent" when not specified
             (should (stringp display-name))
-            (should (string-match-p "^#[0-9]+ (mock)$" display-name)))))
+            (should (string-match-p "^Agent#[0-9]+ (mock)$" display-name)))))
     (beads-agent-test--teardown)))
 
 (ert-deftest beads-agent-test-issue-format-header ()

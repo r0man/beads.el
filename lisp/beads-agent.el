@@ -833,15 +833,18 @@ If SESSION-ID is nil, prompts for selection from active sessions."
                            (completing-read
                             "Stop session: "
                             (mapcar (lambda (s)
-                                      (format "%s (%s)"
-                                              (oref s id)
-                                              (oref s issue-id)))
+                                      (cons (format "%s %s"
+                                                    (oref s issue-id)
+                                                    (beads-agent--session-display-name s))
+                                            (oref s id)))
                                     sessions)
                             nil t))))
-         ;; Extract session-id if it includes issue-id annotation
-         (session-id (if (string-match "^\\([^ ]+\\)" session-id)
-                         (match-string 1 session-id)
-                       session-id))
+         ;; Extract session-id from alist choice or string
+         (session-id (cond
+                      ((consp session-id) (cdr session-id))
+                      ((string-match "^\\([^ ]+\\)" session-id)
+                       (match-string 1 session-id))
+                      (t session-id)))
          (session (beads-agent--get-session session-id)))
     (unless session
       (user-error "Session not found: %s" session-id))
@@ -913,15 +916,18 @@ If SESSION-ID is nil, prompts for selection from active sessions."
                            (completing-read
                             "Jump to session: "
                             (mapcar (lambda (s)
-                                      (format "%s (%s)"
-                                              (oref s id)
-                                              (oref s issue-id)))
+                                      (cons (format "%s %s"
+                                                    (oref s issue-id)
+                                                    (beads-agent--session-display-name s))
+                                            (oref s id)))
                                     sessions)
                             nil t))))
-         ;; Extract session-id if it includes issue-id annotation
-         (session-id (if (string-match "^\\([^ ]+\\)" session-id)
-                         (match-string 1 session-id)
-                       session-id))
+         ;; Extract session-id from alist choice or string
+         (session-id (cond
+                      ((consp session-id) (cdr session-id))
+                      ((string-match "^\\([^ ]+\\)" session-id)
+                       (match-string 1 session-id))
+                      (t session-id)))
          (session (beads-agent--get-session session-id)))
     (unless session
       (user-error "Session not found: %s" session-id))
@@ -947,15 +953,18 @@ If SESSION-ID is nil, uses session for current issue or prompts."
                            (completing-read
                             "Send to session: "
                             (mapcar (lambda (s)
-                                      (format "%s (%s)"
-                                              (oref s id)
-                                              (oref s issue-id)))
+                                      (cons (format "%s %s"
+                                                    (oref s issue-id)
+                                                    (beads-agent--session-display-name s))
+                                            (oref s id)))
                                     sessions)
                             nil t))))
-         ;; Extract session-id if it includes issue-id annotation
-         (session-id (if (string-match "^\\([^ ]+\\)" session-id)
-                         (match-string 1 session-id)
-                       session-id))
+         ;; Extract session-id from alist choice or string
+         (session-id (cond
+                      ((consp session-id) (cdr session-id))
+                      ((string-match "^\\([^ ]+\\)" session-id)
+                       (match-string 1 session-id))
+                      (t session-id)))
          (session (beads-agent--get-session session-id)))
     (unless session
       (user-error "Session not found: %s" session-id))
@@ -994,13 +1003,12 @@ Set by `beads-agent-issue' before displaying the menu.")
 
 (defun beads-agent--session-display-name (session)
   "Return display name for SESSION in per-issue menu.
-Format: \"#N (backend-name)\" where N is extracted from session ID."
-  (let ((session-id (oref session id))
-        (backend (oref session backend-name)))
-    (if-let ((num (beads-agent--session-number-from-id session-id)))
-        (format "#%d (%s)" num backend)
-      ;; Fallback for old format sessions
-      (format "%s (%s)" (oref session id) backend))))
+Format: \"Type#N (backend-name)\" where Type is the agent type
+and N is the instance number."
+  (let* ((type-name (or (beads-agent-session-type-name session) "Agent"))
+         (instance-n (beads-agent--session-instance-number session))
+         (backend (oref session backend-name)))
+    (format "%s#%d (%s)" type-name instance-n backend)))
 
 (defun beads-agent-issue--format-header ()
   "Format header for per-issue agent menu."
