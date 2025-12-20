@@ -640,10 +640,6 @@ background with progress messages displayed in the echo area."
                           (user-error "Backend not found: %s" backend-name))
                     (beads-agent--select-backend)))
          (project-dir (beads--find-project-root)))
-    ;; Check for existing session first (sync - fast)
-    (when-let ((existing (beads-agent--get-sessions-for-issue issue-id)))
-      (unless (y-or-n-p (format "Session exists for %s. Start another? " issue-id))
-        (user-error "Aborted")))
     ;; Start the async workflow
     (message "Starting %s agent for %s..."
              (if agent-type (oref agent-type name) "default")
