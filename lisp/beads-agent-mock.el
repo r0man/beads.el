@@ -162,9 +162,10 @@ Marks the session handle as inactive and kills the buffer."
 (cl-defmethod beads-agent-backend-switch-to-buffer
     ((backend beads-agent-backend-mock) session)
   "Switch to buffer for mock SESSION via BACKEND.
-Uses the session's stored buffer if available."
+Uses the session's stored buffer if available.
+Uses \"other window\" display to preserve the current window layout."
   (if-let ((buffer (beads-agent-backend-get-buffer backend session)))
-      (pop-to-buffer buffer)
+      (beads-agent--pop-to-buffer-other-window buffer)
     (message "Mock: no buffer available for session")))
 
 (cl-defmethod beads-agent-backend-send-prompt
