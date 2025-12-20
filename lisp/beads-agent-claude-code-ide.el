@@ -203,5 +203,6 @@ to work during session registration."
 (beads-agent--register-backend
  (beads-agent-backend-claude-code-ide))
 
+
 (provide 'beads-agent-claude-code-ide)
 ;;; beads-agent-claude-code-ide.el ends here
