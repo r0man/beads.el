@@ -325,8 +325,15 @@ Instance numbers match the buffer names (*beads-agent[ID][Type#N]*)."
     (cond
      ;; Active sessions - show all with appropriate format
      (sessions
-      (let* ((single-p (= (length sessions) 1))
-             (separator (propertize "/" 'face 'shadow))
+      (let* ((separator (propertize "/" 'face 'shadow))
+             ;; Count sessions per type to determine if instance numbers needed
+             (type-counts
+              (let ((counts (make-hash-table :test 'equal)))
+                (dolist (session sessions)
+                  (let ((type-name (and (fboundp 'beads-agent-session-type-name)
+                                        (beads-agent-session-type-name session))))
+                    (puthash type-name (1+ (gethash type-name counts 0)) counts)))
+                counts))
              (indicators
               (mapcar
                (lambda (session)
@@ -335,11 +342,13 @@ Instance numbers match the buffer names (*beads-agent[ID][Type#N]*)."
                         (instance-n (and (fboundp
                                           'beads-agent--session-instance-number)
                                          (beads-agent--session-instance-number
-                                          session))))
+                                          session)))
+                        ;; Show instance number only if multiple of same type
+                        (brief (= 1 (gethash type-name type-counts 1))))
                    (beads-list--format-agent-indicator
-                    type-name instance-n 'beads-list-agent-working single-p)))
+                    type-name instance-n 'beads-list-agent-working brief)))
                sessions)))
-        (propertize (if single-p
+        (propertize (if (= (length indicators) 1)
                         (car indicators)
                       (mapconcat #'identity indicators separator))
                     'help-echo (format "%d agent%s working"
