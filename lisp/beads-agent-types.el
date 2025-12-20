@@ -151,11 +151,12 @@ Uses a structured prompt that guides the agent through understanding,
 executing, and verifying task completion.")
 
 (cl-defmethod beads-agent-type-build-prompt ((type beads-agent-type-task) issue)
-  "Build task prompt for TYPE with ISSUE using embedded template."
+  "Build task prompt for TYPE with ISSUE using embedded template.
+ISSUE is a beads-issue EIEIO object."
   (ignore type)
-  (let ((issue-id (plist-get issue :id))
-        (issue-title (plist-get issue :title))
-        (issue-desc (or (plist-get issue :description) "")))
+  (let ((issue-id (oref issue id))
+        (issue-title (oref issue title))
+        (issue-desc (or (oref issue description) "")))
     (format "%s\n\n## Issue: %s\n\n**Title:** %s\n\n**Description:**\n%s"
             beads-agent-type-task--prompt issue-id issue-title issue-desc)))
 
@@ -170,11 +171,12 @@ Uses the customizable `beads-agent-review-prompt' template.")
 
 (cl-defmethod beads-agent-type-build-prompt ((type beads-agent-type-review)
                                               issue)
-  "Build review prompt for TYPE with ISSUE using the defcustom template."
+  "Build review prompt for TYPE with ISSUE using the defcustom template.
+ISSUE is a beads-issue EIEIO object."
   (ignore type)
-  (let ((issue-id (plist-get issue :id))
-        (issue-title (plist-get issue :title))
-        (issue-desc (or (plist-get issue :description) "")))
+  (let ((issue-id (oref issue id))
+        (issue-title (oref issue title))
+        (issue-desc (or (oref issue description) "")))
     (format "%s\n\n## Issue: %s\n\n**Title:** %s\n\n**Description:**\n%s"
             beads-agent-review-prompt issue-id issue-title issue-desc)))
 
@@ -190,10 +192,11 @@ making changes.  Works with any backend.")
 
 (cl-defmethod beads-agent-type-build-prompt ((_type beads-agent-type-plan)
                                               issue)
-  "Build plan prompt for TYPE with ISSUE using the defcustom template."
-  (let ((issue-id (plist-get issue :id))
-        (issue-title (plist-get issue :title))
-        (issue-desc (or (plist-get issue :description) "")))
+  "Build plan prompt for TYPE with ISSUE using the defcustom template.
+ISSUE is a beads-issue EIEIO object."
+  (let ((issue-id (oref issue id))
+        (issue-title (oref issue title))
+        (issue-desc (or (oref issue description) "")))
     (format "%s\n\n## Issue: %s\n\n**Title:** %s\n\n**Description:**\n%s"
             beads-agent-plan-prompt issue-id issue-title issue-desc)))
 
@@ -207,11 +210,12 @@ making changes.  Works with any backend.")
 Uses the customizable `beads-agent-qa-prompt' template.")
 
 (cl-defmethod beads-agent-type-build-prompt ((type beads-agent-type-qa) issue)
-  "Build QA prompt for TYPE with ISSUE using the defcustom template."
+  "Build QA prompt for TYPE with ISSUE using the defcustom template.
+ISSUE is a beads-issue EIEIO object."
   (ignore type)
-  (let ((issue-id (plist-get issue :id))
-        (issue-title (plist-get issue :title))
-        (issue-desc (or (plist-get issue :description) "")))
+  (let ((issue-id (oref issue id))
+        (issue-title (oref issue title))
+        (issue-desc (or (oref issue description) "")))
     (format "%s\n\n## Issue: %s\n\n**Title:** %s\n\n**Description:**\n%s"
             beads-agent-qa-prompt issue-id issue-title issue-desc)))
 
@@ -231,10 +235,11 @@ Stored for history during minibuffer prompt.")
 
 (cl-defmethod beads-agent-type-build-prompt ((_type beads-agent-type-custom)
                                               issue)
-  "Prompt user for custom prompt for TYPE and combine with ISSUE."
-  (let* ((issue-id (plist-get issue :id))
-         (issue-title (plist-get issue :title))
-         (issue-desc (or (plist-get issue :description) ""))
+  "Prompt user for custom prompt for TYPE and combine with ISSUE.
+ISSUE is a beads-issue EIEIO object."
+  (let* ((issue-id (oref issue id))
+         (issue-title (oref issue title))
+         (issue-desc (or (oref issue description) ""))
          (user-prompt (read-string
                        (format "Custom prompt for %s: " issue-id)
                        beads-agent-type-custom--last-prompt)))
