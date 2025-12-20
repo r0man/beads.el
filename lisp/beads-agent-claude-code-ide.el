@@ -124,11 +124,15 @@ Returns the MCP session handle."
         (error nil)))))
 
 (cl-defmethod beads-agent-backend-stop
-    ((_backend beads-agent-backend-claude-code-ide) session)
-  "Stop claude-code-ide SESSION."
-  (require 'claude-code-ide)
-  (let ((default-directory (beads-agent-session-working-dir session)))
-    (claude-code-ide-stop)))
+    ((backend beads-agent-backend-claude-code-ide) session)
+  "Stop claude-code-ide SESSION using BACKEND.
+Explicitly kills the session buffer since beads renames it and
+`claude-code-ide-stop' won't find it by the original name."
+  ;; Kill the buffer directly - claude-code-ide-stop won't find it
+  ;; because we renamed it from *Claude Code: ...* to *beads-agent[...]*
+  (when-let ((buffer (beads-agent-backend-get-buffer backend session)))
+    (when (buffer-live-p buffer)
+      (kill-buffer buffer))))
 
 (cl-defmethod beads-agent-backend-session-active-p
     ((_backend beads-agent-backend-claude-code-ide) session)

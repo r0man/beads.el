@@ -137,11 +137,15 @@ Returns the Claude buffer as the session handle."
               (error-message-string err))))))
 
 (cl-defmethod beads-agent-backend-stop
-    ((_backend beads-agent-backend-claude-code) session)
-  "Stop claude-code SESSION."
-  (require 'claude-code)
-  (let ((default-directory (beads-agent-session-working-dir session)))
-    (claude-code-kill)))
+    ((backend beads-agent-backend-claude-code) session)
+  "Stop claude-code SESSION using BACKEND.
+Explicitly kills the session buffer since beads renames it and
+`claude-code-kill' won't find it by the original name."
+  ;; Kill the buffer directly - claude-code-kill won't find it
+  ;; because we renamed it from *Claude: ...* to *beads-agent[...]*
+  (when-let ((buffer (beads-agent-backend-get-buffer backend session)))
+    (when (buffer-live-p buffer)
+      (kill-buffer buffer))))
 
 (cl-defmethod beads-agent-backend-session-active-p
     ((_backend beads-agent-backend-claude-code) session)
