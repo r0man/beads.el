@@ -412,8 +412,7 @@ ID [P#] [type] STATUS - title."
               (insert " - ")
               (insert (propertize (beads-show--truncate-title title 50)
                                   'face 'beads-show-sub-issue-title-face))
-              (insert "\n")))))
-      (insert "\n"))))
+              (insert "\n"))))))))
 
 (defun beads-show--fontify-markdown (start end)
   "Apply basic markdown fontification between START and END."

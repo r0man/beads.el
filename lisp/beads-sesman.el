@@ -144,7 +144,8 @@ Return plist with :objects, :strings for sesman-browser display."
                       (list
                        (format "Session: %s" (oref beads-session id))
                        (format "Issue: %s" (oref beads-session issue-id))
-                       (format "Backend: %s" (oref beads-session backend-name))
+                       (when-let ((type-name (oref beads-session agent-type-name)))
+                         (format "Type: %s" type-name))
                        (format "Started: %s" (oref beads-session started-at))
                        (when-let ((worktree (oref beads-session worktree-dir)))
                          (format "Worktree: %s"

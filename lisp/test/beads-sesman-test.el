@@ -393,9 +393,32 @@ SESSION-NUM is the session number (defaults to auto-incrementing counter)."
         (should (plist-get info :strings))
         ;; Check strings contain expected info
         (let ((strings (plist-get info :strings)))
+          (should (cl-some (lambda (s) (and s (string-match-p "Session:" s)))
+                           strings))
           (should (cl-some (lambda (s) (and s (string-match-p "Issue:" s)))
                            strings))
-          (should (cl-some (lambda (s) (and s (string-match-p "Backend:" s)))
+          (should (cl-some (lambda (s) (and s (string-match-p "Started:" s)))
+                           strings))))
+    (beads-sesman-test--teardown)))
+
+(ert-deftest beads-sesman-test-session-info-with-type ()
+  "Test sesman-session-info includes Type when agent-type-name is set."
+  (beads-sesman-test--setup)
+  (unwind-protect
+      (let* ((session (beads-agent-session
+                       :id "test-123#1"
+                       :issue-id "test-123"
+                       :backend-name "mock"
+                       :agent-type-name "Task"
+                       :project-dir "/tmp/project"
+                       :started-at "2025-01-01T12:00:00+0000"
+                       :backend-session 'mock-handle))
+             (sesman-session (beads-sesman--make-sesman-session session))
+             (info (sesman-session-info beads-sesman-system sesman-session)))
+        (should (plist-get info :strings))
+        ;; Check Type is included when agent-type-name is set
+        (let ((strings (plist-get info :strings)))
+          (should (cl-some (lambda (s) (and s (string-match-p "Type: Task" s)))
                            strings))))
     (beads-sesman-test--teardown)))
 
