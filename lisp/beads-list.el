@@ -119,8 +119,8 @@
   :type 'integer
   :group 'beads-list)
 
-(defcustom beads-list-agent-width 3
-  "Width of Agent column in issue lists.
+(defcustom beads-list-agent-width 6
+  "Width of Agents column in issue lists.
 Shows a single letter for the agent type (T/R/P/Q/C)."
   :type 'integer
   :group 'beads-list)
@@ -1018,7 +1018,7 @@ transient menu options."
                 (list "Status" beads-list-status-width t)
                 (list "Priority" beads-list-priority-width t
                       :right-align t)
-                (list "A" beads-list-agent-width t)
+                (list "Agents" beads-list-agent-width t)
                 (list "Title" beads-list-title-width t)
                 (list "Created" beads-list-created-width t)
                 (list "Updated" beads-list-updated-width t)))
