@@ -161,49 +161,23 @@ Returns the agent-shell buffer as the session handle."
 (cl-defmethod beads-agent-backend-stop
     ((_backend beads-agent-backend-agent-shell) session)
   "Stop agent-shell SESSION.
-Explicitly shuts down the ACP client before killing the buffer to avoid
-timer errors from acp.el's deferred timers."
+Uses standard buffer killing which triggers `agent-shell--clean-up'
+via the buffer-local `kill-buffer-hook'.  The cleanup function handles
+ACP client shutdown, heartbeat termination, and viewport buffer cleanup."
   (let* ((working-dir (beads-agent-session-working-dir session))
          (buffers (beads-agent-agent-shell--find-buffers working-dir)))
     (dolist (buf buffers)
       (when (buffer-live-p buf)
         (with-current-buffer buf
-          ;; Interrupt any running request first
+          ;; Optionally interrupt any running request for better UX
           (condition-case nil
               (when (and (get-buffer-process buf)
                          (fboundp 'agent-shell-interrupt))
                 (agent-shell-interrupt t))
             (error nil))
-          ;; Explicitly shut down ACP client before killing buffer.
-          ;; This prevents "Selecting deleted buffer" errors from acp.el's
-          ;; deferred timers (run-at-time 0 nil) that fire after buffer death.
-          (condition-case nil
-              (when (and (fboundp 'acp-shutdown)
-                         (boundp 'agent-shell--state)
-                         (symbol-value 'agent-shell--state))
-                (when-let ((client (map-elt (symbol-value 'agent-shell--state)
-                                            :client)))
-                  (acp-shutdown :client client)))
-            (error nil))
-          ;; Allow any pending deferred timers to fire while buffer is alive.
-          ;; acp.el uses (run-at-time 0 nil ...) for async message processing.
-          (sit-for 0))
-        ;; Kill buffer - cleanup hook will be a no-op since we already shut down.
-        ;; Wrap in condition-case to handle potential cleanup errors.
-        (condition-case nil
-            (kill-buffer buf)
-          (error
-           ;; If cleanup failed, force-kill the buffer.
-           ;; Clear all buffer-local kill-buffer-hook entries and kill directly.
-           (when (buffer-live-p buf)
-             (with-current-buffer buf
-               (let ((inhibit-read-only t))
-                 ;; Clear all buffer-local kill-buffer-hook to avoid repeated errors
-                 (kill-local-variable 'kill-buffer-hook)
-                 ;; Kill any process
-                 (when-let ((proc (get-buffer-process buf)))
-                   (ignore-errors (delete-process proc)))))
-             (ignore-errors (kill-buffer buf)))))))))
+          ;; Kill buffer while it's current - agent-shell--clean-up checks
+          ;; (derived-mode-p 'agent-shell-mode) which requires current buffer.
+          (kill-buffer buf))))))
 
 (cl-defmethod beads-agent-backend-session-active-p
     ((_backend beads-agent-backend-agent-shell) session)
