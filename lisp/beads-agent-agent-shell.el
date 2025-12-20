@@ -50,9 +50,13 @@
 (declare-function agent-shell-select-config "agent-shell")
 (declare-function agent-shell-interrupt "agent-shell")
 
+;; From acp.el - client shutdown
+(declare-function acp-shutdown "acp")
+
 ;; Declare external variables
 (defvar agent-shell-agent-configs)
 (defvar agent-shell-preferred-agent-config)
+(defvar agent-shell--state)
 
 ;;; Customization
 
@@ -157,8 +161,8 @@ Returns the agent-shell buffer as the session handle."
 (cl-defmethod beads-agent-backend-stop
     ((_backend beads-agent-backend-agent-shell) session)
   "Stop agent-shell SESSION.
-Let agent-shell's `kill-buffer-hook' handle cleanup properly.
-If cleanup fails, fall back to forced cleanup."
+Explicitly shuts down the ACP client before killing the buffer to avoid
+timer errors from acp.el's deferred timers."
   (let* ((working-dir (beads-agent-session-working-dir session))
          (buffers (beads-agent-agent-shell--find-buffers working-dir)))
     (dolist (buf buffers)
@@ -169,10 +173,23 @@ If cleanup fails, fall back to forced cleanup."
               (when (and (get-buffer-process buf)
                          (fboundp 'agent-shell-interrupt))
                 (agent-shell-interrupt t))
-            (error nil)))
-        ;; Kill buffer, letting agent-shell's cleanup hook run normally.
-        ;; Wrap in condition-case to handle potential cleanup errors
-        ;; (e.g., "Not in a shell" or "Client already shut down").
+            (error nil))
+          ;; Explicitly shut down ACP client before killing buffer.
+          ;; This prevents "Selecting deleted buffer" errors from acp.el's
+          ;; deferred timers (run-at-time 0 nil) that fire after buffer death.
+          (condition-case nil
+              (when (and (fboundp 'acp-shutdown)
+                         (boundp 'agent-shell--state)
+                         (symbol-value 'agent-shell--state))
+                (when-let ((client (map-elt (symbol-value 'agent-shell--state)
+                                            :client)))
+                  (acp-shutdown :client client)))
+            (error nil))
+          ;; Allow any pending deferred timers to fire while buffer is alive.
+          ;; acp.el uses (run-at-time 0 nil ...) for async message processing.
+          (sit-for 0))
+        ;; Kill buffer - cleanup hook will be a no-op since we already shut down.
+        ;; Wrap in condition-case to handle potential cleanup errors.
         (condition-case nil
             (kill-buffer buf)
           (error
