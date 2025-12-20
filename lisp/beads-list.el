@@ -66,8 +66,16 @@
 (declare-function beads-reopen "beads-reopen" (&optional issue-id))
 (declare-function beads-agent--get-sessions-for-issue "beads-agent")
 (declare-function beads-agent-start-at-point "beads-agent")
+(declare-function beads-agent-start-task "beads-agent" (&optional arg))
+(declare-function beads-agent-start-review "beads-agent" (&optional arg))
+(declare-function beads-agent-start-plan "beads-agent" (&optional arg))
+(declare-function beads-agent-start-qa "beads-agent" (&optional arg))
+(declare-function beads-agent-start-custom "beads-agent" (&optional arg))
+(declare-function beads-agent-stop-at-point "beads-agent")
+(declare-function beads-agent-jump-at-point "beads-agent")
 (declare-function beads-agent--get-issue-outcome "beads-agent-backend")
 (declare-function beads-agent-session-backend-name "beads-agent-backend")
+(declare-function beads-agent-session-type-name "beads-agent-backend")
 
 ;;; Customization
 
@@ -111,9 +119,9 @@
   :type 'integer
   :group 'beads-list)
 
-(defcustom beads-list-agent-width 12
+(defcustom beads-list-agent-width 3
   "Width of Agent column in issue lists.
-Should be wide enough to show the status indicator and backend name."
+Shows a single letter for the agent type (T/R/P/Q/C)."
   :type 'integer
   :group 'beads-list)
 
@@ -286,34 +294,46 @@ the value of `beads-list-date-format'."
 
 (defun beads-list--format-agent (issue-id)
   "Format agent status indicator for ISSUE-ID.
-Returns a colored circle (●) indicating agent status:
+Returns a single letter indicating agent type with colored face:
   - Yellow: agent currently working
   - Green: agent finished successfully
   - Red: agent failed
-The circle is followed by the backend name when available.
+Letters are: T=Task, R=Review, P=Plan, Q=QA, C=Custom.
 Each indicator includes a help-echo tooltip for accessibility."
   (let ((sessions (and (fboundp 'beads-agent--get-sessions-for-issue)
                        (beads-agent--get-sessions-for-issue issue-id)))
         (outcome (and (fboundp 'beads-agent--get-issue-outcome)
                       (beads-agent--get-issue-outcome issue-id))))
     (cond
-     ;; Active session - yellow circle
+     ;; Active session - show type letter in yellow
      (sessions
-      (let ((backend-name (and (fboundp 'beads-agent-session-backend-name)
-                               (beads-agent-session-backend-name (car sessions)))))
-        (if backend-name
-            (propertize (format "● %s" backend-name)
-                        'face 'beads-list-agent-working
-                        'help-echo (format "Agent working: %s" backend-name))
-          (propertize "●" 'face 'beads-list-agent-working
-                      'help-echo "Agent working"))))
-     ;; Finished - green circle
-     ((eq outcome 'finished)
-      (propertize "●" 'face 'beads-list-agent-finished
+      (let* ((session (car sessions))
+             (type-name (and (fboundp 'beads-agent-session-type-name)
+                             (beads-agent-session-type-name session)))
+             (letter (if type-name
+                         (substring type-name 0 1)
+                       "●")))
+        (propertize letter
+                    'face 'beads-list-agent-working
+                    'help-echo (format "Agent working: %s" (or type-name "default")))))
+     ;; Finished - show last letter in green
+     ;; Outcome is now (letter . outcome) cons or just symbol for backward compat
+     ((and (consp outcome) (eq (cdr outcome) 'finished))
+      (propertize (car outcome)
+                  'face 'beads-list-agent-finished
                   'help-echo "Agent finished successfully"))
-     ;; Failed - red circle
+     ((eq outcome 'finished)
+      (propertize "●"
+                  'face 'beads-list-agent-finished
+                  'help-echo "Agent finished successfully"))
+     ;; Failed - show last letter in red
+     ((and (consp outcome) (eq (cdr outcome) 'failed))
+      (propertize (car outcome)
+                  'face 'beads-list-agent-failed
+                  'help-echo "Agent failed"))
      ((eq outcome 'failed)
-      (propertize "●" 'face 'beads-list-agent-failed
+      (propertize "●"
+                  'face 'beads-list-agent-failed
                   'help-echo "Agent failed"))
      ;; No agent activity
      (t ""))))
@@ -965,8 +985,15 @@ transient menu options."
     (define-key map (kbd "S") #'beads-list-sort)           ; sort menu
     (define-key map (kbd "l") #'beads-list-filter)         ; filter (open transient with current filter)
 
-    ;; AI Agent integration
-    (define-key map (kbd "A") #'beads-agent-start-at-point) ; start agent
+    ;; AI Agent type commands
+    (define-key map (kbd "T") #'beads-agent-start-task)     ; Task agent
+    (define-key map (kbd "R") #'beads-agent-start-review)   ; Review agent
+    (define-key map (kbd "P") #'beads-agent-start-plan)     ; Plan agent
+    (define-key map (kbd "Q") #'beads-agent-start-qa)       ; QA agent
+    (define-key map (kbd "C") #'beads-agent-start-custom)   ; Custom agent
+    (define-key map (kbd "X") #'beads-agent-stop-at-point)  ; Stop agent
+    (define-key map (kbd "J") #'beads-agent-jump-at-point)  ; Jump to agent
+    (define-key map (kbd "A") #'beads-agent-start-at-point) ; Backward compat
 
     ;; Sesman session management (CIDER/ESS convention)
     (define-key map (kbd "C-c C-s") beads-sesman-map)
@@ -991,7 +1018,7 @@ transient menu options."
                 (list "Status" beads-list-status-width t)
                 (list "Priority" beads-list-priority-width t
                       :right-align t)
-                (list "Agent" beads-list-agent-width t)
+                (list "A" beads-list-agent-width t)
                 (list "Title" beads-list-title-width t)
                 (list "Created" beads-list-created-width t)
                 (list "Updated" beads-list-updated-width t)))
