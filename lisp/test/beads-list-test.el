@@ -1050,9 +1050,7 @@ Active session should take priority over previous outcome."
               ((symbol-function 'beads-agent--get-issue-outcome)
                (lambda (_id) '("T" . finished)))  ; Previous outcome exists
               ((symbol-function 'beads-agent-session-type-name)
-               (lambda (_session) "Review"))
-              ((symbol-function 'beads-agent--session-instance-number)
-               (lambda (_session) 2)))
+               (lambda (_session) "Review")))
       (let ((result (beads-list--format-agent "bd-1")))
         ;; Single agent shows just letter, no instance number
         (should (string= (substring-no-properties result) "R"))
@@ -1060,28 +1058,22 @@ Active session should take priority over previous outcome."
                     'beads-list-agent-working))))))
 
 (ert-deftest beads-list-test-format-agent-multiple-sessions ()
-  "Test format-agent shows instance numbers only for duplicate types."
+  "Test format-agent shows per-type instance numbers for duplicate types."
   (let ((mock-sessions (list 'session1 'session2 'session3))
         (session-types '(("session1" . "Task")
                          ("session2" . "Review")
-                         ("session3" . "Task")))
-        (session-numbers '(("session1" . 1)
-                           ("session2" . 2)
-                           ("session3" . 3))))
+                         ("session3" . "Task"))))
     (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
                (lambda (_id) mock-sessions))
               ((symbol-function 'beads-agent--get-issue-outcome)
                (lambda (_id) nil))
               ((symbol-function 'beads-agent-session-type-name)
                (lambda (session)
-                 (cdr (assoc (symbol-name session) session-types))))
-              ((symbol-function 'beads-agent--session-instance-number)
-               (lambda (session)
-                 (cdr (assoc (symbol-name session) session-numbers)))))
+                 (cdr (assoc (symbol-name session) session-types)))))
       (let ((result (beads-list--format-agent "bd-1")))
-        ;; Task appears twice, so shows instance numbers: T#1 and T#3
+        ;; Task appears twice, so shows per-type instance numbers: T#1 and T#2
         (should (string-match-p "T#1" result))
-        (should (string-match-p "T#3" result))
+        (should (string-match-p "T#2" result))
         ;; Review appears once, so just "R" without instance number
         (should (string-match-p "R" result))
         (should-not (string-match-p "R#" result))
