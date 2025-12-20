@@ -248,5 +248,6 @@ then falls back to pattern-based buffer lookup."
 (beads-agent--register-backend
  (beads-agent-backend-agent-shell))
 
+
 (provide 'beads-agent-agent-shell)
 ;;; beads-agent-agent-shell.el ends here

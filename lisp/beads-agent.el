@@ -136,27 +136,6 @@ If set to a path, worktrees are created under that directory."
                  (directory :tag "Custom directory"))
   :group 'beads-agent)
 
-;;; Display Buffer Configuration
-;;
-;; Agent buffers are displayed using `display-buffer-alist'.  The default
-;; configuration opens agents in a window to the right.  To customize,
-;; modify `display-buffer-alist' before loading beads-agent, or use:
-;;
-;;   (setf (alist-get 'beads-agent--display-buffer-p display-buffer-alist)
-;;         '((display-buffer-in-direction) (direction . below)))
-
-(defun beads-agent--display-buffer-p (buffer-name _action)
-  "Return non-nil if BUFFER-NAME is a beads agent buffer.
-Used as a condition function in `display-buffer-alist'."
-  (string-match-p "\\`\\*beads-agent\\[.+\\]\\[.+#[0-9]+\\]\\*\\'" buffer-name))
-
-(add-to-list 'display-buffer-alist
-             '(beads-agent--display-buffer-p
-               (display-buffer-reuse-window
-                display-buffer-in-direction)
-               (direction . right)
-               (window-width . 0.5)))
-
 ;;; JSON Parsing Utilities
 
 (defun beads-agent--extract-json (output)
@@ -813,7 +792,14 @@ are passed through from `beads-agent--continue-start'."
          (default-directory working-dir)
          (agent-type-name (when agent-type (oref agent-type name))))
     (condition-case err
-        (let* ((backend-session (beads-agent-backend-start backend issue prompt))
+        ;; Bind display-buffer-overriding-action to force agent buffers
+        ;; to open in a right side window, keeping list/show buffers visible
+        (let* ((display-buffer-overriding-action
+                '((display-buffer-reuse-window
+                   display-buffer-in-side-window)
+                  (side . right)
+                  (window-width . 0.5)))
+               (backend-session (beads-agent-backend-start backend issue prompt))
                (session (beads-agent--create-session
                          issue-id
                          (oref backend name)
@@ -1329,49 +1315,9 @@ buffer is kept visible and the agent buffer opens in the other window."
           ;; Sessions exist - show management menu
           (beads-agent-issue id)
         ;; No sessions - start new agent directly
-        ;; If we're in list/show mode, arrange windows to keep list visible
-        (beads-agent--start-preserving-list-buffer id))
+        ;; Each backend's display-buffer-overriding-action handles window placement
+        (beads-agent-start id))
     (call-interactively #'beads-agent-start)))
-
-(defun beads-agent--in-list-or-show-mode-p ()
-  "Return non-nil if current buffer is in `beads-list-mode' or `beads-show-mode'."
-  (or (derived-mode-p 'beads-list-mode)
-      (derived-mode-p 'beads-show-mode)))
-
-(defun beads-agent--jump-other-window-if-applicable (session-id)
-  "Jump to SESSION-ID buffer, using other window if in list/show mode."
-  (if (beads-agent--in-list-or-show-mode-p)
-      (let ((list-buffer (current-buffer)))
-        (beads-agent-jump session-id)
-        ;; Ensure list buffer is still visible
-        (unless (get-buffer-window list-buffer)
-          (display-buffer list-buffer '(display-buffer-reuse-window))))
-    (beads-agent-jump session-id)))
-
-(defun beads-agent--start-preserving-list-buffer (issue-id)
-  "Start agent for ISSUE-ID, keeping list/show buffer visible.
-When called from `beads-list-mode' or `beads-show-mode', splits the
-window to show the agent in the other window while keeping the
-list/show buffer visible."
-  (if (beads-agent--in-list-or-show-mode-p)
-      (let ((list-buffer (current-buffer)))
-        ;; Split window if there's only one
-        (when (= (length (window-list)) 1)
-          (split-window-right))
-        ;; Start the agent (async) - it will take over a window
-        (beads-agent-start issue-id)
-        ;; Schedule a check to restore list visibility after agent starts
-        (run-with-timer
-         0.5 nil
-         (lambda ()
-           (when (buffer-live-p list-buffer)
-             ;; If list buffer is not visible, display it
-             (unless (get-buffer-window list-buffer)
-               (display-buffer list-buffer
-                               '(display-buffer-reuse-window
-                                 (inhibit-same-window . t))))))))
-    ;; Not in list/show mode - just start normally
-    (beads-agent-start issue-id)))
 
 (defun beads-agent--select-session-completing-read (sessions prompt)
   "Select a session from SESSIONS using `completing-read' with PROMPT.
@@ -1407,7 +1353,7 @@ If multiple sessions exist, prompts for which one to jump to."
             (if-let ((selected (beads-agent--select-session-completing-read
                                 sessions
                                 (format "Jump to agent for %s: " id))))
-                (beads-agent--jump-other-window-if-applicable (oref selected id))
+                (beads-agent-jump (oref selected id))
               (message "No agent selected"))))
         ;; No session - start a new one
         (beads-agent-start id))
@@ -1442,14 +1388,13 @@ This is the core implementation for all type-specific start commands."
             (cond
              ;; Single session - jump directly
              ((= (length existing) 1)
-              (beads-agent--jump-other-window-if-applicable
-               (oref (car existing) id)))
+              (beads-agent-jump (oref (car existing) id)))
              ;; Multiple sessions - prompt for selection
              (t
               (if-let ((selected (beads-agent--select-session-completing-read
                                   existing
                                   (format "Jump to %s agent for %s: " type-name id))))
-                  (beads-agent--jump-other-window-if-applicable (oref selected id))
+                  (beads-agent-jump (oref selected id))
                 (message "No agent selected"))))
           ;; Start new agent of this type
           ;; Note: Window splitting is handled in beads-agent--start-backend-async
