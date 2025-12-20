@@ -646,7 +646,8 @@ ISSUE-ID defaults to issue at point or prompts for selection.
 BACKEND-NAME defaults to configured default or prompts for selection.
 PROMPT defaults to auto-generated from issue (overridden by agent type).
 AGENT-TYPE-NAME is the name of the agent type (e.g., \"Task\", \"Review\").
-When specified, the agent type's prompt template is used instead of PROMPT.
+When not specified, defaults to \"Task\".  The agent type's prompt
+template is used instead of PROMPT.
 
 When `beads-agent-use-worktrees' is non-nil, the agent will work
 in a git worktree named after the issue ID.  The worktree is
@@ -657,9 +658,10 @@ background with progress messages displayed in the echo area."
   (interactive)
   (beads-check-executable)
   (let* ((issue-id (or issue-id (beads-agent--read-issue-id)))
-         (agent-type (when agent-type-name
-                       (or (beads-agent-type-get agent-type-name)
-                           (user-error "Unknown agent type: %s" agent-type-name))))
+         ;; Default to "Task" type when not specified
+         (effective-type-name (or agent-type-name "Task"))
+         (agent-type (or (beads-agent-type-get effective-type-name)
+                         (user-error "Unknown agent type: %s" effective-type-name)))
          (backend (if backend-name
                       (or (beads-agent--get-backend backend-name)
                           (user-error "Backend not found: %s" backend-name))
@@ -667,7 +669,7 @@ background with progress messages displayed in the echo area."
          (project-dir (beads--find-project-root)))
     ;; Start the async workflow
     (message "Starting %s agent for %s..."
-             (if agent-type (oref agent-type name) "default")
+             (oref agent-type name)
              issue-id)
     (beads-agent--start-async issue-id backend project-dir prompt agent-type)))
 
