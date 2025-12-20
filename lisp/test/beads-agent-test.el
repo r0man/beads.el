@@ -1974,6 +1974,227 @@ Settings changes should allow continued configuration."
     (beads-agent-mock-reset)
     (beads-agent-test--teardown)))
 
+;;; Tests for Session Selection with completing-read
+
+(ert-deftest beads-agent-test-select-session-completing-read-nil-sessions ()
+  "Test that select-session-completing-read returns nil for empty sessions."
+  (should (null (beads-agent--select-session-completing-read nil "Select: "))))
+
+(ert-deftest beads-agent-test-select-session-completing-read-formats-label ()
+  "Test that session labels are formatted as Type#N (backend)."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let ((session (beads-agent--create-session
+                        "bd-123" "mock" "/tmp" 'handle nil "Task")))
+          ;; Mock completing-read to capture choices
+          (let ((captured-choices nil))
+            (cl-letf (((symbol-function 'completing-read)
+                       (lambda (_prompt choices &rest _)
+                         (setq captured-choices choices)
+                         ;; Return first choice
+                         (caar choices))))
+              (beads-agent--select-session-completing-read
+               (list session) "Select: ")
+              ;; Check the format: Type#N (backend)
+              (should (= (length captured-choices) 1))
+              (should (string-match-p "Task#1 (mock)" (caar captured-choices)))))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-select-session-completing-read-returns-session ()
+  "Test that select-session-completing-read returns the selected session."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let* ((session1 (beads-agent--create-session
+                          "bd-123" "mock" "/tmp" 'h1 nil "Task"))
+               (session2 (beads-agent--create-session
+                          "bd-123" "mock" "/tmp" 'h2 nil "Review")))
+          ;; Mock completing-read to return the second choice
+          (cl-letf (((symbol-function 'completing-read)
+                     (lambda (_prompt choices &rest _)
+                       (car (nth 1 choices)))))
+            (let ((selected (beads-agent--select-session-completing-read
+                             (list session1 session2) "Select: ")))
+              ;; Should return the second session
+              (should (eq selected session2))))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-select-session-uses-agent-as-default-type ()
+  "Test that sessions without type-name use Agent as label."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let ((session (beads-agent--create-session
+                        "bd-123" "mock" "/tmp" 'handle nil nil)))
+          (let ((captured-choices nil))
+            (cl-letf (((symbol-function 'completing-read)
+                       (lambda (_prompt choices &rest _)
+                         (setq captured-choices choices)
+                         (caar choices))))
+              (beads-agent--select-session-completing-read
+               (list session) "Select: ")
+              ;; Should use "Agent" when type-name is nil
+              (should (string-match-p "Agent#1 (mock)" (caar captured-choices)))))))
+    (beads-agent-test--teardown)))
+
+;;; Tests for jump-at-point with Multiple Sessions
+
+(ert-deftest beads-agent-test-jump-at-point-single-session-no-prompt ()
+  "Test that jump-at-point with single session doesn't prompt."
+  (beads-agent-mock-reset)
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions)
+                ((symbol-function 'beads-agent--detect-issue-id)
+                 (lambda () "bd-123")))
+        ;; Create one session
+        (let ((session (beads-agent--create-session
+                        "bd-123" "mock" "/tmp" 'handle nil "Task")))
+          ;; Track if completing-read was called
+          (let ((completing-read-called nil))
+            (cl-letf (((symbol-function 'completing-read)
+                       (lambda (&rest _)
+                         (setq completing-read-called t)
+                         nil))
+                      ((symbol-function 'beads-agent-jump)
+                       (lambda (id) id)))
+              (beads-agent-jump-at-point)
+              ;; Should NOT have prompted
+              (should-not completing-read-called)))))
+    (beads-agent-mock-reset)
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-jump-at-point-multiple-sessions-prompts ()
+  "Test that jump-at-point with multiple sessions prompts for selection."
+  (beads-agent-mock-reset)
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions)
+                ((symbol-function 'beads-agent--detect-issue-id)
+                 (lambda () "bd-123")))
+        ;; Create multiple sessions
+        (let* ((session1 (beads-agent--create-session
+                          "bd-123" "mock" "/tmp" 'h1 nil "Task"))
+               (session2 (beads-agent--create-session
+                          "bd-123" "mock" "/tmp" 'h2 nil "Review")))
+          ;; Track if completing-read was called
+          (let ((completing-read-called nil)
+                (jumped-to-id nil))
+            (cl-letf (((symbol-function 'completing-read)
+                       (lambda (prompt choices &rest _)
+                         (setq completing-read-called t)
+                         ;; Return first choice
+                         (caar choices)))
+                      ((symbol-function 'beads-agent--jump-other-window-if-applicable)
+                       (lambda (id)
+                         (setq jumped-to-id id))))
+              (beads-agent-jump-at-point)
+              ;; Should have prompted
+              (should completing-read-called)
+              ;; Should have jumped to one of the sessions (order not guaranteed)
+              (should (member jumped-to-id
+                              (list (oref session1 id) (oref session2 id))))))))
+    (beads-agent-mock-reset)
+    (beads-agent-test--teardown)))
+
+;;; Tests for start-typed with Multiple Sessions
+
+(ert-deftest beads-agent-test-start-typed-single-session-no-prompt ()
+  "Test that start-typed with single matching session doesn't prompt."
+  (beads-agent-mock-reset)
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions)
+                ((symbol-function 'beads-agent--detect-issue-id)
+                 (lambda () "bd-123")))
+        ;; Create one Task session
+        (let ((session (beads-agent--create-session
+                        "bd-123" "mock" "/tmp" 'handle nil "Task")))
+          (let ((completing-read-called nil))
+            (cl-letf (((symbol-function 'completing-read)
+                       (lambda (&rest _)
+                         (setq completing-read-called t)
+                         nil))
+                      ((symbol-function 'beads-agent--jump-other-window-if-applicable)
+                       (lambda (id) id)))
+              (beads-agent--start-typed "Task")
+              ;; Should NOT have prompted
+              (should-not completing-read-called)))))
+    (beads-agent-mock-reset)
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-start-typed-multiple-sessions-prompts ()
+  "Test that start-typed with multiple matching sessions prompts."
+  (beads-agent-mock-reset)
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions)
+                ((symbol-function 'beads-agent--detect-issue-id)
+                 (lambda () "bd-123")))
+        ;; Create multiple Task sessions
+        (let* ((session1 (beads-agent--create-session
+                          "bd-123" "mock" "/tmp" 'h1 nil "Task"))
+               (session2 (beads-agent--create-session
+                          "bd-123" "mock" "/tmp" 'h2 nil "Task")))
+          (let ((completing-read-called nil)
+                (jumped-to-id nil))
+            (cl-letf (((symbol-function 'completing-read)
+                       (lambda (prompt choices &rest _)
+                         (setq completing-read-called t)
+                         ;; Check prompt includes type
+                         (should (string-match-p "Task" prompt))
+                         ;; Return first choice
+                         (caar choices)))
+                      ((symbol-function 'beads-agent--jump-other-window-if-applicable)
+                       (lambda (id)
+                         (setq jumped-to-id id))))
+              (beads-agent--start-typed "Task")
+              ;; Should have prompted
+              (should completing-read-called)
+              ;; Should have jumped to one of the Task sessions (order not guaranteed)
+              (should (member jumped-to-id
+                              (list (oref session1 id) (oref session2 id))))))))
+    (beads-agent-mock-reset)
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-start-typed-only-matches-type ()
+  "Test that start-typed only considers sessions of matching type."
+  (beads-agent-mock-reset)
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions)
+                ((symbol-function 'beads-agent--detect-issue-id)
+                 (lambda () "bd-123")))
+        ;; Create one Task and one Review session
+        (beads-agent--create-session "bd-123" "mock" "/tmp" 'h1 nil "Task")
+        (beads-agent--create-session "bd-123" "mock" "/tmp" 'h2 nil "Review")
+        ;; Starting a Plan agent should NOT match either
+        (let ((completing-read-called nil)
+              (started-agent nil))
+          (cl-letf (((symbol-function 'completing-read)
+                     (lambda (&rest _)
+                       (setq completing-read-called t)
+                       nil))
+                    ((symbol-function 'beads-agent-start)
+                     (lambda (&rest args)
+                       (setq started-agent t))))
+            (beads-agent--start-typed "Plan")
+            ;; Should NOT have prompted (no Plan sessions)
+            (should-not completing-read-called)
+            ;; Should have started a new agent
+            (should started-agent))))
+    (beads-agent-mock-reset)
+    (beads-agent-test--teardown)))
+
 ;;; Footer
 
 (provide 'beads-agent-test)
