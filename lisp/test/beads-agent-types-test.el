@@ -14,6 +14,7 @@
 
 (require 'ert)
 (require 'beads-agent-types)
+(require 'beads-types)
 
 ;;; Test Fixtures
 
@@ -26,11 +27,11 @@
 (defvar beads-agent-types-test--saved-qa-prompt nil
   "Saved QA prompt for tests.")
 
-(defvar beads-agent-types-test--sample-issue
-  '(:id "test-123"
-    :title "Test Issue Title"
-    :description "Test issue description with details.")
-  "Sample issue for testing prompt building.")
+(defun beads-agent-types-test--make-sample-issue ()
+  "Create a sample beads-issue for testing prompt building."
+  (beads-issue :id "test-123"
+               :title "Test Issue Title"
+               :description "Test issue description with details."))
 
 (defun beads-agent-types-test--setup ()
   "Setup test fixtures."
@@ -102,7 +103,7 @@
   (unwind-protect
       (let* ((type (beads-agent-type-get "task"))
              (prompt (beads-agent-type-build-prompt
-                      type beads-agent-types-test--sample-issue)))
+                      type (beads-agent-types-test--make-sample-issue))))
         (should (stringp prompt))
         ;; Check for embedded prompt content
         (should (string-match "task-completion agent" prompt))
@@ -128,7 +129,7 @@
   (unwind-protect
       (let* ((type (beads-agent-type-get "review"))
              (prompt (beads-agent-type-build-prompt
-                      type beads-agent-types-test--sample-issue)))
+                      type (beads-agent-types-test--make-sample-issue))))
         (should (stringp prompt))
         ;; Check for default prompt content
         (should (string-match "code review" prompt))
@@ -145,7 +146,7 @@
       (let ((beads-agent-review-prompt "Custom review instructions.")
             (type (beads-agent-type-get "review")))
         (let ((prompt (beads-agent-type-build-prompt
-                       type beads-agent-types-test--sample-issue)))
+                       type (beads-agent-types-test--make-sample-issue))))
           (should (string-match "Custom review instructions" prompt))
           (should (string-match "test-123" prompt))))
     (beads-agent-types-test--teardown)))
@@ -167,7 +168,7 @@
   (unwind-protect
       (let* ((type (beads-agent-type-get "plan"))
              (prompt (beads-agent-type-build-prompt
-                      type beads-agent-types-test--sample-issue)))
+                      type (beads-agent-types-test--make-sample-issue))))
         (should (stringp prompt))
         ;; Check for plan prompt content
         (should (string-match "planning agent" prompt))
@@ -193,7 +194,7 @@
   (unwind-protect
       (let* ((type (beads-agent-type-get "qa"))
              (prompt (beads-agent-type-build-prompt
-                      type beads-agent-types-test--sample-issue)))
+                      type (beads-agent-types-test--make-sample-issue))))
         (should (stringp prompt))
         ;; Check for default prompt content
         (should (string-match "QA agent" prompt))
@@ -210,7 +211,7 @@
       (let ((beads-agent-qa-prompt "Custom QA instructions.")
             (type (beads-agent-type-get "qa")))
         (let ((prompt (beads-agent-type-build-prompt
-                       type beads-agent-types-test--sample-issue)))
+                       type (beads-agent-types-test--make-sample-issue))))
           (should (string-match "Custom QA instructions" prompt))
           (should (string-match "test-123" prompt))))
     (beads-agent-types-test--teardown)))
@@ -236,7 +237,7 @@
                    "User's custom instructions")))
         (let* ((type (beads-agent-type-get "custom"))
                (prompt (beads-agent-type-build-prompt
-                        type beads-agent-types-test--sample-issue)))
+                        type (beads-agent-types-test--make-sample-issue))))
           (should (stringp prompt))
           (should (string-match "User's custom instructions" prompt))
           (should (string-match "test-123" prompt))))
@@ -251,7 +252,7 @@
         (let ((type (beads-agent-type-get "custom")))
           (should-error
            (beads-agent-type-build-prompt
-            type beads-agent-types-test--sample-issue)
+            type (beads-agent-types-test--make-sample-issue))
            :type 'user-error)))
     (beads-agent-types-test--teardown)))
 
@@ -265,7 +266,7 @@
                      "Stored prompt")))
           (let ((type (beads-agent-type-get "custom")))
             (beads-agent-type-build-prompt
-             type beads-agent-types-test--sample-issue)
+             type (beads-agent-types-test--make-sample-issue))
             (should (equal beads-agent-type-custom--last-prompt
                            "Stored prompt")))))
     (beads-agent-types-test--teardown)))
@@ -294,7 +295,7 @@
       (dolist (type-name '("task" "review" "qa"))
         (let* ((type (beads-agent-type-get type-name))
                (prompt (beads-agent-type-build-prompt
-                        type beads-agent-types-test--sample-issue)))
+                        type (beads-agent-types-test--make-sample-issue))))
           (should (string-match "Test Issue Title" prompt))))
     (beads-agent-types-test--teardown)))
 
@@ -305,7 +306,7 @@
       (dolist (type-name '("task" "review" "qa"))
         (let* ((type (beads-agent-type-get type-name))
                (prompt (beads-agent-type-build-prompt
-                        type beads-agent-types-test--sample-issue)))
+                        type (beads-agent-types-test--make-sample-issue))))
           (should (string-match "Test issue description" prompt))))
     (beads-agent-types-test--teardown)))
 
@@ -313,7 +314,7 @@
   "Test that prompts handle missing description gracefully."
   (beads-agent-types-test--setup)
   (unwind-protect
-      (let ((issue '(:id "test-456" :title "No Description")))
+      (let ((issue (beads-issue :id "test-456" :title "No Description")))
         (dolist (type-name '("task" "review" "qa"))
           (let* ((type (beads-agent-type-get type-name))
                  (prompt (beads-agent-type-build-prompt type issue)))

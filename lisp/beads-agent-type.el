@@ -73,7 +73,7 @@ Types must be registered with `beads-agent-type-register' to be available.")
 (cl-defgeneric beads-agent-type-build-prompt (type issue)
   "Build the prompt string for TYPE working on ISSUE.
 TYPE is a `beads-agent-type' object.
-ISSUE is a beads issue object (plist or alist with :id, :title, :description).
+ISSUE is a `beads-issue' EIEIO object with slots id, title, description, etc.
 
 Returns a string to send to the agent, or nil if the type uses special
 mechanisms (e.g., Plan type uses --plan flag instead of prompt).
@@ -82,11 +82,12 @@ Default implementation uses `prompt-template' slot combined with issue context.
 Subclasses may override for custom prompt building.")
 
 (cl-defmethod beads-agent-type-build-prompt ((type beads-agent-type) issue)
-  "Build prompt for TYPE using the prompt-template slot combined with ISSUE."
+  "Build prompt for TYPE using the prompt-template slot combined with ISSUE.
+ISSUE is a beads-issue EIEIO object."
   (let ((template (oref type prompt-template))
-        (issue-id (plist-get issue :id))
-        (issue-title (plist-get issue :title))
-        (issue-desc (or (plist-get issue :description) "")))
+        (issue-id (oref issue id))
+        (issue-title (oref issue title))
+        (issue-desc (or (oref issue description) "")))
     (if template
         ;; Combine template with issue context
         (format "%s\n\n## Issue: %s\n\n**Title:** %s\n\n**Description:**\n%s"

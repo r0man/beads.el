@@ -19,6 +19,7 @@
 (require 'ert)
 (require 'beads-agent-type)
 (require 'beads-agent-backend)
+(require 'beads-types)
 
 ;;; Mock Agent Types for Testing
 
@@ -146,9 +147,9 @@
   (beads-agent-type-test--setup)
   (unwind-protect
       (let ((type (beads-agent-type-mock))
-            (issue '(:id "test-123"
-                     :title "Test Issue"
-                     :description "Test description")))
+            (issue (beads-issue :id "test-123"
+                                :title "Test Issue"
+                                :description "Test description")))
         (let ((prompt (beads-agent-type-build-prompt type issue)))
           (should (stringp prompt))
           (should (string-match "Mock prompt template" prompt))
@@ -162,7 +163,7 @@
   (beads-agent-type-test--setup)
   (unwind-protect
       (let ((type (beads-agent-type-mock :prompt-template nil))
-            (issue '(:id "test-123" :title "Test Issue" :description "")))
+            (issue (beads-issue :id "test-123" :title "Test Issue" :description "")))
         (should (null (beads-agent-type-build-prompt type issue))))
     (beads-agent-type-test--teardown)))
 
@@ -171,7 +172,7 @@
   (beads-agent-type-test--setup)
   (unwind-protect
       (let ((type (beads-agent-type-mock-custom))
-            (issue '(:id "test-123" :title "Test Issue" :description "")))
+            (issue (beads-issue :id "test-123" :title "Test Issue" :description "")))
         (should (equal (beads-agent-type-build-prompt type issue)
                        "Custom built prompt")))
     (beads-agent-type-test--teardown)))
@@ -181,7 +182,7 @@
   (beads-agent-type-test--setup)
   (unwind-protect
       (let ((type (beads-agent-type-mock))
-            (issue '(:id "test-123" :title "Test Issue")))
+            (issue (beads-issue :id "test-123" :title "Test Issue")))
         (let ((prompt (beads-agent-type-build-prompt type issue)))
           (should (stringp prompt))
           (should (string-match "Test Issue" prompt))))
@@ -382,7 +383,7 @@
           ;; Use
           (let ((prompt (beads-agent-type-build-prompt
                          retrieved
-                         '(:id "rt-1" :title "Round Trip" :description ""))))
+                         (beads-issue :id "rt-1" :title "Round Trip" :description ""))))
             (should (stringp prompt))
             ;; Verify
             (should (string-match "Round Trip" prompt)))))
