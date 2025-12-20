@@ -30,6 +30,7 @@
 
 (require 'beads)
 (require 'beads-command)
+(require 'beads-completion)
 (require 'beads-list)
 (require 'beads-option)
 (require 'beads-show)
@@ -176,10 +177,8 @@ If ISSUE-ID is provided, use it directly.  Otherwise, detect from
 context or prompt the user."
   (interactive
    (list (or (beads-reopen--detect-issue-id)
-            (completing-read
-             "Reopen issue: "
-             (beads--issue-completion-table)
-             nil t nil 'beads--issue-id-history))))
+            (beads-completion-read-issue
+             "Reopen issue: " nil t nil 'beads--issue-id-history))))
   ;; Check executable
   (beads-check-executable)
   ;; Show the transient menu with initial issue ID if provided

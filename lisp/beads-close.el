@@ -29,6 +29,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-completion)
 (require 'beads-list)
 (require 'beads-option)
 (require 'beads-show)
@@ -186,10 +187,8 @@ manually entered in the transient menu.  This is by design to allow
 users to review and confirm the issue ID before closing."
   (interactive
    (list (or (beads-close--detect-issue-id)
-            (completing-read
-             "Close issue: "
-             (beads--issue-completion-table)
-             nil t nil 'beads--issue-id-history))))
+            (beads-completion-read-issue
+             "Close issue: " nil t nil 'beads--issue-id-history))))
   ;; Suppress unused argument warning
   (ignore issue-id)
   ;; Check executable

@@ -33,6 +33,7 @@
 
 (require 'beads)
 (require 'beads-command)
+(require 'beads-completion)
 (require 'beads-list)
 (require 'beads-show)
 
@@ -141,16 +142,14 @@ If called from beads-list or beads-show buffer, detects issue
 from context."
   (interactive
    (list (or (beads-delete--detect-issue-id)
-             (completing-read "Delete issue: "
-                              (beads--issue-completion-table)
+             (beads-completion-read-issue "Delete issue: "
                               nil t nil 'beads--issue-id-history))))
   ;; Check executable
   (beads-check-executable)
 
   ;; Get issue ID if not provided
   (unless issue-id
-    (setq issue-id (completing-read "Delete issue: "
-                                    (beads--issue-completion-table)
+    (setq issue-id (beads-completion-read-issue "Delete issue: "
                                     nil t nil
                                     'beads--issue-id-history)))
 

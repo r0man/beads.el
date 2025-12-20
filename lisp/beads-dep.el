@@ -25,6 +25,7 @@
 
 (require 'beads)
 (require 'beads-command)
+(require 'beads-completion)
 (require 'beads-option)
 (require 'transient)
 
@@ -407,11 +408,12 @@ context or prompt the user."
 ;;;###autoload
 (defun beads-dep-tree (&optional issue-id)
   "Display dependency tree for ISSUE-ID.
-If ISSUE-ID is not provided, prompt for it or detect from context."
+If ISSUE-ID is not provided, prompt for it or detect from context.
+Completion matches on both issue ID and title."
   (interactive
    (list (or (beads-dep--detect-issue-id)
-             (completing-read "Issue ID: " (beads--issue-completion-table)
-                            nil nil nil 'beads--issue-id-history))))
+             (beads-completion-read-issue "Issue ID: " nil nil nil
+                                          'beads--issue-id-history))))
   (beads-check-executable)
   (when (or (null issue-id) (string-empty-p issue-id))
     (user-error "Issue ID is required"))
