@@ -1060,7 +1060,7 @@ Active session should take priority over previous outcome."
                     'beads-list-agent-working))))))
 
 (ert-deftest beads-list-test-format-agent-multiple-sessions ()
-  "Test format-agent shows all sessions with / separator."
+  "Test format-agent shows instance numbers only for duplicate types."
   (let ((mock-sessions (list 'session1 'session2 'session3))
         (session-types '(("session1" . "Task")
                          ("session2" . "Review")
@@ -1079,10 +1079,12 @@ Active session should take priority over previous outcome."
                (lambda (session)
                  (cdr (assoc (symbol-name session) session-numbers)))))
       (let ((result (beads-list--format-agent "bd-1")))
-        ;; Should show all three sessions with instance numbers and / separator
+        ;; Task appears twice, so shows instance numbers: T#1 and T#3
         (should (string-match-p "T#1" result))
-        (should (string-match-p "R#2" result))
         (should (string-match-p "T#3" result))
+        ;; Review appears once, so just "R" without instance number
+        (should (string-match-p "R" result))
+        (should-not (string-match-p "R#" result))
         ;; Multiple agents use / separator
         (should (string-match-p "/" result))
         ;; Help-echo should mention 3 agents
