@@ -136,27 +136,26 @@ If set to a path, worktrees are created under that directory."
                  (directory :tag "Custom directory"))
   :group 'beads-agent)
 
-(defcustom beads-agent-display-buffer-action
-  '((display-buffer-reuse-window
-     display-buffer-in-direction)
-    (direction . right)
-    (window-width . 0.5))
-  "Display action for agent buffers.
-This controls how agent buffers are displayed when switching to them.
-The default displays the agent in a window to the right.
+;;; Display Buffer Configuration
+;;
+;; Agent buffers are displayed using `display-buffer-alist'.  The default
+;; configuration opens agents in a window to the right.  To customize,
+;; modify `display-buffer-alist' before loading beads-agent, or use:
+;;
+;;   (setf (alist-get 'beads-agent--display-buffer-p display-buffer-alist)
+;;         '((display-buffer-in-direction) (direction . below)))
 
-See `display-buffer' for the format of this value."
-  :type 'sexp
-  :group 'beads-agent)
+(defun beads-agent--display-buffer-p (buffer-name _action)
+  "Return non-nil if BUFFER-NAME is a beads agent buffer.
+Used as a condition function in `display-buffer-alist'."
+  (string-match-p "\\`\\*beads-agent\\[.+\\]\\[.+#[0-9]+\\]\\*\\'" buffer-name))
 
-(defun beads-agent--setup-display-buffer ()
-  "Set up `display-buffer-alist' for agent buffers."
-  (add-to-list 'display-buffer-alist
-               `("\\*beads-agent\\[.*\\]\\*"
-                 . ,beads-agent-display-buffer-action)))
-
-;; Set up display-buffer rules when this file is loaded
-(beads-agent--setup-display-buffer)
+(add-to-list 'display-buffer-alist
+             '(beads-agent--display-buffer-p
+               (display-buffer-reuse-window
+                display-buffer-in-direction)
+               (direction . right)
+               (window-width . 0.5)))
 
 ;;; JSON Parsing Utilities
 
