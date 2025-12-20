@@ -978,7 +978,7 @@ ISSUES should be a list of alists (test data format)."
     (should (equal (beads-list--format-agent "bd-1") ""))))
 
 (ert-deftest beads-list-test-format-agent-working ()
-  "Test format-agent shows type letter and number when agent is working."
+  "Test format-agent shows just type letter for single agent."
   (let ((mock-session (list 'mock-session)))
     (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
                (lambda (_id) mock-session))
@@ -989,7 +989,8 @@ ISSUES should be a list of alists (test data format)."
               ((symbol-function 'beads-agent--session-instance-number)
                (lambda (_session) 1)))
       (let ((result (beads-list--format-agent "bd-1")))
-        (should (string-prefix-p "T#1" result))
+        ;; Single agent shows just letter, no instance number
+        (should (string= (substring-no-properties result) "T"))
         (should (eq (get-text-property 0 'face result)
                     'beads-list-agent-working))
         ;; Verify help-echo tooltip mentions agent count
@@ -997,7 +998,7 @@ ISSUES should be a list of alists (test data format)."
                                 (get-text-property 0 'help-echo result)))))))
 
 (ert-deftest beads-list-test-format-agent-working-no-backend-name ()
-  "Test format-agent shows fallback circle with number when no type name."
+  "Test format-agent shows fallback circle when no type name (single agent)."
   (let ((mock-session (list 'mock-session)))
     (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
                (lambda (_id) mock-session))
@@ -1008,7 +1009,8 @@ ISSUES should be a list of alists (test data format)."
               ((symbol-function 'beads-agent--session-instance-number)
                (lambda (_session) 1)))
       (let ((result (beads-list--format-agent "bd-1")))
-        (should (string= (substring-no-properties result) "●#1"))
+        ;; Single agent shows just fallback circle, no instance number
+        (should (string= (substring-no-properties result) "●"))
         (should (eq (get-text-property 0 'face result)
                     'beads-list-agent-working))
         (should (get-text-property 0 'help-echo result))))))
@@ -1052,12 +1054,13 @@ Active session should take priority over previous outcome."
               ((symbol-function 'beads-agent--session-instance-number)
                (lambda (_session) 2)))
       (let ((result (beads-list--format-agent "bd-1")))
-        (should (string-prefix-p "R#2" result))
+        ;; Single agent shows just letter, no instance number
+        (should (string= (substring-no-properties result) "R"))
         (should (eq (get-text-property 0 'face result)
                     'beads-list-agent-working))))))
 
 (ert-deftest beads-list-test-format-agent-multiple-sessions ()
-  "Test format-agent shows all sessions with numbered format."
+  "Test format-agent shows all sessions with / separator."
   (let ((mock-sessions (list 'session1 'session2 'session3))
         (session-types '(("session1" . "Task")
                          ("session2" . "Review")
@@ -1076,10 +1079,12 @@ Active session should take priority over previous outcome."
                (lambda (session)
                  (cdr (assoc (symbol-name session) session-numbers)))))
       (let ((result (beads-list--format-agent "bd-1")))
-        ;; Should show all three sessions
+        ;; Should show all three sessions with instance numbers and / separator
         (should (string-match-p "T#1" result))
         (should (string-match-p "R#2" result))
         (should (string-match-p "T#3" result))
+        ;; Multiple agents use / separator
+        (should (string-match-p "/" result))
         ;; Help-echo should mention 3 agents
         (should (string-match-p "3 agents"
                                 (get-text-property 0 'help-echo result)))))))

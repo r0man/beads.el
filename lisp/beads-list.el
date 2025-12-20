@@ -294,21 +294,23 @@ the value of `beads-list-date-format'."
         (_
          (format-time-string "%Y-%m-%d %H:%M" time))))))
 
-(defun beads-list--format-agent-indicator (type-name instance-n face)
+(defun beads-list--format-agent-indicator (type-name instance-n face
+                                                       &optional brief)
   "Format a single agent indicator.
 TYPE-NAME is the agent type (e.g., \"Task\").
 INSTANCE-N is the session instance number.
 FACE is the face to apply.
-Returns a propertized string like \"T#1\"."
+If BRIEF is non-nil, show just the letter without instance number.
+Returns a propertized string like \"T#1\" or \"T\" if BRIEF."
   (let* ((letter (if type-name (substring type-name 0 1) "●"))
-         (indicator (if instance-n
-                        (format "%s#%d" letter instance-n)
-                      letter)))
+         (indicator (if (or brief (not instance-n))
+                        letter
+                      (format "%s#%d" letter instance-n))))
     (propertize indicator 'face face)))
 
 (defun beads-list--format-agent (issue-id)
   "Format agent status indicator for ISSUE-ID.
-Shows all active sessions with type and instance number (e.g., T#1 R#2).
+Shows active sessions: single agent as letter (e.g., T), multiple as T#1 / R#2.
 When no active sessions, shows last outcome indicator.
 Colors indicate status:
   - Yellow: agent currently working
@@ -321,21 +323,25 @@ Instance numbers match the buffer names (*beads-agent[ID][Type#N]*)."
         (outcome (and (fboundp 'beads-agent--get-issue-outcome)
                       (beads-agent--get-issue-outcome issue-id))))
     (cond
-     ;; Active sessions - show all with numbered format
+     ;; Active sessions - show all with appropriate format
      (sessions
-      (let ((indicators
-             (mapcar
-              (lambda (session)
-                (let* ((type-name (and (fboundp 'beads-agent-session-type-name)
-                                       (beads-agent-session-type-name session)))
-                       (instance-n (and (fboundp
-                                         'beads-agent--session-instance-number)
-                                        (beads-agent--session-instance-number
-                                         session))))
-                  (beads-list--format-agent-indicator
-                   type-name instance-n 'beads-list-agent-working)))
-              sessions)))
-        (propertize (string-join indicators " ")
+      (let* ((single-p (= (length sessions) 1))
+             (separator (propertize "/" 'face 'shadow))
+             (indicators
+              (mapcar
+               (lambda (session)
+                 (let* ((type-name (and (fboundp 'beads-agent-session-type-name)
+                                        (beads-agent-session-type-name session)))
+                        (instance-n (and (fboundp
+                                          'beads-agent--session-instance-number)
+                                         (beads-agent--session-instance-number
+                                          session))))
+                   (beads-list--format-agent-indicator
+                    type-name instance-n 'beads-list-agent-working single-p)))
+               sessions)))
+        (propertize (if single-p
+                        (car indicators)
+                      (mapconcat #'identity indicators separator))
                     'help-echo (format "%d agent%s working"
                                        (length sessions)
                                        (if (= (length sessions) 1) "" "s")))))
