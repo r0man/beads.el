@@ -104,7 +104,15 @@ This is the return value from `beads-agent-backend-start'.
 In sesman sessions, this becomes the second element of the tuple:
   (session-name BACKEND-SESSION beads-agent-session)
 Backends use this to track their internal session state.
-The value is opaque to beads-sesman and passed through unchanged."))
+The value is opaque to beads-sesman and passed through unchanged.")
+   (buffer
+    :initarg :buffer
+    :initform nil
+    :documentation "The Emacs buffer for this session.
+After the backend creates its buffer, it is renamed to the beads format
+and stored here for efficient lookup.  Buffer naming follows the format:
+  *beads-agent[ISSUE-ID][TYPE#N]*
+This slot is set after session creation when the buffer is renamed."))
   :documentation "Represents an active AI agent session.")
 
 ;;; Session Accessors (for use by other modules without requiring EIEIO)
@@ -130,6 +138,17 @@ The value is opaque to beads-sesman and passed through unchanged."))
 Returns worktree-dir if set, otherwise project-dir."
   (or (oref session worktree-dir)
       (oref session project-dir)))
+
+(defun beads-agent-session-buffer (session)
+  "Return the Emacs buffer for SESSION, or nil if not set.
+This returns the buffer stored in the session's buffer slot,
+which is set after the backend buffer is renamed to beads format."
+  (oref session buffer))
+
+(defun beads-agent-session-set-buffer (session buffer)
+  "Set the Emacs buffer for SESSION to BUFFER.
+This should be called after renaming the backend buffer to beads format."
+  (oset session buffer buffer))
 
 ;;; Backend Protocol (Generic Methods)
 
@@ -401,6 +420,108 @@ Uses sesman's context-aware session selection."
   (when-let ((backend (beads-agent--get-backend
                        (oref session backend-name))))
     (beads-agent-backend-session-active-p backend session)))
+
+;;; Buffer Naming
+;;
+;; Buffer names follow the format:
+;;   *beads-agent[ISSUE-ID][TYPE#N]*
+;;
+;; Where:
+;;   ISSUE-ID - The issue being worked on (e.g., "beads.el-xrrt")
+;;   TYPE - The agent type name (e.g., "Task", "Review", "Plan")
+;;   N - Instance number per (issue, type) combination
+;;
+;; Examples:
+;;   *beads-agent[beads.el-xrrt][Task#1]*
+;;   *beads-agent[beads.el-xrrt][Plan#1]*
+;;   *beads-agent[beads.el-xrrt][Task#2]*
+
+(defvar beads-agent--typed-instance-counters (make-hash-table :test #'equal)
+  "Hash table mapping (issue-id . type-name) to next instance number.
+Used to track instance numbers per (issue, type) combination.")
+
+(defun beads-agent--reset-typed-instance-counters ()
+  "Reset all typed instance counters.
+Primarily used for testing."
+  (clrhash beads-agent--typed-instance-counters))
+
+(defun beads-agent--next-typed-instance-number (issue-id type-name)
+  "Get the next instance number for ISSUE-ID and TYPE-NAME combination.
+Returns 1 for the first instance, 2 for the second, etc.
+Instance numbers are tracked independently for each (issue, type) pair."
+  (let* ((key (cons issue-id type-name))
+         (current (gethash key beads-agent--typed-instance-counters 0))
+         (next (1+ current)))
+    (puthash key next beads-agent--typed-instance-counters)
+    next))
+
+(defun beads-agent--peek-typed-instance-number (issue-id type-name)
+  "Peek at the next instance number without incrementing.
+Returns what the next call to `beads-agent--next-typed-instance-number'
+would return for ISSUE-ID and TYPE-NAME."
+  (1+ (gethash (cons issue-id type-name)
+               beads-agent--typed-instance-counters 0)))
+
+(defun beads-agent--generate-buffer-name (issue-id type-name instance-n)
+  "Generate buffer name in beads format.
+ISSUE-ID is the issue identifier (e.g., \"beads.el-xrrt\").
+TYPE-NAME is the agent type name (e.g., \"Task\", \"Plan\").
+INSTANCE-N is the instance number for this (issue, type) combination.
+
+Returns buffer name in format: *beads-agent[ISSUE-ID][TYPE#N]*"
+  (format "*beads-agent[%s][%s#%d]*" issue-id type-name instance-n))
+
+(defun beads-agent--generate-buffer-name-for-session (session)
+  "Generate buffer name for SESSION object.
+Uses the session's issue-id and agent-type-name to build the name.
+If agent-type-name is nil, uses \"Agent\" as default."
+  (let ((issue-id (oref session issue-id))
+        (type-name (or (oref session agent-type-name) "Agent"))
+        (instance-n (beads-agent--session-instance-number session)))
+    (beads-agent--generate-buffer-name issue-id type-name instance-n)))
+
+(defun beads-agent--session-instance-number (session)
+  "Extract instance number from SESSION.
+Parses the session ID which is in `issue-id#N' format and returns N.
+If the format doesn't match, returns 1 as default."
+  (or (beads-agent--session-number-from-id (oref session id)) 1))
+
+(defun beads-agent--parse-buffer-name (buffer-name)
+  "Parse a beads buffer name into its components.
+BUFFER-NAME should be in format *beads-agent[ISSUE-ID][TYPE#N]*.
+Returns plist (:issue-id ISSUE-ID :type-name TYPE :instance-n N)
+or nil if the buffer name doesn't match the expected format."
+  (when (string-match
+         "\\*beads-agent\\[\\([^]]+\\)\\]\\[\\([^#]+\\)#\\([0-9]+\\)\\]\\*"
+         buffer-name)
+    (list :issue-id (match-string 1 buffer-name)
+          :type-name (match-string 2 buffer-name)
+          :instance-n (string-to-number (match-string 3 buffer-name)))))
+
+(defun beads-agent--buffer-name-p (buffer-name)
+  "Return non-nil if BUFFER-NAME is a valid beads agent buffer name."
+  (and buffer-name
+       (string-match-p
+        "\\*beads-agent\\[.+\\]\\[.+#[0-9]+\\]\\*"
+        buffer-name)))
+
+(defun beads-agent--find-buffers-by-issue (issue-id)
+  "Find all beads agent buffers for ISSUE-ID.
+Returns a list of buffer objects."
+  (cl-loop for buf in (buffer-list)
+           for name = (buffer-name buf)
+           for parsed = (beads-agent--parse-buffer-name name)
+           when (and parsed (equal (plist-get parsed :issue-id) issue-id))
+           collect buf))
+
+(defun beads-agent--find-buffers-by-type (type-name)
+  "Find all beads agent buffers with TYPE-NAME.
+Returns a list of buffer objects."
+  (cl-loop for buf in (buffer-list)
+           for name = (buffer-name buf)
+           for parsed = (beads-agent--parse-buffer-name name)
+           when (and parsed (equal (plist-get parsed :type-name) type-name))
+           collect buf))
 
 (provide 'beads-agent-backend)
 

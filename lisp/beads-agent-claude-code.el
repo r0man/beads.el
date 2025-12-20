@@ -159,18 +159,23 @@ and has a live process."
     ((backend beads-agent-backend-claude-code) session)
   "Switch to claude-code buffer for SESSION using BACKEND.
 If no Claude Code session exists, starts a new one automatically."
-  (require 'claude-code)
-  (let ((default-directory (beads-agent-session-working-dir session)))
-    (if (beads-agent-backend-session-active-p backend session)
-        ;; Session exists - switch to it
-        (condition-case nil
-            (claude-code-switch-to-buffer)
-          (error
-           (message "Claude Code session expired, starting new one...")
-           (claude-code)))
-      ;; No active session - start a new one
-      (message "Claude Code session expired, starting new one...")
-      (claude-code))))
+  ;; First try the session's stored buffer (renamed to beads format)
+  (let ((stored-buffer (beads-agent-session-buffer session)))
+    (if (and stored-buffer (buffer-live-p stored-buffer))
+        (pop-to-buffer stored-buffer)
+      ;; Fall back to claude-code's normal switching behavior
+      (require 'claude-code)
+      (let ((default-directory (beads-agent-session-working-dir session)))
+        (if (beads-agent-backend-session-active-p backend session)
+            ;; Session exists - switch to it
+            (condition-case nil
+                (claude-code-switch-to-buffer)
+              (error
+               (message "Claude Code session expired, starting new one...")
+               (claude-code)))
+          ;; No active session - start a new one
+          (message "Claude Code session expired, starting new one...")
+          (claude-code))))))
 
 (cl-defmethod beads-agent-backend-send-prompt
     ((_backend beads-agent-backend-claude-code) session prompt)
@@ -181,9 +186,16 @@ If no Claude Code session exists, starts a new one automatically."
 
 (cl-defmethod beads-agent-backend-get-buffer
     ((_backend beads-agent-backend-claude-code) session)
-  "Return the claude-code buffer for SESSION, or nil if not available."
-  (let ((working-dir (beads-agent-session-working-dir session)))
-    (car (beads-agent-claude-code--find-buffers working-dir))))
+  "Return the claude-code buffer for SESSION, or nil if not available.
+First checks if the session has a stored buffer (after renaming),
+then falls back to pattern-based buffer lookup."
+  ;; First check the session's stored buffer (set after renaming)
+  (let ((stored-buffer (beads-agent-session-buffer session)))
+    (if (and stored-buffer (buffer-live-p stored-buffer))
+        stored-buffer
+      ;; Fall back to pattern-based lookup
+      (let ((working-dir (beads-agent-session-working-dir session)))
+        (car (beads-agent-claude-code--find-buffers working-dir))))))
 
 ;;; Registration
 

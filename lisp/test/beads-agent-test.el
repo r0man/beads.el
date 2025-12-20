@@ -19,6 +19,7 @@
 (require 'ert)
 (require 'beads-agent)
 (require 'beads-sesman)
+(require 'beads-agent-mock)
 
 ;;; Mock Sesman Storage for Testing
 ;;
@@ -30,37 +31,42 @@
   "Mock sesman session storage for tests.
 List of sesman session lists: ((name handle beads-session) ...).")
 
-;;; Mock Backend for Testing
+;;; Test-Only Mock Backend
+;;
+;; This is a lightweight mock for internal tests that don't need buffer
+;; creation.  For tests that need real buffer functionality, use the
+;; production mock from beads-agent-mock.el.
 
-(defclass beads-agent-backend-mock (beads-agent-backend)
+(defclass beads-agent-backend-test-mock (beads-agent-backend)
   ((name :initform "mock")
    (priority :initform 100)
    (start-called :initform nil :type boolean)
    (stop-called :initform nil :type boolean)
    (active-sessions :initform nil :type list))
-  :documentation "Mock backend for testing.")
+  :documentation "Lightweight mock backend for testing.
+Does not create real buffers - use production mock for that.")
 
 (cl-defmethod beads-agent-backend-available-p
-    ((_backend beads-agent-backend-mock))
+    ((_backend beads-agent-backend-test-mock))
   "Mock backend is always available."
   t)
 
 (cl-defmethod beads-agent-backend-start
-    ((backend beads-agent-backend-mock) _issue _prompt)
+    ((backend beads-agent-backend-test-mock) _issue _prompt)
   "Mock starting a session."
   (oset backend start-called t)
   ;; Return a mock session handle
   'mock-session-handle)
 
 (cl-defmethod beads-agent-backend-stop
-    ((backend beads-agent-backend-mock) session)
+    ((backend beads-agent-backend-test-mock) session)
   "Mock stopping a session."
   (oset backend stop-called t)
   (oset backend active-sessions
         (delete (oref session id) (oref backend active-sessions))))
 
 (cl-defmethod beads-agent-backend-stop-async
-    ((backend beads-agent-backend-mock) session callback)
+    ((backend beads-agent-backend-test-mock) session callback)
   "Mock stopping a session asynchronously.
 Calls sync stop immediately for testing purposes."
   (beads-agent-backend-stop backend session)
@@ -68,17 +74,17 @@ Calls sync stop immediately for testing purposes."
     (funcall callback)))
 
 (cl-defmethod beads-agent-backend-session-active-p
-    ((backend beads-agent-backend-mock) session)
+    ((backend beads-agent-backend-test-mock) session)
   "Mock session active check."
   (member (oref session id) (oref backend active-sessions)))
 
 (cl-defmethod beads-agent-backend-switch-to-buffer
-    ((_backend beads-agent-backend-mock) _session)
+    ((_backend beads-agent-backend-test-mock) _session)
   "Mock buffer switch."
   t)
 
 (cl-defmethod beads-agent-backend-send-prompt
-    ((_backend beads-agent-backend-mock) _session _prompt)
+    ((_backend beads-agent-backend-test-mock) _session _prompt)
   "Mock sending prompt."
   t)
 
@@ -121,8 +127,8 @@ SESSION is the beads-agent-session object."
   (setq beads-agent-test--saved-hook-handlers beads-agent-state-change-hook)
   (setq beads-agent-state-change-hook
         (list #'beads-agent-test--mock-state-change-handler))
-  ;; Create and register mock backend
-  (setq beads-agent-test--mock-backend (beads-agent-backend-mock))
+  ;; Create and register test mock backend (lightweight, no buffers)
+  (setq beads-agent-test--mock-backend (beads-agent-backend-test-mock))
   (beads-agent--register-backend beads-agent-test--mock-backend))
 
 (defun beads-agent-test--teardown ()
@@ -1536,6 +1542,436 @@ Settings changes should allow continued configuration."
                         "/worktrees/bd-101" "QA")))
           (should (equal (oref session worktree-dir) "/worktrees/bd-101"))
           (should (equal (beads-agent-session-type-name session) "QA"))))
+    (beads-agent-test--teardown)))
+
+;;; Tests for Buffer Naming
+
+(ert-deftest beads-agent-test-generate-buffer-name ()
+  "Test basic buffer name generation."
+  (should (equal (beads-agent--generate-buffer-name "beads.el-xrrt" "Task" 1)
+                 "*beads-agent[beads.el-xrrt][Task#1]*"))
+  (should (equal (beads-agent--generate-buffer-name "beads.el-xrrt" "Plan" 2)
+                 "*beads-agent[beads.el-xrrt][Plan#2]*"))
+  (should (equal (beads-agent--generate-buffer-name "bd-123" "Review" 5)
+                 "*beads-agent[bd-123][Review#5]*")))
+
+(ert-deftest beads-agent-test-generate-buffer-name-special-chars ()
+  "Test buffer name generation with special characters in issue ID."
+  (should (equal (beads-agent--generate-buffer-name "my-project.el-abc" "QA" 1)
+                 "*beads-agent[my-project.el-abc][QA#1]*"))
+  (should (equal (beads-agent--generate-buffer-name "proj_v2-xyz" "Custom" 3)
+                 "*beads-agent[proj_v2-xyz][Custom#3]*")))
+
+(ert-deftest beads-agent-test-parse-buffer-name ()
+  "Test parsing buffer names back to components."
+  (let ((parsed (beads-agent--parse-buffer-name
+                 "*beads-agent[beads.el-xrrt][Task#1]*")))
+    (should parsed)
+    (should (equal (plist-get parsed :issue-id) "beads.el-xrrt"))
+    (should (equal (plist-get parsed :type-name) "Task"))
+    (should (= (plist-get parsed :instance-n) 1))))
+
+(ert-deftest beads-agent-test-parse-buffer-name-various ()
+  "Test parsing various buffer name formats."
+  ;; Multi-digit instance number
+  (let ((parsed (beads-agent--parse-buffer-name
+                 "*beads-agent[bd-42][Plan#12]*")))
+    (should parsed)
+    (should (= (plist-get parsed :instance-n) 12)))
+  ;; Complex issue ID
+  (let ((parsed (beads-agent--parse-buffer-name
+                 "*beads-agent[my-project.el-abc][Review#7]*")))
+    (should parsed)
+    (should (equal (plist-get parsed :issue-id) "my-project.el-abc"))
+    (should (equal (plist-get parsed :type-name) "Review"))))
+
+(ert-deftest beads-agent-test-parse-buffer-name-invalid ()
+  "Test that invalid buffer names return nil."
+  (should (null (beads-agent--parse-buffer-name "*scratch*")))
+  (should (null (beads-agent--parse-buffer-name "*Messages*")))
+  (should (null (beads-agent--parse-buffer-name "regular-buffer")))
+  ;; Missing parts
+  (should (null (beads-agent--parse-buffer-name "*beads-agent[issue]*")))
+  (should (null (beads-agent--parse-buffer-name "*beads-agent[issue][Type]*"))))
+
+(ert-deftest beads-agent-test-buffer-name-p ()
+  "Test buffer name predicate."
+  (should (beads-agent--buffer-name-p "*beads-agent[bd-1][Task#1]*"))
+  (should (beads-agent--buffer-name-p "*beads-agent[beads.el-xyz][Plan#99]*"))
+  (should-not (beads-agent--buffer-name-p "*scratch*"))
+  (should-not (beads-agent--buffer-name-p nil))
+  (should-not (beads-agent--buffer-name-p "")))
+
+(ert-deftest beads-agent-test-roundtrip-buffer-name ()
+  "Test that generate and parse are inverses."
+  (let* ((issue-id "beads.el-test")
+         (type-name "Custom")
+         (instance-n 42)
+         (buf-name (beads-agent--generate-buffer-name
+                    issue-id type-name instance-n))
+         (parsed (beads-agent--parse-buffer-name buf-name)))
+    (should parsed)
+    (should (equal (plist-get parsed :issue-id) issue-id))
+    (should (equal (plist-get parsed :type-name) type-name))
+    (should (= (plist-get parsed :instance-n) instance-n))))
+
+(ert-deftest beads-agent-test-typed-instance-counters-basic ()
+  "Test typed instance counter basics."
+  (beads-agent--reset-typed-instance-counters)
+  (unwind-protect
+      (progn
+        ;; First instance should be 1
+        (should (= (beads-agent--next-typed-instance-number "bd-1" "Task") 1))
+        ;; Second instance should be 2
+        (should (= (beads-agent--next-typed-instance-number "bd-1" "Task") 2))
+        ;; Third instance should be 3
+        (should (= (beads-agent--next-typed-instance-number "bd-1" "Task") 3)))
+    (beads-agent--reset-typed-instance-counters)))
+
+(ert-deftest beads-agent-test-typed-instance-counters-independent ()
+  "Test that counters are independent per (issue, type)."
+  (beads-agent--reset-typed-instance-counters)
+  (unwind-protect
+      (progn
+        ;; Different types for same issue have independent counters
+        (should (= (beads-agent--next-typed-instance-number "bd-1" "Task") 1))
+        (should (= (beads-agent--next-typed-instance-number "bd-1" "Plan") 1))
+        (should (= (beads-agent--next-typed-instance-number "bd-1" "Review") 1))
+        ;; Second Task instance
+        (should (= (beads-agent--next-typed-instance-number "bd-1" "Task") 2))
+        ;; Plan still at 1 (next would be 2)
+        (should (= (beads-agent--next-typed-instance-number "bd-1" "Plan") 2)))
+    (beads-agent--reset-typed-instance-counters)))
+
+(ert-deftest beads-agent-test-typed-instance-counters-different-issues ()
+  "Test that different issues have independent counters."
+  (beads-agent--reset-typed-instance-counters)
+  (unwind-protect
+      (progn
+        ;; Same type for different issues
+        (should (= (beads-agent--next-typed-instance-number "bd-1" "Task") 1))
+        (should (= (beads-agent--next-typed-instance-number "bd-2" "Task") 1))
+        (should (= (beads-agent--next-typed-instance-number "bd-1" "Task") 2))
+        (should (= (beads-agent--next-typed-instance-number "bd-2" "Task") 2)))
+    (beads-agent--reset-typed-instance-counters)))
+
+(ert-deftest beads-agent-test-peek-typed-instance-number ()
+  "Test peeking at next instance number without incrementing."
+  (beads-agent--reset-typed-instance-counters)
+  (unwind-protect
+      (progn
+        ;; Peek should return 1 for new combination
+        (should (= (beads-agent--peek-typed-instance-number "bd-1" "Task") 1))
+        ;; Peek again should still return 1 (not incremented)
+        (should (= (beads-agent--peek-typed-instance-number "bd-1" "Task") 1))
+        ;; Actually get the instance
+        (should (= (beads-agent--next-typed-instance-number "bd-1" "Task") 1))
+        ;; Now peek should return 2
+        (should (= (beads-agent--peek-typed-instance-number "bd-1" "Task") 2)))
+    (beads-agent--reset-typed-instance-counters)))
+
+(ert-deftest beads-agent-test-generate-buffer-name-for-session ()
+  "Test generating buffer name from session object."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let ((session (beads-agent--create-session
+                        "bd-42" "mock" "/tmp" 'handle nil "Task")))
+          (should (string-match-p
+                   "\\*beads-agent\\[bd-42\\]\\[Task#[0-9]+\\]\\*"
+                   (beads-agent--generate-buffer-name-for-session session)))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-generate-buffer-name-for-session-no-type ()
+  "Test buffer name generation when session has no agent type."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let ((session (beads-agent--create-session
+                        "bd-99" "mock" "/tmp" 'handle)))
+          ;; Should use "Agent" as default type
+          (should (string-match-p
+                   "\\*beads-agent\\[bd-99\\]\\[Agent#[0-9]+\\]\\*"
+                   (beads-agent--generate-buffer-name-for-session session)))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-session-instance-number ()
+  "Test extracting instance number from session."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        ;; Create first session - should be #1
+        (let ((session1 (beads-agent--create-session
+                         "bd-50" "mock" "/tmp" 'handle1 nil "Task")))
+          (should (= (beads-agent--session-instance-number session1) 1)))
+        ;; Create second session - should be #2
+        (let ((session2 (beads-agent--create-session
+                         "bd-50" "mock" "/tmp" 'handle2 nil "Task")))
+          (should (= (beads-agent--session-instance-number session2) 2))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-find-buffers-by-issue ()
+  "Test finding buffers by issue ID."
+  (let ((buf1 nil) (buf2 nil) (buf3 nil))
+    (unwind-protect
+        (progn
+          ;; Create test buffers with beads naming convention
+          (setq buf1 (get-buffer-create "*beads-agent[bd-1][Task#1]*"))
+          (setq buf2 (get-buffer-create "*beads-agent[bd-1][Plan#1]*"))
+          (setq buf3 (get-buffer-create "*beads-agent[bd-2][Task#1]*"))
+          ;; Find buffers for bd-1
+          (let ((found (beads-agent--find-buffers-by-issue "bd-1")))
+            (should (= (length found) 2))
+            (should (memq buf1 found))
+            (should (memq buf2 found))
+            (should-not (memq buf3 found)))
+          ;; Find buffers for bd-2
+          (let ((found (beads-agent--find-buffers-by-issue "bd-2")))
+            (should (= (length found) 1))
+            (should (memq buf3 found))))
+      ;; Cleanup
+      (when buf1 (kill-buffer buf1))
+      (when buf2 (kill-buffer buf2))
+      (when buf3 (kill-buffer buf3)))))
+
+(ert-deftest beads-agent-test-find-buffers-by-type ()
+  "Test finding buffers by type name."
+  (let ((buf1 nil) (buf2 nil) (buf3 nil))
+    (unwind-protect
+        (progn
+          ;; Create test buffers
+          (setq buf1 (get-buffer-create "*beads-agent[bd-1][Task#1]*"))
+          (setq buf2 (get-buffer-create "*beads-agent[bd-2][Task#1]*"))
+          (setq buf3 (get-buffer-create "*beads-agent[bd-1][Plan#1]*"))
+          ;; Find all Task buffers
+          (let ((found (beads-agent--find-buffers-by-type "Task")))
+            (should (= (length found) 2))
+            (should (memq buf1 found))
+            (should (memq buf2 found))
+            (should-not (memq buf3 found)))
+          ;; Find Plan buffers
+          (let ((found (beads-agent--find-buffers-by-type "Plan")))
+            (should (= (length found) 1))
+            (should (memq buf3 found))))
+      ;; Cleanup
+      (when buf1 (kill-buffer buf1))
+      (when buf2 (kill-buffer buf2))
+      (when buf3 (kill-buffer buf3)))))
+
+(ert-deftest beads-agent-test-find-buffers-none-found ()
+  "Test that find functions return empty list when no matches."
+  (should (null (beads-agent--find-buffers-by-issue "nonexistent-issue")))
+  (should (null (beads-agent--find-buffers-by-type "NonexistentType"))))
+
+;;; Tests for Session Buffer Slot
+
+(ert-deftest beads-agent-test-session-buffer-slot ()
+  "Test that session has buffer slot."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let ((session (beads-agent--create-session
+                        "bd-buf" "mock" "/tmp" 'handle)))
+          ;; Initially nil
+          (should (null (beads-agent-session-buffer session)))
+          ;; Can be set
+          (let ((buf (get-buffer-create "*test-buffer*")))
+            (unwind-protect
+                (progn
+                  (beads-agent-session-set-buffer session buf)
+                  (should (eq (beads-agent-session-buffer session) buf)))
+              (kill-buffer buf)))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-session-buffer-nil-when-not-set ()
+  "Test that buffer accessor returns nil when not set."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let ((session (beads-agent--create-session
+                        "bd-nobuf" "mock" "/tmp" 'handle)))
+          (should (null (beads-agent-session-buffer session)))))
+    (beads-agent-test--teardown)))
+
+;;; Tests for Mock Backend Buffer Creation
+
+(ert-deftest beads-agent-test-mock-backend-creates-buffer ()
+  "Test that mock backend creates a buffer on start."
+  (beads-agent-mock-reset)
+  (unwind-protect
+      (let* ((mock-backend (beads-agent-mock-get-instance))
+             (issue (beads-issue :id "bd-mockbuf" :title "Test")))
+        (let ((handle (beads-agent-backend-start mock-backend issue "test prompt")))
+          (should handle)
+          ;; Handle should have a buffer
+          (should (oref handle buffer))
+          (should (buffer-live-p (oref handle buffer)))
+          ;; Buffer should have mock prefix
+          (should (string-prefix-p "*mock-agent-"
+                                   (buffer-name (oref handle buffer))))))
+    (beads-agent-mock-reset)))
+
+(ert-deftest beads-agent-test-mock-backend-get-buffer ()
+  "Test that mock backend get-buffer returns the session's stored buffer."
+  (beads-agent-mock-reset)
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let* ((mock-backend (beads-agent-mock-get-instance))
+               (issue (beads-issue :id "bd-getbuf" :title "Test"))
+               (handle (beads-agent-backend-start mock-backend issue "test prompt"))
+               (session (beads-agent--create-session
+                         "bd-getbuf" "mock" "/tmp" handle)))
+          ;; Before setting stored buffer, should return mock handle's buffer
+          (let ((buf (beads-agent-backend-get-buffer mock-backend session)))
+            (should buf)
+            (should (buffer-live-p buf)))
+          ;; Set a different buffer as stored
+          (let ((stored-buf (get-buffer-create "*stored-test*")))
+            (unwind-protect
+                (progn
+                  (beads-agent-session-set-buffer session stored-buf)
+                  ;; Now should return the stored buffer
+                  (should (eq (beads-agent-backend-get-buffer mock-backend session)
+                              stored-buf)))
+              (kill-buffer stored-buf)))))
+    (beads-agent-mock-reset)
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mock-backend-stop-kills-buffer ()
+  "Test that mock backend stop kills the buffer."
+  (beads-agent-mock-reset)
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let* ((mock-backend (beads-agent-mock-get-instance))
+               (issue (beads-issue :id "bd-stopbuf" :title "Test"))
+               (handle (beads-agent-backend-start mock-backend issue "test prompt"))
+               (buffer (oref handle buffer))
+               (session (beads-agent--create-session
+                         "bd-stopbuf" "mock" "/tmp" handle)))
+          ;; Buffer should exist
+          (should (buffer-live-p buffer))
+          ;; Stop the session
+          (beads-agent-backend-stop mock-backend session)
+          ;; Buffer should be killed
+          (should-not (buffer-live-p buffer))))
+    (beads-agent-mock-reset)
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mock-reset-kills-buffers ()
+  "Test that mock reset kills all session buffers."
+  (beads-agent-mock-reset)
+  (unwind-protect
+      (let ((mock-backend (beads-agent-mock-get-instance))
+            (buffers nil))
+        ;; Create several sessions
+        (dotimes (_ 3)
+          (let* ((issue (beads-issue :id "bd-reset" :title "Test"))
+                 (handle (beads-agent-backend-start mock-backend issue "test")))
+            (push (oref handle buffer) buffers)))
+        ;; All buffers should exist
+        (should (cl-every #'buffer-live-p buffers))
+        ;; Reset
+        (beads-agent-mock-reset)
+        ;; All buffers should be killed
+        (should (cl-notany #'buffer-live-p buffers)))
+    (beads-agent-mock-reset)))
+
+;;; Tests for Buffer Renaming Integration
+
+(ert-deftest beads-agent-test-rename-and-store-buffer ()
+  "Test that beads-agent--rename-and-store-buffer works correctly."
+  (beads-agent-mock-reset)
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (beads-agent--reset-typed-instance-counters)
+        (let* ((mock-backend (beads-agent-mock-get-instance))
+               (issue (beads-issue :id "bd-rename" :title "Test"))
+               (handle (beads-agent-backend-start mock-backend issue "test prompt"))
+               (_original-buffer (oref handle buffer))
+               (session (beads-agent--create-session
+                         "bd-rename" "mock" "/tmp" handle nil "Task")))
+          ;; Rename and store
+          (beads-agent--rename-and-store-buffer mock-backend session)
+          ;; Buffer should be renamed to beads format
+          (let ((stored-buffer (beads-agent-session-buffer session)))
+            (should stored-buffer)
+            (should (buffer-live-p stored-buffer))
+            (should (beads-agent--buffer-name-p (buffer-name stored-buffer)))
+            ;; Should match expected format
+            (should (string-match-p "\\*beads-agent\\[bd-rename\\]\\[Task#1\\]\\*"
+                                    (buffer-name stored-buffer))))))
+    (beads-agent--reset-typed-instance-counters)
+    (beads-agent-mock-reset)
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-rename-increments-counter ()
+  "Test that renaming buffers increments the typed instance counter."
+  (beads-agent-mock-reset)
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (beads-agent--reset-typed-instance-counters)
+        (let ((mock-backend (beads-agent-mock-get-instance))
+              sessions)
+          ;; Create three sessions with same type
+          (dotimes (_i 3)
+            (let* ((issue (beads-issue :id "bd-inc" :title "Test"))
+                   (handle (beads-agent-backend-start mock-backend issue "test"))
+                   (session (beads-agent--create-session
+                             "bd-inc" "mock" "/tmp" handle nil "Task")))
+              (beads-agent--rename-and-store-buffer mock-backend session)
+              (push session sessions)))
+          ;; Check buffer names have incrementing counters
+          (let ((names (mapcar (lambda (s)
+                                 (buffer-name (beads-agent-session-buffer s)))
+                               (nreverse sessions))))
+            (should (string-match-p "Task#1" (nth 0 names)))
+            (should (string-match-p "Task#2" (nth 1 names)))
+            (should (string-match-p "Task#3" (nth 2 names))))))
+    (beads-agent--reset-typed-instance-counters)
+    (beads-agent-mock-reset)
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-rename-different-types-independent ()
+  "Test that different types have independent counters."
+  (beads-agent-mock-reset)
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (beads-agent--reset-typed-instance-counters)
+        (let ((mock-backend (beads-agent-mock-get-instance))
+              (types '("Task" "Plan" "Review"))
+              (sessions nil))
+          ;; Create one session for each type
+          (dolist (type-name types)
+            (let* ((issue (beads-issue :id "bd-types" :title "Test"))
+                   (handle (beads-agent-backend-start mock-backend issue "test"))
+                   (session (beads-agent--create-session
+                             "bd-types" "mock" "/tmp" handle nil type-name)))
+              (beads-agent--rename-and-store-buffer mock-backend session)
+              (push (cons type-name session) sessions)))
+          ;; Each type should be #1
+          (dolist (pair sessions)
+            (let ((type-name (car pair))
+                  (session (cdr pair)))
+              (should (string-match-p (format "%s#1" type-name)
+                                      (buffer-name
+                                       (beads-agent-session-buffer session))))))))
+    (beads-agent--reset-typed-instance-counters)
+    (beads-agent-mock-reset)
     (beads-agent-test--teardown)))
 
 ;;; Footer

@@ -89,7 +89,12 @@ Simulates all protocol methods without external dependencies.")
     :initarg :active
     :initform t
     :type boolean
-    :documentation "Whether this session is active."))
+    :documentation "Whether this session is active.")
+   (buffer
+    :initarg :buffer
+    :initform nil
+    :documentation "The Emacs buffer for this mock session.
+Created during start to allow testing buffer renaming."))
   :documentation "Handle returned by mock backend start.")
 
 ;;; Protocol Implementation
@@ -103,39 +108,48 @@ Simulates all protocol methods without external dependencies.")
     ((_backend beads-agent-backend-mock) issue prompt)
   "Start mock session with ISSUE and PROMPT.
 Returns a mock session handle.  Signals error if
-`beads-agent-mock-start-should-error' is set."
+`beads-agent-mock-start-should-error' is set.
+Creates a temporary buffer for testing buffer renaming."
   (when beads-agent-mock-start-should-error
     (error (if (stringp beads-agent-mock-start-should-error)
                beads-agent-mock-start-should-error
              "Mock start error")))
   ;; Record the call
   (push (list issue prompt) beads-agent-mock--start-calls)
-  ;; Create and track session handle
+  ;; Create and track session handle with a real buffer
   (let* ((handle-id (format "mock-session-%d"
                             (cl-incf beads-agent-mock--session-counter)))
+         ;; Create a buffer for this mock session
+         (buffer-name (format "*mock-agent-%s*" handle-id))
+         (buffer (get-buffer-create buffer-name))
          (handle (beads-agent-mock-session-handle
                   :id handle-id
                   :issue issue
                   :prompt prompt
-                  :active t)))
+                  :active t
+                  :buffer buffer)))
     (puthash handle-id handle beads-agent-mock--sessions)
     handle))
 
 (cl-defmethod beads-agent-backend-stop
     ((_backend beads-agent-backend-mock) session)
   "Stop mock SESSION.
-Marks the session handle as inactive."
+Marks the session handle as inactive and kills the buffer."
   (when beads-agent-mock-stop-should-error
     (error (if (stringp beads-agent-mock-stop-should-error)
                beads-agent-mock-stop-should-error
              "Mock stop error")))
   ;; Record the call
   (push session beads-agent-mock--stop-calls)
-  ;; Mark session as inactive
+  ;; Mark session as inactive and kill buffer
   (when-let* ((backend-session (oref session backend-session))
               (handle-id (oref backend-session id))
               (handle (gethash handle-id beads-agent-mock--sessions)))
-    (oset handle active nil)))
+    (oset handle active nil)
+    ;; Kill the buffer if it exists
+    (when-let ((buffer (oref handle buffer)))
+      (when (buffer-live-p buffer)
+        (kill-buffer buffer)))))
 
 (cl-defmethod beads-agent-backend-session-active-p
     ((_backend beads-agent-backend-mock) session)
@@ -146,11 +160,12 @@ Marks the session handle as inactive."
     (oref handle active)))
 
 (cl-defmethod beads-agent-backend-switch-to-buffer
-    ((_backend beads-agent-backend-mock) _session)
-  "Switch to buffer for mock SESSION.
-In mock mode, this is a no-op but could create a mock buffer."
-  ;; No-op for testing - could create a temp buffer if needed
-  (message "Mock: switch-to-buffer called"))
+    ((backend beads-agent-backend-mock) session)
+  "Switch to buffer for mock SESSION via BACKEND.
+Uses the session's stored buffer if available."
+  (if-let ((buffer (beads-agent-backend-get-buffer backend session)))
+      (pop-to-buffer buffer)
+    (message "Mock: no buffer available for session")))
 
 (cl-defmethod beads-agent-backend-send-prompt
     ((_backend beads-agent-backend-mock) session prompt)
@@ -159,9 +174,21 @@ In mock mode, this is a no-op but could create a mock buffer."
   (message "Mock: sent prompt to session"))
 
 (cl-defmethod beads-agent-backend-get-buffer
-    ((_backend beads-agent-backend-mock) _session)
-  "Return nil as mock sessions have no real buffer."
-  nil)
+    ((_backend beads-agent-backend-mock) session)
+  "Return the buffer for mock SESSION.
+First checks if the session has a stored buffer (after renaming),
+then falls back to the mock handle's original buffer."
+  ;; First try the session's stored buffer (set after renaming)
+  (let ((stored-buffer (beads-agent-session-buffer session)))
+    (if (and stored-buffer (buffer-live-p stored-buffer))
+        stored-buffer
+      ;; Fall back to the mock handle's buffer
+      (when-let* ((backend-session (oref session backend-session))
+                  (handle-id (oref backend-session id))
+                  (handle (gethash handle-id beads-agent-mock--sessions))
+                  (buffer (oref handle buffer)))
+        (when (buffer-live-p buffer)
+          buffer)))))
 
 ;;; Public API for Tests
 
@@ -191,11 +218,17 @@ Returns the backend instance."
 
 (defun beads-agent-mock-reset ()
   "Reset all mock state.
-Clears sessions, call logs, and configuration."
+Clears sessions (killing buffers), call logs, and configuration."
   (setq beads-agent-mock-available t)
   (setq beads-agent-mock-start-should-error nil)
   (setq beads-agent-mock-stop-should-error nil)
   (setq beads-agent-mock--session-counter 0)
+  ;; Kill all mock session buffers before clearing
+  (maphash (lambda (_id handle)
+             (when-let ((buffer (oref handle buffer)))
+               (when (buffer-live-p buffer)
+                 (kill-buffer buffer))))
+           beads-agent-mock--sessions)
   (clrhash beads-agent-mock--sessions)
   (setq beads-agent-mock--start-calls nil)
   (setq beads-agent-mock--stop-calls nil)
