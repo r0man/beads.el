@@ -292,27 +292,17 @@ and has a live process."
          (cl-some #'beads-agent-claudemacs--buffer-has-process-p buffers))))
 
 (cl-defmethod beads-agent-backend-switch-to-buffer
-    ((_backend beads-agent-backend-claudemacs) session)
-  "Switch to claudemacs buffer for SESSION.
-If no claudemacs session exists, starts a new one automatically.
-Uses \"other window\" display to preserve the current window layout."
-  ;; First try the session's stored buffer (renamed to beads format)
-  (let ((stored-buffer (beads-agent-session-buffer session)))
-    (if (and stored-buffer (buffer-live-p stored-buffer))
-        (beads-agent--pop-to-buffer-other-window stored-buffer)
-      ;; Fall back to claudemacs's normal switching behavior
-      (require 'claudemacs)
-      (let* ((working-dir (beads-agent-session-working-dir session))
-             (buffers (beads-agent-claudemacs--find-buffers working-dir))
-             (active-buf (cl-find-if #'beads-agent-claudemacs--buffer-has-process-p
-                                     buffers)))
-        (if active-buf
-            ;; Session exists - switch to it
-            (beads-agent--pop-to-buffer-other-window active-buf)
-          ;; No active session - start a new one
-          (message "Claudemacs session expired, starting new one...")
-          (let ((default-directory working-dir))
-            (claudemacs--start working-dir)))))))
+    ((backend beads-agent-backend-claudemacs) session)
+  "Switch to claudemacs buffer for SESSION using BACKEND.
+Uses the stored buffer (renamed to beads format) when available,
+falls back to pattern-based lookup.  This is designed for jumping to
+existing sessions - use `beads-agent-start' to create new sessions."
+  ;; Use get-buffer which has proper fallback logic
+  (if-let ((buffer (beads-agent-backend-get-buffer backend session)))
+      (when (buffer-live-p buffer)
+        (beads-agent--pop-to-buffer-other-window buffer))
+    ;; Buffer not found - session may have been killed
+    (message "Agent buffer not found for session")))
 
 (cl-defmethod beads-agent-backend-send-prompt
     ((_backend beads-agent-backend-claudemacs) session prompt)

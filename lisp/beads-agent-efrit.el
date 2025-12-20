@@ -120,22 +120,17 @@ Returns the efrit session handle."
          (memq (efrit-session-status efrit-session) '(active running)))))
 
 (cl-defmethod beads-agent-backend-switch-to-buffer
-    ((_backend beads-agent-backend-efrit) session)
-  "Switch to efrit progress buffer for SESSION.
-Uses \"other window\" display to preserve the current window layout."
-  ;; First try the session's stored buffer (renamed to beads format)
-  (let ((stored-buffer (beads-agent-session-buffer session)))
-    (if (and stored-buffer (buffer-live-p stored-buffer))
-        (beads-agent--pop-to-buffer-other-window stored-buffer)
-      ;; Fall back to efrit's normal switching behavior
-      (require 'efrit-do)
-      (require 'efrit-progress)
-      (let ((efrit-session (oref session backend-session)))
-        (if efrit-session
-            ;; Use efrit-do-show-progress with the session ID
-            (efrit-do-show-progress (efrit-session-id efrit-session))
-          ;; Fallback: just show the default progress buffer
-          (efrit-do-show-progress))))))
+    ((backend beads-agent-backend-efrit) session)
+  "Switch to efrit progress buffer for SESSION using BACKEND.
+Uses the stored buffer (renamed to beads format) when available,
+falls back to efrit's buffer lookup.  This is designed for jumping to
+existing sessions - use `beads-agent-start' to create new sessions."
+  ;; Use get-buffer which has proper fallback logic
+  (if-let ((buffer (beads-agent-backend-get-buffer backend session)))
+      (when (buffer-live-p buffer)
+        (beads-agent--pop-to-buffer-other-window buffer))
+    ;; Buffer not found - session may have been killed
+    (message "Agent buffer not found for session")))
 
 (cl-defmethod beads-agent-backend-send-prompt
     ((_backend beads-agent-backend-efrit) session prompt)
