@@ -780,15 +780,6 @@ The buffer is renamed to format: *beads-agent[ISSUE-ID][TYPE#N]*"
         ;; Store in session
         (beads-agent-session-set-buffer session buffer)))))
 
-(defun beads-agent--prepare-window-for-agent ()
-  "Prepare window layout for starting a new agent.
-If there is only one window, split it horizontally and select the right window.
-This ensures the agent buffer appears on the right side, keeping the issue
-list or other buffers on the left."
-  (when (one-window-p t)
-    ;; Split horizontally (side-by-side) and select the right window
-    (select-window (split-window-right))))
-
 (defun beads-agent--start-backend-async (issue-id backend project-dir worktree-dir
                                                   prompt issue agent-type)
   "Start the backend asynchronously.
@@ -800,8 +791,6 @@ are passed through from `beads-agent--continue-start'."
                                 process-environment))
          (default-directory working-dir)
          (agent-type-name (when agent-type (oref agent-type name))))
-    ;; Prepare window layout: if single window, split right so agent appears there
-    (beads-agent--prepare-window-for-agent)
     (condition-case err
         (let* ((backend-session (beads-agent-backend-start backend issue prompt))
                (session (beads-agent--create-session
