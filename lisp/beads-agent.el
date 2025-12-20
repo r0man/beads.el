@@ -463,10 +463,9 @@ See: https://github.com/anthropics/claude-code"))
                           (lambda (cand)
                             (member (if (consp cand) (car cand) cand)
                                     available-names))))
-             (choice (completing-read "Select backend: "
-                                      (beads-completion-backend-table)
-                                      predicate
-                                      t))
+             (choice (beads-completion-read-backend "Select backend: "
+                                                    predicate
+                                                    t))
              (backend (beads-agent--get-backend choice)))
         ;; Validate selection when unavailable backends were shown
         (when (and beads-completion-show-unavailable-backends
@@ -503,10 +502,9 @@ will automatically use the selected backend without prompting."
                         (lambda (cand)
                           (member (if (consp cand) (car cand) cand)
                                   available-names))))
-           (choice (completing-read prompt
-                                    (beads-completion-backend-table)
-                                    predicate
-                                    t))
+           (choice (beads-completion-read-backend prompt
+                                                predicate
+                                                t))
            (backend (beads-agent--get-backend choice)))
       ;; Validate selection when unavailable backends were shown
       (when (and beads-completion-show-unavailable-backends
