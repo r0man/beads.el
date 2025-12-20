@@ -276,7 +276,8 @@ or `failed'.  For backward compatibility, outcome may be just the symbol."
          ;; Clear previous outcome when starting fresh
          (remhash issue-id beads-agent--issue-outcomes))
         ('stopped
-         (puthash issue-id (cons letter 'finished) beads-agent--issue-outcomes))
+         ;; Clear outcome when stopped - indicators only show for active agents
+         (remhash issue-id beads-agent--issue-outcomes))
         ('failed
          (puthash issue-id (cons letter 'failed) beads-agent--issue-outcomes)))))
   (run-hook-with-args 'beads-agent-state-change-hook action session))
