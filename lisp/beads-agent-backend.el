@@ -213,20 +213,6 @@ to return their agent buffer if available."
   (ignore backend session)
   nil)
 
-(cl-defgeneric beads-agent-backend-supports-plan-mode-p (backend)
-  "Return non-nil if BACKEND supports plan mode.
-BACKEND is a `beads-agent-backend' object.
-
-Plan mode is used by certain agent types (e.g., Plan) that require
-the backend to support special planning functionality via a --plan
-flag or similar mechanism.
-
-Default implementation returns nil.  Backends that support plan mode
-should override this to return t."
-  ;; Default: plan mode not supported
-  (ignore backend)
-  nil)
-
 ;;; Backend Registry
 
 (defvar beads-agent--backends nil
@@ -256,17 +242,24 @@ Use this to refresh UI elements like `beads-list' buffers.")
 
 (defun beads-agent--run-state-change-hook (action session)
   "Run `beads-agent-state-change-hook' with ACTION and SESSION.
-Also records the outcome in `beads-agent--issue-outcomes' for UI display."
+Also records the outcome in `beads-agent--issue-outcomes' for UI display.
+Outcomes are stored as (letter . outcome) cons cells where letter is the
+first character of the agent type name (T/R/P/Q/C) and outcome is `finished'
+or `failed'.  For backward compatibility, outcome may be just the symbol."
   ;; Record outcome for UI display
   (when-let ((issue-id (and session (oref session issue-id))))
-    (pcase action
-      ('started
-       ;; Clear previous outcome when starting fresh
-       (remhash issue-id beads-agent--issue-outcomes))
-      ('stopped
-       (puthash issue-id 'finished beads-agent--issue-outcomes))
-      ('failed
-       (puthash issue-id 'failed beads-agent--issue-outcomes))))
+    (let* ((type-name (oref session agent-type-name))
+           (letter (if type-name
+                       (substring type-name 0 1)
+                     "●")))
+      (pcase action
+        ('started
+         ;; Clear previous outcome when starting fresh
+         (remhash issue-id beads-agent--issue-outcomes))
+        ('stopped
+         (puthash issue-id (cons letter 'finished) beads-agent--issue-outcomes))
+        ('failed
+         (puthash issue-id (cons letter 'failed) beads-agent--issue-outcomes)))))
   (run-hook-with-args 'beads-agent-state-change-hook action session))
 
 ;;; Backend Registry Functions

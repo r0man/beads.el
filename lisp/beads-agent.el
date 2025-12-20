@@ -87,6 +87,8 @@
 (require 'beads)
 (require 'beads-command)
 (require 'beads-agent-backend)
+(require 'beads-agent-type)
+(require 'beads-agent-types)
 (require 'transient)
 
 ;; Forward declarations
@@ -613,11 +615,13 @@ Returns issue ID string or nil if not found."
 ;;; Public API Functions
 
 ;;;###autoload
-(defun beads-agent-start (&optional issue-id backend-name prompt)
+(defun beads-agent-start (&optional issue-id backend-name prompt agent-type-name)
   "Start an AI agent working on ISSUE-ID asynchronously.
 ISSUE-ID defaults to issue at point or prompts for selection.
 BACKEND-NAME defaults to configured default or prompts for selection.
-PROMPT defaults to auto-generated from issue.
+PROMPT defaults to auto-generated from issue (overridden by agent type).
+AGENT-TYPE-NAME is the name of the agent type (e.g., \"Task\", \"Review\").
+When specified, the agent type's prompt template is used instead of PROMPT.
 
 When `beads-agent-use-worktrees' is non-nil, the agent will work
 in a git worktree named after the issue ID.  The worktree is
@@ -628,6 +632,9 @@ background with progress messages displayed in the echo area."
   (interactive)
   (beads-check-executable)
   (let* ((issue-id (or issue-id (beads-agent--read-issue-id)))
+         (agent-type (when agent-type-name
+                       (or (beads-agent-type-get agent-type-name)
+                           (user-error "Unknown agent type: %s" agent-type-name))))
          (backend (if backend-name
                       (or (beads-agent--get-backend backend-name)
                           (user-error "Backend not found: %s" backend-name))
@@ -638,15 +645,18 @@ background with progress messages displayed in the echo area."
       (unless (y-or-n-p (format "Session exists for %s. Start another? " issue-id))
         (user-error "Aborted")))
     ;; Start the async workflow
-    (message "Starting agent for %s..." issue-id)
-    (beads-agent--start-async issue-id backend project-dir prompt)))
+    (message "Starting %s agent for %s..."
+             (if agent-type (oref agent-type name) "default")
+             issue-id)
+    (beads-agent--start-async issue-id backend project-dir prompt agent-type)))
 
-(defun beads-agent--start-async (issue-id backend project-dir prompt)
+(defun beads-agent--start-async (issue-id backend project-dir prompt agent-type)
   "Async implementation of agent start.
 ISSUE-ID is the issue to work on.
 BACKEND is the beads-agent-backend instance.
 PROJECT-DIR is the project root directory.
-PROMPT is the optional pre-built prompt."
+PROMPT is the optional pre-built prompt (overridden by AGENT-TYPE).
+AGENT-TYPE is an optional `beads-agent-type' instance."
   ;; Step 1: Fetch issue info (async)
   (beads-agent--fetch-issue-async
    issue-id
@@ -654,8 +664,18 @@ PROMPT is the optional pre-built prompt."
      ;; Restore default-directory for async callbacks.
      ;; Process sentinels run with arbitrary default-directory, but
      ;; worktree functions need the project directory for git commands.
-     (let ((default-directory project-dir)
-           (prompt (or prompt (beads-agent--build-prompt issue))))
+     (let* ((default-directory project-dir)
+            ;; Build prompt: agent-type takes precedence, then explicit prompt,
+            ;; then default issue-based prompt
+            (effective-prompt
+             (cond
+              ;; Agent type builds its own prompt
+              (agent-type
+               (beads-agent-type-build-prompt agent-type issue))
+              ;; Explicit prompt provided
+              (prompt prompt)
+              ;; Default: build from issue
+              (t (beads-agent--build-prompt issue)))))
        ;; Step 2: Setup worktree if needed (async)
        (if beads-agent-use-worktrees
            (beads-agent--ensure-worktree-async
@@ -666,22 +686,24 @@ PROMPT is the optional pre-built prompt."
                 (if success
                     ;; Step 3: Update status (async)
                     (beads-agent--continue-start
-                     issue-id backend project-dir result prompt issue)
+                     issue-id backend project-dir result effective-prompt issue agent-type)
                   (message "Failed to create worktree: %s" result)))))
          ;; No worktree, continue directly
          (beads-agent--continue-start
-          issue-id backend project-dir nil prompt issue))))))
+          issue-id backend project-dir nil effective-prompt issue agent-type))))))
 
-(defun beads-agent--continue-start (issue-id backend project-dir worktree-dir prompt issue)
+(defun beads-agent--continue-start (issue-id backend project-dir worktree-dir
+                                            prompt issue agent-type)
   "Continue agent start after worktree is ready.
-ISSUE-ID, BACKEND, PROJECT-DIR, WORKTREE-DIR, PROMPT, ISSUE are context."
+ISSUE-ID, BACKEND, PROJECT-DIR, WORKTREE-DIR, PROMPT, ISSUE, AGENT-TYPE
+are passed through from `beads-agent--start-async'."
   ;; Update status async, then start backend
   (beads-agent--maybe-update-status-async
    issue-id
    (lambda ()
      ;; Step 4: Start the backend
      (beads-agent--start-backend-async
-      issue-id backend project-dir worktree-dir prompt issue))))
+      issue-id backend project-dir worktree-dir prompt issue agent-type))))
 
 (defun beads-agent--fetch-issue-async (issue-id callback)
   "Fetch ISSUE-ID asynchronously and call CALLBACK with result.
@@ -718,14 +740,17 @@ CALLBACK receives a beads-issue object."
                (error
                 (message "Failed to parse issue: %s" (error-message-string err)))))))))))
 
-(defun beads-agent--start-backend-async (issue-id backend project-dir worktree-dir prompt issue)
+(defun beads-agent--start-backend-async (issue-id backend project-dir worktree-dir
+                                                  prompt issue agent-type)
   "Start the backend asynchronously.
-ISSUE-ID, BACKEND, PROJECT-DIR, WORKTREE-DIR, PROMPT, ISSUE are context."
+ISSUE-ID, BACKEND, PROJECT-DIR, WORKTREE-DIR, PROMPT, ISSUE, AGENT-TYPE
+are passed through from `beads-agent--continue-start'."
   (let* ((working-dir (or worktree-dir project-dir))
          (process-environment (if worktree-dir
                                   (beads-agent--setup-worktree-environment)
                                 process-environment))
-         (default-directory working-dir))
+         (default-directory working-dir)
+         (agent-type-name (when agent-type (oref agent-type name))))
     (condition-case err
         (let* ((backend-session (beads-agent-backend-start backend issue prompt))
                (session (beads-agent--create-session
@@ -733,8 +758,10 @@ ISSUE-ID, BACKEND, PROJECT-DIR, WORKTREE-DIR, PROMPT, ISSUE are context."
                          (oref backend name)
                          project-dir
                          backend-session
-                         worktree-dir)))
-          (message "Started agent session %s on %s%s"
+                         worktree-dir
+                         agent-type-name)))
+          (message "Started %s agent session %s on %s%s"
+                   (or agent-type-name "default")
                    (oref session id) issue-id
                    (if worktree-dir
                        (format " (worktree: %s)" worktree-dir)
@@ -1295,6 +1322,117 @@ If no session exists for the current issue, starts a new agent session."
         ;; No session - start a new one
         (beads-agent-start id))
     (call-interactively #'beads-agent-jump)))
+
+;;; Agent Type Start Commands
+;;
+;; These commands implement smart jump-or-start logic for each agent type.
+;; If no C-u prefix and an active agent of the same type exists for the issue,
+;; they jump to its buffer.  Otherwise, they start a new agent.
+
+(defun beads-agent--get-sessions-for-issue-type (issue-id type-name)
+  "Get sessions for ISSUE-ID that match TYPE-NAME.
+TYPE-NAME is the agent type name (e.g., \"Task\", \"Review\").
+Returns list of matching sessions."
+  (cl-remove-if-not
+   (lambda (session)
+     (equal (beads-agent-session-type-name session) type-name))
+   (beads-agent--get-sessions-for-issue issue-id)))
+
+(defun beads-agent--start-typed (type-name &optional force-new)
+  "Start or jump to agent of TYPE-NAME for issue at point.
+When FORCE-NEW is non-nil, always start a new agent even if one exists.
+This is the core implementation for all type-specific start commands."
+  (if-let ((id (beads-agent--detect-issue-id)))
+      (let ((existing (beads-agent--get-sessions-for-issue-type id type-name)))
+        (if (and existing (not force-new))
+            ;; Jump to existing session of this type
+            (beads-agent--jump-other-window-if-applicable
+             (oref (car existing) id))
+          ;; Start new agent of this type
+          (if (beads-agent--in-list-or-show-mode-p)
+              (let ((list-buffer (current-buffer)))
+                (when (= (length (window-list)) 1)
+                  (split-window-right))
+                (beads-agent-start id nil nil type-name)
+                (run-with-timer
+                 0.5 nil
+                 (lambda ()
+                   (when (buffer-live-p list-buffer)
+                     (unless (get-buffer-window list-buffer)
+                       (display-buffer list-buffer
+                                       '(display-buffer-reuse-window
+                                         (inhibit-same-window . t))))))))
+            (beads-agent-start id nil nil type-name))))
+    (user-error "No issue at point")))
+
+;;;###autoload
+(defun beads-agent-start-task (&optional arg)
+  "Start or jump to Task agent for issue at point.
+With prefix ARG, always start a new agent even if one exists.
+Without prefix, jumps to existing Task agent if one is running."
+  (interactive "P")
+  (beads-agent--start-typed "Task" arg))
+
+;;;###autoload
+(defun beads-agent-start-review (&optional arg)
+  "Start or jump to Review agent for issue at point.
+With prefix ARG, always start a new agent even if one exists.
+Without prefix, jumps to existing Review agent if one is running."
+  (interactive "P")
+  (beads-agent--start-typed "Review" arg))
+
+;;;###autoload
+(defun beads-agent-start-plan (&optional arg)
+  "Start or jump to Plan agent for issue at point.
+With prefix ARG, always start a new agent even if one exists.
+Without prefix, jumps to existing Plan agent if one is running.
+The Plan agent analyzes and creates implementation plans without
+making changes, working with any backend."
+  (interactive "P")
+  (beads-agent--start-typed "Plan" arg))
+
+;;;###autoload
+(defun beads-agent-start-qa (&optional arg)
+  "Start or jump to QA agent for issue at point.
+With prefix ARG, always start a new agent even if one exists.
+Without prefix, jumps to existing QA agent if one is running."
+  (interactive "P")
+  (beads-agent--start-typed "QA" arg))
+
+;;;###autoload
+(defun beads-agent-start-custom (&optional arg)
+  "Start or jump to Custom agent for issue at point.
+With prefix ARG, always start a new agent even if one exists.
+Without prefix, jumps to existing Custom agent if one is running.
+Prompts for a custom prompt string to send to the agent."
+  (interactive "P")
+  (beads-agent--start-typed "Custom" arg))
+
+;;;###autoload
+(defun beads-agent-stop-at-point ()
+  "Stop agent for issue at point.
+If multiple agents exist, prompts for which one to stop.
+If no agent exists, shows a message."
+  (interactive)
+  (if-let ((id (beads-agent--detect-issue-id)))
+      (if-let ((sessions (beads-agent--get-sessions-for-issue id)))
+          (if (= (length sessions) 1)
+              ;; Single session - stop it directly
+              (beads-agent-stop (oref (car sessions) id))
+            ;; Multiple sessions - prompt for selection
+            (let* ((session-names
+                    (mapcar (lambda (s)
+                              (format "%s (%s)"
+                                      (oref s id)
+                                      (or (beads-agent-session-type-name s)
+                                          "default")))
+                            sessions))
+                   (selection (completing-read "Stop agent: " session-names nil t))
+                   ;; Extract session ID from selection
+                   (session-id (car (split-string selection " "))))
+              (beads-agent-stop session-id)))
+        (message "No agents running for %s" id))
+    (user-error "No issue at point")))
 
 (provide 'beads-agent)
 

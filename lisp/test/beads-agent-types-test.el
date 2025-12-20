@@ -95,13 +95,6 @@
         (should (equal (oref type name) "Task")))
     (beads-agent-types-test--teardown)))
 
-(ert-deftest beads-agent-types-test-task-no-plan-mode ()
-  "Test Task agent does not require plan mode."
-  (beads-agent-types-test--setup)
-  (unwind-protect
-      (let ((type (beads-agent-type-get "task")))
-        (should (eq (oref type requires-plan-mode) nil)))
-    (beads-agent-types-test--teardown)))
 
 (ert-deftest beads-agent-types-test-task-prompt-content ()
   "Test Task agent builds correct prompt."
@@ -157,13 +150,6 @@
           (should (string-match "test-123" prompt))))
     (beads-agent-types-test--teardown)))
 
-(ert-deftest beads-agent-types-test-review-no-plan-mode ()
-  "Test Review agent does not require plan mode."
-  (beads-agent-types-test--setup)
-  (unwind-protect
-      (let ((type (beads-agent-type-get "review")))
-        (should (eq (oref type requires-plan-mode) nil)))
-    (beads-agent-types-test--teardown)))
 
 ;;; Tests for Plan Agent
 
@@ -175,21 +161,20 @@
         (should (equal (oref type letter) "P")))
     (beads-agent-types-test--teardown)))
 
-(ert-deftest beads-agent-types-test-plan-requires-plan-mode ()
-  "Test Plan agent requires plan mode."
+(ert-deftest beads-agent-types-test-plan-builds-prompt ()
+  "Test Plan agent builds a proper prompt."
   (beads-agent-types-test--setup)
   (unwind-protect
-      (let ((type (beads-agent-type-get "plan")))
-        (should (eq (oref type requires-plan-mode) t)))
-    (beads-agent-types-test--teardown)))
-
-(ert-deftest beads-agent-types-test-plan-returns-nil-prompt ()
-  "Test Plan agent returns nil for prompt (uses --plan flag)."
-  (beads-agent-types-test--setup)
-  (unwind-protect
-      (let ((type (beads-agent-type-get "plan")))
-        (should (null (beads-agent-type-build-prompt
-                       type beads-agent-types-test--sample-issue))))
+      (let* ((type (beads-agent-type-get "plan"))
+             (prompt (beads-agent-type-build-prompt
+                      type beads-agent-types-test--sample-issue)))
+        (should (stringp prompt))
+        ;; Check for plan prompt content
+        (should (string-match "planning agent" prompt))
+        (should (string-match "DO NOT modify" prompt))
+        ;; Check for issue context
+        (should (string-match "test-123" prompt))
+        (should (string-match "Test Issue Title" prompt)))
     (beads-agent-types-test--teardown)))
 
 ;;; Tests for QA Agent
@@ -230,13 +215,6 @@
           (should (string-match "test-123" prompt))))
     (beads-agent-types-test--teardown)))
 
-(ert-deftest beads-agent-types-test-qa-no-plan-mode ()
-  "Test QA agent does not require plan mode."
-  (beads-agent-types-test--setup)
-  (unwind-protect
-      (let ((type (beads-agent-type-get "qa")))
-        (should (eq (oref type requires-plan-mode) nil)))
-    (beads-agent-types-test--teardown)))
 
 ;;; Tests for Custom Agent
 
@@ -248,13 +226,6 @@
         (should (equal (oref type letter) "C")))
     (beads-agent-types-test--teardown)))
 
-(ert-deftest beads-agent-types-test-custom-no-plan-mode ()
-  "Test Custom agent does not require plan mode."
-  (beads-agent-types-test--setup)
-  (unwind-protect
-      (let ((type (beads-agent-type-get "custom")))
-        (should (eq (oref type requires-plan-mode) nil)))
-    (beads-agent-types-test--teardown)))
 
 (ert-deftest beads-agent-types-test-custom-prompts-user ()
   "Test Custom agent prompts user and builds prompt correctly."

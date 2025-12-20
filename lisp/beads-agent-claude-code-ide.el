@@ -186,13 +186,6 @@ to work during session registration."
           (current-buffer))
       (error nil))))
 
-(cl-defmethod beads-agent-backend-supports-plan-mode-p
-    ((_backend beads-agent-backend-claude-code-ide))
-  "Return t because claude-code-ide supports plan mode via --plan flag.
-When an agent type requires plan mode, this backend can satisfy that
-requirement by passing the --plan flag to the claude CLI."
-  t)
-
 ;;; Registration
 
 ;; Register the backend when this file is loaded
