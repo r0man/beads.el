@@ -1350,15 +1350,42 @@ list/show buffer visible."
     ;; Not in list/show mode - just start normally
     (beads-agent-start issue-id)))
 
+(defun beads-agent--select-session-completing-read (sessions prompt)
+  "Select a session from SESSIONS using `completing-read' with PROMPT.
+Returns the selected session object, or nil if SESSIONS is empty.
+The completion shows format \"Type#N (backend)\" for each session."
+  (when sessions
+    (let* ((choices
+            (mapcar
+             (lambda (s)
+               (let* ((type-name (or (beads-agent-session-type-name s) "Agent"))
+                      (instance-n (beads-agent--session-instance-number s))
+                      (backend (oref s backend-name))
+                      (label (format "%s#%d (%s)" type-name instance-n backend)))
+                 (cons label s)))
+             sessions))
+           (selection (completing-read prompt choices nil t)))
+      (cdr (assoc selection choices)))))
+
 ;;;###autoload
 (defun beads-agent-jump-at-point ()
   "Jump to agent buffer for issue at point, starting one if needed.
-If no session exists for the current issue, starts a new agent session."
+If no session exists for the current issue, starts a new agent session.
+If multiple sessions exist, prompts for which one to jump to."
   (interactive)
   (if-let ((id (beads-agent--detect-issue-id)))
       (if-let ((sessions (beads-agent--get-sessions-for-issue id)))
-          ;; Session exists - jump to it
-          (beads-agent-jump (oref (car sessions) id))
+          (cond
+           ;; Single session - jump directly
+           ((= (length sessions) 1)
+            (beads-agent-jump (oref (car sessions) id)))
+           ;; Multiple sessions - prompt for selection
+           (t
+            (if-let ((selected (beads-agent--select-session-completing-read
+                                sessions
+                                (format "Jump to agent for %s: " id))))
+                (beads-agent--jump-other-window-if-applicable (oref selected id))
+              (message "No agent selected"))))
         ;; No session - start a new one
         (beads-agent-start id))
     (call-interactively #'beads-agent-jump)))
@@ -1381,13 +1408,26 @@ Returns list of matching sessions."
 (defun beads-agent--start-typed (type-name &optional force-new)
   "Start or jump to agent of TYPE-NAME for issue at point.
 When FORCE-NEW is non-nil, always start a new agent even if one exists.
+When existing sessions of the same type exist and FORCE-NEW is nil:
+- If one session exists, jumps to it directly.
+- If multiple sessions exist, prompts for which one to jump to.
 This is the core implementation for all type-specific start commands."
   (if-let ((id (beads-agent--detect-issue-id)))
       (let ((existing (beads-agent--get-sessions-for-issue-type id type-name)))
         (if (and existing (not force-new))
             ;; Jump to existing session of this type
-            (beads-agent--jump-other-window-if-applicable
-             (oref (car existing) id))
+            (cond
+             ;; Single session - jump directly
+             ((= (length existing) 1)
+              (beads-agent--jump-other-window-if-applicable
+               (oref (car existing) id)))
+             ;; Multiple sessions - prompt for selection
+             (t
+              (if-let ((selected (beads-agent--select-session-completing-read
+                                  existing
+                                  (format "Jump to %s agent for %s: " type-name id))))
+                  (beads-agent--jump-other-window-if-applicable (oref selected id))
+                (message "No agent selected"))))
           ;; Start new agent of this type
           (if (beads-agent--in-list-or-show-mode-p)
               (let ((list-buffer (current-buffer)))
@@ -1456,21 +1496,17 @@ If no agent exists, shows a message."
   (interactive)
   (if-let ((id (beads-agent--detect-issue-id)))
       (if-let ((sessions (beads-agent--get-sessions-for-issue id)))
-          (if (= (length sessions) 1)
-              ;; Single session - stop it directly
-              (beads-agent-stop (oref (car sessions) id))
-            ;; Multiple sessions - prompt for selection
-            (let* ((session-names
-                    (mapcar (lambda (s)
-                              (format "%s (%s)"
-                                      (oref s id)
-                                      (or (beads-agent-session-type-name s)
-                                          "default")))
-                            sessions))
-                   (selection (completing-read "Stop agent: " session-names nil t))
-                   ;; Extract session ID from selection
-                   (session-id (car (split-string selection " "))))
-              (beads-agent-stop session-id)))
+          (cond
+           ;; Single session - stop it directly
+           ((= (length sessions) 1)
+            (beads-agent-stop (oref (car sessions) id)))
+           ;; Multiple sessions - prompt for selection
+           (t
+            (if-let ((selected (beads-agent--select-session-completing-read
+                                sessions
+                                (format "Stop agent for %s: " id))))
+                (beads-agent-stop (oref selected id))
+              (message "No agent selected"))))
         (message "No agents running for %s" id))
     (user-error "No issue at point")))
 
