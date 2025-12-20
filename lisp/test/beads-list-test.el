@@ -639,7 +639,7 @@ ISSUES should be a list of alists (test data format)."
     (should (equal (car (aref tabulated-list-format 1)) "Type"))
     (should (equal (car (aref tabulated-list-format 2)) "Status"))
     (should (equal (car (aref tabulated-list-format 3)) "Priority"))
-    (should (equal (car (aref tabulated-list-format 4)) "Agent"))
+    (should (equal (car (aref tabulated-list-format 4)) "A"))
     (should (equal (car (aref tabulated-list-format 5)) "Title"))
     (should (equal (car (aref tabulated-list-format 6)) "Created"))
     (should (equal (car (aref tabulated-list-format 7)) "Updated"))))
@@ -978,31 +978,30 @@ ISSUES should be a list of alists (test data format)."
     (should (equal (beads-list--format-agent "bd-1") ""))))
 
 (ert-deftest beads-list-test-format-agent-working ()
-  "Test format-agent shows yellow circle when agent is working."
+  "Test format-agent shows type letter when agent is working."
   (let ((mock-session (list 'mock-session)))
     (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
                (lambda (_id) mock-session))
               ((symbol-function 'beads-agent--get-issue-outcome)
                (lambda (_id) nil))
-              ((symbol-function 'beads-agent-session-backend-name)
-               (lambda (_session) "claude")))
+              ((symbol-function 'beads-agent-session-type-name)
+               (lambda (_session) "Task")))
       (let ((result (beads-list--format-agent "bd-1")))
-        (should (string-prefix-p "●" result))
-        (should (string-match-p "claude" result))
+        (should (string-prefix-p "T" result))
         (should (eq (get-text-property 0 'face result)
                     'beads-list-agent-working))
-        ;; Verify help-echo tooltip
-        (should (string-match-p "claude"
+        ;; Verify help-echo tooltip mentions type
+        (should (string-match-p "Task"
                                 (get-text-property 0 'help-echo result)))))))
 
 (ert-deftest beads-list-test-format-agent-working-no-backend-name ()
-  "Test format-agent shows yellow circle even without backend name."
+  "Test format-agent shows fallback circle when no type name."
   (let ((mock-session (list 'mock-session)))
     (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
                (lambda (_id) mock-session))
               ((symbol-function 'beads-agent--get-issue-outcome)
                (lambda (_id) nil))
-              ((symbol-function 'beads-agent-session-backend-name)
+              ((symbol-function 'beads-agent-session-type-name)
                (lambda (_session) nil)))
       (let ((result (beads-list--format-agent "bd-1")))
         (should (string= (substring-no-properties result) "●"))
@@ -1043,9 +1042,9 @@ Active session should take priority over previous outcome."
     (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
                (lambda (_id) mock-session))
               ((symbol-function 'beads-agent--get-issue-outcome)
-               (lambda (_id) 'finished))  ; Previous outcome exists
-              ((symbol-function 'beads-agent-session-backend-name)
-               (lambda (_session) nil)))
+               (lambda (_id) '("T" . finished)))  ; Previous outcome exists
+              ((symbol-function 'beads-agent-session-type-name)
+               (lambda (_session) "Review")))
       (let ((result (beads-list--format-agent "bd-1")))
         (should (eq (get-text-property 0 'face result)
                     'beads-list-agent-working))))))
