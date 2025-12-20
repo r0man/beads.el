@@ -639,7 +639,7 @@ ISSUES should be a list of alists (test data format)."
     (should (equal (car (aref tabulated-list-format 1)) "Type"))
     (should (equal (car (aref tabulated-list-format 2)) "Status"))
     (should (equal (car (aref tabulated-list-format 3)) "Priority"))
-    (should (equal (car (aref tabulated-list-format 4)) "A"))
+    (should (equal (car (aref tabulated-list-format 4)) "Agents"))
     (should (equal (car (aref tabulated-list-format 5)) "Title"))
     (should (equal (car (aref tabulated-list-format 6)) "Created"))
     (should (equal (car (aref tabulated-list-format 7)) "Updated"))))
