@@ -74,7 +74,6 @@
 (declare-function beads-agent-stop-at-point "beads-agent")
 (declare-function beads-agent-jump-at-point "beads-agent")
 (declare-function beads-agent--get-issue-outcome "beads-agent-backend")
-(declare-function beads-agent--session-instance-number "beads-agent-backend")
 (declare-function beads-agent-session-backend-name "beads-agent-backend")
 (declare-function beads-agent-session-type-name "beads-agent-backend")
 
@@ -317,7 +316,7 @@ Colors indicate status:
   - Green: agent finished successfully
   - Red: agent failed
 Letters are: T=Task, R=Review, P=Plan, Q=QA, C=Custom.
-Instance numbers match the buffer names (*beads-agent[ID][Type#N]*)."
+Instance numbers are per-type (e.g., Q#1, Q#2 for two QA agents)."
   (let ((sessions (and (fboundp 'beads-agent--get-sessions-for-issue)
                        (beads-agent--get-sessions-for-issue issue-id)))
         (outcome (and (fboundp 'beads-agent--get-issue-outcome)
@@ -334,19 +333,20 @@ Instance numbers match the buffer names (*beads-agent[ID][Type#N]*)."
                                         (beads-agent-session-type-name session))))
                     (puthash type-name (1+ (gethash type-name counts 0)) counts)))
                 counts))
+             ;; Track per-type instance numbers as we iterate
+             (type-instance-nums (make-hash-table :test 'equal))
              (indicators
               (mapcar
                (lambda (session)
                  (let* ((type-name (and (fboundp 'beads-agent-session-type-name)
                                         (beads-agent-session-type-name session)))
-                        (instance-n (and (fboundp
-                                          'beads-agent--session-instance-number)
-                                         (beads-agent--session-instance-number
-                                          session)))
+                        ;; Compute per-type instance number
+                        (current-num (1+ (gethash type-name type-instance-nums 0)))
+                        (_ (puthash type-name current-num type-instance-nums))
                         ;; Show instance number only if multiple of same type
                         (brief (= 1 (gethash type-name type-counts 1))))
                    (beads-list--format-agent-indicator
-                    type-name instance-n 'beads-list-agent-working brief)))
+                    type-name current-num 'beads-list-agent-working brief)))
                sessions)))
         (propertize (if (= (length indicators) 1)
                         (car indicators)
