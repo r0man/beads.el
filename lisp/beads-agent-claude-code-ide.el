@@ -130,13 +130,20 @@ Returns cons cell (BACKEND-SESSION . BUFFER)."
          backend-session
          buffer)
     ;; Start claude-code-ide with the prompt as CLI argument
-    (condition-case err
-        (claude-code-ide)
-      (error
-       (error "Failed to start claude-code-ide: %s"
-              (error-message-string err))))
-    ;; Get the buffer that was just created (before any renaming)
-    (setq buffer (car (beads-agent-claude-code-ide--find-buffers working-dir)))
+    ;; Save current buffer to detect if claude-code-ide switches
+    (let ((orig-buffer (current-buffer)))
+      (condition-case err
+          (claude-code-ide)
+        (error
+         (error "Failed to start claude-code-ide: %s"
+                (error-message-string err))))
+      ;; Get the buffer - try multiple strategies:
+      ;; 1. Search by expected name pattern
+      ;; 2. Use current buffer if it changed and looks like a Claude buffer
+      (setq buffer (or (car (beads-agent-claude-code-ide--find-buffers working-dir))
+                       (and (not (eq (current-buffer) orig-buffer))
+                            (string-prefix-p "*Claude Code:" (buffer-name))
+                            (current-buffer)))))
     ;; Get MCP session handle (may be nil if not yet connected)
     (when (fboundp 'claude-code-ide-mcp--get-session-for-project)
       (condition-case nil
