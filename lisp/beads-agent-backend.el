@@ -507,24 +507,17 @@ or nil if the buffer name doesn't match the expected format."
 
 ;;; Window Management
 ;;
-;; Agent buffers should open in the "other window" without creating new
-;; windows.  This provides a consistent, predictable window layout when
-;; working with agents from the issue list or show views.
+;; Agent buffers use Emacs's native `display-buffer-alist' for window
+;; management.  The display action is configured via the customizable
+;; variable `beads-agent-display-buffer-action' in beads-agent.el.
 
 (defun beads-agent--pop-to-buffer-other-window (buffer)
-  "Switch to BUFFER in the other window without creating new windows.
-If there is only one window, switch to BUFFER in place.
-If there are multiple windows, display BUFFER in the next window
-and select it, preserving the current window's buffer.
+  "Switch to BUFFER using the configured display action.
+This respects `display-buffer-alist' rules set up for agent buffers,
+which by default display agents in a window to the right.
 
 This is the recommended way to display agent buffers."
-  (if (one-window-p t)
-      ;; Only one window - just switch to the buffer in place
-      (switch-to-buffer buffer)
-    ;; Multiple windows - put buffer in the other window and select it
-    (let ((target-window (next-window nil 'no-minibuf)))
-      (set-window-buffer target-window buffer)
-      (select-window target-window))))
+  (pop-to-buffer buffer))
 
 (defun beads-agent--find-buffers-by-issue (issue-id)
   "Find all beads agent buffers for ISSUE-ID.

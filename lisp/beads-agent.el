@@ -136,6 +136,28 @@ If set to a path, worktrees are created under that directory."
                  (directory :tag "Custom directory"))
   :group 'beads-agent)
 
+(defcustom beads-agent-display-buffer-action
+  '((display-buffer-reuse-window
+     display-buffer-in-direction)
+    (direction . right)
+    (window-width . 0.5))
+  "Display action for agent buffers.
+This controls how agent buffers are displayed when switching to them.
+The default displays the agent in a window to the right.
+
+See `display-buffer' for the format of this value."
+  :type 'sexp
+  :group 'beads-agent)
+
+(defun beads-agent--setup-display-buffer ()
+  "Set up `display-buffer-alist' for agent buffers."
+  (add-to-list 'display-buffer-alist
+               `("\\*beads-agent\\[.*\\]\\*"
+                 . ,beads-agent-display-buffer-action)))
+
+;; Set up display-buffer rules when this file is loaded
+(beads-agent--setup-display-buffer)
+
 ;;; JSON Parsing Utilities
 
 (defun beads-agent--extract-json (output)
@@ -791,11 +813,6 @@ are passed through from `beads-agent--continue-start'."
                                 process-environment))
          (default-directory working-dir)
          (agent-type-name (when agent-type (oref agent-type name))))
-    ;; Prepare window layout: if single window, split right so agent appears
-    ;; on the right side. This happens here (after backend selection) to avoid
-    ;; splitting during the "select backend" prompt.
-    (when (one-window-p t)
-      (select-window (split-window-right)))
     (condition-case err
         (let* ((backend-session (beads-agent-backend-start backend issue prompt))
                (session (beads-agent--create-session
