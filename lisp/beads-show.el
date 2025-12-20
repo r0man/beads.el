@@ -389,18 +389,18 @@ ID [P#] [type] STATUS - title."
                    (title (alist-get 'title issue))
                    (issue-status (alist-get 'status issue))
                    (priority (or (alist-get 'priority issue) 2))
-                   (issue-type (or (alist-get 'issue_type issue) "task"))
-                   (id-start (point)))
+                   (issue-type (or (alist-get 'issue_type issue) "task")))
               ;; Format: ID [P#] [type] STATUS - title
               (insert "  ")
-              ;; Insert ID as button
-              (insert id)
-              (make-button id-start (+ id-start 2 (length id))
-                           'issue-id id
-                           'action #'beads-show--button-action
-                           'follow-link t
-                           'help-echo (format "Show %s" id)
-                           'face 'beads-show-sub-issue-id-face)
+              ;; Insert ID as button (capture start AFTER padding)
+              (let ((id-start (point)))
+                (insert id)
+                (make-button id-start (+ id-start (length id))
+                             'issue-id id
+                             'action #'beads-show--button-action
+                             'follow-link t
+                             'help-echo (format "Show %s" id)
+                             'face 'beads-show-sub-issue-id-face))
               ;; Priority
               (insert (format " [P%s]" priority))
               ;; Type
