@@ -74,12 +74,8 @@ Provides async command execution via efrit-do with progress tracking.")
     ((_backend beads-agent-backend-efrit))
   "Check if efrit is available.
 Verifies efrit-do package is loadable and key functions exist."
-  (and (or (featurep 'efrit-do)
-           (require 'efrit-do nil t))
-       (fboundp 'efrit-do)
-       (or (featurep 'efrit-session-core)
-           (require 'efrit-session-core nil t))
-       (fboundp 'efrit-session-active)))
+  (or (featurep 'efrit)
+      (require 'efrit nil t)))
 
 (cl-defmethod beads-agent-backend-start
     ((_backend beads-agent-backend-efrit) _issue prompt)
