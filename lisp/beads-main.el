@@ -88,10 +88,7 @@ Returns cons cell (PROJECT-ROOT . DB-PATH) or nil if not in project."
 
 (defun beads-main--format-project-header ()
   "Format project header for transient menu.
-Returns a propertized string showing project and database info.
-Also checks for worktree daemon warnings."
-  ;; Check for worktree warnings (only warns once per session)
-  (beads--maybe-warn-worktree)
+Returns a propertized string showing project and database info."
   (let ((info (beads-main--get-project-info)))
     (if info
         (let* ((root (car info))

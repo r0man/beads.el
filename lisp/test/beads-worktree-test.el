@@ -257,129 +257,54 @@
       (delete-directory main-repo t)
       (delete-directory worktree t))))
 
-;;; Test beads--maybe-warn-worktree
+;;; Test beads--find-beads-dir worktree preference
 
-(ert-deftest beads-worktree-test-warn-when-all-conditions-met ()
-  "Test beads--maybe-warn-worktree warns when all conditions are met."
+(ert-deftest beads-worktree-test-find-beads-dir-prefers-local-over-main ()
+  "Test beads--find-beads-dir prefers worktree-local .beads over main repo."
   :tags '(:unit)
-  (let ((beads-worktree-warn-daemon t)
-        (beads--worktree-warned nil)
-        (beads-global-no-daemon nil)
-        (warning-shown nil))
-    (cl-letf (((symbol-function 'beads--in-git-worktree-p)
-               (lambda () t))
-              ((symbol-function 'display-warning)
-               (lambda (_type _message &rest _args)
-                 (setq warning-shown t)))
-              ((symbol-function 'getenv)
-               (lambda (_var) nil)))
-      (should (beads--maybe-warn-worktree))
-      (should warning-shown)
-      (should beads--worktree-warned))))
+  (let ((main-repo (make-temp-file "beads-main-" t))
+        (worktree (make-temp-file "beads-worktree-" t))
+        (beads--project-cache (make-hash-table :test 'equal)))
+    (unwind-protect
+        (progn
+          ;; Create .beads in BOTH main repo AND worktree
+          (make-directory (expand-file-name ".beads" main-repo))
+          (make-directory (expand-file-name ".beads" worktree))
+          ;; Create .git file in worktree
+          (with-temp-file (expand-file-name ".git" worktree)
+            (insert (format "gitdir: %s/.git/worktrees/test\n" main-repo)))
+          (let ((default-directory worktree))
+            ;; Should find worktree's .beads, not main repo's
+            (should (equal (beads--find-beads-dir)
+                           (expand-file-name ".beads" worktree)))))
+      ;; Cleanup
+      (delete-directory main-repo t)
+      (delete-directory worktree t))))
 
-(ert-deftest beads-worktree-test-no-warn-when-disabled ()
-  "Test beads--maybe-warn-worktree does not warn when disabled."
+(ert-deftest beads-worktree-test-find-beads-dir-nested-in-worktree ()
+  "Test beads--find-beads-dir finds worktree .beads from nested directory."
   :tags '(:unit)
-  (let ((beads-worktree-warn-daemon nil)
-        (beads--worktree-warned nil)
-        (beads-global-no-daemon nil)
-        (warning-shown nil))
-    (cl-letf (((symbol-function 'beads--in-git-worktree-p)
-               (lambda () t))
-              ((symbol-function 'display-warning)
-               (lambda (_type _message &rest _args)
-                 (setq warning-shown t)))
-              ((symbol-function 'getenv)
-               (lambda (_var) nil)))
-      (should-not (beads--maybe-warn-worktree))
-      (should-not warning-shown))))
-
-(ert-deftest beads-worktree-test-no-warn-when-already-warned ()
-  "Test beads--maybe-warn-worktree does not warn twice."
-  :tags '(:unit)
-  (let ((beads-worktree-warn-daemon t)
-        (beads--worktree-warned t)  ; Already warned
-        (beads-global-no-daemon nil)
-        (warning-shown nil))
-    (cl-letf (((symbol-function 'beads--in-git-worktree-p)
-               (lambda () t))
-              ((symbol-function 'display-warning)
-               (lambda (_type _message &rest _args)
-                 (setq warning-shown t)))
-              ((symbol-function 'getenv)
-               (lambda (_var) nil)))
-      (should-not (beads--maybe-warn-worktree))
-      (should-not warning-shown))))
-
-(ert-deftest beads-worktree-test-no-warn-when-not-worktree ()
-  "Test beads--maybe-warn-worktree does not warn in normal repo."
-  :tags '(:unit)
-  (let ((beads-worktree-warn-daemon t)
-        (beads--worktree-warned nil)
-        (beads-global-no-daemon nil)
-        (warning-shown nil))
-    (cl-letf (((symbol-function 'beads--in-git-worktree-p)
-               (lambda () nil))  ; Not a worktree
-              ((symbol-function 'display-warning)
-               (lambda (_type _message &rest _args)
-                 (setq warning-shown t)))
-              ((symbol-function 'getenv)
-               (lambda (_var) nil)))
-      (should-not (beads--maybe-warn-worktree))
-      (should-not warning-shown))))
-
-(ert-deftest beads-worktree-test-no-warn-when-no-daemon-global ()
-  "Test beads--maybe-warn-worktree does not warn when --no-daemon set."
-  :tags '(:unit)
-  (let ((beads-worktree-warn-daemon t)
-        (beads--worktree-warned nil)
-        (beads-global-no-daemon t)  ; --no-daemon is set
-        (warning-shown nil))
-    (cl-letf (((symbol-function 'beads--in-git-worktree-p)
-               (lambda () t))
-              ((symbol-function 'display-warning)
-               (lambda (_type _message &rest _args)
-                 (setq warning-shown t)))
-              ((symbol-function 'getenv)
-               (lambda (_var) nil)))
-      (should-not (beads--maybe-warn-worktree))
-      (should-not warning-shown))))
-
-(ert-deftest beads-worktree-test-no-warn-when-beads-env-set ()
-  "Test beads--maybe-warn-worktree does not warn when BEADS_NO_DAEMON set."
-  :tags '(:unit)
-  (let ((beads-worktree-warn-daemon t)
-        (beads--worktree-warned nil)
-        (beads-global-no-daemon nil)
-        (warning-shown nil))
-    (cl-letf (((symbol-function 'beads--in-git-worktree-p)
-               (lambda () t))
-              ((symbol-function 'display-warning)
-               (lambda (_type _message &rest _args)
-                 (setq warning-shown t)))
-              ((symbol-function 'getenv)
-               (lambda (var)
-                 (when (string= var "BEADS_NO_DAEMON") "1"))))
-      (should-not (beads--maybe-warn-worktree))
-      (should-not warning-shown))))
-
-(ert-deftest beads-worktree-test-no-warn-when-bd-env-set ()
-  "Test beads--maybe-warn-worktree does not warn when BD_NO_DAEMON set."
-  :tags '(:unit)
-  (let ((beads-worktree-warn-daemon t)
-        (beads--worktree-warned nil)
-        (beads-global-no-daemon nil)
-        (warning-shown nil))
-    (cl-letf (((symbol-function 'beads--in-git-worktree-p)
-               (lambda () t))
-              ((symbol-function 'display-warning)
-               (lambda (_type _message &rest _args)
-                 (setq warning-shown t)))
-              ((symbol-function 'getenv)
-               (lambda (var)
-                 (when (string= var "BD_NO_DAEMON") "1"))))
-      (should-not (beads--maybe-warn-worktree))
-      (should-not warning-shown))))
+  (let ((main-repo (make-temp-file "beads-main-" t))
+        (worktree (make-temp-file "beads-worktree-" t))
+        (beads--project-cache (make-hash-table :test 'equal)))
+    (unwind-protect
+        (progn
+          ;; Create .beads in both places
+          (make-directory (expand-file-name ".beads" main-repo))
+          (make-directory (expand-file-name ".beads" worktree))
+          ;; Create .git file in worktree
+          (with-temp-file (expand-file-name ".git" worktree)
+            (insert (format "gitdir: %s/.git/worktrees/test\n" main-repo)))
+          ;; Create nested directory in worktree
+          (let ((nested-dir (expand-file-name "src/lib/util" worktree)))
+            (make-directory nested-dir t)
+            (let ((default-directory nested-dir))
+              ;; Even from nested dir, should find worktree's .beads
+              (should (equal (beads--find-beads-dir)
+                             (expand-file-name ".beads" worktree))))))
+      ;; Cleanup
+      (delete-directory main-repo t)
+      (delete-directory worktree t))))
 
 ;;; Test beads-worktree-auto-no-daemon
 
