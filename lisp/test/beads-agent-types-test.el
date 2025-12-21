@@ -344,6 +344,132 @@
         (should (> (length (oref type description)) 0)))
     (beads-agent-types-test--teardown)))
 
+;;; Tests for Per-Type Backend Preferences
+
+(defvar beads-agent-types-test--saved-task-backend nil
+  "Saved task backend for tests.")
+(defvar beads-agent-types-test--saved-review-backend nil
+  "Saved review backend for tests.")
+(defvar beads-agent-types-test--saved-plan-backend nil
+  "Saved plan backend for tests.")
+(defvar beads-agent-types-test--saved-qa-backend nil
+  "Saved qa backend for tests.")
+
+(defun beads-agent-types-test--setup-backends ()
+  "Save current backend preferences."
+  (setq beads-agent-types-test--saved-task-backend beads-agent-task-backend)
+  (setq beads-agent-types-test--saved-review-backend beads-agent-review-backend)
+  (setq beads-agent-types-test--saved-plan-backend beads-agent-plan-backend)
+  (setq beads-agent-types-test--saved-qa-backend beads-agent-qa-backend))
+
+(defun beads-agent-types-test--teardown-backends ()
+  "Restore saved backend preferences."
+  (setq beads-agent-task-backend beads-agent-types-test--saved-task-backend)
+  (setq beads-agent-review-backend beads-agent-types-test--saved-review-backend)
+  (setq beads-agent-plan-backend beads-agent-types-test--saved-plan-backend)
+  (setq beads-agent-qa-backend beads-agent-types-test--saved-qa-backend))
+
+(ert-deftest beads-agent-types-test-task-preferred-backend-nil ()
+  "Test Task agent returns nil when no backend preference set."
+  (beads-agent-types-test--setup)
+  (beads-agent-types-test--setup-backends)
+  (unwind-protect
+      (let ((beads-agent-task-backend nil)
+            (type (beads-agent-type-get "task")))
+        (should (null (beads-agent-type-preferred-backend type))))
+    (beads-agent-types-test--teardown-backends)
+    (beads-agent-types-test--teardown)))
+
+(ert-deftest beads-agent-types-test-task-preferred-backend-set ()
+  "Test Task agent returns configured backend preference."
+  (beads-agent-types-test--setup)
+  (beads-agent-types-test--setup-backends)
+  (unwind-protect
+      (let ((beads-agent-task-backend "claude-code-ide")
+            (type (beads-agent-type-get "task")))
+        (should (equal (beads-agent-type-preferred-backend type)
+                       "claude-code-ide")))
+    (beads-agent-types-test--teardown-backends)
+    (beads-agent-types-test--teardown)))
+
+(ert-deftest beads-agent-types-test-review-preferred-backend-nil ()
+  "Test Review agent returns nil when no backend preference set."
+  (beads-agent-types-test--setup)
+  (beads-agent-types-test--setup-backends)
+  (unwind-protect
+      (let ((beads-agent-review-backend nil)
+            (type (beads-agent-type-get "review")))
+        (should (null (beads-agent-type-preferred-backend type))))
+    (beads-agent-types-test--teardown-backends)
+    (beads-agent-types-test--teardown)))
+
+(ert-deftest beads-agent-types-test-review-preferred-backend-set ()
+  "Test Review agent returns configured backend preference."
+  (beads-agent-types-test--setup)
+  (beads-agent-types-test--setup-backends)
+  (unwind-protect
+      (let ((beads-agent-review-backend "claudemacs")
+            (type (beads-agent-type-get "review")))
+        (should (equal (beads-agent-type-preferred-backend type)
+                       "claudemacs")))
+    (beads-agent-types-test--teardown-backends)
+    (beads-agent-types-test--teardown)))
+
+(ert-deftest beads-agent-types-test-plan-preferred-backend-nil ()
+  "Test Plan agent returns nil when no backend preference set."
+  (beads-agent-types-test--setup)
+  (beads-agent-types-test--setup-backends)
+  (unwind-protect
+      (let ((beads-agent-plan-backend nil)
+            (type (beads-agent-type-get "plan")))
+        (should (null (beads-agent-type-preferred-backend type))))
+    (beads-agent-types-test--teardown-backends)
+    (beads-agent-types-test--teardown)))
+
+(ert-deftest beads-agent-types-test-plan-preferred-backend-set ()
+  "Test Plan agent returns configured backend preference."
+  (beads-agent-types-test--setup)
+  (beads-agent-types-test--setup-backends)
+  (unwind-protect
+      (let ((beads-agent-plan-backend "claude-code")
+            (type (beads-agent-type-get "plan")))
+        (should (equal (beads-agent-type-preferred-backend type)
+                       "claude-code")))
+    (beads-agent-types-test--teardown-backends)
+    (beads-agent-types-test--teardown)))
+
+(ert-deftest beads-agent-types-test-qa-preferred-backend-nil ()
+  "Test QA agent returns nil when no backend preference set."
+  (beads-agent-types-test--setup)
+  (beads-agent-types-test--setup-backends)
+  (unwind-protect
+      (let ((beads-agent-qa-backend nil)
+            (type (beads-agent-type-get "qa")))
+        (should (null (beads-agent-type-preferred-backend type))))
+    (beads-agent-types-test--teardown-backends)
+    (beads-agent-types-test--teardown)))
+
+(ert-deftest beads-agent-types-test-qa-preferred-backend-set ()
+  "Test QA agent returns configured backend preference."
+  (beads-agent-types-test--setup)
+  (beads-agent-types-test--setup-backends)
+  (unwind-protect
+      (let ((beads-agent-qa-backend "agent-shell")
+            (type (beads-agent-type-get "qa")))
+        (should (equal (beads-agent-type-preferred-backend type)
+                       "agent-shell")))
+    (beads-agent-types-test--teardown-backends)
+    (beads-agent-types-test--teardown)))
+
+(ert-deftest beads-agent-types-test-custom-preferred-backend-nil ()
+  "Test Custom agent returns nil (no backend preference)."
+  (beads-agent-types-test--setup)
+  (unwind-protect
+      (let ((type (beads-agent-type-get "custom")))
+        ;; Custom type uses default implementation which returns nil
+        (should (null (beads-agent-type-preferred-backend type))))
+    (beads-agent-types-test--teardown)))
+
 (provide 'beads-agent-types-test)
 
 ;;; beads-agent-types-test.el ends here

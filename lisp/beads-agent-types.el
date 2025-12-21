@@ -28,6 +28,40 @@
   :group 'beads
   :prefix "beads-agent-")
 
+;;; Per-Type Backend Preferences
+
+(defcustom beads-agent-task-backend nil
+  "Preferred backend for Task agents.
+If nil, uses `beads-agent-default-backend' or first available.
+Set to a backend name string to prefer a specific backend for Task agents."
+  :type '(choice (const :tag "Use default" nil)
+                 (string :tag "Backend name"))
+  :group 'beads-agent-types)
+
+(defcustom beads-agent-review-backend nil
+  "Preferred backend for Review agents.
+If nil, uses `beads-agent-default-backend' or first available.
+Set to a backend name string to prefer a specific backend for Review agents."
+  :type '(choice (const :tag "Use default" nil)
+                 (string :tag "Backend name"))
+  :group 'beads-agent-types)
+
+(defcustom beads-agent-plan-backend nil
+  "Preferred backend for Plan agents.
+If nil, uses `beads-agent-default-backend' or first available.
+Set to a backend name string to prefer a specific backend for Plan agents."
+  :type '(choice (const :tag "Use default" nil)
+                 (string :tag "Backend name"))
+  :group 'beads-agent-types)
+
+(defcustom beads-agent-qa-backend nil
+  "Preferred backend for QA agents.
+If nil, uses `beads-agent-default-backend' or first available.
+Set to a backend name string to prefer a specific backend for QA agents."
+  :type '(choice (const :tag "Use default" nil)
+                 (string :tag "Backend name"))
+  :group 'beads-agent-types)
+
 (defcustom beads-agent-review-prompt
   "You are a code review agent. Please review the code for this issue.
 
@@ -176,6 +210,10 @@ ISSUE is a beads-issue EIEIO object."
     (format "%s\n\n## Issue: %s\n\n**Title:** %s\n\n**Description:**\n%s"
             beads-agent-type-task--prompt issue-id issue-title issue-desc)))
 
+(cl-defmethod beads-agent-type-preferred-backend ((_type beads-agent-type-task))
+  "Return preferred backend for Task agents."
+  beads-agent-task-backend)
+
 ;;; Review Agent
 
 (defclass beads-agent-type-review (beads-agent-type)
@@ -195,6 +233,10 @@ ISSUE is a beads-issue EIEIO object."
         (issue-desc (or (oref issue description) "")))
     (format "%s\n\n## Issue: %s\n\n**Title:** %s\n\n**Description:**\n%s"
             beads-agent-review-prompt issue-id issue-title issue-desc)))
+
+(cl-defmethod beads-agent-type-preferred-backend ((_type beads-agent-type-review))
+  "Return preferred backend for Review agents."
+  beads-agent-review-backend)
 
 ;;; Plan Agent
 
@@ -216,6 +258,10 @@ ISSUE is a beads-issue EIEIO object."
     (format "%s\n\n## Issue: %s\n\n**Title:** %s\n\n**Description:**\n%s"
             beads-agent-plan-prompt issue-id issue-title issue-desc)))
 
+(cl-defmethod beads-agent-type-preferred-backend ((_type beads-agent-type-plan))
+  "Return preferred backend for Plan agents."
+  beads-agent-plan-backend)
+
 ;;; QA Agent
 
 (defclass beads-agent-type-qa (beads-agent-type)
@@ -234,6 +280,10 @@ ISSUE is a beads-issue EIEIO object."
         (issue-desc (or (oref issue description) "")))
     (format "%s\n\n## Issue: %s\n\n**Title:** %s\n\n**Description:**\n%s"
             beads-agent-qa-prompt issue-id issue-title issue-desc)))
+
+(cl-defmethod beads-agent-type-preferred-backend ((_type beads-agent-type-qa))
+  "Return preferred backend for QA agents."
+  beads-agent-qa-backend)
 
 ;;; Custom Agent
 

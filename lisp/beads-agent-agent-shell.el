@@ -160,25 +160,27 @@ Returns cons cell (BACKEND-SESSION . BUFFER)."
     (cons nil buffer)))
 
 (cl-defmethod beads-agent-backend-stop
-    ((_backend beads-agent-backend-agent-shell) session)
-  "Stop agent-shell SESSION.
+    ((backend beads-agent-backend-agent-shell) session)
+  "Stop agent-shell SESSION using BACKEND.
 Uses standard buffer killing which triggers `agent-shell--clean-up'
 via the buffer-local `kill-buffer-hook'.  The cleanup function handles
-ACP client shutdown, heartbeat termination, and viewport buffer cleanup."
-  (let* ((working-dir (beads-agent-session-working-dir session))
-         (buffers (beads-agent-agent-shell--find-buffers working-dir)))
-    (dolist (buf buffers)
-      (when (buffer-live-p buf)
-        (with-current-buffer buf
-          ;; Optionally interrupt any running request for better UX
-          (condition-case nil
-              (when (and (get-buffer-process buf)
-                         (fboundp 'agent-shell-interrupt))
-                (agent-shell-interrupt t))
-            (error nil))
-          ;; Kill buffer while it's current - agent-shell--clean-up checks
-          ;; (derived-mode-p 'agent-shell-mode) which requires current buffer.
-          (kill-buffer buf))))))
+ACP client shutdown, heartbeat termination, and viewport buffer cleanup.
+
+Uses the stored session buffer for precise cleanup, ensuring only this
+session's buffer is killed even when multiple agents share the same
+working directory."
+  (when-let ((buf (beads-agent-backend-get-buffer backend session)))
+    (when (buffer-live-p buf)
+      (with-current-buffer buf
+        ;; Optionally interrupt any running request for better UX
+        (condition-case nil
+            (when (and (get-buffer-process buf)
+                       (fboundp 'agent-shell-interrupt))
+              (agent-shell-interrupt t))
+          (error nil))
+        ;; Kill buffer while it's current - agent-shell--clean-up checks
+        ;; (derived-mode-p 'agent-shell-mode) which requires current buffer.
+        (kill-buffer buf)))))
 
 (cl-defmethod beads-agent-backend-session-active-p
     ((_backend beads-agent-backend-agent-shell) session)

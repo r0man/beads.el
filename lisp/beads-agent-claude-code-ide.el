@@ -44,14 +44,14 @@
 
 (defun beads-agent-claude-code-ide--find-buffers (dir)
   "Find Claude Code IDE buffers for directory DIR.
-Claude Code IDE buffers are named `*Claude Code: DIRECTORY_NAME*' where
+Claude Code IDE buffers are named `*claude-code[DIRECTORY_NAME]*' where
 DIRECTORY_NAME is the directory basename.
 
 NOTE: This reimplements claude-code-ide's buffer naming convention.
 If upstream changes the format, this function may need updating."
   (let* ((normalized-dir (file-truename (expand-file-name dir)))
          (dir-name (file-name-nondirectory (directory-file-name normalized-dir)))
-         (expected-name (format "*Claude Code: %s*" dir-name)))
+         (expected-name (format "*claude-code[%s]*" dir-name)))
     (seq-filter
      (lambda (buf)
        (string= (buffer-name buf) expected-name))

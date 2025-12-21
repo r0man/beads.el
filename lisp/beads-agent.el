@@ -445,8 +445,23 @@ This is needed because bd daemon doesn't work well across worktrees."
 
 ;;; Backend Selection
 
-(defun beads-agent--select-backend ()
-  "Select backend: use default if set and available, else prompt.
+(defun beads-agent--backend-available-and-get (name)
+  "Return backend with NAME if available, nil otherwise.
+NAME is a backend name string.  Returns the backend object if
+it exists and is available, nil otherwise."
+  (when-let ((backend (beads-agent--get-backend name)))
+    (when (beads-agent-backend-available-p backend)
+      backend)))
+
+(defun beads-agent--select-backend (&optional agent-type)
+  "Select backend using type preference, default, or prompt.
+AGENT-TYPE is an optional `beads-agent-type' object.
+
+Backend selection order:
+1. Type-specific backend (from AGENT-TYPE's preferred-backend method)
+2. Global default (`beads-agent-default-backend')
+3. Prompt user to select from available backends
+
 Returns a beads-agent-backend instance or signals an error.
 
 When prompting, uses rich completion with annotations showing
@@ -461,36 +476,37 @@ To use AI agents, you need:
 4. Ensure `claude' command is in your PATH
 
 See: https://github.com/anthropics/claude-code"))
-    (cond
-     ;; Use default if set and available
-     ((and beads-agent-default-backend
-           (beads-agent--get-backend beads-agent-default-backend)
-           (beads-agent-backend-available-p
-            (beads-agent--get-backend beads-agent-default-backend)))
-      (beads-agent--get-backend beads-agent-default-backend))
-     ;; No default set - always prompt user, even if only one available
-     (t
-      (require 'beads-completion)
-      (require 'beads-custom)
-      (let* ((available-names (mapcar (lambda (b) (oref b name)) available))
-             ;; When showing unavailable backends, don't filter the list
-             ;; (they appear grayed out).  Validate selection after.
-             (predicate (unless beads-completion-show-unavailable-backends
-                          (lambda (cand)
-                            (member (if (consp cand) (car cand) cand)
-                                    available-names))))
-             (choice (beads-completion-read-backend "Select backend: "
-                                                    predicate
-                                                    t))
-             (backend (beads-agent--get-backend choice)))
-        ;; Validate selection when unavailable backends were shown
-        (when (and beads-completion-show-unavailable-backends
-                   (not (beads-agent-backend-available-p backend)))
-          (user-error "Backend '%s' is not available.  %s"
-                      choice
-                      (or (oref backend description)
-                          "Install the required package")))
-        backend)))))
+    (or
+     ;; 1. Try type-specific backend if agent-type provided
+     (when agent-type
+       (when-let ((type-pref (beads-agent-type-preferred-backend agent-type)))
+         (beads-agent--backend-available-and-get type-pref)))
+     ;; 2. Try global default backend
+     (when beads-agent-default-backend
+       (beads-agent--backend-available-and-get beads-agent-default-backend))
+     ;; 3. Prompt user to select
+     (progn
+       (require 'beads-completion)
+       (require 'beads-custom)
+       (let* ((available-names (mapcar (lambda (b) (oref b name)) available))
+              ;; When showing unavailable backends, don't filter the list
+              ;; (they appear grayed out).  Validate selection after.
+              (predicate (unless beads-completion-show-unavailable-backends
+                           (lambda (cand)
+                             (member (if (consp cand) (car cand) cand)
+                                     available-names))))
+              (choice (beads-completion-read-backend "Select backend: "
+                                                     predicate
+                                                     t))
+              (backend (beads-agent--get-backend choice)))
+         ;; Validate selection when unavailable backends were shown
+         (when (and beads-completion-show-unavailable-backends
+                    (not (beads-agent-backend-available-p backend)))
+           (user-error "Backend '%s' is not available.  %s"
+                       choice
+                       (or (oref backend description)
+                           "Install the required package")))
+         backend)))))
 
 ;;;###autoload
 (defun beads-agent-switch-backend (&optional save)
@@ -679,7 +695,7 @@ background with progress messages displayed in the echo area."
          (backend (if backend-name
                       (or (beads-agent--get-backend backend-name)
                           (user-error "Backend not found: %s" backend-name))
-                    (beads-agent--select-backend)))
+                    (beads-agent--select-backend agent-type)))
          (project-dir (beads--find-project-root)))
     ;; Start the async workflow
     (message "Starting %s agent for %s..."

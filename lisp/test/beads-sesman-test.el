@@ -953,5 +953,30 @@ This tests the race condition where buffer is killed between checks."
         (unless (member sesman-session original-sessions)
           (sesman-unregister beads-sesman-system sesman-session))))))
 
+(ert-deftest beads-sesman-test-unregister-handles-missing-session ()
+  "Test that unregister handles case where session is not found by name.
+This can happen if session name changed between registration and
+unregistration (e.g., path normalization differences)."
+  (beads-sesman-test--setup)
+  (unwind-protect
+      (let ((warning-logged nil))
+        (cl-letf (((symbol-function 'sesman-session)
+                   (lambda (_system _name)
+                     ;; Simulate session not found
+                     nil))
+                  ((symbol-function 'sesman-unregister)
+                   (lambda (_system _session)
+                     ;; Should not be called with nil
+                     (error "sesman-unregister called with nil")))
+                  ((symbol-function 'message)
+                   (lambda (fmt &rest args)
+                     (when (string-match-p "session not found" fmt)
+                       (setq warning-logged t)))))
+          ;; Should not error when session not found
+          (beads-sesman--unregister-session beads-sesman-test--mock-session)
+          ;; Should have logged a warning
+          (should warning-logged)))
+    (beads-sesman-test--teardown)))
+
 (provide 'beads-sesman-test)
 ;;; beads-sesman-test.el ends here
