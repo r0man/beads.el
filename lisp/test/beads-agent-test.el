@@ -561,6 +561,375 @@ should have indicators displayed."
                          "/main/repo"))))
     (beads-agent-test--teardown)))
 
+;;; Tests for Directory-Bound Session Accessors
+
+(ert-deftest beads-agent-test-session-project-dir-accessor ()
+  "Test project-dir accessor returns the directory identity."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let ((session (beads-agent--create-session
+                        "bd-123" "mock" "/home/user/projects/myrepo" 'handle)))
+          (should (equal (beads-agent-session-project-dir session)
+                         "/home/user/projects/myrepo"))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-session-current-issue-accessor ()
+  "Test current-issue accessor and setter."
+  (let ((session (beads-agent-session
+                  :id "test#1"
+                  :project-dir "/test/project"
+                  :backend-name "mock"
+                  :started-at "2025-01-01T00:00:00Z")))
+    ;; Initially nil
+    (should (null (beads-agent-session-current-issue session)))
+    ;; Set current issue
+    (beads-agent-session-set-current-issue session "bd-001")
+    (should (equal (beads-agent-session-current-issue session) "bd-001"))
+    ;; Should also add to touched-issues
+    (should (member "bd-001" (beads-agent-session-touched-issues session)))))
+
+(ert-deftest beads-agent-test-session-touched-issues-tracking ()
+  "Test touched-issues accumulates issues correctly."
+  (let ((session (beads-agent-session
+                  :id "test#1"
+                  :project-dir "/test/project"
+                  :backend-name "mock"
+                  :started-at "2025-01-01T00:00:00Z")))
+    ;; Initially empty
+    (should (null (beads-agent-session-touched-issues session)))
+    ;; Add first issue
+    (should (beads-agent-session-add-touched-issue session "bd-001"))
+    (should (equal (beads-agent-session-touched-issues session) '("bd-001")))
+    ;; Add second issue
+    (should (beads-agent-session-add-touched-issue session "bd-002"))
+    (should (member "bd-001" (beads-agent-session-touched-issues session)))
+    (should (member "bd-002" (beads-agent-session-touched-issues session)))
+    ;; Adding duplicate returns nil
+    (should-not (beads-agent-session-add-touched-issue session "bd-001"))))
+
+(ert-deftest beads-agent-test-session-proj-name-accessor ()
+  "Test proj-name accessor for project display name."
+  (let ((session (beads-agent-session
+                  :id "myproject#1"
+                  :project-dir "/home/user/myproject"
+                  :proj-name "myproject"
+                  :backend-name "mock"
+                  :started-at "2025-01-01T00:00:00Z")))
+    (should (equal (beads-agent-session-project-name session) "myproject"))))
+
+(ert-deftest beads-agent-test-session-instance-number-accessor ()
+  "Test instance-number accessor."
+  (let ((session (beads-agent-session
+                  :id "myproject#3"
+                  :project-dir "/test/project"
+                  :instance-number 3
+                  :backend-name "mock"
+                  :started-at "2025-01-01T00:00:00Z")))
+    (should (= (beads-agent-session-instance-number session) 3))))
+
+(ert-deftest beads-agent-test-session-issue-id-backward-compat ()
+  "Test issue-id accessor for backward compatibility."
+  (let ((session (beads-agent-session
+                  :id "test#1"
+                  :project-dir "/test/project"
+                  :issue-id "legacy-issue"
+                  :backend-name "mock"
+                  :started-at "2025-01-01T00:00:00Z")))
+    ;; When current-issue is nil, falls back to issue-id
+    (should (equal (beads-agent-session-issue-id session) "legacy-issue"))
+    ;; When current-issue is set, returns current-issue
+    (beads-agent-session-set-current-issue session "new-issue")
+    (should (equal (beads-agent-session-issue-id session) "new-issue"))))
+
+(ert-deftest beads-agent-test-derive-project-name ()
+  "Test project name derivation from directory."
+  (should (equal (beads-agent--derive-project-name "/home/user/projects/beads.el")
+                 "beads.el"))
+  (should (equal (beads-agent--derive-project-name "/home/user/my-project/")
+                 "my-project"))
+  (should (equal (beads-agent--derive-project-name "~/workspace/foo")
+                 "foo")))
+
+(ert-deftest beads-agent-test-create-project-session ()
+  "Test directory-bound project session creation."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let ((session (beads-agent--create-project-session
+                        "/home/user/myproject" "mock" 'handle "bd-001" "Task")))
+          ;; Session ID uses project name, not issue
+          (should (string-match-p "^myproject#[0-9]+$" (oref session id)))
+          ;; Project name is set
+          (should (equal (beads-agent-session-project-name session) "myproject"))
+          ;; Instance number is set
+          (should (= (beads-agent-session-instance-number session) 1))
+          ;; current-issue is set from initial-issue
+          (should (equal (beads-agent-session-current-issue session) "bd-001"))
+          ;; touched-issues contains initial-issue
+          (should (member "bd-001" (beads-agent-session-touched-issues session)))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-create-project-session-no-initial-issue ()
+  "Test project session creation without initial issue."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let ((session (beads-agent--create-project-session
+                        "/home/user/myproject" "mock" 'handle)))
+          ;; Session ID uses project name
+          (should (string-match-p "^myproject#[0-9]+$" (oref session id)))
+          ;; No current-issue
+          (should (null (beads-agent-session-current-issue session)))
+          ;; No touched-issues
+          (should (null (beads-agent-session-touched-issues session)))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-generate-project-session-id ()
+  "Test project session ID generation."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        ;; First session for project
+        (let ((id (beads-agent--generate-project-session-id "/home/user/beads.el")))
+          (should (equal id "beads.el#1"))))
+    (beads-agent-test--teardown)))
+
+;;; Tests for Directory-Bound Buffer Naming
+
+(ert-deftest beads-agent-test-generate-project-buffer-name ()
+  "Test directory-bound buffer name generation."
+  (should (equal (beads-agent--generate-project-buffer-name "beads.el" 1)
+                 "*beads-agent[beads.el][#1]*"))
+  (should (equal (beads-agent--generate-project-buffer-name "my-project" 3)
+                 "*beads-agent[my-project][#3]*")))
+
+(ert-deftest beads-agent-test-generate-buffer-name-for-project-session ()
+  "Test buffer name generation from session object."
+  (let ((session (beads-agent-session
+                  :id "beads.el#1"
+                  :project-dir "/home/user/beads.el"
+                  :proj-name "beads.el"
+                  :instance-number 1
+                  :backend-name "mock"
+                  :started-at "2025-01-01T00:00:00Z")))
+    (should (equal (beads-agent--generate-buffer-name-for-project-session session)
+                   "*beads-agent[beads.el][#1]*"))))
+
+(ert-deftest beads-agent-test-parse-project-buffer-name ()
+  "Test parsing directory-bound buffer names."
+  (let ((parsed (beads-agent--parse-project-buffer-name
+                 "*beads-agent[beads.el][#1]*")))
+    (should (equal (plist-get parsed :project-name) "beads.el"))
+    (should (= (plist-get parsed :instance-n) 1)))
+  ;; Invalid format returns nil
+  (should (null (beads-agent--parse-project-buffer-name "invalid")))
+  ;; Legacy format doesn't match
+  (should (null (beads-agent--parse-project-buffer-name
+                 "*beads-agent[bd-42][Task#1]*"))))
+
+(ert-deftest beads-agent-test-project-buffer-name-p ()
+  "Test predicate for directory-bound buffer names."
+  ;; Directory-bound format matches
+  (should (beads-agent--project-buffer-name-p "*beads-agent[beads.el][#1]*"))
+  ;; Legacy format doesn't match
+  (should-not (beads-agent--project-buffer-name-p "*beads-agent[bd-42][Task#1]*"))
+  ;; Invalid names don't match
+  (should-not (beads-agent--project-buffer-name-p nil))
+  (should-not (beads-agent--project-buffer-name-p "*scratch*")))
+
+(ert-deftest beads-agent-test-buffer-name-p-both-formats ()
+  "Test that buffer-name-p matches both directory-bound and legacy formats."
+  ;; Directory-bound format matches
+  (should (beads-agent--buffer-name-p "*beads-agent[beads.el][#1]*"))
+  ;; Legacy format matches
+  (should (beads-agent--buffer-name-p "*beads-agent[bd-42][Task#1]*"))
+  ;; Invalid names don't match
+  (should-not (beads-agent--buffer-name-p nil))
+  (should-not (beads-agent--buffer-name-p "*scratch*")))
+
+;;; Tests for Focus-Issue Commands
+
+(ert-deftest beads-agent-test-focus-issue-updates-session ()
+  "Test that focus-issue command updates session correctly."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        ;; Create a project session
+        (let ((session (beads-agent--create-project-session
+                        "/home/user/myproject" "mock" 'handle)))
+          ;; Add to mock storage
+          (push (list (oref session id) 'handle session)
+                beads-agent-test--sesman-sessions)
+          ;; Focus on an issue
+          (cl-letf (((symbol-function 'beads--find-project-root)
+                     (lambda () "/home/user/myproject")))
+            (beads-agent-focus-issue "bd-001")
+            ;; Verify current-issue is set
+            (should (equal (beads-agent-session-current-issue session) "bd-001"))
+            ;; Verify touched-issues contains the issue
+            (should (member "bd-001" (beads-agent-session-touched-issues session))))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-clear-focus-clears-current-issue ()
+  "Test that clear-focus command clears current-issue."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        ;; Create a project session with initial issue
+        (let ((session (beads-agent--create-project-session
+                        "/home/user/myproject" "mock" 'handle "bd-001")))
+          ;; Add to mock storage
+          (push (list (oref session id) 'handle session)
+                beads-agent-test--sesman-sessions)
+          ;; Clear focus
+          (cl-letf (((symbol-function 'beads--find-project-root)
+                     (lambda () "/home/user/myproject")))
+            (beads-agent-clear-focus)
+            ;; Verify current-issue is nil
+            (should (null (beads-agent-session-current-issue session)))
+            ;; Verify touched-issues still contains the original issue
+            (should (member "bd-001" (beads-agent-session-touched-issues session))))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-show-touched-reports-issues ()
+  "Test that show-touched command reports touched issues."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        ;; Create a project session with touched issues
+        (let ((session (beads-agent--create-project-session
+                        "/home/user/myproject" "mock" 'handle "bd-001")))
+          ;; Add more touched issues
+          (beads-agent-session-add-touched-issue session "bd-002")
+          (beads-agent-session-add-touched-issue session "bd-003")
+          ;; Add to mock storage
+          (push (list (oref session id) 'handle session)
+                beads-agent-test--sesman-sessions)
+          ;; Show touched - verify it doesn't error
+          (cl-letf (((symbol-function 'beads--find-project-root)
+                     (lambda () "/home/user/myproject")))
+            ;; Capture the message output
+            (let ((messages nil))
+              (cl-letf (((symbol-function 'message)
+                         (lambda (format-string &rest args)
+                           (setq messages (apply #'format format-string args)))))
+                (beads-agent-show-touched)
+                ;; Verify message contains touched issues
+                (should (string-match-p "bd-001" messages))
+                (should (string-match-p "bd-002" messages)))))))
+    (beads-agent-test--teardown)))
+
+;;; Integration Tests for Directory-Bound Agents
+
+(ert-deftest beads-agent-test-session-keyed-by-project ()
+  "Session identity is project directory, not issue."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let ((session (beads-agent--create-project-session
+                        "/home/user/beads.el" "mock" 'handle "bd-42")))
+          ;; Session ID is project-name#N
+          (should (string-match-p "^beads.el#" (oref session id)))
+          ;; Project directory is set correctly
+          (should (string-suffix-p "beads.el" (oref session project-dir)))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-multiple-instances-same-project ()
+  "Multiple starts in same project increment instance number."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        ;; Start first session
+        (let ((session1 (beads-agent--create-project-session
+                         "/home/user/beads.el" "mock" 'handle "bd-42")))
+          ;; Add to mock storage so second session sees it
+          (push (list (oref session1 id) 'handle session1)
+                beads-agent-test--sesman-sessions)
+          ;; Start second session in same project
+          (let ((session2 (beads-agent--create-project-session
+                           "/home/user/beads.el" "mock" 'handle "bd-43")))
+            ;; Instance numbers should be different
+            (should (= 1 (oref session1 instance-number)))
+            (should (= 2 (oref session2 instance-number)))
+            ;; Session IDs should reflect this
+            (should (equal "beads.el#1" (oref session1 id)))
+            (should (equal "beads.el#2" (oref session2 id))))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-focus-switch-tracks-all-issues ()
+  "Agent tracks all issues it has focused on."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        ;; Start with focus on bd-42
+        (let ((session (beads-agent--create-project-session
+                        "/home/user/beads.el" "mock" 'handle "bd-42")))
+          ;; Initial state
+          (should (equal "bd-42" (beads-agent-session-current-issue session)))
+          (should (member "bd-42" (beads-agent-session-touched-issues session)))
+          ;; Switch to bd-43
+          (beads-agent-session-set-current-issue session "bd-43")
+          ;; Current changed
+          (should (equal "bd-43" (beads-agent-session-current-issue session)))
+          ;; Both tracked
+          (should (member "bd-42" (beads-agent-session-touched-issues session)))
+          (should (member "bd-43" (beads-agent-session-touched-issues session)))
+          ;; Switch to bd-44
+          (beads-agent-session-set-current-issue session "bd-44")
+          ;; All three tracked
+          (should (= 3 (length (beads-agent-session-touched-issues session))))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-project-sessions-isolated ()
+  "Different projects have independent sessions."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        ;; Session in project A
+        (let ((session-a (beads-agent--create-project-session
+                          "/home/user/project-a" "mock" 'handle "bd-1")))
+          (push (list (oref session-a id) 'handle session-a)
+                beads-agent-test--sesman-sessions)
+          ;; Session in project B
+          (let ((session-b (beads-agent--create-project-session
+                            "/home/user/project-b" "mock" 'handle "bd-2")))
+            ;; Both should have instance #1 (independent)
+            (should (= 1 (oref session-a instance-number)))
+            (should (= 1 (oref session-b instance-number)))
+            ;; Different project names
+            (should (equal "project-a" (oref session-a proj-name)))
+            (should (equal "project-b" (oref session-b proj-name))))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-buffer-name-uses-project ()
+  "Buffer names use project name, not issue ID."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        (let ((session (beads-agent--create-project-session
+                        "/home/user/beads.el" "mock" 'handle "bd-42")))
+          (let ((buffer-name (beads-agent--generate-buffer-name-for-project-session session)))
+            ;; Buffer name contains project name
+            (should (string-match-p "beads.el" buffer-name))
+            ;; Buffer name does NOT contain issue ID
+            (should-not (string-match-p "bd-42" buffer-name))
+            ;; Format is correct
+            (should (equal "*beads-agent[beads.el][#1]*" buffer-name)))))
+    (beads-agent-test--teardown)))
+
 ;;; Tests for Worktree Environment
 
 (ert-deftest beads-agent-test-setup-worktree-environment ()
