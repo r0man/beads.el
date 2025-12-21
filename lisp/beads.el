@@ -249,15 +249,14 @@ Returns the main repository path, or nil if not in a worktree or on error."
 
 (defun beads--find-beads-dir (&optional directory)
   "Find .beads directory starting from DIRECTORY.
-If DIRECTORY is nil, uses current buffer's directory or project root.
+If DIRECTORY is nil, uses `default-directory'.
 Returns the path to .beads directory or nil if not found.
 
 Search order:
-1. Walk up from DIRECTORY looking for .beads (normal case)
-2. If in a git worktree, check the main repository for .beads"
-  (let* ((start-dir (or directory
-                        (beads--find-project-root)
-                        default-directory))
+1. Walk up from DIRECTORY/`default-directory' looking for .beads
+   (ensures worktree-local .beads is found before main repo's)
+2. If not found and in a git worktree, check the main repository"
+  (let* ((start-dir (or directory default-directory))
          (cached (gethash start-dir beads--project-cache)))
     (if cached
         cached
@@ -280,29 +279,6 @@ Returns nil if auto-discovery should be used."
   (or beads-database-path
       (when-let* ((beads-dir (beads--find-beads-dir)))
         (car (directory-files beads-dir t "\\.db\\'")))))
-
-;;; Worktree Warning
-
-(defvar beads--worktree-warned nil
-  "Non-nil if worktree daemon warning has been shown this session.")
-
-(defun beads--maybe-warn-worktree ()
-  "Display warning if in worktree without --no-daemon protection.
-The warning is only shown once per session to avoid being intrusive.
-Returns non-nil if a warning was displayed."
-  (when (and beads-worktree-warn-daemon
-             (not beads--worktree-warned)
-             (beads--in-git-worktree-p)
-             (not beads-global-no-daemon)
-             (not (getenv "BEADS_NO_DAEMON"))
-             (not (getenv "BD_NO_DAEMON")))
-    (setq beads--worktree-warned t)
-    (display-warning
-     'beads
-     "Git worktree detected! Daemon may commit to wrong branch.
-Consider: M-x beads RET then 'O n' to set --no-daemon"
-     :warning)
-    t))
 
 ;;; Process Execution
 
