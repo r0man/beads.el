@@ -137,13 +137,17 @@ Returns cons cell (BACKEND-SESSION . BUFFER)."
         (error
          (error "Failed to start claude-code-ide: %s"
                 (error-message-string err))))
-      ;; Get the buffer - try multiple strategies:
-      ;; 1. Search by expected name pattern
+      ;; Get the buffer - wait for it with multiple strategies:
+      ;; 1. Search by expected name pattern with retry
       ;; 2. Use current buffer if it changed and looks like a Claude buffer
-      (setq buffer (or (car (beads-agent-claude-code-ide--find-buffers working-dir))
-                       (and (not (eq (current-buffer) orig-buffer))
-                            (string-prefix-p "*Claude Code:" (buffer-name))
-                            (current-buffer)))))
+      (setq buffer (beads-agent--wait-for-buffer
+                    (lambda ()
+                      (or (car (beads-agent-claude-code-ide--find-buffers
+                                working-dir))
+                          (and (not (eq (current-buffer) orig-buffer))
+                               (string-prefix-p "*Claude Code:" (buffer-name))
+                               (current-buffer))))
+                    2.0)))
     ;; Get MCP session handle (may be nil if not yet connected)
     (when (fboundp 'claude-code-ide-mcp--get-session-for-project)
       (condition-case nil

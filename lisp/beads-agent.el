@@ -682,36 +682,39 @@ AGENT-TYPE is an optional `beads-agent-type' instance."
   (beads-agent--fetch-issue-async
    issue-id
    (lambda (issue)
-     ;; Restore default-directory for async callbacks.
-     ;; Process sentinels run with arbitrary default-directory, but
-     ;; worktree functions need the project directory for git commands.
-     (let* ((default-directory project-dir)
-            ;; Build prompt: agent-type takes precedence, then explicit prompt,
-            ;; then default issue-based prompt
-            (effective-prompt
-             (cond
-              ;; Agent type builds its own prompt
-              (agent-type
-               (beads-agent-type-build-prompt agent-type issue))
-              ;; Explicit prompt provided
-              (prompt prompt)
-              ;; Default: build from issue
-              (t (beads-agent--build-prompt issue)))))
-       ;; Step 2: Setup worktree if needed (async)
-       (if beads-agent-use-worktrees
-           (beads-agent--ensure-worktree-async
-            issue-id
-            (lambda (success result)
-              ;; Also restore here for nested async callbacks
-              (let ((default-directory project-dir))
-                (if success
-                    ;; Step 3: Update status (async)
-                    (beads-agent--continue-start
-                     issue-id backend project-dir result effective-prompt issue agent-type)
-                  (message "Failed to create worktree: %s" result)))))
-         ;; No worktree, continue directly
-         (beads-agent--continue-start
-          issue-id backend project-dir nil effective-prompt issue agent-type))))))
+     ;; Handle fetch failure - issue is nil when fetch or parse failed
+     (if (null issue)
+         (message "Cannot start agent: failed to fetch issue %s" issue-id)
+       ;; Restore default-directory for async callbacks.
+       ;; Process sentinels run with arbitrary default-directory, but
+       ;; worktree functions need the project directory for git commands.
+       (let* ((default-directory project-dir)
+              ;; Build prompt: agent-type takes precedence, then explicit prompt,
+              ;; then default issue-based prompt
+              (effective-prompt
+               (cond
+                ;; Agent type builds its own prompt
+                (agent-type
+                 (beads-agent-type-build-prompt agent-type issue))
+                ;; Explicit prompt provided
+                (prompt prompt)
+                ;; Default: build from issue
+                (t (beads-agent--build-prompt issue)))))
+         ;; Step 2: Setup worktree if needed (async)
+         (if beads-agent-use-worktrees
+             (beads-agent--ensure-worktree-async
+              issue-id
+              (lambda (success result)
+                ;; Also restore here for nested async callbacks
+                (let ((default-directory project-dir))
+                  (if success
+                      ;; Step 3: Update status (async)
+                      (beads-agent--continue-start
+                       issue-id backend project-dir result effective-prompt issue agent-type)
+                    (message "Failed to create worktree: %s" result)))))
+           ;; No worktree, continue directly
+           (beads-agent--continue-start
+            issue-id backend project-dir nil effective-prompt issue agent-type)))))))
 
 (defun beads-agent--continue-start (issue-id backend project-dir worktree-dir
                                             prompt issue agent-type)
@@ -745,8 +748,10 @@ CALLBACK receives a beads-issue object."
                          (buffer-string))))
            (kill-buffer output-buffer)
            (if (not (zerop exit-code))
-               (message "Failed to fetch issue %s (exit %d): %s"
-                        issue-id exit-code (string-trim output))
+               (progn
+                 (message "Failed to fetch issue %s (exit %d): %s"
+                          issue-id exit-code (string-trim output))
+                 (funcall callback nil))
              (condition-case err
                  (let* ((json-object-type 'alist)
                         (json-array-type 'vector)
@@ -759,7 +764,8 @@ CALLBACK receives a beads-issue object."
                         (issue (beads--parse-issue issue-data)))
                    (funcall callback issue))
                (error
-                (message "Failed to parse issue: %s" (error-message-string err)))))))))))
+                (message "Failed to parse issue: %s" (error-message-string err))
+                (funcall callback nil))))))))))
 
 (defun beads-agent--rename-and-store-buffer (session buffer)
   "Rename BUFFER to beads format and store in SESSION.

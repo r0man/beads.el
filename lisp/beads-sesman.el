@@ -199,17 +199,22 @@ to clean up the session if the buffer is killed manually."
     (sesman-link-session beads-sesman-system sesman-session 'project
                          (oref beads-session project-dir))
     ;; Link to agent buffer if available
+    ;; Note: We check buffer-live-p twice to handle potential race conditions
+    ;; where the buffer could be killed between checks and operations.
     (when-let* ((backend (beads-agent--get-backend (oref beads-session backend-name)))
                 (buffer (beads-agent-backend-get-buffer backend beads-session)))
       (when (buffer-live-p buffer)
         (sesman-link-session beads-sesman-system sesman-session 'buffer buffer)
         ;; Set up buffer for session management
-        (with-current-buffer buffer
-          (setq-local sesman-system beads-sesman-system)
-          ;; Track session ID for cleanup on buffer kill
-          (setq-local beads-sesman--buffer-session-id (oref beads-session id))
-          ;; Add kill-buffer-hook to clean up session when buffer is killed
-          (add-hook 'kill-buffer-hook #'beads-sesman--buffer-kill-handler nil t))))))
+        ;; Re-check buffer-live-p to handle race where buffer is killed
+        ;; between sesman-link-session and with-current-buffer
+        (when (buffer-live-p buffer)
+          (with-current-buffer buffer
+            (setq-local sesman-system beads-sesman-system)
+            ;; Track session ID for cleanup on buffer kill
+            (setq-local beads-sesman--buffer-session-id (oref beads-session id))
+            ;; Add kill-buffer-hook to clean up session when buffer is killed
+            (add-hook 'kill-buffer-hook #'beads-sesman--buffer-kill-handler nil t)))))))
 
 (defun beads-sesman--unregister-session (beads-session)
   "Unregister BEADS-SESSION from sesman.

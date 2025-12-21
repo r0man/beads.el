@@ -879,5 +879,51 @@ ensuring the real cleanup path is exercised."
         (unless (member sesman-session original-sessions)
           (sesman-unregister beads-sesman-system sesman-session))))))
 
+(ert-deftest beads-sesman-test-register-handles-buffer-killed-during-registration ()
+  "Test that registration handles buffer killed during the process.
+This tests the race condition where buffer is killed between checks."
+  (let* ((original-sessions (copy-sequence (sesman-sessions beads-sesman-system)))
+         (original-agent-sessions (copy-sequence (beads-agent--get-all-sessions)))
+         (test-buffer (generate-new-buffer "*test-race*"))
+         (buffer-live-check-count 0)
+         (original-buffer-live-p (symbol-function 'buffer-live-p)))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-agent--get-backend)
+                   (lambda (_name) 'mock-backend))
+                  ((symbol-function 'beads-agent-backend-get-buffer)
+                   (lambda (_backend _session) test-buffer))
+                  ;; Mock buffer-live-p to kill buffer on second call
+                  ;; (simulating race condition)
+                  ((symbol-function 'buffer-live-p)
+                   (lambda (buf)
+                     (when (eq buf test-buffer)
+                       (cl-incf buffer-live-check-count)
+                       (when (= buffer-live-check-count 2)
+                         ;; Kill buffer on second check to simulate race
+                         (with-current-buffer buf
+                           (let ((kill-buffer-hook nil)) ; Prevent hook
+                             (set-buffer-modified-p nil)))
+                         (kill-buffer buf)))
+                     (funcall original-buffer-live-p buf))))
+          ;; Create session - should not error even though buffer dies
+          (let ((session (beads-agent--create-session
+                          "race-test" "mock" "/tmp/project" 'handle)))
+            ;; Session should still be created
+            (should session)
+            (should (beads-agent--get-session (oref session id)))
+            ;; But buffer should be dead
+            (should-not (buffer-live-p test-buffer))
+            ;; Second check should have been made (our mock was called)
+            (should (>= buffer-live-check-count 2))))
+      ;; Cleanup
+      (when (buffer-live-p test-buffer)
+        (kill-buffer test-buffer))
+      (dolist (session (beads-agent--get-all-sessions))
+        (unless (member session original-agent-sessions)
+          (beads-agent--destroy-session (oref session id))))
+      (dolist (sesman-session (sesman-sessions beads-sesman-system))
+        (unless (member sesman-session original-sessions)
+          (sesman-unregister beads-sesman-system sesman-session))))))
+
 (provide 'beads-sesman-test)
 ;;; beads-sesman-test.el ends here

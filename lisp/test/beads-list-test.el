@@ -1153,5 +1153,45 @@ Tests that the preview command shows the bd command that would be executed."
 ;; (beads-list-test-transient-menu-displays, beads-list-test-transient-menu-executes).
 ;; Filter functionality is tested via beads-list--parse-transient-args unit tests.
 
+;;; Agent Indicator Formatting Tests
+
+(ert-deftest beads-list-test-format-agent-indicator-nil-type-name ()
+  "Test that nil type-name produces fallback indicator."
+  (let ((result (beads-list--format-agent-indicator nil 1 'beads-list-agent-working)))
+    ;; Should use "●" as fallback when type-name is nil
+    (should (stringp result))
+    (should (string-match-p "●" result))
+    ;; Face should be applied
+    (should (eq (get-text-property 0 'face result) 'beads-list-agent-working))))
+
+(ert-deftest beads-list-test-format-agent-indicator-valid-type-name ()
+  "Test that valid type-name produces first letter indicator."
+  (let ((result (beads-list--format-agent-indicator "Task" 1 'beads-list-agent-working)))
+    ;; Should use "T" from "Task"
+    (should (string-match-p "T" result))
+    ;; Should include instance number
+    (should (string-match-p "#1" result))))
+
+(ert-deftest beads-list-test-format-agent-indicator-brief-mode ()
+  "Test that brief mode omits instance number."
+  (let ((result (beads-list--format-agent-indicator "Review" 2 'beads-list-agent-finished t)))
+    ;; Should just be "R" in brief mode
+    (should (equal result (propertize "R" 'face 'beads-list-agent-finished)))))
+
+(ert-deftest beads-list-test-format-agent-indicator-nil-instance ()
+  "Test that nil instance number produces letter-only indicator."
+  (let ((result (beads-list--format-agent-indicator "QA" nil 'beads-list-agent-failed)))
+    ;; Should just be "Q" when instance is nil
+    (should (string-match-p "Q" result))
+    (should-not (string-match-p "#" result))))
+
+(ert-deftest beads-list-test-format-agent-indicator-nil-both ()
+  "Test that nil type-name with nil instance produces fallback."
+  (let ((result (beads-list--format-agent-indicator nil nil 'beads-list-agent-working)))
+    ;; Should use "●" fallback
+    (should (string-match-p "●" result))
+    ;; No instance number
+    (should-not (string-match-p "#" result))))
+
 (provide 'beads-list-test)
 ;;; beads-list-test.el ends here

@@ -131,8 +131,13 @@ Returns cons cell (BACKEND-SESSION . BUFFER)."
     (condition-case err
         (progn
           (claude-code)
-          ;; Get the buffer that was just created
-          (setq buffer (car (beads-agent-claude-code--find-buffers working-dir))))
+          ;; Wait for the buffer - handles race where buffer isn't created yet
+          (setq buffer (beads-agent--wait-for-buffer
+                        (lambda ()
+                          (car (beads-agent-claude-code--find-buffers working-dir)))
+                        2.0))  ; 2 second timeout should be plenty
+          (unless buffer
+            (error "Timeout waiting for claude-code buffer")))
       (error
        (error "Failed to start claude-code: %s"
               (error-message-string err))))
@@ -151,16 +156,15 @@ Explicitly kills the session buffer since beads renames it and
       (kill-buffer buffer))))
 
 (cl-defmethod beads-agent-backend-session-active-p
-    ((_backend beads-agent-backend-claude-code) session)
-  "Check if claude-code SESSION is active.
-Returns non-nil if the Claude buffer for the session's directory exists
-and has a live process."
-  (let* ((working-dir (beads-agent-session-working-dir session))
-         (buffers (beads-agent-claude-code--find-buffers working-dir)))
-    (and buffers
-         (buffer-live-p (car buffers))
+    ((backend beads-agent-backend-claude-code) session)
+  "Check if claude-code SESSION is active using BACKEND.
+Returns non-nil if the session buffer exists, is live, and has an
+active process.  Uses the stored session buffer rather than searching
+by name pattern, since the buffer is renamed after creation."
+  (when-let ((buffer (beads-agent-backend-get-buffer backend session)))
+    (and (buffer-live-p buffer)
          ;; Check if buffer has an active process
-         (get-buffer-process (car buffers)))))
+         (get-buffer-process buffer))))
 
 (cl-defmethod beads-agent-backend-switch-to-buffer
     ((backend beads-agent-backend-claude-code) session)

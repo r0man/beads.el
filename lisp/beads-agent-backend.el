@@ -329,6 +329,28 @@ backends including those that are currently unavailable."
   (mapcar (lambda (b) (oref b name))
           (beads-agent--get-available-backends)))
 
+;;; Buffer Acquisition Helpers
+
+(defun beads-agent--wait-for-buffer (finder &optional timeout interval)
+  "Wait for FINDER function to return a non-nil buffer.
+FINDER is called repeatedly until it returns a buffer or TIMEOUT
+seconds elapse.  TIMEOUT defaults to 5 seconds.  INTERVAL is the
+delay between retries, defaulting to 0.1 seconds.
+
+Returns the buffer if found, nil if timed out.
+
+This handles the race condition where backend processes may not
+have created their buffer immediately after being spawned."
+  (let* ((timeout-secs (or timeout 5.0))
+         (interval-secs (or interval 0.1))
+         (deadline (+ (float-time) timeout-secs))
+         (buffer nil))
+    (while (and (null buffer) (< (float-time) deadline))
+      (setq buffer (funcall finder))
+      (unless buffer
+        (sit-for interval-secs)))
+    buffer))
+
 ;;; Session Management Functions
 ;;
 ;; Sessions are stored in sesman (via beads-sesman.el hook handler).
