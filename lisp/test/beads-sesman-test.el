@@ -978,5 +978,562 @@ unregistration (e.g., path normalization differences)."
           (should warning-logged)))
     (beads-sesman-test--teardown)))
 
+;;; =========================================================================
+;;; Worktree Session Tests (beads.el-f25t)
+;;; =========================================================================
+;;
+;; These tests verify the beads-worktree-session EIEIO class which groups
+;; beads buffers by project directory.  Key principle: Directory is identity,
+;; branch is metadata.
+
+(defun beads-sesman-test--worktree-setup ()
+  "Set up worktree session tests."
+  (setq beads-sesman--worktree-sessions nil))
+
+(defun beads-sesman-test--worktree-teardown ()
+  "Tear down worktree session tests."
+  (setq beads-sesman--worktree-sessions nil))
+
+;;; Tests for beads-worktree-session class
+
+(ert-deftest beads-sesman-worktree-session-class-instantiation ()
+  "Test beads-worktree-session class can be instantiated."
+  (let ((session (beads-worktree-session
+                  :id "~/code/beads.el"
+                  :project-dir "/home/user/code/beads.el"
+                  :proj-name "beads.el"
+                  :branch "main")))
+    (should (beads-worktree-session-p session))
+    (should (equal (oref session id) "~/code/beads.el"))
+    (should (equal (oref session project-dir) "/home/user/code/beads.el"))
+    (should (equal (oref session proj-name) "beads.el"))
+    (should (equal (oref session branch) "main"))
+    (should (null (oref session buffers)))
+    (should (null (oref session agent-sessions)))))
+
+(ert-deftest beads-sesman-worktree-session-optional-branch ()
+  "Test beads-worktree-session can be created without branch."
+  (let ((session (beads-worktree-session
+                  :id "~/code/project"
+                  :project-dir "/home/user/code/project"
+                  :proj-name "project")))
+    (should (beads-worktree-session-p session))
+    (should (null (oref session branch)))))
+
+;;; Tests for beads-worktree-session-empty-p
+
+(ert-deftest beads-sesman-worktree-session-empty-p-new-session ()
+  "Test empty-p returns t for new session with no buffers or agents."
+  (let ((session (beads-worktree-session
+                  :id "test"
+                  :project-dir "/tmp/test"
+                  :proj-name "test")))
+    (should (beads-worktree-session-empty-p session))))
+
+(ert-deftest beads-sesman-worktree-session-empty-p-with-buffers ()
+  "Test empty-p returns nil when session has buffers."
+  (let ((session (beads-worktree-session
+                  :id "test"
+                  :project-dir "/tmp/test"
+                  :proj-name "test"
+                  :buffers (list (current-buffer)))))
+    (should-not (beads-worktree-session-empty-p session))))
+
+(ert-deftest beads-sesman-worktree-session-empty-p-with-agents ()
+  "Test empty-p returns nil when session has agent sessions."
+  (let ((session (beads-worktree-session
+                  :id "test"
+                  :project-dir "/tmp/test"
+                  :proj-name "test"
+                  :agent-sessions (list 'mock-agent))))
+    (should-not (beads-worktree-session-empty-p session))))
+
+;;; Tests for beads-worktree-session buffer management
+
+(ert-deftest beads-sesman-worktree-session-add-buffer ()
+  "Test adding buffer to session."
+  (let* ((test-buffer (generate-new-buffer "*test*"))
+         (session (beads-worktree-session
+                   :id "test"
+                   :project-dir "/tmp/test"
+                   :proj-name "test")))
+    (unwind-protect
+        (progn
+          ;; First add should return t
+          (should (beads-worktree-session-add-buffer session test-buffer))
+          (should (memq test-buffer (oref session buffers)))
+          ;; Second add should return nil (already present)
+          (should-not (beads-worktree-session-add-buffer session test-buffer))
+          (should (= 1 (length (oref session buffers)))))
+      (kill-buffer test-buffer))))
+
+(ert-deftest beads-sesman-worktree-session-remove-buffer ()
+  "Test removing buffer from session."
+  (let* ((test-buffer (generate-new-buffer "*test*"))
+         (session (beads-worktree-session
+                   :id "test"
+                   :project-dir "/tmp/test"
+                   :proj-name "test"
+                   :buffers (list test-buffer))))
+    (unwind-protect
+        (progn
+          ;; Remove should return t
+          (should (beads-worktree-session-remove-buffer session test-buffer))
+          (should-not (memq test-buffer (oref session buffers)))
+          ;; Second remove should return nil (not present)
+          (should-not (beads-worktree-session-remove-buffer session test-buffer)))
+      (kill-buffer test-buffer))))
+
+;;; Tests for beads-worktree-session-refresh-branch
+
+(ert-deftest beads-sesman-worktree-session-refresh-branch ()
+  "Test refreshing branch metadata."
+  (let ((session (beads-worktree-session
+                  :id "test"
+                  :project-dir "/tmp/test"
+                  :proj-name "test"
+                  :branch "old-branch")))
+    (cl-letf (((symbol-function 'beads--get-git-branch)
+               (lambda () "new-branch")))
+      (beads-worktree-session-refresh-branch session)
+      (should (equal (oref session branch) "new-branch")))))
+
+(ert-deftest beads-sesman-worktree-session-refresh-branch-nil ()
+  "Test refresh-branch handles non-git directory."
+  (let ((session (beads-worktree-session
+                  :id "test"
+                  :project-dir "/tmp/test"
+                  :proj-name "test"
+                  :branch "old-branch")))
+    (cl-letf (((symbol-function 'beads--get-git-branch)
+               (lambda () nil)))
+      (beads-worktree-session-refresh-branch session)
+      (should (null (oref session branch))))))
+
+;;; Tests for session management functions
+
+(ert-deftest beads-sesman-normalize-directory ()
+  "Test directory normalization."
+  ;; Basic normalization
+  (let ((normalized (beads-sesman--normalize-directory "~/code/project")))
+    (should (stringp normalized))
+    (should (file-name-absolute-p normalized))
+    ;; Should not contain ~
+    (should-not (string-prefix-p "~" normalized))))
+
+(ert-deftest beads-sesman-session-for-directory-not-found ()
+  "Test finding session when none exists."
+  (beads-sesman-test--worktree-setup)
+  (unwind-protect
+      (should (null (beads-sesman--session-for-directory "/nonexistent")))
+    (beads-sesman-test--worktree-teardown)))
+
+(ert-deftest beads-sesman-session-for-directory-found ()
+  "Test finding existing session by directory."
+  (beads-sesman-test--worktree-setup)
+  (unwind-protect
+      (let* ((dir "/tmp/test-project")
+             (session (beads-worktree-session
+                       :id (abbreviate-file-name dir)
+                       :project-dir (beads-sesman--normalize-directory dir)
+                       :proj-name "test-project")))
+        (push session beads-sesman--worktree-sessions)
+        (let ((found (beads-sesman--session-for-directory dir)))
+          (should (eq found session))))
+    (beads-sesman-test--worktree-teardown)))
+
+(ert-deftest beads-sesman-create-worktree-session ()
+  "Test creating new worktree session."
+  (beads-sesman-test--worktree-setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads--get-git-branch)
+                 (lambda () "main")))
+        (let* ((dir "/tmp/new-project")
+               (session (beads-sesman--create-worktree-session dir)))
+          ;; Session should be created
+          (should (beads-worktree-session-p session))
+          (should (equal (oref session proj-name) "new-project"))
+          (should (equal (oref session branch) "main"))
+          ;; Session should be in global list
+          (should (member session beads-sesman--worktree-sessions))))
+    (beads-sesman-test--worktree-teardown)))
+
+(ert-deftest beads-sesman-ensure-worktree-session-creates-new ()
+  "Test ensure-worktree-session creates new session when none exists."
+  (beads-sesman-test--worktree-setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads--find-project-root)
+                 (lambda () "/tmp/project"))
+                ((symbol-function 'beads--get-git-branch)
+                 (lambda () "feature")))
+        (let ((session (beads-sesman--ensure-worktree-session)))
+          (should (beads-worktree-session-p session))
+          (should (equal (oref session proj-name) "project"))))
+    (beads-sesman-test--worktree-teardown)))
+
+(ert-deftest beads-sesman-ensure-worktree-session-reuses-existing ()
+  "Test ensure-worktree-session reuses existing session."
+  (beads-sesman-test--worktree-setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads--find-project-root)
+                 (lambda () "/tmp/project"))
+                ((symbol-function 'beads--get-git-branch)
+                 (lambda () "main")))
+        ;; Create first session
+        (let ((session1 (beads-sesman--ensure-worktree-session)))
+          (should (beads-worktree-session-p session1))
+          ;; Ensure again should return same session
+          (let ((session2 (beads-sesman--ensure-worktree-session)))
+            (should (eq session1 session2))
+            ;; Should only have one session in list
+            (should (= 1 (length beads-sesman--worktree-sessions))))))
+    (beads-sesman-test--worktree-teardown)))
+
+(ert-deftest beads-sesman-ensure-worktree-session-different-dirs ()
+  "Test ensure-worktree-session creates different sessions for different dirs."
+  (beads-sesman-test--worktree-setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads--get-git-branch)
+                 (lambda () "main")))
+        ;; Create session for dir1
+        (cl-letf (((symbol-function 'beads--find-project-root)
+                   (lambda () "/tmp/project1")))
+          (beads-sesman--ensure-worktree-session))
+        ;; Create session for dir2
+        (cl-letf (((symbol-function 'beads--find-project-root)
+                   (lambda () "/tmp/project2")))
+          (beads-sesman--ensure-worktree-session))
+        ;; Should have two sessions
+        (should (= 2 (length beads-sesman--worktree-sessions))))
+    (beads-sesman-test--worktree-teardown)))
+
+;;; Tests for session cleanup
+
+(ert-deftest beads-sesman-maybe-cleanup-worktree-session-empty ()
+  "Test cleanup removes empty session."
+  (beads-sesman-test--worktree-setup)
+  (unwind-protect
+      (let ((session (beads-worktree-session
+                      :id "test"
+                      :project-dir "/tmp/test"
+                      :proj-name "test")))
+        (push session beads-sesman--worktree-sessions)
+        (should (= 1 (length beads-sesman--worktree-sessions)))
+        (beads-sesman--maybe-cleanup-worktree-session session)
+        (should (= 0 (length beads-sesman--worktree-sessions))))
+    (beads-sesman-test--worktree-teardown)))
+
+(ert-deftest beads-sesman-maybe-cleanup-worktree-session-not-empty ()
+  "Test cleanup preserves non-empty session."
+  (beads-sesman-test--worktree-setup)
+  (let ((test-buffer (generate-new-buffer "*test*")))
+    (unwind-protect
+        (let ((session (beads-worktree-session
+                        :id "test"
+                        :project-dir "/tmp/test"
+                        :proj-name "test"
+                        :buffers (list test-buffer))))
+          (push session beads-sesman--worktree-sessions)
+          (should (= 1 (length beads-sesman--worktree-sessions)))
+          (beads-sesman--maybe-cleanup-worktree-session session)
+          ;; Session should still exist
+          (should (= 1 (length beads-sesman--worktree-sessions))))
+      (kill-buffer test-buffer)
+      (beads-sesman-test--worktree-teardown))))
+
+;;; Tests for finding session by buffer
+
+(ert-deftest beads-sesman-buffer-worktree-session-not-found ()
+  "Test finding session by buffer when not registered."
+  (beads-sesman-test--worktree-setup)
+  (unwind-protect
+      (should (null (beads-sesman--buffer-worktree-session (current-buffer))))
+    (beads-sesman-test--worktree-teardown)))
+
+(ert-deftest beads-sesman-buffer-worktree-session-found ()
+  "Test finding session by buffer when registered."
+  (beads-sesman-test--worktree-setup)
+  (let ((test-buffer (generate-new-buffer "*test*")))
+    (unwind-protect
+        (let ((session (beads-worktree-session
+                        :id "test"
+                        :project-dir "/tmp/test"
+                        :proj-name "test"
+                        :buffers (list test-buffer))))
+          (push session beads-sesman--worktree-sessions)
+          (let ((found (beads-sesman--buffer-worktree-session test-buffer)))
+            (should (eq found session))))
+      (kill-buffer test-buffer)
+      (beads-sesman-test--worktree-teardown))))
+
+;;; Directory-as-identity tests (critical behavioral tests)
+
+(ert-deftest beads-sesman-same-dir-different-branch-same-session ()
+  "Test that same directory with different branch uses same session.
+This is the CRITICAL behavioral test for the directory-as-identity model."
+  (beads-sesman-test--worktree-setup)
+  (unwind-protect
+      (let ((dir "/tmp/project"))
+        ;; Create session on 'main' branch
+        (cl-letf (((symbol-function 'beads--find-project-root)
+                   (lambda () dir))
+                  ((symbol-function 'beads--get-git-branch)
+                   (lambda () "main")))
+          (let ((session1 (beads-sesman--ensure-worktree-session)))
+            (should (equal (oref session1 branch) "main"))
+            ;; Simulate branch switch - branch changes but directory doesn't
+            (cl-letf (((symbol-function 'beads--get-git-branch)
+                       (lambda () "feature")))
+              ;; Ensure session should return SAME session (same directory)
+              (let ((session2 (beads-sesman--ensure-worktree-session)))
+                ;; CRITICAL: Same session object
+                (should (eq session1 session2))
+                ;; Branch metadata is NOT updated automatically by ensure
+                ;; (would need explicit refresh)
+                )))))
+    (beads-sesman-test--worktree-teardown)))
+
+(ert-deftest beads-sesman-different-dir-same-branch-different-session ()
+  "Test that different directories create different sessions.
+Even if they have the same branch name."
+  (beads-sesman-test--worktree-setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads--get-git-branch)
+                 (lambda () "main")))
+        ;; Create session for dir1
+        (cl-letf (((symbol-function 'beads--find-project-root)
+                   (lambda () "/tmp/project1")))
+          (let ((session1 (beads-sesman--ensure-worktree-session)))
+            ;; Create session for dir2
+            (cl-letf (((symbol-function 'beads--find-project-root)
+                       (lambda () "/tmp/project2")))
+              (let ((session2 (beads-sesman--ensure-worktree-session)))
+                ;; CRITICAL: Different session objects
+                (should-not (eq session1 session2))
+                ;; Both have same branch name
+                (should (equal (oref session1 branch) "main"))
+                (should (equal (oref session2 branch) "main")))))))
+    (beads-sesman-test--worktree-teardown)))
+
+(ert-deftest beads-sesman-worktree-separate-from-main ()
+  "Test that worktrees (different directories) get separate sessions."
+  (beads-sesman-test--worktree-setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads--get-git-branch)
+                 (lambda ()
+                   ;; Return branch based on directory
+                   (if (string-match-p "worktree" default-directory)
+                       "feature"
+                     "main"))))
+        ;; Create session for main repo
+        (cl-letf (((symbol-function 'beads--find-project-root)
+                   (lambda () "/tmp/project")))
+          (let ((main-session (beads-sesman--ensure-worktree-session)))
+            (should (equal (oref main-session proj-name) "project"))
+            ;; Create session for worktree (different directory!)
+            (cl-letf (((symbol-function 'beads--find-project-root)
+                       (lambda () "/tmp/project-worktree/feature")))
+              (let ((worktree-session (beads-sesman--ensure-worktree-session)))
+                ;; Different sessions (different directories)
+                (should-not (eq main-session worktree-session))
+                (should (equal (oref worktree-session proj-name) "feature"))
+                ;; Both sessions exist
+                (should (= 2 (length beads-sesman--worktree-sessions))))))))
+    (beads-sesman-test--worktree-teardown)))
+
+;;; =========================================================================
+;;; Agent Session Integration with Worktree Sessions (beads.el-lfgz)
+;;; =========================================================================
+;;
+;; These tests verify agent session integration with worktree sessions.
+;; Agent sessions are tracked within their parent project session.
+
+(ert-deftest beads-sesman-add-agent-to-worktree ()
+  "Test that adding agent session creates/uses worktree session."
+  (beads-sesman-test--worktree-setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads--find-project-root)
+                 (lambda () "/tmp/test-project"))
+                ((symbol-function 'beads--get-git-branch)
+                 (lambda () "main"))
+                ((symbol-function 'beads--get-project-name)
+                 (lambda () "test-project")))
+        (let ((agent-session (beads-agent-session
+                              :id "test#1"
+                              :project-dir "/tmp/test-project"
+                              :proj-name "test-project"
+                              :backend-name "test"
+                              :started-at "2025-01-01T00:00:00Z")))
+          (beads-sesman--add-agent-to-worktree agent-session)
+          ;; Worktree session should exist
+          (should (= 1 (length beads-sesman--worktree-sessions)))
+          ;; Agent should be in worktree session
+          (let ((wt-session (car beads-sesman--worktree-sessions)))
+            (should (memq agent-session (oref wt-session agent-sessions))))))
+    (beads-sesman-test--worktree-teardown)))
+
+(ert-deftest beads-sesman-remove-agent-from-worktree ()
+  "Test that removing agent session cleans up properly."
+  (beads-sesman-test--worktree-setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads--find-project-root)
+                 (lambda () "/tmp/test-project"))
+                ((symbol-function 'beads--get-git-branch)
+                 (lambda () "main"))
+                ((symbol-function 'beads--get-project-name)
+                 (lambda () "test-project")))
+        (let ((agent-session (beads-agent-session
+                              :id "test#1"
+                              :project-dir "/tmp/test-project"
+                              :proj-name "test-project"
+                              :backend-name "test"
+                              :started-at "2025-01-01T00:00:00Z")))
+          (beads-sesman--add-agent-to-worktree agent-session)
+          ;; Verify agent is in session
+          (let ((wt-session (car beads-sesman--worktree-sessions)))
+            (should (memq agent-session (oref wt-session agent-sessions))))
+          ;; Remove agent
+          (beads-sesman--remove-agent-from-worktree agent-session)
+          ;; Worktree session should be cleaned up (empty)
+          (should (null beads-sesman--worktree-sessions))))
+    (beads-sesman-test--worktree-teardown)))
+
+(ert-deftest beads-sesman-multiple-agents-same-project ()
+  "Test that multiple agents can be in the same worktree session."
+  (beads-sesman-test--worktree-setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads--find-project-root)
+                 (lambda () "/tmp/test-project"))
+                ((symbol-function 'beads--get-git-branch)
+                 (lambda () "main"))
+                ((symbol-function 'beads--get-project-name)
+                 (lambda () "test-project")))
+        (let ((agent1 (beads-agent-session
+                       :id "test#1"
+                       :project-dir "/tmp/test-project"
+                       :proj-name "test-project"
+                       :backend-name "test"
+                       :started-at "2025-01-01T00:00:00Z"))
+              (agent2 (beads-agent-session
+                       :id "test#2"
+                       :project-dir "/tmp/test-project"
+                       :proj-name "test-project"
+                       :backend-name "test"
+                       :started-at "2025-01-01T00:01:00Z")))
+          (beads-sesman--add-agent-to-worktree agent1)
+          (beads-sesman--add-agent-to-worktree agent2)
+          ;; Still only one worktree session
+          (should (= 1 (length beads-sesman--worktree-sessions)))
+          ;; Both agents in session
+          (let ((wt-session (car beads-sesman--worktree-sessions)))
+            (should (memq agent1 (oref wt-session agent-sessions)))
+            (should (memq agent2 (oref wt-session agent-sessions)))
+            (should (= 2 (length (oref wt-session agent-sessions)))))))
+    (beads-sesman-test--worktree-teardown)))
+
+(ert-deftest beads-sesman-get-agents-for-project ()
+  "Test getting agent sessions for a project directory."
+  (beads-sesman-test--worktree-setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads--find-project-root)
+                 (lambda () "/tmp/test-project"))
+                ((symbol-function 'beads--get-git-branch)
+                 (lambda () "main"))
+                ((symbol-function 'beads--get-project-name)
+                 (lambda () "test-project")))
+        (let ((agent (beads-agent-session
+                      :id "test#1"
+                      :project-dir "/tmp/test-project"
+                      :proj-name "test-project"
+                      :backend-name "test"
+                      :started-at "2025-01-01T00:00:00Z")))
+          (beads-sesman--add-agent-to-worktree agent)
+          ;; Should find the agent
+          (let ((agents (beads-sesman--get-agents-for-project "/tmp/test-project")))
+            (should (= 1 (length agents)))
+            (should (memq agent agents)))
+          ;; Should not find for different project
+          (should (null (beads-sesman--get-agents-for-project "/tmp/other")))))
+    (beads-sesman-test--worktree-teardown)))
+
+(ert-deftest beads-sesman-agent-worktree-session-found ()
+  "Test finding worktree session by agent."
+  (beads-sesman-test--worktree-setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads--find-project-root)
+                 (lambda () "/tmp/test-project"))
+                ((symbol-function 'beads--get-git-branch)
+                 (lambda () "main"))
+                ((symbol-function 'beads--get-project-name)
+                 (lambda () "test-project")))
+        (let ((agent (beads-agent-session
+                      :id "test#1"
+                      :project-dir "/tmp/test-project"
+                      :proj-name "test-project"
+                      :backend-name "test"
+                      :started-at "2025-01-01T00:00:00Z")))
+          (beads-sesman--add-agent-to-worktree agent)
+          (let ((found (beads-sesman--agent-worktree-session agent)))
+            (should found)
+            (should (memq agent (oref found agent-sessions))))))
+    (beads-sesman-test--worktree-teardown)))
+
+(ert-deftest beads-sesman-remove-one-agent-keeps-others ()
+  "Test that removing one agent doesn't affect others in session."
+  (beads-sesman-test--worktree-setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads--find-project-root)
+                 (lambda () "/tmp/test-project"))
+                ((symbol-function 'beads--get-git-branch)
+                 (lambda () "main"))
+                ((symbol-function 'beads--get-project-name)
+                 (lambda () "test-project")))
+        (let ((agent1 (beads-agent-session
+                       :id "test#1"
+                       :project-dir "/tmp/test-project"
+                       :proj-name "test-project"
+                       :backend-name "test"
+                       :started-at "2025-01-01T00:00:00Z"))
+              (agent2 (beads-agent-session
+                       :id "test#2"
+                       :project-dir "/tmp/test-project"
+                       :proj-name "test-project"
+                       :backend-name "test"
+                       :started-at "2025-01-01T00:01:00Z")))
+          (beads-sesman--add-agent-to-worktree agent1)
+          (beads-sesman--add-agent-to-worktree agent2)
+          ;; Remove first agent
+          (beads-sesman--remove-agent-from-worktree agent1)
+          ;; Session should still exist with agent2
+          (should (= 1 (length beads-sesman--worktree-sessions)))
+          (let ((wt-session (car beads-sesman--worktree-sessions)))
+            (should (memq agent2 (oref wt-session agent-sessions)))
+            (should-not (memq agent1 (oref wt-session agent-sessions))))))
+    (beads-sesman-test--worktree-teardown)))
+
+(ert-deftest beads-sesman-add-agent-no-duplicate ()
+  "Test that adding same agent twice doesn't duplicate in session."
+  (beads-sesman-test--worktree-setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads--find-project-root)
+                 (lambda () "/tmp/test-project"))
+                ((symbol-function 'beads--get-git-branch)
+                 (lambda () "main"))
+                ((symbol-function 'beads--get-project-name)
+                 (lambda () "test-project")))
+        (let ((agent (beads-agent-session
+                      :id "test#1"
+                      :project-dir "/tmp/test-project"
+                      :proj-name "test-project"
+                      :backend-name "test"
+                      :started-at "2025-01-01T00:00:00Z")))
+          ;; Add twice
+          (beads-sesman--add-agent-to-worktree agent)
+          (beads-sesman--add-agent-to-worktree agent)
+          ;; Should only appear once
+          (let ((wt-session (car beads-sesman--worktree-sessions)))
+            (should (= 1 (length (oref wt-session agent-sessions)))))))
+    (beads-sesman-test--worktree-teardown)))
+
 (provide 'beads-sesman-test)
 ;;; beads-sesman-test.el ends here

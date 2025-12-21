@@ -159,9 +159,79 @@
 
 (defvar-local beads-show--project-dir nil
   "Project directory for bd command execution.
+THIS IS PART OF THE IDENTITY - buffer is keyed by (issue-id, project-dir).
 Set from the caller's directory when the buffer is created or refreshed.
 Used to ensure commands run in the correct project context, which is
 essential for git worktree support.")
+
+;; Directory-aware buffer identity (beads.el-4pgx)
+;; Key principle: Directory is identity, branch is metadata.
+
+(defvar-local beads-show--branch nil
+  "Git branch name.
+This is METADATA for display, not identity.
+Updated on refresh to reflect current branch.")
+
+(defvar-local beads-show--proj-name nil
+  "Project name for display.
+Used when multiple projects have show buffers open.")
+
+;;; Buffer Lookup by Project Directory
+;;
+;; Show buffers are identified by (issue-id, project-dir) pair.
+;; Same issue in different directories = different buffers.
+;; This is important for git worktrees.
+
+(defun beads-show--normalize-directory (dir)
+  "Normalize DIR for consistent comparison.
+Strips trailing slashes and expands to absolute path.
+Uses `expand-file-name' (not `file-truename') for Tramp compatibility."
+  (directory-file-name (expand-file-name dir)))
+
+(defun beads-show--find-buffer-for-issue (issue-id project-dir)
+  "Find existing show buffer for ISSUE-ID in PROJECT-DIR.
+Return buffer or nil if not found."
+  (let ((normalized-dir (beads-show--normalize-directory project-dir)))
+    (cl-find-if
+     (lambda (buf)
+       (with-current-buffer buf
+         (and (derived-mode-p 'beads-show-mode)
+              (equal beads-show--issue-id issue-id)
+              beads-show--project-dir
+              (equal (beads-show--normalize-directory beads-show--project-dir)
+                     normalized-dir))))
+     (buffer-list))))
+
+(defun beads-show--get-or-create-buffer (issue-id)
+  "Get or create show buffer for ISSUE-ID in current project.
+Reuses existing buffer for same (issue-id, project-dir) pair."
+  (let* ((project-dir (or (beads--find-project-root) default-directory))
+         (existing (beads-show--find-buffer-for-issue issue-id project-dir)))
+    (or existing
+        (let ((buffer (get-buffer-create (format "*beads-show: %s*" issue-id))))
+          (with-current-buffer buffer
+            (setq beads-show--project-dir project-dir)
+            (setq beads-show--branch (beads--get-git-branch))
+            (setq beads-show--proj-name (beads--get-project-name)))
+          buffer))))
+
+;;; Worktree Session Integration
+;;
+;; Show buffers are registered with worktree sessions for lifecycle management.
+;; Sessions are keyed by directory, not branch.
+
+(defun beads-show--register-with-session ()
+  "Register current buffer with worktree session.
+Should be called after the buffer is fully initialized."
+  (when-let ((session (beads-sesman--ensure-worktree-session)))
+    (beads-worktree-session-add-buffer session (current-buffer))))
+
+(defun beads-show--unregister-from-session ()
+  "Remove current buffer from worktree session.
+Called from `kill-buffer-hook' to clean up session state."
+  (when-let ((session (beads-sesman--buffer-worktree-session (current-buffer))))
+    (beads-worktree-session-remove-buffer session (current-buffer))
+    (beads-sesman--maybe-cleanup-worktree-session session)))
 
 ;;; Mode Definition
 
@@ -236,7 +306,9 @@ essential for git worktree support.")
 Key bindings:
 \\{beads-show-mode-map}"
   (setq truncate-lines (not beads-show-wrap-lines))
-  (setq buffer-read-only t))
+  (setq buffer-read-only t)
+  ;; Register cleanup hook for worktree session integration
+  (add-hook 'kill-buffer-hook #'beads-show--unregister-from-session nil t))
 
 ;;; Utility Functions
 
@@ -759,6 +831,7 @@ ISSUE must be a `beads-issue' EIEIO object."
 (defun beads-show (issue-id)
   "Show detailed view of issue with ISSUE-ID.
 Creates or switches to a buffer showing the full issue details.
+Uses directory-aware buffer identity: (issue-id, project-dir) pair.
 Completion matches on both issue ID and title.
 
 Commands are executed in the caller's directory context, ensuring
@@ -768,14 +841,19 @@ correct project detection (important for git worktrees)."
                                       'beads--issue-id-history)))
   ;; Capture caller's directory for command execution context
   (let* ((caller-dir default-directory)
-         (buffer-name (format "*beads-show: %s*" issue-id))
-         (buffer (get-buffer-create buffer-name)))
+         (project-dir (or (beads--find-project-root) default-directory))
+         (buffer (beads-show--get-or-create-buffer issue-id)))
     (with-current-buffer buffer
       (setq default-directory caller-dir)
       (unless (derived-mode-p 'beads-show-mode)
         (beads-show-mode))
+      ;; Update directory-aware state
       (setq beads-show--issue-id issue-id
-            beads-show--project-dir caller-dir)
+            beads-show--project-dir project-dir
+            beads-show--branch (beads--get-git-branch)
+            beads-show--proj-name (beads--get-project-name))
+      ;; Register with worktree session for lifecycle management
+      (beads-show--register-with-session)
       (condition-case err
           ;; Execute command in caller's directory context
           (let ((default-directory caller-dir)

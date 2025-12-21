@@ -65,6 +65,9 @@
 (declare-function beads-update "beads-update" (&optional issue-id))
 (declare-function beads-reopen "beads-reopen" (&optional issue-id))
 (declare-function beads-agent--get-sessions-for-issue "beads-agent")
+(declare-function beads-agent--get-sessions-focused-on-issue "beads-agent-backend")
+(declare-function beads-agent--get-sessions-touching-issue "beads-agent-backend")
+(declare-function beads-agent-session-instance-number "beads-agent-backend")
 (declare-function beads-agent-start-at-point "beads-agent")
 (declare-function beads-agent-start-task "beads-agent" (&optional arg))
 (declare-function beads-agent-start-review "beads-agent" (&optional arg))
@@ -219,6 +222,60 @@ Inherits from `error' face for theme consistency."
   "Current beads-command-list object (nil means no filter).
 Use for client-side filtering in the buffer.")
 
+;; Directory-aware buffer identity (beads.el-n3lv)
+;; Key principle: Directory is identity, branch is metadata.
+
+(defvar-local beads-list--project-dir nil
+  "Project root directory for this buffer.
+THIS IS THE IDENTITY - buffer lookup is by project-dir.")
+
+(defvar-local beads-list--branch nil
+  "Git branch name.
+This is METADATA for display, not identity.
+Updated on refresh to reflect current branch.")
+
+(defvar-local beads-list--proj-name nil
+  "Project name for buffer disambiguation.
+Used when multiple projects have list buffers open.")
+
+;;; Buffer Lookup by Project Directory
+;;
+;; These functions find or create list buffers based on project directory,
+;; NOT buffer name.  Same directory = same buffer, regardless of branch.
+
+(defun beads-list--normalize-directory (dir)
+  "Normalize DIR for consistent comparison.
+Strips trailing slashes and expands to absolute path."
+  (directory-file-name (expand-file-name dir)))
+
+(defun beads-list--find-buffer-for-project (buffer-type project-dir)
+  "Find existing buffer for BUFFER-TYPE and PROJECT-DIR.
+BUFFER-TYPE is a symbol: `list', `ready', or `blocked'.
+Return buffer or nil if not found."
+  (let ((normalized-dir (beads-list--normalize-directory project-dir)))
+    (cl-find-if
+     (lambda (buf)
+       (with-current-buffer buf
+         (and (derived-mode-p 'beads-list-mode)
+              beads-list--project-dir
+              (equal (beads-list--normalize-directory beads-list--project-dir)
+                     normalized-dir)
+              (eq beads-list--command buffer-type))))
+     (buffer-list))))
+
+(defun beads-list--get-or-create-buffer (buffer-type)
+  "Get or create list buffer for current project context.
+BUFFER-TYPE is a symbol: `list', `ready', or `blocked'.
+Reuses existing buffer for same project-dir (directory is identity)."
+  (let* ((project-dir (or (beads--find-project-root) default-directory))
+         (existing (beads-list--find-buffer-for-project buffer-type project-dir)))
+    (or existing
+        (let ((buffer (get-buffer-create (format "*beads-%s*" buffer-type))))
+          (with-current-buffer buffer
+            (setq beads-list--project-dir project-dir)
+            (setq beads-list--branch (beads--get-git-branch))
+            (setq beads-list--proj-name (beads--get-project-name)))
+          buffer))))
 
 ;;; Utilities
 
@@ -310,51 +367,101 @@ Returns a propertized string like \"T#1\" or \"T\" if BRIEF."
 
 (defun beads-list--format-agent (issue-id)
   "Format agent status indicator for ISSUE-ID.
-Shows active sessions: single agent as letter (e.g., T), multiple as T#1 / R#2.
-When no active sessions, shows last outcome indicator.
+Uses directory-bound session model:
+  - Shows focused sessions (current-issue = this issue) in yellow
+  - Shows touched sessions (issue in touched-issues) in dim
+  - Falls back to legacy issue-bound lookup for backward compatibility
+
+Format: FOCUSED[/TOUCHED]
+  - T#1 = Task agent #1 focused on this issue
+  - ~P = Plan agent has touched this issue
+
 Colors indicate status:
-  - Yellow: agent currently working
-  - Green: agent finished successfully
-  - Red: agent failed
-Letters are: T=Task, R=Review, P=Plan, Q=QA, C=Custom.
-Instance numbers are per-type (e.g., Q#1, Q#2 for two QA agents)."
-  (let ((sessions (and (fboundp 'beads-agent--get-sessions-for-issue)
-                       (beads-agent--get-sessions-for-issue issue-id)))
-        (outcome (and (fboundp 'beads-agent--get-issue-outcome)
-                      (beads-agent--get-issue-outcome issue-id))))
+  - Yellow: agent currently focused on this issue
+  - Dim: agent has touched this issue (not currently focused)
+  - Green: agent finished successfully (legacy)
+  - Red: agent failed (legacy)
+
+Letters are: T=Task, R=Review, P=Plan, Q=QA, C=Custom."
+  (let* ((focused (and (fboundp 'beads-agent--get-sessions-focused-on-issue)
+                       (beads-agent--get-sessions-focused-on-issue issue-id)))
+         (touched (and (fboundp 'beads-agent--get-sessions-touching-issue)
+                       (beads-agent--get-sessions-touching-issue issue-id)))
+         ;; Remove focused from touched for clean display
+         (touched-only (cl-set-difference touched focused))
+         ;; Legacy fallback
+         (legacy-sessions (and (not focused) (not touched)
+                               (fboundp 'beads-agent--get-sessions-for-issue)
+                               (beads-agent--get-sessions-for-issue issue-id)))
+         (outcome (and (fboundp 'beads-agent--get-issue-outcome)
+                       (beads-agent--get-issue-outcome issue-id))))
     (cond
-     ;; Active sessions - show all with appropriate format
-     (sessions
+     ;; Focused or touched sessions - directory-bound model
+     ((or focused touched-only)
       (let* ((separator (propertize "/" 'face 'shadow))
-             ;; Count sessions per type to determine if instance numbers needed
+             ;; Format focused sessions (active work on this issue)
+             (focused-indicators
+              (mapcar
+               (lambda (session)
+                 (let* ((type-name (and (fboundp 'beads-agent-session-type-name)
+                                        (beads-agent-session-type-name session)))
+                        (instance-n (and (fboundp 'beads-agent-session-instance-number)
+                                         (beads-agent-session-instance-number session)))
+                        (letter (if type-name (substring type-name 0 1) "●"))
+                        (indicator (if instance-n
+                                       (format "%s#%d" letter instance-n)
+                                     letter)))
+                   (propertize indicator
+                               'face 'beads-list-agent-working
+                               'help-echo (format "Agent focused: %s"
+                                                  (or type-name "unknown")))))
+               focused))
+             ;; Format touched sessions (past work in same agent session)
+             (touched-indicators
+              (mapcar
+               (lambda (session)
+                 (let* ((type-name (and (fboundp 'beads-agent-session-type-name)
+                                        (beads-agent-session-type-name session)))
+                        (letter (if type-name (substring type-name 0 1) "●"))
+                        (indicator (format "~%s" letter)))
+                   (propertize indicator
+                               'face 'shadow
+                               'help-echo (format "Agent touched: %s"
+                                                  (or type-name "unknown")))))
+               touched-only))
+             (all-indicators (append focused-indicators touched-indicators)))
+        (propertize (mapconcat #'identity all-indicators separator)
+                    'help-echo (format "Focused: %d, Touched: %d"
+                                       (length focused)
+                                       (length touched-only)))))
+     ;; Legacy issue-bound sessions (backward compatibility)
+     (legacy-sessions
+      (let* ((separator (propertize "/" 'face 'shadow))
              (type-counts
               (let ((counts (make-hash-table :test 'equal)))
-                (dolist (session sessions)
+                (dolist (session legacy-sessions)
                   (let ((type-name (and (fboundp 'beads-agent-session-type-name)
                                         (beads-agent-session-type-name session))))
                     (puthash type-name (1+ (gethash type-name counts 0)) counts)))
                 counts))
-             ;; Track per-type instance numbers as we iterate
              (type-instance-nums (make-hash-table :test 'equal))
              (indicators
               (mapcar
                (lambda (session)
                  (let* ((type-name (and (fboundp 'beads-agent-session-type-name)
                                         (beads-agent-session-type-name session)))
-                        ;; Compute per-type instance number
                         (current-num (1+ (gethash type-name type-instance-nums 0)))
                         (_ (puthash type-name current-num type-instance-nums))
-                        ;; Show instance number only if multiple of same type
                         (brief (= 1 (gethash type-name type-counts 1))))
                    (beads-list--format-agent-indicator
                     type-name current-num 'beads-list-agent-working brief)))
-               sessions)))
+               legacy-sessions)))
         (propertize (if (= (length indicators) 1)
                         (car indicators)
                       (mapconcat #'identity indicators separator))
                     'help-echo (format "%d agent%s working"
-                                       (length sessions)
-                                       (if (= (length sessions) 1) "" "s")))))
+                                       (length legacy-sessions)
+                                       (if (= (length legacy-sessions) 1) "" "s")))))
      ;; Finished - show last indicator in green
      ((and (consp outcome) (eq (cdr outcome) 'finished))
       (propertize (car outcome)
@@ -545,20 +652,25 @@ Returns a beads-command-list object with all applicable filters set."
 
 (transient-define-suffix beads-list--transient-execute ()
   "Execute the bd list command with current filter parameters.
-Stores the caller's directory for refresh operations."
+Uses directory-aware buffer identity: same project = same buffer."
   :key "x"
   :description "List issues"
   (interactive)
   (let* ((caller-dir default-directory)
+         (project-dir (or (beads--find-project-root) default-directory))
          (args (transient-args 'beads-list))
          (command (beads-list--parse-transient-args args)))
     (condition-case err
         (let* ((_ (beads-command-execute command))
                (issue-objects (oref command data))
-               (buffer (get-buffer-create "*beads-list*")))
+               (buffer (beads-list--get-or-create-buffer 'list)))
           (with-current-buffer buffer
             (unless (derived-mode-p 'beads-list-mode)
               (beads-list-mode))
+            ;; Update directory-aware state
+            (setq beads-list--project-dir project-dir)
+            (setq beads-list--branch (beads--get-git-branch))
+            (setq beads-list--proj-name (beads--get-project-name))
             (setq default-directory caller-dir)
             (if (not issue-objects)
                 (progn
@@ -1072,15 +1184,21 @@ transient menu options."
 
 ;;;###autoload
 (defun beads-ready ()
-  "Display ready Beads issues in a tabulated list."
+  "Display ready Beads issues in a tabulated list.
+Uses directory-aware buffer identity: same project = same buffer."
   (interactive)
   (beads-check-executable)
   (let* ((caller-dir default-directory)
-         (buffer (get-buffer-create "*beads-ready*"))
+         (project-dir (or (beads--find-project-root) default-directory))
+         (buffer (beads-list--get-or-create-buffer 'ready))
          (issues (beads-issue-ready)))
     (with-current-buffer buffer
       (unless (derived-mode-p 'beads-list-mode)
         (beads-list-mode))
+      ;; Update directory-aware state
+      (setq beads-list--project-dir project-dir)
+      (setq beads-list--branch (beads--get-git-branch))
+      (setq beads-list--proj-name (beads--get-project-name))
       (setq default-directory caller-dir)
       (if (not issues)
           (progn
@@ -1106,15 +1224,21 @@ transient menu options."
 
 ;;;###autoload
 (defun beads-blocked ()
-  "Display blocked Beads issues in a tabulated list."
+  "Display blocked Beads issues in a tabulated list.
+Uses directory-aware buffer identity: same project = same buffer."
   (interactive)
   (beads-check-executable)
   (let* ((caller-dir default-directory)
-         (buffer (get-buffer-create "*beads-blocked*"))
+         (project-dir (or (beads--find-project-root) default-directory))
+         (buffer (beads-list--get-or-create-buffer 'blocked))
          (issues (beads-blocked-issue-list)))
     (with-current-buffer buffer
       (unless (derived-mode-p 'beads-list-mode)
         (beads-list-mode))
+      ;; Update directory-aware state
+      (setq beads-list--project-dir project-dir)
+      (setq beads-list--branch (beads--get-git-branch))
+      (setq beads-list--proj-name (beads--get-project-name))
       (setq default-directory caller-dir)
       (if (not issues)
           (progn

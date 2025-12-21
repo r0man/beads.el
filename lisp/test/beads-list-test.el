@@ -1193,5 +1193,180 @@ Tests that the preview command shows the bd command that would be executed."
     ;; No instance number
     (should-not (string-match-p "#" result))))
 
+;;; =========================================================================
+;;; Directory-Aware Buffer Identity Tests (beads.el-n3lv)
+;;; =========================================================================
+;;
+;; These tests verify the directory-aware buffer identity model.
+;; Key principle: Directory is identity, branch is metadata.
+;; Same project-dir → same buffer, regardless of branch.
+
+(ert-deftest beads-list-test-find-buffer-for-project-not-found ()
+  "Test finding buffer when none exists for the project."
+  (should (null (beads-list--find-buffer-for-project 'list "/nonexistent"))))
+
+(ert-deftest beads-list-test-find-buffer-for-project-found ()
+  "Test finding existing buffer by project directory."
+  (let ((test-buffer (generate-new-buffer "*beads-list-test*")))
+    (unwind-protect
+        (with-current-buffer test-buffer
+          (beads-list-mode)
+          (setq beads-list--project-dir "/tmp/test-project")
+          (setq beads-list--command 'list)
+          ;; Should find our buffer
+          (should (eq (beads-list--find-buffer-for-project 'list "/tmp/test-project")
+                      test-buffer))
+          ;; Should NOT find buffer for different directory
+          (should (null (beads-list--find-buffer-for-project 'list "/other/project")))
+          ;; Should NOT find buffer for different command type
+          (should (null (beads-list--find-buffer-for-project 'ready "/tmp/test-project"))))
+      (kill-buffer test-buffer))))
+
+(ert-deftest beads-list-test-find-buffer-normalizes-directory ()
+  "Test that buffer lookup normalizes directory paths."
+  ;; Use /tmp which is guaranteed to exist
+  (let ((test-buffer (generate-new-buffer "*beads-list-test*")))
+    (unwind-protect
+        (with-current-buffer test-buffer
+          (beads-list-mode)
+          ;; Store with trailing slash
+          (setq beads-list--project-dir "/tmp/")
+          (setq beads-list--command 'list)
+          ;; Should match even without trailing slash
+          (should (eq (beads-list--find-buffer-for-project 'list "/tmp")
+                      test-buffer)))
+      (kill-buffer test-buffer))))
+
+(ert-deftest beads-list-test-get-or-create-buffer-creates-new ()
+  "Test get-or-create-buffer creates new buffer when none exists."
+  (let (created-buffer)
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads--find-project-root)
+                   (lambda () "/tmp/new-project"))
+                  ((symbol-function 'beads--get-git-branch)
+                   (lambda () "main"))
+                  ((symbol-function 'beads--get-project-name)
+                   (lambda () "new-project")))
+          (setq created-buffer (beads-list--get-or-create-buffer 'list))
+          (should (bufferp created-buffer))
+          (with-current-buffer created-buffer
+            (should (equal beads-list--project-dir "/tmp/new-project"))
+            (should (equal beads-list--branch "main"))
+            (should (equal beads-list--proj-name "new-project"))))
+      (when (and created-buffer (buffer-live-p created-buffer))
+        (kill-buffer created-buffer)))))
+
+(ert-deftest beads-list-test-get-or-create-buffer-reuses-existing ()
+  "Test get-or-create-buffer reuses buffer for same project directory."
+  (let ((test-buffer (generate-new-buffer "*beads-list*")))
+    (unwind-protect
+        (progn
+          (with-current-buffer test-buffer
+            (beads-list-mode)
+            (setq beads-list--project-dir "/tmp/existing-project")
+            (setq beads-list--command 'list))
+          (cl-letf (((symbol-function 'beads--find-project-root)
+                     (lambda () "/tmp/existing-project"))
+                    ((symbol-function 'beads--get-git-branch)
+                     (lambda () "feature"))
+                    ((symbol-function 'beads--get-project-name)
+                     (lambda () "existing-project")))
+            ;; Should return the existing buffer
+            (should (eq (beads-list--get-or-create-buffer 'list) test-buffer))))
+      (kill-buffer test-buffer))))
+
+(ert-deftest beads-list-test-same-dir-different-branch-same-buffer ()
+  "Test that same directory with different branch uses same buffer.
+This is the CRITICAL behavioral test for directory-as-identity."
+  (let ((test-buffer (generate-new-buffer "*beads-list*")))
+    (unwind-protect
+        (progn
+          (with-current-buffer test-buffer
+            (beads-list-mode)
+            (setq beads-list--project-dir "/tmp/project")
+            (setq beads-list--branch "main")
+            (setq beads-list--command 'list))
+          ;; Simulate branch switch - branch changes but directory doesn't
+          (cl-letf (((symbol-function 'beads--find-project-root)
+                     (lambda () "/tmp/project"))
+                    ((symbol-function 'beads--get-git-branch)
+                     (lambda () "feature"))  ; Different branch!
+                    ((symbol-function 'beads--get-project-name)
+                     (lambda () "project")))
+            ;; CRITICAL: Should return SAME buffer (same directory)
+            (let ((result (beads-list--get-or-create-buffer 'list)))
+              (should (eq result test-buffer)))))
+      (kill-buffer test-buffer))))
+
+(ert-deftest beads-list-test-different-dir-same-branch-different-buffer ()
+  "Test that different directories create different buffers.
+Even if they have the same branch name."
+  (let ((buffer1 (generate-new-buffer "*beads-list-1*"))
+        (buffer2 nil))
+    (unwind-protect
+        (progn
+          (with-current-buffer buffer1
+            (beads-list-mode)
+            (setq beads-list--project-dir "/tmp/project1")
+            (setq beads-list--branch "main")
+            (setq beads-list--command 'list))
+          ;; Create buffer for different directory
+          (cl-letf (((symbol-function 'beads--find-project-root)
+                     (lambda () "/tmp/project2"))  ; Different directory!
+                    ((symbol-function 'beads--get-git-branch)
+                     (lambda () "main"))  ; Same branch
+                    ((symbol-function 'beads--get-project-name)
+                     (lambda () "project2")))
+            ;; Should create NEW buffer (different directory)
+            (setq buffer2 (beads-list--get-or-create-buffer 'list))
+            (should (bufferp buffer2))
+            (should-not (eq buffer1 buffer2))))
+      (kill-buffer buffer1)
+      (when (and buffer2 (buffer-live-p buffer2))
+        (kill-buffer buffer2)))))
+
+(ert-deftest beads-list-test-different-buffer-types-same-project ()
+  "Test that different buffer types (list, ready, blocked) create separate buffers."
+  (let ((list-buffer (generate-new-buffer "*beads-list*"))
+        (ready-buffer nil))
+    (unwind-protect
+        (progn
+          (with-current-buffer list-buffer
+            (beads-list-mode)
+            (setq beads-list--project-dir "/tmp/project")
+            (setq beads-list--command 'list))
+          (cl-letf (((symbol-function 'beads--find-project-root)
+                     (lambda () "/tmp/project"))
+                    ((symbol-function 'beads--get-git-branch)
+                     (lambda () "main"))
+                    ((symbol-function 'beads--get-project-name)
+                     (lambda () "project")))
+            ;; Should create NEW buffer for 'ready (different type)
+            (setq ready-buffer (beads-list--get-or-create-buffer 'ready))
+            (should (bufferp ready-buffer))
+            (should-not (eq list-buffer ready-buffer))))
+      (kill-buffer list-buffer)
+      (when (and ready-buffer (buffer-live-p ready-buffer))
+        (kill-buffer ready-buffer)))))
+
+(ert-deftest beads-list-test-buffer-local-variables-preserved ()
+  "Test that buffer-local variables are set correctly."
+  (let (created-buffer)
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads--find-project-root)
+                   (lambda () "/home/user/code/my-project"))
+                  ((symbol-function 'beads--get-git-branch)
+                   (lambda () "feature-branch"))
+                  ((symbol-function 'beads--get-project-name)
+                   (lambda () "my-project")))
+          (setq created-buffer (beads-list--get-or-create-buffer 'ready))
+          (with-current-buffer created-buffer
+            ;; Verify all variables set
+            (should (equal beads-list--project-dir "/home/user/code/my-project"))
+            (should (equal beads-list--branch "feature-branch"))
+            (should (equal beads-list--proj-name "my-project"))))
+      (when (and created-buffer (buffer-live-p created-buffer))
+        (kill-buffer created-buffer)))))
+
 (provide 'beads-list-test)
 ;;; beads-list-test.el ends here
