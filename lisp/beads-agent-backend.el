@@ -68,11 +68,55 @@ Subclasses must implement all generic methods defined below.")
   ((id
     :initarg :id
     :type string
-    :documentation "Unique session identifier in `issue-id#N' format.")
+    :documentation "Unique session identifier.
+Format: `proj-name#N' (e.g., beads.el#1) for directory-bound sessions.
+Legacy format: `issue-id#N' for issue-bound sessions (deprecated).")
+   (project-dir
+    :initarg :project-dir
+    :type string
+    :documentation "Project root directory.  THIS IS THE SESSION IDENTITY.
+The session is keyed by this directory - same directory means same
+logical session context, regardless of git branch or current issue.
+Different directories (including worktrees) are different sessions.")
+   (proj-name
+    :initarg :proj-name
+    :initform nil
+    :type (or string null)
+    :documentation "Project name for display and session ID.
+Typically the basename of `project-dir' (e.g., \"beads.el\").
+Used in buffer names and session IDs for human readability.")
+   (instance-number
+    :initarg :instance-number
+    :initform 1
+    :type integer
+    :documentation "Instance number for this project (1, 2, 3...).
+Multiple agents can run in the same project; this distinguishes them.
+The session ID is `proj-name#instance-number'.")
+   (current-issue
+    :initarg :current-issue
+    :initform nil
+    :type (or string null)
+    :documentation "Current focus issue ID (can change mid-session).
+This is the issue the agent is currently focused on.  Unlike the old
+`issue-id' slot which was the session identity, this is just metadata
+that can change as the agent works on different issues.")
+   (touched-issues
+    :initarg :touched-issues
+    :initform nil
+    :type list
+    :documentation "List of issue IDs worked on this session.
+Tracks all issues that have been the `current-issue' focus.
+Useful for understanding what work happened in a session.")
+   ;; DEPRECATED: issue-id slot - use current-issue instead
+   ;; Kept for backward compatibility during migration
    (issue-id
     :initarg :issue-id
-    :type string
-    :documentation "Issue ID this session is working on.")
+    :initform nil
+    :type (or string null)
+    :documentation "DEPRECATED: Use `current-issue' instead.
+This slot is kept for backward compatibility during migration to
+directory-bound sessions.  New code should use `current-issue' for
+focus and `project-dir' for identity.")
    (backend-name
     :initarg :backend-name
     :type string
@@ -82,16 +126,15 @@ Subclasses must implement all generic methods defined below.")
     :initform nil
     :documentation "Name of the agent type for this session (e.g., \"Task\", \"Review\").
 When nil, the session was started without specifying an agent type.")
-   (project-dir
-    :initarg :project-dir
-    :type string
-    :documentation "Project directory for this session.")
+   ;; DEPRECATED: worktree-dir slot - directory is now identity
+   ;; Different worktrees are simply different project-dir values
    (worktree-dir
     :initarg :worktree-dir
     :initform nil
-    :documentation "Git worktree directory if using worktrees.
-When non-nil, this is the directory where work is performed.
-The project-dir then refers to the main repo.")
+    :documentation "DEPRECATED: Use `project-dir' as the directory identity.
+In the new directory-bound model, worktrees are just different
+directories and thus have different `project-dir' values.
+This slot is kept for backward compatibility.")
    (started-at
     :initarg :started-at
     :type string
@@ -111,9 +154,23 @@ The value is opaque to beads-sesman and passed through unchanged.")
     :documentation "The Emacs buffer for this session.
 After the backend creates its buffer, it is renamed to the beads format
 and stored here for efficient lookup.  Buffer naming follows the format:
-  *beads-agent[ISSUE-ID][TYPE#N]*
+  *beads-agent[PROJECT-NAME][#N]* (directory-bound)
+  *beads-agent[ISSUE-ID][TYPE#N]* (legacy, deprecated)
 This slot is set after session creation when the buffer is renamed."))
-  :documentation "Represents an active AI agent session.")
+  :documentation "Represents an active AI agent session.
+
+In the directory-bound model (new):
+  - `project-dir' is THE IDENTITY (same dir = same session context)
+  - `current-issue' is the focus (can change mid-session)
+  - `touched-issues' tracks all issues worked on
+  - Session ID format: `proj-name#N'
+
+In the issue-bound model (deprecated):
+  - `issue-id' was the identity
+  - Session ID format: `issue-id#N'
+
+The directory-bound model allows agents to persist across issue
+switches, enabling natural multi-issue work within a single session.")
 
 ;;; Session Accessors (for use by other modules without requiring EIEIO)
 
@@ -149,6 +206,58 @@ which is set after the backend buffer is renamed to beads format."
   "Set the Emacs buffer for SESSION to BUFFER.
 This should be called after renaming the backend buffer to beads format."
   (oset session buffer buffer))
+
+;;; Directory-Bound Session Accessors
+;;
+;; These accessors support the new directory-bound session model where
+;; project-dir is the identity and current-issue is changeable focus.
+
+(defun beads-agent-session-project-dir (session)
+  "Return the project directory for SESSION.
+This is THE IDENTITY of the session in the directory-bound model."
+  (oref session project-dir))
+
+(defun beads-agent-session-project-name (session)
+  "Return the project name for SESSION, or nil if not set.
+This is a short display name derived from `project-dir'."
+  (oref session proj-name))
+
+(defun beads-agent-session-instance-number (session)
+  "Return the instance number for SESSION.
+Multiple agents in the same project have different instance numbers."
+  (oref session instance-number))
+
+(defun beads-agent-session-current-issue (session)
+  "Return the current focus issue for SESSION, or nil.
+This can change mid-session as the agent works on different issues."
+  (oref session current-issue))
+
+(defun beads-agent-session-set-current-issue (session issue-id)
+  "Set SESSION's current focus to ISSUE-ID.
+Also adds ISSUE-ID to touched-issues if not already present.
+ISSUE-ID can be nil to clear the focus."
+  (oset session current-issue issue-id)
+  (when issue-id
+    (beads-agent-session-add-touched-issue session issue-id)))
+
+(defun beads-agent-session-touched-issues (session)
+  "Return list of issue IDs that SESSION has worked on."
+  (oref session touched-issues))
+
+(defun beads-agent-session-add-touched-issue (session issue-id)
+  "Add ISSUE-ID to SESSION's touched-issues if not already present.
+Returns non-nil if ISSUE-ID was added, nil if already present."
+  (unless (member issue-id (oref session touched-issues))
+    (oset session touched-issues
+          (cons issue-id (oref session touched-issues)))
+    t))
+
+(defun beads-agent-session-issue-id (session)
+  "Return the issue ID for SESSION (deprecated).
+For backward compatibility.  New code should use
+`beads-agent-session-current-issue' instead."
+  (or (oref session current-issue)
+      (oref session issue-id)))
 
 ;;; Backend Protocol (Generic Methods)
 
@@ -376,13 +485,20 @@ Session numbers never reuse - gaps in numbering are ignored."
 
 (defun beads-agent--generate-session-id (issue-id)
   "Generate unique session ID for ISSUE-ID.
-Returns ID in `issue-id#N' format where N is the next available number."
+Returns ID in `issue-id#N' format where N is the next available number.
+DEPRECATED: Use `beads-agent--generate-project-session-id' instead."
   (format "%s#%d" issue-id (beads-agent--next-session-number issue-id)))
+
+(defun beads-agent--generate-project-session-id (project-dir)
+  "Generate unique session ID for PROJECT-DIR.
+Returns ID in `project-name#N' format where N is the next available number."
+  (let ((project-name (beads-agent--derive-project-name project-dir)))
+    (format "%s#%d" project-name (beads-agent--next-project-instance-number project-dir))))
 
 (defun beads-agent--create-session (issue-id backend-name project-dir
                                              backend-session
                                              &optional worktree-dir agent-type-name)
-  "Create and register a new session.
+  "Create and register a new session (legacy issue-bound).
 ISSUE-ID is the issue being worked on.
 BACKEND-NAME is the name of the backend.
 PROJECT-DIR is the main project directory.
@@ -390,6 +506,8 @@ BACKEND-SESSION is the backend-specific session handle.
 WORKTREE-DIR is the git worktree directory, if using worktrees.
 AGENT-TYPE-NAME is the name of the agent type (e.g., \"Task\", \"Review\").
 Returns the created beads-agent-session object.
+
+DEPRECATED: Use `beads-agent--create-project-session' for new code.
 
 Note: Session storage is handled by `beads-agent-state-change-hook'.
 The hook handler in beads-sesman.el registers the session with sesman."
@@ -401,6 +519,43 @@ The hook handler in beads-sesman.el registers the session with sesman."
                    :agent-type-name agent-type-name
                    :project-dir project-dir
                    :worktree-dir worktree-dir
+                   :started-at (format-time-string "%Y-%m-%dT%H:%M:%S%z")
+                   :backend-session backend-session)))
+    ;; Run state change hook - this triggers sesman registration
+    (beads-agent--run-state-change-hook 'started session)
+    session))
+
+(defun beads-agent--create-project-session (project-dir backend-name backend-session
+                                                        &optional initial-issue agent-type-name)
+  "Create and register a new directory-bound session.
+PROJECT-DIR is the project root directory (THE IDENTITY).
+BACKEND-NAME is the name of the backend.
+BACKEND-SESSION is the backend-specific session handle.
+INITIAL-ISSUE is the optional initial focus issue ID.
+AGENT-TYPE-NAME is the name of the agent type (e.g., \"Task\", \"Review\").
+Returns the created beads-agent-session object.
+
+The session is keyed by PROJECT-DIR, not issue.  Multiple issues can be
+worked on within a single session.  INITIAL-ISSUE (if provided) becomes
+the current focus and is added to touched-issues.
+
+Note: Session storage is handled by `beads-agent-state-change-hook'.
+The hook handler in beads-sesman.el registers the session with sesman."
+  (let* ((normalized-dir (expand-file-name project-dir))
+         (project-name (beads-agent--derive-project-name normalized-dir))
+         (instance-num (beads-agent--next-project-instance-number normalized-dir))
+         (session-id (format "%s#%d" project-name instance-num))
+         (session (beads-agent-session
+                   :id session-id
+                   :project-dir normalized-dir
+                   :proj-name project-name
+                   :instance-number instance-num
+                   :current-issue initial-issue
+                   :touched-issues (when initial-issue (list initial-issue))
+                   ;; Backward compatibility: set issue-id to initial-issue
+                   :issue-id initial-issue
+                   :backend-name backend-name
+                   :agent-type-name agent-type-name
                    :started-at (format-time-string "%Y-%m-%dT%H:%M:%S%z")
                    :backend-session backend-session)))
     ;; Run state change hook - this triggers sesman registration
@@ -451,9 +606,73 @@ Uses sesman's context-aware session selection."
                        (oref session backend-name))))
     (beads-agent-backend-session-active-p backend session)))
 
+;;; Directory-Bound Session Management
+;;
+;; These functions support the new directory-bound session model where
+;; sessions are keyed by project directory rather than issue ID.
+
+(defun beads-agent--derive-project-name (project-dir)
+  "Derive a project name from PROJECT-DIR.
+Returns the basename of the directory (e.g., \"beads.el\" from
+\"/home/user/code/beads.el\")."
+  (file-name-nondirectory (directory-file-name (expand-file-name project-dir))))
+
+(defun beads-agent--get-sessions-for-project (project-dir)
+  "Get all sessions for PROJECT-DIR as a list of session objects.
+PROJECT-DIR is normalized for comparison."
+  (let ((normalized-dir (file-truename (expand-file-name project-dir))))
+    (cl-loop for sesman-session in (sesman-sessions beads-sesman-system)
+             for beads-session = (nth 2 sesman-session)
+             when (and beads-session
+                       (equal (file-truename
+                               (expand-file-name (oref beads-session project-dir)))
+                              normalized-dir))
+             collect beads-session)))
+
+(defun beads-agent--next-project-instance-number (project-dir)
+  "Find the next available instance number for PROJECT-DIR.
+Scans all existing sessions for PROJECT-DIR and returns max+1.
+Returns 1 if no sessions exist for the project.
+Instance numbers never reuse - gaps in numbering are ignored."
+  (let ((max-num 0))
+    (dolist (session (beads-agent--get-sessions-for-project project-dir))
+      (let ((num (oref session instance-number)))
+        (when (and num (integerp num))
+          (setq max-num (max max-num num)))))
+    (1+ max-num)))
+
+(defun beads-agent--get-sessions-touching-issue (issue-id)
+  "Get sessions that have touched ISSUE-ID.
+Returns sessions where ISSUE-ID is in `touched-issues'."
+  (cl-loop for sesman-session in (sesman-sessions beads-sesman-system)
+           for beads-session = (nth 2 sesman-session)
+           when (and beads-session
+                     (member issue-id (oref beads-session touched-issues)))
+           collect beads-session))
+
+(defun beads-agent--get-sessions-focused-on-issue (issue-id)
+  "Get sessions currently focused on ISSUE-ID.
+Returns sessions where `current-issue' equals ISSUE-ID."
+  (cl-loop for sesman-session in (sesman-sessions beads-sesman-system)
+           for beads-session = (nth 2 sesman-session)
+           when (and beads-session
+                     (equal (oref beads-session current-issue) issue-id))
+           collect beads-session))
+
 ;;; Buffer Naming
 ;;
-;; Buffer names follow the format:
+;; Directory-bound buffer names (new):
+;;   *beads-agent[PROJECT-NAME][#N]*
+;;
+;; Where:
+;;   PROJECT-NAME - The project name (e.g., "beads.el")
+;;   N - Instance number for this project
+;;
+;; Examples:
+;;   *beads-agent[beads.el][#1]*
+;;   *beads-agent[beads.el][#2]*
+;;
+;; Legacy issue-bound buffer names (deprecated):
 ;;   *beads-agent[ISSUE-ID][TYPE#N]*
 ;;
 ;; Where:
@@ -461,10 +680,9 @@ Uses sesman's context-aware session selection."
 ;;   TYPE - The agent type name (e.g., "Task", "Review", "Plan")
 ;;   N - Instance number per (issue, type) combination
 ;;
-;; Examples:
+;; Examples (legacy):
 ;;   *beads-agent[beads.el-xrrt][Task#1]*
 ;;   *beads-agent[beads.el-xrrt][Plan#1]*
-;;   *beads-agent[beads.el-xrrt][Task#2]*
 
 (defvar beads-agent--typed-instance-counters (make-hash-table :test #'equal)
   "Hash table mapping (issue-id . type-name) to next instance number.
@@ -529,11 +747,50 @@ or nil if the buffer name doesn't match the expected format."
           :instance-n (string-to-number (match-string 3 buffer-name)))))
 
 (defun beads-agent--buffer-name-p (buffer-name)
-  "Return non-nil if BUFFER-NAME is a valid beads agent buffer name."
+  "Return non-nil if BUFFER-NAME is a valid beads agent buffer name.
+Matches both directory-bound and legacy issue-bound formats."
   (and buffer-name
-       (string-match-p
-        "\\*beads-agent\\[.+\\]\\[.+#[0-9]+\\]\\*"
-        buffer-name)))
+       (or
+        ;; Directory-bound format: *beads-agent[project][#N]*
+        (string-match-p "\\*beads-agent\\[.+\\]\\[#[0-9]+\\]\\*" buffer-name)
+        ;; Legacy format: *beads-agent[issue][TYPE#N]*
+        (string-match-p "\\*beads-agent\\[.+\\]\\[.+#[0-9]+\\]\\*" buffer-name))))
+
+;;; Directory-Bound Buffer Naming
+
+(defun beads-agent--generate-project-buffer-name (proj-name instance-n)
+  "Generate buffer name for directory-bound session.
+PROJ-NAME is the project name (e.g., \"beads.el\").
+INSTANCE-N is the instance number for this project.
+
+Returns buffer name in format: *beads-agent[PROJ-NAME][#N]*"
+  (format "*beads-agent[%s][#%d]*" proj-name instance-n))
+
+(defun beads-agent--generate-buffer-name-for-project-session (session)
+  "Generate buffer name for directory-bound SESSION object.
+Uses the session's proj-name and instance-number to build the name."
+  (let ((project-name (or (oref session proj-name)
+                          (beads-agent--derive-project-name
+                           (oref session project-dir))))
+        (instance-n (oref session instance-number)))
+    (beads-agent--generate-project-buffer-name project-name instance-n)))
+
+(defun beads-agent--parse-project-buffer-name (buffer-name)
+  "Parse a directory-bound buffer name into its components.
+BUFFER-NAME should be in format *beads-agent[PROJECT-NAME][#N]*.
+Returns plist (:project-name NAME :instance-n N)
+or nil if the buffer name doesn't match the expected format."
+  (when (string-match
+         "\\*beads-agent\\[\\([^]]+\\)\\]\\[#\\([0-9]+\\)\\]\\*"
+         buffer-name)
+    (list :project-name (match-string 1 buffer-name)
+          :instance-n (string-to-number (match-string 2 buffer-name)))))
+
+(defun beads-agent--project-buffer-name-p (buffer-name)
+  "Return non-nil if BUFFER-NAME is a directory-bound buffer name.
+Directory-bound format: *beads-agent[PROJECT-NAME][#N]*"
+  (and buffer-name
+       (string-match-p "\\*beads-agent\\[.+\\]\\[#[0-9]+\\]\\*" buffer-name)))
 
 ;;; Window Management
 ;;

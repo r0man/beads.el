@@ -1539,6 +1539,65 @@ If no agent exists, shows a message."
         (message "No agents running for %s" id))
     (user-error "No issue at point")))
 
+;;; Directory-Bound Session Focus Commands
+;;
+;; Commands to switch issue focus within a directory-bound session.
+;; Since agents now persist across issues, users need to switch focus
+;; without restarting the agent.
+
+(defun beads-agent--get-current-project-session ()
+  "Get the current directory-bound session for the project.
+Looks for sessions matching the current project directory.
+Returns the most recent session if multiple exist, or nil if none."
+  (when-let ((project-dir (or (beads--find-project-root)
+                               default-directory)))
+    (let ((sessions (beads-agent--get-sessions-for-project project-dir)))
+      (car sessions))))  ; Most recent session
+
+;;;###autoload
+(defun beads-agent-focus-issue (issue-id)
+  "Set current agent focus to ISSUE-ID.
+Adds ISSUE-ID to touched-issues if not already present.
+Uses the current directory-bound session for this project."
+  (interactive (list (beads-completion-read-issue "Focus on issue: ")))
+  (if-let ((session (beads-agent--get-current-project-session)))
+      (progn
+        (beads-agent-session-set-current-issue session issue-id)
+        (message "Agent now focused on %s" issue-id))
+    (user-error "No active agent session for current project")))
+
+;;;###autoload
+(defun beads-agent-clear-focus ()
+  "Clear current issue focus.
+Agent continues in general project context without focus.
+Uses the current directory-bound session for this project."
+  (interactive)
+  (if-let ((session (beads-agent--get-current-project-session)))
+      (progn
+        (oset session current-issue nil)
+        (message "Agent focus cleared (project context)"))
+    (user-error "No active agent session for current project")))
+
+;;;###autoload
+(defun beads-agent-show-touched ()
+  "Show all issues touched by the current agent session.
+Displays the list of issues that have been focused on during this session."
+  (interactive)
+  (if-let ((session (beads-agent--get-current-project-session)))
+      (let ((touched (beads-agent-session-touched-issues session))
+            (current (beads-agent-session-current-issue session)))
+        (if touched
+            (message "Touched issues: %s%s"
+                     (string-join touched ", ")
+                     (if current
+                         (format " (current: %s)" current)
+                       ""))
+          (message "No issues touched yet%s"
+                   (if current
+                       (format " (current: %s)" current)
+                     ""))))
+    (user-error "No active agent session for current project")))
+
 (provide 'beads-agent)
 
 ;;; Load Available Backends
