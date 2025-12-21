@@ -221,12 +221,14 @@ to clean up the session if the buffer is killed manually."
 Also clears the buffer-local session ID to prevent the `kill-buffer-hook'
 from attempting a redundant cleanup when the buffer is eventually killed."
   (let ((name (beads-sesman--session-name beads-session)))
-    ;; Clear buffer-local session ID to prevent double-cleanup
+    ;; Clear buffer-local session ID and remove hook to prevent orphaned cleanup
     (when-let* ((backend (beads-agent--get-backend (oref beads-session backend-name)))
                 (buffer (beads-agent-backend-get-buffer backend beads-session)))
       (when (buffer-live-p buffer)
         (with-current-buffer buffer
-          (setq-local beads-sesman--buffer-session-id nil))))
+          (setq-local beads-sesman--buffer-session-id nil)
+          ;; Remove the kill-buffer-hook to prevent orphaned cleanup attempts
+          (remove-hook 'kill-buffer-hook #'beads-sesman--buffer-kill-handler t))))
     ;; Unregister from sesman
     (sesman-unregister beads-sesman-system
                        (sesman-session beads-sesman-system name))))

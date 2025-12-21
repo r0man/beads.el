@@ -147,12 +147,15 @@ Returns cons cell (BACKEND-SESSION . BUFFER)."
 (cl-defmethod beads-agent-backend-stop
     ((backend beads-agent-backend-claude-code) session)
   "Stop claude-code SESSION using BACKEND.
-Explicitly kills the session buffer since beads renames it and
+Explicitly kills the underlying process then the session buffer.
+We kill the buffer directly because beads renames it and
 `claude-code-kill' won't find it by the original name."
-  ;; Kill the buffer directly - claude-code-kill won't find it
-  ;; because we renamed it from *Claude: ...* to *beads-agent[...]*
   (when-let ((buffer (beads-agent-backend-get-buffer backend session)))
     (when (buffer-live-p buffer)
+      ;; Kill process first to avoid zombies - buffer kill may not
+      ;; terminate the claude CLI if the terminal emulator detached it
+      (when-let ((proc (get-buffer-process buffer)))
+        (delete-process proc))
       (kill-buffer buffer))))
 
 (cl-defmethod beads-agent-backend-session-active-p

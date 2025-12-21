@@ -601,4 +601,3 @@ The bd CLI is the source of truth. All operations go through:
 The .beads directory is auto-discovered via locate-dominating-file,
 starting from project root or current directory. Database path
 extracted from .beads/*.db files.
-- remove all hacks to get the warning about ws-process silent. just declare it, and thats it. ignore it otherwise

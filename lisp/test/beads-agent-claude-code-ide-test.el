@@ -1,4 +1,4 @@
-;;; beads-agent-claude-code-test.el --- Tests for claude-code backend -*- lexical-binding: t; -*-
+;;; beads-agent-claude-code-ide-test.el --- Tests for claude-code-ide backend -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
@@ -7,133 +7,110 @@
 
 ;;; Commentary:
 
-;; ERT tests for beads-agent-claude-code.el - the claude-code.el backend.
-;; These tests verify the buffer finding logic and other backend methods
-;; without requiring the actual claude-code package.
+;; ERT tests for beads-agent-claude-code-ide.el - the claude-code-ide backend.
+;; These tests verify the buffer finding logic, stop behavior, and other
+;; backend methods without requiring the actual claude-code-ide package.
+;;
+;; claude-code-ide buffer naming convention:
+;; - Buffer: *Claude Code: DIRECTORY_NAME*
+;; Where DIRECTORY_NAME is the basename of the project directory.
 
 ;;; Code:
 
 (require 'ert)
 (require 'beads-agent-backend)
-(require 'beads-agent-claude-code)
+(require 'beads-agent-claude-code-ide)
 
 ;;; Buffer Finding Tests
 ;;
-;; These tests verify that `beads-agent-claude-code--find-buffers' correctly
-;; identifies Claude buffers based on the naming convention used by claude-code.el.
-;;
-;; claude-code buffer naming convention:
-;; - Main buffer: *claude:DIRECTORY/*
-;; - Named instance: *claude:DIRECTORY/:INSTANCE*
-;; Where DIRECTORY is the abbreviated truename with trailing slash.
+;; These tests verify that `beads-agent-claude-code-ide--find-buffers' correctly
+;; identifies Claude Code IDE buffers based on the naming convention.
 
-(ert-deftest beads-agent-claude-code-test-find-buffers-main-buffer ()
-  "Test finding main Claude buffer (no instance name)."
-  (let ((test-buf (generate-new-buffer "*claude:~/workspace/test/*")))
+(ert-deftest beads-agent-claude-code-ide-test-find-buffers-main-buffer ()
+  "Test finding main Claude Code IDE buffer."
+  (let ((test-buf (generate-new-buffer "*Claude Code: test*")))
     (unwind-protect
-        (let ((found (beads-agent-claude-code--find-buffers
+        (let ((found (beads-agent-claude-code-ide--find-buffers
                       "/home/roman/workspace/test/")))
           (should (= 1 (length found)))
-          (should (equal (buffer-name (car found)) "*claude:~/workspace/test/*")))
+          (should (equal (buffer-name (car found)) "*Claude Code: test*")))
       (kill-buffer test-buf))))
 
-(ert-deftest beads-agent-claude-code-test-find-buffers-without-trailing-slash ()
+(ert-deftest beads-agent-claude-code-ide-test-find-buffers-without-trailing-slash ()
   "Test that input without trailing slash still finds buffers."
-  (let ((test-buf (generate-new-buffer "*claude:~/workspace/test/*")))
+  (let ((test-buf (generate-new-buffer "*Claude Code: test*")))
     (unwind-protect
-        (let ((found (beads-agent-claude-code--find-buffers
+        (let ((found (beads-agent-claude-code-ide--find-buffers
                       "/home/roman/workspace/test")))
           (should (= 1 (length found)))
-          (should (equal (buffer-name (car found)) "*claude:~/workspace/test/*")))
+          (should (equal (buffer-name (car found)) "*Claude Code: test*")))
       (kill-buffer test-buf))))
 
-(ert-deftest beads-agent-claude-code-test-find-buffers-instance-buffer ()
-  "Test finding Claude buffer with instance name."
-  (let ((test-buf (generate-new-buffer "*claude:~/workspace/test/:my-instance*")))
-    (unwind-protect
-        (let ((found (beads-agent-claude-code--find-buffers
-                      "/home/roman/workspace/test/")))
-          (should (= 1 (length found)))
-          (should (equal (buffer-name (car found))
-                         "*claude:~/workspace/test/:my-instance*")))
-      (kill-buffer test-buf))))
-
-(ert-deftest beads-agent-claude-code-test-find-buffers-multiple ()
-  "Test finding multiple Claude buffers for same directory."
-  (let ((buf1 (generate-new-buffer "*claude:~/workspace/test/*"))
-        (buf2 (generate-new-buffer "*claude:~/workspace/test/:tests*"))
-        (buf3 (generate-new-buffer "*claude:~/workspace/test/:dev*")))
-    (unwind-protect
-        (let ((found (beads-agent-claude-code--find-buffers
-                      "/home/roman/workspace/test/")))
-          (should (= 3 (length found)))
-          (should (member "*claude:~/workspace/test/*"
-                          (mapcar #'buffer-name found)))
-          (should (member "*claude:~/workspace/test/:tests*"
-                          (mapcar #'buffer-name found)))
-          (should (member "*claude:~/workspace/test/:dev*"
-                          (mapcar #'buffer-name found))))
-      (kill-buffer buf1)
-      (kill-buffer buf2)
-      (kill-buffer buf3))))
-
-(ert-deftest beads-agent-claude-code-test-find-buffers-different-projects ()
+(ert-deftest beads-agent-claude-code-ide-test-find-buffers-different-projects ()
   "Test that we don't find buffers from other projects."
-  (let ((our-buf (generate-new-buffer "*claude:~/workspace/test/*"))
-        (other-buf (generate-new-buffer "*claude:~/workspace/other/*")))
+  (let ((our-buf (generate-new-buffer "*Claude Code: test*"))
+        (other-buf (generate-new-buffer "*Claude Code: other*")))
     (unwind-protect
-        (let ((found (beads-agent-claude-code--find-buffers
+        (let ((found (beads-agent-claude-code-ide--find-buffers
                       "/home/roman/workspace/test/")))
           (should (= 1 (length found)))
-          (should (equal (buffer-name (car found)) "*claude:~/workspace/test/*")))
+          (should (equal (buffer-name (car found)) "*Claude Code: test*")))
       (kill-buffer our-buf)
       (kill-buffer other-buf))))
 
-(ert-deftest beads-agent-claude-code-test-find-buffers-no-match ()
+(ert-deftest beads-agent-claude-code-ide-test-find-buffers-no-match ()
   "Test that we return nil when no matching buffers exist."
-  (let ((other-buf (generate-new-buffer "*claude:~/workspace/other/*")))
+  (let ((other-buf (generate-new-buffer "*Claude Code: other*")))
     (unwind-protect
-        (let ((found (beads-agent-claude-code--find-buffers
+        (let ((found (beads-agent-claude-code-ide--find-buffers
                       "/home/roman/workspace/test/")))
           (should (null found)))
       (kill-buffer other-buf))))
 
-(ert-deftest beads-agent-claude-code-test-find-buffers-similar-prefix ()
-  "Test that similar directory prefixes don't cause false matches."
+(ert-deftest beads-agent-claude-code-ide-test-find-buffers-similar-name ()
+  "Test that similar directory names don't cause false matches."
   ;; Buffer for /workspace/test-extended should NOT match /workspace/test
-  (let ((extended-buf (generate-new-buffer "*claude:~/workspace/test-extended/*")))
+  (let ((extended-buf (generate-new-buffer "*Claude Code: test-extended*")))
     (unwind-protect
-        (let ((found (beads-agent-claude-code--find-buffers
+        (let ((found (beads-agent-claude-code-ide--find-buffers
                       "/home/roman/workspace/test/")))
           (should (null found)))
       (kill-buffer extended-buf))))
 
 ;;; Backend Registration Test
 
-(ert-deftest beads-agent-claude-code-test-backend-registered ()
-  "Test that claude-code backend is registered."
-  ;; Backends are stored as a list of EIEIO objects
+(ert-deftest beads-agent-claude-code-ide-test-backend-registered ()
+  "Test that claude-code-ide backend is registered."
   (let ((backend (seq-find
-                  (lambda (b) (equal (oref b name) "claude-code"))
+                  (lambda (b) (equal (oref b name) "claude-code-ide"))
                   beads-agent--backends)))
     (should backend)
-    (should (beads-agent-backend-claude-code-p backend))))
+    (should (beads-agent-backend-claude-code-ide-p backend))))
+
+(ert-deftest beads-agent-claude-code-ide-test-backend-priority ()
+  "Test that claude-code-ide has highest priority (lowest number)."
+  (let ((backend (seq-find
+                  (lambda (b) (equal (oref b name) "claude-code-ide"))
+                  beads-agent--backends)))
+    (should backend)
+    ;; Priority 10 - highest priority (lowest number)
+    (should (= 10 (oref backend priority)))))
 
 ;;; Backend Stop Tests
 ;;
 ;; These tests verify that `beads-agent-backend-stop' properly kills the
 ;; underlying process before killing the buffer, preventing zombie processes.
 
-(ert-deftest beads-agent-claude-code-test-stop-kills-process-before-buffer ()
+(ert-deftest beads-agent-claude-code-ide-test-stop-kills-process-before-buffer ()
   "Test that stop kills the process before killing the buffer."
-  (let* ((test-buf (generate-new-buffer "*test-claude-code-stop*"))
+  (let* ((test-buf (generate-new-buffer "*test-claude-code-ide-stop*"))
          (backend (seq-find
-                   (lambda (b) (equal (oref b name) "claude-code"))
+                   (lambda (b) (equal (oref b name) "claude-code-ide"))
                    beads-agent--backends))
          (session (beads-agent-session
                    :id "test#1"
                    :issue-id "test"
-                   :backend-name "claude-code"
+                   :backend-name "claude-code-ide"
                    :project-dir "/tmp/test"
                    :started-at "2025-01-01T00:00:00Z"
                    :buffer test-buf
@@ -172,16 +149,16 @@
           (when proc (delete-process proc)))
         (kill-buffer test-buf)))))
 
-(ert-deftest beads-agent-claude-code-test-stop-no-process ()
+(ert-deftest beads-agent-claude-code-ide-test-stop-no-process ()
   "Test that stop works when buffer has no process."
-  (let* ((test-buf (generate-new-buffer "*test-claude-code-no-proc*"))
+  (let* ((test-buf (generate-new-buffer "*test-claude-code-ide-no-proc*"))
          (backend (seq-find
-                   (lambda (b) (equal (oref b name) "claude-code"))
+                   (lambda (b) (equal (oref b name) "claude-code-ide"))
                    beads-agent--backends))
          (session (beads-agent-session
                    :id "test#1"
                    :issue-id "test"
-                   :backend-name "claude-code"
+                   :backend-name "claude-code-ide"
                    :project-dir "/tmp/test"
                    :started-at "2025-01-01T00:00:00Z"
                    :buffer test-buf
@@ -198,16 +175,16 @@
       (when (buffer-live-p test-buf)
         (kill-buffer test-buf)))))
 
-(ert-deftest beads-agent-claude-code-test-stop-dead-buffer ()
+(ert-deftest beads-agent-claude-code-ide-test-stop-dead-buffer ()
   "Test that stop handles already-killed buffer gracefully."
-  (let* ((test-buf (generate-new-buffer "*test-claude-code-dead*"))
+  (let* ((test-buf (generate-new-buffer "*test-claude-code-ide-dead*"))
          (backend (seq-find
-                   (lambda (b) (equal (oref b name) "claude-code"))
+                   (lambda (b) (equal (oref b name) "claude-code-ide"))
                    beads-agent--backends))
          (session (beads-agent-session
                    :id "test#1"
                    :issue-id "test"
-                   :backend-name "claude-code"
+                   :backend-name "claude-code-ide"
                    :project-dir "/tmp/test"
                    :started-at "2025-01-01T00:00:00Z"
                    :buffer test-buf
@@ -219,15 +196,15 @@
                     (progn (beads-agent-backend-stop backend session) nil)
                   (error t)))))
 
-(ert-deftest beads-agent-claude-code-test-stop-nil-buffer ()
+(ert-deftest beads-agent-claude-code-ide-test-stop-nil-buffer ()
   "Test that stop handles nil buffer gracefully."
   (let* ((backend (seq-find
-                   (lambda (b) (equal (oref b name) "claude-code"))
+                   (lambda (b) (equal (oref b name) "claude-code-ide"))
                    beads-agent--backends))
          (session (beads-agent-session
                    :id "test#1"
                    :issue-id "test"
-                   :backend-name "claude-code"
+                   :backend-name "claude-code-ide"
                    :project-dir "/tmp/test"
                    :started-at "2025-01-01T00:00:00Z"
                    :buffer nil
@@ -239,20 +216,22 @@
 
 ;;; Backend Availability Test
 
-(ert-deftest beads-agent-claude-code-test-backend-available-checks-package ()
-  "Test that backend availability checks for claude-code package."
+(ert-deftest beads-agent-claude-code-ide-test-backend-available-checks-package ()
+  "Test that backend availability checks for claude-code-ide package."
   (let ((backend (seq-find
-                  (lambda (b) (equal (oref b name) "claude-code"))
+                  (lambda (b) (equal (oref b name) "claude-code-ide"))
                   beads-agent--backends)))
     (should backend)
-    ;; When claude-code package and claude executable are both available,
-    ;; the backend should report available
-    (if (and (or (featurep 'claude-code)
-                 (require 'claude-code nil t))
+    ;; When web-server, claude-code-ide package, and claude executable are
+    ;; all available, the backend should report available
+    (if (and (or (featurep 'web-server)
+                 (require 'web-server nil t))
+             (or (featurep 'claude-code-ide)
+                 (require 'claude-code-ide nil t))
              (executable-find "claude"))
         (should (beads-agent-backend-available-p backend))
       ;; Otherwise it should be unavailable
       (should (not (beads-agent-backend-available-p backend))))))
 
-(provide 'beads-agent-claude-code-test)
-;;; beads-agent-claude-code-test.el ends here
+(provide 'beads-agent-claude-code-ide-test)
+;;; beads-agent-claude-code-ide-test.el ends here

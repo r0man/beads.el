@@ -771,6 +771,34 @@ via the hook, and that query/destroy functions work correctly."
         (unless (member sesman-session original-sessions)
           (sesman-unregister beads-sesman-system sesman-session))))))
 
+(ert-deftest beads-sesman-test-kill-buffer-hook-removed-on-unregister ()
+  "Test that kill-buffer-hook is removed when unregistering session."
+  (let ((original-sessions (copy-sequence (sesman-sessions beads-sesman-system)))
+        (test-buffer (generate-new-buffer "*test-agent-buffer*")))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-agent--get-backend)
+                   (lambda (_name) 'mock-backend))
+                  ((symbol-function 'beads-agent-backend-get-buffer)
+                   (lambda (_backend _session) test-buffer)))
+          (let* ((session (beads-agent--create-session
+                           "test-issue" "mock" "/tmp/project" 'handle)))
+            ;; Verify kill-buffer-hook is installed
+            (with-current-buffer test-buffer
+              (should (memq #'beads-sesman--buffer-kill-handler
+                            kill-buffer-hook)))
+            ;; Unregister session
+            (beads-agent--destroy-session (oref session id))
+            ;; Verify kill-buffer-hook is removed
+            (with-current-buffer test-buffer
+              (should-not (memq #'beads-sesman--buffer-kill-handler
+                                kill-buffer-hook)))))
+      ;; Cleanup
+      (when (buffer-live-p test-buffer)
+        (kill-buffer test-buffer))
+      (dolist (sesman-session (sesman-sessions beads-sesman-system))
+        (unless (member sesman-session original-sessions)
+          (sesman-unregister beads-sesman-system sesman-session))))))
+
 (ert-deftest beads-sesman-test-buffer-kill-cleans-up-session ()
   "Test that killing agent buffer triggers session cleanup."
   (let ((original-sessions (copy-sequence (sesman-sessions beads-sesman-system)))

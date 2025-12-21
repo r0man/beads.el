@@ -214,6 +214,40 @@ Annotation functions may return nil or empty string for missing data."
     (beads-completion-invalidate-cache)
     (should (null beads-completion--cache))))
 
+(ert-deftest beads-completion-test-cache-preserved-on-error ()
+  "Test that stale cache is preserved when refresh fails."
+  (let* ((mock-issues (beads-completion-test--make-mock-issues))
+         ;; Use an old timestamp so refresh is attempted
+         (beads-completion--cache (cons 0 mock-issues))
+         (message-shown nil))
+    (cl-letf (((symbol-function 'beads-command-list!)
+               (lambda ()
+                 (error "Connection failed")))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-shown (apply #'format fmt args)))))
+      ;; Get issues - should fail to refresh but return stale data
+      (let ((result (beads-completion--get-cached-issues)))
+        ;; Should return the stale cached issues
+        (should (= (length result) (length mock-issues)))
+        (should (equal (oref (car result) id) "bd-abc1"))
+        ;; Should show warning
+        (should message-shown)
+        (should (string-match "using cached data" message-shown))))))
+
+(ert-deftest beads-completion-test-nil-returned-when-no-cache-and-error ()
+  "Test that nil is returned when refresh fails with no cache."
+  (let ((beads-completion--cache nil))
+    (cl-letf (((symbol-function 'beads-command-list!)
+               (lambda ()
+                 (error "Connection failed")))
+              ;; Suppress any messages
+              ((symbol-function 'message) #'ignore))
+      ;; Get issues - should fail to refresh with no stale data
+      (let ((result (beads-completion--get-cached-issues)))
+        ;; Should return nil since no cache available
+        (should (null result))))))
+
 ;;; Truncate Utility Tests
 
 (ert-deftest beads-completion-test-truncate-string-short ()

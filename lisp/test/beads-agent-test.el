@@ -2377,6 +2377,44 @@ Settings changes should allow continued configuration."
       (should callback-called)
       (should (null callback-result)))))
 
+(ert-deftest beads-agent-test-fetch-issue-async-buffer-killed ()
+  "Test that fetch-issue-async handles buffer killed during processing."
+  (let* ((callback-called nil)
+         (callback-result 'not-set)
+         (sentinel-fn nil)
+         (output-buffer nil))
+    (cl-letf (((symbol-function 'start-process)
+               (lambda (name buffer &rest _program)
+                 (setq output-buffer buffer)
+                 (let ((proc (make-process :name name
+                                          :buffer nil
+                                          :command '("true")
+                                          :noquery t)))
+                   proc)))
+              ((symbol-function 'set-process-sentinel)
+               (lambda (_proc fn)
+                 (setq sentinel-fn fn)))
+              ((symbol-function 'process-status)
+               (lambda (_proc) 'exit))
+              ((symbol-function 'process-exit-status)
+               (lambda (_proc) 0))
+              ((symbol-function 'beads-command-line)
+               (lambda (_cmd) '("bd" "show"))))
+      (beads-agent--fetch-issue-async
+       "bd-1"
+       (lambda (issue)
+         (setq callback-called t)
+         (setq callback-result issue)))
+      ;; Kill the buffer before sentinel runs
+      (when (buffer-live-p output-buffer)
+        (kill-buffer output-buffer))
+      ;; Simulate process exit with killed buffer
+      (when sentinel-fn
+        (funcall sentinel-fn 'mock-proc "finished\n"))
+      ;; Callback should have been invoked with nil due to dead buffer
+      (should callback-called)
+      (should (null callback-result)))))
+
 (ert-deftest beads-agent-test-start-async-handles-nil-issue ()
   "Test that start-async shows error message when issue fetch fails."
   (let ((message-shown nil))
