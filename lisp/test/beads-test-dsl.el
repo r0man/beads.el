@@ -742,8 +742,10 @@ _CONTEXT is the test context (unused, kept for API consistency)."
                      (equal (oref issue title) title))
                  (or (null issue-type)
                      (equal (oref issue issue-type) issue-type))
+                 ;; Note: bd omits priority 0 from JSON (omitempty behavior)
                  (or (null priority)
-                     (equal (oref issue priority) priority)))
+                     (equal (oref issue priority) priority)
+                     (and (eql priority 0) (null (oref issue priority)))))
         (setq found issue)))
     (unless found
       (let ((criteria (string-join
@@ -784,7 +786,9 @@ _CONTEXT is the test context (unused, kept for API consistency)."
           (ert-fail (format "Issue %s: expected status=%S, got %S"
                             issue-id status (oref issue status)))))
       (when priority
-        (unless (equal (oref issue priority) priority)
+        ;; Note: bd omits priority 0 from JSON (omitempty behavior)
+        (unless (or (equal (oref issue priority) priority)
+                    (and (eql priority 0) (null (oref issue priority))))
           (ert-fail (format "Issue %s: expected priority=%S, got %S"
                             issue-id priority (oref issue priority)))))
       (when title

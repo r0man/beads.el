@@ -367,7 +367,7 @@ Integration test with comprehensive option set."
     (let ((issue (beads-command-create!
                   :title "Complex issue"
                   :issue-type "feature"
-                  :priority "0"
+                  :priority "1"
                   :description "Detailed description"
                   :assignee "bob"
                   :labels '("critical" "frontend"))))
@@ -376,7 +376,7 @@ Integration test with comprehensive option set."
       ;; Core fields should match
       (should (string= (oref issue title) "Complex issue"))
       (should (string= (oref issue issue-type) "feature"))
-      (should (= (oref issue priority) 0))
+      (should (= (oref issue priority) 1))
       (should (string= (oref issue description) "Detailed description"))
       (should (string= (oref issue assignee) "bob")))))
 
@@ -483,10 +483,11 @@ Integration test that applies multiple filters together."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-project ()
     ;; Create issues with various attributes
+    ;; Note: Use priority 1 instead of 0 because bd omits priority 0 from JSON
     (let* ((target-issue (beads-command-create!
                           :title "Critical bug"
                           :issue-type "bug"
-                          :priority "0"))
+                          :priority "1"))
            (_other-bug (beads-command-create!
                         :title "Low priority bug"
                         :issue-type "bug"
@@ -494,17 +495,17 @@ Integration test that applies multiple filters together."
            (_feature (beads-command-create!
                       :title "Critical feature"
                       :issue-type "feature"
-                      :priority "0"))
-           ;; List with combined filters: bug AND priority 0
+                      :priority "1"))
+           ;; List with combined filters: bug AND priority 1
            (issues (beads-command-list!
                     :issue-type "bug"
-                    :priority 0)))
+                    :priority 1)))
       ;; Should return a list
       (should (listp issues))
       ;; All issues should match both filters
       (should (cl-every (lambda (issue)
                           (and (string= (oref issue issue-type) "bug")
-                               (= (oref issue priority) 0)))
+                               (= (oref issue priority) 1)))
                         issues))
       ;; Should include our target issue
       (let ((ids (mapcar (lambda (issue) (oref issue id)) issues)))
