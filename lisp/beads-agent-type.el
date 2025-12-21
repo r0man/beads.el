@@ -31,13 +31,45 @@
 ;;   - Generic functions for prompt building and validation
 ;;   - Type registry for registration and lookup
 ;;
-;; Concrete type implementations are defined separately (e.g., in
-;; beads-agent-types.el) and register themselves at load time.
+;; Customizing Agent Types:
+;;
+;; To add a new agent type, subclass `beads-agent-type' and register it:
+;;
+;;   (defclass my-debug-type (beads-agent-type)
+;;     ((name :initform "Debug")
+;;      (letter :initform "D")
+;;      (description :initform "Debugging agent")
+;;      (prompt-template :initform "You are a debugging agent...")))
+;;
+;;   (beads-agent-type-register (my-debug-type))
+;;
+;; To replace a built-in type (e.g., customize the Review prompt):
+;;
+;;   (defclass my-review-type (beads-agent-type)
+;;     ((name :initform "Review")
+;;      (letter :initform "R")
+;;      (description :initform "My custom review agent")
+;;      (prompt-template :initform "Review this code for security...")))
+;;
+;;   ;; Re-registering with the same name replaces the existing type
+;;   (beads-agent-type-register (my-review-type))
+;;
+;; For custom prompt logic, override `beads-agent-type-build-prompt':
+;;
+;;   (cl-defmethod beads-agent-type-build-prompt ((type my-debug-type) issue)
+;;     (format "Debug issue %s: %s" (oref issue id) (oref issue title)))
+;;
+;; Letter uniqueness is enforced - each type must use a unique letter.
+;; Re-registering a type with the same name frees its old letter.
+;;
+;; Concrete type implementations are defined in beads-agent-types.el
+;; and register themselves at load time.
 
 ;;; Code:
 
 (require 'eieio)
 (require 'cl-lib)
+(require 'beads-types)
 
 ;;; EIEIO Classes
 
@@ -136,21 +168,55 @@ Returns a string suitable for display in UI elements.")
 Use `beads-agent-type-register', `beads-agent-type-get', and
 `beads-agent-type-list' to access.")
 
+(defvar beads-agent-type--letter-registry nil
+  "Hash table mapping letters (uppercase strings) to type names.
+Used to validate letter uniqueness during registration.")
+
 (defun beads-agent-type--ensure-registry ()
-  "Ensure the type registry exists."
+  "Ensure the type registries exist."
   (unless beads-agent-type--registry
-    (setq beads-agent-type--registry (make-hash-table :test #'equal))))
+    (setq beads-agent-type--registry (make-hash-table :test #'equal)))
+  (unless beads-agent-type--letter-registry
+    (setq beads-agent-type--letter-registry (make-hash-table :test #'equal))))
+
+(defun beads-agent-type--validate-letter (letter type-name)
+  "Validate that LETTER is unique and well-formed for TYPE-NAME.
+LETTER must be a single-character string.
+Signals an error if the letter is already used by another type.
+Returns t if validation passes."
+  (unless (and (stringp letter) (= (length letter) 1))
+    (error "Letter must be a single-character string, got: %S" letter))
+  (beads-agent-type--ensure-registry)
+  (let* ((upper-letter (upcase letter))
+         (existing-name (gethash upper-letter beads-agent-type--letter-registry)))
+    (when (and existing-name
+               (not (string= (downcase existing-name) (downcase type-name))))
+      (error "Letter %S is already used by type %S" upper-letter existing-name)))
+  t)
 
 ;;;###autoload
 (defun beads-agent-type-register (type)
   "Register TYPE for use with beads-agent.
 TYPE must be an instance of a `beads-agent-type' subclass.
-Replaces any existing type with the same name (case-insensitive)."
+Validates that the type's letter is unique across all registered types.
+Replaces any existing type with the same name (case-insensitive).
+Returns TYPE for convenient chaining."
   (unless (object-of-class-p type 'beads-agent-type)
     (error "Type must be a beads-agent-type instance"))
   (beads-agent-type--ensure-registry)
-  (let ((name (downcase (oref type name))))
-    (puthash name type beads-agent-type--registry)))
+  (let* ((name (oref type name))
+         (letter (oref type letter))
+         (lower-name (downcase name))
+         (upper-letter (upcase letter)))
+    ;; Validate letter uniqueness
+    (beads-agent-type--validate-letter letter name)
+    ;; If replacing existing type, unregister its letter first
+    (when-let ((existing (gethash lower-name beads-agent-type--registry)))
+      (remhash (upcase (oref existing letter)) beads-agent-type--letter-registry))
+    ;; Register the type and letter
+    (puthash lower-name type beads-agent-type--registry)
+    (puthash upper-letter lower-name beads-agent-type--letter-registry)
+    type))
 
 ;;;###autoload
 (defun beads-agent-type-get (name)
@@ -176,9 +242,19 @@ Names are returned as lowercase strings, sorted alphabetically."
           (beads-agent-type-list)))
 
 (defun beads-agent-type--clear-registry ()
-  "Clear the type registry.
+  "Clear the type registries.
 This function is intended for testing purposes only."
-  (setq beads-agent-type--registry nil))
+  (setq beads-agent-type--registry nil)
+  (setq beads-agent-type--letter-registry nil))
+
+(defun beads-agent-type--unregister (name)
+  "Unregister the type with NAME from all registries.
+NAME is case-insensitive.  Does nothing if type is not registered."
+  (beads-agent-type--ensure-registry)
+  (let ((lower-name (downcase name)))
+    (when-let ((type (gethash lower-name beads-agent-type--registry)))
+      (remhash (upcase (oref type letter)) beads-agent-type--letter-registry)
+      (remhash lower-name beads-agent-type--registry))))
 
 ;;; Completion Support
 
@@ -207,6 +283,23 @@ Returns the selected type name as a string."
   (completing-read (or prompt "Agent type: ")
                    (beads-agent-type-completion-table)
                    nil t))
+
+;;; Lookup by Letter
+
+;;;###autoload
+(defun beads-agent-type-get-by-letter (letter)
+  "Get agent type by LETTER (case-insensitive).
+Returns the `beads-agent-type' instance, or nil if not found."
+  (beads-agent-type--ensure-registry)
+  (when-let ((name (gethash (upcase letter) beads-agent-type--letter-registry)))
+    (beads-agent-type-get name)))
+
+;;;###autoload
+(defun beads-agent-type-letter-used-p (letter)
+  "Return non-nil if LETTER is used by any registered type.
+LETTER is case-insensitive."
+  (beads-agent-type--ensure-registry)
+  (gethash (upcase letter) beads-agent-type--letter-registry))
 
 (provide 'beads-agent-type)
 
