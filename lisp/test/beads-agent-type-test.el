@@ -57,20 +57,26 @@
 ;;; Test Fixtures
 
 (defvar beads-agent-type-test--saved-registry nil
-  "Saved registry to restore after tests.")
+  "Saved name registry to restore after tests.")
+
+(defvar beads-agent-type-test--saved-letter-registry nil
+  "Saved letter registry to restore after tests.")
 
 (defun beads-agent-type-test--setup ()
   "Setup test fixtures."
   ;; Save current registry state
   (setq beads-agent-type-test--saved-registry beads-agent-type--registry)
+  (setq beads-agent-type-test--saved-letter-registry beads-agent-type--letter-registry)
   ;; Clear registry for clean tests
   (beads-agent-type--clear-registry))
 
 (defun beads-agent-type-test--teardown ()
   "Teardown test fixtures."
-  ;; Restore saved registry
+  ;; Restore saved registries
   (setq beads-agent-type--registry beads-agent-type-test--saved-registry)
-  (setq beads-agent-type-test--saved-registry nil))
+  (setq beads-agent-type--letter-registry beads-agent-type-test--saved-letter-registry)
+  (setq beads-agent-type-test--saved-registry nil)
+  (setq beads-agent-type-test--saved-letter-registry nil))
 
 ;;; Tests for Abstract Base Class
 
@@ -301,6 +307,14 @@
         (should-error (beads-agent-type-register 123) :type 'error))
     (beads-agent-type-test--teardown)))
 
+(ert-deftest beads-agent-type-test-register-returns-type ()
+  "Test that register returns the registered type for chaining."
+  (beads-agent-type-test--setup)
+  (unwind-protect
+      (let ((type (beads-agent-type-mock)))
+        (should (eq (beads-agent-type-register type) type)))
+    (beads-agent-type-test--teardown)))
+
 ;;; Tests for Multiple Type Registration
 
 (ert-deftest beads-agent-type-test-multiple-types-isolated ()
@@ -389,6 +403,131 @@
             (should (string-match "Round Trip" prompt)))))
     (beads-agent-type-test--teardown)))
 
+
+;;; Tests for Letter Uniqueness Validation
+
+(ert-deftest beads-agent-type-test-letter-validation-single-char ()
+  "Test that letter must be a single character string."
+  (beads-agent-type-test--setup)
+  (unwind-protect
+      (progn
+        ;; Valid single character
+        (should (beads-agent-type--validate-letter "M" "Mock"))
+        ;; Invalid: empty string
+        (should-error (beads-agent-type--validate-letter "" "Mock")
+                      :type 'error)
+        ;; Invalid: multiple characters
+        (should-error (beads-agent-type--validate-letter "MM" "Mock")
+                      :type 'error)
+        ;; Invalid: nil
+        (should-error (beads-agent-type--validate-letter nil "Mock")
+                      :type 'error)
+        ;; Invalid: number
+        (should-error (beads-agent-type--validate-letter 1 "Mock")
+                      :type 'error))
+    (beads-agent-type-test--teardown)))
+
+(ert-deftest beads-agent-type-test-letter-uniqueness-duplicate ()
+  "Test that duplicate letters are rejected."
+  (beads-agent-type-test--setup)
+  (unwind-protect
+      (let ((type1 (beads-agent-type-mock :name "First" :letter "X"))
+            (type2 (beads-agent-type-mock :name "Second" :letter "X")))
+        (beads-agent-type-register type1)
+        (should-error (beads-agent-type-register type2)
+                      :type 'error))
+    (beads-agent-type-test--teardown)))
+
+(ert-deftest beads-agent-type-test-letter-uniqueness-case-insensitive ()
+  "Test that letter uniqueness check is case-insensitive."
+  (beads-agent-type-test--setup)
+  (unwind-protect
+      (let ((type1 (beads-agent-type-mock :name "First" :letter "x"))
+            (type2 (beads-agent-type-mock :name "Second" :letter "X")))
+        (beads-agent-type-register type1)
+        (should-error (beads-agent-type-register type2)
+                      :type 'error))
+    (beads-agent-type-test--teardown)))
+
+(ert-deftest beads-agent-type-test-letter-replace-same-name ()
+  "Test that replacing a type with same name can reuse its letter."
+  (beads-agent-type-test--setup)
+  (unwind-protect
+      (let ((type1 (beads-agent-type-mock :name "Mock" :letter "X" :description "First"))
+            (type2 (beads-agent-type-mock :name "Mock" :letter "X" :description "Second")))
+        (beads-agent-type-register type1)
+        ;; Should succeed: replacing with same letter is allowed
+        (beads-agent-type-register type2)
+        (should (equal (oref (beads-agent-type-get "mock") description) "Second")))
+    (beads-agent-type-test--teardown)))
+
+(ert-deftest beads-agent-type-test-letter-replace-different-letter ()
+  "Test that replacing a type can use a different letter."
+  (beads-agent-type-test--setup)
+  (unwind-protect
+      (let ((type1 (beads-agent-type-mock :name "Mock" :letter "X"))
+            (type2 (beads-agent-type-mock :name "Mock" :letter "Y")))
+        (beads-agent-type-register type1)
+        ;; Should succeed: old letter is freed
+        (beads-agent-type-register type2)
+        (should (eq (beads-agent-type-get-by-letter "Y")
+                    (beads-agent-type-get "mock")))
+        ;; Old letter should be free
+        (should (null (beads-agent-type-get-by-letter "X"))))
+    (beads-agent-type-test--teardown)))
+
+;;; Tests for Get by Letter
+
+(ert-deftest beads-agent-type-test-get-by-letter ()
+  "Test getting a type by its letter."
+  (beads-agent-type-test--setup)
+  (unwind-protect
+      (let ((type (beads-agent-type-mock :letter "Z")))
+        (beads-agent-type-register type)
+        (should (eq (beads-agent-type-get-by-letter "Z") type))
+        (should (eq (beads-agent-type-get-by-letter "z") type)))
+    (beads-agent-type-test--teardown)))
+
+(ert-deftest beads-agent-type-test-get-by-letter-not-found ()
+  "Test getting a non-existent letter returns nil."
+  (beads-agent-type-test--setup)
+  (unwind-protect
+      (should (null (beads-agent-type-get-by-letter "Z")))
+    (beads-agent-type-test--teardown)))
+
+(ert-deftest beads-agent-type-test-letter-used-p ()
+  "Test checking if a letter is used."
+  (beads-agent-type-test--setup)
+  (unwind-protect
+      (let ((type (beads-agent-type-mock :letter "Z")))
+        (should (null (beads-agent-type-letter-used-p "Z")))
+        (beads-agent-type-register type)
+        (should (beads-agent-type-letter-used-p "Z"))
+        (should (beads-agent-type-letter-used-p "z")))
+    (beads-agent-type-test--teardown)))
+
+;;; Tests for Unregister
+
+(ert-deftest beads-agent-type-test-unregister ()
+  "Test unregistering a type."
+  (beads-agent-type-test--setup)
+  (unwind-protect
+      (let ((type (beads-agent-type-mock :letter "Z")))
+        (beads-agent-type-register type)
+        (should (beads-agent-type-get "mock"))
+        (should (beads-agent-type-letter-used-p "Z"))
+        (beads-agent-type--unregister "mock")
+        (should (null (beads-agent-type-get "mock")))
+        (should (null (beads-agent-type-letter-used-p "Z"))))
+    (beads-agent-type-test--teardown)))
+
+(ert-deftest beads-agent-type-test-unregister-missing ()
+  "Test unregistering a non-existent type does nothing."
+  (beads-agent-type-test--setup)
+  (unwind-protect
+      ;; Should not error
+      (beads-agent-type--unregister "nonexistent")
+    (beads-agent-type-test--teardown)))
 
 (provide 'beads-agent-type-test)
 
