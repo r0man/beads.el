@@ -385,5 +385,54 @@
             (delete-process proc)))
       (kill-buffer test-buf))))
 
+;;; Backend Stop Tests (uses stored buffer, not directory search)
+
+(ert-deftest beads-agent-agent-shell-test-stop-uses-stored-buffer ()
+  "Test that backend-stop uses stored session buffer, not directory search."
+  (let* ((test-buf (generate-new-buffer "*agent-shell-stop*"))
+         (other-buf (generate-new-buffer "*agent-shell-other*"))
+         (backend (seq-find
+                   (lambda (b) (equal (oref b name) "agent-shell"))
+                   beads-agent--backends))
+         (session (beads-agent-session
+                   :id "test-session"
+                   :issue-id "test-1"
+                   :backend-name "agent-shell"
+                   :project-dir "/home/roman/workspace/test/"
+                   :started-at "2025-01-01T00:00:00+0000"
+                   :buffer test-buf)))
+    (unwind-protect
+        (progn
+          ;; Set up both buffers with same working directory
+          (dolist (buf (list test-buf other-buf))
+            (with-current-buffer buf
+              (agent-shell-mode)
+              (setq default-directory "/home/roman/workspace/test/")))
+          ;; Stop should only kill the stored buffer, not other-buf
+          (beads-agent-backend-stop backend session)
+          ;; Stored buffer should be killed
+          (should-not (buffer-live-p test-buf))
+          ;; Other buffer should still be alive
+          (should (buffer-live-p other-buf)))
+      ;; Cleanup
+      (when (buffer-live-p test-buf)
+        (kill-buffer test-buf))
+      (when (buffer-live-p other-buf)
+        (kill-buffer other-buf)))))
+
+(ert-deftest beads-agent-agent-shell-test-stop-handles-no-buffer ()
+  "Test that backend-stop handles nil stored buffer gracefully."
+  (let* ((backend (seq-find
+                   (lambda (b) (equal (oref b name) "agent-shell"))
+                   beads-agent--backends))
+         (session (beads-agent-session
+                   :id "test-session"
+                   :issue-id "test-1"
+                   :backend-name "agent-shell"
+                   :project-dir "/home/roman/workspace/test/"
+                   :started-at "2025-01-01T00:00:00+0000")))
+    ;; Should not error when buffer is nil
+    (should-not (beads-agent-backend-stop backend session))))
+
 (provide 'beads-agent-agent-shell-test)
 ;;; beads-agent-agent-shell-test.el ends here

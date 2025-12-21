@@ -265,25 +265,26 @@ Returns cons cell (BACKEND-SESSION . BUFFER)."
     (cons nil buffer)))
 
 (cl-defmethod beads-agent-backend-stop
-    ((_backend beads-agent-backend-claudemacs) session)
-  "Stop claudemacs SESSION."
+    ((backend beads-agent-backend-claudemacs) session)
+  "Stop claudemacs SESSION using BACKEND.
+Uses the stored session buffer for precise cleanup, ensuring only this
+session's buffer is killed even when multiple agents share the same
+working directory."
   (require 'claudemacs)
-  (let* ((working-dir (beads-agent-session-working-dir session))
-         (buffers (beads-agent-claudemacs--find-buffers working-dir)))
-    (dolist (buf buffers)
-      (when (buffer-live-p buf)
-        (with-current-buffer buf
-          ;; Bind inhibit-read-only to allow process sentinel to modify buffer.
-          ;; Claudemacs buffers may be read-only, but the process sentinel needs
-          ;; to write cleanup messages when the process terminates.
-          (let ((inhibit-read-only t))
-            ;; Kill the terminal process first
-            (when (get-buffer-process buf)
-              (condition-case nil
-                  (eat-kill-process)
-                (error nil)))
-            ;; Then kill the buffer
-            (kill-buffer buf)))))))
+  (when-let ((buf (beads-agent-backend-get-buffer backend session)))
+    (when (buffer-live-p buf)
+      (with-current-buffer buf
+        ;; Bind inhibit-read-only to allow process sentinel to modify buffer.
+        ;; Claudemacs buffers may be read-only, but the process sentinel needs
+        ;; to write cleanup messages when the process terminates.
+        (let ((inhibit-read-only t))
+          ;; Kill the terminal process first
+          (when (get-buffer-process buf)
+            (condition-case nil
+                (eat-kill-process)
+              (error nil)))
+          ;; Then kill the buffer
+          (kill-buffer buf))))))
 
 (cl-defmethod beads-agent-backend-session-active-p
     ((backend beads-agent-backend-claudemacs) session)

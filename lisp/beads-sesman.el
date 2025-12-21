@@ -230,8 +230,14 @@ from attempting a redundant cleanup when the buffer is eventually killed."
           ;; Remove the kill-buffer-hook to prevent orphaned cleanup attempts
           (remove-hook 'kill-buffer-hook #'beads-sesman--buffer-kill-handler t))))
     ;; Unregister from sesman
-    (sesman-unregister beads-sesman-system
-                       (sesman-session beads-sesman-system name))))
+    ;; Note: sesman-session returns nil if session not found by name.
+    ;; This could happen if the session name changed between registration
+    ;; and unregistration (e.g., path normalization differences).
+    (if-let ((ses (sesman-session beads-sesman-system name)))
+        (sesman-unregister beads-sesman-system ses)
+      ;; Session not found by name - this is unexpected but not fatal.
+      ;; Log a warning to help debug issues in production.
+      (message "beads-sesman: session not found for unregistration: %s" name))))
 
 ;;; Hook Integration
 

@@ -12,7 +12,7 @@
 ;; backend methods without requiring the actual claude-code-ide package.
 ;;
 ;; claude-code-ide buffer naming convention:
-;; - Buffer: *Claude Code: DIRECTORY_NAME*
+;; - Buffer: *claude-code[DIRECTORY_NAME]*
 ;; Where DIRECTORY_NAME is the basename of the project directory.
 
 ;;; Code:
@@ -28,39 +28,39 @@
 
 (ert-deftest beads-agent-claude-code-ide-test-find-buffers-main-buffer ()
   "Test finding main Claude Code IDE buffer."
-  (let ((test-buf (generate-new-buffer "*Claude Code: test*")))
+  (let ((test-buf (generate-new-buffer "*claude-code[test]*")))
     (unwind-protect
         (let ((found (beads-agent-claude-code-ide--find-buffers
                       "/home/roman/workspace/test/")))
           (should (= 1 (length found)))
-          (should (equal (buffer-name (car found)) "*Claude Code: test*")))
+          (should (equal (buffer-name (car found)) "*claude-code[test]*")))
       (kill-buffer test-buf))))
 
 (ert-deftest beads-agent-claude-code-ide-test-find-buffers-without-trailing-slash ()
   "Test that input without trailing slash still finds buffers."
-  (let ((test-buf (generate-new-buffer "*Claude Code: test*")))
+  (let ((test-buf (generate-new-buffer "*claude-code[test]*")))
     (unwind-protect
         (let ((found (beads-agent-claude-code-ide--find-buffers
                       "/home/roman/workspace/test")))
           (should (= 1 (length found)))
-          (should (equal (buffer-name (car found)) "*Claude Code: test*")))
+          (should (equal (buffer-name (car found)) "*claude-code[test]*")))
       (kill-buffer test-buf))))
 
 (ert-deftest beads-agent-claude-code-ide-test-find-buffers-different-projects ()
   "Test that we don't find buffers from other projects."
-  (let ((our-buf (generate-new-buffer "*Claude Code: test*"))
-        (other-buf (generate-new-buffer "*Claude Code: other*")))
+  (let ((our-buf (generate-new-buffer "*claude-code[test]*"))
+        (other-buf (generate-new-buffer "*claude-code[other]*")))
     (unwind-protect
         (let ((found (beads-agent-claude-code-ide--find-buffers
                       "/home/roman/workspace/test/")))
           (should (= 1 (length found)))
-          (should (equal (buffer-name (car found)) "*Claude Code: test*")))
+          (should (equal (buffer-name (car found)) "*claude-code[test]*")))
       (kill-buffer our-buf)
       (kill-buffer other-buf))))
 
 (ert-deftest beads-agent-claude-code-ide-test-find-buffers-no-match ()
   "Test that we return nil when no matching buffers exist."
-  (let ((other-buf (generate-new-buffer "*Claude Code: other*")))
+  (let ((other-buf (generate-new-buffer "*claude-code[other]*")))
     (unwind-protect
         (let ((found (beads-agent-claude-code-ide--find-buffers
                       "/home/roman/workspace/test/")))
@@ -70,7 +70,7 @@
 (ert-deftest beads-agent-claude-code-ide-test-find-buffers-similar-name ()
   "Test that similar directory names don't cause false matches."
   ;; Buffer for /workspace/test-extended should NOT match /workspace/test
-  (let ((extended-buf (generate-new-buffer "*Claude Code: test-extended*")))
+  (let ((extended-buf (generate-new-buffer "*claude-code[test-extended]*")))
     (unwind-protect
         (let ((found (beads-agent-claude-code-ide--find-buffers
                       "/home/roman/workspace/test/")))

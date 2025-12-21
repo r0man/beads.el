@@ -2079,5 +2079,55 @@ Note: Notes cannot be set at creation time, only via update."
                (open-pos (string-match "bd-sub-3" content)))
            (should (< in-progress-pos open-pos))))))))
 
+;;; Agent Section Tests
+
+(ert-deftest beads-show-test-insert-agent-section-nil-backend-name ()
+  "Test that nil backend-name is handled gracefully."
+  (beads-show-test-with-temp-buffer
+   (let ((mock-session (beads-agent-session
+                        :id "bd-42#1"
+                        :issue-id "bd-42"
+                        :backend-name "test-backend"
+                        :project-dir "/tmp"
+                        :started-at "2025-01-15T10:00:00Z")))
+     (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+                (lambda (_) (list mock-session)))
+               ((symbol-function 'beads-agent--session-active-p)
+                (lambda (_) t))
+               ;; Mock backend-name to return nil (testing the fix)
+               ((symbol-function 'beads-agent-session-backend-name)
+                (lambda (_) nil)))
+       (let ((inhibit-read-only t))
+         (beads-show--insert-agent-section "bd-42")
+         (let ((content (buffer-substring-no-properties (point-min) (point-max))))
+           ;; Should show "unknown" instead of crashing
+           (should (string-match-p "unknown" content))
+           ;; Should still show the agent section
+           (should (string-match-p "Agent Sessions" content))))))))
+
+(ert-deftest beads-show-test-insert-agent-section-nil-started-at ()
+  "Test that nil started-at is handled gracefully."
+  (beads-show-test-with-temp-buffer
+   (let ((mock-session (beads-agent-session
+                        :id "bd-42#1"
+                        :issue-id "bd-42"
+                        :backend-name "test-backend"
+                        :project-dir "/tmp"
+                        :started-at "2025-01-15T10:00:00Z")))
+     (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+                (lambda (_) (list mock-session)))
+               ((symbol-function 'beads-agent--session-active-p)
+                (lambda (_) t))
+               ;; Mock started-at to return nil
+               ((symbol-function 'beads-agent-session-started-at)
+                (lambda (_) nil)))
+       (let ((inhibit-read-only t))
+         (beads-show--insert-agent-section "bd-42")
+         (let ((content (buffer-substring-no-properties (point-min) (point-max))))
+           ;; Should show "N/A" for the date
+           (should (string-match-p "N/A" content))
+           ;; Should still show the agent section
+           (should (string-match-p "Agent Sessions" content))))))))
+
 (provide 'beads-show-test)
 ;;; beads-show-test.el ends here

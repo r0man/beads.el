@@ -2433,6 +2433,102 @@ Settings changes should allow continued configuration."
       (should message-shown)
       (should (string-match-p "bd-test" message-shown)))))
 
+;;; Tests for Backend Selection with Type Preferences
+
+(ert-deftest beads-agent-test-backend-available-and-get-exists ()
+  "Test backend-available-and-get returns backend when available."
+  (beads-agent-test--setup)
+  (unwind-protect
+      ;; Mock backend should be available
+      (let ((result (beads-agent--backend-available-and-get "mock")))
+        (should result)
+        (should (object-of-class-p result 'beads-agent-backend)))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-backend-available-and-get-not-found ()
+  "Test backend-available-and-get returns nil for non-existent backend."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (should (null (beads-agent--backend-available-and-get "non-existent")))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-select-backend-type-preference ()
+  "Test select-backend uses type-specific preference when set."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent-default-backend nil)
+            (beads-agent-task-backend "mock"))
+        ;; Get the Task type
+        (let ((agent-type (beads-agent-type-get "task")))
+          (should agent-type)
+          ;; Select backend should use type preference
+          (let ((result (beads-agent--select-backend agent-type)))
+            (should result)
+            (should (equal (oref result name) "mock")))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-select-backend-global-default ()
+  "Test select-backend uses global default when type preference nil."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent-default-backend "mock")
+            (beads-agent-task-backend nil))
+        ;; Get the Task type
+        (let ((agent-type (beads-agent-type-get "task")))
+          (should agent-type)
+          ;; Select backend should fall back to global default
+          (let ((result (beads-agent--select-backend agent-type)))
+            (should result)
+            (should (equal (oref result name) "mock")))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-select-backend-type-over-global ()
+  "Test type-specific backend takes precedence over global default."
+  (beads-agent-test--setup)
+  (unwind-protect
+      ;; Register a second backend for this test
+      (let ((secondary-backend (beads-agent-backend-test-mock :name "secondary")))
+        (beads-agent--register-backend secondary-backend)
+        (unwind-protect
+            (let ((beads-agent-default-backend "secondary")
+                  (beads-agent-task-backend "mock"))
+              (let* ((agent-type (beads-agent-type-get "task"))
+                     (result (beads-agent--select-backend agent-type)))
+                ;; Should use type-specific "mock", not global "secondary"
+                (should result)
+                (should (equal (oref result name) "mock"))))
+          ;; Cleanup secondary backend
+          (setq beads-agent--backends
+                (cl-remove-if (lambda (b)
+                                (equal (oref b name) "secondary"))
+                              beads-agent--backends))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-select-backend-nil-type ()
+  "Test select-backend works with nil agent-type argument."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent-default-backend "mock"))
+        ;; Select backend with nil type should use global default
+        (let ((result (beads-agent--select-backend nil)))
+          (should result)
+          (should (equal (oref result name) "mock"))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-select-backend-unavailable-type-preference ()
+  "Test select-backend falls through when type preference unavailable."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent-default-backend "mock")
+            (beads-agent-task-backend "non-existent-backend"))
+        ;; Get the Task type
+        (let ((agent-type (beads-agent-type-get "task")))
+          ;; Type preference doesn't exist, should fall back to global default
+          (let ((result (beads-agent--select-backend agent-type)))
+            (should result)
+            (should (equal (oref result name) "mock")))))
+    (beads-agent-test--teardown)))
+
 ;;; Footer
 
 (provide 'beads-agent-test)

@@ -312,7 +312,8 @@ CONTENT can be a string or nil (empty sections are skipped)."
         (insert (propertize (make-string 14 ?─) 'face 'beads-show-header-face))
         (insert "\n\n")
         (dolist (session sessions)
-          (let* ((backend (beads-agent-session-backend-name session))
+          (let* ((backend (or (beads-agent-session-backend-name session)
+                              "unknown"))
                  (started (beads-agent-session-started-at session))
                  (active (beads-agent--session-active-p session))
                  (status-str (if active

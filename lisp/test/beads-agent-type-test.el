@@ -529,6 +529,49 @@
       (beads-agent-type--unregister "nonexistent")
     (beads-agent-type-test--teardown)))
 
+;;; Tests for Preferred Backend
+
+(ert-deftest beads-agent-type-test-preferred-backend-default-nil ()
+  "Test default preferred-backend method returns nil."
+  (beads-agent-type-test--setup)
+  (unwind-protect
+      (let ((type (beads-agent-type-mock)))
+        (should (null (beads-agent-type-preferred-backend type))))
+    (beads-agent-type-test--teardown)))
+
+(defclass beads-agent-type-mock-with-backend (beads-agent-type)
+  ((name :initform "MockWithBackend")
+   (letter :initform "B")
+   (description :initform "Mock agent with backend preference")
+   (preferred-backend-name :initarg :preferred-backend-name
+                           :initform "test-backend"
+                           :type string))
+  :documentation "Mock agent type with custom preferred backend.")
+
+(cl-defmethod beads-agent-type-preferred-backend
+    ((type beads-agent-type-mock-with-backend))
+  "Return preferred backend for mock type."
+  (oref type preferred-backend-name))
+
+(ert-deftest beads-agent-type-test-preferred-backend-custom-method ()
+  "Test that subclass can override preferred-backend."
+  (beads-agent-type-test--setup)
+  (unwind-protect
+      (let ((type (beads-agent-type-mock-with-backend)))
+        (should (equal (beads-agent-type-preferred-backend type)
+                       "test-backend")))
+    (beads-agent-type-test--teardown)))
+
+(ert-deftest beads-agent-type-test-preferred-backend-custom-slot ()
+  "Test preferred-backend can be set via initarg."
+  (beads-agent-type-test--setup)
+  (unwind-protect
+      (let ((type (beads-agent-type-mock-with-backend
+                   :preferred-backend-name "custom-backend")))
+        (should (equal (beads-agent-type-preferred-backend type)
+                       "custom-backend")))
+    (beads-agent-type-test--teardown)))
+
 (provide 'beads-agent-type-test)
 
 ;;; beads-agent-type-test.el ends here

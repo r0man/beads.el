@@ -161,6 +161,25 @@ Returns a string suitable for display in UI elements.")
   "Return the display name for TYPE from the name slot."
   (oref type name))
 
+(cl-defgeneric beads-agent-type-preferred-backend (type)
+  "Return the preferred backend name for TYPE, or nil to use default.
+TYPE is a `beads-agent-type' object.
+
+Returns a string naming the preferred backend for this agent type,
+or nil to use the global default backend.
+
+The backend selection order is:
+1. Type-specific backend (returned by this method)
+2. Global default (`beads-agent-default-backend')
+3. First available backend
+
+Default implementation returns nil (use global default).
+Subclasses may override to return a type-specific preference.")
+
+(cl-defmethod beads-agent-type-preferred-backend ((_type beads-agent-type))
+  "Return preferred backend for TYPE, or nil by default."
+  nil)
+
 ;;; Type Registry
 
 (defvar beads-agent-type--registry nil
