@@ -188,11 +188,15 @@ CALLBACK receives (success output) where success is t/nil."
      process
      (lambda (proc _event)
        (when (memq (process-status proc) '(exit signal))
-         (let ((success (zerop (process-exit-status proc)))
-               (output (with-current-buffer output-buffer
-                         (string-trim (buffer-string)))))
-           (kill-buffer output-buffer)
-           (funcall callback success output)))))))
+         (unwind-protect
+             (let ((success (zerop (process-exit-status proc)))
+                   (output (when (buffer-live-p output-buffer)
+                             (with-current-buffer output-buffer
+                               (string-trim (buffer-string))))))
+               (funcall callback success (or output "")))
+           ;; Always kill buffer, even on error
+           (when (buffer-live-p output-buffer)
+             (kill-buffer output-buffer))))))))
 
 (defun beads-agent--main-repo-root ()
   "Find the main repository root, even from within a worktree.
@@ -317,15 +321,18 @@ CALLBACK receives (success worktree-path-or-error)."
          process
          (lambda (proc _event)
            (when (memq (process-status proc) '(exit signal))
-             (let ((success (zerop (process-exit-status proc))))
-               (kill-buffer output-buffer)
-               (if success
-                   ;; Worktree created, now initialize beads database
-                   (beads-agent--init-worktree-beads-async
-                    issue-id worktree-path callback)
-                 ;; Branch might already exist, try without -b
-                 (beads-agent--create-worktree-existing-branch-async
-                  issue-id worktree-path callback))))))))))
+             (unwind-protect
+                 (let ((success (zerop (process-exit-status proc))))
+                   (if success
+                       ;; Worktree created, now initialize beads database
+                       (beads-agent--init-worktree-beads-async
+                        issue-id worktree-path callback)
+                     ;; Branch might already exist, try without -b
+                     (beads-agent--create-worktree-existing-branch-async
+                      issue-id worktree-path callback)))
+               ;; Always kill buffer, even on error
+               (when (buffer-live-p output-buffer)
+                 (kill-buffer output-buffer))))))))))
 
 (defun beads-agent--extract-prefix (issue-id)
   "Extract the prefix from ISSUE-ID.
@@ -384,18 +391,22 @@ CALLBACK receives (success path-or-error)."
      process
      (lambda (proc _event)
        (when (memq (process-status proc) '(exit signal))
-         (let ((success (zerop (process-exit-status proc)))
-               (output (with-current-buffer output-buffer
-                         (string-trim (buffer-string)))))
-           (kill-buffer output-buffer)
-           (if success
-               (progn
-                 (message "Created worktree for %s at %s (imported issues)"
-                          issue-id worktree-path)
-                 (funcall callback t worktree-path))
-             ;; Import failed, but worktree exists - warn and continue
-             (message "Warning: Failed to import issues in worktree: %s" output)
-             (funcall callback t worktree-path))))))))
+         (unwind-protect
+             (let ((success (zerop (process-exit-status proc)))
+                   (output (when (buffer-live-p output-buffer)
+                             (with-current-buffer output-buffer
+                               (string-trim (buffer-string))))))
+               (if success
+                   (progn
+                     (message "Created worktree for %s at %s (imported issues)"
+                              issue-id worktree-path)
+                     (funcall callback t worktree-path))
+                 ;; Import failed, but worktree exists - warn and continue
+                 (message "Warning: Failed to import issues in worktree: %s" output)
+                 (funcall callback t worktree-path)))
+           ;; Always kill buffer, even on error
+           (when (buffer-live-p output-buffer)
+             (kill-buffer output-buffer))))))))
 
 (defun beads-agent--create-worktree-existing-branch-async (issue-id worktree-path callback)
   "Create worktree for existing branch ISSUE-ID at WORKTREE-PATH.
@@ -412,15 +423,20 @@ CALLBACK receives (success worktree-path-or-error)."
      process
      (lambda (proc _event)
        (when (memq (process-status proc) '(exit signal))
-         (let ((success (zerop (process-exit-status proc)))
-               (output (with-current-buffer output-buffer
-                         (string-trim (buffer-string)))))
-           (kill-buffer output-buffer)
-           (if success
-               ;; Worktree created, now initialize beads database
-               (beads-agent--init-worktree-beads-async
-                issue-id worktree-path callback)
-             (funcall callback nil (format "Failed to create worktree: %s" output)))))))))
+         (unwind-protect
+             (let ((success (zerop (process-exit-status proc)))
+                   (output (when (buffer-live-p output-buffer)
+                             (with-current-buffer output-buffer
+                               (string-trim (buffer-string))))))
+               (if success
+                   ;; Worktree created, now initialize beads database
+                   (beads-agent--init-worktree-beads-async
+                    issue-id worktree-path callback)
+                 (funcall callback nil (format "Failed to create worktree: %s"
+                                               (or output "unknown error")))))
+           ;; Always kill buffer, even on error
+           (when (buffer-live-p output-buffer)
+             (kill-buffer output-buffer))))))))
 
 (defun beads-agent--setup-worktree-environment ()
   "Return `process-environment' with BD_NO_DAEMON=1 set.
@@ -743,11 +759,16 @@ CALLBACK receives a beads-issue object."
      process
      (lambda (proc _event)
        (when (memq (process-status proc) '(exit signal))
-         (let ((exit-code (process-exit-status proc))
-               (output (with-current-buffer output-buffer
-                         (buffer-string))))
-           (kill-buffer output-buffer)
-           (if (not (zerop exit-code))
+         ;; Check buffer is still live before accessing (could be killed externally)
+         (if (not (buffer-live-p output-buffer))
+             (progn
+               (message "Buffer killed during async fetch of issue %s" issue-id)
+               (funcall callback nil))
+           (let ((exit-code (process-exit-status proc))
+                 (output (with-current-buffer output-buffer
+                           (buffer-string))))
+             (kill-buffer output-buffer)
+             (if (not (zerop exit-code))
                (progn
                  (message "Failed to fetch issue %s (exit %d): %s"
                           issue-id exit-code (string-trim output))
@@ -765,7 +786,7 @@ CALLBACK receives a beads-issue object."
                    (funcall callback issue))
                (error
                 (message "Failed to parse issue: %s" (error-message-string err))
-                (funcall callback nil))))))))))
+                (funcall callback nil)))))))))))
 
 (defun beads-agent--rename-and-store-buffer (session buffer)
   "Rename BUFFER to beads format and store in SESSION.

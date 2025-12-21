@@ -36,15 +36,21 @@
   "Time-to-live for completion cache in seconds.")
 
 (defun beads-completion--get-cached-issues ()
-  "Get cached issue list, refreshing if stale."
+  "Get cached issue list, refreshing if stale.
+On fetch failure, returns previous cached data (if any) with a warning."
   (let ((now (float-time)))
     (when (or (null beads-completion--cache)
               (> (- now (car beads-completion--cache))
                  beads-completion--cache-ttl))
-      (condition-case nil
+      (condition-case err
           (setq beads-completion--cache
                 (cons now (beads-command-list!)))
-        (error (setq beads-completion--cache nil))))
+        (error
+         ;; Keep existing cache data on error (stale data is better than none)
+         ;; Only show warning if we have stale data to return
+         (when beads-completion--cache
+           (message "Warning: Failed to refresh issues: %s (using cached data)"
+                    (error-message-string err))))))
     (cdr beads-completion--cache)))
 
 (defun beads-completion-invalidate-cache ()

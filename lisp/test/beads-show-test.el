@@ -1570,6 +1570,24 @@
        (should (equal (oref captured-cmd issue-ids) '("bd-42")))
        (should (equal (oref captured-cmd description) "New description text"))))))
 
+(ert-deftest beads-show-test-update-field-invalidates-cache ()
+  "Test that updating field invalidates completion cache."
+  (let ((cache-invalidated nil))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_cmd) nil))
+              ((symbol-function 'beads-command-show!)
+               (lambda (&rest _args)
+                 (beads-issue-from-json beads-show-test--full-issue)))
+              ((symbol-function 'beads-completion-invalidate-cache)
+               (lambda ()
+                 (setq cache-invalidated t))))
+      (beads-show-test-with-temp-buffer
+       (setq beads-show--issue-id "bd-42")
+       (setq beads-show--issue-data (beads--parse-issue
+                                     beads-show-test--full-issue))
+       (beads-show--update-field "Title" "--title" "New title")
+       (should cache-invalidated)))))
+
 ;;; ============================================================
 ;;; Integration Tests
 ;;; ============================================================

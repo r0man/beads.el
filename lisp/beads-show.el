@@ -1276,7 +1276,9 @@ CURRENT-VALUE is the initial text, CALLBACK is called with result."
                            :issue-ids (list beads-show--issue-id)
                            slot-keyword new-value
                            nil)))
-          (beads-command-execute cmd))
+          (beads-command-execute cmd)
+          ;; Invalidate completion cache since issue data changed
+          (beads-completion-invalidate-cache))
         ;; Refetch and refresh the display to get latest data
         (beads-refresh-show)
         (message "%s updated" field-name))
