@@ -417,10 +417,12 @@ Completion matches on both issue ID and title."
   (beads-check-executable)
   (when (or (null issue-id) (string-empty-p issue-id))
     (user-error "Issue ID is required"))
-  (let* ((issues (beads-command-dep-tree! :issue-id issue-id))
+  (let* ((caller-dir default-directory)
+         (issues (beads-command-dep-tree! :issue-id issue-id))
          (buffer (get-buffer-create (format "*beads-dep-tree: %s*"
                                            issue-id))))
     (with-current-buffer buffer
+      (setq default-directory caller-dir)
       (beads-dep-tree-mode)
       (setq-local beads-dep-tree--issue-id issue-id)
       (beads-dep-tree--render (append issues nil) issue-id))
@@ -492,9 +494,11 @@ Completion matches on both issue ID and title."
   "Check for dependency cycles and display results."
   (interactive)
   (beads-check-executable)
-  (let* ((cycles (beads-command-dep-cycles!))
+  (let* ((caller-dir default-directory)
+         (cycles (beads-command-dep-cycles!))
          (buffer (get-buffer-create "*beads-dep-cycles*")))
     (with-current-buffer buffer
+      (setq default-directory caller-dir)
       (beads-dep-cycles-mode)
       (beads-dep-cycles--render cycles))
     (pop-to-buffer buffer)))

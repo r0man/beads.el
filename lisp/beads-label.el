@@ -482,8 +482,10 @@ Key bindings:
 (defun beads-label-list-all-view ()
   "Display all labels in a tabulated list buffer."
   (interactive)
-  (let ((buffer (get-buffer-create "*beads-labels*")))
+  (let ((caller-dir default-directory)
+        (buffer (get-buffer-create "*beads-labels*")))
     (with-current-buffer buffer
+      (setq default-directory caller-dir)
       (beads-label-list-all-mode)
       (beads-label-list-all-refresh))
     (pop-to-buffer buffer)))
