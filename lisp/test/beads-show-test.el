@@ -2129,5 +2129,321 @@ Note: Notes cannot be set at creation time, only via update."
            ;; Should still show the agent section
            (should (string-match-p "Agent Sessions" content))))))))
 
+;;; =========================================================================
+;;; Directory-Aware Buffer Identity Tests (beads.el-4pgx)
+;;; =========================================================================
+;;
+;; These tests verify the directory-aware show buffer identity model.
+;; Key principle: Buffer identity is (issue-id, project-dir) pair.
+
+(ert-deftest beads-show-test-normalize-directory ()
+  "Test directory normalization for consistent comparison."
+  ;; Use /tmp which is guaranteed to exist
+  (let ((normalized (beads-show--normalize-directory "/tmp/")))
+    (should (stringp normalized))
+    ;; Should strip trailing slash
+    (should (equal normalized "/tmp"))))
+
+(ert-deftest beads-show-test-find-buffer-for-issue-not-found ()
+  "Test finding buffer when none exists for the issue/project pair."
+  (should (null (beads-show--find-buffer-for-issue "bd-999" "/tmp"))))
+
+(ert-deftest beads-show-test-find-buffer-for-issue-found ()
+  "Test finding existing buffer by issue-id and project directory."
+  (let ((test-buffer (generate-new-buffer "*beads-show: bd-42*")))
+    (unwind-protect
+        (with-current-buffer test-buffer
+          (beads-show-mode)
+          (setq beads-show--issue-id "bd-42")
+          (setq beads-show--project-dir "/tmp")
+          ;; Should find our buffer
+          (should (eq (beads-show--find-buffer-for-issue "bd-42" "/tmp")
+                      test-buffer))
+          ;; Should NOT find buffer for different issue
+          (should (null (beads-show--find-buffer-for-issue "bd-999" "/tmp")))
+          ;; Should NOT find buffer for different project
+          (should (null (beads-show--find-buffer-for-issue "bd-42" "/other"))))
+      (kill-buffer test-buffer))))
+
+(ert-deftest beads-show-test-get-or-create-buffer-creates-new ()
+  "Test get-or-create-buffer creates new buffer when none exists."
+  (let (created-buffer)
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads--find-project-root)
+                   (lambda () "/tmp/new-project"))
+                  ((symbol-function 'beads--get-git-branch)
+                   (lambda () "main"))
+                  ((symbol-function 'beads--get-project-name)
+                   (lambda () "new-project")))
+          (setq created-buffer (beads-show--get-or-create-buffer "bd-new"))
+          (should (bufferp created-buffer))
+          (with-current-buffer created-buffer
+            (should (equal beads-show--project-dir "/tmp/new-project"))
+            (should (equal beads-show--branch "main"))
+            (should (equal beads-show--proj-name "new-project"))))
+      (when (and created-buffer (buffer-live-p created-buffer))
+        (kill-buffer created-buffer)))))
+
+(ert-deftest beads-show-test-get-or-create-buffer-reuses-existing ()
+  "Test get-or-create-buffer reuses buffer for same issue/project pair."
+  (let ((test-buffer (generate-new-buffer "*beads-show: bd-42*")))
+    (unwind-protect
+        (progn
+          (with-current-buffer test-buffer
+            (beads-show-mode)
+            (setq beads-show--issue-id "bd-42")
+            (setq beads-show--project-dir "/tmp/existing-project"))
+          (cl-letf (((symbol-function 'beads--find-project-root)
+                     (lambda () "/tmp/existing-project"))
+                    ((symbol-function 'beads--get-git-branch)
+                     (lambda () "feature"))
+                    ((symbol-function 'beads--get-project-name)
+                     (lambda () "existing-project")))
+            ;; Should return the existing buffer
+            (should (eq (beads-show--get-or-create-buffer "bd-42") test-buffer))))
+      (kill-buffer test-buffer))))
+
+(ert-deftest beads-show-test-same-issue-different-project-different-buffer ()
+  "Test that same issue in different projects creates different buffers."
+  (let ((buffer1 (generate-new-buffer "*beads-show: bd-42-1*"))
+        (buffer2 nil))
+    (unwind-protect
+        (progn
+          (with-current-buffer buffer1
+            (beads-show-mode)
+            (setq beads-show--issue-id "bd-42")
+            (setq beads-show--project-dir "/tmp/project1"))
+          ;; Create buffer for different project
+          (cl-letf (((symbol-function 'beads--find-project-root)
+                     (lambda () "/tmp/project2"))
+                    ((symbol-function 'beads--get-git-branch)
+                     (lambda () "main"))
+                    ((symbol-function 'beads--get-project-name)
+                     (lambda () "project2")))
+            ;; Should create NEW buffer (different project)
+            (setq buffer2 (beads-show--get-or-create-buffer "bd-42"))
+            (should (bufferp buffer2))
+            (should-not (eq buffer1 buffer2))))
+      (kill-buffer buffer1)
+      (when (and buffer2 (buffer-live-p buffer2))
+        (kill-buffer buffer2)))))
+
+(ert-deftest beads-show-test-same-project-different-branch-same-buffer ()
+  "Test that same issue in same project but different branch uses same buffer.
+This is the CRITICAL behavioral test for directory-as-identity."
+  (let ((test-buffer (generate-new-buffer "*beads-show: bd-42*")))
+    (unwind-protect
+        (progn
+          (with-current-buffer test-buffer
+            (beads-show-mode)
+            (setq beads-show--issue-id "bd-42")
+            (setq beads-show--project-dir "/tmp/project")
+            (setq beads-show--branch "main"))
+          ;; Simulate branch switch - branch changes but directory doesn't
+          (cl-letf (((symbol-function 'beads--find-project-root)
+                     (lambda () "/tmp/project"))
+                    ((symbol-function 'beads--get-git-branch)
+                     (lambda () "feature"))  ; Different branch!
+                    ((symbol-function 'beads--get-project-name)
+                     (lambda () "project")))
+            ;; CRITICAL: Should return SAME buffer (same directory)
+            (let ((result (beads-show--get-or-create-buffer "bd-42")))
+              (should (eq result test-buffer)))))
+      (kill-buffer test-buffer))))
+
+(ert-deftest beads-show-test-buffer-local-variables-set ()
+  "Test that buffer-local variables are set correctly on creation."
+  (let (created-buffer)
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads--find-project-root)
+                   (lambda () "/home/user/code/my-project"))
+                  ((symbol-function 'beads--get-git-branch)
+                   (lambda () "feature-branch"))
+                  ((symbol-function 'beads--get-project-name)
+                   (lambda () "my-project")))
+          (setq created-buffer (beads-show--get-or-create-buffer "bd-test"))
+          (with-current-buffer created-buffer
+            ;; Verify all variables set
+            (should (equal beads-show--project-dir "/home/user/code/my-project"))
+            (should (equal beads-show--branch "feature-branch"))
+            (should (equal beads-show--proj-name "my-project"))))
+      (when (and created-buffer (buffer-live-p created-buffer))
+        (kill-buffer created-buffer)))))
+
+;;; =========================================================================
+;;; Worktree Session Integration Tests (beads.el-1hde)
+;;; =========================================================================
+;;
+;; These tests verify show buffer integration with worktree sessions.
+;; Sessions are keyed by directory, not branch.
+
+(ert-deftest beads-show-test-register-with-session ()
+  "Test that registering adds buffer to session."
+  (let ((test-buffer (generate-new-buffer "*beads-show-test*"))
+        (beads-sesman--worktree-sessions nil))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads--find-project-root)
+                   (lambda () "/tmp/test-project"))
+                  ((symbol-function 'beads--get-git-branch)
+                   (lambda () "main"))
+                  ((symbol-function 'beads--get-project-name)
+                   (lambda () "test-project")))
+          (with-current-buffer test-buffer
+            (beads-show-mode)
+            (setq beads-show--project-dir "/tmp/test-project")
+            (beads-show--register-with-session))
+          ;; Session should exist
+          (should (= 1 (length beads-sesman--worktree-sessions)))
+          ;; Buffer should be in session
+          (let ((session (car beads-sesman--worktree-sessions)))
+            (should (memq test-buffer (oref session buffers)))))
+      (kill-buffer test-buffer)
+      (setq beads-sesman--worktree-sessions nil))))
+
+(ert-deftest beads-show-test-unregister-from-session ()
+  "Test that unregistering removes buffer from session.
+Empty sessions are automatically cleaned up."
+  (let ((test-buffer (generate-new-buffer "*beads-show-test*"))
+        (beads-sesman--worktree-sessions nil))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads--find-project-root)
+                   (lambda () "/tmp/test-project"))
+                  ((symbol-function 'beads--get-git-branch)
+                   (lambda () "main"))
+                  ((symbol-function 'beads--get-project-name)
+                   (lambda () "test-project")))
+          (with-current-buffer test-buffer
+            (beads-show-mode)
+            (setq beads-show--project-dir "/tmp/test-project")
+            (beads-show--register-with-session)
+            ;; Buffer should be in session
+            (let ((session (car beads-sesman--worktree-sessions)))
+              (should (memq test-buffer (oref session buffers))))
+            ;; Now unregister
+            (beads-show--unregister-from-session))
+          ;; Session should be cleaned up (empty sessions are removed)
+          ;; Either no sessions left, or buffer not in any remaining session
+          (if (null beads-sesman--worktree-sessions)
+              (should t)  ; Session was cleaned up - good!
+            ;; If session still exists, buffer should not be in it
+            (let ((session (car beads-sesman--worktree-sessions)))
+              (should-not (memq test-buffer (oref session buffers))))))
+      (kill-buffer test-buffer)
+      (setq beads-sesman--worktree-sessions nil))))
+
+(ert-deftest beads-show-test-multiple-buffers-same-session ()
+  "Test that multiple show buffers can be in the same session."
+  (let ((buffer1 (generate-new-buffer "*beads-show-test-1*"))
+        (buffer2 (generate-new-buffer "*beads-show-test-2*"))
+        (beads-sesman--worktree-sessions nil))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads--find-project-root)
+                   (lambda () "/tmp/test-project"))
+                  ((symbol-function 'beads--get-git-branch)
+                   (lambda () "main"))
+                  ((symbol-function 'beads--get-project-name)
+                   (lambda () "test-project")))
+          ;; Register first buffer
+          (with-current-buffer buffer1
+            (beads-show-mode)
+            (setq beads-show--project-dir "/tmp/test-project")
+            (beads-show--register-with-session))
+          ;; Register second buffer
+          (with-current-buffer buffer2
+            (beads-show-mode)
+            (setq beads-show--project-dir "/tmp/test-project")
+            (beads-show--register-with-session))
+          ;; Should still have only one session
+          (should (= 1 (length beads-sesman--worktree-sessions)))
+          ;; Session should contain both buffers
+          (let ((session (car beads-sesman--worktree-sessions)))
+            (should (memq buffer1 (oref session buffers)))
+            (should (memq buffer2 (oref session buffers)))))
+      (kill-buffer buffer1)
+      (kill-buffer buffer2)
+      (setq beads-sesman--worktree-sessions nil))))
+
+(ert-deftest beads-show-test-kill-buffer-removes-from-session ()
+  "Test that killing a buffer removes it from the session via hook."
+  (let ((test-buffer (generate-new-buffer "*beads-show-test*"))
+        (beads-sesman--worktree-sessions nil))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads--find-project-root)
+                   (lambda () "/tmp/test-project"))
+                  ((symbol-function 'beads--get-git-branch)
+                   (lambda () "main"))
+                  ((symbol-function 'beads--get-project-name)
+                   (lambda () "test-project")))
+          (with-current-buffer test-buffer
+            (beads-show-mode)
+            (setq beads-show--project-dir "/tmp/test-project")
+            (beads-show--register-with-session))
+          ;; Buffer should be in session
+          (let ((session (car beads-sesman--worktree-sessions)))
+            (should (memq test-buffer (oref session buffers))))
+          ;; Kill buffer - hook should remove it
+          (kill-buffer test-buffer)
+          ;; Session should be cleaned up (empty session removed)
+          ;; Since there are no other buffers or agents, session should be gone
+          (should (null beads-sesman--worktree-sessions)))
+      ;; Cleanup in case test failed
+      (when (buffer-live-p test-buffer)
+        (kill-buffer test-buffer))
+      (setq beads-sesman--worktree-sessions nil))))
+
+(ert-deftest beads-show-test-kill-one-buffer-keeps-others-in-session ()
+  "Test that killing one buffer does not affect others in same session."
+  (let ((buffer1 (generate-new-buffer "*beads-show-test-1*"))
+        (buffer2 (generate-new-buffer "*beads-show-test-2*"))
+        (beads-sesman--worktree-sessions nil))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads--find-project-root)
+                   (lambda () "/tmp/test-project"))
+                  ((symbol-function 'beads--get-git-branch)
+                   (lambda () "main"))
+                  ((symbol-function 'beads--get-project-name)
+                   (lambda () "test-project")))
+          ;; Register both buffers
+          (dolist (buf (list buffer1 buffer2))
+            (with-current-buffer buf
+              (beads-show-mode)
+              (setq beads-show--project-dir "/tmp/test-project")
+              (beads-show--register-with-session)))
+          ;; Kill first buffer
+          (kill-buffer buffer1)
+          ;; Session should still exist with buffer2
+          (should (= 1 (length beads-sesman--worktree-sessions)))
+          (let ((session (car beads-sesman--worktree-sessions)))
+            (should (memq buffer2 (oref session buffers)))
+            (should-not (memq buffer1 (oref session buffers)))))
+      (when (buffer-live-p buffer1)
+        (kill-buffer buffer1))
+      (when (buffer-live-p buffer2)
+        (kill-buffer buffer2))
+      (setq beads-sesman--worktree-sessions nil))))
+
+(ert-deftest beads-show-test-register-no-duplicate ()
+  "Test that registering same buffer twice does not duplicate in session."
+  (let ((test-buffer (generate-new-buffer "*beads-show-test*"))
+        (beads-sesman--worktree-sessions nil))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads--find-project-root)
+                   (lambda () "/tmp/test-project"))
+                  ((symbol-function 'beads--get-git-branch)
+                   (lambda () "main"))
+                  ((symbol-function 'beads--get-project-name)
+                   (lambda () "test-project")))
+          (with-current-buffer test-buffer
+            (beads-show-mode)
+            (setq beads-show--project-dir "/tmp/test-project")
+            ;; Register twice
+            (beads-show--register-with-session)
+            (beads-show--register-with-session))
+          ;; Buffer should appear only once
+          (let ((session (car beads-sesman--worktree-sessions)))
+            (should (= 1 (length (oref session buffers))))))
+      (kill-buffer test-buffer)
+      (setq beads-sesman--worktree-sessions nil))))
+
 (provide 'beads-show-test)
 ;;; beads-show-test.el ends here

@@ -219,6 +219,24 @@ Returns nil if not in a project."
       (with-no-warnings
         (car (project-roots proj))))))
 
+(defun beads--get-project-name ()
+  "Return project name for current context.
+Uses the basename of the project root directory.
+Returns nil if not in a project."
+  (when-let ((root (beads--find-project-root)))
+    (file-name-nondirectory (directory-file-name root))))
+
+(defun beads--get-git-branch ()
+  "Return current git branch name, or nil if not in a git repo.
+This is METADATA for display, not identity.  Works over Tramp."
+  (let ((default-directory (or (beads--find-project-root) default-directory)))
+    (with-temp-buffer
+      (when (zerop (process-file "git" nil t nil
+                                 "rev-parse" "--abbrev-ref" "HEAD"))
+        (let ((branch (string-trim (buffer-string))))
+          (unless (string= branch "HEAD")  ; detached HEAD
+            branch))))))
+
 ;;; Git Worktree Support
 
 (defun beads--in-git-worktree-p ()
