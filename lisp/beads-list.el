@@ -219,6 +219,7 @@ Inherits from `error' face for theme consistency."
   "Current beads-command-list object (nil means no filter).
 Use for client-side filtering in the buffer.")
 
+
 ;;; Utilities
 
 (defun beads-list--status-face (status)
@@ -543,18 +544,22 @@ Returns a beads-command-list object with all applicable filters set."
 ;;; Transient Suffix Commands
 
 (transient-define-suffix beads-list--transient-execute ()
-  "Execute the bd list command with current filter parameters."
+  "Execute the bd list command with current filter parameters.
+Stores the caller's directory for refresh operations."
   :key "x"
   :description "List issues"
   (interactive)
-  (let* ((args (transient-args 'beads-list))
+  (let* ((caller-dir default-directory)
+         (args (transient-args 'beads-list))
          (command (beads-list--parse-transient-args args)))
     (condition-case err
         (let* ((_ (beads-command-execute command))
                (issue-objects (oref command data))
                (buffer (get-buffer-create "*beads-list*")))
           (with-current-buffer buffer
-            (beads-list-mode)
+            (unless (derived-mode-p 'beads-list-mode)
+              (beads-list-mode))
+            (setq default-directory caller-dir)
             (if (not issue-objects)
                 (progn
                   (setq tabulated-list-entries nil)
@@ -1070,10 +1075,13 @@ transient menu options."
   "Display ready Beads issues in a tabulated list."
   (interactive)
   (beads-check-executable)
-  (let ((issues (beads-issue-ready))
-        (buffer (get-buffer-create "*beads-ready*")))
+  (let* ((caller-dir default-directory)
+         (buffer (get-buffer-create "*beads-ready*"))
+         (issues (beads-issue-ready)))
     (with-current-buffer buffer
-      (beads-list-mode)
+      (unless (derived-mode-p 'beads-list-mode)
+        (beads-list-mode))
+      (setq default-directory caller-dir)
       (if (not issues)
           (progn
             (setq tabulated-list-entries nil)
@@ -1101,10 +1109,13 @@ transient menu options."
   "Display blocked Beads issues in a tabulated list."
   (interactive)
   (beads-check-executable)
-  (let ((issues (beads-blocked-issue-list))
-        (buffer (get-buffer-create "*beads-blocked*")))
+  (let* ((caller-dir default-directory)
+         (buffer (get-buffer-create "*beads-blocked*"))
+         (issues (beads-blocked-issue-list)))
     (with-current-buffer buffer
-      (beads-list-mode)
+      (unless (derived-mode-p 'beads-list-mode)
+        (beads-list-mode))
+      (setq default-directory caller-dir)
       (if (not issues)
           (progn
             (setq tabulated-list-entries nil)

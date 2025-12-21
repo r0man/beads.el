@@ -157,6 +157,12 @@
 (defvar-local beads-show--issue-data nil
   "Full issue data for current show buffer.")
 
+(defvar-local beads-show--project-dir nil
+  "Project directory for bd command execution.
+Set from the caller's directory when the buffer is created or refreshed.
+Used to ensure commands run in the correct project context, which is
+essential for git worktree support.")
+
 ;;; Mode Definition
 
 (defvar beads-show-mode-map
@@ -753,17 +759,27 @@ ISSUE must be a `beads-issue' EIEIO object."
 (defun beads-show (issue-id)
   "Show detailed view of issue with ISSUE-ID.
 Creates or switches to a buffer showing the full issue details.
-Completion matches on both issue ID and title."
+Completion matches on both issue ID and title.
+
+Commands are executed in the caller's directory context, ensuring
+correct project detection (important for git worktrees)."
   (interactive
    (list (beads-completion-read-issue "Show issue: " nil t nil
                                       'beads--issue-id-history)))
-  (let* ((buffer-name (format "*beads-show: %s*" issue-id))
+  ;; Capture caller's directory for command execution context
+  (let* ((caller-dir default-directory)
+         (buffer-name (format "*beads-show: %s*" issue-id))
          (buffer (get-buffer-create buffer-name)))
     (with-current-buffer buffer
-      (beads-show-mode)
-      (setq beads-show--issue-id issue-id)
+      (setq default-directory caller-dir)
+      (unless (derived-mode-p 'beads-show-mode)
+        (beads-show-mode))
+      (setq beads-show--issue-id issue-id
+            beads-show--project-dir caller-dir)
       (condition-case err
-          (let ((issue (beads-command-show! :issue-ids (list issue-id))))
+          ;; Execute command in caller's directory context
+          (let ((default-directory caller-dir)
+                (issue (beads-command-show! :issue-ids (list issue-id))))
             (setq beads-show--issue-data issue)
             (beads-show--render-issue beads-show--issue-data))
         (error
@@ -787,16 +803,19 @@ Extracts the issue ID from text at point and calls `beads-show'."
 
 ;;;###autoload
 (defun beads-refresh-show ()
-  "Refresh the current show buffer from bd CLI."
+  "Refresh the current show buffer from bd CLI.
+Uses the stored project directory for command execution."
   (interactive)
   (unless (derived-mode-p 'beads-show-mode)
     (user-error "Not in a beads-show buffer"))
   (unless beads-show--issue-id
     (user-error "No issue ID associated with this buffer"))
 
-  (let ((pos (point)))
+  (let ((pos (point))
+        (project-dir (or beads-show--project-dir default-directory)))
     (condition-case err
-        (let ((issue (beads-command-show! :issue-ids (list beads-show--issue-id))))
+        (let* ((default-directory project-dir)
+               (issue (beads-command-show! :issue-ids (list beads-show--issue-id))))
           (setq beads-show--issue-data issue)
           (beads-show--render-issue beads-show--issue-data)
           (goto-char (min pos (point-max)))
