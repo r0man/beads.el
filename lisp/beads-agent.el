@@ -177,15 +177,17 @@ delimiter is found."
 
 (defun beads-agent--git-command-async (callback &rest args)
   "Run git with ARGS asynchronously and call CALLBACK with result.
-CALLBACK receives (success output) where success is t/nil."
+CALLBACK receives (success output) where success is t/nil.
+Returns the process object, which can be used to cancel the operation."
   (let* ((default-directory (or (beads--find-project-root)
                                 default-directory))
-         (output-buffer (generate-new-buffer " *beads-git-async*"))
-         (process (apply #'start-process
-                         "beads-git" output-buffer
-                         "git" args)))
-    (set-process-sentinel
-     process
+         (output-buffer (generate-new-buffer " *beads-git-async*")))
+    (make-process
+     :name "beads-git"
+     :buffer output-buffer
+     :command (cons "git" args)
+     :connection-type 'pipe
+     :sentinel
      (lambda (proc _event)
        (when (memq (process-status proc) '(exit signal))
          (unwind-protect
@@ -311,14 +313,13 @@ CALLBACK receives (success worktree-path-or-error)."
     (if (file-exists-p worktree-path)
         (funcall callback nil (format "Worktree path already exists: %s" worktree-path))
       ;; Create worktree with new branch
-      (let* ((output-buffer (generate-new-buffer " *beads-worktree*"))
-             (process (start-process
-                       "beads-worktree" output-buffer
-                       "git" "worktree" "add"
-                       "-b" issue-id
-                       worktree-path)))
-        (set-process-sentinel
-         process
+      (let ((output-buffer (generate-new-buffer " *beads-worktree*")))
+        (make-process
+         :name "beads-worktree"
+         :buffer output-buffer
+         :command (list "git" "worktree" "add" "-b" issue-id worktree-path)
+         :connection-type 'pipe
+         :sentinel
          (lambda (proc _event)
            (when (memq (process-status proc) '(exit signal))
              (unwind-protect
@@ -349,8 +350,7 @@ CALLBACK receives (success path-or-error)."
   (let* ((default-directory worktree-path)
          (main-root (beads-agent--main-repo-root))
          (jsonl-path (expand-file-name ".beads/issues.jsonl" main-root))
-         (prefix (beads-agent--extract-prefix issue-id))
-         (process-environment (cons "BD_NO_DAEMON=1" process-environment)))
+         (prefix (beads-agent--extract-prefix issue-id)))
     ;; Check if JSONL exists in main repo
     (if (not (file-exists-p jsonl-path))
         ;; No JSONL, just proceed (fresh repo perhaps)
@@ -359,68 +359,50 @@ CALLBACK receives (success path-or-error)."
                    issue-id worktree-path)
           (funcall callback t worktree-path))
       ;; First initialize bd with the correct prefix, then import
-      (let* ((output-buffer (generate-new-buffer " *beads-init*"))
-             (process (start-process
-                       "beads-init" output-buffer
-                       "bd" "--no-daemon" "init" "-p" prefix "-q")))
-        (set-process-sentinel
-         process
-         (lambda (proc _event)
-           (when (memq (process-status proc) '(exit signal))
-             (let ((success (zerop (process-exit-status proc))))
-               (kill-buffer output-buffer)
-               (if success
-                   ;; Init succeeded, now import
-                   (beads-agent--import-worktree-issues-async
-                    issue-id worktree-path jsonl-path callback)
-                 ;; Init failed - warn and continue
-                 (message "Warning: Failed to init beads in worktree")
-                 (funcall callback t worktree-path))))))))))
+      (let ((cmd (beads-command-init :prefix prefix :quiet t :no-daemon t)))
+        (beads-command-execute-async
+         cmd
+         (lambda (result)
+           (if (zerop (oref result exit-code))
+               ;; Init succeeded, now import
+               (beads-agent--import-worktree-issues-async
+                issue-id worktree-path jsonl-path callback)
+             ;; Init failed - warn and continue
+             (message "Warning: Failed to init beads in worktree")
+             (funcall callback t worktree-path))))))))
 
 (defun beads-agent--import-worktree-issues-async (issue-id worktree-path jsonl-path callback)
   "Import issues into worktree from JSONL-PATH asynchronously.
 ISSUE-ID and WORKTREE-PATH are for logging.
 CALLBACK receives (success path-or-error)."
   (let* ((default-directory worktree-path)
-         (process-environment (cons "BD_NO_DAEMON=1" process-environment))
-         (output-buffer (generate-new-buffer " *beads-import*"))
-         (process (start-process
-                   "beads-import" output-buffer
-                   "bd" "--no-daemon" "import" "-i" jsonl-path)))
-    (set-process-sentinel
-     process
-     (lambda (proc _event)
-       (when (memq (process-status proc) '(exit signal))
-         (unwind-protect
-             (let ((success (zerop (process-exit-status proc)))
-                   (output (when (buffer-live-p output-buffer)
-                             (with-current-buffer output-buffer
-                               (string-trim (buffer-string))))))
-               (if success
-                   (progn
-                     (message "Created worktree for %s at %s (imported issues)"
-                              issue-id worktree-path)
-                     (funcall callback t worktree-path))
-                 ;; Import failed, but worktree exists - warn and continue
-                 (message "Warning: Failed to import issues in worktree: %s" output)
-                 (funcall callback t worktree-path)))
-           ;; Always kill buffer, even on error
-           (when (buffer-live-p output-buffer)
-             (kill-buffer output-buffer))))))))
+         (cmd (beads-command-import :input jsonl-path)))
+    ;; beads-command-import automatically sets :no-daemon in :before method
+    (beads-command-execute-async
+     cmd
+     (lambda (result)
+       (if (zerop (oref result exit-code))
+           (progn
+             (message "Created worktree for %s at %s (imported issues)"
+                      issue-id worktree-path)
+             (funcall callback t worktree-path))
+         ;; Import failed, but worktree exists - warn and continue
+         (message "Warning: Failed to import issues in worktree: %s"
+                  (oref result stderr))
+         (funcall callback t worktree-path))))))
 
 (defun beads-agent--create-worktree-existing-branch-async (issue-id worktree-path callback)
   "Create worktree for existing branch ISSUE-ID at WORKTREE-PATH.
 CALLBACK receives (success worktree-path-or-error)."
   (let* ((main-root (beads-agent--main-repo-root))
          (default-directory main-root)
-         (output-buffer (generate-new-buffer " *beads-worktree*"))
-         (process (start-process
-                   "beads-worktree" output-buffer
-                   "git" "worktree" "add"
-                   worktree-path
-                   issue-id)))
-    (set-process-sentinel
-     process
+         (output-buffer (generate-new-buffer " *beads-worktree*")))
+    (make-process
+     :name "beads-worktree"
+     :buffer output-buffer
+     :command (list "git" "worktree" "add" worktree-path issue-id)
+     :connection-type 'pipe
+     :sentinel
      (lambda (proc _event)
        (when (memq (process-status proc) '(exit signal))
          (unwind-protect
@@ -586,63 +568,43 @@ ISSUE is a beads-issue instance."
       (error nil))))  ; Silently ignore errors
 
 (defun beads-agent--maybe-update-status-async (issue-id callback)
-  "Update ISSUE-ID to in_progress asynchronously.
+  "Update ISSUE-ID to in_progress if currently open.
+Only updates when `beads-agent-auto-set-in-progress' is non-nil.
 CALLBACK receives no arguments when done."
   (if (not beads-agent-auto-set-in-progress)
       (funcall callback)
     ;; Get issue status first
-    (let* ((cmd (beads-command-show :issue-ids (list issue-id)))
-           ;; beads-command-line already includes beads-executable
-           (full-cmd (beads-command-line cmd))
-           (output-buffer (generate-new-buffer " *beads-status*"))
-           (process (apply #'start-process
-                           "beads-show" output-buffer
-                           full-cmd)))
-      (set-process-sentinel
-       process
-       (lambda (proc _event)
-         (when (memq (process-status proc) '(exit signal))
-           (let ((success (zerop (process-exit-status proc)))
-                 (output (with-current-buffer output-buffer
-                           (buffer-string))))
-             (kill-buffer output-buffer)
-             (if (not success)
-                 (funcall callback)  ; Skip on error
-               ;; Parse and check status
-               (condition-case nil
-                   (let* ((json-object-type 'alist)
-                          (json-array-type 'list)
-                          (json-str (beads-agent--extract-json output))
-                          (data (json-read-from-string json-str))
-                          (status (alist-get 'status data)))
-                     (if (equal status "open")
-                         ;; Update to in_progress
-                         (beads-agent--update-status-async issue-id callback)
-                       (funcall callback)))
-                 (error (funcall callback)))))))))))
+    (let ((cmd (beads-command-show :issue-ids (list issue-id))))
+      (beads-command-execute-async
+       cmd
+       (lambda (result)
+         (if (not (zerop (oref result exit-code)))
+             (funcall callback)  ; Skip on error
+           ;; Parse and check status - data slot contains parsed issue(s)
+           (condition-case nil
+               (let* ((data (oref result data))
+                      ;; data may be a single issue or vector of issues
+                      (issue (if (vectorp data) (aref data 0) data))
+                      (status (oref issue status)))
+                 (if (equal status "open")
+                     ;; Update to in_progress
+                     (beads-agent--update-status-async issue-id callback)
+                   (funcall callback)))
+             (error (funcall callback)))))))))
 
 (defun beads-agent--update-status-async (issue-id callback)
-  "Set ISSUE-ID to in_progress asynchronously.
+  "Set ISSUE-ID status to in_progress asynchronously.
 CALLBACK receives no arguments when done."
-  (let* ((cmd (beads-command-update
-               :issue-ids (list issue-id)
-               :status "in_progress"))
-         ;; beads-command-line already includes beads-executable
-         (full-cmd (beads-command-line cmd))
-         (output-buffer (generate-new-buffer " *beads-update*"))
-         (process (apply #'start-process
-                         "beads-update" output-buffer
-                         full-cmd)))
-    (set-process-sentinel
-     process
-     (lambda (proc _event)
-       (when (memq (process-status proc) '(exit signal))
-         (let ((success (zerop (process-exit-status proc))))
-           (kill-buffer output-buffer)
-           (when success
-             (beads--invalidate-completion-cache)
-             (message "Set %s to in_progress" issue-id))
-           (funcall callback)))))))
+  (let ((cmd (beads-command-update
+              :issue-ids (list issue-id)
+              :status "in_progress")))
+    (beads-command-execute-async
+     cmd
+     (lambda (result)
+       (when (zerop (oref result exit-code))
+         (beads--invalidate-completion-cache)
+         (message "Set %s to in_progress" issue-id))
+       (funcall callback)))))
 
 ;;; Context Detection
 
@@ -763,46 +725,26 @@ are passed through from `beads-agent--start-async'."
 
 (defun beads-agent--fetch-issue-async (issue-id callback)
   "Fetch ISSUE-ID asynchronously and call CALLBACK with result.
-CALLBACK receives a beads-issue object."
-  (let* ((cmd (beads-command-show :issue-ids (list issue-id)))
-         ;; beads-command-line already includes beads-executable
-         (full-cmd (beads-command-line cmd))
-         (output-buffer (generate-new-buffer " *beads-fetch*"))
-         (process (apply #'start-process
-                         "beads-fetch" output-buffer
-                         full-cmd)))
-    (set-process-sentinel
-     process
-     (lambda (proc _event)
-       (when (memq (process-status proc) '(exit signal))
-         ;; Check buffer is still live before accessing (could be killed externally)
-         (if (not (buffer-live-p output-buffer))
-             (progn
-               (message "Buffer killed during async fetch of issue %s" issue-id)
-               (funcall callback nil))
-           (let ((exit-code (process-exit-status proc))
-                 (output (with-current-buffer output-buffer
-                           (buffer-string))))
-             (kill-buffer output-buffer)
-             (if (not (zerop exit-code))
-               (progn
-                 (message "Failed to fetch issue %s (exit %d): %s"
-                          issue-id exit-code (string-trim output))
-                 (funcall callback nil))
-             (condition-case err
-                 (let* ((json-object-type 'alist)
-                        (json-array-type 'vector)
-                        (json-str (beads-agent--extract-json output))
-                        (json-data (json-read-from-string json-str))
-                        ;; bd show returns an array, extract first element
-                        (issue-data (if (vectorp json-data)
-                                        (aref json-data 0)
-                                      json-data))
-                        (issue (beads--parse-issue issue-data)))
-                   (funcall callback issue))
-               (error
-                (message "Failed to parse issue: %s" (error-message-string err))
-                (funcall callback nil)))))))))))
+CALLBACK receives a beads-issue object, or nil on error."
+  (let ((cmd (beads-command-show :issue-ids (list issue-id))))
+    (beads-command-execute-async
+     cmd
+     (lambda (result)
+       (if (not (zerop (oref result exit-code)))
+           (progn
+             (message "Failed to fetch issue %s (exit %d): %s"
+                      issue-id (oref result exit-code)
+                      (string-trim (oref result stderr)))
+             (funcall callback nil))
+         ;; data slot contains parsed issue(s) - a vector from bd show
+         (condition-case err
+             (let* ((data (oref result data))
+                    ;; bd show returns a vector, extract first element
+                    (issue (if (vectorp data) (aref data 0) data)))
+               (funcall callback issue))
+           (error
+            (message "Failed to parse issue: %s" (error-message-string err))
+            (funcall callback nil))))))))
 
 (defun beads-agent--rename-and-store-buffer (session buffer)
   "Rename BUFFER to beads format and store in SESSION.
