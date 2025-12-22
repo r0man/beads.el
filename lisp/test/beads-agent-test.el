@@ -2638,35 +2638,20 @@ Settings changes should allow continued configuration."
 (ert-deftest beads-agent-test-fetch-issue-async-success ()
   "Test that fetch-issue-async calls callback with parsed issue on success."
   (let* ((callback-result nil)
-         (sentinel-fn nil)
-         (output-buffer nil)
-         (valid-json "[{\"id\":\"bd-1\",\"title\":\"Test Issue\",\"status\":\"open\",\"priority\":2}]"))
-    (cl-letf (((symbol-function 'start-process)
-               (lambda (name buffer &rest _program)
-                 (setq output-buffer buffer)
-                 ;; Insert valid JSON into output buffer
-                 (with-current-buffer buffer
-                   (insert valid-json))
-                 (let ((proc (make-process :name name
-                                          :buffer nil
-                                          :command '("true")
-                                          :noquery t)))
-                   proc)))
-              ((symbol-function 'set-process-sentinel)
-               (lambda (_proc fn)
-                 (setq sentinel-fn fn)))
-              ((symbol-function 'process-status)
-               (lambda (_proc) 'exit))
-              ((symbol-function 'process-exit-status)
-               (lambda (_proc) 0))
-              ((symbol-function 'beads-command-line)
-               (lambda (_cmd) '("bd" "show"))))
+         ;; Create a mock issue to return
+         (mock-issue (beads-issue :id "bd-1"
+                                  :title "Test Issue"
+                                  :status "open"
+                                  :priority 2)))
+    (cl-letf (((symbol-function 'beads-command-execute-async)
+               (lambda (cmd callback)
+                 ;; Create mock result with exit-code 0 and parsed data
+                 (oset cmd exit-code 0)
+                 (oset cmd data (vector mock-issue))
+                 (funcall callback cmd))))
       (beads-agent--fetch-issue-async
        "bd-1"
        (lambda (issue) (setq callback-result issue)))
-      ;; Simulate process exit
-      (when sentinel-fn
-        (funcall sentinel-fn 'mock-proc "finished\n"))
       ;; Callback should have been invoked with a beads-issue
       (should callback-result)
       (should (cl-typep callback-result 'beads-issue))
@@ -2675,112 +2660,60 @@ Settings changes should allow continued configuration."
 (ert-deftest beads-agent-test-fetch-issue-async-exit-error ()
   "Test that fetch-issue-async calls callback with nil on non-zero exit."
   (let* ((callback-called nil)
-         (callback-result 'not-set)
-         (sentinel-fn nil)
-         (output-buffer nil))
-    (cl-letf (((symbol-function 'start-process)
-               (lambda (name buffer &rest _program)
-                 (setq output-buffer buffer)
-                 (with-current-buffer buffer
-                   (insert "Error: issue not found"))
-                 (let ((proc (make-process :name name
-                                          :buffer nil
-                                          :command '("true")
-                                          :noquery t)))
-                   proc)))
-              ((symbol-function 'set-process-sentinel)
-               (lambda (_proc fn)
-                 (setq sentinel-fn fn)))
-              ((symbol-function 'process-status)
-               (lambda (_proc) 'exit))
-              ((symbol-function 'process-exit-status)
-               (lambda (_proc) 1))
-              ((symbol-function 'beads-command-line)
-               (lambda (_cmd) '("bd" "show"))))
+         (callback-result 'not-set))
+    (cl-letf (((symbol-function 'beads-command-execute-async)
+               (lambda (cmd callback)
+                 ;; Create mock result with non-zero exit code
+                 (oset cmd exit-code 1)
+                 (oset cmd stderr "Error: issue not found")
+                 (oset cmd data nil)
+                 (funcall callback cmd))))
       (beads-agent--fetch-issue-async
        "bd-nonexistent"
        (lambda (issue)
          (setq callback-called t)
          (setq callback-result issue)))
-      ;; Simulate process exit
-      (when sentinel-fn
-        (funcall sentinel-fn 'mock-proc "finished\n"))
       ;; Callback should have been invoked with nil
       (should callback-called)
       (should (null callback-result)))))
 
 (ert-deftest beads-agent-test-fetch-issue-async-parse-error ()
-  "Test that fetch-issue-async calls callback with nil on JSON parse error."
+  "Test that fetch-issue-async calls callback with nil on data access error."
   (let* ((callback-called nil)
-         (callback-result 'not-set)
-         (sentinel-fn nil)
-         (output-buffer nil))
-    (cl-letf (((symbol-function 'start-process)
-               (lambda (name buffer &rest _program)
-                 (setq output-buffer buffer)
-                 (with-current-buffer buffer
-                   (insert "invalid json {{{"))
-                 (let ((proc (make-process :name name
-                                          :buffer nil
-                                          :command '("true")
-                                          :noquery t)))
-                   proc)))
-              ((symbol-function 'set-process-sentinel)
-               (lambda (_proc fn)
-                 (setq sentinel-fn fn)))
-              ((symbol-function 'process-status)
-               (lambda (_proc) 'exit))
-              ((symbol-function 'process-exit-status)
-               (lambda (_proc) 0))
-              ((symbol-function 'beads-command-line)
-               (lambda (_cmd) '("bd" "show"))))
+         (callback-result 'not-set))
+    (cl-letf (((symbol-function 'beads-command-execute-async)
+               (lambda (cmd callback)
+                 ;; Create mock result with exit-code 0 but data that causes
+                 ;; an error when accessed (empty vector with aref attempt)
+                 (oset cmd exit-code 0)
+                 (oset cmd data [])  ; Empty vector causes (aref [] 0) to error
+                 (funcall callback cmd))))
       (beads-agent--fetch-issue-async
        "bd-1"
        (lambda (issue)
          (setq callback-called t)
          (setq callback-result issue)))
-      ;; Simulate process exit
-      (when sentinel-fn
-        (funcall sentinel-fn 'mock-proc "finished\n"))
-      ;; Callback should have been invoked with nil due to parse error
+      ;; Callback should have been invoked with nil due to array bounds error
       (should callback-called)
       (should (null callback-result)))))
 
-(ert-deftest beads-agent-test-fetch-issue-async-buffer-killed ()
-  "Test that fetch-issue-async handles buffer killed during processing."
+(ert-deftest beads-agent-test-fetch-issue-async-nil-data ()
+  "Test that fetch-issue-async handles nil data gracefully."
   (let* ((callback-called nil)
-         (callback-result 'not-set)
-         (sentinel-fn nil)
-         (output-buffer nil))
-    (cl-letf (((symbol-function 'start-process)
-               (lambda (name buffer &rest _program)
-                 (setq output-buffer buffer)
-                 (let ((proc (make-process :name name
-                                          :buffer nil
-                                          :command '("true")
-                                          :noquery t)))
-                   proc)))
-              ((symbol-function 'set-process-sentinel)
-               (lambda (_proc fn)
-                 (setq sentinel-fn fn)))
-              ((symbol-function 'process-status)
-               (lambda (_proc) 'exit))
-              ((symbol-function 'process-exit-status)
-               (lambda (_proc) 0))
-              ((symbol-function 'beads-command-line)
-               (lambda (_cmd) '("bd" "show"))))
+         (callback-result 'not-set))
+    (cl-letf (((symbol-function 'beads-command-execute-async)
+               (lambda (cmd callback)
+                 ;; Create mock result with exit-code 0 but nil data
+                 ;; (happens when parse returns nil due to empty result)
+                 (oset cmd exit-code 0)
+                 (oset cmd data nil)
+                 (funcall callback cmd))))
       (beads-agent--fetch-issue-async
        "bd-1"
        (lambda (issue)
          (setq callback-called t)
          (setq callback-result issue)))
-      ;; Kill the buffer before sentinel runs
-      (when (buffer-live-p output-buffer)
-        (kill-buffer output-buffer))
-      ;; Simulate process exit with killed buffer
-      (when sentinel-fn
-        (funcall sentinel-fn 'mock-proc "finished\n"))
-      ;; Callback should have been invoked with nil due to dead buffer
+      ;; Callback should have been invoked with nil due to nil data
       (should callback-called)
       (should (null callback-result)))))
 
