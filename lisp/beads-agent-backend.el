@@ -298,12 +298,18 @@ The actual stop operation may happen asynchronously.
 Default implementation calls sync `beads-agent-backend-stop' via
 `run-at-time' to avoid blocking the UI, then invokes CALLBACK."
   ;; Default implementation uses run-at-time to make sync stop non-blocking
-  (run-at-time
-   0 nil
-   (lambda ()
-     (beads-agent-backend-stop backend session)
-     (when callback
-       (funcall callback)))))
+  (let ((session-id (oref session id)))
+    (run-at-time
+     0 nil
+     (lambda ()
+       ;; Defensive check: verify session is still registered before stopping.
+       ;; This prevents errors when timer fires after session is destroyed.
+       ;; We re-lookup by ID rather than using the captured session object
+       ;; to ensure we have the current state.
+       (when (beads-agent--get-session session-id)
+         (beads-agent-backend-stop backend session))
+       (when callback
+         (funcall callback))))))
 
 (cl-defgeneric beads-agent-backend-session-active-p (backend session)
   "Return non-nil if SESSION is still active on BACKEND.
