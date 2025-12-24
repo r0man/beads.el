@@ -154,7 +154,7 @@ The value is opaque to beads-sesman and passed through unchanged.")
     :documentation "The Emacs buffer for this session.
 After the backend creates its buffer, it is renamed to the beads format
 and stored here for efficient lookup.  Buffer naming follows the format:
-  *beads-agent[PROJECT-NAME][#N]* (directory-bound)
+  *beads-agent[PROJECT-NAME][TYPE#N]* (directory-bound)
   *beads-agent[ISSUE-ID][TYPE#N]* (legacy, deprecated)
 This slot is set after session creation when the buffer is renamed."))
   :documentation "Represents an active AI agent session.
@@ -518,12 +518,17 @@ DEPRECATED: Use `beads-agent--create-project-session' for new code.
 Note: Session storage is handled by `beads-agent-state-change-hook'.
 The hook handler in beads-sesman.el registers the session with sesman."
   (let* ((session-id (beads-agent--generate-session-id issue-id))
+         (normalized-dir (expand-file-name project-dir))
+         (project-name (beads-agent--derive-project-name normalized-dir))
+         (instance-num (beads-agent--next-project-instance-number normalized-dir))
          (session (beads-agent-session
                    :id session-id
                    :issue-id issue-id
                    :backend-name backend-name
                    :agent-type-name agent-type-name
-                   :project-dir project-dir
+                   :project-dir normalized-dir
+                   :proj-name project-name
+                   :instance-number instance-num
                    :worktree-dir worktree-dir
                    :started-at (format-time-string "%Y-%m-%dT%H:%M:%S%z")
                    :backend-session backend-session)))
@@ -668,15 +673,16 @@ Returns sessions where `current-issue' equals ISSUE-ID."
 ;;; Buffer Naming
 ;;
 ;; Directory-bound buffer names (new):
-;;   *beads-agent[PROJECT-NAME][#N]*
+;;   *beads-agent[PROJECT-NAME][TYPE#N]*
 ;;
 ;; Where:
 ;;   PROJECT-NAME - The project name (e.g., "beads.el")
-;;   N - Instance number for this project
+;;   TYPE - The agent type name (e.g., "Task", "Review", "Plan")
+;;   N - Instance number for this (project, type) combination
 ;;
 ;; Examples:
-;;   *beads-agent[beads.el][#1]*
-;;   *beads-agent[beads.el][#2]*
+;;   *beads-agent[beads.el][Task#1]*
+;;   *beads-agent[beads.el][Plan#2]*
 ;;
 ;; Legacy issue-bound buffer names (deprecated):
 ;;   *beads-agent[ISSUE-ID][TYPE#N]*
@@ -689,31 +695,61 @@ Returns sessions where `current-issue' equals ISSUE-ID."
 ;; Examples (legacy):
 ;;   *beads-agent[beads.el-xrrt][Task#1]*
 ;;   *beads-agent[beads.el-xrrt][Plan#1]*
+;;
+;; Note: Both formats are syntactically identical ([NAME][TYPE#N]).
+;; The distinction is semantic: PROJECT-NAME is short (e.g., "beads.el")
+;; while ISSUE-ID includes issue suffix (e.g., "beads.el-xrrt").
+;;
+;; Instance Number Schemes:
+;;
+;; There are TWO independent instance numbering schemes:
+;;
+;; 1. Session Instance Number (stored in session's `instance-number' slot):
+;;    - Counter: beads-agent--project-instance-counters
+;;    - Key: normalized project-dir path
+;;    - Used for: Session IDs (e.g., "beads.el#1", "beads.el#2")
+;;    - Increments: Per project, regardless of agent type
+;;
+;; 2. Buffer Instance Number (in buffer name's TYPE#N):
+;;    - Counter: beads-agent--typed-instance-counters
+;;    - Key: (project-name . type-name) cons cell
+;;    - Used for: Buffer names (e.g., "*beads-agent[beads.el][Task#1]*")
+;;    - Increments: Per (project, type) combination
+;;
+;; Example scenario with 3 sessions in same project:
+;;   Session "beads.el#1" (Task)  -> buffer "*beads-agent[beads.el][Task#1]*"
+;;   Session "beads.el#2" (Plan)  -> buffer "*beads-agent[beads.el][Plan#1]*"
+;;   Session "beads.el#3" (Task)  -> buffer "*beads-agent[beads.el][Task#2]*"
+;;
+;; The session numbers (1, 2, 3) are sequential per-project.
+;; The buffer numbers (Task#1, Plan#1, Task#2) are sequential per-type.
 
 (defvar beads-agent--typed-instance-counters (make-hash-table :test #'equal)
-  "Hash table mapping (issue-id . type-name) to next instance number.
-Used to track instance numbers per (issue, type) combination.")
+  "Hash table mapping (name . type-name) to next instance number.
+Used to track instance numbers per (name, type) combination, where
+name can be either an issue-id (legacy) or project-name (directory-bound).")
 
 (defun beads-agent--reset-typed-instance-counters ()
   "Reset all typed instance counters.
 Primarily used for testing."
   (clrhash beads-agent--typed-instance-counters))
 
-(defun beads-agent--next-typed-instance-number (issue-id type-name)
-  "Get the next instance number for ISSUE-ID and TYPE-NAME combination.
+(defun beads-agent--next-typed-instance-number (name type-name)
+  "Get the next instance number for NAME and TYPE-NAME combination.
+NAME can be an issue-id (legacy) or project-name (directory-bound).
 Returns 1 for the first instance, 2 for the second, etc.
-Instance numbers are tracked independently for each (issue, type) pair."
-  (let* ((key (cons issue-id type-name))
+Instance numbers are tracked independently for each (name, type) pair."
+  (let* ((key (cons name type-name))
          (current (gethash key beads-agent--typed-instance-counters 0))
          (next (1+ current)))
     (puthash key next beads-agent--typed-instance-counters)
     next))
 
-(defun beads-agent--peek-typed-instance-number (issue-id type-name)
+(defun beads-agent--peek-typed-instance-number (name type-name)
   "Peek at the next instance number without incrementing.
 Returns what the next call to `beads-agent--next-typed-instance-number'
-would return for ISSUE-ID and TYPE-NAME."
-  (1+ (gethash (cons issue-id type-name)
+would return for NAME and TYPE-NAME."
+  (1+ (gethash (cons name type-name)
                beads-agent--typed-instance-counters 0)))
 
 (defun beads-agent--generate-buffer-name (issue-id type-name instance-n)
@@ -741,10 +777,15 @@ If the format doesn't match, returns 1 as default."
   (or (beads-agent--session-number-from-id (oref session id)) 1))
 
 (defun beads-agent--parse-buffer-name (buffer-name)
-  "Parse a beads buffer name into its components.
-BUFFER-NAME should be in format *beads-agent[ISSUE-ID][TYPE#N]*.
-Returns plist (:issue-id ISSUE-ID :type-name TYPE :instance-n N)
-or nil if the buffer name doesn't match the expected format."
+  "Parse a beads buffer name into its components (legacy API).
+BUFFER-NAME should be in format *beads-agent[NAME][TYPE#N]*.
+Returns plist (:issue-id NAME :type-name TYPE :instance-n N)
+or nil if the buffer name doesn't match the expected format.
+
+This is the legacy parse function that returns :issue-id as the key.
+For directory-bound buffers, use `beads-agent--parse-project-buffer-name'
+which returns :project-name instead.  Both functions parse the same
+format but with different semantic interpretations of the NAME field."
   (when (string-match
          "\\*beads-agent\\[\\([^]]+\\)\\]\\[\\([^#]+\\)#\\([0-9]+\\)\\]\\*"
          buffer-name)
@@ -754,49 +795,88 @@ or nil if the buffer name doesn't match the expected format."
 
 (defun beads-agent--buffer-name-p (buffer-name)
   "Return non-nil if BUFFER-NAME is a valid beads agent buffer name.
-Matches both directory-bound and legacy issue-bound formats."
+Matches both directory-bound and legacy issue-bound formats.
+Both formats are syntactically identical: *beads-agent[NAME][TYPE#N]*
+
+Use this general predicate when:
+- Filtering all agent buffers regardless of naming scheme
+- Validating buffer names before parsing
+- Implementing buffer cleanup or listing functions
+
+For code that specifically expects project-based (directory-bound)
+buffers, prefer `beads-agent--project-buffer-name-p' to signal intent,
+even though both predicates are functionally equivalent."
   (and buffer-name
-       (or
-        ;; Directory-bound format: *beads-agent[project][#N]*
-        (string-match-p "\\*beads-agent\\[.+\\]\\[#[0-9]+\\]\\*" buffer-name)
-        ;; Legacy format: *beads-agent[issue][TYPE#N]*
-        (string-match-p "\\*beads-agent\\[.+\\]\\[.+#[0-9]+\\]\\*" buffer-name))))
+       ;; Unified format: *beads-agent[NAME][TYPE#N]*
+       ;; Matches both project-bound (NAME=project) and legacy (NAME=issue-id)
+       (string-match-p "\\*beads-agent\\[.+\\]\\[[^#]+#[0-9]+\\]\\*" buffer-name)))
 
 ;;; Directory-Bound Buffer Naming
 
-(defun beads-agent--generate-project-buffer-name (proj-name instance-n)
+(defun beads-agent--generate-project-buffer-name (proj-name type-name instance-n)
   "Generate buffer name for directory-bound session.
 PROJ-NAME is the project name (e.g., \"beads.el\").
-INSTANCE-N is the instance number for this project.
+TYPE-NAME is the agent type name (e.g., \"Task\", \"Plan\").
+INSTANCE-N is the instance number for this (project, type) combination.
 
-Returns buffer name in format: *beads-agent[PROJ-NAME][#N]*"
-  (format "*beads-agent[%s][#%d]*" proj-name instance-n))
+Returns buffer name in format: *beads-agent[PROJ-NAME][TYPE#N]*"
+  (format "*beads-agent[%s][%s#%d]*" proj-name type-name instance-n))
 
 (defun beads-agent--generate-buffer-name-for-project-session (session)
   "Generate buffer name for directory-bound SESSION object.
-Uses the session's proj-name and instance-number to build the name."
-  (let ((project-name (or (oref session proj-name)
-                          (beads-agent--derive-project-name
-                           (oref session project-dir))))
-        (instance-n (oref session instance-number)))
-    (beads-agent--generate-project-buffer-name project-name instance-n)))
+Uses the session's proj-name and agent-type-name.  Instance number
+is determined by a typed counter keyed by (project-name, type-name),
+ensuring each type has independent numbering within a project.
+
+This function is idempotent: if SESSION already has a buffer stored,
+returns that buffer's name instead of generating a new one.  This
+prevents the typed instance counter from being incremented multiple
+times for the same session."
+  ;; Idempotent: return existing buffer name if session already has one
+  (if-let ((existing-buffer (oref session buffer)))
+      (buffer-name existing-buffer)
+    ;; Generate new name (increments typed counter)
+    (let* ((project-name (or (oref session proj-name)
+                             (beads-agent--derive-project-name
+                              (oref session project-dir))))
+           (type-name (or (oref session agent-type-name) "Agent"))
+           (instance-n (beads-agent--next-typed-instance-number project-name type-name)))
+      (beads-agent--generate-project-buffer-name project-name type-name instance-n))))
 
 (defun beads-agent--parse-project-buffer-name (buffer-name)
   "Parse a directory-bound buffer name into its components.
-BUFFER-NAME should be in format *beads-agent[PROJECT-NAME][#N]*.
-Returns plist (:project-name NAME :instance-n N)
-or nil if the buffer name doesn't match the expected format."
+BUFFER-NAME should be in format *beads-agent[PROJECT-NAME][TYPE#N]*.
+Returns plist (:project-name NAME :type-name TYPE :instance-n N)
+or nil if the buffer name doesn't match the expected format.
+
+This is the directory-bound parse function that returns :project-name.
+For legacy issue-bound buffers, use `beads-agent--parse-buffer-name'
+which returns :issue-id instead.  Both functions parse the same
+format but with different semantic interpretations of the NAME field."
   (when (string-match
-         "\\*beads-agent\\[\\([^]]+\\)\\]\\[#\\([0-9]+\\)\\]\\*"
+         "\\*beads-agent\\[\\([^]]+\\)\\]\\[\\([^#]+\\)#\\([0-9]+\\)\\]\\*"
          buffer-name)
     (list :project-name (match-string 1 buffer-name)
-          :instance-n (string-to-number (match-string 2 buffer-name)))))
+          :type-name (match-string 2 buffer-name)
+          :instance-n (string-to-number (match-string 3 buffer-name)))))
 
 (defun beads-agent--project-buffer-name-p (buffer-name)
   "Return non-nil if BUFFER-NAME is a directory-bound buffer name.
-Directory-bound format: *beads-agent[PROJECT-NAME][#N]*"
-  (and buffer-name
-       (string-match-p "\\*beads-agent\\[.+\\]\\[#[0-9]+\\]\\*" buffer-name)))
+Directory-bound format: *beads-agent[PROJECT-NAME][TYPE#N]*
+
+Note: Since directory-bound and legacy formats are now syntactically
+identical, this is equivalent to `beads-agent--buffer-name-p'.
+The distinction is semantic: callers use this when they expect a
+project-based buffer name specifically.
+
+Use this predicate when:
+- Working with directory-bound session creation code
+- Parsing buffer names with `beads-agent--parse-project-buffer-name'
+- Code paths that only handle the modern project-based workflow
+
+For general buffer validation that accepts any agent buffer format,
+use `beads-agent--buffer-name-p' instead."
+  (beads-agent--buffer-name-p buffer-name))
 
 ;;; Window Management
 ;;

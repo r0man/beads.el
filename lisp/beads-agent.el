@@ -750,25 +750,27 @@ CALLBACK receives a beads-issue object, or nil on error."
   "Rename BUFFER to beads format and store in SESSION.
 Renames the buffer to the beads naming convention and stores it in
 the session's buffer slot for efficient lookup.
-The buffer is renamed to format: *beads-agent[ISSUE-ID][TYPE#N]*
+The buffer is renamed to format: *beads-agent[PROJECT-NAME][TYPE#N]*
 Also sets the buffer's `default-directory' to the session's working
-directory (worktree or project) for correct beads database discovery."
+directory (worktree or project) for correct beads database discovery.
+
+This function is idempotent: if SESSION already has a buffer stored,
+does nothing to avoid renaming an already-renamed buffer."
   (when (and buffer (buffer-live-p buffer))
-    (let* ((issue-id (oref session issue-id))
-           (type-name (or (oref session agent-type-name) "Agent"))
-           (instance-n (beads-agent--next-typed-instance-number issue-id type-name))
-           (new-name (beads-agent--generate-buffer-name issue-id type-name instance-n))
-           ;; Get working directory: worktree takes precedence over project
-           (working-dir (or (oref session worktree-dir)
-                            (oref session project-dir))))
-      ;; Rename the buffer and set its working directory
-      (with-current-buffer buffer
-        (rename-buffer new-name t)
-        ;; Set default-directory for worktree support - ensures beads commands
-        ;; find the correct .beads database when invoked from this buffer
-        (setq-local default-directory working-dir))
-      ;; Store in session
-      (beads-agent-session-set-buffer session buffer))))
+    ;; Skip if session already has a buffer (idempotent)
+    (unless (oref session buffer)
+      (let* ((new-name (beads-agent--generate-buffer-name-for-project-session session))
+             ;; Get working directory: worktree takes precedence over project
+             (working-dir (or (oref session worktree-dir)
+                              (oref session project-dir))))
+        ;; Rename the buffer and set its working directory
+        (with-current-buffer buffer
+          (rename-buffer new-name t)
+          ;; Set default-directory for worktree support - ensures beads commands
+          ;; find the correct .beads database when invoked from this buffer
+          (setq-local default-directory working-dir))
+        ;; Store in session
+        (beads-agent-session-set-buffer session buffer)))))
 
 (defun beads-agent--start-backend-async (issue-id backend project-dir worktree-dir
                                                   prompt issue agent-type)
