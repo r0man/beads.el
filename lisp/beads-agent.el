@@ -728,11 +728,13 @@ are passed through from `beads-agent--continue-start'."
          (agent-type-name (when agent-type (oref agent-type name))))
     (condition-case err
         ;; Bind display-buffer-overriding-action to force agent buffers
-        ;; to open in a right side window, keeping list/show buffers visible
+        ;; to open in a window to the right, keeping list/show buffers visible.
+        ;; Uses display-buffer-in-direction (regular window) rather than
+        ;; display-buffer-in-side-window (side window with special behavior).
         (let* ((display-buffer-overriding-action
                 '((display-buffer-reuse-window
-                   display-buffer-in-side-window)
-                  (side . right)
+                   display-buffer-in-direction)
+                  (direction . right)
                   (window-width . 0.5)))
                ;; backend-start returns (backend-session . buffer)
                (start-result (beads-agent-backend-start backend issue prompt))
