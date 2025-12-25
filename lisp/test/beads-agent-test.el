@@ -1032,17 +1032,6 @@ Both formats are now syntactically identical: [NAME][TYPE#N]."
             (should (equal "*beads-agent[another][Agent#1]*" buffer-name)))))
     (beads-agent-test--teardown)))
 
-;;; Tests for Worktree Environment
-
-(ert-deftest beads-agent-test-setup-worktree-environment ()
-  "Test worktree environment setup."
-  (let* ((original-env process-environment)
-         (new-env (beads-agent--setup-worktree-environment)))
-    ;; Should have BD_NO_DAEMON=1 at the front
-    (should (string-prefix-p "BD_NO_DAEMON=1" (car new-env)))
-    ;; Should not modify original
-    (should (eq process-environment original-env))))
-
 ;;; Tests for Worktree Path Calculation
 
 (ert-deftest beads-agent-test-worktree-path-for-issue ()

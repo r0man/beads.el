@@ -366,11 +366,6 @@ CALLBACK receives (success worktree-path-or-error)."
            (when (buffer-live-p output-buffer)
              (kill-buffer output-buffer))))))))
 
-(defun beads-agent--setup-worktree-environment ()
-  "Return `process-environment' with BD_NO_DAEMON=1 set.
-This is needed because bd daemon doesn't work well across worktrees."
-  (cons "BD_NO_DAEMON=1" process-environment))
-
 ;;; Backend Selection
 
 (defun beads-agent--backend-available-and-get (name)
