@@ -325,71 +325,16 @@ CALLBACK receives (success worktree-path-or-error)."
              (unwind-protect
                  (let ((success (zerop (process-exit-status proc))))
                    (if success
-                       ;; Worktree created, now initialize beads database
-                       (beads-agent--init-worktree-beads-async
-                        issue-id worktree-path callback)
+                       ;; Worktree created - uses shared database from main repo
+                       (progn
+                         (message "Created worktree for %s at %s" issue-id worktree-path)
+                         (funcall callback t worktree-path))
                      ;; Branch might already exist, try without -b
                      (beads-agent--create-worktree-existing-branch-async
                       issue-id worktree-path callback)))
                ;; Always kill buffer, even on error
                (when (buffer-live-p output-buffer)
                  (kill-buffer output-buffer))))))))))
-
-(defun beads-agent--extract-prefix (issue-id)
-  "Extract the prefix from ISSUE-ID.
-For example, \"beads.el-qghm\" returns \"beads.el\"."
-  (if (string-match "\\(.*\\)-[^-]+$" issue-id)
-      (match-string 1 issue-id)
-    issue-id))
-
-(defun beads-agent--init-worktree-beads-async (issue-id worktree-path callback)
-  "Initialize beads database in WORKTREE-PATH asynchronously.
-First initializes bd with the correct prefix from ISSUE-ID, then imports
-issues from the main repo's JSONL file.
-CALLBACK receives (success path-or-error)."
-  (let* ((default-directory worktree-path)
-         (main-root (beads-agent--main-repo-root))
-         (jsonl-path (expand-file-name ".beads/issues.jsonl" main-root))
-         (prefix (beads-agent--extract-prefix issue-id)))
-    ;; Check if JSONL exists in main repo
-    (if (not (file-exists-p jsonl-path))
-        ;; No JSONL, just proceed (fresh repo perhaps)
-        (progn
-          (message "Created worktree for %s at %s (no issues to import)"
-                   issue-id worktree-path)
-          (funcall callback t worktree-path))
-      ;; First initialize bd with the correct prefix, then import
-      (let ((cmd (beads-command-init :prefix prefix :quiet t :no-daemon t)))
-        (beads-command-execute-async
-         cmd
-         (lambda (result)
-           (if (zerop (oref result exit-code))
-               ;; Init succeeded, now import
-               (beads-agent--import-worktree-issues-async
-                issue-id worktree-path jsonl-path callback)
-             ;; Init failed - warn and continue
-             (message "Warning: Failed to init beads in worktree")
-             (funcall callback t worktree-path))))))))
-
-(defun beads-agent--import-worktree-issues-async (issue-id worktree-path jsonl-path callback)
-  "Import issues into worktree from JSONL-PATH asynchronously.
-ISSUE-ID and WORKTREE-PATH are for logging.
-CALLBACK receives (success path-or-error)."
-  (let* ((default-directory worktree-path)
-         (cmd (beads-command-import :input jsonl-path)))
-    ;; beads-command-import automatically sets :no-daemon in :before method
-    (beads-command-execute-async
-     cmd
-     (lambda (result)
-       (if (zerop (oref result exit-code))
-           (progn
-             (message "Created worktree for %s at %s (imported issues)"
-                      issue-id worktree-path)
-             (funcall callback t worktree-path))
-         ;; Import failed, but worktree exists - warn and continue
-         (message "Warning: Failed to import issues in worktree: %s"
-                  (oref result stderr))
-         (funcall callback t worktree-path))))))
 
 (defun beads-agent--create-worktree-existing-branch-async (issue-id worktree-path callback)
   "Create worktree for existing branch ISSUE-ID at WORKTREE-PATH.
@@ -411,9 +356,10 @@ CALLBACK receives (success worktree-path-or-error)."
                              (with-current-buffer output-buffer
                                (string-trim (buffer-string))))))
                (if success
-                   ;; Worktree created, now initialize beads database
-                   (beads-agent--init-worktree-beads-async
-                    issue-id worktree-path callback)
+                   ;; Worktree created - uses shared database from main repo
+                   (progn
+                     (message "Created worktree for %s at %s" issue-id worktree-path)
+                     (funcall callback t worktree-path))
                  (funcall callback nil (format "Failed to create worktree: %s"
                                                (or output "unknown error")))))
            ;; Always kill buffer, even on error
