@@ -719,8 +719,10 @@ does nothing to avoid renaming an already-renamed buffer."
 ISSUE-ID, BACKEND, PROJECT-DIR, WORKTREE-DIR, PROMPT, ISSUE, AGENT-TYPE
 are passed through from `beads-agent--continue-start'."
   (let* ((working-dir (or worktree-dir project-dir))
+         ;; In worktrees, add BD_NO_DAEMON=1 for worktree safety
+         ;; (prevents daemon from being started in worktree context)
          (process-environment (if worktree-dir
-                                  (beads-agent--setup-worktree-environment)
+                                  (cons "BD_NO_DAEMON=1" process-environment)
                                 process-environment))
          (default-directory working-dir)
          (agent-type-name (when agent-type (oref agent-type name))))
@@ -1482,6 +1484,255 @@ Displays the list of issues that have been focused on during this session."
                        (format " (current: %s)" current)
                      ""))))
     (user-error "No active agent session for current project")))
+
+;;; Mode-Line Indicator
+;;
+;; Provides a mode-line segment showing project/agent context.
+;; Example displays:
+;;   [beads.el:Task#1@wt]  -- in worktree with active Task agent
+;;   [beads.el:main]       -- in main repo, no agent
+
+(defcustom beads-agent-mode-line-format 'default
+  "Format for the mode-line indicator.
+The value can be one of:
+  - `default': Show [project:agent@context] format
+  - `compact': Show just [P:T#1] minimal format
+  - `full': Show full project path and agent details
+  - A function: Called with no arguments, returns a string or nil"
+  :type '(choice (const :tag "Default format" default)
+                 (const :tag "Compact format" compact)
+                 (const :tag "Full format" full)
+                 (function :tag "Custom function"))
+  :group 'beads-agent)
+
+(defcustom beads-agent-mode-line-faces t
+  "When non-nil, use faces for mode-line indicator.
+When nil, use plain text without face properties."
+  :type 'boolean
+  :group 'beads-agent)
+
+(defface beads-agent-mode-line-project
+  '((t :inherit mode-line-buffer-id))
+  "Face for project name in mode-line indicator."
+  :group 'beads-agent)
+
+(defface beads-agent-mode-line-agent
+  '((t :inherit success))
+  "Face for active agent indicator in mode-line."
+  :group 'beads-agent)
+
+(defface beads-agent-mode-line-worktree
+  '((t :inherit warning))
+  "Face for worktree indicator in mode-line."
+  :group 'beads-agent)
+
+;;; Mode-Line Context Cache
+;;
+;; Cache git branch and worktree status to avoid shelling out on every
+;; mode-line redraw.  Cache is per-directory with a short TTL.
+
+(defvar beads-agent--mode-line-cache nil
+  "Cache for mode-line context: (directory branch in-worktree timestamp).")
+
+(defconst beads-agent--mode-line-cache-ttl 5.0
+  "Time-to-live for mode-line cache in seconds.")
+
+(defun beads-agent--mode-line-cache-valid-p ()
+  "Return non-nil if the mode-line cache is still valid."
+  (and beads-agent--mode-line-cache
+       (equal (car beads-agent--mode-line-cache) default-directory)
+       (let ((timestamp (nth 3 beads-agent--mode-line-cache)))
+         (< (- (float-time) timestamp) beads-agent--mode-line-cache-ttl))))
+
+(defun beads-agent--mode-line-cached-git-info ()
+  "Return cached (branch . in-worktree) or fetch and cache.
+Returns a cons cell (BRANCH . IN-WORKTREE)."
+  (if (beads-agent--mode-line-cache-valid-p)
+      (cons (nth 1 beads-agent--mode-line-cache)
+            (nth 2 beads-agent--mode-line-cache))
+    ;; Cache miss - fetch and store
+    (let ((branch (beads--get-git-branch))
+          (in-worktree (beads--in-git-worktree-p)))
+      (setq beads-agent--mode-line-cache
+            (list default-directory branch in-worktree (float-time)))
+      (cons branch in-worktree))))
+
+(defun beads-agent--mode-line-context ()
+  "Get the current context for mode-line display.
+Returns a plist with keys:
+  :project-name  - Project name string or nil
+  :branch        - Git branch name or nil
+  :in-worktree   - Non-nil if in a git worktree
+  :agent-session - Active beads-agent-session or nil
+  :agent-type    - Agent type name (e.g., \"Task\") or nil
+  :agent-instance - Agent instance number or nil
+
+Git branch and worktree status are cached for performance."
+  (let* ((project-name (beads--get-project-name))
+         (git-info (beads-agent--mode-line-cached-git-info))
+         (branch (car git-info))
+         (in-worktree (cdr git-info))
+         (session (beads-agent--get-current-project-session))
+         (agent-type (when session
+                       (beads-agent-session-type-name session)))
+         (agent-instance (when session
+                           (beads-agent--session-instance-number session))))
+    (list :project-name project-name
+          :branch branch
+          :in-worktree in-worktree
+          :agent-session session
+          :agent-type agent-type
+          :agent-instance agent-instance)))
+
+(defun beads-agent--mode-line-format-default (ctx)
+  "Format mode-line using default format from context CTX.
+CTX is a plist from `beads-agent--mode-line-context'.
+Returns a string like [beads.el:Task#1@wt] or [beads.el:main]."
+  (let* ((project-name (plist-get ctx :project-name))
+         (branch (plist-get ctx :branch))
+         (in-worktree (plist-get ctx :in-worktree))
+         (agent-type (plist-get ctx :agent-type))
+         (agent-instance (plist-get ctx :agent-instance))
+         (use-faces beads-agent-mode-line-faces))
+    (when project-name
+      (let* ((proj-str (if use-faces
+                           (propertize project-name
+                                       'face 'beads-agent-mode-line-project)
+                         project-name))
+             (agent-str (when agent-type
+                          (let ((str (format "%s#%d"
+                                             agent-type
+                                             (or agent-instance 1))))
+                            (if use-faces
+                                (propertize str
+                                            'face 'beads-agent-mode-line-agent)
+                              str))))
+             (context-str (if in-worktree
+                              (if use-faces
+                                  (propertize "wt"
+                                              'face 'beads-agent-mode-line-worktree)
+                                "wt")
+                            (or branch "main"))))
+        (concat "["
+                proj-str
+                ":"
+                (if agent-str
+                    (concat agent-str "@" context-str)
+                  context-str)
+                "]")))))
+
+(defun beads-agent--mode-line-format-compact (ctx)
+  "Format mode-line using compact format from context CTX.
+CTX is a plist from `beads-agent--mode-line-context'.
+Returns a string like [P:T#1] where P is first char of project."
+  (let* ((project-name (plist-get ctx :project-name))
+         (agent-type (plist-get ctx :agent-type))
+         (agent-instance (plist-get ctx :agent-instance))
+         (in-worktree (plist-get ctx :in-worktree)))
+    (when (and project-name (> (length project-name) 0))
+      (let* ((p-char (substring project-name 0 1))
+             (agent-str (when (and agent-type (> (length agent-type) 0))
+                          (format "%s#%d"
+                                  (substring agent-type 0 1)
+                                  (or agent-instance 1))))
+             (wt-str (if in-worktree "*" "")))
+        (concat "[" p-char
+                (when agent-str (concat ":" agent-str))
+                wt-str "]")))))
+
+(defun beads-agent--mode-line-format-full (ctx)
+  "Format mode-line using full format from context CTX.
+CTX is a plist from `beads-agent--mode-line-context'.
+Returns a string with full project path and agent details."
+  (let* ((project-name (plist-get ctx :project-name))
+         (branch (plist-get ctx :branch))
+         (in-worktree (plist-get ctx :in-worktree))
+         (session (plist-get ctx :agent-session))
+         (agent-type (plist-get ctx :agent-type))
+         (agent-instance (plist-get ctx :agent-instance))
+         (use-faces beads-agent-mode-line-faces))
+    (when project-name
+      (let* ((proj-str (if use-faces
+                           (propertize project-name
+                                       'face 'beads-agent-mode-line-project)
+                         project-name))
+             (branch-str (or branch "main"))
+             (wt-str (if in-worktree
+                         (if use-faces
+                             (propertize " [worktree]"
+                                         'face 'beads-agent-mode-line-worktree)
+                           " [worktree]")
+                       ""))
+             (agent-str (when session
+                          (let* ((current-issue
+                                  (beads-agent-session-current-issue session))
+                                 (str (format " %s#%d%s"
+                                              agent-type
+                                              (or agent-instance 1)
+                                              (if current-issue
+                                                  (format " (%s)" current-issue)
+                                                ""))))
+                            (if use-faces
+                                (propertize str
+                                            'face 'beads-agent-mode-line-agent)
+                              str)))))
+        (concat "[" proj-str ":" branch-str wt-str
+                (or agent-str "") "]")))))
+
+(defun beads-agent--mode-line-indicator ()
+  "Return mode-line string for current beads context.
+Uses `beads-agent-mode-line-format' to determine the display format.
+Returns nil if not in a beads project."
+  (let ((ctx (beads-agent--mode-line-context)))
+    (pcase beads-agent-mode-line-format
+      ('default (beads-agent--mode-line-format-default ctx))
+      ('compact (beads-agent--mode-line-format-compact ctx))
+      ('full (beads-agent--mode-line-format-full ctx))
+      ((pred functionp) (funcall beads-agent-mode-line-format))
+      (_ (beads-agent--mode-line-format-default ctx)))))
+
+(defvar beads-agent-mode-line
+  '(:eval (beads-agent--mode-line-indicator))
+  "Mode line construct for beads agent context indicator.
+Add this to `mode-line-misc-info' or your mode-line format to display
+the current project/agent context.
+
+Example usage:
+  (add-to-list \\='mode-line-misc-info \\='beads-agent-mode-line)")
+
+;;;###autoload
+(put 'beads-agent-mode-line 'risky-local-variable t)
+
+(defconst beads-agent--mode-line-misc-info-entry
+  '(beads-agent-mode-line-mode (" " beads-agent-mode-line))
+  "Entry added to `mode-line-misc-info' by `beads-agent-mode-line-mode'.
+This uses the minor-mode conditional format so the indicator only
+appears when the mode is enabled, and we can identify it precisely
+for removal.")
+
+;;;###autoload
+(define-minor-mode beads-agent-mode-line-mode
+  "Minor mode to display beads agent context in the mode-line.
+When enabled, shows project name, agent status, and worktree
+indicator in the mode-line.
+
+Example displays:
+  [beads.el:Task#1@wt]  -- in worktree with active Task agent
+  [beads.el:main]       -- in main repo, no agent
+
+Customize `beads-agent-mode-line-format' to change the display style."
+  :global t
+  :lighter nil
+  :group 'beads-agent
+  (if beads-agent-mode-line-mode
+      ;; Enable: add our entry to mode-line-misc-info if not present
+      (unless (member beads-agent--mode-line-misc-info-entry mode-line-misc-info)
+        (setq mode-line-misc-info
+              (append mode-line-misc-info
+                      (list beads-agent--mode-line-misc-info-entry))))
+    ;; Disable: remove only our specific entry
+    (setq mode-line-misc-info
+          (delete beads-agent--mode-line-misc-info-entry mode-line-misc-info))))
 
 (provide 'beads-agent)
 

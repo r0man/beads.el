@@ -2929,6 +2929,395 @@ Each type maintains its own instance counter per project."
             (should (equal (oref result name) "mock")))))
     (beads-agent-test--teardown)))
 
+;;; Tests for Mode-Line Indicator
+
+(ert-deftest beads-agent-test-mode-line-context-no-project ()
+  "Test mode-line context when not in a project."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((default-directory "/tmp")
+            (beads-agent--mode-line-cache nil))  ; Clear cache for test
+        (cl-letf (((symbol-function 'beads--get-project-name)
+                   (lambda () nil))
+                  ((symbol-function 'beads--get-git-branch)
+                   (lambda () nil))
+                  ((symbol-function 'beads--in-git-worktree-p)
+                   (lambda () nil))
+                  ((symbol-function 'beads-agent--get-current-project-session)
+                   (lambda () nil)))
+          (let ((ctx (beads-agent--mode-line-context)))
+            (should (null (plist-get ctx :project-name)))
+            (should (null (plist-get ctx :branch)))
+            (should (null (plist-get ctx :in-worktree)))
+            (should (null (plist-get ctx :agent-session))))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-context-in-project ()
+  "Test mode-line context when in a project."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent--mode-line-cache nil))  ; Clear cache for test
+        (cl-letf (((symbol-function 'beads--get-project-name)
+                   (lambda () "beads.el"))
+                  ((symbol-function 'beads--get-git-branch)
+                   (lambda () "main"))
+                  ((symbol-function 'beads--in-git-worktree-p)
+                   (lambda () nil))
+                  ((symbol-function 'beads-agent--get-current-project-session)
+                   (lambda () nil)))
+          (let ((ctx (beads-agent--mode-line-context)))
+            (should (equal (plist-get ctx :project-name) "beads.el"))
+            (should (equal (plist-get ctx :branch) "main"))
+            (should (null (plist-get ctx :in-worktree)))
+            (should (null (plist-get ctx :agent-session))))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-context-in-worktree ()
+  "Test mode-line context when in a git worktree."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent--mode-line-cache nil))  ; Clear cache for test
+        (cl-letf (((symbol-function 'beads--get-project-name)
+                   (lambda () "beads.el"))
+                  ((symbol-function 'beads--get-git-branch)
+                   (lambda () "feature-branch"))
+                  ((symbol-function 'beads--in-git-worktree-p)
+                   (lambda () t))
+                  ((symbol-function 'beads-agent--get-current-project-session)
+                   (lambda () nil)))
+          (let ((ctx (beads-agent--mode-line-context)))
+            (should (equal (plist-get ctx :project-name) "beads.el"))
+            (should (plist-get ctx :in-worktree)))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-context-with-agent ()
+  "Test mode-line context when an agent session is active."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let* ((beads-agent--mode-line-cache nil)  ; Clear cache for test
+             (mock-session (beads-agent-session
+                            :id "beads.el#1"
+                            :project-dir "/home/user/beads.el"
+                            :proj-name "beads.el"
+                            :instance-number 1
+                            :backend-name "mock"
+                            :agent-type-name "Task"
+                            :started-at (format-time-string "%Y-%m-%dT%H:%M:%S"))))
+        (cl-letf (((symbol-function 'beads--get-project-name)
+                   (lambda () "beads.el"))
+                  ((symbol-function 'beads--get-git-branch)
+                   (lambda () "main"))
+                  ((symbol-function 'beads--in-git-worktree-p)
+                   (lambda () nil))
+                  ((symbol-function 'beads-agent--get-current-project-session)
+                   (lambda () mock-session)))
+          (let ((ctx (beads-agent--mode-line-context)))
+            (should (equal (plist-get ctx :project-name) "beads.el"))
+            (should (eq (plist-get ctx :agent-session) mock-session))
+            (should (equal (plist-get ctx :agent-type) "Task"))
+            (should (equal (plist-get ctx :agent-instance) 1)))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-format-default-no-agent ()
+  "Test default format without active agent."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent-mode-line-faces nil)
+            (ctx (list :project-name "beads.el"
+                       :branch "main"
+                       :in-worktree nil
+                       :agent-session nil
+                       :agent-type nil
+                       :agent-instance nil)))
+        (let ((result (beads-agent--mode-line-format-default ctx)))
+          (should (stringp result))
+          (should (string= result "[beads.el:main]"))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-format-default-with-agent ()
+  "Test default format with active agent."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let* ((beads-agent-mode-line-faces nil)
+             (mock-session (beads-agent-session
+                            :id "beads.el#1"
+                            :project-dir "/home/user/beads.el"
+                            :backend-name "mock"
+                            :agent-type-name "Task"
+                            :instance-number 1
+                            :started-at (format-time-string "%Y-%m-%dT%H:%M:%S")))
+             (ctx (list :project-name "beads.el"
+                        :branch "main"
+                        :in-worktree nil
+                        :agent-session mock-session
+                        :agent-type "Task"
+                        :agent-instance 1)))
+        (let ((result (beads-agent--mode-line-format-default ctx)))
+          (should (stringp result))
+          (should (string= result "[beads.el:Task#1@main]"))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-format-default-in-worktree ()
+  "Test default format shows worktree indicator."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let* ((beads-agent-mode-line-faces nil)
+             (mock-session (beads-agent-session
+                            :id "beads.el#1"
+                            :project-dir "/home/user/beads.el-wt"
+                            :backend-name "mock"
+                            :agent-type-name "Review"
+                            :instance-number 2
+                            :started-at (format-time-string "%Y-%m-%dT%H:%M:%S")))
+             (ctx (list :project-name "beads.el"
+                        :branch "feature"
+                        :in-worktree t
+                        :agent-session mock-session
+                        :agent-type "Review"
+                        :agent-instance 2)))
+        (let ((result (beads-agent--mode-line-format-default ctx)))
+          (should (stringp result))
+          (should (string= result "[beads.el:Review#2@wt]"))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-format-compact ()
+  "Test compact format."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((ctx (list :project-name "beads.el"
+                       :branch "main"
+                       :in-worktree nil
+                       :agent-session nil
+                       :agent-type "Task"
+                       :agent-instance 1)))
+        (let ((result (beads-agent--mode-line-format-compact ctx)))
+          (should (stringp result))
+          (should (string= result "[b:T#1]"))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-format-compact-in-worktree ()
+  "Test compact format shows worktree asterisk."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((ctx (list :project-name "my-project"
+                       :branch "feature"
+                       :in-worktree t
+                       :agent-session nil
+                       :agent-type nil
+                       :agent-instance nil)))
+        (let ((result (beads-agent--mode-line-format-compact ctx)))
+          (should (stringp result))
+          (should (string= result "[m*]"))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-format-full ()
+  "Test full format with all details."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let* ((beads-agent-mode-line-faces nil)
+             (mock-session (beads-agent-session
+                            :id "beads.el#1"
+                            :project-dir "/home/user/beads.el"
+                            :backend-name "mock"
+                            :agent-type-name "Plan"
+                            :instance-number 1
+                            :current-issue "bd-42"
+                            :started-at (format-time-string "%Y-%m-%dT%H:%M:%S")))
+             (ctx (list :project-name "beads.el"
+                        :branch "main"
+                        :in-worktree nil
+                        :agent-session mock-session
+                        :agent-type "Plan"
+                        :agent-instance 1)))
+        (let ((result (beads-agent--mode-line-format-full ctx)))
+          (should (stringp result))
+          (should (string-match-p "beads.el" result))
+          (should (string-match-p "main" result))
+          (should (string-match-p "Plan#1" result))
+          (should (string-match-p "bd-42" result))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-format-full-in-worktree ()
+  "Test full format with worktree indicator."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let* ((beads-agent-mode-line-faces nil)
+             (ctx (list :project-name "beads.el"
+                        :branch "feature"
+                        :in-worktree t
+                        :agent-session nil
+                        :agent-type nil
+                        :agent-instance nil)))
+        (let ((result (beads-agent--mode-line-format-full ctx)))
+          (should (stringp result))
+          (should (string-match-p "beads.el" result))
+          (should (string-match-p "feature" result))
+          (should (string-match-p "\\[worktree\\]" result))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-indicator-nil-when-no-project ()
+  "Test indicator returns nil when not in a project."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent--mode-line-cache nil))  ; Clear cache for test
+        (cl-letf (((symbol-function 'beads--get-project-name)
+                   (lambda () nil))
+                  ((symbol-function 'beads--get-git-branch)
+                   (lambda () nil))
+                  ((symbol-function 'beads--in-git-worktree-p)
+                   (lambda () nil))
+                  ((symbol-function 'beads-agent--get-current-project-session)
+                   (lambda () nil)))
+          (let ((result (beads-agent--mode-line-indicator)))
+            (should (null result)))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-indicator-uses-format-setting ()
+  "Test indicator respects beads-agent-mode-line-format setting."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent--mode-line-cache nil))  ; Clear cache for test
+        (cl-letf (((symbol-function 'beads--get-project-name)
+                   (lambda () "test-proj"))
+                  ((symbol-function 'beads--get-git-branch)
+                   (lambda () "dev"))
+                  ((symbol-function 'beads--in-git-worktree-p)
+                   (lambda () nil))
+                  ((symbol-function 'beads-agent--get-current-project-session)
+                   (lambda () nil)))
+          (let ((beads-agent-mode-line-faces nil))
+            ;; Test default format
+            (let ((beads-agent-mode-line-format 'default))
+              (should (string= (beads-agent--mode-line-indicator)
+                               "[test-proj:dev]")))
+            ;; Test compact format
+            (let ((beads-agent-mode-line-format 'compact))
+              (should (string= (beads-agent--mode-line-indicator)
+                               "[t]"))))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-indicator-custom-function ()
+  "Test indicator respects custom function format."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent-mode-line-format (lambda () "[CUSTOM]")))
+        (should (string= (beads-agent--mode-line-indicator) "[CUSTOM]")))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-mode-adds-to-misc-info ()
+  "Test enabling mode-line-mode adds indicator to mode-line-misc-info."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((original-misc-info mode-line-misc-info))
+        (unwind-protect
+            (progn
+              ;; Enable mode
+              (beads-agent-mode-line-mode 1)
+              (should (member beads-agent--mode-line-misc-info-entry
+                              mode-line-misc-info))
+              ;; Disable mode
+              (beads-agent-mode-line-mode -1)
+              (should-not (member beads-agent--mode-line-misc-info-entry
+                                  mode-line-misc-info)))
+          ;; Restore original
+          (setq mode-line-misc-info original-misc-info)))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-mode-does-not-remove-other-spaces ()
+  "Test disabling mode-line-mode does not remove unrelated space strings."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((original-misc-info mode-line-misc-info))
+        (unwind-protect
+            (let ((test-entry '(" " "test")))
+              ;; Add a test entry with space
+              (setq mode-line-misc-info (list test-entry))
+              ;; Enable and disable mode
+              (beads-agent-mode-line-mode 1)
+              (beads-agent-mode-line-mode -1)
+              ;; Our entry should be gone but test entry should remain
+              (should-not (member beads-agent--mode-line-misc-info-entry
+                                  mode-line-misc-info))
+              (should (member test-entry mode-line-misc-info)))
+          ;; Restore original
+          (setq mode-line-misc-info original-misc-info)))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-cache-valid-p ()
+  "Test cache validity check."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent--mode-line-cache nil))
+        ;; Empty cache is invalid
+        (should-not (beads-agent--mode-line-cache-valid-p))
+        ;; Set cache for current directory
+        (setq beads-agent--mode-line-cache
+              (list default-directory "main" nil (float-time)))
+        (should (beads-agent--mode-line-cache-valid-p))
+        ;; Different directory invalidates cache
+        (setq beads-agent--mode-line-cache
+              (list "/some/other/dir" "main" nil (float-time)))
+        (should-not (beads-agent--mode-line-cache-valid-p))
+        ;; Expired cache is invalid
+        (setq beads-agent--mode-line-cache
+              (list default-directory "main" nil
+                    (- (float-time) 10.0)))  ; 10 seconds ago
+        (should-not (beads-agent--mode-line-cache-valid-p)))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-cached-git-info ()
+  "Test cached git info fetching."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent--mode-line-cache nil)
+            (call-count 0))
+        (cl-letf (((symbol-function 'beads--get-git-branch)
+                   (lambda ()
+                     (cl-incf call-count)
+                     "test-branch"))
+                  ((symbol-function 'beads--in-git-worktree-p)
+                   (lambda () t)))
+          ;; First call should fetch
+          (let ((result (beads-agent--mode-line-cached-git-info)))
+            (should (equal (car result) "test-branch"))
+            (should (cdr result))
+            (should (= call-count 1)))
+          ;; Second call should use cache
+          (let ((result (beads-agent--mode-line-cached-git-info)))
+            (should (equal (car result) "test-branch"))
+            (should (= call-count 1)))))  ; Still 1, not 2
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-format-compact-empty-project ()
+  "Test compact format handles empty project name gracefully."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((ctx (list :project-name ""
+                       :branch "main"
+                       :in-worktree nil
+                       :agent-session nil
+                       :agent-type nil
+                       :agent-instance nil)))
+        ;; Should return nil for empty project name, not crash
+        (should (null (beads-agent--mode-line-format-compact ctx))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-format-compact-empty-agent-type ()
+  "Test compact format handles empty agent type gracefully."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((ctx (list :project-name "test"
+                       :branch "main"
+                       :in-worktree nil
+                       :agent-session t  ; non-nil session
+                       :agent-type ""    ; empty type
+                       :agent-instance 1)))
+        ;; Should work without agent part
+        (let ((result (beads-agent--mode-line-format-compact ctx)))
+          (should (stringp result))
+          (should (string= result "[t]"))))
+    (beads-agent-test--teardown)))
+
 ;;; Footer
 
 (provide 'beads-agent-test)
