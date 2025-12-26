@@ -95,6 +95,7 @@
 ;; Forward declarations
 (declare-function beads-list--current-issue-id "beads-list")
 (declare-function beads-show--issue-id "beads-show")
+(declare-function beads-sesman--link-session-buffer "beads-sesman")
 (defvar beads-show--issue-id)
 (defvar beads-sesman--buffer-session-id)
 
@@ -711,7 +712,10 @@ does nothing to avoid renaming an already-renamed buffer."
           ;; find the correct .beads database when invoked from this buffer
           (setq-local default-directory working-dir))
         ;; Store in session
-        (beads-agent-session-set-buffer session buffer)))))
+        (beads-agent-session-set-buffer session buffer)
+        ;; Link buffer to sesman session (deferred from session creation)
+        ;; This sets sesman-system and kill-buffer-hook in the buffer
+        (beads-sesman--link-session-buffer session buffer)))))
 
 (defun beads-agent--start-backend-async (issue-id backend project-dir worktree-dir
                                                   prompt issue agent-type)

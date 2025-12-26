@@ -410,6 +410,27 @@ to clean up the session if the buffer is killed manually."
             ;; Add kill-buffer-hook to clean up session when buffer is killed
             (add-hook 'kill-buffer-hook #'beads-sesman--buffer-kill-handler nil t)))))))
 
+(defun beads-sesman--link-session-buffer (beads-session buffer)
+  "Link BUFFER to the sesman session for BEADS-SESSION.
+This should be called after the buffer is stored in the session,
+to set up `sesman-system' and the `kill-buffer-hook'.
+
+This fixes a timing issue where `beads-sesman--register-session' is called
+before the buffer is available (during session creation), so the buffer
+linking is deferred until after `beads-agent--rename-and-store-buffer'."
+  (when (and buffer (buffer-live-p buffer))
+    (let ((name (beads-sesman--session-name beads-session)))
+      (when-let ((sesman-session (sesman-session beads-sesman-system name)))
+        ;; Link buffer to session
+        (sesman-link-session beads-sesman-system sesman-session 'buffer buffer)
+        ;; Set up buffer for session management
+        (with-current-buffer buffer
+          (setq-local sesman-system beads-sesman-system)
+          ;; Track session ID for cleanup on buffer kill
+          (setq-local beads-sesman--buffer-session-id (oref beads-session id))
+          ;; Add kill-buffer-hook to clean up session when buffer is killed
+          (add-hook 'kill-buffer-hook #'beads-sesman--buffer-kill-handler nil t))))))
+
 (defun beads-sesman--unregister-session (beads-session)
   "Unregister BEADS-SESSION from sesman.
 Also clears the buffer-local session ID to prevent the `kill-buffer-hook'
