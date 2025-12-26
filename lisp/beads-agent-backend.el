@@ -824,9 +824,10 @@ Returns buffer name in format: *beads-agent[PROJ-NAME][TYPE#N]*"
 
 (defun beads-agent--generate-buffer-name-for-project-session (session)
   "Generate buffer name for directory-bound SESSION object.
-Uses the session's proj-name and agent-type-name.  Instance number
-is determined by a typed counter keyed by (project-name, type-name),
-ensuring each type has independent numbering within a project.
+Uses the worktree directory name if available, otherwise falls back
+to the session's proj-name or project-dir.  Instance number is
+determined by a typed counter keyed by (display-name, type-name),
+ensuring each type has independent numbering within a directory.
 
 This function is idempotent: if SESSION already has a buffer stored,
 returns that buffer's name instead of generating a new one.  This
@@ -836,12 +837,16 @@ times for the same session."
   (if-let ((existing-buffer (oref session buffer)))
       (buffer-name existing-buffer)
     ;; Generate new name (increments typed counter)
-    (let* ((project-name (or (oref session proj-name)
-                             (beads-agent--derive-project-name
-                              (oref session project-dir))))
+    ;; Prefer worktree-dir for display name when available
+    (let* ((wt-dir (oref session worktree-dir))
+           (display-name (if (and wt-dir (not (string-empty-p wt-dir)))
+                             (beads-agent--derive-project-name wt-dir)
+                           (or (oref session proj-name)
+                               (beads-agent--derive-project-name
+                                (oref session project-dir)))))
            (type-name (or (oref session agent-type-name) "Agent"))
-           (instance-n (beads-agent--next-typed-instance-number project-name type-name)))
-      (beads-agent--generate-project-buffer-name project-name type-name instance-n))))
+           (instance-n (beads-agent--next-typed-instance-number display-name type-name)))
+      (beads-agent--generate-project-buffer-name display-name type-name instance-n))))
 
 (defun beads-agent--parse-project-buffer-name (buffer-name)
   "Parse a directory-bound buffer name into its components.

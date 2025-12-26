@@ -1032,6 +1032,52 @@ Both formats are now syntactically identical: [NAME][TYPE#N]."
             (should (equal "*beads-agent[another][Agent#1]*" buffer-name)))))
     (beads-agent-test--teardown)))
 
+(ert-deftest beads-agent-test-buffer-name-uses-worktree-when-available ()
+  "Buffer names use worktree directory name when worktree-dir is set."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        ;; Create session with worktree-dir set
+        (let ((session (beads-agent-session
+                        :id "beads.el#1"
+                        :project-dir "/home/user/beads.el"
+                        :proj-name "beads.el"
+                        :worktree-dir "/home/user/beads.el-42"
+                        :instance-number 1
+                        :agent-type-name "Task"
+                        :backend-name "mock"
+                        :started-at "2025-01-01T00:00:00Z")))
+          (let ((buffer-name (beads-agent--generate-buffer-name-for-project-session session)))
+            ;; Buffer name should contain worktree name, not project name
+            (should (string-match-p "beads.el-42" buffer-name))
+            ;; Format is correct: *beads-agent[WORKTREE][TYPE#N]*
+            (should (equal "*beads-agent[beads.el-42][Task#1]*" buffer-name))))
+        ;; Session without worktree-dir still uses project name
+        (let ((session (beads-agent-session
+                        :id "beads.el#2"
+                        :project-dir "/home/user/beads.el"
+                        :proj-name "beads.el"
+                        :instance-number 2
+                        :agent-type-name "Review"
+                        :backend-name "mock"
+                        :started-at "2025-01-01T00:00:00Z")))
+          (let ((buffer-name (beads-agent--generate-buffer-name-for-project-session session)))
+            (should (equal "*beads-agent[beads.el][Review#1]*" buffer-name))))
+        ;; Session with empty string worktree-dir falls back to project name
+        (let ((session (beads-agent-session
+                        :id "beads.el#3"
+                        :project-dir "/home/user/beads.el"
+                        :proj-name "beads.el"
+                        :worktree-dir ""
+                        :instance-number 3
+                        :agent-type-name "Plan"
+                        :backend-name "mock"
+                        :started-at "2025-01-01T00:00:00Z")))
+          (let ((buffer-name (beads-agent--generate-buffer-name-for-project-session session)))
+            (should (equal "*beads-agent[beads.el][Plan#1]*" buffer-name)))))
+    (beads-agent-test--teardown)))
+
 ;;; Tests for Worktree Path Calculation
 
 (ert-deftest beads-agent-test-worktree-path-for-issue ()
