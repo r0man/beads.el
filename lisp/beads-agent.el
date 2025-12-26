@@ -48,12 +48,16 @@
 ;;
 ;; Git Worktree Support:
 ;;
-;; When `beads-agent-use-worktrees' is non-nil (default), each agent
+;; The `beads-agent-use-worktrees' variable controls whether each agent
 ;; session gets its own git worktree for isolation:
+;; - t (default): Always use worktrees for agent sessions
+;; - nil: Never use worktrees, agents work in the main repo
+;; - 'ask: Prompt the user each time whether to use a worktree
+;;
+;; When using worktrees:
 ;; - Worktrees are created as siblings to the main repo
 ;; - Named after the issue ID (e.g., ~/projects/beads.el-42/)
 ;; - Branch is created with the same name as the issue ID
-;; - Issues are automatically imported from the main repo's JSONL
 ;;
 ;; Usage:
 ;;
@@ -121,10 +125,17 @@ If set to a backend name string, use that backend automatically."
   :group 'beads-agent)
 
 (defcustom beads-agent-use-worktrees t
-  "When non-nil, agent sessions use git worktrees for isolation.
+  "Whether agent sessions use git worktrees for isolation.
 Each issue gets its own worktree, named after the issue ID.
-Worktrees are created in a sibling directory to the main repo."
-  :type 'boolean
+Worktrees are created in a sibling directory to the main repo.
+
+Possible values:
+- t: Always use worktrees for agent sessions (default)
+- nil: Never use worktrees, agents work in the main repo
+- \\='ask: Prompt the user each time whether to use a worktree"
+  :type '(choice (const :tag "Always use worktrees" t)
+                 (const :tag "Never use worktrees" nil)
+                 (const :tag "Ask each time" ask))
   :group 'beads-agent)
 
 (defcustom beads-agent-worktree-parent nil
@@ -219,6 +230,20 @@ Distinguishes between the main working tree and linked worktrees."
         (main-root (beads-agent--main-repo-root)))
     (and toplevel main-root
          (not (file-equal-p toplevel main-root)))))
+
+(defun beads-agent--should-use-worktree-p (issue-id)
+  "Determine whether to use a worktree for ISSUE-ID.
+Resolves the value of `beads-agent-use-worktrees':
+- t: Return t (always use worktrees)
+- nil: Return nil (never use worktrees)
+- \\='ask: Prompt the user and return their choice"
+  (pcase beads-agent-use-worktrees
+    ('t t)
+    ('nil nil)
+    ('ask
+     (yes-or-no-p (format "Use git worktree for agent on %s? " issue-id)))
+    ;; Unknown value: treat as truthy for backwards compatibility
+    (_ (and beads-agent-use-worktrees t))))
 
 (defun beads-agent--list-worktrees ()
   "Return list of (path branch) pairs for all worktrees."
@@ -636,7 +661,7 @@ AGENT-TYPE is an optional `beads-agent-type' instance."
                 ;; Default: build from issue
                 (t (beads-agent--build-prompt issue)))))
          ;; Step 2: Setup worktree if needed (async)
-         (if beads-agent-use-worktrees
+         (if (beads-agent--should-use-worktree-p issue-id)
              (beads-agent--ensure-worktree-async
               issue-id
               (lambda (success result)
@@ -1137,7 +1162,11 @@ ISSUE-ID is required; detected from context or prompted."
   (let* ((args (transient-args 'beads-agent-start-menu))
          (issue-id (transient-arg-value "--issue=" args))
          (backend-name (transient-arg-value "--backend=" args))
-         (worktree-status (if beads-agent-use-worktrees "yes" "no")))
+         (worktree-status (pcase beads-agent-use-worktrees
+                            ('t "yes")
+                            ('nil "no")
+                            ('ask "ask")
+                            (_ (if beads-agent-use-worktrees "yes" "no")))))
     (message "Start agent: issue=%s backend=%s worktree=%s"
              (or issue-id "[not set]")
              (or backend-name "[auto-select]")
@@ -1160,8 +1189,8 @@ This menu allows configuring the agent start parameters:
 - Issue ID: The issue to work on (auto-detected from context)
 - Backend: The AI backend to use (auto-selected if not specified)
 
-The agent will work in a git worktree if `beads-agent-use-worktrees'
-is enabled (default)."
+The agent can work in a git worktree based on `beads-agent-use-worktrees':
+t (default) always uses worktrees, nil never uses them, \\='ask prompts."
   [:description
    (lambda () (beads-agent-start--format-header))]
   ["Options"

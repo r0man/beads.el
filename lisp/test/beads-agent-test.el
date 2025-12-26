@@ -524,6 +524,28 @@ should have indicators displayed."
   "Test use-worktrees customization default."
   (should (eq beads-agent-use-worktrees t)))
 
+(ert-deftest beads-agent-test-should-use-worktree-p-true ()
+  "Test should-use-worktree-p when setting is t."
+  (let ((beads-agent-use-worktrees t))
+    (should (eq (beads-agent--should-use-worktree-p "bd-123") t))))
+
+(ert-deftest beads-agent-test-should-use-worktree-p-nil ()
+  "Test should-use-worktree-p when setting is nil."
+  (let ((beads-agent-use-worktrees nil))
+    (should (eq (beads-agent--should-use-worktree-p "bd-123") nil))))
+
+(ert-deftest beads-agent-test-should-use-worktree-p-ask-yes ()
+  "Test should-use-worktree-p when setting is ask and user says yes."
+  (let ((beads-agent-use-worktrees 'ask))
+    (cl-letf (((symbol-function 'yes-or-no-p) (lambda (_) t)))
+      (should (eq (beads-agent--should-use-worktree-p "bd-123") t)))))
+
+(ert-deftest beads-agent-test-should-use-worktree-p-ask-no ()
+  "Test should-use-worktree-p when setting is ask and user says no."
+  (let ((beads-agent-use-worktrees 'ask))
+    (cl-letf (((symbol-function 'yes-or-no-p) (lambda (_) nil)))
+      (should (eq (beads-agent--should-use-worktree-p "bd-123") nil)))))
+
 (ert-deftest beads-agent-test-custom-worktree-parent ()
   "Test worktree-parent customization default."
   (should (null beads-agent-worktree-parent)))
