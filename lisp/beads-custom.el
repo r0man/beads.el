@@ -87,16 +87,6 @@ for backend selection."
   :type 'boolean
   :group 'beads-agent)
 
-;;; Git Worktree Settings
-
-(defcustom beads-worktree-auto-no-daemon t
-  "Automatically use --no-daemon when in a git worktree.
-When non-nil, beads will automatically add --no-daemon to all
-bd commands when running inside a git worktree.  This prevents
-the daemon from accidentally committing to the wrong branch."
-  :type 'boolean
-  :group 'beads)
-
 ;;; Provide
 
 (provide 'beads-custom)

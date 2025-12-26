@@ -337,10 +337,7 @@ take precedence over defcustom settings."
       (push "--no-auto-flush" parts))
     (when beads-global-no-auto-import
       (push "--no-auto-import" parts))
-    ;; --no-daemon: explicit setting or auto-enabled in worktrees
-    (when (or beads-global-no-daemon
-              (and beads-worktree-auto-no-daemon
-                   (beads--in-git-worktree-p)))
+    (when beads-global-no-daemon
       (push "--no-daemon" parts))
     (when beads-global-no-db
       (push "--no-db" parts))
@@ -405,11 +402,7 @@ Useful for debugging configuration issues."
   (let* ((in-worktree (beads--in-git-worktree-p))
          (main-repo (when in-worktree (beads--find-main-repo-from-worktree)))
          (beads-dir (beads--find-beads-dir))
-         (db-path (beads--get-database-path))
-         (no-daemon-active (or beads-global-no-daemon
-                               (and beads-worktree-auto-no-daemon in-worktree)
-                               (getenv "BEADS_NO_DAEMON")
-                               (getenv "BD_NO_DAEMON"))))
+         (db-path (beads--get-database-path)))
     (message "Beads Info:
   In worktree: %s
   Main repo: %s
@@ -420,13 +413,8 @@ Useful for debugging configuration issues."
              (or main-repo "N/A")
              (or beads-dir "NOT FOUND")
              (or db-path "NOT FOUND")
-             (if no-daemon-active "enabled" "disabled")
-             (cond
-              (beads-global-no-daemon " (via transient)")
-              ((and beads-worktree-auto-no-daemon in-worktree) " (auto-worktree)")
-              ((getenv "BEADS_NO_DAEMON") " (via BEADS_NO_DAEMON)")
-              ((getenv "BD_NO_DAEMON") " (via BD_NO_DAEMON)")
-              (t "")))))
+             (if beads-global-no-daemon "enabled" "disabled")
+             (if beads-global-no-daemon " (via transient)" ""))))
 
 ;;; Public API
 

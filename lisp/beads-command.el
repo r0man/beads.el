@@ -47,9 +47,7 @@
 ;; Forward declarations to avoid circular dependency
 ;; (beads.el requires beads-command, so we can't require beads here)
 (defvar beads-executable)
-(defvar beads-worktree-auto-no-daemon)
 (declare-function beads--log "beads")
-(declare-function beads--in-git-worktree-p "beads")
 
 ;;; Base Command Class
 
@@ -203,26 +201,14 @@ This :around method ensures all command lines start with beads-executable."
   "Build global flag arguments from COMMAND.
 Returns list of global flag strings (without executable).
 Subclasses should call this via `cl-call-next-method' and append
-their command-specific arguments.
-
-Automatically adds --no-daemon when in a git worktree and
-`beads-worktree-auto-no-daemon' is non-nil."
+their command-specific arguments."
   (with-slots (actor db no-auto-flush no-auto-import
                      no-daemon no-db sandbox) command
     (let (args)
       ;; Boolean flags
       (when no-auto-flush (push "--no-auto-flush" args))
       (when no-auto-import (push "--no-auto-import" args))
-      ;; --no-daemon: explicit setting or auto-enabled in worktrees
-      ;; Note: beads--in-git-worktree-p uses `default-directory', so callers
-      ;; must ensure it is set to the intended project directory before
-      ;; command execution (e.g., via let-binding in beads-show, or relying
-      ;; on execution before with-current-buffer in beads-ready/beads-blocked).
-      (when (or no-daemon
-                (and (bound-and-true-p beads-worktree-auto-no-daemon)
-                     (fboundp 'beads--in-git-worktree-p)
-                     (beads--in-git-worktree-p)))
-        (push "--no-daemon" args))
+      (when no-daemon (push "--no-daemon" args))
       (when no-db (push "--no-db" args))
       (when sandbox (push "--sandbox" args))
       ;; String options
