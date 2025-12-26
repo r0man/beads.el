@@ -398,14 +398,12 @@ SESSION-NUM is the session number (defaults to auto-incrementing counter)."
         (let ((strings (plist-get info :strings)))
           (should (cl-some (lambda (s) (and s (string-match-p "Session:" s)))
                            strings))
-          (should (cl-some (lambda (s) (and s (string-match-p "Issue:" s)))
-                           strings))
           (should (cl-some (lambda (s) (and s (string-match-p "Started:" s)))
                            strings))))
     (beads-sesman-test--teardown)))
 
 (ert-deftest beads-sesman-test-session-info-with-type ()
-  "Test sesman-session-info includes Type when agent-type-name is set."
+  "Test sesman-session-info includes Agent with type and instance."
   (beads-sesman-test--setup)
   (unwind-protect
       (let* ((session (beads-agent-session
@@ -413,15 +411,16 @@ SESSION-NUM is the session number (defaults to auto-incrementing counter)."
                        :issue-id "test-123"
                        :backend-name "mock"
                        :agent-type-name "Task"
+                       :instance-number 1
                        :project-dir "/tmp/project"
                        :started-at "2025-01-01T12:00:00+0000"
                        :backend-session 'mock-handle))
              (sesman-session (beads-sesman--make-sesman-session session))
              (info (sesman-session-info beads-sesman-system sesman-session)))
         (should (plist-get info :strings))
-        ;; Check Type is included when agent-type-name is set
+        ;; Check Agent with type and instance is included
         (let ((strings (plist-get info :strings)))
-          (should (cl-some (lambda (s) (and s (string-match-p "Type: Task" s)))
+          (should (cl-some (lambda (s) (and s (string-match-p "Agent: Task#1" s)))
                            strings))))
     (beads-sesman-test--teardown)))
 
@@ -454,6 +453,217 @@ SESSION-NUM is the session number (defaults to auto-incrementing counter)."
              (info (sesman-session-info 'beads sesman-session))
              (objects (plist-get info :objects)))
         (should (member 'mock-handle objects)))
+    (beads-sesman-test--teardown)))
+
+;;; Tests for Enhanced Session Info Display (beads.el-493b)
+
+(ert-deftest beads-sesman-test-format-timestamp-today ()
+  "Test timestamp formatting for today's timestamps."
+  ;; Today's date should show only time
+  (let* ((now-time (current-time))
+         (timestamp (format-time-string "%Y-%m-%dT%H:%M:%S%z" now-time))
+         (formatted (beads-sesman--format-timestamp timestamp)))
+    (should (stringp formatted))
+    ;; Should be short (just time, like "14:30")
+    (should (string-match-p "^[0-9][0-9]:[0-9][0-9]$" formatted))))
+
+(ert-deftest beads-sesman-test-format-timestamp-other-day ()
+  "Test timestamp formatting for other days."
+  ;; A date from last month
+  (let* ((formatted (beads-sesman--format-timestamp "2025-01-01T12:00:00+0000")))
+    (should (stringp formatted))
+    ;; Should include date (like "Jan 01, 12:00")
+    (should (string-match-p "Jan 01" formatted))))
+
+(ert-deftest beads-sesman-test-format-timestamp-nil ()
+  "Test timestamp formatting handles nil."
+  (should (null (beads-sesman--format-timestamp nil))))
+
+(ert-deftest beads-sesman-test-format-timestamp-empty ()
+  "Test timestamp formatting handles empty string."
+  (should (null (beads-sesman--format-timestamp ""))))
+
+(ert-deftest beads-sesman-test-format-timestamp-invalid ()
+  "Test timestamp formatting handles invalid timestamp gracefully."
+  (let ((formatted (beads-sesman--format-timestamp "not-a-timestamp")))
+    ;; Should return original string on error
+    (should (equal formatted "not-a-timestamp"))))
+
+(ert-deftest beads-sesman-test-format-touched-issues-list ()
+  "Test formatting list of touched issues."
+  (let ((issues '("bd-1" "bd-2" "bd-3")))
+    (should (equal (beads-sesman--format-touched-issues issues)
+                   "bd-1, bd-2, bd-3"))))
+
+(ert-deftest beads-sesman-test-format-touched-issues-single ()
+  "Test formatting single touched issue."
+  (let ((issues '("bd-42")))
+    (should (equal (beads-sesman--format-touched-issues issues)
+                   "bd-42"))))
+
+(ert-deftest beads-sesman-test-format-touched-issues-empty ()
+  "Test formatting empty touched issues list."
+  (should (null (beads-sesman--format-touched-issues nil)))
+  (should (null (beads-sesman--format-touched-issues '()))))
+
+(ert-deftest beads-sesman-test-format-touched-issues-truncates ()
+  "Test formatting truncates to 5 issues."
+  (let ((issues '("bd-1" "bd-2" "bd-3" "bd-4" "bd-5" "bd-6" "bd-7")))
+    (let ((formatted (beads-sesman--format-touched-issues issues)))
+      ;; Should only have 5 issues
+      (should (= 4 (cl-count ?, formatted)))  ; 5 items = 4 commas
+      (should (string-match-p "bd-1" formatted))
+      (should (string-match-p "bd-5" formatted))
+      (should-not (string-match-p "bd-6" formatted)))))
+
+(ert-deftest beads-sesman-test-session-info-with-project-name ()
+  "Test sesman-session-info includes Project when proj-name is set."
+  (beads-sesman-test--setup)
+  (unwind-protect
+      (let* ((session (beads-agent-session
+                       :id "beads.el#1"
+                       :issue-id "test-123"
+                       :backend-name "mock"
+                       :proj-name "beads.el"
+                       :project-dir "/tmp/project"
+                       :started-at "2025-01-01T12:00:00+0000"
+                       :backend-session 'mock-handle))
+             (sesman-session (beads-sesman--make-sesman-session session))
+             (info (sesman-session-info beads-sesman-system sesman-session)))
+        (let ((strings (plist-get info :strings)))
+          (should (cl-some (lambda (s) (and s (string-match-p "Project: beads.el" s)))
+                           strings))))
+    (beads-sesman-test--teardown)))
+
+(ert-deftest beads-sesman-test-session-info-with-focus ()
+  "Test sesman-session-info includes Focus when current-issue is set."
+  (beads-sesman-test--setup)
+  (unwind-protect
+      (let* ((session (beads-agent-session
+                       :id "test#1"
+                       :issue-id "test-123"
+                       :backend-name "mock"
+                       :current-issue "bd-42"
+                       :project-dir "/tmp/project"
+                       :started-at "2025-01-01T12:00:00+0000"
+                       :backend-session 'mock-handle))
+             (sesman-session (beads-sesman--make-sesman-session session))
+             (info (sesman-session-info beads-sesman-system sesman-session)))
+        (let ((strings (plist-get info :strings)))
+          (should (cl-some (lambda (s) (and s (string-match-p "Focus: bd-42" s)))
+                           strings))))
+    (beads-sesman-test--teardown)))
+
+(ert-deftest beads-sesman-test-session-info-with-touched ()
+  "Test sesman-session-info includes Touched when touched-issues is set."
+  (beads-sesman-test--setup)
+  (unwind-protect
+      (let* ((session (beads-agent-session
+                       :id "test#1"
+                       :issue-id "test-123"
+                       :backend-name "mock"
+                       :touched-issues '("bd-1" "bd-2")
+                       :project-dir "/tmp/project"
+                       :started-at "2025-01-01T12:00:00+0000"
+                       :backend-session 'mock-handle))
+             (sesman-session (beads-sesman--make-sesman-session session))
+             (info (sesman-session-info beads-sesman-system sesman-session)))
+        (let ((strings (plist-get info :strings)))
+          (should (cl-some (lambda (s) (and s (string-match-p "Touched: bd-1, bd-2" s)))
+                           strings))))
+    (beads-sesman-test--teardown)))
+
+(ert-deftest beads-sesman-test-session-info-with-branch ()
+  "Test sesman-session-info includes git branch in directory info."
+  (beads-sesman-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads--get-git-branch)
+                 (lambda () "feature-branch"))
+                ((symbol-function 'file-directory-p)
+                 (lambda (_dir) t)))
+        (let* ((session (beads-agent-session
+                         :id "test#1"
+                         :issue-id "test-123"
+                         :backend-name "mock"
+                         :project-dir "/tmp/project"
+                         :started-at "2025-01-01T12:00:00+0000"
+                         :backend-session 'mock-handle))
+               (sesman-session (beads-sesman--make-sesman-session session))
+               (info (sesman-session-info beads-sesman-system sesman-session)))
+          (let ((strings (plist-get info :strings)))
+            ;; Should have Dir: with branch
+            (should (cl-some (lambda (s) (and s (string-match-p "\\[feature-branch\\]" s)))
+                             strings)))))
+    (beads-sesman-test--teardown)))
+
+(ert-deftest beads-sesman-test-session-info-worktree-with-branch ()
+  "Test sesman-session-info shows worktree with git branch."
+  (beads-sesman-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads--get-git-branch)
+                 (lambda () "wt-branch"))
+                ((symbol-function 'file-directory-p)
+                 (lambda (_dir) t)))
+        (let* ((session (beads-agent-session
+                         :id "test#1"
+                         :issue-id "test-123"
+                         :backend-name "mock"
+                         :project-dir "/tmp/main"
+                         :worktree-dir "/tmp/worktree/test"
+                         :started-at "2025-01-01T12:00:00+0000"
+                         :backend-session 'mock-handle))
+               (sesman-session (beads-sesman--make-sesman-session session))
+               (info (sesman-session-info beads-sesman-system sesman-session)))
+          (let ((strings (plist-get info :strings)))
+            ;; Should have Worktree: with branch
+            (should (cl-some (lambda (s) (and s (string-match-p "Worktree:.*\\[wt-branch\\]" s)))
+                             strings)))))
+    (beads-sesman-test--teardown)))
+
+(ert-deftest beads-sesman-test-session-info-full-display ()
+  "Test sesman-session-info with all fields populated."
+  (beads-sesman-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads--get-git-branch)
+                 (lambda () "main"))
+                ((symbol-function 'file-directory-p)
+                 (lambda (_dir) t)))
+        (let* ((session (beads-agent-session
+                         :id "beads.el#1"
+                         :issue-id "bd-42"
+                         :backend-name "mock"
+                         :agent-type-name "Task"
+                         :instance-number 1
+                         :proj-name "beads.el"
+                         :project-dir "/tmp/project"
+                         :current-issue "bd-42"
+                         :touched-issues '("bd-42" "bd-43")
+                         :started-at "2025-01-01T12:00:00+0000"
+                         :backend-session 'mock-handle))
+               (sesman-session (beads-sesman--make-sesman-session session))
+               (info (sesman-session-info beads-sesman-system sesman-session)))
+          (let ((strings (plist-get info :strings)))
+            ;; Session ID
+            (should (cl-some (lambda (s) (and s (string-match-p "Session: beads.el#1" s)))
+                             strings))
+            ;; Agent with type and instance
+            (should (cl-some (lambda (s) (and s (string-match-p "Agent: Task#1" s)))
+                             strings))
+            ;; Project name
+            (should (cl-some (lambda (s) (and s (string-match-p "Project: beads.el" s)))
+                             strings))
+            ;; Directory with branch
+            (should (cl-some (lambda (s) (and s (string-match-p "\\[main\\]" s)))
+                             strings))
+            ;; Focus issue
+            (should (cl-some (lambda (s) (and s (string-match-p "Focus: bd-42" s)))
+                             strings))
+            ;; Touched issues
+            (should (cl-some (lambda (s) (and s (string-match-p "Touched: bd-42, bd-43" s)))
+                             strings))
+            ;; Started time (formatted)
+            (should (cl-some (lambda (s) (and s (string-match-p "Started:" s)))
+                             strings)))))
     (beads-sesman-test--teardown)))
 
 (ert-deftest beads-sesman-test-start-session ()
