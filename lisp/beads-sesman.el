@@ -329,22 +329,31 @@ Use recency-based comparison (more recent = more relevant)."
 
 (cl-defmethod sesman-session-info ((_system (eql Beads)) session)
   "Return display info for SESSION.
-Return plist with :objects, :strings for sesman-browser display."
+Return plist with :objects, :strings, :buffers for sesman-browser display.
+The :buffers key provides the agent buffer for `sesman-goto' to jump to."
   (let* ((beads-session (nth 2 session))
          (backend-handle (nth 1 session)))
     (when beads-session
-      (list
-       :objects (list backend-handle)
-       :strings (delq nil
-                      (list
-                       (format "Session: %s" (oref beads-session id))
-                       (format "Issue: %s" (oref beads-session issue-id))
-                       (when-let ((type-name (oref beads-session agent-type-name)))
-                         (format "Type: %s" type-name))
-                       (format "Started: %s" (oref beads-session started-at))
-                       (when-let ((worktree (oref beads-session worktree-dir)))
-                         (format "Worktree: %s"
-                                 (abbreviate-file-name worktree)))))))))
+      ;; Get the agent buffer for :buffers (used by sesman-goto)
+      (let ((agent-buffer
+             (when-let ((backend (beads-agent--get-backend
+                                  (oref beads-session backend-name))))
+               (beads-agent-backend-get-buffer backend beads-session))))
+        (list
+         ;; :buffers is checked first by sesman-goto for jumping
+         :buffers (when (and agent-buffer (buffer-live-p agent-buffer))
+                    (list agent-buffer))
+         :objects (list backend-handle)
+         :strings (delq nil
+                        (list
+                         (format "Session: %s" (oref beads-session id))
+                         (format "Issue: %s" (oref beads-session issue-id))
+                         (when-let ((type-name (oref beads-session agent-type-name)))
+                           (format "Type: %s" type-name))
+                         (format "Started: %s" (oref beads-session started-at))
+                         (when-let ((worktree (oref beads-session worktree-dir)))
+                           (format "Worktree: %s"
+                                   (abbreviate-file-name worktree))))))))))
 
 ;;; Session Registration Helpers
 
