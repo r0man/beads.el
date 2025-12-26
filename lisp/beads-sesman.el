@@ -327,18 +327,78 @@ Use recency-based comparison (more recent = more relevant)."
     (when (and s1 s2)
       (string> (oref s1 started-at) (oref s2 started-at)))))
 
+(defun beads-sesman--format-timestamp (iso-timestamp)
+  "Format ISO-TIMESTAMP for human-readable display.
+Converts ISO 8601 format to a friendlier format like \"Dec 25, 14:30\".
+For today's timestamps, shows just time. For other days, shows date and time."
+  (when (and iso-timestamp (stringp iso-timestamp) (> (length iso-timestamp) 0))
+    (condition-case nil
+        ;; Parse using encode-time with manual extraction
+        ;; Format: 2025-12-26T16:11:39+0100
+        (if (string-match
+             "\\([0-9]\\{4\\}\\)-\\([0-9]\\{2\\}\\)-\\([0-9]\\{2\\}\\)T\\([0-9]\\{2\\}\\):\\([0-9]\\{2\\}\\)"
+             iso-timestamp)
+            (let* ((year (string-to-number (match-string 1 iso-timestamp)))
+                   (month (string-to-number (match-string 2 iso-timestamp)))
+                   (day (string-to-number (match-string 3 iso-timestamp)))
+                   (hour (string-to-number (match-string 4 iso-timestamp)))
+                   (minute (string-to-number (match-string 5 iso-timestamp)))
+                   (time (encode-time 0 minute hour day month year))
+                   (now (decode-time))
+                   (today-p (and (= year (decoded-time-year now))
+                                 (= month (decoded-time-month now))
+                                 (= day (decoded-time-day now)))))
+              (if today-p
+                  ;; Today: just show time
+                  (format "%02d:%02d" hour minute)
+                ;; Other day: show date and time
+                (format-time-string "%b %d, %H:%M" time)))
+          ;; Regex didn't match, return as-is
+          iso-timestamp)
+      (error iso-timestamp))))
+
+(defun beads-sesman--format-touched-issues (issues)
+  "Format list of ISSUES for display.
+Returns a comma-separated string, or nil if empty."
+  (when (and issues (listp issues) (not (null issues)))
+    (mapconcat #'identity (seq-take issues 5) ", ")))
+
 (cl-defmethod sesman-session-info ((_system (eql Beads)) session)
   "Return display info for SESSION.
 Return plist with :objects, :strings, :buffers for sesman-browser display.
-The :buffers key provides the agent buffer for `sesman-goto' to jump to."
+The :buffers key provides the agent buffer for `sesman-goto' to jump to.
+
+Display includes:
+- Session ID (project-name#instance)
+- Agent type and instance
+- Project name
+- Worktree path with git branch
+- Current issue focus
+- Touched issues list
+- Human-readable start time"
   (let* ((beads-session (nth 2 session))
          (backend-handle (nth 1 session)))
     (when beads-session
       ;; Get the agent buffer for :buffers (used by sesman-goto)
-      (let ((agent-buffer
-             (when-let ((backend (beads-agent--get-backend
-                                  (oref beads-session backend-name))))
-               (beads-agent-backend-get-buffer backend beads-session))))
+      (let* ((agent-buffer
+              (when-let ((backend (beads-agent--get-backend
+                                   (oref beads-session backend-name))))
+                (beads-agent-backend-get-buffer backend beads-session)))
+             ;; Extract session info
+             (session-id (oref beads-session id))
+             (proj-name (oref beads-session proj-name))
+             (instance-num (oref beads-session instance-number))
+             (type-name (oref beads-session agent-type-name))
+             (project-dir (oref beads-session project-dir))
+             (worktree-dir (oref beads-session worktree-dir))
+             (current-issue (oref beads-session current-issue))
+             (touched-issues (oref beads-session touched-issues))
+             (started-at (oref beads-session started-at))
+             ;; Get git branch for worktree or project
+             (working-dir (or worktree-dir project-dir))
+             (git-branch (when (and working-dir (file-directory-p working-dir))
+                           (let ((default-directory working-dir))
+                             (ignore-errors (beads--get-git-branch))))))
         (list
          ;; :buffers is checked first by sesman-goto for jumping
          :buffers (when (and agent-buffer (buffer-live-p agent-buffer))
@@ -346,14 +406,37 @@ The :buffers key provides the agent buffer for `sesman-goto' to jump to."
          :objects (list backend-handle)
          :strings (delq nil
                         (list
-                         (format "Session: %s" (oref beads-session id))
-                         (format "Issue: %s" (oref beads-session issue-id))
-                         (when-let ((type-name (oref beads-session agent-type-name)))
-                           (format "Type: %s" type-name))
-                         (format "Started: %s" (oref beads-session started-at))
-                         (when-let ((worktree (oref beads-session worktree-dir)))
+                         ;; Session ID
+                         (format "Session: %s" session-id)
+                         ;; Agent type with instance
+                         (when type-name
+                           (format "Agent: %s#%d" type-name (or instance-num 1)))
+                         ;; Project name
+                         (when proj-name
+                           (format "Project: %s" proj-name))
+                         ;; Worktree with branch
+                         (cond
+                          ((and worktree-dir git-branch)
+                           (format "Worktree: %s [%s]"
+                                   (abbreviate-file-name worktree-dir)
+                                   git-branch))
+                          (worktree-dir
                            (format "Worktree: %s"
-                                   (abbreviate-file-name worktree))))))))))
+                                   (abbreviate-file-name worktree-dir)))
+                          ;; Show project dir with branch if no worktree
+                          ((and project-dir git-branch)
+                           (format "Dir: %s [%s]"
+                                   (abbreviate-file-name project-dir)
+                                   git-branch)))
+                         ;; Current focus issue
+                         (when current-issue
+                           (format "Focus: %s" current-issue))
+                         ;; Touched issues
+                         (when-let ((touched-str (beads-sesman--format-touched-issues touched-issues)))
+                           (format "Touched: %s" touched-str))
+                         ;; Human-readable start time
+                         (format "Started: %s"
+                                 (beads-sesman--format-timestamp started-at)))))))))
 
 ;;; Session Registration Helpers
 
