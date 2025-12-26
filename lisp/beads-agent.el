@@ -755,19 +755,9 @@ are passed through from `beads-agent--continue-start'."
          (default-directory working-dir)
          (agent-type-name (when agent-type (oref agent-type name))))
     (condition-case err
-        ;; Bind display-buffer-overriding-action to force agent buffers
-        ;; to open in a side window on the right, keeping list/show buffers visible.
-        ;; Uses display-buffer-in-side-window to create a dedicated side window
-        ;; that doesn't split or replace the beads-list window.  The side window
-        ;; approach ensures the list view remains visible when starting multiple agents.
-        (let* ((display-buffer-overriding-action
-                '((display-buffer-reuse-mode-window
-                   display-buffer-in-side-window)
-                  (side . right)
-                  (slot . 0)
-                  (window-width . 0.5)
-                  (preserve-size . (t . nil))))
-               ;; backend-start returns (backend-session . buffer)
+        ;; Let Emacs's display-buffer-alist handle window placement.
+        ;; Users can customize via display-buffer-alist for *beads-agent* buffers.
+        (let* (;; backend-start returns (backend-session . buffer)
                (start-result (beads-agent-backend-start backend issue prompt))
                (backend-session (car start-result))
                (buffer (cdr start-result))
