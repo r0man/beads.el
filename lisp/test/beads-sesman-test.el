@@ -240,14 +240,17 @@ SESSION-NUM is the session number (defaults to auto-incrementing counter)."
         (beads-sesman--register-session beads-sesman-test--mock-session)
         ;; Should have registered one session
         (should (= (length beads-sesman-test--registered-sessions) 1))
-        ;; Should have one link (project, no worktree)
+        ;; Should have one link (directory - the working directory)
         (should (= (length beads-sesman-test--session-links) 1))
-        ;; Link should be to project
-        (should (eq (nth 1 (car beads-sesman-test--session-links)) 'project)))
+        ;; Link should be to directory (working directory)
+        (should (eq (nth 1 (car beads-sesman-test--session-links)) 'directory))
+        ;; Link value should be the project-dir (no worktree set)
+        (should (equal (nth 2 (car beads-sesman-test--session-links))
+                       "/tmp/project")))
     (beads-sesman-test--teardown)))
 
 (ert-deftest beads-sesman-test-register-session-with-worktree ()
-  "Test registering session with worktree creates dual links."
+  "Test registering session with worktree links to worktree directory."
   (beads-sesman-test--setup)
   (unwind-protect
       (cl-letf (((symbol-function 'sesman-register)
@@ -262,13 +265,13 @@ SESSION-NUM is the session number (defaults to auto-incrementing counter)."
           (beads-sesman--register-session session)
           ;; Should have registered one session
           (should (= (length beads-sesman-test--registered-sessions) 1))
-          ;; Should have TWO links (directory + project)
-          (should (= (length beads-sesman-test--session-links) 2))
-          ;; Check link types
-          (let ((types (mapcar (lambda (l) (nth 1 l))
-                               beads-sesman-test--session-links)))
-            (should (member 'directory types))
-            (should (member 'project types)))))
+          ;; Should have ONE link (directory - the worktree)
+          (should (= (length beads-sesman-test--session-links) 1))
+          ;; Link should be to directory (the worktree)
+          (should (eq (nth 1 (car beads-sesman-test--session-links)) 'directory))
+          ;; Link value should be the worktree path
+          (should (equal (nth 2 (car beads-sesman-test--session-links))
+                         "/tmp/worktree/bd-99"))))
     (beads-sesman-test--teardown)))
 
 (ert-deftest beads-sesman-test-unregister-session ()

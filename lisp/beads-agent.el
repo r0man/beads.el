@@ -36,14 +36,13 @@
 ;;   - beads.el-42@~/projects/beads.el-42/     (worktree)
 ;;
 ;; Context Linking:
-;;   Each session is linked to three context types:
+;;   Each session is linked to two context types:
 ;;   1. Agent buffer - the terminal where the AI agent runs
-;;   2. Worktree directory (primary) - for context in worktree buffers
-;;   3. Main project (fallback) - for context from anywhere in project
+;;   2. Working directory - where the agent operates (worktree or project root)
 ;;
-;;   This triple linking enables sesman to automatically select the
-;;   correct session whether you're in the agent buffer, editing files
-;;   in a worktree, or working anywhere in the main repository.
+;;   This enables sesman to automatically select the correct session
+;;   when you're in the agent buffer or editing files in the agent's
+;;   working directory.  Different directories have separate sessions.
 ;;
 ;; See `beads-sesman.el' for the sesman integration implementation.
 ;;
