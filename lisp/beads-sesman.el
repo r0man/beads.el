@@ -23,14 +23,15 @@
 ;;   - beads-agent-session: EIEIO object with full metadata
 ;;
 ;; Context Linking:
-;;   Sessions are linked to three context types:
+;;   Sessions are linked to two context types:
 ;;   1. Buffer (agent buffer) - for context when in the agent's terminal
-;;   2. Worktree directory (primary) - for context in worktree buffers
-;;   3. Main project directory (fallback) - for context from main repo
+;;   2. Working directory - the directory where the agent operates
+;;      (worktree if using worktrees, otherwise project root)
 ;;
 ;;   This enables `sesman-current-session' to find the right session
-;;   whether you're in the agent buffer, editing files in the worktree,
-;;   or working in the main repository.
+;;   when you're in the agent buffer or editing files in its working
+;;   directory.  Different directories (including worktrees) are
+;;   separate contexts with their own sessions.
 ;;
 ;; Usage:
 ;;   ;; Start a session (will be registered with sesman)
@@ -378,20 +379,18 @@ rather than showing stale agent indicators."
 
 (defun beads-sesman--register-session (beads-session)
   "Register BEADS-SESSION with sesman and link to contexts.
-Link to worktree directory (primary), main project (fallback),
-and the agent buffer (if available).
+Link to working directory (worktree or project root) and the
+agent buffer (if available).
 
 When linking to an agent buffer, also sets up a `kill-buffer-hook'
 to clean up the session if the buffer is killed manually."
   (let ((sesman-session (beads-sesman--make-sesman-session beads-session)))
     ;; Register with sesman
     (sesman-register beads-sesman-system sesman-session)
-    ;; Link to worktree directory (primary context)
-    (when-let ((worktree (oref beads-session worktree-dir)))
-      (sesman-link-session beads-sesman-system sesman-session 'directory worktree))
-    ;; Link to main project (fallback context)
-    (sesman-link-session beads-sesman-system sesman-session 'project
-                         (oref beads-session project-dir))
+    ;; Link to working directory (worktree if set, otherwise project root)
+    (let ((working-dir (or (oref beads-session worktree-dir)
+                           (oref beads-session project-dir))))
+      (sesman-link-session beads-sesman-system sesman-session 'directory working-dir))
     ;; Link to agent buffer if available
     ;; Note: We check buffer-live-p twice to handle potential race conditions
     ;; where the buffer could be killed between checks and operations.
