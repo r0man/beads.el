@@ -4,7 +4,7 @@
 
 ;; Author: Beads Contributors
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "27.1") (transient "0.10.1"))
+;; Package-Requires: ((emacs "27.1") (transient "0.10.1") (sesman "0.3.2"))
 ;; Keywords: tools, project, issues
 ;; URL: https://github.com/josephburnett/beads
 
@@ -30,7 +30,9 @@
 ;;; Code:
 
 (require 'beads-command)
+(require 'beads-completion)
 (require 'beads-custom)
+(require 'beads-git)
 (require 'json)
 (require 'project)
 (require 'transient)
@@ -207,28 +209,59 @@ Enables debug logging if not already enabled."
     (beads-show-debug-buffer)))
 
 ;;; Project Integration
+;;
+;; These functions delegate to beads-git.el for git operations.
+;; They remain here for the beads-specific caching logic.
 
 (defun beads--find-project-root ()
   "Find the project root directory.
-Returns nil if not in a project."
-  (when-let* ((proj (project-current)))
-    (if (fboundp 'project-root)
-        (project-root proj)
-      ;; Emacs 27 compatibility - project-roots is obsolete but needed for old Emacs
-      (with-no-warnings
-        (car (project-roots proj))))))
+Returns nil if not in a project.
+This is an alias for `beads-git-find-project-root'."
+  (beads-git-find-project-root))
+
+(defun beads--get-project-name ()
+  "Return project name for current context.
+This is an alias for `beads-git-get-project-name'."
+  (beads-git-get-project-name))
+
+(defun beads--get-git-branch ()
+  "Return current git branch name, or nil if not in a git repo.
+This is an alias for `beads-git-get-branch'."
+  (beads-git-get-branch))
+
+(defun beads--in-git-worktree-p ()
+  "Return non-nil if current directory is in a git worktree.
+This is an alias for `beads-git-in-worktree-p'."
+  (beads-git-in-worktree-p))
+
+(defun beads--find-main-repo-from-worktree ()
+  "Find the main git repository path when in a worktree.
+This is an alias for `beads-git-find-main-repo'."
+  (beads-git-find-main-repo))
+
+;;; Beads Directory Discovery
 
 (defun beads--find-beads-dir (&optional directory)
   "Find .beads directory starting from DIRECTORY.
-If DIRECTORY is nil, uses current buffer's directory or project root.
-Returns the path to .beads directory or nil if not found."
-  (let* ((start-dir (or directory
-                        (beads--find-project-root)
-                        default-directory))
+If DIRECTORY is nil, uses `default-directory'.
+Returns the path to .beads directory or nil if not found.
+
+Search order:
+1. Walk up from DIRECTORY/`default-directory' looking for .beads
+   (ensures worktree-local .beads is found before main repo's)
+2. If not found and in a git worktree, check the main repository"
+  (let* ((start-dir (or directory default-directory))
          (cached (gethash start-dir beads--project-cache)))
     (if cached
         cached
+      ;; Try local discovery first
       (let ((beads-dir (locate-dominating-file start-dir ".beads")))
+        ;; If not found locally, check if we're in a worktree
+        (unless beads-dir
+          (when-let ((main-repo (beads-git-find-main-repo)))
+            (let ((main-beads (expand-file-name ".beads" main-repo)))
+              (when (file-directory-p main-beads)
+                (setq beads-dir main-repo)))))
         (when beads-dir
           (let ((full-path (expand-file-name ".beads" beads-dir)))
             (puthash start-dir full-path beads--project-cache)
@@ -300,93 +333,19 @@ take precedence over defcustom settings."
     ;; Reverse to get correct order
     (nreverse parts)))
 
-;;; Completion Support
+;;; Completion Support (aliases for backward compatibility)
 
-(defvar beads--completion-cache nil
-  "Cache for issue list used in completion.
-Format: (TIMESTAMP . ISSUES-LIST)")
+;; The completion implementation is in beads-completion.el.
+;; These aliases maintain backward compatibility with existing code.
 
-(defvar beads--completion-cache-ttl 5
-  "Time-to-live for completion cache in seconds.")
+(defalias 'beads--issue-completion-table #'beads-completion-issue-table
+  "Return completion table for issue IDs with title-aware matching.")
 
-(defun beads--get-cached-issues ()
-  "Get cached issue list, refreshing if stale.
-Returns list of `beads-issue' objects or nil on error."
-  (let ((now (float-time)))
-    (when (or (null beads--completion-cache)
-              (> (- now (car beads--completion-cache))
-                 beads--completion-cache-ttl))
-      (condition-case nil
-          (setq beads--completion-cache
-                (cons now (beads-command-list!)))
-        (error
-         (setq beads--completion-cache nil))))
-    (cdr beads--completion-cache)))
+(defalias 'beads--invalidate-completion-cache #'beads-completion-invalidate-cache
+  "Invalidate the completion cache.")
 
-(defun beads--invalidate-completion-cache ()
-  "Invalidate the completion cache.
-Call this after creating, updating, or deleting issues."
-  (setq beads--completion-cache nil))
-
-(defun beads--issue-completion-table ()
-  "Return completion table for issue IDs with annotations."
-  (lambda (string pred action)
-    (if (eq action 'metadata)
-        '(metadata
-          (category . beads-issue)
-          (annotation-function . beads--annotate-issue)
-          (group-function . beads--group-issue))
-      (let ((issues (beads--get-cached-issues)))
-        (complete-with-action
-         action
-         (mapcar (lambda (i) (oref i id)) issues)
-         string pred)))))
-
-(defun beads--annotate-issue (issue-id)
-  "Annotate ISSUE-ID with status and title for completion."
-  (condition-case nil
-      (let* ((issues (beads--get-cached-issues))
-             (issue (seq-find (lambda (i)
-                               (string= (oref i id) issue-id))
-                             issues)))
-        (when issue
-          (let ((status (oref issue status))
-                (title (oref issue title))
-                (priority (oref issue priority)))
-            (format " %s [P%s] %s"
-                    (propertize (upcase status)
-                              'face (pcase status
-                                     ("open" 'success)
-                                     ("in_progress" 'warning)
-                                     ("blocked" 'error)
-                                     ("closed" 'shadow)
-                                     (_ 'default)))
-                    priority
-                    (if (> (length title) beads-display-value-max-length)
-                        (concat (substring title 0
-                                          (- beads-display-value-max-length 3))
-                               "...")
-                      title)))))
-    (error "")))
-
-(defun beads--group-issue (issue-id transform)
-  "Group ISSUE-ID by status for completion.
-If TRANSFORM is non-nil, return the transformed issue ID."
-  (if transform
-      issue-id
-    (condition-case nil
-        (let* ((issues (beads--get-cached-issues))
-               (issue (seq-find (lambda (i)
-                                 (string= (oref i id) issue-id))
-                               issues))
-               (status (when issue (oref issue status))))
-          (pcase status
-            ("open" "Open")
-            ("in_progress" "In Progress")
-            ("blocked" "Blocked")
-            ("closed" "Closed")
-            (_ "Other")))
-      (error "Other"))))
+(defalias 'beads--get-cached-issues #'beads-completion--get-cached-issues
+  "Get cached issue list, refreshing if stale.")
 
 (defvar beads--issue-id-history nil
   "History list for issue ID completion.")
@@ -407,6 +366,31 @@ Returns a beads-issue EIEIO instance."
 Returns a list of beads-issue EIEIO instances."
   (when (and json (vectorp json))
     (mapcar #'beads-issue-from-json (append json nil))))
+
+;;; Info/Debug Command
+
+;;;###autoload
+(defun beads-info ()
+  "Display information about beads configuration in current context.
+Shows worktree status, database path, and --no-daemon settings.
+Useful for debugging configuration issues."
+  (interactive)
+  (let* ((in-worktree (beads-git-in-worktree-p))
+         (main-repo (when in-worktree (beads-git-find-main-repo)))
+         (beads-dir (beads--find-beads-dir))
+         (db-path (beads--get-database-path)))
+    (message "Beads Info:
+  In worktree: %s
+  Main repo: %s
+  .beads dir: %s
+  Database: %s
+  --no-daemon: %s%s"
+             (if in-worktree "yes" "no")
+             (or main-repo "N/A")
+             (or beads-dir "NOT FOUND")
+             (or db-path "NOT FOUND")
+             (if beads-global-no-daemon "enabled" "disabled")
+             (if beads-global-no-daemon " (via transient)" ""))))
 
 ;;; Public API
 
@@ -511,6 +495,10 @@ Returns t if found, signals error otherwise."
 
 ;;;###autoload
 (autoload 'beads--label-completion-table "beads-label" "Return completion table for labels.")
+
+;;;###autoload
+(autoload 'beads-eldoc-mode "beads-eldoc"
+  "Global minor mode to enable eldoc support for beads issue references." t)
 
 ;;; Footer
 

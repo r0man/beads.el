@@ -127,9 +127,11 @@ Format: ((epic-id . (expanded-p . children)) ...)")
   "Display epic status with progress in interactive buffer."
   (interactive)
   (beads-check-executable)
-  (let* ((epics (beads-command-epic-status!))
+  (let* ((caller-dir default-directory)
+         (epics (beads-command-epic-status!))
          (buffer (get-buffer-create "*beads-epic-status*")))
     (with-current-buffer buffer
+      (setq default-directory caller-dir)
       (let ((old-expanded beads-epic-status--expanded))
         (beads-epic-status-mode)
         (setq beads-epic-status--epics epics)

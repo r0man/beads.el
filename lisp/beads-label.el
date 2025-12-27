@@ -33,6 +33,7 @@
 
 (require 'beads)
 (require 'beads-command)
+(require 'beads-completion)
 (require 'transient)
 
 ;; Forward declarations
@@ -72,8 +73,9 @@ Format: (TIMESTAMP . LABELS-LIST)")
   "Fetch all labels from bd label list-all.
 Returns a list of label objects, each with \\='label and \\='count fields."
   (let* ((cmd (beads-command-label-list-all))
-         ;; Execute command, returns parsed JSON array
-         (json (beads-command-execute cmd))
+         ;; Execute command and get data from slot
+         (_ (beads-command-execute cmd))
+         (json (oref cmd data))
          ;; JSON is array of {\"label\": \"name\", \"count\": N}
          (labels (append json nil)))
     labels))
@@ -383,9 +385,7 @@ If called interactively, prompts for issue ID.
 If called from beads-list or beads-show buffers, uses current issue."
   (interactive
    (list (or (beads-label--detect-issue-id)
-             (completing-read "Issue ID: "
-                            (beads--issue-completion-table)
-                            nil t))))
+             (beads-completion-read-issue "Issue ID: " nil t))))
   (let ((labels (beads-label-list issue-id)))
     (if labels
         (message "Labels for %s: %s" issue-id
@@ -482,8 +482,10 @@ Key bindings:
 (defun beads-label-list-all-view ()
   "Display all labels in a tabulated list buffer."
   (interactive)
-  (let ((buffer (get-buffer-create "*beads-labels*")))
+  (let ((caller-dir default-directory)
+        (buffer (get-buffer-create "*beads-labels*")))
     (with-current-buffer buffer
+      (setq default-directory caller-dir)
       (beads-label-list-all-mode)
       (beads-label-list-all-refresh))
     (pop-to-buffer buffer)))

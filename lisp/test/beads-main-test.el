@@ -125,7 +125,7 @@
 (ert-deftest beads-main-test-get-project-info-success ()
   "Test successful project info detection."
   (beads-main-test-with-clean-cache
-    (cl-letf (((symbol-function 'beads--find-project-root)
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
                (lambda () "/home/user/project"))
               ((symbol-function 'beads--get-database-path)
                (lambda () "/home/user/project/.beads/issues.db")))
@@ -138,7 +138,7 @@
 (ert-deftest beads-main-test-get-project-info-no-project ()
   "Test project info when not in a project."
   (beads-main-test-with-clean-cache
-    (cl-letf (((symbol-function 'beads--find-project-root)
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
                (lambda () nil))
               ((symbol-function 'beads--get-database-path)
                (lambda () nil)))
@@ -149,7 +149,7 @@
   "Test that project info is cached."
   (beads-main-test-with-clean-cache
     (let ((call-count 0))
-      (cl-letf (((symbol-function 'beads--find-project-root)
+      (cl-letf (((symbol-function 'beads-git-find-project-root)
                  (lambda ()
                    (setq call-count (1+ call-count))
                    "/home/user/project"))
@@ -165,7 +165,7 @@
 (ert-deftest beads-main-test-get-project-info-auto-discover-db ()
   "Test project info with auto-discovered database."
   (beads-main-test-with-clean-cache
-    (cl-letf (((symbol-function 'beads--find-project-root)
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
                (lambda () "/home/user/project"))
               ((symbol-function 'beads--get-database-path)
                (lambda () nil)))
@@ -182,7 +182,7 @@
     (cl-letf (((symbol-function 'call-process)
                (beads-main-test--mock-call-process-version
                 "bd version 0.9.2\n"))
-              ((symbol-function 'beads--find-project-root)
+              ((symbol-function 'beads-git-find-project-root)
                (lambda () "/home/user/project"))
               ((symbol-function 'beads--get-database-path)
                (lambda () "/home/user/project/.beads/issues.db")))
@@ -201,7 +201,7 @@
 (ert-deftest beads-main-test-format-project-header-with-project ()
   "Test header formatting when in a project."
   (beads-main-test-with-clean-cache
-    (cl-letf (((symbol-function 'beads--find-project-root)
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
                (lambda () "/home/user/myproject"))
               ((symbol-function 'beads--get-database-path)
                (lambda () "/home/user/myproject/.beads/issues.db"))
@@ -220,7 +220,7 @@
 (ert-deftest beads-main-test-format-project-header-no-project ()
   "Test header formatting when not in a project."
   (beads-main-test-with-clean-cache
-    (cl-letf (((symbol-function 'beads--find-project-root)
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
                (lambda () nil))
               ((symbol-function 'beads--get-database-path)
                (lambda () nil)))
@@ -231,7 +231,7 @@
 (ert-deftest beads-main-test-format-project-header-auto-discover ()
   "Test header formatting with auto-discovered database."
   (beads-main-test-with-clean-cache
-    (cl-letf (((symbol-function 'beads--find-project-root)
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
                (lambda () "/home/user/project"))
               ((symbol-function 'beads--get-database-path)
                (lambda () nil))
@@ -245,7 +245,7 @@
 (ert-deftest beads-main-test-format-project-header-has-faces ()
   "Test that header contains face properties."
   (beads-main-test-with-clean-cache
-    (cl-letf (((symbol-function 'beads--find-project-root)
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
                (lambda () "/home/user/project"))
               ((symbol-function 'beads--get-database-path)
                (lambda () "/home/user/project/.beads/issues.db"))
@@ -426,7 +426,7 @@ by checking if the function is available after requiring beads-main."
 (ert-deftest beads-main-test-project-path-with-spaces ()
   "Test project info with spaces in path."
   (beads-main-test-with-clean-cache
-    (cl-letf (((symbol-function 'beads--find-project-root)
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
                (lambda () "/home/user/my project"))
               ((symbol-function 'beads--get-database-path)
                (lambda () "/home/user/my project/.beads/issues.db")))
@@ -437,7 +437,7 @@ by checking if the function is available after requiring beads-main."
 (ert-deftest beads-main-test-project-path-with-unicode ()
   "Test project info with unicode in path."
   (beads-main-test-with-clean-cache
-    (cl-letf (((symbol-function 'beads--find-project-root)
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
                (lambda () "/home/user/проект"))
               ((symbol-function 'beads--get-database-path)
                (lambda () "/home/user/проект/.beads/issues.db")))
@@ -450,7 +450,7 @@ by checking if the function is available after requiring beads-main."
   (beads-main-test-with-clean-cache
     (let ((long-path (concat "/home/user/"
                             (make-string 200 ?x))))
-      (cl-letf (((symbol-function 'beads--find-project-root)
+      (cl-letf (((symbol-function 'beads-git-find-project-root)
                  (lambda () long-path))
                 ((symbol-function 'beads--get-database-path)
                  (lambda () (concat long-path "/.beads/issues.db")))
@@ -467,7 +467,7 @@ by checking if the function is available after requiring beads-main."
   "Test header formatting performance."
   :tags '(:performance)
   (beads-main-test-with-clean-cache
-    (cl-letf (((symbol-function 'beads--find-project-root)
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
                (lambda () "/home/user/project"))
               ((symbol-function 'beads--get-database-path)
                (lambda () "/home/user/project/.beads/issues.db"))

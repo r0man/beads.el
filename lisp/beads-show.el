@@ -31,11 +31,22 @@
 ;;
 ;; Field editing:
 ;; - C-c C-e: Edit field (prompts for field selection)
+;;
+;; Sesman session management (C-c C-s prefix):
+;; - C-c C-s s: Start new session
+;; - C-c C-s q: Quit current session
+;; - C-c C-s r: Restart current session
+;; - C-c C-s b: Open session browser
+;; - C-c C-s i: Show session info
+;; - C-c C-s l: Link session to buffer
 
 ;;; Code:
 
 (require 'beads)
 (require 'beads-command)
+(require 'beads-completion)
+(require 'beads-agent)
+(require 'beads-sesman)
 (require 'button)
 (require 'cl-lib)
 
@@ -123,6 +134,21 @@
   "Face for markdown headings."
   :group 'beads-show)
 
+(defface beads-show-sub-issue-id-face
+  '((t :inherit link))
+  "Face for sub-issue IDs in epic view."
+  :group 'beads-show)
+
+(defface beads-show-sub-issue-title-face
+  '((t :inherit default))
+  "Face for sub-issue titles in epic view."
+  :group 'beads-show)
+
+(defface beads-show-sub-issue-progress-face
+  '((t :inherit font-lock-comment-face))
+  "Face for sub-issue progress summary."
+  :group 'beads-show)
+
 ;;; Variables
 
 (defvar-local beads-show--issue-id nil
@@ -130,6 +156,82 @@
 
 (defvar-local beads-show--issue-data nil
   "Full issue data for current show buffer.")
+
+(defvar-local beads-show--project-dir nil
+  "Project directory for bd command execution.
+THIS IS PART OF THE IDENTITY - buffer is keyed by (issue-id, project-dir).
+Set from the caller's directory when the buffer is created or refreshed.
+Used to ensure commands run in the correct project context, which is
+essential for git worktree support.")
+
+;; Directory-aware buffer identity (beads.el-4pgx)
+;; Key principle: Directory is identity, branch is metadata.
+
+(defvar-local beads-show--branch nil
+  "Git branch name.
+This is METADATA for display, not identity.
+Updated on refresh to reflect current branch.")
+
+(defvar-local beads-show--proj-name nil
+  "Project name for display.
+Used when multiple projects have show buffers open.")
+
+;;; Buffer Lookup by Project Directory
+;;
+;; Show buffers are identified by (issue-id, project-dir) pair.
+;; Same issue in different directories = different buffers.
+;; This is important for git worktrees.
+
+(defun beads-show--normalize-directory (dir)
+  "Normalize DIR for consistent comparison.
+Strips trailing slashes and expands to absolute path.
+Uses `expand-file-name' (not `file-truename') for Tramp compatibility."
+  (directory-file-name (expand-file-name dir)))
+
+(defun beads-show--find-buffer-for-issue (issue-id project-dir)
+  "Find existing show buffer for ISSUE-ID in PROJECT-DIR.
+Return buffer or nil if not found."
+  (let ((normalized-dir (beads-show--normalize-directory project-dir)))
+    (cl-find-if
+     (lambda (buf)
+       (with-current-buffer buf
+         (and (derived-mode-p 'beads-show-mode)
+              (equal beads-show--issue-id issue-id)
+              beads-show--project-dir
+              (equal (beads-show--normalize-directory beads-show--project-dir)
+                     normalized-dir))))
+     (buffer-list))))
+
+(defun beads-show--get-or-create-buffer (issue-id)
+  "Get or create show buffer for ISSUE-ID in current project.
+Reuses existing buffer for same (issue-id, project-dir) pair."
+  (let* ((project-dir (or (beads-git-find-project-root) default-directory))
+         (existing (beads-show--find-buffer-for-issue issue-id project-dir)))
+    (or existing
+        (let ((buffer (get-buffer-create (format "*beads-show: %s*" issue-id))))
+          (with-current-buffer buffer
+            (setq beads-show--project-dir project-dir)
+            (setq beads-show--branch (beads-git-get-branch))
+            (setq beads-show--proj-name (beads-git-get-project-name)))
+          buffer))))
+
+;;; Worktree Session Integration
+;;
+;; Show buffers are registered with worktree sessions for lifecycle management.
+;; Sessions are keyed by directory, not branch.
+
+(defun beads-show--register-with-session ()
+  "Register current buffer with worktree session.
+Should be called after the buffer is fully initialized."
+  (when-let ((session (beads-sesman--ensure-worktree-session)))
+    (beads-worktree-session-add-buffer session (current-buffer))))
+
+(defun beads-show--unregister-from-session ()
+  "Remove current buffer from worktree session.
+Called from `kill-buffer-hook' to clean up session state."
+  (when-let ((session (beads-sesman--buffer-worktree-session (current-buffer))))
+    (beads-worktree-session-remove-buffer session (current-buffer))
+    (beads-sesman--maybe-cleanup-worktree-session session)))
 
 ;;; Mode Definition
 
@@ -182,6 +284,19 @@
     (define-key map (kbd "RET") #'beads-show-follow-reference)
     (define-key map (kbd "C-c C-o") #'beads-show-follow-reference)  ; markdown-mode alias
     (define-key map (kbd "o") #'beads-show-follow-reference-other-window)
+
+    ;; AI Agent type commands
+    (define-key map (kbd "T") #'beads-agent-start-task)     ; Task agent
+    (define-key map (kbd "R") #'beads-agent-start-review)   ; Review agent
+    (define-key map (kbd "P") #'beads-agent-start-plan)     ; Plan agent
+    (define-key map (kbd "Q") #'beads-agent-start-qa)       ; QA agent
+    (define-key map (kbd "C") #'beads-agent-start-custom)   ; Custom agent
+    (define-key map (kbd "X") #'beads-agent-stop-at-point)  ; Stop agent
+    (define-key map (kbd "J") #'beads-agent-jump-at-point)  ; Jump to agent
+    (define-key map (kbd "A") #'beads-agent-start-at-point) ; Backward compat
+
+    ;; Sesman session management (CIDER/ESS convention)
+    (define-key map (kbd "C-c C-s") beads-sesman-map)
     map)
   "Keymap for `beads-show-mode'.")
 
@@ -191,7 +306,9 @@
 Key bindings:
 \\{beads-show-mode-map}"
   (setq truncate-lines (not beads-show-wrap-lines))
-  (setq buffer-read-only t))
+  (setq buffer-read-only t)
+  ;; Register cleanup hook for worktree session integration
+  (add-hook 'kill-buffer-hook #'beads-show--unregister-from-session nil t))
 
 ;;; Utility Functions
 
@@ -260,6 +377,122 @@ CONTENT can be a string or nil (empty sections are skipped)."
       (beads-show--fontify-markdown start (point))
       ;; Make issue references clickable
       (beads-show--buttonize-references start (point)))))
+
+(defun beads-show--insert-agent-section (issue-id)
+  "Insert agent sessions section for ISSUE-ID if sessions exist."
+  (when (and (fboundp 'beads-agent--get-sessions-for-issue)
+             (fboundp 'beads-agent--session-active-p))
+    (let ((sessions (beads-agent--get-sessions-for-issue issue-id)))
+      (when sessions
+        (insert beads-show-section-separator)
+        (insert (propertize "Agent Sessions" 'face 'beads-show-header-face))
+        (insert "\n")
+        (insert (propertize (make-string 14 ?─) 'face 'beads-show-header-face))
+        (insert "\n\n")
+        (dolist (session sessions)
+          (let* ((backend (or (beads-agent-session-backend-name session)
+                              "unknown"))
+                 (started (beads-agent-session-started-at session))
+                 (active (beads-agent--session-active-p session))
+                 (status-str (if active
+                                 (propertize "active" 'face 'success)
+                               (propertize "stopped" 'face 'shadow))))
+            (insert (format "  %s: %s [%s]\n"
+                            (propertize backend 'face 'font-lock-constant-face)
+                            (beads-show--format-date started)
+                            status-str))))
+        (insert "\n")))))
+
+(defun beads-show--get-sub-issues (epic-id)
+  "Fetch sub-issues for EPIC-ID.
+Returns a list of alists containing sub-issue data, or nil if no sub-issues.
+Each alist contains: id, title, status, priority, issue_type."
+  (condition-case nil
+      (let* ((tree-data (beads-command-dep-tree!
+                         :issue-id epic-id
+                         :reverse t
+                         :max-depth 1))
+             ;; tree-data is a vector or list of alists
+             (items (if (vectorp tree-data)
+                        (append tree-data nil)
+                      tree-data)))
+        ;; Filter to only include direct children (depth = 1)
+        (seq-filter (lambda (item)
+                      (let ((depth (alist-get 'depth item)))
+                        (and depth (= depth 1))))
+                    items))
+    (error nil)))
+
+(defun beads-show--format-sub-issue-status (status)
+  "Return formatted STATUS string with face, like completion annotations."
+  (propertize (upcase status)
+              'face (pcase status
+                      ("open" 'success)
+                      ("in_progress" 'warning)
+                      ("blocked" 'error)
+                      ("closed" 'shadow)
+                      (_ 'default))))
+
+(defun beads-show--truncate-title (title max-len)
+  "Truncate TITLE to MAX-LEN characters with ellipsis if needed."
+  (if (and title (> (length title) max-len))
+      (concat (substring title 0 (- max-len 3)) "...")
+    (or title "Untitled")))
+
+(defun beads-show--insert-sub-issues-section (epic-id)
+  "Insert sub-issues section for EPIC-ID if it has children.
+Shows direct child issues in completion-style format:
+ID [P#] [type] STATUS - title."
+  (when-let* ((sub-issues (beads-show--get-sub-issues epic-id)))
+    (let* ((total (length sub-issues))
+           (closed (seq-count (lambda (item)
+                                (equal (alist-get 'status item) "closed"))
+                              sub-issues))
+           ;; Group by status for organized display
+           (by-status (seq-group-by (lambda (item)
+                                      (alist-get 'status item))
+                                    sub-issues))
+           (status-order '("in_progress" "open" "blocked" "closed")))
+      (insert beads-show-section-separator)
+      (insert (propertize "Sub-issues" 'face 'beads-show-header-face))
+      (insert "  ")
+      (insert (propertize (format "(%d/%d completed)" closed total)
+                          'face 'beads-show-sub-issue-progress-face))
+      (insert "\n")
+      (insert (propertize (make-string 10 ?─) 'face 'beads-show-header-face))
+      (insert "\n\n")
+      ;; Display sub-issues grouped by status
+      (dolist (status status-order)
+        (when-let* ((issues (alist-get status by-status nil nil #'equal)))
+          (dolist (issue issues)
+            (let* ((id (alist-get 'id issue))
+                   (title (alist-get 'title issue))
+                   (issue-status (alist-get 'status issue))
+                   (priority (or (alist-get 'priority issue) 2))
+                   (issue-type (or (alist-get 'issue_type issue) "task")))
+              ;; Format: ID [P#] [type] STATUS - title
+              (insert "  ")
+              ;; Insert ID as button (capture start AFTER padding)
+              (let ((id-start (point)))
+                (insert id)
+                (make-button id-start (+ id-start (length id))
+                             'issue-id id
+                             'action #'beads-show--button-action
+                             'follow-link t
+                             'help-echo (format "Show %s" id)
+                             'face 'beads-show-sub-issue-id-face))
+              ;; Priority
+              (insert (format " [P%s]" priority))
+              ;; Type
+              (insert (format " [%s]" issue-type))
+              ;; Status with face
+              (insert " ")
+              (insert (beads-show--format-sub-issue-status issue-status))
+              ;; Title
+              (insert " - ")
+              (insert (propertize (beads-show--truncate-title title 50)
+                                  'face 'beads-show-sub-issue-title-face))
+              (insert "\n"))))))))
 
 (defun beads-show--fontify-markdown (start end)
   "Apply basic markdown fontification between START and END."
@@ -571,11 +804,18 @@ ISSUE must be a `beads-issue' EIEIO object."
     (when (and closed (not (string-empty-p closed)))
       (beads-show--insert-header "Closed" (beads-show--format-date closed)))
 
+    ;; Sub-issues section for epics
+    (when (equal type "epic")
+      (beads-show--insert-sub-issues-section id))
+
     ;; Text sections
     (beads-show--insert-section "Description" description)
     (beads-show--insert-section "Acceptance Criteria" acceptance)
     (beads-show--insert-section "Design" design)
     (beads-show--insert-section "Notes" notes)
+
+    ;; Agent sessions (if any)
+    (beads-show--insert-agent-section id)
 
     ;; Footer
     (insert beads-show-section-separator)
@@ -590,18 +830,34 @@ ISSUE must be a `beads-issue' EIEIO object."
 ;;;###autoload
 (defun beads-show (issue-id)
   "Show detailed view of issue with ISSUE-ID.
-Creates or switches to a buffer showing the full issue details."
+Creates or switches to a buffer showing the full issue details.
+Uses directory-aware buffer identity: (issue-id, project-dir) pair.
+Completion matches on both issue ID and title.
+
+Commands are executed in the caller's directory context, ensuring
+correct project detection (important for git worktrees)."
   (interactive
-   (list (completing-read "Show issue: "
-                         (beads--issue-completion-table)
-                         nil t nil 'beads--issue-id-history)))
-  (let* ((buffer-name (format "*beads-show: %s*" issue-id))
-         (buffer (get-buffer-create buffer-name)))
+   (list (beads-completion-read-issue "Show issue: " nil t nil
+                                      'beads--issue-id-history)))
+  ;; Capture caller's directory for command execution context
+  (let* ((caller-dir default-directory)
+         (project-dir (or (beads-git-find-project-root) default-directory))
+         (buffer (beads-show--get-or-create-buffer issue-id)))
     (with-current-buffer buffer
-      (beads-show-mode)
-      (setq beads-show--issue-id issue-id)
+      (setq default-directory caller-dir)
+      (unless (derived-mode-p 'beads-show-mode)
+        (beads-show-mode))
+      ;; Update directory-aware state
+      (setq beads-show--issue-id issue-id
+            beads-show--project-dir project-dir
+            beads-show--branch (beads-git-get-branch)
+            beads-show--proj-name (beads-git-get-project-name))
+      ;; Register with worktree session for lifecycle management
+      (beads-show--register-with-session)
       (condition-case err
-          (let ((issue (beads-command-show! :issue-ids (list issue-id))))
+          ;; Execute command in caller's directory context
+          (let ((default-directory caller-dir)
+                (issue (beads-command-show! :issue-ids (list issue-id))))
             (setq beads-show--issue-data issue)
             (beads-show--render-issue beads-show--issue-data))
         (error
@@ -625,16 +881,19 @@ Extracts the issue ID from text at point and calls `beads-show'."
 
 ;;;###autoload
 (defun beads-refresh-show ()
-  "Refresh the current show buffer from bd CLI."
+  "Refresh the current show buffer from bd CLI.
+Uses the stored project directory for command execution."
   (interactive)
   (unless (derived-mode-p 'beads-show-mode)
     (user-error "Not in a beads-show buffer"))
   (unless beads-show--issue-id
     (user-error "No issue ID associated with this buffer"))
 
-  (let ((pos (point)))
+  (let ((pos (point))
+        (project-dir (or beads-show--project-dir default-directory)))
     (condition-case err
-        (let ((issue (beads-command-show! :issue-ids (list beads-show--issue-id))))
+        (let* ((default-directory project-dir)
+               (issue (beads-command-show! :issue-ids (list beads-show--issue-id))))
           (setq beads-show--issue-data issue)
           (beads-show--render-issue beads-show--issue-data)
           (goto-char (min pos (point-max)))
@@ -1115,7 +1374,9 @@ CURRENT-VALUE is the initial text, CALLBACK is called with result."
                            :issue-ids (list beads-show--issue-id)
                            slot-keyword new-value
                            nil)))
-          (beads-command-execute cmd))
+          (beads-command-execute cmd)
+          ;; Invalidate completion cache since issue data changed
+          (beads-completion-invalidate-cache))
         ;; Refetch and refresh the display to get latest data
         (beads-refresh-show)
         (message "%s updated" field-name))

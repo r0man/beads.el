@@ -30,6 +30,7 @@
 
 (require 'beads)
 (require 'beads-command)
+(require 'beads-completion)
 (require 'beads-list)
 (require 'beads-option)
 (require 'beads-show)
@@ -91,23 +92,25 @@ Returns list of error messages, or nil if all valid."
     (if errors
         (user-error "Validation failed: %s" (string-join errors "; "))
       (condition-case err
-          (let ((issue (beads-command-execute cmd)))
-            (message "Reopened issue: %s - %s"
-                     (oref issue id)
-                     (oref issue title))
-            ;; Invalidate completion cache
-            (beads--invalidate-completion-cache)
-            ;; Refresh any open beads buffers
-            (when beads-auto-refresh
-              (dolist (buf (buffer-list))
-                (with-current-buffer buf
-                  (cond
-                   ((and (derived-mode-p 'beads-list-mode)
-                         (bound-and-true-p beads-list--command))
-                    (beads-list-refresh))
-                   ((and (derived-mode-p 'beads-show-mode)
-                         (string= beads-show--issue-id (oref issue id)))
-                    (beads-refresh-show))))))
+          (progn
+            (beads-command-execute cmd)
+            (let ((issue (oref cmd data)))
+              (message "Reopened issue: %s - %s"
+                       (oref issue id)
+                       (oref issue title))
+              ;; Invalidate completion cache
+              (beads--invalidate-completion-cache)
+              ;; Refresh any open beads buffers
+              (when beads-auto-refresh
+                (dolist (buf (buffer-list))
+                  (with-current-buffer buf
+                    (cond
+                     ((and (derived-mode-p 'beads-list-mode)
+                           (bound-and-true-p beads-list--command))
+                      (beads-list-refresh))
+                     ((and (derived-mode-p 'beads-show-mode)
+                           (string= beads-show--issue-id (oref issue id)))
+                      (beads-refresh-show)))))))
             nil)
         (error
          (let ((err-msg (format "Failed to reopen issue: %s"
@@ -174,10 +177,8 @@ If ISSUE-ID is provided, use it directly.  Otherwise, detect from
 context or prompt the user."
   (interactive
    (list (or (beads-reopen--detect-issue-id)
-            (completing-read
-             "Reopen issue: "
-             (beads--issue-completion-table)
-             nil t nil 'beads--issue-id-history))))
+            (beads-completion-read-issue
+             "Reopen issue: " nil t nil 'beads--issue-id-history))))
   ;; Check executable
   (beads-check-executable)
   ;; Show the transient menu with initial issue ID if provided

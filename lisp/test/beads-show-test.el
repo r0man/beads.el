@@ -16,6 +16,7 @@
 (require 'ert)
 (require 'beads)
 (require 'beads-show)
+(require 'beads-agent-backend)
 (require 'button)
 
 ;;; Test Fixtures
@@ -1569,6 +1570,24 @@
        (should (equal (oref captured-cmd issue-ids) '("bd-42")))
        (should (equal (oref captured-cmd description) "New description text"))))))
 
+(ert-deftest beads-show-test-update-field-invalidates-cache ()
+  "Test that updating field invalidates completion cache."
+  (let ((cache-invalidated nil))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_cmd) nil))
+              ((symbol-function 'beads-command-show!)
+               (lambda (&rest _args)
+                 (beads-issue-from-json beads-show-test--full-issue)))
+              ((symbol-function 'beads-completion-invalidate-cache)
+               (lambda ()
+                 (setq cache-invalidated t))))
+      (beads-show-test-with-temp-buffer
+       (setq beads-show--issue-id "bd-42")
+       (setq beads-show--issue-data (beads--parse-issue
+                                     beads-show-test--full-issue))
+       (beads-show--update-field "Title" "--title" "New title")
+       (should cache-invalidated)))))
+
 ;;; ============================================================
 ;;; Integration Tests
 ;;; ============================================================
@@ -1798,6 +1817,633 @@ Note: Notes cannot be set at creation time, only via update."
         (dolist (buffer (buffer-list))
           (when (string-match-p "\\*beads-\\(show\\|edit\\)" (buffer-name buffer))
             (kill-buffer buffer)))))))
+
+;;; Tests for Agent Integration
+
+(ert-deftest beads-show-test-agent-keybinding-A ()
+  "Test that A keybinding is bound to beads-agent-start-at-point."
+  (beads-show-test-with-temp-buffer
+   (should (eq (lookup-key beads-show-mode-map (kbd "A"))
+              #'beads-agent-start-at-point))))
+
+(ert-deftest beads-show-test-agent-keybinding-J ()
+  "Test that J keybinding is bound to beads-agent-jump-at-point."
+  (beads-show-test-with-temp-buffer
+   (should (eq (lookup-key beads-show-mode-map (kbd "J"))
+              #'beads-agent-jump-at-point))))
+
+(ert-deftest beads-show-test-insert-agent-section-no-sessions ()
+  "Test that agent section is not rendered when no sessions exist."
+  (beads-show-test-with-temp-buffer
+   ;; Mock beads-agent--get-sessions-for-issue to return nil
+   (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+              (lambda (_issue-id) nil)))
+     (let ((inhibit-read-only t)
+           (start (point)))
+       (beads-show--insert-agent-section "bd-42")
+       ;; Should not have inserted anything
+       (should (= (point) start))))))
+
+(ert-deftest beads-show-test-insert-agent-section-with-sessions ()
+  "Test that agent section is rendered when sessions exist."
+  (beads-show-test-with-temp-buffer
+   ;; Create a mock session object
+   (let ((mock-session (beads-agent-session
+                        :id "session-123"
+                        :issue-id "bd-42"
+                        :backend-name "claude-code-ide"
+                        :project-dir "/home/user/project"
+                        :started-at "2025-01-15T10:30:45")))
+     ;; Mock the functions
+     (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+                (lambda (_issue-id) (list mock-session)))
+               ((symbol-function 'beads-agent--session-active-p)
+                (lambda (_session) t)))
+       (let ((inhibit-read-only t)
+             (start (point)))
+         (beads-show--insert-agent-section "bd-42")
+         ;; Should have inserted content
+         (should (> (point) start))
+         ;; Should contain "Agent Sessions" header
+         (should (string-match-p "Agent Sessions"
+                               (buffer-substring-no-properties
+                                start (point))))
+         ;; Should contain backend name
+         (should (string-match-p "claude-code-ide"
+                               (buffer-substring-no-properties
+                                start (point))))
+         ;; Should contain status
+         (should (string-match-p "active"
+                               (buffer-substring-no-properties
+                                start (point)))))))))
+
+(ert-deftest beads-show-test-insert-agent-section-inactive-session ()
+  "Test that agent section shows stopped status for inactive sessions."
+  (beads-show-test-with-temp-buffer
+   ;; Create a mock session object
+   (let ((mock-session (beads-agent-session
+                        :id "session-456"
+                        :issue-id "bd-42"
+                        :backend-name "efrit"
+                        :project-dir "/home/user/project"
+                        :started-at "2025-01-14T08:00:00")))
+     ;; Mock the functions - session is not active
+     (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+                (lambda (_issue-id) (list mock-session)))
+               ((symbol-function 'beads-agent--session-active-p)
+                (lambda (_session) nil)))
+       (let ((inhibit-read-only t)
+             (start (point)))
+         (beads-show--insert-agent-section "bd-42")
+         ;; Should have inserted content
+         (should (> (point) start))
+         ;; Should contain "stopped" status
+         (should (string-match-p "stopped"
+                               (buffer-substring-no-properties
+                                start (point)))))))))
+
+(ert-deftest beads-show-test-render-issue-includes-agent-section ()
+  "Test that beads-show--render-issue calls insert-agent-section."
+  (beads-show-test-with-temp-buffer
+   (let ((insert-called nil)
+         (parsed-issue (beads--parse-issue beads-show-test--full-issue)))
+     ;; Mock the agent session functions
+     (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+                (lambda (_issue-id)
+                  (setq insert-called t)
+                  nil)))
+       (beads-show--render-issue parsed-issue)
+       ;; The function should have been called during render
+       (should insert-called)))))
+
+;;; Tests for Sub-issues Section (Epics)
+
+(defvar beads-show-test--epic-issue
+  '((id . "bd-epic-1")
+    (title . "Epic: Build feature X")
+    (description . "This epic tracks the full implementation")
+    (status . "open")
+    (priority . 1)
+    (issue_type . "epic")
+    (created_at . "2025-01-15T10:00:00Z")
+    (updated_at . "2025-01-15T10:00:00Z"))
+  "Sample epic issue.")
+
+(defvar beads-show-test--sub-issues-data
+  (vector
+   '((id . "bd-epic-1") (title . "Epic: Build feature X") (status . "open")
+     (priority . 1) (issue_type . "epic") (depth . 0) (parent_id . "bd-epic-1"))
+   '((id . "bd-sub-1") (title . "Implement core module") (status . "closed")
+     (priority . 1) (issue_type . "task") (depth . 1) (parent_id . "bd-epic-1"))
+   '((id . "bd-sub-2") (title . "Write tests") (status . "in_progress")
+     (priority . 2) (issue_type . "task") (depth . 1) (parent_id . "bd-epic-1"))
+   '((id . "bd-sub-3") (title . "Update documentation") (status . "open")
+     (priority . 3) (issue_type . "task") (depth . 1) (parent_id . "bd-epic-1")))
+  "Mock dep tree response with sub-issues.")
+
+(ert-deftest beads-show-test-get-sub-issues-returns-depth-1-only ()
+  "Test that beads-show--get-sub-issues filters to depth=1 only."
+  (cl-letf (((symbol-function 'beads-command-dep-tree!)
+             (lambda (&rest _args)
+               beads-show-test--sub-issues-data)))
+    (let ((sub-issues (beads-show--get-sub-issues "bd-epic-1")))
+      ;; Should return 3 sub-issues (depth=1), not the root (depth=0)
+      (should (= (length sub-issues) 3))
+      ;; All should have depth=1
+      (dolist (item sub-issues)
+        (should (= (alist-get 'depth item) 1))))))
+
+(ert-deftest beads-show-test-get-sub-issues-handles-error ()
+  "Test that beads-show--get-sub-issues returns nil on error."
+  (cl-letf (((symbol-function 'beads-command-dep-tree!)
+             (lambda (&rest _args)
+               (error "Command failed"))))
+    (let ((sub-issues (beads-show--get-sub-issues "bd-epic-1")))
+      (should (null sub-issues)))))
+
+(ert-deftest beads-show-test-get-sub-issues-empty-tree ()
+  "Test that beads-show--get-sub-issues handles epic with no children."
+  (cl-letf (((symbol-function 'beads-command-dep-tree!)
+             (lambda (&rest _args)
+               ;; Only root, no children
+               (vector '((id . "bd-epic-1") (depth . 0))))))
+    (let ((sub-issues (beads-show--get-sub-issues "bd-epic-1")))
+      (should (null sub-issues)))))
+
+(ert-deftest beads-show-test-format-sub-issue-status ()
+  "Test status formatting for sub-issues (completion-style)."
+  (should (string-match-p "OPEN" (beads-show--format-sub-issue-status "open")))
+  (should (string-match-p "IN_PROGRESS" (beads-show--format-sub-issue-status "in_progress")))
+  (should (string-match-p "BLOCKED" (beads-show--format-sub-issue-status "blocked")))
+  (should (string-match-p "CLOSED" (beads-show--format-sub-issue-status "closed"))))
+
+(ert-deftest beads-show-test-insert-sub-issues-section-renders ()
+  "Test that sub-issues section renders correctly in completion-style format."
+  (beads-show-test-with-temp-buffer
+   (cl-letf (((symbol-function 'beads-command-dep-tree!)
+              (lambda (&rest _args)
+                beads-show-test--sub-issues-data)))
+     (let ((inhibit-read-only t))
+       (beads-show--insert-sub-issues-section "bd-epic-1")
+       (let ((content (buffer-substring-no-properties (point-min) (point-max))))
+         ;; Should have the header
+         (should (string-match-p "Sub-issues" content))
+         ;; Should show completion count (1/3 completed)
+         (should (string-match-p "1/3 completed" content))
+         ;; Should have all sub-issue IDs
+         (should (string-match-p "bd-sub-1" content))
+         (should (string-match-p "bd-sub-2" content))
+         (should (string-match-p "bd-sub-3" content))
+         ;; Should have priority indicators
+         (should (string-match-p "\\[P1\\]" content))
+         (should (string-match-p "\\[P2\\]" content))
+         ;; Should have type indicators
+         (should (string-match-p "\\[task\\]" content))
+         ;; Should have status text
+         (should (string-match-p "CLOSED" content))
+         (should (string-match-p "IN_PROGRESS" content))
+         ;; Should have titles after dash
+         (should (string-match-p "- Implement core module" content))
+         (should (string-match-p "- Write tests" content)))))))
+
+(ert-deftest beads-show-test-insert-sub-issues-section-no-children ()
+  "Test that sub-issues section is not rendered when no children."
+  (beads-show-test-with-temp-buffer
+   (cl-letf (((symbol-function 'beads-command-dep-tree!)
+              (lambda (&rest _args)
+                (vector '((id . "bd-epic-1") (depth . 0))))))
+     (let ((inhibit-read-only t)
+           (start (point)))
+       (beads-show--insert-sub-issues-section "bd-epic-1")
+       ;; Should not have inserted anything
+       (should (= (point) start))))))
+
+(ert-deftest beads-show-test-insert-sub-issues-clickable-ids ()
+  "Test that sub-issue IDs are clickable buttons."
+  (beads-show-test-with-temp-buffer
+   (cl-letf (((symbol-function 'beads-command-dep-tree!)
+              (lambda (&rest _args)
+                beads-show-test--sub-issues-data)))
+     (let ((inhibit-read-only t))
+       (beads-show--insert-sub-issues-section "bd-epic-1")
+       (goto-char (point-min))
+       ;; Should find buttons for sub-issue IDs
+       (should (search-forward "bd-sub-1" nil t))
+       ;; Check that there's a button at that location
+       (goto-char (match-beginning 0))
+       (should (button-at (point)))))))
+
+(ert-deftest beads-show-test-render-epic-includes-sub-issues ()
+  "Test that render-issue includes sub-issues section for epics."
+  (beads-show-test-with-temp-buffer
+   (let ((parsed-issue (beads--parse-issue beads-show-test--epic-issue)))
+     (cl-letf (((symbol-function 'beads-command-dep-tree!)
+                (lambda (&rest _args)
+                  beads-show-test--sub-issues-data))
+               ((symbol-function 'beads-agent--get-sessions-for-issue)
+                (lambda (_) nil)))
+       (beads-show--render-issue parsed-issue)
+       (let ((content (buffer-substring-no-properties (point-min) (point-max))))
+         ;; Should have sub-issues section
+         (should (string-match-p "Sub-issues" content))
+         ;; Should show completion count
+         (should (string-match-p "1/3 completed" content)))))))
+
+(ert-deftest beads-show-test-render-non-epic-no-sub-issues ()
+  "Test that render-issue does NOT include sub-issues for non-epics."
+  (beads-show-test-with-temp-buffer
+   (let ((parsed-issue (beads--parse-issue beads-show-test--full-issue)))
+     ;; This should NOT be called for non-epics
+     (let ((dep-tree-called nil))
+       (cl-letf (((symbol-function 'beads-command-dep-tree!)
+                  (lambda (&rest _args)
+                    (setq dep-tree-called t)
+                    (vector)))
+                 ((symbol-function 'beads-agent--get-sessions-for-issue)
+                  (lambda (_) nil)))
+         (beads-show--render-issue parsed-issue)
+         ;; Should NOT call dep-tree for non-epic
+         (should-not dep-tree-called))))))
+
+(ert-deftest beads-show-test-sub-issues-grouped-by-status ()
+  "Test that sub-issues are grouped by status (in_progress first)."
+  (beads-show-test-with-temp-buffer
+   (cl-letf (((symbol-function 'beads-command-dep-tree!)
+              (lambda (&rest _args)
+                beads-show-test--sub-issues-data)))
+     (let ((inhibit-read-only t))
+       (beads-show--insert-sub-issues-section "bd-epic-1")
+       (let ((content (buffer-substring-no-properties (point-min) (point-max))))
+         ;; in_progress issues should appear before open ones
+         (let ((in-progress-pos (string-match "bd-sub-2" content))
+               (open-pos (string-match "bd-sub-3" content)))
+           (should (< in-progress-pos open-pos))))))))
+
+;;; Agent Section Tests
+
+(ert-deftest beads-show-test-insert-agent-section-nil-backend-name ()
+  "Test that nil backend-name is handled gracefully."
+  (beads-show-test-with-temp-buffer
+   (let ((mock-session (beads-agent-session
+                        :id "bd-42#1"
+                        :issue-id "bd-42"
+                        :backend-name "test-backend"
+                        :project-dir "/tmp"
+                        :started-at "2025-01-15T10:00:00Z")))
+     (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+                (lambda (_) (list mock-session)))
+               ((symbol-function 'beads-agent--session-active-p)
+                (lambda (_) t))
+               ;; Mock backend-name to return nil (testing the fix)
+               ((symbol-function 'beads-agent-session-backend-name)
+                (lambda (_) nil)))
+       (let ((inhibit-read-only t))
+         (beads-show--insert-agent-section "bd-42")
+         (let ((content (buffer-substring-no-properties (point-min) (point-max))))
+           ;; Should show "unknown" instead of crashing
+           (should (string-match-p "unknown" content))
+           ;; Should still show the agent section
+           (should (string-match-p "Agent Sessions" content))))))))
+
+(ert-deftest beads-show-test-insert-agent-section-nil-started-at ()
+  "Test that nil started-at is handled gracefully."
+  (beads-show-test-with-temp-buffer
+   (let ((mock-session (beads-agent-session
+                        :id "bd-42#1"
+                        :issue-id "bd-42"
+                        :backend-name "test-backend"
+                        :project-dir "/tmp"
+                        :started-at "2025-01-15T10:00:00Z")))
+     (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+                (lambda (_) (list mock-session)))
+               ((symbol-function 'beads-agent--session-active-p)
+                (lambda (_) t))
+               ;; Mock started-at to return nil
+               ((symbol-function 'beads-agent-session-started-at)
+                (lambda (_) nil)))
+       (let ((inhibit-read-only t))
+         (beads-show--insert-agent-section "bd-42")
+         (let ((content (buffer-substring-no-properties (point-min) (point-max))))
+           ;; Should show "N/A" for the date
+           (should (string-match-p "N/A" content))
+           ;; Should still show the agent section
+           (should (string-match-p "Agent Sessions" content))))))))
+
+;;; =========================================================================
+;;; Directory-Aware Buffer Identity Tests (beads.el-4pgx)
+;;; =========================================================================
+;;
+;; These tests verify the directory-aware show buffer identity model.
+;; Key principle: Buffer identity is (issue-id, project-dir) pair.
+
+(ert-deftest beads-show-test-normalize-directory ()
+  "Test directory normalization for consistent comparison."
+  ;; Use /tmp which is guaranteed to exist
+  (let ((normalized (beads-show--normalize-directory "/tmp/")))
+    (should (stringp normalized))
+    ;; Should strip trailing slash
+    (should (equal normalized "/tmp"))))
+
+(ert-deftest beads-show-test-find-buffer-for-issue-not-found ()
+  "Test finding buffer when none exists for the issue/project pair."
+  (should (null (beads-show--find-buffer-for-issue "bd-999" "/tmp"))))
+
+(ert-deftest beads-show-test-find-buffer-for-issue-found ()
+  "Test finding existing buffer by issue-id and project directory."
+  (let ((test-buffer (generate-new-buffer "*beads-show: bd-42*")))
+    (unwind-protect
+        (with-current-buffer test-buffer
+          (beads-show-mode)
+          (setq beads-show--issue-id "bd-42")
+          (setq beads-show--project-dir "/tmp")
+          ;; Should find our buffer
+          (should (eq (beads-show--find-buffer-for-issue "bd-42" "/tmp")
+                      test-buffer))
+          ;; Should NOT find buffer for different issue
+          (should (null (beads-show--find-buffer-for-issue "bd-999" "/tmp")))
+          ;; Should NOT find buffer for different project
+          (should (null (beads-show--find-buffer-for-issue "bd-42" "/other"))))
+      (kill-buffer test-buffer))))
+
+(ert-deftest beads-show-test-get-or-create-buffer-creates-new ()
+  "Test get-or-create-buffer creates new buffer when none exists."
+  (let (created-buffer)
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
+                   (lambda () "/tmp/new-project"))
+                  ((symbol-function 'beads-git-get-branch)
+                   (lambda () "main"))
+                  ((symbol-function 'beads-git-get-project-name)
+                   (lambda () "new-project")))
+          (setq created-buffer (beads-show--get-or-create-buffer "bd-new"))
+          (should (bufferp created-buffer))
+          (with-current-buffer created-buffer
+            (should (equal beads-show--project-dir "/tmp/new-project"))
+            (should (equal beads-show--branch "main"))
+            (should (equal beads-show--proj-name "new-project"))))
+      (when (and created-buffer (buffer-live-p created-buffer))
+        (kill-buffer created-buffer)))))
+
+(ert-deftest beads-show-test-get-or-create-buffer-reuses-existing ()
+  "Test get-or-create-buffer reuses buffer for same issue/project pair."
+  (let ((test-buffer (generate-new-buffer "*beads-show: bd-42*")))
+    (unwind-protect
+        (progn
+          (with-current-buffer test-buffer
+            (beads-show-mode)
+            (setq beads-show--issue-id "bd-42")
+            (setq beads-show--project-dir "/tmp/existing-project"))
+          (cl-letf (((symbol-function 'beads-git-find-project-root)
+                     (lambda () "/tmp/existing-project"))
+                    ((symbol-function 'beads-git-get-branch)
+                     (lambda () "feature"))
+                    ((symbol-function 'beads-git-get-project-name)
+                     (lambda () "existing-project")))
+            ;; Should return the existing buffer
+            (should (eq (beads-show--get-or-create-buffer "bd-42") test-buffer))))
+      (kill-buffer test-buffer))))
+
+(ert-deftest beads-show-test-same-issue-different-project-different-buffer ()
+  "Test that same issue in different projects creates different buffers."
+  (let ((buffer1 (generate-new-buffer "*beads-show: bd-42-1*"))
+        (buffer2 nil))
+    (unwind-protect
+        (progn
+          (with-current-buffer buffer1
+            (beads-show-mode)
+            (setq beads-show--issue-id "bd-42")
+            (setq beads-show--project-dir "/tmp/project1"))
+          ;; Create buffer for different project
+          (cl-letf (((symbol-function 'beads-git-find-project-root)
+                     (lambda () "/tmp/project2"))
+                    ((symbol-function 'beads-git-get-branch)
+                     (lambda () "main"))
+                    ((symbol-function 'beads-git-get-project-name)
+                     (lambda () "project2")))
+            ;; Should create NEW buffer (different project)
+            (setq buffer2 (beads-show--get-or-create-buffer "bd-42"))
+            (should (bufferp buffer2))
+            (should-not (eq buffer1 buffer2))))
+      (kill-buffer buffer1)
+      (when (and buffer2 (buffer-live-p buffer2))
+        (kill-buffer buffer2)))))
+
+(ert-deftest beads-show-test-same-project-different-branch-same-buffer ()
+  "Test that same issue in same project but different branch uses same buffer.
+This is the CRITICAL behavioral test for directory-as-identity."
+  (let ((test-buffer (generate-new-buffer "*beads-show: bd-42*")))
+    (unwind-protect
+        (progn
+          (with-current-buffer test-buffer
+            (beads-show-mode)
+            (setq beads-show--issue-id "bd-42")
+            (setq beads-show--project-dir "/tmp/project")
+            (setq beads-show--branch "main"))
+          ;; Simulate branch switch - branch changes but directory doesn't
+          (cl-letf (((symbol-function 'beads-git-find-project-root)
+                     (lambda () "/tmp/project"))
+                    ((symbol-function 'beads-git-get-branch)
+                     (lambda () "feature"))  ; Different branch!
+                    ((symbol-function 'beads-git-get-project-name)
+                     (lambda () "project")))
+            ;; CRITICAL: Should return SAME buffer (same directory)
+            (let ((result (beads-show--get-or-create-buffer "bd-42")))
+              (should (eq result test-buffer)))))
+      (kill-buffer test-buffer))))
+
+(ert-deftest beads-show-test-buffer-local-variables-set ()
+  "Test that buffer-local variables are set correctly on creation."
+  (let (created-buffer)
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
+                   (lambda () "/home/user/code/my-project"))
+                  ((symbol-function 'beads-git-get-branch)
+                   (lambda () "feature-branch"))
+                  ((symbol-function 'beads-git-get-project-name)
+                   (lambda () "my-project")))
+          (setq created-buffer (beads-show--get-or-create-buffer "bd-test"))
+          (with-current-buffer created-buffer
+            ;; Verify all variables set
+            (should (equal beads-show--project-dir "/home/user/code/my-project"))
+            (should (equal beads-show--branch "feature-branch"))
+            (should (equal beads-show--proj-name "my-project"))))
+      (when (and created-buffer (buffer-live-p created-buffer))
+        (kill-buffer created-buffer)))))
+
+;;; =========================================================================
+;;; Worktree Session Integration Tests (beads.el-1hde)
+;;; =========================================================================
+;;
+;; These tests verify show buffer integration with worktree sessions.
+;; Sessions are keyed by directory, not branch.
+
+(ert-deftest beads-show-test-register-with-session ()
+  "Test that registering adds buffer to session."
+  (let ((test-buffer (generate-new-buffer "*beads-show-test*"))
+        (beads-sesman--worktree-sessions nil))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
+                   (lambda () "/tmp/test-project"))
+                  ((symbol-function 'beads-git-get-branch)
+                   (lambda () "main"))
+                  ((symbol-function 'beads-git-get-project-name)
+                   (lambda () "test-project")))
+          (with-current-buffer test-buffer
+            (beads-show-mode)
+            (setq beads-show--project-dir "/tmp/test-project")
+            (beads-show--register-with-session))
+          ;; Session should exist
+          (should (= 1 (length beads-sesman--worktree-sessions)))
+          ;; Buffer should be in session
+          (let ((session (car beads-sesman--worktree-sessions)))
+            (should (memq test-buffer (oref session buffers)))))
+      (kill-buffer test-buffer)
+      (setq beads-sesman--worktree-sessions nil))))
+
+(ert-deftest beads-show-test-unregister-from-session ()
+  "Test that unregistering removes buffer from session.
+Empty sessions are automatically cleaned up."
+  (let ((test-buffer (generate-new-buffer "*beads-show-test*"))
+        (beads-sesman--worktree-sessions nil))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
+                   (lambda () "/tmp/test-project"))
+                  ((symbol-function 'beads-git-get-branch)
+                   (lambda () "main"))
+                  ((symbol-function 'beads-git-get-project-name)
+                   (lambda () "test-project")))
+          (with-current-buffer test-buffer
+            (beads-show-mode)
+            (setq beads-show--project-dir "/tmp/test-project")
+            (beads-show--register-with-session)
+            ;; Buffer should be in session
+            (let ((session (car beads-sesman--worktree-sessions)))
+              (should (memq test-buffer (oref session buffers))))
+            ;; Now unregister
+            (beads-show--unregister-from-session))
+          ;; Session should be cleaned up (empty sessions are removed)
+          ;; Either no sessions left, or buffer not in any remaining session
+          (if (null beads-sesman--worktree-sessions)
+              (should t)  ; Session was cleaned up - good!
+            ;; If session still exists, buffer should not be in it
+            (let ((session (car beads-sesman--worktree-sessions)))
+              (should-not (memq test-buffer (oref session buffers))))))
+      (kill-buffer test-buffer)
+      (setq beads-sesman--worktree-sessions nil))))
+
+(ert-deftest beads-show-test-multiple-buffers-same-session ()
+  "Test that multiple show buffers can be in the same session."
+  (let ((buffer1 (generate-new-buffer "*beads-show-test-1*"))
+        (buffer2 (generate-new-buffer "*beads-show-test-2*"))
+        (beads-sesman--worktree-sessions nil))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
+                   (lambda () "/tmp/test-project"))
+                  ((symbol-function 'beads-git-get-branch)
+                   (lambda () "main"))
+                  ((symbol-function 'beads-git-get-project-name)
+                   (lambda () "test-project")))
+          ;; Register first buffer
+          (with-current-buffer buffer1
+            (beads-show-mode)
+            (setq beads-show--project-dir "/tmp/test-project")
+            (beads-show--register-with-session))
+          ;; Register second buffer
+          (with-current-buffer buffer2
+            (beads-show-mode)
+            (setq beads-show--project-dir "/tmp/test-project")
+            (beads-show--register-with-session))
+          ;; Should still have only one session
+          (should (= 1 (length beads-sesman--worktree-sessions)))
+          ;; Session should contain both buffers
+          (let ((session (car beads-sesman--worktree-sessions)))
+            (should (memq buffer1 (oref session buffers)))
+            (should (memq buffer2 (oref session buffers)))))
+      (kill-buffer buffer1)
+      (kill-buffer buffer2)
+      (setq beads-sesman--worktree-sessions nil))))
+
+(ert-deftest beads-show-test-kill-buffer-removes-from-session ()
+  "Test that killing a buffer removes it from the session via hook."
+  (let ((test-buffer (generate-new-buffer "*beads-show-test*"))
+        (beads-sesman--worktree-sessions nil))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
+                   (lambda () "/tmp/test-project"))
+                  ((symbol-function 'beads-git-get-branch)
+                   (lambda () "main"))
+                  ((symbol-function 'beads-git-get-project-name)
+                   (lambda () "test-project")))
+          (with-current-buffer test-buffer
+            (beads-show-mode)
+            (setq beads-show--project-dir "/tmp/test-project")
+            (beads-show--register-with-session))
+          ;; Buffer should be in session
+          (let ((session (car beads-sesman--worktree-sessions)))
+            (should (memq test-buffer (oref session buffers))))
+          ;; Kill buffer - hook should remove it
+          (kill-buffer test-buffer)
+          ;; Session should be cleaned up (empty session removed)
+          ;; Since there are no other buffers or agents, session should be gone
+          (should (null beads-sesman--worktree-sessions)))
+      ;; Cleanup in case test failed
+      (when (buffer-live-p test-buffer)
+        (kill-buffer test-buffer))
+      (setq beads-sesman--worktree-sessions nil))))
+
+(ert-deftest beads-show-test-kill-one-buffer-keeps-others-in-session ()
+  "Test that killing one buffer does not affect others in same session."
+  (let ((buffer1 (generate-new-buffer "*beads-show-test-1*"))
+        (buffer2 (generate-new-buffer "*beads-show-test-2*"))
+        (beads-sesman--worktree-sessions nil))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
+                   (lambda () "/tmp/test-project"))
+                  ((symbol-function 'beads-git-get-branch)
+                   (lambda () "main"))
+                  ((symbol-function 'beads-git-get-project-name)
+                   (lambda () "test-project")))
+          ;; Register both buffers
+          (dolist (buf (list buffer1 buffer2))
+            (with-current-buffer buf
+              (beads-show-mode)
+              (setq beads-show--project-dir "/tmp/test-project")
+              (beads-show--register-with-session)))
+          ;; Kill first buffer
+          (kill-buffer buffer1)
+          ;; Session should still exist with buffer2
+          (should (= 1 (length beads-sesman--worktree-sessions)))
+          (let ((session (car beads-sesman--worktree-sessions)))
+            (should (memq buffer2 (oref session buffers)))
+            (should-not (memq buffer1 (oref session buffers)))))
+      (when (buffer-live-p buffer1)
+        (kill-buffer buffer1))
+      (when (buffer-live-p buffer2)
+        (kill-buffer buffer2))
+      (setq beads-sesman--worktree-sessions nil))))
+
+(ert-deftest beads-show-test-register-no-duplicate ()
+  "Test that registering same buffer twice does not duplicate in session."
+  (let ((test-buffer (generate-new-buffer "*beads-show-test*"))
+        (beads-sesman--worktree-sessions nil))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
+                   (lambda () "/tmp/test-project"))
+                  ((symbol-function 'beads-git-get-branch)
+                   (lambda () "main"))
+                  ((symbol-function 'beads-git-get-project-name)
+                   (lambda () "test-project")))
+          (with-current-buffer test-buffer
+            (beads-show-mode)
+            (setq beads-show--project-dir "/tmp/test-project")
+            ;; Register twice
+            (beads-show--register-with-session)
+            (beads-show--register-with-session))
+          ;; Buffer should appear only once
+          (let ((session (car beads-sesman--worktree-sessions)))
+            (should (= 1 (length (oref session buffers))))))
+      (kill-buffer test-buffer)
+      (setq beads-sesman--worktree-sessions nil))))
 
 (provide 'beads-show-test)
 ;;; beads-show-test.el ends here

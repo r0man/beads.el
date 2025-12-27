@@ -82,21 +82,9 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-buffer-naming ()
   "Test that buffers are named correctly."
   (cl-letf (((symbol-function 'beads-command-execute)
-             (lambda (&rest _) (vector)))
-            ((symbol-function 'beads-blocked-issue-from-json)
-             (lambda (json)
-               (beads-blocked-issue
-                :id (or (alist-get 'id json) "")
-                :title (or (alist-get 'title json) "")
-                :status (or (alist-get 'status json) "open")
-                :priority (or (alist-get 'priority json) 2))))
-            ((symbol-function 'beads-issue-from-json)
-             (lambda (json)
-               (beads-issue
-                :id (or (alist-get 'id json) "")
-                :title (or (alist-get 'title json) "")
-                :status (or (alist-get 'status json) "open")
-                :priority (or (alist-get 'priority json) 2))))
+             (lambda (&rest _)
+               ;; Return empty vector of issues
+               (beads-test--mock-command-result (vector))))
             ((symbol-function 'beads-check-executable)
              (lambda () t)))
     ;; Note: beads-list now shows transient menu, not immediate buffer
@@ -114,7 +102,7 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-multiple-buffers ()
   "Test that multiple list buffers can coexist."
   (cl-letf (((symbol-function 'beads-command-execute)
-             (lambda (&rest _) (vector)))
+             (lambda (&rest _) (beads-test--mock-command-result (vector))))
             ((symbol-function 'beads-check-executable)
              (lambda () t)))
     ;; Use beads-ready and beads-blocked instead of beads-list
@@ -138,15 +126,15 @@ ISSUES should be a list of alists (test data format)."
          (entry (beads-list--issue-to-entry issue)))
     (should (equal (car entry) "bd-1"))
     (should (vectorp (cadr entry)))
-    (should (= (length (cadr entry)) 7))
+    (should (= (length (cadr entry)) 8))
     ;; Check ID column
     (should (equal (aref (cadr entry) 0) "bd-1"))
-    ;; Check title column
-    (should (equal (aref (cadr entry) 4) "First issue"))
-    ;; Check created column exists
-    (should (stringp (aref (cadr entry) 5)))
-    ;; Check updated column exists
-    (should (stringp (aref (cadr entry) 6)))))
+    ;; Check title column (index 5, after Agent column)
+    (should (equal (aref (cadr entry) 5) "First issue"))
+    ;; Check created column exists (index 6)
+    (should (stringp (aref (cadr entry) 6)))
+    ;; Check updated column exists (index 7)
+    (should (stringp (aref (cadr entry) 7)))))
 
 (ert-deftest beads-list-test-populate-buffer ()
   "Test populating buffer with issues."
@@ -322,7 +310,8 @@ ISSUES should be a list of alists (test data format)."
     (cl-letf (((symbol-function 'beads-command-execute)
                (lambda (&rest _)
                  (setq call-count (1+ call-count))
-                 (apply #'vector (mapcar #'beads-issue-from-json beads-list-test--sample-issues)))))
+                 (beads-test--mock-command-result
+                  (apply #'vector (mapcar #'beads-issue-from-json beads-list-test--sample-issues))))))
       (beads-list-test--with-temp-buffer
        beads-list-test--sample-issues 'list
        (beads-list-refresh)
@@ -333,7 +322,8 @@ ISSUES should be a list of alists (test data format)."
   "Test that refresh preserves cursor position."
   (cl-letf (((symbol-function 'beads-command-execute)
              (lambda (&rest _)
-               (apply #'vector (mapcar #'beads-issue-from-json beads-list-test--sample-issues)))))
+               (beads-test--mock-command-result
+                (apply #'vector (mapcar #'beads-issue-from-json beads-list-test--sample-issues))))))
     (beads-list-test--with-temp-buffer
      beads-list-test--sample-issues 'list
      (goto-char (point-min))
@@ -345,7 +335,7 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-refresh-empty-result ()
   "Test refresh with empty result."
   (cl-letf (((symbol-function 'beads-command-execute)
-             (lambda (&rest _) nil)))
+             (lambda (&rest _) (beads-test--mock-command-result nil))))
     (beads-list-test--with-temp-buffer
      beads-list-test--sample-issues 'list
      (beads-list-refresh)
@@ -405,20 +395,17 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-ready-command ()
   "Test beads-ready command."
   (cl-letf (((symbol-function 'beads-command-execute)
-             (lambda (cmd &rest _)
-               (if (equal cmd "ready")
-                   (apply #'vector (list (car beads-list-test--sample-issues)))
-                 (vector))))
-            ((symbol-function 'beads-issue-from-json)
-             (lambda (json)
-               ;; Convert alist to beads-issue object
-               (beads-issue
-                :id (alist-get 'id json)
-                :title (alist-get 'title json)
-                :status (alist-get 'status json)
-                :priority (alist-get 'priority json)
-                :issue-type (alist-get 'issue-type json)
-                :created-at (alist-get 'created-at json))))
+             (lambda (_cmd &rest _)
+               ;; Return issue objects, not raw alists
+               (let ((alist (car beads-list-test--sample-issues)))
+                 (beads-test--mock-command-result
+                  (vector (beads-issue
+                           :id (alist-get 'id alist)
+                           :title (alist-get 'title alist)
+                           :status (alist-get 'status alist)
+                           :priority (alist-get 'priority alist)
+                           :issue-type (alist-get 'issue-type alist)
+                           :created-at (alist-get 'created-at alist)))))))
             ((symbol-function 'beads-check-executable)
              (lambda () t)))
     (beads-ready)
@@ -429,20 +416,17 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-blocked-command ()
   "Test beads-blocked command."
   (cl-letf (((symbol-function 'beads-command-execute)
-             (lambda (cmd &rest _)
-               (if (equal cmd "blocked")
-                   (apply #'vector (list (caddr beads-list-test--sample-issues)))
-                 (vector))))
-            ((symbol-function 'beads-blocked-issue-from-json)
-             (lambda (json)
-               ;; Convert alist to beads-blocked-issue object
-               (beads-blocked-issue
-                :id (alist-get 'id json)
-                :title (alist-get 'title json)
-                :status (alist-get 'status json)
-                :priority (alist-get 'priority json)
-                :issue-type (alist-get 'issue-type json)
-                :created-at (alist-get 'created-at json))))
+             (lambda (_cmd &rest _)
+               ;; Return issue objects, not raw alists
+               (let ((alist (caddr beads-list-test--sample-issues)))
+                 (beads-test--mock-command-result
+                  (vector (beads-blocked-issue
+                           :id (alist-get 'id alist)
+                           :title (alist-get 'title alist)
+                           :status (alist-get 'status alist)
+                           :priority (alist-get 'priority alist)
+                           :issue-type (alist-get 'issue-type alist)
+                           :created-at (alist-get 'created-at alist)))))))
             ((symbol-function 'beads-check-executable)
              (lambda () t)))
     (beads-blocked)
@@ -650,14 +634,15 @@ ISSUES should be a list of alists (test data format)."
   "Test that all required columns are present."
   (with-temp-buffer
     (beads-list-mode)
-    (should (= (length tabulated-list-format) 7))
+    (should (= (length tabulated-list-format) 8))
     (should (equal (car (aref tabulated-list-format 0)) "ID"))
     (should (equal (car (aref tabulated-list-format 1)) "Type"))
     (should (equal (car (aref tabulated-list-format 2)) "Status"))
     (should (equal (car (aref tabulated-list-format 3)) "Priority"))
-    (should (equal (car (aref tabulated-list-format 4)) "Title"))
-    (should (equal (car (aref tabulated-list-format 5)) "Created"))
-    (should (equal (car (aref tabulated-list-format 6)) "Updated"))))
+    (should (equal (car (aref tabulated-list-format 4)) "Agents"))
+    (should (equal (car (aref tabulated-list-format 5)) "Title"))
+    (should (equal (car (aref tabulated-list-format 6)) "Created"))
+    (should (equal (car (aref tabulated-list-format 7)) "Updated"))))
 
 ;;; Date Formatting Tests
 
@@ -756,10 +741,10 @@ ISSUES should be a list of alists (test data format)."
         (alist (car beads-list-test--sample-issues))
         (issue (beads-list-test--alist-to-issue (car beads-list-test--sample-issues))))
     (let ((entry (beads-list--issue-to-entry issue)))
-      ;; Created should be in column 5 (6th element, 0-indexed)
-      (should (stringp (aref (cadr entry) 5)))
+      ;; Created should be in column 6 (7th element, 0-indexed)
+      (should (stringp (aref (cadr entry) 6)))
       (should (string-match-p "2025-10-20"
-                              (aref (cadr entry) 5))))))
+                              (aref (cadr entry) 6))))))
 
 (ert-deftest beads-list-test-sort-by-created ()
   "Test sorting issues by creation date."
@@ -791,7 +776,7 @@ ISSUES should be a list of alists (test data format)."
             (issue (beads-list-test--alist-to-issue alist))
             (entry (beads-list--issue-to-entry issue)))
        (should (string-match-p "[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}"
-                               (aref (cadr entry) 5)))))))
+                               (aref (cadr entry) 6)))))))
 
 (ert-deftest beads-list-test-integration-created-width-custom ()
   "Integration test: Created column width is customizable."
@@ -799,7 +784,7 @@ ISSUES should be a list of alists (test data format)."
   (let ((beads-list-created-width 20))
     (with-temp-buffer
       (beads-list-mode)
-      (let ((format (aref tabulated-list-format 5)))
+      (let ((format (aref tabulated-list-format 6)))
         (should (equal (car format) "Created"))
         (should (= (cadr format) 20))))))
 
@@ -976,6 +961,128 @@ ISSUES should be a list of alists (test data format)."
     ;; List mode should be active
     (should (eq major-mode 'beads-list-mode))))
 
+;;; Agent Status Indicator Tests
+
+(ert-deftest beads-list-test-agent-faces-defined ()
+  "Test that all agent status faces are defined."
+  (should (facep 'beads-list-agent-working))
+  (should (facep 'beads-list-agent-finished))
+  (should (facep 'beads-list-agent-failed)))
+
+(ert-deftest beads-list-test-format-agent-no-activity ()
+  "Test format-agent returns empty string when no agent activity."
+  (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+             (lambda (_id) nil))
+            ((symbol-function 'beads-agent--get-issue-outcome)
+             (lambda (_id) nil)))
+    (should (equal (beads-list--format-agent "bd-1") ""))))
+
+(ert-deftest beads-list-test-format-agent-working ()
+  "Test format-agent shows just type letter for single agent."
+  (let ((mock-session (list 'mock-session)))
+    (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+               (lambda (_id) mock-session))
+              ((symbol-function 'beads-agent--get-issue-outcome)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent-session-type-name)
+               (lambda (_session) "Task"))
+              ((symbol-function 'beads-agent--session-instance-number)
+               (lambda (_session) 1)))
+      (let ((result (beads-list--format-agent "bd-1")))
+        ;; Single agent shows just letter, no instance number
+        (should (string= (substring-no-properties result) "T"))
+        (should (eq (get-text-property 0 'face result)
+                    'beads-list-agent-working))
+        ;; Verify help-echo tooltip mentions agent count
+        (should (string-match-p "1 agent"
+                                (get-text-property 0 'help-echo result)))))))
+
+(ert-deftest beads-list-test-format-agent-working-no-backend-name ()
+  "Test format-agent shows fallback circle when no type name (single agent)."
+  (let ((mock-session (list 'mock-session)))
+    (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+               (lambda (_id) mock-session))
+              ((symbol-function 'beads-agent--get-issue-outcome)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent-session-type-name)
+               (lambda (_session) nil))
+              ((symbol-function 'beads-agent--session-instance-number)
+               (lambda (_session) 1)))
+      (let ((result (beads-list--format-agent "bd-1")))
+        ;; Single agent shows just fallback circle, no instance number
+        (should (string= (substring-no-properties result) "●"))
+        (should (eq (get-text-property 0 'face result)
+                    'beads-list-agent-working))
+        (should (get-text-property 0 'help-echo result))))))
+
+(ert-deftest beads-list-test-format-agent-finished ()
+  "Test format-agent shows green circle when agent finished."
+  (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+             (lambda (_id) nil))
+            ((symbol-function 'beads-agent--get-issue-outcome)
+             (lambda (_id) 'finished)))
+    (let ((result (beads-list--format-agent "bd-1")))
+      (should (string= (substring-no-properties result) "●"))
+      (should (eq (get-text-property 0 'face result)
+                  'beads-list-agent-finished))
+      (should (string-match-p "finished"
+                              (get-text-property 0 'help-echo result))))))
+
+(ert-deftest beads-list-test-format-agent-failed ()
+  "Test format-agent shows red circle when agent failed."
+  (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+             (lambda (_id) nil))
+            ((symbol-function 'beads-agent--get-issue-outcome)
+             (lambda (_id) 'failed)))
+    (let ((result (beads-list--format-agent "bd-1")))
+      (should (string= (substring-no-properties result) "●"))
+      (should (eq (get-text-property 0 'face result)
+                  'beads-list-agent-failed))
+      (should (string-match-p "failed"
+                              (get-text-property 0 'help-echo result))))))
+
+(ert-deftest beads-list-test-format-agent-active-takes-priority ()
+  "Test format-agent shows working status even if outcome exists.
+Active session should take priority over previous outcome."
+  (let ((mock-session (list 'mock-session)))
+    (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+               (lambda (_id) mock-session))
+              ((symbol-function 'beads-agent--get-issue-outcome)
+               (lambda (_id) '("T" . finished)))  ; Previous outcome exists
+              ((symbol-function 'beads-agent-session-type-name)
+               (lambda (_session) "Review")))
+      (let ((result (beads-list--format-agent "bd-1")))
+        ;; Single agent shows just letter, no instance number
+        (should (string= (substring-no-properties result) "R"))
+        (should (eq (get-text-property 0 'face result)
+                    'beads-list-agent-working))))))
+
+(ert-deftest beads-list-test-format-agent-multiple-sessions ()
+  "Test format-agent shows per-type instance numbers for duplicate types."
+  (let ((mock-sessions (list 'session1 'session2 'session3))
+        (session-types '(("session1" . "Task")
+                         ("session2" . "Review")
+                         ("session3" . "Task"))))
+    (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+               (lambda (_id) mock-sessions))
+              ((symbol-function 'beads-agent--get-issue-outcome)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent-session-type-name)
+               (lambda (session)
+                 (cdr (assoc (symbol-name session) session-types)))))
+      (let ((result (beads-list--format-agent "bd-1")))
+        ;; Task appears twice, so shows per-type instance numbers: T#1 and T#2
+        (should (string-match-p "T#1" result))
+        (should (string-match-p "T#2" result))
+        ;; Review appears once, so just "R" without instance number
+        (should (string-match-p "R" result))
+        (should-not (string-match-p "R#" result))
+        ;; Multiple agents use / separator
+        (should (string-match-p "/" result))
+        ;; Help-echo should mention 3 agents
+        (should (string-match-p "3 agents"
+                                (get-text-property 0 'help-echo result)))))))
+
 ;;; Footer
 
 ;;; Transient Menu Integration Tests
@@ -1001,10 +1108,14 @@ Tests that executing with mocked transient-args creates a list buffer."
              (lambda () t))
             ((symbol-function 'beads-command-execute)
              (lambda (cmd &rest _args)
-               (if (cl-typep cmd 'beads-command-list)
-                   (mapcar #'beads-list-test--alist-to-issue
-                           beads-list-test--sample-issues)
-                 nil))))
+               ;; Set data on the passed-in command object
+               (oset cmd data
+                     (if (cl-typep cmd 'beads-command-list)
+                         (apply #'vector
+                                (mapcar #'beads-list-test--alist-to-issue
+                                        beads-list-test--sample-issues))
+                       nil))
+               cmd)))
     ;; Mock transient-args and call the execute suffix directly
     (beads-test-with-transient-args 'beads-list nil
       (beads-list--transient-execute))
@@ -1041,6 +1152,221 @@ Tests that the preview command shows the bd command that would be executed."
 ;; mocking. Basic transient functionality is covered by other transient tests
 ;; (beads-list-test-transient-menu-displays, beads-list-test-transient-menu-executes).
 ;; Filter functionality is tested via beads-list--parse-transient-args unit tests.
+
+;;; Agent Indicator Formatting Tests
+
+(ert-deftest beads-list-test-format-agent-indicator-nil-type-name ()
+  "Test that nil type-name produces fallback indicator."
+  (let ((result (beads-list--format-agent-indicator nil 1 'beads-list-agent-working)))
+    ;; Should use "●" as fallback when type-name is nil
+    (should (stringp result))
+    (should (string-match-p "●" result))
+    ;; Face should be applied
+    (should (eq (get-text-property 0 'face result) 'beads-list-agent-working))))
+
+(ert-deftest beads-list-test-format-agent-indicator-valid-type-name ()
+  "Test that valid type-name produces first letter indicator."
+  (let ((result (beads-list--format-agent-indicator "Task" 1 'beads-list-agent-working)))
+    ;; Should use "T" from "Task"
+    (should (string-match-p "T" result))
+    ;; Should include instance number
+    (should (string-match-p "#1" result))))
+
+(ert-deftest beads-list-test-format-agent-indicator-brief-mode ()
+  "Test that brief mode omits instance number."
+  (let ((result (beads-list--format-agent-indicator "Review" 2 'beads-list-agent-finished t)))
+    ;; Should just be "R" in brief mode
+    (should (equal result (propertize "R" 'face 'beads-list-agent-finished)))))
+
+(ert-deftest beads-list-test-format-agent-indicator-nil-instance ()
+  "Test that nil instance number produces letter-only indicator."
+  (let ((result (beads-list--format-agent-indicator "QA" nil 'beads-list-agent-failed)))
+    ;; Should just be "Q" when instance is nil
+    (should (string-match-p "Q" result))
+    (should-not (string-match-p "#" result))))
+
+(ert-deftest beads-list-test-format-agent-indicator-nil-both ()
+  "Test that nil type-name with nil instance produces fallback."
+  (let ((result (beads-list--format-agent-indicator nil nil 'beads-list-agent-working)))
+    ;; Should use "●" fallback
+    (should (string-match-p "●" result))
+    ;; No instance number
+    (should-not (string-match-p "#" result))))
+
+;;; =========================================================================
+;;; Directory-Aware Buffer Identity Tests (beads.el-n3lv)
+;;; =========================================================================
+;;
+;; These tests verify the directory-aware buffer identity model.
+;; Key principle: Directory is identity, branch is metadata.
+;; Same project-dir → same buffer, regardless of branch.
+
+(ert-deftest beads-list-test-find-buffer-for-project-not-found ()
+  "Test finding buffer when none exists for the project."
+  (should (null (beads-list--find-buffer-for-project 'list "/nonexistent"))))
+
+(ert-deftest beads-list-test-find-buffer-for-project-found ()
+  "Test finding existing buffer by project directory."
+  (let ((test-buffer (generate-new-buffer "*beads-list-test*")))
+    (unwind-protect
+        (with-current-buffer test-buffer
+          (beads-list-mode)
+          (setq beads-list--project-dir "/tmp/test-project")
+          (setq beads-list--command 'list)
+          ;; Should find our buffer
+          (should (eq (beads-list--find-buffer-for-project 'list "/tmp/test-project")
+                      test-buffer))
+          ;; Should NOT find buffer for different directory
+          (should (null (beads-list--find-buffer-for-project 'list "/other/project")))
+          ;; Should NOT find buffer for different command type
+          (should (null (beads-list--find-buffer-for-project 'ready "/tmp/test-project"))))
+      (kill-buffer test-buffer))))
+
+(ert-deftest beads-list-test-find-buffer-normalizes-directory ()
+  "Test that buffer lookup normalizes directory paths."
+  ;; Use /tmp which is guaranteed to exist
+  (let ((test-buffer (generate-new-buffer "*beads-list-test*")))
+    (unwind-protect
+        (with-current-buffer test-buffer
+          (beads-list-mode)
+          ;; Store with trailing slash
+          (setq beads-list--project-dir "/tmp/")
+          (setq beads-list--command 'list)
+          ;; Should match even without trailing slash
+          (should (eq (beads-list--find-buffer-for-project 'list "/tmp")
+                      test-buffer)))
+      (kill-buffer test-buffer))))
+
+(ert-deftest beads-list-test-get-or-create-buffer-creates-new ()
+  "Test get-or-create-buffer creates new buffer when none exists."
+  (let (created-buffer)
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
+                   (lambda () "/tmp/new-project"))
+                  ((symbol-function 'beads-git-get-branch)
+                   (lambda () "main"))
+                  ((symbol-function 'beads-git-get-project-name)
+                   (lambda () "new-project")))
+          (setq created-buffer (beads-list--get-or-create-buffer 'list))
+          (should (bufferp created-buffer))
+          (with-current-buffer created-buffer
+            (should (equal beads-list--project-dir "/tmp/new-project"))
+            (should (equal beads-list--branch "main"))
+            (should (equal beads-list--proj-name "new-project"))))
+      (when (and created-buffer (buffer-live-p created-buffer))
+        (kill-buffer created-buffer)))))
+
+(ert-deftest beads-list-test-get-or-create-buffer-reuses-existing ()
+  "Test get-or-create-buffer reuses buffer for same project directory."
+  (let ((test-buffer (generate-new-buffer "*beads-list*")))
+    (unwind-protect
+        (progn
+          (with-current-buffer test-buffer
+            (beads-list-mode)
+            (setq beads-list--project-dir "/tmp/existing-project")
+            (setq beads-list--command 'list))
+          (cl-letf (((symbol-function 'beads-git-find-project-root)
+                     (lambda () "/tmp/existing-project"))
+                    ((symbol-function 'beads-git-get-branch)
+                     (lambda () "feature"))
+                    ((symbol-function 'beads-git-get-project-name)
+                     (lambda () "existing-project")))
+            ;; Should return the existing buffer
+            (should (eq (beads-list--get-or-create-buffer 'list) test-buffer))))
+      (kill-buffer test-buffer))))
+
+(ert-deftest beads-list-test-same-dir-different-branch-same-buffer ()
+  "Test that same directory with different branch uses same buffer.
+This is the CRITICAL behavioral test for directory-as-identity."
+  (let ((test-buffer (generate-new-buffer "*beads-list*")))
+    (unwind-protect
+        (progn
+          (with-current-buffer test-buffer
+            (beads-list-mode)
+            (setq beads-list--project-dir "/tmp/project")
+            (setq beads-list--branch "main")
+            (setq beads-list--command 'list))
+          ;; Simulate branch switch - branch changes but directory doesn't
+          (cl-letf (((symbol-function 'beads-git-find-project-root)
+                     (lambda () "/tmp/project"))
+                    ((symbol-function 'beads-git-get-branch)
+                     (lambda () "feature"))  ; Different branch!
+                    ((symbol-function 'beads-git-get-project-name)
+                     (lambda () "project")))
+            ;; CRITICAL: Should return SAME buffer (same directory)
+            (let ((result (beads-list--get-or-create-buffer 'list)))
+              (should (eq result test-buffer)))))
+      (kill-buffer test-buffer))))
+
+(ert-deftest beads-list-test-different-dir-same-branch-different-buffer ()
+  "Test that different directories create different buffers.
+Even if they have the same branch name."
+  (let ((buffer1 (generate-new-buffer "*beads-list-1*"))
+        (buffer2 nil))
+    (unwind-protect
+        (progn
+          (with-current-buffer buffer1
+            (beads-list-mode)
+            (setq beads-list--project-dir "/tmp/project1")
+            (setq beads-list--branch "main")
+            (setq beads-list--command 'list))
+          ;; Create buffer for different directory
+          (cl-letf (((symbol-function 'beads-git-find-project-root)
+                     (lambda () "/tmp/project2"))  ; Different directory!
+                    ((symbol-function 'beads-git-get-branch)
+                     (lambda () "main"))  ; Same branch
+                    ((symbol-function 'beads-git-get-project-name)
+                     (lambda () "project2")))
+            ;; Should create NEW buffer (different directory)
+            (setq buffer2 (beads-list--get-or-create-buffer 'list))
+            (should (bufferp buffer2))
+            (should-not (eq buffer1 buffer2))))
+      (kill-buffer buffer1)
+      (when (and buffer2 (buffer-live-p buffer2))
+        (kill-buffer buffer2)))))
+
+(ert-deftest beads-list-test-different-buffer-types-same-project ()
+  "Test that different buffer types (list, ready, blocked) create separate buffers."
+  (let ((list-buffer (generate-new-buffer "*beads-list*"))
+        (ready-buffer nil))
+    (unwind-protect
+        (progn
+          (with-current-buffer list-buffer
+            (beads-list-mode)
+            (setq beads-list--project-dir "/tmp/project")
+            (setq beads-list--command 'list))
+          (cl-letf (((symbol-function 'beads-git-find-project-root)
+                     (lambda () "/tmp/project"))
+                    ((symbol-function 'beads-git-get-branch)
+                     (lambda () "main"))
+                    ((symbol-function 'beads-git-get-project-name)
+                     (lambda () "project")))
+            ;; Should create NEW buffer for 'ready (different type)
+            (setq ready-buffer (beads-list--get-or-create-buffer 'ready))
+            (should (bufferp ready-buffer))
+            (should-not (eq list-buffer ready-buffer))))
+      (kill-buffer list-buffer)
+      (when (and ready-buffer (buffer-live-p ready-buffer))
+        (kill-buffer ready-buffer)))))
+
+(ert-deftest beads-list-test-buffer-local-variables-preserved ()
+  "Test that buffer-local variables are set correctly."
+  (let (created-buffer)
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
+                   (lambda () "/home/user/code/my-project"))
+                  ((symbol-function 'beads-git-get-branch)
+                   (lambda () "feature-branch"))
+                  ((symbol-function 'beads-git-get-project-name)
+                   (lambda () "my-project")))
+          (setq created-buffer (beads-list--get-or-create-buffer 'ready))
+          (with-current-buffer created-buffer
+            ;; Verify all variables set
+            (should (equal beads-list--project-dir "/home/user/code/my-project"))
+            (should (equal beads-list--branch "feature-branch"))
+            (should (equal beads-list--proj-name "my-project"))))
+      (when (and created-buffer (buffer-live-p created-buffer))
+        (kill-buffer created-buffer)))))
 
 (provide 'beads-list-test)
 ;;; beads-list-test.el ends here

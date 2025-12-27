@@ -397,6 +397,7 @@ When working on an issue:
    b. Run linter: `guix shell -D -f guix.scm -- eldev -p -dtT lint`
    c. Run compiler: `guix shell -D -f guix.scm -- eldev -p -dtT compile`
    d. **ALL THREE MUST PASS** - Fix any failures immediately
+   e. Test the feature in a live Emacs session. Start a new emacs server and test the feature with emacsclient against the server.
 5. Repeat steps 3-4 until feature is complete and all checks pass
 6. Commit changes with descriptive message (only after all checks pass)
 7. Push branch to GitHub: `git push -u origin beads.el-X-short-description`

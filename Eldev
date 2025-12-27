@@ -106,6 +106,8 @@ ORIG-FN is the original function, STATS is the test statistics."
 ;; which is only available in NonGNU ELPA.
 (eldev-add-extra-dependencies 'runtime
                               '(:package transient :version "0.10.1"))
+(eldev-add-extra-dependencies 'runtime
+                              '(:package sesman :version "0.3.2"))
 
 ;; Development dependencies using extended dependency format
 (eldev-add-extra-dependencies 'test
@@ -116,7 +118,7 @@ ORIG-FN is the original function, STATS is the test statistics."
 ;; Exclude worktree, share, and reference directories from everything
 (setf eldev-standard-excludes
       `(:or ,eldev-standard-excludes "worktree/**" "share/**"
-            "transient-reference/**" "beads-reference/**"))
+            "transient-reference/**" "beads-reference/**" "efrit-reference/**"))
 
 ;; Test files location
 (setf eldev-test-fileset '("lisp/test/*.el"))
