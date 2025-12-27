@@ -150,14 +150,6 @@ Returns the path to the main repo, not the worktree."
           (substring dir 0 -6)  ; Remove /.git/
         dir))))
 
-(defun beads-git-in-linked-worktree-p ()
-  "Return non-nil if current directory is inside a git linked worktree.
-Distinguishes between the main working tree and linked worktrees."
-  (let ((toplevel (beads-git-command "rev-parse" "--show-toplevel"))
-        (main-root (beads-git-main-repo-root)))
-    (and toplevel main-root
-         (not (file-equal-p toplevel main-root)))))
-
 (defun beads-git-should-use-worktree-p (issue-id)
   "Determine whether to use a worktree for ISSUE-ID.
 Resolves the value of `beads-agent-use-worktrees':
@@ -321,26 +313,6 @@ CALLBACK receives (success worktree-path-or-error)."
            ;; Always kill buffer, even on error
            (when (buffer-live-p output-buffer)
              (kill-buffer output-buffer))))))))
-
-;;; Compatibility Aliases
-;;
-;; These aliases provide backwards compatibility during migration.
-;; They should be removed in a future release.
-
-(define-obsolete-function-alias 'beads--find-project-root
-  'beads-git-find-project-root "0.5.0")
-
-(define-obsolete-function-alias 'beads--get-project-name
-  'beads-git-get-project-name "0.5.0")
-
-(define-obsolete-function-alias 'beads--get-git-branch
-  'beads-git-get-branch "0.5.0")
-
-(define-obsolete-function-alias 'beads--in-git-worktree-p
-  'beads-git-in-worktree-p "0.5.0")
-
-(define-obsolete-function-alias 'beads--find-main-repo-from-worktree
-  'beads-git-find-main-repo "0.5.0")
 
 (provide 'beads-git)
 
