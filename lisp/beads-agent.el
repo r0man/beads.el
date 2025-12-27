@@ -180,20 +180,9 @@ delimiter is found."
 ;;; Git Worktree Support
 ;;
 ;; These functions are aliases to beads-git.el.
-;; They maintain the beads-agent-- prefix for backward compatibility.
 
-(defalias 'beads-agent--git-command 'beads-git-command)
-(defalias 'beads-agent--git-command-async 'beads-git-command-async)
-(defalias 'beads-agent--main-repo-root 'beads-git-main-repo-root)
-(defalias 'beads-agent--in-worktree-p 'beads-git-in-linked-worktree-p)
 (defalias 'beads-agent--should-use-worktree-p 'beads-git-should-use-worktree-p)
-(defalias 'beads-agent--list-worktrees 'beads-git-list-worktrees)
-(defalias 'beads-agent--find-worktree-for-issue 'beads-git-find-worktree-for-issue)
-(defalias 'beads-agent--worktree-path-for-issue 'beads-git-worktree-path-for-issue)
-(defalias 'beads-agent--create-worktree 'beads-git-create-worktree)
-(defalias 'beads-agent--ensure-worktree 'beads-git-ensure-worktree)
 (defalias 'beads-agent--ensure-worktree-async 'beads-git-ensure-worktree-async)
-(defalias 'beads-agent--create-worktree-async 'beads-git-create-worktree-async)
 
 ;;; Backend Selection
 

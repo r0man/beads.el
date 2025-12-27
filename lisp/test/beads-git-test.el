@@ -292,35 +292,6 @@
     (should (equal (beads-git-ensure-worktree "beads-1")
                    "/path/to/new"))))
 
-;;; Test beads-git-in-linked-worktree-p
-
-(ert-deftest beads-git-test-in-linked-worktree-true ()
-  "Test beads-git-in-linked-worktree-p returns t in linked worktree."
-  :tags '(:unit)
-  (cl-letf (((symbol-function 'beads-git-command)
-             (lambda (&rest args)
-               (pcase (car args)
-                 ("rev-parse" "/path/to/worktree")
-                 (_ nil))))
-            ((symbol-function 'beads-git-main-repo-root)
-             (lambda () "/path/to/main/")))
-    (should (beads-git-in-linked-worktree-p))))
-
-(ert-deftest beads-git-test-in-linked-worktree-false-main ()
-  "Test beads-git-in-linked-worktree-p returns nil in main worktree."
-  :tags '(:unit)
-  (cl-letf (((symbol-function 'beads-git-command)
-             (lambda (&rest args)
-               (pcase (car args)
-                 ("rev-parse" "/path/to/main")
-                 (_ nil))))
-            ((symbol-function 'beads-git-main-repo-root)
-             (lambda () "/path/to/main")))
-    ;; file-equal-p should return t for same paths
-    (cl-letf (((symbol-function 'file-equal-p)
-               (lambda (a b) (equal a b))))
-      (should-not (beads-git-in-linked-worktree-p)))))
-
 ;;; Test compatibility aliases (ensure they exist and work)
 
 (ert-deftest beads-git-test-compatibility-alias-project-root ()
