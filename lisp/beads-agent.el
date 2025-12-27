@@ -90,6 +90,7 @@
 (require 'beads)
 (require 'beads-command)
 (require 'beads-completion)
+(require 'beads-git)
 (require 'beads-agent-backend)
 (require 'beads-agent-type)
 (require 'beads-agent-types)
@@ -177,219 +178,22 @@ delimiter is found."
     output))
 
 ;;; Git Worktree Support
+;;
+;; These functions are aliases to beads-git.el.
+;; They maintain the beads-agent-- prefix for backward compatibility.
 
-(defun beads-agent--git-command (&rest args)
-  "Run git with ARGS and return trimmed output, or nil on error."
-  (let ((default-directory (or (beads--find-project-root)
-                               default-directory)))
-    (with-temp-buffer
-      (when (zerop (apply #'call-process "git" nil t nil args))
-        (string-trim (buffer-string))))))
-
-(defun beads-agent--git-command-async (callback &rest args)
-  "Run git with ARGS asynchronously and call CALLBACK with result.
-CALLBACK receives (success output) where success is t/nil.
-Returns the process object, which can be used to cancel the operation."
-  (let* ((default-directory (or (beads--find-project-root)
-                                default-directory))
-         (output-buffer (generate-new-buffer " *beads-git-async*")))
-    (make-process
-     :name "beads-git"
-     :buffer output-buffer
-     :command (cons "git" args)
-     :connection-type 'pipe
-     :sentinel
-     (lambda (proc _event)
-       (when (memq (process-status proc) '(exit signal))
-         (unwind-protect
-             (let ((success (zerop (process-exit-status proc)))
-                   (output (when (buffer-live-p output-buffer)
-                             (with-current-buffer output-buffer
-                               (string-trim (buffer-string))))))
-               (funcall callback success (or output "")))
-           ;; Always kill buffer, even on error
-           (when (buffer-live-p output-buffer)
-             (kill-buffer output-buffer))))))))
-
-(defun beads-agent--main-repo-root ()
-  "Find the main repository root, even from within a worktree.
-Returns the path to the main repo, not the worktree."
-  (when-let* ((git-dir (beads-agent--git-command
-                        "rev-parse" "--path-format=absolute" "--git-common-dir")))
-    ;; git-common-dir returns path to .git directory of main repo
-    ;; Strip trailing .git or /worktrees/... to get repo root
-    (let ((dir (file-name-directory (directory-file-name git-dir))))
-      (if (string-suffix-p "/.git/" dir)
-          (substring dir 0 -6)  ; Remove /.git/
-        dir))))
-
-(defun beads-agent--in-worktree-p ()
-  "Return non-nil if current directory is inside a git worktree.
-Distinguishes between the main working tree and linked worktrees."
-  (let ((toplevel (beads-agent--git-command "rev-parse" "--show-toplevel"))
-        (main-root (beads-agent--main-repo-root)))
-    (and toplevel main-root
-         (not (file-equal-p toplevel main-root)))))
-
-(defun beads-agent--should-use-worktree-p (issue-id)
-  "Determine whether to use a worktree for ISSUE-ID.
-Resolves the value of `beads-agent-use-worktrees':
-- t: Return t (always use worktrees)
-- nil: Return nil (never use worktrees)
-- \\='ask: Prompt the user and return their choice"
-  (pcase beads-agent-use-worktrees
-    ('t t)
-    ('nil nil)
-    ('ask
-     (yes-or-no-p (format "Use git worktree for agent on %s? " issue-id)))
-    ;; Unknown value: treat as truthy for backwards compatibility
-    (_ (and beads-agent-use-worktrees t))))
-
-(defun beads-agent--list-worktrees ()
-  "Return list of (path branch) pairs for all worktrees."
-  (when-let* ((output (beads-agent--git-command "worktree" "list" "--porcelain")))
-    (let ((worktrees nil)
-          (current-path nil)
-          (current-branch nil))
-      (dolist (line (split-string output "\n" t))
-        (cond
-         ((string-prefix-p "worktree " line)
-          ;; Save previous worktree if we have one
-          (when current-path
-            (push (list current-path current-branch) worktrees))
-          (setq current-path (substring line 9))
-          (setq current-branch nil))
-         ((string-prefix-p "branch " line)
-          (setq current-branch
-                (replace-regexp-in-string
-                 "^refs/heads/" "" (substring line 7))))))
-      ;; Save last worktree
-      (when current-path
-        (push (list current-path current-branch) worktrees))
-      (nreverse worktrees))))
-
-(defun beads-agent--find-worktree-for-issue (issue-id)
-  "Find existing worktree for ISSUE-ID.
-Returns the worktree path or nil if not found."
-  (let ((worktrees (beads-agent--list-worktrees)))
-    (cl-loop for (path branch) in worktrees
-             when (or (string-suffix-p (concat "/" issue-id) path)
-                      (equal branch issue-id))
-             return path)))
-
-(defun beads-agent--worktree-path-for-issue (issue-id)
-  "Calculate the worktree path for ISSUE-ID.
-Does not check if it exists."
-  (let* ((main-root (beads-agent--main-repo-root))
-         (parent (or beads-agent-worktree-parent
-                     (file-name-directory (directory-file-name main-root)))))
-    (expand-file-name issue-id parent)))
-
-(defun beads-agent--create-worktree (issue-id)
-  "Create a git worktree for ISSUE-ID.
-Creates a new branch based on the current HEAD.
-Returns the worktree path on success, signals error on failure."
-  (let* ((worktree-path (beads-agent--worktree-path-for-issue issue-id))
-         (main-root (beads-agent--main-repo-root))
-         (default-directory main-root))
-    ;; Check if path already exists
-    (when (file-exists-p worktree-path)
-      (error "Worktree path already exists: %s" worktree-path))
-    ;; Create worktree with new branch
-    (with-temp-buffer
-      (let ((exit-code (call-process "git" nil t nil
-                                     "worktree" "add"
-                                     "-b" issue-id
-                                     worktree-path)))
-        (unless (zerop exit-code)
-          ;; Branch might already exist, try without -b
-          (erase-buffer)
-          (setq exit-code (call-process "git" nil t nil
-                                        "worktree" "add"
-                                        worktree-path
-                                        issue-id))
-          (unless (zerop exit-code)
-            (error "Failed to create worktree: %s" (buffer-string))))))
-    (message "Created worktree for %s at %s" issue-id worktree-path)
-    worktree-path))
-
-(defun beads-agent--ensure-worktree (issue-id)
-  "Ensure a worktree exists for ISSUE-ID.
-Creates one if it doesn't exist.  Returns the worktree path."
-  (or (beads-agent--find-worktree-for-issue issue-id)
-      (beads-agent--create-worktree issue-id)))
-
-(defun beads-agent--ensure-worktree-async (issue-id callback)
-  "Ensure a worktree exists for ISSUE-ID asynchronously.
-CALLBACK receives (success worktree-path-or-error)."
-  (if-let ((existing (beads-agent--find-worktree-for-issue issue-id)))
-      ;; Worktree already exists
-      (funcall callback t existing)
-    ;; Need to create worktree
-    (beads-agent--create-worktree-async issue-id callback)))
-
-(defun beads-agent--create-worktree-async (issue-id callback)
-  "Create a git worktree for ISSUE-ID asynchronously.
-CALLBACK receives (success worktree-path-or-error)."
-  (let* ((worktree-path (beads-agent--worktree-path-for-issue issue-id))
-         (main-root (beads-agent--main-repo-root))
-         (default-directory main-root))
-    ;; Check if path already exists
-    (if (file-exists-p worktree-path)
-        (funcall callback nil (format "Worktree path already exists: %s" worktree-path))
-      ;; Create worktree with new branch
-      (let ((output-buffer (generate-new-buffer " *beads-worktree*")))
-        (make-process
-         :name "beads-worktree"
-         :buffer output-buffer
-         :command (list "git" "worktree" "add" "-b" issue-id worktree-path)
-         :connection-type 'pipe
-         :sentinel
-         (lambda (proc _event)
-           (when (memq (process-status proc) '(exit signal))
-             (unwind-protect
-                 (let ((success (zerop (process-exit-status proc))))
-                   (if success
-                       ;; Worktree created - uses shared database from main repo
-                       (progn
-                         (message "Created worktree for %s at %s" issue-id worktree-path)
-                         (funcall callback t worktree-path))
-                     ;; Branch might already exist, try without -b
-                     (beads-agent--create-worktree-existing-branch-async
-                      issue-id worktree-path callback)))
-               ;; Always kill buffer, even on error
-               (when (buffer-live-p output-buffer)
-                 (kill-buffer output-buffer))))))))))
-
-(defun beads-agent--create-worktree-existing-branch-async (issue-id worktree-path callback)
-  "Create worktree for existing branch ISSUE-ID at WORKTREE-PATH.
-CALLBACK receives (success worktree-path-or-error)."
-  (let* ((main-root (beads-agent--main-repo-root))
-         (default-directory main-root)
-         (output-buffer (generate-new-buffer " *beads-worktree*")))
-    (make-process
-     :name "beads-worktree"
-     :buffer output-buffer
-     :command (list "git" "worktree" "add" worktree-path issue-id)
-     :connection-type 'pipe
-     :sentinel
-     (lambda (proc _event)
-       (when (memq (process-status proc) '(exit signal))
-         (unwind-protect
-             (let ((success (zerop (process-exit-status proc)))
-                   (output (when (buffer-live-p output-buffer)
-                             (with-current-buffer output-buffer
-                               (string-trim (buffer-string))))))
-               (if success
-                   ;; Worktree created - uses shared database from main repo
-                   (progn
-                     (message "Created worktree for %s at %s" issue-id worktree-path)
-                     (funcall callback t worktree-path))
-                 (funcall callback nil (format "Failed to create worktree: %s"
-                                               (or output "unknown error")))))
-           ;; Always kill buffer, even on error
-           (when (buffer-live-p output-buffer)
-             (kill-buffer output-buffer))))))))
+(defalias 'beads-agent--git-command 'beads-git-command)
+(defalias 'beads-agent--git-command-async 'beads-git-command-async)
+(defalias 'beads-agent--main-repo-root 'beads-git-main-repo-root)
+(defalias 'beads-agent--in-worktree-p 'beads-git-in-linked-worktree-p)
+(defalias 'beads-agent--should-use-worktree-p 'beads-git-should-use-worktree-p)
+(defalias 'beads-agent--list-worktrees 'beads-git-list-worktrees)
+(defalias 'beads-agent--find-worktree-for-issue 'beads-git-find-worktree-for-issue)
+(defalias 'beads-agent--worktree-path-for-issue 'beads-git-worktree-path-for-issue)
+(defalias 'beads-agent--create-worktree 'beads-git-create-worktree)
+(defalias 'beads-agent--ensure-worktree 'beads-git-ensure-worktree)
+(defalias 'beads-agent--ensure-worktree-async 'beads-git-ensure-worktree-async)
+(defalias 'beads-agent--create-worktree-async 'beads-git-create-worktree-async)
 
 ;;; Backend Selection
 
@@ -624,7 +428,7 @@ background with progress messages displayed in the echo area."
                       (or (beads-agent--get-backend backend-name)
                           (user-error "Backend not found: %s" backend-name))
                     (beads-agent--select-backend agent-type)))
-         (project-dir (beads--find-project-root)))
+         (project-dir (beads-git-find-project-root)))
     ;; Start the async workflow
     (message "Starting %s agent for %s..."
              (oref agent-type name)
@@ -1463,7 +1267,7 @@ If no agent exists, shows a message."
   "Get the current directory-bound session for the project.
 Looks for sessions matching the current project directory.
 Returns the most recent session if multiple exist, or nil if none."
-  (when-let ((project-dir (or (beads--find-project-root)
+  (when-let ((project-dir (or (beads-git-find-project-root)
                                default-directory)))
     (let ((sessions (beads-agent--get-sessions-for-project project-dir)))
       (car sessions))))  ; Most recent session
@@ -1578,8 +1382,8 @@ Returns a cons cell (BRANCH . IN-WORKTREE)."
       (cons (nth 1 beads-agent--mode-line-cache)
             (nth 2 beads-agent--mode-line-cache))
     ;; Cache miss - fetch and store
-    (let ((branch (beads--get-git-branch))
-          (in-worktree (beads--in-git-worktree-p)))
+    (let ((branch (beads-git-get-branch))
+          (in-worktree (beads-git-in-worktree-p)))
       (setq beads-agent--mode-line-cache
             (list default-directory branch in-worktree (float-time)))
       (cons branch in-worktree))))
@@ -1595,7 +1399,7 @@ Returns a plist with keys:
   :agent-instance - Agent instance number or nil
 
 Git branch and worktree status are cached for performance."
-  (let* ((project-name (beads--get-project-name))
+  (let* ((project-name (beads-git-get-project-name))
          (git-info (beads-agent--mode-line-cached-git-info))
          (branch (car git-info))
          (in-worktree (cdr git-info))

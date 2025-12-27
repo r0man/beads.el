@@ -2169,11 +2169,11 @@ Note: Notes cannot be set at creation time, only via update."
   "Test get-or-create-buffer creates new buffer when none exists."
   (let (created-buffer)
     (unwind-protect
-        (cl-letf (((symbol-function 'beads--find-project-root)
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
                    (lambda () "/tmp/new-project"))
-                  ((symbol-function 'beads--get-git-branch)
+                  ((symbol-function 'beads-git-get-branch)
                    (lambda () "main"))
-                  ((symbol-function 'beads--get-project-name)
+                  ((symbol-function 'beads-git-get-project-name)
                    (lambda () "new-project")))
           (setq created-buffer (beads-show--get-or-create-buffer "bd-new"))
           (should (bufferp created-buffer))
@@ -2193,11 +2193,11 @@ Note: Notes cannot be set at creation time, only via update."
             (beads-show-mode)
             (setq beads-show--issue-id "bd-42")
             (setq beads-show--project-dir "/tmp/existing-project"))
-          (cl-letf (((symbol-function 'beads--find-project-root)
+          (cl-letf (((symbol-function 'beads-git-find-project-root)
                      (lambda () "/tmp/existing-project"))
-                    ((symbol-function 'beads--get-git-branch)
+                    ((symbol-function 'beads-git-get-branch)
                      (lambda () "feature"))
-                    ((symbol-function 'beads--get-project-name)
+                    ((symbol-function 'beads-git-get-project-name)
                      (lambda () "existing-project")))
             ;; Should return the existing buffer
             (should (eq (beads-show--get-or-create-buffer "bd-42") test-buffer))))
@@ -2214,11 +2214,11 @@ Note: Notes cannot be set at creation time, only via update."
             (setq beads-show--issue-id "bd-42")
             (setq beads-show--project-dir "/tmp/project1"))
           ;; Create buffer for different project
-          (cl-letf (((symbol-function 'beads--find-project-root)
+          (cl-letf (((symbol-function 'beads-git-find-project-root)
                      (lambda () "/tmp/project2"))
-                    ((symbol-function 'beads--get-git-branch)
+                    ((symbol-function 'beads-git-get-branch)
                      (lambda () "main"))
-                    ((symbol-function 'beads--get-project-name)
+                    ((symbol-function 'beads-git-get-project-name)
                      (lambda () "project2")))
             ;; Should create NEW buffer (different project)
             (setq buffer2 (beads-show--get-or-create-buffer "bd-42"))
@@ -2240,11 +2240,11 @@ This is the CRITICAL behavioral test for directory-as-identity."
             (setq beads-show--project-dir "/tmp/project")
             (setq beads-show--branch "main"))
           ;; Simulate branch switch - branch changes but directory doesn't
-          (cl-letf (((symbol-function 'beads--find-project-root)
+          (cl-letf (((symbol-function 'beads-git-find-project-root)
                      (lambda () "/tmp/project"))
-                    ((symbol-function 'beads--get-git-branch)
+                    ((symbol-function 'beads-git-get-branch)
                      (lambda () "feature"))  ; Different branch!
-                    ((symbol-function 'beads--get-project-name)
+                    ((symbol-function 'beads-git-get-project-name)
                      (lambda () "project")))
             ;; CRITICAL: Should return SAME buffer (same directory)
             (let ((result (beads-show--get-or-create-buffer "bd-42")))
@@ -2255,11 +2255,11 @@ This is the CRITICAL behavioral test for directory-as-identity."
   "Test that buffer-local variables are set correctly on creation."
   (let (created-buffer)
     (unwind-protect
-        (cl-letf (((symbol-function 'beads--find-project-root)
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
                    (lambda () "/home/user/code/my-project"))
-                  ((symbol-function 'beads--get-git-branch)
+                  ((symbol-function 'beads-git-get-branch)
                    (lambda () "feature-branch"))
-                  ((symbol-function 'beads--get-project-name)
+                  ((symbol-function 'beads-git-get-project-name)
                    (lambda () "my-project")))
           (setq created-buffer (beads-show--get-or-create-buffer "bd-test"))
           (with-current-buffer created-buffer
@@ -2282,11 +2282,11 @@ This is the CRITICAL behavioral test for directory-as-identity."
   (let ((test-buffer (generate-new-buffer "*beads-show-test*"))
         (beads-sesman--worktree-sessions nil))
     (unwind-protect
-        (cl-letf (((symbol-function 'beads--find-project-root)
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
                    (lambda () "/tmp/test-project"))
-                  ((symbol-function 'beads--get-git-branch)
+                  ((symbol-function 'beads-git-get-branch)
                    (lambda () "main"))
-                  ((symbol-function 'beads--get-project-name)
+                  ((symbol-function 'beads-git-get-project-name)
                    (lambda () "test-project")))
           (with-current-buffer test-buffer
             (beads-show-mode)
@@ -2306,11 +2306,11 @@ Empty sessions are automatically cleaned up."
   (let ((test-buffer (generate-new-buffer "*beads-show-test*"))
         (beads-sesman--worktree-sessions nil))
     (unwind-protect
-        (cl-letf (((symbol-function 'beads--find-project-root)
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
                    (lambda () "/tmp/test-project"))
-                  ((symbol-function 'beads--get-git-branch)
+                  ((symbol-function 'beads-git-get-branch)
                    (lambda () "main"))
-                  ((symbol-function 'beads--get-project-name)
+                  ((symbol-function 'beads-git-get-project-name)
                    (lambda () "test-project")))
           (with-current-buffer test-buffer
             (beads-show-mode)
@@ -2337,11 +2337,11 @@ Empty sessions are automatically cleaned up."
         (buffer2 (generate-new-buffer "*beads-show-test-2*"))
         (beads-sesman--worktree-sessions nil))
     (unwind-protect
-        (cl-letf (((symbol-function 'beads--find-project-root)
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
                    (lambda () "/tmp/test-project"))
-                  ((symbol-function 'beads--get-git-branch)
+                  ((symbol-function 'beads-git-get-branch)
                    (lambda () "main"))
-                  ((symbol-function 'beads--get-project-name)
+                  ((symbol-function 'beads-git-get-project-name)
                    (lambda () "test-project")))
           ;; Register first buffer
           (with-current-buffer buffer1
@@ -2368,11 +2368,11 @@ Empty sessions are automatically cleaned up."
   (let ((test-buffer (generate-new-buffer "*beads-show-test*"))
         (beads-sesman--worktree-sessions nil))
     (unwind-protect
-        (cl-letf (((symbol-function 'beads--find-project-root)
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
                    (lambda () "/tmp/test-project"))
-                  ((symbol-function 'beads--get-git-branch)
+                  ((symbol-function 'beads-git-get-branch)
                    (lambda () "main"))
-                  ((symbol-function 'beads--get-project-name)
+                  ((symbol-function 'beads-git-get-project-name)
                    (lambda () "test-project")))
           (with-current-buffer test-buffer
             (beads-show-mode)
@@ -2397,11 +2397,11 @@ Empty sessions are automatically cleaned up."
         (buffer2 (generate-new-buffer "*beads-show-test-2*"))
         (beads-sesman--worktree-sessions nil))
     (unwind-protect
-        (cl-letf (((symbol-function 'beads--find-project-root)
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
                    (lambda () "/tmp/test-project"))
-                  ((symbol-function 'beads--get-git-branch)
+                  ((symbol-function 'beads-git-get-branch)
                    (lambda () "main"))
-                  ((symbol-function 'beads--get-project-name)
+                  ((symbol-function 'beads-git-get-project-name)
                    (lambda () "test-project")))
           ;; Register both buffers
           (dolist (buf (list buffer1 buffer2))
@@ -2427,11 +2427,11 @@ Empty sessions are automatically cleaned up."
   (let ((test-buffer (generate-new-buffer "*beads-show-test*"))
         (beads-sesman--worktree-sessions nil))
     (unwind-protect
-        (cl-letf (((symbol-function 'beads--find-project-root)
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
                    (lambda () "/tmp/test-project"))
-                  ((symbol-function 'beads--get-git-branch)
+                  ((symbol-function 'beads-git-get-branch)
                    (lambda () "main"))
-                  ((symbol-function 'beads--get-project-name)
+                  ((symbol-function 'beads-git-get-project-name)
                    (lambda () "test-project")))
           (with-current-buffer test-buffer
             (beads-show-mode)
