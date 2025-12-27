@@ -29,82 +29,111 @@
 
 (ert-deftest beads-agent-claude-code-test-find-buffers-main-buffer ()
   "Test finding main Claude buffer (no instance name)."
-  (let ((test-buf (generate-new-buffer "*claude:~/workspace/test/*")))
+  ;; Use expanded path to work on any machine, not just developer's
+  (let* ((test-dir (file-name-as-directory
+                    (expand-file-name "workspace/test/" (getenv "HOME"))))
+         (abbreviated (abbreviate-file-name test-dir))
+         (buf-name (format "*claude:%s*" abbreviated))
+         (test-buf (generate-new-buffer buf-name)))
     (unwind-protect
-        (let ((found (beads-agent-claude-code--find-buffers
-                      "/home/roman/workspace/test/")))
+        (let ((found (beads-agent-claude-code--find-buffers test-dir)))
           (should (= 1 (length found)))
-          (should (equal (buffer-name (car found)) "*claude:~/workspace/test/*")))
+          (should (equal (buffer-name (car found)) buf-name)))
       (kill-buffer test-buf))))
 
 (ert-deftest beads-agent-claude-code-test-find-buffers-without-trailing-slash ()
   "Test that input without trailing slash still finds buffers."
-  (let ((test-buf (generate-new-buffer "*claude:~/workspace/test/*")))
+  (let* ((test-dir (file-name-as-directory
+                    (expand-file-name "workspace/test/" (getenv "HOME"))))
+         (test-dir-no-slash (directory-file-name test-dir))
+         (abbreviated (abbreviate-file-name test-dir))
+         (buf-name (format "*claude:%s*" abbreviated))
+         (test-buf (generate-new-buffer buf-name)))
     (unwind-protect
-        (let ((found (beads-agent-claude-code--find-buffers
-                      "/home/roman/workspace/test")))
+        (let ((found (beads-agent-claude-code--find-buffers test-dir-no-slash)))
           (should (= 1 (length found)))
-          (should (equal (buffer-name (car found)) "*claude:~/workspace/test/*")))
+          (should (equal (buffer-name (car found)) buf-name)))
       (kill-buffer test-buf))))
 
 (ert-deftest beads-agent-claude-code-test-find-buffers-instance-buffer ()
   "Test finding Claude buffer with instance name."
-  (let ((test-buf (generate-new-buffer "*claude:~/workspace/test/:my-instance*")))
+  (let* ((test-dir (file-name-as-directory
+                    (expand-file-name "workspace/test/" (getenv "HOME"))))
+         (abbreviated (abbreviate-file-name test-dir))
+         (buf-name (format "*claude:%s:my-instance*" abbreviated))
+         (test-buf (generate-new-buffer buf-name)))
     (unwind-protect
-        (let ((found (beads-agent-claude-code--find-buffers
-                      "/home/roman/workspace/test/")))
+        (let ((found (beads-agent-claude-code--find-buffers test-dir)))
           (should (= 1 (length found)))
-          (should (equal (buffer-name (car found))
-                         "*claude:~/workspace/test/:my-instance*")))
+          (should (equal (buffer-name (car found)) buf-name)))
       (kill-buffer test-buf))))
 
 (ert-deftest beads-agent-claude-code-test-find-buffers-multiple ()
   "Test finding multiple Claude buffers for same directory."
-  (let ((buf1 (generate-new-buffer "*claude:~/workspace/test/*"))
-        (buf2 (generate-new-buffer "*claude:~/workspace/test/:tests*"))
-        (buf3 (generate-new-buffer "*claude:~/workspace/test/:dev*")))
+  (let* ((test-dir (file-name-as-directory
+                    (expand-file-name "workspace/test/" (getenv "HOME"))))
+         (abbreviated (abbreviate-file-name test-dir))
+         (main-buf-name (format "*claude:%s*" abbreviated))
+         (tests-buf-name (format "*claude:%s:tests*" abbreviated))
+         (dev-buf-name (format "*claude:%s:dev*" abbreviated))
+         (buf1 (generate-new-buffer main-buf-name))
+         (buf2 (generate-new-buffer tests-buf-name))
+         (buf3 (generate-new-buffer dev-buf-name)))
     (unwind-protect
-        (let ((found (beads-agent-claude-code--find-buffers
-                      "/home/roman/workspace/test/")))
+        (let ((found (beads-agent-claude-code--find-buffers test-dir)))
           (should (= 3 (length found)))
-          (should (member "*claude:~/workspace/test/*"
-                          (mapcar #'buffer-name found)))
-          (should (member "*claude:~/workspace/test/:tests*"
-                          (mapcar #'buffer-name found)))
-          (should (member "*claude:~/workspace/test/:dev*"
-                          (mapcar #'buffer-name found))))
+          (should (member main-buf-name (mapcar #'buffer-name found)))
+          (should (member tests-buf-name (mapcar #'buffer-name found)))
+          (should (member dev-buf-name (mapcar #'buffer-name found))))
       (kill-buffer buf1)
       (kill-buffer buf2)
       (kill-buffer buf3))))
 
 (ert-deftest beads-agent-claude-code-test-find-buffers-different-projects ()
   "Test that we don't find buffers from other projects."
-  (let ((our-buf (generate-new-buffer "*claude:~/workspace/test/*"))
-        (other-buf (generate-new-buffer "*claude:~/workspace/other/*")))
+  (let* ((test-dir (file-name-as-directory
+                    (expand-file-name "workspace/test/" (getenv "HOME"))))
+         (other-dir (file-name-as-directory
+                     (expand-file-name "workspace/other/" (getenv "HOME"))))
+         (test-abbreviated (abbreviate-file-name test-dir))
+         (other-abbreviated (abbreviate-file-name other-dir))
+         (our-buf-name (format "*claude:%s*" test-abbreviated))
+         (other-buf-name (format "*claude:%s*" other-abbreviated))
+         (our-buf (generate-new-buffer our-buf-name))
+         (other-buf (generate-new-buffer other-buf-name)))
     (unwind-protect
-        (let ((found (beads-agent-claude-code--find-buffers
-                      "/home/roman/workspace/test/")))
+        (let ((found (beads-agent-claude-code--find-buffers test-dir)))
           (should (= 1 (length found)))
-          (should (equal (buffer-name (car found)) "*claude:~/workspace/test/*")))
+          (should (equal (buffer-name (car found)) our-buf-name)))
       (kill-buffer our-buf)
       (kill-buffer other-buf))))
 
 (ert-deftest beads-agent-claude-code-test-find-buffers-no-match ()
   "Test that we return nil when no matching buffers exist."
-  (let ((other-buf (generate-new-buffer "*claude:~/workspace/other/*")))
+  (let* ((test-dir (file-name-as-directory
+                    (expand-file-name "workspace/test/" (getenv "HOME"))))
+         (other-dir (file-name-as-directory
+                     (expand-file-name "workspace/other/" (getenv "HOME"))))
+         (other-abbreviated (abbreviate-file-name other-dir))
+         (other-buf-name (format "*claude:%s*" other-abbreviated))
+         (other-buf (generate-new-buffer other-buf-name)))
     (unwind-protect
-        (let ((found (beads-agent-claude-code--find-buffers
-                      "/home/roman/workspace/test/")))
+        (let ((found (beads-agent-claude-code--find-buffers test-dir)))
           (should (null found)))
       (kill-buffer other-buf))))
 
 (ert-deftest beads-agent-claude-code-test-find-buffers-similar-prefix ()
   "Test that similar directory prefixes don't cause false matches."
   ;; Buffer for /workspace/test-extended should NOT match /workspace/test
-  (let ((extended-buf (generate-new-buffer "*claude:~/workspace/test-extended/*")))
+  (let* ((test-dir (file-name-as-directory
+                    (expand-file-name "workspace/test/" (getenv "HOME"))))
+         (extended-dir (file-name-as-directory
+                        (expand-file-name "workspace/test-extended/" (getenv "HOME"))))
+         (extended-abbreviated (abbreviate-file-name extended-dir))
+         (extended-buf-name (format "*claude:%s*" extended-abbreviated))
+         (extended-buf (generate-new-buffer extended-buf-name)))
     (unwind-protect
-        (let ((found (beads-agent-claude-code--find-buffers
-                      "/home/roman/workspace/test/")))
+        (let ((found (beads-agent-claude-code--find-buffers test-dir)))
           (should (null found)))
       (kill-buffer extended-buf))))
 
