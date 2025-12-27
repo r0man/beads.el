@@ -74,7 +74,7 @@ Returns cached version if available, otherwise queries bd."
   "Get current project root and database path.
 Returns cons cell (PROJECT-ROOT . DB-PATH) or nil if not in project."
   (or beads-main--cached-project-info
-      (let ((root (beads--find-project-root))
+      (let ((root (beads-git-find-project-root))
             (db (beads--get-database-path)))
         (when root
           (let ((info (cons root db)))

@@ -295,9 +295,9 @@ ISSUE is a beads-issue EIEIO object."
   :documentation "Custom agent type with user-provided prompt.
 Prompts the user for a prompt string via the minibuffer.")
 
-(defvar beads-agent-type-custom--last-prompt nil
-  "Last prompt used for Custom agent type.
-Stored for history during minibuffer prompt.")
+(defvar beads-agent-type-custom--prompt-history nil
+  "History list for Custom agent prompts.
+Used by `completing-read' for prompt history navigation.")
 
 (cl-defmethod beads-agent-type-build-prompt ((_type beads-agent-type-custom)
                                               issue)
@@ -308,10 +308,10 @@ ISSUE is a beads-issue EIEIO object."
          (issue-desc (or (oref issue description) ""))
          (user-prompt (read-string
                        (format "Custom prompt for %s: " issue-id)
-                       beads-agent-type-custom--last-prompt)))
+                       nil  ; initial-input
+                       'beads-agent-type-custom--prompt-history)))
     (when (string-empty-p user-prompt)
       (user-error "Custom prompt cannot be empty"))
-    (setq beads-agent-type-custom--last-prompt user-prompt)
     (format "%s\n\n## Issue: %s\n\n**Title:** %s\n\n**Description:**\n%s"
             user-prompt issue-id issue-title issue-desc)))
 

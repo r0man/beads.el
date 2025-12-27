@@ -577,7 +577,7 @@ SESSION-NUM is the session number (defaults to auto-incrementing counter)."
   "Test sesman-session-info includes git branch in directory info."
   (beads-sesman-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'beads--get-git-branch)
+      (cl-letf (((symbol-function 'beads-git-get-branch)
                  (lambda () "feature-branch"))
                 ((symbol-function 'file-directory-p)
                  (lambda (_dir) t)))
@@ -600,7 +600,7 @@ SESSION-NUM is the session number (defaults to auto-incrementing counter)."
   "Test sesman-session-info shows worktree with git branch."
   (beads-sesman-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'beads--get-git-branch)
+      (cl-letf (((symbol-function 'beads-git-get-branch)
                  (lambda () "wt-branch"))
                 ((symbol-function 'file-directory-p)
                  (lambda (_dir) t)))
@@ -624,7 +624,7 @@ SESSION-NUM is the session number (defaults to auto-incrementing counter)."
   "Test sesman-session-info with all fields populated."
   (beads-sesman-test--setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'beads--get-git-branch)
+      (cl-letf (((symbol-function 'beads-git-get-branch)
                  (lambda () "main"))
                 ((symbol-function 'file-directory-p)
                  (lambda (_dir) t)))
@@ -756,13 +756,13 @@ SESSION-NUM is the session number (defaults to auto-incrementing counter)."
 
 (ert-deftest beads-sesman-test-project ()
   "Test sesman-project returns project root."
-  (cl-letf (((symbol-function 'beads--find-project-root)
+  (cl-letf (((symbol-function 'beads-git-find-project-root)
              (lambda () "/path/to/project")))
     (should (equal (sesman-project beads-sesman-system) "/path/to/project"))))
 
 (ert-deftest beads-sesman-test-project-nil ()
   "Test sesman-project handles nil project root."
-  (cl-letf (((symbol-function 'beads--find-project-root)
+  (cl-letf (((symbol-function 'beads-git-find-project-root)
              (lambda () nil)))
     (should (null (sesman-project beads-sesman-system)))))
 
@@ -1172,7 +1172,8 @@ This can happen if session name changed between registration and
 unregistration (e.g., path normalization differences)."
   (beads-sesman-test--setup)
   (unwind-protect
-      (let ((warning-logged nil))
+      (let ((warning-logged nil)
+            (beads-enable-debug t))  ; Enable debug to see warning
         (cl-letf (((symbol-function 'sesman-session)
                    (lambda (_system _name)
                      ;; Simulate session not found
@@ -1187,7 +1188,7 @@ unregistration (e.g., path normalization differences)."
                        (setq warning-logged t)))))
           ;; Should not error when session not found
           (beads-sesman--unregister-session beads-sesman-test--mock-session)
-          ;; Should have logged a warning
+          ;; Should have logged a warning (only when debug enabled)
           (should warning-logged)))
     (beads-sesman-test--teardown)))
 
@@ -1306,7 +1307,7 @@ unregistration (e.g., path normalization differences)."
                   :project-dir "/tmp/test"
                   :proj-name "test"
                   :branch "old-branch")))
-    (cl-letf (((symbol-function 'beads--get-git-branch)
+    (cl-letf (((symbol-function 'beads-git-get-branch)
                (lambda () "new-branch")))
       (beads-worktree-session-refresh-branch session)
       (should (equal (oref session branch) "new-branch")))))
@@ -1318,7 +1319,7 @@ unregistration (e.g., path normalization differences)."
                   :project-dir "/tmp/test"
                   :proj-name "test"
                   :branch "old-branch")))
-    (cl-letf (((symbol-function 'beads--get-git-branch)
+    (cl-letf (((symbol-function 'beads-git-get-branch)
                (lambda () nil)))
       (beads-worktree-session-refresh-branch session)
       (should (null (oref session branch))))))
@@ -1359,7 +1360,7 @@ unregistration (e.g., path normalization differences)."
   "Test creating new worktree session."
   (beads-sesman-test--worktree-setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'beads--get-git-branch)
+      (cl-letf (((symbol-function 'beads-git-get-branch)
                  (lambda () "main")))
         (let* ((dir "/tmp/new-project")
                (session (beads-sesman--create-worktree-session dir)))
@@ -1375,9 +1376,9 @@ unregistration (e.g., path normalization differences)."
   "Test ensure-worktree-session creates new session when none exists."
   (beads-sesman-test--worktree-setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'beads--find-project-root)
+      (cl-letf (((symbol-function 'beads-git-find-project-root)
                  (lambda () "/tmp/project"))
-                ((symbol-function 'beads--get-git-branch)
+                ((symbol-function 'beads-git-get-branch)
                  (lambda () "feature")))
         (let ((session (beads-sesman--ensure-worktree-session)))
           (should (beads-worktree-session-p session))
@@ -1388,9 +1389,9 @@ unregistration (e.g., path normalization differences)."
   "Test ensure-worktree-session reuses existing session."
   (beads-sesman-test--worktree-setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'beads--find-project-root)
+      (cl-letf (((symbol-function 'beads-git-find-project-root)
                  (lambda () "/tmp/project"))
-                ((symbol-function 'beads--get-git-branch)
+                ((symbol-function 'beads-git-get-branch)
                  (lambda () "main")))
         ;; Create first session
         (let ((session1 (beads-sesman--ensure-worktree-session)))
@@ -1406,14 +1407,14 @@ unregistration (e.g., path normalization differences)."
   "Test ensure-worktree-session creates different sessions for different dirs."
   (beads-sesman-test--worktree-setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'beads--get-git-branch)
+      (cl-letf (((symbol-function 'beads-git-get-branch)
                  (lambda () "main")))
         ;; Create session for dir1
-        (cl-letf (((symbol-function 'beads--find-project-root)
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
                    (lambda () "/tmp/project1")))
           (beads-sesman--ensure-worktree-session))
         ;; Create session for dir2
-        (cl-letf (((symbol-function 'beads--find-project-root)
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
                    (lambda () "/tmp/project2")))
           (beads-sesman--ensure-worktree-session))
         ;; Should have two sessions
@@ -1488,14 +1489,14 @@ This is the CRITICAL behavioral test for the directory-as-identity model."
   (unwind-protect
       (let ((dir "/tmp/project"))
         ;; Create session on 'main' branch
-        (cl-letf (((symbol-function 'beads--find-project-root)
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
                    (lambda () dir))
-                  ((symbol-function 'beads--get-git-branch)
+                  ((symbol-function 'beads-git-get-branch)
                    (lambda () "main")))
           (let ((session1 (beads-sesman--ensure-worktree-session)))
             (should (equal (oref session1 branch) "main"))
             ;; Simulate branch switch - branch changes but directory doesn't
-            (cl-letf (((symbol-function 'beads--get-git-branch)
+            (cl-letf (((symbol-function 'beads-git-get-branch)
                        (lambda () "feature")))
               ;; Ensure session should return SAME session (same directory)
               (let ((session2 (beads-sesman--ensure-worktree-session)))
@@ -1511,14 +1512,14 @@ This is the CRITICAL behavioral test for the directory-as-identity model."
 Even if they have the same branch name."
   (beads-sesman-test--worktree-setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'beads--get-git-branch)
+      (cl-letf (((symbol-function 'beads-git-get-branch)
                  (lambda () "main")))
         ;; Create session for dir1
-        (cl-letf (((symbol-function 'beads--find-project-root)
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
                    (lambda () "/tmp/project1")))
           (let ((session1 (beads-sesman--ensure-worktree-session)))
             ;; Create session for dir2
-            (cl-letf (((symbol-function 'beads--find-project-root)
+            (cl-letf (((symbol-function 'beads-git-find-project-root)
                        (lambda () "/tmp/project2")))
               (let ((session2 (beads-sesman--ensure-worktree-session)))
                 ;; CRITICAL: Different session objects
@@ -1532,19 +1533,19 @@ Even if they have the same branch name."
   "Test that worktrees (different directories) get separate sessions."
   (beads-sesman-test--worktree-setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'beads--get-git-branch)
+      (cl-letf (((symbol-function 'beads-git-get-branch)
                  (lambda ()
                    ;; Return branch based on directory
                    (if (string-match-p "worktree" default-directory)
                        "feature"
                      "main"))))
         ;; Create session for main repo
-        (cl-letf (((symbol-function 'beads--find-project-root)
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
                    (lambda () "/tmp/project")))
           (let ((main-session (beads-sesman--ensure-worktree-session)))
             (should (equal (oref main-session proj-name) "project"))
             ;; Create session for worktree (different directory!)
-            (cl-letf (((symbol-function 'beads--find-project-root)
+            (cl-letf (((symbol-function 'beads-git-find-project-root)
                        (lambda () "/tmp/project-worktree/feature")))
               (let ((worktree-session (beads-sesman--ensure-worktree-session)))
                 ;; Different sessions (different directories)
@@ -1565,11 +1566,11 @@ Even if they have the same branch name."
   "Test that adding agent session creates/uses worktree session."
   (beads-sesman-test--worktree-setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'beads--find-project-root)
+      (cl-letf (((symbol-function 'beads-git-find-project-root)
                  (lambda () "/tmp/test-project"))
-                ((symbol-function 'beads--get-git-branch)
+                ((symbol-function 'beads-git-get-branch)
                  (lambda () "main"))
-                ((symbol-function 'beads--get-project-name)
+                ((symbol-function 'beads-git-get-project-name)
                  (lambda () "test-project")))
         (let ((agent-session (beads-agent-session
                               :id "test#1"
@@ -1589,11 +1590,11 @@ Even if they have the same branch name."
   "Test that removing agent session cleans up properly."
   (beads-sesman-test--worktree-setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'beads--find-project-root)
+      (cl-letf (((symbol-function 'beads-git-find-project-root)
                  (lambda () "/tmp/test-project"))
-                ((symbol-function 'beads--get-git-branch)
+                ((symbol-function 'beads-git-get-branch)
                  (lambda () "main"))
-                ((symbol-function 'beads--get-project-name)
+                ((symbol-function 'beads-git-get-project-name)
                  (lambda () "test-project")))
         (let ((agent-session (beads-agent-session
                               :id "test#1"
@@ -1615,11 +1616,11 @@ Even if they have the same branch name."
   "Test that multiple agents can be in the same worktree session."
   (beads-sesman-test--worktree-setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'beads--find-project-root)
+      (cl-letf (((symbol-function 'beads-git-find-project-root)
                  (lambda () "/tmp/test-project"))
-                ((symbol-function 'beads--get-git-branch)
+                ((symbol-function 'beads-git-get-branch)
                  (lambda () "main"))
-                ((symbol-function 'beads--get-project-name)
+                ((symbol-function 'beads-git-get-project-name)
                  (lambda () "test-project")))
         (let ((agent1 (beads-agent-session
                        :id "test#1"
@@ -1648,11 +1649,11 @@ Even if they have the same branch name."
   "Test getting agent sessions for a project directory."
   (beads-sesman-test--worktree-setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'beads--find-project-root)
+      (cl-letf (((symbol-function 'beads-git-find-project-root)
                  (lambda () "/tmp/test-project"))
-                ((symbol-function 'beads--get-git-branch)
+                ((symbol-function 'beads-git-get-branch)
                  (lambda () "main"))
-                ((symbol-function 'beads--get-project-name)
+                ((symbol-function 'beads-git-get-project-name)
                  (lambda () "test-project")))
         (let ((agent (beads-agent-session
                       :id "test#1"
@@ -1673,11 +1674,11 @@ Even if they have the same branch name."
   "Test finding worktree session by agent."
   (beads-sesman-test--worktree-setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'beads--find-project-root)
+      (cl-letf (((symbol-function 'beads-git-find-project-root)
                  (lambda () "/tmp/test-project"))
-                ((symbol-function 'beads--get-git-branch)
+                ((symbol-function 'beads-git-get-branch)
                  (lambda () "main"))
-                ((symbol-function 'beads--get-project-name)
+                ((symbol-function 'beads-git-get-project-name)
                  (lambda () "test-project")))
         (let ((agent (beads-agent-session
                       :id "test#1"
@@ -1695,11 +1696,11 @@ Even if they have the same branch name."
   "Test that removing one agent doesn't affect others in session."
   (beads-sesman-test--worktree-setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'beads--find-project-root)
+      (cl-letf (((symbol-function 'beads-git-find-project-root)
                  (lambda () "/tmp/test-project"))
-                ((symbol-function 'beads--get-git-branch)
+                ((symbol-function 'beads-git-get-branch)
                  (lambda () "main"))
-                ((symbol-function 'beads--get-project-name)
+                ((symbol-function 'beads-git-get-project-name)
                  (lambda () "test-project")))
         (let ((agent1 (beads-agent-session
                        :id "test#1"
@@ -1728,11 +1729,11 @@ Even if they have the same branch name."
   "Test that adding same agent twice doesn't duplicate in session."
   (beads-sesman-test--worktree-setup)
   (unwind-protect
-      (cl-letf (((symbol-function 'beads--find-project-root)
+      (cl-letf (((symbol-function 'beads-git-find-project-root)
                  (lambda () "/tmp/test-project"))
-                ((symbol-function 'beads--get-git-branch)
+                ((symbol-function 'beads-git-get-branch)
                  (lambda () "main"))
-                ((symbol-function 'beads--get-project-name)
+                ((symbol-function 'beads-git-get-project-name)
                  (lambda () "test-project")))
         (let ((agent (beads-agent-session
                       :id "test#1"

@@ -883,7 +883,7 @@ Both formats are now syntactically identical: [NAME][TYPE#N]."
           (push (list (oref session id) 'handle session)
                 beads-agent-test--sesman-sessions)
           ;; Focus on an issue
-          (cl-letf (((symbol-function 'beads--find-project-root)
+          (cl-letf (((symbol-function 'beads-git-find-project-root)
                      (lambda () "/home/user/myproject")))
             (beads-agent-focus-issue "bd-001")
             ;; Verify current-issue is set
@@ -905,7 +905,7 @@ Both formats are now syntactically identical: [NAME][TYPE#N]."
           (push (list (oref session id) 'handle session)
                 beads-agent-test--sesman-sessions)
           ;; Clear focus
-          (cl-letf (((symbol-function 'beads--find-project-root)
+          (cl-letf (((symbol-function 'beads-git-find-project-root)
                      (lambda () "/home/user/myproject")))
             (beads-agent-clear-focus)
             ;; Verify current-issue is nil
@@ -930,7 +930,7 @@ Both formats are now syntactically identical: [NAME][TYPE#N]."
           (push (list (oref session id) 'handle session)
                 beads-agent-test--sesman-sessions)
           ;; Show touched - verify it doesn't error
-          (cl-letf (((symbol-function 'beads--find-project-root)
+          (cl-letf (((symbol-function 'beads-git-find-project-root)
                      (lambda () "/home/user/myproject")))
             ;; Capture the message output
             (let ((messages nil))
@@ -1106,20 +1106,20 @@ Both formats are now syntactically identical: [NAME][TYPE#N]."
   "Test worktree path calculation."
   (let ((beads-agent-worktree-parent nil))
     ;; Mock main repo root
-    (cl-letf (((symbol-function 'beads-agent--main-repo-root)
+    (cl-letf (((symbol-function 'beads-git-main-repo-root)
                (lambda () "/home/user/projects/myrepo")))
       ;; Worktree should be sibling to repo
-      (should (equal (beads-agent--worktree-path-for-issue "bd-123")
+      (should (equal (beads-git-worktree-path-for-issue "bd-123")
                      "/home/user/projects/bd-123")))))
 
 (ert-deftest beads-agent-test-worktree-path-custom-parent ()
   "Test worktree path calculation with custom parent."
   (let ((beads-agent-worktree-parent "/tmp/worktrees"))
     ;; Mock main repo root
-    (cl-letf (((symbol-function 'beads-agent--main-repo-root)
+    (cl-letf (((symbol-function 'beads-git-main-repo-root)
                (lambda () "/home/user/projects/myrepo")))
       ;; Worktree should be under custom parent
-      (should (equal (beads-agent--worktree-path-for-issue "bd-456")
+      (should (equal (beads-git-worktree-path-for-issue "bd-456")
                      "/tmp/worktrees/bd-456")))))
 
 ;;; =========================================================================
@@ -3005,11 +3005,11 @@ Each type maintains its own instance counter per project."
   (unwind-protect
       (let ((default-directory "/tmp")
             (beads-agent--mode-line-cache nil))  ; Clear cache for test
-        (cl-letf (((symbol-function 'beads--get-project-name)
+        (cl-letf (((symbol-function 'beads-git-get-project-name)
                    (lambda () nil))
-                  ((symbol-function 'beads--get-git-branch)
+                  ((symbol-function 'beads-git-get-branch)
                    (lambda () nil))
-                  ((symbol-function 'beads--in-git-worktree-p)
+                  ((symbol-function 'beads-git-in-worktree-p)
                    (lambda () nil))
                   ((symbol-function 'beads-agent--get-current-project-session)
                    (lambda () nil)))
@@ -3025,11 +3025,11 @@ Each type maintains its own instance counter per project."
   (beads-agent-test--setup)
   (unwind-protect
       (let ((beads-agent--mode-line-cache nil))  ; Clear cache for test
-        (cl-letf (((symbol-function 'beads--get-project-name)
+        (cl-letf (((symbol-function 'beads-git-get-project-name)
                    (lambda () "beads.el"))
-                  ((symbol-function 'beads--get-git-branch)
+                  ((symbol-function 'beads-git-get-branch)
                    (lambda () "main"))
-                  ((symbol-function 'beads--in-git-worktree-p)
+                  ((symbol-function 'beads-git-in-worktree-p)
                    (lambda () nil))
                   ((symbol-function 'beads-agent--get-current-project-session)
                    (lambda () nil)))
@@ -3045,11 +3045,11 @@ Each type maintains its own instance counter per project."
   (beads-agent-test--setup)
   (unwind-protect
       (let ((beads-agent--mode-line-cache nil))  ; Clear cache for test
-        (cl-letf (((symbol-function 'beads--get-project-name)
+        (cl-letf (((symbol-function 'beads-git-get-project-name)
                    (lambda () "beads.el"))
-                  ((symbol-function 'beads--get-git-branch)
+                  ((symbol-function 'beads-git-get-branch)
                    (lambda () "feature-branch"))
-                  ((symbol-function 'beads--in-git-worktree-p)
+                  ((symbol-function 'beads-git-in-worktree-p)
                    (lambda () t))
                   ((symbol-function 'beads-agent--get-current-project-session)
                    (lambda () nil)))
@@ -3071,11 +3071,11 @@ Each type maintains its own instance counter per project."
                             :backend-name "mock"
                             :agent-type-name "Task"
                             :started-at (format-time-string "%Y-%m-%dT%H:%M:%S"))))
-        (cl-letf (((symbol-function 'beads--get-project-name)
+        (cl-letf (((symbol-function 'beads-git-get-project-name)
                    (lambda () "beads.el"))
-                  ((symbol-function 'beads--get-git-branch)
+                  ((symbol-function 'beads-git-get-branch)
                    (lambda () "main"))
-                  ((symbol-function 'beads--in-git-worktree-p)
+                  ((symbol-function 'beads-git-in-worktree-p)
                    (lambda () nil))
                   ((symbol-function 'beads-agent--get-current-project-session)
                    (lambda () mock-session)))
@@ -3228,11 +3228,11 @@ Each type maintains its own instance counter per project."
   (beads-agent-test--setup)
   (unwind-protect
       (let ((beads-agent--mode-line-cache nil))  ; Clear cache for test
-        (cl-letf (((symbol-function 'beads--get-project-name)
+        (cl-letf (((symbol-function 'beads-git-get-project-name)
                    (lambda () nil))
-                  ((symbol-function 'beads--get-git-branch)
+                  ((symbol-function 'beads-git-get-branch)
                    (lambda () nil))
-                  ((symbol-function 'beads--in-git-worktree-p)
+                  ((symbol-function 'beads-git-in-worktree-p)
                    (lambda () nil))
                   ((symbol-function 'beads-agent--get-current-project-session)
                    (lambda () nil)))
@@ -3245,11 +3245,11 @@ Each type maintains its own instance counter per project."
   (beads-agent-test--setup)
   (unwind-protect
       (let ((beads-agent--mode-line-cache nil))  ; Clear cache for test
-        (cl-letf (((symbol-function 'beads--get-project-name)
+        (cl-letf (((symbol-function 'beads-git-get-project-name)
                    (lambda () "test-proj"))
-                  ((symbol-function 'beads--get-git-branch)
+                  ((symbol-function 'beads-git-get-branch)
                    (lambda () "dev"))
-                  ((symbol-function 'beads--in-git-worktree-p)
+                  ((symbol-function 'beads-git-in-worktree-p)
                    (lambda () nil))
                   ((symbol-function 'beads-agent--get-current-project-session)
                    (lambda () nil)))
@@ -3339,11 +3339,11 @@ Each type maintains its own instance counter per project."
   (unwind-protect
       (let ((beads-agent--mode-line-cache nil)
             (call-count 0))
-        (cl-letf (((symbol-function 'beads--get-git-branch)
+        (cl-letf (((symbol-function 'beads-git-get-branch)
                    (lambda ()
                      (cl-incf call-count)
                      "test-branch"))
-                  ((symbol-function 'beads--in-git-worktree-p)
+                  ((symbol-function 'beads-git-in-worktree-p)
                    (lambda () t)))
           ;; First call should fetch
           (let ((result (beads-agent--mode-line-cached-git-info)))

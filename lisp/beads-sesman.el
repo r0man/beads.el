@@ -48,11 +48,12 @@
 (require 'eieio)
 (require 'sesman)
 (require 'beads-agent-backend)
+(require 'beads-custom)
 
 ;; Forward declarations
-(declare-function beads--find-project-root "beads")
-(declare-function beads--get-project-name "beads")
-(declare-function beads--get-git-branch "beads")
+(declare-function beads-git-find-project-root "beads-git")
+(declare-function beads-git-get-project-name "beads-git")
+(declare-function beads-git-get-branch "beads-git")
 (declare-function beads-agent-start "beads-agent")
 (declare-function beads-agent-stop "beads-agent")
 (declare-function beads-agent--read-issue-id "beads-agent")
@@ -143,7 +144,7 @@ An empty session can be cleaned up."
 Updates the branch slot with the current git branch.
 Does NOT affect session identity."
   (let ((default-directory (oref session project-dir)))
-    (oset session branch (beads--get-git-branch))))
+    (oset session branch (beads-git-get-branch))))
 
 (defun beads-worktree-session-add-buffer (session buffer)
   "Add BUFFER to SESSION's buffer list if not already present.
@@ -188,7 +189,7 @@ or is not a git repository."
          ;; Gracefully handle non-existent directories or non-git repos
          (branch (condition-case nil
                      (let ((default-directory normalized-dir))
-                       (beads--get-git-branch))
+                       (beads-git-get-branch))
                    (error nil)))
          (session (beads-worktree-session
                    :id session-id
@@ -201,7 +202,7 @@ or is not a git repository."
 (defun beads-sesman--ensure-worktree-session ()
   "Get or create worktree session for current context.
 Uses project root directory as identity."
-  (let ((project-dir (or (beads--find-project-root)
+  (let ((project-dir (or (beads-git-find-project-root)
                          default-directory)))
     (or (beads-sesman--session-for-directory project-dir)
         (beads-sesman--create-worktree-session project-dir))))
@@ -312,7 +313,7 @@ Stop the session then start a new one for the same issue."
 (cl-defmethod sesman-project ((_system (eql Beads)))
   "Return project root for current directory.
 Used by sesman for project-based context linking."
-  (beads--find-project-root))
+  (beads-git-find-project-root))
 
 (cl-defmethod sesman-context-types ((_system (eql Beads)))
   "Return context types understood by beads.
@@ -398,7 +399,7 @@ Display includes:
              (working-dir (or worktree-dir project-dir))
              (git-branch (when (and working-dir (file-directory-p working-dir))
                            (let ((default-directory working-dir))
-                             (ignore-errors (beads--get-git-branch))))))
+                             (ignore-errors (beads-git-get-branch))))))
         (list
          ;; :buffers is checked first by sesman-goto for jumping
          :buffers (when (and agent-buffer (buffer-live-p agent-buffer))
@@ -542,8 +543,10 @@ from attempting a redundant cleanup when the buffer is eventually killed."
     (if-let ((ses (sesman-session beads-sesman-system name)))
         (sesman-unregister beads-sesman-system ses)
       ;; Session not found by name - this is unexpected but not fatal.
-      ;; Log a warning to help debug issues in production.
-      (message "beads-sesman: session not found for unregistration: %s" name))))
+      ;; Only log in debug mode to avoid noise in normal usage.
+      (when beads-enable-debug
+        (message "beads-sesman: session not found for unregistration: %s"
+                 name)))))
 
 ;;; Hook Integration
 

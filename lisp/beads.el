@@ -32,6 +32,7 @@
 (require 'beads-command)
 (require 'beads-completion)
 (require 'beads-custom)
+(require 'beads-git)
 (require 'json)
 (require 'project)
 (require 'transient)
@@ -208,62 +209,37 @@ Enables debug logging if not already enabled."
     (beads-show-debug-buffer)))
 
 ;;; Project Integration
+;;
+;; These functions delegate to beads-git.el for git operations.
+;; They remain here for the beads-specific caching logic.
 
 (defun beads--find-project-root ()
   "Find the project root directory.
-Returns nil if not in a project."
-  (when-let* ((proj (project-current)))
-    (if (fboundp 'project-root)
-        (project-root proj)
-      ;; Emacs 27 compatibility - project-roots is obsolete but needed for old Emacs
-      (with-no-warnings
-        (car (project-roots proj))))))
+Returns nil if not in a project.
+This is an alias for `beads-git-find-project-root'."
+  (beads-git-find-project-root))
 
 (defun beads--get-project-name ()
   "Return project name for current context.
-Uses the basename of the project root directory.
-Returns nil if not in a project."
-  (when-let ((root (beads--find-project-root)))
-    (file-name-nondirectory (directory-file-name root))))
+This is an alias for `beads-git-get-project-name'."
+  (beads-git-get-project-name))
 
 (defun beads--get-git-branch ()
   "Return current git branch name, or nil if not in a git repo.
-This is METADATA for display, not identity.  Works over Tramp."
-  (let ((default-directory (or (beads--find-project-root) default-directory)))
-    (with-temp-buffer
-      (when (zerop (process-file "git" nil t nil
-                                 "rev-parse" "--abbrev-ref" "HEAD"))
-        (let ((branch (string-trim (buffer-string))))
-          (unless (string= branch "HEAD")  ; detached HEAD
-            branch))))))
-
-;;; Git Worktree Support
+This is an alias for `beads-git-get-branch'."
+  (beads-git-get-branch))
 
 (defun beads--in-git-worktree-p ()
   "Return non-nil if current directory is in a git worktree.
-In worktrees, .git is a file containing `gitdir: ...' instead of a directory.
-Works from nested directories within the worktree."
-  (when-let ((git-dir (locate-dominating-file default-directory ".git")))
-    (let ((dot-git (expand-file-name ".git" git-dir)))
-      (and (file-exists-p dot-git)
-           (not (file-directory-p dot-git))))))
+This is an alias for `beads-git-in-worktree-p'."
+  (beads-git-in-worktree-p))
 
 (defun beads--find-main-repo-from-worktree ()
   "Find the main git repository path when in a worktree.
-Uses `git rev-parse --git-common-dir' which returns the shared .git directory.
-Returns the main repository path, or nil if not in a worktree or on error."
-  (when (beads--in-git-worktree-p)
-    (let ((default-directory (or (beads--find-project-root) default-directory)))
-      (with-temp-buffer
-        (when (zerop (process-file "git" nil t nil
-                                   "rev-parse" "--git-common-dir"))
-          (let ((git-common-dir (string-trim (buffer-string))))
-            (when (and git-common-dir
-                       (not (string-empty-p git-common-dir))
-                       (not (string-prefix-p "fatal:" git-common-dir)))
-              ;; git-common-dir is the .git directory, we need its parent
-              (file-name-directory
-               (directory-file-name (expand-file-name git-common-dir))))))))))
+This is an alias for `beads-git-find-main-repo'."
+  (beads-git-find-main-repo))
+
+;;; Beads Directory Discovery
 
 (defun beads--find-beads-dir (&optional directory)
   "Find .beads directory starting from DIRECTORY.
@@ -282,7 +258,7 @@ Search order:
       (let ((beads-dir (locate-dominating-file start-dir ".beads")))
         ;; If not found locally, check if we're in a worktree
         (unless beads-dir
-          (when-let ((main-repo (beads--find-main-repo-from-worktree)))
+          (when-let ((main-repo (beads-git-find-main-repo)))
             (let ((main-beads (expand-file-name ".beads" main-repo)))
               (when (file-directory-p main-beads)
                 (setq beads-dir main-repo)))))
@@ -399,8 +375,8 @@ Returns a list of beads-issue EIEIO instances."
 Shows worktree status, database path, and --no-daemon settings.
 Useful for debugging configuration issues."
   (interactive)
-  (let* ((in-worktree (beads--in-git-worktree-p))
-         (main-repo (when in-worktree (beads--find-main-repo-from-worktree)))
+  (let* ((in-worktree (beads-git-in-worktree-p))
+         (main-repo (when in-worktree (beads-git-find-main-repo)))
          (beads-dir (beads--find-beads-dir))
          (db-path (beads--get-database-path)))
     (message "Beads Info:

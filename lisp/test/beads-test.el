@@ -134,10 +134,10 @@ For a project with default settings, use an empty list:
          (beads--project-cache (make-hash-table :test 'equal)))
      ;; Clear any active transient state from previous tests
      (beads-test--clear-transient-state)
-     ;; Mock beads--find-project-root to return nil, forcing beads--find-beads-dir
+     ;; Mock beads-git-find-project-root to return nil, forcing beads--find-beads-dir
      ;; to use default-directory (the temp test project) instead of discovering
      ;; the main repository via project.el
-     (cl-letf (((symbol-function 'beads--find-project-root)
+     (cl-letf (((symbol-function 'beads-git-find-project-root)
                 (lambda () nil)))
        (unwind-protect
            (progn ,@body)
@@ -1216,7 +1216,7 @@ STRUCTURE is a list of paths to create (dirs end with /)."
   "Test finding project root when not in a project."
   (beads-test--with-temp-project
    (let ((project-find-functions nil))
-     (should (null (beads--find-project-root))))))
+     (should (null (beads-git-find-project-root))))))
 
 (ert-deftest beads-test-find-project-root-with-project ()
   "Test finding project root when in a project."
@@ -1233,7 +1233,7 @@ STRUCTURE is a list of paths to create (dirs end with /)."
        ;; Test with modern Emacs (project-root function exists)
        (cl-letf (((symbol-function 'project-root)
                   (lambda (_proj) beads-test--temp-dir)))
-         (should (equal (beads--find-project-root)
+         (should (equal (beads-git-find-project-root)
                         beads-test--temp-dir)))
 
        ;; Test with Emacs 27 (project-roots function)
@@ -1241,7 +1241,7 @@ STRUCTURE is a list of paths to create (dirs end with /)."
                  ((symbol-function 'project-roots)
                   (lambda (_proj) (list beads-test--temp-dir))))
          (fmakunbound 'project-root)
-         (should (equal (beads--find-project-root)
+         (should (equal (beads-git-find-project-root)
                         beads-test--temp-dir)))))))
 
 (ert-deftest beads-test-find-project-root-emacs27-compat ()
@@ -1261,7 +1261,7 @@ STRUCTURE is a list of paths to create (dirs end with /)."
        (when has-project-root
          (fmakunbound 'project-root))
        (unwind-protect
-           (should (equal (beads--find-project-root)
+           (should (equal (beads-git-find-project-root)
                           beads-test--temp-dir))
          (when has-project-root
            (fset 'project-root
@@ -1415,7 +1415,7 @@ STRUCTURE is a list of paths to create (dirs end with /)."
                   nil))
                ((symbol-function 'project-current)
                 (lambda (&optional _maybe-prompt) nil))
-               ((symbol-function 'beads--find-main-repo-from-worktree)
+               ((symbol-function 'beads-git-find-main-repo)
                 (lambda () nil)))
 
        ;; First call
@@ -1634,7 +1634,7 @@ STRUCTURE is a list of paths to create (dirs end with /)."
 
 (ert-deftest beads-test-function-documentation ()
   "Test that public functions have documentation."
-  (should (documentation 'beads--find-project-root))
+  (should (documentation 'beads-git-find-project-root))
   (should (documentation 'beads--find-beads-dir))
   (should (documentation 'beads--get-database-path)))
 
@@ -1657,7 +1657,7 @@ STRUCTURE is a list of paths to create (dirs end with /)."
                  (should (string-prefix-p "/ssh:host:" file))
                  (when (equal name ".beads")
                    remote-dir)))
-              ((symbol-function 'beads--find-project-root)
+              ((symbol-function 'beads-git-find-project-root)
                (lambda () nil)))
       (let ((result (beads--find-beads-dir remote-dir)))
         (should locate-dominating-file-called)

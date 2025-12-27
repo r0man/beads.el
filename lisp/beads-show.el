@@ -205,14 +205,14 @@ Return buffer or nil if not found."
 (defun beads-show--get-or-create-buffer (issue-id)
   "Get or create show buffer for ISSUE-ID in current project.
 Reuses existing buffer for same (issue-id, project-dir) pair."
-  (let* ((project-dir (or (beads--find-project-root) default-directory))
+  (let* ((project-dir (or (beads-git-find-project-root) default-directory))
          (existing (beads-show--find-buffer-for-issue issue-id project-dir)))
     (or existing
         (let ((buffer (get-buffer-create (format "*beads-show: %s*" issue-id))))
           (with-current-buffer buffer
             (setq beads-show--project-dir project-dir)
-            (setq beads-show--branch (beads--get-git-branch))
-            (setq beads-show--proj-name (beads--get-project-name)))
+            (setq beads-show--branch (beads-git-get-branch))
+            (setq beads-show--proj-name (beads-git-get-project-name)))
           buffer))))
 
 ;;; Worktree Session Integration
@@ -841,7 +841,7 @@ correct project detection (important for git worktrees)."
                                       'beads--issue-id-history)))
   ;; Capture caller's directory for command execution context
   (let* ((caller-dir default-directory)
-         (project-dir (or (beads--find-project-root) default-directory))
+         (project-dir (or (beads-git-find-project-root) default-directory))
          (buffer (beads-show--get-or-create-buffer issue-id)))
     (with-current-buffer buffer
       (setq default-directory caller-dir)
@@ -850,8 +850,8 @@ correct project detection (important for git worktrees)."
       ;; Update directory-aware state
       (setq beads-show--issue-id issue-id
             beads-show--project-dir project-dir
-            beads-show--branch (beads--get-git-branch)
-            beads-show--proj-name (beads--get-project-name))
+            beads-show--branch (beads-git-get-branch)
+            beads-show--proj-name (beads-git-get-project-name))
       ;; Register with worktree session for lifecycle management
       (beads-show--register-with-session)
       (condition-case err

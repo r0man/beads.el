@@ -267,14 +267,14 @@ Return buffer or nil if not found."
   "Get or create list buffer for current project context.
 BUFFER-TYPE is a symbol: `list', `ready', or `blocked'.
 Reuses existing buffer for same project-dir (directory is identity)."
-  (let* ((project-dir (or (beads--find-project-root) default-directory))
+  (let* ((project-dir (or (beads-git-find-project-root) default-directory))
          (existing (beads-list--find-buffer-for-project buffer-type project-dir)))
     (or existing
         (let ((buffer (get-buffer-create (format "*beads-%s*" buffer-type))))
           (with-current-buffer buffer
             (setq beads-list--project-dir project-dir)
-            (setq beads-list--branch (beads--get-git-branch))
-            (setq beads-list--proj-name (beads--get-project-name)))
+            (setq beads-list--branch (beads-git-get-branch))
+            (setq beads-list--proj-name (beads-git-get-project-name)))
           buffer))))
 
 ;;; Utilities
@@ -657,7 +657,7 @@ Uses directory-aware buffer identity: same project = same buffer."
   :description "List issues"
   (interactive)
   (let* ((caller-dir default-directory)
-         (project-dir (or (beads--find-project-root) default-directory))
+         (project-dir (or (beads-git-find-project-root) default-directory))
          (args (transient-args 'beads-list))
          (command (beads-list--parse-transient-args args)))
     (condition-case err
@@ -669,8 +669,8 @@ Uses directory-aware buffer identity: same project = same buffer."
               (beads-list-mode))
             ;; Update directory-aware state
             (setq beads-list--project-dir project-dir)
-            (setq beads-list--branch (beads--get-git-branch))
-            (setq beads-list--proj-name (beads--get-project-name))
+            (setq beads-list--branch (beads-git-get-branch))
+            (setq beads-list--proj-name (beads-git-get-project-name))
             (setq default-directory caller-dir)
             (if (not issue-objects)
                 (progn
@@ -1189,7 +1189,7 @@ Uses directory-aware buffer identity: same project = same buffer."
   (interactive)
   (beads-check-executable)
   (let* ((caller-dir default-directory)
-         (project-dir (or (beads--find-project-root) default-directory))
+         (project-dir (or (beads-git-find-project-root) default-directory))
          (buffer (beads-list--get-or-create-buffer 'ready))
          (issues (beads-issue-ready)))
     (with-current-buffer buffer
@@ -1197,8 +1197,8 @@ Uses directory-aware buffer identity: same project = same buffer."
         (beads-list-mode))
       ;; Update directory-aware state
       (setq beads-list--project-dir project-dir)
-      (setq beads-list--branch (beads--get-git-branch))
-      (setq beads-list--proj-name (beads--get-project-name))
+      (setq beads-list--branch (beads-git-get-branch))
+      (setq beads-list--proj-name (beads-git-get-project-name))
       (setq default-directory caller-dir)
       (if (not issues)
           (progn
@@ -1229,7 +1229,7 @@ Uses directory-aware buffer identity: same project = same buffer."
   (interactive)
   (beads-check-executable)
   (let* ((caller-dir default-directory)
-         (project-dir (or (beads--find-project-root) default-directory))
+         (project-dir (or (beads-git-find-project-root) default-directory))
          (buffer (beads-list--get-or-create-buffer 'blocked))
          (issues (beads-blocked-issue-list)))
     (with-current-buffer buffer
@@ -1237,8 +1237,8 @@ Uses directory-aware buffer identity: same project = same buffer."
         (beads-list-mode))
       ;; Update directory-aware state
       (setq beads-list--project-dir project-dir)
-      (setq beads-list--branch (beads--get-git-branch))
-      (setq beads-list--proj-name (beads--get-project-name))
+      (setq beads-list--branch (beads-git-get-branch))
+      (setq beads-list--proj-name (beads-git-get-project-name))
       (setq default-directory caller-dir)
       (if (not issues)
           (progn

@@ -147,7 +147,13 @@ This is the return value from `beads-agent-backend-start'.
 In sesman sessions, this becomes the second element of the tuple:
   (session-name BACKEND-SESSION beads-agent-session)
 Backends use this to track their internal session state.
-The value is opaque to beads-sesman and passed through unchanged.")
+The value is opaque to beads-sesman and passed through unchanged.
+
+This slot MAY BE NIL in the following cases:
+- During async session startup before the backend connects
+- If the backend doesn't maintain connection state (e.g., terminal-based)
+- After session cleanup if the backend was already disconnected
+Code that accesses this slot should handle nil gracefully.")
    (buffer
     :initarg :buffer
     :initform nil
