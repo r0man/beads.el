@@ -800,14 +800,21 @@ When SILENT is non-nil, suppress messages (for hook-triggered refreshes)."
                    ('blocked
                     (beads-blocked-issue-list))
                    (_ (error "Unknown command: %s" beads-list--command))))
-         (pos (point)))
+         ;; Save window point if buffer is displayed, otherwise buffer point.
+         ;; This ensures we preserve point correctly when called via
+         ;; with-current-buffer from beads-list-refresh-all.
+         (win (get-buffer-window (current-buffer)))
+         (pos (if win (window-point win) (point))))
     (if (not issues)
         (progn
           (setq tabulated-list-entries nil)
           (tabulated-list-print t)
           (unless silent (message "No issues found")))
       (beads-list--populate-buffer issues beads-list--command beads-list--command-obj)
-      (goto-char pos)
+      ;; Restore point in window or buffer as appropriate
+      (if win
+          (set-window-point win pos)
+        (goto-char pos))
       (unless silent
         (message "Refreshed %d issue%s"
                  (length issues)
