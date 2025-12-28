@@ -20,31 +20,32 @@
 (require 'ert)
 (require 'beads)
 (require 'beads-eldoc)
+(require 'beads-types)
 
 ;;; Test Fixtures
 
 (defvar beads-eldoc-test--sample-issue
-  '((id . "beads.el-22")
-    (title . "Add eldoc support for beads issue references")
-    (description . "When cursor is on a beads.el-N reference...")
-    (status . "in_progress")
-    (priority . 3)
-    (issue-type . "feature")
-    (created-at . "2025-10-20T17:34:01.191949541Z")
-    (updated-at . "2025-10-20T17:34:01.191949541Z")
-    (assignee . "claude")
-    (notes . "Working on implementation"))
+  (beads-issue :id "beads.el-22"
+               :title "Add eldoc support for beads issue references"
+               :description "When cursor is on a beads.el-N reference..."
+               :status "in_progress"
+               :priority 3
+               :issue-type "feature"
+               :created-at "2025-10-20T17:34:01.191949541Z"
+               :updated-at "2025-10-20T17:34:01.191949541Z"
+               :assignee "claude"
+               :notes "Working on implementation")
   "Sample issue for testing.")
 
 (defvar beads-eldoc-test--sample-issue-bd
-  '((id . "bd-123")
-    (title . "Fix bug in parser")
-    (description . "Parser fails on edge case")
-    (status . "open")
-    (priority . 1)
-    (issue-type . "bug")
-    (created-at . "2025-10-19T10:00:00Z")
-    (updated-at . "2025-10-19T10:00:00Z"))
+  (beads-issue :id "bd-123"
+               :title "Fix bug in parser"
+               :description "Parser fails on edge case"
+               :status "open"
+               :priority 1
+               :issue-type "bug"
+               :created-at "2025-10-19T10:00:00Z"
+               :updated-at "2025-10-19T10:00:00Z")
   "Sample bd-prefixed issue for testing.")
 
 ;;; Test Utilities
@@ -214,12 +215,12 @@ supports uppercase characters."
 (ert-deftest beads-eldoc-test-fetch-issue-success ()
   "Test successful issue fetching with caching."
   (let ((beads-eldoc--cache (make-hash-table :test 'equal)))
-    (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd)
+    (cl-letf (((symbol-function 'beads-command-show!)
+               (lambda (&rest _)
                  beads-eldoc-test--sample-issue)))
       (let ((issue (beads-eldoc--fetch-issue "beads.el-22")))
         ;; Should return parsed issue
-        (should (equal (alist-get 'id issue) "beads.el-22"))
+        (should (equal (oref issue id) "beads.el-22"))
         ;; Should be cached
         (should (beads-eldoc--get-cached-issue "beads.el-22"))))))
 
@@ -227,8 +228,8 @@ supports uppercase characters."
   "Test that fetch uses cache on second call."
   (let ((beads-eldoc--cache (make-hash-table :test 'equal))
         (call-count 0))
-    (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd)
+    (cl-letf (((symbol-function 'beads-command-show!)
+               (lambda (&rest _)
                  (setq call-count (1+ call-count))
                  beads-eldoc-test--sample-issue)))
       ;; First call should fetch from bd
@@ -241,7 +242,7 @@ supports uppercase characters."
 (ert-deftest beads-eldoc-test-fetch-issue-error ()
   "Test that fetch errors are handled gracefully."
   (let ((beads-eldoc--cache (make-hash-table :test 'equal)))
-    (cl-letf (((symbol-function 'beads-command-execute)
+    (cl-letf (((symbol-function 'beads-command-show!)
                (lambda (&rest _)
                  (error "Command failed"))))
       ;; Should return nil on error, not signal
@@ -274,11 +275,11 @@ supports uppercase characters."
 
 (ert-deftest beads-eldoc-test-format-doc-buffer-minimal ()
   "Test documentation buffer formatting with minimal issue data."
-  (let* ((minimal-issue '((id . "bd-1")
-                          (title . "Test")
-                          (status . "open")
-                          (priority . 1)
-                          (issue-type . "bug")))
+  (let* ((minimal-issue (beads-issue :id "bd-1"
+                                     :title "Test"
+                                     :status "open"
+                                     :priority 1
+                                     :issue-type "bug"))
          (result (beads-eldoc--format-doc-buffer minimal-issue)))
     (should (string-match-p "Issue: bd-1" result))
     (should (string-match-p "Title: Test" result))
@@ -396,8 +397,8 @@ supports uppercase characters."
   (let ((beads-eldoc--cache (make-hash-table :test 'equal))
         (result-echo nil)
         (result-buffer nil))
-    (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd)
+    (cl-letf (((symbol-function 'beads-command-show!)
+               (lambda (&rest _)
                  beads-eldoc-test--sample-issue)))
       (beads-eldoc-test--at-point
           "Implementing beads.el-|22 now" "|"

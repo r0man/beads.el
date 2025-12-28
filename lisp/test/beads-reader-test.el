@@ -27,6 +27,7 @@
 (require 'ert)
 (require 'beads)
 (require 'beads-reader)
+(require 'beads-agent-backend)
 
 ;;; Test Fixtures
 
@@ -517,6 +518,112 @@
              (lambda (&rest _args) "new-label")))
     (let ((result (beads-reader-label-name nil nil nil)))
       (should (equal result "new-label")))))
+
+;;; ============================================================
+;;; Agent Reader Tests
+;;; ============================================================
+
+;; Mock backend for testing
+(defclass beads-reader-test--mock-backend (beads-agent-backend)
+  ((available :initarg :available :initform t))
+  :documentation "Mock backend for reader tests.")
+
+(cl-defmethod beads-agent-backend-available-p
+  ((backend beads-reader-test--mock-backend))
+  "Return availability status for mock BACKEND."
+  (oref backend available))
+
+(defun beads-reader-test--make-mock-backends ()
+  "Create mock backends for testing."
+  (list
+   (beads-reader-test--mock-backend
+    :name "test-backend" :priority 10 :available t)
+   (beads-reader-test--mock-backend
+    :name "unavailable-backend" :priority 99 :available nil)))
+
+(ert-deftest beads-reader-test-agent-backend ()
+  "Test agent backend reader with available backends."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-reader-test--make-mock-backends)
+            ((symbol-function 'beads-agent--get-available-backends)
+             (lambda ()
+               (seq-filter #'beads-agent-backend-available-p
+                           (beads-reader-test--make-mock-backends))))
+            ((symbol-function 'completing-read)
+             (lambda (_prompt _table &rest _args)
+               "test-backend")))
+    (let ((result (beads-reader-agent-backend nil nil nil)))
+      (should (equal result "test-backend")))))
+
+(ert-deftest beads-reader-test-agent-backend-no-backends ()
+  "Test agent backend reader with no registered backends."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             (lambda () nil))
+            ((symbol-function 'beads-agent--get-available-backends)
+             (lambda () nil)))
+    (should-error (beads-reader-agent-backend nil nil nil)
+                  :type 'user-error)))
+
+(ert-deftest beads-reader-test-agent-backend-none-available ()
+  "Test agent backend reader with backends registered but none available."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             (lambda ()
+               (list (beads-reader-test--mock-backend
+                      :name "unavailable" :priority 10 :available nil))))
+            ((symbol-function 'beads-agent--get-available-backends)
+             (lambda () nil)))
+    (should-error (beads-reader-agent-backend nil nil nil)
+                  :type 'user-error)))
+
+(ert-deftest beads-reader-test-agent-backend-predicate-filters ()
+  "Test that completion predicate filters to available backends only."
+  (let ((predicate-called nil)
+        (predicate-result nil))
+    (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+               #'beads-reader-test--make-mock-backends)
+              ((symbol-function 'beads-agent--get-available-backends)
+               (lambda ()
+                 (seq-filter #'beads-agent-backend-available-p
+                             (beads-reader-test--make-mock-backends))))
+              ((symbol-function 'completing-read)
+               (lambda (_prompt _table pred &rest _args)
+                 ;; Test the predicate
+                 (setq predicate-called t)
+                 (setq predicate-result
+                       (list (funcall pred "test-backend")
+                             (funcall pred "unavailable-backend")))
+                 "test-backend")))
+      (beads-reader-agent-backend nil nil nil)
+      (should predicate-called)
+      ;; First should be truthy (available), second should be nil (unavailable)
+      (should (car predicate-result))
+      (should-not (cadr predicate-result)))))
+
+(ert-deftest beads-reader-test-agent-backend-respects-show-unavailable-setting ()
+  "Test that reader respects beads-completion-show-unavailable-backends."
+  (let ((table-called-with-setting nil))
+    (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+               #'beads-reader-test--make-mock-backends)
+              ((symbol-function 'beads-agent--get-available-backends)
+               (lambda ()
+                 (seq-filter #'beads-agent-backend-available-p
+                             (beads-reader-test--make-mock-backends))))
+              ((symbol-function 'completing-read)
+               (lambda (_prompt table &rest _args)
+                 ;; Get candidates from the table
+                 (let ((candidates (all-completions "" table nil)))
+                   (setq table-called-with-setting (length candidates)))
+                 "test-backend")))
+      ;; Test with show-unavailable = nil
+      (let ((beads-completion-show-unavailable-backends nil))
+        (beads-reader-agent-backend nil nil nil)
+        ;; Should only see available backend
+        (should (= 1 table-called-with-setting)))
+      ;; Test with show-unavailable = t
+      (let ((beads-completion-show-unavailable-backends t))
+        (beads-reader-agent-backend nil nil nil)
+        ;; Should see all backends
+        (should (= 2 table-called-with-setting))))))
 
 (provide 'beads-reader-test)
 ;;; beads-reader-test.el ends here

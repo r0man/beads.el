@@ -27,6 +27,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-completion)
 (require 'beads-state)
 (require 'beads-label)
 
@@ -36,9 +37,8 @@
 
 (defun beads-reader-issue-id (prompt &optional _initial-input _history)
   "Read an issue ID using completion.
-PROMPT is shown to the user."
-  (completing-read prompt (beads--issue-completion-table)
-                   nil nil nil 'beads--issue-id-history))
+PROMPT is shown to the user.  Matches on both issue ID and title."
+  (beads-completion-read-issue prompt nil nil nil 'beads--issue-id-history))
 
 (defun beads-reader-string (prompt default)
   "Read a string with PROMPT, using DEFAULT as initial input."
@@ -125,10 +125,9 @@ DEFAULT-VAR is the variable holding the current priority value."
       (read-string "Labels (comma-separated): "))))
 
 (defun beads-reader-create-parent (_prompt _initial-input _history)
-  "Read parent issue ID for hierarchical child."
-  (completing-read "Parent issue ID: "
-                   (beads--issue-completion-table)
-                   nil nil))
+  "Read parent issue ID for hierarchical child.
+Matches on both issue ID and title."
+  (beads-completion-read-issue "Parent issue ID: "))
 
 (defun beads-reader-create-repo (_prompt _initial-input _history)
   "Read target repository for issue."
@@ -183,22 +182,20 @@ DEFAULT-VAR is the variable holding the current priority value."
 ;;; ============================================================
 
 (defun beads-reader-close-issue-id (_prompt _initial-input _history)
-  "Read issue ID to close."
-  (completing-read "Issue ID to close: "
-                   (beads--issue-completion-table)
-                   nil t beads-close--issue-id
-                   'beads--issue-id-history))
+  "Read issue ID to close.
+Matches on both issue ID and title."
+  (beads-completion-read-issue "Issue ID to close: " nil t
+                               beads-close--issue-id 'beads--issue-id-history))
 
 ;;; ============================================================
 ;;; beads-reopen Reader Functions
 ;;; ============================================================
 
 (defun beads-reader-reopen-issue-id (_prompt _initial-input _history)
-  "Read issue ID to reopen."
-  (completing-read "Issue ID to reopen: "
-                   (beads--issue-completion-table)
-                   nil t beads-reopen--issue-id
-                   'beads--issue-id-history))
+  "Read issue ID to reopen.
+Matches on both issue ID and title."
+  (beads-completion-read-issue "Issue ID to reopen: " nil t
+                               beads-reopen--issue-id 'beads--issue-id-history))
 
 ;;; ============================================================
 ;;; beads-sync Reader Functions
@@ -214,15 +211,13 @@ DEFAULT-VAR is the variable holding the current priority value."
 
 (defun beads-reader-dep-add-issue-id (prompt _initial-input _history)
   "Read issue ID for add dependency operation.
-PROMPT is shown to the user."
-  (completing-read prompt (beads--issue-completion-table)
-                   nil nil nil 'beads--issue-id-history))
+PROMPT is shown to the user.  Matches on both issue ID and title."
+  (beads-completion-read-issue prompt nil nil nil 'beads--issue-id-history))
 
 (defun beads-reader-dep-add-depends-on-id (prompt _initial-input _history)
   "Read depends-on ID for add dependency operation.
-PROMPT is shown to the user."
-  (completing-read prompt (beads--issue-completion-table)
-                   nil nil nil 'beads--issue-id-history))
+PROMPT is shown to the user.  Matches on both issue ID and title."
+  (beads-completion-read-issue prompt nil nil nil 'beads--issue-id-history))
 
 (defun beads-reader-dep-add-type (prompt _initial-input _history)
   "Read dependency type for add operation.
@@ -236,27 +231,23 @@ PROMPT is shown to the user."
 
 (defun beads-reader-dep-remove-issue-id (prompt _initial-input _history)
   "Read issue ID for remove dependency operation.
-PROMPT is shown to the user."
-  (completing-read prompt (beads--issue-completion-table)
-                   nil nil nil 'beads--issue-id-history))
+PROMPT is shown to the user.  Matches on both issue ID and title."
+  (beads-completion-read-issue prompt nil nil nil 'beads--issue-id-history))
 
 (defun beads-reader-dep-remove-depends-on-id (prompt _initial-input _history)
   "Read depends-on ID for remove dependency operation.
-PROMPT is shown to the user."
-  (completing-read prompt (beads--issue-completion-table)
-                   nil nil nil 'beads--issue-id-history))
+PROMPT is shown to the user.  Matches on both issue ID and title."
+  (beads-completion-read-issue prompt nil nil nil 'beads--issue-id-history))
 
 (defun beads-reader-dep-from (_prompt _initial-input _history)
-  "Read source issue ID for dependency operations."
-  (completing-read "From issue: "
-                   (beads--issue-completion-table)
-                   nil nil beads-dep--from-issue))
+  "Read source issue ID for dependency operations.
+Matches on both issue ID and title."
+  (beads-completion-read-issue "From issue: " nil nil beads-dep--from-issue))
 
 (defun beads-reader-dep-to (_prompt _initial-input _history)
-  "Read target issue ID for dependency operations."
-  (completing-read "To issue: "
-                   (beads--issue-completion-table)
-                   nil nil beads-dep--to-issue))
+  "Read target issue ID for dependency operations.
+Matches on both issue ID and title."
+  (beads-completion-read-issue "To issue: " nil nil beads-dep--to-issue))
 
 (defun beads-reader-dep-type (_prompt _initial-input _history)
   "Read dependency type."
@@ -398,17 +389,21 @@ PROMPT is shown to the user."
 (defun beads-reader-label-issue-ids (_prompt _initial-input _history)
   "Read issue ID(s) for label operations, with context detection.
 Detects current issue from beads-show or beads-list buffer,
-falls back to `completing-read-multiple' for selecting multiple issue IDs."
+falls back to `completing-read-multiple' for selecting multiple issue IDs.
+Matches on both issue ID and title."
   (let ((detected-id (beads-label--detect-issue-id)))
     (if detected-id
         detected-id
-      (let ((selected (completing-read-multiple
-                       "Issue ID(s) (use crm-separator to select multiple): "
-                       (beads--issue-completion-table)
-                       nil nil)))
-        (if selected
-            (mapconcat #'identity selected ",")
-          "")))))
+      (let ((completion-category-overrides
+             (cons '(beads-issue (styles beads-issue-title basic))
+                   completion-category-overrides)))
+        (let ((selected (completing-read-multiple
+                         "Issue ID(s) (use crm-separator to select multiple): "
+                         (beads-completion-issue-table)
+                         nil nil)))
+          (if selected
+              (mapconcat #'identity selected ",")
+            ""))))))
 
 (defun beads-reader-label-name (_prompt _initial-input _history)
   "Read label name with auto-completion from existing labels."
@@ -416,6 +411,43 @@ falls back to `completing-read-multiple' for selecting multiple issue IDs."
     (if labels
         (completing-read "Label name: " labels nil nil)
       (read-string "Label name: "))))
+
+;;; ============================================================
+;;; Agent-specific Reader Functions
+;;; ============================================================
+
+(defun beads-reader-agent-backend (_prompt _initial-input _history)
+  "Read AI agent backend name with rich completion.
+Returns a backend name string.  Shows all registered backends with
+annotations indicating priority and availability status.
+
+With Vertico or similar completion frameworks, backends are grouped
+by availability and annotated with priority (e.g., \"[P10] Available\").
+
+Only available backends can be selected, but unavailable ones are
+shown for informational purposes.  Matches on both backend name and
+description.
+
+Signals an error if no backends are registered or if no backends
+are available."
+  (require 'beads-agent-backend)
+  (let* ((all-backends (beads-agent--get-all-backends))
+         (available-names (mapcar (lambda (b) (oref b name))
+                                  (beads-agent--get-available-backends)))
+         (default (when (bound-and-true-p beads-agent-default-backend)
+                    (car (member beads-agent-default-backend available-names)))))
+    (cond
+     ((null all-backends)
+      (user-error "No AI agent backends registered"))
+     ((null available-names)
+      (user-error "No AI agent backends available"))
+     (t
+      (beads-completion-read-backend
+       "Backend: "
+       (lambda (cand)
+         (member (if (consp cand) (car cand) cand)
+                 available-names))
+       t nil nil default)))))
 
 (provide 'beads-reader)
 ;;; beads-reader.el ends here

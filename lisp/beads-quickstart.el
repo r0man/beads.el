@@ -25,12 +25,10 @@
   "Execute bd quickstart and display in buffer."
   (condition-case err
       (let* ((cmd (beads-command-quickstart))
-             (result (beads-command-execute cmd))
-             (exit-code (nth 0 result))
-             (output (nth 1 result))
+             (_ (beads-command-execute cmd))
+             (output (oref cmd data))
              (buf (get-buffer-create "*beads-quickstart*")))
-        (unless (zerop exit-code)
-          (error "Command failed with exit code %d" exit-code))
+        ;; execute signals error on non-zero exit, so we don't need to check
         (with-current-buffer buf
           (let ((inhibit-read-only t))
             (erase-buffer)

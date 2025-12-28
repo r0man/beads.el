@@ -29,13 +29,18 @@
     (build-system emacs-build-system)
     (arguments
      (list
-      #:tests? #f  ; Tests require bd CLI and mock setup
+      #:emacs emacs  ; Use full Emacs with GnuTLS support
+      #:tests? #f    ; Tests require bd CLI and mock setup
       #:lisp-directory "lisp"
       #:exclude #~(cons ".*-test\\.el$" %default-exclude)))
     (propagated-inputs
-     (list emacs-transient))
+     (list emacs-transient emacs-sesman))
     (native-inputs
-     (list emacs-eldev emacs-package-lint emacs-undercover))
+     ;; Note: emacs-agent-shell not included due to batch mode bug
+     ;; (void-function keymap) - agent-shell-mode doesn't work in batch Emacs
+     ;; See: https://github.com/xenodium/agent-shell/issues/XXX
+     (list emacs-eldev emacs-package-lint emacs-undercover
+           emacs-claude-code-ide))
     (home-page "https://github.com/r0man/beads.el")
     (synopsis "Magit-like Emacs interface for the Beads issue tracker")
     (description

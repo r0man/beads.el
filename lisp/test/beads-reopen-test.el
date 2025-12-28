@@ -403,8 +403,9 @@ For testing, we just verify the value is parsed correctly."
   "Integration test: Cache invalidated after reopen."
   :tags '(integration)
   (require 'beads)
+  (require 'beads-completion)
   ;; Set up a fake cache
-  (setq beads--completion-cache
+  (setq beads-completion--cache
         '((timestamp . 1000)
           (issues . (("bd-1" . "Issue 1") ("bd-2" . "Issue 2")))))
 
@@ -421,7 +422,7 @@ For testing, we just verify the value is parsed correctly."
       (beads-reopen--execute)
 
       ;; Cache should be invalidated (nil)
-      (should (null beads--completion-cache)))))
+      (should (null beads-completion--cache)))))
 
 (ert-deftest beads-reopen-test-preview-shows-full-command ()
   "Integration test: Preview shows complete bd command."

@@ -93,7 +93,34 @@ Load from JSONL, no SQLite database.")
     :type boolean
     :initform nil
     :documentation "Sandbox mode (--sandbox).
-Disables daemon and auto-sync."))
+Disables daemon and auto-sync.")
+   ;; Async execution result slots
+   (exit-code
+    :initarg :exit-code
+    :type (or null integer)
+    :initform nil
+    :documentation "Exit code from async execution.
+Set by `beads-command-execute-async' when command completes.")
+   (stdout
+    :initarg :stdout
+    :type (or null string)
+    :initform nil
+    :documentation "Standard output from async execution.
+Set by `beads-command-execute-async' when command completes.")
+   (stderr
+    :initarg :stderr
+    :type (or null string)
+    :initform nil
+    :documentation "Standard error from async execution.
+Set by `beads-command-execute-async' when command completes.")
+   (data
+    :initarg :data
+    :initform nil
+    :documentation "Parsed/processed result data after command execution.
+For non-JSON commands: raw stdout string.
+For JSON commands: parsed JSON data.
+For subclass commands: domain objects (e.g., beads-issue instances).
+Set by `beads-command-parse' after execution."))
   :abstract t
   :documentation "Abstract base class for all bd commands.
 Contains slots for global flags that apply to all commands.
@@ -118,31 +145,32 @@ Returns error string or nil if valid."
 (cl-defgeneric beads-command-execute (command)
   "Execute COMMAND by building arguments and running bd CLI.
 
-Return value depends on command type and :json slot:
+Returns the COMMAND object with populated slots:
+  - `exit-code': Process exit code (0 = success)
+  - `stdout': Standard output string
+  - `stderr': Standard error string
+  - `data': Parsed result (see below)
+
+The `data' slot contents depend on command type:
 
 For non-JSON commands (beads-command):
-  Returns (EXIT-CODE STDOUT STDERR) tuple
-  STDOUT is the command's standard output as a string
+  `data' contains raw stdout string
 
 For JSON commands (beads-command-json and subclasses):
   DEFAULT BEHAVIOR (:json t, the default):
-    Most subclasses return domain objects, NOT raw tuples:
-    - beads-command-list: Returns list of beads-issue instances
-    - beads-command-create: Returns beads-issue instance (or list)
-    - beads-command-show: Returns beads-issue instance (or list)
-    - beads-command-update: Returns beads-issue instance (or list)
-    - beads-command-close: Returns beads-issue instance (or list)
-    - beads-command-ready: Returns list of beads-issue instances
-    - beads-command-blocked: Returns list of beads-issue instances
-    - beads-command-stats: Returns parsed JSON alist
-    - beads-command-epic-*: Returns parsed JSON
+    `data' contains domain objects:
+    - beads-command-list: list of beads-issue instances
+    - beads-command-create: beads-issue instance (or list)
+    - beads-command-show: beads-issue instance (or list)
+    - beads-command-update: beads-issue instance (or list)
+    - beads-command-close: beads-issue instance (or list)
+    - beads-command-ready: list of beads-issue instances
+    - beads-command-blocked: list of beads-blocked-issue instances
+    - beads-command-stats: parsed JSON alist
+    - beads-command-epic-*: parsed JSON
 
   With :json nil:
-    Returns (EXIT-CODE STDOUT STDERR) like non-JSON commands
-    STDOUT is the command's standard output as a string
-
-EXIT-CODE is the process exit code (integer)
-STDERR is the command's standard error as a string
+    `data' contains raw stdout string
 
 Signals errors:
   - beads-validation-error: Command validation failed
@@ -199,12 +227,51 @@ Default implementation returns nil (valid).
 Subclasses override to add validation."
   nil)
 
+(cl-defgeneric beads-command-parse (command)
+  "Parse the output stored in COMMAND slots and return the parsed result.
+COMMAND must have been executed (stdout/stderr/exit-code slots populated).
+
+This method is called by `beads-command-execute' after process execution.
+It should:
+1. Read from stdout/stderr slots (depending on command type)
+2. Parse/transform the data as appropriate
+3. Return the parsed result (EIEIO objects, lists, etc.)
+
+IMPORTANT: This method must NOT modify any command slots.  The caller
+\(`beads-command-execute' or `beads-command-execute-async') is responsible
+for setting the `data' slot to the returned value.
+
+Dispatches based on command type:
+- `beads-command': Returns raw stdout string
+- `beads-command-json': Parses JSON from stdout, returns parsed alist/vector
+- Subclasses may override to transform parsed JSON into domain objects
+
+Signals `beads-json-parse-error' if JSON parsing fails.")
+
+(cl-defmethod beads-command-parse ((command beads-command))
+  "Parse non-JSON COMMAND output.
+Returns stdout string.  Does not modify command slots."
+  (oref command stdout))
+
 ;;; Base Command Execution - Non-JSON Commands
 
 (cl-defmethod beads-command-execute ((command beads-command))
-  "Execute non-JSON COMMAND and return (EXIT-CODE STDOUT STDERR).
-STDOUT is the command output as a string.
-Signals beads-validation-error or beads-command-error on failure."
+  "Execute COMMAND and return the command object with populated slots.
+Runs the bd CLI command, populates slots (exit-code, stdout, stderr),
+calls `beads-command-parse' to process output, and returns the command.
+
+After execution, these slots are populated:
+- `exit-code': Process exit code (0 = success)
+- `stdout': Standard output string
+- `stderr': Standard error string
+- `data': Parsed result (raw stdout, parsed JSON, or domain objects)
+
+Returns the COMMAND object itself, allowing slot access after execution.
+This matches the behavior of `beads-command-execute-async'.
+
+Signals `beads-validation-error' if command validation fails.
+Signals `beads-command-error' if process exits with non-zero code.
+Signals `beads-json-parse-error' if JSON parsing fails (for JSON commands)."
   ;; Validate first
   (when-let ((error (beads-command-validate command)))
     (signal 'beads-validation-error
@@ -224,32 +291,41 @@ Signals beads-validation-error or beads-command-error on failure."
 
     (unwind-protect
         (with-temp-buffer
-          (let* ((exit-code (apply #'process-file
-                                  (car cmd) nil
-                                  (list (current-buffer) stderr-file)
-                                  nil (cdr cmd)))
+          (let* ((proc-exit-code (apply #'process-file
+                                        (car cmd) nil
+                                        (list (current-buffer) stderr-file)
+                                        nil (cdr cmd)))
                  (end-time (current-time))
                  (elapsed (float-time (time-subtract end-time start-time)))
-                 (stdout (buffer-string))
-                 (stderr (with-temp-buffer
-                          (insert-file-contents stderr-file)
-                          (buffer-string))))
+                 (proc-stdout (buffer-string))
+                 (proc-stderr (with-temp-buffer
+                                (insert-file-contents stderr-file)
+                                (buffer-string))))
 
-          (when (fboundp 'beads--log)
-            (beads--log 'info "Command completed in %.3fs" elapsed)
-            (beads--log 'verbose "Exit code: %d" exit-code)
-            (beads--log 'verbose "Stdout: %s" stdout)
-            (beads--log 'verbose "Stderr: %s" stderr))
+            (when (fboundp 'beads--log)
+              (beads--log 'info "Command completed in %.3fs" elapsed)
+              (beads--log 'verbose "Exit code: %d" proc-exit-code)
+              (beads--log 'verbose "Stdout: %s" proc-stdout)
+              (beads--log 'verbose "Stderr: %s" proc-stderr))
 
-          (if (zerop exit-code)
-              (list exit-code stdout stderr)
-            ;; Signal error with complete information
-            (signal 'beads-command-error
-                    (list (format "Command failed with exit code %d" exit-code)
-                          :command cmd-string
-                          :exit-code exit-code
-                          :stdout stdout
-                          :stderr stderr)))))
+            ;; Populate command slots
+            (oset command exit-code proc-exit-code)
+            (oset command stdout proc-stdout)
+            (oset command stderr proc-stderr)
+
+            (if (zerop proc-exit-code)
+                ;; Success: parse output, set data slot, return command
+                (progn
+                  (oset command data (beads-command-parse command))
+                  command)
+              ;; Signal error with complete information
+              (signal 'beads-command-error
+                      (list (format "Command failed with exit code %d"
+                                    proc-exit-code)
+                            :command cmd-string
+                            :exit-code proc-exit-code
+                            :stdout proc-stdout
+                            :stderr proc-stderr)))))
 
       ;; Cleanup temp file
       (when (file-exists-p stderr-file)
@@ -279,40 +355,129 @@ Calls parent method and adds --json if enabled."
         (setq args (append args (list "--json"))))
       args)))
 
-(cl-defmethod beads-command-execute ((command beads-command-json))
-  "Execute JSON COMMAND and return (EXIT-CODE STDOUT STDERR).
-When :json is t, STDOUT is parsed JSON (alist/vector).
-When :json is nil, falls back to parent (STDOUT is string).
-Signals beads-validation-error, beads-command-error, or
-beads-json-parse-error on failure."
-  (with-slots (json) command
+(cl-defmethod beads-command-parse ((command beads-command-json))
+  "Parse JSON output from COMMAND.
+When :json is t, parses JSON from stdout slot and returns it.
+When :json is nil, falls back to parent (returns raw stdout).
+Does not modify command slots.
+Signals `beads-json-parse-error' if JSON parsing fails."
+  (with-slots (json stdout) command
     (if (not json)
         ;; If json is not enabled, use parent implementation
         (cl-call-next-method)
-      ;; JSON execution: call parent, then parse JSON
-      (let* ((result (cl-call-next-method))
-             (exit-code (nth 0 result))
-             (stdout (nth 1 result))
-             (stderr (nth 2 result)))
-        ;; If successful, parse JSON from stdout
-        (if (zerop exit-code)
-            (condition-case err
-                (let* ((json-object-type 'alist)
-                       (json-array-type 'vector)
-                       (json-key-type 'symbol)
-                       (parsed-json (json-read-from-string stdout)))
-                  (list exit-code parsed-json stderr))
-              (error
-               (signal 'beads-json-parse-error
-                       (list (format "Failed to parse JSON: %s"
-                                    (error-message-string err))
-                             :exit-code exit-code
-                             :stdout stdout
-                             :stderr stderr
-                             :parse-error err))))
-          ;; Non-zero exit code: parent already signaled error,
-          ;; but we shouldn't reach here
-          result)))))
+      ;; Parse JSON from stdout
+      (condition-case err
+          (let* ((json-object-type 'alist)
+                 (json-array-type 'vector)
+                 (json-key-type 'symbol))
+            (json-read-from-string stdout))
+        (error
+         (signal 'beads-json-parse-error
+                 (list (format "Failed to parse JSON: %s"
+                               (error-message-string err))
+                       :exit-code (oref command exit-code)
+                       :stdout stdout
+                       :stderr (oref command stderr)
+                       :parse-error err)))))))
+
+;;; Async Command Execution
+
+(cl-defgeneric beads-command-execute-async (command &optional callback)
+  "Execute COMMAND asynchronously without blocking Emacs.
+
+CALLBACK is called with COMMAND when execution completes.
+The command object contains the result data in its slots.
+
+Signals `beads-validation-error' immediately if validation fails.
+
+Return value: process object (use `delete-process' to cancel).
+
+For all commands, these slots are populated:
+  - `exit-code': Process exit code (0 = success)
+  - `stdout': Standard output as string
+  - `stderr': Standard error as string
+
+For JSON commands (beads-command-json with :json t):
+  - `data': Parsed JSON on success, nil on failure
+
+Example usage:
+
+  (beads-command-execute-async
+   (beads-command-list :status \"open\")
+   (lambda (cmd)
+     (if (oref cmd data)
+         (message \"Got %d issues\" (length (oref cmd data)))
+       (message \"Failed: %s\" (oref cmd stderr)))))")
+
+(cl-defmethod beads-command-execute-async ((command beads-command)
+                                           &optional callback)
+  "Execute non-JSON COMMAND asynchronously.
+CALLBACK receives the COMMAND object when complete.
+The command's `exit-code', `stdout', and `stderr' slots are populated.
+Signals `beads-validation-error' immediately if validation fails.
+Returns process object."
+  ;; Validate first - raise error immediately
+  (when-let ((validation-error (beads-command-validate command)))
+    (signal 'beads-validation-error
+            (list (format "Command validation failed: %s" validation-error)
+                  :command command
+                  :error validation-error)))
+
+  ;; Validation passed - build command line and execute
+  (let* ((cmd (beads-command-line command))
+         (cmd-string (mapconcat #'shell-quote-argument cmd " "))
+         (stdout-buffer (generate-new-buffer " *beads-async-stdout*"))
+         (stderr-buffer (generate-new-buffer " *beads-async-stderr*"))
+         (start-time (current-time))
+         process)
+
+    (when (fboundp 'beads--log)
+      (beads--log 'info "Running async: %s" cmd-string)
+      (beads--log 'verbose "In directory: %s" default-directory))
+
+    (setq process
+          (make-process
+           :name "beads-async"
+           :buffer stdout-buffer
+           :stderr stderr-buffer
+           :command cmd
+           :connection-type 'pipe
+           :sentinel
+           (lambda (proc _event)
+             (when (memq (process-status proc) '(exit signal))
+               (let* ((proc-exit-code (process-exit-status proc))
+                      (end-time (current-time))
+                      (elapsed (float-time (time-subtract end-time start-time)))
+                      (proc-stdout (with-current-buffer stdout-buffer
+                                     (buffer-string)))
+                      (proc-stderr (with-current-buffer stderr-buffer
+                                     (buffer-string))))
+
+                 (when (fboundp 'beads--log)
+                   (beads--log 'info "Async command completed in %.3fs" elapsed)
+                   (beads--log 'verbose "Exit code: %d" proc-exit-code)
+                   (beads--log 'verbose "Stdout: %s" proc-stdout)
+                   (beads--log 'verbose "Stderr: %s" proc-stderr))
+
+                 ;; Clean up buffers (suppress kill queries for these temp buffers)
+                 (let ((kill-buffer-query-functions nil))
+                   (kill-buffer stdout-buffer)
+                   (kill-buffer stderr-buffer))
+
+                 ;; Store results in command object
+                 (oset command exit-code proc-exit-code)
+                 (oset command stdout proc-stdout)
+                 (oset command stderr proc-stderr)
+
+                 ;; Parse output and set data slot (matches sync behavior)
+                 (when (zerop proc-exit-code)
+                   (oset command data (beads-command-parse command)))
+
+                 ;; Call callback with command object
+                 (when callback
+                   (funcall callback command)))))))
+    process))
+
 
 ;;; Init Command
 
@@ -398,8 +563,8 @@ Returns error string or nil if valid."
 Displays a quick start guide showing common bd workflows and patterns.
 This command has no command-specific flags, only global flags.")
 
-(cl-defmethod beads-command-line ((command beads-command-quickstart))
-  "Build command arguments for quickstart COMMAND (without executable).
+(cl-defmethod beads-command-line ((_command beads-command-quickstart))
+  "Build command arguments for quickstart command (without executable).
 Returns list: (\"quickstart\" ...global-flags...)."
   (let ((cmd-args (list "quickstart"))
         (global-args (cl-call-next-method)))
@@ -475,80 +640,30 @@ Returns error string or nil if valid."
      ;; Otherwise valid
      (t nil))))
 
-(cl-defmethod beads-command-execute ((command beads-command-export))
-  "Execute export COMMAND and return result.
+(cl-defmethod beads-command-parse ((command beads-command-export))
+  "Parse export COMMAND output.
 Unlike most commands, bd export writes JSON stats to stderr, not stdout.
-When :json is nil, returns (EXIT-CODE STDOUT STDERR).
-When :json is t, returns parsed JSON from STDERR (not STDOUT).
-Signals beads-validation-error, beads-command-error, or
-beads-json-parse-error on failure."
-  ;; Validate first
-  (when-let ((error (beads-command-validate command)))
-    (signal 'beads-validation-error
-            (list (format "Command validation failed: %s" error)
-                  :command command
-                  :error error)))
-
-  ;; Build full command line
-  (let* ((cmd (beads-command-line command))
-         (cmd-string (mapconcat #'shell-quote-argument cmd " "))
-         (stderr-file (make-temp-file "beads-stderr-"))
-         (start-time (current-time)))
-
-    (when (fboundp 'beads--log)
-      (beads--log 'info "Running: %s" cmd-string)
-      (beads--log 'verbose "In directory: %s" default-directory))
-
-    (unwind-protect
-        (with-temp-buffer
-          (let* ((exit-code (apply #'process-file
-                                  (car cmd) nil
-                                  (list (current-buffer) stderr-file)
-                                  nil (cdr cmd)))
-                 (end-time (current-time))
-                 (elapsed (float-time (time-subtract end-time start-time)))
-                 (stdout (buffer-string))
-                 (stderr (with-temp-buffer
-                          (insert-file-contents stderr-file)
-                          (buffer-string))))
-
-          (when (fboundp 'beads--log)
-            (beads--log 'info "Command completed in %.3fs" elapsed)
-            (beads--log 'verbose "Exit code: %d" exit-code)
-            (beads--log 'verbose "Stdout: %s" stdout)
-            (beads--log 'verbose "Stderr: %s" stderr))
-
-          (if (zerop exit-code)
-              (with-slots (json) command
-                (if (not json)
-                    ;; No JSON parsing, return raw output
-                    (list exit-code stdout stderr)
-                  ;; Parse JSON from stderr (not stdout!)
-                  (condition-case err
-                      (let* ((json-object-type 'alist)
-                             (json-array-type 'vector)
-                             (json-key-type 'symbol)
-                             (parsed-json (json-read-from-string stderr)))
-                        (list exit-code parsed-json stderr))
-                    (error
-                     (signal 'beads-json-parse-error
-                             (list (format "Failed to parse JSON from stderr: %s"
-                                           (error-message-string err))
-                                   :exit-code exit-code
-                                   :stdout stdout
-                                   :stderr stderr
-                                   :parse-error err))))))
-            ;; Signal error with complete information
-            (signal 'beads-command-error
-                    (list (format "Command failed with exit code %d" exit-code)
-                          :command cmd-string
-                          :exit-code exit-code
-                          :stdout stdout
-                          :stderr stderr)))))
-
-      ;; Cleanup temp file
-      (when (file-exists-p stderr-file)
-        (delete-file stderr-file)))))
+When :json is nil, returns raw stderr.
+When :json is t, parses JSON from stderr.
+Does not modify command slots."
+  (with-slots (json stderr) command
+    (if (not json)
+        ;; No JSON parsing, return raw stderr
+        stderr
+      ;; Parse JSON from stderr (not stdout!)
+      (condition-case err
+          (let* ((json-object-type 'alist)
+                 (json-array-type 'vector)
+                 (json-key-type 'symbol))
+            (json-read-from-string stderr))
+        (error
+         (signal 'beads-json-parse-error
+                 (list (format "Failed to parse JSON from stderr: %s"
+                               (error-message-string err))
+                       :exit-code (oref command exit-code)
+                       :stdout (oref command stdout)
+                       :stderr stderr
+                       :parse-error err)))))))
 
 ;;; Import Command
 
@@ -663,84 +778,35 @@ resurrect, skip, allow)"
      ;; Otherwise valid
      (t nil))))
 
-(cl-defmethod beads-command-execute ((command beads-command-import))
-  "Execute import COMMAND and return result.
+(cl-defmethod beads-command-execute :before ((command beads-command-import))
+  "Set no-daemon flag for import COMMAND before execution.
+Import always uses --no-daemon to avoid daemon issues."
+  (oset command no-daemon t))
+
+(cl-defmethod beads-command-parse ((command beads-command-import))
+  "Parse import COMMAND output.
 Unlike most commands, bd import writes JSON stats to stderr, not stdout.
-When :json is nil, returns (EXIT-CODE STDOUT STDERR).
-When :json is t, returns parsed JSON from STDERR (not STDOUT).
-Signals beads-validation-error, beads-command-error, or
-beads-json-parse-error on failure."
-  ;; Import automatically uses --no-daemon, ensure it's set
-  (with-slots (no-daemon) command
-    (setf no-daemon t))
-
-  ;; Validate first
-  (when-let ((error (beads-command-validate command)))
-    (signal 'beads-validation-error
-            (list (format "Command validation failed: %s" error)
-                  :command command
-                  :error error)))
-
-  ;; Build full command line
-  (let* ((cmd (beads-command-line command))
-         (cmd-string (mapconcat #'shell-quote-argument cmd " "))
-         (stderr-file (make-temp-file "beads-stderr-"))
-         (start-time (current-time)))
-
-    (when (fboundp 'beads--log)
-      (beads--log 'info "Running: %s" cmd-string)
-      (beads--log 'verbose "In directory: %s" default-directory))
-
-    (unwind-protect
-        (with-temp-buffer
-          (let* ((exit-code (apply #'process-file
-                                  (car cmd) nil
-                                  (list (current-buffer) stderr-file)
-                                  nil (cdr cmd)))
-                 (end-time (current-time))
-                 (elapsed (float-time (time-subtract end-time start-time)))
-                 (stdout (buffer-string))
-                 (stderr (with-temp-buffer
-                          (insert-file-contents stderr-file)
-                          (buffer-string))))
-
-          (when (fboundp 'beads--log)
-            (beads--log 'info "Command completed in %.3fs" elapsed)
-            (beads--log 'verbose "Exit code: %d" exit-code)
-            (beads--log 'verbose "Stdout: %s" stdout)
-            (beads--log 'verbose "Stderr: %s" stderr))
-
-          (if (zerop exit-code)
-              (with-slots (json) command
-                (if (not json)
-                    ;; No JSON parsing, return raw output
-                    (list exit-code stdout stderr)
-                  ;; Parse JSON from stderr (not stdout!)
-                  (condition-case err
-                      (let* ((json-object-type 'alist)
-                             (json-array-type 'vector)
-                             (json-key-type 'symbol)
-                             (parsed-json (json-read-from-string stderr)))
-                        (list exit-code parsed-json stderr))
-                    (error
-                     (signal 'beads-json-parse-error
-                             (list (format "Failed to parse JSON from stderr: %s"
-                                           (error-message-string err))
-                                   :exit-code exit-code
-                                   :stdout stdout
-                                   :stderr stderr
-                                   :parse-error err))))))
-            ;; Signal error with complete information
-            (signal 'beads-command-error
-                    (list (format "Command failed with exit code %d" exit-code)
-                          :command cmd-string
-                          :exit-code exit-code
-                          :stdout stdout
-                          :stderr stderr)))))
-
-      ;; Cleanup temp file
-      (when (file-exists-p stderr-file)
-        (delete-file stderr-file)))))
+When :json is nil, returns raw stderr.
+When :json is t, parses JSON from stderr.
+Does not modify command slots."
+  (with-slots (json stderr) command
+    (if (not json)
+        ;; No JSON parsing, return raw stderr
+        stderr
+      ;; Parse JSON from stderr (not stdout!)
+      (condition-case err
+          (let* ((json-object-type 'alist)
+                 (json-array-type 'vector)
+                 (json-key-type 'symbol))
+            (json-read-from-string stderr))
+        (error
+         (signal 'beads-json-parse-error
+                 (list (format "Failed to parse JSON from stderr: %s"
+                               (error-message-string err))
+                       :exit-code (oref command exit-code)
+                       :stdout (oref command stdout)
+                       :stderr stderr
+                       :parse-error err)))))))
 
 ;;; List Command
 
@@ -1009,38 +1075,27 @@ Returns error string or nil if valid."
      (beads-command--validate-string-list label "label")
      (beads-command--validate-string-list label-any "label-any"))))
 
-(cl-defmethod beads-command-execute ((command beads-command-list))
-  "Execute list COMMAND and return list of beads-issue instances.
-When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
-When :json is t, returns list of beads-issue instances.
-Signals beads-validation-error, beads-command-error, or
-beads-json-parse-error on failure."
+(cl-defmethod beads-command-parse ((command beads-command-list))
+  "Parse list COMMAND output and return list of beads-issue instances.
+When :json is nil, falls back to parent (returns raw stdout).
+When :json is t, converts parsed JSON to beads-issue instances.
+Does not modify command slots."
   (with-slots (json) command
     (if (not json)
         ;; If json is not enabled, use parent implementation
         (cl-call-next-method)
-      ;; JSON execution: call parent to get parsed JSON, then convert
-      ;; to beads-issue instances using beads-issue-from-json
-      (let* ((result (cl-call-next-method))
-             (exit-code (nth 0 result))
-             (parsed-json (nth 1 result))
-             (stderr (nth 2 result)))
-        ;; Convert JSON array to list of beads-issue instances
-        (if (zerop exit-code)
-            (condition-case err
-                (let ((issues (mapcar #'beads-issue-from-json
-                                     (append parsed-json nil))))
-                  issues)
-              (error
-               (signal 'beads-json-parse-error
-                       (list (format "Failed to create beads-issue instances: %s"
-                                    (error-message-string err))
-                             :exit-code exit-code
-                             :parsed-json parsed-json
-                             :stderr stderr
-                             :parse-error err))))
-          ;; Non-zero exit code: parent already signaled error
-          result)))))
+      ;; Call parent to parse JSON, then convert to beads-issue instances
+      (let ((parsed-json (cl-call-next-method)))
+        (condition-case err
+            (mapcar #'beads-issue-from-json (append parsed-json nil))
+          (error
+           (signal 'beads-json-parse-error
+                   (list (format "Failed to create beads-issue instances: %s"
+                                 (error-message-string err))
+                         :exit-code (oref command exit-code)
+                         :parsed-json parsed-json
+                         :stderr (oref command stderr)
+                         :parse-error err))))))))
 
 ;;; Create Command
 
@@ -1230,51 +1285,42 @@ Returns error string or nil if valid."
      (beads-command--validate-string-list deps "deps")
      (beads-command--validate-string-list labels "labels"))))
 
-(cl-defmethod beads-command-execute ((command beads-command-create))
-  "Execute create COMMAND and return created issue(s).
-When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
-When :json is t, returns beads-issue instance (or list of instances
-when creating from file).
-Signals beads-validation-error, beads-command-error, or
-beads-json-parse-error on failure."
+(cl-defmethod beads-command-parse ((command beads-command-create))
+  "Parse create COMMAND output and return created issue(s).
+When :json is nil, falls back to parent (returns raw stdout).
+When :json is t, returns beads-issue instance (or list when creating
+from file).
+Does not modify command slots."
   (with-slots (json) command
     (if (not json)
         ;; If json is not enabled, use parent implementation
         (cl-call-next-method)
-      ;; JSON execution: call parent to get parsed JSON, then convert
-      ;; to beads-issue instance(s) using beads-issue-from-json
-      (let* ((result (cl-call-next-method))
-             (exit-code (nth 0 result))
-             (parsed-json (nth 1 result))
-             (stderr (nth 2 result)))
-        ;; Convert JSON to beads-issue instance(s)
-        (if (zerop exit-code)
-            (condition-case err
-                (cond
-                 ;; Single issue (JSON object)
-                 ((eq (type-of parsed-json) 'cons)
-                  (beads-issue-from-json parsed-json))
-                 ;; Multiple issues from file (JSON array)
-                 ((eq (type-of parsed-json) 'vector)
-                  (mapcar #'beads-issue-from-json
-                          (append parsed-json nil)))
-                 ;; Unexpected JSON structure
-                 (t
-                  (signal 'beads-json-parse-error
-                          (list "Unexpected JSON structure from bd create"
-                                :exit-code exit-code
-                                :parsed-json parsed-json
-                                :stderr stderr))))
-              (error
-               (signal 'beads-json-parse-error
-                       (list (format "Failed to create beads-issue instance: %s"
-                                    (error-message-string err))
-                             :exit-code exit-code
-                             :parsed-json parsed-json
-                             :stderr stderr
-                             :parse-error err))))
-          ;; Non-zero exit code: parent already signaled error
-          result)))))
+      ;; Call parent to parse JSON, then convert to beads-issue instance(s)
+      (let ((parsed-json (cl-call-next-method)))
+        (condition-case err
+            (cond
+             ;; Single issue (JSON object)
+             ((eq (type-of parsed-json) 'cons)
+              (beads-issue-from-json parsed-json))
+             ;; Multiple issues from file (JSON array)
+             ((eq (type-of parsed-json) 'vector)
+              (mapcar #'beads-issue-from-json
+                      (append parsed-json nil)))
+             ;; Unexpected JSON structure
+             (t
+              (signal 'beads-json-parse-error
+                      (list "Unexpected JSON structure from bd create"
+                            :exit-code (oref command exit-code)
+                            :parsed-json parsed-json
+                            :stderr (oref command stderr)))))
+          (error
+           (signal 'beads-json-parse-error
+                   (list (format "Failed to create beads-issue instance: %s"
+                                 (error-message-string err))
+                         :exit-code (oref command exit-code)
+                         :parsed-json parsed-json
+                         :stderr (oref command stderr)
+                         :parse-error err))))))))
 
 ;;; Epic Commands
 
@@ -1311,26 +1357,7 @@ Returns list: (\"epic\" \"close-eligible\" ...global-flags... ...flags...)."
 Default implementation returns nil (valid)."
   nil)
 
-(cl-defmethod beads-command-execute ((command
-                                      beads-command-epic-close-eligible))
-  "Execute epic close-eligible COMMAND and return result.
-When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
-When :json is t, returns parsed JSON (list of epic IDs or status objects).
-Signals beads-validation-error, beads-command-error, or
-beads-json-parse-error on failure."
-  (with-slots (json) command
-    (if (not json)
-        ;; If json is not enabled, use parent implementation
-        (cl-call-next-method)
-      ;; JSON execution: call parent to get parsed JSON
-      (let* ((result (cl-call-next-method))
-             (exit-code (nth 0 result))
-             (parsed-json (nth 1 result)))
-        ;; Return parsed JSON directly (no conversion needed)
-        (if (zerop exit-code)
-            parsed-json
-          ;; Non-zero exit code: parent already signaled error
-          result)))))
+;; No custom parse needed for epic-close-eligible - uses parent JSON parse
 
 (defclass beads-command-epic-status (beads-command-json)
   ((eligible-only
@@ -1363,53 +1390,44 @@ Returns list: (\"epic\" \"status\" ...global-flags... ...flags...)."
 Default implementation returns nil (valid)."
   nil)
 
-(cl-defmethod beads-command-execute ((command beads-command-epic-status))
-  "Execute epic status COMMAND and return result.
-When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
+(cl-defmethod beads-command-parse ((command beads-command-epic-status))
+  "Parse epic status COMMAND output and return beads-epic-status instances.
+When :json is nil, falls back to parent (returns raw stdout).
 When :json is t, returns list of beads-epic-status instances.
-Signals beads-validation-error, beads-command-error, or
-beads-json-parse-error on failure."
+Does not modify command slots."
   (with-slots (json) command
     (if (not json)
         ;; If json is not enabled, use parent implementation
         (cl-call-next-method)
-      ;; JSON execution: call parent to get parsed JSON, then convert
-      ;; to beads-epic-status instance(s)
-      (let* ((result (cl-call-next-method))
-             (exit-code (nth 0 result))
-             (parsed-json (nth 1 result))
-             (stderr (nth 2 result)))
-        ;; Convert JSON to beads-epic-status instance(s)
-        (if (zerop exit-code)
-            (condition-case err
-                (cond
-                 ;; Empty result (nil)
-                 ((null parsed-json)
-                  nil)
-                 ;; JSON array of epic status objects
-                 ((eq (type-of parsed-json) 'vector)
-                  (mapcar #'beads-epic-status-from-json
-                          (append parsed-json nil)))
-                 ;; Single epic status (unlikely, but handle it)
-                 ((eq (type-of parsed-json) 'cons)
-                  (list (beads-epic-status-from-json parsed-json)))
-                 ;; Unexpected JSON structure
-                 (t
-                  (signal 'beads-json-parse-error
-                          (list "Unexpected JSON structure from bd epic status"
-                                :exit-code exit-code
-                                :parsed-json parsed-json
-                                :stderr stderr))))
-              (error
-               (signal 'beads-json-parse-error
-                       (list (format "Failed to create beads-epic-status instance: %s"
-                                    (error-message-string err))
-                             :exit-code exit-code
-                             :parsed-json parsed-json
-                             :stderr stderr
-                             :parse-error err))))
-          ;; Non-zero exit code: parent already signaled error
-          result)))))
+      ;; Call parent to parse JSON, then convert to beads-epic-status
+      (let ((parsed-json (cl-call-next-method)))
+        (condition-case err
+            (cond
+             ;; Empty result (nil)
+             ((null parsed-json)
+              nil)
+             ;; JSON array of epic status objects
+             ((eq (type-of parsed-json) 'vector)
+              (mapcar #'beads-epic-status-from-json
+                      (append parsed-json nil)))
+             ;; Single epic status (unlikely, but handle it)
+             ((eq (type-of parsed-json) 'cons)
+              (list (beads-epic-status-from-json parsed-json)))
+             ;; Unexpected JSON structure
+             (t
+              (signal 'beads-json-parse-error
+                      (list "Unexpected JSON structure from bd epic status"
+                            :exit-code (oref command exit-code)
+                            :parsed-json parsed-json
+                            :stderr (oref command stderr)))))
+          (error
+           (signal 'beads-json-parse-error
+                   (list (format "Failed to create beads-epic-status instance: %s"
+                                 (error-message-string err))
+                         :exit-code (oref command exit-code)
+                         :parsed-json parsed-json
+                         :stderr (oref command stderr)
+                         :parse-error err))))))))
 
 ;;; Show Command
 
@@ -1452,52 +1470,40 @@ Returns error string or nil if valid."
      ;; Validate list content types
      (beads-command--validate-string-list issue-ids "issue-ids"))))
 
-(cl-defmethod beads-command-execute ((command beads-command-show))
-  "Execute show COMMAND and return issue(s).
-When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
-When :json is t, returns beads-issue instance (or list of instances
-when multiple IDs provided).
-Signals beads-validation-error, beads-command-error, or
-beads-json-parse-error on failure."
+(cl-defmethod beads-command-parse ((command beads-command-show))
+  "Parse show COMMAND output and return issue(s).
+When :json is nil, falls back to parent (returns raw stdout).
+When :json is t, returns beads-issue instance (or list when multiple IDs).
+Does not modify command slots."
   (with-slots (json issue-ids) command
     (if (not json)
         ;; If json is not enabled, use parent implementation
         (cl-call-next-method)
-      ;; JSON execution: call parent to get parsed JSON, then convert
-      ;; to beads-issue instance(s) using beads-issue-from-json
-      (let* ((result (cl-call-next-method))
-             (exit-code (nth 0 result))
-             (parsed-json (nth 1 result))
-             (stderr (nth 2 result)))
-        ;; Convert JSON to beads-issue instance(s)
-        ;; Note: bd show always returns an array in JSON mode,
-        ;; even for a single issue ID
-        (if (zerop exit-code)
-            (condition-case err
-                (if (eq (type-of parsed-json) 'vector)
-                    ;; bd show returns array - convert to issue objects
-                    (let ((issues (mapcar #'beads-issue-from-json
-                                         (append parsed-json nil))))
-                      ;; Return single issue if only one ID, list otherwise
-                      (if (= (length issue-ids) 1)
-                          (car issues)
-                        issues))
-                  ;; Unexpected JSON structure
-                  (signal 'beads-json-parse-error
-                          (list "Unexpected JSON structure from bd show"
-                                :exit-code exit-code
-                                :parsed-json parsed-json
-                                :stderr stderr)))
-              (error
-               (signal 'beads-json-parse-error
-                       (list (format "Failed to create beads-issue instance: %s"
-                                    (error-message-string err))
-                             :exit-code exit-code
-                             :parsed-json parsed-json
-                             :stderr stderr
-                             :parse-error err))))
-          ;; Non-zero exit code: parent already signaled error
-          result)))))
+      ;; Call parent to parse JSON, then convert to beads-issue instance(s)
+      (let ((parsed-json (cl-call-next-method)))
+        (condition-case err
+            (if (eq (type-of parsed-json) 'vector)
+                ;; bd show returns array - convert to issue objects
+                (let ((issues (mapcar #'beads-issue-from-json
+                                      (append parsed-json nil))))
+                  ;; Return single issue if only one ID, list otherwise
+                  (if (= (length issue-ids) 1)
+                      (car issues)
+                    issues))
+              ;; Unexpected JSON structure
+              (signal 'beads-json-parse-error
+                      (list "Unexpected JSON structure from bd show"
+                            :exit-code (oref command exit-code)
+                            :parsed-json parsed-json
+                            :stderr (oref command stderr))))
+          (error
+           (signal 'beads-json-parse-error
+                   (list (format "Failed to create beads-issue instance: %s"
+                                 (error-message-string err))
+                         :exit-code (oref command exit-code)
+                         :parsed-json parsed-json
+                         :stderr (oref command stderr)
+                         :parse-error err))))))))
 
 ;;; Update Command
 
@@ -1616,52 +1622,40 @@ Returns error string or nil if valid."
      ;; Validate list content types
      (beads-command--validate-string-list issue-ids "issue-ids"))))
 
-(cl-defmethod beads-command-execute ((command beads-command-update))
-  "Execute update COMMAND and return updated issue(s).
-When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
-When :json is t, returns beads-issue instance (or list of instances
-when multiple IDs provided).
-Signals beads-validation-error, beads-command-error, or
-beads-json-parse-error on failure."
+(cl-defmethod beads-command-parse ((command beads-command-update))
+  "Parse update COMMAND output and return updated issue(s).
+When :json is nil, falls back to parent (returns raw stdout).
+When :json is t, returns beads-issue instance (or list when multiple IDs).
+Does not modify command slots."
   (with-slots (json issue-ids) command
     (if (not json)
         ;; If json is not enabled, use parent implementation
         (cl-call-next-method)
-      ;; JSON execution: call parent to get parsed JSON, then convert
-      ;; to beads-issue instance(s) using beads-issue-from-json
-      (let* ((result (cl-call-next-method))
-             (exit-code (nth 0 result))
-             (parsed-json (nth 1 result))
-             (stderr (nth 2 result)))
-        ;; Convert JSON to beads-issue instance(s)
-        ;; Note: bd update always returns an array in JSON mode,
-        ;; even for a single issue ID
-        (if (zerop exit-code)
-            (condition-case err
-                (if (eq (type-of parsed-json) 'vector)
-                    ;; bd update returns array - convert to issue objects
-                    (let ((issues (mapcar #'beads-issue-from-json
-                                         (append parsed-json nil))))
-                      ;; Return single issue if only one ID, list otherwise
-                      (if (= (length issue-ids) 1)
-                          (car issues)
-                        issues))
-                  ;; Unexpected JSON structure
-                  (signal 'beads-json-parse-error
-                          (list "Unexpected JSON structure from bd update"
-                                :exit-code exit-code
-                                :parsed-json parsed-json
-                                :stderr stderr)))
-              (error
-               (signal 'beads-json-parse-error
-                       (list (format "Failed to create beads-issue instance: %s"
-                                    (error-message-string err))
-                             :exit-code exit-code
-                             :parsed-json parsed-json
-                             :stderr stderr
-                             :parse-error err))))
-          ;; Non-zero exit code: parent already signaled error
-          result)))))
+      ;; Call parent to parse JSON, then convert to beads-issue instance(s)
+      (let ((parsed-json (cl-call-next-method)))
+        (condition-case err
+            (if (eq (type-of parsed-json) 'vector)
+                ;; bd update returns array - convert to issue objects
+                (let ((issues (mapcar #'beads-issue-from-json
+                                      (append parsed-json nil))))
+                  ;; Return single issue if only one ID, list otherwise
+                  (if (= (length issue-ids) 1)
+                      (car issues)
+                    issues))
+              ;; Unexpected JSON structure
+              (signal 'beads-json-parse-error
+                      (list "Unexpected JSON structure from bd update"
+                            :exit-code (oref command exit-code)
+                            :parsed-json parsed-json
+                            :stderr (oref command stderr))))
+          (error
+           (signal 'beads-json-parse-error
+                   (list (format "Failed to create beads-issue instance: %s"
+                                 (error-message-string err))
+                         :exit-code (oref command exit-code)
+                         :parsed-json parsed-json
+                         :stderr (oref command stderr)
+                         :parse-error err))))))))
 
 ;;; Close Command
 
@@ -1717,52 +1711,40 @@ Returns error string or nil if valid."
      ;; Validate list content types
      (beads-command--validate-string-list issue-ids "issue-ids"))))
 
-(cl-defmethod beads-command-execute ((command beads-command-close))
-  "Execute close COMMAND and return closed issue(s).
-When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
-When :json is t, returns beads-issue instance (or list of instances
-when multiple IDs provided).
-Signals beads-validation-error, beads-command-error, or
-beads-json-parse-error on failure."
+(cl-defmethod beads-command-parse ((command beads-command-close))
+  "Parse close COMMAND output and return closed issue(s).
+When :json is nil, falls back to parent (returns raw stdout).
+When :json is t, returns beads-issue instance (or list when multiple IDs).
+Does not modify command slots."
   (with-slots (json issue-ids) command
     (if (not json)
         ;; If json is not enabled, use parent implementation
         (cl-call-next-method)
-      ;; JSON execution: call parent to get parsed JSON, then convert
-      ;; to beads-issue instance(s) using beads-issue-from-json
-      (let* ((result (cl-call-next-method))
-             (exit-code (nth 0 result))
-             (parsed-json (nth 1 result))
-             (stderr (nth 2 result)))
-        ;; Convert JSON to beads-issue instance(s)
-        ;; Note: bd close always returns an array in JSON mode,
-        ;; even for a single issue ID
-        (if (zerop exit-code)
-            (condition-case err
-                (if (eq (type-of parsed-json) 'vector)
-                    ;; bd close returns array - convert to issue objects
-                    (let ((issues (mapcar #'beads-issue-from-json
-                                         (append parsed-json nil))))
-                      ;; Return single issue if only one ID, list otherwise
-                      (if (= (length issue-ids) 1)
-                          (car issues)
-                        issues))
-                  ;; Unexpected JSON structure
-                  (signal 'beads-json-parse-error
-                          (list "Unexpected JSON structure from bd close"
-                                :exit-code exit-code
-                                :parsed-json parsed-json
-                                :stderr stderr)))
-              (error
-               (signal 'beads-json-parse-error
-                       (list (format "Failed to create beads-issue instance: %s"
-                                    (error-message-string err))
-                             :exit-code exit-code
-                             :parsed-json parsed-json
-                             :stderr stderr
-                             :parse-error err))))
-          ;; Non-zero exit code: parent already signaled error
-          result)))))
+      ;; Call parent to parse JSON, then convert to beads-issue instance(s)
+      (let ((parsed-json (cl-call-next-method)))
+        (condition-case err
+            (if (eq (type-of parsed-json) 'vector)
+                ;; bd close returns array - convert to issue objects
+                (let ((issues (mapcar #'beads-issue-from-json
+                                      (append parsed-json nil))))
+                  ;; Return single issue if only one ID, list otherwise
+                  (if (= (length issue-ids) 1)
+                      (car issues)
+                    issues))
+              ;; Unexpected JSON structure
+              (signal 'beads-json-parse-error
+                      (list "Unexpected JSON structure from bd close"
+                            :exit-code (oref command exit-code)
+                            :parsed-json parsed-json
+                            :stderr (oref command stderr))))
+          (error
+           (signal 'beads-json-parse-error
+                   (list (format "Failed to create beads-issue instance: %s"
+                                 (error-message-string err))
+                         :exit-code (oref command exit-code)
+                         :parsed-json parsed-json
+                         :stderr (oref command stderr)
+                         :parse-error err))))))))
 
 ;;; Reopen Command
 
@@ -1814,52 +1796,40 @@ Returns error string or nil if valid."
      ;; Validate list content types
      (beads-command--validate-string-list issue-ids "issue-ids"))))
 
-(cl-defmethod beads-command-execute ((command beads-command-reopen))
-  "Execute reopen COMMAND and return reopened issue(s).
-When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
-When :json is t, returns beads-issue instance (or list of instances
-when multiple IDs provided).
-Signals beads-validation-error, beads-command-error, or
-beads-json-parse-error on failure."
+(cl-defmethod beads-command-parse ((command beads-command-reopen))
+  "Parse reopen COMMAND output and return reopened issue(s).
+When :json is nil, falls back to parent (returns raw stdout).
+When :json is t, returns beads-issue instance (or list when multiple IDs).
+Does not modify command slots."
   (with-slots (json issue-ids) command
     (if (not json)
         ;; If json is not enabled, use parent implementation
         (cl-call-next-method)
-      ;; JSON execution: call parent to get parsed JSON, then convert
-      ;; to beads-issue instance(s) using beads-issue-from-json
-      (let* ((result (cl-call-next-method))
-             (exit-code (nth 0 result))
-             (parsed-json (nth 1 result))
-             (stderr (nth 2 result)))
-        ;; Convert JSON to beads-issue instance(s)
-        ;; Note: bd reopen always returns an array in JSON mode,
-        ;; even for a single issue ID
-        (if (zerop exit-code)
-            (condition-case err
-                (if (eq (type-of parsed-json) 'vector)
-                    ;; bd reopen returns array - convert to issue objects
-                    (let ((issues (mapcar #'beads-issue-from-json
-                                         (append parsed-json nil))))
-                      ;; Return single issue if only one ID, list otherwise
-                      (if (= (length issue-ids) 1)
-                          (car issues)
-                        issues))
-                  ;; Unexpected JSON structure
-                  (signal 'beads-json-parse-error
-                          (list "Unexpected JSON structure from bd reopen"
-                                :exit-code exit-code
-                                :parsed-json parsed-json
-                                :stderr stderr)))
-              (error
-               (signal 'beads-json-parse-error
-                       (list (format "Failed to create beads-issue instance: %s"
-                                    (error-message-string err))
-                             :exit-code exit-code
-                             :parsed-json parsed-json
-                             :stderr stderr
-                             :parse-error err))))
-          ;; Non-zero exit code: parent already signaled error
-          result)))))
+      ;; Call parent to parse JSON, then convert to beads-issue instance(s)
+      (let ((parsed-json (cl-call-next-method)))
+        (condition-case err
+            (if (eq (type-of parsed-json) 'vector)
+                ;; bd reopen returns array - convert to issue objects
+                (let ((issues (mapcar #'beads-issue-from-json
+                                      (append parsed-json nil))))
+                  ;; Return single issue if only one ID, list otherwise
+                  (if (= (length issue-ids) 1)
+                      (car issues)
+                    issues))
+              ;; Unexpected JSON structure
+              (signal 'beads-json-parse-error
+                      (list "Unexpected JSON structure from bd reopen"
+                            :exit-code (oref command exit-code)
+                            :parsed-json parsed-json
+                            :stderr (oref command stderr))))
+          (error
+           (signal 'beads-json-parse-error
+                   (list (format "Failed to create beads-issue instance: %s"
+                                 (error-message-string err))
+                         :exit-code (oref command exit-code)
+                         :parsed-json parsed-json
+                         :stderr (oref command stderr)
+                         :parse-error err))))))))
 
 ;;; Delete Command
 
@@ -1909,9 +1879,9 @@ Returns error string or nil if valid."
 
 (defun beads-command-delete! (&rest args)
   "Create and execute a beads-command-delete with ARGS.
-Returns (EXIT-CODE STDOUT STDERR) tuple.
+Returns the parsed JSON result (deleted issue).
 See `beads-command-delete' for available arguments."
-  (beads-command-execute (apply #'beads-command-delete args)))
+  (oref (beads-command-execute (apply #'beads-command-delete args)) data))
 
 ;;; Ready Command
 
@@ -2003,38 +1973,27 @@ Returns error string or nil if valid."
      (beads-command--validate-string-list label "label")
      (beads-command--validate-string-list label-any "label-any"))))
 
-(cl-defmethod beads-command-execute ((command beads-command-ready))
-  "Execute ready COMMAND and return list of beads-issue instances.
-When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
-When :json is t, returns list of beads-issue instances.
-Signals beads-validation-error, beads-command-error, or
-beads-json-parse-error on failure."
+(cl-defmethod beads-command-parse ((command beads-command-ready))
+  "Parse ready COMMAND output and return list of beads-issue instances.
+When :json is nil, falls back to parent (returns raw stdout).
+When :json is t, converts parsed JSON to beads-issue instances.
+Does not modify command slots."
   (with-slots (json) command
     (if (not json)
         ;; If json is not enabled, use parent implementation
         (cl-call-next-method)
-      ;; JSON execution: call parent to get parsed JSON, then convert
-      ;; to beads-issue instances using beads-issue-from-json
-      (let* ((result (cl-call-next-method))
-             (exit-code (nth 0 result))
-             (parsed-json (nth 1 result))
-             (stderr (nth 2 result)))
-        ;; Convert JSON array to list of beads-issue instances
-        (if (zerop exit-code)
-            (condition-case err
-                (let ((issues (mapcar #'beads-issue-from-json
-                                     (append parsed-json nil))))
-                  issues)
-              (error
-               (signal 'beads-json-parse-error
-                       (list (format "Failed to create beads-issue instances: %s"
-                                    (error-message-string err))
-                             :exit-code exit-code
-                             :parsed-json parsed-json
-                             :stderr stderr
-                             :parse-error err))))
-          ;; Non-zero exit code: parent already signaled error
-          result)))))
+      ;; Call parent to parse JSON, then convert to beads-issue instances
+      (let ((parsed-json (cl-call-next-method)))
+        (condition-case err
+            (mapcar #'beads-issue-from-json (append parsed-json nil))
+          (error
+           (signal 'beads-json-parse-error
+                   (list (format "Failed to create beads-issue instances: %s"
+                                 (error-message-string err))
+                         :exit-code (oref command exit-code)
+                         :parsed-json parsed-json
+                         :stderr (oref command stderr)
+                         :parse-error err))))))))
 
 ;;; Blocked Command
 
@@ -2058,38 +2017,27 @@ Returns list: (\"blocked\" ...global-flags...)."
 Default implementation returns nil (valid)."
   nil)
 
-(cl-defmethod beads-command-execute ((command beads-command-blocked))
-  "Execute blocked COMMAND and return list of beads-blocked-issue instances.
-When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
-When :json is t, returns list of beads-blocked-issue instances.
-Signals beads-validation-error, beads-command-error, or
-beads-json-parse-error on failure."
+(cl-defmethod beads-command-parse ((command beads-command-blocked))
+  "Parse blocked COMMAND output and return list of beads-blocked-issue instances.
+When :json is nil, falls back to parent (returns raw stdout).
+When :json is t, converts parsed JSON to beads-blocked-issue instances.
+Does not modify command slots."
   (with-slots (json) command
     (if (not json)
         ;; If json is not enabled, use parent implementation
         (cl-call-next-method)
-      ;; JSON execution: call parent to get parsed JSON, then convert
-      ;; to beads-blocked-issue instances using beads-blocked-issue-from-json
-      (let* ((result (cl-call-next-method))
-             (exit-code (nth 0 result))
-             (parsed-json (nth 1 result))
-             (stderr (nth 2 result)))
-        ;; Convert JSON array to list of beads-blocked-issue instances
-        (if (zerop exit-code)
-            (condition-case err
-                (let ((issues (mapcar #'beads-blocked-issue-from-json
-                                     (append parsed-json nil))))
-                  issues)
-              (error
-               (signal 'beads-json-parse-error
-                       (list (format "Failed to create beads-blocked-issue instances: %s"
-                                    (error-message-string err))
-                             :exit-code exit-code
-                             :parsed-json parsed-json
-                             :stderr stderr
-                             :parse-error err))))
-          ;; Non-zero exit code: parent already signaled error
-          result)))))
+      ;; Call parent to parse JSON, then convert to beads-blocked-issue instances
+      (let ((parsed-json (cl-call-next-method)))
+        (condition-case err
+            (mapcar #'beads-blocked-issue-from-json (append parsed-json nil))
+          (error
+           (signal 'beads-json-parse-error
+                   (list (format "Failed to create beads-blocked-issue instances: %s"
+                                 (error-message-string err))
+                         :exit-code (oref command exit-code)
+                         :parsed-json parsed-json
+                         :stderr (oref command stderr)
+                         :parse-error err))))))))
 
 ;;; Stats Command
 
@@ -2113,25 +2061,7 @@ Returns list: (\"stats\" ...global-flags...)."
 Default implementation returns nil (valid)."
   nil)
 
-(cl-defmethod beads-command-execute ((command beads-command-stats))
-  "Execute stats COMMAND and return parsed JSON result.
-When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
-When :json is t, returns parsed JSON stats object.
-Signals beads-validation-error, beads-command-error, or
-beads-json-parse-error on failure."
-  (with-slots (json) command
-    (if (not json)
-        ;; If json is not enabled, use parent implementation
-        (cl-call-next-method)
-      ;; JSON execution: call parent to get parsed JSON
-      (let* ((result (cl-call-next-method))
-             (exit-code (nth 0 result))
-             (parsed-json (nth 1 result)))
-        ;; Return parsed JSON directly (no conversion needed)
-        (if (zerop exit-code)
-            parsed-json
-          ;; Non-zero exit code: parent already signaled error
-          result)))))
+;; No custom parse needed for stats - uses parent JSON parse
 
 ;;; Dep Add Command
 
@@ -2195,25 +2125,7 @@ Returns error string or nil if valid."
           (not (member dep-type '("blocks" "related" "parent-child" "discovered-from")))
           "Type must be one of: blocks, related, parent-child, discovered-from"))))
 
-(cl-defmethod beads-command-execute ((command beads-command-dep-add))
-  "Execute dep add COMMAND and return result.
-When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
-When :json is t, returns parsed JSON result.
-Signals beads-validation-error, beads-command-error, or
-beads-json-parse-error on failure."
-  (with-slots (json) command
-    (if (not json)
-        ;; If json is not enabled, use parent implementation
-        (cl-call-next-method)
-      ;; JSON execution: call parent to get parsed JSON
-      (let* ((result (cl-call-next-method))
-             (exit-code (nth 0 result))
-             (parsed-json (nth 1 result)))
-        ;; Return parsed JSON directly (no conversion needed)
-        (if (zerop exit-code)
-            parsed-json
-          ;; Non-zero exit code: parent already signaled error
-          result)))))
+;; No custom parse needed for dep-add - uses parent JSON parse
 
 ;;; Dep Remove Command
 
@@ -2262,25 +2174,7 @@ Returns error string or nil if valid."
      (and (or (null depends-on-id) (string-empty-p depends-on-id))
           "Must provide depends-on-id"))))
 
-(cl-defmethod beads-command-execute ((command beads-command-dep-remove))
-  "Execute dep remove COMMAND and return result.
-When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
-When :json is t, returns parsed JSON result.
-Signals beads-validation-error, beads-command-error, or
-beads-json-parse-error on failure."
-  (with-slots (json) command
-    (if (not json)
-        ;; If json is not enabled, use parent implementation
-        (cl-call-next-method)
-      ;; JSON execution: call parent to get parsed JSON
-      (let* ((result (cl-call-next-method))
-             (exit-code (nth 0 result))
-             (parsed-json (nth 1 result)))
-        ;; Return parsed JSON directly (no conversion needed)
-        (if (zerop exit-code)
-            parsed-json
-          ;; Non-zero exit code: parent already signaled error
-          result)))))
+;; No custom parse needed for dep-remove - uses parent JSON parse
 
 ;;; Dep Tree Command
 
@@ -2360,25 +2254,7 @@ Returns error string or nil if valid."
      (and max-depth (< max-depth 1)
           "Max depth must be positive"))))
 
-(cl-defmethod beads-command-execute ((command beads-command-dep-tree))
-  "Execute dep tree COMMAND and return result.
-When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
-When :json is t, returns parsed JSON tree structure.
-Signals beads-validation-error, beads-command-error, or
-beads-json-parse-error on failure."
-  (with-slots (json) command
-    (if (not json)
-        ;; If json is not enabled, use parent implementation
-        (cl-call-next-method)
-      ;; JSON execution: call parent to get parsed JSON
-      (let* ((result (cl-call-next-method))
-             (exit-code (nth 0 result))
-             (parsed-json (nth 1 result)))
-        ;; Return parsed JSON directly (no conversion needed)
-        (if (zerop exit-code)
-            parsed-json
-          ;; Non-zero exit code: parent already signaled error
-          result)))))
+;; No custom parse needed for dep-tree - uses parent JSON parse
 
 ;;; Dep Cycles Command
 
@@ -2402,25 +2278,7 @@ Returns list: (\"dep\" \"cycles\" ...global-flags...)."
 Default implementation returns nil (valid)."
   nil)
 
-(cl-defmethod beads-command-execute ((command beads-command-dep-cycles))
-  "Execute dep cycles COMMAND and return result.
-When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
-When :json is t, returns parsed JSON cycle information.
-Signals beads-validation-error, beads-command-error, or
-beads-json-parse-error on failure."
-  (with-slots (json) command
-    (if (not json)
-        ;; If json is not enabled, use parent implementation
-        (cl-call-next-method)
-      ;; JSON execution: call parent to get parsed JSON
-      (let* ((result (cl-call-next-method))
-             (exit-code (nth 0 result))
-             (parsed-json (nth 1 result)))
-        ;; Return parsed JSON directly (no conversion needed)
-        (if (zerop exit-code)
-            parsed-json
-          ;; Non-zero exit code: parent already signaled error
-          result)))))
+;; No custom parse needed for dep-cycles - uses parent JSON parse
 
 ;;; Label List-All Command
 
@@ -2444,25 +2302,7 @@ Returns list: (\"label\" \"list-all\" ...global-flags...)."
 Default implementation returns nil (valid)."
   nil)
 
-(cl-defmethod beads-command-execute ((command beads-command-label-list-all))
-  "Execute label list-all COMMAND and return result.
-When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
-When :json is t, returns parsed JSON array of label objects.
-Signals beads-validation-error, beads-command-error, or
-beads-json-parse-error on failure."
-  (with-slots (json) command
-    (if (not json)
-        ;; If json is not enabled, use parent implementation
-        (cl-call-next-method)
-      ;; JSON execution: call parent to get parsed JSON
-      (let* ((result (cl-call-next-method))
-             (exit-code (nth 0 result))
-             (parsed-json (nth 1 result)))
-        ;; Return parsed JSON directly (no conversion needed)
-        (if (zerop exit-code)
-            parsed-json
-          ;; Non-zero exit code: parent already signaled error
-          result)))))
+;; No custom parse needed for label-list-all - uses parent JSON parse
 
 ;;; Label Add Command
 
@@ -2516,25 +2356,7 @@ Returns error string or nil if valid."
      ;; Validate list content types
      (beads-command--validate-string-list issue-ids "issue-ids"))))
 
-(cl-defmethod beads-command-execute ((command beads-command-label-add))
-  "Execute label add COMMAND and return result.
-When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
-When :json is t, returns parsed JSON result.
-Signals beads-validation-error, beads-command-error, or
-beads-json-parse-error on failure."
-  (with-slots (json) command
-    (if (not json)
-        ;; If json is not enabled, use parent implementation
-        (cl-call-next-method)
-      ;; JSON execution: call parent to get parsed JSON
-      (let* ((result (cl-call-next-method))
-             (exit-code (nth 0 result))
-             (parsed-json (nth 1 result)))
-        ;; Return parsed JSON directly (no conversion needed)
-        (if (zerop exit-code)
-            parsed-json
-          ;; Non-zero exit code: parent already signaled error
-          result)))))
+;; No custom parse needed for label-add - uses parent JSON parse
 
 ;;; Label Remove Command
 
@@ -2588,25 +2410,7 @@ Returns error string or nil if valid."
      ;; Validate list content types
      (beads-command--validate-string-list issue-ids "issue-ids"))))
 
-(cl-defmethod beads-command-execute ((command beads-command-label-remove))
-  "Execute label remove COMMAND and return result.
-When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
-When :json is t, returns parsed JSON result.
-Signals beads-validation-error, beads-command-error, or
-beads-json-parse-error on failure."
-  (with-slots (json) command
-    (if (not json)
-        ;; If json is not enabled, use parent implementation
-        (cl-call-next-method)
-      ;; JSON execution: call parent to get parsed JSON
-      (let* ((result (cl-call-next-method))
-             (exit-code (nth 0 result))
-             (parsed-json (nth 1 result)))
-        ;; Return parsed JSON directly (no conversion needed)
-        (if (zerop exit-code)
-            parsed-json
-          ;; Non-zero exit code: parent already signaled error
-          result)))))
+;; No custom parse needed for label-remove - uses parent JSON parse
 
 ;;; Label List Command
 
@@ -2645,25 +2449,7 @@ Returns error string or nil if valid."
     (and (or (null issue-id) (string-empty-p issue-id))
          "Must provide an issue ID")))
 
-(cl-defmethod beads-command-execute ((command beads-command-label-list))
-  "Execute label list COMMAND and return result.
-When :json is nil, returns (EXIT-CODE STDOUT STDERR) like parent.
-When :json is t, returns parsed JSON result (array of label strings).
-Signals beads-validation-error, beads-command-error, or
-beads-json-parse-error on failure."
-  (with-slots (json) command
-    (if (not json)
-        ;; If json is not enabled, use parent implementation
-        (cl-call-next-method)
-      ;; JSON execution: call parent to get parsed JSON
-      (let* ((result (cl-call-next-method))
-             (exit-code (nth 0 result))
-             (parsed-json (nth 1 result)))
-        ;; Return parsed JSON directly (no conversion needed)
-        (if (zerop exit-code)
-            parsed-json
-          ;; Non-zero exit code: parent already signaled error
-          result)))))
+;; No custom parse needed for label-list - uses parent JSON parse
 
 ;;; Utility Functions
 
@@ -2707,144 +2493,143 @@ Plus global flags:
 
 (defun beads-command-init! (&rest args)
   "Create and execute a beads-command-init with ARGS.
-Returns the result of executing the command.
+Returns the stdout string (init output).
 See `beads-command-init' for available arguments."
-  (beads-command-execute (apply #'beads-command-init args)))
+  (oref (beads-command-execute (apply #'beads-command-init args)) data))
 
 (defun beads-command-quickstart! (&rest args)
   "Create and execute a beads-command-quickstart with ARGS.
-Returns (EXIT-CODE STDOUT STDERR) tuple.
-STDOUT contains the quickstart guide text.
+Returns the stdout string (quickstart guide text).
 See `beads-command-quickstart' for available arguments."
-  (beads-command-execute (apply #'beads-command-quickstart args)))
+  (oref (beads-command-execute (apply #'beads-command-quickstart args)) data))
 
 (defun beads-command-export! (&rest args)
   "Create and execute a beads-command-export with ARGS.
 When :json is t (default), returns parsed JSON export statistics.
-When :json is nil, returns (EXIT-CODE STDOUT STDERR) tuple.
+When :json is nil, returns raw stderr string.
 See `beads-command-export' for available arguments."
-  (beads-command-execute (apply #'beads-command-export args)))
+  (oref (beads-command-execute (apply #'beads-command-export args)) data))
 
 (defun beads-command-import! (&rest args)
   "Create and execute a beads-command-import with ARGS.
-Returns (EXIT-CODE STDOUT STDERR) tuple.
+Returns the stderr string (import output).
 NOTE: bd import does not currently output JSON stats, so :json defaults to nil.
 See `beads-command-import' for available arguments."
-  (beads-command-execute (apply #'beads-command-import args)))
+  (oref (beads-command-execute (apply #'beads-command-import args)) data))
 
 (defun beads-command-create! (&rest args)
   "Create and execute a beads-command-create with ARGS.
 Returns the parsed issue object.
 See `beads-command-create' for available arguments."
-  (beads-command-execute (apply #'beads-command-create args)))
+  (oref (beads-command-execute (apply #'beads-command-create args)) data))
 
 (defun beads-command-list! (&rest args)
   "Create and execute a beads-command-list with ARGS.
 Returns a list of parsed issue objects.
 See `beads-command-list' for available arguments."
-  (beads-command-execute (apply #'beads-command-list args)))
+  (oref (beads-command-execute (apply #'beads-command-list args)) data))
 
 (defun beads-command-epic-close-eligible! (&rest args)
   "Create and execute a beads-command-epic-close-eligible with ARGS.
 Returns the parsed JSON result (list of epic IDs or status objects).
 See `beads-command-epic-close-eligible' for available arguments."
-  (beads-command-execute (apply #'beads-command-epic-close-eligible args)))
+  (oref (beads-command-execute (apply #'beads-command-epic-close-eligible args)) data))
 
 (defun beads-command-epic-status! (&rest args)
   "Create and execute a beads-command-epic-status with ARGS.
 Returns the parsed JSON result (list of epic status objects).
 See `beads-command-epic-status' for available arguments."
-  (beads-command-execute (apply #'beads-command-epic-status args)))
+  (oref (beads-command-execute (apply #'beads-command-epic-status args)) data))
 
 (defun beads-command-show! (&rest args)
   "Create and execute a beads-command-show with ARGS.
 Returns the parsed issue object (or list of issue objects).
 See `beads-command-show' for available arguments."
-  (beads-command-execute (apply #'beads-command-show args)))
+  (oref (beads-command-execute (apply #'beads-command-show args)) data))
 
 (defun beads-command-update! (&rest args)
   "Create and execute a beads-command-update with ARGS.
 Returns the parsed issue object (or list of issue objects).
 See `beads-command-update' for available arguments."
-  (beads-command-execute (apply #'beads-command-update args)))
+  (oref (beads-command-execute (apply #'beads-command-update args)) data))
 
 (defun beads-command-close! (&rest args)
   "Create and execute a beads-command-close with ARGS.
 Returns the parsed issue object (or list of issue objects).
 See `beads-command-close' for available arguments."
-  (beads-command-execute (apply #'beads-command-close args)))
+  (oref (beads-command-execute (apply #'beads-command-close args)) data))
 
 (defun beads-command-reopen! (&rest args)
   "Create and execute a beads-command-reopen with ARGS.
 Returns the parsed issue object (or list of issue objects).
 See `beads-command-reopen' for available arguments."
-  (beads-command-execute (apply #'beads-command-reopen args)))
+  (oref (beads-command-execute (apply #'beads-command-reopen args)) data))
 
 (defun beads-command-ready! (&rest args)
   "Create and execute a beads-command-ready with ARGS.
 Returns a list of parsed issue objects.
 See `beads-command-ready' for available arguments."
-  (beads-command-execute (apply #'beads-command-ready args)))
+  (oref (beads-command-execute (apply #'beads-command-ready args)) data))
 
 (defun beads-command-blocked! (&rest args)
   "Create and execute a beads-command-blocked with ARGS.
 Returns a list of parsed issue objects.
 See `beads-command-blocked' for available arguments."
-  (beads-command-execute (apply #'beads-command-blocked args)))
+  (oref (beads-command-execute (apply #'beads-command-blocked args)) data))
 
 (defun beads-command-stats! (&rest args)
   "Create and execute a beads-command-stats with ARGS.
 Returns the parsed JSON stats object.
 See `beads-command-stats' for available arguments."
-  (beads-command-execute (apply #'beads-command-stats args)))
+  (oref (beads-command-execute (apply #'beads-command-stats args)) data))
 
 (defun beads-command-dep-add! (&rest args)
   "Create and execute a beads-command-dep-add with ARGS.
 Returns the parsed JSON result.
 See `beads-command-dep-add' for available arguments."
-  (beads-command-execute (apply #'beads-command-dep-add args)))
+  (oref (beads-command-execute (apply #'beads-command-dep-add args)) data))
 
 (defun beads-command-dep-remove! (&rest args)
   "Create and execute a beads-command-dep-remove with ARGS.
 Returns the parsed JSON result.
 See `beads-command-dep-remove' for available arguments."
-  (beads-command-execute (apply #'beads-command-dep-remove args)))
+  (oref (beads-command-execute (apply #'beads-command-dep-remove args)) data))
 
 (defun beads-command-dep-tree! (&rest args)
   "Create and execute a beads-command-dep-tree with ARGS.
 Returns the parsed JSON tree structure.
 See `beads-command-dep-tree' for available arguments."
-  (beads-command-execute (apply #'beads-command-dep-tree args)))
+  (oref (beads-command-execute (apply #'beads-command-dep-tree args)) data))
 
 (defun beads-command-dep-cycles! (&rest args)
   "Create and execute a beads-command-dep-cycles with ARGS.
 Returns the parsed JSON with cycle information.
 See `beads-command-dep-cycles' for available arguments."
-  (beads-command-execute (apply #'beads-command-dep-cycles args)))
+  (oref (beads-command-execute (apply #'beads-command-dep-cycles args)) data))
 
 (defun beads-command-label-list-all! (&rest args)
   "Create and execute a beads-command-label-list-all with ARGS.
 Returns the parsed JSON array of label objects.
 See `beads-command-label-list-all' for available arguments."
-  (beads-command-execute (apply #'beads-command-label-list-all args)))
+  (oref (beads-command-execute (apply #'beads-command-label-list-all args)) data))
 
 (defun beads-command-label-add! (&rest args)
   "Create and execute a beads-command-label-add with ARGS.
 Returns the parsed JSON result.
 See `beads-command-label-add' for available arguments."
-  (beads-command-execute (apply #'beads-command-label-add args)))
+  (oref (beads-command-execute (apply #'beads-command-label-add args)) data))
 
 (defun beads-command-label-remove! (&rest args)
   "Create and execute a beads-command-label-remove with ARGS.
 Returns the parsed JSON result.
 See `beads-command-label-remove' for available arguments."
-  (beads-command-execute (apply #'beads-command-label-remove args)))
+  (oref (beads-command-execute (apply #'beads-command-label-remove args)) data))
 
 (defun beads-command-label-list! (&rest args)
   "Create and execute a beads-command-label-list with ARGS.
 Returns the parsed JSON array of label strings.
 See `beads-command-label-list' for available arguments."
-  (beads-command-execute (apply #'beads-command-label-list args)))
+  (oref (beads-command-execute (apply #'beads-command-label-list args)) data))
 
 (provide 'beads-command)
 ;;; beads-command.el ends here

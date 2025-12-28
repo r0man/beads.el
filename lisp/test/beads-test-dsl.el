@@ -35,6 +35,7 @@
 (require 'cl-lib)
 (require 'ert)
 (require 'beads-types)
+(require 'beads-agent)
 
 ;; Forward declarations
 (declare-function beads-command-execute "beads-command")
@@ -741,8 +742,10 @@ _CONTEXT is the test context (unused, kept for API consistency)."
                      (equal (oref issue title) title))
                  (or (null issue-type)
                      (equal (oref issue issue-type) issue-type))
+                 ;; Note: bd omits priority 0 from JSON (omitempty behavior)
                  (or (null priority)
-                     (equal (oref issue priority) priority)))
+                     (equal (oref issue priority) priority)
+                     (and (eql priority 0) (null (oref issue priority)))))
         (setq found issue)))
     (unless found
       (let ((criteria (string-join
@@ -783,7 +786,9 @@ _CONTEXT is the test context (unused, kept for API consistency)."
           (ert-fail (format "Issue %s: expected status=%S, got %S"
                             issue-id status (oref issue status)))))
       (when priority
-        (unless (equal (oref issue priority) priority)
+        ;; Note: bd omits priority 0 from JSON (omitempty behavior)
+        (unless (or (equal (oref issue priority) priority)
+                    (and (eql priority 0) (null (oref issue priority))))
           (ert-fail (format "Issue %s: expected priority=%S, got %S"
                             issue-id priority (oref issue priority)))))
       (when title
@@ -1157,6 +1162,154 @@ CONTEXT is the test context."
 (cl-defmethod beads-test-action-describe ((_action beads-test-action-show-stats))
   "Describe show stats action."
   "Show project statistics")
+
+;;; ============================================================
+;;; Agent Action Classes
+;;; ============================================================
+
+(defclass beads-test-action-start-agent (beads-test-action)
+  ((issue-id
+    :initarg :issue-id
+    :type (or string function)
+    :documentation "Issue ID or function returning ID.")
+   (backend
+    :initarg :backend
+    :type (or null string)
+    :initform nil
+    :documentation "Backend name or nil for default.")
+   (prompt
+    :initarg :prompt
+    :type (or null string)
+    :initform nil
+    :documentation "Custom prompt or nil for auto-generated."))
+  :documentation "Action that simulates starting an AI agent on an issue.")
+
+(cl-defmethod beads-test-action-execute ((action beads-test-action-start-agent)
+                                          context)
+  "Execute ACTION to start a mock agent, updating CONTEXT."
+  (let ((issue-id (oref action issue-id))
+        (backend (or (oref action backend) "mock")))
+    ;; Resolve issue-id if it's a function
+    (when (functionp issue-id)
+      (setq issue-id (funcall issue-id context)))
+    ;; Create a mock session (without requiring real agent)
+    (when (fboundp 'beads-agent--create-session)
+      (beads-agent--create-session issue-id backend "/mock/project" 'mock-handle))
+    (beads-test-context-add-trace context action
+                                   (list :issue-id issue-id :backend backend))
+    issue-id))
+
+(cl-defmethod beads-test-action-describe ((action beads-test-action-start-agent))
+  "Describe start agent action."
+  (format "Start agent on %s" (oref action issue-id)))
+
+;;; ---
+
+(defclass beads-test-action-stop-agent (beads-test-action)
+  ((issue-id
+    :initarg :issue-id
+    :type (or string function)
+    :documentation "Issue ID or function returning ID to stop agent for."))
+  :documentation "Action that simulates stopping an AI agent session.")
+
+(cl-defmethod beads-test-action-execute ((action beads-test-action-stop-agent)
+                                          context)
+  "Execute ACTION to stop a mock agent, updating CONTEXT."
+  (let ((issue-id (oref action issue-id)))
+    ;; Resolve issue-id if it's a function
+    (when (functionp issue-id)
+      (setq issue-id (funcall issue-id context)))
+    ;; Stop session if agent module loaded
+    (when (and (fboundp 'beads-agent--get-sessions-for-issue)
+               (fboundp 'beads-agent--destroy-session))
+      (let ((sessions (beads-agent--get-sessions-for-issue issue-id)))
+        (dolist (session sessions)
+          (beads-agent--destroy-session (oref session id)))))
+    (beads-test-context-add-trace context action issue-id)
+    issue-id))
+
+(cl-defmethod beads-test-action-describe ((action beads-test-action-stop-agent))
+  "Describe stop agent action."
+  (format "Stop agent for %s" (oref action issue-id)))
+
+;;; ---
+
+(defun beads-test-assert-agent-session-exists (context issue-id)
+  "Assert that an agent session exists for ISSUE-ID.
+CONTEXT is ignored but kept for API consistency."
+  (ignore context)
+  (unless (and (fboundp 'beads-agent--get-sessions-for-issue)
+               (beads-agent--get-sessions-for-issue issue-id))
+    (ert-fail (format "No agent session found for %s" issue-id))))
+
+(defun beads-test-assert-no-agent-sessions (context issue-id)
+  "Assert that no agent sessions exist for ISSUE-ID.
+CONTEXT is ignored but kept for API consistency."
+  (ignore context)
+  (when (and (fboundp 'beads-agent--get-sessions-for-issue)
+             (beads-agent--get-sessions-for-issue issue-id))
+    (ert-fail (format "Expected no sessions for %s, but found some" issue-id))))
+
+;;; ---
+
+(defclass beads-test-action-assert-agent-active (beads-test-action)
+  ((issue-id
+    :initarg :issue-id
+    :type (or string function)
+    :documentation "Issue ID or function returning ID to check."))
+  :documentation "Action that asserts an agent session is active for an issue.")
+
+(cl-defmethod beads-test-action-execute ((action beads-test-action-assert-agent-active)
+                                          context)
+  "Execute ACTION to assert agent session is active, updating CONTEXT."
+  (let ((issue-id (oref action issue-id)))
+    ;; Resolve issue-id if it's a function
+    (when (functionp issue-id)
+      (setq issue-id (funcall issue-id context)))
+    ;; Check session exists
+    (unless (and (fboundp 'beads-agent--get-sessions-for-issue)
+                 (beads-agent--get-sessions-for-issue issue-id))
+      (ert-fail (format "No agent session found for %s" issue-id)))
+    ;; Check session is active (mock sessions are always considered active)
+    (let ((sessions (beads-agent--get-sessions-for-issue issue-id)))
+      (unless sessions
+        (ert-fail (format "Agent session for %s is not active" issue-id))))
+    (beads-test-context-add-trace context action issue-id)
+    issue-id))
+
+(cl-defmethod beads-test-action-describe ((action beads-test-action-assert-agent-active))
+  "Describe assert agent active action."
+  (format "Assert agent active for %s" (oref action issue-id)))
+
+;;; ---
+
+(defclass beads-test-action-jump-to-agent (beads-test-action)
+  ((issue-id
+    :initarg :issue-id
+    :type (or string function)
+    :documentation "Issue ID or function returning ID to jump to."))
+  :documentation "Action that simulates jumping to an agent buffer.")
+
+(cl-defmethod beads-test-action-execute ((action beads-test-action-jump-to-agent)
+                                          context)
+  "Execute ACTION to simulate jumping to agent buffer, updating CONTEXT."
+  (let ((issue-id (oref action issue-id)))
+    ;; Resolve issue-id if it's a function
+    (when (functionp issue-id)
+      (setq issue-id (funcall issue-id context)))
+    ;; Verify session exists before jumping
+    (unless (and (fboundp 'beads-agent--get-sessions-for-issue)
+                 (beads-agent--get-sessions-for-issue issue-id))
+      (user-error "No agent session for %s" issue-id))
+    ;; Simulate buffer switch by recording it (mock - no real buffer exists)
+    (let ((mock-buffer-name (format "*beads-agent: %s*" issue-id)))
+      (beads-test-context-record-buffer context mock-buffer-name)
+      (beads-test-context-add-trace context action mock-buffer-name)
+      mock-buffer-name)))
+
+(cl-defmethod beads-test-action-describe ((action beads-test-action-jump-to-agent))
+  "Describe jump to agent action."
+  (format "Jump to agent for %s" (oref action issue-id)))
 
 ;;; ============================================================
 ;;; Error Reporting and ERT Integration

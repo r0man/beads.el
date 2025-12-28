@@ -477,6 +477,147 @@ Within list/show buffers:
 - Clickable references between issues
 - Integrated with Emacs workflow
 
+## AI Agent Integration
+
+beads.el includes integration with AI coding agents, allowing you to start
+agents that work on issues directly from Emacs. The agent system uses
+[sesman](https://github.com/vspinu/sesman) for session management, providing
+context-aware session selection.
+
+### Quick Start
+
+1. **Start an agent** on an issue from `beads-list` or `beads-show`: press `A`
+2. **Jump to agent buffer**: `M-x beads-agent-jump`
+3. **Stop an agent**: `M-x beads-agent-stop`
+4. **Browse sessions**: `M-x beads-sesman-browser`
+
+### Session Concepts
+
+Each agent session is associated with:
+- **Issue ID**: The beads issue being worked on
+- **Backend**: The AI agent implementation (e.g., `claude-code-ide`)
+- **Working Directory**: Either the main project or a git worktree
+
+**Session Naming**: Sessions are named `<issue-id>@<directory>`, e.g.,
+`beads.el-42@~/projects/beads.el/`.
+
+### Context-Aware Sessions
+
+Sessions are linked to three context types:
+1. **Agent buffer**: The terminal buffer where the AI agent runs
+2. **Worktree directory** (primary): When using git worktrees, the session is
+   linked to the worktree directory
+3. **Main project** (fallback): Also linked to the main repository for context
+   from anywhere in the project
+
+This triple linking means sesman automatically selects the right session whether
+you're in the agent buffer, editing files in the worktree, or working anywhere
+in the project.
+
+### Git Worktree Support
+
+When `beads-agent-use-worktrees` is enabled (default: t), each agent session
+gets its own git worktree:
+
+- Worktrees are created as siblings to the main repo
+- Named after the issue ID (e.g., `~/projects/beads.el-42/`)
+- Branch is created with the same name as the issue ID
+- Issues are automatically imported from the main repo's JSONL
+
+This provides isolation between concurrent agent sessions.
+
+### Sesman Keybindings
+
+The `beads-sesman-map` provides these commands (bind to a prefix like `C-c C-s`):
+
+| Key | Command                | Description              |
+|-----|------------------------|--------------------------|
+| `s` | `beads-sesman-start`   | Start new session        |
+| `q` | `beads-sesman-quit`    | Quit current session     |
+| `r` | `beads-sesman-restart` | Restart current session  |
+| `b` | `beads-sesman-browser` | Open session browser     |
+| `l` | `beads-sesman-link`    | Link session to context  |
+
+**Example configuration:**
+
+```elisp
+(use-package beads
+  :load-path "~/path/to/beads.el/lisp"
+  :bind-keymap ("C-c C-s" . beads-sesman-map))
+;; Sesman integration is automatically enabled when beads-sesman is loaded
+```
+
+### Agent Menu
+
+The agent transient menu (`M-x beads-agent`) provides:
+
+**Agent Actions:**
+- `s` - Start agent on issue
+- `S` - Stop agent session
+- `j` - Jump to agent buffer
+- `p` - Send prompt to agent
+
+**Session Management:**
+- `l` - List active sessions
+- `c` - Cleanup stale sessions
+
+### Using the Session Browser
+
+`M-x beads-sesman-browser` opens an interactive buffer showing all sessions:
+
+```
+beads.el-42@~/projects/beads.el-42
+  Issue: beads.el-42
+  Backend: claude-code-ide
+  Started: 2025-12-14T10:30:00+0100
+  Worktree: ~/projects/beads.el-42
+
+beads.el-43@~/projects/beads.el-43
+  Issue: beads.el-43
+  Backend: claude-code-ide
+  Started: 2025-12-14T11:00:00+0100
+  Worktree: ~/projects/beads.el-43
+```
+
+From the browser, you can:
+- Select a session to make it current
+- Quit sessions
+- Link sessions to buffers/directories
+
+### Configuration
+
+```elisp
+;; Use default backend without prompting
+(setq beads-agent-default-backend "claude-code-ide")
+
+;; Disable automatic status update to in_progress
+(setq beads-agent-auto-set-in-progress nil)
+
+;; Disable worktree creation (work in main repo)
+(setq beads-agent-use-worktrees nil)
+
+;; Custom worktree parent directory
+(setq beads-agent-worktree-parent "~/worktrees/")
+
+;; Configure restart delay (seconds)
+(setq beads-sesman-restart-delay 0.5)
+```
+
+### Supported Backends
+
+Currently implemented:
+- **claude-code-ide**: Integration with Claude Code via claude-code-ide.el
+
+Placeholder backends (not yet implemented):
+- efrit
+- claudemacs
+- claude-code.el
+
+To use AI agents, you need:
+1. Install claude-code-ide.el package
+2. Install Claude Code CLI: `npm install -g @anthropic-ai/claude-code`
+3. Ensure `claude` command is in your PATH
+
 ## Troubleshooting
 
 ### bd executable not found

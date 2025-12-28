@@ -98,7 +98,7 @@ This uses transient's standard argument parsing with dash-style flags."
     (if error-msg
         (user-error "Validation failed: %s" error-msg)
       (condition-case err
-          (let ((issue (beads-command-execute cmd)))
+          (let ((issue (oref (beads-command-execute cmd) data)))
             (message "Created issue: %s - %s"
                      (oref issue id)
                      (oref issue title))

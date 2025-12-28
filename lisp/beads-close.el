@@ -29,6 +29,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-completion)
 (require 'beads-list)
 (require 'beads-option)
 (require 'beads-show)
@@ -98,23 +99,25 @@ Returns list of error messages, or nil if all valid."
     (if errors
         (user-error "Validation failed: %s" (string-join errors "; "))
       (condition-case err
-          (let ((issue (beads-command-execute cmd)))
-            (message "Closed issue: %s - %s"
-                     (oref issue id)
-                     (oref issue title))
-            ;; Invalidate completion cache
-            (beads--invalidate-completion-cache)
-            ;; Refresh any open beads buffers
-            (when beads-auto-refresh
-              (dolist (buf (buffer-list))
-                (with-current-buffer buf
-                  (cond
-                   ((derived-mode-p 'beads-list-mode)
-                    (beads-list-refresh))
-                   ((and (derived-mode-p 'beads-show-mode)
-                         (string= beads-show--issue-id (oref issue id)))
-                    (beads-refresh-show))))))
-            nil)
+          (progn
+            (beads-command-execute cmd)
+            (let ((issue (oref cmd data)))
+              (message "Closed issue: %s - %s"
+                       (oref issue id)
+                       (oref issue title))
+              ;; Invalidate completion cache
+              (beads--invalidate-completion-cache)
+              ;; Refresh any open beads buffers
+              (when beads-auto-refresh
+                (dolist (buf (buffer-list))
+                  (with-current-buffer buf
+                    (cond
+                     ((derived-mode-p 'beads-list-mode)
+                      (beads-list-refresh))
+                     ((and (derived-mode-p 'beads-show-mode)
+                           (string= beads-show--issue-id (oref issue id)))
+                      (beads-refresh-show))))))
+              nil))
         (error
          (let ((err-msg (format "Failed to close issue: %s"
                                (error-message-string err))))
@@ -184,10 +187,8 @@ manually entered in the transient menu.  This is by design to allow
 users to review and confirm the issue ID before closing."
   (interactive
    (list (or (beads-close--detect-issue-id)
-            (completing-read
-             "Close issue: "
-             (beads--issue-completion-table)
-             nil t nil 'beads--issue-id-history))))
+            (beads-completion-read-issue
+             "Close issue: " nil t nil 'beads--issue-id-history))))
   ;; Suppress unused argument warning
   (ignore issue-id)
   ;; Check executable
