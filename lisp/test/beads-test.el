@@ -562,7 +562,9 @@ STRUCTURE is a list of paths to create (dirs end with /)."
     (kill-buffer "*beads-debug*")))
 
 (ert-deftest beads-test-log-timestamp-format ()
-  "Test that log messages include proper timestamps."
+  "Test that log messages include proper timestamps.
+The log format is compatible with `log-view-mode':
+  TIMESTAMP [LEVEL] message"
   (let ((beads-enable-debug t))
     ;; Kill debug buffer if it exists
     (when (get-buffer "*beads-debug*")
@@ -571,12 +573,12 @@ STRUCTURE is a list of paths to create (dirs end with /)."
     ;; Log a message
     (beads--log 'info "Timestamp test")
 
-    ;; Check timestamp format [YYYY-MM-DD HH:MM:SS]
+    ;; Check timestamp format: YYYY-MM-DD HH:MM:SS [LEVEL] (no brackets around timestamp)
     (with-current-buffer "*beads-debug*"
       (goto-char (point-min))
       (should (search-forward-regexp
-               "\\[20[0-9]\\{2\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
-[0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\}\\]"
+               "^20[0-9]\\{2\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
+[0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\} \\[INFO\\]"
                nil t)))
 
     ;; Cleanup
@@ -632,10 +634,11 @@ STRUCTURE is a list of paths to create (dirs end with /)."
     ;; Log empty message
     (beads--log 'info "")
 
-    ;; Buffer should exist with timestamp but empty message
+    ;; Buffer should exist with timestamp and level but empty message
+    ;; Format: YYYY-MM-DD HH:MM:SS [INFO] \n
     (with-current-buffer "*beads-debug*"
       (goto-char (point-min))
-      (should (search-forward-regexp "\\[.*\\] \n" nil t)))
+      (should (search-forward-regexp "\\[INFO\\] \n" nil t)))
 
     ;; Cleanup
     (kill-buffer "*beads-debug*")))
