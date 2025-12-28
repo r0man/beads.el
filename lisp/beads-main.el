@@ -41,6 +41,7 @@
 (require 'beads-init)
 (require 'beads-sync)
 (require 'beads-epic-status)
+(require 'beads-agent)
 (require 'transient)
 
 ;;; Variables
@@ -73,7 +74,7 @@ Returns cached version if available, otherwise queries bd."
   "Get current project root and database path.
 Returns cons cell (PROJECT-ROOT . DB-PATH) or nil if not in project."
   (or beads-main--cached-project-info
-      (let ((root (beads--find-project-root))
+      (let ((root (beads-git-find-project-root))
             (db (beads--get-database-path)))
         (when root
           (let ((info (cons root db)))
@@ -139,6 +140,7 @@ Key bindings:
   Create/Edit:        c (create), u (update), x (close), o (reopen),
                       D (delete)
   Dependencies:       d (dep submenu)
+  Agent:              A (agent menu)
   Admin:              i (init), e (export), I (import), S (sync)
   Other:              g (refresh), q (quit)"
   [:description
@@ -168,6 +170,9 @@ Key bindings:
   ["Labels"
    :description "Manage labels"
    ("L" "Label menu" beads-label)]
+  ["Agent"
+   :description "AI Agent integration"
+   ("A" "Agent menu" beads-agent)]
   ["Admin"
    :description "Project administration"
    ("i" "Init project" beads-init)
@@ -177,6 +182,7 @@ Key bindings:
   ["Other"
    :description "Other commands"
    ("?" "Quickstart guide" beads-quickstart)
+   ("!" "Info (debug)" beads-info)
    ("g" "Refresh menu" beads-refresh-menu)
    ("q" "Quit" transient-quit-one)])
 

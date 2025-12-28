@@ -114,12 +114,11 @@ Recognizes issue IDs like beads.el-7bea, bd-a1b2.1, worker-f14c.2, etc."
 
 (defun beads-eldoc--fetch-issue (issue-id)
   "Fetch issue data for ISSUE-ID.
-Returns issue alist or nil on error.
+Returns `beads-issue' object or nil on error.
 Results are cached for performance."
   (or (beads-eldoc--get-cached-issue issue-id)
       (condition-case err
-          (let* ((cmd (beads-command-show :issue-ids (list issue-id)))
-                 (issue (beads-command-execute cmd)))
+          (let ((issue (beads-command-show! :issue-ids (list issue-id))))
             (beads-eldoc--cache-issue issue-id issue)
             issue)
         (error
@@ -132,25 +131,27 @@ Results are cached for performance."
 
 (defun beads-eldoc--format-echo-area (issue)
   "Format ISSUE for display in echo area.
+ISSUE is a `beads-issue' object.
 Returns a short string with issue title and status."
-  (let ((id (alist-get 'id issue))
-        (title (alist-get 'title issue))
-        (status (alist-get 'status issue)))
+  (let ((id (oref issue id))
+        (title (oref issue title))
+        (status (oref issue status)))
     (format "%s [%s]: %s" id status title)))
 
 (defun beads-eldoc--format-doc-buffer (issue)
   "Format ISSUE for display in eldoc documentation buffer.
+ISSUE is a `beads-issue' object.
 Returns a detailed string with all issue metadata."
-  (let ((id (alist-get 'id issue))
-        (title (alist-get 'title issue))
-        (description (alist-get 'description issue))
-        (status (alist-get 'status issue))
-        (priority (alist-get 'priority issue))
-        (issue-type (alist-get 'issue-type issue))
-        (created-at (alist-get 'created-at issue))
-        (updated-at (alist-get 'updated-at issue))
-        (assignee (alist-get 'assignee issue))
-        (notes (alist-get 'notes issue)))
+  (let ((id (oref issue id))
+        (title (oref issue title))
+        (description (oref issue description))
+        (status (oref issue status))
+        (priority (oref issue priority))
+        (issue-type (oref issue issue-type))
+        (created-at (oref issue created-at))
+        (updated-at (oref issue updated-at))
+        (assignee (oref issue assignee))
+        (notes (oref issue notes)))
     (concat
      (format "Issue: %s\n" id)
      (format "Title: %s\n" title)

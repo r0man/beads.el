@@ -162,11 +162,10 @@ Integration test that verifies skip-existing import succeeds."
               (let* ((cmd (beads-command-import :input temp-file
                                                 :skip-existing t))
                      (result (beads-import--execute cmd)))
-                ;; Should return result (exit-code, stdout, stderr)
+                ;; Should return result (data slot value - typically a string)
                 (should result)
-                (should (listp result))
-                (should (= 3 (length result)))
-                (should (= 0 (nth 0 result)))))  ;; Exit code should be 0
+                ;; Result should be a string (raw stderr output)
+                (should (stringp result))))
           ;; Clean up temp file
           (when (file-exists-p temp-file)
             (delete-file temp-file)))))))

@@ -74,6 +74,19 @@ refresh after operations like create, update, or close."
   :type 'boolean
   :group 'beads)
 
+;;; Completion Behavior
+
+(defcustom beads-completion-show-unavailable-backends t
+  "Whether to show unavailable backends in completion lists.
+When non-nil, unavailable backends are shown but cannot be selected.
+They appear grayed out and are grouped separately from available backends.
+When nil, only available backends appear in the completion list.
+
+This affects `beads-agent-start' and related functions that prompt
+for backend selection."
+  :type 'boolean
+  :group 'beads-agent)
+
 ;;; Provide
 
 (provide 'beads-custom)
