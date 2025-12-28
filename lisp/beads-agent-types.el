@@ -63,39 +63,107 @@ Set to a backend name string to prefer a specific backend for QA agents."
   :group 'beads-agent-types)
 
 (defcustom beads-agent-review-prompt
-  "You are a code review agent. Please review the code for this issue.
+  "You are a code review agent. Please work on beads issue <ISSUE-ID>: <ISSUE-TITLE>.
 
-Focus on:
+# Constraints
+
+- Read-only: DO NOT modify source files or create new files
+- Only use: read files, search code, explore the codebase
+- Exception: update the beads issue with your review findings
+
+# Review Focus
+
 - Code quality and readability
 - Potential bugs or edge cases
 - Security vulnerabilities
 - Style consistency with the project
 - Performance considerations
 
-Provide specific, actionable feedback with line references."
+Provide specific, actionable feedback with file paths and line references.
+
+# Output
+
+Update the beads issue with your review findings:
+
+```
+bd update <ISSUE-ID> --notes \"$(cat <<'EOF'
+## Code Review Summary
+
+**Overall Assessment:** <APPROVE / REQUEST_CHANGES / NEEDS_DISCUSSION>
+
+### Findings
+
+<Numbered list of specific issues with file:line references>
+
+### Recommendations
+
+<Prioritized list of suggested improvements>
+EOF
+)\"
+```"
   "Prompt template for the Review agent.
-This prompt is combined with issue context when starting a Review agent."
+Placeholders <ISSUE-ID>, <ISSUE-TITLE>, and <ISSUE-DESCRIPTION> are replaced
+with issue data when the prompt is built."
   :type 'string
   :group 'beads-agent-types)
 
 (defcustom beads-agent-qa-prompt
-  "You are a QA agent. Please verify the implementation for this issue.
+  "You are a QA agent. Please work on beads issue <ISSUE-ID>: <ISSUE-TITLE>.
 
-Focus on:
-- Running relevant tests and checking they pass
-- Testing edge cases and error handling
-- Verifying the acceptance criteria are met
-- Checking for regressions in related functionality
+# Constraints
 
-Report your findings with specific test results."
+- Testing focus: Run tests, verify acceptance criteria, check for regressions
+- May run commands: test commands, build commands, verification scripts
+- Read-only for source: DO NOT modify source files
+- Exception: update the beads issue with your test results
+
+# QA Workflow
+
+1. **Review Acceptance Criteria** - Understand what needs to be verified
+2. **Run Tests** - Execute relevant test suite, note any failures
+3. **Manual Verification** - Test edge cases and error handling
+4. **Check Regressions** - Verify related functionality still works
+5. **Document Results** - Update issue with findings
+
+# Output
+
+Update the beads issue with your QA results. Update the --acceptance field \
+to mark verified criteria:
+
+```
+bd update <ISSUE-ID> \\
+  --acceptance \"$(cat <<'EOF'
+- [x] First criterion (verified: <how>)
+- [x] Second criterion (verified: <how>)
+- [ ] Third criterion (FAILED: <reason>)
+EOF
+)\" \\
+  --notes \"$(cat <<'EOF'
+## QA Summary
+
+**Test Results:** <PASS / FAIL / PARTIAL>
+
+### Tests Run
+- <test-name>: PASS/FAIL
+
+### Manual Verification
+<What was tested manually and results>
+
+### Issues Found
+<List any bugs or concerns discovered>
+EOF
+)\"
+```"
   "Prompt template for the QA agent.
-This prompt is combined with issue context when starting a QA agent."
+Placeholders <ISSUE-ID>, <ISSUE-TITLE>, and <ISSUE-DESCRIPTION> are replaced
+with issue data when the prompt is built."
   :type 'string
   :group 'beads-agent-types)
 
 (defcustom beads-agent-plan-prompt
-  "You are a planning agent. Create a detailed implementation plan WITHOUT \
-making any code changes.
+  "You are a planning agent. Please work on beads issue <ISSUE-ID>: <ISSUE-TITLE>.
+
+Create a detailed implementation plan WITHOUT making any code changes.
 
 # Constraints
 
@@ -125,11 +193,10 @@ Before finalizing, verify:
 # Output
 
 Present your complete plan in your response, then update the beads issue. \
-Use the issue ID from the Issue section below. Preserve important context from \
-the original description while adding your analysis:
+Preserve important context from the original description while adding your analysis:
 
 ```
-bd update <issue-id> \\
+bd update <ISSUE-ID> \\
   --description \"$(cat <<'EOF'
 <Refined description preserving original context and adding analysis>
 EOF
@@ -149,22 +216,29 @@ EOF
 )\"
 ```"
   "Prompt template for the Plan agent.
-This prompt instructs the agent to plan without making changes."
+Placeholders <ISSUE-ID>, <ISSUE-TITLE>, and <ISSUE-DESCRIPTION> are replaced
+with issue data when the prompt is built."
   :type 'string
   :group 'beads-agent-types)
 
 ;;; Task Agent
 
 (defconst beads-agent-type-task--prompt
-  "You are a task-completion agent for beads. Your goal is to complete the \
-assigned task autonomously.
+  "You are a task-completion agent for beads. Please work on beads issue <ISSUE-ID>: <ISSUE-TITLE>.
+
+# Constraints
+
+- Stay focused on the assigned task
+- Don't make unrelated changes
+- If blocked, explain clearly what's needed
+- Communicate progress and decisions
 
 # Agent Workflow
 
-1. **Understand the Task**
+1. **Claim the Task**
+   - Update issue status to in_progress: `bd update <ISSUE-ID> --status in_progress`
    - Read the task description carefully
    - Check acceptance criteria if available
-   - Understand the context and dependencies
 
 2. **Execute the Task**
    - Use available tools to complete the work
@@ -175,7 +249,8 @@ assigned task autonomously.
 3. **Track Discoveries**
    - If you find bugs, TODOs, or related work:
      - File new issues using bd create
-     - Link them with discovered-from dependencies
+     - Link them with discovered-from dependencies: `bd dep add <new-id> --type \
+discovered-from --target <ISSUE-ID>`
    - This maintains context for future work
 
 4. **Verify Completion**
@@ -183,32 +258,38 @@ assigned task autonomously.
    - Ensure tests pass
    - Review your changes for quality
 
-# Important Guidelines
+# Output
 
-- Stay focused on the assigned task
-- Don't make unrelated changes
-- If blocked, explain clearly what's needed
-- Communicate progress and decisions"
+When work is complete, close the issue with a clear summary:
+
+```
+bd close <ISSUE-ID> --reason \"$(cat <<'EOF'
+<Summary of what was accomplished, any important decisions made, and verification \
+performed>
+EOF
+)\"
+```
+
+If blocked, update the issue status and explain:
+
+```
+bd update <ISSUE-ID> --status blocked --notes \"$(cat <<'EOF'
+<Clear explanation of what is blocking progress and what is needed to proceed>
+EOF
+)\"
+```"
   "Embedded prompt template for Task agent type.
-Based on beads task-agent.md agent specification.")
+Placeholders <ISSUE-ID>, <ISSUE-TITLE>, and <ISSUE-DESCRIPTION> are replaced
+with issue data when the prompt is built.")
 
 (defclass beads-agent-type-task (beads-agent-type)
   ((name :initform "Task")
    (letter :initform "T")
-   (description :initform "Autonomous task completion agent"))
+   (description :initform "Autonomous task completion agent")
+   (prompt-template :initform 'beads-agent-type-task--prompt))
   :documentation "Task agent type for autonomous task completion.
 Uses a structured prompt that guides the agent through understanding,
 executing, and verifying task completion.")
-
-(cl-defmethod beads-agent-type-build-prompt ((type beads-agent-type-task) issue)
-  "Build task prompt for TYPE with ISSUE using embedded template.
-ISSUE is a beads-issue EIEIO object."
-  (ignore type)
-  (let ((issue-id (oref issue id))
-        (issue-title (oref issue title))
-        (issue-desc (or (oref issue description) "")))
-    (format "%s\n\n## Issue: %s\n\n**Title:** %s\n\n**Description:**\n%s"
-            beads-agent-type-task--prompt issue-id issue-title issue-desc)))
 
 (cl-defmethod beads-agent-type-preferred-backend ((_type beads-agent-type-task))
   "Return preferred backend for Task agents."
@@ -219,20 +300,10 @@ ISSUE is a beads-issue EIEIO object."
 (defclass beads-agent-type-review (beads-agent-type)
   ((name :initform "Review")
    (letter :initform "R")
-   (description :initform "Code review agent"))
+   (description :initform "Code review agent")
+   (prompt-template :initform 'beads-agent-review-prompt))
   :documentation "Review agent type for code review.
 Uses the customizable `beads-agent-review-prompt' template.")
-
-(cl-defmethod beads-agent-type-build-prompt ((type beads-agent-type-review)
-                                              issue)
-  "Build review prompt for TYPE with ISSUE using the defcustom template.
-ISSUE is a beads-issue EIEIO object."
-  (ignore type)
-  (let ((issue-id (oref issue id))
-        (issue-title (oref issue title))
-        (issue-desc (or (oref issue description) "")))
-    (format "%s\n\n## Issue: %s\n\n**Title:** %s\n\n**Description:**\n%s"
-            beads-agent-review-prompt issue-id issue-title issue-desc)))
 
 (cl-defmethod beads-agent-type-preferred-backend ((_type beads-agent-type-review))
   "Return preferred backend for Review agents."
@@ -243,20 +314,11 @@ ISSUE is a beads-issue EIEIO object."
 (defclass beads-agent-type-plan (beads-agent-type)
   ((name :initform "Plan")
    (letter :initform "P")
-   (description :initform "Planning agent (read-only analysis)"))
+   (description :initform "Planning agent (read-only analysis)")
+   (prompt-template :initform 'beads-agent-plan-prompt))
   :documentation "Plan agent type for implementation planning.
 Uses a prompt that instructs the agent to analyze and plan without
 making changes.  Works with any backend.")
-
-(cl-defmethod beads-agent-type-build-prompt ((_type beads-agent-type-plan)
-                                              issue)
-  "Build plan prompt for TYPE with ISSUE using the defcustom template.
-ISSUE is a beads-issue EIEIO object."
-  (let ((issue-id (oref issue id))
-        (issue-title (oref issue title))
-        (issue-desc (or (oref issue description) "")))
-    (format "%s\n\n## Issue: %s\n\n**Title:** %s\n\n**Description:**\n%s"
-            beads-agent-plan-prompt issue-id issue-title issue-desc)))
 
 (cl-defmethod beads-agent-type-preferred-backend ((_type beads-agent-type-plan))
   "Return preferred backend for Plan agents."
@@ -267,19 +329,10 @@ ISSUE is a beads-issue EIEIO object."
 (defclass beads-agent-type-qa (beads-agent-type)
   ((name :initform "QA")
    (letter :initform "Q")
-   (description :initform "Testing and quality assurance agent"))
+   (description :initform "Testing and quality assurance agent")
+   (prompt-template :initform 'beads-agent-qa-prompt))
   :documentation "QA agent type for testing and verification.
 Uses the customizable `beads-agent-qa-prompt' template.")
-
-(cl-defmethod beads-agent-type-build-prompt ((type beads-agent-type-qa) issue)
-  "Build QA prompt for TYPE with ISSUE using the defcustom template.
-ISSUE is a beads-issue EIEIO object."
-  (ignore type)
-  (let ((issue-id (oref issue id))
-        (issue-title (oref issue title))
-        (issue-desc (or (oref issue description) "")))
-    (format "%s\n\n## Issue: %s\n\n**Title:** %s\n\n**Description:**\n%s"
-            beads-agent-qa-prompt issue-id issue-title issue-desc)))
 
 (cl-defmethod beads-agent-type-preferred-backend ((_type beads-agent-type-qa))
   "Return preferred backend for QA agents."
@@ -302,7 +355,12 @@ Used by `completing-read' for prompt history navigation.")
 (cl-defmethod beads-agent-type-build-prompt ((_type beads-agent-type-custom)
                                               issue)
   "Prompt user for custom prompt for TYPE and combine with ISSUE.
-ISSUE is a beads-issue EIEIO object."
+ISSUE is a beads-issue EIEIO object.
+
+The user-provided prompt can contain placeholders:
+  <ISSUE-ID>          - The issue ID
+  <ISSUE-TITLE>       - The issue title
+  <ISSUE-DESCRIPTION> - The issue description"
   (let* ((issue-id (oref issue id))
          (issue-title (oref issue title))
          (issue-desc (or (oref issue description) ""))
@@ -312,8 +370,11 @@ ISSUE is a beads-issue EIEIO object."
                        'beads-agent-type-custom--prompt-history)))
     (when (string-empty-p user-prompt)
       (user-error "Custom prompt cannot be empty"))
-    (format "%s\n\n## Issue: %s\n\n**Title:** %s\n\n**Description:**\n%s"
-            user-prompt issue-id issue-title issue-desc)))
+    ;; Replace placeholders in user prompt
+    (thread-last user-prompt
+      (string-replace "<ISSUE-ID>" issue-id)
+      (string-replace "<ISSUE-TITLE>" issue-title)
+      (string-replace "<ISSUE-DESCRIPTION>" issue-desc))))
 
 ;;; Registration
 
