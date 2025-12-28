@@ -294,5 +294,312 @@
     (let ((binding (lookup-key beads-graph-mode-map (kbd "e"))))
       (should (eq binding 'beads-graph-export)))))
 
+;;; ============================================================
+;;; Tests for Render and Display
+;;; ============================================================
+
+(ert-deftest beads-graph-test-render-dot-success ()
+  "Test successful DOT rendering."
+  (skip-unless (executable-find "dot"))
+  (let ((dot-string "digraph test { a -> b; }"))
+    (let ((image-file (beads-graph--render-dot dot-string "svg")))
+      (unwind-protect
+          (progn
+            (should (stringp image-file))
+            (should (file-exists-p image-file))
+            (should (string-suffix-p ".svg" image-file)))
+        (when (file-exists-p image-file)
+          (delete-file image-file))))))
+
+(ert-deftest beads-graph-test-render-dot-png ()
+  "Test DOT rendering to PNG format."
+  (skip-unless (executable-find "dot"))
+  (let ((dot-string "digraph test { a -> b; }"))
+    (let ((image-file (beads-graph--render-dot dot-string "png")))
+      (unwind-protect
+          (progn
+            (should (stringp image-file))
+            (should (string-suffix-p ".png" image-file)))
+        (when (file-exists-p image-file)
+          (delete-file image-file))))))
+
+(ert-deftest beads-graph-test-display-image-creates-buffer ()
+  "Test that display-image creates the graph buffer."
+  (skip-unless (executable-find "dot"))
+  (let ((dot-string "digraph test { a -> b; }")
+        (image-file nil))
+    (unwind-protect
+        (progn
+          (setq image-file (beads-graph--render-dot dot-string "svg"))
+          (beads-graph--display-image image-file)
+          (should (get-buffer "*beads-graph*"))
+          (with-current-buffer "*beads-graph*"
+            (should (eq major-mode 'beads-graph-mode))))
+      (when (get-buffer "*beads-graph*")
+        (kill-buffer "*beads-graph*"))
+      (when (and image-file (file-exists-p image-file))
+        (delete-file image-file)))))
+
+;;; ============================================================
+;;; Tests for Refresh
+;;; ============================================================
+
+(ert-deftest beads-graph-test-refresh-calls-all-without-root ()
+  "Test that refresh calls graph-all when no root issue."
+  (let ((beads-graph--root-issue nil)
+        (graph-all-called nil))
+    (cl-letf (((symbol-function 'beads-graph-all)
+               (lambda () (setq graph-all-called t))))
+      (beads-graph-refresh)
+      (should graph-all-called))))
+
+(ert-deftest beads-graph-test-refresh-calls-issue-with-root ()
+  "Test that refresh calls graph-issue when root issue is set."
+  (let ((beads-graph--root-issue "bd-42")
+        (graph-issue-called nil)
+        (called-with nil))
+    (cl-letf (((symbol-function 'beads-graph-issue)
+               (lambda (id)
+                 (setq graph-issue-called t)
+                 (setq called-with id))))
+      (beads-graph-refresh)
+      (should graph-issue-called)
+      (should (equal called-with "bd-42")))))
+
+;;; ============================================================
+;;; Tests for Filter Command
+;;; ============================================================
+
+(ert-deftest beads-graph-test-filter-clear-all ()
+  "Test clearing all filters."
+  (let ((beads-graph--filter-status "open")
+        (beads-graph--filter-priority 1)
+        (beads-graph--filter-type "bug"))
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (&rest _) "clear-all"))
+              ((symbol-function 'beads-graph-refresh) #'ignore))
+      (beads-graph-filter)
+      (should-not beads-graph--filter-status)
+      (should-not beads-graph--filter-priority)
+      (should-not beads-graph--filter-type))))
+
+(ert-deftest beads-graph-test-filter-by-status ()
+  "Test filtering by status."
+  (let ((beads-graph--filter-status nil)
+        (call-count 0))
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (prompt &rest _)
+                 (setq call-count (1+ call-count))
+                 (if (= call-count 1) "status" "in_progress")))
+              ((symbol-function 'beads-graph-refresh) #'ignore))
+      (beads-graph-filter)
+      (should (equal beads-graph--filter-status "in_progress")))))
+
+(ert-deftest beads-graph-test-filter-by-priority ()
+  "Test filtering by priority."
+  (let ((beads-graph--filter-priority nil)
+        (call-count 0))
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (prompt &rest _)
+                 (setq call-count (1+ call-count))
+                 (if (= call-count 1) "priority" "2")))
+              ((symbol-function 'beads-graph-refresh) #'ignore))
+      (beads-graph-filter)
+      (should (equal beads-graph--filter-priority 2)))))
+
+(ert-deftest beads-graph-test-filter-by-type ()
+  "Test filtering by type."
+  (let ((beads-graph--filter-type nil)
+        (call-count 0))
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (prompt &rest _)
+                 (setq call-count (1+ call-count))
+                 (if (= call-count 1) "type" "feature")))
+              ((symbol-function 'beads-graph-refresh) #'ignore))
+      (beads-graph-filter)
+      (should (equal beads-graph--filter-type "feature")))))
+
+(ert-deftest beads-graph-test-filter-clear-status ()
+  "Test clearing status filter with empty input."
+  (let ((beads-graph--filter-status "open")
+        (call-count 0))
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (prompt &rest _)
+                 (setq call-count (1+ call-count))
+                 (if (= call-count 1) "status" "")))
+              ((symbol-function 'beads-graph-refresh) #'ignore))
+      (beads-graph-filter)
+      (should-not beads-graph--filter-status))))
+
+;;; ============================================================
+;;; Tests for Export
+;;; ============================================================
+
+(ert-deftest beads-graph-test-export-dot-format ()
+  "Test exporting to DOT format."
+  (skip-unless (executable-find "dot"))
+  (let ((temp-file (make-temp-file "beads-graph-export-test-" nil ".dot")))
+    (unwind-protect
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (&rest _) "dot"))
+                  ((symbol-function 'read-file-name)
+                   (lambda (&rest _) temp-file))
+                  ((symbol-function 'beads-check-executable) #'ignore)
+                  ((symbol-function 'beads-command-list!)
+                   (lambda () beads-graph-test--sample-issues))
+                  ((symbol-function 'beads-graph--get-dependencies)
+                   (lambda () beads-graph-test--sample-deps)))
+          (let ((beads-graph--filter-status nil)
+                (beads-graph--filter-priority nil)
+                (beads-graph--filter-type nil))
+            (beads-graph-export)
+            (should (file-exists-p temp-file))
+            (with-temp-buffer
+              (insert-file-contents temp-file)
+              (should (string-match-p "digraph" (buffer-string))))))
+      (when (file-exists-p temp-file)
+        (delete-file temp-file)))))
+
+(ert-deftest beads-graph-test-export-svg-format ()
+  "Test exporting to SVG format."
+  (skip-unless (executable-find "dot"))
+  (let ((temp-file (make-temp-file "beads-graph-export-test-" nil ".svg")))
+    (unwind-protect
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (&rest _) "svg"))
+                  ((symbol-function 'read-file-name)
+                   (lambda (&rest _) temp-file))
+                  ((symbol-function 'beads-check-executable) #'ignore)
+                  ((symbol-function 'beads-command-list!)
+                   (lambda () beads-graph-test--sample-issues))
+                  ((symbol-function 'beads-graph--get-dependencies)
+                   (lambda () beads-graph-test--sample-deps)))
+          (let ((beads-graph--filter-status nil)
+                (beads-graph--filter-priority nil)
+                (beads-graph--filter-type nil))
+            (beads-graph-export)
+            (should (file-exists-p temp-file))))
+      (when (file-exists-p temp-file)
+        (delete-file temp-file)))))
+
+;;; ============================================================
+;;; Tests for Graph All and Graph Issue
+;;; ============================================================
+
+(ert-deftest beads-graph-test-graph-all-mocked ()
+  "Test graph-all with mocked dependencies."
+  (skip-unless (executable-find "dot"))
+  (let ((beads-graph--root-issue nil))
+    (cl-letf (((symbol-function 'beads-check-executable) #'ignore)
+              ((symbol-function 'beads-command-list!)
+               (lambda () beads-graph-test--sample-issues))
+              ((symbol-function 'beads-graph--get-dependencies)
+               (lambda () beads-graph-test--sample-deps))
+              ((symbol-function 'beads-graph--display-image) #'ignore))
+      (let ((beads-graph--filter-status nil)
+            (beads-graph--filter-priority nil)
+            (beads-graph--filter-type nil))
+        (beads-graph-all)
+        (should-not beads-graph--root-issue)))))
+
+(ert-deftest beads-graph-test-graph-issue-sets-root ()
+  "Test graph-issue sets the root issue."
+  (skip-unless (executable-find "dot"))
+  (let ((beads-graph--root-issue nil))
+    (cl-letf (((symbol-function 'beads-check-executable) #'ignore)
+              ((symbol-function 'beads-command-list!)
+               (lambda () beads-graph-test--sample-issues))
+              ((symbol-function 'beads-graph--get-dependencies)
+               (lambda () beads-graph-test--sample-deps))
+              ((symbol-function 'beads-graph--display-image) #'ignore))
+      (let ((beads-graph--filter-status nil)
+            (beads-graph--filter-priority nil)
+            (beads-graph--filter-type nil))
+        (beads-graph-issue "bd-1")
+        (should (equal beads-graph--root-issue "bd-1"))))))
+
+;;; ============================================================
+;;; Tests for DOT Edge Styles
+;;; ============================================================
+
+(ert-deftest beads-graph-test-dot-edge-style-blocks ()
+  "Test that 'blocks' dependency uses correct style."
+  (let ((beads-graph--filter-status nil)
+        (beads-graph--filter-priority nil)
+        (beads-graph--filter-type nil)
+        (deps '((:from "bd-1" :to "bd-2" :type "blocks"))))
+    (let ((dot (beads-graph--generate-dot beads-graph-test--sample-issues deps)))
+      (should (string-match-p "style=solid" dot))
+      (should (string-match-p "color=\"red\"" dot)))))
+
+(ert-deftest beads-graph-test-dot-edge-style-related ()
+  "Test that 'related' dependency uses correct style."
+  (let ((beads-graph--filter-status nil)
+        (beads-graph--filter-priority nil)
+        (beads-graph--filter-type nil)
+        (deps '((:from "bd-1" :to "bd-2" :type "related"))))
+    (let ((dot (beads-graph--generate-dot beads-graph-test--sample-issues deps)))
+      (should (string-match-p "style=dashed" dot))
+      (should (string-match-p "color=\"blue\"" dot)))))
+
+(ert-deftest beads-graph-test-dot-edge-style-parent-child ()
+  "Test that 'parent-child' dependency uses correct style."
+  (let ((beads-graph--filter-status nil)
+        (beads-graph--filter-priority nil)
+        (beads-graph--filter-type nil)
+        (deps '((:from "bd-1" :to "bd-2" :type "parent-child"))))
+    (let ((dot (beads-graph--generate-dot beads-graph-test--sample-issues deps)))
+      (should (string-match-p "style=bold" dot))
+      (should (string-match-p "color=\"green\"" dot)))))
+
+(ert-deftest beads-graph-test-dot-edge-style-discovered-from ()
+  "Test that 'discovered-from' dependency uses correct style."
+  (let ((beads-graph--filter-status nil)
+        (beads-graph--filter-priority nil)
+        (beads-graph--filter-type nil)
+        (deps '((:from "bd-1" :to "bd-2" :type "discovered-from"))))
+    (let ((dot (beads-graph--generate-dot beads-graph-test--sample-issues deps)))
+      (should (string-match-p "style=dotted" dot))
+      (should (string-match-p "color=\"gray\"" dot)))))
+
+;;; ============================================================
+;;; Customization Tests
+;;; ============================================================
+
+(ert-deftest beads-graph-test-customization-dot-executable ()
+  "Test that dot executable is customizable."
+  (should (boundp 'beads-graph-dot-executable))
+  (should (stringp beads-graph-dot-executable)))
+
+(ert-deftest beads-graph-test-customization-default-format ()
+  "Test that default format is customizable."
+  (should (boundp 'beads-graph-default-format))
+  (should (stringp beads-graph-default-format)))
+
+(ert-deftest beads-graph-test-customization-layout ()
+  "Test that layout is customizable."
+  (should (boundp 'beads-graph-layout))
+  (should (stringp beads-graph-layout)))
+
+(ert-deftest beads-graph-test-customization-group ()
+  "Test that beads-graph customization group exists."
+  (should (get 'beads-graph 'group-documentation)))
+
+;;; ============================================================
+;;; Mode Tests
+;;; ============================================================
+
+(ert-deftest beads-graph-test-mode-read-only ()
+  "Test that beads-graph-mode sets buffer read-only."
+  (with-temp-buffer
+    (beads-graph-mode)
+    (should buffer-read-only)))
+
+(ert-deftest beads-graph-test-mode-inherits-special ()
+  "Test that beads-graph-mode inherits from special-mode."
+  (with-temp-buffer
+    (beads-graph-mode)
+    (should (derived-mode-p 'special-mode))))
+
 (provide 'beads-graph-test)
 ;;; beads-graph-test.el ends here

@@ -318,6 +318,186 @@
     (setq-local beads-show--issue-id "bd-99")
     (should (equal (beads-update--detect-issue-id) "bd-99"))))
 
+;;; Tests for Execute Command
+
+(ert-deftest beads-update-test-execute-validation-error ()
+  "Test that execute returns validation error message."
+  (let ((beads-update--issue-id nil)  ; Missing ID triggers validation error
+        (beads-update--original-data beads-update-test--sample-issue))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_) nil)))
+      (should-error (beads-update--execute)
+                    :type 'user-error))))
+
+(ert-deftest beads-update-test-execute-success ()
+  "Test that execute runs and returns nil on success."
+  (let ((beads-update--issue-id "bd-42")
+        (beads-update--original-data beads-update-test--sample-issue)
+        (beads-auto-refresh nil)
+        (executed nil))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_) '("--status=in_progress")))
+              ((symbol-function 'beads-command-execute)
+               (lambda (cmd)
+                 (setq executed cmd)
+                 beads-update-test--sample-issue))
+              ((symbol-function 'beads--invalidate-completion-cache) #'ignore))
+      (should-not (beads-update--execute))
+      (should executed)
+      (should (beads-command-update-p executed)))))
+
+(ert-deftest beads-update-test-execute-with-auto-refresh ()
+  "Test that execute refreshes beads buffers when auto-refresh is on."
+  (let ((beads-update--issue-id "bd-42")
+        (beads-update--original-data beads-update-test--sample-issue)
+        (beads-auto-refresh t)
+        (refreshed-list nil)
+        (refreshed-show nil))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_) '("--status=closed")))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd) beads-update-test--sample-issue))
+              ((symbol-function 'beads--invalidate-completion-cache) #'ignore)
+              ((symbol-function 'beads-list-refresh)
+               (lambda () (setq refreshed-list t)))
+              ((symbol-function 'beads-refresh-show)
+               (lambda () (setq refreshed-show t))))
+      ;; Create a mock list buffer
+      (with-temp-buffer
+        (beads-list-mode)
+        (should-not (beads-update--execute))
+        (should refreshed-list)))))
+
+(ert-deftest beads-update-test-execute-handles-error ()
+  "Test that execute returns error message on failure."
+  (let ((beads-update--issue-id "bd-42")
+        (beads-update--original-data beads-update-test--sample-issue))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_) '("--status=in_progress")))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_) (error "Command failed"))))
+      (let ((result (beads-update--execute)))
+        (should result)
+        (should (string-match-p "Failed to update issue" result))))))
+
+;;; Tests for Preview Command
+
+(ert-deftest beads-update-test-preview-success ()
+  "Test that preview returns command string."
+  (let ((beads-update--issue-id "bd-42")
+        (beads-update--original-data beads-update-test--sample-issue))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_) '("--status=in_progress")))
+              ((symbol-function 'beads-command-line)
+               (lambda (_) '("update" "--status=in_progress" "bd-42"))))
+      (let ((result (beads-update--preview)))
+        (should result)
+        (should (string-match-p "Command:" result))
+        (should (string-match-p "Changes:" result))))))
+
+(ert-deftest beads-update-test-preview-validation-error ()
+  "Test that preview returns validation error message."
+  (let ((beads-update--issue-id nil)  ; Missing ID triggers validation error
+        (beads-update--original-data beads-update-test--sample-issue))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_) nil)))
+      (let ((result (beads-update--preview)))
+        (should result)
+        (should (string-match-p "Validation errors" result))))))
+
+(ert-deftest beads-update-test-preview-handles-error ()
+  "Test that preview handles errors gracefully."
+  (let ((beads-update--issue-id "bd-42")
+        (beads-update--original-data beads-update-test--sample-issue))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_) '("--status=in_progress")))
+              ((symbol-function 'beads-command-line)
+               (lambda (_) (error "Build failed"))))
+      (let ((result (beads-update--preview)))
+        (should result)
+        (should (string-match-p "Error:" result))))))
+
+;;; Tests for Fetch Issue
+
+(ert-deftest beads-update-test-fetch-issue-success ()
+  "Test fetching issue data."
+  (cl-letf (((symbol-function 'beads-command-show!)
+             (lambda (&rest _) beads-update-test--sample-issue)))
+    (let ((issue (beads-update--fetch-issue "bd-42")))
+      (should (beads-issue-p issue))
+      (should (equal (oref issue id) "bd-42")))))
+
+(ert-deftest beads-update-test-fetch-issue-error ()
+  "Test that fetch-issue signals error on failure."
+  (cl-letf (((symbol-function 'beads-command-show!)
+             (lambda (&rest _) (error "Not found"))))
+    (should-error (beads-update--fetch-issue "bd-999")
+                  :type 'user-error)))
+
+;;; Tests for Load Issue Data
+
+(ert-deftest beads-update-test-load-issue-data ()
+  "Test loading issue data into state."
+  (cl-letf (((symbol-function 'beads-update--fetch-issue)
+             (lambda (id)
+               (should (equal id "bd-42"))
+               beads-update-test--sample-issue)))
+    (beads-update--load-issue-data "bd-42")
+    (should (equal beads-update--issue-id "bd-42"))
+    (should (equal beads-update--original-data beads-update-test--sample-issue))))
+
+;;; Tests for Get Original with Nil Data
+
+(ert-deftest beads-update-test-get-original-nil-data ()
+  "Test getting original field when no data loaded."
+  (let ((beads-update--original-data nil))
+    (should (null (beads-update--get-original 'title)))))
+
+;;; Tests for Priority 0 Edge Case
+
+(ert-deftest beads-update-test-parse-args-priority-zero ()
+  "Test parsing priority 0 (valid value)."
+  (let ((cmd (beads-update--parse-transient-args '("--priority=0"))))
+    (should (beads-command-update-p cmd))
+    (should (equal (oref cmd priority) 0))))
+
+(ert-deftest beads-update-test-get-changed-fields-priority-zero ()
+  "Test detecting change to priority 0."
+  (let ((beads-update--original-data beads-update-test--sample-issue)
+        (cmd (beads-update--parse-transient-args '("--priority=0"))))
+    (let ((changes (beads-update--get-changed-fields cmd)))
+      (should (= (length changes) 1))
+      (should (equal (car changes) '(priority . 0))))))
+
+;;; Tests for Context Detection from beads-list
+
+(ert-deftest beads-update-test-detect-issue-id-from-list-mode ()
+  "Test detecting issue ID from beads-list buffer."
+  (with-temp-buffer
+    (beads-list-mode)
+    (cl-letf (((symbol-function 'beads-list--current-issue-id)
+               (lambda () "bd-123")))
+      (should (equal (beads-update--detect-issue-id) "bd-123")))))
+
+;;; Tests for beads-update Entry Point
+
+(ert-deftest beads-update-test-entry-point-no-issue-id ()
+  "Test that beads-update errors when no issue ID."
+  (cl-letf (((symbol-function 'beads-check-executable) #'ignore)
+            ((symbol-function 'beads-update--detect-issue-id)
+             (lambda () nil)))
+    (should-error (beads-update nil) :type 'user-error)))
+
+(ert-deftest beads-update-test-entry-point-loads-data ()
+  "Test that beads-update loads issue data before showing menu."
+  (let ((loaded-id nil))
+    (cl-letf (((symbol-function 'beads-check-executable) #'ignore)
+              ((symbol-function 'beads-update--load-issue-data)
+               (lambda (id) (setq loaded-id id)))
+              ((symbol-function 'beads-update--menu) #'ignore))
+      (beads-update "bd-42")
+      (should (equal loaded-id "bd-42")))))
+
 (ert-deftest beads-update-test-full-update-workflow ()
   "Integration test: Full workflow of creating and updating an issue.
 Tests the complete flow: create issue, update multiple fields, verify changes."
@@ -370,6 +550,35 @@ Tests the complete flow: create issue, update multiple fields, verify changes."
                          "Updated Test Issue"))
           (should (equal (oref fetched-issue status) "in_progress"))
           (should (equal (oref fetched-issue priority) 1)))))))
+
+;;; Tests for Reset Function
+
+(ert-deftest beads-update-test-reset-confirmed ()
+  "Test reset when user confirms."
+  (let ((reset-called nil)
+        (message-output nil))
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_prompt) t))
+              ((symbol-function 'transient-reset)
+               (lambda () (setq reset-called t)))
+              ((symbol-function 'transient--redisplay)
+               (lambda ()))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-output (apply #'format fmt args)))))
+      (beads-update--reset)
+      (should reset-called)
+      (should (string-match-p "reset" message-output)))))
+
+(ert-deftest beads-update-test-reset-declined ()
+  "Test reset when user declines."
+  (let ((reset-called nil))
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_prompt) nil))
+              ((symbol-function 'transient-reset)
+               (lambda () (setq reset-called t))))
+      (beads-update--reset)
+      (should-not reset-called))))
 
 (provide 'beads-update-test)
 ;;; beads-update-test.el ends here

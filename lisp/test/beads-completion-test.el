@@ -708,6 +708,34 @@ Annotation functions may return nil or empty string for missing data."
            (result (beads-completion--backend-style-try "terminal" table nil nil)))
       (should (string= "claudemacs" result)))))
 
+(ert-deftest beads-completion-test-backend-style-try-multiple-matches ()
+  "Test try-completion returns input string when multiple matches."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends))
+    (let* ((table (beads-completion-backend-table))
+           ;; "agent" matches both "agent-shell" (in name) and "claudemacs" (via "AI" in description)
+           ;; Actually let's use a pattern that matches multiple backends
+           (result (beads-completion--backend-style-try "AI" table nil nil)))
+      ;; "AI" appears in descriptions of both claudemacs and agent-shell
+      ;; Should return input unchanged when multiple matches
+      (should (string= "AI" result)))))
+
+(ert-deftest beads-completion-test-backend-style-try-exact-match ()
+  "Test try-completion returns t for exact unique match."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends))
+    (let* ((table (beads-completion-backend-table))
+           (result (beads-completion--backend-style-try "claudemacs" table nil nil)))
+      (should (eq t result)))))
+
+(ert-deftest beads-completion-test-backend-style-try-no-match ()
+  "Test try-completion returns nil when no match."
+  (cl-letf (((symbol-function 'beads-agent--get-all-backends)
+             #'beads-completion-test--make-mock-backends))
+    (let* ((table (beads-completion-backend-table))
+           (result (beads-completion--backend-style-try "nonexistent" table nil nil)))
+      (should (null result)))))
+
 (ert-deftest beads-completion-test-backend-style-registered ()
   "Test that beads-backend-description completion style is registered."
   (should (assq 'beads-backend-description completion-styles-alist)))

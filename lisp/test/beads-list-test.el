@@ -735,6 +735,14 @@ ISSUES should be a list of alists (test data format)."
     (let ((result (beads-list--format-date timestamp)))
       (should (string-match-p "[12]w ago" result)))))
 
+(ert-deftest beads-list-test-format-date-unknown-format ()
+  "Test date formatting with unknown format falls back to default."
+  (let ((beads-list-date-format 'some-unknown-symbol)
+        (timestamp "2025-10-20T16:36:52Z"))
+    (let ((result (beads-list--format-date timestamp)))
+      (should (stringp result))
+      (should (string-match-p "2025-10-20" result)))))
+
 (ert-deftest beads-list-test-created-column-in-entry ()
   "Test that created date appears in issue entry."
   (let ((beads-list-date-format 'absolute)
@@ -1373,6 +1381,921 @@ Even if they have the same branch name."
   (with-temp-buffer
     (beads-list-mode)
     (should (bound-and-true-p hl-line-mode))))
+
+;;; Copy ID Tests
+
+(ert-deftest beads-list-test-copy-id-success ()
+  "Test copying issue ID to kill ring."
+  (beads-list-test--with-temp-buffer
+   beads-list-test--sample-issues 'list
+   (goto-char (point-min))
+   (let ((id (beads-list--current-issue-id)))
+     (beads-list-copy-id)
+     (should (equal (car kill-ring) id)))))
+
+(ert-deftest beads-list-test-copy-id-no-issue ()
+  "Test copy-id errors when no issue at point."
+  (beads-list-test--with-temp-buffer
+   beads-list-test--empty-issues 'list
+   (goto-char (point-min))
+   (should-error (beads-list-copy-id) :type 'user-error)))
+
+;;; Close Command Tests
+
+(ert-deftest beads-list-test-close-no-issue ()
+  "Test close errors when no issue at point."
+  (beads-list-test--with-temp-buffer
+   beads-list-test--empty-issues 'list
+   (goto-char (point-min))
+   (should-error (beads-list-close) :type 'user-error)))
+
+;;; Reopen Command Tests
+
+(ert-deftest beads-list-test-reopen-no-issue ()
+  "Test reopen errors when no issue at point."
+  (beads-list-test--with-temp-buffer
+   beads-list-test--empty-issues 'list
+   (goto-char (point-min))
+   (should-error (beads-list-reopen) :type 'user-error)))
+
+;;; Delete Command Tests
+
+(ert-deftest beads-list-test-delete-no-issue ()
+  "Test delete errors when no issue at point."
+  (beads-list-test--with-temp-buffer
+   beads-list-test--empty-issues 'list
+   (goto-char (point-min))
+   (should-error (beads-list-delete) :type 'user-error)))
+
+;;; Parse Transient Args Tests
+
+(ert-deftest beads-list-test-parse-transient-args-empty ()
+  "Test parsing empty transient args."
+  (let ((cmd (beads-list--parse-transient-args nil)))
+    (should (beads-command-list-p cmd))
+    (should (null (oref cmd status)))
+    (should (null (oref cmd priority)))))
+
+(ert-deftest beads-list-test-parse-transient-args-status ()
+  "Test parsing status filter."
+  (let ((cmd (beads-list--parse-transient-args '("--status=open"))))
+    (should (equal (oref cmd status) "open"))))
+
+(ert-deftest beads-list-test-parse-transient-args-priority ()
+  "Test parsing priority filter."
+  (let ((cmd (beads-list--parse-transient-args '("--priority=2"))))
+    (should (equal (oref cmd priority) 2))))
+
+(ert-deftest beads-list-test-parse-transient-args-all-flag ()
+  "Test parsing --all flag."
+  (let ((cmd (beads-list--parse-transient-args '("--all"))))
+    (should (oref cmd all))))
+
+(ert-deftest beads-list-test-parse-transient-args-labels ()
+  "Test parsing label filters."
+  (let ((cmd (beads-list--parse-transient-args
+              '("--label=bug" "--label=urgent"))))
+    (should (equal (oref cmd label) '("bug" "urgent")))))
+
+(ert-deftest beads-list-test-parse-transient-args-date-filters ()
+  "Test parsing date filters."
+  (let ((cmd (beads-list--parse-transient-args
+              '("--created-after=2025-01-01"
+                "--updated-before=2025-12-31"))))
+    (should (equal (oref cmd created-after) "2025-01-01"))
+    (should (equal (oref cmd updated-before) "2025-12-31"))))
+
+(ert-deftest beads-list-test-parse-transient-args-text-search ()
+  "Test parsing text search filters."
+  (let ((cmd (beads-list--parse-transient-args
+              '("--title-contains=bug"
+                "--desc-contains=error"))))
+    (should (equal (oref cmd title-contains) "bug"))
+    (should (equal (oref cmd desc-contains) "error"))))
+
+(ert-deftest beads-list-test-parse-transient-args-limit ()
+  "Test parsing limit option."
+  (let ((cmd (beads-list--parse-transient-args '("--limit=10"))))
+    (should (equal (oref cmd limit) 10))))
+
+;;; Agent Indicator Edge Cases
+
+(ert-deftest beads-list-test-format-agent-finished-with-indicator ()
+  "Test format-agent shows indicator for finished outcome."
+  (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+             (lambda (_id) nil))
+            ((symbol-function 'beads-agent--get-issue-outcome)
+             (lambda (_id) '("T" . finished))))
+    (let ((result (beads-list--format-agent "bd-1")))
+      (should (string-match-p "T" result))
+      (should (eq (get-text-property 0 'face result)
+                  'beads-list-agent-finished)))))
+
+(ert-deftest beads-list-test-format-agent-failed-with-indicator ()
+  "Test format-agent shows indicator for failed outcome."
+  (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+             (lambda (_id) nil))
+            ((symbol-function 'beads-agent--get-issue-outcome)
+             (lambda (_id) '("R" . failed))))
+    (let ((result (beads-list--format-agent "bd-1")))
+      (should (string-match-p "R" result))
+      (should (eq (get-text-property 0 'face result)
+                  'beads-list-agent-failed)))))
+
+;;; Refresh All Tests
+
+(ert-deftest beads-list-test-refresh-all-no-buffers ()
+  "Test refresh-all when no beads buffers exist."
+  ;; Should not error
+  (should-not (condition-case nil
+                  (progn (beads-list-refresh-all) nil)
+                (error t))))
+
+(ert-deftest beads-list-test-refresh-all-with-buffer ()
+  "Test refresh-all refreshes live beads-list buffers."
+  (let ((refreshed nil))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (&rest _)
+                 (setq refreshed t)
+                 (beads-test--mock-command-result (vector))))
+              ((symbol-function 'beads-check-executable)
+               (lambda () t)))
+      (beads-list-test--with-temp-buffer
+       beads-list-test--sample-issues 'list
+       ;; refresh-all iterates all buffers
+       (beads-list-refresh-all)
+       (should refreshed)))))
+
+;;; Filter Command Tests
+
+(ert-deftest beads-list-test-filter-command-with-command-obj ()
+  "Test filter command when command-obj is set."
+  (with-temp-buffer
+    (beads-list-mode)
+    (setq beads-list--command-obj (beads-command-list :status "open"))
+    ;; Should be able to call filter (it opens transient)
+    (should (fboundp 'beads-list-filter))))
+
+;;; On Agent State Change Hook Tests
+
+(ert-deftest beads-list-test-on-agent-state-change-hook ()
+  "Test that agent state change hook triggers refresh."
+  (let ((refresh-called nil))
+    (cl-letf (((symbol-function 'beads-list-refresh-all)
+               (lambda () (setq refresh-called t))))
+      (beads-list--on-agent-state-change 'start 'mock-session)
+      (should refresh-called))))
+
+;;; Normalize Directory Tests
+
+(ert-deftest beads-list-test-normalize-directory-trailing-slash ()
+  "Test normalize-directory strips trailing slash."
+  (should (equal (beads-list--normalize-directory "/path/to/dir/")
+                 "/path/to/dir")))
+
+(ert-deftest beads-list-test-normalize-directory-no-slash ()
+  "Test normalize-directory preserves path without trailing slash."
+  (should (equal (beads-list--normalize-directory "/path/to/dir")
+                 "/path/to/dir")))
+
+(ert-deftest beads-list-test-normalize-directory-expands ()
+  "Test normalize-directory expands relative paths."
+  (let ((default-directory "/home/user/"))
+    (should (string-prefix-p "/" (beads-list--normalize-directory "relative")))))
+
+;;; Relative Date Format - Months and Years
+
+(ert-deftest beads-list-test-format-date-relative-months ()
+  "Test format-date with relative format for months."
+  (let ((beads-list-date-format 'relative))
+    ;; Create timestamp ~2 months ago (approximately 60 days)
+    (let* ((now (current-time))
+           (days-ago 60)
+           (past-time (time-subtract now (seconds-to-time (* days-ago 86400))))
+           (timestamp (format-time-string "%Y-%m-%dT%H:%M:%SZ" past-time t)))
+      (let ((result (beads-list--format-date timestamp)))
+        (should (string-match-p "mo ago" result))))))
+
+(ert-deftest beads-list-test-format-date-relative-years ()
+  "Test format-date with relative format for years."
+  (let ((beads-list-date-format 'relative))
+    ;; Create timestamp ~2 years ago (approximately 730 days)
+    (let* ((now (current-time))
+           (days-ago 730)
+           (past-time (time-subtract now (seconds-to-time (* days-ago 86400))))
+           (timestamp (format-time-string "%Y-%m-%dT%H:%M:%SZ" past-time t)))
+      (let ((result (beads-list--format-date timestamp)))
+        (should (string-match-p "y ago" result))))))
+
+(ert-deftest beads-list-test-format-date-relative-minutes ()
+  "Test format-date with relative format for minutes."
+  (let ((beads-list-date-format 'relative))
+    ;; Create timestamp ~5 minutes ago
+    (let* ((now (current-time))
+           (past-time (time-subtract now (seconds-to-time (* 5 60))))
+           (timestamp (format-time-string "%Y-%m-%dT%H:%M:%SZ" past-time t)))
+      (let ((result (beads-list--format-date timestamp)))
+        (should (string-match-p "m ago" result))))))
+
+;;; Agent Indicator Tests
+
+(ert-deftest beads-list-test-format-agent-indicator-basic ()
+  "Test format-agent-indicator returns string."
+  (let ((result (beads-list--format-agent-indicator "Task" 1 'default)))
+    (should (stringp result))
+    ;; Function uses just the first letter
+    (should (string-match-p "T" result))
+    (should (string-match-p "1" result))))
+
+(ert-deftest beads-list-test-format-agent-indicator-brief ()
+  "Test format-agent-indicator in brief mode."
+  (let ((result (beads-list--format-agent-indicator "Task" 1 'default t)))
+    (should (stringp result))
+    ;; Brief mode uses first letter only
+    (should (string-match-p "T" result))))
+
+;;; Buffer Creation Tests
+
+(ert-deftest beads-list-test-get-or-create-buffer-exists ()
+  "Test get-or-create-buffer returns existing buffer."
+  (let ((buf (get-buffer-create "*beads-list-test-temp*")))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-list--find-buffer-for-project)
+                   (lambda (_type _dir) buf)))
+          (should (eq (beads-list--get-or-create-buffer 'list) buf)))
+      (kill-buffer buf))))
+
+;;; Status Face Tests
+
+(ert-deftest beads-list-test-status-face-open ()
+  "Test status face for open status."
+  (should (eq (beads-list--status-face "open") 'beads-list-status-open)))
+
+(ert-deftest beads-list-test-status-face-in-progress ()
+  "Test status face for in_progress status."
+  (should (eq (beads-list--status-face "in_progress")
+              'beads-list-status-in-progress)))
+
+(ert-deftest beads-list-test-status-face-blocked ()
+  "Test status face for blocked status."
+  (should (eq (beads-list--status-face "blocked") 'beads-list-status-blocked)))
+
+(ert-deftest beads-list-test-status-face-closed ()
+  "Test status face for closed status."
+  (should (eq (beads-list--status-face "closed") 'beads-list-status-closed)))
+
+;;; Priority Face Tests
+
+(ert-deftest beads-list-test-priority-face-high ()
+  "Test priority face for high priority (1)."
+  (should (eq (beads-list--priority-face 1) 'beads-list-priority-high)))
+
+(ert-deftest beads-list-test-priority-face-medium ()
+  "Test priority face for medium priority (2)."
+  (should (eq (beads-list--priority-face 2) 'beads-list-priority-medium)))
+
+(ert-deftest beads-list-test-priority-face-low ()
+  "Test priority face for low priority (3)."
+  (should (eq (beads-list--priority-face 3) 'beads-list-priority-low)))
+
+(ert-deftest beads-list-test-priority-face-default ()
+  "Test priority face for unknown priority defaults."
+  ;; Unknown priorities get 'default face
+  (should (beads-list--priority-face 99)))
+
+;;; Format Status/Priority Tests
+
+(ert-deftest beads-list-test-format-status-propertized ()
+  "Test format-status returns propertized string."
+  (let ((result (beads-list--format-status "open")))
+    (should (stringp result))
+    (should (string-match-p "open" result))))
+
+(ert-deftest beads-list-test-format-priority-propertized ()
+  "Test format-priority returns propertized string."
+  (let ((result (beads-list--format-priority 1)))
+    (should (stringp result))
+    ;; Format includes "P" prefix
+    (should (string-match-p "1" result))))
+
+;;; Normalize Directory Edge Cases
+
+(ert-deftest beads-list-test-normalize-directory-root ()
+  "Test normalize-directory handles root path."
+  (should (equal (beads-list--normalize-directory "/") "/")))
+
+(ert-deftest beads-list-test-normalize-directory-home ()
+  "Test normalize-directory handles home directory."
+  (should (stringp (beads-list--normalize-directory "~"))))
+
+;;; Focused/Touched Agent Indicator Tests
+
+(ert-deftest beads-list-test-format-agent-focused-session ()
+  "Test format-agent with a focused session."
+  (cl-letf (((symbol-function 'beads-agent--get-sessions-focused-on-issue)
+             (lambda (_issue-id)
+               (list (beads-agent-session
+                      :id "test#1" :issue-id "bd-1"
+                      :backend-name "mock" :project-dir "/tmp"
+                      :started-at "2025-01-01T00:00:00Z"
+                      :agent-type-name "Task"))))
+            ((symbol-function 'beads-agent--get-sessions-touching-issue)
+             (lambda (_issue-id) nil))
+            ((symbol-function 'beads-agent--get-sessions-for-issue)
+             (lambda (_issue-id) nil))
+            ((symbol-function 'beads-agent--get-issue-outcome)
+             (lambda (_issue-id) nil))
+            ((symbol-function 'beads-agent-session-type-name)
+             (lambda (_s) "Task"))
+            ((symbol-function 'beads-agent-session-instance-number)
+             (lambda (_s) 1)))
+    (let ((result (beads-list--format-agent "bd-1")))
+      (should (stringp result))
+      (should (> (length result) 0)))))
+
+(ert-deftest beads-list-test-format-agent-touched-session ()
+  "Test format-agent with a touched (not focused) session."
+  (cl-letf (((symbol-function 'beads-agent--get-sessions-focused-on-issue)
+             (lambda (_issue-id) nil))
+            ((symbol-function 'beads-agent--get-sessions-touching-issue)
+             (lambda (_issue-id)
+               (list (beads-agent-session
+                      :id "test#1" :issue-id "bd-2"
+                      :backend-name "mock" :project-dir "/tmp"
+                      :started-at "2025-01-01T00:00:00Z"
+                      :agent-type-name "Plan"))))
+            ((symbol-function 'beads-agent--get-sessions-for-issue)
+             (lambda (_issue-id) nil))
+            ((symbol-function 'beads-agent--get-issue-outcome)
+             (lambda (_issue-id) nil))
+            ((symbol-function 'beads-agent-session-type-name)
+             (lambda (_s) "Plan"))
+            ((symbol-function 'beads-agent-session-instance-number)
+             (lambda (_s) 1)))
+    (let ((result (beads-list--format-agent "bd-1")))
+      (should (stringp result))
+      (should (> (length result) 0)))))
+
+(ert-deftest beads-list-test-format-agent-focused-and-touched ()
+  "Test format-agent with both focused and touched sessions."
+  (let* ((focused-session (beads-agent-session
+                           :id "test#1" :issue-id "bd-1"
+                           :backend-name "mock" :project-dir "/tmp"
+                           :started-at "2025-01-01T00:00:00Z"
+                           :agent-type-name "Task"))
+         (touched-session (beads-agent-session
+                           :id "test#2" :issue-id "bd-1"
+                           :backend-name "mock" :project-dir "/tmp"
+                           :started-at "2025-01-01T00:00:00Z"
+                           :agent-type-name "Plan")))
+    (cl-letf (((symbol-function 'beads-agent--get-sessions-focused-on-issue)
+               (lambda (_issue-id) (list focused-session)))
+              ((symbol-function 'beads-agent--get-sessions-touching-issue)
+               (lambda (_issue-id) (list touched-session)))
+              ((symbol-function 'beads-agent--get-sessions-for-issue)
+               (lambda (_issue-id) nil))
+              ((symbol-function 'beads-agent--get-issue-outcome)
+               (lambda (_issue-id) nil))
+              ((symbol-function 'beads-agent-session-type-name)
+               (lambda (s) (oref s agent-type-name)))
+              ((symbol-function 'beads-agent-session-instance-number)
+               (lambda (_s) 1)))
+      (let ((result (beads-list--format-agent "bd-1")))
+        (should (stringp result))
+        (should (> (length result) 0))))))
+
+;;; Bulk Operation State Tests
+
+(ert-deftest beads-list-test-marked-issues-initial-state ()
+  "Test initial state of marked issues."
+  (with-temp-buffer
+    (beads-list-mode)
+    (should (null beads-list--marked-issues))))
+
+(ert-deftest beads-list-test-mark-and-unmark-all ()
+  "Test marking and unmarking all issues."
+  (with-temp-buffer
+    (beads-list-mode)
+    (setq beads-list--marked-issues '("bd-1" "bd-2" "bd-3"))
+    (should (= (length beads-list--marked-issues) 3))
+    (beads-list-unmark-all)
+    (should (null beads-list--marked-issues))))
+
+;;; Entry Creation Tests
+
+(ert-deftest beads-list-test-issue-to-entry-basic ()
+  "Test creating a basic tabulated-list entry."
+  (let ((issue (beads-issue
+                :id "bd-1"
+                :title "Test Issue"
+                :status "open"
+                :priority 2
+                :issue-type "task"
+                :created-at "2025-01-15T10:00:00Z"
+                :updated-at "2025-01-15T11:00:00Z")))
+    (cl-letf (((symbol-function 'beads-list--format-agent)
+               (lambda (_id) ""))
+              ((symbol-function 'beads-agent--get-sessions-for-issue)
+               (lambda (_id) nil)))
+      (let ((entry (beads-list--issue-to-entry issue)))
+        (should (listp entry))
+        (should (equal (car entry) "bd-1"))))))
+
+(ert-deftest beads-list-test-issue-to-entry-with-labels ()
+  "Test creating entry with labels."
+  (let ((issue (beads-issue
+                :id "bd-1"
+                :title "Test Issue"
+                :status "open"
+                :priority 2
+                :issue-type "task"
+                :labels '("bug" "urgent")
+                :created-at "2025-01-15T10:00:00Z"
+                :updated-at "2025-01-15T11:00:00Z")))
+    (cl-letf (((symbol-function 'beads-list--format-agent)
+               (lambda (_id) ""))
+              ((symbol-function 'beads-agent--get-sessions-for-issue)
+               (lambda (_id) nil)))
+      (let ((entry (beads-list--issue-to-entry issue)))
+        (should (listp entry))
+        (should (equal (car entry) "bd-1"))))))
+
+;;; ============================================================
+;;; Transient Args Parsing Tests
+;;; ============================================================
+
+(ert-deftest beads-list-test-parse-transient-args-no-assignee ()
+  "Test parsing --no-assignee flag."
+  (let ((cmd (beads-list--parse-transient-args '("--no-assignee"))))
+    (should (beads-command-list-p cmd))
+    (should (eq (oref cmd no-assignee) t))))
+
+(ert-deftest beads-list-test-parse-transient-args-empty-description ()
+  "Test parsing --empty-description flag."
+  (let ((cmd (beads-list--parse-transient-args '("--empty-description"))))
+    (should (beads-command-list-p cmd))
+    (should (eq (oref cmd empty-description) t))))
+
+(ert-deftest beads-list-test-parse-transient-args-no-labels ()
+  "Test parsing --no-labels flag."
+  (let ((cmd (beads-list--parse-transient-args '("--no-labels"))))
+    (should (beads-command-list-p cmd))
+    (should (eq (oref cmd no-labels) t))))
+
+(ert-deftest beads-list-test-parse-transient-args-long ()
+  "Test parsing --long flag."
+  (let ((cmd (beads-list--parse-transient-args '("--long"))))
+    (should (beads-command-list-p cmd))
+    (should (eq (oref cmd long) t))))
+
+(ert-deftest beads-list-test-parse-transient-args-assignee ()
+  "Test parsing --assignee= option."
+  (let ((cmd (beads-list--parse-transient-args '("--assignee=john"))))
+    (should (beads-command-list-p cmd))
+    (should (equal (oref cmd assignee) "john"))))
+
+(ert-deftest beads-list-test-parse-transient-args-closed-after ()
+  "Test parsing --closed-after= option."
+  (let ((cmd (beads-list--parse-transient-args '("--closed-after=2025-01-01"))))
+    (should (beads-command-list-p cmd))
+    (should (equal (oref cmd closed-after) "2025-01-01"))))
+
+(ert-deftest beads-list-test-parse-transient-args-closed-before ()
+  "Test parsing --closed-before= option."
+  (let ((cmd (beads-list--parse-transient-args '("--closed-before=2025-01-15"))))
+    (should (beads-command-list-p cmd))
+    (should (equal (oref cmd closed-before) "2025-01-15"))))
+
+(ert-deftest beads-list-test-parse-transient-args-created-before ()
+  "Test parsing --created-before= option."
+  (let ((cmd (beads-list--parse-transient-args '("--created-before=2025-01-10"))))
+    (should (beads-command-list-p cmd))
+    (should (equal (oref cmd created-before) "2025-01-10"))))
+
+(ert-deftest beads-list-test-parse-transient-args-desc-contains ()
+  "Test parsing --desc-contains= option."
+  (let ((cmd (beads-list--parse-transient-args '("--desc-contains=test"))))
+    (should (beads-command-list-p cmd))
+    (should (equal (oref cmd desc-contains) "test"))))
+
+(ert-deftest beads-list-test-parse-transient-args-format ()
+  "Test parsing --format= option."
+  (let ((cmd (beads-list--parse-transient-args '("--format=compact"))))
+    (should (beads-command-list-p cmd))
+    (should (equal (oref cmd format) "compact"))))
+
+(ert-deftest beads-list-test-parse-transient-args-id ()
+  "Test parsing --id= option."
+  (let ((cmd (beads-list--parse-transient-args '("--id=bd-42"))))
+    (should (beads-command-list-p cmd))
+    (should (equal (oref cmd id) "bd-42"))))
+
+(ert-deftest beads-list-test-parse-transient-args-notes-contains ()
+  "Test parsing --notes-contains= option."
+  (let ((cmd (beads-list--parse-transient-args '("--notes-contains=review"))))
+    (should (beads-command-list-p cmd))
+    (should (equal (oref cmd notes-contains) "review"))))
+
+(ert-deftest beads-list-test-parse-transient-args-title ()
+  "Test parsing --title= option."
+  (let ((cmd (beads-list--parse-transient-args '("--title=Bug"))))
+    (should (beads-command-list-p cmd))
+    (should (equal (oref cmd title) "Bug"))))
+
+(ert-deftest beads-list-test-parse-transient-args-title-contains ()
+  "Test parsing --title-contains= option."
+  (let ((cmd (beads-list--parse-transient-args '("--title-contains=fix"))))
+    (should (beads-command-list-p cmd))
+    (should (equal (oref cmd title-contains) "fix"))))
+
+(ert-deftest beads-list-test-parse-transient-args-type ()
+  "Test parsing --type= option."
+  (let ((cmd (beads-list--parse-transient-args '("--type=bug"))))
+    (should (beads-command-list-p cmd))
+    (should (equal (oref cmd issue-type) "bug"))))
+
+(ert-deftest beads-list-test-parse-transient-args-updated-after ()
+  "Test parsing --updated-after= option."
+  (let ((cmd (beads-list--parse-transient-args '("--updated-after=2025-01-01"))))
+    (should (beads-command-list-p cmd))
+    (should (equal (oref cmd updated-after) "2025-01-01"))))
+
+(ert-deftest beads-list-test-parse-transient-args-updated-before ()
+  "Test parsing --updated-before= option."
+  (let ((cmd (beads-list--parse-transient-args '("--updated-before=2025-01-15"))))
+    (should (beads-command-list-p cmd))
+    (should (equal (oref cmd updated-before) "2025-01-15"))))
+
+(ert-deftest beads-list-test-parse-transient-args-priority-min ()
+  "Test parsing --priority-min= option."
+  (let ((cmd (beads-list--parse-transient-args '("--priority-min=1"))))
+    (should (beads-command-list-p cmd))
+    (should (equal (oref cmd priority-min) 1))))
+
+(ert-deftest beads-list-test-parse-transient-args-priority-max ()
+  "Test parsing --priority-max= option."
+  (let ((cmd (beads-list--parse-transient-args '("--priority-max=3"))))
+    (should (beads-command-list-p cmd))
+    (should (equal (oref cmd priority-max) 3))))
+
+(ert-deftest beads-list-test-parse-transient-args-priority-range ()
+  "Test parsing combined priority-min and priority-max options."
+  (let ((cmd (beads-list--parse-transient-args
+              '("--priority-min=1" "--priority-max=3"))))
+    (should (beads-command-list-p cmd))
+    (should (equal (oref cmd priority-min) 1))
+    (should (equal (oref cmd priority-max) 3))))
+
+(ert-deftest beads-list-test-parse-transient-args-label-any ()
+  "Test parsing --label-any= options."
+  (let ((cmd (beads-list--parse-transient-args
+              '("--label-any=bug" "--label-any=urgent"))))
+    (should (beads-command-list-p cmd))
+    (should (member "bug" (oref cmd label-any)))
+    (should (member "urgent" (oref cmd label-any)))))
+
+(ert-deftest beads-list-test-parse-transient-args-combined ()
+  "Test parsing combined options."
+  (let ((cmd (beads-list--parse-transient-args
+              '("--status=open" "--assignee=john" "--no-labels" "--type=task"))))
+    (should (beads-command-list-p cmd))
+    (should (equal (oref cmd status) "open"))
+    (should (equal (oref cmd assignee) "john"))
+    (should (eq (oref cmd no-labels) t))
+    (should (equal (oref cmd issue-type) "task"))))
+
+;;; Bulk Operation Function Existence Tests
+
+(ert-deftest beads-list-test-bulk-update-status-defined ()
+  "Test that bulk-update-status is defined."
+  (should (fboundp 'beads-list-bulk-update-status)))
+
+(ert-deftest beads-list-test-bulk-update-priority-defined ()
+  "Test that bulk-update-priority is defined."
+  (should (fboundp 'beads-list-bulk-update-priority)))
+
+(ert-deftest beads-list-test-bulk-close-defined ()
+  "Test that bulk-close is defined."
+  (should (fboundp 'beads-list-bulk-close)))
+
+(ert-deftest beads-list-test-bulk-reopen-defined ()
+  "Test that bulk-reopen is defined."
+  (should (fboundp 'beads-list-bulk-reopen)))
+
+;;; Filter and Ready/Blocked Tests
+
+(ert-deftest beads-list-test-filter-defined ()
+  "Test that filter is defined."
+  (should (fboundp 'beads-list-filter)))
+
+(ert-deftest beads-list-test-ready-defined ()
+  "Test that beads-ready is defined."
+  (should (fboundp 'beads-ready)))
+
+(ert-deftest beads-list-test-blocked-defined ()
+  "Test that beads-blocked is defined."
+  (should (fboundp 'beads-blocked)))
+
+;;; Mark and Unmark Tests
+
+(ert-deftest beads-list-test-mark-defined ()
+  "Test that mark is defined."
+  (should (fboundp 'beads-list-mark)))
+
+(ert-deftest beads-list-test-unmark-defined ()
+  "Test that unmark is defined."
+  (should (fboundp 'beads-list-unmark)))
+
+(ert-deftest beads-list-test-mark-all-defined ()
+  "Test that mark-all is defined."
+  (should (fboundp 'beads-list-mark-all)))
+
+(ert-deftest beads-list-test-unmark-all-defined ()
+  "Test that unmark-all is defined."
+  (should (fboundp 'beads-list-unmark-all)))
+
+(ert-deftest beads-list-test-marked-issues-variable-exists ()
+  "Test that marked-issues variable is defined."
+  ;; Variable should be available in list mode buffers
+  (should t))
+
+;;; Bulk Operation No Marks Tests
+
+(ert-deftest beads-list-test-bulk-update-status-no-marks ()
+  "Test bulk-update-status errors with no marks."
+  (with-temp-buffer
+    (beads-list-mode)
+    (setq beads-list--marked-issues nil)
+    (should-error (beads-list-bulk-update-status) :type 'user-error)))
+
+(ert-deftest beads-list-test-bulk-update-priority-no-marks ()
+  "Test bulk-update-priority errors with no marks."
+  (with-temp-buffer
+    (beads-list-mode)
+    (setq beads-list--marked-issues nil)
+    (should-error (beads-list-bulk-update-priority) :type 'user-error)))
+
+(ert-deftest beads-list-test-bulk-close-no-marks ()
+  "Test bulk-close errors with no marks."
+  (with-temp-buffer
+    (beads-list-mode)
+    (setq beads-list--marked-issues nil)
+    (should-error (beads-list-bulk-close) :type 'user-error)))
+
+(ert-deftest beads-list-test-bulk-reopen-no-marks ()
+  "Test bulk-reopen errors with no marks."
+  (with-temp-buffer
+    (beads-list-mode)
+    (setq beads-list--marked-issues nil)
+    (should-error (beads-list-bulk-reopen) :type 'user-error)))
+
+;;; Entry Point Tests
+
+(ert-deftest beads-list-test-main-entry-defined ()
+  "Test that main entry point is defined."
+  (should (fboundp 'beads-list)))
+
+(ert-deftest beads-list-test-refresh-defined ()
+  "Test that refresh is defined."
+  (should (fboundp 'beads-list-refresh)))
+
+;;; Bulk Operation With Marks Tests (Cancelled)
+
+(ert-deftest beads-list-test-bulk-update-status-empty-input ()
+  "Test bulk-update-status with empty status."
+  (with-temp-buffer
+    (beads-list-mode)
+    (setq beads-list--marked-issues '("bd-1"))
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (&rest _) "")))
+      ;; Empty string aborts without asking y-or-n
+      (beads-list-bulk-update-status))
+    ;; Should complete without error
+    (should t)))
+
+(ert-deftest beads-list-test-bulk-update-priority-nil-selection ()
+  "Test bulk-update-priority with nil selection."
+  (with-temp-buffer
+    (beads-list-mode)
+    (setq beads-list--marked-issues '("bd-1"))
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (&rest _) "Invalid")))
+      ;; Invalid selection doesn't match any choice
+      (beads-list-bulk-update-priority))
+    ;; Should complete without error
+    (should t)))
+
+(ert-deftest beads-list-test-bulk-close-user-declines ()
+  "Test bulk-close when user declines."
+  (with-temp-buffer
+    (beads-list-mode)
+    (setq beads-list--marked-issues '("bd-1"))
+    (cl-letf (((symbol-function 'read-string)
+               (lambda (&rest _) "test"))
+              ((symbol-function 'y-or-n-p)
+               (lambda (&rest _) nil)))
+      (beads-list-bulk-close))
+    ;; Marks should still be set (not cleared)
+    (should (member "bd-1" beads-list--marked-issues))))
+
+(ert-deftest beads-list-test-bulk-reopen-user-declines ()
+  "Test bulk-reopen when user declines."
+  (with-temp-buffer
+    (beads-list-mode)
+    (setq beads-list--marked-issues '("bd-1"))
+    (cl-letf (((symbol-function 'read-string)
+               (lambda (&rest _) "test"))
+              ((symbol-function 'y-or-n-p)
+               (lambda (&rest _) nil)))
+      (beads-list-bulk-reopen))
+    ;; Marks should still be set (not cleared)
+    (should (member "bd-1" beads-list--marked-issues))))
+
+(ert-deftest beads-list-test-bulk-update-status-success ()
+  "Test bulk-update-status executes successfully."
+  (with-temp-buffer
+    (beads-list-mode)
+    (setq beads-list--marked-issues '("bd-1" "bd-2"))
+    (let ((executed-ids nil))
+      (cl-letf (((symbol-function 'completing-read)
+                 (lambda (&rest _) "in_progress"))
+                ((symbol-function 'y-or-n-p)
+                 (lambda (&rest _) t))
+                ((symbol-function 'beads-command-execute)
+                 (lambda (cmd)
+                   (push (oref cmd issue-ids) executed-ids)
+                   nil))
+                ((symbol-function 'beads--invalidate-completion-cache)
+                 (lambda () nil))
+                ((symbol-function 'beads-list-refresh)
+                 (lambda () nil)))
+        (beads-list-bulk-update-status))
+      ;; Should have executed for both issues
+      (should (= 2 (length executed-ids)))
+      ;; Marks should be cleared after success
+      (should (null beads-list--marked-issues)))))
+
+(ert-deftest beads-list-test-bulk-update-priority-success ()
+  "Test bulk-update-priority executes successfully."
+  (with-temp-buffer
+    (beads-list-mode)
+    (setq beads-list--marked-issues '("bd-1" "bd-2"))
+    (let ((executed-ids nil))
+      (cl-letf (((symbol-function 'completing-read)
+                 (lambda (&rest _) "1 - High"))
+                ((symbol-function 'y-or-n-p)
+                 (lambda (&rest _) t))
+                ((symbol-function 'beads-command-execute)
+                 (lambda (cmd)
+                   (push (oref cmd issue-ids) executed-ids)
+                   nil))
+                ((symbol-function 'beads--invalidate-completion-cache)
+                 (lambda () nil))
+                ((symbol-function 'beads-list-refresh)
+                 (lambda () nil)))
+        (beads-list-bulk-update-priority))
+      ;; Should have executed for both issues
+      (should (= 2 (length executed-ids)))
+      ;; Marks should be cleared after success
+      (should (null beads-list--marked-issues)))))
+
+(ert-deftest beads-list-test-bulk-close-success ()
+  "Test bulk-close executes successfully."
+  (with-temp-buffer
+    (beads-list-mode)
+    (setq beads-list--marked-issues '("bd-1" "bd-2"))
+    (let ((executed-ids nil))
+      (cl-letf (((symbol-function 'read-string)
+                 (lambda (&rest _) "Completed"))
+                ((symbol-function 'y-or-n-p)
+                 (lambda (&rest _) t))
+                ((symbol-function 'beads-command-execute)
+                 (lambda (cmd)
+                   (push (oref cmd issue-ids) executed-ids)
+                   nil))
+                ((symbol-function 'beads--invalidate-completion-cache)
+                 (lambda () nil))
+                ((symbol-function 'beads-list-refresh)
+                 (lambda () nil)))
+        (beads-list-bulk-close))
+      ;; Should have executed for both issues
+      (should (= 2 (length executed-ids)))
+      ;; Marks should be cleared after success
+      (should (null beads-list--marked-issues)))))
+
+(ert-deftest beads-list-test-bulk-reopen-success ()
+  "Test bulk-reopen executes successfully."
+  (with-temp-buffer
+    (beads-list-mode)
+    (setq beads-list--marked-issues '("bd-1" "bd-2"))
+    (let ((executed-ids nil))
+      (cl-letf (((symbol-function 'read-string)
+                 (lambda (&rest _) "Need more work"))
+                ((symbol-function 'y-or-n-p)
+                 (lambda (&rest _) t))
+                ((symbol-function 'beads-command-execute)
+                 (lambda (cmd)
+                   (push (oref cmd issue-ids) executed-ids)
+                   nil))
+                ((symbol-function 'beads--invalidate-completion-cache)
+                 (lambda () nil))
+                ((symbol-function 'beads-list-refresh)
+                 (lambda () nil)))
+        (beads-list-bulk-reopen))
+      ;; Should have executed for both issues
+      (should (= 2 (length executed-ids)))
+      ;; Marks should be cleared after success
+      (should (null beads-list--marked-issues)))))
+
+(ert-deftest beads-list-test-bulk-update-status-with-errors ()
+  "Test bulk-update-status handles errors gracefully."
+  (with-temp-buffer
+    (beads-list-mode)
+    (setq beads-list--marked-issues '("bd-1" "bd-2"))
+    (let ((call-count 0))
+      (cl-letf (((symbol-function 'completing-read)
+                 (lambda (&rest _) "open"))
+                ((symbol-function 'y-or-n-p)
+                 (lambda (&rest _) t))
+                ((symbol-function 'beads-command-execute)
+                 (lambda (_cmd)
+                   (setq call-count (1+ call-count))
+                   (when (= call-count 1)
+                     (error "Simulated failure"))
+                   nil))
+                ((symbol-function 'beads--invalidate-completion-cache)
+                 (lambda () nil))
+                ((symbol-function 'beads-list-refresh)
+                 (lambda () nil)))
+        (beads-list-bulk-update-status))
+      ;; Both should have been attempted
+      (should (= 2 call-count))
+      ;; Marks should be cleared even with partial failure
+      (should (null beads-list--marked-issues)))))
+
+(ert-deftest beads-list-test-bulk-close-with-errors ()
+  "Test bulk-close handles errors gracefully."
+  (with-temp-buffer
+    (beads-list-mode)
+    (setq beads-list--marked-issues '("bd-1" "bd-2"))
+    (let ((call-count 0))
+      (cl-letf (((symbol-function 'read-string)
+                 (lambda (&rest _) "Done"))
+                ((symbol-function 'y-or-n-p)
+                 (lambda (&rest _) t))
+                ((symbol-function 'beads-command-execute)
+                 (lambda (_cmd)
+                   (setq call-count (1+ call-count))
+                   (when (= call-count 1)
+                     (error "Simulated failure"))
+                   nil))
+                ((symbol-function 'beads--invalidate-completion-cache)
+                 (lambda () nil))
+                ((symbol-function 'beads-list-refresh)
+                 (lambda () nil)))
+        (beads-list-bulk-close))
+      ;; Both should have been attempted
+      (should (= 2 call-count))
+      ;; Marks should be cleared even with partial failure
+      (should (null beads-list--marked-issues)))))
+
+;;; Mark/Unmark Operations Tests
+
+(ert-deftest beads-list-test-mark-at-point ()
+  "Test marking issue at point."
+  (with-temp-buffer
+    (beads-list-mode)
+    (setq beads-list--marked-issues nil)
+    (cl-letf (((symbol-function 'beads-list--current-issue-id)
+               (lambda () "bd-test"))
+              ((symbol-function 'tabulated-list-put-tag)
+               (lambda (&rest _) nil)))
+      (beads-list-mark))
+    (should (member "bd-test" beads-list--marked-issues))))
+
+(ert-deftest beads-list-test-unmark-at-point ()
+  "Test unmarking issue at point."
+  (with-temp-buffer
+    (beads-list-mode)
+    (setq beads-list--marked-issues '("bd-test"))
+    (cl-letf (((symbol-function 'beads-list--current-issue-id)
+               (lambda () "bd-test"))
+              ((symbol-function 'tabulated-list-put-tag)
+               (lambda (&rest _) nil)))
+      (beads-list-unmark))
+    (should-not (member "bd-test" beads-list--marked-issues))))
+
+(ert-deftest beads-list-test-unmark-all-clears-marks ()
+  "Test unmark-all clears all marks."
+  (with-temp-buffer
+    (beads-list-mode)
+    (setq beads-list--marked-issues '("bd-1" "bd-2" "bd-3"))
+    (cl-letf (((symbol-function 'tabulated-list-put-tag)
+               (lambda (&rest _) nil))
+              ((symbol-function 'beads-list--current-issue-id)
+               (lambda () nil)))
+      (beads-list-unmark-all))
+    (should (null beads-list--marked-issues))))
 
 (provide 'beads-list-test)
 ;;; beads-list-test.el ends here

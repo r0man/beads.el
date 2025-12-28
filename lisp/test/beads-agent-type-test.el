@@ -571,6 +571,60 @@
                        "custom-backend")))
     (beads-agent-type-test--teardown)))
 
+;;; Error Handling Tests
+
+(ert-deftest beads-agent-type-test-register-non-type-object-error ()
+  "Test that registering a non-type object raises an error."
+  (beads-agent-type-test--setup)
+  (unwind-protect
+      (should-error
+       (beads-agent-type-register "not-a-type-object")
+       :type 'error)
+    (beads-agent-type-test--teardown)))
+
+(ert-deftest beads-agent-type-test-register-wrong-class-error ()
+  "Test that registering wrong class raises an error."
+  (beads-agent-type-test--setup)
+  (unwind-protect
+      ;; Try to register a random EIEIO object that is not a beads-agent-type
+      (let ((wrong-obj (make-instance 'beads-issue :id "test" :title "Test")))
+        (should-error
+         (beads-agent-type-register wrong-obj)
+         :type 'error))
+    (beads-agent-type-test--teardown)))
+
+;;; Interactive Read Tests
+
+(ert-deftest beads-agent-type-test-read-uses-completing-read ()
+  "Test that beads-agent-type-read uses completing-read."
+  (beads-agent-type-test--setup)
+  (unwind-protect
+      (let* ((type (beads-agent-type-mock))
+             (selected-type nil))
+        (beads-agent-type-register type)
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (prompt collection &rest _)
+                     (setq selected-type "mock")
+                     "mock")))
+          (let ((result (beads-agent-type-read "Select type: ")))
+            (should (equal result "mock")))))
+    (beads-agent-type-test--teardown)))
+
+(ert-deftest beads-agent-type-test-read-default-prompt ()
+  "Test that beads-agent-type-read uses default prompt."
+  (beads-agent-type-test--setup)
+  (unwind-protect
+      (let* ((type (beads-agent-type-mock))
+             (prompt-used nil))
+        (beads-agent-type-register type)
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (prompt collection &rest _)
+                     (setq prompt-used prompt)
+                     "mock")))
+          (beads-agent-type-read)
+          (should (equal prompt-used "Agent type: "))))
+    (beads-agent-type-test--teardown)))
+
 (provide 'beads-agent-type-test)
 
 ;;; beads-agent-type-test.el ends here

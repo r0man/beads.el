@@ -228,6 +228,227 @@ ARGS should be a list of strings like (\"--prefix=myproj\" \"--branch=main\")."
   (should (commandp 'beads-init--reset))
   (should (get 'beads-init--reset 'transient--suffix)))
 
+;;; Tests for Edge Cases
+
+(ert-deftest beads-init-test-parse-args-db-path ()
+  "Test parsing with database path."
+  (let ((cmd (beads-init--parse-transient-args
+              '("--db=/path/to/custom.db"))))
+    (should (beads-command-init-p cmd))
+    (should (equal (oref cmd db) "/path/to/custom.db"))))
+
+(ert-deftest beads-init-test-parse-args-all-booleans ()
+  "Test parsing with all boolean flags."
+  (let ((cmd (beads-init--parse-transient-args
+              '("--quiet" "--skip-merge-driver" "--contributor"))))
+    (should (beads-command-init-p cmd))
+    (should (eq (oref cmd quiet) t))
+    (should (eq (oref cmd skip-merge-driver) t))
+    (should (eq (oref cmd contributor) t))))
+
+(ert-deftest beads-init-test-parse-args-unknown-arg ()
+  "Test parsing ignores unknown arguments."
+  (let ((cmd (beads-init--parse-transient-args
+              '("--unknown=value" "--prefix=myproj"))))
+    (should (beads-command-init-p cmd))
+    (should (equal (oref cmd prefix) "myproj"))))
+
+(ert-deftest beads-init-test-parse-args-empty-prefix ()
+  "Test parsing with empty prefix value."
+  (let ((cmd (beads-init--parse-transient-args
+              '("--prefix="))))
+    (should (beads-command-init-p cmd))
+    ;; Empty prefix after = is parsed as nil or empty string depending on implementation
+    (should (or (null (oref cmd prefix))
+                (equal (oref cmd prefix) "")))))
+
+;;; Tests for Command Construction
+
+(ert-deftest beads-init-test-command-line-basic ()
+  "Test command line construction for basic init."
+  (let* ((cmd (beads-command-init :prefix "test"))
+         (args (beads-command-line cmd)))
+    (should (member "init" args))
+    (should (member "--prefix" args))
+    (should (member "test" args))))
+
+(ert-deftest beads-init-test-command-line-with-branch ()
+  "Test command line construction with branch."
+  (let* ((cmd (beads-command-init :prefix "proj" :branch "develop"))
+         (args (beads-command-line cmd)))
+    (should (member "init" args))
+    (should (member "--branch" args))
+    (should (member "develop" args))))
+
+(ert-deftest beads-init-test-command-line-with-db ()
+  "Test command line construction with custom db path."
+  (let* ((cmd (beads-command-init :db "/path/to/db"))
+         (args (beads-command-line cmd)))
+    (should (member "init" args))
+    (should (member "--db" args))
+    (should (member "/path/to/db" args))))
+
+(ert-deftest beads-init-test-command-line-with-booleans ()
+  "Test command line construction with boolean flags."
+  (let* ((cmd (beads-command-init :quiet t :skip-merge-driver t))
+         (args (beads-command-line cmd)))
+    (should (member "init" args))
+    (should (member "--quiet" args))
+    (should (member "--skip-merge-driver" args))))
+
+(ert-deftest beads-init-test-command-line-contributor ()
+  "Test command line construction with contributor flag."
+  (let* ((cmd (beads-command-init :contributor t))
+         (args (beads-command-line cmd)))
+    (should (member "init" args))
+    (should (member "--contributor" args))))
+
+(ert-deftest beads-init-test-command-line-team ()
+  "Test command line construction with team flag."
+  (let* ((cmd (beads-command-init :team t))
+         (args (beads-command-line cmd)))
+    (should (member "init" args))
+    (should (member "--team" args))))
+
+;;; Tests for Validation Edge Cases
+
+(ert-deftest beads-init-test-validate-db-with-contributor ()
+  "Test validation allows db with contributor."
+  (let ((cmd (beads-command-init :db "/path/to/db" :contributor t)))
+    (should (null (beads-init--validate-all cmd)))))
+
+(ert-deftest beads-init-test-validate-db-with-team ()
+  "Test validation allows db with team."
+  (let ((cmd (beads-command-init :db "/path/to/db" :team t)))
+    (should (null (beads-init--validate-all cmd)))))
+
+(ert-deftest beads-init-test-validate-branch-with-prefix ()
+  "Test validation allows branch with prefix."
+  (let ((cmd (beads-command-init :prefix "proj" :branch "main")))
+    (should (null (beads-init--validate-all cmd)))))
+
+;;; Transient Suffix Command Tests
+;;
+;; These tests exercise the transient suffix commands by mocking
+;; interactive functions to test the execution paths.
+
+(ert-deftest beads-init-test-execute-suffix-flow ()
+  "Test execute suffix command flow."
+  :tags '(:unit)
+  (let ((executed nil)
+        (message-output nil))
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_prompt) t))
+              ((symbol-function 'transient-args)
+               (lambda (_prefix) '("--prefix=testproj")))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd) (setq executed t)))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-output (apply #'format fmt args)))))
+      (beads-init--execute)
+      (should executed)
+      (should message-output)
+      (should (string-match-p "initialized" message-output)))))
+
+(ert-deftest beads-init-test-execute-suffix-with-prefix-message ()
+  "Test execute suffix shows prefix in success message."
+  :tags '(:unit)
+  (let ((message-output nil))
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_prompt) t))
+              ((symbol-function 'transient-args)
+               (lambda (_prefix) '("--prefix=myproj")))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd) nil))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-output (apply #'format fmt args)))))
+      (beads-init--execute)
+      (should message-output)
+      (should (string-match-p "myproj" message-output)))))
+
+(ert-deftest beads-init-test-execute-suffix-user-declines ()
+  "Test execute suffix does nothing when user declines."
+  :tags '(:unit)
+  (let ((executed nil))
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_prompt) nil))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd) (setq executed t))))
+      (beads-init--execute)
+      (should-not executed))))
+
+(ert-deftest beads-init-test-execute-suffix-validation-error ()
+  "Test execute suffix handles validation errors."
+  :tags '(:unit)
+  (let ((error-caught nil))
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_prompt) t))
+              ((symbol-function 'transient-args)
+               (lambda (_prefix) '("--contributor" "--team"))))
+      (condition-case nil
+          (beads-init--execute)
+        (user-error (setq error-caught t)))
+      (should error-caught))))
+
+(ert-deftest beads-init-test-execute-suffix-command-error ()
+  "Test execute suffix handles command execution errors."
+  :tags '(:unit)
+  (let ((error-called nil))
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_prompt) t))
+              ((symbol-function 'transient-args)
+               (lambda (_prefix) '("--prefix=test")))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd) (error "Command failed")))
+              ((symbol-function 'beads--error)
+               (lambda (_fmt &rest _args) (setq error-called t))))
+      (beads-init--execute)
+      (should error-called))))
+
+(ert-deftest beads-init-test-preview-suffix-shows-command ()
+  "Test preview suffix displays command."
+  :tags '(:unit)
+  (let ((message-output nil))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_prefix) '("--prefix=proj" "--branch=main")))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-output (apply #'format fmt args)))))
+      (beads-init--preview)
+      (should message-output)
+      (should (string-match-p "init" message-output))
+      (should (string-match-p "--prefix" message-output)))))
+
+(ert-deftest beads-init-test-reset-suffix-confirmed ()
+  "Test reset suffix when user confirms."
+  :tags '(:unit)
+  (let ((reset-called nil)
+        (redisplay-called nil))
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_prompt) t))
+              ((symbol-function 'transient-reset)
+               (lambda () (setq reset-called t)))
+              ((symbol-function 'transient--redisplay)
+               (lambda () (setq redisplay-called t)))
+              ((symbol-function 'message)
+               (lambda (_fmt &rest _args) nil)))
+      (beads-init--reset)
+      (should reset-called)
+      (should redisplay-called))))
+
+(ert-deftest beads-init-test-reset-suffix-declined ()
+  "Test reset suffix when user declines."
+  :tags '(:unit)
+  (let ((reset-called nil))
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_prompt) nil))
+              ((symbol-function 'transient-reset)
+               (lambda () (setq reset-called t))))
+      (beads-init--reset)
+      (should-not reset-called))))
+
 ;;; Footer
 
 (provide 'beads-init-test)

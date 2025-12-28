@@ -207,5 +207,173 @@ Integration test that verifies skip-existing import succeeds."
          (errors (beads-import--validate-all cmd)))
     (should (null errors))))
 
+;;; Additional Validation Tests
+
+(ert-deftest beads-import-test-validate-orphan-handling-resurrect ()
+  "Test validation accepts resurrect orphan-handling."
+  (let* ((cmd (beads-command-import
+               :input "/tmp/test.jsonl"
+               :orphan-handling "resurrect"))
+         (errors (beads-import--validate-all cmd)))
+    (should (null errors))))
+
+(ert-deftest beads-import-test-validate-orphan-handling-allow ()
+  "Test validation accepts allow orphan-handling."
+  (let* ((cmd (beads-command-import
+               :input "/tmp/test.jsonl"
+               :orphan-handling "allow"))
+         (errors (beads-import--validate-all cmd)))
+    (should (null errors))))
+
+(ert-deftest beads-import-test-validate-orphan-handling-skip ()
+  "Test validation accepts skip orphan-handling."
+  (let* ((cmd (beads-command-import
+               :input "/tmp/test.jsonl"
+               :orphan-handling "skip"))
+         (errors (beads-import--validate-all cmd)))
+    (should (null errors))))
+
+;;; Command Line Generation Tests
+
+(ert-deftest beads-import-test-command-line-basic ()
+  "Test command line generation for basic import."
+  (let* ((cmd (beads-command-import :input "/tmp/test.jsonl"))
+         (args (beads-command-line cmd)))
+    (should (member "import" args))
+    ;; Uses -i for input flag
+    (should (member "-i" args))
+    (should (member "/tmp/test.jsonl" args))))
+
+(ert-deftest beads-import-test-command-line-with-dry-run ()
+  "Test command line generation with dry-run flag."
+  (let* ((cmd (beads-command-import :input "/tmp/test.jsonl"
+                                    :dry-run t))
+         (args (beads-command-line cmd)))
+    (should (member "import" args))
+    (should (or (member "-n" args)
+                (member "--dry-run" args)))))
+
+(ert-deftest beads-import-test-command-line-with-skip-existing ()
+  "Test command line generation with skip-existing flag."
+  (let* ((cmd (beads-command-import :input "/tmp/test.jsonl"
+                                    :skip-existing t))
+         (args (beads-command-line cmd)))
+    (should (member "import" args))
+    (should (or (member "-s" args)
+                (member "--skip-existing" args)))))
+
+(ert-deftest beads-import-test-command-line-with-orphan-handling ()
+  "Test command line generation with orphan-handling."
+  (let* ((cmd (beads-command-import :input "/tmp/test.jsonl"
+                                    :orphan-handling "strict"))
+         (args (beads-command-line cmd)))
+    (should (member "import" args))
+    ;; orphan-handling should be in args somehow
+    (should (cl-some (lambda (arg) (string-match-p "strict" arg)) args))))
+
+(ert-deftest beads-import-test-command-line-with-clear-duplicate-external-refs ()
+  "Test command line generation with clear-duplicate-external-refs."
+  (let* ((cmd (beads-command-import :input "/tmp/test.jsonl"
+                                    :clear-duplicate-external-refs t))
+         (args (beads-command-line cmd)))
+    (should (member "import" args))
+    (should (or (member "-c" args)
+                (member "--clear-duplicate-external-refs" args)))))
+
+(ert-deftest beads-import-test-command-line-with-dedupe-after ()
+  "Test command line generation with dedupe-after."
+  (let* ((cmd (beads-command-import :input "/tmp/test.jsonl"
+                                    :dedupe-after t))
+         (args (beads-command-line cmd)))
+    (should (member "import" args))
+    (should (or (member "-d" args)
+                (member "--dedupe-after" args)))))
+
+(ert-deftest beads-import-test-command-line-with-rename-on-import ()
+  "Test command line generation with rename-on-import."
+  (let* ((cmd (beads-command-import :input "/tmp/test.jsonl"
+                                    :rename-on-import t))
+         (args (beads-command-line cmd)))
+    (should (member "import" args))
+    (should (or (member "-r" args)
+                (member "--rename-on-import" args)))))
+
+(ert-deftest beads-import-test-command-line-with-strict ()
+  "Test command line generation with strict."
+  (let* ((cmd (beads-command-import :input "/tmp/test.jsonl"
+                                    :strict t))
+         (args (beads-command-line cmd)))
+    (should (member "import" args))
+    (should (or (member "-t" args)
+                (member "--strict" args)))))
+
+;;; Tests for Reset Function
+
+(ert-deftest beads-import-test-reset-confirmed ()
+  "Test reset when user confirms."
+  (let ((reset-called nil)
+        (message-output nil))
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_prompt) t))
+              ((symbol-function 'transient-reset)
+               (lambda () (setq reset-called t)))
+              ((symbol-function 'transient--redisplay)
+               (lambda ()))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-output (apply #'format fmt args)))))
+      (beads-import--reset)
+      (should reset-called)
+      (should (string-match-p "reset" message-output)))))
+
+(ert-deftest beads-import-test-reset-declined ()
+  "Test reset when user declines."
+  (let ((reset-called nil))
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_prompt) nil))
+              ((symbol-function 'transient-reset)
+               (lambda () (setq reset-called t))))
+      (beads-import--reset)
+      (should-not reset-called))))
+
+;;; Tests for Execute Function
+
+(ert-deftest beads-import-test-execute-command-with-default-input ()
+  "Test execute-command uses default input when not specified."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let ((executed nil)
+          (input-used nil))
+      (cl-letf (((symbol-function 'transient-args)
+                 (lambda (_prefix)
+                   '()))  ; No input specified
+                ((symbol-function 'beads-import--execute)
+                 (lambda (cmd)
+                   (setq executed t)
+                   (setq input-used (oref cmd input)))))
+        (beads-import--execute-command)
+        (should executed)
+        (should (stringp input-used))
+        (should (string-match-p "issues\\.jsonl$" input-used))))))
+
+;;; Tests for Preview Function
+
+(ert-deftest beads-import-test-preview-displays-command ()
+  "Test preview displays command."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let ((message-output nil))
+      (cl-letf (((symbol-function 'transient-args)
+                 (lambda (_prefix)
+                   '("--input=/tmp/test.jsonl")))
+                ((symbol-function 'message)
+                 (lambda (fmt &rest args)
+                   (setq message-output (apply #'format fmt args)))))
+        (beads-import--preview)
+        (should message-output)
+        (should (string-match-p "import" message-output))))))
+
 (provide 'beads-import-test)
 ;;; beads-import-test.el ends here
