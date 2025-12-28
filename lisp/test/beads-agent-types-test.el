@@ -107,7 +107,7 @@
         (should (stringp prompt))
         ;; Check for embedded prompt content
         (should (string-match "task-completion agent" prompt))
-        (should (string-match "Understand the Task" prompt))
+        (should (string-match "Claim the Task" prompt))
         ;; Check for issue context
         (should (string-match "test-123" prompt))
         (should (string-match "Test Issue Title" prompt)))
@@ -140,15 +140,17 @@
     (beads-agent-types-test--teardown)))
 
 (ert-deftest beads-agent-types-test-review-custom-prompt ()
-  "Test Review agent uses customized prompt."
+  "Test Review agent uses customized prompt with placeholders."
   (beads-agent-types-test--setup)
   (unwind-protect
-      (let ((beads-agent-review-prompt "Custom review instructions.")
+      (let ((beads-agent-review-prompt
+             "Custom review instructions for <ISSUE-ID>: <ISSUE-TITLE>")
             (type (beads-agent-type-get "review")))
         (let ((prompt (beads-agent-type-build-prompt
                        type (beads-agent-types-test--make-sample-issue))))
           (should (string-match "Custom review instructions" prompt))
-          (should (string-match "test-123" prompt))))
+          (should (string-match "test-123" prompt))
+          (should (string-match "Test Issue Title" prompt))))
     (beads-agent-types-test--teardown)))
 
 
@@ -205,15 +207,17 @@
     (beads-agent-types-test--teardown)))
 
 (ert-deftest beads-agent-types-test-qa-custom-prompt ()
-  "Test QA agent uses customized prompt."
+  "Test QA agent uses customized prompt with placeholders."
   (beads-agent-types-test--setup)
   (unwind-protect
-      (let ((beads-agent-qa-prompt "Custom QA instructions.")
+      (let ((beads-agent-qa-prompt
+             "Custom QA instructions for <ISSUE-ID>: <ISSUE-TITLE>")
             (type (beads-agent-type-get "qa")))
         (let ((prompt (beads-agent-type-build-prompt
                        type (beads-agent-types-test--make-sample-issue))))
           (should (string-match "Custom QA instructions" prompt))
-          (should (string-match "test-123" prompt))))
+          (should (string-match "test-123" prompt))
+          (should (string-match "Test Issue Title" prompt))))
     (beads-agent-types-test--teardown)))
 
 
@@ -229,12 +233,12 @@
 
 
 (ert-deftest beads-agent-types-test-custom-prompts-user ()
-  "Test Custom agent prompts user and builds prompt correctly."
+  "Test Custom agent prompts user and builds prompt with placeholders."
   (beads-agent-types-test--setup)
   (unwind-protect
       (cl-letf (((symbol-function 'read-string)
                  (lambda (_prompt &optional _initial _history)
-                   "User's custom instructions")))
+                   "User's custom instructions for <ISSUE-ID>")))
         (let* ((type (beads-agent-type-get "custom"))
                (prompt (beads-agent-type-build-prompt
                         type (beads-agent-types-test--make-sample-issue))))
@@ -300,14 +304,16 @@
           (should (string-match "Test Issue Title" prompt))))
     (beads-agent-types-test--teardown)))
 
-(ert-deftest beads-agent-types-test-prompts-include-issue-description ()
-  "Test that prompts include issue description."
+(ert-deftest beads-agent-types-test-description-placeholder-substitution ()
+  "Test that <ISSUE-DESCRIPTION> placeholder is substituted when used."
   (beads-agent-types-test--setup)
   (unwind-protect
-      (dolist (type-name '("task" "review" "qa"))
-        (let* ((type (beads-agent-type-get type-name))
-               (prompt (beads-agent-type-build-prompt
-                        type (beads-agent-types-test--make-sample-issue))))
+      ;; Test with a custom prompt that uses the description placeholder
+      (let ((beads-agent-review-prompt
+             "Review <ISSUE-ID>: <ISSUE-TITLE>\n\nDescription: <ISSUE-DESCRIPTION>")
+            (type (beads-agent-type-get "review")))
+        (let ((prompt (beads-agent-type-build-prompt
+                       type (beads-agent-types-test--make-sample-issue))))
           (should (string-match "Test issue description" prompt))))
     (beads-agent-types-test--teardown)))
 

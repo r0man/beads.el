@@ -115,17 +115,30 @@ Subclasses may override for custom prompt building.")
 
 (cl-defmethod beads-agent-type-build-prompt ((type beads-agent-type) issue)
   "Build prompt for TYPE using the prompt-template slot combined with ISSUE.
-ISSUE is a beads-issue EIEIO object."
-  (let ((template (oref type prompt-template))
-        (issue-id (oref issue id))
-        (issue-title (oref issue title))
-        (issue-desc (or (oref issue description) "")))
-    (if template
-        ;; Combine template with issue context
-        (format "%s\n\n## Issue: %s\n\n**Title:** %s\n\n**Description:**\n%s"
-                template issue-id issue-title issue-desc)
-      ;; No template - subclass must override or type uses non-prompt mechanism
-      nil)))
+ISSUE is a beads-issue EIEIO object.
+
+The template can contain placeholders that are replaced with issue data:
+  <ISSUE-ID>          - The issue ID (e.g., \"beads.el-123\")
+  <ISSUE-TITLE>       - The issue title
+  <ISSUE-DESCRIPTION> - The issue description (empty string if nil)
+
+The prompt-template slot can be:
+  - A string: used directly as the template
+  - A symbol: dereferenced with `symbol-value' to get the template string
+  - nil: returns nil (subclass must override or type uses non-prompt mechanism)"
+  (let ((template-or-sym (oref type prompt-template)))
+    (when template-or-sym
+      (let ((template (if (symbolp template-or-sym)
+                          (symbol-value template-or-sym)
+                        template-or-sym))
+            (issue-id (or (oref issue id) ""))
+            (issue-title (or (oref issue title) ""))
+            (issue-desc (or (oref issue description) "")))
+        ;; Replace placeholders in template
+        (thread-last template
+          (string-replace "<ISSUE-ID>" issue-id)
+          (string-replace "<ISSUE-TITLE>" issue-title)
+          (string-replace "<ISSUE-DESCRIPTION>" issue-desc))))))
 
 (cl-defgeneric beads-agent-type-validate-backend (type backend)
   "Validate that BACKEND is compatible with TYPE.
