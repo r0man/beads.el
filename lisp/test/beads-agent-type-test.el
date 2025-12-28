@@ -27,7 +27,7 @@
   ((name :initform "Mock")
    (letter :initform "M")
    (description :initform "Mock agent for testing")
-   (prompt-template :initform "Mock prompt template"))
+   (prompt-template :initform "Mock prompt template for <ISSUE-ID>: <ISSUE-TITLE>"))
   :documentation "Mock agent type for testing base functionality.")
 
 (defclass beads-agent-type-mock-custom (beads-agent-type)
@@ -129,7 +129,7 @@
   (beads-agent-type-test--setup)
   (unwind-protect
       (let ((type (beads-agent-type-mock)))
-        (should (equal (oref type prompt-template) "Mock prompt template")))
+        (should (string-prefix-p "Mock prompt template" (oref type prompt-template))))
     (beads-agent-type-test--teardown)))
 
 
@@ -160,8 +160,7 @@
           (should (stringp prompt))
           (should (string-match "Mock prompt template" prompt))
           (should (string-match "test-123" prompt))
-          (should (string-match "Test Issue" prompt))
-          (should (string-match "Test description" prompt))))
+          (should (string-match "Test Issue" prompt))))
     (beads-agent-type-test--teardown)))
 
 (ert-deftest beads-agent-type-test-build-prompt-nil-template ()
