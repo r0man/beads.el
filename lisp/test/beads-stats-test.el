@@ -714,5 +714,56 @@ beads-statistics class requires a float."
       (should (button-at (point)))
       (should (eq (button-get (button-at (point)) 'filter-type) 'total)))))
 
+;;; Additional Coverage Tests
+
+(ert-deftest beads-stats-test-list-all-issues-function-exists ()
+  "Test list-all-issues function exists."
+  (should (fboundp 'beads-stats--list-all-issues)))
+
+(ert-deftest beads-stats-test-list-by-status-function-exists ()
+  "Test list-by-status function exists."
+  (should (fboundp 'beads-stats--list-by-status)))
+
+(ert-deftest beads-stats-test-open-filtered-list-function-exists ()
+  "Test open-filtered-list function exists."
+  (should (fboundp 'beads-stats--open-filtered-list)))
+
+(ert-deftest beads-stats-test-beads-stats-function-exists ()
+  "Test beads-stats command exists."
+  (should (fboundp 'beads-stats)))
+
+(ert-deftest beads-stats-test-refresh-function-exists ()
+  "Test beads-stats-refresh function exists."
+  (should (fboundp 'beads-stats-refresh)))
+
+;;; Button Action and Filter Tests
+
+(ert-deftest beads-stats-test-button-action-calls-open-filtered-list ()
+  "Test that button action extracts filter-type and calls open-filtered-list."
+  (let ((called-with nil))
+    (cl-letf (((symbol-function 'beads-stats--open-filtered-list)
+               (lambda (filter-type count)
+                 (setq called-with (list filter-type count)))))
+      (with-temp-buffer
+        ;; Create a button with properties
+        (insert-text-button "5"
+                           'type 'beads-stats-button
+                           'filter-type 'open
+                           'count 5)
+        (goto-char (point-min))
+        ;; Get the button at point and call action
+        (let ((button (button-at (point))))
+          (beads-stats--button-action button))
+        (should (equal called-with '(open 5)))))))
+
+(ert-deftest beads-stats-test-open-filtered-list-unknown-type ()
+  "Test that unknown filter type shows message."
+  (let ((message-shown nil))
+    (cl-letf (((symbol-function 'message)
+               (lambda (&rest args) (setq message-shown args))))
+      (beads-stats--open-filtered-list 'unknown-type 10)
+      (should message-shown)
+      (should (string-match-p "Unknown" (car message-shown))))))
+
 (provide 'beads-stats-test)
 ;;; beads-stats-test.el ends here

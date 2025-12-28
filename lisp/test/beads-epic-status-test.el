@@ -523,5 +523,61 @@
   (should (or (autoloadp (symbol-function 'beads-epic))
               (functionp 'beads-epic))))
 
+;;; Navigation and Toggle Tests
+
+(ert-deftest beads-epic-status-test-navigation-next-previous ()
+  "Test next and previous navigation functions exist."
+  (should (fboundp 'beads-epic-status-next))
+  (should (fboundp 'beads-epic-status-previous))
+  (should (fboundp 'beads-epic-status-next-item))
+  (should (fboundp 'beads-epic-status-previous-item)))
+
+(ert-deftest beads-epic-status-test-toggle-expand-exists ()
+  "Test toggle-expand function exists."
+  (should (fboundp 'beads-epic-status-toggle-expand)))
+
+(ert-deftest beads-epic-status-test-show-at-point-exists ()
+  "Test show-at-point function exists."
+  (should (fboundp 'beads-epic-status-show-at-point)))
+
+(ert-deftest beads-epic-status-test-refresh-exists ()
+  "Test refresh function exists."
+  (should (fboundp 'beads-epic-status-refresh)))
+
+(ert-deftest beads-epic-status-test-show-children-exists ()
+  "Test show-children function exists."
+  (should (fboundp 'beads-epic-status-show-children)))
+
+(ert-deftest beads-epic-status-test-fetch-children-exists ()
+  "Test fetch-children function exists."
+  (should (fboundp 'beads-epic-status--fetch-children)))
+
+(ert-deftest beads-epic-status-test-mode-keymap-bindings ()
+  "Test that mode keymap has expected bindings."
+  (should (keymapp beads-epic-status-mode-map))
+  (should (eq (lookup-key beads-epic-status-mode-map (kbd "n"))
+              'beads-epic-status-next))
+  (should (eq (lookup-key beads-epic-status-mode-map (kbd "p"))
+              'beads-epic-status-previous))
+  (should (eq (lookup-key beads-epic-status-mode-map (kbd "g"))
+              'beads-epic-status-refresh))
+  (should (eq (lookup-key beads-epic-status-mode-map (kbd "q"))
+              'quit-window)))
+
+(ert-deftest beads-epic-status-test-render-child-format ()
+  "Test that render-child produces expected format."
+  (let ((child (beads-issue
+                :id "bd-1"
+                :title "Child Issue"
+                :status "open"
+                :priority 2
+                :issue-type "task")))
+    ;; The function inserts text, so we test in a buffer
+    (with-temp-buffer
+      (beads-epic-status--render-child child)
+      (let ((content (buffer-string)))
+        (should (string-match-p "bd-1" content))
+        (should (string-match-p "Child Issue" content))))))
+
 (provide 'beads-epic-status-test)
 ;;; beads-epic-status-test.el ends here

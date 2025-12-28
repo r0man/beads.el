@@ -522,5 +522,418 @@
   :tags '(integration)
   (should (fboundp 'beads-dep-tree)))
 
+;;; Tests for Transient Argument Parsing
+
+(ert-deftest beads-dep-test-add-parse-args-empty ()
+  "Test parsing empty argument list for add."
+  (let ((parsed (beads-dep-add--parse-transient-args nil)))
+    (should (null (plist-get parsed :issue-id)))
+    (should (null (plist-get parsed :depends-on-id)))
+    (should (null (plist-get parsed :type)))))
+
+(ert-deftest beads-dep-test-add-parse-args-all-fields ()
+  "Test parsing all fields for add."
+  (let ((parsed (beads-dep-add--parse-transient-args
+                 '("--issue-id=bd-1"
+                   "--depends-on=bd-2"
+                   "--type=blocks"))))
+    (should (equal (plist-get parsed :issue-id) "bd-1"))
+    (should (equal (plist-get parsed :depends-on-id) "bd-2"))
+    (should (equal (plist-get parsed :type) "blocks"))))
+
+(ert-deftest beads-dep-test-remove-parse-args-empty ()
+  "Test parsing empty argument list for remove."
+  (let ((parsed (beads-dep-remove--parse-transient-args nil)))
+    (should (null (plist-get parsed :issue-id)))
+    (should (null (plist-get parsed :depends-on-id)))))
+
+(ert-deftest beads-dep-test-remove-parse-args-all-fields ()
+  "Test parsing all fields for remove."
+  (let ((parsed (beads-dep-remove--parse-transient-args
+                 '("--issue-id=bd-1"
+                   "--depends-on=bd-2"))))
+    (should (equal (plist-get parsed :issue-id) "bd-1"))
+    (should (equal (plist-get parsed :depends-on-id) "bd-2"))))
+
+;;; Tests for Execute Commands
+
+(ert-deftest beads-dep-test-add-execute-validation-error ()
+  "Test add execute with validation error."
+  (cl-letf (((symbol-function 'transient-args)
+             (lambda (_) nil)))
+    (should-error (beads-dep-add--execute)
+                  :type 'user-error)))
+
+(ert-deftest beads-dep-test-add-execute-success ()
+  "Test add execute success."
+  (let ((executed nil))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_) '("--issue-id=bd-1"
+                            "--depends-on=bd-2"
+                            "--type=blocks")))
+              ((symbol-function 'beads-command-dep-add!)
+               (lambda (&rest _)
+                 (setq executed t)
+                 beads-dep-test--sample-dependency))
+              ((symbol-function 'beads--invalidate-completion-cache) #'ignore))
+      (let ((beads-auto-refresh nil))
+        (beads-dep-add--execute)
+        (should executed)))))
+
+(ert-deftest beads-dep-test-add-execute-error-handling ()
+  "Test add execute handles errors gracefully."
+  (cl-letf (((symbol-function 'transient-args)
+             (lambda (_) '("--issue-id=bd-1"
+                          "--depends-on=bd-2"
+                          "--type=blocks")))
+            ((symbol-function 'beads-command-dep-add!)
+             (lambda (&rest _) (error "Test error"))))
+    ;; Should not throw, just message the error
+    (should-not (condition-case nil
+                    (progn (beads-dep-add--execute) nil)
+                  (error t)))))
+
+(ert-deftest beads-dep-test-remove-execute-validation-error ()
+  "Test remove execute with validation error."
+  (cl-letf (((symbol-function 'transient-args)
+             (lambda (_) nil)))
+    (should-error (beads-dep-remove--execute)
+                  :type 'user-error)))
+
+(ert-deftest beads-dep-test-remove-execute-success ()
+  "Test remove execute success."
+  (let ((executed nil))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_) '("--issue-id=bd-1"
+                            "--depends-on=bd-2")))
+              ((symbol-function 'beads-command-dep-remove!)
+               (lambda (&rest _)
+                 (setq executed t)
+                 '((status . "removed"))))
+              ((symbol-function 'beads--invalidate-completion-cache) #'ignore))
+      (let ((beads-auto-refresh nil))
+        (beads-dep-remove--execute)
+        (should executed)))))
+
+(ert-deftest beads-dep-test-remove-execute-error-handling ()
+  "Test remove execute handles errors gracefully."
+  (cl-letf (((symbol-function 'transient-args)
+             (lambda (_) '("--issue-id=bd-1"
+                          "--depends-on=bd-2")))
+            ((symbol-function 'beads-command-dep-remove!)
+             (lambda (&rest _) (error "Test error"))))
+    ;; Should not throw, just message the error
+    (should-not (condition-case nil
+                    (progn (beads-dep-remove--execute) nil)
+                  (error t)))))
+
+;;; Tests for Preview Commands
+
+(ert-deftest beads-dep-test-add-preview-valid ()
+  "Test add preview with valid args."
+  (let ((output nil))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_) '("--issue-id=bd-1"
+                            "--depends-on=bd-2"
+                            "--type=blocks")))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq output (apply #'format fmt args)))))
+      (beads-dep-add--preview)
+      (should output)
+      (should (string-match-p "bd dep add" output))
+      (should (string-match-p "bd-1" output))
+      (should (string-match-p "bd-2" output))
+      (should (string-match-p "blocks" output)))))
+
+(ert-deftest beads-dep-test-add-preview-invalid ()
+  "Test add preview with invalid args."
+  (let ((output nil))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_) nil))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq output (apply #'format fmt args)))))
+      (beads-dep-add--preview)
+      (should output)
+      (should (string-match-p "Invalid" output)))))
+
+(ert-deftest beads-dep-test-remove-preview-valid ()
+  "Test remove preview with valid args."
+  (let ((output nil))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_) '("--issue-id=bd-1"
+                            "--depends-on=bd-2")))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq output (apply #'format fmt args)))))
+      (beads-dep-remove--preview)
+      (should output)
+      (should (string-match-p "bd dep remove" output))
+      (should (string-match-p "bd-1" output))
+      (should (string-match-p "bd-2" output)))))
+
+(ert-deftest beads-dep-test-remove-preview-invalid ()
+  "Test remove preview with invalid args."
+  (let ((output nil))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_) nil))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq output (apply #'format fmt args)))))
+      (beads-dep-remove--preview)
+      (should output)
+      (should (string-match-p "Invalid" output)))))
+
+;;; Tests for Tree Issue Rendering
+
+(ert-deftest beads-dep-test-tree-render-issue-basic ()
+  "Test rendering a single issue."
+  (let ((issue '((id . "bd-1")
+                 (title . "Test Issue")
+                 (status . "open")
+                 (depth . 0)
+                 (truncated . nil))))
+    (with-temp-buffer
+      (beads-dep-tree--render-issue issue)
+      (let ((content (buffer-string)))
+        (should (string-match-p "bd-1" content))
+        (should (string-match-p "Test Issue" content))
+        (should (string-match-p "OPEN" content))))))
+
+(ert-deftest beads-dep-test-tree-render-issue-with-depth ()
+  "Test rendering an issue with depth indentation."
+  (let ((issue '((id . "bd-2")
+                 (title . "Nested Issue")
+                 (status . "in_progress")
+                 (depth . 2)
+                 (truncated . nil))))
+    (with-temp-buffer
+      (beads-dep-tree--render-issue issue)
+      (let ((content (buffer-string)))
+        ;; Should have indentation (4 spaces for depth 2)
+        (should (string-match-p "    └─" content))
+        (should (string-match-p "IN_PROGRESS" content))))))
+
+(ert-deftest beads-dep-test-tree-render-issue-status-faces ()
+  "Test that different statuses get different faces."
+  (dolist (status '("open" "in_progress" "blocked" "closed" "unknown"))
+    (let ((issue `((id . "bd-1")
+                   (title . "Test")
+                   (status . ,status)
+                   (depth . 0)
+                   (truncated . nil))))
+      (with-temp-buffer
+        (beads-dep-tree--render-issue issue)
+        (should (string-match-p (upcase status) (buffer-string)))))))
+
+;;; Tests for Get Issue At Point
+
+(ert-deftest beads-dep-test-tree-get-issue-at-point ()
+  "Test getting issue ID at point."
+  (with-temp-buffer
+    (insert (propertize "bd-1" 'beads-issue-id "bd-1"))
+    (goto-char (point-min))
+    (should (equal (beads-dep-tree--get-issue-at-point) "bd-1"))))
+
+(ert-deftest beads-dep-test-tree-get-issue-at-point-none ()
+  "Test getting issue ID when none at point."
+  (with-temp-buffer
+    (insert "plain text")
+    (goto-char (point-min))
+    (should-not (beads-dep-tree--get-issue-at-point))))
+
+;;; Tests for Show Issue At Point
+
+(ert-deftest beads-dep-test-tree-show-issue-no-issue ()
+  "Test show issue when no issue at point."
+  (with-temp-buffer
+    (insert "plain text")
+    (goto-char (point-min))
+    (should-error (beads-dep-tree-show-issue)
+                  :type 'user-error)))
+
+(ert-deftest beads-dep-test-tree-show-issue-calls-show ()
+  "Test show issue calls beads-show."
+  (let ((called-with nil))
+    (with-temp-buffer
+      (insert (propertize "bd-1" 'beads-issue-id "bd-1"))
+      (goto-char (point-min))
+      (cl-letf (((symbol-function 'beads-show)
+                 (lambda (id) (setq called-with id))))
+        (beads-dep-tree-show-issue)
+        (should (equal called-with "bd-1"))))))
+
+;;; Tests for Context Detection from Show Mode
+
+(ert-deftest beads-dep-test-detect-issue-id-from-list-mode ()
+  "Test detecting issue ID from beads-list buffer."
+  (with-temp-buffer
+    (beads-list-mode)
+    (cl-letf (((symbol-function 'beads-list--current-issue-id)
+               (lambda () "bd-42")))
+      (should (equal (beads-dep--detect-issue-id) "bd-42")))))
+
+(ert-deftest beads-dep-test-detect-issue-id-from-show-mode ()
+  "Test detecting issue ID from beads-show buffer."
+  (require 'beads-show)
+  (with-temp-buffer
+    (beads-show-mode)
+    (setq-local beads-show--current-issue-id "bd-99")
+    (should (equal (beads-dep--detect-issue-id) "bd-99"))))
+
+;;; Tests for Format Dependency Edge Cases
+
+(ert-deftest beads-dep-test-format-dependency-missing-status ()
+  "Test formatting dependency with missing status."
+  (let ((dep '((issue_id . "bd-1")
+               (depends_on_id . "bd-2")
+               (type . "blocks"))))
+    (let ((formatted (beads-dep--format-dependency dep)))
+      (should (stringp formatted))
+      (should (string-match-p "unknown" formatted)))))
+
+(ert-deftest beads-dep-test-format-dependency-all-types ()
+  "Test formatting dependencies with different types."
+  (dolist (type '("blocks" "required_by" "relates_to"))
+    (let ((dep `((issue_id . "bd-1")
+                 (depends_on_id . "bd-2")
+                 (type . ,type)
+                 (status . "added"))))
+      (let ((formatted (beads-dep--format-dependency dep)))
+        (should (string-match-p type formatted))))))
+
+;;; Tests for Tree Rendering Edge Cases
+
+(ert-deftest beads-dep-test-tree-render-zero-depth ()
+  "Test rendering tree node with zero depth."
+  (let ((issue '((id . "bd-1")
+                 (title . "Root")
+                 (status . "open")
+                 (depth . 0)
+                 (truncated . nil))))
+    (with-temp-buffer
+      (beads-dep-tree--render-issue issue)
+      (let ((content (buffer-string)))
+        ;; Should not have tree connector at depth 0
+        (should-not (string-match-p "└─" content))))))
+
+;;; Tests for Entry Point Functions
+
+(ert-deftest beads-dep-test-dep-add-entry-point ()
+  "Test beads-dep-add entry point."
+  (let ((menu-shown nil))
+    (cl-letf (((symbol-function 'beads-dep-add--menu)
+               (lambda () (setq menu-shown t))))
+      (beads-dep-add "bd-1")
+      (should menu-shown))))
+
+(ert-deftest beads-dep-test-dep-remove-entry-point ()
+  "Test beads-dep-remove entry point."
+  (let ((menu-shown nil))
+    (cl-letf (((symbol-function 'beads-dep-remove--menu)
+               (lambda () (setq menu-shown t))))
+      (beads-dep-remove "bd-1")
+      (should menu-shown))))
+
+(ert-deftest beads-dep-test-dep-tree-empty-issue-id ()
+  "Test beads-dep-tree with empty issue ID."
+  (should-error (beads-dep-tree "")
+                :type 'user-error))
+
+;;; Tests for Transient Prefix Definitions
+
+(ert-deftest beads-dep-test-transient-prefixes-defined ()
+  "Test that all transient prefixes are defined."
+  (should (get 'beads-dep-add--menu 'transient--prefix))
+  (should (get 'beads-dep-remove--menu 'transient--prefix))
+  (should (get 'beads-dep 'transient--prefix)))
+
+;;; Tests for Reset Functions
+
+(ert-deftest beads-dep-test-add-reset-confirmed ()
+  "Test add reset when user confirms."
+  (let ((reset-called nil)
+        (message-output nil))
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_prompt) t))
+              ((symbol-function 'transient-reset)
+               (lambda () (setq reset-called t)))
+              ((symbol-function 'transient--redisplay)
+               (lambda ()))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-output (apply #'format fmt args)))))
+      (beads-dep-add--reset)
+      (should reset-called)
+      (should (string-match-p "reset" message-output)))))
+
+(ert-deftest beads-dep-test-add-reset-declined ()
+  "Test add reset when user declines."
+  (let ((reset-called nil))
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_prompt) nil))
+              ((symbol-function 'transient-reset)
+               (lambda () (setq reset-called t))))
+      (beads-dep-add--reset)
+      (should-not reset-called))))
+
+(ert-deftest beads-dep-test-remove-reset-confirmed ()
+  "Test remove reset when user confirms."
+  (let ((reset-called nil)
+        (message-output nil))
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_prompt) t))
+              ((symbol-function 'transient-reset)
+               (lambda () (setq reset-called t)))
+              ((symbol-function 'transient--redisplay)
+               (lambda ()))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-output (apply #'format fmt args)))))
+      (beads-dep-remove--reset)
+      (should reset-called)
+      (should (string-match-p "reset" message-output)))))
+
+(ert-deftest beads-dep-test-remove-reset-declined ()
+  "Test remove reset when user declines."
+  (let ((reset-called nil))
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_prompt) nil))
+              ((symbol-function 'transient-reset)
+               (lambda () (setq reset-called t))))
+      (beads-dep-remove--reset)
+      (should-not reset-called))))
+
+;;; Additional Coverage Tests
+
+(ert-deftest beads-dep-test-add-execute-function-exists ()
+  "Test beads-dep-add--execute function exists."
+  (should (fboundp 'beads-dep-add--execute)))
+
+(ert-deftest beads-dep-test-remove-execute-function-exists ()
+  "Test beads-dep-remove--execute function exists."
+  (should (fboundp 'beads-dep-remove--execute)))
+
+(ert-deftest beads-dep-test-tree-function-exists ()
+  "Test beads-dep-tree function exists."
+  (should (fboundp 'beads-dep-tree)))
+
+(ert-deftest beads-dep-test-tree-mode-exists ()
+  "Test beads-dep-tree-mode exists."
+  (should (fboundp 'beads-dep-tree-mode)))
+
+(ert-deftest beads-dep-test-beads-dep-function-exists ()
+  "Test beads-dep transient exists."
+  (should (fboundp 'beads-dep)))
+
+(ert-deftest beads-dep-test-add-transient-exists ()
+  "Test beads-dep-add transient exists."
+  (should (fboundp 'beads-dep-add)))
+
+(ert-deftest beads-dep-test-remove-transient-exists ()
+  "Test beads-dep-remove transient exists."
+  (should (fboundp 'beads-dep-remove)))
+
 (provide 'beads-dep-test)
 ;;; beads-dep-test.el ends here

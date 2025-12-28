@@ -625,5 +625,307 @@
         ;; Should see all backends
         (should (= 2 table-called-with-setting))))))
 
+;;; ============================================================
+;;; Tests for List Reader Functions
+;;; ============================================================
+
+(ert-deftest beads-reader-test-list-assignee ()
+  "Test reading assignee for list filter."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (_prompt) "john.doe")))
+    (let ((result (beads-reader-list-assignee nil nil nil)))
+      (should (equal result "john.doe")))))
+
+(ert-deftest beads-reader-test-list-date ()
+  "Test reading date for list filter."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (_prompt) "2025-01-15")))
+    (let ((result (beads-reader-list-date nil nil nil)))
+      (should (equal result "2025-01-15")))))
+
+(ert-deftest beads-reader-test-list-date-rfc3339 ()
+  "Test reading RFC3339 date for list filter."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (_prompt) "2025-01-15T10:30:00Z")))
+    (let ((result (beads-reader-list-date nil nil nil)))
+      (should (equal result "2025-01-15T10:30:00Z")))))
+
+(ert-deftest beads-reader-test-list-desc-contains ()
+  "Test reading description search text for list filter."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (_prompt) "authentication")))
+    (let ((result (beads-reader-list-desc-contains nil nil nil)))
+      (should (equal result "authentication")))))
+
+(ert-deftest beads-reader-test-list-format ()
+  "Test reading output format for list."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (_prompt _choices &rest _args) "digraph")))
+    (let ((result (beads-reader-list-format nil nil nil)))
+      (should (equal result "digraph")))))
+
+(ert-deftest beads-reader-test-list-format-dot ()
+  "Test reading dot output format for list."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (_prompt _choices &rest _args) "dot")))
+    (let ((result (beads-reader-list-format nil nil nil)))
+      (should (equal result "dot")))))
+
+(ert-deftest beads-reader-test-list-id ()
+  "Test reading comma-separated issue IDs for list filter."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (_prompt) "bd-1,bd-2,bd-3")))
+    (let ((result (beads-reader-list-id nil nil nil)))
+      (should (equal result "bd-1,bd-2,bd-3")))))
+
+(ert-deftest beads-reader-test-list-limit-number ()
+  "Test reading limit as number for list results."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (_prompt) "50")))
+    (let ((result (beads-reader-list-limit nil nil nil)))
+      (should (equal result "50")))))
+
+(ert-deftest beads-reader-test-list-limit-empty ()
+  "Test reading empty limit for list results."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (_prompt) "")))
+    (let ((result (beads-reader-list-limit nil nil nil)))
+      (should (equal result "")))))
+
+(ert-deftest beads-reader-test-list-notes-contains ()
+  "Test reading notes search text for list filter."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (_prompt) "meeting notes")))
+    (let ((result (beads-reader-list-notes-contains nil nil nil)))
+      (should (equal result "meeting notes")))))
+
+(ert-deftest beads-reader-test-list-priority ()
+  "Test reading priority for list filter."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (_prompt _choices &rest _args) "2 - Medium")))
+    (let ((result (beads-reader-list-priority nil nil nil)))
+      (should (equal result "2")))))
+
+(ert-deftest beads-reader-test-list-priority-critical ()
+  "Test reading critical priority for list filter."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (_prompt _choices &rest _args) "0 - Critical")))
+    (let ((result (beads-reader-list-priority nil nil nil)))
+      (should (equal result "0")))))
+
+(ert-deftest beads-reader-test-list-priority-min ()
+  "Test reading minimum priority for list filter."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (_prompt _choices &rest _args) "1 - High")))
+    (let ((result (beads-reader-list-priority-min nil nil nil)))
+      (should (equal result "1")))))
+
+(ert-deftest beads-reader-test-list-priority-max ()
+  "Test reading maximum priority for list filter."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (_prompt _choices &rest _args) "4 - Backlog")))
+    (let ((result (beads-reader-list-priority-max nil nil nil)))
+      (should (equal result "4")))))
+
+(ert-deftest beads-reader-test-list-status ()
+  "Test reading status for list filter."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (_prompt _choices &rest _args) "in_progress")))
+    (let ((result (beads-reader-list-status nil nil nil)))
+      (should (equal result "in_progress")))))
+
+(ert-deftest beads-reader-test-list-status-blocked ()
+  "Test reading blocked status for list filter."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (_prompt _choices &rest _args) "blocked")))
+    (let ((result (beads-reader-list-status nil nil nil)))
+      (should (equal result "blocked")))))
+
+(ert-deftest beads-reader-test-list-title ()
+  "Test reading title text for list filter."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (_prompt) "Bug in login")))
+    (let ((result (beads-reader-list-title nil nil nil)))
+      (should (equal result "Bug in login")))))
+
+(ert-deftest beads-reader-test-list-title-contains ()
+  "Test reading title search text for list filter."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (_prompt) "authentication")))
+    (let ((result (beads-reader-list-title-contains nil nil nil)))
+      (should (equal result "authentication")))))
+
+(ert-deftest beads-reader-test-list-type ()
+  "Test reading type for list filter."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (_prompt _choices &rest _args) "bug")))
+    (let ((result (beads-reader-list-type nil nil nil)))
+      (should (equal result "bug")))))
+
+(ert-deftest beads-reader-test-list-type-feature ()
+  "Test reading feature type for list filter."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (_prompt _choices &rest _args) "feature")))
+    (let ((result (beads-reader-list-type nil nil nil)))
+      (should (equal result "feature")))))
+
+(ert-deftest beads-reader-test-list-type-epic ()
+  "Test reading epic type for list filter."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (_prompt _choices &rest _args) "epic")))
+    (let ((result (beads-reader-list-type nil nil nil)))
+      (should (equal result "epic")))))
+
+;;; ============================================================
+;;; Tests for Create Reader Functions (additional)
+;;; ============================================================
+
+(ert-deftest beads-reader-test-create-custom-id ()
+  "Test reading custom ID for issue creation."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (_prompt) "custom-123")))
+    (let ((result (beads-reader-create-custom-id nil nil nil)))
+      (should (equal result "custom-123")))))
+
+(ert-deftest beads-reader-test-create-dependencies ()
+  "Test reading dependencies for issue creation."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (_prompt) "blocks:bd-1,related:bd-2")))
+    (let ((result (beads-reader-create-dependencies nil nil nil)))
+      (should (equal result "blocks:bd-1,related:bd-2")))))
+
+(ert-deftest beads-reader-test-create-repo ()
+  "Test reading target repository for issue creation."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (_prompt) "my-org/my-repo")))
+    (let ((result (beads-reader-create-repo nil nil nil)))
+      (should (equal result "my-org/my-repo")))))
+
+(ert-deftest beads-reader-test-create-from-template ()
+  "Test reading template name for issue creation."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (_prompt _choices &rest _args) "epic")))
+    (let ((result (beads-reader-create-from-template nil nil nil)))
+      (should (equal result "epic")))))
+
+(ert-deftest beads-reader-test-create-file ()
+  "Test reading markdown file path for bulk issue creation."
+  (cl-letf (((symbol-function 'read-file-name)
+             (lambda (_prompt _dir _default _mustmatch) "/path/to/issues.md")))
+    (let ((result (beads-reader-create-file nil nil nil)))
+      (should (equal result "/path/to/issues.md")))))
+
+(ert-deftest beads-reader-test-issue-assignee ()
+  "Test reading assignee for issue."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (_prompt) "jane.smith")))
+    (let ((result (beads-reader-issue-assignee nil nil nil)))
+      (should (equal result "jane.smith")))))
+
+(ert-deftest beads-reader-test-issue-external-ref ()
+  "Test reading external reference for issue."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (_prompt) "gh-42")))
+    (let ((result (beads-reader-issue-external-ref nil nil nil)))
+      (should (equal result "gh-42")))))
+
+(ert-deftest beads-reader-test-issue-external-ref-jira ()
+  "Test reading JIRA external reference for issue."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (_prompt) "PROJ-123")))
+    (let ((result (beads-reader-issue-external-ref nil nil nil)))
+      (should (equal result "PROJ-123")))))
+
+(ert-deftest beads-reader-test-issue-priority ()
+  "Test reading priority for issue."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (_prompt _choices &rest _args) "2 - Medium")))
+    (let ((result (beads-reader-issue-priority nil nil nil)))
+      (should (equal result "2")))))
+
+(ert-deftest beads-reader-test-issue-priority-high ()
+  "Test reading high priority for issue."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (_prompt _choices &rest _args) "1 - High")))
+    (let ((result (beads-reader-issue-priority nil nil nil)))
+      (should (equal result "1")))))
+
+;;; ============================================================
+;;; Tests for Export/Import/Init Reader Functions (additional)
+;;; ============================================================
+
+(ert-deftest beads-reader-test-export-output ()
+  "Test reading output file path for export operation."
+  (cl-letf (((symbol-function 'read-file-name)
+             (lambda (_prompt _dir _default) "/tmp/export.jsonl")))
+    (let ((result (beads-reader-export-output nil nil nil)))
+      (should (equal result "/tmp/export.jsonl")))))
+
+(ert-deftest beads-reader-test-import-input ()
+  "Test reading input file path for import operation."
+  (cl-letf (((symbol-function 'read-file-name)
+             (lambda (_prompt _dir _default _mustmatch) "/data/import.jsonl")))
+    (let ((result (beads-reader-import-input nil nil nil)))
+      (should (equal result "/data/import.jsonl")))))
+
+(ert-deftest beads-reader-test-init-prefix ()
+  "Test reading issue ID prefix for init operation."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (_prompt _initial) "myproj")))
+    (let ((result (beads-reader-init-prefix nil nil nil)))
+      (should (equal result "myproj")))))
+
+(ert-deftest beads-reader-test-init-db ()
+  "Test reading database path for init operation."
+  (cl-letf (((symbol-function 'read-file-name)
+             (lambda (_prompt _dir _default) "/path/to/beads.db")))
+    (let ((result (beads-reader-init-db nil nil nil)))
+      (should (equal result "/path/to/beads.db")))))
+
+;;; ============================================================
+;;; Tests for Dependency Reader Functions (additional)
+;;; ============================================================
+
+(ert-deftest beads-reader-test-dep-add-type ()
+  "Test reading dependency type for add operation."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (_prompt _choices &rest _args) "blocks")))
+    (let ((result (beads-reader-dep-add-type "Type: " nil nil)))
+      (should (equal result "blocks")))))
+
+(ert-deftest beads-reader-test-dep-add-type-related ()
+  "Test reading related dependency type for add operation."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (_prompt _choices &rest _args) "related")))
+    (let ((result (beads-reader-dep-add-type "Type: " nil nil)))
+      (should (equal result "related")))))
+
+(ert-deftest beads-reader-test-dep-add-type-parent-child ()
+  "Test reading parent-child dependency type for add operation."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (_prompt _choices &rest _args) "parent-child")))
+    (let ((result (beads-reader-dep-add-type "Type: " nil nil)))
+      (should (equal result "parent-child")))))
+
+(ert-deftest beads-reader-test-dep-from ()
+  "Test reading source issue ID for dependency operations."
+  (let ((beads-dep--from-issue "bd-1"))
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (&rest _args) "bd-5"))
+              ((symbol-function 'beads--issue-completion-table)
+               (lambda () beads-reader-test--mock-issues)))
+      (let ((result (beads-reader-dep-from nil nil nil)))
+        (should (equal result "bd-5"))))))
+
+(ert-deftest beads-reader-test-dep-to ()
+  "Test reading target issue ID for dependency operations."
+  (let ((beads-dep--to-issue "bd-2"))
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (&rest _args) "bd-10"))
+              ((symbol-function 'beads--issue-completion-table)
+               (lambda () beads-reader-test--mock-issues)))
+      (let ((result (beads-reader-dep-to nil nil nil)))
+        (should (equal result "bd-10"))))))
+
 (provide 'beads-reader-test)
 ;;; beads-reader-test.el ends here

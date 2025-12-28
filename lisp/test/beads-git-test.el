@@ -311,6 +311,431 @@
     (with-no-warnings
       (should (beads--in-git-worktree-p)))))
 
+;;; Test beads-git-find-project-root
+
+(ert-deftest beads-git-test-find-project-root-with-project ()
+  "Test beads-git-find-project-root when in a project."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'project-current)
+             (lambda () '(vc Git "/path/to/project/")))
+            ((symbol-function 'project-root)
+             (lambda (_proj) "/path/to/project/")))
+    (should (equal (beads-git-find-project-root) "/path/to/project/"))))
+
+(ert-deftest beads-git-test-find-project-root-no-project ()
+  "Test beads-git-find-project-root when not in a project."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'project-current)
+             (lambda () nil)))
+    (should-not (beads-git-find-project-root))))
+
+(ert-deftest beads-git-test-find-project-root-emacs27-compatibility ()
+  "Test beads-git-find-project-root with Emacs 27 API."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'project-current)
+             (lambda () '(vc Git "/path/to/project/")))
+            ((symbol-function 'fboundp)
+             (lambda (fn) (not (eq fn 'project-root))))
+            ((symbol-function 'project-roots)
+             (lambda (_proj) '("/path/to/project/"))))
+    ;; When project-root is not bound, it falls back to project-roots
+    (should (stringp (beads-git-find-project-root)))))
+
+;;; Test beads-git-get-project-name
+
+(ert-deftest beads-git-test-get-project-name-success ()
+  "Test beads-git-get-project-name returns basename of project root."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-git-find-project-root)
+             (lambda () "/home/user/projects/myproject/")))
+    (should (equal (beads-git-get-project-name) "myproject"))))
+
+(ert-deftest beads-git-test-get-project-name-no-project ()
+  "Test beads-git-get-project-name returns nil when no project."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-git-find-project-root)
+             (lambda () nil)))
+    (should-not (beads-git-get-project-name))))
+
+(ert-deftest beads-git-test-get-project-name-nested-path ()
+  "Test beads-git-get-project-name with deeply nested project."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-git-find-project-root)
+             (lambda () "/very/long/path/to/project/name/")))
+    (should (equal (beads-git-get-project-name) "name"))))
+
+;;; Test beads-git-get-branch
+
+(ert-deftest beads-git-test-get-branch-success ()
+  "Test beads-git-get-branch returns current branch."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-git-find-project-root)
+             (lambda () "/tmp"))
+            ((symbol-function 'process-file)
+             (lambda (_program _infile buffer _display &rest _args)
+               (when (or (eq buffer t) (bufferp buffer))
+                 (let ((buf (if (eq buffer t) (current-buffer) buffer)))
+                   (with-current-buffer buf
+                     (insert "main\n"))))
+               0)))
+    (should (equal (beads-git-get-branch) "main"))))
+
+(ert-deftest beads-git-test-get-branch-feature-branch ()
+  "Test beads-git-get-branch returns feature branch name."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-git-find-project-root)
+             (lambda () "/tmp"))
+            ((symbol-function 'process-file)
+             (lambda (_program _infile buffer _display &rest _args)
+               (when (or (eq buffer t) (bufferp buffer))
+                 (let ((buf (if (eq buffer t) (current-buffer) buffer)))
+                   (with-current-buffer buf
+                     (insert "feature/my-feature\n"))))
+               0)))
+    (should (equal (beads-git-get-branch) "feature/my-feature"))))
+
+(ert-deftest beads-git-test-get-branch-detached-head ()
+  "Test beads-git-get-branch returns nil for detached HEAD."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-git-find-project-root)
+             (lambda () "/tmp"))
+            ((symbol-function 'process-file)
+             (lambda (_program _infile buffer _display &rest _args)
+               (when (or (eq buffer t) (bufferp buffer))
+                 (let ((buf (if (eq buffer t) (current-buffer) buffer)))
+                   (with-current-buffer buf
+                     (insert "HEAD\n"))))
+               0)))
+    (should-not (beads-git-get-branch))))
+
+(ert-deftest beads-git-test-get-branch-not-git-repo ()
+  "Test beads-git-get-branch returns nil when not in git repo."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-git-find-project-root)
+             (lambda () "/tmp"))
+            ((symbol-function 'process-file)
+             (lambda (_program _infile _buffer _display &rest _args)
+               128)))
+    (should-not (beads-git-get-branch))))
+
+;;; Test beads-git-command-async
+
+(ert-deftest beads-git-test-command-async-success ()
+  "Test beads-git-command-async calls callback on success."
+  :tags '(:unit)
+  (let ((callback-called nil)
+        (callback-success nil)
+        (callback-output nil)
+        (stored-sentinel nil))
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
+               (lambda () "/tmp"))
+              ((symbol-function 'make-process)
+               (lambda (&rest args)
+                 (let ((sentinel (plist-get args :sentinel))
+                       (buffer (plist-get args :buffer))
+                       (proc (make-symbol "mock-proc")))
+                   (setq stored-sentinel sentinel)
+                   ;; Simulate output in buffer
+                   (with-current-buffer buffer
+                     (insert "main\n"))
+                   ;; Mock process functions
+                   (cl-letf (((symbol-function 'process-status)
+                              (lambda (_p) 'exit))
+                             ((symbol-function 'process-exit-status)
+                              (lambda (_p) 0)))
+                     (funcall sentinel proc "finished\n"))
+                   proc))))
+      (beads-git-command-async
+       (lambda (success output)
+         (setq callback-called t
+               callback-success success
+               callback-output output))
+       "rev-parse" "--abbrev-ref" "HEAD"))
+    (should callback-called)
+    (should callback-success)
+    (should (equal callback-output "main"))))
+
+(ert-deftest beads-git-test-command-async-failure ()
+  "Test beads-git-command-async calls callback on failure."
+  :tags '(:unit)
+  (let ((callback-called nil)
+        (callback-success nil)
+        (callback-output nil))
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
+               (lambda () "/tmp"))
+              ((symbol-function 'make-process)
+               (lambda (&rest args)
+                 (let ((sentinel (plist-get args :sentinel))
+                       (buffer (plist-get args :buffer))
+                       (proc (make-symbol "mock-proc")))
+                   (with-current-buffer buffer
+                     (insert "fatal: not a git repository\n"))
+                   (cl-letf (((symbol-function 'process-status)
+                              (lambda (_p) 'exit))
+                             ((symbol-function 'process-exit-status)
+                              (lambda (_p) 128)))
+                     (funcall sentinel proc "exited abnormally\n"))
+                   proc))))
+      (beads-git-command-async
+       (lambda (success output)
+         (setq callback-called t
+               callback-success success
+               callback-output output))
+       "status"))
+    (should callback-called)
+    (should-not callback-success)
+    (should (equal callback-output "fatal: not a git repository"))))
+
+(ert-deftest beads-git-test-command-async-signal ()
+  "Test beads-git-command-async handles signal termination."
+  :tags '(:unit)
+  (let ((callback-called nil))
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
+               (lambda () "/tmp"))
+              ((symbol-function 'make-process)
+               (lambda (&rest args)
+                 (let ((sentinel (plist-get args :sentinel))
+                       (proc (make-symbol "mock-proc")))
+                   (cl-letf (((symbol-function 'process-status)
+                              (lambda (_p) 'signal))
+                             ((symbol-function 'process-exit-status)
+                              (lambda (_p) 9)))
+                     (funcall sentinel proc "killed\n"))
+                   proc))))
+      (beads-git-command-async
+       (lambda (_success _output)
+         (setq callback-called t))
+       "status"))
+    (should callback-called)))
+
+;;; Test beads-git-main-repo-root
+
+(ert-deftest beads-git-test-main-repo-root-strips-git-suffix ()
+  "Test beads-git-main-repo-root strips .git suffix."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-git-command)
+             (lambda (&rest _args) "/home/user/myrepo/.git/")))
+    (should (equal (beads-git-main-repo-root) "/home/user/myrepo/"))))
+
+(ert-deftest beads-git-test-main-repo-root-handles-worktrees-path ()
+  "Test beads-git-main-repo-root with worktrees subdirectory."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-git-command)
+             (lambda (&rest _args) "/home/user/myrepo/.git/worktrees/feature/")))
+    ;; When the path doesn't end with /.git/, it returns the directory part
+    (let ((result (beads-git-main-repo-root)))
+      (should (stringp result)))))
+
+(ert-deftest beads-git-test-main-repo-root-nil-on-error ()
+  "Test beads-git-main-repo-root returns nil on git error."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-git-command)
+             (lambda (&rest _args) nil)))
+    (should-not (beads-git-main-repo-root))))
+
+;;; Test beads-git-create-worktree
+
+(ert-deftest beads-git-test-create-worktree-success ()
+  "Test beads-git-create-worktree returns path on success."
+  :tags '(:unit)
+  (let ((temp-dir (make-temp-file "beads-git-test-" t)))
+    (unwind-protect
+        (let ((expected-path (expand-file-name "beads-123" temp-dir)))
+          (cl-letf (((symbol-function 'beads-git-worktree-path-for-issue)
+                     (lambda (_id) expected-path))
+                    ((symbol-function 'beads-git-main-repo-root)
+                     (lambda () temp-dir))
+                    ((symbol-function 'call-process)
+                     (lambda (_program _infile _buffer _display &rest _args)
+                       0)))
+            (should (equal (beads-git-create-worktree "beads-123")
+                           expected-path))))
+      (delete-directory temp-dir t))))
+
+(ert-deftest beads-git-test-create-worktree-path-exists ()
+  "Test beads-git-create-worktree errors when path exists."
+  :tags '(:unit)
+  (let ((temp-dir (make-temp-file "beads-git-test-" t)))
+    (unwind-protect
+        (let ((worktree-path (expand-file-name "existing" temp-dir)))
+          (make-directory worktree-path)
+          (cl-letf (((symbol-function 'beads-git-worktree-path-for-issue)
+                     (lambda (_id) worktree-path))
+                    ((symbol-function 'beads-git-main-repo-root)
+                     (lambda () temp-dir)))
+            (should-error (beads-git-create-worktree "existing")
+                          :type 'error)))
+      (delete-directory temp-dir t))))
+
+(ert-deftest beads-git-test-create-worktree-fallback-existing-branch ()
+  "Test beads-git-create-worktree tries existing branch on -b failure."
+  :tags '(:unit)
+  (let ((temp-dir (make-temp-file "beads-git-test-" t))
+        (first-attempt t))
+    (unwind-protect
+        (let ((expected-path (expand-file-name "beads-123" temp-dir)))
+          (cl-letf (((symbol-function 'beads-git-worktree-path-for-issue)
+                     (lambda (_id) expected-path))
+                    ((symbol-function 'beads-git-main-repo-root)
+                     (lambda () temp-dir))
+                    ((symbol-function 'call-process)
+                     (lambda (_program _infile _buffer _display &rest args)
+                       (if (and first-attempt (member "-b" args))
+                           (progn (setq first-attempt nil) 1)  ; First attempt fails
+                         0))))  ; Second attempt succeeds
+            (should (equal (beads-git-create-worktree "beads-123")
+                           expected-path))))
+      (delete-directory temp-dir t))))
+
+(ert-deftest beads-git-test-create-worktree-both-attempts-fail ()
+  "Test beads-git-create-worktree errors when both attempts fail."
+  :tags '(:unit)
+  (let ((temp-dir (make-temp-file "beads-git-test-" t)))
+    (unwind-protect
+        (let ((expected-path (expand-file-name "beads-123" temp-dir)))
+          (cl-letf (((symbol-function 'beads-git-worktree-path-for-issue)
+                     (lambda (_id) expected-path))
+                    ((symbol-function 'beads-git-main-repo-root)
+                     (lambda () temp-dir))
+                    ((symbol-function 'call-process)
+                     (lambda (_program _infile buffer _display &rest _args)
+                       (when buffer
+                         (with-current-buffer (if (eq buffer t)
+                                                  (current-buffer)
+                                                buffer)
+                           (insert "fatal: error\n")))
+                       1)))
+            (should-error (beads-git-create-worktree "beads-123")
+                          :type 'error)))
+      (delete-directory temp-dir t))))
+
+;;; Test beads-git-ensure-worktree-async
+
+(ert-deftest beads-git-test-ensure-worktree-async-existing ()
+  "Test beads-git-ensure-worktree-async uses existing worktree."
+  :tags '(:unit)
+  (let ((callback-called nil)
+        (callback-success nil)
+        (callback-path nil))
+    (cl-letf (((symbol-function 'beads-git-find-worktree-for-issue)
+               (lambda (_id) "/path/to/existing"))
+              ((symbol-function 'beads-git-create-worktree-async)
+               (lambda (_id _cb) (error "Should not create"))))
+      (beads-git-ensure-worktree-async
+       "beads-123"
+       (lambda (success path)
+         (setq callback-called t)
+         (setq callback-success success)
+         (setq callback-path path)))
+      (should callback-called)
+      (should callback-success)
+      (should (equal callback-path "/path/to/existing")))))
+
+(ert-deftest beads-git-test-ensure-worktree-async-creates-new ()
+  "Test beads-git-ensure-worktree-async creates new worktree."
+  :tags '(:unit)
+  (let ((create-called nil))
+    (cl-letf (((symbol-function 'beads-git-find-worktree-for-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-git-create-worktree-async)
+               (lambda (id callback)
+                 (setq create-called t)
+                 (funcall callback t "/new/path"))))
+      (beads-git-ensure-worktree-async
+       "beads-123"
+       (lambda (_success _path) nil))
+      (should create-called))))
+
+;;; Test beads-git-list-worktrees edge cases
+
+(ert-deftest beads-git-test-list-worktrees-no-branch ()
+  "Test beads-git-list-worktrees handles worktree without branch."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-git-command)
+             (lambda (&rest _args)
+               "worktree /path/to/detached\nHEAD abc123")))
+    (let ((worktrees (beads-git-list-worktrees)))
+      (should (equal (length worktrees) 1))
+      (should (equal (car worktrees) '("/path/to/detached" nil))))))
+
+(ert-deftest beads-git-test-list-worktrees-multiple-fields ()
+  "Test beads-git-list-worktrees handles all porcelain fields."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-git-command)
+             (lambda (&rest _args)
+               "worktree /path/to/main\nHEAD abc123\nbranch refs/heads/main\nbare\n\nworktree /path/to/feature\nHEAD def456\nbranch refs/heads/feature")))
+    (let ((worktrees (beads-git-list-worktrees)))
+      (should (equal (length worktrees) 2))
+      (should (equal (car worktrees) '("/path/to/main" "main")))
+      (should (equal (cadr worktrees) '("/path/to/feature" "feature"))))))
+
+;;; Test beads-git-should-use-worktree-p edge cases
+
+(ert-deftest beads-git-test-should-use-worktree-truthy-value ()
+  "Test beads-git-should-use-worktree-p treats other truthy values."
+  :tags '(:unit)
+  (let ((beads-agent-use-worktrees 'some-other-symbol))
+    (should (beads-git-should-use-worktree-p "beads-1"))))
+
+(ert-deftest beads-git-test-should-use-worktree-string-value ()
+  "Test beads-git-should-use-worktree-p treats string as truthy."
+  :tags '(:unit)
+  (let ((beads-agent-use-worktrees "yes"))
+    (should (beads-git-should-use-worktree-p "beads-1"))))
+
+;;; Integration Tests
+
+(ert-deftest beads-git-test-integration-find-worktree-path-suffix ()
+  "Integration test: finding worktree by path suffix."
+  :tags '(:integration)
+  (cl-letf (((symbol-function 'beads-git-list-worktrees)
+             (lambda ()
+               '(("/home/user/projects/main" "main")
+                 ("/home/user/worktrees/beads.el-42" "beads.el-42")
+                 ("/home/user/worktrees/beads.el-99" "feature")))))
+    ;; Find by path suffix
+    (should (equal (beads-git-find-worktree-for-issue "beads.el-42")
+                   "/home/user/worktrees/beads.el-42"))
+    ;; Find by branch name
+    (should (equal (beads-git-find-worktree-for-issue "feature")
+                   "/home/user/worktrees/beads.el-99"))
+    ;; Not found
+    (should-not (beads-git-find-worktree-for-issue "nonexistent"))))
+
+;;; Additional Coverage Tests
+
+(ert-deftest beads-git-test-in-worktree-p-function-exists ()
+  "Test beads-git-in-worktree-p function exists."
+  :tags '(:unit)
+  (should (fboundp 'beads-git-in-worktree-p)))
+
+(ert-deftest beads-git-test-get-project-name-function-exists ()
+  "Test beads-git-get-project-name function exists."
+  :tags '(:unit)
+  (should (fboundp 'beads-git-get-project-name)))
+
+(ert-deftest beads-git-test-get-branch-function-exists ()
+  "Test beads-git-get-branch function exists."
+  :tags '(:unit)
+  (should (fboundp 'beads-git-get-branch)))
+
+(ert-deftest beads-git-test-find-main-repo-function-exists ()
+  "Test beads-git-find-main-repo function exists."
+  :tags '(:unit)
+  (should (fboundp 'beads-git-find-main-repo)))
+
+(ert-deftest beads-git-test-command-function-exists ()
+  "Test beads-git-command function exists."
+  :tags '(:unit)
+  (should (fboundp 'beads-git-command)))
+
+(ert-deftest beads-git-test-get-project-name-nil-root ()
+  "Test get-project-name returns nil when no root."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-git-find-project-root)
+             (lambda () nil)))
+    (should-not (beads-git-get-project-name))))
+
 (provide 'beads-git-test)
 
 ;;; beads-git-test.el ends here
