@@ -574,11 +574,12 @@ The log format is compatible with `log-view-mode':
     (beads--log 'info "Timestamp test")
 
     ;; Check timestamp format: YYYY-MM-DD HH:MM:SS [LEVEL] (no brackets around timestamp)
+    ;; Level is padded to 5 chars for alignment (e.g., [INFO ] or [ERROR])
     (with-current-buffer "*beads-debug*"
       (goto-char (point-min))
       (should (search-forward-regexp
                "^20[0-9]\\{2\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \
-[0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\} \\[INFO\\]"
+[0-9]\\{2\\}:[0-9]\\{2\\}:[0-9]\\{2\\} \\[INFO \\]"
                nil t)))
 
     ;; Cleanup
@@ -635,10 +636,10 @@ The log format is compatible with `log-view-mode':
     (beads--log 'info "")
 
     ;; Buffer should exist with timestamp and level but empty message
-    ;; Format: YYYY-MM-DD HH:MM:SS [INFO] \n
+    ;; Format: YYYY-MM-DD HH:MM:SS [INFO ] \n (level padded to 5 chars)
     (with-current-buffer "*beads-debug*"
       (goto-char (point-min))
-      (should (search-forward-regexp "\\[INFO\\] \n" nil t)))
+      (should (search-forward-regexp "\\[INFO \\] \n" nil t)))
 
     ;; Cleanup
     (kill-buffer "*beads-debug*")))

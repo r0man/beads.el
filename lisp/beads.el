@@ -87,7 +87,7 @@ The log format is compatible with `log-view-mode':
              ;; Map verbose -> DEBUG for log-view-mode compatibility
              (level-str (if (eq level 'verbose) "DEBUG" (upcase (symbol-name level))))
              (msg (apply #'format format-string args))
-             (log-line (format "%s [%s] %s\n" timestamp level-str msg))
+             (log-line (format "%s [%-5s] %s\n" timestamp level-str msg))
              (buf (get-buffer-create "*beads-debug*")))
         ;; Log to buffer
         (with-current-buffer buf
