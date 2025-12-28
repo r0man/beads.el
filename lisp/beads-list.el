@@ -1185,7 +1185,8 @@ transient menu options."
                 (list "Updated" beads-list-updated-width t)))
   (setq tabulated-list-padding 2)
   (setq tabulated-list-sort-key (cons "Created" t))
-  (tabulated-list-init-header))
+  (tabulated-list-init-header)
+  (hl-line-mode 1))
 
 ;;; Public Commands
 

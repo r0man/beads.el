@@ -462,7 +462,8 @@ Key bindings:
                 (list "Count" 10 t :right-align t)))
   (setq tabulated-list-padding 2)
   (setq tabulated-list-sort-key (cons "Label" nil))
-  (tabulated-list-init-header))
+  (tabulated-list-init-header)
+  (hl-line-mode 1))
 
 (defun beads-label-list-all-refresh ()
   "Refresh the label list-all view."

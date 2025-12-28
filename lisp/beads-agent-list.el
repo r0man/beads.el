@@ -367,7 +367,8 @@ Stops the current session and starts a new one for the same issue."
                 (list "Directory" beads-agent-list-directory-width t)))
   (setq tabulated-list-padding 2)
   (setq tabulated-list-sort-key nil)
-  (tabulated-list-init-header))
+  (tabulated-list-init-header)
+  (hl-line-mode 1))
 
 ;;; Public Entry Point
 
