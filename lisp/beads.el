@@ -73,7 +73,10 @@ Longer titles will be truncated for graph display.")
 (defun beads--log (level format-string &rest args)
   "Log message to *beads-debug* buffer if debug is enabled.
 LEVEL is one of `error', `info', or `verbose'.
-FORMAT-STRING and ARGS are passed to `format'."
+FORMAT-STRING and ARGS are passed to `format'.
+
+The log format is compatible with `log-view-mode':
+  TIMESTAMP [LEVEL] message"
   (when beads-enable-debug
     ;; Check if this message should be logged based on level
     (when (or (eq level 'error)
@@ -81,9 +84,10 @@ FORMAT-STRING and ARGS are passed to `format'."
                    (memq level '(error info)))
               (eq beads-debug-level 'verbose))
       (let* ((timestamp (format-time-string "%Y-%m-%d %H:%M:%S"))
-             (level-str (upcase (symbol-name level)))
+             ;; Map verbose -> DEBUG for log-view-mode compatibility
+             (level-str (if (eq level 'verbose) "DEBUG" (upcase (symbol-name level))))
              (msg (apply #'format format-string args))
-             (log-line (format "[%s] [%s] %s\n" timestamp level-str msg))
+             (log-line (format "%s [%s] %s\n" timestamp level-str msg))
              (buf (get-buffer-create "*beads-debug*")))
         ;; Log to buffer
         (with-current-buffer buf
