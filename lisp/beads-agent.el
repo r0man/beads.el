@@ -548,9 +548,15 @@ are passed through from `beads-agent--continue-start'."
          (default-directory working-dir)
          (agent-type-name (when agent-type (oref agent-type name))))
     (condition-case err
-        ;; Let Emacs's display-buffer-alist handle window placement.
-        ;; Users can customize via display-buffer-alist for *beads-agent* buffers.
-        (let* (;; backend-start returns (backend-session . buffer)
+        ;; Use display-buffer-overriding-action to control window placement.
+        ;; This keeps the current window (e.g., beads-list) visible while
+        ;; showing the agent in another window, splitting if necessary.
+        (let* ((display-buffer-overriding-action
+                '((display-buffer-reuse-window
+                   display-buffer-use-some-window
+                   display-buffer-pop-up-window)
+                  (inhibit-same-window . t)))
+               ;; backend-start returns (backend-session . buffer)
                (start-result (beads-agent-backend-start backend issue prompt))
                (backend-session (car start-result))
                (buffer (cdr start-result))

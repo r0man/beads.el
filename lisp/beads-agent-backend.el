@@ -892,8 +892,9 @@ use `beads-agent--buffer-name-p' instead."
 ;;; Window Management
 ;;
 ;; Agent buffers use Emacs's native `display-buffer-alist' for window
-;; management.  The display action is configured via the customizable
-;; variable `beads-agent-display-buffer-action' in beads-agent.el.
+;; management.  When starting agents, beads-agent.el uses
+;; `display-buffer-overriding-action' with built-in display actions
+;; to keep the current window visible while showing the agent elsewhere.
 
 (defun beads-agent--pop-to-buffer-other-window (buffer)
   "Switch to BUFFER using the configured display action.
