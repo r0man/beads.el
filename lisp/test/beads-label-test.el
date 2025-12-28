@@ -202,5 +202,11 @@
         (should (get-buffer "*beads-list: label=backend*"))
         (kill-buffer "*beads-list: label=backend*")))))
 
+(ert-deftest beads-label-test-hl-line-mode-enabled ()
+  "Test that hl-line-mode is enabled when entering beads-label-list-all-mode."
+  (with-temp-buffer
+    (beads-label-list-all-mode)
+    (should (bound-and-true-p hl-line-mode))))
+
 (provide 'beads-label-test)
 ;;; beads-label-test.el ends here

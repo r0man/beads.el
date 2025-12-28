@@ -364,6 +364,12 @@ WORKTREE-DIR is optional worktree directory."
   (should (facep 'beads-agent-list-finished))
   (should (facep 'beads-agent-list-failed)))
 
+(ert-deftest beads-agent-list-test-hl-line-mode-enabled ()
+  "Test that hl-line-mode is enabled when entering beads-agent-list-mode."
+  (with-temp-buffer
+    (beads-agent-list-mode)
+    (should (bound-and-true-p hl-line-mode))))
+
 (provide 'beads-agent-list-test)
 
 ;;; beads-agent-list-test.el ends here
