@@ -412,6 +412,23 @@ by checking if the function is available after requiring beads-main."
              (lambda () nil)))
     (should-error (beads-list-show) :type 'user-error)))
 
+(ert-deftest beads-main-test-list-show-fallback-without-beads-show ()
+  "Test beads-list-show fallback message when beads-show is not available."
+  (let ((message-shown nil))
+    (cl-letf (((symbol-function 'beads-list--current-issue-id)
+               (lambda () "bd-99"))
+              ((symbol-function 'fboundp)
+               (lambda (sym)
+                 ;; Return nil for beads-show, true for everything else
+                 (unless (eq sym 'beads-show)
+                   (funcall (symbol-function 'fboundp) sym))))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-shown (apply #'format fmt args)))))
+      (beads-list-show)
+      (should message-shown)
+      (should (string-match-p "bd-99" message-shown)))))
+
 ;;; Edge Cases
 
 (ert-deftest beads-main-test-version-with-extra-whitespace ()

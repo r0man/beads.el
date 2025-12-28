@@ -415,5 +415,269 @@
       (setq beads-close--issue-id saved-close-issue-id
             beads-reopen--issue-id saved-reopen-issue-id))))
 
+;;; ============================================================
+;;; Global Option Class Property Tests
+;;; ============================================================
+
+(ert-deftest beads-option-test-global-class-slots ()
+  "Test that beads-option-global class has expected slots."
+  (let ((obj (beads-option-global)))
+    (should (slot-exists-p obj 'pad-keys))
+    (should (slot-boundp obj 'pad-keys))))
+
+(ert-deftest beads-option-test-global-switch-class-slots ()
+  "Test that beads-option-global-switch class has expected slots."
+  (let ((obj (beads-option-global-switch)))
+    (should (slot-exists-p obj 'pad-keys))
+    (should (slot-boundp obj 'pad-keys))))
+
+(ert-deftest beads-option-test-global-default-pad-keys ()
+  "Test that beads-option-global has nil default for pad-keys."
+  (let ((obj (beads-option-global)))
+    (should-not (oref obj pad-keys))))
+
+(ert-deftest beads-option-test-global-switch-default-pad-keys ()
+  "Test that beads-option-global-switch has nil default for pad-keys."
+  (let ((obj (beads-option-global-switch)))
+    (should-not (oref obj pad-keys))))
+
+;;; ============================================================
+;;; List Filter Infix Tests
+;;; ============================================================
+
+(ert-deftest beads-option-test-list-all-infix-exists ()
+  "Test that list all infix is defined."
+  (should (commandp 'beads-option-list-all)))
+
+(ert-deftest beads-option-test-list-no-assignee-infix-exists ()
+  "Test that list no-assignee infix is defined."
+  (should (commandp 'beads-option-list-no-assignee)))
+
+(ert-deftest beads-option-test-list-empty-description-infix-exists ()
+  "Test that list empty-description infix is defined."
+  (should (commandp 'beads-option-list-empty-description)))
+
+(ert-deftest beads-option-test-list-no-labels-infix-exists ()
+  "Test that list no-labels infix is defined."
+  (should (commandp 'beads-option-list-no-labels)))
+
+(ert-deftest beads-option-test-list-long-infix-exists ()
+  "Test that list long infix is defined."
+  (should (commandp 'beads-option-list-long)))
+
+(ert-deftest beads-option-test-list-assignee-infix-exists ()
+  "Test that list assignee infix is defined."
+  (should (commandp 'beads-option-list-assignee)))
+
+(ert-deftest beads-option-test-list-closed-after-infix-exists ()
+  "Test that list closed-after infix is defined."
+  (should (commandp 'beads-option-list-closed-after)))
+
+(ert-deftest beads-option-test-list-closed-before-infix-exists ()
+  "Test that list closed-before infix is defined."
+  (should (commandp 'beads-option-list-closed-before)))
+
+(ert-deftest beads-option-test-list-created-after-infix-exists ()
+  "Test that list created-after infix is defined."
+  (should (commandp 'beads-option-list-created-after)))
+
+(ert-deftest beads-option-test-list-created-before-infix-exists ()
+  "Test that list created-before infix is defined."
+  (should (commandp 'beads-option-list-created-before)))
+
+(ert-deftest beads-option-test-list-desc-contains-infix-exists ()
+  "Test that list desc-contains infix is defined."
+  (should (commandp 'beads-option-list-desc-contains)))
+
+(ert-deftest beads-option-test-list-format-infix-exists ()
+  "Test that list format infix is defined."
+  (should (commandp 'beads-option-list-format)))
+
+(ert-deftest beads-option-test-list-id-infix-exists ()
+  "Test that list id infix is defined."
+  (should (commandp 'beads-option-list-id)))
+
+(ert-deftest beads-option-test-list-label-infix-exists ()
+  "Test that list label infix is defined."
+  (should (commandp 'beads-option-list-label)))
+
+(ert-deftest beads-option-test-list-label-any-infix-exists ()
+  "Test that list label-any infix is defined."
+  (should (commandp 'beads-option-list-label-any)))
+
+(ert-deftest beads-option-test-list-limit-infix-exists ()
+  "Test that list limit infix is defined."
+  (should (commandp 'beads-option-list-limit)))
+
+(ert-deftest beads-option-test-list-notes-contains-infix-exists ()
+  "Test that list notes-contains infix is defined."
+  (should (commandp 'beads-option-list-notes-contains)))
+
+(ert-deftest beads-option-test-list-priority-infix-exists ()
+  "Test that list priority infix is defined."
+  (should (commandp 'beads-option-list-priority)))
+
+(ert-deftest beads-option-test-list-priority-min-infix-exists ()
+  "Test that list priority-min infix is defined."
+  (should (commandp 'beads-option-list-priority-min)))
+
+(ert-deftest beads-option-test-list-priority-max-infix-exists ()
+  "Test that list priority-max infix is defined."
+  (should (commandp 'beads-option-list-priority-max)))
+
+(ert-deftest beads-option-test-list-status-infix-exists ()
+  "Test that list status infix is defined."
+  (should (commandp 'beads-option-list-status)))
+
+(ert-deftest beads-option-test-list-title-infix-exists ()
+  "Test that list title infix is defined."
+  (should (commandp 'beads-option-list-title)))
+
+(ert-deftest beads-option-test-list-title-contains-infix-exists ()
+  "Test that list title-contains infix is defined."
+  (should (commandp 'beads-option-list-title-contains)))
+
+(ert-deftest beads-option-test-list-type-infix-exists ()
+  "Test that list type infix is defined."
+  (should (commandp 'beads-option-list-type)))
+
+(ert-deftest beads-option-test-list-updated-after-infix-exists ()
+  "Test that list updated-after infix is defined."
+  (should (commandp 'beads-option-list-updated-after)))
+
+(ert-deftest beads-option-test-list-updated-before-infix-exists ()
+  "Test that list updated-before infix is defined."
+  (should (commandp 'beads-option-list-updated-before)))
+
+;;; ============================================================
+;;; Update Infix Tests
+;;; ============================================================
+
+(ert-deftest beads-option-test-update-status-infix-exists ()
+  "Test that update status infix is defined."
+  (should (commandp 'beads-option-update-status)))
+
+(ert-deftest beads-option-test-update-priority-infix-exists ()
+  "Test that update priority infix is defined."
+  (should (commandp 'beads-option-update-priority)))
+
+(ert-deftest beads-option-test-update-type-infix-exists ()
+  "Test that update type infix is defined."
+  (should (commandp 'beads-option-update-type)))
+
+(ert-deftest beads-option-test-update-title-infix-exists ()
+  "Test that update title infix is defined."
+  (should (commandp 'beads-option-update-title)))
+
+(ert-deftest beads-option-test-update-assignee-infix-exists ()
+  "Test that update assignee infix is defined."
+  (should (commandp 'beads-option-update-assignee)))
+
+(ert-deftest beads-option-test-update-external-ref-infix-exists ()
+  "Test that update external-ref infix is defined."
+  (should (commandp 'beads-option-update-external-ref)))
+
+(ert-deftest beads-option-test-update-description-infix-exists ()
+  "Test that update description infix is defined."
+  (should (commandp 'beads-option-update-description)))
+
+(ert-deftest beads-option-test-update-acceptance-multiline-infix-exists ()
+  "Test that update acceptance-multiline infix is defined."
+  (should (commandp 'beads-option-update-acceptance-multiline)))
+
+(ert-deftest beads-option-test-update-design-multiline-infix-exists ()
+  "Test that update design-multiline infix is defined."
+  (should (commandp 'beads-option-update-design-multiline)))
+
+(ert-deftest beads-option-test-update-notes-multiline-infix-exists ()
+  "Test that update notes-multiline infix is defined."
+  (should (commandp 'beads-option-update-notes-multiline)))
+
+;;; ============================================================
+;;; Close/Reopen Infix Tests
+;;; ============================================================
+
+(ert-deftest beads-option-test-close-reason-infix-exists ()
+  "Test that close reason infix is defined."
+  (should (commandp 'beads-option-close-reason)))
+
+(ert-deftest beads-option-test-reopen-reason-infix-exists ()
+  "Test that reopen reason infix is defined."
+  (should (commandp 'beads-option-reopen-reason)))
+
+;;; ============================================================
+;;; Create Infix Tests (additional)
+;;; ============================================================
+
+(ert-deftest beads-option-test-create-parent-infix-exists ()
+  "Test that create parent infix is defined."
+  (should (commandp 'beads-option-create-parent)))
+
+(ert-deftest beads-option-test-create-repo-infix-exists ()
+  "Test that create repo infix is defined."
+  (should (commandp 'beads-option-create-repo)))
+
+(ert-deftest beads-option-test-create-from-template-infix-exists ()
+  "Test that create from-template infix is defined."
+  (should (commandp 'beads-option-create-from-template)))
+
+(ert-deftest beads-option-test-create-file-infix-exists ()
+  "Test that create file infix is defined."
+  (should (commandp 'beads-option-create-file)))
+
+;;; ============================================================
+;;; Init Infix Tests (additional)
+;;; ============================================================
+
+(ert-deftest beads-option-test-init-branch-infix-exists ()
+  "Test that init branch infix is defined."
+  (should (commandp 'beads-option-init-branch)))
+
+(ert-deftest beads-option-test-init-contributor-infix-exists ()
+  "Test that init contributor infix is defined."
+  (should (commandp 'beads-option-init-contributor)))
+
+(ert-deftest beads-option-test-init-quiet-infix-exists ()
+  "Test that init quiet infix is defined."
+  (should (commandp 'beads-option-init-quiet)))
+
+(ert-deftest beads-option-test-init-skip-merge-driver-infix-exists ()
+  "Test that init skip-merge-driver infix is defined."
+  (should (commandp 'beads-option-init-skip-merge-driver)))
+
+(ert-deftest beads-option-test-init-team-infix-exists ()
+  "Test that init team infix is defined."
+  (should (commandp 'beads-option-init-team)))
+
+;;; ============================================================
+;;; Export Infix Tests (additional)
+;;; ============================================================
+
+(ert-deftest beads-option-test-export-force-infix-exists ()
+  "Test that export force infix is defined."
+  (should (commandp 'beads-option-export-force)))
+
+(ert-deftest beads-option-test-export-format-infix-exists ()
+  "Test that export format infix is defined."
+  (should (commandp 'beads-option-export-format)))
+
+(ert-deftest beads-option-test-export-status-infix-exists ()
+  "Test that export status infix is defined."
+  (should (commandp 'beads-option-export-status)))
+
+;;; ============================================================
+;;; Label Transient Menu Tests
+;;; ============================================================
+
+(ert-deftest beads-option-test-label-add-transient-exists ()
+  "Test that beads-label-add transient is defined."
+  (should (commandp 'beads-label-add))
+  (should (get 'beads-label-add 'transient--prefix)))
+
+(ert-deftest beads-option-test-label-remove-transient-exists ()
+  "Test that beads-label-remove transient is defined."
+  (should (commandp 'beads-label-remove))
+  (should (get 'beads-label-remove 'transient--prefix)))
+
 (provide 'beads-option-test)
 ;;; beads-option-test.el ends here

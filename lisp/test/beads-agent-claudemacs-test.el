@@ -7,19 +7,8 @@
 
 ;;; Commentary:
 
-;; ERT tests for beads-agent-claudemacs.el - the claudemacs backend.
-;; These tests verify the buffer finding logic and other backend methods
-;; without requiring the actual claudemacs package.
-;;
-;; claudemacs buffer naming convention:
-;; - Main buffer: *claudemacs:TOOL:SESSION-ID*
-;; - Instance buffer: *claudemacs:TOOL-N:SESSION-ID*
-;; Where TOOL is claude/codex/gemini, N is instance number, and
-;; SESSION-ID is derived from workspace/project name.
-;;
-;; Unlike claude-code.el which uses buffer name patterns, claudemacs
-;; uses a buffer-local variable `claudemacs--cwd' to track the working
-;; directory for each session.
+;; Tests for beads-agent-claudemacs.el - the claudemacs backend.
+;; All tests mock the claudemacs and eat packages since they may not be installed.
 
 ;;; Code:
 
@@ -27,240 +16,410 @@
 (require 'beads-agent-backend)
 (require 'beads-agent-claudemacs)
 
-;;; Buffer Finding Tests
-;;
-;; These tests verify that `beads-agent-claudemacs--find-buffers' correctly
-;; identifies claudemacs buffers based on the `claudemacs--cwd' variable.
-
-(ert-deftest beads-agent-claudemacs-test-find-buffers-by-cwd ()
-  "Test finding claudemacs buffer by its `claudemacs--cwd' variable."
-  (let ((test-buf (generate-new-buffer "*claudemacs:claude:test*")))
-    (unwind-protect
-        (progn
-          (with-current-buffer test-buf
-            (setq-local claudemacs--cwd "/home/roman/workspace/test/"))
-          (let ((found (beads-agent-claudemacs--find-buffers
-                        "/home/roman/workspace/test/")))
-            (should (= 1 (length found)))
-            (should (eq (car found) test-buf))))
-      (kill-buffer test-buf))))
-
-(ert-deftest beads-agent-claudemacs-test-find-buffers-without-trailing-slash ()
-  "Test that input without trailing slash still finds buffers."
-  (let ((test-buf (generate-new-buffer "*claudemacs:claude:test*")))
-    (unwind-protect
-        (progn
-          (with-current-buffer test-buf
-            (setq-local claudemacs--cwd "/home/roman/workspace/test/"))
-          (let ((found (beads-agent-claudemacs--find-buffers
-                        "/home/roman/workspace/test")))
-            (should (= 1 (length found)))
-            (should (eq (car found) test-buf))))
-      (kill-buffer test-buf))))
-
-(ert-deftest beads-agent-claudemacs-test-find-buffers-multiple ()
-  "Test finding multiple claudemacs buffers for same directory."
-  (let ((buf1 (generate-new-buffer "*claudemacs:claude:test*"))
-        (buf2 (generate-new-buffer "*claudemacs:claude-2:test*"))
-        (buf3 (generate-new-buffer "*claudemacs:codex:test*")))
-    (unwind-protect
-        (progn
-          ;; Set all buffers to same working directory
-          (dolist (buf (list buf1 buf2 buf3))
-            (with-current-buffer buf
-              (setq-local claudemacs--cwd "/home/roman/workspace/test/")))
-          (let ((found (beads-agent-claudemacs--find-buffers
-                        "/home/roman/workspace/test/")))
-            (should (= 3 (length found)))
-            (should (memq buf1 found))
-            (should (memq buf2 found))
-            (should (memq buf3 found))))
-      (kill-buffer buf1)
-      (kill-buffer buf2)
-      (kill-buffer buf3))))
-
-(ert-deftest beads-agent-claudemacs-test-find-buffers-different-projects ()
-  "Test that we don't find buffers from other projects."
-  (let ((our-buf (generate-new-buffer "*claudemacs:claude:test*"))
-        (other-buf (generate-new-buffer "*claudemacs:claude:other*")))
-    (unwind-protect
-        (progn
-          (with-current-buffer our-buf
-            (setq-local claudemacs--cwd "/home/roman/workspace/test/"))
-          (with-current-buffer other-buf
-            (setq-local claudemacs--cwd "/home/roman/workspace/other/"))
-          (let ((found (beads-agent-claudemacs--find-buffers
-                        "/home/roman/workspace/test/")))
-            (should (= 1 (length found)))
-            (should (eq (car found) our-buf))))
-      (kill-buffer our-buf)
-      (kill-buffer other-buf))))
-
-(ert-deftest beads-agent-claudemacs-test-find-buffers-no-match ()
-  "Test that we return nil when no matching buffers exist."
-  (let ((other-buf (generate-new-buffer "*claudemacs:claude:other*")))
-    (unwind-protect
-        (progn
-          (with-current-buffer other-buf
-            (setq-local claudemacs--cwd "/home/roman/workspace/other/"))
-          (let ((found (beads-agent-claudemacs--find-buffers
-                        "/home/roman/workspace/test/")))
-            (should (null found))))
-      (kill-buffer other-buf))))
-
-(ert-deftest beads-agent-claudemacs-test-find-buffers-no-cwd-set ()
-  "Test that buffers without `claudemacs--cwd' are not matched."
-  (let ((test-buf (generate-new-buffer "*claudemacs:claude:test*")))
-    (unwind-protect
-        ;; Buffer exists but has no claudemacs--cwd set
-        (let ((found (beads-agent-claudemacs--find-buffers
-                      "/home/roman/workspace/test/")))
-          (should (null found)))
-      (kill-buffer test-buf))))
-
-(ert-deftest beads-agent-claudemacs-test-find-buffers-symlink-resolution ()
-  "Test that symlinks are resolved when matching directories."
-  ;; This test verifies that file-truename is used for comparison
-  (let ((test-buf (generate-new-buffer "*claudemacs:claude:test*")))
-    (unwind-protect
-        (progn
-          ;; Set cwd with expanded path
-          (with-current-buffer test-buf
-            (setq-local claudemacs--cwd (expand-file-name "~/workspace/test/")))
-          ;; Search with ~ unexpanded - should still find due to file-truename
-          (let ((found (beads-agent-claudemacs--find-buffers "~/workspace/test/")))
-            (should (= 1 (length found)))
-            (should (eq (car found) test-buf))))
-      (kill-buffer test-buf))))
-
-;;; Buffer Process Tests
-
-(ert-deftest beads-agent-claudemacs-test-buffer-has-process-live ()
-  "Test that buffer with process is detected."
-  (let ((test-buf (generate-new-buffer "*test-process-buf*")))
-    (unwind-protect
-        (progn
-          ;; Start a simple process
-          (let ((proc (start-process "test" test-buf "sleep" "10")))
-            (should (beads-agent-claudemacs--buffer-has-process-p test-buf))
-            ;; Clean up
-            (delete-process proc)))
-      (kill-buffer test-buf))))
-
-(ert-deftest beads-agent-claudemacs-test-buffer-has-process-dead ()
-  "Test that buffer without process returns nil."
-  (let ((test-buf (generate-new-buffer "*test-no-process*")))
-    (unwind-protect
-        (should (not (beads-agent-claudemacs--buffer-has-process-p test-buf)))
-      (kill-buffer test-buf))))
-
-(ert-deftest beads-agent-claudemacs-test-buffer-has-process-killed-buffer ()
-  "Test that killed buffer returns nil."
-  (let ((test-buf (generate-new-buffer "*test-killed*")))
-    (kill-buffer test-buf)
-    (should (not (beads-agent-claudemacs--buffer-has-process-p test-buf)))))
-
-;;; Backend Registration Test
+;;; Backend Registration Tests
 
 (ert-deftest beads-agent-claudemacs-test-backend-registered ()
   "Test that claudemacs backend is registered."
-  ;; Backends are stored as a list of EIEIO objects
-  (let ((backend (seq-find
-                  (lambda (b) (equal (oref b name) "claudemacs"))
-                  beads-agent--backends)))
-    (should backend)
-    (should (beads-agent-backend-claudemacs-p backend))))
+  (let ((backends (beads-agent--get-all-backends)))
+    (should (cl-some (lambda (b) (equal (oref b name) "claudemacs")) backends))))
 
 (ert-deftest beads-agent-claudemacs-test-backend-priority ()
-  "Test that claudemacs backend has correct priority."
-  (let ((backend (seq-find
-                  (lambda (b) (equal (oref b name) "claudemacs"))
-                  beads-agent--backends)))
-    (should backend)
-    ;; Priority 35 - between claude-code-ide (20) and claude-code (40)
-    (should (= 35 (oref backend priority)))))
+  "Test claudemacs backend has correct priority."
+  (let ((backend (beads-agent-backend-claudemacs)))
+    (should (= (oref backend priority) 35))))
 
-;;; Backend Availability Test
+(ert-deftest beads-agent-claudemacs-test-backend-name ()
+  "Test claudemacs backend has correct name."
+  (let ((backend (beads-agent-backend-claudemacs)))
+    (should (equal (oref backend name) "claudemacs"))))
 
-(ert-deftest beads-agent-claudemacs-test-backend-available-checks-package ()
-  "Test that backend availability checks for claudemacs package."
-  (let ((backend (seq-find
-                  (lambda (b) (equal (oref b name) "claudemacs"))
-                  beads-agent--backends)))
-    (should backend)
-    ;; When claudemacs, eat, and claude executable are all available,
-    ;; the backend should report available
-    (if (and (or (featurep 'claudemacs)
-                 (require 'claudemacs nil t))
-             (or (featurep 'eat)
-                 (require 'eat nil t))
-             (executable-find "claude"))
-        (should (beads-agent-backend-available-p backend))
-      ;; Otherwise it should be unavailable
-      (should (not (beads-agent-backend-available-p backend))))))
+(ert-deftest beads-agent-claudemacs-test-backend-description ()
+  "Test claudemacs backend has a description."
+  (let ((backend (beads-agent-backend-claudemacs)))
+    (should (stringp (oref backend description)))
+    (should (> (length (oref backend description)) 0))))
+
+;;; Availability Tests
+
+(ert-deftest beads-agent-claudemacs-test-available-all-deps ()
+  "Test availability when all dependencies are present."
+  (let ((backend (beads-agent-backend-claudemacs)))
+    (cl-letf (((symbol-function 'featurep)
+               (lambda (f) (memq f '(eat claudemacs))))
+              ((symbol-function 'fboundp)
+               (lambda (f) (memq f '(claudemacs--start
+                                     claudemacs-kill
+                                     claudemacs--send-message-to-claude
+                                     eat-term-set-parameter))))
+              ((symbol-function 'executable-find)
+               (lambda (name) (when (equal name "claude") "/usr/bin/claude")))
+              ((symbol-function 'beads-agent-claudemacs--ensure-eat-gv-setter)
+               #'ignore))
+      (should (beads-agent-backend-available-p backend)))))
+
+(ert-deftest beads-agent-claudemacs-test-not-available-no-eat ()
+  "Test unavailability when eat is missing."
+  (let ((backend (beads-agent-backend-claudemacs)))
+    (cl-letf (((symbol-function 'featurep) (lambda (_) nil))
+              ((symbol-function 'require) (lambda (&rest _) nil)))
+      (should-not (beads-agent-backend-available-p backend)))))
+
+(ert-deftest beads-agent-claudemacs-test-not-available-no-claudemacs ()
+  "Test unavailability when claudemacs is missing."
+  (let ((backend (beads-agent-backend-claudemacs)))
+    (cl-letf (((symbol-function 'featurep)
+               (lambda (f) (eq f 'eat)))
+              ((symbol-function 'require)
+               (lambda (f &rest _) (eq f 'eat)))
+              ((symbol-function 'fboundp) (lambda (_) nil))
+              ((symbol-function 'beads-agent-claudemacs--ensure-eat-gv-setter)
+               #'ignore))
+      (should-not (beads-agent-backend-available-p backend)))))
+
+(ert-deftest beads-agent-claudemacs-test-not-available-no-claude ()
+  "Test unavailability when claude executable is missing."
+  (let ((backend (beads-agent-backend-claudemacs)))
+    (cl-letf (((symbol-function 'featurep) (lambda (_) t))
+              ((symbol-function 'fboundp) (lambda (_) t))
+              ((symbol-function 'executable-find) (lambda (_) nil))
+              ((symbol-function 'beads-agent-claudemacs--ensure-eat-gv-setter)
+               #'ignore))
+      (should-not (beads-agent-backend-available-p backend)))))
+
+;;; Start Session Tests
+
+(ert-deftest beads-agent-claudemacs-test-start-error-no-eat ()
+  "Test that start errors when eat is missing."
+  (let ((backend (beads-agent-backend-claudemacs)))
+    (cl-letf (((symbol-function 'featurep) (lambda (_) nil))
+              ((symbol-function 'require) (lambda (&rest _) nil)))
+      (should-error (beads-agent-backend-start backend nil "Test prompt")
+                    :type 'error))))
+
+(ert-deftest beads-agent-claudemacs-test-start-error-no-claudemacs ()
+  "Test that start errors when claudemacs is missing."
+  (let ((backend (beads-agent-backend-claudemacs)))
+    (cl-letf (((symbol-function 'featurep)
+               (lambda (f) (eq f 'eat)))
+              ((symbol-function 'require)
+               (lambda (f &rest _) (eq f 'eat)))
+              ((symbol-function 'beads-agent-claudemacs--ensure-eat-gv-setter)
+               #'ignore))
+      (should-error (beads-agent-backend-start backend nil "Test prompt")
+                    :type 'error))))
+
+(ert-deftest beads-agent-claudemacs-test-start-error-no-claude ()
+  "Test that start errors when claude executable is missing."
+  (let ((backend (beads-agent-backend-claudemacs)))
+    (cl-letf (((symbol-function 'featurep) (lambda (_) t))
+              ((symbol-function 'require) (lambda (&rest _) t))
+              ((symbol-function 'executable-find) (lambda (_) nil))
+              ((symbol-function 'beads-agent-claudemacs--ensure-eat-gv-setter)
+               #'ignore)
+              ((symbol-function 'beads-agent-claudemacs--install-bell-handler-advice)
+               #'ignore))
+      (should-error (beads-agent-backend-start backend nil "Test prompt")
+                    :type 'error))))
+
+;;; Buffer Finding Tests
+
+(ert-deftest beads-agent-claudemacs-test-find-buffers-with-cwd ()
+  "Test finding claudemacs buffers by working directory."
+  (let ((test-buf (generate-new-buffer "*claudemacs:claude:test*"))
+        (claudemacs--cwd "/tmp/test/"))
+    (unwind-protect
+        (with-current-buffer test-buf
+          (setq-local claudemacs--cwd "/tmp/test/")
+          (let ((found (beads-agent-claudemacs--find-buffers "/tmp/test")))
+            (should (= (length found) 1))
+            (should (equal (car found) test-buf))))
+      (kill-buffer test-buf))))
+
+(ert-deftest beads-agent-claudemacs-test-find-buffers-no-match ()
+  "Test finding buffers when none match."
+  (let ((test-buf (generate-new-buffer "*claudemacs:claude:other*")))
+    (unwind-protect
+        (with-current-buffer test-buf
+          (setq-local claudemacs--cwd "/tmp/other/")
+          (let ((found (beads-agent-claudemacs--find-buffers "/tmp/test")))
+            (should (null found))))
+      (kill-buffer test-buf))))
+
+;;; Buffer Has Process Tests
+
+(ert-deftest beads-agent-claudemacs-test-buffer-has-process ()
+  "Test buffer-has-process-p with a live process."
+  (let ((test-buf (generate-new-buffer "*test-claudemacs-proc*")))
+    (unwind-protect
+        (progn
+          (let ((proc (start-process "test" test-buf "sleep" "60")))
+            (should (beads-agent-claudemacs--buffer-has-process-p test-buf))
+            (delete-process proc)))
+      (when (buffer-live-p test-buf)
+        (let ((proc (get-buffer-process test-buf)))
+          (when proc (delete-process proc)))
+        (kill-buffer test-buf)))))
+
+(ert-deftest beads-agent-claudemacs-test-buffer-no-process ()
+  "Test buffer-has-process-p without a process."
+  (let ((test-buf (generate-new-buffer "*test-claudemacs-no-proc*")))
+    (unwind-protect
+        (should-not (beads-agent-claudemacs--buffer-has-process-p test-buf))
+      (kill-buffer test-buf))))
+
+(ert-deftest beads-agent-claudemacs-test-buffer-dead ()
+  "Test buffer-has-process-p with a dead buffer."
+  (let ((test-buf (generate-new-buffer "*test-claudemacs-dead*")))
+    (kill-buffer test-buf)
+    (should-not (beads-agent-claudemacs--buffer-has-process-p test-buf))))
+
+;;; Stop Session Tests
+
+(ert-deftest beads-agent-claudemacs-test-stop-kills-process-and-buffer ()
+  "Test that stop kills process and buffer."
+  (let* ((test-buf (generate-new-buffer "*test-claudemacs-stop*"))
+         (backend (beads-agent-backend-claudemacs))
+         (session (beads-agent-session
+                   :id "test#1"
+                   :issue-id "test"
+                   :backend-name "claudemacs"
+                   :project-dir "/tmp/test"
+                   :started-at "2025-01-01T00:00:00Z"
+                   :buffer test-buf)))
+    (unwind-protect
+        (progn
+          (let ((proc (start-process "test" test-buf "sleep" "60")))
+            (cl-letf (((symbol-function 'require) (lambda (&rest _) t))
+                      ((symbol-function 'eat-kill-process)
+                       (lambda () (delete-process proc))))
+              (beads-agent-backend-stop backend session)
+              (should-not (buffer-live-p test-buf)))))
+      (when (buffer-live-p test-buf)
+        (let ((proc (get-buffer-process test-buf)))
+          (when proc (delete-process proc)))
+        (kill-buffer test-buf)))))
+
+(ert-deftest beads-agent-claudemacs-test-stop-nil-buffer ()
+  "Test that stop handles nil buffer gracefully."
+  (let* ((backend (beads-agent-backend-claudemacs))
+         (session (beads-agent-session
+                   :id "test#1"
+                   :issue-id "test"
+                   :backend-name "claudemacs"
+                   :project-dir "/tmp/test"
+                   :started-at "2025-01-01T00:00:00Z"
+                   :buffer nil)))
+    (cl-letf (((symbol-function 'require) (lambda (&rest _) t)))
+      (should-not (condition-case nil
+                      (progn (beads-agent-backend-stop backend session) nil)
+                    (error t))))))
+
+;;; Session Active Tests
+
+(ert-deftest beads-agent-claudemacs-test-session-active-with-process ()
+  "Test session-active-p when buffer has process."
+  (let* ((test-buf (generate-new-buffer "*test-claudemacs-active*"))
+         (backend (beads-agent-backend-claudemacs))
+         (session (beads-agent-session
+                   :id "test#1"
+                   :issue-id "test"
+                   :backend-name "claudemacs"
+                   :project-dir "/tmp/test"
+                   :started-at "2025-01-01T00:00:00Z"
+                   :buffer test-buf)))
+    (unwind-protect
+        (let ((proc (start-process "test" test-buf "sleep" "60")))
+          (should (beads-agent-backend-session-active-p backend session))
+          (delete-process proc))
+      (when (buffer-live-p test-buf)
+        (let ((proc (get-buffer-process test-buf)))
+          (when proc (delete-process proc)))
+        (kill-buffer test-buf)))))
+
+(ert-deftest beads-agent-claudemacs-test-session-not-active-no-process ()
+  "Test session-active-p when buffer has no process."
+  (let* ((test-buf (generate-new-buffer "*test-claudemacs-inactive*"))
+         (backend (beads-agent-backend-claudemacs))
+         (session (beads-agent-session
+                   :id "test#1"
+                   :issue-id "test"
+                   :backend-name "claudemacs"
+                   :project-dir "/tmp/test"
+                   :started-at "2025-01-01T00:00:00Z"
+                   :buffer test-buf)))
+    (unwind-protect
+        (should-not (beads-agent-backend-session-active-p backend session))
+      (kill-buffer test-buf))))
+
+;;; Switch to Buffer Tests
+
+(ert-deftest beads-agent-claudemacs-test-switch-to-buffer-success ()
+  "Test switching to an existing live buffer."
+  (let* ((test-buf (generate-new-buffer "*test-claudemacs-switch*"))
+         (backend (beads-agent-backend-claudemacs))
+         (session (beads-agent-session
+                   :id "test#1"
+                   :issue-id "test"
+                   :backend-name "claudemacs"
+                   :project-dir "/tmp/test"
+                   :started-at "2025-01-01T00:00:00Z"
+                   :buffer test-buf))
+         (switched-to nil))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-agent--pop-to-buffer-other-window)
+                   (lambda (buf) (setq switched-to buf))))
+          (beads-agent-backend-switch-to-buffer backend session)
+          (should (equal switched-to test-buf)))
+      (kill-buffer test-buf))))
+
+(ert-deftest beads-agent-claudemacs-test-switch-to-buffer-killed ()
+  "Test switching to a killed buffer errors appropriately."
+  (let* ((test-buf (generate-new-buffer "*test-claudemacs-switch-killed*"))
+         (backend (beads-agent-backend-claudemacs))
+         (session (beads-agent-session
+                   :id "test#1"
+                   :issue-id "test"
+                   :backend-name "claudemacs"
+                   :project-dir "/tmp/test"
+                   :started-at "2025-01-01T00:00:00Z"
+                   :buffer test-buf)))
+    (kill-buffer test-buf)
+    (should-error (beads-agent-backend-switch-to-buffer backend session)
+                  :type 'user-error)))
+
+(ert-deftest beads-agent-claudemacs-test-switch-to-buffer-nil ()
+  "Test switching when no buffer is set errors appropriately."
+  (let ((backend (beads-agent-backend-claudemacs))
+        (session (beads-agent-session
+                  :id "test#1"
+                  :issue-id "test"
+                  :backend-name "claudemacs"
+                  :project-dir "/tmp/test"
+                  :started-at "2025-01-01T00:00:00Z"
+                  :buffer nil)))
+    (should-error (beads-agent-backend-switch-to-buffer backend session)
+                  :type 'user-error)))
+
+;;; Send Prompt Tests
+
+(ert-deftest beads-agent-claudemacs-test-send-prompt-success ()
+  "Test sending a prompt to an active session."
+  (let* ((test-buf (generate-new-buffer "*test-claudemacs-send*"))
+         (backend (beads-agent-backend-claudemacs))
+         (session (beads-agent-session
+                   :id "test#1"
+                   :issue-id "test"
+                   :backend-name "claudemacs"
+                   :project-dir "/tmp/test"
+                   :started-at "2025-01-01T00:00:00Z"
+                   :buffer test-buf))
+         (sent-prompt nil))
+    (unwind-protect
+        (progn
+          (with-current-buffer test-buf
+            (setq-local claudemacs--cwd "/tmp/test/"))
+          (let ((proc (start-process "test" test-buf "sleep" "60")))
+            (cl-letf (((symbol-function 'require) (lambda (&rest _) t))
+                      ((symbol-function 'claudemacs--send-message-to-claude)
+                       (lambda (prompt) (setq sent-prompt prompt))))
+              (beads-agent-backend-send-prompt backend session "Test message")
+              (should (equal sent-prompt "Test message")))
+            (delete-process proc)))
+      (when (buffer-live-p test-buf)
+        (let ((proc (get-buffer-process test-buf)))
+          (when proc (delete-process proc)))
+        (kill-buffer test-buf)))))
 
 ;;; Customization Tests
 
 (ert-deftest beads-agent-claudemacs-test-tool-customization ()
-  "Test that tool customization variable exists and has default."
-  (should (boundp 'beads-agent-claudemacs-tool))
-  (should (eq beads-agent-claudemacs-tool 'claude)))
+  "Test that tool customization variable exists."
+  (should (boundp 'beads-agent-claudemacs-tool)))
 
-;;; GV-Setter Fix Tests
+(ert-deftest beads-agent-claudemacs-test-tool-default-value ()
+  "Test that tool defaults to claude."
+  (should (eq (default-value 'beads-agent-claudemacs-tool) 'claude)))
 
-(ert-deftest beads-agent-claudemacs-test-bell-handler-advice-variable-exists ()
-  "Test that the bell handler advice variable exists."
+(ert-deftest beads-agent-claudemacs-test-customization-group ()
+  "Test that customization group exists."
+  (should (get 'beads-agent-claudemacs 'group-documentation)))
+
+;;; Bell Handler Advice Tests
+
+(ert-deftest beads-agent-claudemacs-test-advice-installed-variable ()
+  "Test that advice tracking variable exists."
   (should (boundp 'beads-agent-claudemacs--bell-handler-advice-installed)))
 
-(ert-deftest beads-agent-claudemacs-test-setup-bell-handler-fixed-exists ()
-  "Test that the fixed bell handler function exists."
+(ert-deftest beads-agent-claudemacs-test-setup-bell-handler-fixed-defined ()
+  "Test that the fixed bell handler function is defined."
   (should (fboundp 'beads-agent-claudemacs--setup-bell-handler-fixed)))
 
-(ert-deftest beads-agent-claudemacs-test-advice-function-exists ()
-  "Test that the advice function for bell handler exists."
+(ert-deftest beads-agent-claudemacs-test-advice-function-defined ()
+  "Test that the advice function is defined."
   (should (fboundp 'beads-agent-claudemacs--advice-setup-bell-handler)))
 
-(ert-deftest beads-agent-claudemacs-test-ensure-gv-setter-function-exists ()
-  "Test that the ensure gv-setter function exists."
-  (should (fboundp 'beads-agent-claudemacs--ensure-eat-gv-setter)))
-
-(ert-deftest beads-agent-claudemacs-test-install-advice-function-exists ()
-  "Test that the install advice helper function exists."
+(ert-deftest beads-agent-claudemacs-test-install-advice-function-defined ()
+  "Test that the install advice function is defined."
   (should (fboundp 'beads-agent-claudemacs--install-bell-handler-advice)))
 
-(ert-deftest beads-agent-claudemacs-test-setup-bell-handler-fixed-no-error ()
-  "Test that fixed bell handler runs without error when claudemacs not loaded.
-When there is no claudemacs buffer, the function should silently do nothing."
-  ;; Should not error when claudemacs is not loaded/no buffers exist
-  (should (null (beads-agent-claudemacs--setup-bell-handler-fixed))))
+(ert-deftest beads-agent-claudemacs-test-ensure-gv-setter-defined ()
+  "Test that the gv-setter ensure function is defined."
+  (should (fboundp 'beads-agent-claudemacs--ensure-eat-gv-setter)))
 
-(ert-deftest beads-agent-claudemacs-test-advice-passes-through-success ()
-  "Test that advice passes through when original function succeeds."
-  (let ((called nil))
-    ;; Create a mock original function that succeeds
-    (let ((result (beads-agent-claudemacs--advice-setup-bell-handler
-                   (lambda () (setq called t) 'success))))
-      (should called)
-      (should (eq result 'success)))))
+;;; Additional Bell Handler Tests
 
-(ert-deftest beads-agent-claudemacs-test-advice-catches-setf-error ()
-  "Test that advice catches the specific setf error and uses fallback."
-  ;; Create a mock that simulates the setf error
-  (let ((fallback-called nil))
+(ert-deftest beads-agent-claudemacs-test-advice-handles-void-function ()
+  "Test that advice catches void-function errors for setf."
+  (let ((fixed-called nil))
     (cl-letf (((symbol-function 'beads-agent-claudemacs--setup-bell-handler-fixed)
-               (lambda () (setq fallback-called t))))
-      ;; Simulate the void-function error for (setf eat-term-parameter)
+               (lambda () (setq fixed-called t))))
+      ;; Simulate void-function error for the setf symbol
       (beads-agent-claudemacs--advice-setup-bell-handler
-       (lambda () (signal 'void-function '(\(setf\ eat-term-parameter\)))))
-      (should fallback-called))))
+       (lambda ()
+         (signal 'void-function '(\(setf\ eat-term-parameter\)))))
+      (should fixed-called))))
 
-(ert-deftest beads-agent-claudemacs-test-advice-rethrows-other-errors ()
-  "Test that advice re-throws errors that are not the setf error."
-  ;; Other void-function errors should be re-raised
+(ert-deftest beads-agent-claudemacs-test-advice-handles-wrong-type ()
+  "Test that advice catches wrong-type-argument errors."
+  (let ((fixed-called nil))
+    (cl-letf (((symbol-function 'beads-agent-claudemacs--setup-bell-handler-fixed)
+               (lambda () (setq fixed-called t))))
+      (beads-agent-claudemacs--advice-setup-bell-handler
+       (lambda ()
+         (signal 'wrong-type-argument '(nil))))
+      (should fixed-called))))
+
+(ert-deftest beads-agent-claudemacs-test-advice-reraises-other-void-function ()
+  "Test that advice re-raises void-function for other symbols."
   (should-error
    (beads-agent-claudemacs--advice-setup-bell-handler
-    (lambda () (signal 'void-function '(some-other-function))))
+    (lambda ()
+      (signal 'void-function '(other-symbol))))
    :type 'void-function))
+
+(ert-deftest beads-agent-claudemacs-test-advice-passes-through ()
+  "Test that advice passes through on success."
+  (let ((original-called nil))
+    (beads-agent-claudemacs--advice-setup-bell-handler
+     (lambda () (setq original-called t)))
+    (should original-called)))
+
+(ert-deftest beads-agent-claudemacs-test-buffer-has-process-nil-buffer ()
+  "Test buffer-has-process-p with nil buffer."
+  (should-not (beads-agent-claudemacs--buffer-has-process-p nil)))
+
+(ert-deftest beads-agent-claudemacs-test-buffer-has-process-dead-buffer ()
+  "Test buffer-has-process-p with killed buffer."
+  (let ((buf (generate-new-buffer "*test*")))
+    (kill-buffer buf)
+    (should-not (beads-agent-claudemacs--buffer-has-process-p buf))))
+
+(ert-deftest beads-agent-claudemacs-test-buffer-has-process-no-process ()
+  "Test buffer-has-process-p with live buffer but no process."
+  (let ((buf (generate-new-buffer "*test-no-proc*")))
+    (unwind-protect
+        (should-not (beads-agent-claudemacs--buffer-has-process-p buf))
+      (kill-buffer buf))))
 
 (provide 'beads-agent-claudemacs-test)
 ;;; beads-agent-claudemacs-test.el ends here

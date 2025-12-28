@@ -954,6 +954,273 @@
       (when (file-directory-p project-dir)
         (delete-directory project-dir t)))))
 
+;;; ========================================
+;;; Additional From-JSON Tests
+;;; ========================================
+
+;; NOTE: beads-label-from-json cannot be tested because beads-label class
+;; conflicts with beads-label transient prefix defined in beads-label.el
+
+(ert-deftest beads-types-test-tree-node-from-json ()
+  "Test converting JSON to beads-tree-node object."
+  (let* ((json '((id . "bd-1")
+                 (title . "Tree Node")
+                 (status . "open")
+                 (priority . 2)
+                 (issue_type . "task")
+                 (created_at . "2025-01-15T10:00:00Z")
+                 (updated_at . "2025-01-15T10:00:00Z")
+                 (depth . 2)
+                 (parent_id . "bd-0")
+                 (truncated . :json-false)))
+         (node (beads-tree-node-from-json json)))
+    (should (beads-tree-node-p node))
+    (should (string= (oref node id) "bd-1"))
+    (should (string= (oref node title) "Tree Node"))
+    (should (= (oref node depth) 2))
+    (should (string= (oref node parent-id) "bd-0"))
+    (should-not (oref node truncated))))
+
+(ert-deftest beads-types-test-tree-node-from-json-truncated ()
+  "Test beads-tree-node-from-json with truncated node."
+  (let* ((json '((id . "bd-99")
+                 (title . "Truncated Node")
+                 (status . "open")
+                 (priority . 1)
+                 (issue_type . "feature")
+                 (created_at . "2025-01-15T10:00:00Z")
+                 (updated_at . "2025-01-15T10:00:00Z")
+                 (depth . 5)
+                 (truncated . t)))
+         (node (beads-tree-node-from-json json)))
+    (should (beads-tree-node-p node))
+    (should (= (oref node depth) 5))
+    (should (oref node truncated))))
+
+(ert-deftest beads-types-test-tree-node-with-dependencies ()
+  "Test beads-tree-node-from-json with dependencies and comments."
+  (let* ((json '((id . "bd-10")
+                 (title . "Complex Node")
+                 (status . "in_progress")
+                 (priority . 3)
+                 (issue_type . "bug")
+                 (created_at . "2025-01-15T10:00:00Z")
+                 (updated_at . "2025-01-15T11:00:00Z")
+                 (depth . 0)
+                 (dependencies . [((issue_id . "bd-10")
+                                   (depends_on_id . "bd-11")
+                                   (type . "blocks")
+                                   (created_at . "2025-01-15T10:00:00Z")
+                                   (created_by . "user"))])
+                 (comments . [((id . 1)
+                               (issue_id . "bd-10")
+                               (author . "alice")
+                               (text . "Comment")
+                               (created_at . "2025-01-15T12:00:00Z"))])))
+         (node (beads-tree-node-from-json json)))
+    (should (beads-tree-node-p node))
+    (should (= (length (oref node dependencies)) 1))
+    (should (= (length (oref node comments)) 1))))
+
+(ert-deftest beads-types-test-epic-status-from-json-complete ()
+  "Test converting JSON to beads-epic-status object."
+  (let* ((json '((epic . ((id . "bd-epic")
+                          (title . "Epic Title")
+                          (status . "open")
+                          (priority . 1)
+                          (issue_type . "epic")
+                          (created_at . "2025-01-01T00:00:00Z")
+                          (updated_at . "2025-01-15T00:00:00Z")))
+                 (total_children . 10)
+                 (closed_children . 5)
+                 (eligible_for_close . t)))
+         (status (beads-epic-status-from-json json)))
+    (should (beads-epic-status-p status))
+    (should (= (oref status total-children) 10))
+    (should (= (oref status closed-children) 5))
+    (should (oref status eligible-for-close))
+    (should (beads-issue-p (oref status epic)))
+    (should (string= (oref (oref status epic) id) "bd-epic"))))
+
+(ert-deftest beads-types-test-epic-status-not-eligible ()
+  "Test beads-epic-status-from-json when not eligible for close."
+  (let* ((json '((epic . ((id . "bd-epic-2")
+                          (title . "Another Epic")
+                          (status . "in_progress")
+                          (priority . 2)
+                          (issue_type . "epic")
+                          (created_at . "2025-01-01T00:00:00Z")
+                          (updated_at . "2025-01-15T00:00:00Z")))
+                 (total_children . 5)
+                 (closed_children . 2)
+                 (eligible_for_close . :json-false)))
+         (status (beads-epic-status-from-json json)))
+    (should (beads-epic-status-p status))
+    (should-not (oref status eligible-for-close))))
+
+;;; ========================================
+;;; Issue Filter Tests
+;;; ========================================
+
+(ert-deftest beads-types-test-filter-to-args-empty ()
+  "Test filter-to-args with empty filter."
+  (let* ((filter (beads-issue-filter))
+         (args (beads-issue-filter-to-args filter)))
+    (should (null args))))
+
+(ert-deftest beads-types-test-filter-to-args-status ()
+  "Test filter-to-args with status."
+  (let* ((filter (beads-issue-filter :status "open"))
+         (args (beads-issue-filter-to-args filter)))
+    (should (member "--status" args))
+    (should (member "open" args))))
+
+(ert-deftest beads-types-test-filter-to-args-priority ()
+  "Test filter-to-args with priority range."
+  (let* ((filter (beads-issue-filter :priority-min 1 :priority-max 3))
+         (args (beads-issue-filter-to-args filter)))
+    (should (member "--priority-min" args))
+    (should (member "1" args))  ; Args are converted to strings
+    (should (member "--priority-max" args))
+    (should (member "3" args))))
+
+(ert-deftest beads-types-test-filter-to-args-boolean-flags ()
+  "Test filter-to-args with boolean flags."
+  (let* ((filter (beads-issue-filter :all t
+                                     :no-assignee t
+                                     :empty-description t
+                                     :no-labels t
+                                     :long t))
+         (args (beads-issue-filter-to-args filter)))
+    (should (member "--all" args))
+    (should (member "--no-assignee" args))
+    (should (member "--empty-description" args))
+    (should (member "--no-labels" args))
+    (should (member "--long" args))))
+
+(ert-deftest beads-types-test-filter-to-args-string-filters ()
+  "Test filter-to-args with string filters."
+  (let* ((filter (beads-issue-filter :assignee "alice"
+                                     :title-search "bug"
+                                     :issue-type "task"))
+         (args (beads-issue-filter-to-args filter)))
+    (should (member "--assignee" args))
+    (should (member "alice" args))
+    (should (member "--title" args))
+    (should (member "bug" args))
+    (should (member "--type" args))
+    (should (member "task" args))))
+
+(ert-deftest beads-types-test-filter-to-args-date-filters ()
+  "Test filter-to-args with date filters."
+  (let* ((filter (beads-issue-filter :created-after "2025-01-01"
+                                     :created-before "2025-12-31"
+                                     :updated-after "2025-06-01"
+                                     :updated-before "2025-06-30"
+                                     :closed-after "2025-03-01"
+                                     :closed-before "2025-03-31"))
+         (args (beads-issue-filter-to-args filter)))
+    (should (member "--created-after" args))
+    (should (member "2025-01-01" args))
+    (should (member "--created-before" args))
+    (should (member "2025-12-31" args))
+    (should (member "--updated-after" args))
+    (should (member "--updated-before" args))
+    (should (member "--closed-after" args))
+    (should (member "--closed-before" args))))
+
+(ert-deftest beads-types-test-filter-to-args-text-search ()
+  "Test filter-to-args with text search filters."
+  (let* ((filter (beads-issue-filter :title-contains "error"
+                                     :description-contains "fix"
+                                     :notes-contains "todo"))
+         (args (beads-issue-filter-to-args filter)))
+    (should (member "--title-contains" args))
+    (should (member "error" args))
+    (should (member "--desc-contains" args))
+    (should (member "fix" args))
+    (should (member "--notes-contains" args))
+    (should (member "todo" args))))
+
+(ert-deftest beads-types-test-filter-to-args-labels ()
+  "Test filter-to-args with multiple labels."
+  (let* ((filter (beads-issue-filter :labels '("bug" "critical")))
+         (args (beads-issue-filter-to-args filter)))
+    ;; Should have --label twice
+    (should (= (cl-count "--label" args :test #'equal) 2))
+    (should (member "bug" args))
+    (should (member "critical" args))))
+
+(ert-deftest beads-types-test-filter-to-args-labels-any ()
+  "Test filter-to-args with labels-any."
+  (let* ((filter (beads-issue-filter :labels-any '("frontend" "backend")))
+         (args (beads-issue-filter-to-args filter)))
+    (should (= (cl-count "--label-any" args :test #'equal) 2))
+    (should (member "frontend" args))
+    (should (member "backend" args))))
+
+(ert-deftest beads-types-test-filter-to-args-limit ()
+  "Test filter-to-args with limit."
+  (let* ((filter (beads-issue-filter :limit 10))
+         (args (beads-issue-filter-to-args filter)))
+    (should (member "--limit" args))
+    (should (member "10" args))))  ; Args are converted to strings
+
+(ert-deftest beads-types-test-filter-to-args-format ()
+  "Test filter-to-args with format."
+  (let* ((filter (beads-issue-filter :format "json"))
+         (args (beads-issue-filter-to-args filter)))
+    (should (member "--format" args))
+    (should (member "json" args))))
+
+(ert-deftest beads-types-test-filter-to-args-ids ()
+  "Test filter-to-args with ids."
+  (let* ((filter (beads-issue-filter :ids '("bd-1" "bd-2")))
+         (args (beads-issue-filter-to-args filter)))
+    ;; Check that ids are included in args (implementation may vary)
+    (should (or (member "--id" args)
+                (member "bd-1" args)
+                (member "bd-2" args)))))
+
+(ert-deftest beads-types-test-filter-to-args-combined ()
+  "Test filter-to-args with multiple filter types combined."
+  (let* ((filter (beads-issue-filter :status "open"
+                                     :priority-min 2
+                                     :assignee "bob"
+                                     :labels '("urgent")
+                                     :all t
+                                     :limit 50))
+         (args (beads-issue-filter-to-args filter)))
+    (should (member "--status" args))
+    (should (member "--priority-min" args))
+    (should (member "--assignee" args))
+    (should (member "--label" args))
+    (should (member "--all" args))
+    (should (member "--limit" args))))
+
+;;; ========================================
+;;; Issue Filter is-empty Method Tests
+;;; ========================================
+
+(ert-deftest beads-types-test-filter-is-empty-with-status ()
+  "Test filter is-empty returns nil when status is set."
+  (let ((filter (beads-issue-filter :status "open")))
+    (should-not (beads-issue-filter-is-empty filter))))
+
+(ert-deftest beads-types-test-filter-is-empty-with-priority ()
+  "Test filter is-empty returns nil when priority-min is set."
+  (let ((filter (beads-issue-filter :priority-min 2)))
+    (should-not (beads-issue-filter-is-empty filter))))
+
+(ert-deftest beads-types-test-filter-is-empty-with-labels ()
+  "Test filter is-empty returns nil when labels is set."
+  (let ((filter (beads-issue-filter :labels '("bug"))))
+    (should-not (beads-issue-filter-is-empty filter))))
+
+(ert-deftest beads-types-test-filter-is-empty-with-all-flag ()
+  "Test filter is-empty returns nil when all flag is set."
+  (let ((filter (beads-issue-filter :all t)))
+    (should-not (beads-issue-filter-is-empty filter))))
 
 (provide 'beads-types-test)
 ;;; beads-types-test.el ends here

@@ -233,5 +233,209 @@
       ;; Otherwise it should be unavailable
       (should (not (beads-agent-backend-available-p backend))))))
 
+;;; Mocked Availability Tests
+
+(ert-deftest beads-agent-claude-code-ide-test-available-all-deps ()
+  "Test availability when all dependencies are present."
+  (let ((backend (beads-agent-backend-claude-code-ide)))
+    (cl-letf (((symbol-function 'featurep)
+               (lambda (f) (memq f '(web-server claude-code-ide))))
+              ((symbol-function 'fboundp)
+               (lambda (f) (memq f '(claude-code-ide
+                                     claude-code-ide-stop
+                                     claude-code-ide-send-prompt
+                                     claude-code-ide-switch-to-buffer))))
+              ((symbol-function 'executable-find)
+               (lambda (name) (when (equal name "claude") "/usr/bin/claude"))))
+      (should (beads-agent-backend-available-p backend)))))
+
+(ert-deftest beads-agent-claude-code-ide-test-not-available-no-web-server ()
+  "Test unavailability when web-server is missing."
+  (let ((backend (beads-agent-backend-claude-code-ide)))
+    (cl-letf (((symbol-function 'featurep)
+               (lambda (f) (eq f 'claude-code-ide)))
+              ((symbol-function 'require)
+               (lambda (f &rest _) (not (eq f 'web-server))))
+              ((symbol-function 'fboundp) (lambda (_) t))
+              ((symbol-function 'executable-find) (lambda (_) "/usr/bin/claude")))
+      (should-not (beads-agent-backend-available-p backend)))))
+
+(ert-deftest beads-agent-claude-code-ide-test-not-available-no-claude ()
+  "Test unavailability when claude executable is missing."
+  (let ((backend (beads-agent-backend-claude-code-ide)))
+    (cl-letf (((symbol-function 'featurep) (lambda (_) t))
+              ((symbol-function 'fboundp) (lambda (_) t))
+              ((symbol-function 'executable-find) (lambda (_) nil)))
+      (should-not (beads-agent-backend-available-p backend)))))
+
+(ert-deftest beads-agent-claude-code-ide-test-not-available-no-package ()
+  "Test unavailability when claude-code-ide package is missing."
+  (let ((backend (beads-agent-backend-claude-code-ide)))
+    (cl-letf (((symbol-function 'featurep)
+               (lambda (f) (eq f 'web-server)))
+              ((symbol-function 'require)
+               (lambda (f &rest _) (not (eq f 'claude-code-ide))))
+              ((symbol-function 'fboundp) (lambda (_) nil))
+              ((symbol-function 'executable-find) (lambda (_) "/usr/bin/claude")))
+      (should-not (beads-agent-backend-available-p backend)))))
+
+;;; Start Session Tests (Mocked)
+
+(ert-deftest beads-agent-claude-code-ide-test-start-error-no-web-server ()
+  "Test that start errors when web-server is missing."
+  (let ((backend (beads-agent-backend-claude-code-ide)))
+    (cl-letf (((symbol-function 'featurep) (lambda (_) nil))
+              ((symbol-function 'require) (lambda (&rest _) nil)))
+      (should-error (beads-agent-backend-start backend nil "Test prompt")
+                    :type 'error))))
+
+(ert-deftest beads-agent-claude-code-ide-test-start-error-no-package ()
+  "Test that start errors when claude-code-ide is missing."
+  (let ((backend (beads-agent-backend-claude-code-ide)))
+    (cl-letf (((symbol-function 'featurep)
+               (lambda (f) (eq f 'web-server)))
+              ((symbol-function 'require)
+               (lambda (f &rest _) (eq f 'web-server))))
+      (should-error (beads-agent-backend-start backend nil "Test prompt")
+                    :type 'error))))
+
+(ert-deftest beads-agent-claude-code-ide-test-start-error-no-claude ()
+  "Test that start errors when claude executable is missing."
+  (let ((backend (beads-agent-backend-claude-code-ide)))
+    (cl-letf (((symbol-function 'featurep) (lambda (_) t))
+              ((symbol-function 'require) (lambda (&rest _) t))
+              ((symbol-function 'executable-find) (lambda (_) nil)))
+      (should-error (beads-agent-backend-start backend nil "Test prompt")
+                    :type 'error))))
+
+;;; Session Active Tests
+
+(ert-deftest beads-agent-claude-code-ide-test-session-active-with-backend ()
+  "Test session-active-p when MCP session exists."
+  (let ((backend (beads-agent-backend-claude-code-ide))
+        (session (beads-agent-session
+                  :id "test#1"
+                  :issue-id "test"
+                  :backend-name "claude-code-ide"
+                  :project-dir "/tmp/test"
+                  :started-at "2025-01-01T00:00:00Z"
+                  :backend-session 'mock-mcp-session)))
+    (cl-letf (((symbol-function 'require) (lambda (&rest _) t))
+              ((symbol-function 'claude-code-ide-mcp--get-session-for-project)
+               (lambda (_dir) 'mock-mcp-session)))
+      (should (beads-agent-backend-session-active-p backend session)))))
+
+(ert-deftest beads-agent-claude-code-ide-test-session-not-active-no-backend ()
+  "Test session-active-p when backend-session is nil."
+  (let ((backend (beads-agent-backend-claude-code-ide))
+        (session (beads-agent-session
+                  :id "test#1"
+                  :issue-id "test"
+                  :backend-name "claude-code-ide"
+                  :project-dir "/tmp/test"
+                  :started-at "2025-01-01T00:00:00Z"
+                  :backend-session nil)))
+    (cl-letf (((symbol-function 'require) (lambda (&rest _) t)))
+      (should-not (beads-agent-backend-session-active-p backend session)))))
+
+(ert-deftest beads-agent-claude-code-ide-test-session-not-active-mcp-gone ()
+  "Test session-active-p when MCP session is no longer available."
+  (let ((backend (beads-agent-backend-claude-code-ide))
+        (session (beads-agent-session
+                  :id "test#1"
+                  :issue-id "test"
+                  :backend-name "claude-code-ide"
+                  :project-dir "/tmp/test"
+                  :started-at "2025-01-01T00:00:00Z"
+                  :backend-session 'mock-mcp-session)))
+    (cl-letf (((symbol-function 'require) (lambda (&rest _) t))
+              ((symbol-function 'claude-code-ide-mcp--get-session-for-project)
+               (lambda (_dir) nil)))
+      (should-not (beads-agent-backend-session-active-p backend session)))))
+
+;;; Switch to Buffer Tests
+
+(ert-deftest beads-agent-claude-code-ide-test-switch-to-buffer-success ()
+  "Test switching to an existing live buffer."
+  (let* ((test-buf (generate-new-buffer "*test-claude-switch*"))
+         (backend (beads-agent-backend-claude-code-ide))
+         (session (beads-agent-session
+                   :id "test#1"
+                   :issue-id "test"
+                   :backend-name "claude-code-ide"
+                   :project-dir "/tmp/test"
+                   :started-at "2025-01-01T00:00:00Z"
+                   :buffer test-buf))
+         (switched-to nil))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-agent--pop-to-buffer-other-window)
+                   (lambda (buf) (setq switched-to buf))))
+          (beads-agent-backend-switch-to-buffer backend session)
+          (should (equal switched-to test-buf)))
+      (kill-buffer test-buf))))
+
+(ert-deftest beads-agent-claude-code-ide-test-switch-to-buffer-killed ()
+  "Test switching to a killed buffer errors appropriately."
+  (let* ((test-buf (generate-new-buffer "*test-claude-switch-killed*"))
+         (backend (beads-agent-backend-claude-code-ide))
+         (session (beads-agent-session
+                   :id "test#1"
+                   :issue-id "test"
+                   :backend-name "claude-code-ide"
+                   :project-dir "/tmp/test"
+                   :started-at "2025-01-01T00:00:00Z"
+                   :buffer test-buf)))
+    (kill-buffer test-buf)
+    (should-error (beads-agent-backend-switch-to-buffer backend session)
+                  :type 'user-error)))
+
+(ert-deftest beads-agent-claude-code-ide-test-switch-to-buffer-nil ()
+  "Test switching when no buffer is set errors appropriately."
+  (let ((backend (beads-agent-backend-claude-code-ide))
+        (session (beads-agent-session
+                  :id "test#1"
+                  :issue-id "test"
+                  :backend-name "claude-code-ide"
+                  :project-dir "/tmp/test"
+                  :started-at "2025-01-01T00:00:00Z"
+                  :buffer nil)))
+    (should-error (beads-agent-backend-switch-to-buffer backend session)
+                  :type 'user-error)))
+
+;;; Send Prompt Tests
+
+(ert-deftest beads-agent-claude-code-ide-test-send-prompt ()
+  "Test sending a prompt to the session."
+  (let ((backend (beads-agent-backend-claude-code-ide))
+        (session (beads-agent-session
+                  :id "test#1"
+                  :issue-id "test"
+                  :backend-name "claude-code-ide"
+                  :project-dir "/tmp/test"
+                  :started-at "2025-01-01T00:00:00Z"))
+        (sent-prompt nil)
+        (sent-in-dir nil))
+    (cl-letf (((symbol-function 'require) (lambda (&rest _) t))
+              ((symbol-function 'claude-code-ide-send-prompt)
+               (lambda (prompt)
+                 (setq sent-prompt prompt)
+                 (setq sent-in-dir default-directory))))
+      (beads-agent-backend-send-prompt backend session "Test prompt")
+      (should (equal sent-prompt "Test prompt"))
+      (should (equal sent-in-dir "/tmp/test")))))
+
+;;; Backend Class Tests
+
+(ert-deftest beads-agent-claude-code-ide-test-backend-name ()
+  "Test backend has correct name."
+  (let ((backend (beads-agent-backend-claude-code-ide)))
+    (should (equal (oref backend name) "claude-code-ide"))))
+
+(ert-deftest beads-agent-claude-code-ide-test-backend-description ()
+  "Test backend has description."
+  (let ((backend (beads-agent-backend-claude-code-ide)))
+    (should (stringp (oref backend description)))
+    (should (> (length (oref backend description)) 0))))
+
 (provide 'beads-agent-claude-code-ide-test)
 ;;; beads-agent-claude-code-ide-test.el ends here

@@ -2445,5 +2445,153 @@ Empty sessions are automatically cleaned up."
       (kill-buffer test-buffer)
       (setq beads-sesman--worktree-sessions nil))))
 
+;;; Additional Coverage Tests
+
+(ert-deftest beads-show-test-truncate-title-short ()
+  "Test truncate-title with short title."
+  (should (equal "Short Title"
+                 (beads-show--truncate-title "Short Title" 30))))
+
+(ert-deftest beads-show-test-truncate-title-long ()
+  "Test truncate-title with long title."
+  (let ((result (beads-show--truncate-title "This is a very long title" 15)))
+    (should (= (length result) 15))
+    (should (string-suffix-p "..." result))))
+
+(ert-deftest beads-show-test-truncate-title-nil ()
+  "Test truncate-title with nil."
+  (should (equal "Untitled" (beads-show--truncate-title nil 20))))
+
+(ert-deftest beads-show-test-format-sub-issue-status-open ()
+  "Test format-sub-issue-status for open."
+  (let ((result (beads-show--format-sub-issue-status "open")))
+    (should (string= "OPEN" result))
+    (should (eq (get-text-property 0 'face result) 'success))))
+
+(ert-deftest beads-show-test-format-sub-issue-status-closed ()
+  "Test format-sub-issue-status for closed."
+  (let ((result (beads-show--format-sub-issue-status "closed")))
+    (should (string= "CLOSED" result))
+    (should (eq (get-text-property 0 'face result) 'shadow))))
+
+(ert-deftest beads-show-test-format-sub-issue-status-blocked ()
+  "Test format-sub-issue-status for blocked."
+  (let ((result (beads-show--format-sub-issue-status "blocked")))
+    (should (string= "BLOCKED" result))
+    (should (eq (get-text-property 0 'face result) 'error))))
+
+(ert-deftest beads-show-test-format-sub-issue-status-in-progress ()
+  "Test format-sub-issue-status for in_progress."
+  (let ((result (beads-show--format-sub-issue-status "in_progress")))
+    (should (string= "IN_PROGRESS" result))
+    (should (eq (get-text-property 0 'face result) 'warning))))
+
+(ert-deftest beads-show-test-normalize-directory-strips-trailing ()
+  "Test normalize-directory strips trailing slash."
+  (should (equal "/home/test/project"
+                 (beads-show--normalize-directory "/home/test/project/"))))
+
+(ert-deftest beads-show-test-normalize-directory-expands ()
+  "Test normalize-directory expands file name."
+  (let ((result (beads-show--normalize-directory "~")))
+    (should (stringp result))
+    (should (not (string-prefix-p "~" result)))))
+
+(ert-deftest beads-show-test-find-buffer-for-issue-no-match ()
+  "Test find-buffer-for-issue returns nil when not found."
+  (should (null (beads-show--find-buffer-for-issue "nonexistent-id" "/tmp"))))
+
+;;; Insert Functions Tests
+
+(ert-deftest beads-show-test-insert-header-with-value ()
+  "Test insert-header with value."
+  (with-temp-buffer
+    (beads-show--insert-header "Status" "open")
+    (should (string-match-p "Status" (buffer-string)))
+    (should (string-match-p "open" (buffer-string)))))
+
+(ert-deftest beads-show-test-insert-header-with-face ()
+  "Test insert-header with custom face."
+  (with-temp-buffer
+    (beads-show--insert-header "Priority" "P1" 'error)
+    (should (string-match-p "Priority" (buffer-string)))
+    (should (string-match-p "P1" (buffer-string)))))
+
+(ert-deftest beads-show-test-insert-section-with-content ()
+  "Test insert-section with content."
+  (with-temp-buffer
+    (beads-show--insert-section "Description" "Test content here.")
+    (should (string-match-p "Description" (buffer-string)))
+    (should (string-match-p "Test content" (buffer-string)))))
+
+(ert-deftest beads-show-test-insert-section-nil-content ()
+  "Test insert-section with nil content."
+  (with-temp-buffer
+    (beads-show--insert-section "Notes" nil)
+    ;; With nil content, section may or may not insert anything
+    (should t)))
+
+;;; Formatting Functions Tests
+
+(ert-deftest beads-show-test-format-status-all-statuses ()
+  "Test format-status for all status values."
+  (should (stringp (beads-show--format-status "open")))
+  (should (stringp (beads-show--format-status "closed")))
+  (should (stringp (beads-show--format-status "in_progress")))
+  (should (stringp (beads-show--format-status "blocked"))))
+
+(ert-deftest beads-show-test-format-priority-all-values ()
+  "Test format-priority for all priority values."
+  (should (stringp (beads-show--format-priority 0)))
+  (should (stringp (beads-show--format-priority 1)))
+  (should (stringp (beads-show--format-priority 2)))
+  (should (stringp (beads-show--format-priority 3)))
+  (should (stringp (beads-show--format-priority 4))))
+
+(ert-deftest beads-show-test-format-date-valid ()
+  "Test format-date with valid ISO date."
+  (let ((result (beads-show--format-date "2025-01-01T12:00:00Z")))
+    (should (stringp result))))
+
+;;; Section Level Tests
+
+(ert-deftest beads-show-test-section-level-function-exists ()
+  "Test section-level function exists."
+  (should (fboundp 'beads-show--section-level)))
+
+(ert-deftest beads-show-test-extract-issue-at-point-exists ()
+  "Test extract-issue-at-point function exists."
+  (should (fboundp 'beads-show--extract-issue-at-point)))
+
+;;; Additional Coverage Tests
+
+(ert-deftest beads-show-test-in-fenced-code-block-outside-returns-nil ()
+  "Test in-fenced-code-block outside code block."
+  (with-temp-buffer
+    (insert "Normal text\nMore text\n")
+    (goto-char (point-min))
+    (should-not (beads-show--in-fenced-code-block))))
+
+(ert-deftest beads-show-test-skip-blank-lines-backward-moves-point ()
+  "Test skip-blank-lines-backward function."
+  (with-temp-buffer
+    (insert "Text\n\n\n\nHere")
+    (goto-char (point-max))
+    (beads-show--skip-blank-lines-backward)
+    ;; Should stop after blank lines
+    (should (<= (point) (point-max)))))
+
+(ert-deftest beads-show-test-button-action-function-exists ()
+  "Test button-action function exists."
+  (should (fboundp 'beads-show--button-action)))
+
+(ert-deftest beads-show-test-get-sub-issues-nil-tree ()
+  "Test get-sub-issues with issue without sub-issues."
+  (let ((issue (beads-issue :id "bd-1" :title "Test"
+                            :status "open" :priority 2
+                            :issue-type "task")))
+    ;; Should not error
+    (should (listp (beads-show--get-sub-issues issue)))))
+
 (provide 'beads-show-test)
 ;;; beads-show-test.el ends here

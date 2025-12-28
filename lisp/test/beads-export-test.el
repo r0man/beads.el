@@ -196,5 +196,91 @@ Integration test that verifies force flag works."
          (errors (beads-export--validate-all cmd)))
     (should (null errors))))
 
+;;; Transient Suffix Tests
+;;
+;; These tests exercise the transient suffix commands by mocking
+;; transient-args to bypass the interactive UI.
+
+(ert-deftest beads-export-test-execute-command-flow ()
+  "Test execute-command suffix flow with mocked transient-args."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create test issue
+    (beads-command-create! :title "Export flow test")
+    (let ((temp-file (make-temp-file "beads-export-test-" nil ".jsonl")))
+      (unwind-protect
+          (cl-letf (((symbol-function 'transient-args)
+                     (lambda (_prefix)
+                       (list (format "--output=%s" temp-file)))))
+            (beads-export--execute-command)
+            (should (file-exists-p temp-file)))
+        (when (file-exists-p temp-file)
+          (delete-file temp-file))))))
+
+(ert-deftest beads-export-test-preview-command ()
+  "Test preview command shows correct command."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let ((message-output nil))
+      (cl-letf (((symbol-function 'transient-args)
+                 (lambda (_prefix)
+                   '("--output=/tmp/test.jsonl" "--status=open")))
+                ((symbol-function 'message)
+                 (lambda (fmt &rest args)
+                   (setq message-output (apply #'format fmt args)))))
+        (beads-export--preview)
+        (should message-output)
+        (should (string-match-p "export" message-output))
+        (should (string-match-p "-o" message-output))))))
+
+(ert-deftest beads-export-test-execute-error-handling ()
+  "Test execute handles errors gracefully."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-export :output "/tmp/test.jsonl"))
+         (error-called nil))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_cmd) (error "Test error")))
+              ((symbol-function 'beads--error)
+               (lambda (_fmt &rest _args) (setq error-called t))))
+      (beads-export--execute cmd)
+      (should error-called))))
+
+(ert-deftest beads-export-test-execute-command-with-default-output ()
+  "Test execute-command uses default output when not specified."
+  :tags '(:integration)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create test issue
+    (beads-command-create! :title "Default output test")
+    (let ((executed nil)
+          (output-used nil))
+      (cl-letf (((symbol-function 'transient-args)
+                 (lambda (_prefix)
+                   '()))  ; No output specified
+                ((symbol-function 'beads-export--execute)
+                 (lambda (cmd)
+                   (setq executed t)
+                   (setq output-used (oref cmd output)))))
+        (beads-export--execute-command)
+        (should executed)
+        (should (stringp output-used))
+        (should (string-match-p "issues\\.jsonl$" output-used))))))
+
+(ert-deftest beads-export-test-execute-command-validation-error ()
+  "Test execute-command handles validation errors."
+  :tags '(:unit)
+  (let ((error-caught nil))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_prefix)
+                 '("--format=invalid")))  ; Invalid format
+              ((symbol-function 'beads-export--get-default-output)
+               (lambda () "/tmp/test.jsonl")))
+      (condition-case nil
+          (beads-export--execute-command)
+        (user-error (setq error-caught t)))
+      (should error-caught))))
+
 (provide 'beads-export-test)
 ;;; beads-export-test.el ends here

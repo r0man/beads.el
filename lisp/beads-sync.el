@@ -52,8 +52,7 @@
   ;; Refresh all beads-show buffers
   (dolist (buf (buffer-list))
     (with-current-buffer buf
-      (when (and (boundp 'beads-show-mode)
-                 beads-show-mode)
+      (when (eq major-mode 'beads-show-mode)
         (ignore-errors
           (beads-refresh-show))))))
 

@@ -252,5 +252,34 @@
       ;; Should validate 1000 times in under 0.5 seconds
       (should (< elapsed 0.5)))))
 
+;;; Tests for Reset Function
+
+(ert-deftest beads-close-test-reset-confirmed ()
+  "Test reset when user confirms."
+  (let ((reset-called nil)
+        (message-output nil))
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_prompt) t))
+              ((symbol-function 'transient-reset)
+               (lambda () (setq reset-called t)))
+              ((symbol-function 'transient--redisplay)
+               (lambda ()))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-output (apply #'format fmt args)))))
+      (beads-close--reset)
+      (should reset-called)
+      (should (string-match-p "reset" message-output)))))
+
+(ert-deftest beads-close-test-reset-declined ()
+  "Test reset when user declines."
+  (let ((reset-called nil))
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_prompt) nil))
+              ((symbol-function 'transient-reset)
+               (lambda () (setq reset-called t))))
+      (beads-close--reset)
+      (should-not reset-called))))
+
 (provide 'beads-close-test)
 ;;; beads-close-test.el ends here

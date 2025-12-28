@@ -600,11 +600,11 @@ Returns a beads-command-list object with all applicable filters set."
       (oset command created-before created-before))
     (when-let ((desc-contains (transient-arg-value
                                 "--desc-contains=" args)))
-      (oset command description-contains desc-contains))
+      (oset command desc-contains desc-contains))
     (when-let ((format (transient-arg-value "--format=" args)))
       (oset command format format))
     (when-let ((id (transient-arg-value "--id=" args)))
-      (oset command ids (list id)))
+      (oset command id id))
     (when-let ((notes-contains (transient-arg-value
                                  "--notes-contains=" args)))
       (oset command notes-contains notes-contains))
@@ -632,9 +632,9 @@ Returns a beads-command-list object with all applicable filters set."
         (when (string-prefix-p "--label-any=" arg)
           (push (substring arg (length "--label-any=")) label-any-values)))
       (when label-values
-        (oset command labels (nreverse label-values)))
+        (oset command label (nreverse label-values)))
       (when label-any-values
-        (oset command labels-any (nreverse label-any-values))))
+        (oset command label-any (nreverse label-any-values))))
     ;; Numeric options
     (when-let ((limit-str (transient-arg-value "--limit=" args)))
       (oset command limit (string-to-number limit-str)))

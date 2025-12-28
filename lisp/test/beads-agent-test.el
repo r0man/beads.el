@@ -3386,6 +3386,535 @@ Each type maintains its own instance counter per project."
           (should (string= result "[t]"))))
     (beads-agent-test--teardown)))
 
+;;; More Mode Line Tests
+
+(ert-deftest beads-agent-test-mode-line-format-full-complete ()
+  "Test full format with all components."
+  (beads-agent-test--setup)
+  (unwind-protect
+      ;; Create a real session object for testing
+      (let* ((session (beads-agent-session
+                       :id "test#1"
+                       :issue-id "bd-42"
+                       :backend-name "mock"
+                       :project-dir "/tmp/test"
+                       :started-at "2025-01-01T00:00:00Z"
+                       :agent-type-name "task"))
+             (ctx (list :project-name "myproject"
+                        :branch "feature"
+                        :in-worktree t
+                        :agent-session session
+                        :agent-type "task"
+                        :agent-instance 2)))
+        (let ((result (beads-agent--mode-line-format-full ctx)))
+          (should (stringp result))
+          (should (string-match-p "myproject" result))
+          (should (string-match-p "feature" result))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-mode-line-format-full-no-session ()
+  "Test full format without agent session."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((ctx (list :project-name "proj"
+                       :branch "main"
+                       :in-worktree nil
+                       :agent-session nil
+                       :agent-type nil
+                       :agent-instance nil)))
+        (let ((result (beads-agent--mode-line-format-full ctx)))
+          (should (stringp result))
+          (should (string-match-p "proj" result))))
+    (beads-agent-test--teardown)))
+
+;;; Focus Issue Tests
+
+(ert-deftest beads-agent-test-focus-issue-no-session ()
+  "Test that focus-issue errors when no session exists."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads-agent--get-current-project-session)
+                 (lambda () nil)))
+        (should-error (beads-agent-focus-issue "bd-123")
+                      :type 'user-error))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-clear-focus-no-session ()
+  "Test that clear-focus errors when no session exists."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads-agent--get-current-project-session)
+                 (lambda () nil)))
+        (should-error (beads-agent-clear-focus)
+                      :type 'user-error))
+    (beads-agent-test--teardown)))
+
+;;; Extract JSON Tests
+
+(ert-deftest beads-agent-test-extract-json-simple ()
+  "Test extracting JSON from simple output."
+  (let ((output "{\"id\":\"bd-1\",\"title\":\"Test\"}"))
+    (let ((result (beads-agent--extract-json output)))
+      (should (stringp result))
+      (should (string-match-p "bd-1" result)))))
+
+(ert-deftest beads-agent-test-extract-json-with-prefix ()
+  "Test extracting JSON with text prefix."
+  (let ((output "Some prefix text\n{\"id\":\"bd-2\",\"title\":\"Test2\"}"))
+    (let ((result (beads-agent--extract-json output)))
+      (should (stringp result))
+      (should (string-prefix-p "{" result))
+      (should (string-match-p "bd-2" result)))))
+
+(ert-deftest beads-agent-test-extract-json-array ()
+  "Test extracting JSON array."
+  (let ((output "[{\"id\":\"bd-1\"},{\"id\":\"bd-2\"}]"))
+    (let ((result (beads-agent--extract-json output)))
+      (should (stringp result))
+      (should (string-prefix-p "[" result)))))
+
+(ert-deftest beads-agent-test-extract-json-no-json ()
+  "Test extracting JSON when there is no JSON delimiter."
+  (let ((output "This is just plain text without JSON"))
+    ;; Returns original output when no JSON found
+    (let ((result (beads-agent--extract-json output)))
+      (should (equal result output)))))
+
+(ert-deftest beads-agent-test-extract-json-empty ()
+  "Test extracting JSON from empty string."
+  ;; Returns original empty string when no JSON found
+  (should (equal (beads-agent--extract-json "") "")))
+
+;;; Detect Issue ID Tests
+
+(ert-deftest beads-agent-test-detect-issue-id-from-mode ()
+  "Test detecting issue ID from beads-show-mode."
+  (beads-agent-test--setup)
+  (let ((test-buf nil))
+    (unwind-protect
+        (progn
+          (setq test-buf (get-buffer-create "*beads-show: bd-test-1*"))
+          (with-current-buffer test-buf
+            (setq major-mode 'beads-show-mode)
+            (should (equal (beads-agent--detect-issue-id) "bd-test-1"))))
+      (when (and test-buf (buffer-live-p test-buf))
+        (kill-buffer test-buf))
+      (beads-agent-test--teardown))))
+
+;;; Session Display Name Tests
+
+(ert-deftest beads-agent-test-session-display-name ()
+  "Test generating session display name."
+  ;; Format is "Type#N (backend)" where Type defaults to "Agent"
+  (let ((session (beads-agent-session
+                  :id "test#1"
+                  :issue-id "bd-42"
+                  :backend-name "mock"
+                  :project-dir "/tmp/test"
+                  :started-at "2025-01-01T00:00:00Z")))
+    (let ((name (beads-agent--session-display-name session)))
+      (should (stringp name))
+      ;; Without type, defaults to "Agent#N (backend)"
+      (should (string-match-p "Agent#" name))
+      (should (string-match-p "mock" name)))))
+
+(ert-deftest beads-agent-test-session-display-name-with-type ()
+  "Test generating session display name with agent type."
+  ;; Format is "Type#N (backend)"
+  (let ((session (beads-agent-session
+                  :id "test#1"
+                  :issue-id "bd-42"
+                  :backend-name "mock"
+                  :project-dir "/tmp/test"
+                  :started-at "2025-01-01T00:00:00Z"
+                  :agent-type-name "task")))
+    (let ((name (beads-agent--session-display-name session)))
+      (should (stringp name))
+      ;; With type, uses "task#N (backend)"
+      (should (string-match-p "task#" name))
+      (should (string-match-p "mock" name)))))
+
+;;; Build Prompt Tests
+
+(ert-deftest beads-agent-test-build-prompt-basic ()
+  "Test building prompt from issue."
+  (let ((issue (beads-issue
+                :id "bd-1"
+                :title "Test Issue"
+                :description "A description"
+                :status "open"
+                :priority 2
+                :issue-type "task"
+                :created-at "2025-01-01"
+                :updated-at "2025-01-01")))
+    (let ((prompt (beads-agent--build-prompt issue)))
+      (should (stringp prompt))
+      (should (string-match-p "bd-1" prompt))
+      (should (string-match-p "Test Issue" prompt)))))
+
+(ert-deftest beads-agent-test-build-prompt-with-acceptance ()
+  "Test building prompt from issue with acceptance criteria."
+  ;; The build-prompt function uses title, description, and acceptance-criteria
+  (let ((issue (beads-issue
+                :id "bd-2"
+                :title "Issue With Acceptance"
+                :description "Description"
+                :acceptance-criteria "Must pass all tests"
+                :status "open"
+                :priority 1
+                :issue-type "bug"
+                :created-at "2025-01-01"
+                :updated-at "2025-01-01")))
+    (let ((prompt (beads-agent--build-prompt issue)))
+      (should (stringp prompt))
+      (should (string-match-p "bd-2" prompt))
+      (should (string-match-p "Issue With Acceptance" prompt))
+      (should (string-match-p "Must pass all tests" prompt)))))
+
+;;; Backend Selection Tests
+
+(ert-deftest beads-agent-test-select-backend-available ()
+  "Test selecting an available backend."
+  (beads-agent-test--setup)
+  (unwind-protect
+      ;; Mock the get-available-backends function (not get-all-backends)
+      (let ((mock-backend (beads-agent-backend-mock)))
+        (cl-letf (((symbol-function 'beads-agent--get-available-backends)
+                   (lambda () (list mock-backend)))
+                  ;; Also need to set default to avoid prompting
+                  (beads-agent-default-backend "mock")
+                  ((symbol-function 'beads-agent--backend-available-and-get)
+                   (lambda (_name) mock-backend)))
+          (let ((backend (beads-agent--select-backend)))
+            (should backend)
+            ;; Check it's a subclass of beads-agent-backend using cl-typep
+            (should (cl-typep backend 'beads-agent-backend)))))
+    (beads-agent-test--teardown)))
+
+;;; Mode Line Context Tests
+
+(ert-deftest beads-agent-test-mode-line-context-structure ()
+  "Test mode line context returns proper structure."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads-agent--mode-line-cached-git-info)
+                 (lambda () (cons "main" nil)))
+                ((symbol-function 'beads--get-project-name)
+                 (lambda () "test-proj")))
+        (let ((ctx (beads-agent--mode-line-context)))
+          (should (listp ctx))
+          (should (plist-get ctx :project-name))
+          (should (plist-get ctx :branch))))
+    (beads-agent-test--teardown)))
+
+;;; Auto Status Update Tests
+
+(ert-deftest beads-agent-test-maybe-update-status-disabled ()
+  "Test that maybe-update-status does nothing when disabled."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent-auto-set-in-progress nil)
+            (called nil))
+        (cl-letf (((symbol-function 'beads-command-show!)
+                   (lambda (&rest _) (setq called t))))
+          (beads-agent--maybe-update-status "bd-1")
+          ;; Should not call show! when disabled
+          (should-not called)))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-maybe-update-status-enabled ()
+  "Test that maybe-update-status updates open issues."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent-auto-set-in-progress t)
+            (updated nil))
+        (cl-letf (((symbol-function 'beads-command-show!)
+                   (lambda (&rest _)
+                     (beads-issue :id "bd-1" :title "Test"
+                                  :status "open"
+                                  :priority 2 :issue-type "task"
+                                  :created-at "2025-01-01"
+                                  :updated-at "2025-01-01")))
+                  ((symbol-function 'beads-command-update!)
+                   (lambda (&rest _) (setq updated t))))
+          (beads-agent--maybe-update-status "bd-1")
+          ;; Should call update! for open issues
+          (should updated)))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-maybe-update-status-not-open ()
+  "Test that maybe-update-status skips non-open issues."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent-auto-set-in-progress t)
+            (updated nil))
+        (cl-letf (((symbol-function 'beads-command-show!)
+                   (lambda (&rest _)
+                     (beads-issue :id "bd-1" :title "Test"
+                                  :status "in_progress"
+                                  :priority 2 :issue-type "task"
+                                  :created-at "2025-01-01"
+                                  :updated-at "2025-01-01")))
+                  ((symbol-function 'beads-command-update!)
+                   (lambda (&rest _) (setq updated t))))
+          (beads-agent--maybe-update-status "bd-1")
+          ;; Should NOT call update! for in_progress issues
+          (should-not updated)))
+    (beads-agent-test--teardown)))
+
+;;; Jump Tests
+
+(ert-deftest beads-agent-test-jump-no-sessions ()
+  "Test jump errors with no sessions."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (should-error (beads-agent-jump) :type 'user-error)
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-jump-single-session ()
+  "Test jump with single session."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let* ((mock-session (beads-agent-session
+                            :id "test#1"
+                            :issue-id "bd-1"
+                            :backend-name "mock"
+                            :project-dir "/tmp/test"
+                            :started-at "2025-01-01T00:00:00Z"))
+             (switched-to nil))
+        ;; Mock session retrieval instead of registration
+        (cl-letf (((symbol-function 'beads-agent--get-all-sessions)
+                   (lambda () (list mock-session)))
+                  ((symbol-function 'beads-agent--get-session)
+                   (lambda (id) (when (equal id "test#1") mock-session)))
+                  ((symbol-function 'beads-agent--get-backend)
+                   (lambda (_) beads-agent-test--mock-backend))
+                  ((symbol-function 'beads-agent-backend-switch-to-buffer)
+                   (lambda (_backend _session) (setq switched-to t))))
+          (beads-agent-jump "test#1")
+          (should switched-to)))
+    (beads-agent-test--teardown)))
+
+;;; Send Prompt Tests
+
+(ert-deftest beads-agent-test-send-prompt-no-sessions ()
+  "Test send-prompt errors with no sessions."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (should-error (beads-agent-send-prompt "test prompt") :type 'user-error)
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-send-prompt-with-session ()
+  "Test send-prompt with active session."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let* ((mock-session (beads-agent-session
+                            :id "test#1"
+                            :issue-id "bd-1"
+                            :backend-name "mock"
+                            :project-dir "/tmp/test"
+                            :started-at "2025-01-01T00:00:00Z"))
+             (sent-prompt nil))
+        ;; Mock session retrieval instead of registration
+        (cl-letf (((symbol-function 'beads-agent--get-all-sessions)
+                   (lambda () (list mock-session)))
+                  ((symbol-function 'beads-agent--get-session)
+                   (lambda (id) (when (equal id "test#1") mock-session)))
+                  ((symbol-function 'beads-agent--get-backend)
+                   (lambda (_) beads-agent-test--mock-backend))
+                  ((symbol-function 'beads-agent-backend-send-prompt)
+                   (lambda (_backend _session prompt)
+                     (setq sent-prompt prompt))))
+          (beads-agent-send-prompt "test prompt" "test#1")
+          (should (equal sent-prompt "test prompt"))))
+    (beads-agent-test--teardown)))
+
+;;; Cleanup Stale Sessions Tests
+
+(ert-deftest beads-agent-test-cleanup-stale-sessions-empty ()
+  "Test cleanup does nothing with no sessions."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (progn
+        (beads-agent-cleanup-stale-sessions)
+        (should (= 0 (length (beads-agent--get-all-sessions)))))
+    (beads-agent-test--teardown)))
+
+;;; Issue Menu Tests
+
+(ert-deftest beads-agent-test-issue-format-header-empty ()
+  "Test issue menu header format with no sessions."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent-issue--current-issue-id "bd-42"))
+        (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+                   (lambda (_) nil)))
+          (let ((header (beads-agent-issue--format-header)))
+            (should (stringp header))
+            (should (string-match-p "bd-42" header))
+            (should (string-match-p "0" header)))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-issue-format-header-multiple ()
+  "Test issue menu header with sessions."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent-issue--current-issue-id "bd-42")
+            (mock-sessions (list (beads-agent-session
+                                  :id "test#1" :issue-id "bd-42"
+                                  :backend-name "mock"
+                                  :project-dir "/tmp"
+                                  :started-at "2025-01-01T00:00:00Z")
+                                 (beads-agent-session
+                                  :id "test#2" :issue-id "bd-42"
+                                  :backend-name "mock"
+                                  :project-dir "/tmp"
+                                  :started-at "2025-01-01T00:00:00Z"))))
+        (cl-letf (((symbol-function 'beads-agent--get-sessions-for-issue)
+                   (lambda (_) mock-sessions)))
+          (let ((header (beads-agent-issue--format-header)))
+            (should (stringp header))
+            (should (string-match-p "bd-42" header))
+            (should (string-match-p "2" header)))))
+    (beads-agent-test--teardown)))
+
+;;; Show Touched Tests
+
+(ert-deftest beads-agent-test-show-touched-no-session ()
+  "Test show-touched errors with no session."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads-agent--get-current-project-session)
+                 (lambda () nil)))
+        (should-error (beads-agent-show-touched) :type 'user-error))
+    (beads-agent-test--teardown)))
+
+;;; Instance Number Tests
+
+(ert-deftest beads-agent-test-instance-number-parses-id ()
+  "Test instance number parsing from session ID."
+  (beads-agent-test--setup)
+  (unwind-protect
+      ;; Create a session and mock getting all sessions
+      (let ((session (beads-agent-session
+                      :id "bd-1#1"
+                      :issue-id "bd-1"
+                      :backend-name "mock"
+                      :project-dir "/tmp"
+                      :started-at "2025-01-01T00:00:00Z")))
+        (cl-letf (((symbol-function 'beads-agent--get-all-sessions)
+                   (lambda () (list session))))
+          ;; Test that instance number is extracted from ID
+          (should (= 1 (beads-agent--session-instance-number session)))))
+    (beads-agent-test--teardown)))
+
+;;; Instance Number Extraction Tests
+
+(ert-deftest beads-agent-test-instance-number-no-hash ()
+  "Test instance number defaults to 1 when no # in ID."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((session (beads-agent-session
+                      :id "bd-1"
+                      :issue-id "bd-1"
+                      :backend-name "mock"
+                      :project-dir "/tmp"
+                      :started-at "2025-01-01T00:00:00Z")))
+        (should (= 1 (beads-agent--session-instance-number session))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-instance-number-higher-value ()
+  "Test instance number parsing higher values."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((session (beads-agent-session
+                      :id "bd-1#5"
+                      :issue-id "bd-1"
+                      :backend-name "mock"
+                      :project-dir "/tmp"
+                      :started-at "2025-01-01T00:00:00Z")))
+        (should (= 5 (beads-agent--session-instance-number session))))
+    (beads-agent-test--teardown)))
+
+;;; Get Current Project Session Tests
+
+(ert-deftest beads-agent-test-get-current-project-session-no-sessions ()
+  "Test getting current project session when none exist."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'beads-agent--get-all-sessions)
+                 (lambda () nil)))
+        (should (null (beads-agent--get-current-project-session))))
+    (beads-agent-test--teardown)))
+
+;;; Agent Session Class Tests
+
+(ert-deftest beads-agent-test-session-class-has-required-slots ()
+  "Test that session class has all required slots."
+  (let ((session (beads-agent-session
+                  :id "test"
+                  :issue-id "bd-1"
+                  :backend-name "mock"
+                  :project-dir "/tmp"
+                  :started-at "now")))
+    (should (slot-exists-p session 'id))
+    (should (slot-exists-p session 'issue-id))
+    (should (slot-exists-p session 'backend-name))
+    (should (slot-exists-p session 'project-dir))
+    (should (slot-exists-p session 'started-at))
+    (should (slot-exists-p session 'buffer))
+    (should (slot-exists-p session 'worktree-dir))))
+
+(ert-deftest beads-agent-test-session-working-dir-no-worktree ()
+  "Test session-working-dir returns project-dir when no worktree."
+  (let ((session (beads-agent-session
+                  :id "test"
+                  :issue-id "bd-1"
+                  :backend-name "mock"
+                  :project-dir "/home/user/project"
+                  :started-at "now")))
+    (should (equal "/home/user/project"
+                   (beads-agent-session-working-dir session)))))
+
+(ert-deftest beads-agent-test-session-working-dir-with-worktree ()
+  "Test session-working-dir returns worktree-dir when set."
+  (let ((session (beads-agent-session
+                  :id "test"
+                  :issue-id "bd-1"
+                  :backend-name "mock"
+                  :project-dir "/home/user/project"
+                  :worktree-dir "/home/user/worktrees/bd-1"
+                  :started-at "now")))
+    (should (equal "/home/user/worktrees/bd-1"
+                   (beads-agent-session-working-dir session)))))
+
+;;; Additional Coverage Tests
+
+(ert-deftest beads-agent-test-mode-line-format-default-exists ()
+  "Test mode-line-format-default function exists."
+  (should (fboundp 'beads-agent--mode-line-format-default)))
+
+(ert-deftest beads-agent-test-stop-at-point-no-issue ()
+  "Test stop-at-point when no issue at point."
+  (with-temp-buffer
+    (cl-letf (((symbol-function 'beads-list--current-issue-id)
+               (lambda () nil))
+              ((symbol-function 'beads-show--current-issue-id)
+               (lambda () nil)))
+      (should-error (beads-agent-stop-at-point) :type 'user-error))))
+
+(ert-deftest beads-agent-test-show-touched-function-exists ()
+  "Test show-touched function exists."
+  (should (fboundp 'beads-agent-show-touched)))
+
+(ert-deftest beads-agent-test-send-prompt-function-exists ()
+  "Test send-prompt function exists."
+  (should (fboundp 'beads-agent-send-prompt)))
+
+(ert-deftest beads-agent-test-start-function-exists ()
+  "Test start function exists."
+  (should (fboundp 'beads-agent-start)))
+
 ;;; Footer
 
 (provide 'beads-agent-test)

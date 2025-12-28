@@ -168,11 +168,11 @@ Optional TYPE, PRIORITY, and DESCRIPTION can be specified.
 Returns the issue ID of the created issue."
   (let* ((cmd (beads-command-create
                :title title
-               :type type
+               :issue-type type
                :priority priority
                :description description))
          (result (beads-command-execute cmd)))
-    (alist-get 'id result)))
+    (oref result id)))
 
 (defun beads-test-issue-exists-p (issue-id)
   "Check if ISSUE-ID exists in the current project directory.
@@ -1864,6 +1864,517 @@ The log format is compatible with `log-view-mode':
      (should (= (length table) 2))
      (should (member "test" table))
      (should (member "other" table)))))
+
+;;; ========================================
+;;; Error Buffer Tests
+;;; ========================================
+
+(ert-deftest beads-test-display-error-buffer-creates-buffer ()
+  "Test that display-error-buffer creates *beads-errors* buffer."
+  (let ((test-command "bd list --json")
+        (test-exit-code 1)
+        (test-stdout "some output")
+        (test-stderr "error message"))
+    (unwind-protect
+        (progn
+          (when (get-buffer "*beads-errors*")
+            (kill-buffer "*beads-errors*"))
+          (cl-letf (((symbol-function 'display-buffer) #'ignore))
+            (beads--display-error-buffer test-command test-exit-code
+                                         test-stdout test-stderr))
+          (should (get-buffer "*beads-errors*")))
+      (when (get-buffer "*beads-errors*")
+        (kill-buffer "*beads-errors*")))))
+
+(ert-deftest beads-test-display-error-buffer-content ()
+  "Test that display-error-buffer includes all sections."
+  (let ((test-command "bd update bd-1")
+        (test-exit-code 127)
+        (test-stdout "stdout content")
+        (test-stderr "stderr content"))
+    (unwind-protect
+        (progn
+          (when (get-buffer "*beads-errors*")
+            (kill-buffer "*beads-errors*"))
+          (cl-letf (((symbol-function 'display-buffer) #'ignore))
+            (beads--display-error-buffer test-command test-exit-code
+                                         test-stdout test-stderr))
+          (with-current-buffer "*beads-errors*"
+            (let ((content (buffer-string)))
+              (should (string-match-p "bd update bd-1" content))
+              (should (string-match-p "127" content))
+              (should (string-match-p "stdout content" content))
+              (should (string-match-p "stderr content" content)))))
+      (when (get-buffer "*beads-errors*")
+        (kill-buffer "*beads-errors*")))))
+
+(ert-deftest beads-test-display-error-buffer-empty-output ()
+  "Test that display-error-buffer handles empty stdout/stderr."
+  (unwind-protect
+      (progn
+        (when (get-buffer "*beads-errors*")
+          (kill-buffer "*beads-errors*"))
+        (cl-letf (((symbol-function 'display-buffer) #'ignore))
+          (beads--display-error-buffer "bd list" 1 "" ""))
+        (with-current-buffer "*beads-errors*"
+          (let ((content (buffer-string)))
+            (should (string-match-p "(empty)" content)))))
+    (when (get-buffer "*beads-errors*")
+      (kill-buffer "*beads-errors*"))))
+
+(ert-deftest beads-test-display-error-buffer-nil-output ()
+  "Test that display-error-buffer handles nil stdout/stderr."
+  (unwind-protect
+      (progn
+        (when (get-buffer "*beads-errors*")
+          (kill-buffer "*beads-errors*"))
+        (cl-letf (((symbol-function 'display-buffer) #'ignore))
+          (beads--display-error-buffer "bd list" 1 nil nil))
+        (with-current-buffer "*beads-errors*"
+          (let ((content (buffer-string)))
+            (should (string-match-p "(empty)" content)))))
+    (when (get-buffer "*beads-errors*")
+      (kill-buffer "*beads-errors*"))))
+
+(ert-deftest beads-test-display-error-buffer-special-mode ()
+  "Test that error buffer is in special-mode."
+  (unwind-protect
+      (progn
+        (when (get-buffer "*beads-errors*")
+          (kill-buffer "*beads-errors*"))
+        (cl-letf (((symbol-function 'display-buffer) #'ignore))
+          (beads--display-error-buffer "bd list" 1 "out" "err"))
+        (with-current-buffer "*beads-errors*"
+          (should (derived-mode-p 'special-mode))))
+    (when (get-buffer "*beads-errors*")
+      (kill-buffer "*beads-errors*"))))
+
+;;; ========================================
+;;; Debug Buffer and Toggle Tests
+;;; ========================================
+
+(ert-deftest beads-test-show-debug-buffer-enables-debug ()
+  "Test that show-debug-buffer enables debug if not already."
+  (let ((beads-enable-debug nil))
+    (unwind-protect
+        (progn
+          (when (get-buffer "*beads-debug*")
+            (kill-buffer "*beads-debug*"))
+          (cl-letf (((symbol-function 'display-buffer) #'ignore))
+            (beads-show-debug-buffer)
+            (should beads-enable-debug)
+            (should (get-buffer "*beads-debug*"))))
+      (when (get-buffer "*beads-debug*")
+        (kill-buffer "*beads-debug*")))))
+
+(ert-deftest beads-test-show-debug-buffer-uses-beads-debug-mode ()
+  "Test that debug buffer uses beads-debug-mode."
+  (let ((beads-enable-debug t))
+    (unwind-protect
+        (progn
+          (when (get-buffer "*beads-debug*")
+            (kill-buffer "*beads-debug*"))
+          (cl-letf (((symbol-function 'display-buffer) #'ignore))
+            (beads-show-debug-buffer)
+            (with-current-buffer "*beads-debug*"
+              (should (derived-mode-p 'beads-debug-mode)))))
+      (when (get-buffer "*beads-debug*")
+        (kill-buffer "*beads-debug*")))))
+
+(ert-deftest beads-test-clear-debug-buffer ()
+  "Test that clear-debug-buffer empties the buffer."
+  (let ((beads-enable-debug t))
+    (unwind-protect
+        (progn
+          ;; Create and populate buffer
+          (beads--log 'info "Test message")
+          (with-current-buffer (get-buffer "*beads-debug*")
+            (should (> (buffer-size) 0)))
+          ;; Clear it
+          (beads-clear-debug-buffer)
+          (with-current-buffer (get-buffer "*beads-debug*")
+            (should (= (buffer-size) 0))))
+      (when (get-buffer "*beads-debug*")
+        (kill-buffer "*beads-debug*")))))
+
+(ert-deftest beads-test-clear-debug-buffer-no-buffer ()
+  "Test that clear-debug-buffer handles missing buffer."
+  (when (get-buffer "*beads-debug*")
+    (kill-buffer "*beads-debug*"))
+  ;; Should not error
+  (should-not (condition-case nil
+                  (progn (beads-clear-debug-buffer) nil)
+                (error t))))
+
+(ert-deftest beads-test-toggle-debug-on ()
+  "Test toggling debug on."
+  (let ((beads-enable-debug nil))
+    (unwind-protect
+        (progn
+          (when (get-buffer "*beads-debug*")
+            (kill-buffer "*beads-debug*"))
+          (cl-letf (((symbol-function 'display-buffer) #'ignore))
+            (beads-toggle-debug)
+            (should beads-enable-debug)))
+      (when (get-buffer "*beads-debug*")
+        (kill-buffer "*beads-debug*")))))
+
+(ert-deftest beads-test-toggle-debug-off ()
+  "Test toggling debug off."
+  (let ((beads-enable-debug t))
+    (beads-toggle-debug)
+    (should-not beads-enable-debug)))
+
+(ert-deftest beads-test-debug-mode-keymap ()
+  "Test that beads-debug-mode has expected keybindings."
+  (should (keymapp beads-debug-mode-map))
+  (should (eq (lookup-key beads-debug-mode-map (kbd "g"))
+              #'beads-show-debug-buffer))
+  (should (eq (lookup-key beads-debug-mode-map (kbd "c"))
+              #'beads-clear-debug-buffer))
+  (should (eq (lookup-key beads-debug-mode-map (kbd "q"))
+              #'quit-window)))
+
+(ert-deftest beads-test-debug-mode-read-only ()
+  "Test that beads-debug-mode sets buffer to read-only."
+  (with-temp-buffer
+    (beads-debug-mode)
+    (should buffer-read-only)))
+
+;;; ========================================
+;;; Info Command Tests
+;;; ========================================
+
+(ert-deftest beads-test-info-not-in-worktree ()
+  "Test beads-info output when not in worktree."
+  (cl-letf (((symbol-function 'beads-git-in-worktree-p)
+             (lambda () nil))
+            ((symbol-function 'beads-git-find-main-repo)
+             (lambda () nil))
+            ((symbol-function 'beads--find-beads-dir)
+             (lambda () "/path/to/.beads"))
+            ((symbol-function 'beads--get-database-path)
+             (lambda () "/path/to/.beads/beads.db")))
+    (let ((beads-global-no-daemon nil)
+          (output nil))
+      (cl-letf (((symbol-function 'message)
+                 (lambda (fmt &rest args) (setq output (apply #'format fmt args)))))
+        (beads-info)
+        (should output)
+        (should (string-match-p "In worktree: no" output))
+        (should (string-match-p "Main repo: N/A" output))
+        (should (string-match-p "/path/to/.beads" output))))))
+
+(ert-deftest beads-test-info-in-worktree ()
+  "Test beads-info output when in worktree."
+  (cl-letf (((symbol-function 'beads-git-in-worktree-p)
+             (lambda () t))
+            ((symbol-function 'beads-git-find-main-repo)
+             (lambda () "/main/repo/"))
+            ((symbol-function 'beads--find-beads-dir)
+             (lambda () "/main/repo/.beads"))
+            ((symbol-function 'beads--get-database-path)
+             (lambda () "/main/repo/.beads/db.db")))
+    (let ((beads-global-no-daemon nil)
+          (output nil))
+      (cl-letf (((symbol-function 'message)
+                 (lambda (fmt &rest args) (setq output (apply #'format fmt args)))))
+        (beads-info)
+        (should output)
+        (should (string-match-p "In worktree: yes" output))
+        (should (string-match-p "/main/repo/" output))))))
+
+(ert-deftest beads-test-info-no-daemon-enabled ()
+  "Test beads-info shows --no-daemon when enabled."
+  (cl-letf (((symbol-function 'beads-git-in-worktree-p)
+             (lambda () nil))
+            ((symbol-function 'beads-git-find-main-repo)
+             (lambda () nil))
+            ((symbol-function 'beads--find-beads-dir)
+             (lambda () nil))
+            ((symbol-function 'beads--get-database-path)
+             (lambda () nil)))
+    (let ((beads-global-no-daemon t)
+          (output nil))
+      (cl-letf (((symbol-function 'message)
+                 (lambda (fmt &rest args) (setq output (apply #'format fmt args)))))
+        (beads-info)
+        (should output)
+        (should (string-match-p "--no-daemon: enabled" output))
+        (should (string-match-p "(via transient)" output))))))
+
+(ert-deftest beads-test-info-not-found ()
+  "Test beads-info when beads not found."
+  (cl-letf (((symbol-function 'beads-git-in-worktree-p)
+             (lambda () nil))
+            ((symbol-function 'beads-git-find-main-repo)
+             (lambda () nil))
+            ((symbol-function 'beads--find-beads-dir)
+             (lambda () nil))
+            ((symbol-function 'beads--get-database-path)
+             (lambda () nil)))
+    (let ((beads-global-no-daemon nil)
+          (output nil))
+      (cl-letf (((symbol-function 'message)
+                 (lambda (fmt &rest args) (setq output (apply #'format fmt args)))))
+        (beads-info)
+        (should output)
+        (should (string-match-p ".beads dir: NOT FOUND" output))
+        (should (string-match-p "Database: NOT FOUND" output))))))
+
+;;; ========================================
+;;; Build Command Global Flags Tests
+;;; ========================================
+
+(ert-deftest beads-test-build-command-global-no-auto-flush ()
+  "Test --no-auto-flush flag in command building."
+  (beads-test-with-temp-config
+   (let ((beads-global-no-auto-flush t))
+     (let ((cmd (beads--build-command "list")))
+       (should (member "--no-auto-flush" cmd))))))
+
+(ert-deftest beads-test-build-command-global-no-auto-import ()
+  "Test --no-auto-import flag in command building."
+  (beads-test-with-temp-config
+   (let ((beads-global-no-auto-import t))
+     (let ((cmd (beads--build-command "list")))
+       (should (member "--no-auto-import" cmd))))))
+
+(ert-deftest beads-test-build-command-global-no-daemon ()
+  "Test --no-daemon flag in command building."
+  (beads-test-with-temp-config
+   (let ((beads-global-no-daemon t))
+     (let ((cmd (beads--build-command "list")))
+       (should (member "--no-daemon" cmd))))))
+
+(ert-deftest beads-test-build-command-global-no-db ()
+  "Test --no-db flag in command building."
+  (beads-test-with-temp-config
+   (let ((beads-global-no-db t))
+     (let ((cmd (beads--build-command "list")))
+       (should (member "--no-db" cmd))))))
+
+(ert-deftest beads-test-build-command-global-sandbox ()
+  "Test --sandbox flag in command building."
+  (beads-test-with-temp-config
+   (let ((beads-global-sandbox t))
+     (let ((cmd (beads--build-command "list")))
+       (should (member "--sandbox" cmd))))))
+
+(ert-deftest beads-test-build-command-all-global-flags ()
+  "Test all global flags together."
+  (beads-test-with-temp-config
+   (let ((beads-global-no-auto-flush t)
+         (beads-global-no-auto-import t)
+         (beads-global-no-daemon t)
+         (beads-global-no-db t)
+         (beads-global-sandbox t))
+     (let ((cmd (beads--build-command "list")))
+       (should (member "--no-auto-flush" cmd))
+       (should (member "--no-auto-import" cmd))
+       (should (member "--no-daemon" cmd))
+       (should (member "--no-db" cmd))
+       (should (member "--sandbox" cmd))))))
+
+(ert-deftest beads-test-build-command-global-actor-precedence ()
+  "Test that beads-global-actor takes precedence over beads-actor."
+  (beads-test-with-temp-config
+   (let ((beads-actor "default-actor")
+         (beads-global-actor "transient-actor"))
+     (let ((cmd (beads--build-command "list")))
+       (should (member "--actor" cmd))
+       (should (member "transient-actor" cmd))
+       (should-not (member "default-actor" cmd))))))
+
+(ert-deftest beads-test-build-command-global-db-precedence ()
+  "Test that beads-global-db takes precedence over auto-discovery."
+  (beads-test-with-temp-config
+   (let ((beads-global-db "/transient/path/db.db")
+         (beads-database-path "/custom/path/db.db"))
+     (let ((cmd (beads--build-command "list")))
+       (should (member "--db" cmd))
+       (should (member "/transient/path/db.db" cmd))))))
+
+(ert-deftest beads-test-build-command-empty-actor-ignored ()
+  "Test that empty actor strings are ignored."
+  (beads-test-with-temp-config
+   (let ((beads-actor "   "))
+     (let ((cmd (beads--build-command "list")))
+       (should-not (member "--actor" cmd))))))
+
+(ert-deftest beads-test-build-command-empty-db-ignored ()
+  "Test that empty db strings are ignored."
+  (beads-test-with-temp-config
+   (let ((beads-global-db "   "))
+     (let ((cmd (beads--build-command "list")))
+       (should-not (member "--db" cmd))))))
+
+;;; ========================================
+;;; Log Level Tests
+;;; ========================================
+
+(ert-deftest beads-test-log-level-error-always-logged ()
+  "Test that error level is always logged regardless of debug level."
+  (let ((beads-enable-debug t)
+        (beads-debug-level 'info))
+    (when (get-buffer "*beads-debug*")
+      (kill-buffer "*beads-debug*"))
+    (beads--log 'error "Error message test123")
+    (let ((buf (get-buffer "*beads-debug*")))
+      (should buf)
+      (with-current-buffer buf
+        (goto-char (point-min))
+        (should (search-forward "Error message test123" nil t))))
+    (when (get-buffer "*beads-debug*")
+      (kill-buffer "*beads-debug*"))))
+
+(ert-deftest beads-test-log-level-info-with-info-level ()
+  "Test that info level is logged when debug-level is info."
+  (let ((beads-enable-debug t)
+        (beads-debug-level 'info))
+    (when (get-buffer "*beads-debug*")
+      (kill-buffer "*beads-debug*"))
+    (beads--log 'info "Info message test123")
+    (let ((buf (get-buffer "*beads-debug*")))
+      (should buf)
+      (with-current-buffer buf
+        (goto-char (point-min))
+        (should (search-forward "Info message test123" nil t))))
+    (when (get-buffer "*beads-debug*")
+      (kill-buffer "*beads-debug*"))))
+
+(ert-deftest beads-test-log-level-verbose-maps-to-debug ()
+  "Test that verbose level is logged as DEBUG."
+  (let ((beads-enable-debug t)
+        (beads-debug-level 'verbose))
+    (when (get-buffer "*beads-debug*")
+      (kill-buffer "*beads-debug*"))
+    (beads--log 'verbose "Verbose message test123")
+    (let ((buf (get-buffer "*beads-debug*")))
+      (should buf)
+      (with-current-buffer buf
+        (goto-char (point-min))
+        (should (search-forward "[DEBUG]" nil t))
+        (goto-char (point-min))
+        (should (search-forward "Verbose message test123" nil t))))
+    (when (get-buffer "*beads-debug*")
+      (kill-buffer "*beads-debug*"))))
+
+;;; ========================================
+;;; Alias Tests
+;;; ========================================
+
+(ert-deftest beads-test-project-root-alias ()
+  "Test beads--find-project-root alias."
+  (cl-letf (((symbol-function 'beads-git-find-project-root)
+             (lambda () "/test/path/")))
+    (should (equal (beads--find-project-root) "/test/path/"))))
+
+(ert-deftest beads-test-get-project-name-alias ()
+  "Test beads--get-project-name alias."
+  (cl-letf (((symbol-function 'beads-git-get-project-name)
+             (lambda () "test-project")))
+    (should (equal (beads--get-project-name) "test-project"))))
+
+(ert-deftest beads-test-get-git-branch-alias ()
+  "Test beads--get-git-branch alias."
+  (cl-letf (((symbol-function 'beads-git-get-branch)
+             (lambda () "main")))
+    (should (equal (beads--get-git-branch) "main"))))
+
+(ert-deftest beads-test-in-git-worktree-alias ()
+  "Test beads--in-git-worktree-p alias."
+  (cl-letf (((symbol-function 'beads-git-in-worktree-p)
+             (lambda () t)))
+    (should (beads--in-git-worktree-p))))
+
+(ert-deftest beads-test-find-main-repo-alias ()
+  "Test beads--find-main-repo-from-worktree alias."
+  (cl-letf (((symbol-function 'beads-git-find-main-repo)
+             (lambda () "/main/repo/")))
+    (should (equal (beads--find-main-repo-from-worktree) "/main/repo/"))))
+
+(ert-deftest beads-test-completion-aliases ()
+  "Test completion function aliases."
+  (should (eq (symbol-function 'beads--issue-completion-table)
+              #'beads-completion-issue-table))
+  (should (eq (symbol-function 'beads--invalidate-completion-cache)
+              #'beads-completion-invalidate-cache))
+  (should (eq (symbol-function 'beads--get-cached-issues)
+              #'beads-completion--get-cached-issues)))
+
+;;; ========================================
+;;; Parse Issue Tests
+;;; ========================================
+
+(ert-deftest beads-test-parse-issue-full ()
+  "Test parsing a complete issue JSON."
+  (let* ((json '((id . "bd-42")
+                 (title . "Test Issue")
+                 (description . "A description")
+                 (status . "open")
+                 (priority . 1)
+                 (issue_type . "feature")
+                 (assignee . "john.doe")
+                 (external_ref . "GH-123")
+                 (labels . ["bug" "urgent"])
+                 (created_at . "2025-01-15T10:00:00Z")
+                 (updated_at . "2025-01-15T10:00:00Z")))
+         (issue (beads--parse-issue json)))
+    (should (beads-issue-p issue))
+    (should (equal (oref issue id) "bd-42"))
+    (should (equal (oref issue title) "Test Issue"))
+    (should (equal (oref issue description) "A description"))
+    (should (equal (oref issue status) "open"))
+    (should (= (oref issue priority) 1))
+    (should (equal (oref issue issue-type) "feature"))
+    (should (equal (oref issue assignee) "john.doe"))
+    (should (equal (oref issue external-ref) "GH-123"))))
+
+(ert-deftest beads-test-parse-issues-nil ()
+  "Test parsing empty issues array."
+  (let ((issues (beads--parse-issues nil)))
+    (should (null issues))))
+
+;;; ========================================
+;;; Error Handling Tests
+;;; ========================================
+
+(ert-deftest beads-test-error-function ()
+  "Test beads--error function signals user-error."
+  (should-error (beads--error "Test error %s" "message")
+                :type 'user-error))
+
+;;; ========================================
+;;; Find Beads Dir Tests
+;;; ========================================
+
+(ert-deftest beads-test-find-beads-dir-uses-cache ()
+  "Test that find-beads-dir uses project cache."
+  (let* ((default-directory "/test/project/")
+         (beads--project-cache (make-hash-table :test 'equal))
+         (call-count 0))
+    ;; Prime the cache
+    (puthash "/test/project/" "/test/project/.beads/" beads--project-cache)
+    ;; Should return cached value without calling locate-dominating-file
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
+               (lambda () nil))
+              ((symbol-function 'locate-dominating-file)
+               (lambda (_dir _file)
+                 (cl-incf call-count)
+                 "/test/project/.beads/")))
+      (let ((result (beads--find-beads-dir)))
+        (should (equal result "/test/project/.beads/"))
+        (should (= call-count 0))))))
+
+;;; ========================================
+;;; Info Command Tests
+;;; ========================================
+
+(ert-deftest beads-test-info-command-defined ()
+  "Test that beads-info command is defined."
+  (should (fboundp 'beads-info)))
+
 
 (provide 'beads-test)
 ;;; beads-test.el ends here

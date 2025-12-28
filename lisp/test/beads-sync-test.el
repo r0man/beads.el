@@ -332,5 +332,121 @@ This test would have caught the original bug."
   :tags '(integration)
   (should (get 'beads-sync 'transient--prefix)))
 
+;;; ============================================================
+;;; Refresh All Buffers Tests
+;;; ============================================================
+
+(ert-deftest beads-sync-test-refresh-all-buffers-with-list-buffer ()
+  "Test that refresh-all-buffers refreshes beads-list buffers."
+  (let ((refreshed nil))
+    (with-temp-buffer
+      (beads-list-mode)
+      (cl-letf (((symbol-function 'beads-list-refresh)
+                 (lambda () (setq refreshed t))))
+        (beads-sync--refresh-all-buffers)))
+    (should refreshed)))
+
+(ert-deftest beads-sync-test-refresh-all-buffers-with-show-buffer ()
+  "Test that refresh-all-buffers refreshes beads-show buffers."
+  (require 'beads-show)
+  (let ((refreshed nil))
+    (with-temp-buffer
+      (beads-show-mode)
+      (cl-letf (((symbol-function 'beads-refresh-show)
+                 (lambda () (setq refreshed t))))
+        (beads-sync--refresh-all-buffers)))
+    (should refreshed)))
+
+(ert-deftest beads-sync-test-refresh-all-buffers-handles-errors ()
+  "Test that refresh-all-buffers ignores errors in buffers."
+  (with-temp-buffer
+    (beads-list-mode)
+    (cl-letf (((symbol-function 'beads-list-refresh)
+               (lambda () (error "Test error"))))
+      ;; Should not signal error
+      (beads-sync--refresh-all-buffers))))
+
+;;; ============================================================
+;;; Compilation Finish Tests
+;;; ============================================================
+
+(ert-deftest beads-sync-test-compilation-finish-success ()
+  "Test compilation finish handler on success."
+  (let ((beads-sync--dry-run-active nil)
+        (refreshed nil))
+    (with-temp-buffer
+      (compilation-mode)
+      (cl-letf (((symbol-function 'beads-sync--refresh-all-buffers)
+                 (lambda () (setq refreshed t))))
+        (beads-sync--compilation-finish (current-buffer) "finished\n"))
+      (should (string-match-p "success" (buffer-string))))
+    (should refreshed)))
+
+(ert-deftest beads-sync-test-compilation-finish-dry-run ()
+  "Test compilation finish handler with dry-run (no refresh)."
+  (let ((beads-sync--dry-run-active t)
+        (refreshed nil))
+    (with-temp-buffer
+      (compilation-mode)
+      (cl-letf (((symbol-function 'beads-sync--refresh-all-buffers)
+                 (lambda () (setq refreshed t))))
+        (beads-sync--compilation-finish (current-buffer) "finished\n"))
+      (should (string-match-p "success" (buffer-string))))
+    (should-not refreshed)))
+
+(ert-deftest beads-sync-test-compilation-finish-failure ()
+  "Test compilation finish handler on failure."
+  (let ((beads-sync--dry-run-active nil))
+    (with-temp-buffer
+      (compilation-mode)
+      (beads-sync--compilation-finish (current-buffer) "exited abnormally\n")
+      (should (string-match-p "failed" (buffer-string))))))
+
+;;; Tests for Reset Function
+
+(ert-deftest beads-sync-test-reset-confirmed ()
+  "Test reset when user confirms."
+  (let ((reset-called nil)
+        (message-output nil))
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_prompt) t))
+              ((symbol-function 'transient-reset)
+               (lambda () (setq reset-called t)))
+              ((symbol-function 'transient--redisplay)
+               (lambda ()))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-output (apply #'format fmt args)))))
+      (beads-sync--reset)
+      (should reset-called)
+      (should (string-match-p "reset" message-output)))))
+
+(ert-deftest beads-sync-test-reset-declined ()
+  "Test reset when user declines."
+  (let ((reset-called nil))
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_prompt) nil))
+              ((symbol-function 'transient-reset)
+               (lambda () (setq reset-called t))))
+      (beads-sync--reset)
+      (should-not reset-called))))
+
+;;; Tests for Buffer Management
+
+(ert-deftest beads-sync-test-execute-kills-existing-buffer ()
+  "Test that execute kills an existing sync buffer."
+  (let ((old-buf (get-buffer-create "*beads-sync*")))
+    (unwind-protect
+        (cl-letf (((symbol-function 'compilation-start)
+                   (lambda (command &optional _mode)
+                     ;; Should have killed old buffer before reaching here
+                     (should-not (buffer-live-p old-buf))
+                     (beads-sync-test--mock-compilation-start command)))
+                  ((symbol-function 'beads-sync--refresh-all-buffers)
+                   (lambda () nil)))
+          (beads-sync--execute nil nil nil nil))
+      (when (buffer-live-p old-buf)
+        (kill-buffer old-buf)))))
+
 (provide 'beads-sync-test)
 ;;; beads-sync-test.el ends here
