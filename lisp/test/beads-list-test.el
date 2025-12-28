@@ -1368,5 +1368,11 @@ Even if they have the same branch name."
       (when (and created-buffer (buffer-live-p created-buffer))
         (kill-buffer created-buffer)))))
 
+(ert-deftest beads-list-test-hl-line-mode-enabled ()
+  "Test that hl-line-mode is enabled when entering beads-list-mode."
+  (with-temp-buffer
+    (beads-list-mode)
+    (should (bound-and-true-p hl-line-mode))))
+
 (provide 'beads-list-test)
 ;;; beads-list-test.el ends here
