@@ -765,5 +765,41 @@ beads-statistics class requires a float."
       (should message-shown)
       (should (string-match-p "Unknown" (car message-shown))))))
 
+;;; List All Issues Tests
+
+(ert-deftest beads-stats-test-list-all-issues-no-issues ()
+  "Test beads-stats--list-all-issues with no issues."
+  (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
+            ((symbol-function 'beads-command-execute) (lambda (_cmd) nil))
+            ((symbol-function 'pop-to-buffer) (lambda (_buf))))
+    (beads-stats--list-all-issues)
+    (let ((buf (get-buffer "*beads-list*")))
+      (should buf)
+      (with-current-buffer buf
+        (should (eq major-mode 'beads-list-mode))
+        (should (null tabulated-list-entries)))
+      (kill-buffer buf))))
+
+(ert-deftest beads-stats-test-list-all-issues-with-issues ()
+  "Test beads-stats--list-all-issues with issues."
+  (let ((mock-issues (list (beads-issue :id "bd-1" :title "Test 1"
+                                        :status "open" :priority 1)
+                           (beads-issue :id "bd-2" :title "Test 2"
+                                        :status "closed" :priority 2))))
+    (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
+              ((symbol-function 'beads-command-execute) (lambda (_cmd) mock-issues))
+              ((symbol-function 'beads-list--populate-buffer)
+               (lambda (issues view &optional cmd)
+                 (setq tabulated-list-entries
+                       (mapcar (lambda (i) (list (oref i id) [])) issues))))
+              ((symbol-function 'pop-to-buffer) (lambda (_buf))))
+      (beads-stats--list-all-issues)
+      (let ((buf (get-buffer "*beads-list*")))
+        (should buf)
+        (with-current-buffer buf
+          (should (eq major-mode 'beads-list-mode))
+          (should (= 2 (length tabulated-list-entries))))
+        (kill-buffer buf)))))
+
 (provide 'beads-stats-test)
 ;;; beads-stats-test.el ends here
