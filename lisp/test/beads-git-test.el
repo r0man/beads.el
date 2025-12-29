@@ -736,6 +736,246 @@
              (lambda () nil)))
     (should-not (beads-git-get-project-name))))
 
+;;; Async Worktree Tests
+
+(defmacro beads-git-test--wait-for (condition &optional timeout)
+  "Wait for CONDITION to become non-nil.
+TIMEOUT is max seconds to wait (default 10)."
+  `(let ((deadline (+ (float-time) (or ,timeout 10))))
+     (while (and (not ,condition)
+                 (< (float-time) deadline))
+       (accept-process-output nil 0.1))))
+
+(ert-deftest beads-git-test-create-worktree-async-success ()
+  "Integration test: create worktree asynchronously."
+  :tags '(:integration :slow :async)
+  (skip-unless (executable-find "git"))
+  (let* ((temp-dir (make-temp-file "beads-git-test-" t))
+         (worktree-parent (expand-file-name "worktrees" temp-dir))
+         (repo-dir (expand-file-name "repo" temp-dir))
+         (result nil)
+         (callback-called nil))
+    (unwind-protect
+        (progn
+          ;; Create directories
+          (make-directory worktree-parent t)
+          (make-directory repo-dir t)
+          ;; Initialize git repo with a commit
+          (let ((default-directory repo-dir))
+            (call-process "git" nil nil nil "init")
+            (call-process "git" nil nil nil "config" "user.email" "test@test.com")
+            (call-process "git" nil nil nil "config" "user.name" "Test")
+            (with-temp-file (expand-file-name "README.md" repo-dir)
+              (insert "# Test\n"))
+            (call-process "git" nil nil nil "add" ".")
+            (call-process "git" nil nil nil "commit" "-m" "Initial"))
+          ;; Set up worktree config
+          (let ((beads-agent-worktree-parent worktree-parent)
+                (default-directory repo-dir))
+            ;; Mock main-repo-root to return our test repo
+            (cl-letf (((symbol-function 'beads-git-main-repo-root)
+                       (lambda () repo-dir)))
+              ;; Call async function
+              (beads-git-create-worktree-async
+               "test-branch"
+               (lambda (success path-or-error)
+                 (setq result (list success path-or-error))
+                 (setq callback-called t)))
+              ;; Wait for callback
+              (beads-git-test--wait-for callback-called)
+              ;; Verify result
+              (should callback-called)
+              (should (car result))  ; success = t
+              (should (stringp (cadr result)))  ; path
+              (should (file-directory-p (cadr result))))))
+      ;; Cleanup
+      (when (file-directory-p temp-dir)
+        (delete-directory temp-dir t)))))
+
+(ert-deftest beads-git-test-create-worktree-async-path-exists ()
+  "Integration test: async worktree creation fails when path exists."
+  :tags '(:integration :slow :async)
+  (skip-unless (executable-find "git"))
+  (let* ((temp-dir (make-temp-file "beads-git-test-" t))
+         (worktree-parent (expand-file-name "worktrees" temp-dir))
+         (repo-dir (expand-file-name "repo" temp-dir))
+         (result nil)
+         (callback-called nil))
+    (unwind-protect
+        (progn
+          ;; Create directories
+          (make-directory worktree-parent t)
+          (make-directory repo-dir t)
+          ;; Create the worktree path so it already exists
+          (let ((existing-path (expand-file-name "test-branch" worktree-parent)))
+            (make-directory existing-path t)
+            ;; Initialize git repo
+            (let ((default-directory repo-dir))
+              (call-process "git" nil nil nil "init")
+              (call-process "git" nil nil nil "config" "user.email" "test@test.com")
+              (call-process "git" nil nil nil "config" "user.name" "Test")
+              (with-temp-file (expand-file-name "README.md" repo-dir)
+                (insert "# Test\n"))
+              (call-process "git" nil nil nil "add" ".")
+              (call-process "git" nil nil nil "commit" "-m" "Initial"))
+            ;; Set up config
+            (let ((beads-agent-worktree-parent worktree-parent)
+                  (default-directory repo-dir))
+              (cl-letf (((symbol-function 'beads-git-main-repo-root)
+                         (lambda () repo-dir)))
+                ;; Call async function - should fail because path exists
+                (beads-git-create-worktree-async
+                 "test-branch"
+                 (lambda (success path-or-error)
+                   (setq result (list success path-or-error))
+                   (setq callback-called t)))
+                ;; This should be synchronous (path check)
+                (should callback-called)
+                (should-not (car result))  ; success = nil
+                (should (string-match-p "already exists" (cadr result)))))))
+      ;; Cleanup
+      (when (file-directory-p temp-dir)
+        (delete-directory temp-dir t)))))
+
+(ert-deftest beads-git-test-ensure-worktree-async-existing-integration ()
+  "Integration test: ensure-worktree-async returns existing worktree."
+  :tags '(:integration :slow :async)
+  (skip-unless (executable-find "git"))
+  (let* ((temp-dir (make-temp-file "beads-git-test-" t))
+         (worktree-parent (expand-file-name "worktrees" temp-dir))
+         (repo-dir (expand-file-name "repo" temp-dir))
+         (result nil)
+         (callback-called nil))
+    (unwind-protect
+        (progn
+          ;; Create directories
+          (make-directory worktree-parent t)
+          (make-directory repo-dir t)
+          ;; Initialize git repo with a commit
+          (let ((default-directory repo-dir))
+            (call-process "git" nil nil nil "init")
+            (call-process "git" nil nil nil "config" "user.email" "test@test.com")
+            (call-process "git" nil nil nil "config" "user.name" "Test")
+            (with-temp-file (expand-file-name "README.md" repo-dir)
+              (insert "# Test\n"))
+            (call-process "git" nil nil nil "add" ".")
+            (call-process "git" nil nil nil "commit" "-m" "Initial")
+            ;; Create a worktree synchronously first
+            (let ((worktree-path (expand-file-name "existing-issue" worktree-parent)))
+              (call-process "git" nil nil nil
+                            "worktree" "add" "-b" "existing-issue" worktree-path)))
+          ;; Now test ensure-worktree-async finds the existing one
+          (let ((beads-agent-worktree-parent worktree-parent)
+                (default-directory repo-dir))
+            (cl-letf (((symbol-function 'beads-git-main-repo-root)
+                       (lambda () repo-dir)))
+              (beads-git-ensure-worktree-async
+               "existing-issue"
+               (lambda (success path-or-error)
+                 (setq result (list success path-or-error))
+                 (setq callback-called t)))
+              ;; Should be synchronous since worktree exists
+              (should callback-called)
+              (should (car result))  ; success = t
+              (should (string-match-p "existing-issue" (cadr result))))))
+      ;; Cleanup
+      (when (file-directory-p temp-dir)
+        (delete-directory temp-dir t)))))
+
+(ert-deftest beads-git-test-create-worktree-existing-branch-async ()
+  "Integration test: create worktree for existing branch asynchronously."
+  :tags '(:integration :slow :async)
+  (skip-unless (executable-find "git"))
+  (let* ((temp-dir (make-temp-file "beads-git-test-" t))
+         (worktree-parent (expand-file-name "worktrees" temp-dir))
+         (repo-dir (expand-file-name "repo" temp-dir))
+         (result nil)
+         (callback-called nil))
+    (unwind-protect
+        (progn
+          ;; Create directories
+          (make-directory worktree-parent t)
+          (make-directory repo-dir t)
+          ;; Initialize git repo with a commit and create a branch
+          (let ((default-directory repo-dir))
+            (call-process "git" nil nil nil "init")
+            (call-process "git" nil nil nil "config" "user.email" "test@test.com")
+            (call-process "git" nil nil nil "config" "user.name" "Test")
+            (with-temp-file (expand-file-name "README.md" repo-dir)
+              (insert "# Test\n"))
+            (call-process "git" nil nil nil "add" ".")
+            (call-process "git" nil nil nil "commit" "-m" "Initial")
+            ;; Create branch but don't check it out
+            (call-process "git" nil nil nil "branch" "feature-branch"))
+          ;; Test creating worktree for existing branch
+          (let ((beads-agent-worktree-parent worktree-parent)
+                (default-directory repo-dir)
+                (worktree-path (expand-file-name "feature-branch" worktree-parent)))
+            (cl-letf (((symbol-function 'beads-git-main-repo-root)
+                       (lambda () repo-dir)))
+              ;; Directly call the existing-branch variant
+              (beads-git--create-worktree-existing-branch-async
+               "feature-branch"
+               worktree-path
+               (lambda (success path-or-error)
+                 (setq result (list success path-or-error))
+                 (setq callback-called t)))
+              ;; Wait for callback
+              (beads-git-test--wait-for callback-called)
+              ;; Verify result
+              (should callback-called)
+              (should (car result))  ; success = t
+              (should (file-directory-p (cadr result))))))
+      ;; Cleanup
+      (when (file-directory-p temp-dir)
+        (delete-directory temp-dir t)))))
+
+(ert-deftest beads-git-test-create-worktree-existing-branch-async-failure ()
+  "Integration test: worktree creation fails for nonexistent branch."
+  :tags '(:integration :slow :async)
+  (skip-unless (executable-find "git"))
+  (let* ((temp-dir (make-temp-file "beads-git-test-" t))
+         (worktree-parent (expand-file-name "worktrees" temp-dir))
+         (repo-dir (expand-file-name "repo" temp-dir))
+         (result nil)
+         (callback-called nil))
+    (unwind-protect
+        (progn
+          ;; Create directories
+          (make-directory worktree-parent t)
+          (make-directory repo-dir t)
+          ;; Initialize git repo with a commit (no extra branches)
+          (let ((default-directory repo-dir))
+            (call-process "git" nil nil nil "init")
+            (call-process "git" nil nil nil "config" "user.email" "test@test.com")
+            (call-process "git" nil nil nil "config" "user.name" "Test")
+            (with-temp-file (expand-file-name "README.md" repo-dir)
+              (insert "# Test\n"))
+            (call-process "git" nil nil nil "add" ".")
+            (call-process "git" nil nil nil "commit" "-m" "Initial"))
+          ;; Test creating worktree for nonexistent branch
+          (let ((beads-agent-worktree-parent worktree-parent)
+                (default-directory repo-dir)
+                (worktree-path (expand-file-name "nonexistent" worktree-parent)))
+            (cl-letf (((symbol-function 'beads-git-main-repo-root)
+                       (lambda () repo-dir)))
+              ;; Try to create worktree for branch that doesn't exist
+              (beads-git--create-worktree-existing-branch-async
+               "nonexistent-branch"
+               worktree-path
+               (lambda (success path-or-error)
+                 (setq result (list success path-or-error))
+                 (setq callback-called t)))
+              ;; Wait for callback
+              (beads-git-test--wait-for callback-called)
+              ;; Verify failure
+              (should callback-called)
+              (should-not (car result))  ; success = nil
+              (should (stringp (cadr result))))))  ; error message
+      ;; Cleanup
+      (when (file-directory-p temp-dir)
+        (delete-directory temp-dir t)))))
+
 (provide 'beads-git-test)
 
 ;;; beads-git-test.el ends here
