@@ -601,5 +601,33 @@
     (beads-graph-mode)
     (should (derived-mode-p 'special-mode))))
 
+;;; Dependency Collection Tests
+
+(ert-deftest beads-graph-test-get-dependencies-function-exists ()
+  "Test that get-dependencies function exists."
+  (should (fboundp 'beads-graph--get-dependencies)))
+
+;;; Public Functions Tests
+
+(ert-deftest beads-graph-test-all-function-exists ()
+  "Test that beads-graph-all exists."
+  (should (fboundp 'beads-graph-all)))
+
+(ert-deftest beads-graph-test-issue-function-exists ()
+  "Test that beads-graph-issue exists."
+  (should (fboundp 'beads-graph-issue)))
+
+(ert-deftest beads-graph-test-filter-function-exists ()
+  "Test that beads-graph-filter exists."
+  (should (fboundp 'beads-graph-filter)))
+
+(ert-deftest beads-graph-test-export-function-exists ()
+  "Test that beads-graph-export exists."
+  (should (fboundp 'beads-graph-export)))
+
+(ert-deftest beads-graph-test-refresh-function-exists ()
+  "Test that beads-graph-refresh exists."
+  (should (fboundp 'beads-graph-refresh)))
+
 (provide 'beads-graph-test)
 ;;; beads-graph-test.el ends here

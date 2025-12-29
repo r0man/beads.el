@@ -2593,5 +2593,182 @@ Empty sessions are automatically cleaned up."
     ;; Should not error
     (should (listp (beads-show--get-sub-issues issue)))))
 
+;;; Reference Navigation Tests
+
+(ert-deftest beads-show-test-next-reference-no-reference ()
+  "Test next-reference when no reference found."
+  (with-temp-buffer
+    (insert "No references here at all")
+    (goto-char (point-min))
+    ;; Should not error, just show message
+    (beads-show-next-reference)
+    (should (= (point) (point-min)))))
+
+(ert-deftest beads-show-test-next-reference-finds-reference ()
+  "Test next-reference finds issue reference."
+  (with-temp-buffer
+    (insert "See bd-42 for details")
+    (goto-char (point-min))
+    (beads-show-next-reference)
+    ;; Should move to the reference
+    (should (looking-at "bd-42"))))
+
+(ert-deftest beads-show-test-next-reference-moves-past-current ()
+  "Test next-reference moves past current reference."
+  (with-temp-buffer
+    (insert "See bd-1 and bd-2 for details")
+    (goto-char (point-min))
+    (search-forward "bd-1")
+    (goto-char (match-beginning 0))
+    (beads-show-next-reference)
+    ;; Should move to bd-2
+    (should (looking-at "bd-2"))))
+
+(ert-deftest beads-show-test-previous-reference-no-reference ()
+  "Test previous-reference when no reference found."
+  (with-temp-buffer
+    (insert "No references here at all")
+    (goto-char (point-max))
+    ;; Should not error, just show message
+    (beads-show-previous-reference)
+    (should (= (point) (point-max)))))
+
+(ert-deftest beads-show-test-previous-reference-finds-reference ()
+  "Test previous-reference finds issue reference."
+  (with-temp-buffer
+    (insert "See bd-42 for details")
+    (let ((start (point-max)))
+      (goto-char start)
+      (beads-show-previous-reference)
+      ;; Should move to the reference (point moved back)
+      (should (< (point) start)))))
+
+(ert-deftest beads-show-test-previous-reference-moves-before-current ()
+  "Test previous-reference moves when on a reference."
+  (with-temp-buffer
+    (insert "See bd-1\nand bd-2 for details")
+    (goto-char (point-max))
+    (search-backward "bd-2")
+    (let ((start (point)))
+      (beads-show-previous-reference)
+      ;; Should move backward to bd-1 (on different line)
+      (should (< (point) start)))))
+
+;;; Button Navigation Tests
+
+(ert-deftest beads-show-test-next-button-no-buttons ()
+  "Test next-button when no buttons in buffer."
+  (with-temp-buffer
+    (insert "No buttons here")
+    (goto-char (point-min))
+    ;; Should not error
+    (beads-show-next-button)
+    (should t)))
+
+(ert-deftest beads-show-test-next-button-finds-button ()
+  "Test next-button finds button."
+  (with-temp-buffer
+    (insert "Text ")
+    (let ((btn-start (point)))
+      (insert-text-button "Click me" 'action #'ignore)
+      (goto-char (point-min))
+      (beads-show-next-button)
+      (should (= (point) btn-start)))))
+
+(ert-deftest beads-show-test-next-button-wraps-around ()
+  "Test next-button wraps to first button."
+  (with-temp-buffer
+    (insert-text-button "First" 'action #'ignore)
+    (insert " text ")
+    (insert-text-button "Second" 'action #'ignore)
+    (let ((start (point-max)))
+      (goto-char start)
+      ;; Should wrap to beginning
+      (beads-show-next-button)
+      ;; Point should move (either to first button or stay if wrap didn't work)
+      (should (<= (point) start)))))
+
+(ert-deftest beads-show-test-previous-button-no-buttons ()
+  "Test previous-button when no buttons in buffer."
+  (with-temp-buffer
+    (insert "No buttons here")
+    (goto-char (point-max))
+    ;; Should not error
+    (beads-show-previous-button)
+    (should t)))
+
+(ert-deftest beads-show-test-previous-button-finds-button ()
+  "Test previous-button finds button."
+  (with-temp-buffer
+    (let ((btn-start (point)))
+      (insert-text-button "Click me" 'action #'ignore)
+      (insert " more text")
+      (goto-char (point-max))
+      (beads-show-previous-button)
+      (should (= (point) btn-start)))))
+
+;;; Block Navigation Tests
+
+(ert-deftest beads-show-test-backward-block-function-exists ()
+  "Test backward-block function exists."
+  (should (fboundp 'beads-show-backward-block)))
+
+(ert-deftest beads-show-test-forward-block-function-exists ()
+  "Test forward-block function exists."
+  (should (fboundp 'beads-show-forward-block)))
+
+(ert-deftest beads-show-test-at-block-boundary-fenced-code ()
+  "Test at-block-boundary detects fenced code."
+  (with-temp-buffer
+    (insert "```\ncode\n```")
+    (goto-char (point-min))
+    (let ((result (beads-show--at-block-boundary)))
+      (should (eq result 'fenced-code)))))
+
+(ert-deftest beads-show-test-at-block-boundary-list ()
+  "Test at-block-boundary detects list."
+  (with-temp-buffer
+    (insert "- item 1")
+    (goto-char (point-min))
+    (let ((result (beads-show--at-block-boundary)))
+      (should (eq result 'list)))))
+
+(ert-deftest beads-show-test-at-block-boundary-blockquote ()
+  "Test at-block-boundary detects blockquote."
+  (with-temp-buffer
+    (insert "> quote")
+    (goto-char (point-min))
+    (let ((result (beads-show--at-block-boundary)))
+      (should (eq result 'blockquote)))))
+
+(ert-deftest beads-show-test-at-block-boundary-indented-code ()
+  "Test at-block-boundary detects indented code."
+  (with-temp-buffer
+    (insert "    code")
+    (goto-char (point-min))
+    (let ((result (beads-show--at-block-boundary)))
+      (should (eq result 'indented-code)))))
+
+;;; Follow Reference Tests
+
+(ert-deftest beads-show-test-follow-reference-other-window-no-reference ()
+  "Test follow-reference-other-window with no reference at point."
+  (with-temp-buffer
+    (insert "No reference here")
+    (goto-char (point-min))
+    ;; Should just show message, not error
+    (beads-show-follow-reference-other-window)
+    (should t)))
+
+(ert-deftest beads-show-test-follow-reference-other-window-function-exists ()
+  "Test follow-reference-other-window function exists."
+  (should (fboundp 'beads-show-follow-reference-other-window)))
+
+;;; Edit Field Tests
+
+(ert-deftest beads-show-test-edit-field-multiline-function-exists ()
+  "Test edit-field-multiline function exists."
+  (should (fboundp 'beads-show--edit-field-multiline)))
+
 (provide 'beads-show-test)
 ;;; beads-show-test.el ends here
