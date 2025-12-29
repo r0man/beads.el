@@ -326,6 +326,8 @@
 (ert-deftest beads-graph-test-display-image-creates-buffer ()
   "Test that display-image creates the graph buffer."
   (skip-unless (executable-find "dot"))
+  ;; Skip if Emacs doesn't have SVG support (e.g., Emacs 28.2 on CI)
+  (skip-unless (image-type-available-p 'svg))
   (let ((dot-string "digraph test { a -> b; }")
         (image-file nil))
     (unwind-protect
