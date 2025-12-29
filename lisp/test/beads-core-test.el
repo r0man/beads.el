@@ -315,10 +315,13 @@
         (let ((default-directory temp-dir))
           ;; Clear cache
           (clrhash beads--project-cache)
-          ;; Mock beads-git-find-main-repo to return nil (not in a git repo)
-          (cl-letf (((symbol-function 'beads-git-find-main-repo)
+          ;; Mock both locate-dominating-file and beads-git-find-main-repo
+          ;; to simulate a directory with no .beads anywhere
+          (cl-letf (((symbol-function 'locate-dominating-file)
+                     (lambda (_file _name) nil))
+                    ((symbol-function 'beads-git-find-main-repo)
                      (lambda () nil)))
-            ;; temp-dir has no .beads directory, so should return nil
+            ;; With both mocked to return nil, should return nil
             (let ((result (beads--find-beads-dir)))
               (should (null result)))))
       (delete-directory temp-dir t))))
