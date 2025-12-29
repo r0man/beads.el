@@ -1119,5 +1119,132 @@
       (should (member "label" line))
       (should (member "list" line)))))
 
+;;; Validation Error Signal Tests
+
+(ert-deftest beads-command-test-execute-validation-error-signal ()
+  "Test that validation errors signal beads-validation-error."
+  (beads-command-test--with-executable "bd"
+    ;; Create a command that will fail validation (--contributor + --team)
+    (let ((cmd (beads-command-init :contributor t :team t)))
+      (should-error (beads-command-execute cmd)
+                    :type 'beads-validation-error))))
+
+(ert-deftest beads-command-test-execute-validation-error-contains-command ()
+  "Test validation error contains command info."
+  (beads-command-test--with-executable "bd"
+    (let ((cmd (beads-command-init :contributor t :team t)))
+      (condition-case err
+          (beads-command-execute cmd)
+        (beads-validation-error
+         (let ((error-data (cdr err)))
+           ;; Error message should be first
+           (should (stringp (car error-data)))
+           (should (string-match-p "validation" (car error-data)))))))))
+
+;;; Async Command Execution Tests
+
+(ert-deftest beads-command-test-async-returns-process ()
+  "Test async execution returns a process object."
+  :tags '(:integration)
+  (skip-unless (executable-find "true"))
+  (beads-command-test--with-executable "true"
+    ;; Use quickstart with mocked executable that just succeeds
+    (let* ((cmd (beads-command-quickstart))
+           (process nil))
+      ;; Mock to use 'true' command
+      (cl-letf (((symbol-function 'beads-command-line)
+                 (lambda (_) '("true"))))
+        (setq process (beads-command-execute-async cmd)))
+      (should (processp process))
+      ;; Clean up
+      (when (process-live-p process)
+        (delete-process process)))))
+
+;;; Export Parse Tests
+
+(ert-deftest beads-command-test-export-parse-non-json ()
+  "Test export parse in non-JSON mode returns raw stderr."
+  (let ((cmd (beads-command-export :json nil)))
+    ;; Set stderr as if command was executed
+    (oset cmd stderr "some stderr output")
+    (oset cmd stdout "some stdout output")
+    ;; Parse should return stderr (not stdout)
+    (should (equal (beads-command-parse cmd) "some stderr output"))))
+
+(ert-deftest beads-command-test-export-parse-json-mode ()
+  "Test export parse in JSON mode parses stderr."
+  (let ((cmd (beads-command-export :json t)))
+    ;; Set stderr with valid JSON
+    (oset cmd stderr "{\"created\": 5, \"updated\": 3}")
+    (oset cmd stdout "")
+    ;; Parse should return parsed JSON from stderr
+    (let ((result (beads-command-parse cmd)))
+      (should (listp result))
+      (should (= (alist-get 'created result) 5))
+      (should (= (alist-get 'updated result) 3)))))
+
+(ert-deftest beads-command-test-export-parse-json-error ()
+  "Test export parse signals error on invalid JSON."
+  (let ((cmd (beads-command-export :json t)))
+    ;; Set invalid JSON in stderr
+    (oset cmd stderr "not valid json {{{")
+    (oset cmd stdout "")
+    (oset cmd exit-code 0)
+    ;; Parse should signal error
+    (should-error (beads-command-parse cmd)
+                  :type 'beads-json-parse-error)))
+
+;;; Import Parse Tests
+
+(ert-deftest beads-command-test-import-parse-non-json ()
+  "Test import parse in non-JSON mode returns raw stderr."
+  (let ((cmd (beads-command-import :json nil)))
+    ;; Set stderr as if command was executed
+    (oset cmd stderr "import stats output")
+    (oset cmd stdout "regular output")
+    ;; Parse should return stderr
+    (should (equal (beads-command-parse cmd) "import stats output"))))
+
+(ert-deftest beads-command-test-import-parse-json-mode ()
+  "Test import parse in JSON mode parses stderr."
+  (let ((cmd (beads-command-import :json t)))
+    ;; Set stderr with valid JSON
+    (oset cmd stderr "{\"imported\": 10, \"skipped\": 2}")
+    (oset cmd stdout "")
+    ;; Parse should return parsed JSON from stderr
+    (let ((result (beads-command-parse cmd)))
+      (should (listp result))
+      (should (= (alist-get 'imported result) 10))
+      (should (= (alist-get 'skipped result) 2)))))
+
+(ert-deftest beads-command-test-import-parse-json-error ()
+  "Test import parse signals error on invalid JSON."
+  (let ((cmd (beads-command-import :json t)))
+    ;; Set invalid JSON in stderr
+    (oset cmd stderr "invalid json here")
+    (oset cmd stdout "")
+    (oset cmd exit-code 0)
+    ;; Parse should signal error
+    (should-error (beads-command-parse cmd)
+                  :type 'beads-json-parse-error)))
+
+;;; beads-command-json Parse Tests
+
+(ert-deftest beads-command-test-json-parse-non-json-mode ()
+  "Test JSON command parse in non-JSON mode returns raw stdout."
+  (let ((cmd (beads-command-list :json nil)))
+    (oset cmd stdout "raw output here")
+    ;; Parse should return stdout when json is nil
+    (should (equal (beads-command-parse cmd) "raw output here"))))
+
+(ert-deftest beads-command-test-json-parse-error ()
+  "Test JSON parse signals error on invalid JSON."
+  (let ((cmd (beads-command-list :json t)))
+    (oset cmd stdout "not { valid json")
+    (oset cmd stderr "")
+    (oset cmd exit-code 0)
+    (should-error (beads-command-parse cmd)
+                  :type 'beads-json-parse-error)))
+
 (provide 'beads-command-test)
 ;;; beads-command-test.el ends here
