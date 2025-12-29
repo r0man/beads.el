@@ -101,7 +101,8 @@ Opens filtered issue list based on button's filter-type property."
 
 (defun beads-stats--open-filtered-list (filter-type _count)
   "Open filtered issue list for FILTER-TYPE.
-FILTER-TYPE can be: total, open, in-progress, closed, blocked, or ready."
+FILTER-TYPE can be: total, open, in-progress, closed, blocked, deferred,
+or ready."
   (pcase filter-type
     ('total
      ;; Show all issues directly without transient menu
@@ -112,7 +113,7 @@ FILTER-TYPE can be: total, open, in-progress, closed, blocked, or ready."
     ('blocked
      ;; Show blocked issues (existing command)
      (beads-blocked))
-    ((or 'open 'in-progress 'closed)
+    ((or 'open 'in-progress 'closed 'deferred)
      ;; Show issues filtered by status
      (beads-stats--list-by-status filter-type))
     (_
@@ -152,12 +153,13 @@ Opens a beads-list buffer with all issues, bypassing the transient menu."
 
 (defun beads-stats--list-by-status (status)
   "Display issues filtered by STATUS.
-STATUS should be one of: open, in-progress, or closed."
+STATUS should be one of: open, in-progress, closed, or deferred."
   (beads-check-executable)
   (let* ((status-str (pcase status
                        ('open "open")
                        ('in-progress "in_progress")
                        ('closed "closed")
+                       ('deferred "deferred")
                        (_ (error "Invalid status: %s" status))))
          (buffer-name (format "*beads-list: %s*" status-str))
          (cmd (beads-command-list :status status-str))
@@ -214,19 +216,11 @@ Inserts an actual button into the buffer at point."
 
 (defun beads-stats--parse-stats (json)
   "Parse statistics from JSON object.
-Returns a beads-statistics object.
+Returns a beads-stats-data object containing summary and recent-activity.
 
-This function now uses `beads-statistics-from-json' from beads-types.el
-to create proper beads-statistics objects instead of ad-hoc alists.
-
-Note: Ensures average_lead_time_hours is converted to float to satisfy
-the beads-statistics class type constraint."
-  ;; Ensure average_lead_time_hours is a float (not an integer)
-  ;; bd may return 0 as an integer, but the class requires a float
-  (let ((lead-time (alist-get 'average_lead_time_hours json)))
-    (when (and lead-time (integerp lead-time))
-      (setf (alist-get 'average_lead_time_hours json) (float lead-time))))
-  (beads-statistics-from-json json))
+This function uses `beads-stats-data-from-json' from beads-types.el
+to create proper beads-stats-data objects with nested structure."
+  (beads-stats-data-from-json json))
 
 (defun beads-stats--format-lead-time (hours)
   "Format HOURS as human-readable lead time."
@@ -236,19 +230,28 @@ the beads-statistics class type constraint."
    ((< hours 24) (format "%.1f hours" hours))
    (t (format "%.1f days" (/ hours 24.0)))))
 
-(defun beads-stats--render (stats)
-  "Render STATS (beads-statistics object) into the current buffer.
+(defun beads-stats--render (stats-data)
+  "Render STATS-DATA (beads-stats-data object) into the current buffer.
 Output matches the format of `bd stats' CLI command exactly, but with
 interactive clickable numbers."
-  (let ((inhibit-read-only t))
+  (let ((inhibit-read-only t)
+        (stats (oref stats-data summary))
+        (activity (oref stats-data recent-activity)))
     (erase-buffer)
 
-    ;; Header - matches CLI: "📊 Beads Statistics:"
-    (insert "📊 Beads Statistics:\n\n")
+    ;; Blank line at top for padding
+    (insert "\n")
 
-    ;; All stats in simple format matching CLI
-    ;; Format: "Label:      Number" with right-aligned numbers at column 19
-    (insert (format "%-18s " "Total Issues:"))
+    ;; Header - matches CLI: " 📊 Issue Database Status"
+    (insert " 📊 Issue Database Status\n\n")
+
+    ;; Summary section
+    (insert " Summary:\n")
+
+    ;; Format: "  Label:              Number" with right-aligned numbers
+    ;; CLI uses column 24 for right-aligned numbers (2 spaces + 22 chars label)
+    (insert "   Total Issues:")
+    (insert (make-string (- 24 (current-column)) ?\s))
     (beads-stats--insert-stat-button
      (format "%d" (oref stats total-issues))
      'total
@@ -256,7 +259,8 @@ interactive clickable numbers."
      'default)
     (insert "\n")
 
-    (insert (format "%-18s " "Open:"))
+    (insert "   Open:")
+    (insert (make-string (- 24 (current-column)) ?\s))
     (beads-stats--insert-stat-button
      (format "%d" (oref stats open-issues))
      'open
@@ -264,7 +268,8 @@ interactive clickable numbers."
      'default)
     (insert "\n")
 
-    (insert (format "%-18s " "In Progress:"))
+    (insert "   In Progress:")
+    (insert (make-string (- 24 (current-column)) ?\s))
     (beads-stats--insert-stat-button
      (format "%d" (oref stats in-progress-issues))
      'in-progress
@@ -272,15 +277,8 @@ interactive clickable numbers."
      'default)
     (insert "\n")
 
-    (insert (format "%-18s " "Closed:"))
-    (beads-stats--insert-stat-button
-     (format "%d" (oref stats closed-issues))
-     'closed
-     (oref stats closed-issues)
-     'default)
-    (insert "\n")
-
-    (insert (format "%-18s " "Blocked:"))
+    (insert "   Blocked:")
+    (insert (make-string (- 24 (current-column)) ?\s))
     (beads-stats--insert-stat-button
      (format "%d" (oref stats blocked-issues))
      'blocked
@@ -288,13 +286,63 @@ interactive clickable numbers."
      'default)
     (insert "\n")
 
-    (insert (format "%-18s " "Ready:"))
+    (insert "   Closed:")
+    (insert (make-string (- 24 (current-column)) ?\s))
+    (beads-stats--insert-stat-button
+     (format "%d" (oref stats closed-issues))
+     'closed
+     (oref stats closed-issues)
+     'default)
+    (insert "\n")
+
+    (insert "   Ready to Work:")
+    (insert (make-string (- 24 (current-column)) ?\s))
     (beads-stats--insert-stat-button
      (format "%d" (oref stats ready-issues))
      'ready
      (oref stats ready-issues)
      'default)
-    (insert "\n"))
+    (insert "\n")
+
+    ;; Extended section - only show if tombstones > 0
+    (when (> (oref stats tombstone-issues) 0)
+      (insert "\n Extended:\n")
+      (insert "   Deleted:")
+      (insert (make-string (- 24 (current-column)) ?\s))
+      (insert (format "%d (tombstones)\n" (oref stats tombstone-issues))))
+
+    ;; Recent Activity section - only show if we have activity data
+    (when activity
+      (insert "\n Recent Activity (last ")
+      (insert (format "%d" (oref activity hours-tracked)))
+      (insert " hours):\n")
+
+      (insert "   Commits:")
+      (insert (make-string (- 24 (current-column)) ?\s))
+      (insert (format "%d\n" (oref activity commit-count)))
+
+      (insert "   Total Changes:")
+      (insert (make-string (- 24 (current-column)) ?\s))
+      (insert (format "%d\n" (oref activity total-changes)))
+
+      (insert "   Issues Created:")
+      (insert (make-string (- 24 (current-column)) ?\s))
+      (insert (format "%d\n" (oref activity issues-created)))
+
+      (insert "   Issues Closed:")
+      (insert (make-string (- 24 (current-column)) ?\s))
+      (insert (format "%d\n" (oref activity issues-closed)))
+
+      (insert "   Issues Reopened:")
+      (insert (make-string (- 24 (current-column)) ?\s))
+      (insert (format "%d\n" (oref activity issues-reopened)))
+
+      (insert "   Issues Updated:")
+      (insert (make-string (- 24 (current-column)) ?\s))
+      (insert (format "%d\n" (oref activity issues-updated))))
+
+    ;; Footer
+    (insert "\n For more details, use 'bd list' to see individual issues.\n"))
 
   ;; Position point on first button (Total Issues)
   (goto-char (point-min))

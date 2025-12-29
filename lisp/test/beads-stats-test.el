@@ -17,28 +17,51 @@
 (require 'beads)
 (require 'beads-types)
 (require 'beads-stats)
+(require 'beads-test)
 
 ;;; Test Fixtures
 
 (defvar beads-stats-test--sample-stats
-  '((total_issues . 100)
-    (open_issues . 30)
-    (in_progress_issues . 15)
-    (closed_issues . 50)
-    (blocked_issues . 5)
-    (ready_issues . 25)
-    (average_lead_time_hours . 48.5))
-  "Sample statistics data for testing.")
+  '((summary . ((total_issues . 100)
+                (open_issues . 30)
+                (in_progress_issues . 15)
+                (closed_issues . 50)
+                (blocked_issues . 5)
+                (deferred_issues . 0)
+                (ready_issues . 25)
+                (tombstone_issues . 2)
+                (pinned_issues . 0)
+                (epics_eligible_for_closure . 0)
+                (average_lead_time_hours . 48.5)))
+    (recent_activity . ((hours_tracked . 24)
+                        (commit_count . 4)
+                        (issues_created . 11)
+                        (issues_closed . 3)
+                        (issues_updated . 50)
+                        (issues_reopened . 1)
+                        (total_changes . 65))))
+  "Sample statistics data for testing (new nested format).")
 
 (defvar beads-stats-test--zero-stats
-  '((total_issues . 0)
-    (open_issues . 0)
-    (in_progress_issues . 0)
-    (closed_issues . 0)
-    (blocked_issues . 0)
-    (ready_issues . 0)
-    (average_lead_time_hours . 0.0))
-  "Zero statistics for testing edge cases.")
+  '((summary . ((total_issues . 0)
+                (open_issues . 0)
+                (in_progress_issues . 0)
+                (closed_issues . 0)
+                (blocked_issues . 0)
+                (deferred_issues . 0)
+                (ready_issues . 0)
+                (tombstone_issues . 0)
+                (pinned_issues . 0)
+                (epics_eligible_for_closure . 0)
+                (average_lead_time_hours . 0.0)))
+    (recent_activity . ((hours_tracked . 24)
+                        (commit_count . 0)
+                        (issues_created . 0)
+                        (issues_closed . 0)
+                        (issues_updated . 0)
+                        (issues_reopened . 0)
+                        (total_changes . 0))))
+  "Zero statistics for testing edge cases (new nested format).")
 
 ;;; Test Utilities
 
@@ -56,19 +79,31 @@
 
 (ert-deftest beads-stats-test-parse-stats ()
   "Test parsing statistics from JSON."
-  (let ((stats (beads-stats--parse-stats beads-stats-test--sample-stats)))
+  (let* ((stats-data (beads-stats--parse-stats beads-stats-test--sample-stats))
+         (stats (oref stats-data summary))
+         (activity (oref stats-data recent-activity)))
+    (should (beads-stats-data-p stats-data))
     (should (beads-statistics-p stats))
+    (should (beads-recent-activity-p activity))
     (should (= (oref stats total-issues) 100))
     (should (= (oref stats open-issues) 30))
     (should (= (oref stats in-progress-issues) 15))
     (should (= (oref stats closed-issues) 50))
     (should (= (oref stats blocked-issues) 5))
     (should (= (oref stats ready-issues) 25))
-    (should (= (oref stats average-lead-time) 48.5))))
+    (should (= (oref stats tombstone-issues) 2))
+    (should (= (oref stats average-lead-time) 48.5))
+    ;; Check recent activity
+    (should (= (oref activity hours-tracked) 24))
+    (should (= (oref activity commit-count) 4))
+    (should (= (oref activity issues-created) 11))
+    (should (= (oref activity total-changes) 65))))
 
 (ert-deftest beads-stats-test-parse-zero-stats ()
   "Test parsing statistics with all zeros."
-  (let ((stats (beads-stats--parse-stats beads-stats-test--zero-stats)))
+  (let* ((stats-data (beads-stats--parse-stats beads-stats-test--zero-stats))
+         (stats (oref stats-data summary)))
+    (should (beads-stats-data-p stats-data))
     (should (beads-statistics-p stats))
     (should (= (oref stats total-issues) 0))
     (should (= (oref stats open-issues) 0))
@@ -111,11 +146,12 @@
 (ert-deftest beads-stats-test-render-basic ()
   "Test basic rendering of statistics matches CLI format."
   (with-temp-buffer
-    (let ((stats (beads-stats--parse-stats beads-stats-test--sample-stats)))
-      (beads-stats--render stats)
+    (let ((stats-data (beads-stats--parse-stats beads-stats-test--sample-stats)))
+      (beads-stats--render stats-data)
       (let ((content (buffer-string)))
         ;; Check for CLI-style header with emoji
-        (should (string-match-p "📊 Beads Statistics:" content))
+        (should (string-match-p "📊 Issue Database Status" content))
+        (should (string-match-p "Summary:" content))
         (should (string-match-p "Total Issues:" content))
         (should (string-match-p "100" content))
         (should (string-match-p "Open:" content))
@@ -125,39 +161,53 @@
         (should (string-match-p "Closed:" content))
         (should (string-match-p "50" content))
         (should (string-match-p "Blocked:" content))
-        (should (string-match-p "5" content))
-        (should (string-match-p "Ready:" content))
+        (should (string-match-p "\\b5\\b" content))
+        (should (string-match-p "Ready to Work:" content))
         (should (string-match-p "25" content))
-        ;; Should NOT have extra sections from old format
+        ;; Check for Extended section (tombstones > 0)
+        (should (string-match-p "Extended:" content))
+        (should (string-match-p "Deleted:" content))
+        (should (string-match-p "(tombstones)" content))
+        ;; Check for Recent Activity section
+        (should (string-match-p "Recent Activity" content))
+        (should (string-match-p "Commits:" content))
+        (should (string-match-p "Total Changes:" content))
+        (should (string-match-p "Issues Created:" content))
+        ;; Check footer
+        (should (string-match-p "For more details" content))
+        ;; Should NOT have old format
         (should-not (string-match-p "By Status:" content))
-        (should-not (string-match-p "Ready to Work:" content))
         (should-not (string-match-p "Average Lead Time:" content))))))
 
 (ert-deftest beads-stats-test-render-zero-stats ()
   "Test rendering statistics with all zeros."
   (with-temp-buffer
-    (let ((stats (beads-stats--parse-stats beads-stats-test--zero-stats)))
-      (beads-stats--render stats)
+    (let ((stats-data (beads-stats--parse-stats beads-stats-test--zero-stats)))
+      (beads-stats--render stats-data)
       (let ((content (buffer-string)))
         (should (string-match-p "Total Issues:" content))
-        (should (string-match-p "\\b0\\b" content))))))
+        (should (string-match-p "\\b0\\b" content))
+        ;; Extended section should NOT appear when tombstones = 0
+        (should-not (string-match-p "Extended:" content))))))
 
 (ert-deftest beads-stats-test-render-matches-cli ()
-  "Test that rendered output matches CLI format exactly.
-The CLI output is simple and does not include a Commands footer."
+  "Test that rendered output matches CLI format exactly."
   (with-temp-buffer
-    (let ((stats (beads-stats--parse-stats beads-stats-test--sample-stats)))
-      (beads-stats--render stats)
+    (let ((stats-data (beads-stats--parse-stats beads-stats-test--sample-stats)))
+      (beads-stats--render stats-data)
       (let ((content (buffer-string)))
         ;; Verify CLI-style format
-        (should (string-match-p "📊 Beads Statistics:" content))
+        (should (string-match-p "📊 Issue Database Status" content))
+        (should (string-match-p "Summary:" content))
         (should (string-match-p "Total Issues:" content))
         (should (string-match-p "Open:" content))
         (should (string-match-p "In Progress:" content))
         (should (string-match-p "Closed:" content))
         (should (string-match-p "Blocked:" content))
-        (should (string-match-p "Ready:" content))
-        ;; Should NOT have separators, section headers, or command footer
+        (should (string-match-p "Ready to Work:" content))
+        (should (string-match-p "Recent Activity" content))
+        (should (string-match-p "For more details" content))
+        ;; Should NOT have old format
         (should-not (string-match-p "By Status:" content))
         (should-not (string-match-p "Commands:" content))
         (should-not (string-match-p "═" content))
@@ -202,66 +252,71 @@ The CLI output is simple and does not include a Commands footer."
 
 (ert-deftest beads-stats-test-command-creates-buffer ()
   "Test that beads-stats creates a buffer."
-  (let ((json-output (json-encode beads-stats-test--sample-stats)))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-stats-test--mock-call-process 0 json-output)))
-      (beads-stats)
-      (should (get-buffer "*beads-stats*"))
-      (kill-buffer "*beads-stats*"))))
+  (beads-test-with-project ()
+    (let ((json-output (json-encode beads-stats-test--sample-stats)))
+      (cl-letf (((symbol-function 'call-process)
+                 (beads-stats-test--mock-call-process 0 json-output)))
+        (beads-stats)
+        (should (get-buffer "*beads-stats*"))
+        (kill-buffer "*beads-stats*")))))
 
 (ert-deftest beads-stats-test-command-sets-mode ()
   "Test that beads-stats sets the correct mode."
-  (let ((json-output (json-encode beads-stats-test--sample-stats)))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-stats-test--mock-call-process 0 json-output)))
-      (beads-stats)
-      (with-current-buffer "*beads-stats*"
-        (should (eq major-mode 'beads-stats-mode)))
-      (kill-buffer "*beads-stats*"))))
+  (beads-test-with-project ()
+    (let ((json-output (json-encode beads-stats-test--sample-stats)))
+      (cl-letf (((symbol-function 'call-process)
+                 (beads-stats-test--mock-call-process 0 json-output)))
+        (beads-stats)
+        (with-current-buffer "*beads-stats*"
+          (should (eq major-mode 'beads-stats-mode)))
+        (kill-buffer "*beads-stats*")))))
 
 (ert-deftest beads-stats-test-command-displays-content ()
   "Test that beads-stats displays statistics content."
-  (let ((json-output (json-encode beads-stats-test--sample-stats)))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-stats-test--mock-call-process 0 json-output)))
-      (beads-stats)
-      (with-current-buffer "*beads-stats*"
-        (let ((content (buffer-string)))
-          (should (string-match-p "Total Issues:" content))
-          (should (string-match-p "100" content))))
-      (kill-buffer "*beads-stats*"))))
+  (beads-test-with-project ()
+    (let ((json-output (json-encode beads-stats-test--sample-stats)))
+      (cl-letf (((symbol-function 'call-process)
+                 (beads-stats-test--mock-call-process 0 json-output)))
+        (beads-stats)
+        (with-current-buffer "*beads-stats*"
+          (let ((content (buffer-string)))
+            (should (string-match-p "Total Issues:" content))
+            (should (string-match-p "100" content))))
+        (kill-buffer "*beads-stats*")))))
 
 (ert-deftest beads-stats-test-command-error-handling ()
   "Test that beads-stats handles command failure gracefully."
-  (let ((json-output (json-encode beads-stats-test--sample-stats)))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-stats-test--mock-call-process 1 "Error: failed")))
-      (beads-stats)
-      (should (get-buffer "*beads-stats*"))
-      (with-current-buffer "*beads-stats*"
-        (let ((content (buffer-string)))
-          (should (string-match-p "Error fetching statistics" content))))
-      (kill-buffer "*beads-stats*"))))
+  (beads-test-with-project ()
+    (let ((json-output (json-encode beads-stats-test--sample-stats)))
+      (cl-letf (((symbol-function 'call-process)
+                 (beads-stats-test--mock-call-process 1 "Error: failed")))
+        (beads-stats)
+        (should (get-buffer "*beads-stats*"))
+        (with-current-buffer "*beads-stats*"
+          (let ((content (buffer-string)))
+            (should (string-match-p "Error fetching statistics" content))))
+        (kill-buffer "*beads-stats*")))))
 
 ;;; Tests for Refresh
 
 (ert-deftest beads-stats-test-refresh-updates-buffer ()
   "Test that beads-stats-refresh updates the buffer."
-  (let ((json-output (json-encode beads-stats-test--sample-stats)))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-stats-test--mock-call-process 0 json-output)))
-      (beads-stats)
-      (with-current-buffer "*beads-stats*"
-        ;; Modify buffer to test refresh
-        (let ((inhibit-read-only t))
-          (goto-char (point-min))
-          (insert "TEST"))
-        ;; Refresh
-        (beads-stats-refresh)
-        (let ((content (buffer-string)))
-          (should-not (string-match-p "TEST" content))
-          (should (string-match-p "Total Issues:" content))))
-      (kill-buffer "*beads-stats*"))))
+  (beads-test-with-project ()
+    (let ((json-output (json-encode beads-stats-test--sample-stats)))
+      (cl-letf (((symbol-function 'call-process)
+                 (beads-stats-test--mock-call-process 0 json-output)))
+        (beads-stats)
+        (with-current-buffer "*beads-stats*"
+          ;; Modify buffer to test refresh
+          (let ((inhibit-read-only t))
+            (goto-char (point-min))
+            (insert "TEST"))
+          ;; Refresh
+          (beads-stats-refresh)
+          (let ((content (buffer-string)))
+            (should-not (string-match-p "TEST" content))
+            (should (string-match-p "Total Issues:" content))))
+        (kill-buffer "*beads-stats*")))))
 
 (ert-deftest beads-stats-test-refresh-only-in-stats-mode ()
   "Test that beads-stats-refresh only works in stats mode."
@@ -275,47 +330,53 @@ The CLI output is simple and does not include a Commands footer."
 
 (ert-deftest beads-stats-test-full-workflow ()
   "Test complete workflow from fetching to display."
-  (let ((json-output (json-encode beads-stats-test--sample-stats)))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-stats-test--mock-call-process 0 json-output)))
-      ;; Open stats
-      (beads-stats)
-      (should (get-buffer "*beads-stats*"))
+  (beads-test-with-project ()
+    (let ((json-output (json-encode beads-stats-test--sample-stats)))
+      (cl-letf (((symbol-function 'call-process)
+                 (beads-stats-test--mock-call-process 0 json-output)))
+        ;; Open stats
+        (beads-stats)
+        (should (get-buffer "*beads-stats*"))
 
-      ;; Verify mode
-      (with-current-buffer "*beads-stats*"
-        (should (eq major-mode 'beads-stats-mode))
+        ;; Verify mode
+        (with-current-buffer "*beads-stats*"
+          (should (eq major-mode 'beads-stats-mode))
 
-        ;; Verify content
-        (let ((content (buffer-string)))
-          (should (string-match-p "100" content))
-          (should (string-match-p "30" content))
-          (should (string-match-p "15" content))
-          (should (string-match-p "50" content))
-          (should (string-match-p "5" content))
-          (should (string-match-p "25" content)))
+          ;; Verify content
+          (let ((content (buffer-string)))
+            (should (string-match-p "100" content))
+            (should (string-match-p "30" content))
+            (should (string-match-p "15" content))
+            (should (string-match-p "50" content))
+            (should (string-match-p "\\b5\\b" content))
+            (should (string-match-p "25" content)))
 
-        ;; Test refresh
-        (beads-stats-refresh)
-        (should (string-match-p "Total Issues:" (buffer-string))))
+          ;; Test refresh
+          (beads-stats-refresh)
+          (should (string-match-p "Total Issues:" (buffer-string))))
 
-      ;; Cleanup
-      (kill-buffer "*beads-stats*"))))
+        ;; Cleanup
+        (kill-buffer "*beads-stats*")))))
 
 ;;; Edge Cases
 
 (ert-deftest beads-stats-test-edge-case-large-numbers ()
   "Test rendering with very large numbers."
-  (let ((large-stats '((total_issues . 999999)
-                      (open_issues . 500000)
-                      (in_progress_issues . 250000)
-                      (closed_issues . 249999)
-                      (blocked_issues . 0)
-                      (ready_issues . 100000)
-                      (average_lead_time_hours . 1000.5))))
+  (let ((large-stats '((summary . ((total_issues . 999999)
+                                   (open_issues . 500000)
+                                   (in_progress_issues . 250000)
+                                   (closed_issues . 249999)
+                                   (blocked_issues . 0)
+                                   (deferred_issues . 0)
+                                   (ready_issues . 100000)
+                                   (tombstone_issues . 0)
+                                   (pinned_issues . 0)
+                                   (epics_eligible_for_closure . 0)
+                                   (average_lead_time_hours . 1000.5)))
+                       (recent_activity . nil))))
     (with-temp-buffer
-      (let ((stats (beads-stats--parse-stats large-stats)))
-        (beads-stats--render stats)
+      (let ((stats-data (beads-stats--parse-stats large-stats)))
+        (beads-stats--render stats-data)
         (let ((content (buffer-string)))
           (should (string-match-p "999999" content))
           (should (string-match-p "500000" content)))))))
@@ -388,27 +449,37 @@ The CLI output is simple and does not include a Commands footer."
 This catches the bug where bd returns 0 as an integer, but
 beads-statistics class requires a float."
   ;; Test with integer 0
-  (let ((stats-with-int '((total_issues . 10)
-                          (open_issues . 5)
-                          (in_progress_issues . 2)
-                          (closed_issues . 3)
-                          (blocked_issues . 0)
-                          (ready_issues . 5)
-                          (average_lead_time_hours . 0))))  ; Integer!
-    (let ((stats (beads-stats--parse-stats stats-with-int)))
+  (let ((stats-with-int '((summary . ((total_issues . 10)
+                                      (open_issues . 5)
+                                      (in_progress_issues . 2)
+                                      (closed_issues . 3)
+                                      (blocked_issues . 0)
+                                      (deferred_issues . 0)
+                                      (ready_issues . 5)
+                                      (tombstone_issues . 0)
+                                      (pinned_issues . 0)
+                                      (epics_eligible_for_closure . 0)
+                                      (average_lead_time_hours . 0))))))  ; Integer!
+    (let* ((stats-data (beads-stats--parse-stats stats-with-int))
+           (stats (oref stats-data summary)))
       (should (beads-statistics-p stats))
       (should (floatp (oref stats average-lead-time)))
       (should (= (oref stats average-lead-time) 0.0))))
 
   ;; Test with other integers
-  (let ((stats-with-int '((total_issues . 10)
-                          (open_issues . 5)
-                          (in_progress_issues . 2)
-                          (closed_issues . 3)
-                          (blocked_issues . 0)
-                          (ready_issues . 5)
-                          (average_lead_time_hours . 48))))  ; Integer!
-    (let ((stats (beads-stats--parse-stats stats-with-int)))
+  (let ((stats-with-int '((summary . ((total_issues . 10)
+                                      (open_issues . 5)
+                                      (in_progress_issues . 2)
+                                      (closed_issues . 3)
+                                      (blocked_issues . 0)
+                                      (deferred_issues . 0)
+                                      (ready_issues . 5)
+                                      (tombstone_issues . 0)
+                                      (pinned_issues . 0)
+                                      (epics_eligible_for_closure . 0)
+                                      (average_lead_time_hours . 48))))))  ; Integer!
+    (let* ((stats-data (beads-stats--parse-stats stats-with-int))
+           (stats (oref stats-data summary)))
       (should (beads-statistics-p stats))
       (should (floatp (oref stats average-lead-time)))
       (should (= (oref stats average-lead-time) 48.0)))))
@@ -577,8 +648,8 @@ beads-statistics class requires a float."
 (ert-deftest beads-stats-test-render-contains-buttons ()
   "Test that beads-stats--render creates buttons in output."
   (with-temp-buffer
-    (let ((stats (beads-stats--parse-stats beads-stats-test--sample-stats)))
-      (beads-stats--render stats)
+    (let ((stats-data (beads-stats--parse-stats beads-stats-test--sample-stats)))
+      (beads-stats--render stats-data)
 
       ;; Search for Total Issues button - in new format: "Total Issues:      100"
       (goto-char (point-min))
@@ -603,8 +674,8 @@ beads-statistics class requires a float."
 (ert-deftest beads-stats-test-render-button-faces ()
   "Test that buttons in rendered output have correct faces."
   (with-temp-buffer
-    (let ((stats (beads-stats--parse-stats beads-stats-test--sample-stats)))
-      (beads-stats--render stats)
+    (let ((stats-data (beads-stats--parse-stats beads-stats-test--sample-stats)))
+      (beads-stats--render stats-data)
       (let ((content (buffer-string)))
         ;; Verify the stats are in the output
         (should (string-match-p "Total Issues:" content))
@@ -617,8 +688,8 @@ beads-statistics class requires a float."
 (ert-deftest beads-stats-test-zero-issues-with-buttons ()
   "Test rendering with zero issues creates buttons correctly."
   (with-temp-buffer
-    (let ((stats (beads-stats--parse-stats beads-stats-test--zero-stats)))
-      (beads-stats--render stats)
+    (let ((stats-data (beads-stats--parse-stats beads-stats-test--zero-stats)))
+      (beads-stats--render stats-data)
       (goto-char (point-min))
 
       ;; Even with zero issues, buttons should be created
@@ -636,8 +707,8 @@ beads-statistics class requires a float."
   "Test beads-stats-next moves to next button."
   (with-temp-buffer
     (beads-stats-mode)
-    (let ((stats (beads-stats--parse-stats beads-stats-test--sample-stats)))
-      (beads-stats--render stats)
+    (let ((stats-data (beads-stats--parse-stats beads-stats-test--sample-stats)))
+      (beads-stats--render stats-data)
       ;; Point should start at first button (Total Issues)
       (should (button-at (point)))
       (should (eq (button-get (button-at (point)) 'filter-type) 'total))
@@ -657,8 +728,8 @@ beads-statistics class requires a float."
   "Test beads-stats-previous moves to previous button."
   (with-temp-buffer
     (beads-stats-mode)
-    (let ((stats (beads-stats--parse-stats beads-stats-test--sample-stats)))
-      (beads-stats--render stats)
+    (let ((stats-data (beads-stats--parse-stats beads-stats-test--sample-stats)))
+      (beads-stats--render stats-data)
       ;; Start at first button, move to third
       (beads-stats-next)
       (beads-stats-next)
@@ -679,8 +750,8 @@ beads-statistics class requires a float."
   "Test beads-stats-next wraps to first button from last."
   (with-temp-buffer
     (beads-stats-mode)
-    (let ((stats (beads-stats--parse-stats beads-stats-test--sample-stats)))
-      (beads-stats--render stats)
+    (let ((stats-data (beads-stats--parse-stats beads-stats-test--sample-stats)))
+      (beads-stats--render stats-data)
       ;; Navigate to last button (Ready)
       (goto-char (point-max))
       (backward-button 1 t t)
@@ -695,8 +766,8 @@ beads-statistics class requires a float."
   "Test beads-stats-previous wraps to last button from first."
   (with-temp-buffer
     (beads-stats-mode)
-    (let ((stats (beads-stats--parse-stats beads-stats-test--sample-stats)))
-      (beads-stats--render stats)
+    (let ((stats-data (beads-stats--parse-stats beads-stats-test--sample-stats)))
+      (beads-stats--render stats-data)
       ;; Start at first button (Total)
       (should (eq (button-get (button-at (point)) 'filter-type) 'total))
 
@@ -708,8 +779,8 @@ beads-statistics class requires a float."
 (ert-deftest beads-stats-test-render-positions-at-first-button ()
   "Test that beads-stats--render positions point at first button."
   (with-temp-buffer
-    (let ((stats (beads-stats--parse-stats beads-stats-test--sample-stats)))
-      (beads-stats--render stats)
+    (let ((stats-data (beads-stats--parse-stats beads-stats-test--sample-stats)))
+      (beads-stats--render stats-data)
       ;; Point should be positioned at the first button (Total Issues)
       (should (button-at (point)))
       (should (eq (button-get (button-at (point)) 'filter-type) 'total)))))
