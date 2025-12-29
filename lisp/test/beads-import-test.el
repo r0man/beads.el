@@ -375,5 +375,52 @@ Integration test that verifies skip-existing import succeeds."
         (should message-output)
         (should (string-match-p "import" message-output))))))
 
+;;; Preview with Default Input
+
+(ert-deftest beads-import-test-preview-uses-default-input ()
+  "Test preview uses default input when not specified."
+  :tags '(:unit)
+  (let ((message-output nil))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_prefix) '()))
+              ((symbol-function 'beads-import--get-default-input)
+               (lambda () "/tmp/default.jsonl"))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-output (apply #'format fmt args)))))
+      (beads-import--preview)
+      (should message-output)
+      (should (string-match-p "Command:" message-output)))))
+
+;;; Execute with Validation Error
+
+(ert-deftest beads-import-test-execute-command-validation-error ()
+  "Test execute-command handles validation errors."
+  :tags '(:unit)
+  (let ((error-caught nil))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_prefix)
+                 '("--input=")))  ; Empty input (invalid)
+              ((symbol-function 'beads-import--get-default-input)
+               (lambda () "")))  ; Also empty
+      (condition-case nil
+          (beads-import--execute-command)
+        (user-error (setq error-caught t)))
+      (should error-caught))))
+
+;;; Execute with Error
+
+(ert-deftest beads-import-test-execute-error-handling ()
+  "Test execute handles errors gracefully."
+  :tags '(:unit)
+  (let ((cmd (beads-command-import :input "/tmp/test.jsonl"))
+        (error-signaled nil))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_cmd) (error "Import failed")))
+              ((symbol-function 'beads--error)
+               (lambda (&rest _args) (setq error-signaled t))))
+      (beads-import--execute cmd)
+      (should error-signaled))))
+
 (provide 'beads-import-test)
 ;;; beads-import-test.el ends here

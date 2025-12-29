@@ -282,5 +282,54 @@ Integration test that verifies force flag works."
         (user-error (setq error-caught t)))
       (should error-caught))))
 
+;;; Reset Tests
+
+(ert-deftest beads-export-test-reset-confirmed ()
+  "Test reset when user confirms."
+  :tags '(:unit)
+  (let ((reset-called nil)
+        (message-output nil))
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_prompt) t))
+              ((symbol-function 'transient-reset)
+               (lambda () (setq reset-called t)))
+              ((symbol-function 'transient--redisplay)
+               (lambda ()))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-output (apply #'format fmt args)))))
+      (beads-export--reset)
+      (should reset-called)
+      (should (string-match-p "reset" message-output)))))
+
+(ert-deftest beads-export-test-reset-declined ()
+  "Test reset when user declines."
+  :tags '(:unit)
+  (let ((reset-called nil))
+    (cl-letf (((symbol-function 'y-or-n-p)
+               (lambda (_prompt) nil))
+              ((symbol-function 'transient-reset)
+               (lambda () (setq reset-called t))))
+      (beads-export--reset)
+      (should-not reset-called))))
+
+;;; Preview Tests
+
+(ert-deftest beads-export-test-preview-with-default-output ()
+  "Test preview uses default output when not specified."
+  :tags '(:unit)
+  (let ((message-output nil))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_prefix) '()))
+              ((symbol-function 'beads-export--get-default-output)
+               (lambda () "/tmp/default.jsonl"))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-output (apply #'format fmt args)))))
+      (beads-export--preview)
+      (should message-output)
+      (should (string-match-p "Command:" message-output))
+      (should (string-match-p "export" message-output)))))
+
 (provide 'beads-export-test)
 ;;; beads-export-test.el ends here
