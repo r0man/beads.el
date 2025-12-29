@@ -548,5 +548,33 @@ We verify that reasons are properly passed through."
       (beads-reopen--reset)
       (should-not reset-called))))
 
+;;; Main Command Tests
+
+(ert-deftest beads-reopen-test-main-command-with-id ()
+  "Test beads-reopen with issue ID sets up transient correctly."
+  (let ((setup-called-with nil))
+    (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
+              ((symbol-function 'transient-setup)
+               (lambda (name &rest args)
+                 (setq setup-called-with (cons name args)))))
+      (beads-reopen "bd-123")
+      (should setup-called-with)
+      (should (eq (car setup-called-with) 'beads-reopen--menu))
+      ;; Check that :value is passed with the issue ID
+      (let ((value (plist-get (cdr setup-called-with) :value)))
+        (should value)
+        (should (member "--id=bd-123" value))))))
+
+(ert-deftest beads-reopen-test-main-command-without-id ()
+  "Test beads-reopen without issue ID sets up transient without value."
+  (let ((setup-called-with nil))
+    (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
+              ((symbol-function 'transient-setup)
+               (lambda (name &rest args)
+                 (setq setup-called-with (cons name args)))))
+      (beads-reopen nil)
+      (should setup-called-with)
+      (should (eq (car setup-called-with) 'beads-reopen--menu)))))
+
 (provide 'beads-reopen-test)
 ;;; beads-reopen-test.el ends here
