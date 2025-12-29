@@ -1374,5 +1374,114 @@
     (let ((ready (beads-command-ready!)))
       (should (listp ready)))))
 
+;;; Tests for beads-command-parse
+
+(ert-deftest beads-command-test-parse-base-command ()
+  "Test parse for base command returns stdout."
+  (let ((cmd (beads-command-init)))
+    (oset cmd stdout "some output")
+    (let ((result (beads-command-parse cmd)))
+      (should (equal result "some output")))))
+
+(ert-deftest beads-command-test-parse-base-command-empty ()
+  "Test parse for base command with empty stdout."
+  (let ((cmd (beads-command-init)))
+    (oset cmd stdout "")
+    (let ((result (beads-command-parse cmd)))
+      (should (equal result "")))))
+
+(ert-deftest beads-command-test-parse-json-command ()
+  "Test parse for JSON command."
+  (let ((cmd (beads-command-list)))
+    (oset cmd stdout "[{\"id\": \"bd-1\", \"title\": \"Test\"}]")
+    (oset cmd exit-code 0)
+    ;; beads-command-parse for JSON commands returns parsed JSON
+    (let ((result (beads-command-parse cmd)))
+      ;; Result should be a list with one beads-issue object
+      (should (listp result))
+      (should (= (length result) 1))
+      (should (beads-issue-p (car result))))))
+
+;;; Tests for Command Line Building (Additional)
+
+(ert-deftest beads-command-test-list-with-all-options ()
+  "Test list command with all options."
+  (beads-command-test--with-executable "bd"
+    (let ((cmd (beads-command-list
+                :status "open"
+                :issue-type "bug"
+                :assignee "alice"
+                :limit 10)))
+      (let ((line (beads-command-line cmd)))
+        (should (member "--status" line))
+        (should (member "open" line))
+        (should (member "--type" line))
+        (should (member "bug" line))
+        (should (member "--assignee" line))
+        (should (member "alice" line))
+        (should (member "--limit" line))))))
+
+(ert-deftest beads-command-test-update-with-status ()
+  "Test update command with status."
+  (beads-command-test--with-executable "bd"
+    (let ((cmd (beads-command-update
+                :issue-ids '("bd-1")
+                :status "in_progress")))
+      (let ((line (beads-command-line cmd)))
+        (should (member "--status" line))
+        (should (member "in_progress" line))))))
+
+(ert-deftest beads-command-test-close-with-reason ()
+  "Test close command with reason."
+  (beads-command-test--with-executable "bd"
+    (let ((cmd (beads-command-close
+                :issue-ids '("bd-1")
+                :reason "Fixed the bug")))
+      (let ((line (beads-command-line cmd)))
+        (should (member "close" line))
+        (should (member "--reason" line))
+        (should (member "Fixed the bug" line))))))
+
+;;; Tests for beads-issue-from-json
+
+(ert-deftest beads-command-test-issue-from-json-full ()
+  "Test issue creation from full JSON."
+  (let ((data '((id . "bd-42")
+                (title . "Test Issue")
+                (description . "Description text")
+                (status . "open")
+                (priority . 2)
+                (issue_type . "task")
+                (created_at . "2025-01-15T10:00:00Z")
+                (updated_at . "2025-01-15T12:00:00Z"))))
+    (let ((issue (beads-issue-from-json data)))
+      (should (beads-issue-p issue))
+      (should (equal (oref issue id) "bd-42"))
+      (should (equal (oref issue title) "Test Issue"))
+      (should (equal (oref issue description) "Description text"))
+      (should (equal (oref issue status) "open"))
+      (should (equal (oref issue priority) 2))
+      (should (equal (oref issue issue-type) "task")))))
+
+(ert-deftest beads-command-test-issue-from-json-minimal ()
+  "Test issue creation from minimal JSON."
+  (let ((data '((id . "bd-1")
+                (title . "Minimal")
+                (status . "open"))))
+    (let ((issue (beads-issue-from-json data)))
+      (should (beads-issue-p issue))
+      (should (equal (oref issue id) "bd-1"))
+      (should (null (oref issue description))))))
+
+(ert-deftest beads-command-test-issue-from-json-with-labels ()
+  "Test issue creation with labels."
+  (let ((data '((id . "bd-2")
+                (title . "With Labels")
+                (status . "open")
+                (labels . ["bug" "urgent"]))))
+    (let ((issue (beads-issue-from-json data)))
+      (should (beads-issue-p issue))
+      (should (equal (oref issue labels) '("bug" "urgent"))))))
+
 (provide 'beads-command-test)
 ;;; beads-command-test.el ends here
