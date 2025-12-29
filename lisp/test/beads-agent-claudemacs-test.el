@@ -125,15 +125,17 @@
 
 (ert-deftest beads-agent-claudemacs-test-find-buffers-with-cwd ()
   "Test finding claudemacs buffers by working directory."
-  (let ((test-buf (generate-new-buffer "*claudemacs:claude:test*"))
-        (claudemacs--cwd "/tmp/test/"))
+  ;; Use a real temp directory to avoid symlink resolution issues
+  (let* ((temp-dir (make-temp-file "beads-claudemacs-test-" t))
+         (test-buf (generate-new-buffer "*claudemacs:claude:test*")))
     (unwind-protect
         (with-current-buffer test-buf
-          (setq-local claudemacs--cwd "/tmp/test/")
-          (let ((found (beads-agent-claudemacs--find-buffers "/tmp/test")))
+          (setq-local claudemacs--cwd temp-dir)
+          (let ((found (beads-agent-claudemacs--find-buffers temp-dir)))
             (should (= (length found) 1))
             (should (equal (car found) test-buf))))
-      (kill-buffer test-buf))))
+      (kill-buffer test-buf)
+      (delete-directory temp-dir t))))
 
 (ert-deftest beads-agent-claudemacs-test-find-buffers-no-match ()
   "Test finding buffers when none match."
