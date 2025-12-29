@@ -473,10 +473,25 @@
     :initarg :blocked-issues
     :type integer
     :documentation "Number of blocked issues.")
+   (deferred-issues
+    :initarg :deferred-issues
+    :type integer
+    :initform 0
+    :documentation "Number of deferred issues.")
    (ready-issues
     :initarg :ready-issues
     :type integer
     :documentation "Number of ready issues.")
+   (tombstone-issues
+    :initarg :tombstone-issues
+    :type integer
+    :initform 0
+    :documentation "Number of tombstone (deleted) issues.")
+   (pinned-issues
+    :initarg :pinned-issues
+    :type integer
+    :initform 0
+    :documentation "Number of pinned issues.")
    (epics-eligible-for-closure
     :initarg :epics-eligible-for-closure
     :type integer
@@ -486,6 +501,56 @@
     :type float
     :documentation "Average lead time in hours."))
   "Represents aggregate statistics.")
+
+(defclass beads-recent-activity ()
+  ((hours-tracked
+    :initarg :hours-tracked
+    :type integer
+    :initform 24
+    :documentation "Number of hours tracked for recent activity.")
+   (commit-count
+    :initarg :commit-count
+    :type integer
+    :initform 0
+    :documentation "Number of commits in the tracking period.")
+   (issues-created
+    :initarg :issues-created
+    :type integer
+    :initform 0
+    :documentation "Number of issues created.")
+   (issues-closed
+    :initarg :issues-closed
+    :type integer
+    :initform 0
+    :documentation "Number of issues closed.")
+   (issues-updated
+    :initarg :issues-updated
+    :type integer
+    :initform 0
+    :documentation "Number of issues updated.")
+   (issues-reopened
+    :initarg :issues-reopened
+    :type integer
+    :initform 0
+    :documentation "Number of issues reopened.")
+   (total-changes
+    :initarg :total-changes
+    :type integer
+    :initform 0
+    :documentation "Total number of changes."))
+  "Represents recent activity metrics.")
+
+(defclass beads-stats-data ()
+  ((summary
+    :initarg :summary
+    :type beads-statistics
+    :documentation "Summary statistics object.")
+   (recent-activity
+    :initarg :recent-activity
+    :type (or null beads-recent-activity)
+    :initform nil
+    :documentation "Recent activity metrics (may be nil)."))
+  "Container for stats command output with nested structure.")
 
 (defclass beads-epic-status ()
   ((epic
@@ -818,10 +883,44 @@ JSON should be the parsed JSON object from bd --json output."
    :in-progress-issues (or (alist-get 'in_progress_issues json) 0)
    :closed-issues (or (alist-get 'closed_issues json) 0)
    :blocked-issues (or (alist-get 'blocked_issues json) 0)
+   :deferred-issues (or (alist-get 'deferred_issues json) 0)
    :ready-issues (or (alist-get 'ready_issues json) 0)
+   :tombstone-issues (or (alist-get 'tombstone_issues json) 0)
+   :pinned-issues (or (alist-get 'pinned_issues json) 0)
    :epics-eligible-for-closure
    (or (alist-get 'epics_eligible_for_closure json) 0)
    :average-lead-time (or (alist-get 'average_lead_time_hours json) 0.0)))
+
+(defun beads-recent-activity-from-json (json)
+  "Create a beads-recent-activity object from JSON alist."
+  (beads-recent-activity
+   :hours-tracked (or (alist-get 'hours_tracked json) 24)
+   :commit-count (or (alist-get 'commit_count json) 0)
+   :issues-created (or (alist-get 'issues_created json) 0)
+   :issues-closed (or (alist-get 'issues_closed json) 0)
+   :issues-updated (or (alist-get 'issues_updated json) 0)
+   :issues-reopened (or (alist-get 'issues_reopened json) 0)
+   :total-changes (or (alist-get 'total_changes json) 0)))
+
+(defun beads-stats-data-from-json (json)
+  "Create a beads-stats-data object from JSON alist.
+JSON should be the top-level stats response with summary and
+recent_activity keys."
+  (let ((summary-json (alist-get 'summary json))
+        (activity-json (alist-get 'recent_activity json)))
+    ;; Ensure average_lead_time_hours is a float
+    (when summary-json
+      (let ((lead-time (alist-get 'average_lead_time_hours summary-json)))
+        (when (and lead-time (integerp lead-time))
+          (setf (alist-get 'average_lead_time_hours summary-json)
+                (float lead-time)))))
+    (beads-stats-data
+     :summary (if summary-json
+                  (beads-statistics-from-json summary-json)
+                ;; Fallback for flat structure (backwards compat)
+                (beads-statistics-from-json json))
+     :recent-activity (when activity-json
+                        (beads-recent-activity-from-json activity-json)))))
 
 (defun beads-epic-status-from-json (json)
   "Create a beads-epic-status object from JSON alist."
