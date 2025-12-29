@@ -315,11 +315,10 @@
         (let ((default-directory temp-dir))
           ;; Clear cache
           (clrhash beads--project-cache)
-          ;; Mock project-root to return temp-dir
-          (cl-letf (((symbol-function 'project-root)
-                     (lambda (_proj) temp-dir))
-                    ((symbol-function 'project-current)
-                     (lambda (&optional _maybe-prompt _dir) t)))
+          ;; Mock beads-git-find-main-repo to return nil (not in a git repo)
+          (cl-letf (((symbol-function 'beads-git-find-main-repo)
+                     (lambda () nil)))
+            ;; temp-dir has no .beads directory, so should return nil
             (let ((result (beads--find-beads-dir)))
               (should (null result)))))
       (delete-directory temp-dir t))))
