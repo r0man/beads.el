@@ -2770,5 +2770,113 @@ Empty sessions are automatically cleaned up."
   "Test edit-field-multiline function exists."
   (should (fboundp 'beads-show--edit-field-multiline)))
 
+;;; ============================================================
+;;; Integration Tests (require bd executable)
+;;; ============================================================
+
+(ert-deftest beads-show-test-integration-show-real-issue ()
+  "Integration test: show a real issue created with bd."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create a real issue
+    (let ((issue (beads-command-create! :title "Test Issue for Show"
+                                         :description "Test description"
+                                         :priority 2
+                                         :issue-type "task")))
+      (should issue)
+      (let ((issue-id (oref issue id)))
+        ;; Test beads-show--render-issue
+        (with-temp-buffer
+          (beads-show-mode)
+          (let ((inhibit-read-only t))
+            (beads-show--render-issue issue))
+          ;; Buffer should contain the issue title
+          (should (string-match-p "Test Issue for Show" (buffer-string)))
+          ;; Buffer should contain the description
+          (should (string-match-p "Test description" (buffer-string))))))))
+
+(ert-deftest beads-show-test-integration-get-or-create-buffer ()
+  "Integration test: get-or-create-buffer with real issue."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let ((issue (beads-command-create! :title "Buffer Test Issue"
+                                         :priority 2
+                                         :issue-type "bug")))
+      (let ((issue-id (oref issue id)))
+        ;; Get or create buffer should return a buffer
+        (let ((buf (beads-show--get-or-create-buffer issue-id)))
+          (should (bufferp buf))
+          (should (string-match-p issue-id (buffer-name buf)))
+          ;; Clean up
+          (kill-buffer buf))))))
+
+(ert-deftest beads-show-test-integration-format-status ()
+  "Integration test: format status from real issue."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let ((issue (beads-command-create! :title "Status Test"
+                                         :priority 2
+                                         :issue-type "task")))
+      ;; Newly created issue should be open
+      (let ((formatted (beads-show--format-status (oref issue status))))
+        (should (stringp formatted))
+        (should (string-match-p "[Oo]pen" formatted))))))
+
+(ert-deftest beads-show-test-integration-format-priority ()
+  "Integration test: format priority from real issue."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let ((issue (beads-command-create! :title "Priority Test"
+                                         :priority 1
+                                         :issue-type "task")))
+      ;; Priority 1 should be displayed as "1 (High)"
+      (let ((formatted (beads-show--format-priority (oref issue priority))))
+        (should (stringp formatted))
+        (should (string-match-p "[Hh]igh" formatted))))))
+
+(ert-deftest beads-show-test-integration-buttonize-references ()
+  "Integration test: buttonize issue references."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let* ((issue1 (beads-command-create! :title "First Issue" :priority 2 :issue-type "task"))
+           (issue2 (beads-command-create! :title "Second Issue" :priority 2 :issue-type "task"))
+           (id1 (oref issue1 id))
+           (id2 (oref issue2 id)))
+      ;; Verify we created issues with IDs
+      (should (stringp id1))
+      (should (stringp id2))
+      ;; Verify buttonize runs without error
+      (with-temp-buffer
+        (insert (format "See %s and %s for details" id1 id2))
+        (beads-show--buttonize-references (point-min) (point-max))
+        ;; Buffer should still contain the IDs
+        (should (string-match-p (regexp-quote id1) (buffer-string)))
+        (should (string-match-p (regexp-quote id2) (buffer-string)))))))
+
+(ert-deftest beads-show-test-integration-insert-header ()
+  "Integration test: insert header function."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (with-temp-buffer
+      (beads-show--insert-header "Test Label" "Test Value")
+      (should (string-match-p "Test Label" (buffer-string)))
+      (should (string-match-p "Test Value" (buffer-string))))))
+
+(ert-deftest beads-show-test-integration-insert-section ()
+  "Integration test: insert section function."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (with-temp-buffer
+      (beads-show--insert-section "Description" "This is the content")
+      (should (string-match-p "Description" (buffer-string)))
+      (should (string-match-p "This is the content" (buffer-string))))))
+
 (provide 'beads-show-test)
 ;;; beads-show-test.el ends here

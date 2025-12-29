@@ -3915,6 +3915,115 @@ Each type maintains its own instance counter per project."
   "Test start function exists."
   (should (fboundp 'beads-agent-start)))
 
+;;; ============================================================
+;;; Integration Tests (require bd executable)
+;;; ============================================================
+
+(ert-deftest beads-agent-test-integration-build-prompt-real-issue ()
+  "Integration test: build prompt from real issue."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let ((issue (beads-command-create! :title "Test Agent Issue"
+                                         :description "Agent should do X"
+                                         :acceptance "Must pass tests"
+                                         :priority 2
+                                         :issue-type "task")))
+      (let ((prompt (beads-agent--build-prompt issue)))
+        (should (stringp prompt))
+        (should (string-match-p "Test Agent Issue" prompt))
+        (should (string-match-p "Agent should do X" prompt))
+        (should (string-match-p "Must pass tests" prompt))))))
+
+(ert-deftest beads-agent-test-integration-detect-issue-in-show-buffer ()
+  "Integration test: detect issue ID from beads-show buffer."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let ((issue (beads-command-create! :title "Detect Test"
+                                         :priority 2
+                                         :issue-type "bug")))
+      (let ((issue-id (oref issue id)))
+        ;; Create a show buffer with the issue ID in the name
+        (with-temp-buffer
+          (rename-buffer (format "*beads-show: %s*" issue-id) t)
+          (beads-show-mode)
+          ;; Should detect the issue ID
+          (should (equal issue-id (beads-agent--detect-issue-id))))))))
+
+(ert-deftest beads-agent-test-integration-maybe-update-status ()
+  "Integration test: maybe-update-status with real issue."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let ((issue (beads-command-create! :title "Status Update Test"
+                                         :priority 2
+                                         :issue-type "task")))
+      (let ((issue-id (oref issue id))
+            (beads-agent-auto-set-in-progress t))
+        ;; Should update the issue status
+        (beads-agent--maybe-update-status issue-id)
+        ;; Verify status was updated
+        (let ((updated (beads-command-show! :issue-ids (list issue-id))))
+          (should (equal "in_progress" (oref updated status))))))))
+
+(ert-deftest beads-agent-test-integration-select-backend ()
+  "Integration test: select backend with default."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-agent-test--setup)
+  (unwind-protect
+      (let ((beads-agent-default-backend "mock"))
+        (let ((backend (beads-agent--select-backend)))
+          (should backend)
+          (should (equal "mock" (oref backend name)))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-integration-backend-available-and-get ()
+  "Integration test: backend-available-and-get."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-agent-test--setup)
+  (unwind-protect
+      (progn
+        ;; Mock backend should be available
+        (let ((backend (beads-agent--backend-available-and-get "mock")))
+          (should backend)
+          (should (equal "mock" (oref backend name))))
+        ;; Nonexistent backend should return nil
+        (should-not (beads-agent--backend-available-and-get "nonexistent")))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-integration-read-issue-id ()
+  "Integration test: read-issue-id with real issues."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let ((issue (beads-command-create! :title "Read ID Test"
+                                         :priority 2
+                                         :issue-type "task")))
+      (let ((issue-id (oref issue id)))
+        ;; Mock completing-read to return the issue ID
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (_prompt _coll &rest _) issue-id)))
+          (let ((read-id (beads-agent--read-issue-id)))
+            (should (equal issue-id read-id))))))))
+
+(ert-deftest beads-agent-test-integration-mode-line-context ()
+  "Integration test: mode-line-context with real project."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-agent-test--setup)
+  (unwind-protect
+      (beads-test-with-project ()
+        (let ((ctx (beads-agent--mode-line-context)))
+          (should (listp ctx))
+          ;; Should have all expected keys (values may be nil in batch mode)
+          (should (plist-member ctx :project-name))
+          (should (plist-member ctx :branch))
+          (should (plist-member ctx :in-worktree))))
+    (beads-agent-test--teardown)))
+
 ;;; Footer
 
 (provide 'beads-agent-test)

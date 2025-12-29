@@ -1246,5 +1246,133 @@
     (should-error (beads-command-parse cmd)
                   :type 'beads-json-parse-error)))
 
+;;; ============================================================
+;;; Integration Tests (require bd executable)
+;;; ============================================================
+
+(ert-deftest beads-command-test-integration-create-and-list ()
+  "Integration test: create issue and list it."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create an issue
+    (let ((issue (beads-command-create! :title "Integration Test Issue"
+                                         :description "Created by integration test"
+                                         :priority 2
+                                         :issue-type "task")))
+      (should issue)
+      (should (beads-issue-p issue))
+      ;; List should include this issue
+      (let ((issues (beads-command-list!)))
+        (should (seq-find (lambda (i) (equal (oref i id) (oref issue id)))
+                          issues))))))
+
+(ert-deftest beads-command-test-integration-show-issue ()
+  "Integration test: show a created issue."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let ((issue (beads-command-create! :title "Show Test Issue"
+                                         :priority 1
+                                         :issue-type "bug")))
+      (let ((shown (beads-command-show! :issue-ids (list (oref issue id)))))
+        (should shown)
+        (should (equal "Show Test Issue" (oref shown title)))
+        (should (equal 1 (oref shown priority)))))))
+
+(ert-deftest beads-command-test-integration-update-issue ()
+  "Integration test: update an issue."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let ((issue (beads-command-create! :title "Update Test"
+                                         :priority 2
+                                         :issue-type "task")))
+      ;; Update the issue
+      (beads-command-update! :issue-ids (list (oref issue id))
+                             :status "in_progress")
+      ;; Verify update
+      (let ((updated (beads-command-show! :issue-ids (list (oref issue id)))))
+        (should (equal "in_progress" (oref updated status)))))))
+
+(ert-deftest beads-command-test-integration-close-issue ()
+  "Integration test: close an issue."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let ((issue (beads-command-create! :title "Close Test"
+                                         :priority 2
+                                         :issue-type "task")))
+      ;; Close the issue
+      (beads-command-close! :issue-ids (list (oref issue id))
+                            :reason "Completed")
+      ;; Verify closed
+      (let ((closed (beads-command-show! :issue-ids (list (oref issue id)))))
+        (should (equal "closed" (oref closed status)))))))
+
+(ert-deftest beads-command-test-integration-list-with-status-filter ()
+  "Integration test: list issues with status filter."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create open and closed issues
+    (let ((open-issue (beads-command-create! :title "Open Issue"
+                                              :priority 2
+                                              :issue-type "task")))
+      (let ((close-issue (beads-command-create! :title "Will Close"
+                                                 :priority 2
+                                                 :issue-type "task")))
+        (beads-command-close! :issue-ids (list (oref close-issue id))
+                              :reason "Done")
+        ;; List only open issues
+        (let ((open-issues (beads-command-list! :status "open")))
+          (should (seq-find (lambda (i) (equal (oref i id) (oref open-issue id)))
+                            open-issues))
+          (should-not (seq-find (lambda (i) (equal (oref i id) (oref close-issue id)))
+                                open-issues)))))))
+
+(ert-deftest beads-command-test-integration-stats ()
+  "Integration test: get project stats."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create some issues
+    (beads-command-create! :title "Stats Test 1" :priority 2 :issue-type "task")
+    (beads-command-create! :title "Stats Test 2" :priority 1 :issue-type "bug")
+    ;; Get stats
+    (let ((stats (beads-command-stats!)))
+      ;; Stats should be non-nil (parsed JSON result)
+      (should stats))))
+
+(ert-deftest beads-command-test-integration-reopen-issue ()
+  "Integration test: reopen a closed issue."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let ((issue (beads-command-create! :title "Reopen Test"
+                                         :priority 2
+                                         :issue-type "task")))
+      ;; Close then reopen
+      (beads-command-close! :issue-ids (list (oref issue id))
+                            :reason "Done")
+      (beads-command-reopen! :issue-ids (list (oref issue id))
+                             :reason "Need more work")
+      ;; Verify reopened
+      (let ((reopened (beads-command-show! :issue-ids (list (oref issue id)))))
+        (should (equal "open" (oref reopened status)))))))
+
+(ert-deftest beads-command-test-integration-ready-issues ()
+  "Integration test: get ready issues."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create an issue (should be ready since no dependencies)
+    (beads-command-create! :title "Ready Issue"
+                           :priority 2
+                           :issue-type "task")
+    ;; Get ready issues
+    (let ((ready (beads-command-ready!)))
+      (should (listp ready)))))
+
 (provide 'beads-command-test)
 ;;; beads-command-test.el ends here
