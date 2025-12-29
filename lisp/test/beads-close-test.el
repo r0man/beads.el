@@ -281,5 +281,28 @@
       (beads-close--reset)
       (should-not reset-called))))
 
+;;; Main Command Tests
+
+(ert-deftest beads-close-test-main-command-calls-menu ()
+  "Test beads-close calls the transient menu."
+  (let ((menu-called nil))
+    (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
+              ((symbol-function 'beads-close--menu)
+               (lambda () (setq menu-called t))))
+      (beads-close "bd-123")
+      (should menu-called))))
+
+(ert-deftest beads-close-test-main-command-ignores-issue-id ()
+  "Test beads-close ignores issue-id argument (per design)."
+  ;; The beads-close function explicitly ignores the issue-id argument
+  ;; because users must manually enter it in the transient menu
+  (let ((menu-called nil))
+    (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
+              ((symbol-function 'beads-close--menu)
+               (lambda () (setq menu-called t))))
+      ;; Call with nil - should still work
+      (beads-close nil)
+      (should menu-called))))
+
 (provide 'beads-close-test)
 ;;; beads-close-test.el ends here
