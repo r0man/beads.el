@@ -517,9 +517,45 @@ Tests creating an issue with dependency links."
                        issues)))
           (should child))))))
 
-;; NOTE: --file flag integration test skipped due to inconsistent bd behavior
-;; in parsing markdown files across different bd versions. The --file flag
-;; command construction is validated in preview tests.
+(ert-deftest beads-create-test-execute-from-file ()
+  "Integration test: Create issue from markdown file.
+Tests the --file flag which is mutually exclusive with --title."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    (let ((issue-file (expand-file-name "test-issue.md" default-directory)))
+      (unwind-protect
+          (progn
+            ;; Count issues before creation (should be 0 in fresh project)
+            (let ((before-count (length (beads-command-list!))))
+              (with-temp-file issue-file
+                (insert "## Issue Created From File\n\n")
+                (insert "This is the description of the issue.\n")
+                (insert "It was created using the --file flag.\n"))
+              ;; Create issue from file
+              (let ((result
+                     (beads-test-with-cache-tracking
+                      (cl-letf (((symbol-function 'y-or-n-p)
+                                 (lambda (_) nil)))
+                        (beads-test-with-transient-args 'beads-create
+                            (list (format "--file=%s" issue-file))
+                          (call-interactively #'beads-create--execute))))))
+                ;; Verify cache was invalidated
+                (should (plist-get result :completion-cache-invalidated))
+                ;; Verify exactly one new issue was created
+                (let* ((after-issues (beads-command-list!))
+                       (after-count (length after-issues)))
+                  (should (= after-count (1+ before-count)))
+                  ;; Find and verify the created issue
+                  (let ((created (seq-find
+                                  (lambda (issue)
+                                    (string-match-p "From File" (oref issue title)))
+                                  after-issues)))
+                    (should created)
+                    (should (equal (oref created title)
+                                   "Issue Created From File")))))))
+        (when (file-exists-p issue-file)
+          (delete-file issue-file))))))
 
 ;;; Integration Tests for beads-create--preview
 
