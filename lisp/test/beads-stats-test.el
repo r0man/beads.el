@@ -174,7 +174,7 @@
         (should (string-match-p "Total Changes:" content))
         (should (string-match-p "Issues Created:" content))
         ;; Check footer
-        (should (string-match-p "For more details" content))
+        (should (string-match-p "M-x beads-list" content))
         ;; Should NOT have old format
         (should-not (string-match-p "By Status:" content))
         (should-not (string-match-p "Average Lead Time:" content))))))

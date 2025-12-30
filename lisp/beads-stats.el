@@ -342,7 +342,7 @@ interactive clickable numbers."
       (insert (format "%d\n" (oref activity issues-updated))))
 
     ;; Footer
-    (insert "\n For more details, use 'bd list' to see individual issues.\n"))
+    (insert "\n For more details, use M-x beads-list to see individual issues.\n"))
 
   ;; Position point on first button (Total Issues)
   (goto-char (point-min))
