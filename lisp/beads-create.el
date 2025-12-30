@@ -100,8 +100,8 @@ This uses transient's standard argument parsing with dash-style flags."
       (condition-case err
           (let* ((result (oref (beads-command-execute cmd) data))
                  ;; Handle both single-issue and multi-issue responses:
-                 ;; - Single title: returns one beads-issue object
-                 ;; - Multiple from file: returns list of beads-issue objects
+                 ;; - With --title flag: returns one beads-issue object
+                 ;; - With --file flag: returns list of beads-issue objects
                  (issues (cond
                           ((null result) nil)
                           ((cl-typep result 'beads-issue) (list result))
@@ -121,7 +121,8 @@ This uses transient's standard argument parsing with dash-style flags."
                        (oref first-issue id)
                        (oref first-issue title)))
              (t
-              (message "Created %d issues from file" (length issues))))
+              (message "Created %d issues from file (first: %s)"
+                       (length issues) (oref first-issue id))))
             ;; Invalidate completion cache (even if no issues, cache state may have changed)
             (beads--invalidate-completion-cache)
             ;; Optionally show the first created issue in a proper buffer
