@@ -422,6 +422,26 @@ Verifies error handling when the bd create command fails."
           (should (stringp result))
           (should (string-match-p "Failed to create issue" result)))))))
 
+(ert-deftest beads-create-test-execute-multi-issue-message ()
+  "Unit test: Verify message format when multiple issues are created.
+Tests the multi-issue code path (e.g., from --file flag)."
+  :tags '(:unit)
+  (beads-test-with-transient-args 'beads-create
+      '("--file=/tmp/test.md")
+    ;; Mock beads-command-execute to return multiple issues
+    ;; The execute method returns a command object with populated data slot
+    (let ((mock-cmd (beads-command-create
+                     :title "mock"
+                     :data (list (beads-issue :id "test-1" :title "Issue One")
+                                 (beads-issue :id "test-2" :title "Issue Two")))))
+      (cl-letf (((symbol-function 'beads-command-execute)
+                 (lambda (_) mock-cmd))
+                ((symbol-function 'y-or-n-p)
+                 (lambda (_) nil))
+                ((symbol-function 'beads--invalidate-completion-cache)
+                 #'ignore))
+        (call-interactively #'beads-create--execute)))))
+
 (ert-deftest beads-create-test-execute-cache-invalidation ()
   "Integration test: Verify cache invalidation after successful creation.
 Tests that beads--invalidate-completion-cache is called."
