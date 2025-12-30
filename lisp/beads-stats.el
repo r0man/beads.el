@@ -43,6 +43,10 @@
 
 ;;; Variables
 
+(defconst beads-stats--value-column 24
+  "Column position for right-aligned stat values in stats display.
+This matches the column alignment used by the bd CLI stats command.")
+
 (defvar beads-stats-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "q") #'quit-window)
@@ -201,6 +205,8 @@ Inserts an actual button into the buffer at point."
                      ('closed (format "Click to view %d closed issues" count))
                      ('blocked
                       (format "Click to view %d blocked issues" count))
+                     ('deferred
+                      (format "Click to view %d deferred issues" count))
                      ('ready (format "Click to view %d ready issues" count))
                      (_ (format "Click to view %d issues" count))))
         (start (point)))
@@ -249,9 +255,8 @@ interactive clickable numbers."
     (insert " Summary:\n")
 
     ;; Format: "  Label:              Number" with right-aligned numbers
-    ;; CLI uses column 24 for right-aligned numbers (2 spaces + 22 chars label)
     (insert "   Total Issues:")
-    (insert (make-string (- 24 (current-column)) ?\s))
+    (insert (make-string (- beads-stats--value-column (current-column)) ?\s))
     (beads-stats--insert-stat-button
      (format "%d" (oref stats total-issues))
      'total
@@ -260,7 +265,7 @@ interactive clickable numbers."
     (insert "\n")
 
     (insert "   Open:")
-    (insert (make-string (- 24 (current-column)) ?\s))
+    (insert (make-string (- beads-stats--value-column (current-column)) ?\s))
     (beads-stats--insert-stat-button
      (format "%d" (oref stats open-issues))
      'open
@@ -269,7 +274,7 @@ interactive clickable numbers."
     (insert "\n")
 
     (insert "   In Progress:")
-    (insert (make-string (- 24 (current-column)) ?\s))
+    (insert (make-string (- beads-stats--value-column (current-column)) ?\s))
     (beads-stats--insert-stat-button
      (format "%d" (oref stats in-progress-issues))
      'in-progress
@@ -278,7 +283,7 @@ interactive clickable numbers."
     (insert "\n")
 
     (insert "   Blocked:")
-    (insert (make-string (- 24 (current-column)) ?\s))
+    (insert (make-string (- beads-stats--value-column (current-column)) ?\s))
     (beads-stats--insert-stat-button
      (format "%d" (oref stats blocked-issues))
      'blocked
@@ -287,7 +292,7 @@ interactive clickable numbers."
     (insert "\n")
 
     (insert "   Closed:")
-    (insert (make-string (- 24 (current-column)) ?\s))
+    (insert (make-string (- beads-stats--value-column (current-column)) ?\s))
     (beads-stats--insert-stat-button
      (format "%d" (oref stats closed-issues))
      'closed
@@ -296,7 +301,7 @@ interactive clickable numbers."
     (insert "\n")
 
     (insert "   Ready to Work:")
-    (insert (make-string (- 24 (current-column)) ?\s))
+    (insert (make-string (- beads-stats--value-column (current-column)) ?\s))
     (beads-stats--insert-stat-button
      (format "%d" (oref stats ready-issues))
      'ready
@@ -308,7 +313,7 @@ interactive clickable numbers."
     (when (> (oref stats tombstone-issues) 0)
       (insert "\n Extended:\n")
       (insert "   Deleted:")
-      (insert (make-string (- 24 (current-column)) ?\s))
+      (insert (make-string (- beads-stats--value-column (current-column)) ?\s))
       (insert (format "%d (tombstones)\n" (oref stats tombstone-issues))))
 
     ;; Recent Activity section - only show if we have activity data
@@ -318,27 +323,27 @@ interactive clickable numbers."
       (insert " hours):\n")
 
       (insert "   Commits:")
-      (insert (make-string (- 24 (current-column)) ?\s))
+      (insert (make-string (- beads-stats--value-column (current-column)) ?\s))
       (insert (format "%d\n" (oref activity commit-count)))
 
       (insert "   Total Changes:")
-      (insert (make-string (- 24 (current-column)) ?\s))
+      (insert (make-string (- beads-stats--value-column (current-column)) ?\s))
       (insert (format "%d\n" (oref activity total-changes)))
 
       (insert "   Issues Created:")
-      (insert (make-string (- 24 (current-column)) ?\s))
+      (insert (make-string (- beads-stats--value-column (current-column)) ?\s))
       (insert (format "%d\n" (oref activity issues-created)))
 
       (insert "   Issues Closed:")
-      (insert (make-string (- 24 (current-column)) ?\s))
+      (insert (make-string (- beads-stats--value-column (current-column)) ?\s))
       (insert (format "%d\n" (oref activity issues-closed)))
 
       (insert "   Issues Reopened:")
-      (insert (make-string (- 24 (current-column)) ?\s))
+      (insert (make-string (- beads-stats--value-column (current-column)) ?\s))
       (insert (format "%d\n" (oref activity issues-reopened)))
 
       (insert "   Issues Updated:")
-      (insert (make-string (- 24 (current-column)) ?\s))
+      (insert (make-string (- beads-stats--value-column (current-column)) ?\s))
       (insert (format "%d\n" (oref activity issues-updated))))
 
     ;; Footer
@@ -368,10 +373,17 @@ interactive clickable numbers."
   "Display Beads issue statistics in an interactive buffer.
 
 Shows statistics including:
+
+SUMMARY SECTION:
 - Total issues
 - Issues by status (Open, In Progress, Blocked, Closed)
 - Ready to work issues
-- Average lead time
+
+EXTENDED SECTION (shown only when tombstones exist):
+- Deleted issues (tombstones)
+
+RECENT ACTIVITY SECTION:
+- Commits, total changes, issues created/closed/reopened/updated
 
 INTERACTIVE FEATURES:
 All statistic numbers are clickable! Click on any number to view
@@ -385,6 +397,8 @@ those issues in a filtered list:
 - Click Ready → View ready-to-work issues
 
 KEYBOARD SHORTCUTS:
+  n - Move to next clickable statistic
+  p - Move to previous clickable statistic
   g - Refresh statistics
   q - Quit statistics buffer
 
