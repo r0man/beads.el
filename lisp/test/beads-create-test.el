@@ -313,11 +313,14 @@ Tests successful creation with only title set."
 
 (ert-deftest beads-create-test-execute-all-fields ()
   "Integration test: Create issue with all fields populated.
-Tests successful creation with ALL field types."
+Tests successful creation with ALL field types including deps, parent, force."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-project ()
-    (let* ((ext-ref (format "gh-%d" (random 99999)))
+    ;; First create a parent issue for --parent and --deps flags
+    (let* ((parent (beads-command-create! :title "Parent Issue" :issue-type "epic"))
+           (parent-id (oref parent id))
+           (ext-ref (format "gh-%d" (random 99999)))
            (result
             (beads-test-with-cache-tracking
              (cl-letf (((symbol-function 'y-or-n-p)
@@ -332,7 +335,11 @@ Tests successful creation with ALL field types."
                          "--labels=test,integration"
                          "--description=Full description text"
                          "--acceptance=Acceptance criteria here"
-                         "--design=Design notes")
+                         "--design=Design notes"
+                         ;; Additional flags for comprehensive coverage:
+                         (format "--deps=blocks:%s" parent-id)
+                         (format "--parent=%s" parent-id)
+                         "--force")
                  (call-interactively #'beads-create--execute))))))
       ;; Verify cache was invalidated
       (should (plist-get result :completion-cache-invalidated))
@@ -355,7 +362,20 @@ Tests successful creation with ALL field types."
         (should (equal (oref created description) "Full description text"))
         (should (equal (oref created acceptance-criteria)
                        "Acceptance criteria here"))
-        (should (equal (oref created design) "Design notes"))))))
+        (should (equal (oref created design) "Design notes"))
+        ;; Use beads-command-show! to get the issue with dependencies
+        ;; (list command doesn't include dependencies)
+        (let* ((detailed (beads-command-show! :issue-ids (list (oref created id))))
+               (deps (oref detailed dependencies)))
+          ;; Verify dependencies were created from --deps and --parent flags.
+          ;; Both flags create relationships, but the exact count depends on
+          ;; how bd handles parent-child vs blocks relationships internally.
+          (should deps)
+          (should (>= (length deps) 1))
+          ;; Verify each dependency has required metadata (created-at, created-by)
+          (dolist (dep deps)
+            (should (oref dep created-at))
+            (should (oref dep created-by))))))))
 
 (ert-deftest beads-create-test-execute-validation-failure ()
   "Integration test: Test validation failure paths.
@@ -476,6 +496,48 @@ Tests creating an issue with dependency links."
                          (equal (oref issue title) "Child Issue"))
                        issues)))
           (should child))))))
+
+(ert-deftest beads-create-test-execute-from-file ()
+  "Integration test: Create issue from markdown file.
+Tests the --file flag which is mutually exclusive with --title."
+  :tags '(:integration :slow)
+  (skip-unless (executable-find beads-executable))
+  (beads-test-with-project ()
+    ;; Create a markdown file with issue content
+    ;; bd expects ## Title format (H2 heading) for each issue
+    (let ((issue-file (expand-file-name "test-issue.md" default-directory)))
+      (unwind-protect
+          (progn
+            (with-temp-file issue-file
+              (insert "## Issue Created From File\n\n")
+              (insert "This is the description of the issue.\n")
+              (insert "It was created using the --file flag.\n"))
+            ;; Create issue from file
+            (let ((result
+                   (beads-test-with-cache-tracking
+                    (cl-letf (((symbol-function 'y-or-n-p)
+                               (lambda (_) nil)))  ; Don't show issue
+                      (beads-test-with-transient-args 'beads-create
+                          (list (format "--file=%s" issue-file))
+                        (call-interactively #'beads-create--execute))))))
+              ;; Verify cache was invalidated
+              (should (plist-get result :completion-cache-invalidated))
+              ;; Verify the issue was created
+              (let* ((issues (beads-command-list!))
+                     (created (seq-find
+                               (lambda (issue)
+                                 (string-match-p "From File" (oref issue title)))
+                               issues)))
+                (should created)
+                ;; Verify title matches exactly
+                (should (equal (oref created title) "Issue Created From File"))
+                ;; Description should contain the file content
+                ;; (bd may parse only the first paragraph as description)
+                (let ((desc (or (oref created description) "")))
+                  (should (string-match-p "This is the description" desc))))))
+        ;; Cleanup: delete the temporary file
+        (when (file-exists-p issue-file)
+          (delete-file issue-file))))))
 
 ;;; Integration Tests for beads-create--preview
 
