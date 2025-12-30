@@ -98,15 +98,36 @@ This uses transient's standard argument parsing with dash-style flags."
     (if error-msg
         (user-error "Validation failed: %s" error-msg)
       (condition-case err
-          (let ((issue (oref (beads-command-execute cmd) data)))
-            (message "Created issue: %s - %s"
-                     (oref issue id)
-                     (oref issue title))
-            ;; Invalidate completion cache
+          (let* ((result (oref (beads-command-execute cmd) data))
+                 ;; Handle both single-issue and multi-issue responses:
+                 ;; - Single title: returns one beads-issue object
+                 ;; - Multiple from file: returns list of beads-issue objects
+                 (issues (cond
+                          ((null result) nil)
+                          ((cl-typep result 'beads-issue) (list result))
+                          ((and (listp result)
+                                (not (null result))
+                                (cl-typep (car result) 'beads-issue))
+                           result)
+                          (t
+                           (error "Unexpected result type from bd create: %S"
+                                  result))))
+                 (first-issue (car issues)))
+            (cond
+             ((null first-issue)
+              (message "No issues created"))
+             ((= (length issues) 1)
+              (message "Created issue: %s - %s"
+                       (oref first-issue id)
+                       (oref first-issue title)))
+             (t
+              (message "Created %d issues from file" (length issues))))
+            ;; Invalidate completion cache (even if no issues, cache state may have changed)
             (beads--invalidate-completion-cache)
-            ;; Optionally show the created issue in a proper buffer
-            (when (y-or-n-p (format "Show issue %s? " (oref issue id)))
-              (beads-show (oref issue id)))
+            ;; Optionally show the first created issue in a proper buffer
+            (when (and first-issue
+                       (y-or-n-p (format "Show issue %s? " (oref first-issue id))))
+              (beads-show (oref first-issue id)))
             nil)
         (error
          (let ((err-msg (format "Failed to create issue: %s"
