@@ -592,18 +592,20 @@ beads-statistics class requires a float."
 (ert-deftest beads-stats-test-button-action-open ()
   "Test button action for open status filter."
   (let ((command-executed nil)
-        (beads-check-executable-called nil))
+        (beads-check-executable-called nil)
+        (mock-cmd (beads-command-list)))
+    (oset mock-cmd data nil)
     (cl-letf (((symbol-function 'beads-check-executable)
                (lambda () (setq beads-check-executable-called t)))
               ((symbol-function 'beads-command-execute)
                (lambda (cmd)
                  (when (cl-typep cmd 'beads-command-list)
                    (setq command-executed cmd))
-                 nil))
+                 mock-cmd))
               ((symbol-function 'beads-list-mode)
                (lambda ()))
               ((symbol-function 'beads-list--populate-buffer)
-               (lambda (_issues _cmd)))
+               (lambda (_issues _view &optional _cmd)))
               ((symbol-function 'pop-to-buffer)
                (lambda (_buf))))
       (beads-stats--open-filtered-list 'open 30)
@@ -613,16 +615,18 @@ beads-statistics class requires a float."
 
 (ert-deftest beads-stats-test-button-action-in-progress ()
   "Test button action for in-progress status filter."
-  (let ((command-executed nil))
+  (let ((command-executed nil)
+        (mock-cmd (beads-command-list)))
+    (oset mock-cmd data nil)
     (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
               ((symbol-function 'beads-command-execute)
                (lambda (cmd)
                  (when (cl-typep cmd 'beads-command-list)
                    (setq command-executed cmd))
-                 nil))
+                 mock-cmd))
               ((symbol-function 'beads-list-mode) (lambda ()))
               ((symbol-function 'beads-list--populate-buffer)
-               (lambda (_issues _cmd)))
+               (lambda (_issues _view &optional _cmd)))
               ((symbol-function 'pop-to-buffer) (lambda (_buf))))
       (beads-stats--open-filtered-list 'in-progress 15)
       (should command-executed)
@@ -630,16 +634,18 @@ beads-statistics class requires a float."
 
 (ert-deftest beads-stats-test-button-action-closed ()
   "Test button action for closed status filter."
-  (let ((command-executed nil))
+  (let ((command-executed nil)
+        (mock-cmd (beads-command-list)))
+    (oset mock-cmd data nil)
     (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
               ((symbol-function 'beads-command-execute)
                (lambda (cmd)
                  (when (cl-typep cmd 'beads-command-list)
                    (setq command-executed cmd))
-                 nil))
+                 mock-cmd))
               ((symbol-function 'beads-list-mode) (lambda ()))
               ((symbol-function 'beads-list--populate-buffer)
-               (lambda (_issues _cmd)))
+               (lambda (_issues _view &optional _cmd)))
               ((symbol-function 'pop-to-buffer) (lambda (_buf))))
       (beads-stats--open-filtered-list 'closed 50)
       (should command-executed)
@@ -839,26 +845,34 @@ beads-statistics class requires a float."
 ;;; List All Issues Tests
 
 (ert-deftest beads-stats-test-list-all-issues-no-issues ()
-  "Test beads-stats--list-all-issues with no issues."
-  (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
-            ((symbol-function 'beads-command-execute) (lambda (_cmd) nil))
-            ((symbol-function 'pop-to-buffer) (lambda (_buf))))
-    (beads-stats--list-all-issues)
-    (let ((buf (get-buffer "*beads-list*")))
-      (should buf)
-      (with-current-buffer buf
-        (should (eq major-mode 'beads-list-mode))
-        (should (null tabulated-list-entries)))
-      (kill-buffer buf))))
+  "Test beads-stats--list-all-issues with no issues.
+The function extracts issues from the data slot of the command object."
+  (let ((mock-cmd (beads-command-list)))
+    (oset mock-cmd data nil)
+    (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd) mock-cmd))
+              ((symbol-function 'pop-to-buffer) (lambda (_buf))))
+      (beads-stats--list-all-issues)
+      (let ((buf (get-buffer "*beads-list*")))
+        (should buf)
+        (with-current-buffer buf
+          (should (eq major-mode 'beads-list-mode))
+          (should (null tabulated-list-entries)))
+        (kill-buffer buf)))))
 
 (ert-deftest beads-stats-test-list-all-issues-with-issues ()
-  "Test beads-stats--list-all-issues with issues."
-  (let ((mock-issues (list (beads-issue :id "bd-1" :title "Test 1"
-                                        :status "open" :priority 1)
-                           (beads-issue :id "bd-2" :title "Test 2"
-                                        :status "closed" :priority 2))))
+  "Test beads-stats--list-all-issues with issues.
+The function extracts issues from the data slot of the command object."
+  (let* ((mock-issues (list (beads-issue :id "bd-1" :title "Test 1"
+                                         :status "open" :priority 1)
+                            (beads-issue :id "bd-2" :title "Test 2"
+                                         :status "closed" :priority 2)))
+         (mock-cmd (beads-command-list)))
+    (oset mock-cmd data mock-issues)
     (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
-              ((symbol-function 'beads-command-execute) (lambda (_cmd) mock-issues))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd) mock-cmd))
               ((symbol-function 'beads-list--populate-buffer)
                (lambda (issues view &optional cmd)
                  (setq tabulated-list-entries
@@ -871,6 +885,209 @@ beads-statistics class requires a float."
           (should (eq major-mode 'beads-list-mode))
           (should (= 2 (length tabulated-list-entries))))
         (kill-buffer buf)))))
+
+;;; List By Status Tests
+
+(ert-deftest beads-stats-test-list-by-status-open ()
+  "Test beads-stats--list-by-status with open status.
+Verifies command is created with correct status filter."
+  (let* ((mock-issues (list (beads-issue :id "bd-1" :title "Test 1"
+                                         :status "open" :priority 1)))
+         (mock-cmd (beads-command-list))
+         (captured-status nil))
+    (oset mock-cmd data mock-issues)
+    (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
+              ((symbol-function 'beads-command-list)
+               (lambda (&rest args)
+                 (setq captured-status (plist-get args :status))
+                 mock-cmd))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd) mock-cmd))
+              ((symbol-function 'beads-list--populate-buffer)
+               (lambda (issues view &optional cmd)
+                 (setq tabulated-list-entries
+                       (mapcar (lambda (i) (list (oref i id) [])) issues))))
+              ((symbol-function 'pop-to-buffer) (lambda (_buf))))
+      (beads-stats--list-by-status 'open)
+      (should (equal captured-status "open"))
+      (let ((buf (get-buffer "*beads-list: open*")))
+        (should buf)
+        (kill-buffer buf)))))
+
+(ert-deftest beads-stats-test-list-by-status-in-progress ()
+  "Test beads-stats--list-by-status with in-progress status.
+Verifies the symbol in-progress maps to string in_progress."
+  (let* ((mock-issues nil)
+         (mock-cmd (beads-command-list))
+         (captured-status nil))
+    (oset mock-cmd data mock-issues)
+    (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
+              ((symbol-function 'beads-command-list)
+               (lambda (&rest args)
+                 (setq captured-status (plist-get args :status))
+                 mock-cmd))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd) mock-cmd))
+              ((symbol-function 'pop-to-buffer) (lambda (_buf))))
+      (beads-stats--list-by-status 'in-progress)
+      (should (equal captured-status "in_progress"))
+      (let ((buf (get-buffer "*beads-list: in_progress*")))
+        (should buf)
+        (kill-buffer buf)))))
+
+(ert-deftest beads-stats-test-list-by-status-closed ()
+  "Test beads-stats--list-by-status with closed status."
+  (let* ((mock-cmd (beads-command-list))
+         (captured-status nil))
+    (oset mock-cmd data nil)
+    (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
+              ((symbol-function 'beads-command-list)
+               (lambda (&rest args)
+                 (setq captured-status (plist-get args :status))
+                 mock-cmd))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd) mock-cmd))
+              ((symbol-function 'pop-to-buffer) (lambda (_buf))))
+      (beads-stats--list-by-status 'closed)
+      (should (equal captured-status "closed"))
+      (let ((buf (get-buffer "*beads-list: closed*")))
+        (should buf)
+        (kill-buffer buf)))))
+
+(ert-deftest beads-stats-test-list-by-status-invalid ()
+  "Test beads-stats--list-by-status with invalid status signals error."
+  (should-error (beads-stats--list-by-status 'invalid-status)
+                :type 'error))
+
+;;; Integration Tests for Stats Buffer Links
+;;
+;; These are TRUE integration tests that create real issues in a temporary
+;; project and verify the full workflow from stats buffer to list buffer.
+;; No mocking of command execution - uses actual bd commands.
+
+(ert-deftest beads-stats-test-click-total-issues-real ()
+  "Integration test: clicking Total Issues shows all issues.
+Creates real issues and verifies they appear in the list buffer."
+  :tags '(integration)
+  (beads-test-with-project ()
+    ;; Create real issues in the temp project
+    (let ((id1 (beads-test-create-issue "Open Issue" "task" 1))
+          (id2 (beads-test-create-issue "Another Open" "bug" 2)))
+      (beads-stats--list-all-issues)
+      (let ((buf (get-buffer "*beads-list*")))
+        (should buf)
+        (with-current-buffer buf
+          (should (eq major-mode 'beads-list-mode))
+          (should (>= (length tabulated-list-entries) 2))
+          ;; Verify our issues are in the list
+          (let ((ids (mapcar #'car tabulated-list-entries)))
+            (should (member id1 ids))
+            (should (member id2 ids))))
+        (kill-buffer buf)))))
+
+(ert-deftest beads-stats-test-click-open-issues-real ()
+  "Integration test: clicking Open shows only open issues.
+Creates issues with different statuses and verifies filtering."
+  :tags '(integration)
+  (beads-test-with-project ()
+    ;; Create issues - one open, one we'll close
+    (let ((open-id (beads-test-create-issue "Open Issue" "task" 1))
+          (closed-id (beads-test-create-issue "Will Close" "task" 2)))
+      ;; Close one issue
+      (beads-command-execute
+       (beads-command-close :issue-ids (list closed-id) :reason "Done"))
+      ;; Click Open filter
+      (beads-stats--list-by-status 'open)
+      (let ((buf (get-buffer "*beads-list: open*")))
+        (should buf)
+        (with-current-buffer buf
+          (should (eq major-mode 'beads-list-mode))
+          ;; Verify open issue is present, closed is not
+          (let ((ids (mapcar #'car tabulated-list-entries)))
+            (should (member open-id ids))
+            (should-not (member closed-id ids))))
+        (kill-buffer buf)))))
+
+(ert-deftest beads-stats-test-click-closed-issues-real ()
+  "Integration test: clicking Closed shows only closed issues."
+  :tags '(integration)
+  (beads-test-with-project ()
+    ;; Create and close an issue
+    (let ((open-id (beads-test-create-issue "Stays Open" "task" 1))
+          (closed-id (beads-test-create-issue "Will Close" "task" 2)))
+      (beads-command-execute
+       (beads-command-close :issue-ids (list closed-id) :reason "Completed"))
+      ;; Click Closed filter
+      (beads-stats--list-by-status 'closed)
+      (let ((buf (get-buffer "*beads-list: closed*")))
+        (should buf)
+        (with-current-buffer buf
+          (let ((ids (mapcar #'car tabulated-list-entries)))
+            (should (member closed-id ids))
+            (should-not (member open-id ids))))
+        (kill-buffer buf)))))
+
+(ert-deftest beads-stats-test-click-ready-real ()
+  "Integration test: clicking Ready shows ready issues.
+Issues without blockers should appear as ready."
+  :tags '(integration)
+  (beads-test-with-project ()
+    ;; Create an open issue - it should be ready (no blockers)
+    (let ((ready-id (beads-test-create-issue "Ready Issue" "task" 1)))
+      (beads-ready)
+      (let ((buf (get-buffer "*beads-ready*")))
+        (should buf)
+        (with-current-buffer buf
+          (should (eq major-mode 'beads-list-mode))
+          (let ((ids (mapcar #'car tabulated-list-entries)))
+            (should (member ready-id ids))))
+        (kill-buffer buf)))))
+
+(ert-deftest beads-stats-test-full-workflow-real ()
+  "Integration test: full workflow from beads-stats to filtered list.
+Runs beads-stats, clicks a button, verifies correct list appears."
+  :tags '(integration)
+  (beads-test-with-project ()
+    ;; Create some issues
+    (let ((id1 (beads-test-create-issue "Issue One" "task" 1))
+          (id2 (beads-test-create-issue "Issue Two" "bug" 2)))
+      ;; Run beads-stats to create the stats buffer
+      (beads-stats)
+      (let ((stats-buf (get-buffer "*beads-stats*")))
+        (should stats-buf)
+        (with-current-buffer stats-buf
+          (should (eq major-mode 'beads-stats-mode))
+          ;; Find the Total Issues button
+          (goto-char (point-min))
+          (search-forward "Total Issues:" nil t)
+          (skip-chars-forward " ")
+          (let ((button (button-at (point))))
+            (should button)
+            (should (eq (button-get button 'filter-type) 'total))
+            ;; Click the button
+            (button-activate button)))
+        (kill-buffer stats-buf))
+      ;; Verify list buffer was created with our issues
+      (let ((list-buf (get-buffer "*beads-list*")))
+        (should list-buf)
+        (with-current-buffer list-buf
+          (should (eq major-mode 'beads-list-mode))
+          (let ((ids (mapcar #'car tabulated-list-entries)))
+            (should (member id1 ids))
+            (should (member id2 ids))))
+        (kill-buffer list-buf)))))
+
+(ert-deftest beads-stats-test-button-dispatches-correctly ()
+  "Test button action dispatches to correct handler based on filter-type."
+  (let ((called-filter nil))
+    (cl-letf (((symbol-function 'beads-stats--open-filtered-list)
+               (lambda (filter-type count)
+                 (setq called-filter (list filter-type count)))))
+      (with-temp-buffer
+        (beads-stats--insert-stat-button "42" 'open 42 'default)
+        (goto-char (point-min))
+        (button-activate (button-at (point)))
+        (should (equal called-filter '(open 42)))))))
 
 (provide 'beads-stats-test)
 ;;; beads-stats-test.el ends here

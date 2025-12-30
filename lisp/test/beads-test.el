@@ -171,8 +171,9 @@ Returns the issue ID of the created issue."
                :issue-type type
                :priority priority
                :description description))
-         (result (beads-command-execute cmd)))
-    (oref result id)))
+         (result (beads-command-execute cmd))
+         (issue (oref result data)))
+    (oref issue id)))
 
 (defun beads-test-issue-exists-p (issue-id)
   "Check if ISSUE-ID exists in the current project directory.
@@ -194,8 +195,9 @@ Uses the bd delete command with --force flag."
   "Get issue data for ISSUE-ID in the current project directory.
 Returns a beads-issue EIEIO object, or nil if not found."
   (condition-case nil
-      (beads-command-execute
-       (beads-command-show :issue-ids (list issue-id)))
+      (oref (beads-command-execute
+             (beads-command-show :issue-ids (list issue-id)))
+            data)
     (error nil)))
 
 ;;; ========================================
