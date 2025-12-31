@@ -251,6 +251,10 @@ When non-nil, a cons cell (ISSUE-ID . BUFFER) indicating a scheduled
 update.  Uses magit-style coalescing: rapid navigation updates the
 pending target rather than scheduling multiple timers.")
 
+(defvar-local beads-list--pending-show-timer nil
+  "Timer for pending show buffer update, or nil.
+Stored so we can cancel it when follow-mode is disabled.")
+
 ;;; Buffer Lookup by Project Directory
 ;;
 ;; These functions find or create list buffers based on project directory,
@@ -1145,15 +1149,17 @@ Called from `post-command-hook' when `beads-list-follow-mode' is active."
         (if beads-list--pending-show-update
             (setcar beads-list--pending-show-update issue-id)
           (setq beads-list--pending-show-update (cons issue-id target-buf))
-          (run-with-idle-timer
-           beads-list-update-show-delay nil
-           #'beads-list--do-update-show-buffer))))))
+          (setq beads-list--pending-show-timer
+                (run-with-idle-timer
+                 beads-list-update-show-delay nil
+                 #'beads-list--do-update-show-buffer)))))))
 
 (defun beads-list--do-update-show-buffer ()
   "Execute pending show buffer update."
   (when beads-list--pending-show-update
     (pcase-let ((`(,issue-id . ,buffer) beads-list--pending-show-update))
       (setq beads-list--pending-show-update nil)
+      (setq beads-list--pending-show-timer nil)
       (when (and (buffer-live-p buffer)
                  (get-buffer-window buffer))
         (beads-show-update-buffer issue-id buffer)))))
@@ -1171,7 +1177,10 @@ Uses an idle timer to debounce rapid navigation, similar to
   (if beads-list-follow-mode
       (add-hook 'post-command-hook
                 #'beads-list--maybe-update-show-buffer nil t)
-    ;; Clear any pending update to prevent stale timer from firing
+    ;; Cancel any pending timer and clear state
+    (when beads-list--pending-show-timer
+      (cancel-timer beads-list--pending-show-timer)
+      (setq beads-list--pending-show-timer nil))
     (setq beads-list--pending-show-update nil)
     (remove-hook 'post-command-hook
                  #'beads-list--maybe-update-show-buffer t)))
