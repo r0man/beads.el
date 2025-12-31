@@ -2938,5 +2938,105 @@ Empty sessions are automatically cleaned up."
       (should (string-match-p "Description" (buffer-string)))
       (should (string-match-p "This is the content" (buffer-string))))))
 
+;;; Follow Mode Support Tests
+
+(ert-deftest beads-show-test-find-visible-buffer-none ()
+  "Test find-visible-buffer returns nil when no show buffer is visible."
+  (beads-show-test-with-git-mocks
+   (should-not (beads-show--find-visible-buffer))))
+
+(ert-deftest beads-show-test-find-visible-buffer-exists-but-hidden ()
+  "Test find-visible-buffer returns nil when buffer exists but not visible."
+  (beads-show-test-with-git-mocks
+   (let ((buf (get-buffer-create beads-show-test--buffer-name)))
+     (unwind-protect
+         (progn
+           (with-current-buffer buf
+             (beads-show-mode)
+             (setq-local beads-show--project-dir "/tmp/test-project"))
+           ;; Buffer exists but no window
+           (cl-letf (((symbol-function 'get-buffer-window)
+                      (lambda (_) nil)))
+             (should-not (beads-show--find-visible-buffer))))
+       (kill-buffer buf)))))
+
+(ert-deftest beads-show-test-find-visible-buffer-wrong-project ()
+  "Test find-visible-buffer returns nil for different project."
+  (beads-show-test-with-git-mocks
+   (let ((buf (get-buffer-create "*beads-show: other-project*")))
+     (unwind-protect
+         (progn
+           (with-current-buffer buf
+             (beads-show-mode)
+             (setq-local beads-show--project-dir "/tmp/other-project"))
+           (cl-letf (((symbol-function 'get-buffer-window)
+                      (lambda (_) t)))
+             ;; Looking for test-project, but buffer is for other-project
+             (should-not (beads-show--find-visible-buffer "/tmp/test-project"))))
+       (kill-buffer buf)))))
+
+(ert-deftest beads-show-test-update-buffer-sets-issue-id ()
+  "Test that update-buffer sets the issue ID."
+  (beads-show-test-with-git-mocks
+   (let ((buf (get-buffer-create beads-show-test--buffer-name)))
+     (unwind-protect
+         (progn
+           (with-current-buffer buf
+             (beads-show-mode))
+           (cl-letf (((symbol-function 'beads-command-show!)
+                      (lambda (&rest _)
+                        (beads-issue :id "bd-42" :title "Test"
+                                     :status "open" :priority 2
+                                     :issue-type "task")))
+                     ((symbol-function 'beads-show--render-issue)
+                      (lambda (_) nil)))
+             (beads-show-update-buffer "bd-42" buf)
+             (with-current-buffer buf
+               (should (equal beads-show--issue-id "bd-42")))))
+       (kill-buffer buf)))))
+
+(ert-deftest beads-show-test-update-buffer-returns-buffer ()
+  "Test that update-buffer returns the buffer."
+  (beads-show-test-with-git-mocks
+   (let ((buf (get-buffer-create beads-show-test--buffer-name)))
+     (unwind-protect
+         (progn
+           (with-current-buffer buf
+             (beads-show-mode))
+           (cl-letf (((symbol-function 'beads-command-show!)
+                      (lambda (&rest _)
+                        (beads-issue :id "bd-42" :title "Test"
+                                     :status "open" :priority 2
+                                     :issue-type "task")))
+                     ((symbol-function 'beads-show--render-issue)
+                      (lambda (_) nil)))
+             (should (eq (beads-show-update-buffer "bd-42" buf) buf))))
+       (kill-buffer buf)))))
+
+(ert-deftest beads-show-test-update-buffer-handles-error ()
+  "Test that update-buffer handles errors gracefully."
+  (beads-show-test-with-git-mocks
+   (let ((buf (get-buffer-create beads-show-test--buffer-name)))
+     (unwind-protect
+         (progn
+           (with-current-buffer buf
+             (beads-show-mode))
+           (cl-letf (((symbol-function 'beads-command-show!)
+                      (lambda (&rest _)
+                        (error "Network error"))))
+             (beads-show-update-buffer "bd-42" buf)
+             (with-current-buffer buf
+               (should (string-match-p "Error loading issue"
+                                       (buffer-string))))))
+       (kill-buffer buf)))))
+
+(ert-deftest beads-show-test-update-buffer-function-exists ()
+  "Test that beads-show-update-buffer function exists."
+  (should (fboundp 'beads-show-update-buffer)))
+
+(ert-deftest beads-show-test-find-visible-buffer-function-exists ()
+  "Test that beads-show--find-visible-buffer function exists."
+  (should (fboundp 'beads-show--find-visible-buffer)))
+
 (provide 'beads-show-test)
 ;;; beads-show-test.el ends here
