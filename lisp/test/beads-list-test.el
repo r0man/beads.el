@@ -2297,5 +2297,218 @@ Even if they have the same branch name."
       (beads-list-unmark-all))
     (should (null beads-list--marked-issues))))
 
+;;; Follow Mode Tests
+
+(ert-deftest beads-list-test-follow-mode-toggle ()
+  "Test that follow-mode toggles correctly."
+  (with-temp-buffer
+    (beads-list-mode)
+    (should-not beads-list-follow-mode)
+    (beads-list-follow-mode 1)
+    (should beads-list-follow-mode)
+    (beads-list-follow-mode -1)
+    (should-not beads-list-follow-mode)))
+
+(ert-deftest beads-list-test-follow-mode-adds-hook ()
+  "Test that enabling follow-mode adds post-command-hook."
+  (with-temp-buffer
+    (beads-list-mode)
+    (beads-list-follow-mode 1)
+    (should (memq #'beads-list--maybe-update-show-buffer
+                  post-command-hook))
+    (beads-list-follow-mode -1)
+    (should-not (memq #'beads-list--maybe-update-show-buffer
+                      post-command-hook))))
+
+(ert-deftest beads-list-test-follow-mode-clears-state-on-disable ()
+  "Test that disabling follow-mode clears pending state."
+  (with-temp-buffer
+    (beads-list-mode)
+    (beads-list-follow-mode 1)
+    ;; Simulate pending update
+    (setq beads-list--pending-show-update '("bd-1" . some-buffer))
+    (setq beads-list--pending-show-timer 'fake-timer)
+    (cl-letf (((symbol-function 'cancel-timer) (lambda (_) nil)))
+      (beads-list-follow-mode -1))
+    (should-not beads-list--pending-show-update)
+    (should-not beads-list--pending-show-timer)))
+
+(ert-deftest beads-list-test-follow-mode-cancels-timer-on-disable ()
+  "Test that disabling follow-mode cancels pending timer."
+  (with-temp-buffer
+    (beads-list-mode)
+    (beads-list-follow-mode 1)
+    (let ((timer-cancelled nil))
+      (setq beads-list--pending-show-timer 'fake-timer)
+      (cl-letf (((symbol-function 'cancel-timer)
+                 (lambda (timer)
+                   (when (eq timer 'fake-timer)
+                     (setq timer-cancelled t)))))
+        (beads-list-follow-mode -1))
+      (should timer-cancelled))))
+
+(ert-deftest beads-list-test-follow-mode-keybinding ()
+  "Test that C-c C-f is bound to follow-mode."
+  (with-temp-buffer
+    (beads-list-mode)
+    (should (eq (key-binding (kbd "C-c C-f")) 'beads-list-follow-mode))))
+
+(ert-deftest beads-list-test-maybe-update-no-visible-buffer ()
+  "Test that update is skipped when no show buffer is visible."
+  (with-temp-buffer
+    (beads-list-mode)
+    (beads-list-follow-mode 1)
+    (cl-letf (((symbol-function 'beads-list--current-issue-id)
+               (lambda () "bd-1"))
+              ((symbol-function 'beads-show--find-visible-buffer)
+               (lambda () nil)))
+      (beads-list--maybe-update-show-buffer)
+      (should-not beads-list--pending-show-update))))
+
+(ert-deftest beads-list-test-maybe-update-same-issue ()
+  "Test that update is skipped when show buffer already displays same issue."
+  (with-temp-buffer
+    (beads-list-mode)
+    (beads-list-follow-mode 1)
+    (let ((show-buf (generate-new-buffer "*test-show*")))
+      (unwind-protect
+          (progn
+            (with-current-buffer show-buf
+              (setq-local beads-show--issue-id "bd-1"))
+            (cl-letf (((symbol-function 'beads-list--current-issue-id)
+                       (lambda () "bd-1"))
+                      ((symbol-function 'beads-show--find-visible-buffer)
+                       (lambda () show-buf)))
+              (beads-list--maybe-update-show-buffer)
+              (should-not beads-list--pending-show-update)))
+        (kill-buffer show-buf)))))
+
+(ert-deftest beads-list-test-maybe-update-schedules-timer ()
+  "Test that update is scheduled when conditions are met."
+  (with-temp-buffer
+    (beads-list-mode)
+    (beads-list-follow-mode 1)
+    (let ((show-buf (generate-new-buffer "*test-show*"))
+          (timer-scheduled nil))
+      (unwind-protect
+          (progn
+            (with-current-buffer show-buf
+              (setq-local beads-show--issue-id "bd-old"))
+            (cl-letf (((symbol-function 'beads-list--current-issue-id)
+                       (lambda () "bd-new"))
+                      ((symbol-function 'beads-show--find-visible-buffer)
+                       (lambda () show-buf))
+                      ((symbol-function 'run-with-idle-timer)
+                       (lambda (_delay _repeat _func)
+                         (setq timer-scheduled t)
+                         'fake-timer)))
+              (beads-list--maybe-update-show-buffer)
+              (should beads-list--pending-show-update)
+              (should (equal (car beads-list--pending-show-update) "bd-new"))
+              (should timer-scheduled)))
+        (kill-buffer show-buf)))))
+
+(ert-deftest beads-list-test-maybe-update-coalesces ()
+  "Test that rapid updates coalesce to single timer."
+  (with-temp-buffer
+    (beads-list-mode)
+    (beads-list-follow-mode 1)
+    (let ((show-buf (generate-new-buffer "*test-show*"))
+          (timer-count 0))
+      (unwind-protect
+          (progn
+            (with-current-buffer show-buf
+              (setq-local beads-show--issue-id "bd-old"))
+            (cl-letf (((symbol-function 'beads-show--find-visible-buffer)
+                       (lambda () show-buf))
+                      ((symbol-function 'run-with-idle-timer)
+                       (lambda (_delay _repeat _func)
+                         (setq timer-count (1+ timer-count))
+                         'fake-timer)))
+              ;; First navigation
+              (cl-letf (((symbol-function 'beads-list--current-issue-id)
+                         (lambda () "bd-1")))
+                (beads-list--maybe-update-show-buffer))
+              ;; Second navigation - should coalesce
+              (cl-letf (((symbol-function 'beads-list--current-issue-id)
+                         (lambda () "bd-2")))
+                (beads-list--maybe-update-show-buffer))
+              ;; Third navigation - should coalesce
+              (cl-letf (((symbol-function 'beads-list--current-issue-id)
+                         (lambda () "bd-3")))
+                (beads-list--maybe-update-show-buffer))
+              ;; Only one timer should be scheduled
+              (should (= timer-count 1))
+              ;; But pending update should have latest issue
+              (should (equal (car beads-list--pending-show-update) "bd-3"))))
+        (kill-buffer show-buf)))))
+
+(ert-deftest beads-list-test-do-update-clears-state ()
+  "Test that executing update clears pending state."
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((show-buf (generate-new-buffer "*test-show*")))
+      (unwind-protect
+          (progn
+            (with-current-buffer show-buf
+              (beads-show-mode))
+            (setq beads-list--pending-show-update (cons "bd-1" show-buf))
+            (setq beads-list--pending-show-timer 'fake-timer)
+            (cl-letf (((symbol-function 'get-buffer-window)
+                       (lambda (_) t))
+                      ((symbol-function 'beads-show-update-buffer)
+                       (lambda (_id _buf) nil)))
+              (beads-list--do-update-show-buffer))
+            (should-not beads-list--pending-show-update)
+            (should-not beads-list--pending-show-timer))
+        (kill-buffer show-buf)))))
+
+(ert-deftest beads-list-test-do-update-skips-dead-buffer ()
+  "Test that update is skipped if show buffer was killed."
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((show-buf (generate-new-buffer "*test-show*"))
+          (update-called nil))
+      ;; Kill the buffer before update
+      (kill-buffer show-buf)
+      (setq beads-list--pending-show-update (cons "bd-1" show-buf))
+      (cl-letf (((symbol-function 'beads-show-update-buffer)
+                 (lambda (_id _buf)
+                   (setq update-called t))))
+        (beads-list--do-update-show-buffer))
+      (should-not update-called))))
+
+(ert-deftest beads-list-test-do-update-skips-hidden-buffer ()
+  "Test that update is skipped if show buffer is no longer visible."
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((show-buf (generate-new-buffer "*test-show*"))
+          (update-called nil))
+      (unwind-protect
+          (progn
+            (setq beads-list--pending-show-update (cons "bd-1" show-buf))
+            (cl-letf (((symbol-function 'get-buffer-window)
+                       (lambda (_) nil))
+                      ((symbol-function 'beads-show-update-buffer)
+                       (lambda (_id _buf)
+                         (setq update-called t))))
+              (beads-list--do-update-show-buffer))
+            (should-not update-called))
+        (kill-buffer show-buf)))))
+
+(ert-deftest beads-list-test-follow-mode-lighter ()
+  "Test that follow-mode has correct lighter defined."
+  ;; Check the lighter is defined in minor-mode-alist
+  (let ((entry (assq 'beads-list-follow-mode minor-mode-alist)))
+    (should entry)
+    ;; Lighter is second element: (mode-var lighter)
+    (should (stringp (cadr entry)))
+    (should (string-match-p "Follow" (cadr entry)))))
+
+(ert-deftest beads-list-test-update-show-delay-customizable ()
+  "Test that update delay is customizable."
+  (should (custom-variable-p 'beads-list-update-show-delay))
+  (should (numberp beads-list-update-show-delay)))
+
 (provide 'beads-list-test)
 ;;; beads-list-test.el ends here
