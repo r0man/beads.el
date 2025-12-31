@@ -1149,10 +1149,15 @@ Called from `post-command-hook' when `beads-list-follow-mode' is active."
         (if beads-list--pending-show-update
             (setcar beads-list--pending-show-update issue-id)
           (setq beads-list--pending-show-update (cons issue-id target-buf))
-          (setq beads-list--pending-show-timer
-                (run-with-idle-timer
-                 beads-list-update-show-delay nil
-                 #'beads-list--do-update-show-buffer)))))))
+          ;; Capture current buffer for timer callback - state is buffer-local
+          (let ((list-buf (current-buffer)))
+            (setq beads-list--pending-show-timer
+                  (run-with-idle-timer
+                   beads-list-update-show-delay nil
+                   (lambda ()
+                     (when (buffer-live-p list-buf)
+                       (with-current-buffer list-buf
+                         (beads-list--do-update-show-buffer))))))))))))
 
 (defun beads-list--do-update-show-buffer ()
   "Execute pending show buffer update."
