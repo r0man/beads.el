@@ -78,6 +78,20 @@
      (beads-show-mode)
      ,@body))
 
+(defmacro beads-show-test-with-git-mocks (&rest body)
+  "Execute BODY with git functions mocked to return test-project.
+This is needed because show buffers are now named by project, not issue."
+  `(cl-letf (((symbol-function 'beads-git-find-project-root)
+              (lambda () "/tmp/test-project"))
+             ((symbol-function 'beads-git-get-project-name)
+              (lambda () "test-project"))
+             ((symbol-function 'beads-git-get-branch)
+              (lambda () "main")))
+     ,@body))
+
+(defconst beads-show-test--buffer-name "*beads-show: test-project*"
+  "Expected buffer name when using git mocks.")
+
 (defun beads-show-test--mock-show-command (issue-data)
   "Create a mock for beads-command-show! returning ISSUE-DATA as EIEIO object."
   (lambda (&rest args)
@@ -477,49 +491,53 @@
 
 (ert-deftest beads-show-test-show-command-creates-buffer ()
   "Test that beads-show creates a buffer with correct name."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command beads-show-test--full-issue)))
-    (beads-show "bd-42")
-    (should (get-buffer "*beads-show: bd-42*"))
-    (with-current-buffer "*beads-show: bd-42*"
-      (should (derived-mode-p 'beads-show-mode))
-      (should (string= beads-show--issue-id "bd-42")))
-    (kill-buffer "*beads-show: bd-42*")))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command beads-show-test--full-issue)))
+     (beads-show "bd-42")
+     (should (get-buffer beads-show-test--buffer-name))
+     (with-current-buffer beads-show-test--buffer-name
+       (should (derived-mode-p 'beads-show-mode))
+       (should (string= beads-show--issue-id "bd-42")))
+     (kill-buffer beads-show-test--buffer-name))))
 
 (ert-deftest beads-show-test-show-command-renders-content ()
   "Test that beads-show renders issue content."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command beads-show-test--full-issue)))
-    (beads-show "bd-42")
-    (with-current-buffer "*beads-show: bd-42*"
-      (let ((text (beads-show-test--get-buffer-text)))
-        (should (string-match-p "Implement feature X" text))
-        (should (string-match-p "alice" text)))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command beads-show-test--full-issue)))
+     (beads-show "bd-42")
+     (with-current-buffer beads-show-test--buffer-name
+       (let ((text (beads-show-test--get-buffer-text)))
+         (should (string-match-p "Implement feature X" text))
+         (should (string-match-p "alice" text)))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-show-command-handles-error ()
   "Test that beads-show handles errors gracefully."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (lambda (&rest args) (error "Database not found"))))
-    (beads-show "bd-999")
-    (with-current-buffer "*beads-show: bd-999*"
-      (let ((text (beads-show-test--get-buffer-text)))
-        (should (string-match-p "Error loading issue" text))
-        (should (string-match-p "Database not found" text)))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (lambda (&rest args) (error "Database not found"))))
+     (beads-show "bd-999")
+     (with-current-buffer beads-show-test--buffer-name
+       (let ((text (beads-show-test--get-buffer-text)))
+         (should (string-match-p "Error loading issue" text))
+         (should (string-match-p "Database not found" text)))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-show-at-point-with-reference ()
   "Test beads-show-at-point when cursor is on bd-N."
-  (with-temp-buffer
-    (insert "See issue bd-42 for details")
-    (goto-char (point-min))
-    (search-forward "bd-42")
-    (goto-char (match-beginning 0))
-    (cl-letf (((symbol-function 'beads-command-show!)
-               (beads-show-test--mock-show-command beads-show-test--full-issue)))
-      (beads-show-at-point)
-      (should (get-buffer "*beads-show: bd-42*"))
-      (kill-buffer "*beads-show: bd-42*"))))
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (insert "See issue bd-42 for details")
+     (goto-char (point-min))
+     (search-forward "bd-42")
+     (goto-char (match-beginning 0))
+     (cl-letf (((symbol-function 'beads-command-show!)
+                (beads-show-test--mock-show-command beads-show-test--full-issue)))
+       (beads-show-at-point)
+       (should (get-buffer beads-show-test--buffer-name))
+       (kill-buffer beads-show-test--buffer-name)))))
 
 (ert-deftest beads-show-test-show-at-point-without-reference ()
   "Test beads-show-at-point when no reference at point."
@@ -530,17 +548,18 @@
 
 (ert-deftest beads-show-test-refresh-command ()
   "Test beads-refresh-show command."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command beads-show-test--full-issue)))
-    (beads-show "bd-42")
-    (with-current-buffer "*beads-show: bd-42*"
-      (goto-char (point-max))
-      (let ((pos (point)))
-        ;; Refresh should reload and try to preserve position
-        (beads-refresh-show)
-        (should (string-match-p "Implement feature X"
-                              (beads-show-test--get-buffer-text))))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command beads-show-test--full-issue)))
+     (beads-show "bd-42")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-max))
+       (let ((pos (point)))
+         ;; Refresh should reload and try to preserve position
+         (beads-refresh-show)
+         (should (string-match-p "Implement feature X"
+                               (beads-show-test--get-buffer-text))))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-refresh-outside-show-buffer ()
   "Test that refresh fails outside beads-show buffer."
@@ -555,40 +574,43 @@
 
 (ert-deftest beads-show-test-next-section ()
   "Test navigation to next section."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command beads-show-test--full-issue)))
-    (beads-show "bd-42")
-    (with-current-buffer "*beads-show: bd-42*"
-      (goto-char (point-min))
-      (let ((initial-pos (point)))
-        (beads-show-next-section)
-        (should (> (point) initial-pos)))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command beads-show-test--full-issue)))
+     (beads-show "bd-42")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       (let ((initial-pos (point)))
+         (beads-show-next-section)
+         (should (> (point) initial-pos)))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-previous-section ()
   "Test navigation to previous section."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command beads-show-test--full-issue)))
-    (beads-show "bd-42")
-    (with-current-buffer "*beads-show: bd-42*"
-      (goto-char (point-max))
-      (beads-show-previous-section)
-      (should (< (point) (point-max)))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command beads-show-test--full-issue)))
+     (beads-show "bd-42")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-max))
+       (beads-show-previous-section)
+       (should (< (point) (point-max)))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-follow-reference ()
   "Test following a reference with RET."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command beads-show-test--full-issue)))
-    (beads-show "bd-42")
-    (with-current-buffer "*beads-show: bd-42*"
-      (goto-char (point-min))
-      (when (search-forward "bd-1" nil t)
-        (goto-char (match-beginning 0))
-        (beads-show-follow-reference)
-        (should (get-buffer "*beads-show: bd-1*"))
-        (kill-buffer "*beads-show: bd-1*"))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command beads-show-test--full-issue)))
+     (beads-show "bd-42")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       (when (search-forward "bd-1" nil t)
+         (goto-char (match-beginning 0))
+         (beads-show-follow-reference)
+         (should (get-buffer beads-show-test--buffer-name))
+         (kill-buffer beads-show-test--buffer-name))
+       (kill-buffer)))))
 
 ;;; Tests for Mode Setup
 
@@ -710,66 +732,66 @@
 
 (ert-deftest beads-show-test-full-workflow ()
   "Test full workflow: show issue, navigate, refresh."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command beads-show-test--full-issue)))
-    ;; Show issue
-    (beads-show "bd-42")
-    (should (get-buffer "*beads-show: bd-42*"))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command beads-show-test--full-issue)))
+     ;; Show issue
+     (beads-show "bd-42")
+     (should (get-buffer beads-show-test--buffer-name))
 
-    (with-current-buffer "*beads-show: bd-42*"
-      ;; Check mode is correct
-      (should (derived-mode-p 'beads-show-mode))
+     (with-current-buffer beads-show-test--buffer-name
+       ;; Check mode is correct
+       (should (derived-mode-p 'beads-show-mode))
 
-      ;; Check content is present
-      (let ((text (beads-show-test--get-buffer-text)))
-        (should (string-match-p "Implement feature X" text)))
+       ;; Check content is present
+       (let ((text (beads-show-test--get-buffer-text)))
+         (should (string-match-p "Implement feature X" text)))
 
-      ;; Navigate sections
-      (goto-char (point-min))
-      (beads-show-next-section)
-      (should (> (point) (point-min)))
+       ;; Navigate sections
+       (goto-char (point-min))
+       (beads-show-next-section)
+       (should (> (point) (point-min)))
 
-      ;; Refresh
-      (beads-refresh-show)
-      (should (string-match-p "Implement feature X"
-                            (beads-show-test--get-buffer-text)))
+       ;; Refresh
+       (beads-refresh-show)
+       (should (string-match-p "Implement feature X"
+                             (beads-show-test--get-buffer-text)))
 
-      (kill-buffer))))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-multiple-buffers ()
-  "Test managing multiple show buffers simultaneously."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (lambda (&rest args)
-               (let* ((issue-ids (plist-get args :issue-ids))
-                      (id (car issue-ids)))
-                 (cond
-                  ((string= id "bd-1") (beads-issue-from-json beads-show-test--minimal-issue))
-                  ((string= id "bd-42") (beads-issue-from-json beads-show-test--full-issue))
-                  (t (error "Unknown issue")))))))
-    ;; Open first issue
-    (beads-show "bd-1")
-    (should (get-buffer "*beads-show: bd-1*"))
+  "Test that viewing multiple issues reuses the same project buffer.
+With project-based naming, all issues in a project share one buffer."
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (lambda (&rest args)
+                (let* ((issue-ids (plist-get args :issue-ids))
+                       (id (car issue-ids)))
+                  (cond
+                   ((string= id "bd-1") (beads-issue-from-json beads-show-test--minimal-issue))
+                   ((string= id "bd-42") (beads-issue-from-json beads-show-test--full-issue))
+                   (t (error "Unknown issue")))))))
+     ;; Open first issue
+     (beads-show "bd-1")
+     (should (get-buffer beads-show-test--buffer-name))
+     (with-current-buffer beads-show-test--buffer-name
+       (should (string-match-p "Minimal issue"
+                               (beads-show-test--get-buffer-text))))
 
-    ;; Open second issue
-    (beads-show "bd-42")
-    (should (get-buffer "*beads-show: bd-42*"))
+     ;; Open second issue - should REUSE the same buffer
+     (beads-show "bd-42")
+     (should (get-buffer beads-show-test--buffer-name))
 
-    ;; Both buffers should exist
-    (should (get-buffer "*beads-show: bd-1*"))
-    (should (get-buffer "*beads-show: bd-42*"))
+     ;; Buffer content should now show the SECOND issue
+     (with-current-buffer beads-show-test--buffer-name
+       (should (string-match-p "Implement feature X"
+                               (beads-show-test--get-buffer-text)))
+       ;; Old content should be gone
+       (should-not (string-match-p "Minimal issue"
+                                   (beads-show-test--get-buffer-text))))
 
-    ;; Each should have correct content
-    (with-current-buffer "*beads-show: bd-1*"
-      (should (string-match-p "Minimal issue"
-                            (beads-show-test--get-buffer-text))))
-
-    (with-current-buffer "*beads-show: bd-42*"
-      (should (string-match-p "Implement feature X"
-                            (beads-show-test--get-buffer-text))))
-
-    ;; Cleanup
-    (kill-buffer "*beads-show: bd-1*")
-    (kill-buffer "*beads-show: bd-42*")))
+     ;; Cleanup
+     (kill-buffer beads-show-test--buffer-name))))
 
 ;;; Tests for Outline Navigation
 
@@ -789,258 +811,274 @@
 
 (ert-deftest beads-show-test-section-level-title ()
   "Test section level detection for title (level 0)."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--outline-issue)))
-    (beads-show "bd-200")
-    (with-current-buffer "*beads-show: bd-200*"
-      (goto-char (point-min))
-      ;; Search for title
-      (when (search-forward "Issue Title" nil t)
-        (beginning-of-line)
-        (should (eq (beads-show--section-level) 0)))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--outline-issue)))
+     (beads-show "bd-200")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Search for title
+       (when (search-forward "Issue Title" nil t)
+         (beginning-of-line)
+         (should (eq (beads-show--section-level) 0)))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-section-level-major-section ()
   "Test section level detection for major sections (level 1)."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--outline-issue)))
-    (beads-show "bd-200")
-    (with-current-buffer "*beads-show: bd-200*"
-      (goto-char (point-min))
-      ;; Search for "Description" major section
-      (when (search-forward "Description\n─" nil t)
-        (goto-char (match-beginning 0))
-        (should (eq (beads-show--section-level) 1)))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--outline-issue)))
+     (beads-show "bd-200")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Search for "Description" major section
+       (when (search-forward "Description\n─" nil t)
+         (goto-char (match-beginning 0))
+         (should (eq (beads-show--section-level) 1)))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-section-level-markdown-heading-2 ()
   "Test section level detection for markdown ## heading (level 2)."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--outline-issue)))
-    (beads-show "bd-200")
-    (with-current-buffer "*beads-show: bd-200*"
-      (goto-char (point-min))
-      ;; Search for "## Level 2 Heading"
-      (when (search-forward "## Level 2 Heading" nil t)
-        (beginning-of-line)
-        (should (eq (beads-show--section-level) 2)))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--outline-issue)))
+     (beads-show "bd-200")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Search for "## Level 2 Heading"
+       (when (search-forward "## Level 2 Heading" nil t)
+         (beginning-of-line)
+         (should (eq (beads-show--section-level) 2)))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-section-level-markdown-heading-3 ()
   "Test section level detection for markdown ### heading (level 3)."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--outline-issue)))
-    (beads-show "bd-200")
-    (with-current-buffer "*beads-show: bd-200*"
-      (goto-char (point-min))
-      ;; Search for "### Level 3 Heading"
-      (when (search-forward "### Level 3 Heading" nil t)
-        (beginning-of-line)
-        (should (eq (beads-show--section-level) 3)))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--outline-issue)))
+     (beads-show "bd-200")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Search for "### Level 3 Heading"
+       (when (search-forward "### Level 3 Heading" nil t)
+         (beginning-of-line)
+         (should (eq (beads-show--section-level) 3)))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-section-level-not-heading ()
   "Test section level returns nil for non-heading lines."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--outline-issue)))
-    (beads-show "bd-200")
-    (with-current-buffer "*beads-show: bd-200*"
-      (goto-char (point-min))
-      ;; Search for "First paragraph" which is not a heading
-      (when (search-forward "First paragraph" nil t)
-        (beginning-of-line)
-        (should (null (beads-show--section-level))))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--outline-issue)))
+     (beads-show "bd-200")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Search for "First paragraph" which is not a heading
+       (when (search-forward "First paragraph" nil t)
+         (beginning-of-line)
+         (should (null (beads-show--section-level))))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-outline-next-basic ()
   "Test moving to next heading at any level."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--outline-issue)))
-    (beads-show "bd-200")
-    (with-current-buffer "*beads-show: bd-200*"
-      (goto-char (point-min))
-      ;; Start at title
-      (search-forward "Issue Title" nil t)
-      (beginning-of-line)
-      (let ((start-level (beads-show--section-level)))
-        (should (eq start-level 0))
-        ;; Move to next heading (should be Description)
-        (beads-show-outline-next)
-        (let ((next-level (beads-show--section-level)))
-          (should next-level)
-          (should (> (point) (point-min)))))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--outline-issue)))
+     (beads-show "bd-200")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Start at title
+       (search-forward "Issue Title" nil t)
+       (beginning-of-line)
+       (let ((start-level (beads-show--section-level)))
+         (should (eq start-level 0))
+         ;; Move to next heading (should be Description)
+         (beads-show-outline-next)
+         (let ((next-level (beads-show--section-level)))
+           (should next-level)
+           (should (> (point) (point-min)))))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-outline-previous-basic ()
   "Test moving to previous heading at any level."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--outline-issue)))
-    (beads-show "bd-200")
-    (with-current-buffer "*beads-show: bd-200*"
-      ;; Start near the end
-      (goto-char (point-max))
-      (let ((start-pos (point)))
-        ;; Move to previous heading
-        (beads-show-outline-previous)
-        (should (< (point) start-pos))
-        (should (beads-show--section-level)))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--outline-issue)))
+     (beads-show "bd-200")
+     (with-current-buffer beads-show-test--buffer-name
+       ;; Start near the end
+       (goto-char (point-max))
+       (let ((start-pos (point)))
+         ;; Move to previous heading
+         (beads-show-outline-previous)
+         (should (< (point) start-pos))
+         (should (beads-show--section-level)))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-outline-next-at-end ()
   "Test outline-next at end of buffer shows message."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--minimal-issue)))
-    (beads-show "bd-1")
-    (with-current-buffer "*beads-show: bd-1*"
-      (goto-char (point-max))
-      (forward-line -1)
-      (let ((pos (point)))
-        (beads-show-outline-next)
-        ;; Should not move and stay at same position
-        (should (= (point) pos)))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--minimal-issue)))
+     (beads-show "bd-1")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-max))
+       (forward-line -1)
+       (let ((pos (point)))
+         (beads-show-outline-next)
+         ;; Should not move and stay at same position
+         (should (= (point) pos)))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-outline-previous-at-start ()
   "Test outline-previous at start of buffer shows message."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--minimal-issue)))
-    (beads-show "bd-1")
-    (with-current-buffer "*beads-show: bd-1*"
-      (goto-char (point-min))
-      (let ((pos (point)))
-        (beads-show-outline-previous)
-        ;; Should not move from start
-        (should (= (point) pos)))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--minimal-issue)))
+     (beads-show "bd-1")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       (let ((pos (point)))
+         (beads-show-outline-previous)
+         ;; Should not move from start
+         (should (= (point) pos)))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-outline-next-same-level ()
   "Test moving to next heading at same level."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--outline-issue)))
-    (beads-show "bd-200")
-    (with-current-buffer "*beads-show: bd-200*"
-      (goto-char (point-min))
-      ;; Find first ## heading
-      (when (search-forward "## Level 2 Heading" nil t)
-        (beginning-of-line)
-        (should (eq (beads-show--section-level) 2))
-        (let ((start-pos (point)))
-          ;; Move to next same-level heading (should be "## Another Level 2")
-          (beads-show-outline-next-same-level)
-          (should (> (point) start-pos))
-          (should (eq (beads-show--section-level) 2))))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--outline-issue)))
+     (beads-show "bd-200")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Find first ## heading
+       (when (search-forward "## Level 2 Heading" nil t)
+         (beginning-of-line)
+         (should (eq (beads-show--section-level) 2))
+         (let ((start-pos (point)))
+           ;; Move to next same-level heading (should be "## Another Level 2")
+           (beads-show-outline-next-same-level)
+           (should (> (point) start-pos))
+           (should (eq (beads-show--section-level) 2))))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-outline-previous-same-level ()
   "Test moving to previous heading at same level."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--outline-issue)))
-    (beads-show "bd-200")
-    (with-current-buffer "*beads-show: bd-200*"
-      (goto-char (point-min))
-      ;; Find second ## heading (Another Level 2)
-      (search-forward "## Level 2 Heading" nil t)
-      (when (search-forward "## Another Level 2" nil t)
-        (beginning-of-line)
-        (should (eq (beads-show--section-level) 2))
-        (let ((start-pos (point)))
-          ;; Move to previous same-level heading
-          (beads-show-outline-previous-same-level)
-          (should (< (point) start-pos))
-          (should (eq (beads-show--section-level) 2))))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--outline-issue)))
+     (beads-show "bd-200")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Find second ## heading (Another Level 2)
+       (search-forward "## Level 2 Heading" nil t)
+       (when (search-forward "## Another Level 2" nil t)
+         (beginning-of-line)
+         (should (eq (beads-show--section-level) 2))
+         (let ((start-pos (point)))
+           ;; Move to previous same-level heading
+           (beads-show-outline-previous-same-level)
+           (should (< (point) start-pos))
+           (should (eq (beads-show--section-level) 2))))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-outline-same-level-not-at-heading ()
   "Test outline-next-same-level errors when not at heading."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--outline-issue)))
-    (beads-show "bd-200")
-    (with-current-buffer "*beads-show: bd-200*"
-      (goto-char (point-min))
-      ;; Move to non-heading text
-      (when (search-forward "First paragraph" nil t)
-        (should-error (beads-show-outline-next-same-level) :type 'user-error))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--outline-issue)))
+     (beads-show "bd-200")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Move to non-heading text
+       (when (search-forward "First paragraph" nil t)
+         (should-error (beads-show-outline-next-same-level) :type 'user-error))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-outline-up-from-level-3 ()
   "Test moving up from level 3 heading to parent."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--outline-issue)))
-    (beads-show "bd-200")
-    (with-current-buffer "*beads-show: bd-200*"
-      (goto-char (point-min))
-      ;; Find ### Level 3 heading
-      (when (search-forward "### Level 3 Heading" nil t)
-        (beginning-of-line)
-        (should (eq (beads-show--section-level) 3))
-        (let ((start-pos (point)))
-          ;; Move up to parent (should be ## Level 2)
-          (beads-show-outline-up)
-          (should (< (point) start-pos))
-          (let ((parent-level (beads-show--section-level)))
-            (should parent-level)
-            (should (< parent-level 3)))))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--outline-issue)))
+     (beads-show "bd-200")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Find ### Level 3 heading
+       (when (search-forward "### Level 3 Heading" nil t)
+         (beginning-of-line)
+         (should (eq (beads-show--section-level) 3))
+         (let ((start-pos (point)))
+           ;; Move up to parent (should be ## Level 2)
+           (beads-show-outline-up)
+           (should (< (point) start-pos))
+           (let ((parent-level (beads-show--section-level)))
+             (should parent-level)
+             (should (< parent-level 3)))))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-outline-up-from-level-2 ()
   "Test moving up from level 2 heading to level 1."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--outline-issue)))
-    (beads-show "bd-200")
-    (with-current-buffer "*beads-show: bd-200*"
-      (goto-char (point-min))
-      ;; Find ## Level 2 heading
-      (when (search-forward "## Level 2 Heading" nil t)
-        (beginning-of-line)
-        (should (eq (beads-show--section-level) 2))
-        (let ((start-pos (point)))
-          ;; Move up to parent (should be Description at level 1)
-          (beads-show-outline-up)
-          (should (< (point) start-pos))
-          (should (eq (beads-show--section-level) 1))))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--outline-issue)))
+     (beads-show "bd-200")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Find ## Level 2 heading
+       (when (search-forward "## Level 2 Heading" nil t)
+         (beginning-of-line)
+         (should (eq (beads-show--section-level) 2))
+         (let ((start-pos (point)))
+           ;; Move up to parent (should be Description at level 1)
+           (beads-show-outline-up)
+           (should (< (point) start-pos))
+           (should (eq (beads-show--section-level) 1))))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-outline-up-at-level-0-errors ()
   "Test outline-up at level 0 (title) gives error."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--outline-issue)))
-    (beads-show "bd-200")
-    (with-current-buffer "*beads-show: bd-200*"
-      (goto-char (point-min))
-      ;; Find title
-      (when (search-forward "Issue Title" nil t)
-        (beginning-of-line)
-        (should (eq (beads-show--section-level) 0))
-        (should-error (beads-show-outline-up) :type 'user-error))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--outline-issue)))
+     (beads-show "bd-200")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Find title
+       (when (search-forward "Issue Title" nil t)
+         (beginning-of-line)
+         (should (eq (beads-show--section-level) 0))
+         (should-error (beads-show-outline-up) :type 'user-error))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-outline-up-not-at-heading ()
   "Test outline-up errors when not at heading."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--outline-issue)))
-    (beads-show "bd-200")
-    (with-current-buffer "*beads-show: bd-200*"
-      (goto-char (point-min))
-      ;; Move to non-heading text
-      (when (search-forward "First paragraph" nil t)
-        (should-error (beads-show-outline-up) :type 'user-error))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--outline-issue)))
+     (beads-show "bd-200")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Move to non-heading text
+       (when (search-forward "First paragraph" nil t)
+         (should-error (beads-show-outline-up) :type 'user-error))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-outline-keybindings ()
   "Test that outline navigation keybindings are set up correctly."
@@ -1058,33 +1096,34 @@
 
 (ert-deftest beads-show-test-outline-navigation-sequence ()
   "Test a sequence of outline navigation commands."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--outline-issue)))
-    (beads-show "bd-200")
-    (with-current-buffer "*beads-show: bd-200*"
-      ;; Start at top
-      (goto-char (point-min))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--outline-issue)))
+     (beads-show "bd-200")
+     (with-current-buffer beads-show-test--buffer-name
+       ;; Start at top
+       (goto-char (point-min))
 
-      ;; Navigate through headings
-      (when (search-forward "Issue Title" nil t)
-        (beginning-of-line)
-        (should (eq (beads-show--section-level) 0))
+       ;; Navigate through headings
+       (when (search-forward "Issue Title" nil t)
+         (beginning-of-line)
+         (should (eq (beads-show--section-level) 0))
 
-        ;; Next heading (Description - level 1)
-        (beads-show-outline-next)
-        (should (>= (beads-show--section-level) 1))
+         ;; Next heading (Description - level 1)
+         (beads-show-outline-next)
+         (should (>= (beads-show--section-level) 1))
 
-        ;; Next heading (should be ## Level 2)
-        (beads-show-outline-next)
-        (let ((level (beads-show--section-level)))
-          (should (or (eq level 1) (eq level 2))))
+         ;; Next heading (should be ## Level 2)
+         (beads-show-outline-next)
+         (let ((level (beads-show--section-level)))
+           (should (or (eq level 1) (eq level 2))))
 
-        ;; Previous heading
-        (beads-show-outline-previous)
-        (should (beads-show--section-level)))
+         ;; Previous heading
+         (beads-show-outline-previous)
+         (should (beads-show--section-level)))
 
-      (kill-buffer))))
+       (kill-buffer)))))
 
 ;;; Tests for Paragraph Navigation
 
@@ -1098,29 +1137,31 @@
 
 (ert-deftest beads-show-test-forward-paragraph-basic ()
   "Test moving forward by paragraph."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--markdown-rich-issue)))
-    (beads-show "bd-100")
-    (with-current-buffer "*beads-show: bd-100*"
-      (goto-char (point-min))
-      (let ((start-pos (point)))
-        (beads-show-forward-paragraph)
-        (should (> (point) start-pos)))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--markdown-rich-issue)))
+     (beads-show "bd-100")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       (let ((start-pos (point)))
+         (beads-show-forward-paragraph)
+         (should (> (point) start-pos)))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-backward-paragraph-basic ()
   "Test moving backward by paragraph."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--markdown-rich-issue)))
-    (beads-show "bd-100")
-    (with-current-buffer "*beads-show: bd-100*"
-      (goto-char (point-max))
-      (let ((start-pos (point)))
-        (beads-show-backward-paragraph)
-        (should (< (point) start-pos)))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--markdown-rich-issue)))
+     (beads-show "bd-100")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-max))
+       (let ((start-pos (point)))
+         (beads-show-backward-paragraph)
+         (should (< (point) start-pos)))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-paragraph-navigation-functions-defined ()
   "Test that paragraph navigation functions are defined."
@@ -1136,20 +1177,21 @@
 
 (ert-deftest beads-show-test-mark-paragraph-basic ()
   "Test marking a paragraph."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--markdown-rich-issue)))
-    (beads-show "bd-100")
-    (with-current-buffer "*beads-show: bd-100*"
-      (goto-char (point-min))
-      ;; Find some paragraph text
-      (when (search-forward "bold" nil t)
-        (beads-show-mark-paragraph)
-        ;; Mark should be active
-        (should (region-active-p))
-        ;; Region should have some content
-        (should (> (region-end) (region-beginning))))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--markdown-rich-issue)))
+     (beads-show "bd-100")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Find some paragraph text
+       (when (search-forward "bold" nil t)
+         (beads-show-mark-paragraph)
+         ;; Mark should be active
+         (should (region-active-p))
+         ;; Region should have some content
+         (should (> (region-end) (region-beginning))))
+       (kill-buffer)))))
 
 ;;; Tests for Block Navigation
 
@@ -1213,202 +1255,213 @@
 
 (ert-deftest beads-show-test-forward-block-from-text ()
   "Test forward-block navigation from regular text."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--block-rich-issue)))
-    (beads-show "bd-300")
-    (with-current-buffer "*beads-show: bd-300*"
-      (goto-char (point-min))
-      ;; Find "Regular paragraph"
-      (when (search-forward "Regular paragraph" nil t)
-        (beginning-of-line)
-        (let ((start-pos (point)))
-          (beads-show-forward-block)
-          ;; Should have moved to next block
-          (should (> (point) start-pos))))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--block-rich-issue)))
+     (beads-show "bd-300")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Find "Regular paragraph"
+       (when (search-forward "Regular paragraph" nil t)
+         (beginning-of-line)
+         (let ((start-pos (point)))
+           (beads-show-forward-block)
+           ;; Should have moved to next block
+           (should (> (point) start-pos))))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-forward-block-skip-fenced-code ()
   "Test forward-block skips entire fenced code block."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--block-rich-issue)))
-    (beads-show "bd-300")
-    (with-current-buffer "*beads-show: bd-300*"
-      (goto-char (point-min))
-      ;; Find opening fence
-      (when (search-forward "```python" nil t)
-        (beginning-of-line)
-        (let ((start-pos (point)))
-          (beads-show-forward-block)
-          ;; Should be past closing fence
-          (should (> (point) start-pos))
-          ;; Should be past the code content
-          (let ((text-before-point
-                 (buffer-substring-no-properties start-pos (point))))
-            (should (string-match-p "```" text-before-point)))))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--block-rich-issue)))
+     (beads-show "bd-300")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Find opening fence
+       (when (search-forward "```python" nil t)
+         (beginning-of-line)
+         (let ((start-pos (point)))
+           (beads-show-forward-block)
+           ;; Should be past closing fence
+           (should (> (point) start-pos))
+           ;; Should be past the code content
+           (let ((text-before-point
+                  (buffer-substring-no-properties start-pos (point))))
+             (should (string-match-p "```" text-before-point)))))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-forward-block-skip-list ()
   "Test forward-block skips entire list."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--block-rich-issue)))
-    (beads-show "bd-300")
-    (with-current-buffer "*beads-show: bd-300*"
-      (goto-char (point-min))
-      ;; Find list start
-      (when (search-forward "- List item 1" nil t)
-        (beginning-of-line)
-        (let ((start-pos (point)))
-          (beads-show-forward-block)
-          ;; Should be past all list items
-          (should (> (point) start-pos))))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--block-rich-issue)))
+     (beads-show "bd-300")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Find list start
+       (when (search-forward "- List item 1" nil t)
+         (beginning-of-line)
+         (let ((start-pos (point)))
+           (beads-show-forward-block)
+           ;; Should be past all list items
+           (should (> (point) start-pos))))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-forward-block-skip-blockquote ()
   "Test forward-block skips entire blockquote."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--block-rich-issue)))
-    (beads-show "bd-300")
-    (with-current-buffer "*beads-show: bd-300*"
-      (goto-char (point-min))
-      ;; Find blockquote start
-      (when (search-forward "> Blockquote line 1" nil t)
-        (beginning-of-line)
-        (let ((start-pos (point)))
-          (beads-show-forward-block)
-          ;; Should be past blockquote
-          (should (> (point) start-pos))))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--block-rich-issue)))
+     (beads-show "bd-300")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Find blockquote start
+       (when (search-forward "> Blockquote line 1" nil t)
+         (beginning-of-line)
+         (let ((start-pos (point)))
+           (beads-show-forward-block)
+           ;; Should be past blockquote
+           (should (> (point) start-pos))))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-forward-block-skip-indented-code ()
   "Test forward-block skips indented code block."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--block-rich-issue)))
-    (beads-show "bd-300")
-    (with-current-buffer "*beads-show: bd-300*"
-      (goto-char (point-min))
-      ;; Find indented code
-      (when (search-forward "    Indented code line 1" nil t)
-        (beginning-of-line)
-        (let ((start-pos (point)))
-          (beads-show-forward-block)
-          ;; Should be past indented code
-          (should (> (point) start-pos))))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--block-rich-issue)))
+     (beads-show "bd-300")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Find indented code
+       (when (search-forward "    Indented code line 1" nil t)
+         (beginning-of-line)
+         (let ((start-pos (point)))
+           (beads-show-forward-block)
+           ;; Should be past indented code
+           (should (> (point) start-pos))))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-backward-block-from-text ()
   "Test backward-block navigation from regular text."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--block-rich-issue)))
-    (beads-show "bd-300")
-    (with-current-buffer "*beads-show: bd-300*"
-      (goto-char (point-min))
-      ;; Find "End text" near the end
-      (when (search-forward "End text" nil t)
-        (beginning-of-line)
-        (let ((start-pos (point)))
-          (beads-show-backward-block)
-          ;; Should have moved backward to previous block
-          (should (< (point) start-pos))))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--block-rich-issue)))
+     (beads-show "bd-300")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Find "End text" near the end
+       (when (search-forward "End text" nil t)
+         (beginning-of-line)
+         (let ((start-pos (point)))
+           (beads-show-backward-block)
+           ;; Should have moved backward to previous block
+           (should (< (point) start-pos))))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-backward-block-to-list-start ()
   "Test backward-block moves backward from end of list."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--block-rich-issue)))
-    (beads-show "bd-300")
-    (with-current-buffer "*beads-show: bd-300*"
-      (goto-char (point-min))
-      ;; Find "List item 3" (end of list)
-      (when (search-forward "- List item 3" nil t)
-        (end-of-line)
-        (forward-line 1)
-        (let ((start-pos (point)))
-          (beads-show-backward-block)
-          ;; Should have moved backward
-          (should (< (point) start-pos))))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--block-rich-issue)))
+     (beads-show "bd-300")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Find "List item 3" (end of list)
+       (when (search-forward "- List item 3" nil t)
+         (end-of-line)
+         (forward-line 1)
+         (let ((start-pos (point)))
+           (beads-show-backward-block)
+           ;; Should have moved backward
+           (should (< (point) start-pos))))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-backward-block-to-fenced-code-start ()
   "Test backward-block finds start of fenced code block."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--block-rich-issue)))
-    (beads-show "bd-300")
-    (with-current-buffer "*beads-show: bd-300*"
-      (goto-char (point-min))
-      ;; Find inside or after code block
-      (when (search-forward "```python" nil t)
-        (forward-line 2)  ; Move into the code block
-        (let ((start-pos (point)))
-          (beads-show-backward-block)
-          ;; Should be at opening fence
-          (should (< (point) start-pos))
-          (beginning-of-line)
-          (should (looking-at "```"))))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--block-rich-issue)))
+     (beads-show "bd-300")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Find inside or after code block
+       (when (search-forward "```python" nil t)
+         (forward-line 2)  ; Move into the code block
+         (let ((start-pos (point)))
+           (beads-show-backward-block)
+           ;; Should be at opening fence
+           (should (< (point) start-pos))
+           (beginning-of-line)
+           (should (looking-at "```"))))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-forward-block-at-end ()
   "Test forward-block at end of buffer shows message."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--minimal-issue)))
-    (beads-show "bd-1")
-    (with-current-buffer "*beads-show: bd-1*"
-      (goto-char (point-max))
-      (let ((pos (point)))
-        (beads-show-forward-block)
-        ;; Should not move much from end
-        (should (<= (abs (- (point) pos)) 10)))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--minimal-issue)))
+     (beads-show "bd-1")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-max))
+       (let ((pos (point)))
+         (beads-show-forward-block)
+         ;; Should not move much from end
+         (should (<= (abs (- (point) pos)) 10)))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-backward-block-at-start ()
   "Test backward-block at start of buffer shows message."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--minimal-issue)))
-    (beads-show "bd-1")
-    (with-current-buffer "*beads-show: bd-1*"
-      (goto-char (point-min))
-      (forward-line 2)
-      (let ((pos (point)))
-        (beads-show-backward-block)
-        ;; Should have moved or stayed
-        (should (<= (point) pos)))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--minimal-issue)))
+     (beads-show "bd-1")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       (forward-line 2)
+       (let ((pos (point)))
+         (beads-show-backward-block)
+         ;; Should have moved or stayed
+         (should (<= (point) pos)))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-block-navigation-sequence ()
   "Test sequence of forward and backward block navigation."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--block-rich-issue)))
-    (beads-show "bd-300")
-    (with-current-buffer "*beads-show: bd-300*"
-      (goto-char (point-min))
-      (let ((positions '()))
-        ;; Navigate forward multiple times, recording positions
-        (push (point) positions)
-        (beads-show-forward-block)
-        (push (point) positions)
-        (beads-show-forward-block)
-        (push (point) positions)
-        (beads-show-forward-block)
-        (push (point) positions)
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--block-rich-issue)))
+     (beads-show "bd-300")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       (let ((positions '()))
+         ;; Navigate forward multiple times, recording positions
+          (push (point) positions)
+         (beads-show-forward-block)
+         (push (point) positions)
+         (beads-show-forward-block)
+         (push (point) positions)
+         (beads-show-forward-block)
+         (push (point) positions)
 
-        ;; All positions should be different and increasing
-        (setq positions (nreverse positions))
-        (should (apply #'< positions))
+         ;; All positions should be different and increasing
+         (setq positions (nreverse positions))
+         (should (apply #'< positions))
 
-        ;; Navigate backward
-        (beads-show-backward-block)
-        (should (< (point) (nth 3 positions))))
-      (kill-buffer))))
+         ;; Navigate backward
+         (beads-show-backward-block)
+         (should (< (point) (nth 3 positions))))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-block-navigation-functions-defined ()
   "Test that block navigation functions are defined."
@@ -1448,70 +1501,74 @@
 
 (ert-deftest beads-show-test-beginning-of-section-at-heading ()
   "Test moving to beginning of section when at heading."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--outline-issue)))
-    (beads-show "bd-200")
-    (with-current-buffer "*beads-show: bd-200*"
-      (goto-char (point-min))
-      ;; Find Description heading
-      (when (search-forward "Description" nil t)
-        (beginning-of-line)
-        (let ((start-pos (point)))
-          (beads-show-beginning-of-section)
-          ;; Should stay at same position (already at beginning)
-          (should (= (point) start-pos))))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--outline-issue)))
+     (beads-show "bd-200")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Find Description heading
+       (when (search-forward "Description" nil t)
+         (beginning-of-line)
+         (let ((start-pos (point)))
+           (beads-show-beginning-of-section)
+           ;; Should stay at same position (already at beginning)
+           (should (= (point) start-pos))))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-beginning-of-section-in-content ()
   "Test moving to beginning of section from content."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--outline-issue)))
-    (beads-show "bd-200")
-    (with-current-buffer "*beads-show: bd-200*"
-      (goto-char (point-min))
-      ;; Find some content text
-      (when (search-forward "First paragraph" nil t)
-        (beads-show-beginning-of-section)
-        ;; Should have moved to Description section
-        (should (beads-show--section-level)))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--outline-issue)))
+     (beads-show "bd-200")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Find some content text
+       (when (search-forward "First paragraph" nil t)
+         (beads-show-beginning-of-section)
+         ;; Should have moved to Description section
+         (should (beads-show--section-level)))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-end-of-section-basic ()
   "Test moving to end of section."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--outline-issue)))
-    (beads-show "bd-200")
-    (with-current-buffer "*beads-show: bd-200*"
-      (goto-char (point-min))
-      ;; Find Description heading
-      (when (search-forward "Description" nil t)
-        (beginning-of-line)
-        (let ((start-pos (point)))
-          (beads-show-end-of-section)
-          ;; Should have moved forward
-          (should (> (point) start-pos))))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--outline-issue)))
+     (beads-show "bd-200")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Find Description heading
+       (when (search-forward "Description" nil t)
+         (beginning-of-line)
+         (let ((start-pos (point)))
+           (beads-show-end-of-section)
+           ;; Should have moved forward
+           (should (> (point) start-pos))))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-mark-section-basic ()
   "Test marking a section."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (beads-show-test--mock-show-command
-              beads-show-test--outline-issue)))
-    (beads-show "bd-200")
-    (with-current-buffer "*beads-show: bd-200*"
-      (goto-char (point-min))
-      ;; Find Description heading
-      (when (search-forward "Description" nil t)
-        (beginning-of-line)
-        (beads-show-mark-section)
-        ;; Mark should be active
-        (should (region-active-p))
-        ;; Region should have some content
-        (should (> (region-end) (region-beginning))))
-      (kill-buffer))))
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-command-show!)
+              (beads-show-test--mock-show-command
+               beads-show-test--outline-issue)))
+     (beads-show "bd-200")
+     (with-current-buffer beads-show-test--buffer-name
+       (goto-char (point-min))
+       ;; Find Description heading
+       (when (search-forward "Description" nil t)
+         (beginning-of-line)
+         (beads-show-mark-section)
+         ;; Mark should be active
+         (should (region-active-p))
+         ;; Region should have some content
+         (should (> (region-end) (region-beginning))))
+       (kill-buffer)))))
 
 (ert-deftest beads-show-test-section-boundary-functions-defined ()
   "Test that section boundary navigation functions are defined."
@@ -1708,12 +1765,14 @@ Tests the full workflow: create issue -> update description -> verify update."
                    :issue-type "task"
                    :priority 2))
            (issue-id (oref issue id))
-           (updated-desc "Updated description text"))
+           (updated-desc "Updated description text")
+           ;; Buffer is named by project, not issue
+           (proj-name (beads-git-get-project-name)))
 
       ;; Show the issue
       (beads-show issue-id)
       (unwind-protect
-          (with-current-buffer (format "*beads-show: %s*" issue-id)
+          (with-current-buffer (format "*beads-show: %s*" proj-name)
             (should (eq major-mode 'beads-show-mode))
             (should (equal beads-show--issue-id issue-id))
 
@@ -1748,12 +1807,14 @@ Tests editing a different multiline field to ensure all fields work."
                    :issue-type "feature"
                    :priority 1))
            (issue-id (oref issue id))
-           (updated-ac "- [x] Must do X\n- [x] Must do Y\n- [ ] Must do Z"))
+           (updated-ac "- [x] Must do X\n- [x] Must do Y\n- [ ] Must do Z")
+           ;; Buffer is named by project, not issue
+           (proj-name (beads-git-get-project-name)))
 
       ;; Show the issue
       (beads-show issue-id)
       (unwind-protect
-          (with-current-buffer (format "*beads-show: %s*" issue-id)
+          (with-current-buffer (format "*beads-show: %s*" proj-name)
             (should (eq major-mode 'beads-show-mode))
             (should (equal beads-show--issue-id issue-id))
 
@@ -1788,7 +1849,9 @@ Note: Notes cannot be set at creation time, only via update."
                    :priority 0))
            (issue-id (oref issue id))
            (initial-notes "Initial notes about the issue")
-           (updated-notes "Updated notes with more details"))
+           (updated-notes "Updated notes with more details")
+           ;; Buffer is named by project, not issue
+           (proj-name (beads-git-get-project-name)))
 
       ;; First, add initial notes via update command
       (beads-command-execute
@@ -1798,7 +1861,7 @@ Note: Notes cannot be set at creation time, only via update."
       ;; Show the issue
       (beads-show issue-id)
       (unwind-protect
-          (with-current-buffer (format "*beads-show: %s*" issue-id)
+          (with-current-buffer (format "*beads-show: %s*" proj-name)
             (should (eq major-mode 'beads-show-mode))
             (should (equal beads-show--issue-id issue-id))
 
@@ -2144,25 +2207,23 @@ Note: Notes cannot be set at creation time, only via update."
     ;; Should strip trailing slash
     (should (equal normalized "/tmp"))))
 
-(ert-deftest beads-show-test-find-buffer-for-issue-not-found ()
-  "Test finding buffer when none exists for the issue/project pair."
-  (should (null (beads-show--find-buffer-for-issue "bd-999" "/tmp"))))
+(ert-deftest beads-show-test-find-buffer-for-project-not-found ()
+  "Test finding buffer when none exists for the project."
+  (should (null (beads-show--find-buffer-for-project "/tmp/nonexistent-project"))))
 
-(ert-deftest beads-show-test-find-buffer-for-issue-found ()
-  "Test finding existing buffer by issue-id and project directory."
-  (let ((test-buffer (generate-new-buffer "*beads-show: bd-42*")))
+(ert-deftest beads-show-test-find-buffer-for-project-found ()
+  "Test finding existing buffer by project directory."
+  (let ((test-buffer (generate-new-buffer "*beads-show: test-project*")))
     (unwind-protect
         (with-current-buffer test-buffer
           (beads-show-mode)
           (setq beads-show--issue-id "bd-42")
           (setq beads-show--project-dir "/tmp")
           ;; Should find our buffer
-          (should (eq (beads-show--find-buffer-for-issue "bd-42" "/tmp")
+          (should (eq (beads-show--find-buffer-for-project "/tmp")
                       test-buffer))
-          ;; Should NOT find buffer for different issue
-          (should (null (beads-show--find-buffer-for-issue "bd-999" "/tmp")))
           ;; Should NOT find buffer for different project
-          (should (null (beads-show--find-buffer-for-issue "bd-42" "/other"))))
+          (should (null (beads-show--find-buffer-for-project "/other"))))
       (kill-buffer test-buffer))))
 
 (ert-deftest beads-show-test-get-or-create-buffer-creates-new ()
@@ -2175,8 +2236,10 @@ Note: Notes cannot be set at creation time, only via update."
                    (lambda () "main"))
                   ((symbol-function 'beads-git-get-project-name)
                    (lambda () "new-project")))
-          (setq created-buffer (beads-show--get-or-create-buffer "bd-new"))
+          (setq created-buffer (beads-show--get-or-create-buffer))
           (should (bufferp created-buffer))
+          ;; Buffer name should include project name, not issue-id
+          (should (string-match-p "new-project" (buffer-name created-buffer)))
           (with-current-buffer created-buffer
             (should (equal beads-show--project-dir "/tmp/new-project"))
             (should (equal beads-show--branch "main"))
@@ -2185,8 +2248,8 @@ Note: Notes cannot be set at creation time, only via update."
         (kill-buffer created-buffer)))))
 
 (ert-deftest beads-show-test-get-or-create-buffer-reuses-existing ()
-  "Test get-or-create-buffer reuses buffer for same issue/project pair."
-  (let ((test-buffer (generate-new-buffer "*beads-show: bd-42*")))
+  "Test get-or-create-buffer reuses buffer for same project."
+  (let ((test-buffer (generate-new-buffer "*beads-show: existing-project*")))
     (unwind-protect
         (progn
           (with-current-buffer test-buffer
@@ -2199,13 +2262,13 @@ Note: Notes cannot be set at creation time, only via update."
                      (lambda () "feature"))
                     ((symbol-function 'beads-git-get-project-name)
                      (lambda () "existing-project")))
-            ;; Should return the existing buffer
-            (should (eq (beads-show--get-or-create-buffer "bd-42") test-buffer))))
+            ;; Should return the existing buffer (same project)
+            (should (eq (beads-show--get-or-create-buffer) test-buffer))))
       (kill-buffer test-buffer))))
 
-(ert-deftest beads-show-test-same-issue-different-project-different-buffer ()
-  "Test that same issue in different projects creates different buffers."
-  (let ((buffer1 (generate-new-buffer "*beads-show: bd-42-1*"))
+(ert-deftest beads-show-test-different-project-different-buffer ()
+  "Test that different projects create different buffers."
+  (let ((buffer1 (generate-new-buffer "*beads-show: project1*"))
         (buffer2 nil))
     (unwind-protect
         (progn
@@ -2221,7 +2284,7 @@ Note: Notes cannot be set at creation time, only via update."
                     ((symbol-function 'beads-git-get-project-name)
                      (lambda () "project2")))
             ;; Should create NEW buffer (different project)
-            (setq buffer2 (beads-show--get-or-create-buffer "bd-42"))
+            (setq buffer2 (beads-show--get-or-create-buffer))
             (should (bufferp buffer2))
             (should-not (eq buffer1 buffer2))))
       (kill-buffer buffer1)
@@ -2229,9 +2292,9 @@ Note: Notes cannot be set at creation time, only via update."
         (kill-buffer buffer2)))))
 
 (ert-deftest beads-show-test-same-project-different-branch-same-buffer ()
-  "Test that same issue in same project but different branch uses same buffer.
+  "Test that same project but different branch uses same buffer.
 This is the CRITICAL behavioral test for directory-as-identity."
-  (let ((test-buffer (generate-new-buffer "*beads-show: bd-42*")))
+  (let ((test-buffer (generate-new-buffer "*beads-show: project*")))
     (unwind-protect
         (progn
           (with-current-buffer test-buffer
@@ -2247,7 +2310,7 @@ This is the CRITICAL behavioral test for directory-as-identity."
                     ((symbol-function 'beads-git-get-project-name)
                      (lambda () "project")))
             ;; CRITICAL: Should return SAME buffer (same directory)
-            (let ((result (beads-show--get-or-create-buffer "bd-42")))
+            (let ((result (beads-show--get-or-create-buffer)))
               (should (eq result test-buffer)))))
       (kill-buffer test-buffer))))
 
@@ -2261,7 +2324,7 @@ This is the CRITICAL behavioral test for directory-as-identity."
                    (lambda () "feature-branch"))
                   ((symbol-function 'beads-git-get-project-name)
                    (lambda () "my-project")))
-          (setq created-buffer (beads-show--get-or-create-buffer "bd-test"))
+          (setq created-buffer (beads-show--get-or-create-buffer))
           (with-current-buffer created-buffer
             ;; Verify all variables set
             (should (equal beads-show--project-dir "/home/user/code/my-project"))
@@ -2497,9 +2560,9 @@ Empty sessions are automatically cleaned up."
     (should (stringp result))
     (should (not (string-prefix-p "~" result)))))
 
-(ert-deftest beads-show-test-find-buffer-for-issue-no-match ()
-  "Test find-buffer-for-issue returns nil when not found."
-  (should (null (beads-show--find-buffer-for-issue "nonexistent-id" "/tmp"))))
+(ert-deftest beads-show-test-find-buffer-for-project-no-match ()
+  "Test find-buffer-for-project returns nil when not found."
+  (should (null (beads-show--find-buffer-for-project "/tmp/nonexistent"))))
 
 ;;; Insert Functions Tests
 
@@ -2797,20 +2860,17 @@ Empty sessions are automatically cleaned up."
           (should (string-match-p "Test description" (buffer-string))))))))
 
 (ert-deftest beads-show-test-integration-get-or-create-buffer ()
-  "Integration test: get-or-create-buffer with real issue."
+  "Integration test: get-or-create-buffer creates project-based buffer."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-project ()
-    (let ((issue (beads-command-create! :title "Buffer Test Issue"
-                                         :priority 2
-                                         :issue-type "bug")))
-      (let ((issue-id (oref issue id)))
-        ;; Get or create buffer should return a buffer
-        (let ((buf (beads-show--get-or-create-buffer issue-id)))
-          (should (bufferp buf))
-          (should (string-match-p issue-id (buffer-name buf)))
-          ;; Clean up
-          (kill-buffer buf))))))
+    ;; Get or create buffer should return a buffer named after project
+    (let ((buf (beads-show--get-or-create-buffer)))
+      (should (bufferp buf))
+      ;; Buffer name should include project name (from beads-git-get-project-name)
+      (should (string-match-p "beads-show" (buffer-name buf)))
+      ;; Clean up
+      (kill-buffer buf))))
 
 (ert-deftest beads-show-test-integration-format-status ()
   "Integration test: format status from real issue."
