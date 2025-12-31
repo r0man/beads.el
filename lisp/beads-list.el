@@ -245,7 +245,7 @@ Updated on refresh to reflect current branch.")
   "Project name for buffer disambiguation.
 Used when multiple projects have list buffers open.")
 
-(defvar beads-list--pending-show-update nil
+(defvar-local beads-list--pending-show-update nil
   "Pending show buffer update, or nil.
 When non-nil, a cons cell (ISSUE-ID . BUFFER) indicating a scheduled
 update.  Uses magit-style coalescing: rapid navigation updates the
@@ -1128,6 +1128,9 @@ transient menu options."
 ;; Automatically update beads-show buffer when navigating in beads-list.
 ;; Inspired by magit-log's revision buffer follow behavior.
 
+;; Forward declaration - defined by `define-minor-mode' below
+(defvar beads-list-follow-mode)
+
 (defun beads-list--maybe-update-show-buffer ()
   "Schedule show buffer update if conditions are met.
 Called from `post-command-hook' when `beads-list-follow-mode' is active."
@@ -1168,6 +1171,8 @@ Uses an idle timer to debounce rapid navigation, similar to
   (if beads-list-follow-mode
       (add-hook 'post-command-hook
                 #'beads-list--maybe-update-show-buffer nil t)
+    ;; Clear any pending update to prevent stale timer from firing
+    (setq beads-list--pending-show-update nil)
     (remove-hook 'post-command-hook
                  #'beads-list--maybe-update-show-buffer t)))
 
