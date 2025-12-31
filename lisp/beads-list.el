@@ -147,6 +147,13 @@ The `absolute' format sorts correctly in chronological order."
                  (string :tag "Custom format-time-string"))
   :group 'beads-list)
 
+(defcustom beads-list-update-show-delay 0.2
+  "Delay in seconds before updating show buffer during navigation.
+When holding down navigation keys, this prevents updating on every
+intermediate position.  Modeled after `magit-update-other-window-delay'."
+  :type 'number
+  :group 'beads-list)
+
 ;;; Faces
 
 (defface beads-list-status-open
@@ -237,6 +244,12 @@ Updated on refresh to reflect current branch.")
 (defvar-local beads-list--proj-name nil
   "Project name for buffer disambiguation.
 Used when multiple projects have list buffers open.")
+
+(defvar beads-list--pending-show-update nil
+  "Pending show buffer update, or nil.
+When non-nil, a cons cell (ISSUE-ID . BUFFER) indicating a scheduled
+update.  Uses magit-style coalescing: rapid navigation updates the
+pending target rather than scheduling multiple timers.")
 
 ;;; Buffer Lookup by Project Directory
 ;;
@@ -1110,6 +1123,54 @@ transient menu options."
           (message "Reopened %d issue(s), %d failed"
                    success-count fail-count))))))
 
+;;; Follow Mode
+;;
+;; Automatically update beads-show buffer when navigating in beads-list.
+;; Inspired by magit-log's revision buffer follow behavior.
+
+(defun beads-list--maybe-update-show-buffer ()
+  "Schedule show buffer update if conditions are met.
+Called from `post-command-hook' when `beads-list-follow-mode' is active."
+  (when (and beads-list-follow-mode
+             (derived-mode-p 'beads-list-mode))
+    (when-let* ((issue-id (beads-list--current-issue-id))
+                (target-buf (beads-show--find-visible-buffer)))
+      ;; Skip if already showing this issue
+      (unless (with-current-buffer target-buf
+                (equal beads-show--issue-id issue-id))
+        ;; Coalescing: update pending target, schedule timer only if first
+        (if beads-list--pending-show-update
+            (setcar beads-list--pending-show-update issue-id)
+          (setq beads-list--pending-show-update (cons issue-id target-buf))
+          (run-with-idle-timer
+           beads-list-update-show-delay nil
+           #'beads-list--do-update-show-buffer))))))
+
+(defun beads-list--do-update-show-buffer ()
+  "Execute pending show buffer update."
+  (when beads-list--pending-show-update
+    (pcase-let ((`(,issue-id . ,buffer) beads-list--pending-show-update))
+      (setq beads-list--pending-show-update nil)
+      (when (and (buffer-live-p buffer)
+                 (get-buffer-window buffer))
+        (beads-show-update-buffer issue-id buffer)))))
+
+(define-minor-mode beads-list-follow-mode
+  "Automatically update beads-show buffer when navigating issues.
+When this mode is enabled and a beads-show buffer is visible in
+the current frame, navigating to a different issue with n/p will
+automatically display that issue's details.
+
+Uses an idle timer to debounce rapid navigation, similar to
+`magit-update-other-window-delay'."
+  :lighter " Follow"
+  :keymap nil
+  (if beads-list-follow-mode
+      (add-hook 'post-command-hook
+                #'beads-list--maybe-update-show-buffer nil t)
+    (remove-hook 'post-command-hook
+                 #'beads-list--maybe-update-show-buffer t)))
+
 ;;; Mode Definition
 
 (defvar beads-list-mode-map
@@ -1145,6 +1206,7 @@ transient menu options."
     (define-key map (kbd "w") #'beads-list-copy-id)        ; copy (like eww, info)
     (define-key map (kbd "S") #'beads-list-sort)           ; sort menu
     (define-key map (kbd "l") #'beads-list-filter)         ; filter (open transient with current filter)
+    (define-key map (kbd "F") #'beads-list-follow-mode)    ; follow mode (like magit)
 
     ;; AI Agent type commands
     (define-key map (kbd "T") #'beads-agent-start-task)     ; Task agent

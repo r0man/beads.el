@@ -188,32 +188,73 @@ Strips trailing slashes and expands to absolute path.
 Uses `expand-file-name' (not `file-truename') for Tramp compatibility."
   (directory-file-name (expand-file-name dir)))
 
-(defun beads-show--find-buffer-for-issue (issue-id project-dir)
-  "Find existing show buffer for ISSUE-ID in PROJECT-DIR.
+(defun beads-show--find-buffer-for-project (project-dir)
+  "Find existing show buffer for PROJECT-DIR.
 Return buffer or nil if not found."
   (let ((normalized-dir (beads-show--normalize-directory project-dir)))
     (cl-find-if
      (lambda (buf)
        (with-current-buffer buf
          (and (derived-mode-p 'beads-show-mode)
-              (equal beads-show--issue-id issue-id)
               beads-show--project-dir
               (equal (beads-show--normalize-directory beads-show--project-dir)
                      normalized-dir))))
      (buffer-list))))
 
-(defun beads-show--get-or-create-buffer (issue-id)
-  "Get or create show buffer for ISSUE-ID in current project.
-Reuses existing buffer for same (issue-id, project-dir) pair."
+(defun beads-show--find-visible-buffer (&optional project-dir)
+  "Find a visible beads-show buffer for PROJECT-DIR in current frame.
+If PROJECT-DIR is nil, use current project.
+Returns the buffer or nil if none is visible."
+  (let* ((proj-dir (beads-show--normalize-directory
+                    (or project-dir
+                        (beads-git-find-project-root)
+                        default-directory))))
+    (seq-find (lambda (buf)
+                (and (buffer-live-p buf)
+                     (get-buffer-window buf)
+                     (with-current-buffer buf
+                       (and (derived-mode-p 'beads-show-mode)
+                            beads-show--project-dir
+                            (equal (beads-show--normalize-directory
+                                    beads-show--project-dir)
+                                   proj-dir)))))
+              (buffer-list))))
+
+(defun beads-show--get-or-create-buffer ()
+  "Get or create show buffer for current project.
+Reuses existing buffer for same project-dir.
+Buffer is named *beads-show: <project-name>*."
   (let* ((project-dir (or (beads-git-find-project-root) default-directory))
-         (existing (beads-show--find-buffer-for-issue issue-id project-dir)))
+         (existing (beads-show--find-buffer-for-project project-dir)))
     (or existing
-        (let ((buffer (get-buffer-create (format "*beads-show: %s*" issue-id))))
+        (let* ((proj-name (beads-git-get-project-name))
+               (buffer (get-buffer-create
+                        (format "*beads-show: %s*" proj-name))))
           (with-current-buffer buffer
             (setq beads-show--project-dir project-dir)
             (setq beads-show--branch (beads-git-get-branch))
-            (setq beads-show--proj-name (beads-git-get-project-name)))
+            (setq beads-show--proj-name proj-name))
           buffer))))
+
+(defun beads-show-update-buffer (issue-id buffer)
+  "Update BUFFER to display ISSUE-ID without selecting it.
+This is used by `beads-list-follow-mode' to update the show buffer when
+navigating in beads-list.  Returns BUFFER."
+  (with-current-buffer buffer
+    (unless (derived-mode-p 'beads-show-mode)
+      (beads-show-mode))
+    (setq beads-show--issue-id issue-id)
+    (condition-case err
+        (let ((issue (beads-command-show! :issue-ids (list issue-id))))
+          (setq beads-show--issue-data issue)
+          (beads-show--render-issue beads-show--issue-data))
+      (error
+       (let ((inhibit-read-only t))
+         (erase-buffer)
+         (insert (propertize "Error loading issue\n\n" 'face 'error))
+         (insert (format "%s" (error-message-string err)))
+         (goto-char (point-min))))))
+  buffer)
 
 ;;; Worktree Session Integration
 ;;
@@ -831,8 +872,8 @@ ISSUE must be a `beads-issue' EIEIO object."
 (defun beads-show (issue-id)
   "Show detailed view of issue with ISSUE-ID.
 Creates or switches to a buffer showing the full issue details.
-Uses directory-aware buffer identity: (issue-id, project-dir) pair.
-Completion matches on both issue ID and title.
+Buffer is named *beads-show: <project-name>* and is reused for all
+issues in the same project.
 
 Commands are executed in the caller's directory context, ensuring
 correct project detection (important for git worktrees)."
@@ -842,7 +883,7 @@ correct project detection (important for git worktrees)."
   ;; Capture caller's directory for command execution context
   (let* ((caller-dir default-directory)
          (project-dir (or (beads-git-find-project-root) default-directory))
-         (buffer (beads-show--get-or-create-buffer issue-id)))
+         (buffer (beads-show--get-or-create-buffer)))
     (with-current-buffer buffer
       (setq default-directory caller-dir)
       (unless (derived-mode-p 'beads-show-mode)
@@ -1231,25 +1272,9 @@ Set mark at beginning of section, move point to end, and activate region."
   "Follow issue reference at point in other window."
   (interactive)
   (if-let* ((issue-id (beads-show--extract-issue-at-point)))
-      (let ((buffer-name (format "*beads-show: %s*" issue-id)))
-        (if-let* ((buf (get-buffer buffer-name)))
-            (switch-to-buffer-other-window buf)
-          ;; Buffer doesn't exist, create it
-          (with-current-buffer (get-buffer-create buffer-name)
-            (beads-show-mode)
-            (setq beads-show--issue-id issue-id)
-            (condition-case err
-                (let ((issue (beads-command-show! :issue-ids (list issue-id))))
-                  (setq beads-show--issue-data issue)
-                  (beads-show--render-issue beads-show--issue-data))
-              (error
-               (let ((inhibit-read-only t))
-                 (erase-buffer)
-                 (insert (propertize "Error loading issue\n\n"
-                                     'face 'error))
-                 (insert (format "%s" (error-message-string err)))
-                 (goto-char (point-min))))))
-          (switch-to-buffer-other-window buffer-name)))
+      (let ((buffer (beads-show--get-or-create-buffer)))
+        (beads-show-update-buffer issue-id buffer)
+        (switch-to-buffer-other-window buffer))
     (message "No issue reference at point")))
 
 (defun beads-show-next-reference ()
