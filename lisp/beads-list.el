@@ -38,6 +38,7 @@
 ;;   D       - Delete issue at point (destructive)
 ;;   w       - Copy issue ID to kill ring
 ;;   S       - Sort by column
+;;   C-c C-f - Toggle follow mode (auto-update show buffer)
 ;;   B s     - Bulk update status for marked issues
 ;;   B p     - Bulk update priority for marked issues
 ;;   B c     - Bulk close marked issues
@@ -1229,7 +1230,7 @@ Uses an idle timer to debounce rapid navigation, similar to
     (define-key map (kbd "w") #'beads-list-copy-id)        ; copy (like eww, info)
     (define-key map (kbd "S") #'beads-list-sort)           ; sort menu
     (define-key map (kbd "l") #'beads-list-filter)         ; filter (open transient with current filter)
-    (define-key map (kbd "F") #'beads-list-follow-mode)    ; follow mode (like magit)
+    (define-key map (kbd "C-c C-f") #'beads-list-follow-mode) ; follow mode (like compilation)
 
     ;; AI Agent type commands
     (define-key map (kbd "T") #'beads-agent-start-task)     ; Task agent
