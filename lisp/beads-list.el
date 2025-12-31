@@ -857,10 +857,14 @@ ACTION and SESSION are provided by `beads-agent-state-change-hook'."
   (beads-list-refresh-all))
 
 (defun beads-list-show ()
-  "Show details for the issue at point."
+  "Show details for the issue at point in other window."
   (interactive)
   (if-let* ((id (beads-list--current-issue-id)))
-      (beads-show id)
+      (let ((list-buf (current-buffer)))
+        (beads-show id)
+        (let ((show-buf (current-buffer)))
+          (switch-to-buffer list-buf)
+          (switch-to-buffer-other-window show-buf)))
     (user-error "No issue at point")))
 
 (defun beads-list-quit ()
