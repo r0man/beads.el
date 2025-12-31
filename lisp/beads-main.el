@@ -186,18 +186,6 @@ Key bindings:
    ("g" "Refresh menu" beads-refresh-menu)
    ("q" "Quit" transient-quit-one)])
 
-;;; Integration with beads-list
-
-;; Update beads-list-show to use beads-show when available
-(defun beads-list-show ()
-  "Show details for the issue at point."
-  (interactive)
-  (if-let* ((id (beads-list--current-issue-id)))
-      (if (fboundp 'beads-show)
-          (beads-show id)
-        (message "Show issue %s" id))
-    (user-error "No issue at point")))
-
 ;;; Footer
 
 (provide 'beads-main)
