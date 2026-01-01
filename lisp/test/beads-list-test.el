@@ -2510,5 +2510,43 @@ Even if they have the same branch name."
   (should (custom-variable-p 'beads-list-update-show-delay))
   (should (numberp beads-list-update-show-delay)))
 
+(ert-deftest beads-list-test-follow-mode-adds-kill-buffer-hook ()
+  "Test that enabling follow-mode adds `kill-buffer-hook'."
+  (with-temp-buffer
+    (beads-list-mode)
+    (beads-list-follow-mode 1)
+    (should (memq #'beads-list--cancel-pending-show-timer
+                  kill-buffer-hook))
+    (beads-list-follow-mode -1)
+    (should-not (memq #'beads-list--cancel-pending-show-timer
+                      kill-buffer-hook))))
+
+(ert-deftest beads-list-test-cancel-pending-show-timer ()
+  "Test that `beads-list--cancel-pending-show-timer' clears state."
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((timer-cancelled nil))
+      (setq beads-list--pending-show-update '("bd-1" . some-buffer))
+      (setq beads-list--pending-show-timer 'fake-timer)
+      (cl-letf (((symbol-function 'cancel-timer)
+                 (lambda (timer)
+                   (when (eq timer 'fake-timer)
+                     (setq timer-cancelled t)))))
+        (beads-list--cancel-pending-show-timer))
+      (should timer-cancelled)
+      (should-not beads-list--pending-show-update)
+      (should-not beads-list--pending-show-timer))))
+
+(ert-deftest beads-list-test-cancel-pending-show-timer-no-timer ()
+  "Test that `beads-list--cancel-pending-show-timer' handles nil timer."
+  (with-temp-buffer
+    (beads-list-mode)
+    (setq beads-list--pending-show-update '("bd-1" . some-buffer))
+    (setq beads-list--pending-show-timer nil)
+    ;; Should not error and should clear state
+    (beads-list--cancel-pending-show-timer)
+    (should-not beads-list--pending-show-update)
+    (should-not beads-list--pending-show-timer)))
+
 (provide 'beads-list-test)
 ;;; beads-list-test.el ends here
