@@ -80,6 +80,8 @@
 (declare-function beads-agent--get-issue-outcome "beads-agent-backend")
 (declare-function beads-agent-session-backend-name "beads-agent-backend")
 (declare-function beads-agent-session-type-name "beads-agent-backend")
+(declare-function beads-show--find-visible-buffer "beads-show" (&optional project-dir))
+(declare-function beads-show-update-buffer "beads-show" (issue-id buffer))
 
 ;;; Customization
 
@@ -254,7 +256,7 @@ pending target rather than scheduling multiple timers.")
 
 (defvar-local beads-list--pending-show-timer nil
   "Timer for pending show buffer update, or nil.
-Stored so we can cancel it when follow-mode is disabled.")
+Stored so we can cancel it when `beads-list-follow-mode' is disabled.")
 
 ;;; Buffer Lookup by Project Directory
 ;;
@@ -1174,6 +1176,14 @@ Called from `post-command-hook' when `beads-list-follow-mode' is active."
                  (get-buffer-window buffer))
         (beads-show-update-buffer issue-id buffer)))))
 
+(defun beads-list--cancel-pending-show-timer ()
+  "Cancel any pending show buffer update timer.
+Called from `kill-buffer-hook' to prevent resource leaks."
+  (when beads-list--pending-show-timer
+    (cancel-timer beads-list--pending-show-timer)
+    (setq beads-list--pending-show-timer nil))
+  (setq beads-list--pending-show-update nil))
+
 (define-minor-mode beads-list-follow-mode
   "Automatically update beads-show buffer when navigating issues.
 When this mode is enabled and a beads-show buffer is visible in
@@ -1185,15 +1195,17 @@ Uses an idle timer to debounce rapid navigation, similar to
   :lighter " Follow"
   :keymap nil
   (if beads-list-follow-mode
-      (add-hook 'post-command-hook
-                #'beads-list--maybe-update-show-buffer nil t)
+      (progn
+        (add-hook 'post-command-hook
+                  #'beads-list--maybe-update-show-buffer nil t)
+        (add-hook 'kill-buffer-hook
+                  #'beads-list--cancel-pending-show-timer nil t))
     ;; Cancel any pending timer and clear state
-    (when beads-list--pending-show-timer
-      (cancel-timer beads-list--pending-show-timer)
-      (setq beads-list--pending-show-timer nil))
-    (setq beads-list--pending-show-update nil)
+    (beads-list--cancel-pending-show-timer)
     (remove-hook 'post-command-hook
-                 #'beads-list--maybe-update-show-buffer t)))
+                 #'beads-list--maybe-update-show-buffer t)
+    (remove-hook 'kill-buffer-hook
+                 #'beads-list--cancel-pending-show-timer t)))
 
 ;;; Mode Definition
 
