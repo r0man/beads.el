@@ -52,7 +52,8 @@ jobs:
         # undercover cannot instrument byte-compiled files.
         # The Eldev file configures codecov format via eldev-undercover-config.
         # EMACS_TEST_JUNIT_REPORT generates JUnit XML for Codecov Test Analytics.
-        run: CI=true BD_NO_DAEMON=1 EMACS_TEST_JUNIT_REPORT=coverage/junit.xml eldev -s -dtT test -U coverage/codecov.json
+        # Use absolute path for JUnit report since Eldev changes cwd during tests.
+        run: CI=true BD_NO_DAEMON=1 EMACS_TEST_JUNIT_REPORT=${{ github.workspace }}/coverage/junit.xml eldev -s -dtT test -U coverage/codecov.json
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
