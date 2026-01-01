@@ -1142,7 +1142,9 @@ transient menu options."
 
 (defun beads-list--maybe-update-show-buffer ()
   "Schedule show buffer update if conditions are met.
-Called from `post-command-hook' when `beads-list-follow-mode' is active."
+Called from `post-command-hook' when `beads-list-follow-mode' is active.
+Coalesces rapid updates by reusing pending timer rather than scheduling
+multiple timers."
   (when (and beads-list-follow-mode
              (derived-mode-p 'beads-list-mode))
     (when-let* ((issue-id (beads-list--current-issue-id))
@@ -1160,7 +1162,9 @@ Called from `post-command-hook' when `beads-list-follow-mode' is active."
                   (run-with-idle-timer
                    beads-list-update-show-delay nil
                    (lambda ()
-                     (when (buffer-live-p list-buf)
+                     (when (and (buffer-live-p list-buf)
+                                (buffer-local-value
+                                 'beads-list-follow-mode list-buf))
                        (with-current-buffer list-buf
                          (beads-list--do-update-show-buffer))))))))))))
 
