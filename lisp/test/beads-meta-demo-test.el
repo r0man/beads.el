@@ -41,7 +41,6 @@
     :positional 1
     ;; Transient properties
     :key "t"
-    :description "Title (required)"
     :class transient-option
     :reader beads-reader-issue-title
     :group "Required"
@@ -59,7 +58,6 @@
     :short-option "-t"
     :option-type :string
     :key "T"
-    :description "Type"
     :class transient-option
     :choices ("bug" "feature" "task" "epic" "chore")
     :prompt "Type: "
@@ -76,7 +74,6 @@
     :short-option "-p"
     :option-type :integer
     :key "p"
-    :description "Priority (0-4)"
     :class transient-option
     :choices (0 1 2 3 4)
     :prompt "Priority: "
@@ -93,7 +90,6 @@
     :short-option "-a"
     :option-type :string
     :key "a"
-    :description "Assignee"
     :class transient-option
     :prompt "Assignee: "
     :group "Issue attributes"
@@ -110,7 +106,6 @@
     :option-type :list
     :option-separator ","
     :key "l"
-    :description "Labels"
     :class transient-option
     :prompt "Labels (comma-separated): "
     :group "Issue attributes"
@@ -126,7 +121,6 @@
     :short-option "-d"
     :option-type :string
     :key "d"
-    :description "Description"
     :class transient-option
     :group "Content"
     :level 3
@@ -141,7 +135,6 @@
     :option-type :list
     :option-separator ","
     :key "D"
-    :description "Dependencies"
     :class transient-option
     :prompt "Dependencies (comma-separated): "
     :group "Advanced"
@@ -156,7 +149,6 @@
     :long-option "--force"
     :option-type :boolean
     :key "!"
-    :description "Force"
     :class transient-switch
     :group "Advanced"
     :level 4
@@ -214,7 +206,6 @@ This demonstrates how beads-command-create would look after migration.")
               :priority 1
               :assignee "alice"
               :labels '("frontend" "important")
-              :description "Add new button"
               :deps '("bd-123")
               :force t)))
     (let ((args (beads-meta-build-command-line cmd)))
@@ -238,14 +229,14 @@ This demonstrates how beads-command-create would look after migration.")
                 'beads-meta-demo-command "beads-demo")))
     ;; Should generate specs for all slots with :key
     (should (= 8 (length specs)))  ; 8 slots have :key
-    ;; Check title spec
+    ;; Check title spec - description comes from :documentation
     (let ((title-spec (cl-find-if
                        (lambda (s) (eq 'beads-demo-infix-title
                                        (plist-get s :name)))
                        specs)))
       (should title-spec)
       (should (equal "t" (plist-get title-spec :key)))
-      (should (equal "Title (required)" (plist-get title-spec :description)))
+      (should (equal "Issue title" (plist-get title-spec :description)))
       (should (eq 'transient-option (plist-get title-spec :class)))
       (should (eq 'beads-reader-issue-title (plist-get title-spec :reader))))))
 
