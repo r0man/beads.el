@@ -584,6 +584,21 @@ by the base class's command-line method."
 ;;; Transient Infix Generation from Slot Metadata
 ;;; ============================================================
 
+(defun beads-meta--slot-documentation (class slot-name)
+  "Get the :documentation property for SLOT-NAME in CLASS.
+CLASS is a class name symbol.
+SLOT-NAME is the slot name symbol.
+
+Returns the documentation string, or nil if not found.
+This accesses the standard EIEIO :documentation property."
+  (let* ((class-obj (cl--find-class class))
+         (slots-vec (and class-obj (eieio--class-slots class-obj))))
+    (when slots-vec
+      (cl-loop for slot-desc across slots-vec
+               when (eq (cl--slot-descriptor-name slot-desc) slot-name)
+               return (alist-get :documentation
+                                 (cl--slot-descriptor-props slot-desc))))))
+
 (defun beads-meta-generate-infix-spec (class slot-name prefix)
   "Generate a transient infix specification for SLOT-NAME in CLASS.
 PREFIX is a string like \"beads-create\" for naming the infix.
@@ -599,16 +614,13 @@ Uses :documentation for the description if available."
          (prompt (beads-meta-slot-property class slot-name :prompt))
          (long-opt (beads-meta-slot-property class slot-name :long-option))
          (option-type (beads-meta-slot-property class slot-name :option-type))
-         ;; Get documentation from slot info for description
-         (slot-info (beads-meta-slot-info class slot-name))
-         (desc (when slot-info
-                 ;; Try to get documentation - it's stored differently in EIEIO
-                 ;; Fall back to slot name
-                 (symbol-name slot-name))))
+         ;; Get documentation from standard EIEIO :documentation property
+         (doc (beads-meta--slot-documentation class slot-name))
+         (desc (or doc (symbol-name slot-name))))
     (when key
       (let ((spec (list :name (intern (format "%s-infix-%s" prefix slot-name))
                         :key key)))
-        ;; Description from slot name (could enhance to use :documentation later)
+        ;; Description from slot :documentation (or fallback to slot name)
         (setq spec (plist-put spec :description desc))
         ;; Transient class (default based on option-type)
         (setq spec (plist-put spec :class
