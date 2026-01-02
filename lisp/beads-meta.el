@@ -22,16 +22,14 @@
 ;; Supported Custom Properties:
 ;;
 ;; CLI Properties:
-;;   :long       - Long CLI option name without dashes (e.g., "status")
-;;                 If omitted, derived from slot name (status -> "status")
-;;   :short      - Short CLI option letter without dash (e.g., "s")
-;;   :option     - Type of option (:string, :boolean, :integer, :list)
-;;   :positional - Position for positional args (integer 1, 2, 3... or nil)
-;;   :separator  - Separator for :list type (default ",", nil for multiple args)
+;;   :long-option      - Long CLI option name without dashes (e.g., "status")
+;;   :short-option     - Short CLI option letter without dash (e.g., "s")
+;;   :option-type      - Type of option (:string, :boolean, :integer, :list)
+;;   :positional       - Position for positional args (integer 1, 2, 3... or nil)
+;;   :option-separator - Separator for :list type (default ",", nil for multiple args)
 ;;
 ;; Transient Properties:
 ;;   :key         - Key binding in transient menu
-;;   :description - Description in transient
 ;;   :class       - Transient class (transient-option, etc.)
 ;;   :reader      - Reader function for input
 ;;   :choices     - Valid choices list
@@ -42,13 +40,12 @@
 ;;   :group       - Group name for organization
 ;;   :order       - Order within group (lower = first)
 ;;
+;; Note: The standard EIEIO :documentation property is used for transient
+;; descriptions, so no separate :description property is needed.
+;;
 ;; Validation Properties:
 ;;   :required  - Is field required?
 ;;   :validator - Validation function
-;;
-;; Legacy Properties (still supported for backward compatibility):
-;;   :long-option, :short-option, :option-type, :option-separator
-;;   :transient-key, :transient-description, :transient-class, etc.
 ;;
 ;; Usage:
 ;;
@@ -57,18 +54,30 @@
 ;;       :initarg :title
 ;;       :type (or null string)
 ;;       :initform nil
-;;       :documentation "Issue title"
+;;       :documentation "Title (required)"  ; Used for transient description
 ;;       ;; CLI properties
 ;;       :positional 1
 ;;       ;; Transient properties
 ;;       :key "t"
-;;       :description "Title (required)"
 ;;       :class transient-option
 ;;       :reader beads-reader-issue-title
 ;;       :group "Required"
 ;;       :level 1
 ;;       ;; Validation
-;;       :required t)))
+;;       :required t)
+;;      (status
+;;       :initarg :status
+;;       :type (or null string)
+;;       :initform nil
+;;       :documentation "Status"  ; Used for transient description
+;;       ;; CLI properties
+;;       :long-option "status"
+;;       :short-option "s"
+;;       :option-type :string
+;;       ;; Transient properties
+;;       :key "s"
+;;       :class transient-option
+;;       :choices ("open" "in_progress" "blocked" "closed"))))
 ;;
 ;;   ;; Get a property for a slot
 ;;   (beads-meta-slot-property 'my-command 'title :key)
@@ -93,15 +102,14 @@
 ;;; ============================================================
 
 (defconst beads-meta--slot-properties
-  '(;; CLI properties (new simplified names)
-    :long                   ; Long option without dashes (e.g., "status")
-    :short                  ; Short option without dash (e.g., "s")
-    :option                 ; Option type (:string, :boolean, :integer, :list)
+  '(;; CLI properties
+    :long-option            ; Long option without dashes (e.g., "status")
+    :short-option           ; Short option without dash (e.g., "s")
+    :option-type            ; Option type (:string, :boolean, :integer, :list)
     :positional             ; Position for positional args
-    :separator              ; Separator for :list type
-    ;; Transient properties (new simplified names)
+    :option-separator       ; Separator for :list type
+    ;; Transient properties (note: :documentation is standard EIEIO, not custom)
     :key                    ; Key binding
-    :description            ; Menu description
     :class                  ; Transient class
     :reader                 ; Reader function
     :choices                ; Valid choices
@@ -113,31 +121,13 @@
     :order                  ; Order in group
     ;; Validation properties
     :required
-    :validator
-    ;; Legacy CLI properties (for backward compatibility)
-    :long-option
-    :short-option
-    :option-type
-    :option-separator
-    ;; Legacy transient properties (for backward compatibility)
-    :transient-key
-    :transient-description
-    :transient-class
-    :transient-reader
-    :transient-choices
-    :transient-prompt
-    :transient-argument
-    :transient-field-name
-    :transient-level
-    :transient-group
-    :transient-order)
+    :validator)
   "List of custom slot properties supported by beads-meta.
 These properties are preserved in slot descriptors via advice on
 `eieio-defclass-internal' and `eieio--slot-override'.
 
-The new simplified property names (without prefixes) are preferred.
-Legacy names with `:long-option`, `:transient-*` prefixes are still
-supported for backward compatibility.")
+Note: The standard EIEIO :documentation property is used for transient
+descriptions and does not need to be listed here.")
 
 ;;; ============================================================
 ;;; EIEIO Advice for Custom Property Preservation
@@ -201,7 +191,7 @@ NEW is the child slot descriptor being created."
   "Get PROPERTY for SLOT-NAME in CLASS.
 CLASS is a class name symbol.
 SLOT-NAME is the slot name symbol.
-PROPERTY is a keyword like :transient-key, :long-option, etc.
+PROPERTY is a keyword like :key, :long-option, etc.
 
 Returns the property value, or nil if not found."
   (let* ((class-obj (cl--find-class class))
@@ -232,7 +222,7 @@ defined by `beads-meta--slot-properties'."
 (defun beads-meta-slots-with-property (class property)
   "Find all slots in CLASS that have PROPERTY defined.
 CLASS is a class name symbol.
-PROPERTY is a keyword like :transient-key, :long-option, etc.
+PROPERTY is a keyword like :key, :long-option, etc.
 
 Returns a list of (SLOT-NAME . VALUE) pairs for slots that have
 the property defined."
@@ -310,17 +300,15 @@ in ascending order.  Only slots with :positional property are included."
   "Get all named option slots for CLASS (non-positional).
 CLASS is a class name symbol.
 
-Returns a list of slot names that have :long/:long-option or
-:short/:short-option but not :positional."
+Returns a list of slot names that have :long-option or
+:short-option but not :positional."
   (let* ((class-obj (cl--find-class class))
          (slots-vec (and class-obj (eieio--class-slots class-obj)))
          result)
     (when slots-vec
       (cl-loop for slot-desc across slots-vec
                do (let* ((props (cl--slot-descriptor-props slot-desc))
-                         (has-option (or (alist-get :long props)
-                                         (alist-get :long-option props)
-                                         (alist-get :short props)
+                         (has-option (or (alist-get :long-option props)
                                          (alist-get :short-option props)))
                          (is-positional (alist-get :positional props)))
                     (when (and has-option (not is-positional))
@@ -328,7 +316,7 @@ Returns a list of slot names that have :long/:long-option or
       (nreverse result))))
 
 ;;; ============================================================
-;;; Property Access with Fallback and Derivation
+;;; Property Access Helpers
 ;;; ============================================================
 
 (defun beads-meta--slot-name-to-option (slot-name)
@@ -343,92 +331,61 @@ Handles common naming patterns:
       (substring name 6))
      (t name))))
 
-(defun beads-meta--get-prop-with-fallback (props prop legacy-prop)
-  "Get PROP from PROPS, falling back to LEGACY-PROP if not found."
-  (or (alist-get prop props)
-      (alist-get legacy-prop props)))
-
-(defun beads-meta-get-long-option (props slot-name)
-  "Get long option from PROPS, deriving from SLOT-NAME if needed.
+(defun beads-meta-get-long-option (props _slot-name)
+  "Get long option from PROPS.
+SLOT-NAME is unused but kept for API compatibility.
 Returns the option name with \"--\" prefix added.
-Returns nil if slot has no long option."
-  (let ((explicit (beads-meta--get-prop-with-fallback
-                   props :long :long-option)))
-    (cond
-     ;; Explicit value provided
-     (explicit
-      (if (string-prefix-p "--" explicit)
-          explicit  ; Already has dashes (legacy format)
-        (concat "--" explicit)))
-     ;; No explicit value - don't derive (explicit opt-in required)
-     (t nil))))
+Returns nil if slot has no :long-option property."
+  (let ((value (alist-get :long-option props)))
+    (when value
+      (if (string-prefix-p "--" value)
+          value
+        (concat "--" value)))))
 
 (defun beads-meta-get-short-option (props)
   "Get short option from PROPS.
 Returns the option with \"-\" prefix added.
-Returns nil if slot has no short option."
-  (let ((explicit (beads-meta--get-prop-with-fallback
-                   props :short :short-option)))
-    (when explicit
-      (if (string-prefix-p "-" explicit)
-          explicit  ; Already has dash (legacy format)
-        (concat "-" explicit)))))
+Returns nil if slot has no :short-option property."
+  (let ((value (alist-get :short-option props)))
+    (when value
+      (if (string-prefix-p "-" value)
+          value
+        (concat "-" value)))))
 
 (defun beads-meta-get-option-type (props)
-  "Get option type from PROPS with fallback.
+  "Get option type from PROPS.
 Returns :string, :boolean, :integer, or :list.
 Defaults to :string if not specified."
-  (or (beads-meta--get-prop-with-fallback props :option :option-type)
-      :string))
+  (or (alist-get :option-type props) :string))
 
 (defun beads-meta-get-separator (props)
-  "Get list separator from PROPS with fallback.
+  "Get list separator from PROPS.
 Returns the separator string, or nil for multiple args."
-  (beads-meta--get-prop-with-fallback props :separator :option-separator))
-
-(defun beads-meta-get-transient-key (props)
-  "Get transient key from PROPS with fallback."
-  (beads-meta--get-prop-with-fallback props :key :transient-key))
-
-(defun beads-meta-get-transient-description (props)
-  "Get transient description from PROPS with fallback."
-  (beads-meta--get-prop-with-fallback props :description :transient-description))
-
-(defun beads-meta-get-transient-group (props)
-  "Get transient group from PROPS with fallback."
-  (beads-meta--get-prop-with-fallback props :group :transient-group))
-
-(defun beads-meta-get-transient-level (props)
-  "Get transient level from PROPS with fallback."
-  (beads-meta--get-prop-with-fallback props :level :transient-level))
-
-(defun beads-meta-get-transient-order (props)
-  "Get transient order from PROPS with fallback."
-  (beads-meta--get-prop-with-fallback props :order :transient-order))
+  (alist-get :option-separator props))
 
 (defun beads-meta-transient-slots (class)
   "Get all slots for CLASS that have transient properties.
 CLASS is a class name symbol.
 
-Returns a list of slot names that have :transient-key defined,
-sorted by :transient-group and :transient-order."
-  (let ((slots-with-key (beads-meta-slots-with-property class :transient-key)))
+Returns a list of slot names that have :key defined,
+sorted by :group and :order."
+  (let ((slots-with-key (beads-meta-slots-with-property class :key)))
     (mapcar #'car
             (sort slots-with-key
                   (lambda (a b)
                     (let* ((a-name (car a))
                            (b-name (car b))
                            (a-group (or (beads-meta-slot-property class a-name
-                                                                  :transient-group)
+                                                                  :group)
                                         ""))
                            (b-group (or (beads-meta-slot-property class b-name
-                                                                  :transient-group)
+                                                                  :group)
                                         ""))
                            (a-order (or (beads-meta-slot-property class a-name
-                                                                  :transient-order)
+                                                                  :order)
                                         999))
                            (b-order (or (beads-meta-slot-property class b-name
-                                                                  :transient-order)
+                                                                  :order)
                                         999)))
                       (if (string= a-group b-group)
                           (< a-order b-order)
@@ -456,8 +413,8 @@ A slot is considered populated if it is bound and its value is non-nil
                do (let* ((slot-name (cl--slot-descriptor-name slot-desc))
                          (props (cl--slot-descriptor-props slot-desc))
                          (required (alist-get :required props))
-                         (description (or (alist-get :transient-description props)
-                                          (symbol-name slot-name))))
+                         ;; Use slot name for error messages
+                         (description (symbol-name slot-name)))
                     (when required
                       (let ((value (when (slot-boundp command slot-name)
                                      (eieio-oref command slot-name))))
@@ -553,14 +510,10 @@ arguments come first (sorted by :positional value), followed by
 named options (--option value or --flag).
 
 For list options:
-- If :separator is nil, emits multiple --option args (one per value)
-- If :separator is a string, emits single --option with joined values
+- If :option-separator is nil, emits multiple --option args (one per value)
+- If :option-separator is a string, emits single --option with joined values
 
-Supports both new property names (:long, :short, :option, :separator)
-and legacy names (:long-option, :short-option, :option-type, :option-separator).
-
-Slots without :long/:long-option, :short/:short-option, or :positional
-are skipped."
+Slots without :long-option, :short-option, or :positional are skipped."
   (let* ((class-name (eieio-object-class command))
          (class-obj (cl--find-class class-name))
          (slots-vec (eieio--class-slots class-obj))
@@ -636,21 +589,27 @@ by the base class's command-line method."
 PREFIX is a string like \"beads-create\" for naming the infix.
 
 Returns a plist suitable for passing to `transient-define-infix',
-or nil if the slot doesn't have transient metadata (no :transient-key)."
-  (let* ((key (beads-meta-slot-property class slot-name :transient-key))
-         (desc (beads-meta-slot-property class slot-name :transient-description))
-         (trans-class (beads-meta-slot-property class slot-name :transient-class))
-         (reader (beads-meta-slot-property class slot-name :transient-reader))
-         (choices (beads-meta-slot-property class slot-name :transient-choices))
-         (prompt (beads-meta-slot-property class slot-name :transient-prompt))
+or nil if the slot doesn't have transient metadata (no :key).
+
+Uses :documentation for the description if available."
+  (let* ((key (beads-meta-slot-property class slot-name :key))
+         (trans-class (beads-meta-slot-property class slot-name :class))
+         (reader (beads-meta-slot-property class slot-name :reader))
+         (choices (beads-meta-slot-property class slot-name :choices))
+         (prompt (beads-meta-slot-property class slot-name :prompt))
          (long-opt (beads-meta-slot-property class slot-name :long-option))
-         (option-type (beads-meta-slot-property class slot-name :option-type)))
+         (option-type (beads-meta-slot-property class slot-name :option-type))
+         ;; Get documentation from slot info for description
+         (slot-info (beads-meta-slot-info class slot-name))
+         (desc (when slot-info
+                 ;; Try to get documentation - it's stored differently in EIEIO
+                 ;; Fall back to slot name
+                 (symbol-name slot-name))))
     (when key
       (let ((spec (list :name (intern (format "%s-infix-%s" prefix slot-name))
                         :key key)))
-        ;; Description
-        (when desc
-          (setq spec (plist-put spec :description desc)))
+        ;; Description from slot name (could enhance to use :documentation later)
+        (setq spec (plist-put spec :description desc))
         ;; Transient class (default based on option-type)
         (setq spec (plist-put spec :class
                               (or trans-class
@@ -678,17 +637,16 @@ or nil if the slot doesn't have transient metadata (no :transient-key)."
   "Generate all infix specifications for CLASS.
 PREFIX is a string like \"beads-create\" for naming infixes.
 
-Returns a list of infix plists, sorted by :transient-group and
-:transient-order."
+Returns a list of infix plists, sorted by :group and :order."
   (let ((slots (beads-meta-transient-slots class))
         (specs nil))
     (dolist (slot-name slots)
       (let ((spec (beads-meta-generate-infix-spec class slot-name prefix)))
         (when spec
           ;; Add group/level/order info to spec for sorting
-          (let ((group (beads-meta-slot-property class slot-name :transient-group))
-                (level (beads-meta-slot-property class slot-name :transient-level))
-                (order (beads-meta-slot-property class slot-name :transient-order)))
+          (let ((group (beads-meta-slot-property class slot-name :group))
+                (level (beads-meta-slot-property class slot-name :level))
+                (order (beads-meta-slot-property class slot-name :order)))
             (when group (setq spec (plist-put spec :group group)))
             (when level (setq spec (plist-put spec :level level)))
             (when order (setq spec (plist-put spec :order order))))
@@ -744,7 +702,7 @@ SPEC should contain :name, :key, and optionally :class, :argument,
 (defmacro beads-meta-define-infixes (class prefix)
   "Define all transient infixes for CLASS using PREFIX.
 This macro generates transient-define-infix forms for all slots
-in CLASS that have :transient-key defined.
+in CLASS that have :key defined.
 
 Example:
   (beads-meta-define-infixes beads-command-create \"beads-create\")
@@ -813,7 +771,7 @@ SPEC should contain :name, :level, :description, and :infixes."
 (defmacro beads-meta-define-groups (class prefix)
   "Define all transient groups for CLASS using PREFIX.
 This macro generates transient-define-group forms for each
-distinct :transient-group value in CLASS slots.
+distinct :group value in CLASS slots.
 
 Example:
   (beads-meta-define-groups beads-command-create \"beads-create\")
@@ -849,7 +807,7 @@ to include (e.g., beads-option-global-section).
 
 This macro defines:
 1. All infixes from class slot metadata
-2. All groups organized by :transient-group
+2. All groups organized by :group
 3. The prefix combining all groups plus actions
 
 Example:

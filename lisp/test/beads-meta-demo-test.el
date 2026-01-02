@@ -40,13 +40,13 @@
     ;; CLI properties
     :positional 1
     ;; Transient properties
-    :transient-key "t"
-    :transient-description "Title (required)"
-    :transient-class transient-option
-    :transient-reader beads-reader-issue-title
-    :transient-group "Required"
-    :transient-level 1
-    :transient-order 1
+    :key "t"
+    :description "Title (required)"
+    :class transient-option
+    :reader beads-reader-issue-title
+    :group "Required"
+    :level 1
+    :order 1
     ;; Validation
     :required t)
 
@@ -58,14 +58,14 @@
     :long-option "--type"
     :short-option "-t"
     :option-type :string
-    :transient-key "T"
-    :transient-description "Type"
-    :transient-class transient-option
-    :transient-choices ("bug" "feature" "task" "epic" "chore")
-    :transient-prompt "Type: "
-    :transient-group "Issue attributes"
-    :transient-level 2
-    :transient-order 1)
+    :key "T"
+    :description "Type"
+    :class transient-option
+    :choices ("bug" "feature" "task" "epic" "chore")
+    :prompt "Type: "
+    :group "Issue attributes"
+    :level 2
+    :order 1)
 
    (priority
     :initarg :priority
@@ -75,14 +75,14 @@
     :long-option "--priority"
     :short-option "-p"
     :option-type :integer
-    :transient-key "p"
-    :transient-description "Priority (0-4)"
-    :transient-class transient-option
-    :transient-choices (0 1 2 3 4)
-    :transient-prompt "Priority: "
-    :transient-group "Issue attributes"
-    :transient-level 2
-    :transient-order 2)
+    :key "p"
+    :description "Priority (0-4)"
+    :class transient-option
+    :choices (0 1 2 3 4)
+    :prompt "Priority: "
+    :group "Issue attributes"
+    :level 2
+    :order 2)
 
    (assignee
     :initarg :assignee
@@ -92,13 +92,13 @@
     :long-option "--assignee"
     :short-option "-a"
     :option-type :string
-    :transient-key "a"
-    :transient-description "Assignee"
-    :transient-class transient-option
-    :transient-prompt "Assignee: "
-    :transient-group "Issue attributes"
-    :transient-level 2
-    :transient-order 3)
+    :key "a"
+    :description "Assignee"
+    :class transient-option
+    :prompt "Assignee: "
+    :group "Issue attributes"
+    :level 2
+    :order 3)
 
    (labels
     :initarg :labels
@@ -109,13 +109,13 @@
     :short-option "-l"
     :option-type :list
     :option-separator ","
-    :transient-key "l"
-    :transient-description "Labels"
-    :transient-class transient-option
-    :transient-prompt "Labels (comma-separated): "
-    :transient-group "Issue attributes"
-    :transient-level 2
-    :transient-order 4)
+    :key "l"
+    :description "Labels"
+    :class transient-option
+    :prompt "Labels (comma-separated): "
+    :group "Issue attributes"
+    :level 2
+    :order 4)
 
    (description
     :initarg :description
@@ -125,12 +125,12 @@
     :long-option "--description"
     :short-option "-d"
     :option-type :string
-    :transient-key "d"
-    :transient-description "Description"
-    :transient-class transient-option
-    :transient-group "Content"
-    :transient-level 3
-    :transient-order 1)
+    :key "d"
+    :description "Description"
+    :class transient-option
+    :group "Content"
+    :level 3
+    :order 1)
 
    (deps
     :initarg :deps
@@ -140,13 +140,13 @@
     :long-option "--deps"
     :option-type :list
     :option-separator ","
-    :transient-key "D"
-    :transient-description "Dependencies"
-    :transient-class transient-option
-    :transient-prompt "Dependencies (comma-separated): "
-    :transient-group "Advanced"
-    :transient-level 4
-    :transient-order 1)
+    :key "D"
+    :description "Dependencies"
+    :class transient-option
+    :prompt "Dependencies (comma-separated): "
+    :group "Advanced"
+    :level 4
+    :order 1)
 
    (force
     :initarg :force
@@ -155,12 +155,12 @@
     :documentation "Force creation"
     :long-option "--force"
     :option-type :boolean
-    :transient-key "!"
-    :transient-description "Force"
-    :transient-class transient-switch
-    :transient-group "Advanced"
-    :transient-level 4
-    :transient-order 2))
+    :key "!"
+    :description "Force"
+    :class transient-switch
+    :group "Advanced"
+    :level 4
+    :order 2))
   :documentation "Demo command class with full slot metadata.
 This demonstrates how beads-command-create would look after migration.")
 
@@ -236,8 +236,8 @@ This demonstrates how beads-command-create would look after migration.")
   "Demo: Generate infix specs from class metadata."
   (let ((specs (beads-meta-generate-infix-specs
                 'beads-meta-demo-command "beads-demo")))
-    ;; Should generate specs for all slots with :transient-key
-    (should (= 8 (length specs)))  ; 8 slots have :transient-key
+    ;; Should generate specs for all slots with :key
+    (should (= 8 (length specs)))  ; 8 slots have :key
     ;; Check title spec
     (let ((title-spec (cl-find-if
                        (lambda (s) (eq 'beads-demo-infix-title

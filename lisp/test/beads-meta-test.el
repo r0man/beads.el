@@ -25,11 +25,11 @@
     :documentation "A base slot"
     :long-option "--base"
     :option-type :string
-    :transient-key "b"
-    :transient-description "Base option"
-    :transient-level 1
-    :transient-group "Base"
-    :transient-order 1))
+    :key "b"
+    :description "Base option"
+    :level 1
+    :group "Base"
+    :order 1))
   :abstract t
   :documentation "Test base class with custom slot properties.")
 
@@ -40,13 +40,13 @@
     :initform nil
     :documentation "Issue title"
     :positional 1
-    :transient-key "t"
-    :transient-description "Title (required)"
-    :transient-class transient-option
-    :transient-reader beads-reader-issue-title
-    :transient-group "Required"
-    :transient-level 1
-    :transient-order 1
+    :key "t"
+    :description "Title (required)"
+    :class transient-option
+    :reader beads-reader-issue-title
+    :group "Required"
+    :level 1
+    :order 1
     :required t)
    (priority
     :initarg :priority
@@ -56,13 +56,13 @@
     :long-option "--priority"
     :short-option "-p"
     :option-type :integer
-    :transient-key "p"
-    :transient-description "Priority"
-    :transient-choices (0 1 2 3 4)
-    :transient-prompt "Priority: "
-    :transient-group "Options"
-    :transient-level 2
-    :transient-order 1)
+    :key "p"
+    :description "Priority"
+    :choices (0 1 2 3 4)
+    :prompt "Priority: "
+    :group "Options"
+    :level 2
+    :order 1)
    (labels
     :initarg :labels
     :type (or null list)
@@ -71,11 +71,11 @@
     :long-option "--labels"
     :option-type :list
     :option-separator ","
-    :transient-key "l"
-    :transient-description "Labels"
-    :transient-group "Options"
-    :transient-level 2
-    :transient-order 2)
+    :key "l"
+    :description "Labels"
+    :group "Options"
+    :level 2
+    :order 2)
    (force
     :initarg :force
     :type boolean
@@ -83,23 +83,23 @@
     :documentation "Force flag"
     :long-option "--force"
     :option-type :boolean
-    :transient-key "f"
-    :transient-description "Force"
-    :transient-class transient-switch
-    :transient-group "Flags"
-    :transient-level 3
-    :transient-order 1)
+    :key "f"
+    :description "Force"
+    :class transient-switch
+    :group "Flags"
+    :level 3
+    :order 1)
    (description
     :initarg :description
     :type (or null string)
     :initform nil
     :documentation "Issue description"
     :positional 2
-    :transient-key "d"
-    :transient-description "Description"
-    :transient-group "Content"
-    :transient-level 3
-    :transient-order 1)
+    :key "d"
+    :description "Description"
+    :group "Content"
+    :level 3
+    :order 1)
    (no-meta-slot
     :initarg :no-meta-slot
     :type (or null string)
@@ -115,13 +115,13 @@
   "Test that beads-meta-slot-property returns the correct value."
   (should (equal "t"
                  (beads-meta-slot-property 'beads-meta-test-child 'title
-                                           :transient-key)))
+                                           :key)))
   (should (equal 1
                  (beads-meta-slot-property 'beads-meta-test-child 'title
                                            :positional)))
   (should (equal "Title (required)"
                  (beads-meta-slot-property 'beads-meta-test-child 'title
-                                           :transient-description)))
+                                           :description)))
   (should (eq t
               (beads-meta-slot-property 'beads-meta-test-child 'title
                                         :required))))
@@ -131,9 +131,9 @@
   (should (null (beads-meta-slot-property 'beads-meta-test-child 'title
                                           :long-option)))
   (should (null (beads-meta-slot-property 'beads-meta-test-child 'no-meta-slot
-                                          :transient-key)))
+                                          :key)))
   (should (null (beads-meta-slot-property 'beads-meta-test-child 'nonexistent
-                                          :transient-key))))
+                                          :key))))
 
 (ert-deftest beads-meta-slot-property-works-with-various-types ()
   "Test that beads-meta-slot-property works with different value types."
@@ -148,7 +148,7 @@
   ;; List
   (should (equal '(0 1 2 3 4)
                  (beads-meta-slot-property 'beads-meta-test-child 'priority
-                                           :transient-choices)))
+                                           :choices)))
   ;; Boolean
   (should (eq :boolean
               (beads-meta-slot-property 'beads-meta-test-child 'force
@@ -162,13 +162,13 @@
   "Test that beads-meta-slot-properties returns all custom properties."
   (let ((props (beads-meta-slot-properties 'beads-meta-test-child 'title)))
     (should (assq :positional props))
-    (should (assq :transient-key props))
-    (should (assq :transient-description props))
-    (should (assq :transient-class props))
-    (should (assq :transient-reader props))
-    (should (assq :transient-group props))
-    (should (assq :transient-level props))
-    (should (assq :transient-order props))
+    (should (assq :key props))
+    (should (assq :description props))
+    (should (assq :class props))
+    (should (assq :reader props))
+    (should (assq :group props))
+    (should (assq :level props))
+    (should (assq :order props))
     (should (assq :required props))))
 
 (ert-deftest beads-meta-slot-properties-excludes-standard-props ()
@@ -192,8 +192,8 @@
 (ert-deftest beads-meta-slots-with-property-finds-all-matching ()
   "Test that beads-meta-slots-with-property finds all slots with property."
   (let ((slots (beads-meta-slots-with-property 'beads-meta-test-child
-                                               :transient-key)))
-    ;; Should find multiple slots with :transient-key
+                                               :key)))
+    ;; Should find multiple slots with :key
     (should (> (length slots) 3))
     ;; Each result should be (slot-name . value) pair
     (should (assq 'title slots))
@@ -251,7 +251,7 @@
     ;; Check custom props are included
     (let ((custom (plist-get info :custom-props)))
       (should (assq :positional custom))
-      (should (assq :transient-key custom)))))
+      (should (assq :key custom)))))
 
 (ert-deftest beads-meta-slot-info-returns-nil-for-missing-slot ()
   "Test that beads-meta-slot-info returns nil for nonexistent slot."
@@ -299,7 +299,7 @@
   (let ((slots (beads-meta-transient-slots 'beads-meta-test-child)))
     ;; Should have multiple slots
     (should (> (length slots) 3))
-    ;; All slots with :transient-key should be included
+    ;; All slots with :key should be included
     (should (memq 'title slots))
     (should (memq 'priority slots))
     (should (memq 'labels slots))
@@ -318,10 +318,10 @@
                                            :long-option)))
   (should (equal "b"
                  (beads-meta-slot-property 'beads-meta-test-child 'base-slot
-                                           :transient-key)))
+                                           :key)))
   (should (equal "Base"
                  (beads-meta-slot-property 'beads-meta-test-child 'base-slot
-                                           :transient-group))))
+                                           :group))))
 
 ;;; ============================================================
 ;;; Tests for beads-meta--slot-properties constant
@@ -336,15 +336,15 @@
   (should (memq :positional beads-meta--slot-properties))
   (should (memq :option-separator beads-meta--slot-properties))
   ;; Transient properties
-  (should (memq :transient-key beads-meta--slot-properties))
-  (should (memq :transient-description beads-meta--slot-properties))
-  (should (memq :transient-class beads-meta--slot-properties))
-  (should (memq :transient-reader beads-meta--slot-properties))
-  (should (memq :transient-choices beads-meta--slot-properties))
-  (should (memq :transient-prompt beads-meta--slot-properties))
-  (should (memq :transient-level beads-meta--slot-properties))
-  (should (memq :transient-group beads-meta--slot-properties))
-  (should (memq :transient-order beads-meta--slot-properties))
+  (should (memq :key beads-meta--slot-properties))
+  (should (memq :description beads-meta--slot-properties))
+  (should (memq :class beads-meta--slot-properties))
+  (should (memq :reader beads-meta--slot-properties))
+  (should (memq :choices beads-meta--slot-properties))
+  (should (memq :prompt beads-meta--slot-properties))
+  (should (memq :level beads-meta--slot-properties))
+  (should (memq :group beads-meta--slot-properties))
+  (should (memq :order beads-meta--slot-properties))
   ;; Validation properties
   (should (memq :required beads-meta--slot-properties))
   (should (memq :validator beads-meta--slot-properties)))
@@ -503,8 +503,8 @@
     (should (equal "--force" (plist-get spec :argument)))))
 
 (ert-deftest beads-meta-generate-infix-spec-explicit-class ()
-  "Test that explicit :transient-class overrides default."
-  ;; title has :transient-class transient-option explicitly
+  "Test that explicit :class overrides default."
+  ;; title has :class transient-option explicitly
   (let ((spec (beads-meta-generate-infix-spec
                'beads-meta-test-child 'title "beads-test")))
     (should (eq 'transient-option (plist-get spec :class)))))
@@ -516,7 +516,7 @@
     (should (eq 'beads-reader-issue-title (plist-get spec :reader)))))
 
 (ert-deftest beads-meta-generate-infix-spec-nil-for-no-key ()
-  "Test that spec is nil for slots without :transient-key."
+  "Test that spec is nil for slots without :key."
   (let ((spec (beads-meta-generate-infix-spec
                'beads-meta-test-child 'no-meta-slot "beads-test")))
     (should (null spec))))
@@ -526,7 +526,7 @@
 ;;; ============================================================
 
 (ert-deftest beads-meta-generate-infix-specs-generates-all ()
-  "Test that specs are generated for all slots with :transient-key."
+  "Test that specs are generated for all slots with :key."
   (let ((specs (beads-meta-generate-infix-specs
                 'beads-meta-test-child "beads-test")))
     ;; Should have multiple specs
@@ -666,12 +666,12 @@
                     'beads-command-create 'title :positional)))
   ;; Transient properties
   (should (equal "t" (beads-meta-slot-property
-                      'beads-command-create 'title :transient-key)))
+                      'beads-command-create 'title :key)))
   (should (equal "Title (required)" (beads-meta-slot-property
                                      'beads-command-create 'title
-                                     :transient-description)))
+                                     :description)))
   (should (equal "Required" (beads-meta-slot-property
-                             'beads-command-create 'title :transient-group)))
+                             'beads-command-create 'title :group)))
   (should (eq t (beads-meta-slot-property
                  'beads-command-create 'title :required))))
 
@@ -684,10 +684,10 @@
                        'beads-command-create 'priority :short-option)))
   ;; Transient properties
   (should (equal "-p" (beads-meta-slot-property
-                       'beads-command-create 'priority :transient-key)))
+                       'beads-command-create 'priority :key)))
   (should (equal "Issue attributes" (beads-meta-slot-property
                                      'beads-command-create 'priority
-                                     :transient-group))))
+                                     :group))))
 
 (ert-deftest beads-meta-create-slot-property-issue-type ()
   "Test that issue-type slot has correct metadata."
@@ -699,7 +699,7 @@
   ;; Transient choices
   (should (equal '("bug" "feature" "task" "epic" "chore")
                  (beads-meta-slot-property
-                  'beads-command-create 'issue-type :transient-choices))))
+                  'beads-command-create 'issue-type :choices))))
 
 (ert-deftest beads-meta-create-slot-property-force ()
   "Test that force slot (boolean) has correct metadata."
@@ -710,7 +710,7 @@
                         'beads-command-create 'force :option-type)))
   ;; Transient properties
   (should (eq 'transient-switch (beads-meta-slot-property
-                                 'beads-command-create 'force :transient-class))))
+                                 'beads-command-create 'force :class))))
 
 (ert-deftest beads-meta-create-slot-property-labels ()
   "Test that labels slot (list) has correct metadata."
@@ -811,23 +811,23 @@
                        'beads-command-update 'status :option-type)))
   ;; Transient properties
   (should (equal "s" (beads-meta-slot-property
-                      'beads-command-update 'status :transient-key)))
+                      'beads-command-update 'status :key)))
   (should (equal "Status" (beads-meta-slot-property
-                           'beads-command-update 'status :transient-description)))
+                           'beads-command-update 'status :description)))
   (should (eq 'transient-option (beads-meta-slot-property
-                                 'beads-command-update 'status :transient-class)))
+                                 'beads-command-update 'status :class)))
   (should (equal "--status=" (beads-meta-slot-property
-                              'beads-command-update 'status :transient-argument)))
+                              'beads-command-update 'status :argument)))
   (should (equal '("open" "in_progress" "blocked" "closed")
                  (beads-meta-slot-property
-                  'beads-command-update 'status :transient-choices)))
+                  'beads-command-update 'status :choices)))
   (should (equal "Status & Priority" (beads-meta-slot-property
                                       'beads-command-update 'status
-                                      :transient-group)))
+                                      :group)))
   (should (equal 1 (beads-meta-slot-property
-                    'beads-command-update 'status :transient-level)))
+                    'beads-command-update 'status :level)))
   (should (equal 1 (beads-meta-slot-property
-                    'beads-command-update 'status :transient-order))))
+                    'beads-command-update 'status :order))))
 
 (ert-deftest beads-meta-update-slot-property-priority ()
   "Test that priority slot has correct metadata."
@@ -838,10 +838,10 @@
                        'beads-command-update 'priority :short-option)))
   ;; Transient properties
   (should (equal "p" (beads-meta-slot-property
-                      'beads-command-update 'priority :transient-key)))
+                      'beads-command-update 'priority :key)))
   (should (equal "Status & Priority" (beads-meta-slot-property
                                       'beads-command-update 'priority
-                                      :transient-group))))
+                                      :group))))
 
 (ert-deftest beads-meta-update-slot-property-title ()
   "Test that title slot has correct metadata."
@@ -850,9 +850,9 @@
                             'beads-command-update 'title :long-option)))
   ;; Transient properties
   (should (equal "t" (beads-meta-slot-property
-                      'beads-command-update 'title :transient-key)))
+                      'beads-command-update 'title :key)))
   (should (equal "Basic Info" (beads-meta-slot-property
-                               'beads-command-update 'title :transient-group))))
+                               'beads-command-update 'title :group))))
 
 (ert-deftest beads-meta-update-slot-property-assignee ()
   "Test that assignee slot has correct metadata."
@@ -863,9 +863,9 @@
                        'beads-command-update 'assignee :short-option)))
   ;; Transient properties
   (should (equal "a" (beads-meta-slot-property
-                      'beads-command-update 'assignee :transient-key)))
+                      'beads-command-update 'assignee :key)))
   (should (equal "Basic Info" (beads-meta-slot-property
-                               'beads-command-update 'assignee :transient-group))))
+                               'beads-command-update 'assignee :group))))
 
 (ert-deftest beads-meta-update-slot-property-external-ref ()
   "Test that external-ref slot has correct metadata."
@@ -875,10 +875,10 @@
                                    :long-option)))
   ;; Transient properties
   (should (equal "x" (beads-meta-slot-property
-                      'beads-command-update 'external-ref :transient-key)))
+                      'beads-command-update 'external-ref :key)))
   (should (equal "Basic Info" (beads-meta-slot-property
                                'beads-command-update 'external-ref
-                               :transient-group))))
+                               :group))))
 
 (ert-deftest beads-meta-update-slot-property-description ()
   "Test that description slot has correct metadata."
@@ -890,16 +890,16 @@
                        'beads-command-update 'description :short-option)))
   ;; Transient properties
   (should (equal "d" (beads-meta-slot-property
-                      'beads-command-update 'description :transient-key)))
+                      'beads-command-update 'description :key)))
   (should (eq 'beads-create-transient-multiline
               (beads-meta-slot-property
-               'beads-command-update 'description :transient-class)))
+               'beads-command-update 'description :class)))
   (should (equal "Description" (beads-meta-slot-property
                                 'beads-command-update 'description
-                                :transient-field-name)))
+                                :field-name)))
   (should (equal "Content" (beads-meta-slot-property
                             'beads-command-update 'description
-                            :transient-group))))
+                            :group))))
 
 (ert-deftest beads-meta-update-slot-property-acceptance ()
   "Test that acceptance slot has correct metadata."
@@ -909,13 +909,13 @@
                                  :long-option)))
   ;; Transient properties
   (should (equal "A" (beads-meta-slot-property
-                      'beads-command-update 'acceptance :transient-key)))
+                      'beads-command-update 'acceptance :key)))
   (should (eq 'beads-create-transient-multiline
               (beads-meta-slot-property
-               'beads-command-update 'acceptance :transient-class)))
+               'beads-command-update 'acceptance :class)))
   (should (equal "Acceptance Criteria" (beads-meta-slot-property
                                         'beads-command-update 'acceptance
-                                        :transient-field-name))))
+                                        :field-name))))
 
 (ert-deftest beads-meta-update-slot-property-design ()
   "Test that design slot has correct metadata."
@@ -924,12 +924,12 @@
                              'beads-command-update 'design :long-option)))
   ;; Transient properties
   (should (equal "G" (beads-meta-slot-property
-                      'beads-command-update 'design :transient-key)))
+                      'beads-command-update 'design :key)))
   (should (eq 'beads-create-transient-multiline
               (beads-meta-slot-property
-               'beads-command-update 'design :transient-class)))
+               'beads-command-update 'design :class)))
   (should (equal "Design" (beads-meta-slot-property
-                           'beads-command-update 'design :transient-field-name))))
+                           'beads-command-update 'design :field-name))))
 
 (ert-deftest beads-meta-update-slot-property-notes ()
   "Test that notes slot has correct metadata."
@@ -938,12 +938,12 @@
                             'beads-command-update 'notes :long-option)))
   ;; Transient properties
   (should (equal "N" (beads-meta-slot-property
-                      'beads-command-update 'notes :transient-key)))
+                      'beads-command-update 'notes :key)))
   (should (eq 'beads-create-transient-multiline
               (beads-meta-slot-property
-               'beads-command-update 'notes :transient-class)))
+               'beads-command-update 'notes :class)))
   (should (equal "Notes" (beads-meta-slot-property
-                          'beads-command-update 'notes :transient-field-name))))
+                          'beads-command-update 'notes :field-name))))
 
 (ert-deftest beads-meta-update-transient-slots ()
   "Test that all expected slots have transient keys."
@@ -1012,28 +1012,28 @@
   "Test that issue-ids slot has correct metadata."
   ;; Transient properties
   (should (equal "i" (beads-meta-slot-property
-                      'beads-command-close 'issue-ids :transient-key)))
+                      'beads-command-close 'issue-ids :key)))
   (should (equal "Issue ID (required)" (beads-meta-slot-property
                                         'beads-command-close 'issue-ids
-                                        :transient-description)))
+                                        :description)))
   (should (eq 'transient-option (beads-meta-slot-property
                                  'beads-command-close 'issue-ids
-                                 :transient-class)))
+                                 :class)))
   (should (equal "--id=" (beads-meta-slot-property
-                          'beads-command-close 'issue-ids :transient-argument)))
+                          'beads-command-close 'issue-ids :argument)))
   (should (equal "Issue ID: " (beads-meta-slot-property
                                'beads-command-close 'issue-ids
-                               :transient-prompt)))
+                               :prompt)))
   (should (eq 'beads-reader-close-issue-id (beads-meta-slot-property
                                             'beads-command-close 'issue-ids
-                                            :transient-reader)))
+                                            :reader)))
   (should (equal "Close Issue" (beads-meta-slot-property
                                 'beads-command-close 'issue-ids
-                                :transient-group)))
+                                :group)))
   (should (equal 1 (beads-meta-slot-property
-                    'beads-command-close 'issue-ids :transient-level)))
+                    'beads-command-close 'issue-ids :level)))
   (should (equal 1 (beads-meta-slot-property
-                    'beads-command-close 'issue-ids :transient-order)))
+                    'beads-command-close 'issue-ids :order)))
   ;; Validation
   (should (eq t (beads-meta-slot-property
                  'beads-command-close 'issue-ids :required))))
@@ -1049,24 +1049,24 @@
                        'beads-command-close 'reason :option-type)))
   ;; Transient properties
   (should (equal "r" (beads-meta-slot-property
-                      'beads-command-close 'reason :transient-key)))
+                      'beads-command-close 'reason :key)))
   (should (equal "--reason" (beads-meta-slot-property
                              'beads-command-close 'reason
-                             :transient-description)))
+                             :description)))
   (should (eq 'beads-create-transient-multiline (beads-meta-slot-property
                                                  'beads-command-close 'reason
-                                                 :transient-class)))
+                                                 :class)))
   (should (equal "--reason=" (beads-meta-slot-property
-                              'beads-command-close 'reason :transient-argument)))
+                              'beads-command-close 'reason :argument)))
   (should (equal "Close Reason" (beads-meta-slot-property
                                  'beads-command-close 'reason
-                                 :transient-field-name)))
+                                 :field-name)))
   (should (equal "Close Issue" (beads-meta-slot-property
-                                'beads-command-close 'reason :transient-group)))
+                                'beads-command-close 'reason :group)))
   (should (equal 1 (beads-meta-slot-property
-                    'beads-command-close 'reason :transient-level)))
+                    'beads-command-close 'reason :level)))
   (should (equal 2 (beads-meta-slot-property
-                    'beads-command-close 'reason :transient-order)))
+                    'beads-command-close 'reason :order)))
   ;; Validation
   (should (eq t (beads-meta-slot-property
                  'beads-command-close 'reason :required))))
@@ -1129,28 +1129,28 @@
   "Test that issue-ids slot has correct metadata."
   ;; Transient properties
   (should (equal "i" (beads-meta-slot-property
-                      'beads-command-show 'issue-ids :transient-key)))
+                      'beads-command-show 'issue-ids :key)))
   (should (equal "Issue ID (required)" (beads-meta-slot-property
                                         'beads-command-show 'issue-ids
-                                        :transient-description)))
+                                        :description)))
   (should (eq 'transient-option (beads-meta-slot-property
                                  'beads-command-show 'issue-ids
-                                 :transient-class)))
+                                 :class)))
   (should (equal "--id=" (beads-meta-slot-property
-                          'beads-command-show 'issue-ids :transient-argument)))
+                          'beads-command-show 'issue-ids :argument)))
   (should (equal "Issue ID: " (beads-meta-slot-property
                                'beads-command-show 'issue-ids
-                               :transient-prompt)))
+                               :prompt)))
   (should (eq 'beads-reader-issue-id (beads-meta-slot-property
                                       'beads-command-show 'issue-ids
-                                      :transient-reader)))
+                                      :reader)))
   (should (equal "Show Issue" (beads-meta-slot-property
                                'beads-command-show 'issue-ids
-                               :transient-group)))
+                               :group)))
   (should (equal 1 (beads-meta-slot-property
-                    'beads-command-show 'issue-ids :transient-level)))
+                    'beads-command-show 'issue-ids :level)))
   (should (equal 1 (beads-meta-slot-property
-                    'beads-command-show 'issue-ids :transient-order)))
+                    'beads-command-show 'issue-ids :order)))
   ;; Validation
   (should (eq t (beads-meta-slot-property
                  'beads-command-show 'issue-ids :required))))
@@ -1213,19 +1213,19 @@
                        'beads-command-list 'status :option-type)))
   ;; Transient properties
   (should (equal "-s" (beads-meta-slot-property
-                       'beads-command-list 'status :transient-key)))
+                       'beads-command-list 'status :key)))
   (should (equal "--status" (beads-meta-slot-property
-                             'beads-command-list 'status :transient-description)))
+                             'beads-command-list 'status :description)))
   (should (eq 'transient-option (beads-meta-slot-property
-                                 'beads-command-list 'status :transient-class)))
+                                 'beads-command-list 'status :class)))
   (should (equal "--status=" (beads-meta-slot-property
-                              'beads-command-list 'status :transient-argument)))
+                              'beads-command-list 'status :argument)))
   (should (equal "Basic Filters" (beads-meta-slot-property
-                                  'beads-command-list 'status :transient-group)))
+                                  'beads-command-list 'status :group)))
   (should (equal 1 (beads-meta-slot-property
-                    'beads-command-list 'status :transient-level)))
+                    'beads-command-list 'status :level)))
   (should (equal 1 (beads-meta-slot-property
-                    'beads-command-list 'status :transient-order))))
+                    'beads-command-list 'status :order))))
 
 (ert-deftest beads-meta-list-slot-property-priority ()
   "Test that priority slot has correct metadata."
@@ -1238,9 +1238,9 @@
                         'beads-command-list 'priority :option-type)))
   ;; Transient properties
   (should (equal "-P" (beads-meta-slot-property
-                       'beads-command-list 'priority :transient-key)))
+                       'beads-command-list 'priority :key)))
   (should (equal "Basic Filters" (beads-meta-slot-property
-                                  'beads-command-list 'priority :transient-group))))
+                                  'beads-command-list 'priority :group))))
 
 (ert-deftest beads-meta-list-slot-property-issue-type ()
   "Test that issue-type slot has correct metadata."
@@ -1253,9 +1253,9 @@
                        'beads-command-list 'issue-type :option-type)))
   ;; Transient properties
   (should (equal "-T" (beads-meta-slot-property
-                       'beads-command-list 'issue-type :transient-key)))
+                       'beads-command-list 'issue-type :key)))
   (should (equal "Basic Filters" (beads-meta-slot-property
-                                  'beads-command-list 'issue-type :transient-group))))
+                                  'beads-command-list 'issue-type :group))))
 
 (ert-deftest beads-meta-list-slot-property-assignee ()
   "Test that assignee slot has correct metadata."
@@ -1266,9 +1266,9 @@
                        'beads-command-list 'assignee :short-option)))
   ;; Transient properties
   (should (equal "-a" (beads-meta-slot-property
-                       'beads-command-list 'assignee :transient-key)))
+                       'beads-command-list 'assignee :key)))
   (should (equal "Basic Filters" (beads-meta-slot-property
-                                  'beads-command-list 'assignee :transient-group))))
+                                  'beads-command-list 'assignee :group))))
 
 (ert-deftest beads-meta-list-slot-property-title ()
   "Test that title slot has correct metadata."
@@ -1279,9 +1279,9 @@
                        'beads-command-list 'title :option-type)))
   ;; Transient properties
   (should (equal "-ti" (beads-meta-slot-property
-                        'beads-command-list 'title :transient-key)))
+                        'beads-command-list 'title :key)))
   (should (equal "Text Search" (beads-meta-slot-property
-                                'beads-command-list 'title :transient-group))))
+                                'beads-command-list 'title :group))))
 
 (ert-deftest beads-meta-list-slot-property-desc-contains ()
   "Test that desc-contains slot has correct metadata."
@@ -1291,10 +1291,10 @@
                                     :long-option)))
   ;; Transient properties
   (should (equal "-d" (beads-meta-slot-property
-                       'beads-command-list 'desc-contains :transient-key)))
+                       'beads-command-list 'desc-contains :key)))
   (should (equal "Text Search" (beads-meta-slot-property
                                 'beads-command-list 'desc-contains
-                                :transient-group))))
+                                :group))))
 
 (ert-deftest beads-meta-list-slot-property-created-after ()
   "Test that created-after slot has correct metadata."
@@ -1304,12 +1304,12 @@
                                     :long-option)))
   ;; Transient properties
   (should (equal "-Ca" (beads-meta-slot-property
-                        'beads-command-list 'created-after :transient-key)))
+                        'beads-command-list 'created-after :key)))
   (should (equal "Date Filters" (beads-meta-slot-property
                                  'beads-command-list 'created-after
-                                 :transient-group)))
+                                 :group)))
   (should (equal 3 (beads-meta-slot-property
-                    'beads-command-list 'created-after :transient-level))))
+                    'beads-command-list 'created-after :level))))
 
 (ert-deftest beads-meta-list-slot-property-priority-min ()
   "Test that priority-min slot has correct metadata."
@@ -1321,12 +1321,12 @@
                         'beads-command-list 'priority-min :option-type)))
   ;; Transient properties
   (should (equal "-p<" (beads-meta-slot-property
-                        'beads-command-list 'priority-min :transient-key)))
+                        'beads-command-list 'priority-min :key)))
   (should (equal "Advanced Filters" (beads-meta-slot-property
                                      'beads-command-list 'priority-min
-                                     :transient-group)))
+                                     :group)))
   (should (equal 4 (beads-meta-slot-property
-                    'beads-command-list 'priority-min :transient-level))))
+                    'beads-command-list 'priority-min :level))))
 
 (ert-deftest beads-meta-list-slot-property-label ()
   "Test that label slot (list) has correct metadata."
@@ -1339,9 +1339,9 @@
                      'beads-command-list 'label :option-type)))
   ;; Transient properties
   (should (equal "-l" (beads-meta-slot-property
-                       'beads-command-list 'label :transient-key)))
+                       'beads-command-list 'label :key)))
   (should (equal "Advanced Filters" (beads-meta-slot-property
-                                     'beads-command-list 'label :transient-group))))
+                                     'beads-command-list 'label :group))))
 
 (ert-deftest beads-meta-list-slot-property-no-assignee ()
   "Test that no-assignee slot (boolean) has correct metadata."
@@ -1352,10 +1352,10 @@
                         'beads-command-list 'no-assignee :option-type)))
   ;; Transient properties
   (should (equal "-A" (beads-meta-slot-property
-                       'beads-command-list 'no-assignee :transient-key)))
+                       'beads-command-list 'no-assignee :key)))
   (should (eq 'transient-switch (beads-meta-slot-property
                                  'beads-command-list 'no-assignee
-                                 :transient-class))))
+                                 :class))))
 
 (ert-deftest beads-meta-list-slot-property-limit ()
   "Test that limit slot has correct metadata."
@@ -1368,11 +1368,11 @@
                         'beads-command-list 'limit :option-type)))
   ;; Transient properties
   (should (equal "-n" (beads-meta-slot-property
-                       'beads-command-list 'limit :transient-key)))
+                       'beads-command-list 'limit :key)))
   (should (equal "Output Options" (beads-meta-slot-property
-                                   'beads-command-list 'limit :transient-group)))
+                                   'beads-command-list 'limit :group)))
   (should (equal 5 (beads-meta-slot-property
-                    'beads-command-list 'limit :transient-level))))
+                    'beads-command-list 'limit :level))))
 
 (ert-deftest beads-meta-list-slot-property-long ()
   "Test that long slot (boolean) has correct metadata."
@@ -1383,11 +1383,11 @@
                         'beads-command-list 'long :option-type)))
   ;; Transient properties
   (should (equal "-Lo" (beads-meta-slot-property
-                        'beads-command-list 'long :transient-key)))
+                        'beads-command-list 'long :key)))
   (should (eq 'transient-switch (beads-meta-slot-property
-                                 'beads-command-list 'long :transient-class)))
+                                 'beads-command-list 'long :class)))
   (should (equal "Output Options" (beads-meta-slot-property
-                                   'beads-command-list 'long :transient-group))))
+                                   'beads-command-list 'long :group))))
 
 (ert-deftest beads-meta-list-transient-slots ()
   "Test that all expected slots have transient keys."
