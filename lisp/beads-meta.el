@@ -22,26 +22,33 @@
 ;; Supported Custom Properties:
 ;;
 ;; CLI Properties:
-;;   :long-option     - Long CLI option (e.g., "--title")
-;;   :short-option    - Short CLI option (e.g., "-t")
-;;   :option-type     - Serialization type (:string, :boolean, :integer, :list)
-;;   :positional      - Position for positional args (integer 1, 2, 3... or nil)
-;;   :option-separator - Separator for :list type (default ",")
+;;   :long       - Long CLI option name without dashes (e.g., "status")
+;;                 If omitted, derived from slot name (status -> "status")
+;;   :short      - Short CLI option letter without dash (e.g., "s")
+;;   :option     - Type of option (:string, :boolean, :integer, :list)
+;;   :positional - Position for positional args (integer 1, 2, 3... or nil)
+;;   :separator  - Separator for :list type (default ",", nil for multiple args)
 ;;
 ;; Transient Properties:
-;;   :transient-key         - Key binding in transient menu
-;;   :transient-description - Description in transient
-;;   :transient-class       - Transient class (transient-option, etc.)
-;;   :transient-reader      - Reader function for input
-;;   :transient-choices     - Valid choices list
-;;   :transient-prompt      - Input prompt string
-;;   :transient-level       - Menu visibility level (1-7)
-;;   :transient-group       - Group name for organization
-;;   :transient-order       - Order within group (lower = first)
+;;   :key         - Key binding in transient menu
+;;   :description - Description in transient
+;;   :class       - Transient class (transient-option, etc.)
+;;   :reader      - Reader function for input
+;;   :choices     - Valid choices list
+;;   :prompt      - Input prompt string
+;;   :argument    - Transient argument format (e.g., "--status=")
+;;   :field-name  - Field name for multiline editors
+;;   :level       - Menu visibility level (1-7)
+;;   :group       - Group name for organization
+;;   :order       - Order within group (lower = first)
 ;;
 ;; Validation Properties:
 ;;   :required  - Is field required?
 ;;   :validator - Validation function
+;;
+;; Legacy Properties (still supported for backward compatibility):
+;;   :long-option, :short-option, :option-type, :option-separator
+;;   :transient-key, :transient-description, :transient-class, etc.
 ;;
 ;; Usage:
 ;;
@@ -54,25 +61,25 @@
 ;;       ;; CLI properties
 ;;       :positional 1
 ;;       ;; Transient properties
-;;       :transient-key "t"
-;;       :transient-description "Title (required)"
-;;       :transient-class transient-option
-;;       :transient-reader beads-reader-issue-title
-;;       :transient-group "Required"
-;;       :transient-level 1
+;;       :key "t"
+;;       :description "Title (required)"
+;;       :class transient-option
+;;       :reader beads-reader-issue-title
+;;       :group "Required"
+;;       :level 1
 ;;       ;; Validation
 ;;       :required t)))
 ;;
 ;;   ;; Get a property for a slot
-;;   (beads-meta-slot-property 'my-command 'title :transient-key)
+;;   (beads-meta-slot-property 'my-command 'title :key)
 ;;   ;; => "t"
 ;;
 ;;   ;; Get all custom properties for a slot
 ;;   (beads-meta-slot-properties 'my-command 'title)
-;;   ;; => ((:positional . 1) (:transient-key . "t") ...)
+;;   ;; => ((:positional . 1) (:key . "t") ...)
 ;;
 ;;   ;; Find all slots with a property
-;;   (beads-meta-slots-with-property 'my-command :transient-key)
+;;   (beads-meta-slots-with-property 'my-command :key)
 ;;   ;; => (title ...)
 
 ;;; Code:
@@ -86,13 +93,33 @@
 ;;; ============================================================
 
 (defconst beads-meta--slot-properties
-  '(;; CLI properties
+  '(;; CLI properties (new simplified names)
+    :long                   ; Long option without dashes (e.g., "status")
+    :short                  ; Short option without dash (e.g., "s")
+    :option                 ; Option type (:string, :boolean, :integer, :list)
+    :positional             ; Position for positional args
+    :separator              ; Separator for :list type
+    ;; Transient properties (new simplified names)
+    :key                    ; Key binding
+    :description            ; Menu description
+    :class                  ; Transient class
+    :reader                 ; Reader function
+    :choices                ; Valid choices
+    :prompt                 ; Input prompt
+    :argument               ; Transient argument format
+    :field-name             ; Multiline field name
+    :level                  ; Menu level
+    :group                  ; Group name
+    :order                  ; Order in group
+    ;; Validation properties
+    :required
+    :validator
+    ;; Legacy CLI properties (for backward compatibility)
     :long-option
     :short-option
     :option-type
-    :positional
     :option-separator
-    ;; Transient properties
+    ;; Legacy transient properties (for backward compatibility)
     :transient-key
     :transient-description
     :transient-class
@@ -103,13 +130,14 @@
     :transient-field-name
     :transient-level
     :transient-group
-    :transient-order
-    ;; Validation properties
-    :required
-    :validator)
+    :transient-order)
   "List of custom slot properties supported by beads-meta.
 These properties are preserved in slot descriptors via advice on
-`eieio-defclass-internal' and `eieio--slot-override'.")
+`eieio-defclass-internal' and `eieio--slot-override'.
+
+The new simplified property names (without prefixes) are preferred.
+Legacy names with `:long-option`, `:transient-*` prefixes are still
+supported for backward compatibility.")
 
 ;;; ============================================================
 ;;; EIEIO Advice for Custom Property Preservation
@@ -282,20 +310,101 @@ in ascending order.  Only slots with :positional property are included."
   "Get all named option slots for CLASS (non-positional).
 CLASS is a class name symbol.
 
-Returns a list of slot names that have :long-option or :short-option
-but not :positional."
+Returns a list of slot names that have :long/:long-option or
+:short/:short-option but not :positional."
   (let* ((class-obj (cl--find-class class))
          (slots-vec (and class-obj (eieio--class-slots class-obj)))
          result)
     (when slots-vec
       (cl-loop for slot-desc across slots-vec
                do (let* ((props (cl--slot-descriptor-props slot-desc))
-                         (has-option (or (alist-get :long-option props)
+                         (has-option (or (alist-get :long props)
+                                         (alist-get :long-option props)
+                                         (alist-get :short props)
                                          (alist-get :short-option props)))
                          (is-positional (alist-get :positional props)))
                     (when (and has-option (not is-positional))
                       (push (cl--slot-descriptor-name slot-desc) result))))
       (nreverse result))))
+
+;;; ============================================================
+;;; Property Access with Fallback and Derivation
+;;; ============================================================
+
+(defun beads-meta--slot-name-to-option (slot-name)
+  "Convert SLOT-NAME symbol to CLI option string.
+Handles common naming patterns:
+  issue-type -> type (strips common prefixes)
+  my-slot -> my-slot (keeps as-is)"
+  (let ((name (symbol-name slot-name)))
+    ;; Strip common prefixes that don't appear in CLI
+    (cond
+     ((string-prefix-p "issue-" name)
+      (substring name 6))
+     (t name))))
+
+(defun beads-meta--get-prop-with-fallback (props prop legacy-prop)
+  "Get PROP from PROPS, falling back to LEGACY-PROP if not found."
+  (or (alist-get prop props)
+      (alist-get legacy-prop props)))
+
+(defun beads-meta-get-long-option (props slot-name)
+  "Get long option from PROPS, deriving from SLOT-NAME if needed.
+Returns the option name with \"--\" prefix added.
+Returns nil if slot has no long option."
+  (let ((explicit (beads-meta--get-prop-with-fallback
+                   props :long :long-option)))
+    (cond
+     ;; Explicit value provided
+     (explicit
+      (if (string-prefix-p "--" explicit)
+          explicit  ; Already has dashes (legacy format)
+        (concat "--" explicit)))
+     ;; No explicit value - don't derive (explicit opt-in required)
+     (t nil))))
+
+(defun beads-meta-get-short-option (props)
+  "Get short option from PROPS.
+Returns the option with \"-\" prefix added.
+Returns nil if slot has no short option."
+  (let ((explicit (beads-meta--get-prop-with-fallback
+                   props :short :short-option)))
+    (when explicit
+      (if (string-prefix-p "-" explicit)
+          explicit  ; Already has dash (legacy format)
+        (concat "-" explicit)))))
+
+(defun beads-meta-get-option-type (props)
+  "Get option type from PROPS with fallback.
+Returns :string, :boolean, :integer, or :list.
+Defaults to :string if not specified."
+  (or (beads-meta--get-prop-with-fallback props :option :option-type)
+      :string))
+
+(defun beads-meta-get-separator (props)
+  "Get list separator from PROPS with fallback.
+Returns the separator string, or nil for multiple args."
+  (beads-meta--get-prop-with-fallback props :separator :option-separator))
+
+(defun beads-meta-get-transient-key (props)
+  "Get transient key from PROPS with fallback."
+  (beads-meta--get-prop-with-fallback props :key :transient-key))
+
+(defun beads-meta-get-transient-description (props)
+  "Get transient description from PROPS with fallback."
+  (beads-meta--get-prop-with-fallback props :description :transient-description))
+
+(defun beads-meta-get-transient-group (props)
+  "Get transient group from PROPS with fallback."
+  (beads-meta--get-prop-with-fallback props :group :transient-group))
+
+(defun beads-meta-get-transient-level (props)
+  "Get transient level from PROPS with fallback."
+  (beads-meta--get-prop-with-fallback props :level :transient-level))
+
+(defun beads-meta-get-transient-order (props)
+  "Get transient order from PROPS with fallback."
+  (beads-meta--get-prop-with-fallback props :order :transient-order))
 
 (defun beads-meta-transient-slots (class)
   "Get all slots for CLASS that have transient properties.
@@ -326,24 +435,114 @@ sorted by :transient-group and :transient-order."
                         (string< a-group b-group))))))))
 
 ;;; ============================================================
+;;; Validation from Slot Metadata
+;;; ============================================================
+
+(defun beads-meta-validate-required-slots (command)
+  "Validate that all required slots in COMMAND have values.
+COMMAND is an EIEIO object instance.
+
+Returns an error string describing the first missing required field,
+or nil if all required fields are populated.
+
+A slot is considered required if it has `:required t' in its metadata.
+A slot is considered populated if it is bound and its value is non-nil
+\(and non-empty for strings)."
+  (let* ((class-name (eieio-object-class command))
+         (class-obj (cl--find-class class-name))
+         (slots-vec (and class-obj (eieio--class-slots class-obj))))
+    (when slots-vec
+      (cl-loop for slot-desc across slots-vec
+               do (let* ((slot-name (cl--slot-descriptor-name slot-desc))
+                         (props (cl--slot-descriptor-props slot-desc))
+                         (required (alist-get :required props))
+                         (description (or (alist-get :transient-description props)
+                                          (symbol-name slot-name))))
+                    (when required
+                      (let ((value (when (slot-boundp command slot-name)
+                                     (eieio-oref command slot-name))))
+                        (when (or (null value)
+                                  (and (stringp value) (string-empty-p value))
+                                  (and (listp value) (null value)))
+                          (cl-return
+                           (format "Required field '%s' is missing or empty"
+                                   description))))))))))
+
+(defun beads-meta-run-slot-validators (command)
+  "Run custom validators defined on COMMAND slots.
+COMMAND is an EIEIO object instance.
+
+Returns an error string from the first failing validator,
+or nil if all validators pass.
+
+A slot can define a `:validator' property with a function that takes
+the slot value and returns an error string or nil."
+  (let* ((class-name (eieio-object-class command))
+         (class-obj (cl--find-class class-name))
+         (slots-vec (and class-obj (eieio--class-slots class-obj))))
+    (when slots-vec
+      (cl-loop for slot-desc across slots-vec
+               do (let* ((slot-name (cl--slot-descriptor-name slot-desc))
+                         (props (cl--slot-descriptor-props slot-desc))
+                         (validator (alist-get :validator props)))
+                    (when validator
+                      (let* ((value (when (slot-boundp command slot-name)
+                                      (eieio-oref command slot-name)))
+                             (error-msg (funcall validator value)))
+                        (when error-msg
+                          (cl-return error-msg)))))))))
+
+(defun beads-meta-validate-command (command)
+  "Validate COMMAND using slot metadata.
+COMMAND is an EIEIO object instance.
+
+This function:
+1. Validates all required slots have values
+2. Runs any custom validators defined on slots
+
+Returns an error string if validation fails, or nil if valid.
+Use this in `beads-command-validate' methods to leverage metadata."
+  (or (beads-meta-validate-required-slots command)
+      (beads-meta-run-slot-validators command)))
+
+;;; ============================================================
 ;;; Command-Line Building from Slot Metadata
 ;;; ============================================================
 
 (defun beads-meta--format-slot-value (value option-type separator)
   "Format VALUE for command line based on OPTION-TYPE.
 OPTION-TYPE is one of :string, :boolean, :integer, :list.
-SEPARATOR is used for :list type (default \",\").
+SEPARATOR is used for :list type.
 
-Returns a string or nil if value should not be included."
+For :list type:
+- If SEPARATOR is nil, returns a list of individual values (for multiple args)
+- If SEPARATOR is a string, returns a single joined string
+
+Returns:
+- For :boolean: t if truthy, nil if falsy
+- For :integer: string representation of number, or nil
+- For :list: list of strings (when separator is nil) or joined string
+- For :string: the string value, or nil if empty"
   (pcase option-type
-    (:boolean (if value t nil))  ; Return t for truthy, nil for falsy
-    (:integer (when value (number-to-string value)))
+    (:boolean (if value t nil))
+    (:integer (when value
+                (if (stringp value)
+                    value
+                  (number-to-string value))))
     (:list (when (and value (listp value) (not (null value)))
-             (mapconcat (lambda (v) (if (stringp v) v (format "%s" v)))
-                        value
-                        (or separator ","))))
-    (_ (when (and value (stringp value) (not (string-empty-p value)))
-         value))))
+             (let ((items (mapcar (lambda (v)
+                                    (if (stringp v) v (format "%s" v)))
+                                  value)))
+               (if separator
+                   ;; Join with separator
+                   (mapconcat #'identity items separator)
+                 ;; Return list for multiple args
+                 items))))
+    ;; Handle strings and also integers/other types that should be stringified
+    (_ (cond
+        ((and (stringp value) (not (string-empty-p value))) value)
+        ((and value (not (stringp value))) (format "%s" value))
+        (t nil)))))
 
 (defun beads-meta-build-command-line (command)
   "Build command-line arguments from slot metadata for COMMAND.
@@ -353,7 +552,15 @@ Returns a list of strings representing CLI arguments.  Positional
 arguments come first (sorted by :positional value), followed by
 named options (--option value or --flag).
 
-Slots without :long-option, :short-option, or :positional are skipped."
+For list options:
+- If :separator is nil, emits multiple --option args (one per value)
+- If :separator is a string, emits single --option with joined values
+
+Supports both new property names (:long, :short, :option, :separator)
+and legacy names (:long-option, :short-option, :option-type, :option-separator).
+
+Slots without :long/:long-option, :short/:short-option, or :positional
+are skipped."
   (let* ((class-name (eieio-object-class command))
          (class-obj (cl--find-class class-name))
          (slots-vec (eieio--class-slots class-obj))
@@ -363,11 +570,12 @@ Slots without :long-option, :short-option, or :positional are skipped."
     (cl-loop for slot-desc across slots-vec
              do (let* ((slot-name (cl--slot-descriptor-name slot-desc))
                        (props (cl--slot-descriptor-props slot-desc))
-                       (long-opt (alist-get :long-option props))
-                       (short-opt (alist-get :short-option props))
-                       (option-type (or (alist-get :option-type props) :string))
+                       ;; Use helper functions for property access with fallback
+                       (long-opt (beads-meta-get-long-option props slot-name))
+                       (short-opt (beads-meta-get-short-option props))
+                       (option-type (beads-meta-get-option-type props))
                        (positional (alist-get :positional props))
-                       (separator (alist-get :option-separator props))
+                       (separator (beads-meta-get-separator props))
                        (value (when (slot-boundp command slot-name)
                                 (eieio-oref command slot-name))))
                   (cond
@@ -377,10 +585,9 @@ Slots without :long-option, :short-option, or :positional are skipped."
                                       value option-type separator)))
                       (when formatted
                         (push (cons positional
-                                    (if (eq option-type :list)
-                                        ;; Lists become multiple positional args
-                                        (split-string formatted
-                                                      (or separator ","))
+                                    (if (and (eq option-type :list) (listp formatted))
+                                        ;; List of positional args
+                                        formatted
                                       (list formatted)))
                               positional-args))))
                    ;; Named option with value
@@ -393,7 +600,11 @@ Slots without :long-option, :short-option, or :positional are skipped."
                        ((eq option-type :boolean)
                         (when formatted
                           (push (list opt-name) named-args)))
-                       ;; Option with value
+                       ;; List option with nil separator = multiple args
+                       ((and (eq option-type :list) (listp formatted) (null separator))
+                        (dolist (item (reverse formatted))
+                          (push (list opt-name item) named-args)))
+                       ;; Option with value (string or joined list)
                        (formatted
                         (push (list opt-name formatted) named-args))))))))
     ;; Build final argument list
