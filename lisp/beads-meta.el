@@ -81,6 +81,12 @@
 (require 'eieio-core)
 (require 'cl-lib)
 
+;; Forward declarations for generic methods from beads-command.el
+;; These are used in the generated suffix code
+(declare-function beads-command-validate "beads-command")
+(declare-function beads-command-execute-interactive "beads-command")
+(declare-function beads-command-preview "beads-command")
+
 ;;; ============================================================
 ;;; Custom Slot Properties List
 ;;; ============================================================
@@ -681,6 +687,69 @@ Example:
 Returns a symbol like `beads-create--parse-transient-args'."
   (intern (format "%s--parse-transient-args" prefix)))
 
+(defmacro beads-meta-define-standard-suffixes (class prefix)
+  "Define standard execute/preview/reset suffixes for CLASS.
+PREFIX is a string like \"beads-create\".
+
+Generates three transient suffixes:
+- PREFIX--execute: Validates and calls `beads-command-execute-interactive'
+- PREFIX--preview: Validates and calls `beads-command-preview'
+- PREFIX--reset: Calls `transient-reset'
+
+These suffixes use the generic methods from beads-command.el,
+which can be overridden per command class for custom behavior."
+  (let* ((prefix-val (eval prefix))
+         (prefix-sym (intern prefix-val))
+         (execute-sym (intern (format "%s--execute" prefix-val)))
+         (preview-sym (intern (format "%s--preview" prefix-val)))
+         (reset-sym (intern (format "%s--reset" prefix-val)))
+         (parse-fn-sym (beads-meta-generate-parse-function-name prefix-val)))
+    `(progn
+       ;; Define parse function first
+       (beads-meta-define-parse-function ,class ,prefix)
+
+       ;; Execute suffix
+       (transient-define-suffix ,execute-sym ()
+         "Execute the command with current parameters."
+         :key "x"
+         :description "Execute"
+         (interactive)
+         (let* ((args (transient-args ',prefix-sym))
+                (cmd (,parse-fn-sym args))
+                (error-msg (beads-command-validate cmd)))
+           (if error-msg
+               (user-error "Validation failed: %s" error-msg)
+             (condition-case err
+                 (beads-command-execute-interactive cmd)
+               (error
+                (message "Failed: %s" (error-message-string err)))))))
+
+       ;; Preview suffix
+       (transient-define-suffix ,preview-sym ()
+         "Preview the command that will be executed."
+         :key "P"
+         :description "Preview"
+         :transient t
+         (interactive)
+         (let* ((args (transient-args ',prefix-sym))
+                (cmd (,parse-fn-sym args))
+                (error-msg (beads-command-validate cmd)))
+           (if error-msg
+               (message "Validation errors: %s" error-msg)
+             (beads-command-preview cmd))))
+
+       ;; Reset suffix
+       (transient-define-suffix ,reset-sym ()
+         "Reset all parameters to their default values."
+         :key "R"
+         :description "Reset"
+         :transient t
+         (interactive)
+         (when (y-or-n-p "Reset all fields? ")
+           (transient-reset)
+           (transient--redisplay)
+           (message "All fields reset"))))))
+
 (defmacro beads-meta-define-parse-function (class prefix)
   "Define a transient args parse function for CLASS.
 PREFIX is a string like \"beads-create\".
@@ -721,6 +790,57 @@ Generates:
                              `(transient-arg-value ,arg args)
                            `(transient-arg-value ,arg args)))))))
            infix-specs)))))
+
+(defmacro beads-meta-define-transient (class prefix &optional docstring
+                                             global-section)
+  "Define a complete transient menu for CLASS with generated suffixes.
+PREFIX is a string like \"beads-create\".
+DOCSTRING is an optional documentation string.
+GLOBAL-SECTION is an optional symbol for a global options section
+to include (e.g., beads-option-global-section).
+
+This macro generates everything needed for a transient menu:
+1. All infixes from class slot metadata
+2. All groups organized by :transient-group
+3. Standard suffixes (execute, preview, reset) using generic methods
+4. The prefix combining all groups plus actions
+
+The generated suffixes call generic methods from beads-command.el:
+- Execute calls `beads-command-execute-interactive' (override per class)
+- Preview calls `beads-command-preview' (override per class)
+- Reset calls `transient-reset'
+
+Example:
+  (beads-meta-define-transient beads-command-create \"beads-create\"
+    \"Create a new issue.\"
+    beads-option-global-section)
+
+This replaces ~100 lines of manual infix/group/suffix definitions
+with a single macro call."
+  (let* ((class-val (eval class))
+         (prefix-val (eval prefix))
+         (group-specs (beads-meta-generate-group-specs class-val prefix-val))
+         (prefix-sym (intern prefix-val))
+         (execute-sym (intern (format "%s--execute" prefix-val)))
+         (preview-sym (intern (format "%s--preview" prefix-val)))
+         (reset-sym (intern (format "%s--reset" prefix-val))))
+    `(progn
+       ;; Define infixes from slot metadata
+       (beads-meta-define-infixes ,class ,prefix)
+       ;; Define groups
+       (beads-meta-define-groups ,class ,prefix)
+       ;; Define standard suffixes (execute, preview, reset)
+       (beads-meta-define-standard-suffixes ,class ,prefix)
+       ;; Define prefix
+       (transient-define-prefix ,prefix-sym ()
+         ,(or (eval docstring)
+              (format "Transient menu for %s." prefix-val))
+         ,@(mapcar (lambda (gs) (plist-get gs :name)) group-specs)
+         ,@(when global-section (list global-section))
+         ["Actions"
+          (,execute-sym)
+          (,preview-sym)
+          (,reset-sym)]))))
 
 (provide 'beads-meta)
 ;;; beads-meta.el ends here
