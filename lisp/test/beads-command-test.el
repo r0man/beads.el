@@ -32,15 +32,14 @@ Integration test that runs real bd init command."
          (default-directory temp-dir)
          (cmd (beads-command-init))
          (result (beads-command-execute cmd)))
-    ;; Should return (exit-code stdout stderr)
-    (should (listp result))
-    (should (= (length result) 3))
+    ;; Should return the command object (a beads-command subclass)
+    (should (cl-typep result 'beads-command))
     ;; Exit code should be 0
-    (should (= (nth 0 result) 0))
+    (should (= (oref result exit-code) 0))
     ;; Stdout should be a string
-    (should (stringp (nth 1 result)))
+    (should (stringp (oref result stdout)))
     ;; Stderr should be a string
-    (should (stringp (nth 2 result)))
+    (should (stringp (oref result stderr)))
     ;; Should create .beads directory
     (should (file-directory-p (expand-file-name ".beads" temp-dir)))
     ;; Should create database file
@@ -59,7 +58,7 @@ Integration test that verifies --prefix flag works correctly."
          (cmd (beads-command-init :prefix "myproject"))
          (result (beads-command-execute cmd)))
     ;; Command should succeed
-    (should (= (nth 0 result) 0))
+    (should (= (oref result exit-code) 0))
     ;; .beads directory should exist
     (should (file-directory-p (expand-file-name ".beads" temp-dir)))
     ;; Verify prefix is set correctly by creating an issue
@@ -80,7 +79,7 @@ Integration test that verifies quiet mode suppresses output."
                :skip-merge-driver t))
          (result (beads-command-execute cmd)))
     ;; Command should succeed
-    (should (= (nth 0 result) 0))
+    (should (= (oref result exit-code) 0))
     ;; .beads directory should exist
     (should (file-directory-p (expand-file-name ".beads" temp-dir)))))
 
@@ -93,8 +92,8 @@ Integration test that runs real bd quickstart command."
   (skip-unless (executable-find beads-executable))
   (let* ((cmd (beads-command-quickstart))
          (result (beads-command-execute cmd))
-         (exit-code (nth 0 result))
-         (stdout (nth 1 result)))
+         (exit-code (oref result exit-code))
+         (stdout (oref result stdout)))
     ;; Command should succeed
     (should (= exit-code 0))
     ;; Output should contain quickstart content
@@ -110,13 +109,10 @@ Integration test that runs real bd quickstart command."
 Integration test that verifies the convenience function works."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (let* ((result (beads-command-quickstart!))
-         (exit-code (nth 0 result))
-         (stdout (nth 1 result)))
-    ;; Should return tuple (EXIT-CODE STDOUT STDERR)
-    (should (= exit-code 0))
-    (should (stringp stdout))
-    (should (> (length stdout) 0))))
+  (let ((result (beads-command-quickstart!)))
+    ;; Should return a string (quickstart guide text)
+    (should (stringp result))
+    (should (> (length result) 0))))
 
 ;;; Integration Test: beads-command-export
 
@@ -227,10 +223,8 @@ Integration test that runs real bd import command."
               ;; Import from temp file (use rename-on-import for prefix mismatch)
               (let ((result (beads-command-import! :input temp-file
                                                    :rename-on-import t)))
-                ;; Should return (EXIT-CODE STDOUT STDERR) tuple
-                (should (listp result))
-                (should (= 3 (length result)))
-                (should (= 0 (nth 0 result)))  ;; Exit code should be 0
+                ;; Should return a string (import output)
+                (should (stringp result))
                 ;; Verify issue was imported
                 (let ((issues (beads-command-list!)))
                   (should (> (length issues) 0))
@@ -261,10 +255,8 @@ Integration test that verifies dry-run doesn't modify database."
               (let ((result (beads-command-import! :input temp-file
                                                    :dry-run t
                                                    :rename-on-import t)))
-                ;; Should return (EXIT-CODE STDOUT STDERR) tuple
-                (should (listp result))
-                (should (= 3 (length result)))
-                (should (= 0 (nth 0 result)))  ;; Exit code should be 0
+                ;; Should return a string (import output)
+                (should (stringp result))
                 ;; Database should still be empty (dry-run)
                 (let ((issues (beads-command-list!)))
                   (should (= (length issues) 0))))))
@@ -291,10 +283,8 @@ Integration test that verifies skip-existing import succeeds."
               ;; Import with skip-existing (should not update)
               (let ((result (beads-command-import! :input temp-file
                                                    :skip-existing t)))
-                ;; Should return (EXIT-CODE STDOUT STDERR) tuple
-                (should (listp result))
-                (should (= 3 (length result)))
-                (should (= 0 (nth 0 result)))))  ;; Exit code should be 0
+                ;; Should return a string (import output)
+                (should (stringp result))))
           ;; Clean up temp file
           (when (file-exists-p temp-file)
             (delete-file temp-file)))))))
@@ -316,10 +306,8 @@ Integration test that verifies the convenience function works."
             (beads-test-with-project ()
               (let ((result (beads-command-import! :input temp-file
                                                    :rename-on-import t)))
-                ;; Should return (EXIT-CODE STDOUT STDERR) tuple
-                (should (listp result))
-                (should (= 3 (length result)))
-                (should (= 0 (nth 0 result)))  ;; Exit code should be 0
+                ;; Should return a string (import output)
+                (should (stringp result))
                 ;; Verify issue was imported
                 (let ((issues (beads-command-list!)))
                   (should (> (length issues) 0))))))
