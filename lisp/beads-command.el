@@ -49,6 +49,147 @@
 ;; (beads.el requires beads-command, so we can't require beads here)
 (defvar beads-executable)
 (declare-function beads--log "beads")
+(declare-function beads--find-beads-dir "beads")
+(declare-function beads--invalidate-completion-cache "beads")
+(declare-function beads-show "beads-show")
+
+;; Forward declarations for optional terminal packages
+;; These suppress byte-compiler warnings for optional dependencies
+(defvar vterm-shell)
+(defvar vterm-buffer-name)
+(declare-function vterm "vterm")
+(declare-function eat-mode "eat")
+(declare-function eat-exec "eat")
+(declare-function term-mode "term")
+(declare-function term-exec "term")
+(declare-function term-char-mode "term")
+(defvar compilation-filter-start)
+(declare-function ansi-color-apply-on-region "ansi-color")
+
+;;; Terminal Backend Customization
+
+(defgroup beads-terminal nil
+  "Terminal settings for beads command execution."
+  :group 'beads
+  :prefix "beads-terminal-")
+
+(defcustom beads-terminal-backend nil
+  "Backend to use for interactive command execution.
+
+When nil (auto-detect), tries backends in order: vterm, eat, term, compile.
+The first available backend is used.
+
+Available backends:
+- nil: Auto-detect best available backend (vterm > eat > term > compile).
+- `vterm': Use vterm (libvterm-based terminal).
+  Fast and feature-complete, requires vterm package.
+- `eat': Use Eat (Emulate A Terminal).
+  Pure Emacs Lisp terminal, requires eat package.
+- `term': Use built-in `term-mode' terminal emulator.
+  Full terminal support, no external dependencies.
+- `compile': Use `compilation-mode' with ANSI color filtering.
+  Supports `next-error' navigation but limited terminal emulation."
+  :type '(choice (const :tag "Auto-detect (vterm > eat > term > compile)" nil)
+                 (const :tag "Vterm (requires vterm package)" vterm)
+                 (const :tag "Eat (requires eat package)" eat)
+                 (const :tag "Term mode (built-in)" term)
+                 (const :tag "Compilation mode (with color filter)" compile))
+  :group 'beads-terminal)
+
+;;; Terminal Backend Implementations
+
+(defun beads-command--run-compile (cmd-string buffer-name default-dir)
+  "Run CMD-STRING in compilation buffer BUFFER-NAME from DEFAULT-DIR."
+  (let ((default-directory default-dir)
+        (process-environment (cons "CLICOLOR_FORCE=1" process-environment)))
+    (compile cmd-string)
+    (when (get-buffer "*compilation*")
+      (with-current-buffer "*compilation*"
+        (rename-buffer buffer-name t)
+        (add-hook 'compilation-filter-hook
+                  #'beads-command--ansi-color-filter nil t)))))
+
+(defun beads-command--run-term (cmd-string buffer-name default-dir)
+  "Run CMD-STRING in term buffer BUFFER-NAME from DEFAULT-DIR."
+  (require 'term)
+  (let* ((default-directory default-dir)
+         (process-environment (cons "CLICOLOR_FORCE=1" process-environment))
+         (buf (get-buffer-create buffer-name)))
+    (with-current-buffer buf
+      (unless (derived-mode-p 'term-mode)
+        (term-mode))
+      (let ((proc (get-buffer-process buf)))
+        (when (and proc (process-live-p proc))
+          (delete-process proc)))
+      (erase-buffer)
+      (term-exec buf buffer-name shell-file-name nil
+                 (list "-c" (concat "cd " (shell-quote-argument default-dir)
+                                    " && " cmd-string "; exit")))
+      (term-char-mode))
+    (pop-to-buffer buf)))
+
+(defun beads-command--vterm-available-p ()
+  "Return non-nil if vterm is available."
+  (require 'vterm nil t))
+
+(defun beads-command--run-vterm (cmd-string buffer-name default-dir)
+  "Run CMD-STRING in vterm buffer BUFFER-NAME from DEFAULT-DIR."
+  (unless (beads-command--vterm-available-p)
+    (user-error "Vterm package not installed.  Install it or change `beads-terminal-backend'"))
+  (let* ((default-directory default-dir)
+         (process-environment (cons "CLICOLOR_FORCE=1" process-environment))
+         (vterm-shell (format "%s -c %s"
+                              shell-file-name
+                              (shell-quote-argument
+                               (concat "cd " (shell-quote-argument default-dir)
+                                       " && " cmd-string))))
+         (vterm-buffer-name buffer-name)
+         ;; Keep buffer visible after process exits
+         (vterm-kill-buffer-on-exit nil))
+    (vterm buffer-name)))
+
+(defun beads-command--eat-available-p ()
+  "Return non-nil if eat is available."
+  (require 'eat nil t))
+
+(defun beads-command--run-eat (cmd-string buffer-name default-dir)
+  "Run CMD-STRING in eat buffer BUFFER-NAME from DEFAULT-DIR."
+  (unless (beads-command--eat-available-p)
+    (user-error "Eat package not installed.  Install it or change `beads-terminal-backend'"))
+  (let* ((default-directory default-dir)
+         (process-environment (cons "CLICOLOR_FORCE=1" process-environment))
+         (buf (get-buffer-create buffer-name)))
+    (with-current-buffer buf
+      (unless (derived-mode-p 'eat-mode)
+        (eat-mode))
+      (let ((proc (get-buffer-process buf)))
+        (when (and proc (process-live-p proc))
+          (delete-process proc)))
+      (eat-exec buf buffer-name shell-file-name nil
+                (list "-c" (concat "cd " (shell-quote-argument default-dir)
+                                   " && " cmd-string "; exit"))))
+    (pop-to-buffer buf)))
+
+(defun beads-command--detect-best-backend ()
+  "Detect the best available terminal backend.
+Tries in order: vterm, eat, term, compile."
+  (cond
+   ((beads-command--vterm-available-p) 'vterm)
+   ((beads-command--eat-available-p) 'eat)
+   (t 'term)))
+
+(defun beads-command--run-in-terminal (cmd-string buffer-name default-dir)
+  "Run CMD-STRING in terminal buffer BUFFER-NAME from DEFAULT-DIR.
+Uses the backend specified by `beads-terminal-backend'.
+When nil, auto-detects best available backend."
+  (let ((backend (or beads-terminal-backend
+                     (beads-command--detect-best-backend))))
+    (pcase backend
+      ('vterm (beads-command--run-vterm cmd-string buffer-name default-dir))
+      ('eat (beads-command--run-eat cmd-string buffer-name default-dir))
+      ('term (beads-command--run-term cmd-string buffer-name default-dir))
+      ('compile (beads-command--run-compile cmd-string buffer-name default-dir))
+      (_ (beads-command--run-term cmd-string buffer-name default-dir)))))
 
 ;;; Base Command Class
 
@@ -228,6 +369,84 @@ Default implementation returns nil (valid).
 Subclasses override to add validation."
   nil)
 
+(cl-defgeneric beads-command-subcommand (command)
+  "Return the CLI subcommand name for COMMAND.
+For example, \"create\", \"update\", \"doctor\", etc.
+Subclasses should override this to return their subcommand string.
+Returns nil by default, which disables metadata-based command building.")
+
+(cl-defmethod beads-command-subcommand ((_command beads-command))
+  "Return nil (no subcommand) for base command class."
+  nil)
+
+;;; Interactive Execution Methods
+;;
+;; These generic methods provide default behavior for transient menus.
+;; Override in subclasses for custom post-execution behavior.
+
+(cl-defgeneric beads-command-execute-interactive (command)
+  "Execute COMMAND interactively, showing output to user.
+
+This is the primary entry point for transient menu execution.
+Default implementation runs the command in a `compilation-mode' buffer.
+
+Override this method in subclasses for custom behavior, such as:
+- Showing a created issue in a dedicated buffer
+- Refreshing a list after update/close
+- Custom success messages
+
+The method should:
+1. Execute the command (typically via `beads-command-execute')
+2. Handle the result appropriately for the command type
+3. Provide user feedback (messages, buffer display, etc.)
+
+Signals errors from `beads-command-execute' on failure.")
+
+(defun beads-command--ansi-color-filter ()
+  "Apply ANSI color codes in compilation output.
+Compatibility wrapper for Emacs 27+.
+Also strips OSC escape sequences (terminal queries)."
+  (require 'ansi-color)
+  (let ((inhibit-read-only t))
+    ;; Strip OSC sequences (e.g., ]11;? for background color query)
+    (save-excursion
+      (goto-char compilation-filter-start)
+      (while (re-search-forward "\033\\]\\([0-9]+\\);[^\007\033]*\\(\007\\|\033\\\\\\)?" nil t)
+        (replace-match "")))
+    ;; Apply ANSI colors
+    (ansi-color-apply-on-region compilation-filter-start (point))))
+
+(cl-defmethod beads-command-execute-interactive ((command beads-command))
+  "Default: run COMMAND in terminal buffer.
+Uses the backend specified by `beads-terminal-backend'.
+Runs from the beads project root and enables ANSI color support."
+  (let* ((cmd-line (beads-command-line command))
+         (cmd-string (mapconcat #'shell-quote-argument cmd-line " "))
+         (buffer-name (format "*bd %s*" (nth 1 cmd-line)))
+         ;; Find beads project root (parent of .beads directory)
+         (beads-dir (beads--find-beads-dir))
+         (project-root (when beads-dir
+                         (file-name-directory
+                          (directory-file-name beads-dir))))
+         (default-dir (or project-root default-directory)))
+    (beads-command--run-in-terminal cmd-string buffer-name default-dir)))
+
+(cl-defgeneric beads-command-preview (command)
+  "Preview what COMMAND would execute without running it.
+
+Returns a string representation of the full command line.
+Default implementation builds the command line and formats it.
+
+Override in subclasses to add command-specific preview information,
+such as showing which fields are set or validation warnings.")
+
+(cl-defmethod beads-command-preview ((command beads-command))
+  "Default: return formatted command line for COMMAND."
+  (let* ((cmd-line (beads-command-line command))
+         (cmd-string (mapconcat #'shell-quote-argument cmd-line " ")))
+    (message "Command: %s" cmd-string)
+    cmd-string))
+
 (cl-defgeneric beads-command-parse (command)
   "Parse the output stored in COMMAND slots and return the parsed result.
 COMMAND must have been executed (stdout/stderr/exit-code slots populated).
@@ -347,13 +566,22 @@ Inherits from beads-command and adds --json flag support.
 Use this as parent class for commands that support --json flag.")
 
 (cl-defmethod beads-command-line ((command beads-command-json))
-  "Build command arguments including --json flag for JSON COMMAND.
-Calls parent method and adds --json if enabled."
+  "Build command arguments for JSON COMMAND using slot metadata.
+If `beads-command-subcommand' returns a subcommand name, builds:
+  (SUBCOMMAND ...global-flags... --json ...metadata-args...)
+Otherwise returns just global flags with --json (for abstract classes)."
   (with-slots (json) command
-    (let ((args (cl-call-next-method)))
-      ;; Add --json flag if enabled
-      (when json
-        (setq args (append args (list "--json"))))
+    (let* ((subcommand (beads-command-subcommand command))
+           (global-args (cl-call-next-method))
+           (args (if subcommand
+                     ;; Use metadata-based building
+                     (append (list subcommand)
+                             global-args
+                             (when json (list "--json"))
+                             (beads-meta-build-command-line command))
+                   ;; No subcommand - just global flags + json
+                   (append global-args
+                           (when json (list "--json"))))))
       args)))
 
 (cl-defmethod beads-command-parse ((command beads-command-json))
@@ -1872,6 +2100,35 @@ Does not modify command slots."
                          :stderr (oref command stderr)
                          :parse-error err))))))))
 
+(cl-defmethod beads-command-execute-interactive ((cmd beads-command-create))
+  "Execute CMD to create issue and offer to show it.
+Overrides default `compilation-mode' behavior with issue-specific UX."
+  (let* ((result (oref (beads-command-execute cmd) data))
+         ;; Handle both single-issue and multi-issue responses
+         (issues (cond
+                  ((null result) nil)
+                  ((cl-typep result 'beads-issue) (list result))
+                  ((and (listp result)
+                        (not (null result))
+                        (cl-typep (car result) 'beads-issue))
+                   result)
+                  (t nil)))
+         (first-issue (car issues)))
+    ;; Invalidate completion cache after creating issues
+    (beads--invalidate-completion-cache)
+    (cond
+     ((null first-issue)
+      (message "No issues created"))
+     ((= (length issues) 1)
+      (message "Created issue: %s - %s"
+               (oref first-issue id)
+               (oref first-issue title))
+      (when (y-or-n-p (format "Show issue %s? " (oref first-issue id)))
+        (beads-show (oref first-issue id))))
+     (t
+      (message "Created %d issues from file (first: %s)"
+               (length issues) (oref first-issue id))))))
+
 ;;; Epic Commands
 
 (defclass beads-command-epic-close-eligible (beads-command-json)
@@ -2066,6 +2323,15 @@ Does not modify command slots."
                          :parsed-json parsed-json
                          :stderr (oref command stderr)
                          :parse-error err))))))))
+
+(cl-defmethod beads-command-execute-interactive ((cmd beads-command-show))
+  "Execute CMD to show issue in a dedicated buffer.
+Overrides default `compilation-mode' behavior."
+  (let* ((result (oref (beads-command-execute cmd) data))
+         (issue (if (listp result) (car result) result)))
+    (if issue
+        (beads-show (oref issue id))
+      (message "Issue not found"))))
 
 ;;; Update Command
 
@@ -2337,6 +2603,27 @@ Does not modify command slots."
                          :stderr (oref command stderr)
                          :parse-error err))))))))
 
+(cl-defmethod beads-command-execute-interactive ((cmd beads-command-update))
+  "Execute CMD to update issue and show result.
+Overrides default `compilation-mode' behavior."
+  (let* ((result (oref (beads-command-execute cmd) data))
+         (issues (cond
+                  ((null result) nil)
+                  ((cl-typep result 'beads-issue) (list result))
+                  ((and (listp result)
+                        (not (null result))
+                        (cl-typep (car result) 'beads-issue))
+                   result)
+                  (t nil))))
+    ;; Invalidate completion cache after updating
+    (beads--invalidate-completion-cache)
+    (if issues
+        (message "Updated %d issue%s: %s"
+                 (length issues)
+                 (if (= (length issues) 1) "" "s")
+                 (mapconcat (lambda (i) (oref i id)) issues ", "))
+      (message "No issues updated"))))
+
 ;;; Close Command
 
 (defclass beads-command-close (beads-command-json)
@@ -2452,6 +2739,27 @@ Does not modify command slots."
                          :parsed-json parsed-json
                          :stderr (oref command stderr)
                          :parse-error err))))))))
+
+(cl-defmethod beads-command-execute-interactive ((cmd beads-command-close))
+  "Execute CMD to close issue and show result.
+Overrides default `compilation-mode' behavior."
+  (let* ((result (oref (beads-command-execute cmd) data))
+         (issues (cond
+                  ((null result) nil)
+                  ((cl-typep result 'beads-issue) (list result))
+                  ((and (listp result)
+                        (not (null result))
+                        (cl-typep (car result) 'beads-issue))
+                   result)
+                  (t nil))))
+    ;; Invalidate completion cache after closing
+    (beads--invalidate-completion-cache)
+    (if issues
+        (message "Closed %d issue%s: %s"
+                 (length issues)
+                 (if (= (length issues) 1) "" "s")
+                 (mapconcat (lambda (i) (oref i id)) issues ", "))
+      (message "No issues closed"))))
 
 ;;; Reopen Command
 
