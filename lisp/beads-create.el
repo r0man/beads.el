@@ -93,11 +93,13 @@ This uses transient's standard argument parsing with dash-style flags."
   :description "Create issue"
   (interactive)
   (let* ((args (transient-args 'beads-create))
-         (cmd (beads-create--parse-transient-args args))
-         (error-msg (beads-command-validate cmd)))
-    (if error-msg
-        (user-error "Validation failed: %s" error-msg)
-      (condition-case err
+         (cmd (beads-create--parse-transient-args args)))
+    (unless cmd
+      (user-error "Failed to parse transient arguments"))
+    (let ((error-msg (beads-command-validate cmd)))
+      (if error-msg
+          (user-error "Validation failed: %s" error-msg)
+        (condition-case err
           (let* ((result (oref (beads-command-execute cmd) data))
                  ;; Handle both single-issue and multi-issue responses:
                  ;; - With --title flag: returns one beads-issue object
@@ -134,7 +136,7 @@ This uses transient's standard argument parsing with dash-style flags."
          (let ((err-msg (format "Failed to create issue: %s"
                                 (error-message-string err))))
            (message "%s" err-msg)
-           err-msg))))))
+           err-msg)))))))
 
 (transient-define-suffix beads-create--reset ()
   "Reset all parameters to their default values."
@@ -156,17 +158,21 @@ This uses transient's standard argument parsing with dash-style flags."
   :transient t
   (interactive)
   (let* ((args (transient-args 'beads-create))
-         (cmd (beads-create--parse-transient-args args))
-         (error-msg (beads-command-validate cmd)))
-    (if error-msg
-        (let ((msg (format "Validation errors: %s" error-msg)))
+         (cmd (beads-create--parse-transient-args args)))
+    (if (not cmd)
+        (let ((msg "Validation errors: Failed to parse transient arguments"))
           (message "%s" msg)
           msg)
-      (let* ((cmd-list (beads-command-line cmd))
-             (cmd-string (mapconcat #'shell-quote-argument cmd-list " "))
-             (preview-msg (format "Command: %s" cmd-string)))
-        (message "%s" preview-msg)
-        preview-msg))))
+      (let ((error-msg (beads-command-validate cmd)))
+        (if error-msg
+            (let ((msg (format "Validation errors: %s" error-msg)))
+              (message "%s" msg)
+              msg)
+          (let* ((cmd-list (beads-command-line cmd))
+                 (cmd-string (mapconcat #'shell-quote-argument cmd-list " "))
+                 (preview-msg (format "Command: %s" cmd-string)))
+            (message "%s" preview-msg)
+            preview-msg))))))
 
 ;;; Transient Groups
 
