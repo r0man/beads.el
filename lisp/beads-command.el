@@ -3261,24 +3261,30 @@ Does not modify command slots."
 ;;; Blocked Command
 
 (defclass beads-command-blocked (beads-command-json)
-  ()
+  ((parent
+    :initarg :parent
+    :type (or null string)
+    :initform nil
+    :documentation "Filter to descendants of this bead/epic (--parent)."
+    ;; CLI properties
+    :long-option "--parent"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-P"
+    :transient-description "--parent"
+    :transient-class transient-option
+    :transient-argument "--parent="
+    :transient-prompt "Parent ID: "
+    :transient-group "Scope"
+    :transient-level 2
+    :transient-order 1))
   :documentation "Represents bd blocked command.
 Shows blocked issues (issues with unresolved blockers).
 When executed with :json t, returns list of beads-issue instances.")
 
-(cl-defmethod beads-command-line ((_command beads-command-blocked))
-  "Build command arguments for blocked COMMAND (without executable).
-Returns list: (\"blocked\" ...global-flags...)."
-  (let ((args (list "blocked"))
-        (global-args (cl-call-next-method)))
-    ;; Append global flags (includes --json if enabled)
-    (setq args (append args global-args))
-    args))
-
-(cl-defmethod beads-command-validate ((_command beads-command-blocked))
-  "Validate blocked COMMAND.
-Default implementation returns nil (valid)."
-  nil)
+(cl-defmethod beads-command-subcommand ((_command beads-command-blocked))
+  "Return \"blocked\" as the CLI subcommand name."
+  "blocked")
 
 (cl-defmethod beads-command-parse ((command beads-command-blocked))
   "Parse blocked COMMAND output and return list of beads-blocked-issue instances.
