@@ -3320,13 +3320,43 @@ Returns error string or nil if valid."
     :initarg :issue-ids
     :type (or null list)
     :initform nil
-    :documentation "One or more issue IDs (positional arguments).
-Example: '(\"bd-1\" \"bd-2\")")
+    :documentation "Issue ID(s) (required)"
+    ;; CLI properties
+    :positional 1
+    :option-type :list
+    :option-separator nil
+    ;; Transient properties
+    :transient-key "i"
+    :transient-description "Issue ID(s)"
+    :transient-class transient-option
+    :transient-argument "--issue-ids="
+    :transient-reader beads-reader-label-issue-ids
+    :transient-prompt "Issue ID(s) (comma-separated): "
+    :transient-group "Remove Label"
+    :transient-level 1
+    :transient-order 1
+    ;; Validation
+    :required t)
    (label
     :initarg :label
     :type (or null string)
     :initform nil
-    :documentation "Label name to remove (positional argument)."))
+    :documentation "Label name (required)"
+    ;; CLI properties
+    :positional 2
+    :option-type :string
+    ;; Transient properties
+    :transient-key "l"
+    :transient-description "Label"
+    :transient-class transient-option
+    :transient-argument "--label="
+    :transient-reader beads-reader-label-name
+    :transient-prompt "Label name: "
+    :transient-group "Remove Label"
+    :transient-level 1
+    :transient-order 2
+    ;; Validation
+    :required t))
   :documentation "Represents bd label remove command.
 Removes a label from one or more issues.
 When executed with :json t, returns parsed JSON result.")
