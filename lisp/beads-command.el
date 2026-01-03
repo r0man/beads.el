@@ -3089,12 +3089,40 @@ Returns error string or nil if valid."
     :initarg :issue-id
     :type (or null string)
     :initform nil
-    :documentation "Source issue ID (required positional argument).")
+    :documentation "Source issue ID (required positional argument)."
+    ;; CLI properties
+    :positional 1
+    ;; Transient properties
+    :transient-key "i"
+    :transient-description "Issue ID"
+    :transient-class transient-option
+    :transient-argument "--issue-id="
+    :transient-prompt "Issue ID: "
+    :transient-reader beads-reader-dep-remove-issue-id
+    :transient-group "Remove Dependency"
+    :transient-level 1
+    :transient-order 1
+    ;; Validation
+    :required t)
    (depends-on-id
     :initarg :depends-on-id
     :type (or null string)
     :initform nil
-    :documentation "Target dependency issue ID (required positional argument)."))
+    :documentation "Target dependency issue ID (required positional argument)."
+    ;; CLI properties
+    :positional 2
+    ;; Transient properties
+    :transient-key "d"
+    :transient-description "Depends on ID"
+    :transient-class transient-option
+    :transient-argument "--depends-on="
+    :transient-prompt "Depends on issue ID: "
+    :transient-reader beads-reader-dep-remove-depends-on-id
+    :transient-group "Remove Dependency"
+    :transient-level 1
+    :transient-order 2
+    ;; Validation
+    :required t))
   :documentation "Represents bd dep remove command.
 Removes a dependency relationship between two issues.
 When executed with :json t, returns parsed JSON result.")
