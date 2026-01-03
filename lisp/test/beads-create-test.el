@@ -405,6 +405,34 @@ Verifies that beads-create--execute properly rejects invalid input."
     (should-error (call-interactively #'beads-create--execute)
                   :type 'user-error)))
 
+(ert-deftest beads-create-test-execute-nil-command-handling ()
+  "Test that beads-create--execute handles nil command gracefully.
+Tests that a user-friendly error is shown instead of a type error.
+This is a regression test for the bug where calling beads-command-validate
+with nil caused: Wrong type argument: (or eieio-object cl-structure-object
+oclosure), nil"
+  :tags '(:integration)
+  (cl-letf (((symbol-function 'beads-create--parse-transient-args)
+             (lambda (_) nil)))
+    (beads-test-with-transient-args 'beads-create
+        '("--title=Test Issue")
+      (should-error (call-interactively #'beads-create--execute)
+                    :type 'user-error))))
+
+(ert-deftest beads-create-test-preview-nil-command-handling ()
+  "Test that beads-create--preview handles nil command gracefully.
+Tests that a user-friendly error message is returned instead of a type error."
+  :tags '(:integration)
+  (cl-letf (((symbol-function 'beads-create--parse-transient-args)
+             (lambda (_) nil)))
+    (beads-test-with-transient-args 'beads-create
+        '("--title=Test Issue")
+      (let ((result (call-interactively #'beads-create--preview)))
+        ;; Should return error message string, not signal error
+        (should (stringp result))
+        (should (string-match-p "Validation errors:" result))
+        (should (string-match-p "Failed to parse transient arguments" result))))))
+
 (ert-deftest beads-create-test-execute-command-failure ()
   "Integration test: Test bd command failure handling.
 Verifies error handling when the bd create command fails."
