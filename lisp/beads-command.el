@@ -2622,37 +2622,239 @@ See `beads-command-delete' for available arguments."
     :initarg :assignee
     :type (or null string)
     :initform nil
-    :documentation "Filter by assignee (-a, --assignee).")
+    :documentation "Filter by assignee (-a, --assignee)."
+    ;; CLI properties
+    :long-option "--assignee"
+    :short-option "-a"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-a"
+    :transient-description "--assignee"
+    :transient-class transient-option
+    :transient-argument "--assignee="
+    :transient-prompt "Assignee: "
+    :transient-group "Filters"
+    :transient-level 1
+    :transient-order 1)
+   (include-deferred
+    :initarg :include-deferred
+    :type boolean
+    :initform nil
+    :documentation "Include issues with future defer_until timestamps
+(--include-deferred)."
+    ;; CLI properties
+    :long-option "--include-deferred"
+    :option-type :boolean
+    ;; Transient properties
+    :transient-key "-D"
+    :transient-description "--include-deferred"
+    :transient-class transient-switch
+    :transient-argument "--include-deferred"
+    :transient-group "Filters"
+    :transient-level 2
+    :transient-order 8)
+   (issue-type
+    :initarg :issue-type
+    :type (or null string)
+    :initform nil
+    :documentation "Filter by issue type (-t, --type).
+Values: task, bug, feature, epic, merge-request.
+Aliases: mr→merge-request, feat→feature, mol→molecule."
+    ;; CLI properties
+    :long-option "--type"
+    :short-option "-t"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-T"
+    :transient-description "--type"
+    :transient-class transient-option
+    :transient-argument "--type="
+    :transient-prompt "Type: "
+    :transient-group "Filters"
+    :transient-level 1
+    :transient-order 4)
    (label
     :initarg :label
     :type (or null list)
     :initform nil
     :documentation "Filter by labels, AND logic (-l, --label).
-Must have ALL labels. Can combine with --label-any.")
+Must have ALL labels. Can combine with --label-any."
+    ;; CLI properties
+    :long-option "--label"
+    :short-option "-l"
+    :option-type :list
+    ;; Transient properties
+    :transient-key "-l"
+    :transient-description "--label (AND)"
+    :transient-class transient-option
+    :transient-argument "--label="
+    :transient-prompt "Label (AND): "
+    :transient-group "Label Filters"
+    :transient-level 2
+    :transient-order 1)
    (label-any
     :initarg :label-any
     :type (or null list)
     :initform nil
     :documentation "Filter by labels, OR logic (--label-any).
-Must have AT LEAST ONE label. Can combine with --label.")
+Must have AT LEAST ONE label. Can combine with --label."
+    ;; CLI properties
+    :long-option "--label-any"
+    :option-type :list
+    ;; Transient properties
+    :transient-key "-L"
+    :transient-description "--label-any (OR)"
+    :transient-class transient-option
+    :transient-argument "--label-any="
+    :transient-prompt "Label (OR): "
+    :transient-group "Label Filters"
+    :transient-level 2
+    :transient-order 2)
    (limit
     :initarg :limit
     :type (or null integer)
     :initform nil
     :documentation "Maximum issues to show (-n, --limit).
-Default: 10.")
+Default: 10."
+    ;; CLI properties
+    :long-option "--limit"
+    :short-option "-n"
+    :option-type :integer
+    ;; Transient properties
+    :transient-key "-n"
+    :transient-description "--limit"
+    :transient-class transient-option
+    :transient-argument "--limit="
+    :transient-prompt "Limit: "
+    :transient-group "Display"
+    :transient-level 1
+    :transient-order 1)
+   (mol
+    :initarg :mol
+    :type (or null string)
+    :initform nil
+    :documentation "Filter to steps within a specific molecule (--mol).
+Use for agents executing molecules to see which steps can run next."
+    ;; CLI properties
+    :long-option "--mol"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-m"
+    :transient-description "--mol"
+    :transient-class transient-option
+    :transient-argument "--mol="
+    :transient-prompt "Molecule ID: "
+    :transient-group "Scope"
+    :transient-level 2
+    :transient-order 1)
+   (mol-type
+    :initarg :mol-type
+    :type (or null string)
+    :initform nil
+    :documentation "Filter by molecule type (--mol-type).
+Values: swarm, patrol, work."
+    ;; CLI properties
+    :long-option "--mol-type"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-M"
+    :transient-description "--mol-type"
+    :transient-class transient-option
+    :transient-argument "--mol-type="
+    :transient-prompt "Molecule type: "
+    :transient-choices '("swarm" "patrol" "work")
+    :transient-group "Scope"
+    :transient-level 2
+    :transient-order 2)
+   (parent
+    :initarg :parent
+    :type (or null string)
+    :initform nil
+    :documentation "Filter to descendants of this bead/epic (--parent)."
+    ;; CLI properties
+    :long-option "--parent"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-P"
+    :transient-description "--parent"
+    :transient-class transient-option
+    :transient-argument "--parent="
+    :transient-prompt "Parent ID: "
+    :transient-group "Scope"
+    :transient-level 2
+    :transient-order 3)
+   (pretty
+    :initarg :pretty
+    :type boolean
+    :initform nil
+    :documentation "Display issues in tree format (--pretty)."
+    ;; CLI properties
+    :long-option "--pretty"
+    :option-type :boolean
+    ;; Transient properties
+    :transient-key "-y"
+    :transient-description "--pretty"
+    :transient-class transient-switch
+    :transient-argument "--pretty"
+    :transient-group "Display"
+    :transient-level 2
+    :transient-order 2)
    (priority
     :initarg :priority
     :type (or null integer)
     :initform nil
     :documentation "Filter by priority (-p, --priority).
-Values: 0-4.")
+Values: 0-4."
+    ;; CLI properties
+    :long-option "--priority"
+    :short-option "-p"
+    :option-type :integer
+    ;; Transient properties
+    :transient-key "-p"
+    :transient-description "--priority"
+    :transient-class transient-option
+    :transient-argument "--priority="
+    :transient-prompt "Priority: "
+    :transient-group "Filters"
+    :transient-level 1
+    :transient-order 2)
    (sort
     :initarg :sort
     :type (or null string)
     :initform nil
     :documentation "Sort policy (-s, --sort).
-Values: hybrid (default), priority, oldest."))
+Values: hybrid (default), priority, oldest."
+    ;; CLI properties
+    :long-option "--sort"
+    :short-option "-s"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-s"
+    :transient-description "--sort"
+    :transient-class transient-option
+    :transient-argument "--sort="
+    :transient-prompt "Sort: "
+    :transient-choices '("hybrid" "priority" "oldest")
+    :transient-group "Display"
+    :transient-level 1
+    :transient-order 3)
+   (unassigned
+    :initarg :unassigned
+    :type boolean
+    :initform nil
+    :documentation "Show only unassigned issues (-u, --unassigned)."
+    ;; CLI properties
+    :long-option "--unassigned"
+    :short-option "-u"
+    :option-type :boolean
+    ;; Transient properties
+    :transient-key "-u"
+    :transient-description "--unassigned"
+    :transient-class transient-switch
+    :transient-argument "--unassigned"
+    :transient-group "Filters"
+    :transient-level 1
+    :transient-order 3))
   :documentation "Represents bd ready command.
 Shows ready work (no blockers, open or in-progress).
 When executed with :json t, returns list of beads-issue instances.")
@@ -2660,15 +2862,33 @@ When executed with :json t, returns list of beads-issue instances.")
 (cl-defmethod beads-command-line ((command beads-command-ready))
   "Build command arguments for ready COMMAND (without executable).
 Returns list: (\"ready\" ...global-flags... ...flags...)."
-  (with-slots (assignee label label-any limit priority sort) command
+  (with-slots (assignee include-deferred issue-type label label-any
+                        limit mol mol-type parent pretty priority
+                        sort unassigned) command
     (let ((args (list "ready"))
           (global-args (cl-call-next-method)))
       ;; Append global flags (includes --json if enabled)
       (setq args (append args global-args))
 
+      ;; Boolean flags
+      (when include-deferred
+        (setq args (append args (list "--include-deferred"))))
+      (when pretty
+        (setq args (append args (list "--pretty"))))
+      (when unassigned
+        (setq args (append args (list "--unassigned"))))
+
       ;; String options
       (when assignee
         (setq args (append args (list "--assignee" assignee))))
+      (when issue-type
+        (setq args (append args (list "--type" issue-type))))
+      (when mol
+        (setq args (append args (list "--mol" mol))))
+      (when mol-type
+        (setq args (append args (list "--mol-type" mol-type))))
+      (when parent
+        (setq args (append args (list "--parent" parent))))
       (when sort
         (setq args (append args (list "--sort" sort))))
 
@@ -2691,9 +2911,9 @@ Returns list: (\"ready\" ...global-flags... ...flags...)."
 
 (cl-defmethod beads-command-validate ((command beads-command-ready))
   "Validate ready COMMAND.
-Checks for valid sort and priority values.
+Checks for valid sort, priority, and mol-type values.
 Returns error string or nil if valid."
-  (with-slots (sort priority label label-any) command
+  (with-slots (sort priority mol-type label label-any) command
     (or
      ;; Validate sort value
      (and sort (not (member sort '("hybrid" "priority" "oldest")))
@@ -2701,6 +2921,9 @@ Returns error string or nil if valid."
      ;; Validate priority range
      (and priority (not (<= 0 priority 4))
           "Priority must be between 0 and 4")
+     ;; Validate mol-type value
+     (and mol-type (not (member mol-type '("swarm" "patrol" "work")))
+          "Mol-type must be one of: swarm, patrol, work")
      ;; Validate list content types
      (beads-command--validate-string-list label "label")
      (beads-command--validate-string-list label-any "label-any"))))
