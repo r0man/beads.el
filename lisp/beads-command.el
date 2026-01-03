@@ -2461,12 +2461,37 @@ Does not modify command slots."
     :type (or null list)
     :initform nil
     :documentation "One or more issue IDs to reopen (positional arguments).
-Example: '(\"bd-1\" \"bd-2\")")
+Example: '(\"bd-1\" \"bd-2\")"
+    ;; Transient properties
+    :transient-key "i"
+    :transient-description "Issue ID (required)"
+    :transient-class transient-option
+    :transient-argument "--id="
+    :transient-prompt "Issue ID: "
+    :transient-reader beads-reader-reopen-issue-id
+    :transient-group "Reopen Issue"
+    :transient-level 1
+    :transient-order 1
+    ;; Validation
+    :required t)
    (reason
     :initarg :reason
     :type (or null string)
     :initform nil
-    :documentation "Optional reason for reopening (-r, --reason)."))
+    :documentation "Optional reason for reopening (-r, --reason)."
+    ;; CLI properties
+    :long-option "--reason"
+    :short-option "-r"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-r"
+    :transient-description "--reason"
+    :transient-class beads-create-transient-multiline
+    :transient-argument "--reason="
+    :transient-field-name "Reopen Reason"
+    :transient-group "Reopen Issue"
+    :transient-level 1
+    :transient-order 2))
   :documentation "Represents bd reopen command.
 Reopens one or more closed issues with an optional reason.
 When executed with :json t, returns beads-issue instance (or list
