@@ -3101,31 +3101,144 @@ Returns error string or nil if valid."
     :initarg :issue-id
     :type (or null string)
     :initform nil
-    :documentation "Issue ID to show tree for (required positional argument).")
+    :documentation "Issue ID to show tree for (required positional argument)."
+    ;; CLI properties
+    :positional 1
+    ;; Transient properties
+    :transient-key "i"
+    :transient-description "Issue ID"
+    :transient-class transient-option
+    :transient-argument "--issue-id="
+    :transient-prompt "Issue ID: "
+    :transient-reader beads-reader-dep-tree-issue-id
+    :transient-group "Issue"
+    :transient-level 1
+    :transient-order 1
+    ;; Validation
+    :required t)
+   (direction
+    :initarg :direction
+    :type (or null string)
+    :initform nil
+    :documentation "Tree direction (--direction).
+Values: down (dependencies - default), up (dependents), both (full graph)."
+    ;; CLI properties
+    :long-option "--direction"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-d"
+    :transient-description "--direction"
+    :transient-class transient-option
+    :transient-argument "--direction="
+    :transient-prompt "Direction: "
+    :transient-choices '("down" "up" "both")
+    :transient-group "Display"
+    :transient-level 1
+    :transient-order 1)
    (format
     :initarg :format
     :type (or null string)
     :initform nil
     :documentation "Output format (--format).
-Value: mermaid for Mermaid.js flowchart.")
+Value: mermaid for Mermaid.js flowchart."
+    ;; CLI properties
+    :long-option "--format"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-f"
+    :transient-description "--format"
+    :transient-class transient-option
+    :transient-argument "--format="
+    :transient-prompt "Format: "
+    :transient-choices '("mermaid")
+    :transient-group "Display"
+    :transient-level 2
+    :transient-order 2)
    (max-depth
     :initarg :max-depth
     :type (or null integer)
     :initform nil
     :documentation "Maximum tree depth (-d, --max-depth).
-Safety limit, default: 50.")
+Safety limit, default: 50."
+    ;; CLI properties
+    :long-option "--max-depth"
+    :short-option "-d"
+    :option-type :integer
+    ;; Transient properties
+    :transient-key "-D"
+    :transient-description "--max-depth"
+    :transient-class transient-option
+    :transient-argument "--max-depth="
+    :transient-prompt "Max depth: "
+    :transient-group "Display"
+    :transient-level 2
+    :transient-order 3)
    (reverse
     :initarg :reverse
     :type boolean
     :initform nil
     :documentation "Show dependent tree instead of dependency tree (--reverse).
-Shows what was discovered from this instead of what blocks this.")
+Deprecated: use --direction=up instead."
+    ;; CLI properties
+    :long-option "--reverse"
+    :option-type :boolean
+    ;; Transient properties - hidden since deprecated
+    :transient-level 7)
    (show-all-paths
     :initarg :show-all-paths
     :type boolean
     :initform nil
     :documentation "Show all paths to nodes (--show-all-paths).
-No deduplication for diamond dependencies."))
+No deduplication for diamond dependencies."
+    ;; CLI properties
+    :long-option "--show-all-paths"
+    :option-type :boolean
+    ;; Transient properties
+    :transient-key "-a"
+    :transient-description "--show-all-paths"
+    :transient-class transient-switch
+    :transient-argument "--show-all-paths"
+    :transient-group "Display"
+    :transient-level 2
+    :transient-order 4)
+   (status
+    :initarg :status
+    :type (or null string)
+    :initform nil
+    :documentation "Filter to only show issues with this status (--status).
+Values: open, in_progress, blocked, deferred, closed."
+    ;; CLI properties
+    :long-option "--status"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-s"
+    :transient-description "--status"
+    :transient-class transient-option
+    :transient-argument "--status="
+    :transient-prompt "Status filter: "
+    :transient-choices '("open" "in_progress" "blocked" "deferred" "closed")
+    :transient-group "Filters"
+    :transient-level 2
+    :transient-order 1)
+   (dep-type
+    :initarg :dep-type
+    :type (or null string)
+    :initform nil
+    :documentation "Filter to only show dependencies of this type (-t, --type).
+Examples: tracks, blocks, parent-child."
+    ;; CLI properties
+    :long-option "--type"
+    :short-option "-t"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-t"
+    :transient-description "--type"
+    :transient-class transient-option
+    :transient-argument "--type="
+    :transient-prompt "Dependency type: "
+    :transient-group "Filters"
+    :transient-level 2
+    :transient-order 2))
   :documentation "Represents bd dep tree command.
 Shows dependency tree for an issue.
 When executed with :json t, returns parsed JSON tree structure.")
@@ -3133,7 +3246,8 @@ When executed with :json t, returns parsed JSON tree structure.")
 (cl-defmethod beads-command-line ((command beads-command-dep-tree))
   "Build command arguments for dep tree COMMAND (without executable).
 Returns list: (\"dep\" \"tree\" ...global-flags... issue-id ...)."
-  (with-slots (issue-id format max-depth reverse show-all-paths) command
+  (with-slots (issue-id direction format max-depth reverse show-all-paths
+                        status dep-type) command
     (let ((args (list "dep" "tree"))
           (global-args (cl-call-next-method)))
       ;; Append global flags (includes --json if enabled)
@@ -3143,9 +3257,15 @@ Returns list: (\"dep\" \"tree\" ...global-flags... issue-id ...)."
       (when issue-id
         (setq args (append args (list issue-id))))
 
-      ;; String option
+      ;; String options
+      (when direction
+        (setq args (append args (list "--direction" direction))))
       (when format
         (setq args (append args (list "--format" format))))
+      (when status
+        (setq args (append args (list "--status" status))))
+      (when dep-type
+        (setq args (append args (list "--type" dep-type))))
 
       ;; Integer option
       (when max-depth
@@ -3161,13 +3281,20 @@ Returns list: (\"dep\" \"tree\" ...global-flags... issue-id ...)."
 
 (cl-defmethod beads-command-validate ((command beads-command-dep-tree))
   "Validate dep tree COMMAND.
-Checks that issue ID is provided and max-depth is positive.
+Checks that issue ID is provided and validates option values.
 Returns error string or nil if valid."
-  (with-slots (issue-id max-depth) command
+  (with-slots (issue-id direction max-depth status) command
     (or
      ;; Must have issue-id
      (and (or (null issue-id) (string-empty-p issue-id))
           "Must provide issue-id")
+     ;; Validate direction value
+     (and direction (not (member direction '("down" "up" "both")))
+          "Direction must be one of: down, up, both")
+     ;; Validate status value
+     (and status (not (member status '("open" "in_progress" "blocked"
+                                       "deferred" "closed")))
+          "Status must be one of: open, in_progress, blocked, deferred, closed")
      ;; Validate max-depth if provided
      (and max-depth (< max-depth 1)
           "Max depth must be positive"))))
