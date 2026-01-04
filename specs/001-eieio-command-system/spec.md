@@ -179,6 +179,7 @@ A developer needs to verify real user interactions work correctly. They run Emac
 - Q: What is the default terminal rendering mode? → A: Fallback chain: vterm → eat → term → compilation-mode (use best available)
 - Q: Behavior when `bd` executable not found? → A: Show error with installation instructions (link to beads repo/docs)
 - Q: When to populate command metadata from `--help`? → A: At class design time - developers manually reference `bd <command> --help` and encode options/descriptions into EIEIO slots
+- Q: What should the result slot be named? → A: Use `result` (not `data`); contains raw stdout for non-JSON commands, parsed elisp values/objects for JSON commands
 
 ## Assumptions
 
