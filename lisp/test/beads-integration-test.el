@@ -1,6 +1,6 @@
 ;;; beads-integration-test.el --- Integration test infrastructure -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2025
+;; Copyright (C) 2025-2026
 
 ;; Author: Beads Contributors
 ;; Keywords: test
@@ -154,6 +154,7 @@ ARGS is a plist with optional keys:
   :init-beads - If non-nil, initialize beads in the repo (default nil)
   :prefix     - Custom prefix for beads (requires :init-beads)
   :quiet      - Suppress bd output during init (default t)
+  :cleanup    - If nil, don't cleanup temp dir after BODY (default t)
 
 This macro:
 1. Creates a temporary directory
@@ -163,9 +164,6 @@ This macro:
 5. Mocks project discovery to use temp dir
 6. Executes BODY
 7. Cleans up state (caches, transient) afterward
-
-The temporary directory is NOT automatically deleted to aid debugging.
-Use `delete-directory' in tests if cleanup is needed.
 
 Examples:
 
@@ -193,6 +191,9 @@ Examples:
   (let ((temp-dir (make-symbol "temp-dir"))
         (init-beads (plist-get args :init-beads))
         (prefix (plist-get args :prefix))
+        (cleanup (if (plist-member args :cleanup)
+                     (plist-get args :cleanup)
+                   t))
         (quiet (if (plist-member args :quiet)
                    (plist-get args :quiet)
                  t)))  ; Default quiet to t
@@ -213,7 +214,10 @@ Examples:
              (progn ,@body)
            ;; Clear state after test
            (beads-test--clear-transient-state)
-           (beads-test--clear-caches))))))
+           (beads-test--clear-caches)
+           ;; Optionally cleanup temp dir
+           (when ,cleanup
+             (delete-directory ,temp-dir t)))))))
 
 ;;; ============================================================
 ;;; Helper Functions for Integration Tests
@@ -251,6 +255,78 @@ Example:
      (dolist (issue-args ',issues)
        (apply #'beads-command-create! issue-args))
      ,@body))
+
+;;; ============================================================
+;;; Self-tests for the integration test infrastructure
+;;; ============================================================
+
+(ert-deftest beads-integration-test-temp-repo-creation ()
+  "Test that temporary repository is created correctly."
+  :tags '(:integration :infrastructure)
+  (let ((temp-dir (beads-test-create-temp-repo)))
+    (unwind-protect
+        (progn
+          (should (file-directory-p temp-dir))
+          (should (file-directory-p (expand-file-name ".git" temp-dir))))
+      (delete-directory temp-dir t))))
+
+(ert-deftest beads-integration-test-with-temp-repo-basic ()
+  "Test basic beads-test-with-temp-repo usage."
+  :tags '(:integration :infrastructure)
+  (let ((captured-dir nil))
+    (beads-test-with-temp-repo ()
+      (setq captured-dir default-directory)
+      (should (file-directory-p default-directory))
+      (should (file-directory-p ".git")))
+    ;; After macro completes, temp dir should be cleaned up
+    (should-not (file-directory-p captured-dir))))
+
+(ert-deftest beads-integration-test-with-temp-repo-no-cleanup ()
+  "Test beads-test-with-temp-repo with cleanup disabled."
+  :tags '(:integration :infrastructure)
+  (let ((captured-dir nil))
+    (beads-test-with-temp-repo (:cleanup nil)
+      (setq captured-dir default-directory))
+    ;; After macro completes with :cleanup nil, dir should still exist
+    (should (file-directory-p captured-dir))
+    ;; Manual cleanup
+    (delete-directory captured-dir t)))
+
+(ert-deftest beads-integration-test-generate-prefix ()
+  "Test that generated prefixes are unique and properly formatted."
+  :tags '(:integration :infrastructure)
+  (let ((prefix1 (beads-test--generate-unique-prefix))
+        (prefix2 (beads-test--generate-unique-prefix)))
+    ;; Should start with "beadsTest"
+    (should (string-prefix-p "beadsTest" prefix1))
+    (should (string-prefix-p "beadsTest" prefix2))
+    ;; Should have 6 random characters after the prefix
+    (should (= (length prefix1) (+ (length "beadsTest") 6)))
+    ;; Prefixes should (almost certainly) be different
+    (should-not (equal prefix1 prefix2))))
+
+(ert-deftest beads-integration-test-with-temp-repo-init-beads ()
+  "Test beads-test-with-temp-repo with beads initialization."
+  :tags '(:integration :infrastructure :slow)
+  (beads-test-skip-unless-bd)
+  (beads-test-with-temp-repo (:init-beads t)
+    (should (file-directory-p ".git"))
+    (should (file-directory-p ".beads"))))
+
+(ert-deftest beads-integration-test-with-temp-repo-custom-prefix ()
+  "Test beads-test-with-temp-repo with custom prefix."
+  :tags '(:integration :infrastructure :slow)
+  (beads-test-skip-unless-bd)
+  (beads-test-with-temp-repo (:init-beads t :prefix "customtest")
+    (should (file-directory-p ".beads"))
+    ;; Verify prefix by creating an issue and checking its ID
+    (require 'beads-command)
+    (let* ((cmd (beads-command-create :title "Test Issue"))
+           (result (beads-command-execute cmd))
+           (issue (oref result data))
+           (issue-id (oref issue id)))
+      ;; Issue ID should start with our custom prefix
+      (should (string-prefix-p "customtest-" issue-id)))))
 
 (provide 'beads-integration-test)
 ;;; beads-integration-test.el ends here
