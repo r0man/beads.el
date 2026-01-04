@@ -50,8 +50,7 @@ This uses transient's standard argument parsing with dash-style flags."
 (defun beads-export--validate-output (output)
   "Validate that OUTPUT path is set.
 Returns error message string if invalid, nil if valid."
-  (when (or (null output)
-            (string-empty-p (string-trim output)))
+  (when (beads--string-blank-p output)
     "Output file path is required"))
 
 (defun beads-export--validate-all (command)

@@ -107,6 +107,24 @@ FORMAT-STRING and ARGS are passed to `format'."
     (apply #'beads--log 'error "ERROR: %s" (list msg))
     (user-error "Beads: %s" msg)))
 
+(defun beads--string-blank-p (value)
+  "Return non-nil if VALUE is blank.
+A value is considered blank if it is nil, not a string, or an empty string.
+This function safely handles non-string values without signaling an error,
+which is useful when validating transient arguments that may return a
+non-string truthy value instead of a string in some transient versions."
+  (or (null value)
+      (not (stringp value))
+      (string-empty-p (string-trim value))))
+
+(defun beads--sanitize-string (value)
+  "Return VALUE if it is a non-blank string, otherwise nil.
+This ensures that non-string values (like t) and empty strings are
+converted to nil, which is useful for processing transient arguments."
+  (when (and (stringp value)
+             (not (string-empty-p (string-trim value))))
+    value))
+
 (defun beads--display-error-buffer (command exit-code stdout stderr)
   "Display detailed error information in *beads-errors* buffer.
 COMMAND is the command string that was executed.

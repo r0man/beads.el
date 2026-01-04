@@ -66,15 +66,13 @@ Returns issue ID string or nil if not found."
 (defun beads-close--validate-issue-id (issue-id)
   "Validate that ISSUE-ID is set.
 Returns error message string if invalid, nil if valid."
-  (when (or (null issue-id)
-            (string-empty-p (string-trim issue-id)))
+  (when (beads--string-blank-p issue-id)
     "Issue ID is required"))
 
 (defun beads-close--validate-reason (reason)
   "Validate that REASON is set.
 Returns error message string if invalid, nil if valid."
-  (when (or (null reason)
-            (string-empty-p (string-trim reason)))
+  (when (beads--string-blank-p reason)
     "Reason is required"))
 
 (defun beads-close--validate-all (cmd)

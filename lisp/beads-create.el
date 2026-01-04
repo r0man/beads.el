@@ -51,7 +51,7 @@ This uses transient's standard argument parsing with dash-style flags."
          (description (transient-arg-value "--description=" args))
          (custom-id (transient-arg-value "--id=" args))
          (dependencies-str (transient-arg-value "--deps=" args))
-         (dependencies (when (and dependencies-str
+         (dependencies (when (and (stringp dependencies-str)
                                   (not (string-empty-p (string-trim dependencies-str))))
                          (split-string (string-trim dependencies-str) "," t "[ \t]+")))
          (acceptance (transient-arg-value "--acceptance=" args))
@@ -59,7 +59,7 @@ This uses transient's standard argument parsing with dash-style flags."
          (design (transient-arg-value "--design=" args))
          (external-ref (transient-arg-value "--external-ref=" args))
          (labels-str (transient-arg-value "--labels=" args))
-         (labels (when (and labels-str
+         (labels (when (and (stringp labels-str)
                            (not (string-empty-p (string-trim labels-str))))
                    (split-string (string-trim labels-str) "," t "[ \t]+")))
          (force (transient-arg-value "--force" args))
