@@ -14,6 +14,7 @@
 
 (require 'ert)
 (require 'beads-command)
+(require 'beads-command-ready)
 (require 'beads-types)
 (require 'beads-test)
 
