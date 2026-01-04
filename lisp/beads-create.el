@@ -44,29 +44,29 @@
 Returns a beads-command-create object populated with values from ARGS.
 
 This uses transient's standard argument parsing with dash-style flags."
-  (let* ((title (transient-arg-value "--title=" args))
-         (type (transient-arg-value "--type=" args))
-         (priority-str (transient-arg-value "--priority=" args))
+  ;; Note: transient 0.12.0 can return `t' instead of "" for empty option values.
+  ;; We use beads--sanitize-string to convert non-string values to nil.
+  (let* ((title (beads--sanitize-string (transient-arg-value "--title=" args)))
+         (type (beads--sanitize-string (transient-arg-value "--type=" args)))
+         (priority-str (beads--sanitize-string (transient-arg-value "--priority=" args)))
          (priority (when priority-str (string-to-number priority-str)))
-         (description (transient-arg-value "--description=" args))
-         (custom-id (transient-arg-value "--id=" args))
-         (dependencies-str (transient-arg-value "--deps=" args))
-         (dependencies (when (and (stringp dependencies-str)
-                                  (not (string-empty-p (string-trim dependencies-str))))
+         (description (beads--sanitize-string (transient-arg-value "--description=" args)))
+         (custom-id (beads--sanitize-string (transient-arg-value "--id=" args)))
+         (dependencies-str (beads--sanitize-string (transient-arg-value "--deps=" args)))
+         (dependencies (when dependencies-str
                          (split-string (string-trim dependencies-str) "," t "[ \t]+")))
-         (acceptance (transient-arg-value "--acceptance=" args))
-         (assignee (transient-arg-value "--assignee=" args))
-         (design (transient-arg-value "--design=" args))
-         (external-ref (transient-arg-value "--external-ref=" args))
-         (labels-str (transient-arg-value "--labels=" args))
-         (labels (when (and (stringp labels-str)
-                           (not (string-empty-p (string-trim labels-str))))
+         (acceptance (beads--sanitize-string (transient-arg-value "--acceptance=" args)))
+         (assignee (beads--sanitize-string (transient-arg-value "--assignee=" args)))
+         (design (beads--sanitize-string (transient-arg-value "--design=" args)))
+         (external-ref (beads--sanitize-string (transient-arg-value "--external-ref=" args)))
+         (labels-str (beads--sanitize-string (transient-arg-value "--labels=" args)))
+         (labels (when labels-str
                    (split-string (string-trim labels-str) "," t "[ \t]+")))
          (force (transient-arg-value "--force" args))
-         (parent (transient-arg-value "--parent=" args))
-         (repo (transient-arg-value "--repo=" args))
-         (from-template (transient-arg-value "--from-template=" args))
-         (file (transient-arg-value "--file=" args)))
+         (parent (beads--sanitize-string (transient-arg-value "--parent=" args)))
+         (repo (beads--sanitize-string (transient-arg-value "--repo=" args)))
+         (from-template (beads--sanitize-string (transient-arg-value "--from-template=" args)))
+         (file (beads--sanitize-string (transient-arg-value "--file=" args))))
     (beads-command-create
      :title title
      :issue-type type
