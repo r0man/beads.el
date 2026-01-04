@@ -2926,55 +2926,8 @@ See `beads-command-delete' for available arguments."
 ;; Ready Command: See beads-command-ready.el for the class definition.
 ;; The require is at the end of this file to avoid circular dependencies.
 
-;;; Blocked Command
-
-(defclass beads-command-blocked (beads-command-json)
-  ((parent
-    :initarg :parent
-    :type (or null string)
-    :initform nil
-    :documentation "Filter to descendants of this bead/epic (--parent)."
-    ;; CLI properties
-    :long-option "--parent"
-    :option-type :string
-    ;; Transient properties
-    :transient-key "-P"
-    :transient-description "--parent"
-    :transient-class transient-option
-    :transient-argument "--parent="
-    :transient-prompt "Parent ID: "
-    :transient-group "Scope"
-    :transient-level 2
-    :transient-order 1))
-  :documentation "Represents bd blocked command.
-Shows blocked issues (issues with unresolved blockers).
-When executed with :json t, returns list of beads-issue instances.")
-
-(cl-defmethod beads-command-subcommand ((_command beads-command-blocked))
-  "Return \"blocked\" as the CLI subcommand name."
-  "blocked")
-
-(cl-defmethod beads-command-parse ((command beads-command-blocked))
-  "Parse blocked COMMAND output and return list of beads-blocked-issue instances.
-When :json is nil, falls back to parent (returns raw stdout).
-When :json is t, converts parsed JSON to beads-blocked-issue instances.
-Does not modify command slots."
-  (with-slots (json) command
-    (if (not json)
-        ;; If json is not enabled, use parent implementation
-        (cl-call-next-method)
-      ;; Call parent to parse JSON, then convert to beads-blocked-issue instances
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (mapcar #'beads-blocked-issue-from-json (append parsed-json nil))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to create beads-blocked-issue instances: %s"
-                                 (error-message-string err))
-                         :exit-code (oref command exit-code)
-                         :parsed-json parsed-json
-                         :stderr (oref command stderr)
-                         :parse-error err))))))))
+;; Blocked Command: See beads-command-blocked.el for the class definition.
+;; The require is at the end of this file to avoid circular dependencies.
 
 ;;; Stats Command
 
@@ -3561,12 +3514,7 @@ See `beads-command-reopen' for available arguments."
   (oref (beads-command-execute (apply #'beads-command-reopen args)) data))
 
 ;; beads-command-ready! moved to beads-command-ready.el
-
-(defun beads-command-blocked! (&rest args)
-  "Create and execute a beads-command-blocked with ARGS.
-Returns a list of parsed issue objects.
-See `beads-command-blocked' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-blocked args)) data))
+;; beads-command-blocked! moved to beads-command-blocked.el
 
 (defun beads-command-stats! (&rest args)
   "Create and execute a beads-command-stats with ARGS.
