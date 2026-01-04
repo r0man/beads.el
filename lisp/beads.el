@@ -426,7 +426,9 @@ Returns t if found, signals error otherwise."
         (when (called-interactively-p 'interactive)
           (message "Found bd executable: %s" beads-executable))
         t)
-    (beads--error "Cannot find bd executable: %s" beads-executable)))
+    (beads--error "Cannot find bd executable '%s'.
+Install bd CLI from https://github.com/steveyegge/beads
+or set `beads-executable' to the full path" beads-executable)))
 
 ;;;###autoload
 (autoload 'beads "beads-main" "Open the main Beads transient menu." t)
