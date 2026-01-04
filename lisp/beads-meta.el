@@ -810,7 +810,24 @@ The generated suffixes call generic methods from beads-command.el:
 - Preview calls `beads-command-preview' (override per class)
 - Reset calls `transient-reset'
 
-Example:
+IMPORTANT: Autoload cookies must be added manually.  Since this macro
+generates a `transient-define-prefix' form, the autoload machinery
+cannot automatically generate the autoload stub.  You MUST add an
+explicit autoload cookie before the macro call:
+
+  ;;;###autoload (autoload \\='beads-foo \"beads-foo\" nil t)
+  (beads-meta-define-transient beads-command-foo \"beads-foo\"
+    \"Do something with foo.\"
+    beads-option-global-section)
+
+The autoload form parameters are:
+  - Symbol name (must match PREFIX)
+  - File name (without .el extension)
+  - nil (docstring will be loaded from the actual definition)
+  - t (marks function as interactive for M-x)
+
+Example (complete):
+  ;;;###autoload (autoload \\='beads-create \"beads-create\" nil t)
   (beads-meta-define-transient beads-command-create \"beads-create\"
     \"Create a new issue.\"
     beads-option-global-section)
