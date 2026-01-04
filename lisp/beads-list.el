@@ -55,6 +55,7 @@
 
 (require 'beads)
 (require 'beads-command)
+(require 'beads-command-blocked)
 (require 'beads-command-ready)
 (require 'beads-option)
 (require 'beads-sesman)
