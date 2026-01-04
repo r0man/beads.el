@@ -35,9 +35,11 @@
 Returns a beads-command-export object populated with values from ARGS.
 
 This uses transient's standard argument parsing with dash-style flags."
-  (let* ((output (transient-arg-value "--output=" args))
-         (format (transient-arg-value "--format=" args))
-         (status (transient-arg-value "--status=" args))
+  ;; Note: transient 0.12.0 can return `t' instead of "" for empty option values.
+  ;; We use beads--sanitize-string to convert non-string values to nil.
+  (let* ((output (beads--sanitize-string (transient-arg-value "--output=" args)))
+         (format (beads--sanitize-string (transient-arg-value "--format=" args)))
+         (status (beads--sanitize-string (transient-arg-value "--status=" args)))
          (force (transient-arg-value "--force" args))
          (no-auto-flush (transient-arg-value "--no-auto-flush" args)))
     (beads-command-export

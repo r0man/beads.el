@@ -42,7 +42,9 @@
 Returns a beads-command-import object populated with values from ARGS.
 
 This uses transient's standard argument parsing with dash-style flags."
-  (let* ((input (transient-arg-value "--input=" args))
+  ;; Note: transient 0.12.0 can return `t' instead of "" for empty option values.
+  ;; We use beads--sanitize-string to convert non-string values to nil.
+  (let* ((input (beads--sanitize-string (transient-arg-value "--input=" args)))
          (dry-run (transient-arg-value "--dry-run" args))
          (skip-existing (transient-arg-value "--skip-existing" args))
          (clear-duplicate-external-refs
@@ -50,7 +52,8 @@ This uses transient's standard argument parsing with dash-style flags."
          (dedupe-after (transient-arg-value "--dedupe-after" args))
          (rename-on-import (transient-arg-value "--rename-on-import" args))
          (strict (transient-arg-value "--strict" args))
-         (orphan-handling (transient-arg-value "--orphan-handling=" args)))
+         (orphan-handling (beads--sanitize-string
+                           (transient-arg-value "--orphan-handling=" args))))
     (beads-command-import
      :input input
      :dry-run dry-run

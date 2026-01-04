@@ -42,8 +42,10 @@
 Returns a beads-command-close object populated with values from ARGS.
 
 This uses transient's standard argument parsing with dash-style flags."
-  (let* ((issue-id (transient-arg-value "--id=" args))
-         (reason (transient-arg-value "--reason=" args)))
+  ;; Note: transient 0.12.0 can return `t' instead of "" for empty option values.
+  ;; We use beads--sanitize-string to convert non-string values to nil.
+  (let* ((issue-id (beads--sanitize-string (transient-arg-value "--id=" args)))
+         (reason (beads--sanitize-string (transient-arg-value "--reason=" args))))
     (beads-command-close
      :issue-ids (when issue-id (list issue-id))
      :reason reason)))
