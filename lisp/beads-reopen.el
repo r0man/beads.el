@@ -67,8 +67,7 @@ Returns issue ID string or nil if not found."
 (defun beads-reopen--validate-issue-id (issue-id)
   "Validate that ISSUE-ID is set.
 Returns error message string if invalid, nil if valid."
-  (when (or (null issue-id)
-            (string-empty-p (string-trim issue-id)))
+  (when (beads--string-blank-p issue-id)
     "Issue ID is required"))
 
 (defun beads-reopen--validate-all (cmd)

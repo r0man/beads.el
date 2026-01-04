@@ -39,9 +39,9 @@ Returns a beads-command-init object populated with values from ARGS.
 
 This uses transient's standard argument parsing with dash-style
 flags."
-  (let* ((prefix (transient-arg-value "--prefix=" args))
-         (branch (transient-arg-value "--branch=" args))
-         (db (transient-arg-value "--db=" args))
+  (let* ((prefix (beads--sanitize-string (transient-arg-value "--prefix=" args)))
+         (branch (beads--sanitize-string (transient-arg-value "--branch=" args)))
+         (db (beads--sanitize-string (transient-arg-value "--db=" args)))
          (contributor (and (member "--contributor" args) t))
          (quiet (and (member "--quiet" args) t))
          (skip-merge-driver (and (member "--skip-merge-driver" args) t))
