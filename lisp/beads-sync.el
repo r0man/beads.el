@@ -61,8 +61,10 @@
 (defun beads-sync--parse-transient-args (args)
   "Parse transient ARGS list into a plist.
 Returns (:dry-run BOOL :message STRING :no-pull BOOL :no-push BOOL)."
+  ;; Note: transient 0.12.0 can return `t' instead of "" for empty option values.
+  ;; We use beads--sanitize-string to convert non-string values to nil.
   (let* ((dry-run (transient-arg-value "--dry-run" args))
-         (message (transient-arg-value "--message=" args))
+         (message (beads--sanitize-string (transient-arg-value "--message=" args)))
          (no-pull (transient-arg-value "--no-pull" args))
          (no-push (transient-arg-value "--no-push" args)))
     (list :dry-run dry-run
