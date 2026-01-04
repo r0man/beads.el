@@ -106,16 +106,18 @@ Returns a beads-command-update command object with populated slots
 from the parsed transient arguments.
 
 This uses transient's standard argument parsing with dash-style flags."
-  (let* ((status (transient-arg-value "--status=" args))
-         (priority-str (transient-arg-value "--priority=" args))
+  ;; Note: transient 0.12.0 can return `t' instead of "" for empty option values.
+  ;; We use beads--sanitize-string to convert non-string values to nil.
+  (let* ((status (beads--sanitize-string (transient-arg-value "--status=" args)))
+         (priority-str (beads--sanitize-string (transient-arg-value "--priority=" args)))
          (priority (when priority-str (string-to-number priority-str)))
-         (title (transient-arg-value "--title=" args))
-         (description (transient-arg-value "--description=" args))
-         (acceptance (transient-arg-value "--acceptance=" args))
-         (design (transient-arg-value "--design=" args))
-         (notes (transient-arg-value "--notes=" args))
-         (assignee (transient-arg-value "--assignee=" args))
-         (external-ref (transient-arg-value "--external-ref=" args)))
+         (title (beads--sanitize-string (transient-arg-value "--title=" args)))
+         (description (beads--sanitize-string (transient-arg-value "--description=" args)))
+         (acceptance (beads--sanitize-string (transient-arg-value "--acceptance=" args)))
+         (design (beads--sanitize-string (transient-arg-value "--design=" args)))
+         (notes (beads--sanitize-string (transient-arg-value "--notes=" args)))
+         (assignee (beads--sanitize-string (transient-arg-value "--assignee=" args)))
+         (external-ref (beads--sanitize-string (transient-arg-value "--external-ref=" args))))
     (beads-command-update
      :json t
      :issue-ids (when beads-update--issue-id
