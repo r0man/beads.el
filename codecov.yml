@@ -10,6 +10,9 @@ coverage:
     patch:
       default:
         target: 80%
+        # Don't fail PRs on patch coverage - some code (like terminal backends)
+        # is difficult to test in CI. We rely on project coverage instead.
+        informational: true
 
 comment:
   layout: "reach,diff,flags,files"
