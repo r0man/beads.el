@@ -64,8 +64,7 @@ This uses transient's standard argument parsing with dash-style flags."
 (defun beads-import--validate-input (input)
   "Validate that INPUT path is set.
 Returns error message string if invalid, nil if valid."
-  (when (or (null input)
-            (string-empty-p (string-trim input)))
+  (when (beads--string-blank-p input)
     "Input file path is required"))
 
 (defun beads-import--validate-all (command)

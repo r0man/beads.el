@@ -2041,7 +2041,7 @@ Returns error string or nil if valid."
      (and title file
           "Cannot use both title and --file")
      ;; Title validation (if provided, cannot be empty)
-     (and title (string-empty-p (string-trim title))
+     (and title (beads--string-blank-p title)
           "Title cannot be empty")
      ;; Type validation
      (and issue-type

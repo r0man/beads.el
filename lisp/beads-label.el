@@ -138,15 +138,13 @@ Returns (:issue-ids STRING :label STRING)."
 (defun beads-label-add--validate-issue-ids (issue-ids)
   "Validate that ISSUE-IDS is set.
 Returns error message string if invalid, nil if valid."
-  (when (or (null issue-ids)
-            (string-empty-p (string-trim issue-ids)))
+  (when (beads--string-blank-p issue-ids)
     "Issue ID(s) required"))
 
 (defun beads-label-add--validate-label (label)
   "Validate that LABEL is set.
 Returns error message string if invalid, nil if valid."
-  (when (or (null label)
-            (string-empty-p (string-trim label)))
+  (when (beads--string-blank-p label)
     "Label is required"))
 
 (defun beads-label-add--validate-all (parsed)
@@ -260,15 +258,13 @@ Returns (:issue-ids STRING :label STRING)."
 (defun beads-label-remove--validate-issue-ids (issue-ids)
   "Validate that ISSUE-IDS is set.
 Returns error message string if invalid, nil if valid."
-  (when (or (null issue-ids)
-            (string-empty-p (string-trim issue-ids)))
+  (when (beads--string-blank-p issue-ids)
     "Issue ID(s) required"))
 
 (defun beads-label-remove--validate-label (label)
   "Validate that LABEL is set.
 Returns error message string if invalid, nil if valid."
-  (when (or (null label)
-            (string-empty-p (string-trim label)))
+  (when (beads--string-blank-p label)
     "Label is required"))
 
 (defun beads-label-remove--validate-all (parsed)
