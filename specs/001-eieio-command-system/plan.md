@@ -1,104 +1,127 @@
-# Implementation Plan: [FEATURE]
+# Implementation Plan: EIEIO Command System for Beads.el
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
-
-**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
+**Branch**: `001-eieio-command-system` | **Date**: 2026-01-04 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `/specs/001-eieio-command-system/spec.md`
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+Extend beads.el's existing EIEIO command infrastructure to cover ALL bd CLI commands with auto-generated transient menus, providing a complete Magit-like interface. The existing `beads-command`, `beads-meta`, and `beads-command-doctor` patterns serve as the foundation.
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
-
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Language/Version**: Emacs Lisp (Emacs 27.1+)
+**Primary Dependencies**: transient, EIEIO (built-in), vterm/eat/term (optional)
+**Storage**: N/A (uses bd CLI for persistence)
+**Testing**: ERT with mocking, integration tests using temporary beads repos
+**Target Platform**: GNU Emacs 27.1+, GUI and terminal modes
+**Project Type**: Single Emacs package
+**Performance Goals**: Transient menus appear instantly (<100ms), command execution latency dominated by bd CLI
+**Constraints**: Must work in non-graphical Emacs (terminal/tmux), no external dependencies beyond transient
+**Scale/Scope**: ~50 bd commands to implement, organized into ~15 elisp files
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+The constitution template is not populated with project-specific principles. Proceeding with general best practices:
+
+- [x] **Test-First**: Integration tests required for each command module
+- [x] **Simplicity**: Build on existing patterns (beads-command, beads-meta)
+- [x] **Consistency**: Follow established naming conventions (beads-command-*, beads-*)
+- [x] **Documentation**: Org-based manual with synchronized transient previews
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-specs/[###-feature]/
-├── plan.md              # This file (/speckit.plan command output)
-├── research.md          # Phase 0 output (/speckit.plan command)
-├── data-model.md        # Phase 1 output (/speckit.plan command)
-├── quickstart.md        # Phase 1 output (/speckit.plan command)
-├── contracts/           # Phase 1 output (/speckit.plan command)
-└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
+specs/001-eieio-command-system/
+├── plan.md              # This file
+├── research.md          # Phase 0 output
+├── data-model.md        # Phase 1 output
+├── quickstart.md        # Phase 1 output
+├── contracts/           # Phase 1 output (API contracts for generic methods)
+└── tasks.md             # Phase 2 output (/speckit.tasks command)
 ```
 
 ### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
 
 ```text
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
-
-tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+lisp/
+├── beads.el                    # Core infrastructure (existing)
+├── beads-command.el            # Base EIEIO classes (existing, extend)
+├── beads-meta.el               # Slot metadata infrastructure (existing)
+├── beads-main.el               # Main transient menu (existing, extend)
+├── beads-option.el             # Global options (existing)
+│
+├── # Existing command modules (to extend/verify)
+├── beads-create.el             # bd create (existing)
+├── beads-update.el             # bd update (existing)
+├── beads-list.el               # bd list (existing)
+├── beads-show.el               # bd show (existing)
+├── beads-close.el              # bd close (existing)
+├── beads-delete.el             # bd delete (existing)
+├── beads-doctor.el             # bd doctor (existing - reference impl)
+├── beads-command-doctor.el     # Doctor class (existing - reference impl)
+│
+├── # New command modules (one file per top-level command group)
+├── beads-command-daemon.el     # daemon, daemon-list, daemon-start, daemon-stop, daemon-status
+├── beads-daemon.el             # Transients for daemon commands
+├── beads-command-sync.el       # sync command class
+├── beads-command-config.el     # config command class
+├── beads-command-init.el       # init command class (existing, verify)
+├── beads-command-export.el     # export command class
+├── beads-command-import.el     # import command class
+├── beads-command-graph.el      # graph command class
+├── beads-command-dep.el        # dep command class
+├── beads-command-label.el      # label command class
+├── beads-command-epic.el       # epic, epic-* command classes
+├── beads-command-admin.el      # admin command classes
+├── beads-command-hooks.el      # hooks command classes
+├── beads-command-search.el     # search command class
+├── beads-command-gate.el       # gate command class
+├── beads-command-ready.el      # ready command class
+├── beads-command-blocked.el    # blocked command class
+├── beads-command-stale.el      # stale command class
+├── beads-command-count.el      # count command class
+├── beads-command-lint.el       # lint command class
+├── beads-command-status.el     # status command class
+├── beads-command-info.el       # info command class
+├── beads-command-version.el    # version command class
+├── beads-command-activity.el   # activity command class
+├── beads-command-comments.el   # comments command class
+├── beads-command-edit.el       # edit command class
+├── beads-command-move.el       # move, refile command classes
+├── beads-command-reopen.el     # reopen command class (existing, verify)
+├── beads-command-duplicate.el  # duplicate, duplicates command classes
+├── beads-command-supersede.el  # supersede command class
+├── beads-command-swarm.el      # swarm command classes
+├── beads-command-mol.el        # mol command classes
+├── beads-command-formula.el    # formula command classes
+├── beads-command-agent.el      # agent command classes
+├── beads-command-slot.el       # slot command classes
+├── beads-command-audit.el      # audit command class
+├── beads-command-ship.el       # ship command class
+├── beads-command-worktree.el   # worktree command classes
+├── beads-command-jira.el       # jira command classes
+├── beads-command-linear.el     # linear command classes
+├── beads-command-repo.el       # repo command classes
+├── beads-command-migrate.el    # migrate command classes
+├── beads-command-repair.el     # repair, rename-prefix command classes
+│
+├── test/
+│   ├── beads-*-test.el         # Existing unit tests
+│   └── beads-integration-test.el  # New integration test infrastructure
+│
+└── doc/
+    └── beads.org               # Org-based manual with transient previews
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**Structure Decision**: Extends existing single-package structure in `lisp/`. One elisp file per top-level command group (e.g., `beads-command-daemon.el` contains classes for `daemon`, `daemon-list`, `daemon-start`, etc.). Transient UI files follow pattern `beads-<command>.el` (e.g., `beads-daemon.el`).
 
 ## Complexity Tracking
 
-> **Fill ONLY if Constitution Check has violations that must be justified**
-
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+No constitution violations detected. The design builds on existing proven patterns:
+- `beads-command-doctor.el` + `beads-doctor.el` serve as reference implementation
+- `beads-meta-define-transient` macro handles transient generation
+- Existing terminal backend fallback already implemented
