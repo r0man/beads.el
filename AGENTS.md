@@ -374,19 +374,79 @@ The codebase is organized into focused modules in lisp/:
 - Use pcase for pattern matching (cleaner than cond)
 - Prefer seq-* functions over cl-* for sequence operations
 
-### Adding New Commands
+### Adding New Commands (EIEIO Pattern)
 
-When adding a new bd command:
-1. Add command execution to appropriate module or create new one
-2. Add transient menu if interactive (see beads-create.el as template)
-3. Add autoload to beads.el if it's a public entry point
-4. Add comprehensive tests (>80% coverage target)
-5. **Run all checks (test, lint, compile) - ALL MUST PASS**
-6. Update README.md if user-facing
-7. Add keybinding to beads-main.el or relevant mode-map
+When adding a new bd command, use the EIEIO command pattern with
+automatic transient generation. Reference implementation:
+`beads-command-doctor.el` + `beads-doctor.el`.
 
-**Remember**: After implementing, you MUST run and pass all three
-checks (test, lint, compile) before the work is considered complete.
+**Step 1: Create Command Class** (lisp/beads-command-<name>.el)
+
+```elisp
+(require 'beads-command)
+
+(defclass beads-command-<name> (beads-command-json)
+  ((option-name
+    :initarg :option-name
+    :type (or null string)
+    :initform nil
+    :documentation "Description of the option."
+    :long-option "--option-name"
+    :option-type :string
+    :transient-key "o"
+    :transient-description "Option label"
+    :transient-class transient-option
+    :transient-argument "--option-name="
+    :transient-group "Options"
+    :transient-level 2
+    :transient-order 1))
+  :documentation "Command description.")
+
+(cl-defmethod beads-command-subcommand ((_cmd beads-command-<name>))
+  "<name>")
+
+(cl-defmethod beads-command-validate ((cmd beads-command-<name>))
+  ;; Return error string or nil if valid
+  nil)
+
+(provide 'beads-command-<name>)
+```
+
+**Step 2: Create Transient Interface** (lisp/beads-<name>.el)
+
+```elisp
+(require 'beads-command-<name>)
+(require 'beads-meta)
+(require 'beads-option)
+
+;;;###autoload (autoload 'beads-<name> "beads-<name>" nil t)
+(beads-meta-define-transient beads-command-<name> "beads-<name>"
+  "Command description for transient menu."
+  beads-option-global-section)
+
+(provide 'beads-<name>)
+```
+
+**Step 3: Complete Setup**
+1. Add autoload to beads.el if public entry point
+2. Add keybinding to beads-main.el or relevant mode-map
+3. Add comprehensive tests (>80% coverage target)
+4. **Run all checks (test, lint, compile) - ALL MUST PASS**
+5. Update README.md if user-facing
+
+**Slot Metadata Reference:**
+- `:long-option` / `:short-option` - CLI flags
+- `:option-type` - :boolean or :string
+- `:positional` - For positional arguments (1, 2, etc.)
+- `:transient-key` - Keyboard shortcut
+- `:transient-description` - Menu label
+- `:transient-class` - transient-switch or transient-option
+- `:transient-argument` - CLI argument (with = for options)
+- `:transient-group` - Menu section name
+- `:transient-level` - Visibility level (2=basic, 3=advanced, 4=expert)
+- `:transient-order` - Order within group
+- `:transient-choices` - List of valid choices
+- `:transient-prompt` - User input prompt
 
 ### Testing Requirements
 
@@ -397,39 +457,8 @@ checks (test, lint, compile) before the work is considered complete.
 - Test both success and error paths
 - Target >80% code coverage for core modules
 - Use descriptive test names: beads-<module>-<function>-<scenario>
-- **Tests must pass (921/921) before committing any code**
+- **Tests must pass before committing any code**
 - Run: `guix shell -D -f guix.scm -- eldev -p -dtT test`
-
-### Transient Menu Patterns
-
-Follow this pattern for new transient menus (based on
-beads-create.el):
-
-```elisp
-;; State variables (reset after execution)
-(defvar beads-cmd--param nil)
-
-;; Reset function
-(defun beads-cmd--reset-state () ...)
-
-;; Validation functions (return error string or nil)
-(defun beads-cmd--validate-param () ...)
-(defun beads-cmd--validate-all () ...)
-
-;; Build command arguments
-(defun beads-cmd--build-command-args () ...)
-
-;; Infix commands (set state variables)
-(transient-define-infix beads-cmd--infix-param () ...)
-
-;; Suffix commands (execute, preview, reset)
-(transient-define-suffix beads-cmd--execute () ...)
-(transient-define-suffix beads-cmd--preview () :transient t ...)
-(transient-define-suffix beads-cmd--reset () :transient t ...)
-
-;; Main menu
-(transient-define-prefix beads-cmd () ...)
-```
 
 ### Common Gotchas
 
