@@ -824,7 +824,7 @@ The autoload form parameters are:
   - Symbol name (must match PREFIX)
   - File name (without .el extension)
   - nil (docstring will be loaded from the actual definition)
-  - t (marks function as interactive for M-x)
+  - t (marks function as interactive)
 
 Example (complete):
   ;;;###autoload (autoload \\='beads-create \"beads-create\" nil t)
