@@ -739,7 +739,7 @@ The log format is compatible with `log-view-mode':
                     :type 'user-error))))
 
 (ert-deftest beads-test-check-executable-error-message ()
-  "Test error message when executable is not found."
+  "Test error message when executable is not found includes installation info."
   ;; Mock executable-find to return nil
   (cl-letf (((symbol-function 'executable-find)
              (lambda (_name) nil)))
@@ -747,8 +747,13 @@ The log format is compatible with `log-view-mode':
       (condition-case err
           (beads-check-executable)
         (user-error
-         (should (string-match-p "Cannot find bd executable: custom-bd"
-                                 (error-message-string err))))))))
+         (let ((msg (error-message-string err)))
+           ;; Should include the executable name
+           (should (string-match-p "custom-bd" msg))
+           ;; Should include installation URL
+           (should (string-match-p "https://github.com/steveyegge/beads" msg))
+           ;; Should mention beads-executable variable
+           (should (string-match-p "beads-executable" msg))))))))
 
 (ert-deftest beads-test-check-executable-uses-custom-path ()
   "Test that beads-check-executable uses custom executable path."
