@@ -281,62 +281,10 @@ When executed with :json t, returns list of beads-issue instances.")
   "Return \"ready\" as the CLI subcommand name."
   "ready")
 
-(cl-defmethod beads-command-line ((command beads-command-ready))
-  "Build command arguments for ready COMMAND (without executable).
-Returns list: (\"ready\" ...global-flags... ...flags...).
-
-Note: This custom implementation is needed because list options
-like --label need to be repeated for each value, not joined."
-  (with-slots (assignee include-deferred issue-type label label-any
-                        limit mol mol-type parent pretty priority
-                        sort unassigned json) command
-    (let ((args (list "ready"))
-          (global-args (cl-call-next-method)))
-      ;; Append global flags (includes --json if enabled)
-      (setq args (append args global-args))
-
-      ;; Add --json if enabled (not handled by global-args for this class)
-      (when json
-        (setq args (append args (list "--json"))))
-
-      ;; Boolean flags
-      (when include-deferred
-        (setq args (append args (list "--include-deferred"))))
-      (when pretty
-        (setq args (append args (list "--pretty"))))
-      (when unassigned
-        (setq args (append args (list "--unassigned"))))
-
-      ;; String options
-      (when assignee
-        (setq args (append args (list "--assignee" assignee))))
-      (when issue-type
-        (setq args (append args (list "--type" issue-type))))
-      (when mol
-        (setq args (append args (list "--mol" mol))))
-      (when mol-type
-        (setq args (append args (list "--mol-type" mol-type))))
-      (when parent
-        (setq args (append args (list "--parent" parent))))
-      (when sort
-        (setq args (append args (list "--sort" sort))))
-
-      ;; Integer options
-      (when limit
-        (setq args (append args (list "--limit" (number-to-string limit)))))
-      (when priority
-        (setq args (append args (list "--priority"
-                                      (number-to-string priority)))))
-
-      ;; List options (multiple values - repeat the flag for each)
-      (when label
-        (dolist (lbl label)
-          (setq args (append args (list "--label" lbl)))))
-      (when label-any
-        (dolist (lbl label-any)
-          (setq args (append args (list "--label-any" lbl)))))
-
-      args)))
+;; Note: Manual beads-command-line method removed - now uses automatic
+;; generation from slot metadata via beads-command-json base class.
+;; List options (--label, --label-any) are correctly handled by repeating
+;; the flag for each value.
 
 (cl-defmethod beads-command-validate ((command beads-command-ready))
   "Validate ready COMMAND.

@@ -343,7 +343,11 @@ SEPARATOR is used for :list type (default \",\").
 Returns a string or nil if value should not be included."
   (pcase option-type
     (:boolean (if value t nil))  ; Return t for truthy, nil for falsy
-    (:integer (when value (number-to-string value)))
+    (:integer (when value
+                (cond
+                 ((integerp value) (number-to-string value))
+                 ((stringp value) value)  ; Already a string, use as-is
+                 (t (format "%s" value)))))  ; Convert other types
     (:list (when (and value (listp value) (not (null value)))
              (mapconcat (lambda (v) (if (stringp v) v (format "%s" v)))
                         value
@@ -399,7 +403,11 @@ Slots without :long-option, :short-option, or :positional are skipped."
                        ((eq option-type :boolean)
                         (when formatted
                           (push (list opt-name) named-args)))
-                       ;; Option with value
+                       ;; List option with nil separator - repeat flag for each value
+                       ((and formatted (eq option-type :list) (null separator))
+                        (dolist (val (split-string formatted ","))
+                          (push (list opt-name val) named-args)))
+                       ;; Regular option with value (includes lists with separator)
                        (formatted
                         (push (list opt-name formatted) named-args))))))))
     ;; Build final argument list
