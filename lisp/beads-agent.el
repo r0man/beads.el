@@ -1182,7 +1182,7 @@ BACKEND-NAME is the optional backend to use."
   ;; Create worktree using bd command
   (condition-case err
       (let* ((result (beads-command-worktree-create!
-                      worktree-name
+                      :name worktree-name
                       :branch (unless (equal worktree-name issue-id)
                                 worktree-name)))
              (worktree-path (oref result path)))

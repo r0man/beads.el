@@ -66,6 +66,43 @@
 (defvar compilation-filter-start)
 (declare-function ansi-color-apply-on-region "ansi-color")
 
+;;; ============================================================
+;;; Command Definition Macro
+;;; ============================================================
+
+(defmacro beads-defcommand (name superclasses slots &rest options)
+  "Define a beads command class with auto-generated ! convenience function.
+
+NAME is the class name (a symbol like `beads-command-foo').
+SUPERCLASSES is the list of parent classes.
+SLOTS is the list of slot definitions.
+OPTIONS are additional class options like :documentation.
+
+This macro:
+1. Defines the class using `defclass'
+2. Generates a NAME! convenience function that executes the command
+   and returns the data slot
+
+Example:
+  (beads-defcommand beads-command-foo (beads-command-json)
+    ((name :initarg :name)
+     (force :initarg :force :type boolean))
+    :documentation \"Foo command.\")
+
+This generates:
+  (defclass beads-command-foo ...)
+  (defun beads-command-foo! (&rest args) ...)
+
+Usage:
+  (beads-command-foo! :name \"test\" :force t)"
+  (declare (indent 2))
+  (let ((bang-fn (intern (concat (symbol-name name) "!"))))
+    `(progn
+       (defclass ,name ,superclasses ,slots ,@options)
+       (defun ,bang-fn (&rest args)
+         ,(format "Execute %s and return result data.\n\nARGS are passed to the constructor." name)
+         (oref (beads-command-execute (apply #',name args)) data)))))
+
 ;;; Terminal Backend Customization
 
 (defgroup beads-terminal nil
