@@ -172,6 +172,7 @@ The root transient menu provides access to all beads.el commands:
 - `e` - Export to JSONL (`beads-export`)
 - `i` - Import from JSONL (`beads-import`)
 - `I` - Initialize beads project (`beads-init`)
+- `W` - Worktree management (`beads-worktree-menu`)
 
 ### Issue List Mode
 
@@ -448,6 +449,8 @@ Full example with customization and keybindings:
 | `beads-export` | `e`         | Main menu  | Export to JSONL       |
 | `beads-import` | `i`         | Main menu  | Import from JSONL     |
 | `beads-init`   | `I`         | Main menu  | Initialize project    |
+| `beads-worktree-menu` | `W`  | Main menu  | Worktree management   |
+| `beads-agent-sling` | `w`    | Agent menu | Sling to worktree     |
 
 Within list/show buffers:
 - `n` / `p` - Navigate
@@ -553,6 +556,7 @@ The agent transient menu (`M-x beads-agent`) provides:
 
 **Agent Actions:**
 - `s` - Start agent on issue
+- `w` - Sling to worktree (flexible agent assignment)
 - `S` - Stop agent session
 - `j` - Jump to agent buffer
 - `p` - Send prompt to agent
@@ -617,6 +621,94 @@ To use AI agents, you need:
 1. Install claude-code-ide.el package
 2. Install Claude Code CLI: `npm install -g @anthropic-ai/claude-code`
 3. Ensure `claude` command is in your PATH
+
+### Sling Workflow
+
+The **sling** workflow (`M-x beads-agent-sling` or `w` from agent menu) provides
+flexible agent assignment to worktrees. This enables parallel development with
+multiple agents working in isolated worktrees.
+
+**Workflow Options:**
+- **New Worktree**: Create a new worktree and start an agent there
+- **Existing Worktree**: Start an agent in a pre-existing worktree
+
+**Menu Options:**
+- `N` - Select "New worktree" mode
+- `E` - Select "Existing worktree" mode
+- `i` - Set issue (optional - agent can work without specific issue)
+- `n` - Set worktree name (defaults to issue ID if set)
+- `e` - Select existing worktree from list
+- `b` - Select backend
+- `x` - Execute sling (start agent)
+- `v` - Preview configuration
+- `R` - Reset all fields
+
+**Example: Sling issue to new worktree:**
+1. `M-x beads-agent-sling` (or `w` from agent menu)
+2. Press `i` and select an issue (e.g., `beads.el-42`)
+3. Press `N` to select "New worktree" mode (name auto-defaults to issue ID)
+4. Press `x` to create worktree and start agent
+
+**Example: Sling to existing worktree:**
+1. `M-x beads-agent-sling`
+2. Press `E` to select "Existing worktree" mode
+3. Press `e` and select a worktree from the completion list
+4. Optionally press `i` to associate with an issue
+5. Press `x` to start agent in the selected worktree
+
+## Worktree Management
+
+beads.el provides a transient menu for managing git worktrees with beads
+integration. Worktrees allow multiple working directories sharing the same git
+repository, enabling parallel development.
+
+### Worktree Menu (`M-x beads-worktree-menu`)
+
+Access via `M-x beads-worktree-menu` or `W` from the main beads menu.
+
+**Create Worktree:**
+- `-n` - Worktree name (completion suggests issue IDs)
+- `-b` - Branch name (optional, defaults to worktree name)
+
+**Remove Worktree:**
+- `-t` - Target worktree to remove
+- `-f` - Force removal (skip safety checks)
+
+**Actions:**
+- `c` - Create worktree
+- `l` - List all worktrees
+- `r` - Remove worktree
+- `i` - Info about current worktree
+
+### Worktree List Mode
+
+The `l` command opens a tabulated list showing all worktrees:
+
+| Column | Description |
+|--------|-------------|
+| Name | Worktree name |
+| Branch | Git branch |
+| State | Beads state (shared/redirect/none) |
+| Main | Whether this is the main repository |
+| Path | Filesystem path |
+
+**Keybindings in list:**
+- `RET` - Show worktree info
+- `d` - Remove worktree at point
+- `g` - Refresh list
+- `c` - Create new worktree
+- `q` - Quit
+
+### Beads State
+
+When creating worktrees via `bd worktree create`, beads automatically sets up
+a redirect file so all worktrees share the same `.beads` database:
+
+- **shared**: Main repository with the actual `.beads` directory
+- **redirect**: Worktree with `.beads/redirect` pointing to main repo
+- **none**: Directory without beads integration
+
+This ensures consistent issue state across all worktrees.
 
 ## Troubleshooting
 
@@ -704,6 +796,11 @@ lisp/
 ├── beads-update.el               # Update transient
 ├── beads-misc.el                 # Misc transients (close/dep/stats/etc)
 ├── beads-main.el                 # Root transient menu
+├── beads-agent.el                # AI agent integration
+├── beads-worktree.el             # Worktree management transient
+├── beads-command-worktree.el     # EIEIO classes for bd worktree
+├── beads-completion.el           # Completion tables and helpers
+├── beads-reader.el               # Reader functions for transient infixes
 ├── Makefile                      # Test runner
 └── test/
     ├── beads-test.el             # Core functionality tests
@@ -714,7 +811,9 @@ lisp/
     ├── beads-update-test.el      # Update transient tests
     ├── beads-close-test.el       # Close transient tests
     ├── beads-main-test.el        # Main menu tests
-    └── beads-misc-test.el        # Misc commands tests
+    ├── beads-misc-test.el        # Misc commands tests
+    ├── beads-agent-test.el       # Agent integration tests
+    └── beads-worktree-test.el    # Worktree menu tests
 ```
 
 ### Key Design Patterns
@@ -760,11 +859,11 @@ eldev test --coverage
 
 ### Test Coverage
 
-- **Total tests:** 883
+- **Total tests:** 2889
 - **Overall coverage:** >75%
 - **Core modules:** >80%
 - **UI modules:** >70%
-- **Eldoc module:** >85%
+- **Agent modules:** >80%
 
 All tests use mocking to avoid requiring a real bd database.
 
