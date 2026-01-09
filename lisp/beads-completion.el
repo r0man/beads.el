@@ -355,5 +355,158 @@ for matching on both backend name and description."
     (completing-read prompt (beads-completion-backend-table)
                      predicate require-match initial-input history default)))
 
+;;; Worktree Completion Support
+
+(defvar beads-completion--worktree-cache nil
+  "Cache for worktree list.  Format: (TIMESTAMP . WORKTREES-LIST).")
+
+(defvar beads-completion--worktree-cache-ttl 5
+  "Time-to-live for worktree completion cache in seconds.")
+
+(defun beads-completion--get-cached-worktrees ()
+  "Get cached worktree list, refreshing if stale.
+On fetch failure, returns previous cached data (if any) with a warning."
+  (let ((now (float-time)))
+    (when (or (null beads-completion--worktree-cache)
+              (> (- now (car beads-completion--worktree-cache))
+                 beads-completion--worktree-cache-ttl))
+      (condition-case err
+          (progn
+            (require 'beads-command-worktree)
+            (setq beads-completion--worktree-cache
+                  (cons now (beads-command-worktree-list!))))
+        (error
+         ;; Keep existing cache data on error (stale data is better than none)
+         ;; Only show warning if we have stale data to return
+         (when beads-completion--worktree-cache
+           (message "Warning: Failed to refresh worktrees: %s (using cached data)"
+                    (error-message-string err))))))
+    (cdr beads-completion--worktree-cache)))
+
+(defun beads-completion-invalidate-worktree-cache ()
+  "Invalidate the worktree completion cache."
+  (setq beads-completion--worktree-cache nil))
+
+(defun beads-completion-worktree-table ()
+  "Return completion table for worktree names with branch and state annotations.
+This table provides metadata for rich completion experiences with Vertico,
+Ivy, or other completion frameworks.
+
+The completion category is `beads-worktree', which allows marginalia
+to automatically use the annotation function.  The custom completion
+style allows matching on worktree name, branch, or beads state."
+  (lambda (string pred action)
+    (if (eq action 'metadata)
+        '(metadata
+          (category . beads-worktree)
+          (annotation-function . beads-completion--worktree-annotate)
+          (group-function . beads-completion--worktree-group))
+      (let ((worktrees (beads-completion--get-cached-worktrees)))
+        (complete-with-action
+         action
+         (mapcar (lambda (wt)
+                   (propertize (oref wt name)
+                               'beads-worktree wt
+                               'beads-branch (oref wt branch)
+                               'beads-state (oref wt beads-state)
+                               'beads-is-main (oref wt is-main)))
+                 worktrees)
+         string pred)))))
+
+(defun beads-completion--worktree-annotate (candidate)
+  "Annotate worktree CANDIDATE with branch and beads state.
+Returns a string like \" [main] shared - /path/to/worktree\"."
+  (condition-case nil
+      (let ((worktree (get-text-property 0 'beads-worktree candidate)))
+        (when worktree
+          (let ((branch (oref worktree branch))
+                (state (oref worktree beads-state))
+                (is-main (oref worktree is-main))
+                (path (oref worktree path)))
+            (concat
+             (when branch
+               (format " [%s]" (propertize branch 'face 'font-lock-keyword-face)))
+             (format " %s"
+                     (propertize (or state "none")
+                                 'face (pcase state
+                                         ("shared" 'success)
+                                         ("redirect" 'font-lock-type-face)
+                                         ("local" 'warning)
+                                         (_ 'shadow))))
+             (when is-main
+               (format " %s" (propertize "(main)" 'face 'font-lock-constant-face)))
+             (when path
+               (format " - %s" (beads-completion--truncate-string path 40)))))))
+    (error "")))
+
+(defun beads-completion--worktree-group (candidate transform)
+  "Group worktree CANDIDATE by beads state.
+If TRANSFORM is non-nil, return CANDIDATE unchanged.
+Otherwise, return the group name (\"Shared\", \"Redirect\", \"Local\", or \"None\")."
+  (if transform
+      candidate
+    (let ((state (get-text-property 0 'beads-state candidate)))
+      (pcase state
+        ("shared" "Shared (Main Repository)")
+        ("redirect" "Redirect (Linked Worktrees)")
+        ("local" "Local (Independent)")
+        (_ "None (No Beads)")))))
+
+;;; Worktree Completion Style
+
+(defun beads-completion--worktree-style-try (string table pred point)
+  "Try completion of STRING with worktree-aware matching.
+TABLE is the completion table, PRED is the predicate, POINT is the position.
+Return nil if no matches, t if STRING is exact unique match, single match
+string if only one match, or STRING itself if multiple matches."
+  (let ((matches (beads-completion--worktree-style-all string table pred point)))
+    (cond
+     ((null matches) nil)
+     ((and (= (length matches) 1)
+           (string= string (substring-no-properties (car matches))))
+      t)
+     ((= (length matches) 1)
+      ;; Return plain string - properties cause issues with completion machinery
+      (substring-no-properties (car matches)))
+     (t string))))  ;; Multiple matches - return input unchanged
+
+(defun beads-completion--worktree-style-all (string table pred point)
+  "Return worktree completions matching STRING against name, branch, or state.
+TABLE is the completion table, PRED is the predicate, POINT is ignored."
+  (ignore point)
+  (let* ((all (all-completions "" table pred))
+         (pattern (regexp-quote string))
+         (case-fold-search t))
+    ;; Keep text properties - needed for annotation and grouping functions
+    (seq-filter
+     (lambda (candidate)
+       (let ((branch (get-text-property 0 'beads-branch candidate))
+             (state (get-text-property 0 'beads-state candidate)))
+         (or (string-match-p pattern candidate)
+             (and branch (string-match-p pattern branch))
+             (and state (string-match-p pattern state)))))
+     all)))
+
+;; Add worktree completion style (idempotent - won't duplicate)
+(unless (assq 'beads-worktree-name completion-styles-alist)
+  (add-to-list 'completion-styles-alist
+               '(beads-worktree-name
+                 beads-completion--worktree-style-try
+                 beads-completion--worktree-style-all
+                 "Match beads worktree by name, branch, or state.")))
+
+(defun beads-completion-read-worktree (prompt &optional predicate require-match
+                                               initial-input history default)
+  "Read a worktree name with branch and state-aware completion.
+PROMPT is the prompt string.  PREDICATE, REQUIRE-MATCH, INITIAL-INPUT,
+HISTORY, and DEFAULT are passed to `completing-read'.
+This function enables the custom `beads-worktree-name' completion style
+for matching on worktree name, branch, or beads state."
+  (let ((completion-category-overrides
+         (cons '(beads-worktree (styles beads-worktree-name basic))
+               completion-category-overrides)))
+    (completing-read prompt (beads-completion-worktree-table)
+                     predicate require-match initial-input history default)))
+
 (provide 'beads-completion)
 ;;; beads-completion.el ends here
