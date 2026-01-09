@@ -35,7 +35,7 @@
 
 ;;; Ready Command
 
-(defclass beads-command-ready (beads-command-json)
+(beads-defcommand beads-command-ready (beads-command-json)
   ((assignee
     :initarg :assignee
     :type (or null string)
@@ -378,14 +378,6 @@ Does not modify command slots."
                          :parsed-json parsed-json
                          :stderr (oref command stderr)
                          :parse-error err))))))))
-
-;;; Convenience Function
-
-(defun beads-command-ready! (&rest args)
-  "Create and execute a beads-command-ready with ARGS.
-Returns a list of parsed issue objects.
-See `beads-command-ready' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-ready args)) data))
 
 (provide 'beads-command-ready)
 ;;; beads-command-ready.el ends here

@@ -750,7 +750,7 @@ Returns process object."
 
 ;;; Init Command
 
-(defclass beads-command-init (beads-command)
+(beads-defcommand beads-command-init (beads-command)
   ((branch
     :initarg :branch
     :type (or null string)
@@ -826,7 +826,7 @@ Returns error string or nil if valid."
 
 ;;; Quickstart Command
 
-(defclass beads-command-quickstart (beads-command)
+(beads-defcommand beads-command-quickstart (beads-command)
   ()
   :documentation "Represents bd quickstart command.
 Displays a quick start guide showing common bd workflows and patterns.
@@ -849,7 +849,7 @@ Returns nil (always valid)."
 
 ;;; Export Command
 
-(defclass beads-command-export (beads-command-json)
+(beads-defcommand beads-command-export (beads-command-json)
   ((force
     :initarg :force
     :type boolean
@@ -936,7 +936,7 @@ Does not modify command slots."
 
 ;;; Import Command
 
-(defclass beads-command-import (beads-command-json)
+(beads-defcommand beads-command-import (beads-command-json)
   ((json
     :initarg :json
     :type boolean
@@ -1079,7 +1079,7 @@ Does not modify command slots."
 
 ;;; List Command
 
-(defclass beads-command-list (beads-command-json)
+(beads-defcommand beads-command-list (beads-command-json)
   ((status
     :initarg :status
     :type (or null string)
@@ -1704,7 +1704,7 @@ Does not modify command slots."
 
 ;;; Create Command
 
-(defclass beads-command-create (beads-command-json)
+(beads-defcommand beads-command-create (beads-command-json)
   ((title
     :initarg :title
     :type (or null string)
@@ -2171,7 +2171,7 @@ Overrides default `compilation-mode' behavior with issue-specific UX."
 
 ;;; Epic Commands
 
-(defclass beads-command-epic-close-eligible (beads-command-json)
+(beads-defcommand beads-command-epic-close-eligible (beads-command-json)
   ((dry-run
     :initarg :dry-run
     :type boolean
@@ -2206,7 +2206,7 @@ Default implementation returns nil (valid)."
 
 ;; No custom parse needed for epic-close-eligible - uses parent JSON parse
 
-(defclass beads-command-epic-status (beads-command-json)
+(beads-defcommand beads-command-epic-status (beads-command-json)
   ((eligible-only
     :initarg :eligible-only
     :type boolean
@@ -2278,7 +2278,7 @@ Does not modify command slots."
 
 ;;; Show Command
 
-(defclass beads-command-show (beads-command-json)
+(beads-defcommand beads-command-show (beads-command-json)
   ((issue-ids
     :initarg :issue-ids
     :type (or null list)
@@ -2375,7 +2375,7 @@ Overrides default `compilation-mode' behavior."
 
 ;;; Update Command
 
-(defclass beads-command-update (beads-command-json)
+(beads-defcommand beads-command-update (beads-command-json)
   ((issue-ids
     :initarg :issue-ids
     :type (or null list)
@@ -2666,7 +2666,7 @@ Overrides default `compilation-mode' behavior."
 
 ;;; Close Command
 
-(defclass beads-command-close (beads-command-json)
+(beads-defcommand beads-command-close (beads-command-json)
   ((issue-ids
     :initarg :issue-ids
     :type (or null list)
@@ -2803,7 +2803,7 @@ Overrides default `compilation-mode' behavior."
 
 ;;; Reopen Command
 
-(defclass beads-command-reopen (beads-command-json)
+(beads-defcommand beads-command-reopen (beads-command-json)
   ((issue-ids
     :initarg :issue-ids
     :type (or null list)
@@ -2913,7 +2913,7 @@ Does not modify command slots."
 
 ;;; Delete Command
 
-(defclass beads-command-delete (beads-command-json)
+(beads-defcommand beads-command-delete (beads-command-json)
   ((issue-id
     :initarg :issue-id
     :type (or null string)
@@ -2957,12 +2957,6 @@ Returns error string or nil if valid."
     (when (or (null issue-id) (string-empty-p issue-id))
       "Must provide an issue ID")))
 
-(defun beads-command-delete! (&rest args)
-  "Create and execute a beads-command-delete with ARGS.
-Returns the parsed JSON result (deleted issue).
-See `beads-command-delete' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-delete args)) data))
-
 ;; Ready Command: See beads-command-ready.el for the class definition.
 ;; The require is at the end of this file to avoid circular dependencies.
 
@@ -2971,7 +2965,7 @@ See `beads-command-delete' for available arguments."
 
 ;;; Stats Command
 
-(defclass beads-command-stats (beads-command-json)
+(beads-defcommand beads-command-stats (beads-command-json)
   ()
   :documentation "Represents bd stats command.
 Shows statistics about the issue database.
@@ -2995,7 +2989,7 @@ Default implementation returns nil (valid)."
 
 ;;; Dep Add Command
 
-(defclass beads-command-dep-add (beads-command-json)
+(beads-defcommand beads-command-dep-add (beads-command-json)
   ((issue-id
     :initarg :issue-id
     :type (or null string)
@@ -3059,7 +3053,7 @@ Returns error string or nil if valid."
 
 ;;; Dep Remove Command
 
-(defclass beads-command-dep-remove (beads-command-json)
+(beads-defcommand beads-command-dep-remove (beads-command-json)
   ((issue-id
     :initarg :issue-id
     :type (or null string)
@@ -3136,7 +3130,7 @@ Returns error string or nil if valid."
 
 ;;; Dep Tree Command
 
-(defclass beads-command-dep-tree (beads-command-json)
+(beads-defcommand beads-command-dep-tree (beads-command-json)
   ((issue-id
     :initarg :issue-id
     :type (or null string)
@@ -3343,7 +3337,7 @@ Returns error string or nil if valid."
 
 ;;; Dep Cycles Command
 
-(defclass beads-command-dep-cycles (beads-command-json)
+(beads-defcommand beads-command-dep-cycles (beads-command-json)
   ()
   :documentation "Represents bd dep cycles command.
 Detects dependency cycles in the issue database.
@@ -3367,7 +3361,7 @@ Default implementation returns nil (valid)."
 
 ;;; Label List-All Command
 
-(defclass beads-command-label-list-all (beads-command-json)
+(beads-defcommand beads-command-label-list-all (beads-command-json)
   ()
   :documentation "Represents bd label list-all command.
 Shows all labels with usage counts.
@@ -3391,7 +3385,7 @@ Default implementation returns nil (valid)."
 
 ;;; Label Add Command
 
-(defclass beads-command-label-add (beads-command-json)
+(beads-defcommand beads-command-label-add (beads-command-json)
   ((issue-ids
     :initarg :issue-ids
     :type (or null list)
@@ -3445,7 +3439,7 @@ Returns error string or nil if valid."
 
 ;;; Label Remove Command
 
-(defclass beads-command-label-remove (beads-command-json)
+(beads-defcommand beads-command-label-remove (beads-command-json)
   ((issue-ids
     :initarg :issue-ids
     :type (or null list)
@@ -3529,7 +3523,7 @@ Returns error string or nil if valid."
 
 ;;; Label List Command
 
-(defclass beads-command-label-list (beads-command-json)
+(beads-defcommand beads-command-label-list (beads-command-json)
   ((issue-id
     :initarg :issue-id
     :type (or null string)
@@ -3603,139 +3597,6 @@ Plus global flags:
   :actor, :db, :no-auto-flush, :no-auto-import,
   :no-daemon, :no-db, :sandbox"
   (apply #'beads-command-init options))
-
-;;; Execute Helper Functions
-
-(defun beads-command-init! (&rest args)
-  "Create and execute a beads-command-init with ARGS.
-Returns the stdout string (init output).
-See `beads-command-init' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-init args)) data))
-
-(defun beads-command-quickstart! (&rest args)
-  "Create and execute a beads-command-quickstart with ARGS.
-Returns the stdout string (quickstart guide text).
-See `beads-command-quickstart' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-quickstart args)) data))
-
-(defun beads-command-export! (&rest args)
-  "Create and execute a beads-command-export with ARGS.
-When :json is t (default), returns parsed JSON export statistics.
-When :json is nil, returns raw stderr string.
-See `beads-command-export' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-export args)) data))
-
-(defun beads-command-import! (&rest args)
-  "Create and execute a beads-command-import with ARGS.
-Returns the stderr string (import output).
-NOTE: bd import does not currently output JSON stats, so :json defaults to nil.
-See `beads-command-import' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-import args)) data))
-
-(defun beads-command-create! (&rest args)
-  "Create and execute a beads-command-create with ARGS.
-Returns the parsed issue object.
-See `beads-command-create' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-create args)) data))
-
-(defun beads-command-list! (&rest args)
-  "Create and execute a beads-command-list with ARGS.
-Returns a list of parsed issue objects.
-See `beads-command-list' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-list args)) data))
-
-(defun beads-command-epic-close-eligible! (&rest args)
-  "Create and execute a beads-command-epic-close-eligible with ARGS.
-Returns the parsed JSON result (list of epic IDs or status objects).
-See `beads-command-epic-close-eligible' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-epic-close-eligible args)) data))
-
-(defun beads-command-epic-status! (&rest args)
-  "Create and execute a beads-command-epic-status with ARGS.
-Returns the parsed JSON result (list of epic status objects).
-See `beads-command-epic-status' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-epic-status args)) data))
-
-(defun beads-command-show! (&rest args)
-  "Create and execute a beads-command-show with ARGS.
-Returns the parsed issue object (or list of issue objects).
-See `beads-command-show' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-show args)) data))
-
-(defun beads-command-update! (&rest args)
-  "Create and execute a beads-command-update with ARGS.
-Returns the parsed issue object (or list of issue objects).
-See `beads-command-update' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-update args)) data))
-
-(defun beads-command-close! (&rest args)
-  "Create and execute a beads-command-close with ARGS.
-Returns the parsed issue object (or list of issue objects).
-See `beads-command-close' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-close args)) data))
-
-(defun beads-command-reopen! (&rest args)
-  "Create and execute a beads-command-reopen with ARGS.
-Returns the parsed issue object (or list of issue objects).
-See `beads-command-reopen' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-reopen args)) data))
-
-;; beads-command-ready! moved to beads-command-ready.el
-;; beads-command-blocked! moved to beads-command-blocked.el
-
-(defun beads-command-stats! (&rest args)
-  "Create and execute a beads-command-stats with ARGS.
-Returns the parsed JSON stats object.
-See `beads-command-stats' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-stats args)) data))
-
-(defun beads-command-dep-add! (&rest args)
-  "Create and execute a beads-command-dep-add with ARGS.
-Returns the parsed JSON result.
-See `beads-command-dep-add' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-dep-add args)) data))
-
-(defun beads-command-dep-remove! (&rest args)
-  "Create and execute a beads-command-dep-remove with ARGS.
-Returns the parsed JSON result.
-See `beads-command-dep-remove' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-dep-remove args)) data))
-
-(defun beads-command-dep-tree! (&rest args)
-  "Create and execute a beads-command-dep-tree with ARGS.
-Returns the parsed JSON tree structure.
-See `beads-command-dep-tree' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-dep-tree args)) data))
-
-(defun beads-command-dep-cycles! (&rest args)
-  "Create and execute a beads-command-dep-cycles with ARGS.
-Returns the parsed JSON with cycle information.
-See `beads-command-dep-cycles' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-dep-cycles args)) data))
-
-(defun beads-command-label-list-all! (&rest args)
-  "Create and execute a beads-command-label-list-all with ARGS.
-Returns the parsed JSON array of label objects.
-See `beads-command-label-list-all' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-label-list-all args)) data))
-
-(defun beads-command-label-add! (&rest args)
-  "Create and execute a beads-command-label-add with ARGS.
-Returns the parsed JSON result.
-See `beads-command-label-add' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-label-add args)) data))
-
-(defun beads-command-label-remove! (&rest args)
-  "Create and execute a beads-command-label-remove with ARGS.
-Returns the parsed JSON result.
-See `beads-command-label-remove' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-label-remove args)) data))
-
-(defun beads-command-label-list! (&rest args)
-  "Create and execute a beads-command-label-list with ARGS.
-Returns the parsed JSON array of label strings.
-See `beads-command-label-list' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-label-list args)) data))
 
 (provide 'beads-command)
 ;;; beads-command.el ends here
