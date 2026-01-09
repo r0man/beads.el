@@ -763,5 +763,332 @@ Annotation functions may return nil or empty string for missing data."
       (dolist (candidate candidates)
         (should (plist-member (text-properties-at 0 candidate) 'beads-description))))))
 
+;;; Worktree Completion Tests
+
+(defun beads-completion-test--make-mock-worktree (name path branch is-main beads-state)
+  "Create a mock beads-worktree object for testing.
+NAME is the worktree name, PATH is the worktree path, BRANCH is the branch,
+IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
+  (require 'beads-command-worktree)
+  (beads-worktree
+   :name name
+   :path path
+   :branch branch
+   :is-main is-main
+   :beads-state beads-state))
+
+(defun beads-completion-test--make-mock-worktrees ()
+  "Create a list of mock worktrees for testing."
+  (list
+   (beads-completion-test--make-mock-worktree
+    "beads.el" "/home/user/beads.el" "main" t "shared")
+   (beads-completion-test--make-mock-worktree
+    "feature-auth" "/home/user/worktrees/feature-auth" "feature/auth" nil "redirect")
+   (beads-completion-test--make-mock-worktree
+    "bugfix-login" "/home/user/worktrees/bugfix-login" "fix/login" nil "redirect")
+   (beads-completion-test--make-mock-worktree
+    "experiment" "/home/user/worktrees/experiment" "experiment" nil "none")))
+
+;;; Worktree Completion Table Tests
+
+(ert-deftest beads-completion-test-worktree-table-metadata ()
+  "Test that worktree completion table provides correct metadata."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees))))
+    (let* ((table (beads-completion-worktree-table))
+           (metadata (funcall table "" nil 'metadata)))
+      (should (eq 'metadata (car metadata)))
+      (should (eq 'beads-worktree (cdr (assq 'category metadata))))
+      (should (eq 'beads-completion--worktree-annotate
+                  (cdr (assq 'annotation-function metadata))))
+      (should (eq 'beads-completion--worktree-group
+                  (cdr (assq 'group-function metadata)))))))
+
+(ert-deftest beads-completion-test-worktree-table-candidates ()
+  "Test that worktree completion table returns all worktrees."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees))))
+    (let* ((table (beads-completion-worktree-table))
+           (candidates (all-completions "" table nil)))
+      (should (= 4 (length candidates)))
+      (should (member "beads.el" candidates))
+      (should (member "feature-auth" candidates))
+      (should (member "bugfix-login" candidates))
+      (should (member "experiment" candidates)))))
+
+(ert-deftest beads-completion-test-worktree-candidates-have-properties ()
+  "Test that worktree candidates have expected text properties."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees))))
+    (let* ((table (beads-completion-worktree-table))
+           (candidates (all-completions "" table nil)))
+      (dolist (candidate candidates)
+        (should (get-text-property 0 'beads-worktree candidate))
+        (should (plist-member (text-properties-at 0 candidate) 'beads-branch))
+        (should (plist-member (text-properties-at 0 candidate) 'beads-state))
+        (should (plist-member (text-properties-at 0 candidate) 'beads-is-main))))))
+
+(ert-deftest beads-completion-test-worktree-branch-property ()
+  "Test that beads-branch property contains the correct branch."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees))))
+    (let* ((table (beads-completion-worktree-table))
+           (candidates (all-completions "" table nil))
+           (main-candidate (seq-find (lambda (c) (string= "beads.el" c)) candidates))
+           (feature-candidate (seq-find (lambda (c) (string= "feature-auth" c)) candidates)))
+      (should main-candidate)
+      (should (string= "main" (get-text-property 0 'beads-branch main-candidate)))
+      (should feature-candidate)
+      (should (string= "feature/auth" (get-text-property 0 'beads-branch feature-candidate))))))
+
+(ert-deftest beads-completion-test-worktree-state-property ()
+  "Test that beads-state property contains the correct state."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees))))
+    (let* ((table (beads-completion-worktree-table))
+           (candidates (all-completions "" table nil))
+           (main-candidate (seq-find (lambda (c) (string= "beads.el" c)) candidates))
+           (redirect-candidate (seq-find (lambda (c) (string= "feature-auth" c)) candidates))
+           (none-candidate (seq-find (lambda (c) (string= "experiment" c)) candidates)))
+      (should (string= "shared" (get-text-property 0 'beads-state main-candidate)))
+      (should (string= "redirect" (get-text-property 0 'beads-state redirect-candidate)))
+      (should (string= "none" (get-text-property 0 'beads-state none-candidate))))))
+
+;;; Worktree Annotation Function Tests
+
+(ert-deftest beads-completion-test-worktree-annotate-format ()
+  "Test that worktree annotation returns expected format."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees))))
+    (let* ((table (beads-completion-worktree-table))
+           (candidates (all-completions "" table nil))
+           (main-candidate (seq-find (lambda (c) (string= "beads.el" c)) candidates))
+           (annotation (beads-completion--worktree-annotate main-candidate)))
+      (should annotation)
+      (should (string-match-p "\\[main\\]" annotation))
+      (should (string-match-p "shared" annotation))
+      (should (string-match-p "(main)" annotation))
+      (should (string-match-p "/home/user/beads.el" annotation)))))
+
+(ert-deftest beads-completion-test-worktree-annotate-redirect ()
+  "Test annotation for redirect worktree."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees))))
+    (let* ((table (beads-completion-worktree-table))
+           (candidates (all-completions "" table nil))
+           (redirect-candidate (seq-find (lambda (c) (string= "feature-auth" c)) candidates))
+           (annotation (beads-completion--worktree-annotate redirect-candidate)))
+      (should annotation)
+      (should (string-match-p "\\[feature/auth\\]" annotation))
+      (should (string-match-p "redirect" annotation))
+      ;; Should NOT have (main) marker
+      (should-not (string-match-p "(main)" annotation)))))
+
+(ert-deftest beads-completion-test-worktree-annotate-none-state ()
+  "Test annotation for worktree with no beads state."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees))))
+    (let* ((table (beads-completion-worktree-table))
+           (candidates (all-completions "" table nil))
+           (none-candidate (seq-find (lambda (c) (string= "experiment" c)) candidates))
+           (annotation (beads-completion--worktree-annotate none-candidate)))
+      (should annotation)
+      (should (string-match-p "none" annotation)))))
+
+(ert-deftest beads-completion-test-worktree-annotate-truncates-long-paths ()
+  "Test that annotation truncates paths longer than 40 characters."
+  (let* ((long-path "/home/user/very/long/path/to/worktree/directory/name")
+         (worktrees (list (beads-completion-test--make-mock-worktree
+                           "long-path-wt" long-path "main" nil "redirect")))
+         (beads-completion--worktree-cache (cons (float-time) worktrees)))
+    (let* ((table (beads-completion-worktree-table))
+           (candidates (all-completions "" table nil))
+           (annotation (beads-completion--worktree-annotate (car candidates))))
+      (should annotation)
+      (should (string-match-p "\\.\\.\\." annotation)))))
+
+(ert-deftest beads-completion-test-worktree-annotate-handles-nil ()
+  "Test that worktree annotation handles invalid input gracefully."
+  (should (null (beads-completion--worktree-annotate "nonexistent")))
+  (should (string= "" (beads-completion--worktree-annotate nil))))
+
+;;; Worktree Group Function Tests
+
+(ert-deftest beads-completion-test-worktree-group-by-state ()
+  "Test that grouping function groups by beads state correctly."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees))))
+    (let* ((table (beads-completion-worktree-table))
+           (candidates (all-completions "" table nil)))
+      (let ((shared-candidate (seq-find (lambda (c) (string= "beads.el" c)) candidates))
+            (redirect-candidate (seq-find (lambda (c) (string= "feature-auth" c)) candidates))
+            (none-candidate (seq-find (lambda (c) (string= "experiment" c)) candidates)))
+        (should (string= "Shared (Main Repository)"
+                         (beads-completion--worktree-group shared-candidate nil)))
+        (should (string= "Redirect (Linked Worktrees)"
+                         (beads-completion--worktree-group redirect-candidate nil)))
+        (should (string= "None (No Beads)"
+                         (beads-completion--worktree-group none-candidate nil)))))))
+
+(ert-deftest beads-completion-test-worktree-group-transform ()
+  "Test that group function returns candidate when transform is non-nil."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees))))
+    (let* ((table (beads-completion-worktree-table))
+           (candidates (all-completions "" table nil))
+           (candidate (car candidates)))
+      (should (string= candidate (beads-completion--worktree-group candidate t))))))
+
+;;; Worktree Completion Style Tests
+
+(ert-deftest beads-completion-test-worktree-style-match-name ()
+  "Test that worktree completion style matches on name."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees))))
+    (let* ((table (beads-completion-worktree-table))
+           (matches (beads-completion--worktree-style-all "feature-auth" table nil nil)))
+      (should (= 1 (length matches)))
+      (should (string= "feature-auth" (car matches))))))
+
+(ert-deftest beads-completion-test-worktree-style-match-branch ()
+  "Test that worktree completion style matches on branch."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees))))
+    (let* ((table (beads-completion-worktree-table))
+           (matches (beads-completion--worktree-style-all "feature/auth" table nil nil)))
+      (should (= 1 (length matches)))
+      (should (string= "feature-auth" (car matches))))))
+
+(ert-deftest beads-completion-test-worktree-style-match-state ()
+  "Test that worktree completion style matches on beads state."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees))))
+    (let* ((table (beads-completion-worktree-table))
+           (matches (beads-completion--worktree-style-all "redirect" table nil nil)))
+      ;; Should match both redirect worktrees
+      (should (= 2 (length matches)))
+      (should (member "feature-auth" matches))
+      (should (member "bugfix-login" matches)))))
+
+(ert-deftest beads-completion-test-worktree-style-case-insensitive ()
+  "Test that worktree matching is case-insensitive."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees))))
+    (let* ((table (beads-completion-worktree-table))
+           (matches-lower (beads-completion--worktree-style-all "shared" table nil nil))
+           (matches-upper (beads-completion--worktree-style-all "SHARED" table nil nil))
+           (matches-mixed (beads-completion--worktree-style-all "Shared" table nil nil)))
+      (should (= 1 (length matches-lower)))
+      (should (= 1 (length matches-upper)))
+      (should (= 1 (length matches-mixed)))
+      (should (string= "beads.el" (car matches-lower)))
+      (should (string= "beads.el" (car matches-upper)))
+      (should (string= "beads.el" (car matches-mixed))))))
+
+(ert-deftest beads-completion-test-worktree-style-no-match ()
+  "Test that worktree style returns empty list when no match."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees))))
+    (let* ((table (beads-completion-worktree-table))
+           (matches (beads-completion--worktree-style-all "nonexistent" table nil nil)))
+      (should (= 0 (length matches))))))
+
+(ert-deftest beads-completion-test-worktree-style-try-single-match ()
+  "Test try-completion returns single match when only one."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees))))
+    (let* ((table (beads-completion-worktree-table))
+           ;; Use partial match "experi" which uniquely matches "experiment"
+           (result (beads-completion--worktree-style-try "experi" table nil nil)))
+      (should (string= "experiment" result)))))
+
+(ert-deftest beads-completion-test-worktree-style-try-multiple-matches ()
+  "Test try-completion returns input string when multiple matches."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees))))
+    (let* ((table (beads-completion-worktree-table))
+           (result (beads-completion--worktree-style-try "redirect" table nil nil)))
+      (should (string= "redirect" result)))))
+
+(ert-deftest beads-completion-test-worktree-style-try-exact-match ()
+  "Test try-completion returns t for exact unique match."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees))))
+    (let* ((table (beads-completion-worktree-table))
+           (result (beads-completion--worktree-style-try "beads.el" table nil nil)))
+      (should (eq t result)))))
+
+(ert-deftest beads-completion-test-worktree-style-try-no-match ()
+  "Test try-completion returns nil when no match."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees))))
+    (let* ((table (beads-completion-worktree-table))
+           (result (beads-completion--worktree-style-try "nonexistent" table nil nil)))
+      (should (null result)))))
+
+(ert-deftest beads-completion-test-worktree-style-registered ()
+  "Test that beads-worktree-name completion style is registered."
+  (should (assq 'beads-worktree-name completion-styles-alist)))
+
+;;; Worktree Read Function Tests
+
+(ert-deftest beads-completion-test-read-worktree-uses-worktree-style ()
+  "Test that beads-completion-read-worktree enables worktree-aware completion."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees))))
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (prompt table &rest _args)
+                 ;; Verify category override is set
+                 (should (assq 'beads-worktree completion-category-overrides))
+                 ;; completion-category-overrides format: ((cat (styles ...)))
+                 (let ((override (cdr (assq 'beads-worktree completion-category-overrides))))
+                   (should (member '(styles beads-worktree-name basic) override)))
+                 "feature-auth")))
+      (should (string= "feature-auth" (beads-completion-read-worktree "Test: "))))))
+
+;;; Worktree Cache Tests
+
+(ert-deftest beads-completion-test-worktree-cache-invalidation ()
+  "Test that worktree cache can be invalidated."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees))))
+    (should beads-completion--worktree-cache)
+    (beads-completion-invalidate-worktree-cache)
+    (should (null beads-completion--worktree-cache))))
+
+(ert-deftest beads-completion-test-worktree-cache-preserved-on-error ()
+  "Test that stale worktree cache is preserved when refresh fails."
+  (let* ((mock-worktrees (beads-completion-test--make-mock-worktrees))
+         ;; Use an old timestamp so refresh is attempted
+         (beads-completion--worktree-cache (cons 0 mock-worktrees))
+         (message-shown nil))
+    (cl-letf (((symbol-function 'beads-command-worktree-list!)
+               (lambda ()
+                 (error "Connection failed")))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-shown (apply #'format fmt args)))))
+      ;; Get worktrees - should fail to refresh but return stale data
+      (let ((result (beads-completion--get-cached-worktrees)))
+        ;; Should return the stale cached worktrees
+        (should (= (length result) (length mock-worktrees)))
+        (should (equal (oref (car result) name) "beads.el"))
+        ;; Should show warning
+        (should message-shown)
+        (should (string-match "using cached data" message-shown))))))
+
+(ert-deftest beads-completion-test-worktree-nil-returned-when-no-cache-and-error ()
+  "Test that nil is returned when worktree refresh fails with no cache."
+  (let ((beads-completion--worktree-cache nil))
+    (cl-letf (((symbol-function 'beads-command-worktree-list!)
+               (lambda ()
+                 (error "Connection failed")))
+              ;; Suppress any messages
+              ((symbol-function 'message) #'ignore))
+      ;; Get worktrees - should fail to refresh with no stale data
+      (let ((result (beads-completion--get-cached-worktrees)))
+        ;; Should return nil since no cache available
+        (should (null result))))))
+
 (provide 'beads-completion-test)
 ;;; beads-completion-test.el ends here
