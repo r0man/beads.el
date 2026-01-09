@@ -568,14 +568,17 @@ Use this as parent class for commands that support --json flag.")
 (cl-defmethod beads-command-line ((command beads-command-json))
   "Build command arguments for JSON COMMAND using slot metadata.
 If `beads-command-subcommand' returns a subcommand name, builds:
-  (SUBCOMMAND ...global-flags... --json ...metadata-args...)
+  (SUBCOMMAND... ...global-flags... --json ...metadata-args...)
+Supports multi-word subcommands like \"worktree create\".
 Otherwise returns just global flags with --json (for abstract classes)."
   (with-slots (json) command
     (let* ((subcommand (beads-command-subcommand command))
            (global-args (cl-call-next-method))
            (args (if subcommand
                      ;; Use metadata-based building
-                     (append (list subcommand)
+                     ;; Split subcommand to handle multi-word commands
+                     ;; like "worktree create"
+                     (append (split-string subcommand)
                              global-args
                              (when json (list "--json"))
                              (beads-meta-build-command-line command))
