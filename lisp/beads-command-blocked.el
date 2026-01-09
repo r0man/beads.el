@@ -31,7 +31,7 @@
 
 ;;; Blocked Command
 
-(defclass beads-command-blocked (beads-command-json)
+(beads-defcommand beads-command-blocked (beads-command-json)
   ((parent
     :initarg :parent
     :type (or null string)
@@ -78,14 +78,6 @@ Does not modify command slots."
                          :parsed-json parsed-json
                          :stderr (oref command stderr)
                          :parse-error err))))))))
-
-;;; Convenience Function
-
-(defun beads-command-blocked! (&rest args)
-  "Create and execute a beads-command-blocked with ARGS.
-Returns a list of parsed issue objects.
-See `beads-command-blocked' for available arguments."
-  (oref (beads-command-execute (apply #'beads-command-blocked args)) data))
 
 (provide 'beads-command-blocked)
 ;;; beads-command-blocked.el ends here
