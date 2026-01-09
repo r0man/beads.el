@@ -35,6 +35,10 @@
 
 (require 'cl-lib)
 
+;; Soft dependency on beads-command-worktree for bd worktree integration
+(declare-function beads-command-worktree-create! "beads-command-worktree")
+(declare-function beads-command-worktree-list! "beads-command-worktree")
+
 ;;; Forward Declarations
 
 ;; Customization variables defined elsewhere
@@ -100,6 +104,42 @@ Returns the main repository path, or nil if not in a worktree or on error."
               ;; git-common-dir is the .git directory, we need its parent
               (file-name-directory
                (directory-file-name (expand-file-name git-common-dir))))))))))
+
+;;; BD Worktree Support
+;;
+;; The `bd worktree` command provides worktree management with automatic
+;; beads database redirect setup.  When available, we prefer it over
+;; direct git commands.
+
+(defvar beads-git--bd-worktree-available nil
+  "Cached result of bd worktree availability check.
+nil means unchecked, t means available, \\='unavailable means not available.")
+
+(defvar beads-executable)  ; Forward declare from beads.el
+
+(defun beads-git-bd-worktree-available-p ()
+  "Check if bd worktree commands are available.
+Caches the result for performance.  Returns t if bd supports worktree
+commands, nil otherwise."
+  (pcase beads-git--bd-worktree-available
+    ('t t)
+    ('unavailable nil)
+    (_
+     ;; Check by running `bd worktree list --help` or similar
+     (let ((available
+            (condition-case nil
+                (and (boundp 'beads-executable)
+                     beads-executable
+                     (zerop (call-process beads-executable nil nil nil
+                                          "worktree" "list" "--help")))
+              (error nil))))
+       (setq beads-git--bd-worktree-available (if available t 'unavailable))
+       available))))
+
+(defun beads-git-clear-bd-cache ()
+  "Clear the cached bd worktree availability check.
+Call this after upgrading bd or changing `beads-executable'."
+  (setq beads-git--bd-worktree-available nil))
 
 ;;; Agent Git Functions
 ;;
@@ -189,6 +229,37 @@ Resolves the value of `beads-agent-use-worktrees':
 
 (defun beads-git-find-worktree-for-issue (issue-id)
   "Find existing worktree for ISSUE-ID.
+Returns the worktree path or nil if not found.
+
+When bd worktree commands are available, uses `bd worktree list' for
+richer information.  Falls back to git commands otherwise."
+  (if (beads-git-bd-worktree-available-p)
+      ;; Use bd worktree list for better integration
+      (beads-git--find-worktree-for-issue-bd issue-id)
+    ;; Fallback to git worktree list
+    (beads-git--find-worktree-for-issue-git issue-id)))
+
+(defun beads-git--find-worktree-for-issue-bd (issue-id)
+  "Find worktree for ISSUE-ID using bd worktree list.
+Returns the worktree path or nil if not found."
+  (condition-case nil
+      (progn
+        (require 'beads-command-worktree)
+        (let ((worktrees (beads-command-worktree-list!)))
+          (cl-loop for wt in worktrees
+                   for name = (oref wt name)
+                   for path = (oref wt path)
+                   for branch = (oref wt branch)
+                   when (or (equal name issue-id)
+                            (equal branch issue-id)
+                            (and path (string-suffix-p (concat "/" issue-id) path)))
+                   return path)))
+    (error
+     ;; Fall back to git if bd command fails
+     (beads-git--find-worktree-for-issue-git issue-id))))
+
+(defun beads-git--find-worktree-for-issue-git (issue-id)
+  "Find worktree for ISSUE-ID using git worktree list.
 Returns the worktree path or nil if not found."
   (let ((worktrees (beads-git-list-worktrees)))
     (cl-loop for (path branch) in worktrees
@@ -207,6 +278,29 @@ Does not check if it exists."
 (defun beads-git-create-worktree (issue-id)
   "Create a git worktree for ISSUE-ID.
 Creates a new branch based on the current HEAD.
+Returns the worktree path on success, signals error on failure.
+
+When bd worktree commands are available, uses `bd worktree create' which
+automatically sets up beads database redirect.  Falls back to git commands
+otherwise."
+  (if (beads-git-bd-worktree-available-p)
+      ;; Use bd worktree create for automatic beads redirect setup
+      (beads-git--create-worktree-bd issue-id)
+    ;; Fallback to git worktree add
+    (beads-git--create-worktree-git issue-id)))
+
+(defun beads-git--create-worktree-bd (issue-id)
+  "Create worktree for ISSUE-ID using bd worktree create.
+Returns the worktree path on success, signals error on failure."
+  (require 'beads-command-worktree)
+  (let* ((result (beads-command-worktree-create! issue-id :branch issue-id))
+         (path (oref result path)))
+    (message "Created worktree for %s at %s (with beads redirect)"
+             issue-id path)
+    path))
+
+(defun beads-git--create-worktree-git (issue-id)
+  "Create worktree for ISSUE-ID using git worktree add.
 Returns the worktree path on success, signals error on failure."
   (let* ((worktree-path (beads-git-worktree-path-for-issue issue-id))
          (main-root (beads-git-main-repo-root))
@@ -249,6 +343,36 @@ CALLBACK receives (success worktree-path-or-error)."
 
 (defun beads-git-create-worktree-async (issue-id callback)
   "Create a git worktree for ISSUE-ID asynchronously.
+CALLBACK receives (success worktree-path-or-error).
+
+When bd worktree commands are available, uses `bd worktree create' which
+automatically sets up beads database redirect.  Falls back to git commands
+otherwise."
+  (if (beads-git-bd-worktree-available-p)
+      ;; Use bd worktree create for automatic beads redirect setup
+      (beads-git--create-worktree-bd-async issue-id callback)
+    ;; Fallback to git worktree add
+    (beads-git--create-worktree-git-async issue-id callback)))
+
+(defun beads-git--create-worktree-bd-async (issue-id callback)
+  "Create worktree for ISSUE-ID using bd worktree create.
+CALLBACK receives (success worktree-path-or-error)."
+  (condition-case err
+      (progn
+        (require 'beads-command-worktree)
+        (let* ((result (beads-command-worktree-create! issue-id :branch issue-id))
+               (path (oref result path)))
+          (message "Created worktree for %s at %s (with beads redirect)"
+                   issue-id path)
+          (funcall callback t path)))
+    (error
+     ;; Fall back to git if bd command fails
+     (message "bd worktree create failed, falling back to git: %s"
+              (error-message-string err))
+     (beads-git--create-worktree-git-async issue-id callback))))
+
+(defun beads-git--create-worktree-git-async (issue-id callback)
+  "Create worktree for ISSUE-ID using git worktree add.
 CALLBACK receives (success worktree-path-or-error)."
   (let* ((worktree-path (beads-git-worktree-path-for-issue issue-id))
          (main-root (beads-git-main-repo-root))
