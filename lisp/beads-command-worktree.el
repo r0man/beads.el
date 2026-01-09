@@ -362,6 +362,83 @@ Example:
         data))
 
 ;;; ============================================================
+;;; Async Convenience Functions
+;;; ============================================================
+
+(defun beads-command-worktree-create-async (name callback &rest args)
+  "Create a worktree with NAME asynchronously.
+CALLBACK receives (success result-or-error) where result is beads-worktree.
+ARGS are passed to `beads-command-worktree-create'.
+
+Examples:
+  (beads-command-worktree-create-async \"feature-auth\"
+    (lambda (success result)
+      (if success
+          (message \"Created: %s\" (oref result path))
+        (message \"Error: %s\" result))))
+
+  (beads-command-worktree-create-async \"bugfix\"
+    #\\='my-callback :branch \"fix-login\")"
+  (let ((cmd (apply #'beads-command-worktree-create :name name args)))
+    (beads-command-execute-async
+     cmd
+     (lambda (finished-cmd)
+       (let ((exit-code (oref finished-cmd exit-code)))
+         (if (zerop exit-code)
+             (funcall callback t (oref finished-cmd data))
+           (funcall callback nil
+                    (or (oref finished-cmd stderr)
+                        (format "Command failed with exit code %d" exit-code)))))))))
+
+(defun beads-command-worktree-list-async (callback &rest args)
+  "List all worktrees asynchronously.
+CALLBACK receives (success result-or-error) where result is list of
+beads-worktree objects.  ARGS are passed to `beads-command-worktree-list'.
+
+Example:
+  (beads-command-worktree-list-async
+    (lambda (success result)
+      (if success
+          (dolist (wt result)
+            (message \"Worktree: %s\" (oref wt name)))
+        (message \"Error: %s\" result))))"
+  (let ((cmd (apply #'beads-command-worktree-list args)))
+    (beads-command-execute-async
+     cmd
+     (lambda (finished-cmd)
+       (let ((exit-code (oref finished-cmd exit-code)))
+         (if (zerop exit-code)
+             (funcall callback t (oref finished-cmd data))
+           (funcall callback nil
+                    (or (oref finished-cmd stderr)
+                        (format "Command failed with exit code %d" exit-code)))))))))
+
+(defun beads-command-worktree-remove-async (name callback &rest args)
+  "Remove worktree NAME asynchronously.
+CALLBACK receives (success result-or-error).
+ARGS are passed to `beads-command-worktree-remove'.
+
+Examples:
+  (beads-command-worktree-remove-async \"feature-auth\"
+    (lambda (success result)
+      (if success
+          (message \"Removed worktree\")
+        (message \"Error: %s\" result))))
+
+  (beads-command-worktree-remove-async \"stale-work\"
+    #\\='my-callback :force t)"
+  (let ((cmd (apply #'beads-command-worktree-remove :name name args)))
+    (beads-command-execute-async
+     cmd
+     (lambda (finished-cmd)
+       (let ((exit-code (oref finished-cmd exit-code)))
+         (if (zerop exit-code)
+             (funcall callback t (oref finished-cmd data))
+           (funcall callback nil
+                    (or (oref finished-cmd stderr)
+                        (format "Command failed with exit code %d" exit-code)))))))))
+
+;;; ============================================================
 ;;; Utility Functions
 ;;; ============================================================
 
