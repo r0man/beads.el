@@ -75,20 +75,20 @@
 - [ ] 8.6 Register backend with appropriate priority
 - [ ] 8.7 Write tests with gastown.el mocked
 
-## 9. Documentation → bde-5j33
+## 9. Documentation → bde-5j33 ✅
 
-- [ ] 9.1 Update README.md with worktree management section
-- [ ] 9.2 Document sling workflow in README.md
-- [ ] 9.3 Document Gastown integration in README.md
-- [ ] 9.4 Add docstrings to all new public functions
+- [x] 9.1 Update README.md with worktree management section
+- [x] 9.2 Document sling workflow in README.md
+- [x] 9.3 Document Gastown integration in README.md (N/A - Task 8 skipped)
+- [x] 9.4 Add docstrings to all new public functions
 
-## 10. Quality Assurance → bde-ks7h
+## 10. Quality Assurance → bde-ks7h ✅
 
-- [ ] 10.1 Run full test suite
-- [ ] 10.2 Run linter
-- [ ] 10.3 Run byte compiler
-- [ ] 10.4 Test in live Emacs session (create worktree, sling work)
-- [ ] 10.5 Test with and without Gastown available
+- [x] 10.1 Run full test suite
+- [x] 10.2 Run linter
+- [x] 10.3 Run byte compiler
+- [x] 10.4 Test in live Emacs session (create worktree, sling work)
+- [x] 10.5 Test with and without Gastown available (N/A - Task 8 skipped)
 
 ## Dependencies
 
