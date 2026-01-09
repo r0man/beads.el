@@ -35,7 +35,11 @@
 
 (require 'cl-lib)
 
+;; Soft dependency on beads-command for async execution
+(declare-function beads-command-execute-async "beads-command")
+
 ;; Soft dependency on beads-command-worktree for bd worktree integration
+(declare-function beads-command-worktree-create "beads-command-worktree")
 (declare-function beads-command-worktree-create! "beads-command-worktree")
 (declare-function beads-command-worktree-list! "beads-command-worktree")
 
@@ -246,16 +250,20 @@ CALLBACK receives (success worktree-path-or-error)."
 CALLBACK receives (success worktree-path-or-error).
 Uses `bd worktree create' which automatically sets up beads database redirect."
   (require 'beads-command-worktree)
-  (beads-command-worktree-create-async
-   issue-id
-   (lambda (success result)
-     (if success
-         (let ((path (oref result path)))
-           (message "Created worktree for %s at %s (with beads redirect)"
-                    issue-id path)
-           (funcall callback t path))
-       (funcall callback nil result)))
-   :branch issue-id))
+  (require 'beads-command)
+  (let ((cmd (beads-command-worktree-create :name issue-id :branch issue-id)))
+    (beads-command-execute-async
+     cmd
+     (lambda (finished-cmd)
+       (if (zerop (oref finished-cmd exit-code))
+           (let ((path (oref (oref finished-cmd data) path)))
+             (message "Created worktree for %s at %s (with beads redirect)"
+                      issue-id path)
+             (funcall callback t path))
+         (funcall callback nil
+                  (or (oref finished-cmd stderr)
+                      (format "Command failed with exit code %d"
+                              (oref finished-cmd exit-code)))))))))
 
 (provide 'beads-git)
 
