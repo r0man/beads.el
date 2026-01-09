@@ -42,6 +42,7 @@
 (require 'beads-sync)
 (require 'beads-epic-status)
 (require 'beads-agent)
+(require 'beads-worktree)
 (require 'transient)
 
 ;;; Variables
@@ -136,12 +137,13 @@ into logical groups for easy navigation.
 
 Key bindings:
   View issues:        l (list), r (ready), b (blocked), s (show)
-  Epic:               E (epic status)
+  Epic:               e (epic status)
   Create/Edit:        c (create), u (update), x (close), o (reopen),
                       D (delete)
   Dependencies:       d (dep submenu)
   Agent:              A (agent menu)
-  Admin:              i (init), e (export), I (import), S (sync)
+  Worktree:           W (worktree menu)
+  Admin:              i (init), E (export), I (import), S (sync)
   Other:              g (refresh), q (quit)"
   [:description
    (lambda () (beads-main--format-project-header))
@@ -173,6 +175,9 @@ Key bindings:
   ["Agent"
    :description "AI Agent integration"
    ("A" "Agent menu" beads-agent)]
+  ["Worktree"
+   :description "Git worktree management"
+   ("W" "Worktree menu" beads-worktree-menu)]
   ["Admin"
    :description "Project administration"
    ("i" "Init project" beads-init)

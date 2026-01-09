@@ -4024,6 +4024,260 @@ Each type maintains its own instance counter per project."
           (should (plist-member ctx :in-worktree))))
     (beads-agent-test--teardown)))
 
+;;; ============================================================
+;;; Tests for Sling Workflow
+;;; ============================================================
+
+(ert-deftest beads-agent-test-sling-state-variables-exist ()
+  "Test that sling state variables are defined."
+  (should (boundp 'beads-agent-sling--issue-id))
+  (should (boundp 'beads-agent-sling--worktree-mode))
+  (should (boundp 'beads-agent-sling--worktree-name))
+  (should (boundp 'beads-agent-sling--worktree-path))
+  (should (boundp 'beads-agent-sling--backend)))
+
+(ert-deftest beads-agent-test-sling-reset-state ()
+  "Test resetting sling state variables."
+  (let ((beads-agent-sling--issue-id "test-123")
+        (beads-agent-sling--worktree-mode 'new)
+        (beads-agent-sling--worktree-name "my-worktree")
+        (beads-agent-sling--worktree-path "/path/to/wt")
+        (beads-agent-sling--backend "mock"))
+    (beads-agent-sling--reset-state)
+    (should (null beads-agent-sling--issue-id))
+    (should (null beads-agent-sling--worktree-mode))
+    (should (null beads-agent-sling--worktree-name))
+    (should (null beads-agent-sling--worktree-path))
+    (should (null beads-agent-sling--backend))))
+
+(ert-deftest beads-agent-test-sling-validate-no-mode ()
+  "Test validation fails when no mode selected."
+  (let ((beads-agent-sling--worktree-mode nil))
+    (should (beads-agent-sling--validate))))
+
+(ert-deftest beads-agent-test-sling-validate-new-no-name ()
+  "Test validation fails for new worktree without name."
+  (let ((beads-agent-sling--worktree-mode 'new)
+        (beads-agent-sling--worktree-name nil))
+    (should (beads-agent-sling--validate))))
+
+(ert-deftest beads-agent-test-sling-validate-new-empty-name ()
+  "Test validation fails for new worktree with empty name."
+  (let ((beads-agent-sling--worktree-mode 'new)
+        (beads-agent-sling--worktree-name ""))
+    (should (beads-agent-sling--validate))))
+
+(ert-deftest beads-agent-test-sling-validate-new-valid ()
+  "Test validation succeeds for new worktree with valid name."
+  (let ((beads-agent-sling--worktree-mode 'new)
+        (beads-agent-sling--worktree-name "feature-auth"))
+    (should-not (beads-agent-sling--validate))))
+
+(ert-deftest beads-agent-test-sling-validate-existing-no-path ()
+  "Test validation fails for existing worktree without path."
+  (let ((beads-agent-sling--worktree-mode 'existing)
+        (beads-agent-sling--worktree-path nil))
+    (should (beads-agent-sling--validate))))
+
+(ert-deftest beads-agent-test-sling-validate-existing-empty-path ()
+  "Test validation fails for existing worktree with empty path."
+  (let ((beads-agent-sling--worktree-mode 'existing)
+        (beads-agent-sling--worktree-path ""))
+    (should (beads-agent-sling--validate))))
+
+(ert-deftest beads-agent-test-sling-validate-existing-valid ()
+  "Test validation succeeds for existing worktree with valid path."
+  (let ((beads-agent-sling--worktree-mode 'existing)
+        (beads-agent-sling--worktree-path "feature-auth"))
+    (should-not (beads-agent-sling--validate))))
+
+(ert-deftest beads-agent-test-sling-format-header-basic ()
+  "Test sling header formatting."
+  (let ((beads-agent-sling--issue-id nil)
+        (beads-agent-sling--worktree-mode nil))
+    (cl-letf (((symbol-function 'beads-agent--get-available-backends)
+               (lambda () (list (beads-agent-backend-mock)))))
+      (let ((header (beads-agent-sling--format-header)))
+        (should (string-match-p "Sling Work to Agent" header))
+        (should (string-match-p "1 backend" header))))))
+
+(ert-deftest beads-agent-test-sling-format-header-with-issue ()
+  "Test sling header formatting with issue."
+  (let ((beads-agent-sling--issue-id "test-123")
+        (beads-agent-sling--worktree-mode nil))
+    (cl-letf (((symbol-function 'beads-agent--get-available-backends)
+               (lambda () nil)))
+      (let ((header (beads-agent-sling--format-header)))
+        (should (string-match-p "issue: test-123" header))))))
+
+(ert-deftest beads-agent-test-sling-format-header-with-mode ()
+  "Test sling header formatting with worktree mode."
+  (let ((beads-agent-sling--issue-id nil)
+        (beads-agent-sling--worktree-mode 'new))
+    (cl-letf (((symbol-function 'beads-agent--get-available-backends)
+               (lambda () nil)))
+      (let ((header (beads-agent-sling--format-header)))
+        (should (string-match-p "new worktree" header))))))
+
+(ert-deftest beads-agent-test-sling-read-worktree-name-default ()
+  "Test worktree name reader uses issue ID as default."
+  (let ((beads-agent-sling--issue-id "bd-42"))
+    (cl-letf (((symbol-function 'read-string)
+               (lambda (prompt &rest _args)
+                 ;; Verify prompt includes default
+                 (should (string-match-p "default bd-42" prompt))
+                 "bd-42")))
+      (let ((result (beads-agent-sling--read-worktree-name nil nil nil)))
+        (should (equal result "bd-42"))))))
+
+(ert-deftest beads-agent-test-sling-menu-defined ()
+  "Test that beads-agent-sling transient prefix is defined."
+  (should (fboundp 'beads-agent-sling)))
+
+(ert-deftest beads-agent-test-sling-suffix-defined ()
+  "Test that sling suffix is defined."
+  (should (fboundp 'beads-agent--sling-suffix)))
+
+(ert-deftest beads-agent-test-sling-set-mode-new ()
+  "Test setting worktree mode to new."
+  (let ((beads-agent-sling--worktree-mode nil)
+        (beads-agent-sling--issue-id "bd-42")
+        (beads-agent-sling--worktree-name nil))
+    ;; Mock transient--redisplay to avoid interactive issues
+    (cl-letf (((symbol-function 'transient--redisplay) #'ignore))
+      (beads-agent-sling--set-mode-new)
+      (should (eq beads-agent-sling--worktree-mode 'new))
+      ;; Should default worktree name to issue ID
+      (should (equal beads-agent-sling--worktree-name "bd-42")))))
+
+(ert-deftest beads-agent-test-sling-set-mode-existing ()
+  "Test setting worktree mode to existing."
+  (let ((beads-agent-sling--worktree-mode nil))
+    (cl-letf (((symbol-function 'transient--redisplay) #'ignore))
+      (beads-agent-sling--set-mode-existing)
+      (should (eq beads-agent-sling--worktree-mode 'existing)))))
+
+(ert-deftest beads-agent-test-sling-execute-validation-error ()
+  "Test sling execute handles validation error."
+  (let ((beads-agent-sling--worktree-mode nil))
+    (should-error (beads-agent-sling--execute) :type 'user-error)))
+
+(ert-deftest beads-agent-test-sling-execute-new-calls-create ()
+  "Test sling execute new calls worktree create."
+  (let ((beads-agent-sling--worktree-mode 'new)
+        (beads-agent-sling--worktree-name "test-wt")
+        (beads-agent-sling--issue-id nil)
+        (beads-agent-sling--backend nil)
+        (create-called nil))
+    (cl-letf (((symbol-function 'beads-agent-sling--execute-new)
+               (lambda (name issue backend)
+                 (setq create-called (list name issue backend)))))
+      (beads-agent-sling--execute)
+      (should create-called)
+      (should (equal (car create-called) "test-wt")))))
+
+(ert-deftest beads-agent-test-sling-execute-existing-calls-lookup ()
+  "Test sling execute existing calls worktree lookup."
+  (let ((beads-agent-sling--worktree-mode 'existing)
+        (beads-agent-sling--worktree-path "my-wt")
+        (beads-agent-sling--issue-id "bd-42")
+        (beads-agent-sling--backend "mock")
+        (existing-called nil))
+    (cl-letf (((symbol-function 'beads-agent-sling--execute-existing)
+               (lambda (path issue backend)
+                 (setq existing-called (list path issue backend)))))
+      (beads-agent-sling--execute)
+      (should existing-called)
+      (should (equal (car existing-called) "my-wt"))
+      (should (equal (cadr existing-called) "bd-42")))))
+
+(ert-deftest beads-agent-test-sling-preview ()
+  "Test sling preview shows parameters."
+  (let ((beads-agent-sling--issue-id "bd-42")
+        (beads-agent-sling--worktree-mode 'new)
+        (beads-agent-sling--worktree-name "my-wt")
+        (beads-agent-sling--backend "mock")
+        (message-output nil))
+    (cl-letf (((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-output (apply #'format fmt args)))))
+      (beads-agent-sling--preview)
+      (should (string-match-p "bd-42" message-output))
+      (should (string-match-p "new" message-output))
+      (should (string-match-p "my-wt" message-output))
+      (should (string-match-p "mock" message-output)))))
+
+(ert-deftest beads-agent-test-sling-reset-clears-all ()
+  "Test sling reset clears all parameters."
+  (let ((beads-agent-sling--issue-id "test")
+        (beads-agent-sling--worktree-mode 'new)
+        (beads-agent-sling--worktree-name "wt")
+        (beads-agent-sling--worktree-path "/path")
+        (beads-agent-sling--backend "mock"))
+    (cl-letf (((symbol-function 'transient--redisplay) #'ignore))
+      (beads-agent-sling--reset)
+      (should (null beads-agent-sling--issue-id))
+      (should (null beads-agent-sling--worktree-mode))
+      (should (null beads-agent-sling--worktree-name))
+      (should (null beads-agent-sling--worktree-path))
+      (should (null beads-agent-sling--backend)))))
+
+(ert-deftest beads-agent-test-sling-execute-existing-not-found ()
+  "Test sling execute existing handles missing worktree."
+  (cl-letf (((symbol-function 'beads-worktree-find-by-name)
+             (lambda (_name) nil)))
+    (should-error
+     (beads-agent-sling--execute-existing "nonexistent" nil nil)
+     :type 'user-error)))
+
+(ert-deftest beads-agent-test-start-with-worktree ()
+  "Test start-with-worktree fetches issue and continues."
+  (let ((fetch-called nil)
+        (continue-called nil))
+    (cl-letf (((symbol-function 'beads-agent--fetch-issue-async)
+               (lambda (id callback)
+                 (setq fetch-called id)
+                 ;; Simulate successful fetch
+                 (funcall callback (beads-issue :id id :title "Test"))))
+              ((symbol-function 'beads-agent-type-get)
+               (lambda (_name)
+                 ;; Return a concrete subclass, not abstract base
+                 (beads-agent-type-task)))
+              ((symbol-function 'beads-agent-type-build-prompt)
+               (lambda (_type _issue) "Test prompt"))
+              ((symbol-function 'beads-agent--continue-start)
+               (lambda (&rest args)
+                 (setq continue-called args))))
+      (let ((backend (beads-agent-backend-mock)))
+        (beads-agent--start-with-worktree "bd-42" backend "/project" "/worktree")
+        (should (equal fetch-called "bd-42"))
+        (should continue-called)
+        ;; Verify worktree path passed through
+        (should (equal (nth 3 continue-called) "/worktree"))))))
+
+(ert-deftest beads-agent-test-start-project-agent ()
+  "Test start-project-agent creates session without issue."
+  (let ((backend-started nil)
+        (session-created nil))
+    (cl-letf (((symbol-function 'beads-agent-backend-start)
+               (lambda (backend issue prompt)
+                 (setq backend-started (list backend issue prompt))
+                 (cons "backend-session-id" (generate-new-buffer " *test*"))))
+              ((symbol-function 'beads-agent--create-session)
+               (lambda (&rest args)
+                 (setq session-created args)
+                 (beads-agent-session)))
+              ((symbol-function 'beads-agent--rename-and-store-buffer)
+               #'ignore)
+              ((symbol-function 'beads-git-find-project-root)
+               (lambda () "/project/path")))
+      (let ((backend (beads-agent-backend-mock)))
+        (beads-agent--start-project-agent backend "/project/path" "/worktree/path")
+        ;; Backend started with nil issue
+        (should (null (cadr backend-started)))
+        ;; Session created with project-based ID
+        (should (string-match-p "project-" (car session-created)))))))
+
 ;;; Footer
 
 (provide 'beads-agent-test)
