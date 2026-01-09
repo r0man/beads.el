@@ -89,8 +89,10 @@
 (require 'json)
 (require 'beads)
 (require 'beads-command)
+(require 'beads-command-worktree)
 (require 'beads-completion)
 (require 'beads-git)
+(require 'beads-worktree)
 (require 'beads-agent-backend)
 (require 'beads-agent-type)
 (require 'beads-agent-types)
@@ -998,6 +1000,348 @@ t (default) always uses worktrees, nil never uses them, \\='ask prompts."
                            (list (concat "--issue=" context-id)))))
   (transient-setup 'beads-agent-start-menu))
 
+;;; Sling Workflow
+;;
+;; The "sling" workflow allows flexible agent assignment to worktrees.
+;; Users can:
+;; - Sling an issue to a new worktree (creates worktree named after issue)
+;; - Sling an issue to an existing worktree
+;; - Sling work to a worktree without a specific issue focus
+
+;; State variables for sling workflow
+(defvar beads-agent-sling--issue-id nil
+  "Issue ID for sling workflow.")
+
+(defvar beads-agent-sling--worktree-mode nil
+  "Worktree mode for sling: `new', `existing', or nil.")
+
+(defvar beads-agent-sling--worktree-name nil
+  "Worktree name for sling (when creating new).")
+
+(defvar beads-agent-sling--worktree-path nil
+  "Worktree path for sling (when using existing).")
+
+(defvar beads-agent-sling--backend nil
+  "Backend name for sling workflow.")
+
+(defun beads-agent-sling--reset-state ()
+  "Reset all sling state variables."
+  (setq beads-agent-sling--issue-id nil
+        beads-agent-sling--worktree-mode nil
+        beads-agent-sling--worktree-name nil
+        beads-agent-sling--worktree-path nil
+        beads-agent-sling--backend nil))
+
+(defun beads-agent-sling--format-header ()
+  "Format header for sling transient menu."
+  (let* ((backends (beads-agent--get-available-backends))
+         (backend-count (length backends))
+         (issue beads-agent-sling--issue-id)
+         (wt-mode beads-agent-sling--worktree-mode))
+    (concat "Sling Work to Agent"
+            (when issue (format " [issue: %s]" issue))
+            (when wt-mode (format " [%s worktree]" wt-mode))
+            (format " (%d backend%s)" backend-count
+                    (if (= backend-count 1) "" "s")))))
+
+(defun beads-agent-sling--validate ()
+  "Validate sling parameters.
+Returns error message string or nil if valid."
+  (cond
+   ;; Must have worktree mode selected
+   ((not beads-agent-sling--worktree-mode)
+    "Select worktree mode: new or existing")
+   ;; For new worktree, need a name
+   ((and (eq beads-agent-sling--worktree-mode 'new)
+         (or (not beads-agent-sling--worktree-name)
+             (string-empty-p beads-agent-sling--worktree-name)))
+    "Worktree name is required for new worktree")
+   ;; For existing worktree, need a path
+   ((and (eq beads-agent-sling--worktree-mode 'existing)
+         (or (not beads-agent-sling--worktree-path)
+             (string-empty-p beads-agent-sling--worktree-path)))
+    "Worktree selection is required")
+   (t nil)))
+
+;; Reader functions for sling
+
+(defun beads-agent-sling--read-issue (_prompt _initial _history)
+  "Read issue ID for sling workflow."
+  (beads-completion-read-issue "Issue (optional): " nil nil))
+
+(defun beads-agent-sling--read-worktree-name (_prompt _initial _history)
+  "Read worktree name for new worktree creation."
+  (let ((default (or beads-agent-sling--issue-id "")))
+    (read-string (format "Worktree name%s: "
+                         (if (string-empty-p default) ""
+                           (format " (default %s)" default)))
+                 nil nil default)))
+
+(defun beads-agent-sling--read-existing-worktree (_prompt _initial _history)
+  "Read existing worktree path."
+  (beads-completion-read-worktree "Existing worktree: " nil t))
+
+;; Infix commands for sling
+
+(transient-define-infix beads-agent-sling--infix-issue ()
+  "Set issue ID for sling."
+  :class 'transient-lisp-variable
+  :variable 'beads-agent-sling--issue-id
+  :key "i"
+  :description "Issue (optional)"
+  :reader #'beads-agent-sling--read-issue)
+
+(transient-define-infix beads-agent-sling--infix-worktree-name ()
+  "Set worktree name for new worktree."
+  :class 'transient-lisp-variable
+  :variable 'beads-agent-sling--worktree-name
+  :key "n"
+  :description "Worktree name"
+  :reader #'beads-agent-sling--read-worktree-name)
+
+(transient-define-infix beads-agent-sling--infix-existing-worktree ()
+  "Select existing worktree."
+  :class 'transient-lisp-variable
+  :variable 'beads-agent-sling--worktree-path
+  :key "e"
+  :description "Existing worktree"
+  :reader #'beads-agent-sling--read-existing-worktree)
+
+(transient-define-infix beads-agent-sling--infix-backend ()
+  "Set backend for sling."
+  :class 'transient-lisp-variable
+  :variable 'beads-agent-sling--backend
+  :key "b"
+  :description "Backend"
+  :reader #'beads-reader-agent-backend)
+
+;; Suffix commands for sling
+
+(transient-define-suffix beads-agent-sling--set-mode-new ()
+  "Set worktree mode to create new."
+  :key "N"
+  :description (lambda ()
+                 (if (eq beads-agent-sling--worktree-mode 'new)
+                     (propertize "New worktree [selected]" 'face 'success)
+                   "New worktree"))
+  :transient t
+  (interactive)
+  (setq beads-agent-sling--worktree-mode 'new)
+  ;; Default worktree name to issue ID if set
+  (when (and beads-agent-sling--issue-id
+             (not beads-agent-sling--worktree-name))
+    (setq beads-agent-sling--worktree-name beads-agent-sling--issue-id))
+  (transient--redisplay))
+
+(transient-define-suffix beads-agent-sling--set-mode-existing ()
+  "Set worktree mode to use existing."
+  :key "E"
+  :description (lambda ()
+                 (if (eq beads-agent-sling--worktree-mode 'existing)
+                     (propertize "Existing worktree [selected]" 'face 'success)
+                   "Existing worktree"))
+  :transient t
+  (interactive)
+  (setq beads-agent-sling--worktree-mode 'existing)
+  (transient--redisplay))
+
+(transient-define-suffix beads-agent-sling--execute ()
+  "Execute sling - start agent in worktree."
+  :key "x"
+  :description "Sling!"
+  (interactive)
+  (let ((error-msg (beads-agent-sling--validate)))
+    (if error-msg
+        (user-error "Validation failed: %s" error-msg)
+      ;; Execute sling based on mode
+      (let ((issue-id beads-agent-sling--issue-id)
+            (backend beads-agent-sling--backend)
+            (mode beads-agent-sling--worktree-mode))
+        (pcase mode
+          ('new
+           ;; Create new worktree and start agent
+           (beads-agent-sling--execute-new
+            beads-agent-sling--worktree-name
+            issue-id
+            backend))
+          ('existing
+           ;; Start agent in existing worktree
+           (beads-agent-sling--execute-existing
+            beads-agent-sling--worktree-path
+            issue-id
+            backend)))
+        ;; Reset state after execution
+        (beads-agent-sling--reset-state)))))
+
+(defun beads-agent-sling--execute-new (worktree-name issue-id backend-name)
+  "Execute sling with new worktree.
+WORKTREE-NAME is the name for the new worktree.
+ISSUE-ID is the optional issue to work on.
+BACKEND-NAME is the optional backend to use."
+  (message "Creating worktree '%s'..." worktree-name)
+  ;; Create worktree using bd command
+  (condition-case err
+      (let* ((result (beads-command-worktree-create!
+                      worktree-name
+                      :branch (unless (equal worktree-name issue-id)
+                                worktree-name)))
+             (worktree-path (oref result path)))
+        (beads-completion-invalidate-worktree-cache)
+        (message "Created worktree at %s, starting agent..." worktree-path)
+        ;; Start agent in the new worktree
+        (beads-agent-sling--start-in-worktree
+         worktree-path issue-id backend-name))
+    (error
+     (user-error "Failed to create worktree: %s" (error-message-string err)))))
+
+(defun beads-agent-sling--execute-existing (worktree-name issue-id backend-name)
+  "Execute sling with existing worktree.
+WORKTREE-NAME is the name of the existing worktree.
+ISSUE-ID is the optional issue to work on.
+BACKEND-NAME is the optional backend to use."
+  ;; Find worktree path from name
+  (let ((worktree (beads-worktree-find-by-name worktree-name)))
+    (unless worktree
+      (user-error "Worktree not found: %s" worktree-name))
+    (let ((worktree-path (oref worktree path)))
+      (message "Starting agent in worktree %s..." worktree-path)
+      (beads-agent-sling--start-in-worktree
+       worktree-path issue-id backend-name))))
+
+(defun beads-agent-sling--start-in-worktree (worktree-path issue-id backend-name)
+  "Start agent in WORKTREE-PATH.
+ISSUE-ID is the optional issue to work on.
+BACKEND-NAME is the optional backend to use."
+  (let* ((default-directory worktree-path)
+         (backend (if backend-name
+                      (or (beads-agent--get-backend backend-name)
+                          (user-error "Backend not found: %s" backend-name))
+                    (beads-agent--select-backend)))
+         (project-dir (beads-git-find-project-root)))
+    (if issue-id
+        ;; Start agent on specific issue
+        (beads-agent--start-with-worktree issue-id backend project-dir worktree-path)
+      ;; Start agent without specific issue (project context)
+      (beads-agent--start-project-agent backend project-dir worktree-path))))
+
+(defun beads-agent--start-with-worktree (issue-id backend project-dir worktree-path)
+  "Start agent on ISSUE-ID in WORKTREE-PATH.
+BACKEND is the beads-agent-backend to use.
+PROJECT-DIR is the main project directory."
+  ;; Fetch issue and start agent
+  (beads-agent--fetch-issue-async
+   issue-id
+   (lambda (issue)
+     (if (null issue)
+         (message "Cannot start agent: failed to fetch issue %s" issue-id)
+       (let* ((default-directory project-dir)
+              (agent-type (beads-agent-type-get "Task"))
+              (prompt (beads-agent-type-build-prompt agent-type issue)))
+         ;; Continue with the standard flow but skip worktree creation
+         (beads-agent--continue-start
+          issue-id backend project-dir worktree-path prompt issue agent-type))))))
+
+(defun beads-agent--start-project-agent (backend project-dir worktree-path)
+  "Start agent in WORKTREE-PATH without specific issue.
+BACKEND is the beads-agent-backend to use.
+PROJECT-DIR is the main project directory."
+  (let* ((default-directory worktree-path)
+         (process-environment (cons "BD_NO_DAEMON=1" process-environment))
+         (display-buffer-overriding-action
+          '((display-buffer-reuse-window
+             display-buffer-use-some-window
+             display-buffer-pop-up-window)
+            (inhibit-same-window . t)))
+         ;; Build a generic project prompt
+         (prompt "Please help with development tasks in this project.")
+         ;; Start backend without issue context
+         (start-result (beads-agent-backend-start backend nil prompt))
+         (backend-session (car start-result))
+         (buffer (cdr start-result))
+         ;; Generate a project-based session ID
+         (project-name (file-name-nondirectory
+                        (directory-file-name project-dir)))
+         (session (beads-agent--create-session
+                   (format "project-%s" project-name)
+                   (oref backend name)
+                   project-dir
+                   backend-session
+                   worktree-path
+                   "Task")))
+    ;; Rename and setup buffer
+    (beads-agent--rename-and-store-buffer session buffer)
+    (message "Started project agent in %s" worktree-path)))
+
+(transient-define-suffix beads-agent-sling--preview ()
+  "Preview sling configuration."
+  :key "v"
+  :description "Preview"
+  :transient t
+  (interactive)
+  (let ((issue beads-agent-sling--issue-id)
+        (mode beads-agent-sling--worktree-mode)
+        (wt-name beads-agent-sling--worktree-name)
+        (wt-path beads-agent-sling--worktree-path)
+        (backend beads-agent-sling--backend))
+    (message "Sling: issue=%s mode=%s worktree=%s backend=%s"
+             (or issue "[none]")
+             (or mode "[not set]")
+             (pcase mode
+               ('new (or wt-name "[not set]"))
+               ('existing (or wt-path "[not set]"))
+               (_ "[select mode first]"))
+             (or backend "[auto-select]"))))
+
+(transient-define-suffix beads-agent-sling--reset ()
+  "Reset all sling parameters."
+  :key "R"
+  :description "Reset"
+  :transient t
+  (interactive)
+  (beads-agent-sling--reset-state)
+  (message "Sling parameters reset")
+  (transient--redisplay))
+
+;;;###autoload (autoload 'beads-agent-sling "beads-agent" nil t)
+(transient-define-prefix beads-agent-sling ()
+  "Sling work to an AI agent in a worktree.
+
+The sling workflow provides flexible agent assignment:
+- Create a NEW worktree and start agent there
+- Use an EXISTING worktree to start agent
+- Optionally associate with a specific issue
+
+This supports parallel development with multiple agents working
+in isolated worktrees."
+  [:description
+   (lambda () (beads-agent-sling--format-header))]
+  ["Worktree Mode"
+   :description "Select worktree strategy"
+   (beads-agent-sling--set-mode-new)
+   (beads-agent-sling--set-mode-existing)]
+  ["Options"
+   (beads-agent-sling--infix-issue)
+   (beads-agent-sling--infix-worktree-name)
+   (beads-agent-sling--infix-existing-worktree)
+   (beads-agent-sling--infix-backend)]
+  ["Actions"
+   (beads-agent-sling--execute)
+   (beads-agent-sling--preview)
+   (beads-agent-sling--reset)
+   ("q" "Quit" transient-quit-one)]
+  (interactive)
+  ;; Pre-populate issue-id from context if available
+  (when-let ((context-id (beads-agent--detect-issue-id)))
+    (setq beads-agent-sling--issue-id context-id))
+  (transient-setup 'beads-agent-sling))
+
+(transient-define-suffix beads-agent--sling-suffix ()
+  "Sling work to agent in worktree."
+  :key "w"
+  :description "Sling to worktree"
+  (interactive)
+  (call-interactively #'beads-agent-sling))
+
 (transient-define-suffix beads-agent--start-suffix ()
   "Start agent on an issue."
   :key "s"
@@ -1071,6 +1415,7 @@ t (default) always uses worktrees, nil never uses them, \\='ask prompts."
    :pad-keys t]
   ["Agent Actions"
    (beads-agent--start-suffix)
+   (beads-agent--sling-suffix)
    (beads-agent--stop-suffix)
    (beads-agent--jump-suffix)
    (beads-agent--send-prompt-suffix)]

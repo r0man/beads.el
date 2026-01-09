@@ -375,6 +375,15 @@ take precedence over defcustom settings."
 (defvar beads--dependency-type-history nil
   "History list for dependency type completion.")
 
+(defvar beads--worktree-name-history nil
+  "History list for worktree name completion.")
+
+(defvar beads--worktree-branch-history nil
+  "History list for worktree branch completion.")
+
+(defvar beads--worktree-existing-history nil
+  "History list for existing worktree completion.")
+
 ;;; JSON Parsing
 
 (defun beads--parse-issue (json)

@@ -170,6 +170,55 @@
                128)))
     (should-not (beads-git-command "status"))))
 
+;;; Test BD Worktree Support Functions
+
+(ert-deftest beads-git-test-bd-worktree-available-function-exists ()
+  "Test that beads-git-bd-worktree-available-p function exists."
+  :tags '(:unit)
+  (should (fboundp 'beads-git-bd-worktree-available-p)))
+
+(ert-deftest beads-git-test-bd-worktree-available-p-caches-result ()
+  "Test that beads-git-bd-worktree-available-p caches its result."
+  :tags '(:unit)
+  (let ((beads-git--bd-worktree-available nil)
+        (beads-executable "bd")
+        (call-count 0))
+    (cl-letf (((symbol-function 'call-process)
+               (lambda (&rest _args)
+                 (setq call-count (1+ call-count))
+                 0)))
+      ;; First call should invoke call-process
+      (should (beads-git-bd-worktree-available-p))
+      (should (= call-count 1))
+      ;; Second call should use cached value
+      (should (beads-git-bd-worktree-available-p))
+      (should (= call-count 1)))))
+
+(ert-deftest beads-git-test-bd-worktree-available-p-unavailable ()
+  "Test beads-git-bd-worktree-available-p returns nil when bd unavailable."
+  :tags '(:unit)
+  (let ((beads-git--bd-worktree-available nil)
+        (beads-executable "bd"))
+    (cl-letf (((symbol-function 'call-process)
+               (lambda (&rest _args) 1)))  ; Non-zero exit = failure
+      (should-not (beads-git-bd-worktree-available-p))
+      ;; Should cache the unavailable result
+      (should (eq beads-git--bd-worktree-available 'unavailable)))))
+
+(ert-deftest beads-git-test-bd-worktree-available-p-no-executable ()
+  "Test beads-git-bd-worktree-available-p returns nil when no executable."
+  :tags '(:unit)
+  (let ((beads-git--bd-worktree-available nil)
+        (beads-executable nil))
+    (should-not (beads-git-bd-worktree-available-p))))
+
+(ert-deftest beads-git-test-clear-bd-cache ()
+  "Test beads-git-clear-bd-cache clears the cache."
+  :tags '(:unit)
+  (let ((beads-git--bd-worktree-available t))
+    (beads-git-clear-bd-cache)
+    (should (null beads-git--bd-worktree-available))))
+
 ;;; Test beads-git-list-worktrees
 
 (ert-deftest beads-git-test-list-worktrees ()
@@ -193,9 +242,12 @@
 ;;; Test beads-git-find-worktree-for-issue
 
 (ert-deftest beads-git-test-find-worktree-by-path ()
-  "Test finding worktree by issue ID in path."
+  "Test finding worktree by issue ID in path (git fallback)."
   :tags '(:unit)
-  (cl-letf (((symbol-function 'beads-git-list-worktrees)
+  ;; Force git fallback path
+  (cl-letf (((symbol-function 'beads-git-bd-worktree-available-p)
+             (lambda () nil))
+            ((symbol-function 'beads-git-list-worktrees)
              (lambda ()
                '(("/path/to/main" "main")
                  ("/path/to/beads-123" "beads-123")))))
@@ -203,9 +255,12 @@
                    "/path/to/beads-123"))))
 
 (ert-deftest beads-git-test-find-worktree-by-branch ()
-  "Test finding worktree by branch name matching issue ID."
+  "Test finding worktree by branch name matching issue ID (git fallback)."
   :tags '(:unit)
-  (cl-letf (((symbol-function 'beads-git-list-worktrees)
+  ;; Force git fallback path
+  (cl-letf (((symbol-function 'beads-git-bd-worktree-available-p)
+             (lambda () nil))
+            ((symbol-function 'beads-git-list-worktrees)
              (lambda ()
                '(("/path/to/main" "main")
                  ("/custom/path/foo" "beads-456")))))
@@ -215,10 +270,29 @@
 (ert-deftest beads-git-test-find-worktree-not-found ()
   "Test beads-git-find-worktree-for-issue returns nil when not found."
   :tags '(:unit)
-  (cl-letf (((symbol-function 'beads-git-list-worktrees)
+  ;; Force git fallback path
+  (cl-letf (((symbol-function 'beads-git-bd-worktree-available-p)
+             (lambda () nil))
+            ((symbol-function 'beads-git-list-worktrees)
              (lambda ()
                '(("/path/to/main" "main")))))
     (should-not (beads-git-find-worktree-for-issue "beads-999"))))
+
+(ert-deftest beads-git-test-find-worktree-uses-bd-when-available ()
+  "Test beads-git-find-worktree-for-issue uses bd when available."
+  :tags '(:unit)
+  (let ((bd-called nil)
+        (git-called nil))
+    (cl-letf (((symbol-function 'beads-git-bd-worktree-available-p)
+               (lambda () t))
+              ((symbol-function 'beads-git--find-worktree-for-issue-bd)
+               (lambda (_id) (setq bd-called t) "/path/to/worktree"))
+              ((symbol-function 'beads-git--find-worktree-for-issue-git)
+               (lambda (_id) (setq git-called t) nil)))
+      (should (equal (beads-git-find-worktree-for-issue "test-123")
+                     "/path/to/worktree"))
+      (should bd-called)
+      (should-not git-called))))
 
 ;;; Test beads-git-worktree-path-for-issue
 
@@ -536,12 +610,15 @@
 ;;; Test beads-git-create-worktree
 
 (ert-deftest beads-git-test-create-worktree-success ()
-  "Test beads-git-create-worktree returns path on success."
+  "Test beads-git-create-worktree returns path on success (git fallback)."
   :tags '(:unit)
   (let ((temp-dir (make-temp-file "beads-git-test-" t)))
     (unwind-protect
         (let ((expected-path (expand-file-name "beads-123" temp-dir)))
-          (cl-letf (((symbol-function 'beads-git-worktree-path-for-issue)
+          ;; Force git fallback path
+          (cl-letf (((symbol-function 'beads-git-bd-worktree-available-p)
+                     (lambda () nil))
+                    ((symbol-function 'beads-git-worktree-path-for-issue)
                      (lambda (_id) expected-path))
                     ((symbol-function 'beads-git-main-repo-root)
                      (lambda () temp-dir))
@@ -552,14 +629,29 @@
                            expected-path))))
       (delete-directory temp-dir t))))
 
+(ert-deftest beads-git-test-create-worktree-uses-bd-when-available ()
+  "Test beads-git-create-worktree uses bd when available."
+  :tags '(:unit)
+  (let ((bd-called nil))
+    (cl-letf (((symbol-function 'beads-git-bd-worktree-available-p)
+               (lambda () t))
+              ((symbol-function 'beads-git--create-worktree-bd)
+               (lambda (_id) (setq bd-called t) "/path/to/worktree")))
+      (should (equal (beads-git-create-worktree "test-123")
+                     "/path/to/worktree"))
+      (should bd-called))))
+
 (ert-deftest beads-git-test-create-worktree-path-exists ()
-  "Test beads-git-create-worktree errors when path exists."
+  "Test beads-git-create-worktree errors when path exists (git fallback)."
   :tags '(:unit)
   (let ((temp-dir (make-temp-file "beads-git-test-" t)))
     (unwind-protect
         (let ((worktree-path (expand-file-name "existing" temp-dir)))
           (make-directory worktree-path)
-          (cl-letf (((symbol-function 'beads-git-worktree-path-for-issue)
+          ;; Force git fallback path
+          (cl-letf (((symbol-function 'beads-git-bd-worktree-available-p)
+                     (lambda () nil))
+                    ((symbol-function 'beads-git-worktree-path-for-issue)
                      (lambda (_id) worktree-path))
                     ((symbol-function 'beads-git-main-repo-root)
                      (lambda () temp-dir)))
@@ -568,13 +660,16 @@
       (delete-directory temp-dir t))))
 
 (ert-deftest beads-git-test-create-worktree-fallback-existing-branch ()
-  "Test beads-git-create-worktree tries existing branch on -b failure."
+  "Test beads-git-create-worktree tries existing branch on -b failure (git)."
   :tags '(:unit)
   (let ((temp-dir (make-temp-file "beads-git-test-" t))
         (first-attempt t))
     (unwind-protect
         (let ((expected-path (expand-file-name "beads-123" temp-dir)))
-          (cl-letf (((symbol-function 'beads-git-worktree-path-for-issue)
+          ;; Force git fallback path
+          (cl-letf (((symbol-function 'beads-git-bd-worktree-available-p)
+                     (lambda () nil))
+                    ((symbol-function 'beads-git-worktree-path-for-issue)
                      (lambda (_id) expected-path))
                     ((symbol-function 'beads-git-main-repo-root)
                      (lambda () temp-dir))
@@ -588,12 +683,15 @@
       (delete-directory temp-dir t))))
 
 (ert-deftest beads-git-test-create-worktree-both-attempts-fail ()
-  "Test beads-git-create-worktree errors when both attempts fail."
+  "Test beads-git-create-worktree errors when both attempts fail (git)."
   :tags '(:unit)
   (let ((temp-dir (make-temp-file "beads-git-test-" t)))
     (unwind-protect
         (let ((expected-path (expand-file-name "beads-123" temp-dir)))
-          (cl-letf (((symbol-function 'beads-git-worktree-path-for-issue)
+          ;; Force git fallback path
+          (cl-letf (((symbol-function 'beads-git-bd-worktree-available-p)
+                     (lambda () nil))
+                    ((symbol-function 'beads-git-worktree-path-for-issue)
                      (lambda (_id) expected-path))
                     ((symbol-function 'beads-git-main-repo-root)
                      (lambda () temp-dir))
@@ -686,9 +784,12 @@
 ;;; Integration Tests
 
 (ert-deftest beads-git-test-integration-find-worktree-path-suffix ()
-  "Integration test: finding worktree by path suffix."
+  "Integration test: finding worktree by path suffix (git fallback)."
   :tags '(:integration)
-  (cl-letf (((symbol-function 'beads-git-list-worktrees)
+  ;; Force git fallback path
+  (cl-letf (((symbol-function 'beads-git-bd-worktree-available-p)
+             (lambda () nil))
+            ((symbol-function 'beads-git-list-worktrees)
              (lambda ()
                '(("/home/user/projects/main" "main")
                  ("/home/user/worktrees/beads.el-42" "beads.el-42")

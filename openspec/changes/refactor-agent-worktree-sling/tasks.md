@@ -13,57 +13,57 @@
 - [x] 1.7 Add convenience functions: `beads-command-worktree-create!`, etc.
 - [x] 1.8 Write tests for all worktree command classes
 
-## 2. Worktree Completion Support → bde-h826
+## 2. Worktree Completion Support → bde-h826 ✅
 
-- [ ] 2.1 Add `beads-completion-worktree-table` function
-- [ ] 2.2 Add annotation function showing branch and beads state
-- [ ] 2.3 Add group function (by beads state: redirect/shared/none)
-- [ ] 2.4 Add `beads-completion-read-worktree` helper
-- [ ] 2.5 Write tests for worktree completion
+- [x] 2.1 Add `beads-completion-worktree-table` function
+- [x] 2.2 Add annotation function showing branch and beads state
+- [x] 2.3 Add group function (by beads state: redirect/shared/none)
+- [x] 2.4 Add `beads-completion-read-worktree` helper
+- [x] 2.5 Write tests for worktree completion
 
-## 3. Worktree Reader Functions → bde-oz7y
+## 3. Worktree Reader Functions → bde-oz7y ✅
 
-- [ ] 3.1 Add `beads-reader-worktree-name` (suggests issue IDs, branches)
-- [ ] 3.2 Add `beads-reader-worktree-branch` (existing branches)
-- [ ] 3.3 Add `beads-reader-worktree-existing` (from bd worktree list)
-- [ ] 3.4 Write tests for reader functions
+- [x] 3.1 Add `beads-reader-worktree-name` (suggests issue IDs, branches)
+- [x] 3.2 Add `beads-reader-worktree-branch` (existing branches)
+- [x] 3.3 Add `beads-reader-worktree-existing` (from bd worktree list)
+- [x] 3.4 Write tests for reader functions
 
-## 4. Worktree Transient Menu → bde-360v
+## 4. Worktree Transient Menu → bde-360v ✅
 
-- [ ] 4.1 Create `beads-worktree.el` module
-- [ ] 4.2 Implement `beads-worktree-create` suffix with name/branch infixes
-- [ ] 4.3 Implement `beads-worktree-list` suffix (tabulated-list display)
-- [ ] 4.4 Implement `beads-worktree-remove` suffix with confirmation
-- [ ] 4.5 Implement `beads-worktree-info` suffix
-- [ ] 4.6 Define `beads-worktree` transient prefix
-- [ ] 4.7 Add worktree entry to `beads-main` menu
-- [ ] 4.8 Write tests for transient menu
+- [x] 4.1 Create `beads-worktree.el` module
+- [x] 4.2 Implement `beads-worktree-create` suffix with name/branch infixes
+- [x] 4.3 Implement `beads-worktree-list` suffix (tabulated-list display)
+- [x] 4.4 Implement `beads-worktree-remove` suffix with confirmation
+- [x] 4.5 Implement `beads-worktree-info` suffix
+- [x] 4.6 Define `beads-worktree-menu` transient prefix
+- [x] 4.7 Add worktree entry to `beads-main` menu
+- [x] 4.8 Write tests for transient menu
 
-## 5. Worktree List Mode → bde-j77g
+## 5. Worktree List Mode → bde-j77g ✅
 
-- [ ] 5.1 Create `beads-worktree-list-mode` (tabulated-list-mode)
-- [ ] 5.2 Add columns: Name, Path, Branch, Beads State
-- [ ] 5.3 Add keybindings: RET (info), d (remove), g (refresh)
-- [ ] 5.4 Write tests for list mode
+- [x] 5.1 Create `beads-worktree-list-mode` (tabulated-list-mode)
+- [x] 5.2 Add columns: Name, Path, Branch, Beads State, Main
+- [x] 5.3 Add keybindings: RET (info), d (remove), g (refresh), c (create)
+- [x] 5.4 Write tests for list mode (covered in beads-worktree-test.el)
 
-## 6. Migrate Agent Worktree Creation → bde-o2lv
+## 6. Migrate Agent Worktree Creation → bde-o2lv ✅
 
-- [ ] 6.1 Modify `beads-git-create-worktree-async` to use bd command
-- [ ] 6.2 Modify `beads-git-ensure-worktree-async` to use bd command
-- [ ] 6.3 Update `beads-git-find-worktree-for-issue` to use bd worktree list
-- [ ] 6.4 Deprecate direct git worktree functions (add warnings)
-- [ ] 6.5 Add bd version check for worktree command availability
-- [ ] 6.6 Add fallback to git commands for older bd versions
-- [ ] 6.7 Update tests for migrated functions
+- [x] 6.1 Modify `beads-git-create-worktree-async` to use bd command
+- [x] 6.2 Modify `beads-git-ensure-worktree-async` to use bd command
+- [x] 6.3 Update `beads-git-find-worktree-for-issue` to use bd worktree list
+- [x] 6.4 Deprecate direct git worktree functions (add warnings)
+- [x] 6.5 Add bd version check for worktree command availability
+- [x] 6.6 Add fallback to git commands for older bd versions
+- [x] 6.7 Update tests for migrated functions
 
-## 7. Sling Workflow Implementation → bde-83mf
+## 7. Sling Workflow Implementation → bde-83mf ✅
 
-- [ ] 7.1 Add `beads-agent-sling` command
-- [ ] 7.2 Implement worktree selection (create new vs existing)
-- [ ] 7.3 Implement issue selection for sling
-- [ ] 7.4 Integrate with existing agent start flow
-- [ ] 7.5 Add `beads-agent-sling` to agent transient menu
-- [ ] 7.6 Write tests for sling workflow
+- [x] 7.1 Add `beads-agent-sling` command
+- [x] 7.2 Implement worktree selection (create new vs existing)
+- [x] 7.3 Implement issue selection for sling
+- [x] 7.4 Integrate with existing agent start flow
+- [x] 7.5 Add `beads-agent-sling` to agent transient menu
+- [x] 7.6 Write tests for sling workflow
 
 ## 8. Gastown Backend (Optional) → bde-89aa
 

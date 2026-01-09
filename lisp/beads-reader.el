@@ -416,6 +416,61 @@ Matches on both issue ID and title."
 ;;; Agent-specific Reader Functions
 ;;; ============================================================
 
+;;; ============================================================
+;;; Worktree Reader Functions
+;;; ============================================================
+
+(defun beads-reader-worktree-name (_prompt _initial-input _history)
+  "Read a name for a new worktree.
+Suggests issue IDs as potential worktree names since worktrees are often
+created for specific issues.  Also allows free-form input for arbitrary
+worktree names.
+
+The completion offers:
+- Issue IDs with title annotations for quick issue-to-worktree workflow
+- Free-form input for custom worktree names
+
+Returns a string suitable for `bd worktree create NAME'."
+  (beads-completion-read-issue
+   "Worktree name (issue ID or custom): " nil nil nil 'beads--worktree-name-history))
+
+(defun beads-reader-worktree-branch (_prompt _initial-input _history)
+  "Read an existing git branch name for worktree creation.
+Uses `git branch --list' to provide completion for existing branches.
+Used with `bd worktree create NAME --branch BRANCH'.
+
+Returns a branch name string."
+  (let ((branches (beads-reader--get-git-branches)))
+    (completing-read "Branch: " branches nil nil nil 'beads--worktree-branch-history)))
+
+(defun beads-reader--get-git-branches ()
+  "Return list of local git branch names.
+Strips leading markers (* for current, + for worktree) and whitespace."
+  (condition-case nil
+      (with-temp-buffer
+        (when (zerop (call-process "git" nil t nil "branch" "--list"))
+          (let ((branches nil))
+            (goto-char (point-min))
+            (while (not (eobp))
+              (let ((line (buffer-substring-no-properties
+                           (line-beginning-position)
+                           (line-end-position))))
+                ;; Strip leading markers and whitespace
+                (when (string-match "^[*+ ]*\\(.+\\)$" line)
+                  (push (string-trim (match-string 1 line)) branches)))
+              (forward-line 1))
+            (nreverse branches))))
+    (error nil)))
+
+(defun beads-reader-worktree-existing (_prompt _initial-input _history)
+  "Read an existing worktree name from `bd worktree list'.
+Uses rich completion with branch and beads state annotations.
+Matches on worktree name, branch name, or beads state.
+
+Returns a worktree name string."
+  (beads-completion-read-worktree
+   "Worktree: " nil t nil 'beads--worktree-existing-history))
+
 (defun beads-reader-agent-backend (_prompt _initial-input _history)
   "Read AI agent backend name with rich completion.
 Returns a backend name string.  Shows all registered backends with

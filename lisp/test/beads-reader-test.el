@@ -927,5 +927,136 @@
       (let ((result (beads-reader-dep-to nil nil nil)))
         (should (equal result "bd-10"))))))
 
+;;; ============================================================
+;;; Tests for Worktree Reader Functions
+;;; ============================================================
+
+(ert-deftest beads-reader-test-worktree-name-exists ()
+  "Test that beads-reader-worktree-name is defined."
+  (should (fboundp 'beads-reader-worktree-name)))
+
+(ert-deftest beads-reader-test-worktree-name ()
+  "Test reading worktree name suggests issue IDs."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (&rest _args) "bd-123"))
+            ((symbol-function 'beads--issue-completion-table)
+             (lambda () beads-reader-test--mock-issues)))
+    (let ((result (beads-reader-worktree-name nil nil nil)))
+      (should (equal result "bd-123")))))
+
+(ert-deftest beads-reader-test-worktree-name-custom ()
+  "Test reading worktree name with custom input."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (&rest _args) "feature-auth"))
+            ((symbol-function 'beads--issue-completion-table)
+             (lambda () beads-reader-test--mock-issues)))
+    (let ((result (beads-reader-worktree-name nil nil nil)))
+      (should (equal result "feature-auth")))))
+
+(ert-deftest beads-reader-test-worktree-branch-exists ()
+  "Test that beads-reader-worktree-branch is defined."
+  (should (fboundp 'beads-reader-worktree-branch)))
+
+(ert-deftest beads-reader-test-worktree-branch ()
+  "Test reading worktree branch from git branches."
+  (cl-letf (((symbol-function 'beads-reader--get-git-branches)
+             (lambda () '("main" "develop" "feature/auth")))
+            ((symbol-function 'completing-read)
+             (lambda (_prompt branches &rest _args)
+               (should (member "main" branches))
+               (should (member "develop" branches))
+               "develop")))
+    (let ((result (beads-reader-worktree-branch nil nil nil)))
+      (should (equal result "develop")))))
+
+(ert-deftest beads-reader-test-worktree-branch-empty ()
+  "Test reading worktree branch when no branches available."
+  (cl-letf (((symbol-function 'beads-reader--get-git-branches)
+             (lambda () nil))
+            ((symbol-function 'completing-read)
+             (lambda (_prompt branches &rest _args)
+               (should (null branches))
+               "new-branch")))
+    (let ((result (beads-reader-worktree-branch nil nil nil)))
+      (should (equal result "new-branch")))))
+
+(ert-deftest beads-reader-test-get-git-branches-exists ()
+  "Test that beads-reader--get-git-branches is defined."
+  (should (fboundp 'beads-reader--get-git-branches)))
+
+(ert-deftest beads-reader-test-get-git-branches-parses-output ()
+  "Test that beads-reader--get-git-branches parses git branch output."
+  (cl-letf (((symbol-function 'call-process)
+             (lambda (_program _infile destination _display &rest _args)
+               ;; When destination is t, insert into current buffer
+               (when (eq destination t)
+                 (insert "* main\n")
+                 (insert "  develop\n")
+                 (insert "+ feature/auth\n")
+                 (insert "  bugfix/login\n"))
+               0)))
+    (let ((branches (beads-reader--get-git-branches)))
+      (should (member "main" branches))
+      (should (member "develop" branches))
+      (should (member "feature/auth" branches))
+      (should (member "bugfix/login" branches))
+      (should (= 4 (length branches))))))
+
+(ert-deftest beads-reader-test-get-git-branches-strips-markers ()
+  "Test that beads-reader--get-git-branches strips branch markers."
+  (cl-letf (((symbol-function 'call-process)
+             (lambda (_program _infile destination _display &rest _args)
+               ;; When destination is t, insert into current buffer
+               (when (eq destination t)
+                 (insert "* main\n")
+                 (insert "+ worktree-branch\n"))
+               0)))
+    (let ((branches (beads-reader--get-git-branches)))
+      ;; Should not contain * or + markers
+      (should-not (seq-find (lambda (b) (string-prefix-p "*" b)) branches))
+      (should-not (seq-find (lambda (b) (string-prefix-p "+" b)) branches)))))
+
+(ert-deftest beads-reader-test-get-git-branches-handles-error ()
+  "Test that beads-reader--get-git-branches handles git errors gracefully."
+  (cl-letf (((symbol-function 'call-process)
+             (lambda (&rest _args)
+               (error "Git not found"))))
+    (let ((branches (beads-reader--get-git-branches)))
+      (should (null branches)))))
+
+(ert-deftest beads-reader-test-get-git-branches-handles-non-zero-exit ()
+  "Test that beads-reader--get-git-branches handles non-zero exit code."
+  (cl-letf (((symbol-function 'call-process)
+             (lambda (_program _infile destination _display &rest _args)
+               ;; When destination is t, insert into current buffer
+               (when (eq destination t)
+                 (insert "fatal: not a git repository\n"))
+               128)))
+    (let ((branches (beads-reader--get-git-branches)))
+      (should (null branches)))))
+
+(ert-deftest beads-reader-test-worktree-existing-exists ()
+  "Test that beads-reader-worktree-existing is defined."
+  (should (fboundp 'beads-reader-worktree-existing)))
+
+(ert-deftest beads-reader-test-worktree-existing ()
+  "Test reading existing worktree name."
+  (cl-letf (((symbol-function 'beads-completion-read-worktree)
+             (lambda (prompt &rest _args)
+               (should (string-match-p "Worktree:" prompt))
+               "feature-auth")))
+    (let ((result (beads-reader-worktree-existing nil nil nil)))
+      (should (equal result "feature-auth")))))
+
+(ert-deftest beads-reader-test-worktree-existing-requires-match ()
+  "Test that worktree-existing requires exact match."
+  (let ((require-match-arg nil))
+    (cl-letf (((symbol-function 'beads-completion-read-worktree)
+               (lambda (_prompt _pred require-match &rest _args)
+                 (setq require-match-arg require-match)
+                 "beads.el")))
+      (beads-reader-worktree-existing nil nil nil)
+      (should require-match-arg))))
+
 (provide 'beads-reader-test)
 ;;; beads-reader-test.el ends here
