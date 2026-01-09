@@ -39,3 +39,5 @@ Thumbs.db
 /transient-reference/
 /coverage
 coverage-final.json
+# bd worktree
+test-branch/
