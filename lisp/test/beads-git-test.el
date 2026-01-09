@@ -544,9 +544,10 @@
   "Test beads-git-create-worktree returns path on success."
   :tags '(:unit)
   (cl-letf (((symbol-function 'beads-command-worktree-create!)
-             (lambda (name &rest _args)
-               (beads-worktree :name name :path "/path/to/beads-123"
-                               :branch "beads-123" :is-main nil))))
+             (lambda (&rest args)
+               (let ((name (plist-get args :name)))
+                 (beads-worktree :name name :path "/path/to/beads-123"
+                                 :branch "beads-123" :is-main nil)))))
     (should (equal (beads-git-create-worktree "beads-123")
                    "/path/to/beads-123"))))
 
@@ -554,7 +555,7 @@
   "Test beads-git-create-worktree propagates errors."
   :tags '(:unit)
   (cl-letf (((symbol-function 'beads-command-worktree-create!)
-             (lambda (_name &rest _args)
+             (lambda (&rest _args)
                (error "Failed to create worktree"))))
     (should-error (beads-git-create-worktree "beads-123")
                   :type 'error)))

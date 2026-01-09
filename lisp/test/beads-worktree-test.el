@@ -299,7 +299,7 @@
                           :is-main nil
                           :beads-state "redirect")))
     (cl-letf (((symbol-function 'beads-command-worktree-create!)
-               (lambda (_name &rest _args) created-worktree))
+               (lambda (&rest _args) created-worktree))
               ((symbol-function 'beads-completion-invalidate-worktree-cache)
                #'ignore))
       (beads-worktree--create)

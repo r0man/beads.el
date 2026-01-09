@@ -142,7 +142,7 @@ Returns error message string or nil if valid."
         (user-error "Validation failed: %s" error-msg)
       (condition-case err
           (let* ((result (beads-command-worktree-create!
-                          beads-worktree--name
+                          :name beads-worktree--name
                           :branch beads-worktree--branch))
                  (path (oref result path))
                  (branch (oref result branch)))
@@ -191,7 +191,7 @@ Returns error message string or nil if valid."
         (condition-case err
             (progn
               (beads-command-worktree-remove!
-               beads-worktree--target
+               :name beads-worktree--target
                :force beads-worktree--force)
               (message "Removed worktree: %s" beads-worktree--target)
               ;; Invalidate worktree cache
@@ -325,7 +325,7 @@ Returns a beads-worktree object or nil if not found."
         (when (y-or-n-p (format "Remove worktree '%s'? " name))
           (condition-case err
               (progn
-                (beads-command-worktree-remove! name)
+                (beads-command-worktree-remove! :name name)
                 (message "Removed worktree: %s" name)
                 (beads-completion-invalidate-worktree-cache)
                 (beads-worktree-list-refresh))

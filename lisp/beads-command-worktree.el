@@ -28,15 +28,15 @@
 ;;
 ;; Usage:
 ;;   ;; Create a worktree
-;;   (beads-command-worktree-create! "feature-auth")
-;;   (beads-command-worktree-create! "bugfix" :branch "fix-login")
+;;   (beads-command-worktree-create! :name "feature-auth")
+;;   (beads-command-worktree-create! :name "bugfix" :branch "fix-login")
 ;;
 ;;   ;; List all worktrees
 ;;   (beads-command-worktree-list!)
 ;;
 ;;   ;; Remove a worktree
-;;   (beads-command-worktree-remove! "feature-auth")
-;;   (beads-command-worktree-remove! "stale-work" :force t)
+;;   (beads-command-worktree-remove! :name "feature-auth")
+;;   (beads-command-worktree-remove! :name "stale-work" :force t)
 ;;
 ;;   ;; Get info about current worktree
 ;;   (beads-command-worktree-info!)
@@ -151,7 +151,7 @@ JSON is an alist from `bd worktree info --json'."
 ;;; Command Class: beads-command-worktree-create
 ;;; ============================================================
 
-(defclass beads-command-worktree-create (beads-command-json)
+(beads-defcommand beads-command-worktree-create (beads-command-json)
   ((name
     :initarg :name
     :type (or null string)
@@ -212,7 +212,7 @@ Returns beads-worktree instance on success."
 ;;; Command Class: beads-command-worktree-list
 ;;; ============================================================
 
-(defclass beads-command-worktree-list (beads-command-json)
+(beads-defcommand beads-command-worktree-list (beads-command-json)
   ()
   :documentation "Represents bd worktree list command.
 Lists all git worktrees with their beads configuration state.")
@@ -243,7 +243,7 @@ Returns list of beads-worktree instances."
 ;;; Command Class: beads-command-worktree-remove
 ;;; ============================================================
 
-(defclass beads-command-worktree-remove (beads-command-json)
+(beads-defcommand beads-command-worktree-remove (beads-command-json)
   ((name
     :initarg :name
     :type (or null string)
@@ -286,7 +286,7 @@ Requires name to be set."
 ;;; Command Class: beads-command-worktree-info
 ;;; ============================================================
 
-(defclass beads-command-worktree-info (beads-command-json)
+(beads-defcommand beads-command-worktree-info (beads-command-json)
   ()
   :documentation "Represents bd worktree info command.
 Shows information about the current worktree context.")
@@ -312,54 +312,6 @@ Returns beads-worktree-info instance."
                          :parsed-json parsed-json
                          :stderr (oref command stderr)
                          :parse-error err))))))))
-
-;;; ============================================================
-;;; Convenience Functions
-;;; ============================================================
-
-(defun beads-command-worktree-create! (name &rest args)
-  "Create a worktree with NAME and execute the command.
-ARGS are passed to `beads-command-worktree-create'.
-Returns the created beads-worktree instance.
-
-Examples:
-  (beads-command-worktree-create! \"feature-auth\")
-  (beads-command-worktree-create! \"bugfix\" :branch \"fix-login\")"
-  (oref (beads-command-execute
-         (apply #'beads-command-worktree-create :name name args))
-        data))
-
-(defun beads-command-worktree-list! (&rest args)
-  "List all worktrees and return list of beads-worktree instances.
-ARGS are passed to `beads-command-worktree-list'.
-
-Example:
-  (beads-command-worktree-list!)"
-  (oref (beads-command-execute
-         (apply #'beads-command-worktree-list args))
-        data))
-
-(defun beads-command-worktree-remove! (name &rest args)
-  "Remove worktree NAME and execute the command.
-ARGS are passed to `beads-command-worktree-remove'.
-Returns the command result (typically nil or removed path).
-
-Examples:
-  (beads-command-worktree-remove! \"feature-auth\")
-  (beads-command-worktree-remove! \"stale-work\" :force t)"
-  (oref (beads-command-execute
-         (apply #'beads-command-worktree-remove :name name args))
-        data))
-
-(defun beads-command-worktree-info! (&rest args)
-  "Get info about current worktree and return beads-worktree-info instance.
-ARGS are passed to `beads-command-worktree-info'.
-
-Example:
-  (beads-command-worktree-info!)"
-  (oref (beads-command-execute
-         (apply #'beads-command-worktree-info args))
-        data))
 
 ;;; ============================================================
 ;;; Utility Functions
