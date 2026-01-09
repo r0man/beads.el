@@ -224,7 +224,7 @@ Creates a new branch based on the current HEAD.
 Returns the worktree path on success, signals error on failure.
 Uses `bd worktree create' which automatically sets up beads database redirect."
   (require 'beads-command-worktree)
-  (let* ((result (beads-command-worktree-create! issue-id :branch issue-id))
+  (let* ((result (beads-command-worktree-create! :name issue-id :branch issue-id))
          (path (oref result path)))
     (message "Created worktree for %s at %s (with beads redirect)"
              issue-id path)

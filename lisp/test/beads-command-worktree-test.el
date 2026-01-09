@@ -398,7 +398,7 @@ Requires bd to be installed and a git repo."
   (skip-unless (executable-find "git"))
   (beads-test-with-temp-repo (:init-beads t)
     ;; Create a worktree
-    (let ((wt (beads-command-worktree-create! "test-worktree")))
+    (let ((wt (beads-command-worktree-create! :name "test-worktree")))
       (should (beads-worktree-p wt))
       (should (string= (oref wt name) "test-worktree"))
       ;; Verify it appears in the list
@@ -407,7 +407,7 @@ Requires bd to be installed and a git repo."
                             (string= (oref w name) "test-worktree"))
                           worktrees)))
       ;; Remove it
-      (beads-command-worktree-remove! "test-worktree" :force t)
+      (beads-command-worktree-remove! :name "test-worktree" :force t)
       ;; Verify it's gone
       (let ((worktrees (beads-command-worktree-list!)))
         (should-not (seq-find (lambda (w)
