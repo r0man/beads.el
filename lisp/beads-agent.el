@@ -1097,22 +1097,25 @@ For quick starts with defaults, use P/T/R/Q/C keys in list/show buffers."
 (defun beads-agent--start-with-worktree (issue-id backend project-dir
                                          worktree-path &optional agent-type-name)
   "Start agent on ISSUE-ID in WORKTREE-PATH.
-BACKEND is the beads-agent-backend to use.
+BACKEND is the beads-agent-backend to use, or nil to select one.
 PROJECT-DIR is the main project directory.
 AGENT-TYPE-NAME is optional agent type name (defaults to \"Task\")."
   ;; Fetch issue and start agent
-  (let ((effective-type-name (or agent-type-name "Task")))
+  (let* ((effective-type-name (or agent-type-name "Task"))
+         (agent-type (beads-agent-type-get effective-type-name))
+         ;; Select backend now (before async) to ensure user prompt happens synchronously
+         (effective-backend (or backend
+                                (beads-agent--select-backend agent-type))))
     (beads-agent--fetch-issue-async
      issue-id
      (lambda (issue)
        (if (null issue)
            (message "Cannot start agent: failed to fetch issue %s" issue-id)
          (let* ((default-directory project-dir)
-                (agent-type (beads-agent-type-get effective-type-name))
                 (prompt (beads-agent-type-build-prompt agent-type issue)))
            ;; Continue with the standard flow but skip worktree creation
            (beads-agent--continue-start
-            issue-id backend project-dir worktree-path prompt issue agent-type)))))))
+            issue-id effective-backend project-dir worktree-path prompt issue agent-type)))))))
 
 (defun beads-agent--start-project-agent (backend project-dir worktree-path)
   "Start agent in WORKTREE-PATH without specific issue.
