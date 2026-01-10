@@ -240,8 +240,8 @@ Integration test that verifies skip-existing import succeeds."
   (let* ((cmd (beads-command-import :input "/tmp/test.jsonl"))
          (args (beads-command-line cmd)))
     (should (member "import" args))
-    ;; Uses -i for input flag
-    (should (member "-i" args))
+    ;; Uses --input for input flag (slot metadata uses long form)
+    (should (member "--input" args))
     (should (member "/tmp/test.jsonl" args))))
 
 (ert-deftest beads-import-test-command-line-with-dry-run ()

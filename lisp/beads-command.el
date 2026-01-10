@@ -760,62 +760,69 @@ Returns process object."
     :initarg :branch
     :type (or null string)
     :initform nil
-    :documentation "Git branch for beads commits (-b, --branch).
-Default: current branch.")
+    :documentation "Git branch for beads commits (-b, --branch). Default: current branch."
+    ;; CLI properties
+    :long-option "--branch"
+    :short-option "-b"
+    :option-type :string)
    (contributor
     :initarg :contributor
     :type boolean
     :initform nil
-    :documentation "Run OSS contributor setup wizard (--contributor).")
+    :documentation "Run OSS contributor setup wizard (--contributor)."
+    ;; CLI properties
+    :long-option "--contributor"
+    :option-type :boolean)
    (prefix
     :initarg :prefix
     :type (or null string)
     :initform nil
-    :documentation "Issue prefix (-p, --prefix).
-Default: current directory name.")
+    :documentation "Issue prefix (-p, --prefix). Default: current directory name."
+    ;; CLI properties
+    :long-option "--prefix"
+    :short-option "-p"
+    :option-type :string)
    (quiet
     :initarg :quiet
     :type boolean
     :initform nil
-    :documentation "Suppress output (-q, --quiet).")
+    :documentation "Suppress output (-q, --quiet)."
+    ;; CLI properties
+    :long-option "--quiet"
+    :short-option "-q"
+    :option-type :boolean)
    (skip-merge-driver
     :initarg :skip-merge-driver
     :type boolean
     :initform nil
-    :documentation "Skip git merge driver setup (--skip-merge-driver).
-Non-interactive mode.")
+    :documentation "Skip git merge driver setup (--skip-merge-driver). Non-interactive mode."
+    ;; CLI properties
+    :long-option "--skip-merge-driver"
+    :option-type :boolean)
    (team
     :initarg :team
     :type boolean
     :initform nil
-    :documentation "Run team workflow setup wizard (--team)."))
+    :documentation "Run team workflow setup wizard (--team)."
+    ;; CLI properties
+    :long-option "--team"
+    :option-type :boolean))
   :documentation "Represents bd init command.
 Initializes bd in the current directory by creating .beads/ directory
 and database file.")
 
+(cl-defmethod beads-command-subcommand ((_command beads-command-init))
+  "Return \"init\" as the CLI subcommand name."
+  "init")
+
 (cl-defmethod beads-command-line ((command beads-command-init))
-  "Build command arguments for init COMMAND (without executable).
-Returns list: (\"init\" ...global-flags... ...init-flags...)."
-  (with-slots (branch contributor prefix quiet
-                      skip-merge-driver team) command
-    (let ((cmd-args (list "init"))
-          (global-args (cl-call-next-method)))
-      ;; Global args
-      (setq cmd-args (append cmd-args global-args))
-      ;; Init-specific args
-      (when branch
-        (setq cmd-args (append cmd-args (list "--branch" branch))))
-      (when contributor
-        (setq cmd-args (append cmd-args (list "--contributor"))))
-      (when prefix
-        (setq cmd-args (append cmd-args (list "--prefix" prefix))))
-      (when quiet
-        (setq cmd-args (append cmd-args (list "--quiet"))))
-      (when skip-merge-driver
-        (setq cmd-args (append cmd-args (list "--skip-merge-driver"))))
-      (when team
-        (setq cmd-args (append cmd-args (list "--team"))))
-      cmd-args)))
+  "Build command arguments for init COMMAND using slot metadata.
+Returns list: (\"init\" ...global-flags... ...metadata-args...)."
+  (let* ((subcommand (beads-command-subcommand command))
+         (global-args (cl-call-next-method)))
+    (append (split-string subcommand)
+            global-args
+            (beads-meta-build-command-line command))))
 
 (cl-defmethod beads-command-validate ((command beads-command-init))
   "Validate init COMMAND.
@@ -837,19 +844,22 @@ Returns error string or nil if valid."
 Displays a quick start guide showing common bd workflows and patterns.
 This command has no command-specific flags, only global flags.")
 
-(cl-defmethod beads-command-line ((_command beads-command-quickstart))
-  "Build command arguments for quickstart command (without executable).
+(cl-defmethod beads-command-subcommand ((_command beads-command-quickstart))
+  "Return \"quickstart\" as the CLI subcommand name."
+  "quickstart")
+
+(cl-defmethod beads-command-line ((command beads-command-quickstart))
+  "Build command arguments for quickstart COMMAND using slot metadata.
 Returns list: (\"quickstart\" ...global-flags...)."
-  (let ((cmd-args (list "quickstart"))
-        (global-args (cl-call-next-method)))
-    ;; Global args
-    (setq cmd-args (append cmd-args global-args))
-    cmd-args))
+  (let* ((subcommand (beads-command-subcommand command))
+         (global-args (cl-call-next-method)))
+    (append (split-string subcommand)
+            global-args
+            (beads-meta-build-command-line command))))
 
 (cl-defmethod beads-command-validate ((_command beads-command-quickstart))
   "Validate quickstart COMMAND.
-No validation needed (no command-specific arguments).
-Returns nil (always valid)."
+No required fields, returns nil (valid)."
   nil)
 
 ;;; Export Command
@@ -859,46 +869,44 @@ Returns nil (always valid)."
     :initarg :force
     :type boolean
     :initform nil
-    :documentation "Force export even if database is empty (--force).")
+    :documentation "Force export even if database is empty (--force)."
+    ;; CLI properties
+    :long-option "--force"
+    :option-type :boolean)
    (format
     :initarg :format
     :type (or null string)
     :initform nil
-    :documentation "Export format (-f, --format).
-Default: jsonl.")
+    :documentation "Export format (-f, --format). Default: jsonl."
+    ;; CLI properties
+    :long-option "--format"
+    :short-option "-f"
+    :option-type :string)
    (output
     :initarg :output
     :type (or null string)
     :initform nil
-    :documentation "Output file (-o, --output).
-Default: stdout.")
+    :documentation "Output file (-o, --output). Default: stdout."
+    ;; CLI properties
+    :long-option "--output"
+    :short-option "-o"
+    :option-type :string)
    (status
     :initarg :status
     :type (or null string)
     :initform nil
-    :documentation "Filter by status (-s, --status)."))
+    :documentation "Filter by status (-s, --status)."
+    ;; CLI properties
+    :long-option "--status"
+    :short-option "-s"
+    :option-type :string))
   :documentation "Represents bd export command.
 Export all issues to JSON Lines format (one JSON object per line).
 Issues are sorted by ID for consistent diffs.")
 
-(cl-defmethod beads-command-line ((command beads-command-export))
-  "Build command arguments for export COMMAND (without executable).
-Returns list: (\"export\" ...flags... ...global-flags...)."
-  (with-slots (force format output status) command
-    (let ((cmd-args (list "export"))
-          (global-args (cl-call-next-method)))
-      ;; Command-specific flags
-      (when force
-        (setq cmd-args (append cmd-args (list "--force"))))
-      (when format
-        (setq cmd-args (append cmd-args (list "-f" format))))
-      (when output
-        (setq cmd-args (append cmd-args (list "-o" output))))
-      (when status
-        (setq cmd-args (append cmd-args (list "-s" status))))
-      ;; Global args (includes --json if enabled)
-      (setq cmd-args (append cmd-args global-args))
-      cmd-args)))
+(cl-defmethod beads-command-subcommand ((_command beads-command-export))
+  "Return \"export\" as the CLI subcommand name."
+  "export")
 
 (cl-defmethod beads-command-validate ((command beads-command-export))
   "Validate export COMMAND.
@@ -948,94 +956,83 @@ Does not modify command slots."
     :initform nil
     :documentation "Output in JSON format (--json).
 NOTE: As of bd v0.x, import does not actually output JSON stats yet,
-so this defaults to nil. When JSON output is implemented, set to t.")
+so this defaults to nil. When JSON output is implemented, set to t."
+    ;; Note: json slot uses default handling from beads-command-json
+    )
    (clear-duplicate-external-refs
     :initarg :clear-duplicate-external-refs
     :type boolean
     :initform nil
-    :documentation "Clear duplicate external_ref values
-(--clear-duplicate-external-refs).
-Keeps first occurrence.")
+    :documentation "Clear duplicate external_ref values (--clear-duplicate-external-refs). Keeps first occurrence."
+    ;; CLI properties
+    :long-option "--clear-duplicate-external-refs"
+    :option-type :boolean)
    (dedupe-after
     :initarg :dedupe-after
     :type boolean
     :initform nil
-    :documentation "Detect and report content duplicates after import
-(--dedupe-after).")
+    :documentation "Detect and report content duplicates after import (--dedupe-after)."
+    ;; CLI properties
+    :long-option "--dedupe-after"
+    :option-type :boolean)
    (dry-run
     :initarg :dry-run
     :type boolean
     :initform nil
-    :documentation "Preview collision detection without making changes
-(--dry-run).")
+    :documentation "Preview collision detection without making changes (--dry-run)."
+    ;; CLI properties
+    :long-option "--dry-run"
+    :option-type :boolean)
    (input
     :initarg :input
     :type (or null string)
     :initform nil
-    :documentation "Input file (-i, --input).
-Default: stdin.")
+    :documentation "Input file (-i, --input). Default: stdin."
+    ;; CLI properties
+    :long-option "--input"
+    :short-option "-i"
+    :option-type :string)
    (orphan-handling
     :initarg :orphan-handling
     :type (or null string)
     :initform nil
-    :documentation "How to handle missing parent issues
-(--orphan-handling).
-Options: strict, resurrect, skip, allow.
-Default: use config or 'allow'.")
+    :documentation "How to handle missing parent issues (--orphan-handling). Options: strict, resurrect, skip, allow. Default: use config or 'allow'."
+    ;; CLI properties
+    :long-option "--orphan-handling"
+    :option-type :string)
    (rename-on-import
     :initarg :rename-on-import
     :type boolean
     :initform nil
-    :documentation "Rename imported issues to match database prefix
-(--rename-on-import).
-Updates all references.")
+    :documentation "Rename imported issues to match database prefix (--rename-on-import). Updates all references."
+    ;; CLI properties
+    :long-option "--rename-on-import"
+    :option-type :boolean)
    (skip-existing
     :initarg :skip-existing
     :type boolean
     :initform nil
-    :documentation "Skip existing issues instead of updating them
-(-s, --skip-existing).")
+    :documentation "Skip existing issues instead of updating them (-s, --skip-existing)."
+    ;; CLI properties
+    :long-option "--skip-existing"
+    :short-option "-s"
+    :option-type :boolean)
    (strict
     :initarg :strict
     :type boolean
     :initform nil
-    :documentation "Fail on dependency errors instead of treating them
-as warnings (--strict)."))
+    :documentation "Fail on dependency errors instead of treating them as warnings (--strict)."
+    ;; CLI properties
+    :long-option "--strict"
+    :option-type :boolean))
   :documentation "Represents bd import command.
 Import issues from JSON Lines format (one JSON object per line).
 NOTE: Import requires direct database access and automatically uses
 --no-daemon.")
 
-(cl-defmethod beads-command-line ((command beads-command-import))
-  "Build command arguments for import COMMAND (without executable).
-Returns list: (\"import\" ...flags... ...global-flags...)."
-  (with-slots (clear-duplicate-external-refs dedupe-after dry-run
-               input orphan-handling rename-on-import
-               skip-existing strict) command
-    (let ((cmd-args (list "import"))
-          (global-args (cl-call-next-method)))
-      ;; Command-specific flags
-      (when clear-duplicate-external-refs
-        (setq cmd-args (append cmd-args
-                               (list "--clear-duplicate-external-refs"))))
-      (when dedupe-after
-        (setq cmd-args (append cmd-args (list "--dedupe-after"))))
-      (when dry-run
-        (setq cmd-args (append cmd-args (list "--dry-run"))))
-      (when input
-        (setq cmd-args (append cmd-args (list "-i" input))))
-      (when orphan-handling
-        (setq cmd-args (append cmd-args
-                               (list "--orphan-handling" orphan-handling))))
-      (when rename-on-import
-        (setq cmd-args (append cmd-args (list "--rename-on-import"))))
-      (when skip-existing
-        (setq cmd-args (append cmd-args (list "-s"))))
-      (when strict
-        (setq cmd-args (append cmd-args (list "--strict"))))
-      ;; Global args (includes --json if enabled)
-      (setq cmd-args (append cmd-args global-args))
-      cmd-args)))
+(cl-defmethod beads-command-subcommand ((_command beads-command-import))
+  "Return \"import\" as the CLI subcommand name."
+  "import")
 
 (cl-defmethod beads-command-validate ((command beads-command-import))
   "Validate import COMMAND.
@@ -2181,30 +2178,27 @@ Overrides default `compilation-mode' behavior with issue-specific UX."
     :initarg :dry-run
     :type boolean
     :initform nil
-    :documentation "Preview what would be closed without making changes
-(--dry-run)."))
+    :documentation "Preview what would be closed without making changes (--dry-run)."
+    ;; CLI properties
+    :long-option "--dry-run"
+    :option-type :boolean
+    ;; Transient properties
+    :transient-key "-n"
+    :transient-description "--dry-run"
+    :transient-class transient-switch
+    :transient-argument "--dry-run"
+    :transient-group "Options"
+    :transient-level 1
+    :transient-order 1))
   :documentation "Represents bd epic close-eligible command.
 Close epics where all children are complete.
 When executed with :json t, returns list of closed/eligible epic IDs.")
 
-(cl-defmethod beads-command-line ((command
-                                   beads-command-epic-close-eligible))
-  "Build command arguments for epic close-eligible COMMAND.
-Returns list: (\"epic\" \"close-eligible\" ...global-flags... ...flags...)."
-  (with-slots (dry-run) command
-    (let ((args (list "epic" "close-eligible"))
-          (global-args (cl-call-next-method)))
-      ;; Append global flags (includes --json if enabled)
-      (setq args (append args global-args))
+(cl-defmethod beads-command-subcommand ((_command beads-command-epic-close-eligible))
+  "Return \"epic close-eligible\" as the CLI subcommand name."
+  "epic close-eligible")
 
-      ;; Boolean flag
-      (when dry-run
-        (setq args (append args (list "--dry-run"))))
-
-      args)))
-
-(cl-defmethod beads-command-validate ((_command
-                                       beads-command-epic-close-eligible))
+(cl-defmethod beads-command-validate ((_command beads-command-epic-close-eligible))
   "Validate epic close-eligible COMMAND.
 Default implementation returns nil (valid)."
   nil)
@@ -2216,26 +2210,25 @@ Default implementation returns nil (valid)."
     :initarg :eligible-only
     :type boolean
     :initform nil
-    :documentation "Show only epics eligible for closure
-(--eligible-only)."))
+    :documentation "Show only epics eligible for closure (--eligible-only)."
+    ;; CLI properties
+    :long-option "--eligible-only"
+    :option-type :boolean
+    ;; Transient properties
+    :transient-key "-e"
+    :transient-description "--eligible-only"
+    :transient-class transient-switch
+    :transient-argument "--eligible-only"
+    :transient-group "Options"
+    :transient-level 1
+    :transient-order 1))
   :documentation "Represents bd epic status command.
 Show epic completion status for all epics or only eligible ones.
 When executed with :json t, returns list of epic status objects.")
 
-(cl-defmethod beads-command-line ((command beads-command-epic-status))
-  "Build command arguments for epic status COMMAND.
-Returns list: (\"epic\" \"status\" ...global-flags... ...flags...)."
-  (with-slots (eligible-only) command
-    (let ((args (list "epic" "status"))
-          (global-args (cl-call-next-method)))
-      ;; Append global flags (includes --json if enabled)
-      (setq args (append args global-args))
-
-      ;; Boolean flag
-      (when eligible-only
-        (setq args (append args (list "--eligible-only"))))
-
-      args)))
+(cl-defmethod beads-command-subcommand ((_command beads-command-epic-status))
+  "Return \"epic status\" as the CLI subcommand name."
+  "epic status")
 
 (cl-defmethod beads-command-validate ((_command beads-command-epic-status))
   "Validate epic status COMMAND.
@@ -2815,6 +2808,10 @@ Overrides default `compilation-mode' behavior."
     :initform nil
     :documentation "One or more issue IDs to reopen (positional arguments).
 Example: '(\"bd-1\" \"bd-2\")"
+    ;; CLI properties
+    :positional 1
+    :option-type :list
+    :option-separator nil
     ;; Transient properties
     :transient-key "i"
     :transient-description "Issue ID (required)"
@@ -2850,24 +2847,9 @@ Reopens one or more closed issues with an optional reason.
 When executed with :json t, returns beads-issue instance (or list
 of instances when multiple IDs provided).")
 
-(cl-defmethod beads-command-line ((command beads-command-reopen))
-  "Build command arguments for reopen COMMAND (without executable).
-Returns list: (\"reopen\" ...global-flags... ...issue-ids... --reason ...)."
-  (with-slots (issue-ids reason) command
-    (let ((args (list "reopen"))
-          (global-args (cl-call-next-method)))
-      ;; Append global flags (includes --json if enabled)
-      (setq args (append args global-args))
-
-      ;; Append issue IDs (positional arguments)
-      (when issue-ids
-        (setq args (append args issue-ids)))
-
-      ;; Append reason (optional)
-      (when reason
-        (setq args (append args (list "--reason" reason))))
-
-      args)))
+(cl-defmethod beads-command-subcommand ((_command beads-command-reopen))
+  "Return \"reopen\" as the CLI subcommand name."
+  "reopen")
 
 (cl-defmethod beads-command-validate ((command beads-command-reopen))
   "Validate reopen COMMAND.
@@ -2976,18 +2958,13 @@ Returns error string or nil if valid."
 Shows statistics about the issue database.
 When executed with :json t, returns parsed JSON stats object.")
 
-(cl-defmethod beads-command-line ((_command beads-command-stats))
-  "Build command arguments for stats COMMAND (without executable).
-Returns list: (\"stats\" ...global-flags...)."
-  (let ((args (list "stats"))
-        (global-args (cl-call-next-method)))
-    ;; Append global flags (includes --json if enabled)
-    (setq args (append args global-args))
-    args))
+(cl-defmethod beads-command-subcommand ((_command beads-command-stats))
+  "Return \"stats\" as the CLI subcommand name."
+  "stats")
 
 (cl-defmethod beads-command-validate ((_command beads-command-stats))
   "Validate stats COMMAND.
-Default implementation returns nil (valid)."
+No required fields, returns nil (valid)."
   nil)
 
 ;; No custom parse needed for stats - uses parent JSON parse
@@ -2999,43 +2976,68 @@ Default implementation returns nil (valid)."
     :initarg :issue-id
     :type (or null string)
     :initform nil
-    :documentation "Source issue ID (required positional argument).")
+    :documentation "Source issue ID (required positional argument)."
+    ;; CLI properties
+    :positional 1
+    ;; Transient properties
+    :transient-key "i"
+    :transient-description "Issue ID"
+    :transient-class transient-option
+    :transient-argument "--issue-id="
+    :transient-prompt "Issue ID: "
+    :transient-reader beads-reader-dep-add-issue-id
+    :transient-group "Add Dependency"
+    :transient-level 1
+    :transient-order 1
+    ;; Validation
+    :required t)
    (depends-on-id
     :initarg :depends-on-id
     :type (or null string)
     :initform nil
-    :documentation "Target dependency issue ID (required positional argument).")
+    :documentation "Target dependency issue ID (required positional argument)."
+    ;; CLI properties
+    :positional 2
+    ;; Transient properties
+    :transient-key "d"
+    :transient-description "Depends on ID"
+    :transient-class transient-option
+    :transient-argument "--depends-on="
+    :transient-prompt "Depends on issue ID: "
+    :transient-reader beads-reader-dep-add-depends-on-id
+    :transient-group "Add Dependency"
+    :transient-level 1
+    :transient-order 2
+    ;; Validation
+    :required t)
    (dep-type
     :initarg :dep-type
     :type (or null string)
     :initform nil
     :documentation "Dependency type (-t, --type).
 Values: blocks, related, parent-child, discovered-from.
-Default: blocks."))
+Default: blocks."
+    ;; CLI properties
+    :long-option "--type"
+    :short-option "-t"
+    :option-type :string
+    ;; Transient properties
+    :transient-key "-t"
+    :transient-description "--type"
+    :transient-class transient-option
+    :transient-argument "--type="
+    :transient-prompt "Dependency type: "
+    :transient-choices ("blocks" "related" "parent-child" "discovered-from")
+    :transient-group "Options"
+    :transient-level 2
+    :transient-order 1))
   :documentation "Represents bd dep add command.
 Adds a dependency relationship between two issues.
 When executed with :json t, returns parsed JSON result.")
 
-(cl-defmethod beads-command-line ((command beads-command-dep-add))
-  "Build command arguments for dep add COMMAND (without executable).
-Returns list: (\"dep\" \"add\" ...global-flags... issue-id depends-on-id ...)."
-  (with-slots (issue-id depends-on-id dep-type) command
-    (let ((args (list "dep" "add"))
-          (global-args (cl-call-next-method)))
-      ;; Append global flags (includes --json if enabled)
-      (setq args (append args global-args))
-
-      ;; Positional arguments
-      (when issue-id
-        (setq args (append args (list issue-id))))
-      (when depends-on-id
-        (setq args (append args (list depends-on-id))))
-
-      ;; Type flag
-      (when dep-type
-        (setq args (append args (list "--type" dep-type))))
-
-      args)))
+(cl-defmethod beads-command-subcommand ((_command beads-command-dep-add))
+  "Return \"dep add\" as the CLI subcommand name."
+  "dep add")
 
 (cl-defmethod beads-command-validate ((command beads-command-dep-add))
   "Validate dep add COMMAND.
@@ -3101,22 +3103,9 @@ Returns error string or nil if valid."
 Removes a dependency relationship between two issues.
 When executed with :json t, returns parsed JSON result.")
 
-(cl-defmethod beads-command-line ((command beads-command-dep-remove))
-  "Build command arguments for dep remove COMMAND (without executable).
-Returns list: (\"dep\" \"remove\" ...global-flags... issue-id depends-on-id)."
-  (with-slots (issue-id depends-on-id) command
-    (let ((args (list "dep" "remove"))
-          (global-args (cl-call-next-method)))
-      ;; Append global flags (includes --json if enabled)
-      (setq args (append args global-args))
-
-      ;; Positional arguments
-      (when issue-id
-        (setq args (append args (list issue-id))))
-      (when depends-on-id
-        (setq args (append args (list depends-on-id))))
-
-      args)))
+(cl-defmethod beads-command-subcommand ((_command beads-command-dep-remove))
+  "Return \"dep remove\" as the CLI subcommand name."
+  "dep remove")
 
 (cl-defmethod beads-command-validate ((command beads-command-dep-remove))
   "Validate dep remove COMMAND.
@@ -3282,41 +3271,9 @@ Examples: tracks, blocks, parent-child."
 Shows dependency tree for an issue.
 When executed with :json t, returns parsed JSON tree structure.")
 
-(cl-defmethod beads-command-line ((command beads-command-dep-tree))
-  "Build command arguments for dep tree COMMAND (without executable).
-Returns list: (\"dep\" \"tree\" ...global-flags... issue-id ...)."
-  (with-slots (issue-id direction format max-depth reverse show-all-paths
-                        status dep-type) command
-    (let ((args (list "dep" "tree"))
-          (global-args (cl-call-next-method)))
-      ;; Append global flags (includes --json if enabled)
-      (setq args (append args global-args))
-
-      ;; Positional argument
-      (when issue-id
-        (setq args (append args (list issue-id))))
-
-      ;; String options
-      (when direction
-        (setq args (append args (list "--direction" direction))))
-      (when format
-        (setq args (append args (list "--format" format))))
-      (when status
-        (setq args (append args (list "--status" status))))
-      (when dep-type
-        (setq args (append args (list "--type" dep-type))))
-
-      ;; Integer option
-      (when max-depth
-        (setq args (append args (list "--max-depth" (number-to-string max-depth)))))
-
-      ;; Boolean flags
-      (when reverse
-        (setq args (append args (list "--reverse"))))
-      (when show-all-paths
-        (setq args (append args (list "--show-all-paths"))))
-
-      args)))
+(cl-defmethod beads-command-subcommand ((_command beads-command-dep-tree))
+  "Return \"dep tree\" as the CLI subcommand name."
+  "dep tree")
 
 (cl-defmethod beads-command-validate ((command beads-command-dep-tree))
   "Validate dep tree COMMAND.
@@ -3348,18 +3305,13 @@ Returns error string or nil if valid."
 Detects dependency cycles in the issue database.
 When executed with :json t, returns parsed JSON with cycle information.")
 
-(cl-defmethod beads-command-line ((_command beads-command-dep-cycles))
-  "Build command arguments for dep cycles COMMAND (without executable).
-Returns list: (\"dep\" \"cycles\" ...global-flags...)."
-  (let ((args (list "dep" "cycles"))
-        (global-args (cl-call-next-method)))
-    ;; Append global flags (includes --json if enabled)
-    (setq args (append args global-args))
-    args))
+(cl-defmethod beads-command-subcommand ((_command beads-command-dep-cycles))
+  "Return \"dep cycles\" as the CLI subcommand name."
+  "dep cycles")
 
 (cl-defmethod beads-command-validate ((_command beads-command-dep-cycles))
   "Validate dep cycles COMMAND.
-Default implementation returns nil (valid)."
+No required fields, returns nil (valid)."
   nil)
 
 ;; No custom parse needed for dep-cycles - uses parent JSON parse
@@ -3372,18 +3324,13 @@ Default implementation returns nil (valid)."
 Shows all labels with usage counts.
 When executed with :json t, returns parsed JSON label list.")
 
-(cl-defmethod beads-command-line ((_command beads-command-label-list-all))
-  "Build command arguments for label list-all COMMAND (without executable).
-Returns list: (\"label\" \"list-all\" ...global-flags...)."
-  (let ((args (list "label" "list-all"))
-        (global-args (cl-call-next-method)))
-    ;; Append global flags (includes --json if enabled)
-    (setq args (append args global-args))
-    args))
+(cl-defmethod beads-command-subcommand ((_command beads-command-label-list-all))
+  "Return \"label list-all\" as the CLI subcommand name."
+  "label list-all")
 
 (cl-defmethod beads-command-validate ((_command beads-command-label-list-all))
   "Validate label list-all COMMAND.
-Default implementation returns nil (valid)."
+No required fields, returns nil (valid)."
   nil)
 
 ;; No custom parse needed for label-list-all - uses parent JSON parse
@@ -3395,35 +3342,50 @@ Default implementation returns nil (valid)."
     :initarg :issue-ids
     :type (or null list)
     :initform nil
-    :documentation "One or more issue IDs (positional arguments).
-Example: '(\"bd-1\" \"bd-2\")")
+    :documentation "Issue ID(s) (required)"
+    ;; CLI properties
+    :positional 1
+    :option-type :list
+    :option-separator nil
+    ;; Transient properties
+    :transient-key "i"
+    :transient-description "Issue ID(s)"
+    :transient-class transient-option
+    :transient-argument "--issue-ids="
+    :transient-reader beads-reader-label-issue-ids
+    :transient-prompt "Issue ID(s) (comma-separated): "
+    :transient-group "Add Label"
+    :transient-level 1
+    :transient-order 1
+    ;; Validation
+    :required t)
    (label
     :initarg :label
     :type (or null string)
     :initform nil
-    :documentation "Label name to add (positional argument)."))
+    :documentation "Label name (required)"
+    ;; CLI properties
+    :positional 2
+    :option-type :string
+    ;; Transient properties
+    :transient-key "l"
+    :transient-description "Label"
+    :transient-class transient-option
+    :transient-argument "--label="
+    :transient-reader beads-reader-label-name
+    :transient-prompt "Label name: "
+    :transient-group "Add Label"
+    :transient-level 1
+    :transient-order 2
+    ;; Validation
+    :required t))
   :documentation "Represents bd label add command.
 Adds a label to one or more issues.
 When executed with :json t, returns parsed JSON result.")
 
-(cl-defmethod beads-command-line ((command beads-command-label-add))
-  "Build command arguments for label add COMMAND (without executable).
-Returns list: (\"label\" \"add\" ...global-flags... ...issue-ids... label)."
-  (with-slots (issue-ids label) command
-    (let ((args (list "label" "add"))
-          (global-args (cl-call-next-method)))
-      ;; Append global flags (includes --json if enabled)
-      (setq args (append args global-args))
-
-      ;; Append issue IDs (positional arguments)
-      (when issue-ids
-        (setq args (append args issue-ids)))
-
-      ;; Append label (positional argument)
-      (when label
-        (setq args (append args (list label))))
-
-      args)))
+(cl-defmethod beads-command-subcommand ((_command beads-command-label-add))
+  "Return \"label add\" as the CLI subcommand name."
+  "label add")
 
 (cl-defmethod beads-command-validate ((command beads-command-label-add))
   "Validate label add COMMAND.
@@ -3490,24 +3452,9 @@ Returns error string or nil if valid."
 Removes a label from one or more issues.
 When executed with :json t, returns parsed JSON result.")
 
-(cl-defmethod beads-command-line ((command beads-command-label-remove))
-  "Build command arguments for label remove COMMAND (without executable).
-Returns list: (\"label\" \"remove\" ...global-flags... ...issue-ids... label)."
-  (with-slots (issue-ids label) command
-    (let ((args (list "label" "remove"))
-          (global-args (cl-call-next-method)))
-      ;; Append global flags (includes --json if enabled)
-      (setq args (append args global-args))
-
-      ;; Append issue IDs (positional arguments)
-      (when issue-ids
-        (setq args (append args issue-ids)))
-
-      ;; Append label (positional argument)
-      (when label
-        (setq args (append args (list label))))
-
-      args)))
+(cl-defmethod beads-command-subcommand ((_command beads-command-label-remove))
+  "Return \"label remove\" as the CLI subcommand name."
+  "label remove")
 
 (cl-defmethod beads-command-validate ((command beads-command-label-remove))
   "Validate label remove COMMAND.
@@ -3533,26 +3480,28 @@ Returns error string or nil if valid."
     :initarg :issue-id
     :type (or null string)
     :initform nil
-    :documentation "Issue ID to list labels for (positional argument).
-Example: \"bd-1\""))
+    :documentation "Issue ID to list labels for (positional argument)."
+    ;; CLI properties
+    :positional 1
+    ;; Transient properties
+    :transient-key "i"
+    :transient-description "Issue ID"
+    :transient-class transient-option
+    :transient-argument "--issue-id="
+    :transient-prompt "Issue ID: "
+    :transient-reader beads-reader-issue-id
+    :transient-group "Issue"
+    :transient-level 1
+    :transient-order 1
+    ;; Validation
+    :required t))
   :documentation "Represents bd label list command.
 Lists all labels for a specific issue.
 When executed with :json t, returns parsed JSON result.")
 
-(cl-defmethod beads-command-line ((command beads-command-label-list))
-  "Build command arguments for label list COMMAND (without executable).
-Returns list: (\"label\" \"list\" ...global-flags... issue-id)."
-  (with-slots (issue-id) command
-    (let ((args (list "label" "list"))
-          (global-args (cl-call-next-method)))
-      ;; Append global flags (includes --json if enabled)
-      (setq args (append args global-args))
-
-      ;; Append issue ID (positional argument)
-      (when issue-id
-        (setq args (append args (list issue-id))))
-
-      args)))
+(cl-defmethod beads-command-subcommand ((_command beads-command-label-list))
+  "Return \"label list\" as the CLI subcommand name."
+  "label list")
 
 (cl-defmethod beads-command-validate ((command beads-command-label-list))
   "Validate label list COMMAND.
