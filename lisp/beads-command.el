@@ -381,29 +381,47 @@ Subclasses should override to add command-specific validation.")
 This :around method ensures all command lines start with beads-executable."
   (cons beads-executable (cl-call-next-method)))
 
+(cl-defgeneric beads-command-extra-flags (command)
+  "Return extra flags to insert after global flags for COMMAND.
+Override in subclasses to add class-specific flags like --json.
+Returns a list of strings, or nil.")
+
+(cl-defmethod beads-command-extra-flags ((_command beads-command))
+  "Return nil (no extra flags) for base command class."
+  nil)
+
 (cl-defmethod beads-command-line ((command beads-command))
-  "Build global flag arguments from COMMAND.
-Returns list of global flag strings (without executable).
-Subclasses should call this via `cl-call-next-method' and append
-their command-specific arguments."
+  "Build command arguments from COMMAND using slot metadata.
+If `beads-command-subcommand' returns a subcommand name, builds:
+  (SUBCOMMAND... ...global-flags... ...extra-flags... ...metadata-args...)
+Supports multi-word subcommands like \"worktree create\".
+Otherwise returns just global flags (for abstract classes)."
   (with-slots (actor db no-auto-flush no-auto-import
                      no-daemon no-db sandbox) command
-    (let (args)
-      ;; Boolean flags
-      (when no-auto-flush (push "--no-auto-flush" args))
-      (when no-auto-import (push "--no-auto-import" args))
-      (when no-daemon (push "--no-daemon" args))
-      (when no-db (push "--no-db" args))
-      (when sandbox (push "--sandbox" args))
-      ;; String options
+    (let ((global-args nil)
+          (subcommand (beads-command-subcommand command)))
+      ;; Build global flags
+      (when no-auto-flush (push "--no-auto-flush" global-args))
+      (when no-auto-import (push "--no-auto-import" global-args))
+      (when no-daemon (push "--no-daemon" global-args))
+      (when no-db (push "--no-db" global-args))
+      (when sandbox (push "--sandbox" global-args))
       (when actor
-        (push "--actor" args)
-        (push actor args))
+        (push "--actor" global-args)
+        (push actor global-args))
       (when db
-        (push "--db" args)
-        (push db args))
-      ;; Return in correct order (reverse since we pushed)
-      (nreverse args))))
+        (push "--db" global-args)
+        (push db global-args))
+      (setq global-args (nreverse global-args))
+      ;; Build full command line
+      (if subcommand
+          ;; Use metadata-based building
+          (append (split-string subcommand)
+                  global-args
+                  (beads-command-extra-flags command)
+                  (beads-meta-build-command-line command))
+        ;; No subcommand - just return global flags
+        global-args))))
 
 (cl-defmethod beads-command-validate ((_command beads-command))
   "Validate base COMMAND.
@@ -607,27 +625,11 @@ Enables machine-readable output."))
 Inherits from beads-command and adds --json flag support.
 Use this as parent class for commands that support --json flag.")
 
-(cl-defmethod beads-command-line ((command beads-command-json))
-  "Build command arguments for JSON COMMAND using slot metadata.
-If `beads-command-subcommand' returns a subcommand name, builds:
-  (SUBCOMMAND... ...global-flags... --json ...metadata-args...)
-Supports multi-word subcommands like \"worktree create\".
-Otherwise returns just global flags with --json (for abstract classes)."
+(cl-defmethod beads-command-extra-flags ((command beads-command-json))
+  "Return --json flag for COMMAND when json slot is t.
+This hook is called by the base class's `beads-command-line' method."
   (with-slots (json) command
-    (let* ((subcommand (beads-command-subcommand command))
-           (global-args (cl-call-next-method))
-           (args (if subcommand
-                     ;; Use metadata-based building
-                     ;; Split subcommand to handle multi-word commands
-                     ;; like "worktree create"
-                     (append (split-string subcommand)
-                             global-args
-                             (when json (list "--json"))
-                             (beads-meta-build-command-line command))
-                   ;; No subcommand - just global flags + json
-                   (append global-args
-                           (when json (list "--json"))))))
-      args)))
+    (when json (list "--json"))))
 
 (cl-defmethod beads-command-parse ((command beads-command-json))
   "Parse JSON output from COMMAND.
@@ -815,15 +817,6 @@ and database file.")
   "Return \"init\" as the CLI subcommand name."
   "init")
 
-(cl-defmethod beads-command-line ((command beads-command-init))
-  "Build command arguments for init COMMAND using slot metadata.
-Returns list: (\"init\" ...global-flags... ...metadata-args...)."
-  (let* ((subcommand (beads-command-subcommand command))
-         (global-args (cl-call-next-method)))
-    (append (split-string subcommand)
-            global-args
-            (beads-meta-build-command-line command))))
-
 (cl-defmethod beads-command-validate ((command beads-command-init))
   "Validate init COMMAND.
 Checks for conflicts between options.
@@ -847,15 +840,6 @@ This command has no command-specific flags, only global flags.")
 (cl-defmethod beads-command-subcommand ((_command beads-command-quickstart))
   "Return \"quickstart\" as the CLI subcommand name."
   "quickstart")
-
-(cl-defmethod beads-command-line ((command beads-command-quickstart))
-  "Build command arguments for quickstart COMMAND using slot metadata.
-Returns list: (\"quickstart\" ...global-flags...)."
-  (let* ((subcommand (beads-command-subcommand command))
-         (global-args (cl-call-next-method)))
-    (append (split-string subcommand)
-            global-args
-            (beads-meta-build-command-line command))))
 
 (cl-defmethod beads-command-validate ((_command beads-command-quickstart))
   "Validate quickstart COMMAND.
@@ -956,9 +940,7 @@ Does not modify command slots."
     :initform nil
     :documentation "Output in JSON format (--json).
 NOTE: As of bd v0.x, import does not actually output JSON stats yet,
-so this defaults to nil. When JSON output is implemented, set to t."
-    ;; Note: json slot uses default handling from beads-command-json
-    )
+so this defaults to nil. When JSON output is implemented, set to t.")
    (clear-duplicate-external-refs
     :initarg :clear-duplicate-external-refs
     :type boolean
@@ -1572,87 +1554,9 @@ Default behavior, provided for CLI familiarity."
 Lists issues with optional filtering, sorting, and formatting.
 When executed with :json t, returns a list of beads-issue instances.")
 
-(cl-defmethod beads-command-line ((command beads-command-list))
-  "Build command arguments for list COMMAND (without executable).
-Returns list: (\"list\" ...global-flags... ...list-flags...)."
-  (with-slots (all assignee closed-after closed-before
-                   created-after created-before desc-contains
-                   empty-description format id label label-any
-                   limit long no-assignee no-labels notes-contains
-                   priority priority-max priority-min status
-                   title title-contains issue-type
-                   updated-after updated-before) command
-    (let ((args (list "list"))
-          (global-args (cl-call-next-method)))
-      ;; Append global flags (includes --json if enabled)
-      (setq args (append args global-args))
-
-      ;; Boolean flags
-      (when all
-        (setq args (append args (list "--all"))))
-      (when empty-description
-        (setq args (append args (list "--empty-description"))))
-      (when long
-        (setq args (append args (list "--long"))))
-      (when no-assignee
-        (setq args (append args (list "--no-assignee"))))
-      (when no-labels
-        (setq args (append args (list "--no-labels"))))
-
-      ;; String options
-      (when assignee
-        (setq args (append args (list "--assignee" assignee))))
-      (when closed-after
-        (setq args (append args (list "--closed-after" closed-after))))
-      (when closed-before
-        (setq args (append args (list "--closed-before" closed-before))))
-      (when created-after
-        (setq args (append args (list "--created-after" created-after))))
-      (when created-before
-        (setq args (append args (list "--created-before" created-before))))
-      (when desc-contains
-        (setq args (append args (list "--desc-contains" desc-contains))))
-      (when format
-        (setq args (append args (list "--format" format))))
-      (when id
-        (setq args (append args (list "--id" id))))
-      (when notes-contains
-        (setq args (append args (list "--notes-contains" notes-contains))))
-      (when status
-        (setq args (append args (list "--status" status))))
-      (when title
-        (setq args (append args (list "--title" title))))
-      (when title-contains
-        (setq args (append args (list "--title-contains" title-contains))))
-      (when issue-type
-        (setq args (append args (list "--type" issue-type))))
-      (when updated-after
-        (setq args (append args (list "--updated-after" updated-after))))
-      (when updated-before
-        (setq args (append args (list "--updated-before" updated-before))))
-
-      ;; Integer options
-      (when limit
-        (setq args (append args (list "--limit" (number-to-string limit)))))
-      (when priority
-        (setq args (append args (list "--priority"
-                                      (number-to-string priority)))))
-      (when priority-max
-        (setq args (append args (list "--priority-max"
-                                      (number-to-string priority-max)))))
-      (when priority-min
-        (setq args (append args (list "--priority-min"
-                                      (number-to-string priority-min)))))
-
-      ;; List options (multiple values)
-      (when label
-        (dolist (lbl label)
-          (setq args (append args (list "--label" lbl)))))
-      (when label-any
-        (dolist (lbl label-any)
-          (setq args (append args (list "--label-any" lbl)))))
-
-      args)))
+(cl-defmethod beads-command-subcommand ((_command beads-command-list))
+  "Return \"list\" as the CLI subcommand name."
+  "list")
 
 (cl-defmethod beads-command-validate ((command beads-command-list))
   "Validate list COMMAND.
@@ -2016,59 +1920,9 @@ Values: bug, feature, task, epic, chore. Default: 'task'."
 Creates a new issue (or multiple issues from markdown file).
 When executed with :json t, returns the created beads-issue instance(s).")
 
-(cl-defmethod beads-command-line ((command beads-command-create))
-  "Build command arguments for create COMMAND (without executable).
-Returns list: (\"create\" ...global-flags... ...create-flags...)."
-  (with-slots (title acceptance assignee deps description design
-                     external-ref file force from-template id labels
-                     parent priority repo issue-type) command
-    (let ((args (list "create"))
-          (global-args (cl-call-next-method)))
-      ;; Append global flags (includes --json if enabled)
-      (setq args (append args global-args))
-
-      ;; Title (positional argument if provided)
-      (when title
-        (setq args (append args (list title))))
-
-      ;; Boolean flags
-      (when force
-        (setq args (append args (list "--force"))))
-
-      ;; String options
-      (when acceptance
-        (setq args (append args (list "--acceptance" acceptance))))
-      (when assignee
-        (setq args (append args (list "--assignee" assignee))))
-      (when description
-        (setq args (append args (list "--description" description))))
-      (when design
-        (setq args (append args (list "--design" design))))
-      (when external-ref
-        (setq args (append args (list "--external-ref" external-ref))))
-      (when file
-        (setq args (append args (list "--file" file))))
-      (when from-template
-        (setq args (append args (list "--from-template" from-template))))
-      (when id
-        (setq args (append args (list "--id" id))))
-      (when parent
-        (setq args (append args (list "--parent" parent))))
-      (when priority
-        (setq args (append args (list "--priority"
-                                      (beads-command--priority-to-string priority)))))
-      (when repo
-        (setq args (append args (list "--repo" repo))))
-      (when issue-type
-        (setq args (append args (list "--type" issue-type))))
-
-      ;; List options (multiple values)
-      (when deps
-        (setq args (append args (list "--deps" (mapconcat #'identity deps ",")))))
-      (when labels
-        (setq args (append args (list "--labels" (mapconcat #'identity labels ",")))))
-
-      args)))
+(cl-defmethod beads-command-subcommand ((_command beads-command-create))
+  "Return \"create\" as the CLI subcommand name."
+  "create")
 
 (cl-defmethod beads-command-validate ((command beads-command-create))
   "Validate create COMMAND.
@@ -2283,6 +2137,10 @@ Does not modify command slots."
     :initform nil
     :documentation "One or more issue IDs to show (positional arguments).
 Example: '(\"bd-1\" \"bd-2\")"
+    ;; CLI properties
+    :positional 1
+    :option-type :list
+    :option-separator " "  ; Each ID is a separate positional arg
     ;; Transient properties
     :transient-key "i"
     :transient-description "Issue ID (required)"
@@ -2300,20 +2158,9 @@ Shows detailed information for one or more issues.
 When executed with :json t, returns beads-issue instance (or list
 of instances when multiple IDs provided).")
 
-(cl-defmethod beads-command-line ((command beads-command-show))
-  "Build command arguments for show COMMAND (without executable).
-Returns list: (\"show\" ...global-flags... ...issue-ids...)."
-  (with-slots (issue-ids) command
-    (let ((args (list "show"))
-          (global-args (cl-call-next-method)))
-      ;; Append global flags (includes --json if enabled)
-      (setq args (append args global-args))
-
-      ;; Append issue IDs (positional arguments)
-      (when issue-ids
-        (setq args (append args issue-ids)))
-
-      args)))
+(cl-defmethod beads-command-subcommand ((_command beads-command-show))
+  "Return \"show\" as the CLI subcommand name."
+  "show")
 
 (cl-defmethod beads-command-validate ((command beads-command-show))
   "Validate show COMMAND.
@@ -2379,7 +2226,11 @@ Overrides default `compilation-mode' behavior."
     :type (or null list)
     :initform nil
     :documentation "One or more issue IDs to update (positional arguments).
-Example: '(\"bd-1\" \"bd-2\")")
+Example: '(\"bd-1\" \"bd-2\")"
+    ;; CLI properties
+    :positional 1
+    :option-type :list
+    :option-separator " ")
    (status
     :initarg :status
     :type (or null string)
@@ -2552,42 +2403,9 @@ Updates one or more issues with new field values.
 When executed with :json t, returns beads-issue instance (or list
 of instances when multiple IDs provided).")
 
-(cl-defmethod beads-command-line ((command beads-command-update))
-  "Build command arguments for update COMMAND (without executable).
-Returns list: (\"update\" ...global-flags... ...issue-ids... ...flags...)."
-  (with-slots (issue-ids acceptance assignee description design
-                         external-ref notes priority status title) command
-    (let ((args (list "update"))
-          (global-args (cl-call-next-method)))
-      ;; Append global flags (includes --json if enabled)
-      (setq args (append args global-args))
-
-      ;; Append issue IDs (positional arguments)
-      (when issue-ids
-        (setq args (append args issue-ids)))
-
-      ;; String options
-      (when acceptance
-        (setq args (append args (list "--acceptance" acceptance))))
-      (when assignee
-        (setq args (append args (list "--assignee" assignee))))
-      (when description
-        (setq args (append args (list "--description" description))))
-      (when design
-        (setq args (append args (list "--design" design))))
-      (when external-ref
-        (setq args (append args (list "--external-ref" external-ref))))
-      (when notes
-        (setq args (append args (list "--notes" notes))))
-      (when priority
-        (setq args (append args (list "--priority"
-                                      (beads-command--priority-to-string priority)))))
-      (when status
-        (setq args (append args (list "--status" status))))
-      (when title
-        (setq args (append args (list "--title" title))))
-
-      args)))
+(cl-defmethod beads-command-subcommand ((_command beads-command-update))
+  "Return \"update\" as the CLI subcommand name."
+  "update")
 
 (cl-defmethod beads-command-validate ((command beads-command-update))
   "Validate update COMMAND.
@@ -2671,6 +2489,10 @@ Overrides default `compilation-mode' behavior."
     :initform nil
     :documentation "One or more issue IDs to close (positional arguments).
 Example: '(\"bd-1\" \"bd-2\")"
+    ;; CLI properties
+    :positional 1
+    :option-type :list
+    :option-separator " "
     ;; Transient properties
     :transient-key "i"
     :transient-description "Issue ID (required)"
@@ -2709,24 +2531,9 @@ Closes one or more issues with a required reason.
 When executed with :json t, returns beads-issue instance (or list
 of instances when multiple IDs provided).")
 
-(cl-defmethod beads-command-line ((command beads-command-close))
-  "Build command arguments for close COMMAND (without executable).
-Returns list: (\"close\" ...global-flags... ...issue-ids... --reason ...)."
-  (with-slots (issue-ids reason) command
-    (let ((args (list "close"))
-          (global-args (cl-call-next-method)))
-      ;; Append global flags (includes --json if enabled)
-      (setq args (append args global-args))
-
-      ;; Append issue IDs (positional arguments)
-      (when issue-ids
-        (setq args (append args issue-ids)))
-
-      ;; Append reason (required)
-      (when reason
-        (setq args (append args (list "--reason" reason))))
-
-      args)))
+(cl-defmethod beads-command-subcommand ((_command beads-command-close))
+  "Return \"close\" as the CLI subcommand name."
+  "close")
 
 (cl-defmethod beads-command-validate ((command beads-command-close))
   "Validate close COMMAND.
@@ -2906,35 +2713,26 @@ Does not modify command slots."
     :type (or null string)
     :initform nil
     :documentation "Issue ID to delete (positional argument).
-Example: \"bd-1\"")
+Example: \"bd-1\""
+    ;; CLI properties
+    :positional 1
+    :option-type :string)
    (force
     :initarg :force
     :type boolean
     :initform nil
-    :documentation "Force deletion without preview (--force flag)."))
+    :documentation "Force deletion without preview (--force flag)."
+    ;; CLI properties
+    :long-option "--force"
+    :option-type :boolean))
   :documentation "Represents bd delete command.
 Deletes an issue with optional --force flag.
 When executed, returns (EXIT-CODE PARSED-JSON STDERR) tuple where
 PARSED-JSON is the deleted issue object.")
 
-(cl-defmethod beads-command-line ((command beads-command-delete))
-  "Build command arguments for delete COMMAND (without executable).
-Returns list: (\"delete\" ...global-flags... issue-id [--force])."
-  (with-slots (issue-id force) command
-    (let ((args (list "delete"))
-          (global-args (cl-call-next-method)))
-      ;; Append global flags
-      (setq args (append args global-args))
-
-      ;; Append issue ID (positional argument)
-      (when issue-id
-        (setq args (append args (list issue-id))))
-
-      ;; Append --force flag if set
-      (when force
-        (setq args (append args (list "--force"))))
-
-      args)))
+(cl-defmethod beads-command-subcommand ((_command beads-command-delete))
+  "Return \"delete\" as the CLI subcommand name."
+  "delete")
 
 (cl-defmethod beads-command-validate ((command beads-command-delete))
   "Validate delete COMMAND.
