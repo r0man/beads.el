@@ -32,6 +32,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-buffer-name)
 (require 'beads-command)
 (require 'beads-completion)
 (require 'transient)
@@ -407,7 +408,8 @@ If called from beads-list or beads-show buffers, uses current issue."
     (require 'beads-command)
     (let* ((cmd (beads-command-list :label (list label)))
            (issues (beads-command-execute cmd))
-           (buffer (get-buffer-create (format "*beads-list: label=%s*" label))))
+           (buf-name (beads-buffer-name-list nil (format "label=%s" label)))
+           (buffer (get-buffer-create buf-name)))
       (with-current-buffer buffer
         (beads-list-mode)
         (if (not issues)
@@ -479,8 +481,9 @@ Key bindings:
 (defun beads-label-list-all-view ()
   "Display all labels in a tabulated list buffer."
   (interactive)
-  (let ((caller-dir default-directory)
-        (buffer (get-buffer-create "*beads-labels*")))
+  (let* ((caller-dir default-directory)
+         (buf-name (beads-buffer-name-utility "labels"))
+         (buffer (get-buffer-create buf-name)))
     (with-current-buffer buffer
       (setq default-directory caller-dir)
       (beads-label-list-all-mode)

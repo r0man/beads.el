@@ -19,6 +19,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-buffer-name)
 (require 'beads-command)
 
 (defun beads-quickstart--execute ()
@@ -27,7 +28,8 @@
       (let* ((cmd (beads-command-quickstart))
              (_ (beads-command-execute cmd))
              (output (oref cmd data))
-             (buf (get-buffer-create "*beads-quickstart*")))
+             (buf-name (beads-buffer-name-utility "quickstart"))
+             (buf (get-buffer-create buf-name)))
         ;; execute signals error on non-zero exit, so we don't need to check
         (with-current-buffer buf
           (let ((inhibit-read-only t))

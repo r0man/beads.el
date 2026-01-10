@@ -15,7 +15,26 @@
 (require 'ert)
 (require 'json)
 (require 'beads)
+(require 'beads-buffer-name)
 (require 'beads-dep)
+
+;;; Test Utilities
+
+(defun beads-dep-test--get-tree-buffer (issue-id)
+  "Get the dep-tree buffer name for ISSUE-ID."
+  (beads-buffer-name-utility "dep-tree" issue-id))
+
+(defun beads-dep-test--get-cycles-buffer ()
+  "Get the dep-cycles buffer name."
+  (beads-buffer-name-utility "dep-cycles"))
+
+(defun beads-dep-test--with-mock-project (body)
+  "Execute BODY with mocked git functions for consistent naming."
+  (cl-letf (((symbol-function 'beads-git-get-project-name)
+             (lambda () "test-proj"))
+            ((symbol-function 'beads-git-in-worktree-p)
+             (lambda () nil)))
+    (funcall body)))
 
 ;;; Test Fixtures
 
@@ -293,35 +312,44 @@
 
 (ert-deftest beads-dep-test-tree-command-creates-buffer ()
   "Test that beads-dep-tree creates a buffer."
-  (let ((json-output (json-encode beads-dep-test--sample-tree)))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-dep-test--mock-call-process 0 json-output)))
-      (beads-dep-tree "bd-1")
-      (should (get-buffer "*beads-dep-tree: bd-1*"))
-      (kill-buffer "*beads-dep-tree: bd-1*"))))
+  (beads-dep-test--with-mock-project
+   (lambda ()
+     (let ((json-output (json-encode beads-dep-test--sample-tree))
+           (buf-name (beads-dep-test--get-tree-buffer "bd-1")))
+       (cl-letf (((symbol-function 'call-process)
+                  (beads-dep-test--mock-call-process 0 json-output)))
+         (beads-dep-tree "bd-1")
+         (should (get-buffer buf-name))
+         (kill-buffer buf-name))))))
 
 (ert-deftest beads-dep-test-tree-command-sets-mode ()
   "Test that beads-dep-tree sets the correct mode."
-  (let ((json-output (json-encode beads-dep-test--sample-tree)))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-dep-test--mock-call-process 0 json-output)))
-      (beads-dep-tree "bd-1")
-      (with-current-buffer "*beads-dep-tree: bd-1*"
-        (should (eq major-mode 'beads-dep-tree-mode)))
-      (kill-buffer "*beads-dep-tree: bd-1*"))))
+  (beads-dep-test--with-mock-project
+   (lambda ()
+     (let ((json-output (json-encode beads-dep-test--sample-tree))
+           (buf-name (beads-dep-test--get-tree-buffer "bd-1")))
+       (cl-letf (((symbol-function 'call-process)
+                  (beads-dep-test--mock-call-process 0 json-output)))
+         (beads-dep-tree "bd-1")
+         (with-current-buffer buf-name
+           (should (eq major-mode 'beads-dep-tree-mode)))
+         (kill-buffer buf-name))))))
 
 (ert-deftest beads-dep-test-tree-command-displays-content ()
   "Test that beads-dep-tree displays tree content."
-  (let ((json-output (json-encode beads-dep-test--sample-tree)))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-dep-test--mock-call-process 0 json-output)))
-      (beads-dep-tree "bd-1")
-      (with-current-buffer "*beads-dep-tree: bd-1*"
-        (let ((content (buffer-string)))
-          (should (string-match-p "Dependency Tree" content))
-          (should (string-match-p "bd-1" content))
-          (should (string-match-p "Main issue" content))))
-      (kill-buffer "*beads-dep-tree: bd-1*"))))
+  (beads-dep-test--with-mock-project
+   (lambda ()
+     (let ((json-output (json-encode beads-dep-test--sample-tree))
+           (buf-name (beads-dep-test--get-tree-buffer "bd-1")))
+       (cl-letf (((symbol-function 'call-process)
+                  (beads-dep-test--mock-call-process 0 json-output)))
+         (beads-dep-tree "bd-1")
+         (with-current-buffer buf-name
+           (let ((content (buffer-string)))
+             (should (string-match-p "Dependency Tree" content))
+             (should (string-match-p "bd-1" content))
+             (should (string-match-p "Main issue" content))))
+         (kill-buffer buf-name))))))
 
 (ert-deftest beads-dep-test-tree-command-requires-issue-id ()
   "Test that beads-dep-tree requires issue ID."
@@ -331,65 +359,80 @@
 
 (ert-deftest beads-dep-test-cycles-command-creates-buffer ()
   "Test that beads-dep-cycles creates a buffer."
-  (let ((json-output (json-encode beads-dep-test--sample-cycles)))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-dep-test--mock-call-process 0 json-output)))
-      (beads-dep-cycles)
-      (should (get-buffer "*beads-dep-cycles*"))
-      (kill-buffer "*beads-dep-cycles*"))))
+  (beads-dep-test--with-mock-project
+   (lambda ()
+     (let ((json-output (json-encode beads-dep-test--sample-cycles))
+           (buf-name (beads-dep-test--get-cycles-buffer)))
+       (cl-letf (((symbol-function 'call-process)
+                  (beads-dep-test--mock-call-process 0 json-output)))
+         (beads-dep-cycles)
+         (should (get-buffer buf-name))
+         (kill-buffer buf-name))))))
 
 (ert-deftest beads-dep-test-cycles-command-sets-mode ()
   "Test that beads-dep-cycles sets the correct mode."
-  (let ((json-output (json-encode beads-dep-test--sample-cycles)))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-dep-test--mock-call-process 0 json-output)))
-      (beads-dep-cycles)
-      (with-current-buffer "*beads-dep-cycles*"
-        (should (eq major-mode 'beads-dep-cycles-mode)))
-      (kill-buffer "*beads-dep-cycles*"))))
+  (beads-dep-test--with-mock-project
+   (lambda ()
+     (let ((json-output (json-encode beads-dep-test--sample-cycles))
+           (buf-name (beads-dep-test--get-cycles-buffer)))
+       (cl-letf (((symbol-function 'call-process)
+                  (beads-dep-test--mock-call-process 0 json-output)))
+         (beads-dep-cycles)
+         (with-current-buffer buf-name
+           (should (eq major-mode 'beads-dep-cycles-mode)))
+         (kill-buffer buf-name))))))
 
 (ert-deftest beads-dep-test-cycles-command-displays-cycles ()
   "Test that beads-dep-cycles displays cycle content."
-  (let ((json-output (json-encode beads-dep-test--sample-cycles)))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-dep-test--mock-call-process 0 json-output)))
-      (beads-dep-cycles)
-      (with-current-buffer "*beads-dep-cycles*"
-        (let ((content (buffer-string)))
-          (should (string-match-p "Dependency Cycles" content))
-          (should (string-match-p "Found 2 cycle" content))))
-      (kill-buffer "*beads-dep-cycles*"))))
+  (beads-dep-test--with-mock-project
+   (lambda ()
+     (let ((json-output (json-encode beads-dep-test--sample-cycles))
+           (buf-name (beads-dep-test--get-cycles-buffer)))
+       (cl-letf (((symbol-function 'call-process)
+                  (beads-dep-test--mock-call-process 0 json-output)))
+         (beads-dep-cycles)
+         (with-current-buffer buf-name
+           (let ((content (buffer-string)))
+             (should (string-match-p "Dependency Cycles" content))
+             (should (string-match-p "Found 2 cycle" content))))
+         (kill-buffer buf-name))))))
 
 (ert-deftest beads-dep-test-cycles-command-no-cycles ()
   "Test that beads-dep-cycles handles no cycles."
-  (let ((json-output (json-encode [])))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-dep-test--mock-call-process 0 json-output)))
-      (beads-dep-cycles)
-      (with-current-buffer "*beads-dep-cycles*"
-        (let ((content (buffer-string)))
-          (should (string-match-p "No dependency cycles" content))))
-      (kill-buffer "*beads-dep-cycles*"))))
+  (beads-dep-test--with-mock-project
+   (lambda ()
+     (let ((json-output (json-encode []))
+           (buf-name (beads-dep-test--get-cycles-buffer)))
+       (cl-letf (((symbol-function 'call-process)
+                  (beads-dep-test--mock-call-process 0 json-output)))
+         (beads-dep-cycles)
+         (with-current-buffer buf-name
+           (let ((content (buffer-string)))
+             (should (string-match-p "No dependency cycles" content))))
+         (kill-buffer buf-name))))))
 
 ;;; Tests for Tree Refresh
 
 (ert-deftest beads-dep-test-tree-refresh-updates-buffer ()
   "Test that tree refresh updates the buffer."
-  (let ((json-output (json-encode beads-dep-test--sample-tree)))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-dep-test--mock-call-process 0 json-output)))
-      (beads-dep-tree "bd-1")
-      (with-current-buffer "*beads-dep-tree: bd-1*"
-        ;; Modify buffer to test refresh
-        (let ((inhibit-read-only t))
-          (goto-char (point-min))
-          (insert "TEST"))
-        ;; Refresh
-        (beads-dep-tree-refresh)
-        (let ((content (buffer-string)))
-          (should-not (string-match-p "TEST" content))
-          (should (string-match-p "Dependency Tree" content))))
-      (kill-buffer "*beads-dep-tree: bd-1*"))))
+  (beads-dep-test--with-mock-project
+   (lambda ()
+     (let ((json-output (json-encode beads-dep-test--sample-tree))
+           (buf-name (beads-dep-test--get-tree-buffer "bd-1")))
+       (cl-letf (((symbol-function 'call-process)
+                  (beads-dep-test--mock-call-process 0 json-output)))
+         (beads-dep-tree "bd-1")
+         (with-current-buffer buf-name
+           ;; Modify buffer to test refresh
+           (let ((inhibit-read-only t))
+             (goto-char (point-min))
+             (insert "TEST"))
+           ;; Refresh
+           (beads-dep-tree-refresh)
+           (let ((content (buffer-string)))
+             (should-not (string-match-p "TEST" content))
+             (should (string-match-p "Dependency Tree" content))))
+         (kill-buffer buf-name))))))
 
 (ert-deftest beads-dep-test-tree-refresh-only-in-tree-mode ()
   "Test that tree refresh only works in tree mode."
@@ -403,21 +446,24 @@
 
 (ert-deftest beads-dep-test-cycles-refresh-updates-buffer ()
   "Test that cycles refresh updates the buffer."
-  (let ((json-output (json-encode beads-dep-test--sample-cycles)))
-    (cl-letf (((symbol-function 'call-process)
-               (beads-dep-test--mock-call-process 0 json-output)))
-      (beads-dep-cycles)
-      (with-current-buffer "*beads-dep-cycles*"
-        ;; Modify buffer to test refresh
-        (let ((inhibit-read-only t))
-          (goto-char (point-min))
-          (insert "TEST"))
-        ;; Refresh
-        (beads-dep-cycles-refresh)
-        (let ((content (buffer-string)))
-          (should-not (string-match-p "TEST" content))
-          (should (string-match-p "Dependency Cycles" content))))
-      (kill-buffer "*beads-dep-cycles*"))))
+  (beads-dep-test--with-mock-project
+   (lambda ()
+     (let ((json-output (json-encode beads-dep-test--sample-cycles))
+           (buf-name (beads-dep-test--get-cycles-buffer)))
+       (cl-letf (((symbol-function 'call-process)
+                  (beads-dep-test--mock-call-process 0 json-output)))
+         (beads-dep-cycles)
+         (with-current-buffer buf-name
+           ;; Modify buffer to test refresh
+           (let ((inhibit-read-only t))
+             (goto-char (point-min))
+             (insert "TEST"))
+           ;; Refresh
+           (beads-dep-cycles-refresh)
+           (let ((content (buffer-string)))
+             (should-not (string-match-p "TEST" content))
+             (should (string-match-p "Dependency Cycles" content))))
+         (kill-buffer buf-name))))))
 
 (ert-deftest beads-dep-test-cycles-refresh-only-in-cycles-mode ()
   "Test that cycles refresh only works in cycles mode."
