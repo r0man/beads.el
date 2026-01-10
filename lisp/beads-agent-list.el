@@ -32,6 +32,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-buffer-name)
 (require 'beads-command)
 (require 'beads-agent-backend)
 (require 'beads-sesman)
@@ -375,10 +376,10 @@ Stops the current session and starts a new one for the same issue."
 ;;;###autoload
 (defun beads-agent-list ()
   "Display agent sessions in a tabulated list buffer.
-Opens the *beads-agents* buffer showing all active AI agent sessions
+Opens a beads-agents buffer showing all active AI agent sessions
 with their status, duration, and working directory."
   (interactive)
-  (let ((buffer (get-buffer-create "*beads-agents*")))
+  (let ((buffer (get-buffer-create (beads-buffer-name-utility "agents"))))
     (with-current-buffer buffer
       (beads-agent-list-mode)
       (beads-agent-list--populate-buffer)
@@ -393,9 +394,9 @@ with their status, duration, and working directory."
 ;;; Hook Integration
 
 (defun beads-agent-list--on-state-change (_action _session)
-  "Handle agent state change by refreshing the agent list buffer.
+  "Handle agent state change by refreshing all agent list buffers.
 ACTION and SESSION are provided by `beads-agent-state-change-hook'."
-  (when-let ((buffer (get-buffer "*beads-agents*")))
+  (dolist (buffer (beads-buffer-name-find-utility-buffers nil "agents"))
     (when (buffer-live-p buffer)
       (with-current-buffer buffer
         (condition-case nil

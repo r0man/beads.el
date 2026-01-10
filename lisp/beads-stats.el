@@ -28,6 +28,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-buffer-name)
 (require 'beads-command)
 (require 'beads-types)
 (require 'button)
@@ -129,7 +130,7 @@ Opens a beads-list buffer with all issues, bypassing the transient menu."
   (beads-check-executable)
   (let* ((cmd (beads-command-list))
          (issues (oref (beads-command-execute cmd) data))
-         (buffer (get-buffer-create "*beads-list*")))
+         (buffer (get-buffer-create (beads-buffer-name-list))))
     (with-current-buffer buffer
       (beads-list-mode)
       (if (not issues)
@@ -165,10 +166,9 @@ STATUS should be one of: open, in-progress, closed, or deferred."
                        ('closed "closed")
                        ('deferred "deferred")
                        (_ (error "Invalid status: %s" status))))
-         (buffer-name (format "*beads-list: %s*" status-str))
          (cmd (beads-command-list :status status-str))
          (issues (oref (beads-command-execute cmd) data))
-         (buffer (get-buffer-create buffer-name)))
+         (buffer (get-buffer-create (beads-buffer-name-list nil status-str))))
     (with-current-buffer buffer
       (beads-list-mode)
       (if (not issues)
@@ -406,7 +406,7 @@ The statistics buffer is read-only and updates can be triggered
 with \\[beads-stats-refresh]."
   (interactive)
   (beads-check-executable)
-  (let ((buffer (get-buffer-create "*beads-stats*")))
+  (let ((buffer (get-buffer-create (beads-buffer-name-utility "stats"))))
     (with-current-buffer buffer
       (beads-stats-mode)
       (beads-stats--fetch-and-display))

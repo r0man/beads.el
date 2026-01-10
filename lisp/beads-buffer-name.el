@@ -12,8 +12,12 @@
 ;; utility buffers, with support for:
 ;;
 ;; - Project prefix: All buffers include project name
-;; - Worktree disambiguation: When in a git worktree, the branch name
-;;   is appended to disambiguate buffers (e.g., PROJECT@feature-branch)
+;; - Worktree disambiguation: When in a git worktree, both worktree name
+;;   and branch are shown (e.g., PROJECT/WORKTREE@BRANCH).  The worktree
+;;   directory name provides filesystem-level identity (unique on disk),
+;;   while the branch name provides semantic context (what you're working on).
+;;   Branch names containing "/" are sanitized to "-" (e.g., feature/auth
+;;   becomes feature-auth) to avoid ambiguity with path delimiters.
 ;; - Issue ID: Show and agent buffers can include issue context
 ;; - Title truncation: Long titles are truncated with ellipsis
 ;;
@@ -21,7 +25,7 @@
 ;;
 ;; List buffers:
 ;;   *beads-list: PROJECT*
-;;   *beads-list: PROJECT@BRANCH*       (in worktree)
+;;   *beads-list: PROJECT/WORKTREE@BRANCH*       (in worktree)
 ;;   *beads-ready: PROJECT*
 ;;   *beads-blocked: PROJECT*
 ;;   *beads-list: PROJECT label=LABEL*
@@ -29,11 +33,11 @@
 ;;
 ;; Show buffers:
 ;;   *beads-show: PROJECT/ISSUE-ID TITLE*
-;;   *beads-show: PROJECT@BRANCH/ISSUE-ID TITLE*  (in worktree)
+;;   *beads-show: PROJECT/WORKTREE@BRANCH/ISSUE-ID TITLE*  (in worktree)
 ;;
 ;; Agent buffers:
 ;;   *beads-agent: PROJECT/BACKEND#N*
-;;   *beads-agent: PROJECT@BRANCH/BACKEND#N*      (in worktree)
+;;   *beads-agent: PROJECT/WORKTREE@BRANCH/BACKEND#N*      (in worktree)
 ;;   *beads-agent: PROJECT/BACKEND#N ISSUE-ID TITLE*
 ;;
 ;; Utility buffers:
@@ -69,37 +73,54 @@ Adds ellipsis if truncated.  Returns empty string if TITLE is nil."
         title
       (concat (substring title 0 (- beads-buffer-name-max-title-length 3)) "..."))))
 
+(defun beads-buffer-name--sanitize-branch (branch)
+  "Sanitize BRANCH for use in buffer names.
+Replaces `/` with `-` to avoid ambiguity with path delimiters.
+Branch names like `feature/auth` become `feature-auth`."
+  (when branch
+    (replace-regexp-in-string "/" "-" branch)))
+
 (defun beads-buffer-name--get-worktree-name ()
-  "Return branch name if in a git worktree, nil otherwise.
-Uses the branch name for disambiguation since it's semantically
-meaningful and unique per worktree."
+  "Return worktree directory basename if in a git worktree, nil otherwise."
   (when (beads-git-in-worktree-p)
-    (beads-git-get-branch)))
+    (when-let ((root (beads-git-find-project-root)))
+      (file-name-nondirectory (directory-file-name root)))))
+
+(defun beads-buffer-name--get-worktree-info ()
+  "Return cons of (WORKTREE . BRANCH) if in a git worktree, nil otherwise.
+WORKTREE is the directory basename, BRANCH is the sanitized branch name."
+  (when (beads-git-in-worktree-p)
+    (cons (beads-buffer-name--get-worktree-name)
+          (beads-buffer-name--sanitize-branch (beads-git-get-branch)))))
 
 ;;; Project Prefix
 
-(defun beads-buffer-name--project-prefix (&optional project branch)
+(defun beads-buffer-name--project-prefix (&optional project worktree branch)
   "Build project prefix string for buffer names.
 PROJECT is the project name (defaults to current project).
-BRANCH is the branch name for disambiguation (defaults to auto-detected
-when in a worktree).
+WORKTREE is the worktree directory name (defaults to auto-detected).
+BRANCH is the branch name (defaults to auto-detected).
+Branch names are sanitized to replace `/` with `-`.
 
 Returns:
   \"PROJECT\" if not in worktree
-  \"PROJECT@BRANCH\" if in worktree (branch name for disambiguation)"
+  \"PROJECT/WORKTREE@BRANCH\" if in worktree"
   (let* ((proj (or project (beads-git-get-project-name) "unknown"))
-         (br (or branch (beads-buffer-name--get-worktree-name))))
-    (if br
-        (format "%s@%s" proj br)
+         (wt-info (unless (or worktree branch)
+                    (beads-buffer-name--get-worktree-info)))
+         (wt (or worktree (car wt-info)))
+         (br (or (beads-buffer-name--sanitize-branch branch) (cdr wt-info))))
+    (if (and wt br)
+        (format "%s/%s@%s" proj wt br)
       proj)))
 
 ;;; List Buffer Names
 
-(defun beads-buffer-name-list (&optional type filter project branch)
+(defun beads-buffer-name-list (&optional type filter project worktree branch)
   "Generate list buffer name.
 TYPE is one of: nil/\"list\", \"ready\", \"blocked\".
 FILTER is optional filter info (e.g., \"label=backend\", \"open\").
-PROJECT and BRANCH are optional overrides.
+PROJECT, WORKTREE, and BRANCH are optional overrides.
 
 Examples:
   (beads-buffer-name-list)
@@ -107,8 +128,10 @@ Examples:
   (beads-buffer-name-list \"ready\")
     => \"*beads-ready: myproject*\"
   (beads-buffer-name-list nil \"label=api\")
-    => \"*beads-list: myproject label=api*\""
-  (let* ((prefix (beads-buffer-name--project-prefix project branch))
+    => \"*beads-list: myproject label=api*\"
+  (beads-buffer-name-list nil nil \"proj\" \"proj-wt\" \"feature\")
+    => \"*beads-list: proj/proj-wt@feature*\""
+  (let* ((prefix (beads-buffer-name--project-prefix project worktree branch))
          (buf-type (cond
                     ((null type) "list")
                     ((string= type "list") "list")
@@ -122,11 +145,11 @@ Examples:
 
 ;;; Show Buffer Names
 
-(defun beads-buffer-name-show (issue-id &optional title project branch)
+(defun beads-buffer-name-show (issue-id &optional title project worktree branch)
   "Generate show buffer name for ISSUE-ID.
 TITLE is the issue title (truncated if too long).
-PROJECT and BRANCH are optional overrides."
-  (let* ((prefix (beads-buffer-name--project-prefix project branch))
+PROJECT, WORKTREE, and BRANCH are optional overrides."
+  (let* ((prefix (beads-buffer-name--project-prefix project worktree branch))
          (truncated-title (beads-buffer-name--truncate-title title)))
     (if (string-empty-p truncated-title)
         (format "*beads-show: %s/%s*" prefix issue-id)
@@ -134,19 +157,23 @@ PROJECT and BRANCH are optional overrides."
 
 ;;; Agent Buffer Names
 
-(defun beads-buffer-name-agent (backend instance &optional issue-id title project branch)
+(defun beads-buffer-name-agent (backend instance
+                                 &optional issue-id title
+                                 project worktree branch)
   "Generate agent buffer name.
 BACKEND is the agent backend type (e.g., \"claude-code\", \"claudemacs\").
 INSTANCE is the instance number.
 ISSUE-ID and TITLE are optional issue context.
-PROJECT and BRANCH are optional overrides.
+PROJECT, WORKTREE, and BRANCH are optional overrides.
 
 Examples:
   (beads-buffer-name-agent \"claude-code\" 1)
     => \"*beads-agent: myproject/claude-code#1*\"
   (beads-buffer-name-agent \"claudemacs\" 2 \"bd-42\" \"Fix login\")
-    => \"*beads-agent: myproject/claudemacs#2 bd-42 Fix login*\""
-  (let* ((prefix (beads-buffer-name--project-prefix project branch))
+    => \"*beads-agent: myproject/claudemacs#2 bd-42 Fix login*\"
+  (beads-buffer-name-agent \"cc\" 1 nil nil \"p\" \"wt\" \"feat\")
+    => \"*beads-agent: p/wt@feat/cc#1*\""
+  (let* ((prefix (beads-buffer-name--project-prefix project worktree branch))
          (base (format "*beads-agent: %s/%s#%d" prefix backend instance)))
     (if issue-id
         (let ((truncated-title (beads-buffer-name--truncate-title title)))
@@ -157,18 +184,18 @@ Examples:
 
 ;;; Utility Buffer Names
 
-(defun beads-buffer-name-utility (type &optional suffix project branch)
+(defun beads-buffer-name-utility (type &optional suffix project worktree branch)
   "Generate utility buffer name.
 TYPE is the buffer type (e.g., \"stats\", \"graph\", \"labels\").
 SUFFIX is optional additional context (e.g., issue ID for dep-tree).
-PROJECT and BRANCH are optional overrides.
+PROJECT, WORKTREE, and BRANCH are optional overrides.
 
 Examples:
   (beads-buffer-name-utility \"stats\")
     => \"*beads-stats: myproject*\"
   (beads-buffer-name-utility \"dep-tree\" \"bd-42\")
     => \"*beads-dep-tree: myproject/bd-42*\""
-  (let ((prefix (beads-buffer-name--project-prefix project branch)))
+  (let ((prefix (beads-buffer-name--project-prefix project worktree branch)))
     (if (and suffix (not (string-empty-p suffix)))
         (format "*beads-%s: %s/%s*" type prefix suffix)
       (format "*beads-%s: %s*" type prefix))))
@@ -177,35 +204,37 @@ Examples:
 
 (defun beads-buffer-name-parse-list (buffer-name)
   "Parse BUFFER-NAME as a list buffer name.
-Returns plist with :type, :project, :worktree, :filter, or nil."
+Returns plist with :type, :project, :worktree, :branch, :filter, or nil."
   (when (string-match
-         "\\`\\*beads-\\(list\\|ready\\|blocked\\): \\([^@* ]+\\)\\(?:@\\([^* ]+\\)\\)?\\(?: \\(.+\\)\\)?\\*\\'"
+         "\\`\\*beads-\\(list\\|ready\\|blocked\\): \\([^/*@ ]+\\)\\(?:/\\([^@*]+\\)@\\([^* ]+\\)\\)?\\(?: \\(.+\\)\\)?\\*\\'"
          buffer-name)
     (list :type (match-string 1 buffer-name)
           :project (match-string 2 buffer-name)
           :worktree (match-string 3 buffer-name)
-          :filter (match-string 4 buffer-name))))
+          :branch (match-string 4 buffer-name)
+          :filter (match-string 5 buffer-name))))
 
 (defun beads-buffer-name-parse-show (buffer-name)
   "Parse BUFFER-NAME as a show buffer name.
-Returns plist with :project, :worktree, :issue-id, :title, or nil."
+Returns plist with :project, :worktree, :branch, :issue-id, :title, or nil."
   (when (string-match
-         "\\`\\*beads-show: \\([^@/]+\\)\\(?:@\\([^/]+\\)\\)?/\\([^ *]+\\)\\(?: \\(.+\\)\\)?\\*\\'"
+         "\\`\\*beads-show: \\([^/]+\\)/\\(?:\\([^@]+\\)@\\([^/]+\\)/\\)?\\([^ *]+\\)\\(?: \\(.+\\)\\)?\\*\\'"
          buffer-name)
     (list :project (match-string 1 buffer-name)
           :worktree (match-string 2 buffer-name)
-          :issue-id (match-string 3 buffer-name)
-          :title (match-string 4 buffer-name))))
+          :branch (match-string 3 buffer-name)
+          :issue-id (match-string 4 buffer-name)
+          :title (match-string 5 buffer-name))))
 
 (defun beads-buffer-name-parse-agent (buffer-name)
   "Parse BUFFER-NAME as an agent buffer name.
-Returns plist with :project, :worktree, :backend, :instance,
+Returns plist with :project, :worktree, :branch, :backend, :instance,
 :issue-id, :title.  Returns nil if not an agent buffer."
   (when (string-match
          (concat "\\`\\*beads-agent: "
-                 "\\([^@/]+\\)"               ; project
-                 "\\(?:@\\([^/]+\\)\\)?"      ; @worktree
-                 "/\\([^#]+\\)"               ; /backend
+                 "\\([^/]+\\)"                ; project
+                 "/\\(?:\\([^@]+\\)@\\([^/]+\\)/\\)?"  ; /WORKTREE@BRANCH/ (optional)
+                 "\\([^#]+\\)"                ; backend
                  "#\\([0-9]+\\)"              ; #N
                  "\\(?: \\([^ *]+\\)\\)?"     ; issue-id
                  "\\(?: \\(.+\\)\\)?"         ; title
@@ -213,18 +242,19 @@ Returns plist with :project, :worktree, :backend, :instance,
          buffer-name)
     (list :project (match-string 1 buffer-name)
           :worktree (match-string 2 buffer-name)
-          :backend (match-string 3 buffer-name)
-          :instance (string-to-number (match-string 4 buffer-name))
-          :issue-id (match-string 5 buffer-name)
-          :title (match-string 6 buffer-name))))
+          :branch (match-string 3 buffer-name)
+          :backend (match-string 4 buffer-name)
+          :instance (string-to-number (match-string 5 buffer-name))
+          :issue-id (match-string 6 buffer-name)
+          :title (match-string 7 buffer-name))))
 
 (defun beads-buffer-name-parse-utility (buffer-name)
   "Parse BUFFER-NAME as a utility buffer name.
-Returns plist with :type, :project, :worktree, :suffix, or nil."
+Returns plist with :type, :project, :worktree, :branch, :suffix, or nil."
   (when (string-match
          (concat "\\`\\*beads-\\([a-z-]+\\): "
-                 "\\([^@/*]+\\)"              ; project
-                 "\\(?:@\\([^/*]+\\)\\)?"     ; @worktree
+                 "\\([^/*@ ]+\\)"             ; project
+                 "\\(?:/\\([^@*]+\\)@\\([^/*]+\\)\\)?"  ; /WORKTREE@BRANCH (optional)
                  "\\(?:/\\([^*]+\\)\\)?"      ; /suffix
                  "\\*\\'")
          buffer-name)
@@ -234,25 +264,26 @@ Returns plist with :type, :project, :worktree, :suffix, or nil."
         (list :type type
               :project (match-string 2 buffer-name)
               :worktree (match-string 3 buffer-name)
-              :suffix (match-string 4 buffer-name))))))
+              :branch (match-string 4 buffer-name)
+              :suffix (match-string 5 buffer-name))))))
 
 ;;; Predicates
 
 (defun beads-buffer-name-list-p (buffer-name)
   "Return non-nil if BUFFER-NAME is a beads list buffer."
-  (not (null (beads-buffer-name-parse-list buffer-name))))
+  (and (beads-buffer-name-parse-list buffer-name) t))
 
 (defun beads-buffer-name-show-p (buffer-name)
   "Return non-nil if BUFFER-NAME is a beads show buffer."
-  (not (null (beads-buffer-name-parse-show buffer-name))))
+  (and (beads-buffer-name-parse-show buffer-name) t))
 
 (defun beads-buffer-name-agent-p (buffer-name)
   "Return non-nil if BUFFER-NAME is a beads agent buffer."
-  (not (null (beads-buffer-name-parse-agent buffer-name))))
+  (and (beads-buffer-name-parse-agent buffer-name) t))
 
 (defun beads-buffer-name-utility-p (buffer-name)
   "Return non-nil if BUFFER-NAME is a beads utility buffer."
-  (not (null (beads-buffer-name-parse-utility buffer-name))))
+  (and (beads-buffer-name-parse-utility buffer-name) t))
 
 (defun beads-buffer-name-beads-p (buffer-name)
   "Return non-nil if BUFFER-NAME is any type of beads buffer."
@@ -295,6 +326,18 @@ Returns plist with :type, :project, :worktree, :suffix, or nil."
                   (string= project (plist-get parsed :project)))
               (or (null backend)
                   (string= backend (plist-get parsed :backend)))))))
+   (buffer-list)))
+
+(defun beads-buffer-name-find-utility-buffers (&optional project type)
+  "Find utility buffers, optionally filtered by PROJECT and/or TYPE."
+  (cl-remove-if-not
+   (lambda (buf)
+     (let ((name (buffer-name buf)))
+       (when-let ((parsed (beads-buffer-name-parse-utility name)))
+         (and (or (null project)
+                  (string= project (plist-get parsed :project)))
+              (or (null type)
+                  (string= type (plist-get parsed :type)))))))
    (buffer-list)))
 
 (provide 'beads-buffer-name)

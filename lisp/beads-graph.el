@@ -30,6 +30,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-buffer-name)
 (require 'beads-completion)
 
 ;;; Customization
@@ -220,7 +221,7 @@ Returns the path to the generated image file."
 
 (defun beads-graph--display-image (image-file)
   "Display IMAGE-FILE in a buffer."
-  (let ((buffer (get-buffer-create "*beads-graph*")))
+  (let ((buffer (get-buffer-create (beads-buffer-name-utility "graph"))))
     (with-current-buffer buffer
       (let ((inhibit-read-only t))
         (erase-buffer)

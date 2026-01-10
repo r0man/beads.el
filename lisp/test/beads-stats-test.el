@@ -15,6 +15,7 @@
 (require 'ert)
 (require 'json)
 (require 'beads)
+(require 'beads-buffer-name)
 (require 'beads-types)
 (require 'beads-stats)
 (require 'beads-test)
@@ -74,6 +75,28 @@
                              (current-buffer))
         (insert output)))
     exit-code))
+
+(defun beads-stats-test--get-stats-buffer ()
+  "Get the stats buffer for the current project.
+Returns the buffer name using the centralized naming module."
+  (beads-buffer-name-utility "stats"))
+
+(defun beads-stats-test--get-list-buffer (&optional filter)
+  "Get the list buffer for the current project.
+FILTER is an optional filter string."
+  (beads-buffer-name-list nil filter))
+
+(defun beads-stats-test--find-and-kill-stats-buffers ()
+  "Kill all stats buffers for cleanup."
+  (dolist (buf (beads-buffer-name-find-utility-buffers nil "stats"))
+    (when (buffer-live-p buf)
+      (kill-buffer buf))))
+
+(defun beads-stats-test--find-and-kill-list-buffers ()
+  "Kill all list buffers for cleanup."
+  (dolist (buf (beads-buffer-name-find-list-buffers))
+    (when (buffer-live-p buf)
+      (kill-buffer buf))))
 
 ;;; Tests for Statistics Parsing
 
@@ -257,8 +280,8 @@
       (cl-letf (((symbol-function 'call-process)
                  (beads-stats-test--mock-call-process 0 json-output)))
         (beads-stats)
-        (should (get-buffer "*beads-stats*"))
-        (kill-buffer "*beads-stats*")))))
+        (should (get-buffer (beads-stats-test--get-stats-buffer)))
+        (beads-stats-test--find-and-kill-stats-buffers)))))
 
 (ert-deftest beads-stats-test-command-sets-mode ()
   "Test that beads-stats sets the correct mode."
@@ -267,9 +290,9 @@
       (cl-letf (((symbol-function 'call-process)
                  (beads-stats-test--mock-call-process 0 json-output)))
         (beads-stats)
-        (with-current-buffer "*beads-stats*"
+        (with-current-buffer (beads-stats-test--get-stats-buffer)
           (should (eq major-mode 'beads-stats-mode)))
-        (kill-buffer "*beads-stats*")))))
+        (beads-stats-test--find-and-kill-stats-buffers)))))
 
 (ert-deftest beads-stats-test-command-displays-content ()
   "Test that beads-stats displays statistics content."
@@ -278,11 +301,11 @@
       (cl-letf (((symbol-function 'call-process)
                  (beads-stats-test--mock-call-process 0 json-output)))
         (beads-stats)
-        (with-current-buffer "*beads-stats*"
+        (with-current-buffer (beads-stats-test--get-stats-buffer)
           (let ((content (buffer-string)))
             (should (string-match-p "Total Issues:" content))
             (should (string-match-p "100" content))))
-        (kill-buffer "*beads-stats*")))))
+        (beads-stats-test--find-and-kill-stats-buffers)))))
 
 (ert-deftest beads-stats-test-command-error-handling ()
   "Test that beads-stats handles command failure gracefully."
@@ -291,11 +314,11 @@
       (cl-letf (((symbol-function 'call-process)
                  (beads-stats-test--mock-call-process 1 "Error: failed")))
         (beads-stats)
-        (should (get-buffer "*beads-stats*"))
-        (with-current-buffer "*beads-stats*"
+        (should (get-buffer (beads-stats-test--get-stats-buffer)))
+        (with-current-buffer (beads-stats-test--get-stats-buffer)
           (let ((content (buffer-string)))
             (should (string-match-p "Error fetching statistics" content))))
-        (kill-buffer "*beads-stats*")))))
+        (beads-stats-test--find-and-kill-stats-buffers)))))
 
 ;;; Tests for Refresh
 
@@ -306,7 +329,7 @@
       (cl-letf (((symbol-function 'call-process)
                  (beads-stats-test--mock-call-process 0 json-output)))
         (beads-stats)
-        (with-current-buffer "*beads-stats*"
+        (with-current-buffer (beads-stats-test--get-stats-buffer)
           ;; Modify buffer to test refresh
           (let ((inhibit-read-only t))
             (goto-char (point-min))
@@ -316,7 +339,7 @@
           (let ((content (buffer-string)))
             (should-not (string-match-p "TEST" content))
             (should (string-match-p "Total Issues:" content))))
-        (kill-buffer "*beads-stats*")))))
+        (beads-stats-test--find-and-kill-stats-buffers)))))
 
 (ert-deftest beads-stats-test-refresh-only-in-stats-mode ()
   "Test that beads-stats-refresh only works in stats mode."
@@ -336,10 +359,10 @@
                  (beads-stats-test--mock-call-process 0 json-output)))
         ;; Open stats
         (beads-stats)
-        (should (get-buffer "*beads-stats*"))
+        (should (get-buffer (beads-stats-test--get-stats-buffer)))
 
         ;; Verify mode
-        (with-current-buffer "*beads-stats*"
+        (with-current-buffer (beads-stats-test--get-stats-buffer)
           (should (eq major-mode 'beads-stats-mode))
 
           ;; Verify content
@@ -356,7 +379,7 @@
           (should (string-match-p "Total Issues:" (buffer-string))))
 
         ;; Cleanup
-        (kill-buffer "*beads-stats*")))))
+        (beads-stats-test--find-and-kill-stats-buffers)))))
 
 ;;; Edge Cases
 
@@ -854,7 +877,7 @@ The function extracts issues from the data slot of the command object."
                (lambda (_cmd) mock-cmd))
               ((symbol-function 'pop-to-buffer) (lambda (_buf))))
       (beads-stats--list-all-issues)
-      (let ((buf (get-buffer "*beads-list*")))
+      (let ((buf (get-buffer (beads-stats-test--get-list-buffer))))
         (should buf)
         (with-current-buffer buf
           (should (eq major-mode 'beads-list-mode))
@@ -879,7 +902,7 @@ The function extracts issues from the data slot of the command object."
                        (mapcar (lambda (i) (list (oref i id) [])) issues))))
               ((symbol-function 'pop-to-buffer) (lambda (_buf))))
       (beads-stats--list-all-issues)
-      (let ((buf (get-buffer "*beads-list*")))
+      (let ((buf (get-buffer (beads-stats-test--get-list-buffer))))
         (should buf)
         (with-current-buffer buf
           (should (eq major-mode 'beads-list-mode))
@@ -910,7 +933,7 @@ Verifies command is created with correct status filter."
               ((symbol-function 'pop-to-buffer) (lambda (_buf))))
       (beads-stats--list-by-status 'open)
       (should (equal captured-status "open"))
-      (let ((buf (get-buffer "*beads-list: open*")))
+      (let ((buf (get-buffer (beads-stats-test--get-list-buffer "open"))))
         (should buf)
         (kill-buffer buf)))))
 
@@ -931,7 +954,7 @@ Verifies the symbol in-progress maps to string in_progress."
               ((symbol-function 'pop-to-buffer) (lambda (_buf))))
       (beads-stats--list-by-status 'in-progress)
       (should (equal captured-status "in_progress"))
-      (let ((buf (get-buffer "*beads-list: in_progress*")))
+      (let ((buf (get-buffer (beads-stats-test--get-list-buffer "in_progress"))))
         (should buf)
         (kill-buffer buf)))))
 
@@ -950,7 +973,7 @@ Verifies the symbol in-progress maps to string in_progress."
               ((symbol-function 'pop-to-buffer) (lambda (_buf))))
       (beads-stats--list-by-status 'closed)
       (should (equal captured-status "closed"))
-      (let ((buf (get-buffer "*beads-list: closed*")))
+      (let ((buf (get-buffer (beads-stats-test--get-list-buffer "closed"))))
         (should buf)
         (kill-buffer buf)))))
 
@@ -974,7 +997,7 @@ Creates real issues and verifies they appear in the list buffer."
     (let ((id1 (beads-test-create-issue "Open Issue" "task" 1))
           (id2 (beads-test-create-issue "Another Open" "bug" 2)))
       (beads-stats--list-all-issues)
-      (let ((buf (get-buffer "*beads-list*")))
+      (let ((buf (get-buffer (beads-stats-test--get-list-buffer))))
         (should buf)
         (with-current-buffer buf
           (should (eq major-mode 'beads-list-mode))
@@ -998,7 +1021,7 @@ Creates issues with different statuses and verifies filtering."
        (beads-command-close :issue-ids (list closed-id) :reason "Done"))
       ;; Click Open filter
       (beads-stats--list-by-status 'open)
-      (let ((buf (get-buffer "*beads-list: open*")))
+      (let ((buf (get-buffer (beads-stats-test--get-list-buffer "open"))))
         (should buf)
         (with-current-buffer buf
           (should (eq major-mode 'beads-list-mode))
@@ -1019,7 +1042,7 @@ Creates issues with different statuses and verifies filtering."
        (beads-command-close :issue-ids (list closed-id) :reason "Completed"))
       ;; Click Closed filter
       (beads-stats--list-by-status 'closed)
-      (let ((buf (get-buffer "*beads-list: closed*")))
+      (let ((buf (get-buffer (beads-stats-test--get-list-buffer "closed"))))
         (should buf)
         (with-current-buffer buf
           (let ((ids (mapcar #'car tabulated-list-entries)))
@@ -1055,7 +1078,7 @@ Runs beads-stats, clicks a button, verifies correct list appears."
           (id2 (beads-test-create-issue "Issue Two" "bug" 2)))
       ;; Run beads-stats to create the stats buffer
       (beads-stats)
-      (let ((stats-buf (get-buffer "*beads-stats*")))
+      (let ((stats-buf (get-buffer (beads-stats-test--get-stats-buffer))))
         (should stats-buf)
         (with-current-buffer stats-buf
           (should (eq major-mode 'beads-stats-mode))
@@ -1070,7 +1093,7 @@ Runs beads-stats, clicks a button, verifies correct list appears."
             (button-activate button)))
         (kill-buffer stats-buf))
       ;; Verify list buffer was created with our issues
-      (let ((list-buf (get-buffer "*beads-list*")))
+      (let ((list-buf (get-buffer (beads-stats-test--get-list-buffer))))
         (should list-buf)
         (with-current-buffer list-buf
           (should (eq major-mode 'beads-list-mode))
