@@ -15,6 +15,7 @@
 (require 'ert)
 (require 'json)
 (require 'beads)
+(require 'beads-buffer-name)
 (require 'beads-delete)
 (require 'beads-test)
 
@@ -119,29 +120,41 @@ Text references to be updated:
 (ert-deftest beads-delete-test-execute-closes-show-buffer ()
   "Test that deletion closes the show buffer for deleted issue."
   (let ((json-output (json-encode '((id . "bd-42") (deleted . t)))))
-    ;; Create a show buffer first
-    (with-current-buffer (get-buffer-create "*beads-show bd-42*")
-      (special-mode))
-    (cl-letf (((symbol-function 'process-file)
-               (beads-test--mock-call-process 0 json-output))
-              ((symbol-function 'beads--invalidate-completion-cache)
+    ;; Mock git functions for consistent buffer naming
+    (cl-letf (((symbol-function 'beads-git-get-project-name)
+               (lambda () "test-proj"))
+              ((symbol-function 'beads-git-in-worktree-p)
                (lambda () nil)))
-      (beads-delete--execute-deletion "bd-42")
-      (should-not (get-buffer "*beads-show bd-42*")))))
+      ;; Create a show buffer with correct naming
+      (let ((show-buf-name (beads-buffer-name-show "bd-42" "Test Title")))
+        (with-current-buffer (get-buffer-create show-buf-name)
+          (special-mode))
+        (cl-letf (((symbol-function 'process-file)
+                   (beads-test--mock-call-process 0 json-output))
+                  ((symbol-function 'beads--invalidate-completion-cache)
+                   (lambda () nil)))
+          (beads-delete--execute-deletion "bd-42")
+          (should-not (get-buffer show-buf-name)))))))
 
 (ert-deftest beads-delete-test-execute-closes-preview-buffer ()
   "Test that deletion closes the preview buffer."
   (let ((json-output (json-encode '((id . "bd-42") (deleted . t)))))
-    ;; Create a preview buffer first
-    (with-current-buffer
-        (get-buffer-create "*beads-delete-preview: bd-42*")
-      (special-mode))
-    (cl-letf (((symbol-function 'process-file)
-               (beads-test--mock-call-process 0 json-output))
-              ((symbol-function 'beads--invalidate-completion-cache)
+    ;; Mock git functions for consistent buffer naming
+    (cl-letf (((symbol-function 'beads-git-get-project-name)
+               (lambda () "test-proj"))
+              ((symbol-function 'beads-git-in-worktree-p)
                (lambda () nil)))
-      (beads-delete--execute-deletion "bd-42")
-      (should-not (get-buffer "*beads-delete-preview: bd-42*")))))
+      ;; Create a preview buffer with correct naming
+      (let ((preview-buf-name (beads-buffer-name-utility "delete-preview"
+                                                         "bd-42")))
+        (with-current-buffer (get-buffer-create preview-buf-name)
+          (special-mode))
+        (cl-letf (((symbol-function 'process-file)
+                   (beads-test--mock-call-process 0 json-output))
+                  ((symbol-function 'beads--invalidate-completion-cache)
+                   (lambda () nil)))
+          (beads-delete--execute-deletion "bd-42")
+          (should-not (get-buffer preview-buf-name)))))))
 
 ;;; ============================================================
 ;;; Main Command Tests
@@ -437,10 +450,13 @@ Tests that show and preview buffers are killed."
   (require 'beads-test)
   (beads-test-with-project ()
     (let* ((issue (beads-command-create! :title "Cleanup Test"))
-           (issue-id (oref issue id)))
-      ;; Create show buffer manually
-      (with-current-buffer (get-buffer-create
-                            (format "*beads-show %s*" issue-id))
+           (issue-id (oref issue id))
+           ;; Get buffer names using centralized naming
+           (show-buf-name (beads-buffer-name-show issue-id "Cleanup Test"))
+           (preview-buf-name (beads-buffer-name-utility "delete-preview"
+                                                        issue-id)))
+      ;; Create show buffer manually with correct naming
+      (with-current-buffer (get-buffer-create show-buf-name)
         (special-mode))
 
       (cl-letf (((symbol-function 'yes-or-no-p)
@@ -450,9 +466,8 @@ Tests that show and preview buffers are killed."
         (beads-delete issue-id))
 
       ;; Verify buffers were killed
-      (should-not (get-buffer (format "*beads-show %s*" issue-id)))
-      (should-not (get-buffer
-                   (format "*beads-delete-preview: %s*" issue-id))))))
+      (should-not (get-buffer show-buf-name))
+      (should-not (get-buffer preview-buf-name)))))
 
 ;;; ============================================================
 ;;; Error Recovery Tests

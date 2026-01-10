@@ -26,6 +26,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-buffer-name)
 (require 'beads-command)
 (require 'beads-option)
 (require 'transient)
@@ -96,7 +97,8 @@ Displays import output in *beads-import* buffer."
           (with-slots (input dry-run) command
             ;; Display output in buffer
             (when (and output (not (string-empty-p output)))
-              (let ((buf (get-buffer-create "*beads-import*")))
+              (let ((buf (get-buffer-create
+                          (beads-buffer-name-utility "import"))))
                 (with-current-buffer buf
                   (let ((inhibit-read-only t))
                     (erase-buffer)
