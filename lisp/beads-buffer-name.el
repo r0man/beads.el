@@ -12,7 +12,8 @@
 ;; utility buffers, with support for:
 ;;
 ;; - Project prefix: All buffers include project name
-;; - Worktree disambiguation: When in a worktree, include worktree name
+;; - Worktree disambiguation: When in a git worktree, the branch name
+;;   is appended to disambiguate buffers (e.g., PROJECT@feature-branch)
 ;; - Issue ID: Show and agent buffers can include issue context
 ;; - Title truncation: Long titles are truncated with ellipsis
 ;;
@@ -20,7 +21,7 @@
 ;;
 ;; List buffers:
 ;;   *beads-list: PROJECT*
-;;   *beads-list: PROJECT@WORKTREE*
+;;   *beads-list: PROJECT@BRANCH*       (in worktree)
 ;;   *beads-ready: PROJECT*
 ;;   *beads-blocked: PROJECT*
 ;;   *beads-list: PROJECT label=LABEL*
@@ -28,11 +29,11 @@
 ;;
 ;; Show buffers:
 ;;   *beads-show: PROJECT/ISSUE-ID TITLE*
-;;   *beads-show: PROJECT@WORKTREE/ISSUE-ID TITLE*
+;;   *beads-show: PROJECT@BRANCH/ISSUE-ID TITLE*  (in worktree)
 ;;
 ;; Agent buffers:
 ;;   *beads-agent: PROJECT/BACKEND#N*
-;;   *beads-agent: PROJECT@WORKTREE/BACKEND#N*
+;;   *beads-agent: PROJECT@BRANCH/BACKEND#N*      (in worktree)
 ;;   *beads-agent: PROJECT/BACKEND#N ISSUE-ID TITLE*
 ;;
 ;; Utility buffers:
@@ -47,6 +48,7 @@
 
 ;; Forward declarations
 (declare-function beads-git-get-project-name "beads-git")
+(declare-function beads-git-get-branch "beads-git")
 (declare-function beads-git-in-worktree-p "beads-git")
 (declare-function beads-git-find-project-root "beads-git")
 
@@ -68,35 +70,36 @@ Adds ellipsis if truncated.  Returns empty string if TITLE is nil."
       (concat (substring title 0 (- beads-buffer-name-max-title-length 3)) "..."))))
 
 (defun beads-buffer-name--get-worktree-name ()
-  "Return worktree name if in a git worktree, nil otherwise.
-The worktree name is the basename of the worktree directory."
+  "Return branch name if in a git worktree, nil otherwise.
+Uses the branch name for disambiguation since it's semantically
+meaningful and unique per worktree."
   (when (beads-git-in-worktree-p)
-    (when-let ((root (beads-git-find-project-root)))
-      (file-name-nondirectory (directory-file-name root)))))
+    (beads-git-get-branch)))
 
 ;;; Project Prefix
 
-(defun beads-buffer-name--project-prefix (&optional project worktree)
+(defun beads-buffer-name--project-prefix (&optional project branch)
   "Build project prefix string for buffer names.
 PROJECT is the project name (defaults to current project).
-WORKTREE is the worktree name (defaults to auto-detected).
+BRANCH is the branch name for disambiguation (defaults to auto-detected
+when in a worktree).
 
 Returns:
   \"PROJECT\" if not in worktree
-  \"PROJECT@WORKTREE\" if in worktree"
+  \"PROJECT@BRANCH\" if in worktree (branch name for disambiguation)"
   (let* ((proj (or project (beads-git-get-project-name) "unknown"))
-         (wt (or worktree (beads-buffer-name--get-worktree-name))))
-    (if wt
-        (format "%s@%s" proj wt)
+         (br (or branch (beads-buffer-name--get-worktree-name))))
+    (if br
+        (format "%s@%s" proj br)
       proj)))
 
 ;;; List Buffer Names
 
-(defun beads-buffer-name-list (&optional type filter project worktree)
+(defun beads-buffer-name-list (&optional type filter project branch)
   "Generate list buffer name.
 TYPE is one of: nil/\"list\", \"ready\", \"blocked\".
 FILTER is optional filter info (e.g., \"label=backend\", \"open\").
-PROJECT and WORKTREE are optional overrides.
+PROJECT and BRANCH are optional overrides.
 
 Examples:
   (beads-buffer-name-list)
@@ -105,7 +108,7 @@ Examples:
     => \"*beads-ready: myproject*\"
   (beads-buffer-name-list nil \"label=api\")
     => \"*beads-list: myproject label=api*\""
-  (let* ((prefix (beads-buffer-name--project-prefix project worktree))
+  (let* ((prefix (beads-buffer-name--project-prefix project branch))
          (buf-type (cond
                     ((null type) "list")
                     ((string= type "list") "list")
@@ -119,11 +122,11 @@ Examples:
 
 ;;; Show Buffer Names
 
-(defun beads-buffer-name-show (issue-id &optional title project worktree)
+(defun beads-buffer-name-show (issue-id &optional title project branch)
   "Generate show buffer name for ISSUE-ID.
 TITLE is the issue title (truncated if too long).
-PROJECT and WORKTREE are optional overrides."
-  (let* ((prefix (beads-buffer-name--project-prefix project worktree))
+PROJECT and BRANCH are optional overrides."
+  (let* ((prefix (beads-buffer-name--project-prefix project branch))
          (truncated-title (beads-buffer-name--truncate-title title)))
     (if (string-empty-p truncated-title)
         (format "*beads-show: %s/%s*" prefix issue-id)
@@ -131,19 +134,19 @@ PROJECT and WORKTREE are optional overrides."
 
 ;;; Agent Buffer Names
 
-(defun beads-buffer-name-agent (backend instance &optional issue-id title project worktree)
+(defun beads-buffer-name-agent (backend instance &optional issue-id title project branch)
   "Generate agent buffer name.
 BACKEND is the agent backend type (e.g., \"claude-code\", \"claudemacs\").
 INSTANCE is the instance number.
 ISSUE-ID and TITLE are optional issue context.
-PROJECT and WORKTREE are optional overrides.
+PROJECT and BRANCH are optional overrides.
 
 Examples:
   (beads-buffer-name-agent \"claude-code\" 1)
     => \"*beads-agent: myproject/claude-code#1*\"
   (beads-buffer-name-agent \"claudemacs\" 2 \"bd-42\" \"Fix login\")
     => \"*beads-agent: myproject/claudemacs#2 bd-42 Fix login*\""
-  (let* ((prefix (beads-buffer-name--project-prefix project worktree))
+  (let* ((prefix (beads-buffer-name--project-prefix project branch))
          (base (format "*beads-agent: %s/%s#%d" prefix backend instance)))
     (if issue-id
         (let ((truncated-title (beads-buffer-name--truncate-title title)))
@@ -154,18 +157,18 @@ Examples:
 
 ;;; Utility Buffer Names
 
-(defun beads-buffer-name-utility (type &optional suffix project worktree)
+(defun beads-buffer-name-utility (type &optional suffix project branch)
   "Generate utility buffer name.
 TYPE is the buffer type (e.g., \"stats\", \"graph\", \"labels\").
 SUFFIX is optional additional context (e.g., issue ID for dep-tree).
-PROJECT and WORKTREE are optional overrides.
+PROJECT and BRANCH are optional overrides.
 
 Examples:
   (beads-buffer-name-utility \"stats\")
     => \"*beads-stats: myproject*\"
   (beads-buffer-name-utility \"dep-tree\" \"bd-42\")
     => \"*beads-dep-tree: myproject/bd-42*\""
-  (let ((prefix (beads-buffer-name--project-prefix project worktree)))
+  (let ((prefix (beads-buffer-name--project-prefix project branch)))
     (if (and suffix (not (string-empty-p suffix)))
         (format "*beads-%s: %s/%s*" type prefix suffix)
       (format "*beads-%s: %s*" type prefix))))
