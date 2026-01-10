@@ -57,17 +57,46 @@ On fetch failure, returns previous cached data (if any) with a warning."
   "Invalidate the completion cache."
   (setq beads-completion--cache nil))
 
+;;; Issue Sorting
+
+(defun beads-completion--status-priority (status)
+  "Return numeric priority for STATUS (lower = higher priority).
+Order: in_progress (0) > open (1) > blocked (2) > closed (3)."
+  (pcase status
+    ("in_progress" 0)
+    ("open" 1)
+    ("blocked" 2)
+    ("closed" 3)
+    (_ 4)))
+
+(defun beads-completion--sort-issues (issues)
+  "Sort ISSUES by status priority, then by issue priority.
+Status order: in_progress > open > blocked > closed.
+Within same status, higher priority (lower number) comes first."
+  (sort (copy-sequence issues)
+        (lambda (a b)
+          (let ((status-a (beads-completion--status-priority (oref a status)))
+                (status-b (beads-completion--status-priority (oref b status))))
+            (if (= status-a status-b)
+                ;; Same status: sort by priority (lower = higher priority)
+                (< (or (oref a priority) 4) (or (oref b priority) 4))
+              ;; Different status: sort by status priority
+              (< status-a status-b))))))
+
 ;;; Issue Completion Table
 
 (defun beads-completion-issue-table ()
-  "Return completion table for issue IDs with title-aware matching."
+  "Return completion table for issue IDs with title-aware matching.
+Issues are sorted by status priority: in_progress > open > blocked > closed,
+then by issue priority within each status."
   (lambda (string pred action)
     (if (eq action 'metadata)
         '(metadata
           (category . beads-issue)
           (annotation-function . beads-completion--issue-annotate)
           (group-function . beads-completion--issue-group))
-      (let ((issues (beads-completion--get-cached-issues)))
+      (let ((issues (beads-completion--sort-issues
+                     (beads-completion--get-cached-issues))))
         (complete-with-action
          action
          (mapcar (lambda (i)
@@ -506,6 +535,151 @@ for matching on worktree name, branch, or beads state."
          (cons '(beads-worktree (styles beads-worktree-name basic))
                completion-category-overrides)))
     (completing-read prompt (beads-completion-worktree-table)
+                     predicate require-match initial-input history default)))
+
+;;; Combined Worktree Name Completion
+;;
+;; For creating new worktrees, show existing worktrees first (to avoid
+;; duplicates), then issues sorted by status priority.
+
+(defun beads-completion-worktree-name-table ()
+  "Return completion table for new worktree names.
+Combines:
+1. Existing worktree names (to avoid duplicates) - grouped as \"Existing\"
+2. Issue IDs sorted by status: in_progress > open > blocked > closed
+
+This is used when creating a new worktree, where the name is typically
+an issue ID.  Shows existing worktrees first so user can see what
+already exists."
+  (lambda (string pred action)
+    (if (eq action 'metadata)
+        '(metadata
+          (category . beads-worktree-name)
+          (annotation-function . beads-completion--worktree-name-annotate)
+          (group-function . beads-completion--worktree-name-group))
+      (let* ((worktrees (beads-completion--get-cached-worktrees))
+             (issues (beads-completion--sort-issues
+                      (beads-completion--get-cached-issues)))
+             ;; Build candidates: worktrees first, then issues
+             (worktree-candidates
+              (mapcar (lambda (wt)
+                        (propertize (oref wt name)
+                                    'beads-type 'worktree
+                                    'beads-worktree wt
+                                    'beads-branch (oref wt branch)
+                                    'beads-state (oref wt beads-state)))
+                      worktrees))
+             (issue-candidates
+              (mapcar (lambda (i)
+                        (propertize (oref i id)
+                                    'beads-type 'issue
+                                    'beads-issue i
+                                    'beads-title (oref i title)
+                                    'beads-status (oref i status)))
+                      issues))
+             (all-candidates (append worktree-candidates issue-candidates)))
+        (complete-with-action action all-candidates string pred)))))
+
+(defun beads-completion--worktree-name-annotate (candidate)
+  "Annotate worktree name CANDIDATE based on type (worktree or issue)."
+  (condition-case nil
+      (let ((type (get-text-property 0 'beads-type candidate)))
+        (pcase type
+          ('worktree
+           (let* ((wt (get-text-property 0 'beads-worktree candidate))
+                  (branch (and wt (oref wt branch)))
+                  (state (and wt (oref wt beads-state))))
+             (concat
+              (propertize " [EXISTS]" 'face 'warning)
+              (when branch (format " [%s]" branch))
+              (when state (format " %s" state)))))
+          ('issue
+           (let ((issue (get-text-property 0 'beads-issue candidate)))
+             (when issue
+               (let ((status (oref issue status))
+                     (title (oref issue title))
+                     (priority (oref issue priority)))
+                 (format " [P%s] %s - %s"
+                         priority
+                         (propertize (upcase status)
+                                     'face (pcase status
+                                             ("in_progress" 'warning)
+                                             ("open" 'success)
+                                             ("blocked" 'error)
+                                             ("closed" 'shadow)
+                                             (_ 'default)))
+                         (beads-completion--truncate-string title 40))))))
+          (_ nil)))
+    (error "")))
+
+(defun beads-completion--worktree-name-group (candidate transform)
+  "Group worktree name CANDIDATE by type.
+If TRANSFORM is non-nil, return CANDIDATE."
+  (if transform
+      candidate
+    (let ((type (get-text-property 0 'beads-type candidate)))
+      (pcase type
+        ('worktree "Existing Worktrees")
+        ('issue
+         (let ((status (get-text-property 0 'beads-status candidate)))
+           (pcase status
+             ("in_progress" "In Progress Issues")
+             ("open" "Open Issues")
+             ("blocked" "Blocked Issues")
+             ("closed" "Closed Issues")
+             (_ "Other Issues"))))
+        (_ "Other")))))
+
+;;; Worktree Name Completion Style
+
+(defun beads-completion--worktree-name-style-try (string table pred point)
+  "Try completion of STRING for worktree names.
+TABLE is the completion table, PRED is the predicate, POINT is the position."
+  (let ((matches (beads-completion--worktree-name-style-all string table pred point)))
+    (cond
+     ((null matches) nil)
+     ((and (= (length matches) 1)
+           (string= string (substring-no-properties (car matches))))
+      t)
+     ((= (length matches) 1)
+      (substring-no-properties (car matches)))
+     (t string))))
+
+(defun beads-completion--worktree-name-style-all (string table pred point)
+  "Return worktree name completions matching STRING.
+TABLE is the completion table, PRED is the predicate, POINT is ignored.
+Matches on candidate name, issue title, or worktree branch."
+  (ignore point)
+  (let* ((all (all-completions "" table pred))
+         (pattern (regexp-quote string))
+         (case-fold-search t))
+    (seq-filter
+     (lambda (candidate)
+       (let ((title (get-text-property 0 'beads-title candidate))
+             (branch (get-text-property 0 'beads-branch candidate)))
+         (or (string-match-p pattern candidate)
+             (and title (string-match-p pattern title))
+             (and branch (string-match-p pattern branch)))))
+     all)))
+
+;; Add worktree name completion style (idempotent - won't duplicate)
+(unless (assq 'beads-worktree-name-create completion-styles-alist)
+  (add-to-list 'completion-styles-alist
+               '(beads-worktree-name-create
+                 beads-completion--worktree-name-style-try
+                 beads-completion--worktree-name-style-all
+                 "Match worktree name by name, issue title, or branch.")))
+
+(defun beads-completion-read-worktree-name (prompt &optional predicate require-match
+                                                    initial-input history default)
+  "Read a worktree name for creation with combined completion.
+Shows existing worktrees first, then issues sorted by status priority.
+PROMPT is the prompt string.  PREDICATE, REQUIRE-MATCH, INITIAL-INPUT,
+HISTORY, and DEFAULT are passed to `completing-read'."
+  (let ((completion-category-overrides
+         (cons '(beads-worktree-name (styles beads-worktree-name-create basic))
+               completion-category-overrides)))
+    (completing-read prompt (beads-completion-worktree-name-table)
                      predicate require-match initial-input history default)))
 
 (provide 'beads-completion)

@@ -17,6 +17,7 @@
 ;;; Code:
 
 (require 'ert)
+(require 'beads)  ; For backward-compatibility aliases
 (require 'beads-completion)
 (require 'beads-types)
 (require 'beads-agent-backend)
@@ -204,6 +205,92 @@ Annotation functions may return nil or empty string for missing data."
            (candidates (all-completions "" table nil))
            (candidate (car candidates)))
       (should (string= candidate (beads-completion--issue-group candidate t))))))
+
+;;; Issue Sorting Tests
+
+(ert-deftest beads-completion-test-status-priority ()
+  "Test that status priority is correct."
+  (should (= 0 (beads-completion--status-priority "in_progress")))
+  (should (= 1 (beads-completion--status-priority "open")))
+  (should (= 2 (beads-completion--status-priority "blocked")))
+  (should (= 3 (beads-completion--status-priority "closed")))
+  (should (= 4 (beads-completion--status-priority "unknown"))))
+
+(ert-deftest beads-completion-test-sort-issues-by-status ()
+  "Test that issues are sorted by status priority."
+  (let* ((issues (list
+                  (beads-completion-test--make-issue "bd-1" "Open issue" "open" 2)
+                  (beads-completion-test--make-issue "bd-2" "In progress" "in_progress" 2)
+                  (beads-completion-test--make-issue "bd-3" "Blocked" "blocked" 2)
+                  (beads-completion-test--make-issue "bd-4" "Closed" "closed" 2)))
+         (sorted (beads-completion--sort-issues issues)))
+    ;; in_progress should be first
+    (should (string= "bd-2" (oref (nth 0 sorted) id)))
+    ;; open should be second
+    (should (string= "bd-1" (oref (nth 1 sorted) id)))
+    ;; blocked should be third
+    (should (string= "bd-3" (oref (nth 2 sorted) id)))
+    ;; closed should be last
+    (should (string= "bd-4" (oref (nth 3 sorted) id)))))
+
+(ert-deftest beads-completion-test-sort-issues-by-priority-within-status ()
+  "Test that issues with same status are sorted by priority."
+  (let* ((issues (list
+                  (beads-completion-test--make-issue "bd-1" "Low priority" "open" 3)
+                  (beads-completion-test--make-issue "bd-2" "High priority" "open" 1)
+                  (beads-completion-test--make-issue "bd-3" "Medium priority" "open" 2)))
+         (sorted (beads-completion--sort-issues issues)))
+    ;; High priority (P1) should be first
+    (should (string= "bd-2" (oref (nth 0 sorted) id)))
+    ;; Medium priority (P2) should be second
+    (should (string= "bd-3" (oref (nth 1 sorted) id)))
+    ;; Low priority (P3) should be third
+    (should (string= "bd-1" (oref (nth 2 sorted) id)))))
+
+(ert-deftest beads-completion-test-sort-issues-combined ()
+  "Test sorting with both status and priority."
+  (let* ((issues (list
+                  (beads-completion-test--make-issue "bd-1" "Open P0" "open" 0)
+                  (beads-completion-test--make-issue "bd-2" "In progress P2" "in_progress" 2)
+                  (beads-completion-test--make-issue "bd-3" "In progress P1" "in_progress" 1)
+                  (beads-completion-test--make-issue "bd-4" "Open P1" "open" 1)))
+         (sorted (beads-completion--sort-issues issues)))
+    ;; in_progress P1 should be first (higher status priority + higher priority)
+    (should (string= "bd-3" (oref (nth 0 sorted) id)))
+    ;; in_progress P2 should be second
+    (should (string= "bd-2" (oref (nth 1 sorted) id)))
+    ;; open P0 should be third (lower status priority but highest priority)
+    (should (string= "bd-1" (oref (nth 2 sorted) id)))
+    ;; open P1 should be last
+    (should (string= "bd-4" (oref (nth 3 sorted) id)))))
+
+(ert-deftest beads-completion-test-sort-does-not-mutate-original ()
+  "Test that sort returns a new list without mutating original."
+  (let* ((issues (list
+                  (beads-completion-test--make-issue "bd-1" "Open" "open" 2)
+                  (beads-completion-test--make-issue "bd-2" "In progress" "in_progress" 2)))
+         (original-first-id (oref (car issues) id))
+         (sorted (beads-completion--sort-issues issues)))
+    ;; Original list should be unchanged
+    (should (string= original-first-id (oref (car issues) id)))
+    ;; Sorted list should have different order
+    (should (string= "bd-2" (oref (car sorted) id)))))
+
+(ert-deftest beads-completion-test-table-candidates-sorted ()
+  "Test that completion table returns candidates sorted by status."
+  (let* ((issues (list
+                  (beads-completion-test--make-issue "bd-1" "Open issue" "open" 2)
+                  (beads-completion-test--make-issue "bd-2" "In progress" "in_progress" 2)
+                  (beads-completion-test--make-issue "bd-3" "Blocked" "blocked" 2)))
+         (beads-completion--cache (cons (float-time) issues))
+         (table (beads-completion-issue-table))
+         (candidates (all-completions "" table nil)))
+    ;; in_progress should be first
+    (should (string= "bd-2" (nth 0 candidates)))
+    ;; open should be second
+    (should (string= "bd-1" (nth 1 candidates)))
+    ;; blocked should be third
+    (should (string= "bd-3" (nth 2 candidates)))))
 
 ;;; Cache Tests
 
@@ -1089,6 +1176,136 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
       (let ((result (beads-completion--get-cached-worktrees)))
         ;; Should return nil since no cache available
         (should (null result))))))
+
+;;; Worktree Name (Combined) Completion Tests
+
+(ert-deftest beads-completion-test-worktree-name-table-combines-worktrees-and-issues ()
+  "Test that worktree name table shows both worktrees and issues."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees)))
+        (beads-completion--cache
+         (cons (float-time) (beads-completion-test--make-mock-issues))))
+    (let* ((table (beads-completion-worktree-name-table))
+           (candidates (all-completions "" table nil)))
+      ;; Should have 4 worktrees + 4 issues = 8 candidates
+      (should (= 8 (length candidates)))
+      ;; Check worktrees are present
+      (should (member "beads.el" candidates))
+      (should (member "feature-auth" candidates))
+      ;; Check issues are present
+      (should (member "bd-abc1" candidates))
+      (should (member "bd-def2" candidates)))))
+
+(ert-deftest beads-completion-test-worktree-name-worktrees-first ()
+  "Test that worktrees appear before issues in completion list."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees)))
+        (beads-completion--cache
+         (cons (float-time) (beads-completion-test--make-mock-issues))))
+    (let* ((table (beads-completion-worktree-name-table))
+           (candidates (all-completions "" table nil)))
+      ;; First 4 should be worktrees (based on mock data)
+      (dolist (wt-name '("beads.el" "feature-auth" "bugfix-login" "experiment"))
+        (let ((wt-pos (seq-position candidates wt-name #'string=)))
+          ;; Worktree should be in first 4 positions
+          (should wt-pos)
+          (should (< wt-pos 4)))))))
+
+(ert-deftest beads-completion-test-worktree-name-issues-sorted-by-status ()
+  "Test that issues are sorted by status priority in worktree name completion."
+  (let* ((issues (list
+                  (beads-completion-test--make-issue "bd-1" "Open" "open" 2)
+                  (beads-completion-test--make-issue "bd-2" "In progress" "in_progress" 2)
+                  (beads-completion-test--make-issue "bd-3" "Closed" "closed" 2)))
+         (beads-completion--worktree-cache (cons (float-time) nil))
+         (beads-completion--cache (cons (float-time) issues))
+         (table (beads-completion-worktree-name-table))
+         (candidates (all-completions "" table nil)))
+    ;; With no worktrees, first should be in_progress
+    (should (string= "bd-2" (nth 0 candidates)))
+    ;; Second should be open
+    (should (string= "bd-1" (nth 1 candidates)))
+    ;; Third should be closed
+    (should (string= "bd-3" (nth 2 candidates)))))
+
+(ert-deftest beads-completion-test-worktree-name-annotate-worktree ()
+  "Test annotation for existing worktree in worktree name completion."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees)))
+        (beads-completion--cache (cons (float-time) nil)))
+    (let* ((table (beads-completion-worktree-name-table))
+           (candidates (all-completions "" table nil))
+           (beads-wt (seq-find (lambda (c) (string= "beads.el" c)) candidates))
+           (annotation (beads-completion--worktree-name-annotate beads-wt)))
+      (should annotation)
+      ;; Should indicate it exists
+      (should (string-match-p "\\[EXISTS\\]" annotation)))))
+
+(ert-deftest beads-completion-test-worktree-name-annotate-issue ()
+  "Test annotation for issue in worktree name completion."
+  (let ((beads-completion--worktree-cache (cons (float-time) nil))
+        (beads-completion--cache
+         (cons (float-time) (beads-completion-test--make-mock-issues))))
+    (let* ((table (beads-completion-worktree-name-table))
+           (candidates (all-completions "" table nil))
+           (issue-candidate (seq-find (lambda (c) (string= "bd-abc1" c)) candidates))
+           (annotation (beads-completion--worktree-name-annotate issue-candidate)))
+      (should annotation)
+      ;; Should have priority and status
+      (should (string-match-p "\\[P1\\]" annotation))
+      (should (string-match-p "OPEN" annotation)))))
+
+(ert-deftest beads-completion-test-worktree-name-group-worktree ()
+  "Test grouping for existing worktree."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees)))
+        (beads-completion--cache (cons (float-time) nil)))
+    (let* ((table (beads-completion-worktree-name-table))
+           (candidates (all-completions "" table nil))
+           (beads-wt (seq-find (lambda (c) (string= "beads.el" c)) candidates)))
+      (should (string= "Existing Worktrees"
+                       (beads-completion--worktree-name-group beads-wt nil))))))
+
+(ert-deftest beads-completion-test-worktree-name-group-issue-by-status ()
+  "Test grouping for issues by status."
+  (let ((beads-completion--worktree-cache (cons (float-time) nil))
+        (beads-completion--cache
+         (cons (float-time) (beads-completion-test--make-mock-issues))))
+    (let* ((table (beads-completion-worktree-name-table))
+           (candidates (all-completions "" table nil))
+           (open-issue (seq-find (lambda (c) (string= "bd-abc1" c)) candidates))
+           (in-progress-issue (seq-find (lambda (c) (string= "bd-def2" c)) candidates))
+           (blocked-issue (seq-find (lambda (c) (string= "bd-ghi3" c)) candidates))
+           (closed-issue (seq-find (lambda (c) (string= "bd-jkl4" c)) candidates)))
+      (should (string= "Open Issues"
+                       (beads-completion--worktree-name-group open-issue nil)))
+      (should (string= "In Progress Issues"
+                       (beads-completion--worktree-name-group in-progress-issue nil)))
+      (should (string= "Blocked Issues"
+                       (beads-completion--worktree-name-group blocked-issue nil)))
+      (should (string= "Closed Issues"
+                       (beads-completion--worktree-name-group closed-issue nil))))))
+
+(ert-deftest beads-completion-test-worktree-name-style-match-issue-title ()
+  "Test that worktree name style matches on issue title."
+  (let ((beads-completion--worktree-cache (cons (float-time) nil))
+        (beads-completion--cache
+         (cons (float-time) (beads-completion-test--make-mock-issues))))
+    (let* ((table (beads-completion-worktree-name-table))
+           (matches (beads-completion--worktree-name-style-all "authentication" table nil nil)))
+      (should (= 1 (length matches)))
+      (should (string= "bd-abc1" (car matches))))))
+
+(ert-deftest beads-completion-test-worktree-name-style-match-worktree-branch ()
+  "Test that worktree name style matches on worktree branch."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees)))
+        (beads-completion--cache (cons (float-time) nil)))
+    (let* ((table (beads-completion-worktree-name-table))
+           ;; Match on "feature/auth" branch which belongs to "feature-auth" worktree
+           (matches (beads-completion--worktree-name-style-all "feature/auth" table nil nil)))
+      (should (= 1 (length matches)))
+      (should (string= "feature-auth" (car matches))))))
 
 (provide 'beads-completion-test)
 ;;; beads-completion-test.el ends here

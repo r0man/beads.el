@@ -299,6 +299,18 @@ Reuses existing buffer for same project-dir (directory is identity)."
             (setq beads-list--proj-name (beads-git-get-project-name)))
           buffer))))
 
+(defun beads-list--display-buffer (buffer)
+  "Display BUFFER in a sensible way.
+If BUFFER is already visible in a window, select that window.
+If not visible, display it in a full window (deleting other windows)."
+  (let ((window (get-buffer-window buffer)))
+    (if window
+        ;; Buffer is already visible, just select its window
+        (select-window window)
+      ;; Buffer not visible: show in full window
+      (delete-other-windows)
+      (switch-to-buffer buffer))))
+
 ;;; Utilities
 
 (defun beads-list--status-face (status)
@@ -703,7 +715,7 @@ Uses directory-aware buffer identity: same project = same buffer."
               (message "Found %d issue%s"
                        (length issue-objects)
                        (if (= (length issue-objects) 1) "" "s"))))
-          (pop-to-buffer buffer))
+          (beads-list--display-buffer buffer))
       (error
        (message "Failed to list issues: %s"
                 (error-message-string err))))))
@@ -1330,7 +1342,7 @@ Uses directory-aware buffer identity: same project = same buffer."
                                  (format " [%d marked]"
                                         (length beads-list--marked-issues))
                                "")))))))
-    (pop-to-buffer buffer)))
+    (beads-list--display-buffer buffer)))
 
 ;;;###autoload
 (defun beads-blocked ()
@@ -1370,7 +1382,7 @@ Uses directory-aware buffer identity: same project = same buffer."
                                  (format " [%d marked]"
                                         (length beads-list--marked-issues))
                                "")))))))
-    (pop-to-buffer buffer)))
+    (beads-list--display-buffer buffer)))
 
 ;;; Hook Registration
 

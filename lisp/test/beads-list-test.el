@@ -2548,5 +2548,11 @@ Even if they have the same branch name."
     (should-not beads-list--pending-show-update)
     (should-not beads-list--pending-show-timer)))
 
+;;; Display Buffer Tests
+
+(ert-deftest beads-list-test-display-buffer-function-exists ()
+  "Test that display-buffer function is defined."
+  (should (fboundp 'beads-list--display-buffer)))
+
 (provide 'beads-list-test)
 ;;; beads-list-test.el ends here
