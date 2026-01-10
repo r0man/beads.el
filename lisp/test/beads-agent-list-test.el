@@ -11,7 +11,20 @@
 (require 'ert)
 (require 'beads-agent-list)
 (require 'beads-agent-backend)
+(require 'beads-buffer-name)
 (require 'beads-types)
+
+;;; Test Helpers
+
+(defun beads-agent-list-test--get-agents-buffer ()
+  "Get the agents buffer for the current project."
+  (beads-buffer-name-utility "agents"))
+
+(defun beads-agent-list-test--find-and-kill-agents-buffers ()
+  "Kill all agent list buffers for cleanup."
+  (dolist (buf (beads-buffer-name-find-utility-buffers nil "agents"))
+    (when (buffer-live-p buf)
+      (kill-buffer buf))))
 
 ;;; Test Data
 
@@ -307,16 +320,15 @@ WORKTREE-DIR is optional worktree directory."
                (lambda () (setq refresh-called t)))
               ((symbol-function 'beads-agent--get-all-sessions)
                (lambda () nil)))
-      (with-current-buffer (get-buffer-create "*beads-agents*")
+      (with-current-buffer (get-buffer-create (beads-agent-list-test--get-agents-buffer))
         (beads-agent-list-mode)
         (beads-agent-list--on-state-change 'started nil)
         (should refresh-called))
-      (kill-buffer "*beads-agents*"))))
+      (beads-agent-list-test--find-and-kill-agents-buffers))))
 
 (ert-deftest beads-agent-list-test-hook-no-buffer ()
   "Test that hook handles missing buffer gracefully."
-  (when (get-buffer "*beads-agents*")
-    (kill-buffer "*beads-agents*"))
+  (beads-agent-list-test--find-and-kill-agents-buffers)
   ;; Should not error
   (beads-agent-list--on-state-change 'started nil))
 
