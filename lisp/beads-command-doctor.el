@@ -23,10 +23,16 @@
 
 ;;; Code:
 
+(require 'beads)
 (require 'beads-command)
+(require 'beads-meta)
+(require 'beads-option)
 
 ;;; Doctor Command
 
+;; Wrap in eval-and-compile so class is available at compile time for
+;; beads-meta-define-transient macro
+(eval-and-compile
 (beads-defcommand beads-command-doctor (beads-command-json)
   ((path
     :initarg :path
@@ -247,7 +253,7 @@ Values: auto (default), jsonl, db."
     :transient-order 5))
   :documentation "Represents bd doctor command.
 Sanity checks the beads installation.
-When executed with :json t, returns diagnostic results.")
+When executed with :json t, returns diagnostic results."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-doctor))
   "Return subcommand name for doctor command."
@@ -316,6 +322,21 @@ Disables JSON mode for interactive display with colors."
   (oset cmd json nil)
   ;; Call the default implementation
   (cl-call-next-method))
+
+;;; Transient Menu
+
+;; Generate the complete transient menu from slot metadata
+;;;###autoload (autoload 'beads-doctor "beads-command-doctor" nil t)
+(beads-meta-define-transient beads-command-doctor "beads-doctor"
+  "Run diagnostics on beads installation.
+
+Checks database health, schema, daemon status, dependencies, and more.
+
+Transient levels control which options are visible (cycle with C-x l):
+  Level 2: Basic checks (specific check, health, deep, perf)
+  Level 3: Fix options and output settings
+  Level 4: Advanced fix options"
+  beads-option-global-section)
 
 (provide 'beads-command-doctor)
 ;;; beads-command-doctor.el ends here
