@@ -302,14 +302,10 @@ Reuses existing buffer for same project-dir (directory is identity)."
 (defun beads-list--display-buffer (buffer)
   "Display BUFFER in a sensible way.
 If BUFFER is already visible in a window, select that window.
-If not visible, display it in a full window (deleting other windows)."
-  (let ((window (get-buffer-window buffer)))
-    (if window
-        ;; Buffer is already visible, just select its window
-        (select-window window)
-      ;; Buffer not visible: show in full window
-      (delete-other-windows)
-      (switch-to-buffer buffer))))
+If not visible, display it in the current window without splitting."
+  (if-let ((window (get-buffer-window buffer)))
+      (select-window window)
+    (switch-to-buffer buffer)))
 
 ;;; Utilities
 
