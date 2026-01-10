@@ -422,16 +422,16 @@ Matches on both issue ID and title."
 
 (defun beads-reader-worktree-name (_prompt _initial-input _history)
   "Read a name for a new worktree.
-Suggests issue IDs as potential worktree names since worktrees are often
-created for specific issues.  Also allows free-form input for arbitrary
-worktree names.
+Shows existing worktrees first (to avoid duplicates), then suggests
+issue IDs sorted by status priority: in_progress > open > blocked > closed.
 
 The completion offers:
-- Issue IDs with title annotations for quick issue-to-worktree workflow
+- Existing worktree names (marked with [EXISTS]) so you can see what exists
+- Issue IDs grouped by status for quick issue-to-worktree workflow
 - Free-form input for custom worktree names
 
 Returns a string suitable for `bd worktree create NAME'."
-  (beads-completion-read-issue
+  (beads-completion-read-worktree-name
    "Worktree name (issue ID or custom): " nil nil nil 'beads--worktree-name-history))
 
 (defun beads-reader-worktree-branch (_prompt _initial-input _history)
