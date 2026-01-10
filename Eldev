@@ -116,9 +116,11 @@ ORIG-FN is the original function, STATS is the test statistics."
                               '(:package package-lint :archive melpa))
 
 ;; Exclude worktree, share, and reference directories from everything
+;; Note: bde-* directories are git worktrees created by beads-agent
 (setf eldev-standard-excludes
       `(:or ,eldev-standard-excludes "worktree/**" "share/**"
-            "transient-reference/**" "beads-reference/**" "efrit-reference/**"))
+            "transient-reference/**" "beads-reference/**" "efrit-reference/**"
+            "bde-*/**"))
 
 ;; Test files location
 (setf eldev-test-fileset '("lisp/test/*.el"))
