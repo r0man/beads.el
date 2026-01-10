@@ -13,8 +13,19 @@
 
 (require 'ert)
 (require 'beads)
+(require 'beads-buffer-name)
 (require 'beads-label)
 (require 'beads-test)
+
+;;; Test Utilities
+
+(defun beads-label-test--with-mock-project (body)
+  "Execute BODY with mocked git functions for consistent naming."
+  (cl-letf (((symbol-function 'beads-git-get-project-name)
+             (lambda () "test-proj"))
+            ((symbol-function 'beads-git-in-worktree-p)
+             (lambda () nil)))
+    (funcall body)))
 
 ;;; Test Fixtures
 
@@ -180,27 +191,30 @@
 
 (ert-deftest beads-label-test-show-issues-with-label ()
   "Test showing issues for a label."
-  (let ((beads-label-test--mock-issues
-         (list (beads-issue :id "bd-1" :title "Test 1"
-                           :status "open" :priority 2)
-               (beads-issue :id "bd-2" :title "Test 2"
-                           :status "in_progress" :priority 1))))
-    (cl-letf (((symbol-function 'tabulated-list-get-id)
-               (lambda () "backend"))
-              ((symbol-function 'beads-command-execute)
-               (lambda (_cmd) beads-label-test--mock-issues))
-              ((symbol-function 'beads-list-mode)
-               (lambda () (setq major-mode 'beads-list-mode)))
-              ((symbol-function 'beads-list--populate-buffer)
-               (lambda (issues _cmd _cmd-obj)
-                 (should (= (length issues) 2))))
-              ((symbol-function 'pop-to-buffer)
-               (lambda (_buffer) nil)))
-      (let ((default-directory "/tmp/"))
-        (beads-label-list-all-show-issues)
-        ;; Should create buffer with correct name
-        (should (get-buffer "*beads-list: label=backend*"))
-        (kill-buffer "*beads-list: label=backend*")))))
+  (beads-label-test--with-mock-project
+   (lambda ()
+     (let* ((beads-label-test--mock-issues
+             (list (beads-issue :id "bd-1" :title "Test 1"
+                               :status "open" :priority 2)
+                   (beads-issue :id "bd-2" :title "Test 2"
+                               :status "in_progress" :priority 1)))
+            (expected-buf-name (beads-buffer-name-list nil "label=backend")))
+       (cl-letf (((symbol-function 'tabulated-list-get-id)
+                  (lambda () "backend"))
+                 ((symbol-function 'beads-command-execute)
+                  (lambda (_cmd) beads-label-test--mock-issues))
+                 ((symbol-function 'beads-list-mode)
+                  (lambda () (setq major-mode 'beads-list-mode)))
+                 ((symbol-function 'beads-list--populate-buffer)
+                  (lambda (issues _cmd _cmd-obj)
+                    (should (= (length issues) 2))))
+                 ((symbol-function 'pop-to-buffer)
+                  (lambda (_buffer) nil)))
+         (let ((default-directory "/tmp/"))
+           (beads-label-list-all-show-issues)
+           ;; Should create buffer with correct name
+           (should (get-buffer expected-buf-name))
+           (kill-buffer expected-buf-name)))))))
 
 (ert-deftest beads-label-test-hl-line-mode-enabled ()
   "Test that hl-line-mode is enabled when entering beads-label-list-all-mode."
@@ -405,17 +419,20 @@
 
 (ert-deftest beads-label-test-list-all-view-creates-buffer ()
   "Test that list-all-view creates the correct buffer."
-  (let ((beads--label-cache nil))
-    (cl-letf (((symbol-function 'beads-label-list-all)
-               (lambda ()
-                 '(((label . "test") (count . 1)))))
-              ((symbol-function 'pop-to-buffer)
-               (lambda (_buf) nil)))
-      (beads-label-list-all-view)
-      (should (get-buffer "*beads-labels*"))
-      (with-current-buffer "*beads-labels*"
-        (should (eq major-mode 'beads-label-list-all-mode)))
-      (kill-buffer "*beads-labels*"))))
+  (beads-label-test--with-mock-project
+   (lambda ()
+     (let ((beads--label-cache nil)
+           (expected-buf-name (beads-buffer-name-utility "labels")))
+       (cl-letf (((symbol-function 'beads-label-list-all)
+                  (lambda ()
+                    '(((label . "test") (count . 1)))))
+                 ((symbol-function 'pop-to-buffer)
+                  (lambda (_buf) nil)))
+         (beads-label-list-all-view)
+         (should (get-buffer expected-buf-name))
+         (with-current-buffer expected-buf-name
+           (should (eq major-mode 'beads-label-list-all-mode)))
+         (kill-buffer expected-buf-name))))))
 
 ;;; ============================================================
 ;;; Cache TTL Tests

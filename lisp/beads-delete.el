@@ -32,6 +32,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-buffer-name)
 (require 'beads-command)
 (require 'beads-completion)
 (require 'beads-list)
@@ -85,8 +86,8 @@ Returns preview output as string."
   "Show deletion preview for ISSUE-ID in a buffer.
 PREVIEW-TEXT is the output from bd delete without --force.
 Returns the preview buffer."
-  (let ((buffer (get-buffer-create
-                 (format "*beads-delete-preview: %s*" issue-id))))
+  (let* ((buf-name (beads-buffer-name-utility "delete-preview" issue-id))
+         (buffer (get-buffer-create buf-name)))
     (with-current-buffer buffer
       (setq buffer-read-only nil)
       (erase-buffer)
@@ -104,13 +105,14 @@ Returns the preview buffer."
     (message "Deleted issue %s" issue-id)
     ;; Invalidate completion cache
     (beads--invalidate-completion-cache)
-    ;; Close show buffer if viewing the deleted issue
-    (let ((show-buffer (format "*beads-show %s*" issue-id)))
-      (when (get-buffer show-buffer)
-        (kill-buffer show-buffer)))
+    ;; Close show buffers for the deleted issue (may have different titles)
+    (dolist (buf (beads-buffer-name-find-show-buffers nil issue-id))
+      (when (buffer-live-p buf)
+        (kill-buffer buf)))
     ;; Close preview buffer
-    (let ((preview-buffer (format "*beads-delete-preview: %s*" issue-id)))
-      (when (get-buffer preview-buffer)
+    (let ((preview-buf-name (beads-buffer-name-utility "delete-preview"
+                                                       issue-id)))
+      (when-let ((preview-buffer (get-buffer preview-buf-name)))
         (kill-buffer preview-buffer)))
     ;; Refresh any open beads buffers
     (when beads-auto-refresh

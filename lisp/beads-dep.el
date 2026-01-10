@@ -24,6 +24,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-buffer-name)
 (require 'beads-command)
 (require 'beads-completion)
 (require 'beads-option)
@@ -419,8 +420,8 @@ Completion matches on both issue ID and title."
     (user-error "Issue ID is required"))
   (let* ((caller-dir default-directory)
          (issues (beads-command-dep-tree! :issue-id issue-id))
-         (buffer (get-buffer-create (format "*beads-dep-tree: %s*"
-                                           issue-id))))
+         (buf-name (beads-buffer-name-utility "dep-tree" issue-id))
+         (buffer (get-buffer-create buf-name)))
     (with-current-buffer buffer
       (setq default-directory caller-dir)
       (beads-dep-tree-mode)
@@ -496,7 +497,8 @@ Completion matches on both issue ID and title."
   (beads-check-executable)
   (let* ((caller-dir default-directory)
          (cycles (beads-command-dep-cycles!))
-         (buffer (get-buffer-create "*beads-dep-cycles*")))
+         (buf-name (beads-buffer-name-utility "dep-cycles"))
+         (buffer (get-buffer-create buf-name)))
     (with-current-buffer buffer
       (setq default-directory caller-dir)
       (beads-dep-cycles-mode)

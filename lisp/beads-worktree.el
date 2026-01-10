@@ -32,6 +32,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-buffer-name)
 (require 'beads-command-worktree)
 (require 'beads-completion)
 (require 'beads-reader)
@@ -293,7 +294,8 @@ Returns a beads-worktree object or nil if not found."
 
 (defun beads-worktree--display-list (worktrees)
   "Display WORKTREES in a tabulated list buffer."
-  (let ((buffer (get-buffer-create "*beads-worktrees*")))
+  (let* ((buf-name (beads-buffer-name-utility "worktrees"))
+         (buffer (get-buffer-create buf-name)))
     (with-current-buffer buffer
       (beads-worktree-list-mode)
       (setq tabulated-list-entries

@@ -35,6 +35,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-buffer-name)
 (require 'beads-types)
 (require 'cl-lib)
 
@@ -129,7 +130,8 @@ Format: ((epic-id . (expanded-p . children)) ...)")
   (beads-check-executable)
   (let* ((caller-dir default-directory)
          (epics (beads-command-epic-status!))
-         (buffer (get-buffer-create "*beads-epic-status*")))
+         (buf-name (beads-buffer-name-utility "epic-status"))
+         (buffer (get-buffer-create buf-name)))
     (with-current-buffer buffer
       (setq default-directory caller-dir)
       (let ((old-expanded beads-epic-status--expanded))
