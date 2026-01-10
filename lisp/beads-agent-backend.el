@@ -759,33 +759,31 @@ would return for NAME and TYPE-NAME."
   (1+ (gethash (cons name type-name)
                beads-agent--typed-instance-counters 0)))
 
-(defun beads-agent--generate-buffer-name (proj-name type-name backend-name
+(defun beads-agent--generate-buffer-name (proj-name type-name
                                           instance-n &optional issue-id title)
   "Generate buffer name for agent session.
 PROJ-NAME is the project name (e.g., \"beads.el\").
 TYPE-NAME is the agent type name (e.g., \"Task\", \"Plan\").
-BACKEND-NAME is the backend name (e.g., \"claude-code\", \"claudemacs\").
 INSTANCE-N is the instance number for this (project, type) combination.
 ISSUE-ID and TITLE are optional issue context.
 
 Returns buffer name using centralized format:
-  *beads-agent: PROJECT/TYPE:BACKEND#N*
-  *beads-agent: PROJECT/TYPE:BACKEND#N ISSUE-ID TITLE*"
-  (beads-buffer-name-agent type-name backend-name instance-n
+  *beads-agent: PROJECT/TYPE#N*
+  *beads-agent: PROJECT/TYPE#N ISSUE-ID TITLE*"
+  (beads-buffer-name-agent type-name instance-n
                            issue-id title proj-name nil nil))
 
 (defun beads-agent--generate-buffer-name-for-session (session)
   "Generate buffer name for SESSION object.
-Uses the session's proj-name, agent-type-name, and backend-name.
+Uses the session's proj-name and agent-type-name.
 If agent-type-name is nil, uses \"Agent\" as default."
   (let ((proj-name (or (oref session proj-name)
                        (beads-agent--derive-project-name
                         (oref session project-dir))))
         (type-name (or (oref session agent-type-name) "Agent"))
-        (backend-name (oref session backend-name))
         (instance-n (beads-agent--session-instance-number session))
         (issue-id (oref session current-issue)))
-    (beads-agent--generate-buffer-name proj-name type-name backend-name
+    (beads-agent--generate-buffer-name proj-name type-name
                                         instance-n issue-id nil)))
 
 (defun beads-agent--session-instance-number (session)
@@ -797,18 +795,17 @@ If the format doesn't match, returns 1 as default."
 (defun beads-agent--parse-buffer-name (buffer-name)
   "Parse a beads agent buffer name into its components.
 BUFFER-NAME should be in centralized format:
-  *beads-agent: PROJECT/TYPE:BACKEND#N*
-  *beads-agent: PROJECT/TYPE:BACKEND#N ISSUE-ID TITLE*
+  *beads-agent: PROJECT/TYPE#N*
+  *beads-agent: PROJECT/TYPE#N ISSUE-ID TITLE*
 
 Returns plist with keys from `beads-buffer-name-parse-agent':
-  :project, :worktree, :branch, :type, :backend, :instance,
-  :issue-id, :title
+  :project, :worktree, :branch, :type, :instance, :issue-id, :title
 or nil if the buffer name doesn't match the expected format."
   (beads-buffer-name-parse-agent buffer-name))
 
 (defun beads-agent--buffer-name-p (buffer-name)
   "Return non-nil if BUFFER-NAME is a valid beads agent buffer name.
-Matches the centralized format: *beads-agent: PROJECT/TYPE:BACKEND#N*
+Matches the centralized format: *beads-agent: PROJECT/TYPE#N*
 
 Use this predicate when:
 - Filtering agent buffers
@@ -819,23 +816,22 @@ Use this predicate when:
 ;;; Directory-Bound Buffer Naming
 ;;
 ;; Buffer names use the centralized beads-buffer-name module with format:
-;;   *beads-agent: PROJECT/TYPE:BACKEND#N*
-;;   *beads-agent: PROJECT/WORKTREE@BRANCH/TYPE:BACKEND#N*  (in worktree)
-;;   *beads-agent: PROJECT/TYPE:BACKEND#N ISSUE-ID TITLE*   (with issue)
+;;   *beads-agent: PROJECT/TYPE#N*
+;;   *beads-agent: PROJECT/WORKTREE@BRANCH/TYPE#N*  (in worktree)
+;;   *beads-agent: PROJECT/TYPE#N ISSUE-ID TITLE*   (with issue)
 
 (defun beads-agent--generate-project-buffer-name
-    (proj-name type-name backend-name instance-n
+    (proj-name type-name instance-n
      &optional issue-id title worktree branch)
   "Generate buffer name for directory-bound session.
 PROJ-NAME is the project name (e.g., \"beads.el\").
 TYPE-NAME is the agent type name (e.g., \"Task\", \"Plan\").
-BACKEND-NAME is the backend name (e.g., \"claude-code\", \"claudemacs\").
 INSTANCE-N is the instance number for this (project, type) combination.
 ISSUE-ID and TITLE are optional issue context.
 WORKTREE and BRANCH are optional worktree context.
 
-Returns buffer name in format: *beads-agent: PROJECT/TYPE:BACKEND#N*"
-  (beads-buffer-name-agent type-name backend-name instance-n
+Returns buffer name in format: *beads-agent: PROJECT/TYPE#N*"
+  (beads-buffer-name-agent type-name instance-n
                            issue-id title
                            proj-name worktree branch))
 
@@ -862,17 +858,16 @@ times for the same session."
                                (beads-agent--derive-project-name
                                 (oref session project-dir)))))
            (type-name (or (oref session agent-type-name) "Agent"))
-           (backend-name (oref session backend-name))
            (instance-n (beads-agent--next-typed-instance-number
                         display-name type-name)))
       (beads-agent--generate-project-buffer-name
-       display-name type-name backend-name instance-n))))
+       display-name type-name instance-n))))
 
 (defun beads-agent--parse-project-buffer-name (buffer-name)
   "Parse a directory-bound buffer name into its components.
-BUFFER-NAME should be in format *beads-agent: PROJECT/TYPE:BACKEND#N*.
-Returns plist with :project, :worktree, :branch, :type, :backend,
-:instance, :issue-id, :title, or nil if format doesn't match.
+BUFFER-NAME should be in format *beads-agent: PROJECT/TYPE#N*.
+Returns plist with :project-name, :worktree, :branch, :type-name,
+:instance-n, :issue-id, :title, or nil if format doesn't match.
 
 This wraps the centralized `beads-buffer-name-parse-agent' function,
 mapping its return keys to the legacy names used in this module."
@@ -882,14 +877,13 @@ mapping its return keys to the legacy names used in this module."
           :worktree (plist-get parsed :worktree)
           :branch (plist-get parsed :branch)
           :type-name (plist-get parsed :type)
-          :backend-name (plist-get parsed :backend)
           :instance-n (plist-get parsed :instance)
           :issue-id (plist-get parsed :issue-id)
           :title (plist-get parsed :title))))
 
 (defun beads-agent--project-buffer-name-p (buffer-name)
   "Return non-nil if BUFFER-NAME is a directory-bound buffer name.
-Directory-bound format: *beads-agent: PROJECT/TYPE:BACKEND#N*
+Directory-bound format: *beads-agent: PROJECT/TYPE#N*
 
 Use this predicate when:
 - Working with directory-bound session creation code
