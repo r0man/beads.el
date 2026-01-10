@@ -868,31 +868,28 @@ The function returns legacy keys (:project-name, :type-name, etc.)."
   (should (null (beads-agent--parse-project-buffer-name "*scratch*"))))
 
 (ert-deftest beads-agent-test-project-buffer-name-p ()
-  "Test predicate for directory-bound buffer names.
-This predicate uses centralized buffer naming and only accepts the new format."
-  ;; New centralized format: PROJECT/TYPE:BACKEND#N
+  "Test predicate for directory-bound buffer names."
+  ;; Centralized format: PROJECT/TYPE:BACKEND#N
   (should (beads-agent--project-buffer-name-p "*beads-agent: beads.el/Task:claude-code#1*"))
   (should (beads-agent--project-buffer-name-p "*beads-agent: my-project/Plan:cc#2*"))
   (should (beads-agent--project-buffer-name-p "*beads-agent: proj/wt@feat/Task:cc#1*"))
-  ;; Legacy format NOT accepted (use beads-agent--buffer-name-p for both)
+  ;; Invalid formats
   (should-not (beads-agent--project-buffer-name-p "*beads-agent[bd-42][Task#1]*"))
-  ;; Invalid names don't match
   (should-not (beads-agent--project-buffer-name-p nil))
   (should-not (beads-agent--project-buffer-name-p "*scratch*")))
 
-(ert-deftest beads-agent-test-buffer-name-p-both-formats ()
-  "Test that buffer-name-p matches both new centralized and legacy formats."
-  ;; New centralized format: PROJECT/TYPE:BACKEND#N
+(ert-deftest beads-agent-test-buffer-name-p ()
+  "Test beads-agent--buffer-name-p validates centralized format."
+  ;; Centralized format: PROJECT/TYPE:BACKEND#N
   (should (beads-agent--buffer-name-p "*beads-agent: beads.el/Task:claude-code#1*"))
   (should (beads-agent--buffer-name-p "*beads-agent: proj/wt@feat/Plan:cc#2*"))
   (should (beads-agent--buffer-name-p "*beads-agent: proj/Task:cc#1 bd-42 Fix*"))
-  ;; Legacy format still matches: [NAME][TYPE#N]
-  (should (beads-agent--buffer-name-p "*beads-agent[bd-42][Task#1]*"))
-  (should (beads-agent--buffer-name-p "*beads-agent[beads.el-xrrt][Review#3]*"))
   ;; Invalid names don't match
   (should-not (beads-agent--buffer-name-p nil))
   (should-not (beads-agent--buffer-name-p "*scratch*"))
-  (should-not (beads-agent--buffer-name-p "*beads-agent[test][]*")))
+  (should-not (beads-agent--buffer-name-p "*beads-agent: incomplete*"))
+  ;; Legacy format no longer accepted
+  (should-not (beads-agent--buffer-name-p "*beads-agent[bd-42][Task#1]*")))
 
 ;;; Tests for Focus-Issue Commands
 
@@ -2115,77 +2112,86 @@ Settings changes should allow continued configuration."
 
 (ert-deftest beads-agent-test-generate-buffer-name ()
   "Test basic buffer name generation."
-  (should (equal (beads-agent--generate-buffer-name "beads.el-xrrt" "Task" 1)
-                 "*beads-agent[beads.el-xrrt][Task#1]*"))
-  (should (equal (beads-agent--generate-buffer-name "beads.el-xrrt" "Plan" 2)
-                 "*beads-agent[beads.el-xrrt][Plan#2]*"))
-  (should (equal (beads-agent--generate-buffer-name "bd-123" "Review" 5)
-                 "*beads-agent[bd-123][Review#5]*")))
+  (should (equal (beads-agent--generate-buffer-name
+                  "beads.el" "Task" "claude-code" 1)
+                 "*beads-agent: beads.el/Task:claude-code#1*"))
+  (should (equal (beads-agent--generate-buffer-name
+                  "myproject" "Plan" "claudemacs" 2)
+                 "*beads-agent: myproject/Plan:claudemacs#2*"))
+  (should (equal (beads-agent--generate-buffer-name
+                  "proj" "Review" "cc" 5)
+                 "*beads-agent: proj/Review:cc#5*")))
 
-(ert-deftest beads-agent-test-generate-buffer-name-special-chars ()
-  "Test buffer name generation with special characters in issue ID."
-  (should (equal (beads-agent--generate-buffer-name "my-project.el-abc" "QA" 1)
-                 "*beads-agent[my-project.el-abc][QA#1]*"))
-  (should (equal (beads-agent--generate-buffer-name "proj_v2-xyz" "Custom" 3)
-                 "*beads-agent[proj_v2-xyz][Custom#3]*")))
+(ert-deftest beads-agent-test-generate-buffer-name-with-issue ()
+  "Test buffer name generation with issue context."
+  (should (equal (beads-agent--generate-buffer-name
+                  "myproject" "Task" "cc" 1 "bd-42" "Fix bug")
+                 "*beads-agent: myproject/Task:cc#1 bd-42 Fix bug*"))
+  (should (equal (beads-agent--generate-buffer-name
+                  "proj" "Review" "claude-code" 3 "proj-xyz")
+                 "*beads-agent: proj/Review:claude-code#3 proj-xyz*")))
 
 (ert-deftest beads-agent-test-parse-buffer-name ()
   "Test parsing buffer names back to components."
   (let ((parsed (beads-agent--parse-buffer-name
-                 "*beads-agent[beads.el-xrrt][Task#1]*")))
+                 "*beads-agent: beads.el/Task:claude-code#1*")))
     (should parsed)
-    (should (equal (plist-get parsed :issue-id) "beads.el-xrrt"))
-    (should (equal (plist-get parsed :type-name) "Task"))
-    (should (= (plist-get parsed :instance-n) 1))))
+    (should (equal (plist-get parsed :project) "beads.el"))
+    (should (equal (plist-get parsed :type) "Task"))
+    (should (equal (plist-get parsed :backend) "claude-code"))
+    (should (= (plist-get parsed :instance) 1))))
 
 (ert-deftest beads-agent-test-parse-buffer-name-various ()
   "Test parsing various buffer name formats."
   ;; Multi-digit instance number
   (let ((parsed (beads-agent--parse-buffer-name
-                 "*beads-agent[bd-42][Plan#12]*")))
+                 "*beads-agent: proj/Plan:cc#12*")))
     (should parsed)
-    (should (= (plist-get parsed :instance-n) 12)))
-  ;; Complex issue ID
+    (should (= (plist-get parsed :instance) 12)))
+  ;; With worktree
   (let ((parsed (beads-agent--parse-buffer-name
-                 "*beads-agent[my-project.el-abc][Review#7]*")))
+                 "*beads-agent: proj/wt@feat/Review:claudemacs#7*")))
     (should parsed)
-    (should (equal (plist-get parsed :issue-id) "my-project.el-abc"))
-    (should (equal (plist-get parsed :type-name) "Review"))))
+    (should (equal (plist-get parsed :project) "proj"))
+    (should (equal (plist-get parsed :worktree) "wt"))
+    (should (equal (plist-get parsed :branch) "feat"))
+    (should (equal (plist-get parsed :type) "Review"))))
 
 (ert-deftest beads-agent-test-parse-buffer-name-invalid ()
   "Test that invalid buffer names return nil."
   (should (null (beads-agent--parse-buffer-name "*scratch*")))
   (should (null (beads-agent--parse-buffer-name "*Messages*")))
   (should (null (beads-agent--parse-buffer-name "regular-buffer")))
-  ;; Missing parts
-  (should (null (beads-agent--parse-buffer-name "*beads-agent[issue]*")))
-  (should (null (beads-agent--parse-buffer-name "*beads-agent[issue][Type]*"))))
+  ;; Invalid format
+  (should (null (beads-agent--parse-buffer-name "*beads-agent: incomplete*"))))
 
-(ert-deftest beads-agent-test-buffer-name-p ()
-  "Test buffer name predicate."
-  ;; New centralized format
+(ert-deftest beads-agent-test-buffer-name-p-detailed ()
+  "Test buffer name predicate in detail."
+  ;; Centralized format
   (should (beads-agent--buffer-name-p "*beads-agent: beads.el/Task:claude-code#1*"))
   (should (beads-agent--buffer-name-p "*beads-agent: proj/Plan:cc#99*"))
-  ;; Legacy format still works
-  (should (beads-agent--buffer-name-p "*beads-agent[bd-1][Task#1]*"))
-  (should (beads-agent--buffer-name-p "*beads-agent[beads.el-xyz][Plan#99]*"))
+  (should (beads-agent--buffer-name-p "*beads-agent: proj/wt@feat/Task:cc#1*"))
   ;; Invalid formats
   (should-not (beads-agent--buffer-name-p "*scratch*"))
   (should-not (beads-agent--buffer-name-p nil))
-  (should-not (beads-agent--buffer-name-p "")))
+  (should-not (beads-agent--buffer-name-p ""))
+  ;; Legacy format no longer accepted
+  (should-not (beads-agent--buffer-name-p "*beads-agent[bd-1][Task#1]*")))
 
 (ert-deftest beads-agent-test-roundtrip-buffer-name ()
   "Test that generate and parse are inverses."
-  (let* ((issue-id "beads.el-test")
+  (let* ((proj-name "beads.el")
          (type-name "Custom")
+         (backend-name "claude-code")
          (instance-n 42)
          (buf-name (beads-agent--generate-buffer-name
-                    issue-id type-name instance-n))
+                    proj-name type-name backend-name instance-n))
          (parsed (beads-agent--parse-buffer-name buf-name)))
     (should parsed)
-    (should (equal (plist-get parsed :issue-id) issue-id))
-    (should (equal (plist-get parsed :type-name) type-name))
-    (should (= (plist-get parsed :instance-n) instance-n))))
+    (should (equal (plist-get parsed :project) proj-name))
+    (should (equal (plist-get parsed :type) type-name))
+    (should (equal (plist-get parsed :backend) backend-name))
+    (should (= (plist-get parsed :instance) instance-n))))
 
 (ert-deftest beads-agent-test-typed-instance-counters-basic ()
   "Test typed instance counter basics."
@@ -2250,8 +2256,9 @@ Settings changes should allow continued configuration."
                  #'beads-agent-test--mock-sesman-sessions))
         (let ((session (beads-agent--create-session
                         "bd-42" "mock" "/tmp" 'handle nil "Task")))
+          ;; New format: *beads-agent: PROJECT/TYPE:BACKEND#N*
           (should (string-match-p
-                   "\\*beads-agent\\[bd-42\\]\\[Task#[0-9]+\\]\\*"
+                   "\\*beads-agent: .*/Task:mock#[0-9]+\\*"
                    (beads-agent--generate-buffer-name-for-session session)))))
     (beads-agent-test--teardown)))
 
@@ -2265,7 +2272,7 @@ Settings changes should allow continued configuration."
                         "bd-99" "mock" "/tmp" 'handle)))
           ;; Should use "Agent" as default type
           (should (string-match-p
-                   "\\*beads-agent\\[bd-99\\]\\[Agent#[0-9]+\\]\\*"
+                   "\\*beads-agent: .*/Agent:mock#[0-9]+\\*"
                    (beads-agent--generate-buffer-name-for-session session)))))
     (beads-agent-test--teardown)))
 
@@ -2291,9 +2298,9 @@ Settings changes should allow continued configuration."
     (unwind-protect
         (progn
           ;; Create test buffers with beads naming convention
-          (setq buf1 (get-buffer-create "*beads-agent[bd-1][Task#1]*"))
-          (setq buf2 (get-buffer-create "*beads-agent[bd-1][Plan#1]*"))
-          (setq buf3 (get-buffer-create "*beads-agent[bd-2][Task#1]*"))
+          (setq buf1 (get-buffer-create "*beads-agent: proj/Task:cc#1 bd-1*"))
+          (setq buf2 (get-buffer-create "*beads-agent: proj/Plan:cc#1 bd-1*"))
+          (setq buf3 (get-buffer-create "*beads-agent: proj/Task:cc#1 bd-2*"))
           ;; Find buffers for bd-1
           (let ((found (beads-agent--find-buffers-by-issue "bd-1")))
             (should (= (length found) 2))
@@ -2315,9 +2322,9 @@ Settings changes should allow continued configuration."
     (unwind-protect
         (progn
           ;; Create test buffers
-          (setq buf1 (get-buffer-create "*beads-agent[bd-1][Task#1]*"))
-          (setq buf2 (get-buffer-create "*beads-agent[bd-2][Task#1]*"))
-          (setq buf3 (get-buffer-create "*beads-agent[bd-1][Plan#1]*"))
+          (setq buf1 (get-buffer-create "*beads-agent: proj/Task:cc#1*"))
+          (setq buf2 (get-buffer-create "*beads-agent: proj/Task:cc#2*"))
+          (setq buf3 (get-buffer-create "*beads-agent: proj/Plan:cc#1*"))
           ;; Find all Task buffers
           (let ((found (beads-agent--find-buffers-by-type "Task")))
             (should (= (length found) 2))
