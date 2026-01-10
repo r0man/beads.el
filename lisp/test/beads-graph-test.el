@@ -14,7 +14,20 @@
 
 (require 'ert)
 (require 'beads)
+(require 'beads-buffer-name)
 (require 'beads-graph)
+
+;;; Test Helpers
+
+(defun beads-graph-test--get-graph-buffer ()
+  "Get the graph buffer for the current project."
+  (beads-buffer-name-utility "graph"))
+
+(defun beads-graph-test--find-and-kill-graph-buffers ()
+  "Kill all graph buffers for cleanup."
+  (dolist (buf (beads-buffer-name-find-utility-buffers nil "graph"))
+    (when (buffer-live-p buf)
+      (kill-buffer buf))))
 
 ;;; Test Fixtures
 
@@ -334,11 +347,10 @@
         (progn
           (setq image-file (beads-graph--render-dot dot-string "svg"))
           (beads-graph--display-image image-file)
-          (should (get-buffer "*beads-graph*"))
-          (with-current-buffer "*beads-graph*"
+          (should (get-buffer (beads-graph-test--get-graph-buffer)))
+          (with-current-buffer (beads-graph-test--get-graph-buffer)
             (should (eq major-mode 'beads-graph-mode))))
-      (when (get-buffer "*beads-graph*")
-        (kill-buffer "*beads-graph*"))
+      (beads-graph-test--find-and-kill-graph-buffers)
       (when (and image-file (file-exists-p image-file))
         (delete-file image-file)))))
 
