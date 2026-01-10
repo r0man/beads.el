@@ -134,15 +134,16 @@ For a project with default settings, use an empty list:
          (beads--project-cache (make-hash-table :test 'equal)))
      ;; Clear any active transient state from previous tests
      (beads-test--clear-transient-state)
-     ;; Mock beads-git-find-project-root to return nil, forcing beads--find-beads-dir
-     ;; to use default-directory (the temp test project) instead of discovering
-     ;; the main repository via project.el
-     (cl-letf (((symbol-function 'beads-git-find-project-root)
-                (lambda () nil)))
-       (unwind-protect
-           (progn ,@body)
-         ;; Clear transient state after test too
-         (beads-test--clear-transient-state)))))
+     ;; Mock beads-git-find-project-root to return default-directory (the temp
+     ;; test project) instead of discovering the main repository via project.el.
+     ;; This is captured at macro expansion time to ensure proper scoping.
+     (let ((test-project-dir default-directory))
+       (cl-letf (((symbol-function 'beads-git-find-project-root)
+                  (lambda () test-project-dir)))
+         (unwind-protect
+             (progn ,@body)
+           ;; Clear transient state after test too
+           (beads-test--clear-transient-state))))))
 
 (defun beads-test-execute-commands (cmds)
   (dolist (cmd cmds)
