@@ -348,8 +348,12 @@ Returns a string or nil if value should not be included."
              (mapconcat (lambda (v) (if (stringp v) v (format "%s" v)))
                         value
                         (or separator ","))))
-    (_ (when (and value (stringp value) (not (string-empty-p value)))
-         value))))
+    ;; :string - accept strings or convert integers/numbers to strings
+    (_ (cond
+        ((null value) nil)
+        ((stringp value) (unless (string-empty-p value) value))
+        ((numberp value) (number-to-string value))
+        (t nil)))))
 
 (defun beads-meta-build-command-line (command)
   "Build command-line arguments from slot metadata for COMMAND.
@@ -399,6 +403,10 @@ Slots without :long-option, :short-option, or :positional are skipped."
                        ((eq option-type :boolean)
                         (when formatted
                           (push (list opt-name) named-args)))
+                       ;; List type with nil separator - each item becomes separate option
+                       ((and (eq option-type :list) formatted (null separator))
+                        (dolist (item (split-string formatted ","))
+                          (push (list opt-name item) named-args)))
                        ;; Option with value
                        (formatted
                         (push (list opt-name formatted) named-args))))))))
