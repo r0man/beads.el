@@ -38,6 +38,7 @@
 (require 'eieio)
 (require 'cl-lib)
 (require 'sesman)
+(require 'beads-buffer-name)
 
 ;; Forward declaration - defined in beads-sesman.el (required at end of file)
 (defvar beads-sesman-system)
@@ -801,8 +802,9 @@ format but with different semantic interpretations of the NAME field."
 
 (defun beads-agent--buffer-name-p (buffer-name)
   "Return non-nil if BUFFER-NAME is a valid beads agent buffer name.
-Matches both directory-bound and legacy issue-bound formats.
-Both formats are syntactically identical: *beads-agent[NAME][TYPE#N]*
+Matches both the new centralized format and legacy format:
+- New: *beads-agent: PROJECT/TYPE:BACKEND#N*
+- Legacy: *beads-agent[NAME][TYPE#N]*
 
 Use this general predicate when:
 - Filtering all agent buffers regardless of naming scheme
@@ -810,23 +812,36 @@ Use this general predicate when:
 - Implementing buffer cleanup or listing functions
 
 For code that specifically expects project-based (directory-bound)
-buffers, prefer `beads-agent--project-buffer-name-p' to signal intent,
-even though both predicates are functionally equivalent."
+buffers, prefer `beads-agent--project-buffer-name-p' to signal intent."
   (and buffer-name
-       ;; Unified format: *beads-agent[NAME][TYPE#N]*
-       ;; Matches both project-bound (NAME=project) and legacy (NAME=issue-id)
-       (string-match-p "\\*beads-agent\\[.+\\]\\[[^#]+#[0-9]+\\]\\*" buffer-name)))
+       (or
+        ;; New centralized format: *beads-agent: PROJECT/TYPE:BACKEND#N*
+        (beads-buffer-name-agent-p buffer-name)
+        ;; Legacy format: *beads-agent[NAME][TYPE#N]*
+        (string-match-p "\\*beads-agent\\[.+\\]\\[[^#]+#[0-9]+\\]\\*" buffer-name))))
 
 ;;; Directory-Bound Buffer Naming
+;;
+;; Buffer names use the centralized beads-buffer-name module with format:
+;;   *beads-agent: PROJECT/TYPE:BACKEND#N*
+;;   *beads-agent: PROJECT/WORKTREE@BRANCH/TYPE:BACKEND#N*  (in worktree)
+;;   *beads-agent: PROJECT/TYPE:BACKEND#N ISSUE-ID TITLE*   (with issue)
 
-(defun beads-agent--generate-project-buffer-name (proj-name type-name instance-n)
+(defun beads-agent--generate-project-buffer-name
+    (proj-name type-name backend-name instance-n
+     &optional issue-id title worktree branch)
   "Generate buffer name for directory-bound session.
 PROJ-NAME is the project name (e.g., \"beads.el\").
 TYPE-NAME is the agent type name (e.g., \"Task\", \"Plan\").
+BACKEND-NAME is the backend name (e.g., \"claude-code\", \"claudemacs\").
 INSTANCE-N is the instance number for this (project, type) combination.
+ISSUE-ID and TITLE are optional issue context.
+WORKTREE and BRANCH are optional worktree context.
 
-Returns buffer name in format: *beads-agent[PROJ-NAME][TYPE#N]*"
-  (format "*beads-agent[%s][%s#%d]*" proj-name type-name instance-n))
+Returns buffer name in format: *beads-agent: PROJECT/TYPE:BACKEND#N*"
+  (beads-buffer-name-agent type-name backend-name instance-n
+                           issue-id title
+                           proj-name worktree branch))
 
 (defun beads-agent--generate-buffer-name-for-project-session (session)
   "Generate buffer name for directory-bound SESSION object.
@@ -851,34 +866,34 @@ times for the same session."
                                (beads-agent--derive-project-name
                                 (oref session project-dir)))))
            (type-name (or (oref session agent-type-name) "Agent"))
-           (instance-n (beads-agent--next-typed-instance-number display-name type-name)))
-      (beads-agent--generate-project-buffer-name display-name type-name instance-n))))
+           (backend-name (oref session backend-name))
+           (instance-n (beads-agent--next-typed-instance-number
+                        display-name type-name)))
+      (beads-agent--generate-project-buffer-name
+       display-name type-name backend-name instance-n))))
 
 (defun beads-agent--parse-project-buffer-name (buffer-name)
   "Parse a directory-bound buffer name into its components.
-BUFFER-NAME should be in format *beads-agent[PROJECT-NAME][TYPE#N]*.
-Returns plist (:project-name NAME :type-name TYPE :instance-n N)
-or nil if the buffer name doesn't match the expected format.
+BUFFER-NAME should be in format *beads-agent: PROJECT/TYPE:BACKEND#N*.
+Returns plist with :project, :worktree, :branch, :type, :backend,
+:instance, :issue-id, :title, or nil if format doesn't match.
 
-This is the directory-bound parse function that returns :project-name.
-For legacy issue-bound buffers, use `beads-agent--parse-buffer-name'
-which returns :issue-id instead.  Both functions parse the same
-format but with different semantic interpretations of the NAME field."
-  (when (string-match
-         "\\*beads-agent\\[\\([^]]+\\)\\]\\[\\([^#]+\\)#\\([0-9]+\\)\\]\\*"
-         buffer-name)
-    (list :project-name (match-string 1 buffer-name)
-          :type-name (match-string 2 buffer-name)
-          :instance-n (string-to-number (match-string 3 buffer-name)))))
+This wraps the centralized `beads-buffer-name-parse-agent' function,
+mapping its return keys to the legacy names used in this module."
+  (when-let ((parsed (beads-buffer-name-parse-agent buffer-name)))
+    ;; Map centralized keys to legacy keys for compatibility
+    (list :project-name (plist-get parsed :project)
+          :worktree (plist-get parsed :worktree)
+          :branch (plist-get parsed :branch)
+          :type-name (plist-get parsed :type)
+          :backend-name (plist-get parsed :backend)
+          :instance-n (plist-get parsed :instance)
+          :issue-id (plist-get parsed :issue-id)
+          :title (plist-get parsed :title))))
 
 (defun beads-agent--project-buffer-name-p (buffer-name)
   "Return non-nil if BUFFER-NAME is a directory-bound buffer name.
-Directory-bound format: *beads-agent[PROJECT-NAME][TYPE#N]*
-
-Note: Since directory-bound and legacy formats are now syntactically
-identical, this is equivalent to `beads-agent--buffer-name-p'.
-The distinction is semantic: callers use this when they expect a
-project-based buffer name specifically.
+Directory-bound format: *beads-agent: PROJECT/TYPE:BACKEND#N*
 
 Use this predicate when:
 - Working with directory-bound session creation code
@@ -887,7 +902,7 @@ Use this predicate when:
 
 For general buffer validation that accepts any agent buffer format,
 use `beads-agent--buffer-name-p' instead."
-  (beads-agent--buffer-name-p buffer-name))
+  (beads-buffer-name-agent-p buffer-name))
 
 ;;; Window Management
 ;;

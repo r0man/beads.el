@@ -36,9 +36,12 @@
 ;;   *beads-show: PROJECT/WORKTREE@BRANCH/ISSUE-ID TITLE*  (in worktree)
 ;;
 ;; Agent buffers:
-;;   *beads-agent: PROJECT/BACKEND#N*
-;;   *beads-agent: PROJECT/WORKTREE@BRANCH/BACKEND#N*      (in worktree)
-;;   *beads-agent: PROJECT/BACKEND#N ISSUE-ID TITLE*
+;;   *beads-agent: PROJECT/TYPE:BACKEND#N*
+;;   *beads-agent: PROJECT/WORKTREE@BRANCH/TYPE:BACKEND#N*      (in worktree)
+;;   *beads-agent: PROJECT/TYPE:BACKEND#N ISSUE-ID TITLE*       (with issue)
+;;
+;;   Where TYPE is the agent type (Task, Plan, Review, etc.) and
+;;   BACKEND is the agent backend (claude-code, claudemacs, etc.)
 ;;
 ;; Utility buffers:
 ;;   *beads-stats: PROJECT*
@@ -157,24 +160,25 @@ PROJECT, WORKTREE, and BRANCH are optional overrides."
 
 ;;; Agent Buffer Names
 
-(defun beads-buffer-name-agent (backend instance
+(defun beads-buffer-name-agent (type backend instance
                                  &optional issue-id title
                                  project worktree branch)
   "Generate agent buffer name.
-BACKEND is the agent backend type (e.g., \"claude-code\", \"claudemacs\").
+TYPE is the agent type (e.g., \"Task\", \"Plan\", \"Review\").
+BACKEND is the agent backend (e.g., \"claude-code\", \"claudemacs\").
 INSTANCE is the instance number.
 ISSUE-ID and TITLE are optional issue context.
 PROJECT, WORKTREE, and BRANCH are optional overrides.
 
 Examples:
-  (beads-buffer-name-agent \"claude-code\" 1)
-    => \"*beads-agent: myproject/claude-code#1*\"
-  (beads-buffer-name-agent \"claudemacs\" 2 \"bd-42\" \"Fix login\")
-    => \"*beads-agent: myproject/claudemacs#2 bd-42 Fix login*\"
-  (beads-buffer-name-agent \"cc\" 1 nil nil \"p\" \"wt\" \"feat\")
-    => \"*beads-agent: p/wt@feat/cc#1*\""
+  (beads-buffer-name-agent \"Task\" \"claude-code\" 1)
+    => \"*beads-agent: myproject/Task:claude-code#1*\"
+  (beads-buffer-name-agent \"Plan\" \"claudemacs\" 2 \"bd-42\" \"Fix login\")
+    => \"*beads-agent: myproject/Plan:claudemacs#2 bd-42 Fix login*\"
+  (beads-buffer-name-agent \"Review\" \"cc\" 1 nil nil \"p\" \"wt\" \"feat\")
+    => \"*beads-agent: p/wt@feat/Review:cc#1*\""
   (let* ((prefix (beads-buffer-name--project-prefix project worktree branch))
-         (base (format "*beads-agent: %s/%s#%d" prefix backend instance)))
+         (base (format "*beads-agent: %s/%s:%s#%d" prefix type backend instance)))
     (if issue-id
         (let ((truncated-title (beads-buffer-name--truncate-title title)))
           (if (string-empty-p truncated-title)
@@ -228,25 +232,28 @@ Returns plist with :project, :worktree, :branch, :issue-id, :title, or nil."
 
 (defun beads-buffer-name-parse-agent (buffer-name)
   "Parse BUFFER-NAME as an agent buffer name.
-Returns plist with :project, :worktree, :branch, :backend, :instance,
-:issue-id, :title.  Returns nil if not an agent buffer."
-  (when (string-match
-         (concat "\\`\\*beads-agent: "
-                 "\\([^/]+\\)"                ; project
-                 "/\\(?:\\([^@]+\\)@\\([^/]+\\)/\\)?"  ; /WORKTREE@BRANCH/ (optional)
-                 "\\([^#]+\\)"                ; backend
-                 "#\\([0-9]+\\)"              ; #N
-                 "\\(?: \\([^ *]+\\)\\)?"     ; issue-id
-                 "\\(?: \\(.+\\)\\)?"         ; title
-                 "\\*\\'")
-         buffer-name)
+Returns plist with :project, :worktree, :branch, :type, :backend, :instance,
+:issue-id, :title.  Returns nil if not an agent buffer or if BUFFER-NAME is nil."
+  (when (and buffer-name
+             (string-match
+              (concat "\\`\\*beads-agent: "
+                      "\\([^/]+\\)"                ; project
+                      "/\\(?:\\([^@]+\\)@\\([^/]+\\)/\\)?"  ; /WORKTREE@BRANCH/ (optional)
+                      "\\([^:]+\\)"                ; type
+                      ":\\([^#]+\\)"               ; :backend
+                      "#\\([0-9]+\\)"              ; #N
+                      "\\(?: \\([^ *]+\\)\\)?"     ; issue-id
+                      "\\(?: \\(.+\\)\\)?"         ; title
+                      "\\*\\'")
+              buffer-name))
     (list :project (match-string 1 buffer-name)
           :worktree (match-string 2 buffer-name)
           :branch (match-string 3 buffer-name)
-          :backend (match-string 4 buffer-name)
-          :instance (string-to-number (match-string 5 buffer-name))
-          :issue-id (match-string 6 buffer-name)
-          :title (match-string 7 buffer-name))))
+          :type (match-string 4 buffer-name)
+          :backend (match-string 5 buffer-name)
+          :instance (string-to-number (match-string 6 buffer-name))
+          :issue-id (match-string 7 buffer-name)
+          :title (match-string 8 buffer-name))))
 
 (defun beads-buffer-name-parse-utility (buffer-name)
   "Parse BUFFER-NAME as a utility buffer name.

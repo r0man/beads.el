@@ -136,28 +136,28 @@
 
 (ert-deftest beads-buffer-name-test-agent-basic ()
   "Test basic agent buffer name."
-  (should (string= "*beads-agent: proj/claude-code#1*"
-                   (beads-buffer-name-agent "claude-code" 1 nil nil "proj" nil))))
+  (should (string= "*beads-agent: proj/Task:claude-code#1*"
+                   (beads-buffer-name-agent "Task" "claude-code" 1 nil nil "proj" nil))))
 
 (ert-deftest beads-buffer-name-test-agent-with-issue ()
   "Test agent buffer name with issue ID."
-  (should (string= "*beads-agent: proj/claudemacs#2 bd-42*"
-                   (beads-buffer-name-agent "claudemacs" 2 "bd-42" nil "proj" nil))))
+  (should (string= "*beads-agent: proj/Plan:claudemacs#2 bd-42*"
+                   (beads-buffer-name-agent "Plan" "claudemacs" 2 "bd-42" nil "proj" nil))))
 
 (ert-deftest beads-buffer-name-test-agent-with-issue-and-title ()
   "Test agent buffer name with issue ID and title."
-  (should (string= "*beads-agent: proj/efrit#3 bd-42 Fix auth*"
-                   (beads-buffer-name-agent "efrit" 3 "bd-42" "Fix auth" "proj" nil))))
+  (should (string= "*beads-agent: proj/Review:efrit#3 bd-42 Fix auth*"
+                   (beads-buffer-name-agent "Review" "efrit" 3 "bd-42" "Fix auth" "proj" nil))))
 
 (ert-deftest beads-buffer-name-test-agent-with-worktree ()
   "Test agent buffer name with worktree and branch."
-  (should (string= "*beads-agent: proj/wt@branch/claude-code#1*"
-                   (beads-buffer-name-agent "claude-code" 1 nil nil "proj" "wt" "branch"))))
+  (should (string= "*beads-agent: proj/wt@branch/Task:claude-code#1*"
+                   (beads-buffer-name-agent "Task" "claude-code" 1 nil nil "proj" "wt" "branch"))))
 
 (ert-deftest beads-buffer-name-test-agent-full ()
   "Test agent buffer name with all components."
-  (should (string= "*beads-agent: proj/wt@branch/claudemacs#2 bd-42 Fix bug*"
-                   (beads-buffer-name-agent "claudemacs" 2 "bd-42" "Fix bug" "proj" "wt" "branch"))))
+  (should (string= "*beads-agent: proj/wt@branch/Plan:claudemacs#2 bd-42 Fix bug*"
+                   (beads-buffer-name-agent "Plan" "claudemacs" 2 "bd-42" "Fix bug" "proj" "wt" "branch"))))
 
 ;;; Utility Buffer Name Tests
 
@@ -282,11 +282,12 @@
 
 (ert-deftest beads-buffer-name-test-parse-agent-basic ()
   "Test parsing basic agent buffer name."
-  (let ((parsed (beads-buffer-name-parse-agent "*beads-agent: proj/claude-code#1*")))
+  (let ((parsed (beads-buffer-name-parse-agent "*beads-agent: proj/Task:claude-code#1*")))
     (should parsed)
     (should (string= "proj" (plist-get parsed :project)))
     (should (null (plist-get parsed :worktree)))
     (should (null (plist-get parsed :branch)))
+    (should (string= "Task" (plist-get parsed :type)))
     (should (string= "claude-code" (plist-get parsed :backend)))
     (should (= 1 (plist-get parsed :instance)))
     (should (null (plist-get parsed :issue-id)))
@@ -294,26 +295,30 @@
 
 (ert-deftest beads-buffer-name-test-parse-agent-with-issue ()
   "Test parsing agent buffer name with issue."
-  (let ((parsed (beads-buffer-name-parse-agent "*beads-agent: proj/claudemacs#2 bd-42*")))
+  (let ((parsed (beads-buffer-name-parse-agent "*beads-agent: proj/Plan:claudemacs#2 bd-42*")))
     (should parsed)
+    (should (string= "Plan" (plist-get parsed :type)))
     (should (string= "claudemacs" (plist-get parsed :backend)))
     (should (= 2 (plist-get parsed :instance)))
     (should (string= "bd-42" (plist-get parsed :issue-id)))))
 
 (ert-deftest beads-buffer-name-test-parse-agent-with-issue-and-title ()
   "Test parsing agent buffer name with issue and title."
-  (let ((parsed (beads-buffer-name-parse-agent "*beads-agent: proj/efrit#3 bd-42 Fix auth*")))
+  (let ((parsed (beads-buffer-name-parse-agent "*beads-agent: proj/Review:efrit#3 bd-42 Fix auth*")))
     (should parsed)
+    (should (string= "Review" (plist-get parsed :type)))
     (should (string= "bd-42" (plist-get parsed :issue-id)))
     (should (string= "Fix auth" (plist-get parsed :title)))))
 
 (ert-deftest beads-buffer-name-test-parse-agent-with-worktree ()
   "Test parsing agent buffer name with worktree and branch."
-  (let ((parsed (beads-buffer-name-parse-agent "*beads-agent: proj/wt@branch/claude-code#1*")))
+  (let ((parsed (beads-buffer-name-parse-agent "*beads-agent: proj/wt@branch/Task:claude-code#1*")))
     (should parsed)
     (should (string= "proj" (plist-get parsed :project)))
     (should (string= "wt" (plist-get parsed :worktree)))
-    (should (string= "branch" (plist-get parsed :branch)))))
+    (should (string= "branch" (plist-get parsed :branch)))
+    (should (string= "Task" (plist-get parsed :type)))
+    (should (string= "claude-code" (plist-get parsed :backend)))))
 
 (ert-deftest beads-buffer-name-test-parse-agent-invalid ()
   "Test parsing invalid agent buffer name."
@@ -374,8 +379,8 @@
 
 (ert-deftest beads-buffer-name-test-agent-p ()
   "Test agent predicate."
-  (should (beads-buffer-name-agent-p "*beads-agent: proj/cc#1*"))
-  (should (beads-buffer-name-agent-p "*beads-agent: proj/wt@branch/cm#2 bd-1*"))
+  (should (beads-buffer-name-agent-p "*beads-agent: proj/Task:cc#1*"))
+  (should (beads-buffer-name-agent-p "*beads-agent: proj/wt@branch/Plan:cm#2 bd-1*"))
   (should-not (beads-buffer-name-agent-p "*beads-list: proj*"))
   (should-not (beads-buffer-name-agent-p "*other*")))
 
@@ -391,7 +396,7 @@
   "Test beads predicate (any beads buffer)."
   (should (beads-buffer-name-beads-p "*beads-list: proj*"))
   (should (beads-buffer-name-beads-p "*beads-show: proj/bd-1*"))
-  (should (beads-buffer-name-beads-p "*beads-agent: proj/cc#1*"))
+  (should (beads-buffer-name-beads-p "*beads-agent: proj/Task:cc#1*"))
   (should (beads-buffer-name-beads-p "*beads-stats: proj*"))
   (should-not (beads-buffer-name-beads-p "*scratch*"))
   (should-not (beads-buffer-name-beads-p "*Messages*")))
@@ -453,9 +458,9 @@
 
 (ert-deftest beads-buffer-name-test-find-agent-buffers ()
   "Test finding agent buffers."
-  (let ((buf1 (generate-new-buffer "*beads-agent: testproj/cc#1*"))
-        (buf2 (generate-new-buffer "*beads-agent: testproj/cm#1*"))
-        (buf3 (generate-new-buffer "*beads-agent: other/cc#1*"))
+  (let ((buf1 (generate-new-buffer "*beads-agent: testproj/Task:cc#1*"))
+        (buf2 (generate-new-buffer "*beads-agent: testproj/Plan:cm#1*"))
+        (buf3 (generate-new-buffer "*beads-agent: other/Task:cc#1*"))
         (buf4 (generate-new-buffer "*beads-list: testproj*")))
     (unwind-protect
         (progn
@@ -506,12 +511,13 @@
 
 (ert-deftest beads-buffer-name-test-roundtrip-agent ()
   "Test that agent buffer names roundtrip correctly."
-  (let* ((name (beads-buffer-name-agent "claude-code" 5 "bd-42" "Fix auth" "proj" "wt" "branch"))
+  (let* ((name (beads-buffer-name-agent "Task" "claude-code" 5 "bd-42" "Fix auth" "proj" "wt" "branch"))
          (parsed (beads-buffer-name-parse-agent name)))
     (should parsed)
     (should (string= "proj" (plist-get parsed :project)))
     (should (string= "wt" (plist-get parsed :worktree)))
     (should (string= "branch" (plist-get parsed :branch)))
+    (should (string= "Task" (plist-get parsed :type)))
     (should (string= "claude-code" (plist-get parsed :backend)))
     (should (= 5 (plist-get parsed :instance)))
     (should (string= "bd-42" (plist-get parsed :issue-id)))
