@@ -54,6 +54,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-buffer-name)
 (require 'beads-command)
 (require 'beads-command-blocked)
 (require 'beads-command-ready)
@@ -292,11 +293,16 @@ Reuses existing buffer for same project-dir (directory is identity)."
   (let* ((project-dir (or (beads-git-find-project-root) default-directory))
          (existing (beads-list--find-buffer-for-project buffer-type project-dir)))
     (or existing
-        (let ((buffer (get-buffer-create (format "*beads-%s*" buffer-type))))
+        (let* ((proj-name (beads-git-get-project-name))
+               (buf-name (beads-buffer-name-list
+                          (symbol-name buffer-type)
+                          nil
+                          proj-name))
+               (buffer (get-buffer-create buf-name)))
           (with-current-buffer buffer
             (setq beads-list--project-dir project-dir)
             (setq beads-list--branch (beads-git-get-branch))
-            (setq beads-list--proj-name (beads-git-get-project-name)))
+            (setq beads-list--proj-name proj-name))
           buffer))))
 
 (defun beads-list--display-buffer (buffer)
