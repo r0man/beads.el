@@ -27,7 +27,7 @@
 
 ;;; Doctor Command
 
-(defclass beads-command-doctor (beads-command-json)
+(beads-defcommand beads-command-doctor (beads-command-json)
   ((path
     :initarg :path
     :type (or null string)
@@ -257,6 +257,55 @@ When executed with :json t, returns diagnostic results.")
   "Validate doctor COMMAND.
 No required fields, returns nil (valid)."
   nil)
+
+(cl-defmethod beads-command-line ((command beads-command-doctor))
+  "Build command arguments for doctor COMMAND (without executable).
+Returns list: (\"doctor\" ...global-flags... [path] ...options...)."
+  (with-slots (path check check-health deep perf fix dry-run yes
+                    interactive-mode fix-child-parent force source
+                    output verbose clean) command
+    (let ((args (list "doctor"))
+          (global-args (cl-call-next-method)))
+      ;; Append global flags (includes --json if enabled)
+      (setq args (append args global-args))
+
+      ;; Positional argument
+      (when path
+        (setq args (append args (list path))))
+
+      ;; String options
+      (when check
+        (setq args (append args (list "--check" check))))
+      (when source
+        (setq args (append args (list "--source" source))))
+      (when output
+        (setq args (append args (list "--output" output))))
+
+      ;; Boolean flags
+      (when check-health
+        (setq args (append args (list "--check-health"))))
+      (when deep
+        (setq args (append args (list "--deep"))))
+      (when perf
+        (setq args (append args (list "--perf"))))
+      (when fix
+        (setq args (append args (list "--fix"))))
+      (when dry-run
+        (setq args (append args (list "--dry-run"))))
+      (when yes
+        (setq args (append args (list "--yes"))))
+      (when interactive-mode
+        (setq args (append args (list "--interactive"))))
+      (when fix-child-parent
+        (setq args (append args (list "--fix-child-parent"))))
+      (when force
+        (setq args (append args (list "--force"))))
+      (when verbose
+        (setq args (append args (list "--verbose"))))
+      (when clean
+        (setq args (append args (list "--clean"))))
+
+      args)))
 
 ;; No custom parse needed for doctor - uses parent JSON parse
 
