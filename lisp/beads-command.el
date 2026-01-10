@@ -113,24 +113,25 @@ Usage:
 (defcustom beads-terminal-backend nil
   "Backend to use for interactive command execution.
 
-When nil (auto-detect), tries backends in order: vterm, eat, term, compile.
+When nil (auto-detect), tries backends in order: vterm, eat, term.
 The first available backend is used.
 
 Available backends:
-- nil: Auto-detect best available backend (vterm > eat > term > compile).
+- nil: Auto-detect best available backend (vterm > eat > term).
 - `vterm': Use vterm (libvterm-based terminal).
   Fast and feature-complete, requires vterm package.
 - `eat': Use Eat (Emulate A Terminal).
   Pure Emacs Lisp terminal, requires eat package.
 - `term': Use built-in `term-mode' terminal emulator.
   Full terminal support, no external dependencies.
-- `compile': Use `compilation-mode' with ANSI color filtering.
-  Supports `next-error' navigation but limited terminal emulation."
-  :type '(choice (const :tag "Auto-detect (vterm > eat > term > compile)" nil)
+
+Note: Compilation mode is not included because it cannot handle
+interactive input (prompts, confirmations) that some bd commands
+like `bd doctor --fix' may require."
+  :type '(choice (const :tag "Auto-detect (vterm > eat > term)" nil)
                  (const :tag "Vterm (requires vterm package)" vterm)
                  (const :tag "Eat (requires eat package)" eat)
-                 (const :tag "Term mode (built-in)" term)
-                 (const :tag "Compilation mode (with color filter)" compile))
+                 (const :tag "Term mode (built-in)" term))
   :group 'beads-terminal)
 
 ;;; Terminal Backend Implementations
@@ -213,7 +214,7 @@ Available backends:
 
 (defun beads-command--detect-best-backend ()
   "Detect the best available terminal backend.
-Tries in order: vterm, eat, term, compile."
+Tries in order: vterm, eat, term.  Falls back to term (built-in)."
   (cond
    ((beads-command--vterm-available-p) 'vterm)
    ((beads-command--eat-available-p) 'eat)
