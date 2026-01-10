@@ -15,6 +15,7 @@
 
 (require 'ert)
 (require 'beads)
+(require 'beads-buffer-name)
 (require 'beads-show)
 (require 'beads-agent-backend)
 (require 'button)
@@ -89,8 +90,20 @@ This is needed because show buffers are now named by project, not issue."
               (lambda () "main")))
      ,@body))
 
-(defconst beads-show-test--buffer-name "*beads-show: test-project*"
-  "Expected buffer name when using git mocks.")
+(defconst beads-show-test--buffer-name "*beads-show: test-project/bd-42 Implement feature X*"
+  "Expected buffer name when using git mocks with bd-42 issue.")
+
+(defconst beads-show-test--outline-buffer-name "*beads-show: test-project/bd-200 Issue Title*"
+  "Expected buffer name when using git mocks with bd-200 outline issue.")
+
+(defconst beads-show-test--block-buffer-name "*beads-show: test-project/bd-300 Block Navigation Test*"
+  "Expected buffer name when using git mocks with bd-300 block navigation issue.")
+
+(defconst beads-show-test--markdown-buffer-name "*beads-show: test-project/bd-100 Markdown test*"
+  "Expected buffer name when using git mocks with bd-100 markdown-rich issue.")
+
+(defconst beads-show-test--minimal-buffer-name "*beads-show: test-project/bd-1 Minimal issue*"
+  "Expected buffer name when using git mocks with bd-1 minimal issue.")
 
 (defun beads-show-test--mock-show-command (issue-data)
   "Create a mock for beads-command-show! returning ISSUE-DATA as EIEIO object."
@@ -515,15 +528,17 @@ This is needed because show buffers are now named by project, not issue."
 
 (ert-deftest beads-show-test-show-command-handles-error ()
   "Test that beads-show handles errors gracefully."
-  (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
-              (lambda (&rest args) (error "Database not found"))))
-     (beads-show "bd-999")
-     (with-current-buffer beads-show-test--buffer-name
-       (let ((text (beads-show-test--get-buffer-text)))
-         (should (string-match-p "Error loading issue" text))
-         (should (string-match-p "Database not found" text)))
-       (kill-buffer)))))
+  (let ((error-buffer-name "*beads-show: test-project/bd-999*"))
+    (beads-show-test-with-git-mocks
+     (cl-letf (((symbol-function 'beads-command-show!)
+                (lambda (&rest args) (error "Database not found"))))
+       (beads-show "bd-999")
+       ;; Buffer name won't have title since fetch failed
+       (with-current-buffer error-buffer-name
+         (let ((text (beads-show-test--get-buffer-text)))
+           (should (string-match-p "Error loading issue" text))
+           (should (string-match-p "Database not found" text)))
+         (kill-buffer))))))
 
 (ert-deftest beads-show-test-show-at-point-with-reference ()
   "Test beads-show-at-point when cursor is on bd-N."
@@ -760,38 +775,46 @@ This is needed because show buffers are now named by project, not issue."
        (kill-buffer)))))
 
 (ert-deftest beads-show-test-multiple-buffers ()
-  "Test that viewing multiple issues reuses the same project buffer.
-With project-based naming, all issues in a project share one buffer."
-  (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
-              (lambda (&rest args)
-                (let* ((issue-ids (plist-get args :issue-ids))
-                       (id (car issue-ids)))
-                  (cond
-                   ((string= id "bd-1") (beads-issue-from-json beads-show-test--minimal-issue))
-                   ((string= id "bd-42") (beads-issue-from-json beads-show-test--full-issue))
-                   (t (error "Unknown issue")))))))
-     ;; Open first issue
-     (beads-show "bd-1")
-     (should (get-buffer beads-show-test--buffer-name))
-     (with-current-buffer beads-show-test--buffer-name
-       (should (string-match-p "Minimal issue"
-                               (beads-show-test--get-buffer-text))))
+  "Test that viewing multiple issues creates separate buffers.
+With per-issue naming, each issue in a project gets its own buffer."
+  (let ((bd1-buffer-name "*beads-show: test-project/bd-1 Minimal issue*"))
+    (beads-show-test-with-git-mocks
+     (cl-letf (((symbol-function 'beads-command-show!)
+                (lambda (&rest args)
+                  (let* ((issue-ids (plist-get args :issue-ids))
+                         (id (car issue-ids)))
+                    (cond
+                     ((string= id "bd-1") (beads-issue-from-json beads-show-test--minimal-issue))
+                     ((string= id "bd-42") (beads-issue-from-json beads-show-test--full-issue))
+                     (t (error "Unknown issue")))))))
+       ;; Open first issue
+       (beads-show "bd-1")
+       (should (get-buffer bd1-buffer-name))
+       (with-current-buffer bd1-buffer-name
+         (should (string-match-p "Minimal issue"
+                                 (beads-show-test--get-buffer-text))))
 
-     ;; Open second issue - should REUSE the same buffer
-     (beads-show "bd-42")
-     (should (get-buffer beads-show-test--buffer-name))
+       ;; Open second issue - should create a DIFFERENT buffer
+       (beads-show "bd-42")
+       (should (get-buffer beads-show-test--buffer-name))
 
-     ;; Buffer content should now show the SECOND issue
-     (with-current-buffer beads-show-test--buffer-name
-       (should (string-match-p "Implement feature X"
-                               (beads-show-test--get-buffer-text)))
-       ;; Old content should be gone
-       (should-not (string-match-p "Minimal issue"
-                                   (beads-show-test--get-buffer-text))))
+       ;; Both buffers should exist now (per-issue buffers)
+       (should (get-buffer bd1-buffer-name))
+       (should (get-buffer beads-show-test--buffer-name))
 
-     ;; Cleanup
-     (kill-buffer beads-show-test--buffer-name))))
+       ;; bd-42 buffer should show the second issue
+       (with-current-buffer beads-show-test--buffer-name
+         (should (string-match-p "Implement feature X"
+                                 (beads-show-test--get-buffer-text))))
+
+       ;; bd-1 buffer should still show the first issue
+       (with-current-buffer bd1-buffer-name
+         (should (string-match-p "Minimal issue"
+                                 (beads-show-test--get-buffer-text))))
+
+       ;; Cleanup
+       (kill-buffer bd1-buffer-name)
+       (kill-buffer beads-show-test--buffer-name)))))
 
 ;;; Tests for Outline Navigation
 
@@ -816,7 +839,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--outline-buffer-name
        (goto-char (point-min))
        ;; Search for title
        (when (search-forward "Issue Title" nil t)
@@ -831,7 +854,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--outline-buffer-name
        (goto-char (point-min))
        ;; Search for "Description" major section
        (when (search-forward "Description\n─" nil t)
@@ -846,7 +869,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--outline-buffer-name
        (goto-char (point-min))
        ;; Search for "## Level 2 Heading"
        (when (search-forward "## Level 2 Heading" nil t)
@@ -861,7 +884,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--outline-buffer-name
        (goto-char (point-min))
        ;; Search for "### Level 3 Heading"
        (when (search-forward "### Level 3 Heading" nil t)
@@ -876,7 +899,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--outline-buffer-name
        (goto-char (point-min))
        ;; Search for "First paragraph" which is not a heading
        (when (search-forward "First paragraph" nil t)
@@ -891,7 +914,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--outline-buffer-name
        (goto-char (point-min))
        ;; Start at title
        (search-forward "Issue Title" nil t)
@@ -912,7 +935,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--outline-buffer-name
        ;; Start near the end
        (goto-char (point-max))
        (let ((start-pos (point)))
@@ -929,7 +952,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--minimal-issue)))
      (beads-show "bd-1")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--minimal-buffer-name
        (goto-char (point-max))
        (forward-line -1)
        (let ((pos (point)))
@@ -945,7 +968,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--minimal-issue)))
      (beads-show "bd-1")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--minimal-buffer-name
        (goto-char (point-min))
        (let ((pos (point)))
          (beads-show-outline-previous)
@@ -960,7 +983,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--outline-buffer-name
        (goto-char (point-min))
        ;; Find first ## heading
        (when (search-forward "## Level 2 Heading" nil t)
@@ -980,7 +1003,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--outline-buffer-name
        (goto-char (point-min))
        ;; Find second ## heading (Another Level 2)
        (search-forward "## Level 2 Heading" nil t)
@@ -1001,7 +1024,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--outline-buffer-name
        (goto-char (point-min))
        ;; Move to non-heading text
        (when (search-forward "First paragraph" nil t)
@@ -1015,7 +1038,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--outline-buffer-name
        (goto-char (point-min))
        ;; Find ### Level 3 heading
        (when (search-forward "### Level 3 Heading" nil t)
@@ -1037,7 +1060,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--outline-buffer-name
        (goto-char (point-min))
        ;; Find ## Level 2 heading
        (when (search-forward "## Level 2 Heading" nil t)
@@ -1057,7 +1080,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--outline-buffer-name
        (goto-char (point-min))
        ;; Find title
        (when (search-forward "Issue Title" nil t)
@@ -1073,7 +1096,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--outline-buffer-name
        (goto-char (point-min))
        ;; Move to non-heading text
        (when (search-forward "First paragraph" nil t)
@@ -1101,7 +1124,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--outline-buffer-name
        ;; Start at top
        (goto-char (point-min))
 
@@ -1142,7 +1165,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--markdown-rich-issue)))
      (beads-show "bd-100")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--markdown-buffer-name
        (goto-char (point-min))
        (let ((start-pos (point)))
          (beads-show-forward-paragraph)
@@ -1156,7 +1179,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--markdown-rich-issue)))
      (beads-show "bd-100")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--markdown-buffer-name
        (goto-char (point-max))
        (let ((start-pos (point)))
          (beads-show-backward-paragraph)
@@ -1182,7 +1205,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--markdown-rich-issue)))
      (beads-show "bd-100")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--markdown-buffer-name
        (goto-char (point-min))
        ;; Find some paragraph text
        (when (search-forward "bold" nil t)
@@ -1260,7 +1283,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--block-rich-issue)))
      (beads-show "bd-300")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--block-buffer-name
        (goto-char (point-min))
        ;; Find "Regular paragraph"
        (when (search-forward "Regular paragraph" nil t)
@@ -1278,7 +1301,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--block-rich-issue)))
      (beads-show "bd-300")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--block-buffer-name
        (goto-char (point-min))
        ;; Find opening fence
        (when (search-forward "```python" nil t)
@@ -1300,7 +1323,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--block-rich-issue)))
      (beads-show "bd-300")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--block-buffer-name
        (goto-char (point-min))
        ;; Find list start
        (when (search-forward "- List item 1" nil t)
@@ -1318,7 +1341,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--block-rich-issue)))
      (beads-show "bd-300")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--block-buffer-name
        (goto-char (point-min))
        ;; Find blockquote start
        (when (search-forward "> Blockquote line 1" nil t)
@@ -1336,7 +1359,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--block-rich-issue)))
      (beads-show "bd-300")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--block-buffer-name
        (goto-char (point-min))
        ;; Find indented code
        (when (search-forward "    Indented code line 1" nil t)
@@ -1354,7 +1377,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--block-rich-issue)))
      (beads-show "bd-300")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--block-buffer-name
        (goto-char (point-min))
        ;; Find "End text" near the end
        (when (search-forward "End text" nil t)
@@ -1372,7 +1395,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--block-rich-issue)))
      (beads-show "bd-300")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--block-buffer-name
        (goto-char (point-min))
        ;; Find "List item 3" (end of list)
        (when (search-forward "- List item 3" nil t)
@@ -1391,7 +1414,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--block-rich-issue)))
      (beads-show "bd-300")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--block-buffer-name
        (goto-char (point-min))
        ;; Find inside or after code block
        (when (search-forward "```python" nil t)
@@ -1411,7 +1434,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--minimal-issue)))
      (beads-show "bd-1")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--minimal-buffer-name
        (goto-char (point-max))
        (let ((pos (point)))
          (beads-show-forward-block)
@@ -1426,7 +1449,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--minimal-issue)))
      (beads-show "bd-1")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--minimal-buffer-name
        (goto-char (point-min))
        (forward-line 2)
        (let ((pos (point)))
@@ -1442,7 +1465,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--block-rich-issue)))
      (beads-show "bd-300")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--block-buffer-name
        (goto-char (point-min))
        (let ((positions '()))
          ;; Navigate forward multiple times, recording positions
@@ -1506,7 +1529,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--outline-buffer-name
        (goto-char (point-min))
        ;; Find Description heading
        (when (search-forward "Description" nil t)
@@ -1524,7 +1547,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--outline-buffer-name
        (goto-char (point-min))
        ;; Find some content text
        (when (search-forward "First paragraph" nil t)
@@ -1540,7 +1563,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--outline-buffer-name
        (goto-char (point-min))
        ;; Find Description heading
        (when (search-forward "Description" nil t)
@@ -1558,7 +1581,7 @@ With project-based naming, all issues in a project share one buffer."
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
-     (with-current-buffer beads-show-test--buffer-name
+     (with-current-buffer beads-show-test--outline-buffer-name
        (goto-char (point-min))
        ;; Find Description heading
        (when (search-forward "Description" nil t)
@@ -1759,20 +1782,22 @@ Tests the full workflow: create issue -> update description -> verify update."
   (beads-test-with-project ()
     ;; Create an issue with initial description
     (let* ((initial-desc "Initial description text")
+           (issue-title "Test Issue for Field Editing")
            (issue (beads-command-create!
-                   :title "Test Issue for Field Editing"
+                   :title issue-title
                    :description initial-desc
                    :issue-type "task"
                    :priority 2))
            (issue-id (oref issue id))
            (updated-desc "Updated description text")
-           ;; Buffer is named by project, not issue
-           (proj-name (beads-git-get-project-name)))
+           ;; Buffer is named by (project, issue-id, title)
+           (proj-name (beads-git-get-project-name))
+           (buf-name (beads-buffer-name-show issue-id issue-title proj-name)))
 
       ;; Show the issue
       (beads-show issue-id)
       (unwind-protect
-          (with-current-buffer (format "*beads-show: %s*" proj-name)
+          (with-current-buffer buf-name
             (should (eq major-mode 'beads-show-mode))
             (should (equal beads-show--issue-id issue-id))
 
@@ -1801,20 +1826,22 @@ Tests editing a different multiline field to ensure all fields work."
   (beads-test-with-project ()
     ;; Create an issue with initial acceptance criteria
     (let* ((initial-ac "- [ ] Must do X\n- [ ] Must do Y")
+           (issue-title "Test Issue for AC Editing")
            (issue (beads-command-create!
-                   :title "Test Issue for AC Editing"
+                   :title issue-title
                    :acceptance initial-ac
                    :issue-type "feature"
                    :priority 1))
            (issue-id (oref issue id))
            (updated-ac "- [x] Must do X\n- [x] Must do Y\n- [ ] Must do Z")
-           ;; Buffer is named by project, not issue
-           (proj-name (beads-git-get-project-name)))
+           ;; Buffer is named by (project, issue-id, title)
+           (proj-name (beads-git-get-project-name))
+           (buf-name (beads-buffer-name-show issue-id issue-title proj-name)))
 
       ;; Show the issue
       (beads-show issue-id)
       (unwind-protect
-          (with-current-buffer (format "*beads-show: %s*" proj-name)
+          (with-current-buffer buf-name
             (should (eq major-mode 'beads-show-mode))
             (should (equal beads-show--issue-id issue-id))
 
@@ -1842,16 +1869,18 @@ Note: Notes cannot be set at creation time, only via update."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-project ()
     ;; Create an issue without notes (notes not supported in create command)
-    (let* ((issue (beads-command-create!
-                   :title "Test Issue for Notes Editing"
+    (let* ((issue-title "Test Issue for Notes Editing")
+           (issue (beads-command-create!
+                   :title issue-title
                    :description "Test issue for notes editing"
                    :issue-type "bug"
                    :priority 0))
            (issue-id (oref issue id))
            (initial-notes "Initial notes about the issue")
            (updated-notes "Updated notes with more details")
-           ;; Buffer is named by project, not issue
-           (proj-name (beads-git-get-project-name)))
+           ;; Buffer is named by (project, issue-id, title)
+           (proj-name (beads-git-get-project-name))
+           (buf-name (beads-buffer-name-show issue-id issue-title proj-name)))
 
       ;; First, add initial notes via update command
       (beads-command-execute
@@ -1861,7 +1890,7 @@ Note: Notes cannot be set at creation time, only via update."
       ;; Show the issue
       (beads-show issue-id)
       (unwind-protect
-          (with-current-buffer (format "*beads-show: %s*" proj-name)
+          (with-current-buffer buf-name
             (should (eq major-mode 'beads-show-mode))
             (should (equal beads-show--issue-id issue-id))
 
@@ -2207,23 +2236,25 @@ Note: Notes cannot be set at creation time, only via update."
     ;; Should strip trailing slash
     (should (equal normalized "/tmp"))))
 
-(ert-deftest beads-show-test-find-buffer-for-project-not-found ()
-  "Test finding buffer when none exists for the project."
-  (should (null (beads-show--find-buffer-for-project "/tmp/nonexistent-project"))))
+(ert-deftest beads-show-test-find-buffer-for-issue-not-found ()
+  "Test finding buffer when none exists for the issue."
+  (should (null (beads-show--find-buffer-for-issue "bd-42" "/tmp/nonexistent-project"))))
 
-(ert-deftest beads-show-test-find-buffer-for-project-found ()
-  "Test finding existing buffer by project directory."
-  (let ((test-buffer (generate-new-buffer "*beads-show: test-project*")))
+(ert-deftest beads-show-test-find-buffer-for-issue-found ()
+  "Test finding existing buffer by project directory and issue-id."
+  (let ((test-buffer (generate-new-buffer "*beads-show: test-project/bd-42*")))
     (unwind-protect
         (with-current-buffer test-buffer
           (beads-show-mode)
           (setq beads-show--issue-id "bd-42")
           (setq beads-show--project-dir "/tmp")
           ;; Should find our buffer
-          (should (eq (beads-show--find-buffer-for-project "/tmp")
+          (should (eq (beads-show--find-buffer-for-issue "bd-42" "/tmp")
                       test-buffer))
+          ;; Should NOT find buffer for different issue
+          (should (null (beads-show--find-buffer-for-issue "bd-99" "/tmp")))
           ;; Should NOT find buffer for different project
-          (should (null (beads-show--find-buffer-for-project "/other"))))
+          (should (null (beads-show--find-buffer-for-issue "bd-42" "/other"))))
       (kill-buffer test-buffer))))
 
 (ert-deftest beads-show-test-get-or-create-buffer-creates-new ()
@@ -2236,20 +2267,23 @@ Note: Notes cannot be set at creation time, only via update."
                    (lambda () "main"))
                   ((symbol-function 'beads-git-get-project-name)
                    (lambda () "new-project")))
-          (setq created-buffer (beads-show--get-or-create-buffer))
+          (setq created-buffer (beads-show--get-or-create-buffer "bd-42" "Fix bug"))
           (should (bufferp created-buffer))
-          ;; Buffer name should include project name, not issue-id
+          ;; Buffer name should include project and issue-id
           (should (string-match-p "new-project" (buffer-name created-buffer)))
+          (should (string-match-p "bd-42" (buffer-name created-buffer)))
+          (should (string-match-p "Fix bug" (buffer-name created-buffer)))
           (with-current-buffer created-buffer
             (should (equal beads-show--project-dir "/tmp/new-project"))
+            (should (equal beads-show--issue-id "bd-42"))
             (should (equal beads-show--branch "main"))
             (should (equal beads-show--proj-name "new-project"))))
       (when (and created-buffer (buffer-live-p created-buffer))
         (kill-buffer created-buffer)))))
 
 (ert-deftest beads-show-test-get-or-create-buffer-reuses-existing ()
-  "Test get-or-create-buffer reuses buffer for same project."
-  (let ((test-buffer (generate-new-buffer "*beads-show: existing-project*")))
+  "Test get-or-create-buffer reuses buffer for same (project, issue-id)."
+  (let ((test-buffer (generate-new-buffer "*beads-show: existing-project/bd-42*")))
     (unwind-protect
         (progn
           (with-current-buffer test-buffer
@@ -2262,13 +2296,13 @@ Note: Notes cannot be set at creation time, only via update."
                      (lambda () "feature"))
                     ((symbol-function 'beads-git-get-project-name)
                      (lambda () "existing-project")))
-            ;; Should return the existing buffer (same project)
-            (should (eq (beads-show--get-or-create-buffer) test-buffer))))
+            ;; Should return the existing buffer (same project and issue)
+            (should (eq (beads-show--get-or-create-buffer "bd-42") test-buffer))))
       (kill-buffer test-buffer))))
 
 (ert-deftest beads-show-test-different-project-different-buffer ()
   "Test that different projects create different buffers."
-  (let ((buffer1 (generate-new-buffer "*beads-show: project1*"))
+  (let ((buffer1 (generate-new-buffer "*beads-show: project1/bd-42*"))
         (buffer2 nil))
     (unwind-protect
         (progn
@@ -2276,7 +2310,7 @@ Note: Notes cannot be set at creation time, only via update."
             (beads-show-mode)
             (setq beads-show--issue-id "bd-42")
             (setq beads-show--project-dir "/tmp/project1"))
-          ;; Create buffer for different project
+          ;; Create buffer for different project (same issue-id)
           (cl-letf (((symbol-function 'beads-git-find-project-root)
                      (lambda () "/tmp/project2"))
                     ((symbol-function 'beads-git-get-branch)
@@ -2284,7 +2318,7 @@ Note: Notes cannot be set at creation time, only via update."
                     ((symbol-function 'beads-git-get-project-name)
                      (lambda () "project2")))
             ;; Should create NEW buffer (different project)
-            (setq buffer2 (beads-show--get-or-create-buffer))
+            (setq buffer2 (beads-show--get-or-create-buffer "bd-42"))
             (should (bufferp buffer2))
             (should-not (eq buffer1 buffer2))))
       (kill-buffer buffer1)
@@ -2294,7 +2328,7 @@ Note: Notes cannot be set at creation time, only via update."
 (ert-deftest beads-show-test-same-project-different-branch-same-buffer ()
   "Test that same project but different branch uses same buffer.
 This is the CRITICAL behavioral test for directory-as-identity."
-  (let ((test-buffer (generate-new-buffer "*beads-show: project*")))
+  (let ((test-buffer (generate-new-buffer "*beads-show: project/bd-42*")))
     (unwind-protect
         (progn
           (with-current-buffer test-buffer
@@ -2309,8 +2343,8 @@ This is the CRITICAL behavioral test for directory-as-identity."
                      (lambda () "feature"))  ; Different branch!
                     ((symbol-function 'beads-git-get-project-name)
                      (lambda () "project")))
-            ;; CRITICAL: Should return SAME buffer (same directory)
-            (let ((result (beads-show--get-or-create-buffer)))
+            ;; CRITICAL: Should return SAME buffer (same directory and issue)
+            (let ((result (beads-show--get-or-create-buffer "bd-42")))
               (should (eq result test-buffer)))))
       (kill-buffer test-buffer))))
 
@@ -2324,14 +2358,42 @@ This is the CRITICAL behavioral test for directory-as-identity."
                    (lambda () "feature-branch"))
                   ((symbol-function 'beads-git-get-project-name)
                    (lambda () "my-project")))
-          (setq created-buffer (beads-show--get-or-create-buffer))
+          (setq created-buffer (beads-show--get-or-create-buffer "bd-99" "Test issue"))
           (with-current-buffer created-buffer
             ;; Verify all variables set
             (should (equal beads-show--project-dir "/home/user/code/my-project"))
+            (should (equal beads-show--issue-id "bd-99"))
             (should (equal beads-show--branch "feature-branch"))
             (should (equal beads-show--proj-name "my-project"))))
       (when (and created-buffer (buffer-live-p created-buffer))
         (kill-buffer created-buffer)))))
+
+(ert-deftest beads-show-test-different-issue-different-buffer ()
+  "Test that different issues in same project get different buffers."
+  (let ((buffer1 (generate-new-buffer "*beads-show: project/bd-42*"))
+        (buffer2 nil))
+    (unwind-protect
+        (progn
+          (with-current-buffer buffer1
+            (beads-show-mode)
+            (setq beads-show--issue-id "bd-42")
+            (setq beads-show--project-dir "/tmp/project"))
+          ;; Create buffer for different issue in same project
+          (cl-letf (((symbol-function 'beads-git-find-project-root)
+                     (lambda () "/tmp/project"))
+                    ((symbol-function 'beads-git-get-branch)
+                     (lambda () "main"))
+                    ((symbol-function 'beads-git-get-project-name)
+                     (lambda () "project")))
+            ;; Should create NEW buffer (different issue)
+            (setq buffer2 (beads-show--get-or-create-buffer "bd-99"))
+            (should (bufferp buffer2))
+            (should-not (eq buffer1 buffer2))
+            (with-current-buffer buffer2
+              (should (equal beads-show--issue-id "bd-99")))))
+      (kill-buffer buffer1)
+      (when (and buffer2 (buffer-live-p buffer2))
+        (kill-buffer buffer2)))))
 
 ;;; =========================================================================
 ;;; Worktree Session Integration Tests (beads.el-1hde)
@@ -2560,9 +2622,9 @@ Empty sessions are automatically cleaned up."
     (should (stringp result))
     (should (not (string-prefix-p "~" result)))))
 
-(ert-deftest beads-show-test-find-buffer-for-project-no-match ()
-  "Test find-buffer-for-project returns nil when not found."
-  (should (null (beads-show--find-buffer-for-project "/tmp/nonexistent"))))
+(ert-deftest beads-show-test-find-buffer-for-issue-no-match ()
+  "Test find-buffer-for-issue returns nil when not found."
+  (should (null (beads-show--find-buffer-for-issue "bd-42" "/tmp/nonexistent"))))
 
 ;;; Insert Functions Tests
 
@@ -2860,15 +2922,16 @@ Empty sessions are automatically cleaned up."
           (should (string-match-p "Test description" (buffer-string))))))))
 
 (ert-deftest beads-show-test-integration-get-or-create-buffer ()
-  "Integration test: get-or-create-buffer creates project-based buffer."
+  "Integration test: get-or-create-buffer creates per-issue buffer."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-project ()
-    ;; Get or create buffer should return a buffer named after project
-    (let ((buf (beads-show--get-or-create-buffer)))
+    ;; Get or create buffer should return a buffer named after project and issue
+    (let ((buf (beads-show--get-or-create-buffer "bd-42" "Test Issue")))
       (should (bufferp buf))
-      ;; Buffer name should include project name (from beads-git-get-project-name)
+      ;; Buffer name should include beads-show, project name, and issue-id
       (should (string-match-p "beads-show" (buffer-name buf)))
+      (should (string-match-p "bd-42" (buffer-name buf)))
       ;; Clean up
       (kill-buffer buf))))
 
