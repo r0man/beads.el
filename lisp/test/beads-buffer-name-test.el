@@ -45,11 +45,11 @@
     (should (string= "myproject" (beads-buffer-name--project-prefix)))))
 
 (ert-deftest beads-buffer-name-test--project-prefix-with-worktree ()
-  "Test project prefix in worktree."
+  "Test project prefix in worktree (uses branch name for disambiguation)."
   (cl-letf (((symbol-function 'beads-git-get-project-name) (lambda () "myproject"))
             ((symbol-function 'beads-git-in-worktree-p) (lambda () t))
-            ((symbol-function 'beads-git-find-project-root) (lambda () "/tmp/myproject-wt")))
-    (should (string= "myproject@myproject-wt" (beads-buffer-name--project-prefix)))))
+            ((symbol-function 'beads-git-get-branch) (lambda () "feature-auth")))
+    (should (string= "myproject@feature-auth" (beads-buffer-name--project-prefix)))))
 
 (ert-deftest beads-buffer-name-test--project-prefix-explicit ()
   "Test project prefix with explicit values."
