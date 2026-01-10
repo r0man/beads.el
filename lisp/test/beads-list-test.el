@@ -86,17 +86,21 @@ ISSUES should be a list of alists (test data format)."
                ;; Return empty vector of issues
                (beads-test--mock-command-result (vector))))
             ((symbol-function 'beads-check-executable)
-             (lambda () t)))
+             (lambda () t))
+            ((symbol-function 'beads-git-get-project-name)
+             (lambda () "testproj"))
+            ((symbol-function 'beads-git-in-worktree-p)
+             (lambda () nil)))
     ;; Note: beads-list now shows transient menu, not immediate buffer
 
     ;; Test ready buffer
     (beads-ready)
-    (should (equal (buffer-name) "*beads-ready*"))
+    (should (equal (buffer-name) "*beads-ready: testproj*"))
     (kill-buffer)
 
     ;; Test blocked buffer
     (beads-blocked)
-    (should (equal (buffer-name) "*beads-blocked*"))
+    (should (equal (buffer-name) "*beads-blocked: testproj*"))
     (kill-buffer)))
 
 (ert-deftest beads-list-test-multiple-buffers ()
@@ -407,9 +411,13 @@ ISSUES should be a list of alists (test data format)."
                            :issue-type (alist-get 'issue-type alist)
                            :created-at (alist-get 'created-at alist)))))))
             ((symbol-function 'beads-check-executable)
-             (lambda () t)))
+             (lambda () t))
+            ((symbol-function 'beads-git-get-project-name)
+             (lambda () "testproj"))
+            ((symbol-function 'beads-git-in-worktree-p)
+             (lambda () nil)))
     (beads-ready)
-    (should (equal (buffer-name) "*beads-ready*"))
+    (should (equal (buffer-name) "*beads-ready: testproj*"))
     (should (eq beads-list--command 'ready))
     (kill-buffer)))
 
@@ -428,9 +436,13 @@ ISSUES should be a list of alists (test data format)."
                            :issue-type (alist-get 'issue-type alist)
                            :created-at (alist-get 'created-at alist)))))))
             ((symbol-function 'beads-check-executable)
-             (lambda () t)))
+             (lambda () t))
+            ((symbol-function 'beads-git-get-project-name)
+             (lambda () "testproj"))
+            ((symbol-function 'beads-git-in-worktree-p)
+             (lambda () nil)))
     (beads-blocked)
-    (should (equal (buffer-name) "*beads-blocked*"))
+    (should (equal (buffer-name) "*beads-blocked: testproj*"))
     (should (eq beads-list--command 'blocked))
     (kill-buffer)))
 
@@ -1123,18 +1135,22 @@ Tests that executing with mocked transient-args creates a list buffer."
                                 (mapcar #'beads-list-test--alist-to-issue
                                         beads-list-test--sample-issues))
                        nil))
-               cmd)))
+               cmd))
+            ((symbol-function 'beads-git-get-project-name)
+             (lambda () "testproj"))
+            ((symbol-function 'beads-git-in-worktree-p)
+             (lambda () nil)))
     ;; Mock transient-args and call the execute suffix directly
     (beads-test-with-transient-args 'beads-list nil
       (beads-list--transient-execute))
     ;; Verify we're now in the beads-list buffer
-    (should (get-buffer "*beads-list*"))
-    (with-current-buffer "*beads-list*"
+    (should (get-buffer "*beads-list: testproj*"))
+    (with-current-buffer "*beads-list: testproj*"
       (should (eq major-mode 'beads-list-mode))
       ;; Verify issues were populated
       (should (> (length tabulated-list-entries) 0)))
     ;; Clean up
-    (kill-buffer "*beads-list*")))
+    (kill-buffer "*beads-list: testproj*")))
 
 (ert-deftest beads-list-test-transient-menu-preview ()
   "Integration test: Verify beads-list preview suffix displays command.

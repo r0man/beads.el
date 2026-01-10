@@ -1033,9 +1033,11 @@ Issues without blockers should appear as ready."
   :tags '(integration)
   (beads-test-with-project ()
     ;; Create an open issue - it should be ready (no blockers)
-    (let ((ready-id (beads-test-create-issue "Ready Issue" "task" 1)))
+    (let* ((ready-id (beads-test-create-issue "Ready Issue" "task" 1))
+           (proj-name (beads-git-get-project-name))
+           (buf-name (format "*beads-ready: %s*" proj-name)))
       (beads-ready)
-      (let ((buf (get-buffer "*beads-ready*")))
+      (let ((buf (get-buffer buf-name)))
         (should buf)
         (with-current-buffer buf
           (should (eq major-mode 'beads-list-mode))
