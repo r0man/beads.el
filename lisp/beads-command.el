@@ -181,9 +181,13 @@ Available backends:
                                (concat "cd " (shell-quote-argument default-dir)
                                        " && " cmd-string))))
          (vterm-buffer-name buffer-name)
-         ;; Keep buffer visible after process exits
-         (vterm-kill-buffer-on-exit nil))
-    (vterm buffer-name)))
+         (buf (vterm buffer-name)))
+    ;; Set vterm-kill-buffer-on-exit buffer-local to keep buffer after exit.
+    ;; This must be done after buffer creation since the sentinel checks the
+    ;; buffer-local value when the process terminates.
+    (with-current-buffer buf
+      (setq-local vterm-kill-buffer-on-exit nil))
+    buf))
 
 (defun beads-command--eat-available-p ()
   "Return non-nil if eat is available."
