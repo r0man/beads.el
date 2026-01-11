@@ -70,6 +70,13 @@
   :type 'boolean
   :group 'beads-show)
 
+(defcustom beads-show-dependency-title-max-length 50
+  "Maximum length for dependency titles before truncation.
+Set to nil to disable truncation."
+  :type '(choice (integer :tag "Maximum length")
+                 (const :tag "No truncation" nil))
+  :group 'beads-show)
+
 ;;; Faces
 
 (defface beads-show-header-face
@@ -911,7 +918,9 @@ children."
   ;; Title
   (when title
     (insert ": ")
-    (insert (beads-show--truncate-title title 50)))
+    (insert (if beads-show-dependency-title-max-length
+                (beads-show--truncate-title title beads-show-dependency-title-max-length)
+              title)))
   ;; Priority badge
   (when priority
     (insert " ")
@@ -936,9 +945,13 @@ children."
         (dolist (dep blocking-deps)
           (let* ((dep-id (oref dep depends-on-id))
                  ;; Try to fetch the dependency's title, status, and priority
-                 (dep-info (condition-case nil
+                 ;; Log errors but continue gracefully to show the link anyway
+                 (dep-info (condition-case err
                                (beads-command-show! :issue-ids (list dep-id))
-                             (error nil)))
+                             (error
+                              (message "beads-show: Failed to fetch %s: %s"
+                                       dep-id (error-message-string err))
+                              nil)))
                  (title (when dep-info (oref dep-info title)))
                  (status (when dep-info (oref dep-info status)))
                  (priority (when dep-info (oref dep-info priority))))
