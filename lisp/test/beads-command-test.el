@@ -1346,7 +1346,7 @@ Integration test that retrieves issue database stats."
     (should (equal (oref cmd json) t))
     (should-not (oref cmd status))
     (should-not (oref cmd priority))
-    ;; Class initform is nil; default limit is applied by beads-command-list!
+    ;; Class initform is nil; default limit applied by beads-command-list!
     (should-not (oref cmd limit))))
 
 (ert-deftest beads-command-test-unit-init-instantiation-defaults ()
@@ -1850,7 +1850,6 @@ The default limit behavior is in beads-command-list!, not the class."
     (cl-letf (((symbol-function 'beads-command-execute)
                (lambda (cmd)
                  (setq executed-cmd cmd)
-                 ;; Return a mock command with data slot
                  cmd)))
       (beads-command-list!)
       (should (eql (oref executed-cmd limit) 0)))))
@@ -1870,7 +1869,7 @@ The default limit behavior is in beads-command-list!, not the class."
         (should (member "--limit" args))
         (should (member "25" args))))))
 
-(ert-deftest beads-command-test-list-bang-explicit-limit-overrides ()
+(ert-deftest beads-command-test-list-explicit-limit-overrides ()
   "Test that explicit :limit overrides beads-list-default-limit."
   :tags '(:unit)
   (let* ((beads-list-default-limit 100)
@@ -1885,7 +1884,7 @@ The default limit behavior is in beads-command-list!, not the class."
         (should (member "--limit" args))
         (should (member "5" args))))))
 
-(ert-deftest beads-command-test-list-bang-explicit-nil-limit ()
+(ert-deftest beads-command-test-list-explicit-nil-limit ()
   "Test that :limit nil in beads-command-list! passes no --limit flag."
   :tags '(:unit)
   (let* ((beads-list-default-limit 100)

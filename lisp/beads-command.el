@@ -1471,8 +1471,9 @@ Comma-separated, e.g., 'bd-1,bd-5,bd-10'."
     :type (or null integer)
     :initform nil
     :documentation "Limit results (-n, --limit).
-When not explicitly set, uses `beads-list-default-limit' (via `beads-command-list!').
-Set to 0 for no limit, or a positive integer to limit results."
+When using `beads-command-list!', defaults to `beads-list-default-limit' if not set.
+Set to 0 for no limit, or a positive integer to limit results.
+Pass `:limit nil' explicitly to disable the default."
     ;; CLI properties
     :long-option "--limit"
     :short-option "-n"
@@ -1597,12 +1598,17 @@ Does not modify command slots."
                          :stderr (oref command stderr)
                          :parse-error err))))))))
 
-;; Override auto-generated beads-command-list! to apply default limit
+;; Override auto-generated beads-command-list! to apply default limit.
+;; Note: Using initialize-instance doesn't work well because:
+;; 1. EIEIO validates :initform types at class definition time (symbol fails)
+;; 2. :around/:after methods have complex slot argument handling
+;; The function override is the cleanest solution that reliably works.
 (defun beads-command-list! (&rest args)
   "Execute `beads-command-list' and return result data.
 
 ARGS are passed to the constructor.  When :limit is not specified,
-uses `beads-list-default-limit' as the default value.
+uses `beads-list-default-limit' as the default value.  Pass `:limit nil'
+explicitly to disable the limit.
 
 This function overrides the auto-generated version to support
 the `beads-list-default-limit' customization variable."
