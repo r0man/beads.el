@@ -626,10 +626,13 @@ Inherits from beads-command and adds --json flag support.
 Use this as parent class for commands that support --json flag.")
 
 (cl-defmethod beads-command-extra-flags ((command beads-command-json))
-  "Return --json flag for COMMAND when json slot is t.
-This hook is called by the base class's `beads-command-line' method."
-  (with-slots (json) command
-    (when json (list "--json"))))
+  "Return parent flags plus --json flag for COMMAND when json slot is t.
+Calls parent method first, then appends --json if enabled."
+  (let ((parent-flags (cl-call-next-method)))
+    (with-slots (json) command
+      (if json
+          (append parent-flags (list "--json"))
+        parent-flags))))
 
 (cl-defmethod beads-command-parse ((command beads-command-json))
   "Parse JSON output from COMMAND.
