@@ -939,8 +939,7 @@ Does not modify command slots."
     :type boolean
     :initform nil
     :documentation "Output in JSON format (--json).
-NOTE: As of bd v0.x, import does not actually output JSON stats yet,
-so this defaults to nil. When JSON output is implemented, set to t.")
+Defaults to nil because import command does not produce JSON output.")
    (clear-duplicate-external-refs
     :initarg :clear-duplicate-external-refs
     :type boolean
