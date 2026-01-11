@@ -49,3 +49,7 @@ bde-jf4g/
 bde-89aa/
 # bd worktree
 bde-ks79/
+
+# Beads sync files (local state, not shared)
+.beads/.sync.lock
+.beads/sync_base.jsonl
