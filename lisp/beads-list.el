@@ -309,9 +309,7 @@ Reuses existing buffer for same project-dir (directory is identity)."
   "Display BUFFER in a sensible way.
 If BUFFER is already visible in a window, select that window.
 If not visible, display it in the current window without splitting."
-  (if-let ((window (get-buffer-window buffer)))
-      (select-window window)
-    (switch-to-buffer buffer)))
+  (beads-buffer-display-same-or-reuse buffer))
 
 ;;; Utilities
 

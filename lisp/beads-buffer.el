@@ -369,6 +369,56 @@ Returns plist with :type, :project, :branch, :suffix, or nil."
 (defalias 'beads-buffer-name-find-agent-buffers 'beads-buffer-find-agent-buffers)
 (defalias 'beads-buffer-name-find-utility-buffers 'beads-buffer-find-utility-buffers)
 
+;;; Display Functions
+;;
+;; These functions provide consistent buffer display behavior across beads.el.
+;; They use `display-buffer' with appropriate actions to:
+;; - Reuse existing windows showing the same mode
+;; - Avoid replacing the current window when showing detail views from lists
+;; - Provide predictable window management
+
+(defun beads-buffer-display-detail (buffer mode)
+  "Display BUFFER as a detail view, reusing windows showing MODE.
+This is for showing detail views (like issue details) from list views.
+The current window is preserved and BUFFER appears in another window.
+
+Display strategy:
+1. Reuse a window already showing MODE
+2. Use some other window (not current)
+3. Pop up a new window if needed
+
+MODE should be the major mode symbol (e.g., `beads-show-mode')."
+  (pop-to-buffer buffer
+                 `((display-buffer-reuse-mode-window
+                    display-buffer-use-some-window)
+                   (mode . ,mode)
+                   (inhibit-same-window . t))))
+
+(defun beads-buffer-display-same-or-reuse (buffer)
+  "Display BUFFER, reusing its window if visible, else in current window.
+This is for showing list views or when you want to replace the current buffer.
+
+Display strategy:
+1. If BUFFER is visible, select its window
+2. Otherwise, display in current window"
+  (if-let ((window (get-buffer-window buffer)))
+      (select-window window)
+    (switch-to-buffer buffer)))
+
+(defun beads-buffer-display-other-window (buffer)
+  "Display BUFFER in another window, never the current one.
+This is for commands that explicitly request display in a different window.
+
+Display strategy:
+1. Reuse a window already showing BUFFER
+2. Use some other existing window
+3. Pop up a new window if needed"
+  (pop-to-buffer buffer
+                 '((display-buffer-reuse-window
+                    display-buffer-use-some-window
+                    display-buffer-pop-up-window)
+                   (inhibit-same-window . t))))
+
 (provide 'beads-buffer)
 ;; Also provide the old name for backward compatibility
 (provide 'beads-buffer-name)
