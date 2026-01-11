@@ -43,7 +43,7 @@
 ;;; Code:
 
 (require 'beads)
-(require 'beads-buffer-name)
+(require 'beads-buffer)
 (require 'beads-command)
 (require 'beads-completion)
 (require 'beads-agent)
@@ -231,7 +231,7 @@ Returns the buffer or nil if none is visible."
   "Get or create show buffer for ISSUE-ID.
 TITLE is used for buffer name display (truncated if too long).
 Reuses existing buffer for same (project-dir, issue-id) pair.
-Buffer is named *beads-show: PROJECT/ISSUE-ID TITLE*."
+Buffer is named *beads-show[PROJECT]/ISSUE-ID TITLE*."
   (let* ((project-dir (or (beads-git-find-project-root) default-directory))
          (existing (beads-show--find-buffer-for-issue issue-id project-dir)))
     (or existing
@@ -887,7 +887,7 @@ ISSUE must be a `beads-issue' EIEIO object."
 (defun beads-show (issue-id)
   "Show detailed view of issue with ISSUE-ID.
 Creates or switches to a buffer showing the full issue details.
-Buffer is named *beads-show: PROJECT/ISSUE-ID TITLE* and is keyed
+Buffer is named *beads-show[PROJECT]/ISSUE-ID TITLE* and is keyed
 by (project-dir, issue-id) pair - each issue gets its own buffer.
 
 Commands are executed in the caller's directory context, ensuring

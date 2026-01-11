@@ -38,7 +38,7 @@
 (require 'eieio)
 (require 'cl-lib)
 (require 'sesman)
-(require 'beads-buffer-name)
+(require 'beads-buffer)
 
 ;; Forward declaration - defined in beads-sesman.el (required at end of file)
 (defvar beads-sesman-system)
@@ -768,10 +768,10 @@ INSTANCE-N is the instance number for this (project, type) combination.
 ISSUE-ID and TITLE are optional issue context.
 
 Returns buffer name using centralized format:
-  *beads-agent: PROJECT/TYPE#N*
-  *beads-agent: PROJECT/TYPE#N ISSUE-ID TITLE*"
+  *beads-agent[PROJECT]/TYPE#N*
+  *beads-agent[PROJECT]/TYPE#N ISSUE-ID TITLE*"
   (beads-buffer-name-agent type-name instance-n
-                           issue-id title proj-name nil nil))
+                           issue-id title proj-name nil))
 
 (defun beads-agent--generate-buffer-name-for-session (session)
   "Generate buffer name for SESSION object.
@@ -795,45 +795,45 @@ If the format doesn't match, returns 1 as default."
 (defun beads-agent--parse-buffer-name (buffer-name)
   "Parse a beads agent buffer name into its components.
 BUFFER-NAME should be in centralized format:
-  *beads-agent: PROJECT/TYPE#N*
-  *beads-agent: PROJECT/TYPE#N ISSUE-ID TITLE*
+  *beads-agent[PROJECT]/TYPE#N*
+  *beads-agent[PROJECT]/TYPE#N ISSUE-ID TITLE*
 
-Returns plist with keys from `beads-buffer-name-parse-agent':
-  :project, :worktree, :branch, :type, :instance, :issue-id, :title
+Returns plist with keys from `beads-buffer-parse-agent':
+  :project, :branch, :type, :instance, :issue-id, :title
 or nil if the buffer name doesn't match the expected format."
-  (beads-buffer-name-parse-agent buffer-name))
+  (beads-buffer-parse-agent buffer-name))
 
 (defun beads-agent--buffer-name-p (buffer-name)
   "Return non-nil if BUFFER-NAME is a valid beads agent buffer name.
-Matches the centralized format: *beads-agent: PROJECT/TYPE#N*
+Matches the centralized format: *beads-agent[PROJECT]/TYPE#N*
 
 Use this predicate when:
 - Filtering agent buffers
 - Validating buffer names before parsing
 - Implementing buffer cleanup or listing functions"
-  (beads-buffer-name-agent-p buffer-name))
+  (beads-buffer-agent-p buffer-name))
 
 ;;; Directory-Bound Buffer Naming
 ;;
-;; Buffer names use the centralized beads-buffer-name module with format:
-;;   *beads-agent: PROJECT/TYPE#N*
-;;   *beads-agent: PROJECT/WORKTREE@BRANCH/TYPE#N*  (in worktree)
-;;   *beads-agent: PROJECT/TYPE#N ISSUE-ID TITLE*   (with issue)
+;; Buffer names use the centralized beads-buffer module with format:
+;;   *beads-agent[PROJECT]/TYPE#N*
+;;   *beads-agent[PROJECT@BRANCH]/TYPE#N*  (on feature branch)
+;;   *beads-agent[PROJECT]/TYPE#N ISSUE-ID TITLE*   (with issue)
 
 (defun beads-agent--generate-project-buffer-name
     (proj-name type-name instance-n
-     &optional issue-id title worktree branch)
+     &optional issue-id title branch)
   "Generate buffer name for directory-bound session.
 PROJ-NAME is the project name (e.g., \"beads.el\").
 TYPE-NAME is the agent type name (e.g., \"Task\", \"Plan\").
 INSTANCE-N is the instance number for this (project, type) combination.
 ISSUE-ID and TITLE are optional issue context.
-WORKTREE and BRANCH are optional worktree context.
+BRANCH is optional feature branch context.
 
-Returns buffer name in format: *beads-agent: PROJECT/TYPE#N*"
+Returns buffer name in format: *beads-agent[PROJECT]/TYPE#N*"
   (beads-buffer-name-agent type-name instance-n
                            issue-id title
-                           proj-name worktree branch))
+                           proj-name branch))
 
 (defun beads-agent--generate-buffer-name-for-project-session (session)
   "Generate buffer name for directory-bound SESSION object.
@@ -865,16 +865,15 @@ times for the same session."
 
 (defun beads-agent--parse-project-buffer-name (buffer-name)
   "Parse a directory-bound buffer name into its components.
-BUFFER-NAME should be in format *beads-agent: PROJECT/TYPE#N*.
-Returns plist with :project-name, :worktree, :branch, :type-name,
+BUFFER-NAME should be in format *beads-agent[PROJECT]/TYPE#N*.
+Returns plist with :project-name, :branch, :type-name,
 :instance-n, :issue-id, :title, or nil if format doesn't match.
 
-This wraps the centralized `beads-buffer-name-parse-agent' function,
+This wraps the centralized `beads-buffer-parse-agent' function,
 mapping its return keys to the legacy names used in this module."
-  (when-let ((parsed (beads-buffer-name-parse-agent buffer-name)))
+  (when-let ((parsed (beads-buffer-parse-agent buffer-name)))
     ;; Map centralized keys to legacy keys for compatibility
     (list :project-name (plist-get parsed :project)
-          :worktree (plist-get parsed :worktree)
           :branch (plist-get parsed :branch)
           :type-name (plist-get parsed :type)
           :instance-n (plist-get parsed :instance)
@@ -883,7 +882,7 @@ mapping its return keys to the legacy names used in this module."
 
 (defun beads-agent--project-buffer-name-p (buffer-name)
   "Return non-nil if BUFFER-NAME is a directory-bound buffer name.
-Directory-bound format: *beads-agent: PROJECT/TYPE#N*
+Directory-bound format: *beads-agent[PROJECT]/TYPE#N*
 
 Use this predicate when:
 - Working with directory-bound session creation code
@@ -892,7 +891,7 @@ Use this predicate when:
 
 For general buffer validation that accepts any agent buffer format,
 use `beads-agent--buffer-name-p' instead."
-  (beads-buffer-name-agent-p buffer-name))
+  (beads-buffer-agent-p buffer-name))
 
 ;;; Window Management
 ;;

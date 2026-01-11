@@ -61,10 +61,9 @@ Returns issue ID string or nil if not found."
    ;; From beads-show buffer
    (when (derived-mode-p 'beads-show-mode)
      beads-show--issue-id)
-   ;; From buffer name (*beads-show: bd-N*)
-   (when (string-match "\\*beads-show: \\(bd-[0-9]+\\)\\*"
-                      (buffer-name))
-     (match-string 1 (buffer-name)))))
+   ;; From buffer name (*beads-show[PROJECT]/ISSUE-ID*)
+   (when-let ((parsed (beads-buffer-parse-show (buffer-name))))
+     (plist-get parsed :issue-id))))
 
 (defun beads-reopen--validate-issue-id (issue-id)
   "Validate that ISSUE-ID is set.

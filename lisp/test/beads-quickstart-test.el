@@ -14,7 +14,7 @@
 ;;; Code:
 
 (require 'ert)
-(require 'beads-buffer-name)
+(require 'beads-buffer)
 (require 'beads-quickstart)
 
 ;;; Test Utilities

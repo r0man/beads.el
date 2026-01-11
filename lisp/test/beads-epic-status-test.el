@@ -16,7 +16,7 @@
 (require 'ert)
 (require 'json)
 (require 'beads)
-(require 'beads-buffer-name)
+(require 'beads-buffer)
 (require 'beads-types)
 (require 'beads-epic-status)
 

@@ -107,7 +107,7 @@ For testing, we just verify the value is parsed correctly."
 (ert-deftest beads-reopen-test-detect-issue-id-from-buffer-name ()
   "Test detecting issue ID from beads-show buffer name."
   (with-temp-buffer
-    (rename-buffer "*beads-show: bd-42*" t)
+    (rename-buffer "*beads-show[proj]/bd-42*" t)
     (should (equal (beads-reopen--detect-issue-id) "bd-42"))))
 
 (ert-deftest beads-reopen-test-detect-issue-id-no-context ()
@@ -491,8 +491,8 @@ We verify that reasons are properly passed through."
     (should (equal (beads-reopen--detect-issue-id) "bd-from-show")))
 
   ;; Test buffer name context
-  ;; The buffer name must match the pattern *beads-show: bd-[0-9]+*
-  (let ((test-buffer (generate-new-buffer "*beads-show: bd-999*")))
+  ;; The buffer name must match the pattern *beads-show[proj]/bd-ID*
+  (let ((test-buffer (generate-new-buffer "*beads-show[proj]/bd-999*")))
     (unwind-protect
         (with-current-buffer test-buffer
           (should (equal (beads-reopen--detect-issue-id) "bd-999")))
