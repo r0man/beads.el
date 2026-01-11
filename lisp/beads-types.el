@@ -308,6 +308,11 @@
     :type (or null string)
     :initform nil
     :documentation "Which repo owns this issue (multi-repo support).")
+   (created-by
+    :initarg :created-by
+    :type (or null string)
+    :initform nil
+    :documentation "User who created the issue (owner).")
    (labels
     :initarg :labels
     :type list
@@ -768,6 +773,7 @@ JSON should be the parsed JSON object from bd --json output."
    :compacted-at-commit (alist-get 'compacted_at_commit json)
    :original-size (alist-get 'original_size json)
    :source-repo (alist-get 'source_repo json)
+   :created-by (alist-get 'created_by json)
    :labels (append (alist-get 'labels json) nil)
    :dependencies (when-let ((deps (alist-get 'dependencies json)))
                    (mapcar #'beads-dependency-from-json (append deps nil)))
@@ -834,6 +840,7 @@ JSON should be the parsed JSON object from bd --json output."
    :compacted-at-commit (alist-get 'compacted_at_commit json)
    :original-size (alist-get 'original_size json)
    :source-repo (alist-get 'source_repo json)
+   :created-by (alist-get 'created_by json)
    :labels (append (alist-get 'labels json) nil)
    :dependencies (when-let ((deps (alist-get 'dependencies json)))
                    (mapcar #'beads-dependency-from-json (append deps nil)))
@@ -866,6 +873,7 @@ JSON should be the parsed JSON object from bd --json output."
    :compacted-at-commit (alist-get 'compacted_at_commit json)
    :original-size (alist-get 'original_size json)
    :source-repo (alist-get 'source_repo json)
+   :created-by (alist-get 'created_by json)
    :labels (append (alist-get 'labels json) nil)
    :dependencies (when-let ((deps (alist-get 'dependencies json)))
                    (mapcar #'beads-dependency-from-json (append deps nil)))

@@ -51,6 +51,7 @@
 (require 'beads-sesman)
 (require 'button)
 (require 'cl-lib)
+(require 'goto-addr)
 
 ;;; Customization
 
@@ -149,6 +150,16 @@
 (defface beads-show-sub-issue-progress-face
   '((t :inherit font-lock-comment-face))
   "Face for sub-issue progress summary."
+  :group 'beads-show)
+
+(defface beads-show-label-tag-face
+  '((t :inherit font-lock-builtin-face :weight bold))
+  "Face for label tags/badges."
+  :group 'beads-show)
+
+(defface beads-show-dependency-arrow-face
+  '((t :inherit font-lock-keyword-face))
+  "Face for dependency arrows (→, ↳)."
   :group 'beads-show)
 
 ;;; Variables
@@ -372,6 +383,20 @@ Key bindings:
   (add-hook 'kill-buffer-hook #'beads-show--unregister-from-session nil t))
 
 ;;; Utility Functions
+
+(defun beads-show--status-icon (status)
+  "Return Unicode status icon for STATUS.
+Icons match the bd CLI output:
+  ○ = open
+  ◐ = in_progress
+  ● = closed
+  ✗ = blocked"
+  (pcase status
+    ("open" "○")
+    ("in_progress" "◐")
+    ("closed" "●")
+    ("blocked" "✗")
+    (_ "?")))
 
 (defun beads-show--format-status (status)
   "Return formatted STATUS string with appropriate face."
@@ -816,6 +841,110 @@ Returns:
 
 ;;; Buffer Rendering
 
+(defun beads-show--format-title-line (id title status priority)
+  "Format the compact title line like bd show.
+ID is the issue ID, TITLE is the issue title, STATUS is the status string,
+and PRIORITY is the priority level (0-4).
+Returns string like: ◐ ID · Title   [● P0 · IN_PROGRESS]"
+  (let* ((icon (beads-show--status-icon status))
+         (icon-face (pcase status
+                      ("open" 'beads-show-status-open-face)
+                      ("in_progress" 'beads-show-status-in-progress-face)
+                      ("blocked" 'beads-show-status-blocked-face)
+                      ("closed" 'beads-show-status-closed-face)
+                      (_ 'default)))
+         (priority-str (if priority (format "P%d" priority) ""))
+         (status-str (upcase (or status "UNKNOWN"))))
+    (concat
+     (propertize icon 'face icon-face)
+     " "
+     (propertize id 'face 'font-lock-constant-face)
+     " · "
+     (propertize (or title "Untitled") 'face '(:inherit bold :height 1.3))
+     "   "
+     (propertize "[" 'face 'shadow)
+     (when priority
+       (propertize (concat "● " priority-str " · ") 'face icon-face))
+     (propertize status-str 'face icon-face)
+     (propertize "]" 'face 'shadow))))
+
+(defun beads-show--insert-labels (labels)
+  "Insert LABELS as visually distinct badges."
+  (when labels
+    (insert (propertize "Labels" 'face 'beads-show-label-face))
+    (insert ": ")
+    (let ((first t))
+      (dolist (label labels)
+        (unless first (insert " "))
+        (insert (propertize (format "[%s]" label)
+                           'face 'beads-show-label-tag-face))
+        (setq first nil)))
+    (insert "\n")))
+
+(defun beads-show--insert-dependency-line (dep-id title status priority arrow)
+  "Insert a dependency/dependent line with ARROW prefix.
+DEP-ID is the issue ID, TITLE is the issue title, STATUS and PRIORITY
+are used for display.  ARROW is either \"→\" for dependencies or \"↳\" for
+children."
+  (insert "  ")
+  (insert (propertize arrow 'face 'beads-show-dependency-arrow-face))
+  (insert " ")
+  ;; Status icon
+  (let ((icon (beads-show--status-icon status))
+        (icon-face (pcase status
+                     ("open" 'beads-show-status-open-face)
+                     ("in_progress" 'beads-show-status-in-progress-face)
+                     ("blocked" 'beads-show-status-blocked-face)
+                     ("closed" 'beads-show-status-closed-face)
+                     (_ 'default))))
+    (insert (propertize icon 'face icon-face)))
+  (insert " ")
+  ;; Issue ID as button
+  (let ((id-start (point)))
+    (insert dep-id)
+    (make-button id-start (point)
+                 'issue-id dep-id
+                 'action #'beads-show--button-action
+                 'follow-link t
+                 'help-echo (format "Show %s" dep-id)
+                 'face 'link))
+  ;; Title
+  (when title
+    (insert ": ")
+    (insert (beads-show--truncate-title title 50)))
+  ;; Priority badge
+  (when priority
+    (insert " ")
+    (insert (propertize (format "● P%d" priority)
+                       'face 'beads-show-priority-medium-face)))
+  (insert "\n"))
+
+(defun beads-show--insert-dependencies-section (dependencies)
+  "Insert DEPENDS ON section for blocking DEPENDENCIES."
+  (when dependencies
+    ;; Filter for blocking dependencies (blocks and parent-child types)
+    (let ((blocking-deps (seq-filter
+                          (lambda (dep)
+                            (let ((type (oref dep type)))
+                              (or (string= type "blocks")
+                                  (string= type "parent-child"))))
+                          dependencies)))
+      (when blocking-deps
+        (insert beads-show-section-separator)
+        (insert (propertize "DEPENDS ON" 'face 'beads-show-header-face))
+        (insert "\n\n")
+        (dolist (dep blocking-deps)
+          (let* ((dep-id (oref dep depends-on-id))
+                 ;; Try to fetch the dependency's title, status, and priority
+                 (dep-info (condition-case nil
+                               (beads-command-show! :issue-ids (list dep-id))
+                             (error nil)))
+                 (title (when dep-info (oref dep-info title)))
+                 (status (when dep-info (oref dep-info status)))
+                 (priority (when dep-info (oref dep-info priority))))
+            (beads-show--insert-dependency-line
+             dep-id title (or status "unknown") priority "→")))))))
+
 (defun beads-show--render-issue (issue)
   "Render ISSUE data into current buffer.
 ISSUE must be a `beads-issue' EIEIO object."
@@ -829,7 +958,10 @@ ISSUE must be a `beads-issue' EIEIO object."
         (updated (oref issue updated-at))
         (closed (oref issue closed-at))
         (assignee (oref issue assignee))
+        (owner (oref issue created-by))
         (external-ref (oref issue external-ref))
+        (labels (oref issue labels))
+        (dependencies (oref issue dependencies))
         (description (oref issue description))
         (acceptance (oref issue acceptance-criteria))
         (design (oref issue design))
@@ -837,33 +969,46 @@ ISSUE must be a `beads-issue' EIEIO object."
 
     (erase-buffer)
 
-    ;; Title
-    (insert (propertize (or title "Untitled")
-                       'face '(:inherit bold :height 1.5)))
+    ;; Compact title line like bd show:
+    ;; ◐ beads.el-q35o · Title   [● P0 · IN_PROGRESS]
+    (insert (beads-show--format-title-line id title status priority))
     (insert "\n")
-    (insert (propertize (make-string (length (or title "Untitled")) ?═)
+    (insert (propertize (make-string (min 80 (length (or title "Untitled"))) ?═)
                        'face 'beads-show-header-face))
     (insert "\n\n")
 
-    ;; Metadata
-    (beads-show--insert-header "ID" id)
-    (beads-show--insert-header "Status"
-                              (beads-show--format-status status)
-                              'beads-show-value-face)
-    (when priority
-      (beads-show--insert-header "Priority"
-                                (beads-show--format-priority priority)
-                                'beads-show-value-face))
-    (when type
-      (beads-show--insert-header "Type" (upcase type)))
+    ;; Metadata - more compact like bd show
+    ;; Owner: Name · Type: TASK
+    (let ((meta-parts '()))
+      (when owner
+        (push (concat "Owner: " owner) meta-parts))
+      (when type
+        (push (concat "Type: " (upcase type)) meta-parts))
+      (when meta-parts
+        (insert (string-join (nreverse meta-parts) " · "))
+        (insert "\n")))
+
+    ;; Created/Updated line
+    (insert (format "Created: %s · Updated: %s"
+                    (beads-show--format-date created)
+                    (beads-show--format-date updated)))
+    (when (and closed (not (string-empty-p closed)))
+      (insert (format " · Closed: %s" (beads-show--format-date closed))))
+    (insert "\n")
+
+    ;; Assignee if set
     (when assignee
       (beads-show--insert-header "Assignee" assignee))
+
+    ;; External ref if set
     (when external-ref
       (beads-show--insert-header "External Ref" external-ref))
-    (beads-show--insert-header "Created" (beads-show--format-date created))
-    (beads-show--insert-header "Updated" (beads-show--format-date updated))
-    (when (and closed (not (string-empty-p closed)))
-      (beads-show--insert-header "Closed" (beads-show--format-date closed)))
+
+    ;; Labels section
+    (beads-show--insert-labels labels)
+
+    ;; Dependencies section (DEPENDS ON)
+    (beads-show--insert-dependencies-section dependencies)
 
     ;; Sub-issues section for epics
     (when (equal type "epic")
@@ -883,6 +1028,9 @@ ISSUE must be a `beads-issue' EIEIO object."
     (insert (propertize "Press 'g' to refresh, 'q' to quit, RET on issue ID to jump"
                        'face 'shadow))
     (insert "\n")
+
+    ;; Enable URL linkification
+    (goto-address-mode 1)
 
     (goto-char (point-min))))
 

@@ -194,6 +194,120 @@ This is needed because show buffers are now named by project, not issue."
     (should (string= formatted "UNKNOWN"))
     (should (eq (get-text-property 0 'face formatted) 'default))))
 
+;;; Tests for Status Icons
+
+(ert-deftest beads-show-test-status-icon-open ()
+  "Test status icon for open status."
+  (should (string= (beads-show--status-icon "open") "○")))
+
+(ert-deftest beads-show-test-status-icon-in-progress ()
+  "Test status icon for in_progress status."
+  (should (string= (beads-show--status-icon "in_progress") "◐")))
+
+(ert-deftest beads-show-test-status-icon-closed ()
+  "Test status icon for closed status."
+  (should (string= (beads-show--status-icon "closed") "●")))
+
+(ert-deftest beads-show-test-status-icon-blocked ()
+  "Test status icon for blocked status."
+  (should (string= (beads-show--status-icon "blocked") "✗")))
+
+(ert-deftest beads-show-test-status-icon-unknown ()
+  "Test status icon for unknown status."
+  (should (string= (beads-show--status-icon "unknown") "?")))
+
+;;; Tests for Title Line Formatting
+
+(ert-deftest beads-show-test-format-title-line-basic ()
+  "Test basic title line formatting."
+  (let ((line (beads-show--format-title-line "bd-1" "Test Issue" "open" 1)))
+    (should (string-match-p "○" line))  ; open icon
+    (should (string-match-p "bd-1" line))
+    (should (string-match-p "Test Issue" line))
+    (should (string-match-p "OPEN" line))
+    (should (string-match-p "P1" line))))
+
+(ert-deftest beads-show-test-format-title-line-in-progress ()
+  "Test title line for in_progress status."
+  (let ((line (beads-show--format-title-line "bd-2" "WIP" "in_progress" 0)))
+    (should (string-match-p "◐" line))  ; in_progress icon
+    (should (string-match-p "IN_PROGRESS" line))))
+
+(ert-deftest beads-show-test-format-title-line-no-priority ()
+  "Test title line without priority."
+  (let ((line (beads-show--format-title-line "bd-3" "No Pri" "open" nil)))
+    (should (string-match-p "bd-3" line))
+    (should (string-match-p "OPEN" line))
+    (should-not (string-match-p "● P" line))))  ; No priority badge
+
+;;; Tests for Labels Display
+
+(ert-deftest beads-show-test-insert-labels ()
+  "Test that labels are inserted as badges."
+  (with-temp-buffer
+    (beads-show--insert-labels '("bug" "urgent"))
+    (let ((text (buffer-substring-no-properties (point-min) (point-max))))
+      (should (string-match-p "Labels" text))
+      (should (string-match-p "\\[bug\\]" text))
+      (should (string-match-p "\\[urgent\\]" text)))))
+
+(ert-deftest beads-show-test-insert-labels-empty ()
+  "Test that empty labels list does not insert anything."
+  (with-temp-buffer
+    (beads-show--insert-labels nil)
+    (should (= (point-min) (point-max)))))
+
+(ert-deftest beads-show-test-insert-labels-single ()
+  "Test inserting a single label."
+  (with-temp-buffer
+    (beads-show--insert-labels '("feature"))
+    (let ((text (buffer-substring-no-properties (point-min) (point-max))))
+      (should (string-match-p "\\[feature\\]" text)))))
+
+;;; Tests for Owner/Created-by Field
+
+(defvar beads-show-test--issue-with-owner
+  '((id . "bd-own-1")
+    (title . "Issue with owner")
+    (status . "open")
+    (priority . 2)
+    (issue_type . "task")
+    (created_at . "2025-01-15T10:00:00Z")
+    (updated_at . "2025-01-15T10:00:00Z")
+    (created_by . "Alice Smith"))
+  "Sample issue with owner field.")
+
+(ert-deftest beads-show-test-render-owner-field ()
+  "Test that owner/created_by field is rendered."
+  (beads-show-test-with-temp-buffer
+   (let ((parsed (beads--parse-issue beads-show-test--issue-with-owner)))
+     (beads-show--render-issue parsed)
+     (let ((text (beads-show-test--get-buffer-text)))
+       (should (string-match-p "Owner: Alice Smith" text))))))
+
+;;; Tests for Labels in Render
+
+(defvar beads-show-test--issue-with-labels
+  '((id . "bd-lab-1")
+    (title . "Issue with labels")
+    (status . "open")
+    (priority . 2)
+    (issue_type . "task")
+    (created_at . "2025-01-15T10:00:00Z")
+    (updated_at . "2025-01-15T10:00:00Z")
+    (labels . ["bug" "backend"]))
+  "Sample issue with labels.")
+
+(ert-deftest beads-show-test-render-labels ()
+  "Test that labels are rendered in the issue view."
+  (beads-show-test-with-temp-buffer
+   (let ((parsed (beads--parse-issue beads-show-test--issue-with-labels)))
+     (beads-show--render-issue parsed)
+     (let ((text (beads-show-test--get-buffer-text)))
+       (should (string-match-p "Labels" text))
+       (should (string-match-p "\\[bug\\]" text))
+       (should (string-match-p "\\[backend\\]" text))))))
+
 (ert-deftest beads-show-test-format-priority-critical ()
   "Test formatting of priority 0 (critical)."
   (let ((formatted (beads-show--format-priority 0)))
@@ -253,6 +367,92 @@ This is needed because show buffers are now named by project, not issue."
   (let ((formatted (beads-show--format-date "2025-01-10T10:00:00Z")))
     (should (string= formatted "2025-01-10 10:00:00"))
     (should-not (string-match-p "Z" formatted))))
+
+;;; Tests for Dependency Line Display
+
+(ert-deftest beads-show-test-insert-dependency-line ()
+  "Test inserting a dependency line with arrow and button."
+  (with-temp-buffer
+    (beads-show--insert-dependency-line "bd-dep-1" "Dep Title" "open" 1 "→")
+    (let ((text (buffer-substring-no-properties (point-min) (point-max))))
+      (should (string-match-p "→" text))
+      (should (string-match-p "○" text))  ; open icon
+      (should (string-match-p "bd-dep-1" text))
+      (should (string-match-p "Dep Title" text))
+      (should (string-match-p "P1" text)))))
+
+(ert-deftest beads-show-test-insert-dependency-line-child-arrow ()
+  "Test inserting a child dependency line with child arrow."
+  (with-temp-buffer
+    (beads-show--insert-dependency-line "bd-child-1" "Child" "in_progress" 0 "↳")
+    (let ((text (buffer-substring-no-properties (point-min) (point-max))))
+      (should (string-match-p "↳" text))
+      (should (string-match-p "◐" text)))))  ; in_progress icon
+
+(ert-deftest beads-show-test-insert-dependency-line-button ()
+  "Test that dependency line has a clickable button."
+  (with-temp-buffer
+    (beads-show--insert-dependency-line "bd-btn-1" "Button Test" "open" 2 "→")
+    (goto-char (point-min))
+    (search-forward "bd-btn-1")
+    (let ((button (button-at (1- (point)))))
+      (should button)
+      (should (string= (button-get button 'issue-id) "bd-btn-1")))))
+
+;;; Tests for Dependencies Section
+
+(defvar beads-show-test--issue-with-deps
+  '((id . "bd-main-1")
+    (title . "Issue with dependencies")
+    (status . "open")
+    (priority . 2)
+    (issue_type . "task")
+    (created_at . "2025-01-15T10:00:00Z")
+    (updated_at . "2025-01-15T10:00:00Z")
+    (dependencies . [((issue_id . "bd-main-1")
+                      (depends_on_id . "bd-dep-1")
+                      (type . "blocks"))]))
+  "Sample issue with a blocking dependency.")
+
+(ert-deftest beads-show-test-insert-dependencies-section ()
+  "Test inserting DEPENDS ON section."
+  (with-temp-buffer
+    (let ((inhibit-read-only t)
+          (deps (list (beads-dependency
+                       :issue-id "bd-main"
+                       :depends-on-id "bd-blocker"
+                       :type "blocks"))))
+      ;; Mock the show command to return dependency info
+      (cl-letf (((symbol-function 'beads-command-show!)
+                 (lambda (&rest _args)
+                   (beads-issue
+                    :id "bd-blocker"
+                    :title "Blocking Issue"
+                    :status "open"
+                    :priority 1))))
+        (beads-show--insert-dependencies-section deps)
+        (let ((text (buffer-substring-no-properties (point-min) (point-max))))
+          (should (string-match-p "DEPENDS ON" text))
+          (should (string-match-p "bd-blocker" text)))))))
+
+(ert-deftest beads-show-test-insert-dependencies-section-empty ()
+  "Test that empty dependencies list does not insert anything."
+  (with-temp-buffer
+    (let ((inhibit-read-only t))
+      (beads-show--insert-dependencies-section nil)
+      (should (= (point-min) (point-max))))))
+
+(ert-deftest beads-show-test-insert-dependencies-section-no-blocking ()
+  "Test that non-blocking dependencies are not shown."
+  (with-temp-buffer
+    (let ((inhibit-read-only t)
+          (deps (list (beads-dependency
+                       :issue-id "bd-main"
+                       :depends-on-id "bd-related"
+                       :type "related"))))
+      (beads-show--insert-dependencies-section deps)
+      ;; related type should be filtered out
+      (should (= (point-min) (point-max))))))
 
 ;;; Tests for Issue Extraction
 
@@ -319,7 +519,8 @@ This is needed because show buffers are now named by project, not issue."
        (should (string-match-p "Implement feature X" text))
        (should (string-match-p "bd-42" text))
        (should (string-match-p "IN_PROGRESS" text))
-       (should (string-match-p "1.*High" text))
+       ;; Priority shown as P1 in title line badge
+       (should (string-match-p "P1" text))
        (should (string-match-p "FEATURE" text))
        (should (string-match-p "alice" text))
        (should (string-match-p "JIRA-123" text))
@@ -337,7 +538,8 @@ This is needed because show buffers are now named by project, not issue."
        (should (string-match-p "Minimal issue" text))
        (should (string-match-p "bd-1" text))
        (should (string-match-p "OPEN" text))
-       (should (string-match-p "2.*Medium" text))
+       ;; Priority shown as P2 in title line badge
+       (should (string-match-p "P2" text))
        (should (string-match-p "BUG" text))
        ;; These sections should NOT appear for minimal issue
        (should-not (string-match-p "Description\n─" text))
@@ -353,8 +555,10 @@ This is needed because show buffers are now named by project, not issue."
      (let ((text (beads-show-test--get-buffer-text)))
        (should (string-match-p "Closed issue" text))
        (should (string-match-p "CLOSED" text))
-       (should (string-match-p "0.*Critical" text))
-       (should (string-match-p "Closed: 2025-01-15 10:00:00" text))))))
+       ;; Priority P0 shown in title line badge
+       (should (string-match-p "P0" text))
+       ;; Closed timestamp shown in metadata line
+       (should (string-match-p "Closed:" text))))))
 
 (ert-deftest beads-show-test-render-empty-sections-omitted ()
   "Test that empty sections are not displayed."
