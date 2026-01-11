@@ -94,6 +94,7 @@
 (require 'beads-git)
 (require 'beads-worktree)
 (require 'beads-agent-backend)
+(require 'beads-agent-prompt-edit)
 (require 'beads-agent-type)
 (require 'beads-agent-types)
 (require 'transient)
@@ -219,7 +220,7 @@ CALLBACK receives (success worktree-path-or-error) where:
     (cond
      ;; No worktree selected - use current project directory
      ((null wt-name)
-      (funcall callback t (beads-git-get-root)))
+      (funcall callback t (beads-git-find-project-root)))
 
      ;; Existing worktree selected
      ((beads-worktree-find-by-name wt-name)
@@ -371,6 +372,17 @@ ISSUE is a beads-issue instance."
      (when (and acceptance (not (string-empty-p acceptance)))
        (format "\nAcceptance Criteria:\n%s\n" acceptance)))))
 
+(defun beads-agent--maybe-edit-prompt (issue-id prompt agent-type-name callback)
+  "Optionally show prompt editing buffer for ISSUE-ID.
+PROMPT is the initial prompt text.
+AGENT-TYPE-NAME is the name of the agent type (for display).
+CALLBACK is called with the final prompt text (or nil if cancelled).
+When `beads-agent-prompt-edit-enabled' is nil, calls CALLBACK immediately
+with PROMPT unchanged."
+  (if beads-agent-prompt-edit-enabled
+      (beads-agent-prompt-edit-show issue-id prompt agent-type-name callback)
+    (funcall callback prompt)))
+
 ;;; Status Update
 
 (defun beads-agent--maybe-update-status (issue-id)
@@ -511,22 +523,29 @@ AGENT-TYPE is an optional `beads-agent-type' instance."
                 ;; Explicit prompt provided
                 (prompt prompt)
                 ;; Default: build from issue
-                (t (beads-agent--build-prompt issue)))))
-         ;; Step 2: Setup worktree if needed (async)
-         (if (beads-agent--should-use-worktree-p issue-id)
-             (beads-agent--ensure-worktree-async
-              issue-id
-              (lambda (success result)
-                ;; Also restore here for nested async callbacks
-                (let ((default-directory project-dir))
-                  (if success
-                      ;; Step 3: Update status (async)
-                      (beads-agent--continue-start
-                       issue-id backend project-dir result effective-prompt issue agent-type)
-                    (message "Failed to create worktree: %s" result)))))
-           ;; No worktree, continue directly
-           (beads-agent--continue-start
-            issue-id backend project-dir nil effective-prompt issue agent-type)))))))
+                (t (beads-agent--build-prompt issue))))
+              (type-name (and agent-type (oref agent-type name))))
+         ;; Step 2: Optionally show prompt editing buffer
+         (beads-agent--maybe-edit-prompt
+          issue-id effective-prompt type-name
+          (lambda (final-prompt)
+            (if (null final-prompt)
+                (message "Agent start cancelled")
+              ;; Step 3: Setup worktree if needed (async)
+              (if (beads-agent--should-use-worktree-p issue-id)
+                  (beads-agent--ensure-worktree-async
+                   issue-id
+                   (lambda (success result)
+                     ;; Also restore here for nested async callbacks
+                     (let ((default-directory project-dir))
+                       (if success
+                           ;; Step 4: Update status (async)
+                           (beads-agent--continue-start
+                            issue-id backend project-dir result final-prompt issue agent-type)
+                         (message "Failed to create worktree: %s" result)))))
+                ;; No worktree, continue directly
+                (beads-agent--continue-start
+                 issue-id backend project-dir nil final-prompt issue agent-type))))))))))
 
 (defun beads-agent--continue-start (issue-id backend project-dir worktree-dir
                                             prompt issue agent-type)
