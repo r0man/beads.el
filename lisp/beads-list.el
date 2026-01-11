@@ -36,7 +36,7 @@
 ;;   d/k     - Close issue at point
 ;;   o       - Reopen issue at point
 ;;   D       - Delete issue at point (destructive)
-;;   w       - Copy issue ID to kill ring
+;;   w/C-w   - Copy issue ID to kill ring
 ;;   S       - Sort by column
 ;;   C-c C-f - Toggle follow mode (auto-update show buffer)
 ;;   B s     - Bulk update status for marked issues
@@ -1254,6 +1254,7 @@ Uses an idle timer to debounce rapid navigation, similar to
 
     ;; Utilities
     (define-key map (kbd "w") #'beads-list-copy-id)        ; copy (like eww, info)
+    (define-key map (kbd "C-w") #'beads-list-copy-id)      ; copy (override kill-region)
     (define-key map (kbd "S") #'beads-list-sort)           ; sort menu
     (define-key map (kbd "l") #'beads-list-filter)         ; filter (open transient with current filter)
     (define-key map (kbd "C-c C-f") #'beads-list-follow-mode) ; follow mode (like compilation)
