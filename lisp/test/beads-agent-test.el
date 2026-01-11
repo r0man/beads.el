@@ -1050,12 +1050,12 @@ The function returns legacy keys (:project-name, :type-name, etc.)."
     (beads-agent-test--teardown)))
 
 (ert-deftest beads-agent-test-buffer-name-uses-project ()
-  "Buffer names use project name and agent type, not issue ID."
+  "Buffer names use project name, agent type, and include issue context."
   (beads-agent-test--setup)
   (unwind-protect
       (cl-letf (((symbol-function 'sesman-sessions)
                  #'beads-agent-test--mock-sesman-sessions))
-        ;; Test with explicit agent type
+        ;; Test with explicit agent type and issue
         (let ((session (beads-agent--create-project-session
                         "/home/user/beads.el" "mock" 'handle "bd-42" "Task")))
           (let ((buffer-name (beads-agent--generate-buffer-name-for-project-session session)))
@@ -1063,15 +1063,47 @@ The function returns legacy keys (:project-name, :type-name, etc.)."
             (should (string-match-p "beads.el" buffer-name))
             ;; Buffer name contains agent type
             (should (string-match-p "Task" buffer-name))
-            ;; Buffer name does NOT contain issue ID
-            (should-not (string-match-p "bd-42" buffer-name))
-            ;; Format is correct: *beads-agent[PROJECT]/TYPE#N*
-            (should (equal "*beads-agent[beads.el]/Task#1*" buffer-name))))
+            ;; Buffer name contains issue ID (helps identify the session's purpose)
+            (should (string-match-p "bd-42" buffer-name))
+            ;; Format is correct: *beads-agent[PROJECT]/TYPE#N ISSUE-ID*
+            (should (equal "*beads-agent[beads.el]/Task#1 bd-42*" buffer-name))))
         ;; Test without agent type (defaults to "Agent")
         (let ((session (beads-agent--create-project-session
                         "/home/user/another" "mock" 'handle "bd-99")))
           (let ((buffer-name (beads-agent--generate-buffer-name-for-project-session session)))
-            (should (equal "*beads-agent[another]/Agent#1*" buffer-name)))))
+            (should (equal "*beads-agent[another]/Agent#1 bd-99*" buffer-name)))))
+    (beads-agent-test--teardown)))
+
+(ert-deftest beads-agent-test-buffer-name-includes-issue-title ()
+  "Buffer names include issue title when available."
+  (beads-agent-test--setup)
+  (unwind-protect
+      (cl-letf (((symbol-function 'sesman-sessions)
+                 #'beads-agent-test--mock-sesman-sessions))
+        ;; Test with issue title set
+        (let ((session (beads-agent--create-session
+                        "bd-42" "mock" "/home/user/project" 'handle
+                        nil "Task" "Fix login bug")))
+          (let ((buffer-name (beads-agent--generate-buffer-name-for-project-session session)))
+            ;; Buffer name contains project name
+            (should (string-match-p "project" buffer-name))
+            ;; Buffer name contains agent type
+            (should (string-match-p "Task" buffer-name))
+            ;; Buffer name contains issue ID
+            (should (string-match-p "bd-42" buffer-name))
+            ;; Buffer name contains issue title (truncated to fit)
+            (should (string-match-p "Fix login bug" buffer-name))
+            ;; Format is: *beads-agent[PROJECT]/TYPE#N ISSUE-ID TITLE*
+            (should (equal "*beads-agent[project]/Task#1 bd-42 Fix login bug*"
+                          buffer-name))))
+        ;; Test without issue title (only issue ID shown)
+        (let ((session (beads-agent--create-session
+                        "bd-99" "mock" "/home/user/other" 'handle
+                        nil "Review" nil)))
+          (let ((buffer-name (beads-agent--generate-buffer-name-for-project-session session)))
+            ;; Has issue ID but no title
+            (should (string-match-p "bd-99" buffer-name))
+            (should (equal "*beads-agent[other]/Review#1 bd-99*" buffer-name)))))
     (beads-agent-test--teardown)))
 
 (ert-deftest beads-agent-test-buffer-name-uses-worktree-when-available ()
@@ -2477,7 +2509,7 @@ Settings changes should allow continued configuration."
 
 (ert-deftest beads-agent-test-rename-and-store-buffer ()
   "Test that beads-agent--rename-and-store-buffer works correctly.
-Buffer names now use project name (from project-dir), not issue ID."
+Buffer names use project name, type, and include issue context."
   (beads-agent-mock-reset)
   (beads-agent-test--setup)
   (unwind-protect
@@ -2500,9 +2532,9 @@ Buffer names now use project name (from project-dir), not issue ID."
             (should stored-buffer)
             (should (buffer-live-p stored-buffer))
             (should (beads-agent--buffer-name-p (buffer-name stored-buffer)))
-            ;; Should match expected format using project name
-            ;; Format: *beads-agent[PROJECT]/TYPE#N*
-            (should (string-match-p "\\*beads-agent\\[myproject\\]/Task#1\\*"
+            ;; Should match expected format with project name and issue ID
+            ;; Format: *beads-agent[PROJECT]/TYPE#N ISSUE-ID*
+            (should (string-match-p "\\*beads-agent\\[myproject\\]/Task#1 bd-rename\\*"
                                     (buffer-name stored-buffer))))))
     (beads-agent--reset-typed-instance-counters)
     (beads-agent-mock-reset)
