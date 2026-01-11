@@ -4088,17 +4088,16 @@ When worktrees are disabled, uses beads-agent-start directly."
 ;;; Tests for Interactive Worktree Prompt Functions
 
 (ert-deftest beads-agent-test-read-worktree-name-uses-default ()
-  "Test worktree name prompt uses issue ID as default when user types RET."
-  (cl-letf (((symbol-function 'beads-completion-read-issue)
-             (lambda (prompt &rest _)
-               ;; Verify prompt includes default in brackets
-               (should (string-match-p "\\[bd-42\\]" prompt))
-               "")))  ; empty = accept default
-    (should (equal "bd-42" (beads-agent--read-worktree-name "bd-42")))))
+  "Test worktree name returns nil for (no worktree) selection."
+  (cl-letf (((symbol-function 'beads-completion-read-agent-worktree)
+             (lambda (&rest _)
+               ;; Returns nil for "(no worktree)" selection
+               nil)))
+    (should (null (beads-agent--read-worktree-name "bd-42")))))
 
 (ert-deftest beads-agent-test-read-worktree-name-custom-input ()
-  "Test worktree name prompt returns user input."
-  (cl-letf (((symbol-function 'beads-completion-read-issue)
+  "Test worktree name prompt returns user selection."
+  (cl-letf (((symbol-function 'beads-completion-read-agent-worktree)
              (lambda (&rest _) "my-feature")))
     (should (equal "my-feature" (beads-agent--read-worktree-name "bd-42")))))
 
