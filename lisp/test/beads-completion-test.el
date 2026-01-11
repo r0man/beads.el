@@ -1307,5 +1307,141 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
       (should (= 1 (length matches)))
       (should (string= "feature-auth" (car matches))))))
 
+;;; Agent Worktree Completion Tests
+
+(ert-deftest beads-completion-test-agent-worktree-no-worktree-constant ()
+  "Test that no-worktree constant is defined."
+  (should (boundp 'beads-completion--no-worktree-value))
+  (should (string= "(no worktree)" beads-completion--no-worktree-value)))
+
+(ert-deftest beads-completion-test-agent-worktree-table-metadata ()
+  "Test that agent worktree completion table provides correct metadata."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees)))
+        (beads-completion--cache (cons (float-time) nil)))
+    (let* ((table (beads-completion-agent-worktree-table))
+           (metadata (funcall table "" nil 'metadata)))
+      (should (eq 'beads-agent-worktree (cdr (assq 'category metadata))))
+      (should (eq 'beads-completion--agent-worktree-annotate
+                  (cdr (assq 'annotation-function metadata))))
+      (should (eq 'beads-completion--agent-worktree-group
+                  (cdr (assq 'group-function metadata)))))))
+
+(ert-deftest beads-completion-test-agent-worktree-table-has-no-worktree-first ()
+  "Test that agent worktree table has (no worktree) as first candidate."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees)))
+        (beads-completion--cache (cons (float-time) nil)))
+    (let* ((table (beads-completion-agent-worktree-table))
+           (candidates (funcall table "" nil t)))
+      (should (string= "(no worktree)" (car candidates))))))
+
+(ert-deftest beads-completion-test-agent-worktree-table-includes-worktrees ()
+  "Test that agent worktree table includes existing worktrees."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees)))
+        (beads-completion--cache (cons (float-time) nil)))
+    (let* ((table (beads-completion-agent-worktree-table))
+           (candidates (funcall table "" nil t)))
+      ;; Should have (no worktree) + 4 worktrees = at least 5
+      (should (>= (length candidates) 5))
+      (should (member "beads.el" candidates))
+      (should (member "feature-auth" candidates)))))
+
+(ert-deftest beads-completion-test-agent-worktree-table-includes-issues ()
+  "Test that agent worktree table includes issues."
+  (let ((beads-completion--worktree-cache (cons (float-time) nil))
+        (beads-completion--cache
+         (cons (float-time) (beads-completion-test--make-mock-issues))))
+    (let* ((table (beads-completion-agent-worktree-table))
+           (candidates (funcall table "" nil t)))
+      ;; Should have (no worktree) + 4 issues = 5
+      (should (= 5 (length candidates)))
+      (should (member "bd-def2" candidates))  ;; in_progress
+      (should (member "bd-abc1" candidates))))) ;; open
+
+(ert-deftest beads-completion-test-agent-worktree-annotate-none ()
+  "Test annotation for (no worktree) option."
+  (let ((candidate (propertize "(no worktree)" 'beads-agent-wt-type 'none)))
+    (let ((annotation (beads-completion--agent-worktree-annotate candidate)))
+      (should (string-match-p "run in current project" annotation)))))
+
+(ert-deftest beads-completion-test-agent-worktree-annotate-worktree ()
+  "Test annotation for existing worktree."
+  (let* ((wt (beads-completion-test--make-mock-worktree
+              "feature-auth" "/path" "feature/auth" nil "redirect"))
+         (candidate (propertize "feature-auth"
+                                'beads-agent-wt-type 'worktree
+                                'beads-worktree wt)))
+    (let ((annotation (beads-completion--agent-worktree-annotate candidate)))
+      (should (string-match-p "EXISTS" annotation))
+      (should (string-match-p "feature/auth" annotation)))))
+
+(ert-deftest beads-completion-test-agent-worktree-annotate-issue ()
+  "Test annotation for issue."
+  (let* ((issue (beads-completion-test--make-issue "bd-1" "Test" "open" 1))
+         (candidate (propertize "bd-1"
+                                'beads-agent-wt-type 'issue
+                                'beads-issue issue)))
+    (let ((annotation (beads-completion--agent-worktree-annotate candidate)))
+      (should (string-match-p "P1" annotation))
+      (should (string-match-p "OPEN" annotation))
+      (should (string-match-p "Test" annotation)))))
+
+(ert-deftest beads-completion-test-agent-worktree-annotate-handles-error ()
+  "Test that annotation handles errors gracefully."
+  (should (string= "" (beads-completion--agent-worktree-annotate nil))))
+
+(ert-deftest beads-completion-test-agent-worktree-group-none ()
+  "Test grouping for (no worktree) option."
+  (let ((candidate (propertize "(no worktree)" 'beads-agent-wt-type 'none)))
+    (should (string= "Default"
+                     (beads-completion--agent-worktree-group candidate nil)))))
+
+(ert-deftest beads-completion-test-agent-worktree-group-worktree ()
+  "Test grouping for existing worktree."
+  (let ((candidate (propertize "feature-auth" 'beads-agent-wt-type 'worktree)))
+    (should (string= "Existing Worktrees"
+                     (beads-completion--agent-worktree-group candidate nil)))))
+
+(ert-deftest beads-completion-test-agent-worktree-group-issue-by-status ()
+  "Test grouping for issues by status."
+  (let ((open (propertize "bd-1" 'beads-agent-wt-type 'issue 'beads-status "open"))
+        (in-progress (propertize "bd-2" 'beads-agent-wt-type 'issue 'beads-status "in_progress"))
+        (blocked (propertize "bd-3" 'beads-agent-wt-type 'issue 'beads-status "blocked"))
+        (closed (propertize "bd-4" 'beads-agent-wt-type 'issue 'beads-status "closed")))
+    (should (string= "Open Issues"
+                     (beads-completion--agent-worktree-group open nil)))
+    (should (string= "In Progress Issues"
+                     (beads-completion--agent-worktree-group in-progress nil)))
+    (should (string= "Blocked Issues"
+                     (beads-completion--agent-worktree-group blocked nil)))
+    (should (string= "Closed Issues"
+                     (beads-completion--agent-worktree-group closed nil)))))
+
+(ert-deftest beads-completion-test-agent-worktree-group-transform ()
+  "Test that group function returns candidate when transform is t."
+  (let ((candidate (propertize "test" 'beads-agent-wt-type 'none)))
+    (should (eq candidate
+                (beads-completion--agent-worktree-group candidate t)))))
+
+(ert-deftest beads-completion-test-read-agent-worktree-returns-nil-for-no-worktree ()
+  "Test that read-agent-worktree returns nil when (no worktree) is selected."
+  (let ((beads-completion--worktree-cache (cons (float-time) nil))
+        (beads-completion--cache (cons (float-time) nil)))
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (&rest _) "(no worktree)")))
+      (should (null (beads-completion-read-agent-worktree "Test: "))))))
+
+(ert-deftest beads-completion-test-read-agent-worktree-returns-selection ()
+  "Test that read-agent-worktree returns the selected value."
+  (let ((beads-completion--worktree-cache
+         (cons (float-time) (beads-completion-test--make-mock-worktrees)))
+        (beads-completion--cache (cons (float-time) nil)))
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (&rest _) "feature-auth")))
+      (should (string= "feature-auth"
+                       (beads-completion-read-agent-worktree "Test: "))))))
+
 (provide 'beads-completion-test)
 ;;; beads-completion-test.el ends here
