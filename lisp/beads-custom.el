@@ -74,6 +74,17 @@ refresh after operations like create, update, or close."
   :type 'boolean
   :group 'beads)
 
+(defcustom beads-list-default-limit 0
+  "Default limit for issue list operations.
+When 0, all issues are returned (no limit).
+When set to a positive integer, limits the number of issues returned
+in list operations such as `beads-command-list'.
+
+This can be overridden per-command by explicitly setting the :limit
+argument when calling list commands."
+  :type '(integer :tag "Default limit (0 = no limit)")
+  :group 'beads)
+
 ;;; Completion Behavior
 
 (defcustom beads-completion-show-unavailable-backends t

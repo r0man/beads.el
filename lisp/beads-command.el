@@ -48,6 +48,7 @@
 ;; Forward declarations to avoid circular dependency
 ;; (beads.el requires beads-command, so we can't require beads here)
 (defvar beads-executable)
+(defvar beads-list-default-limit)
 (declare-function beads--log "beads")
 (declare-function beads--find-beads-dir "beads")
 (declare-function beads--invalidate-completion-cache "beads")
@@ -1469,7 +1470,9 @@ Comma-separated, e.g., 'bd-1,bd-5,bd-10'."
     :initarg :limit
     :type (or null integer)
     :initform nil
-    :documentation "Limit results (-n, --limit)."
+    :documentation "Limit results (-n, --limit).
+When not explicitly set, uses `beads-list-default-limit' (via `beads-command-list!').
+Set to 0 for no limit, or a positive integer to limit results."
     ;; CLI properties
     :long-option "--limit"
     :short-option "-n"
@@ -1593,6 +1596,19 @@ Does not modify command slots."
                          :parsed-json parsed-json
                          :stderr (oref command stderr)
                          :parse-error err))))))))
+
+;; Override auto-generated beads-command-list! to apply default limit
+(defun beads-command-list! (&rest args)
+  "Execute `beads-command-list' and return result data.
+
+ARGS are passed to the constructor.  When :limit is not specified,
+uses `beads-list-default-limit' as the default value.
+
+This function overrides the auto-generated version to support
+the `beads-list-default-limit' customization variable."
+  (unless (plist-member args :limit)
+    (setq args (plist-put args :limit beads-list-default-limit)))
+  (oref (beads-command-execute (apply #'beads-command-list args)) data))
 
 ;;; Create Command
 
