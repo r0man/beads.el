@@ -193,14 +193,12 @@ delimiter is found."
 ;; the default, or type to override.
 
 (defun beads-agent--read-worktree-name (issue-id)
-  "Prompt for worktree name with ISSUE-ID as default.
-Shows prompt like \"Worktree [bd-123]: \" where RET accepts the default.
-Returns the worktree name string."
-  (let* ((default issue-id)
-         (prompt (format "Worktree [%s]: " default))
-         (result (beads-completion-read-issue
-                  prompt nil nil nil 'beads--worktree-name-history)))
-    (if (string-empty-p result) default result)))
+  "Prompt for worktree selection with smart ordering.
+Shows \"(no worktree)\" first, then existing worktrees, then issues.
+ISSUE-ID is used as the default if provided.
+Returns the worktree/issue name string, or nil for no worktree."
+  (beads-completion-read-agent-worktree
+   "Worktree: " nil nil nil 'beads--worktree-name-history issue-id))
 
 (defun beads-agent--read-worktree-branch (default)
   "Prompt for branch name with DEFAULT as default.
@@ -212,17 +210,25 @@ Returns the branch name string, or nil for auto (uses worktree name)."
 
 (defun beads-agent--setup-worktree-interactive (issue-id callback)
   "Interactively setup worktree for ISSUE-ID asynchronously.
-Prompts for worktree name and branch with smart defaults.
+Prompts for worktree selection with smart ordering: (no worktree) first,
+then existing worktrees, then issues sorted by status priority.
 CALLBACK receives (success worktree-path-or-error) where:
 - success is t and worktree-path-or-error is the path on success
 - success is nil and worktree-path-or-error is error message on failure"
-  (let* ((wt-name (beads-agent--read-worktree-name issue-id))
-         (branch (beads-agent--read-worktree-branch wt-name)))
-    ;; Check if worktree already exists (fast, local operation)
-    (if-let ((existing (beads-worktree-find-by-name wt-name)))
-        (funcall callback t (oref existing path))
-      ;; Create new worktree asynchronously
-      (let ((cmd (beads-command-worktree-create :name wt-name :branch branch)))
+  (let ((wt-name (beads-agent--read-worktree-name issue-id)))
+    (cond
+     ;; No worktree selected - use current project directory
+     ((null wt-name)
+      (funcall callback t (beads-git-get-root)))
+
+     ;; Existing worktree selected
+     ((beads-worktree-find-by-name wt-name)
+      (funcall callback t (oref (beads-worktree-find-by-name wt-name) path)))
+
+     ;; New worktree - prompt for branch and create
+     (t
+      (let* ((branch (beads-agent--read-worktree-branch wt-name))
+             (cmd (beads-command-worktree-create :name wt-name :branch branch)))
         (beads-command-execute-async
          cmd
          (lambda (finished-cmd)
@@ -233,7 +239,7 @@ CALLBACK receives (success worktree-path-or-error) where:
              (funcall callback nil
                       (or (oref finished-cmd stderr)
                           (format "Command failed with exit code %d"
-                                  (oref finished-cmd exit-code)))))))))))
+                                  (oref finished-cmd exit-code))))))))))))
 
 ;;; Backend Selection
 
