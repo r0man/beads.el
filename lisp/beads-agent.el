@@ -223,8 +223,9 @@ CALLBACK receives (success worktree-path-or-error) where:
       (funcall callback t (beads-git-find-project-root)))
 
      ;; Existing worktree selected
-     ((beads-worktree-find-by-name wt-name)
-      (funcall callback t (oref (beads-worktree-find-by-name wt-name) path)))
+     ((when-let* ((wt (beads-worktree-find-by-name wt-name)))
+        (funcall callback t (oref wt path))
+        t))
 
      ;; New worktree - prompt for branch and create
      (t
