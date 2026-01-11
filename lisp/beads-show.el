@@ -19,6 +19,7 @@
 ;; - Inline field editing (C-c C-e)
 ;; - Simple section navigation (n/p)
 ;; - Reference and button navigation ([, ], TAB)
+;; - Copy issue ID to clipboard (w or C-w)
 ;; - Keyboard navigation and refresh commands
 ;; - Handles missing optional fields gracefully
 ;;
@@ -296,6 +297,10 @@ Called from `kill-buffer-hook' to clean up session state."
     ;; Refresh/quit
     (define-key map (kbd "g") #'beads-refresh-show)
     (define-key map (kbd "q") #'quit-window)
+
+    ;; Copy issue ID
+    (define-key map (kbd "w") #'beads-show-copy-id)        ; copy (like eww, info)
+    (define-key map (kbd "C-w") #'beads-show-copy-id)      ; copy (override kill-region)
 
     ;; Section navigation (simple)
     (define-key map (kbd "n") #'beads-show-next-section)
@@ -941,6 +946,15 @@ Extracts the issue ID from text at point and calls `beads-show'."
   (if-let* ((issue-id (beads-show--extract-issue-at-point)))
       (beads-show issue-id)
     (user-error "No issue reference found at point")))
+
+(defun beads-show-copy-id ()
+  "Copy the current issue ID to the kill ring."
+  (interactive)
+  (if beads-show--issue-id
+      (progn
+        (kill-new beads-show--issue-id)
+        (message "Copied issue ID: %s" beads-show--issue-id))
+    (user-error "No issue ID in current buffer")))
 
 ;;;###autoload
 (defun beads-refresh-show ()
