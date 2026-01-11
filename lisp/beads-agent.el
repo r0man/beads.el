@@ -639,13 +639,15 @@ are passed through from `beads-agent--continue-start'."
                (start-result (beads-agent-backend-start backend issue prompt))
                (backend-session (car start-result))
                (buffer (cdr start-result))
+               (issue-title (when issue (oref issue title)))
                (session (beads-agent--create-session
                          issue-id
                          (oref backend name)
                          project-dir
                          backend-session
                          worktree-dir
-                         agent-type-name)))
+                         agent-type-name
+                         issue-title)))
           ;; Rename backend buffer to beads format and store in session
           (beads-agent--rename-and-store-buffer session buffer)
           (message "Started %s agent session %s on %s%s"

@@ -118,6 +118,12 @@ Useful for understanding what work happened in a session.")
 This slot is kept for backward compatibility during migration to
 directory-bound sessions.  New code should use `current-issue' for
 focus and `project-dir' for identity.")
+   (issue-title
+    :initarg :issue-title
+    :initform nil
+    :type (or string null)
+    :documentation "Title of the issue being worked on.
+Used in buffer names to help identify the session's purpose.")
    (backend-name
     :initarg :backend-name
     :type string
@@ -265,6 +271,10 @@ For backward compatibility.  New code should use
 `beads-agent-session-current-issue' instead."
   (or (oref session current-issue)
       (oref session issue-id)))
+
+(defun beads-agent-session-issue-title (session)
+  "Return the issue title for SESSION, or nil if not set."
+  (oref session issue-title))
 
 ;;; Backend Protocol (Generic Methods)
 
@@ -510,7 +520,8 @@ Returns ID in `project-name#N' format where N is the next available number."
 
 (defun beads-agent--create-session (issue-id backend-name project-dir
                                              backend-session
-                                             &optional worktree-dir agent-type-name)
+                                             &optional worktree-dir agent-type-name
+                                             issue-title)
   "Create and register a new session (legacy issue-bound).
 ISSUE-ID is the issue being worked on.
 BACKEND-NAME is the name of the backend.
@@ -518,6 +529,7 @@ PROJECT-DIR is the main project directory.
 BACKEND-SESSION is the backend-specific session handle.
 WORKTREE-DIR is the git worktree directory, if using worktrees.
 AGENT-TYPE-NAME is the name of the agent type (e.g., \"Task\", \"Review\").
+ISSUE-TITLE is the title of the issue (used in buffer names).
 Returns the created beads-agent-session object.
 
 DEPRECATED: Use `beads-agent--create-project-session' for new code.
@@ -531,6 +543,7 @@ The hook handler in beads-sesman.el registers the session with sesman."
          (session (beads-agent-session
                    :id session-id
                    :issue-id issue-id
+                   :issue-title issue-title
                    :backend-name backend-name
                    :agent-type-name agent-type-name
                    :project-dir normalized-dir
@@ -842,6 +855,9 @@ to the session's proj-name or project-dir.  Instance number is
 determined by a typed counter keyed by (display-name, type-name),
 ensuring each type has independent numbering within a directory.
 
+The buffer name includes the issue ID and title (truncated) when available,
+making it easy to identify which issue the agent is working on.
+
 This function is idempotent: if SESSION already has a buffer stored,
 returns that buffer's name instead of generating a new one.  This
 prevents the typed instance counter from being incremented multiple
@@ -859,9 +875,11 @@ times for the same session."
                                 (oref session project-dir)))))
            (type-name (or (oref session agent-type-name) "Agent"))
            (instance-n (beads-agent--next-typed-instance-number
-                        display-name type-name)))
+                        display-name type-name))
+           (issue-id (beads-agent-session-issue-id session))
+           (issue-title (beads-agent-session-issue-title session)))
       (beads-agent--generate-project-buffer-name
-       display-name type-name instance-n))))
+       display-name type-name instance-n issue-id issue-title))))
 
 (defun beads-agent--parse-project-buffer-name (buffer-name)
   "Parse a directory-bound buffer name into its components.
