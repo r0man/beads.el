@@ -1304,7 +1304,7 @@ Set mark at beginning of section, move point to end, and activate region."
   (if-let* ((issue-id (beads-show--extract-issue-at-point)))
       (let ((buffer (beads-show--get-or-create-buffer issue-id)))
         (beads-show-update-buffer issue-id buffer)
-        (switch-to-buffer-other-window buffer))
+        (beads-buffer-display-other-window buffer))
     (message "No issue reference at point")))
 
 (defun beads-show-next-reference ()
