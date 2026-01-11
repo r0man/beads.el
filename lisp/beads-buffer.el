@@ -411,12 +411,10 @@ This is for commands that explicitly request display in a different window.
 
 Display strategy:
 1. Reuse a window already showing BUFFER
-2. Use some other existing window
-3. Pop up a new window if needed"
+2. Use some other existing window (splits if needed)"
   (pop-to-buffer buffer
                  '((display-buffer-reuse-window
-                    display-buffer-use-some-window
-                    display-buffer-pop-up-window)
+                    display-buffer-use-some-window)
                    (inhibit-same-window . t))))
 
 (provide 'beads-buffer)
