@@ -454,6 +454,55 @@ This is needed because show buffers are now named by project, not issue."
       ;; related type should be filtered out
       (should (= (point-min) (point-max))))))
 
+(ert-deftest beads-show-test-insert-dependencies-section-fetch-error ()
+  "Test that dependency section handles fetch errors gracefully."
+  (with-temp-buffer
+    (let ((inhibit-read-only t)
+          (deps (list (beads-dependency
+                       :issue-id "bd-main"
+                       :depends-on-id "bd-missing"
+                       :type "blocks"))))
+      ;; Mock show command to throw an error
+      (cl-letf (((symbol-function 'beads-command-show!)
+                 (lambda (&rest _args)
+                   (error "Issue not found"))))
+        (beads-show--insert-dependencies-section deps)
+        (let ((text (buffer-substring-no-properties (point-min) (point-max))))
+          ;; Should still show the section and link even if fetch fails
+          (should (string-match-p "DEPENDS ON" text))
+          (should (string-match-p "bd-missing" text)))))))
+
+(ert-deftest beads-show-test-insert-dependency-line-priority-faces ()
+  "Test that dependency lines use correct priority faces."
+  (with-temp-buffer
+    ;; Test critical priority (0)
+    (beads-show--insert-dependency-line "bd-1" "Title" "open" 0 "→")
+    (goto-char (point-min))
+    (search-forward "P0")
+    (should (eq (get-text-property (1- (point)) 'face)
+                'beads-show-priority-critical-face))
+    (erase-buffer)
+    ;; Test high priority (1)
+    (beads-show--insert-dependency-line "bd-2" "Title" "open" 1 "→")
+    (goto-char (point-min))
+    (search-forward "P1")
+    (should (eq (get-text-property (1- (point)) 'face)
+                'beads-show-priority-high-face))
+    (erase-buffer)
+    ;; Test medium priority (2)
+    (beads-show--insert-dependency-line "bd-3" "Title" "open" 2 "→")
+    (goto-char (point-min))
+    (search-forward "P2")
+    (should (eq (get-text-property (1- (point)) 'face)
+                'beads-show-priority-medium-face))
+    (erase-buffer)
+    ;; Test low priority (3)
+    (beads-show--insert-dependency-line "bd-4" "Title" "open" 3 "→")
+    (goto-char (point-min))
+    (search-forward "P3")
+    (should (eq (get-text-property (1- (point)) 'face)
+                'beads-show-priority-low-face))))
+
 ;;; Tests for Issue Extraction
 
 (ert-deftest beads-show-test-extract-issue-at-point-found ()

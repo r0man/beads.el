@@ -921,15 +921,22 @@ children."
     (insert (if beads-show-dependency-title-max-length
                 (beads-show--truncate-title title beads-show-dependency-title-max-length)
               title)))
-  ;; Priority badge
+  ;; Priority badge with appropriate face
   (when priority
     (insert " ")
-    (insert (propertize (format "● P%d" priority)
-                       'face 'beads-show-priority-medium-face)))
+    (let ((priority-face (pcase priority
+                           (0 'beads-show-priority-critical-face)
+                           (1 'beads-show-priority-high-face)
+                           (2 'beads-show-priority-medium-face)
+                           (_ 'beads-show-priority-low-face))))
+      (insert (propertize (format "● P%d" priority) 'face priority-face))))
   (insert "\n"))
 
 (defun beads-show--insert-dependencies-section (dependencies)
-  "Insert DEPENDS ON section for blocking DEPENDENCIES."
+  "Insert DEPENDS ON section for blocking DEPENDENCIES.
+Note: Currently fetches each dependency's details synchronously.
+For issues with many dependencies, this may be slow.  A future
+optimization could batch-fetch or use async fetching."
   (when dependencies
     ;; Filter for blocking dependencies (blocks and parent-child types)
     (let ((blocking-deps (seq-filter
