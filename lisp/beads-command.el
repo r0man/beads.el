@@ -381,19 +381,10 @@ Subclasses should override to add command-specific validation.")
 This :around method ensures all command lines start with beads-executable."
   (cons beads-executable (cl-call-next-method)))
 
-(cl-defgeneric beads-command-extra-flags (command)
-  "Return extra flags to insert after global flags for COMMAND.
-Override in subclasses to add class-specific flags like --json.
-Returns a list of strings, or nil.")
-
-(cl-defmethod beads-command-extra-flags ((_command beads-command))
-  "Return nil (no extra flags) for base command class."
-  nil)
-
 (cl-defmethod beads-command-line ((command beads-command))
   "Build command arguments from COMMAND using slot metadata.
 If `beads-command-subcommand' returns a subcommand name, builds:
-  (SUBCOMMAND... ...global-flags... ...extra-flags... ...metadata-args...)
+  (SUBCOMMAND... ...global-flags... ...metadata-args...)
 Supports multi-word subcommands like \"worktree create\".
 Otherwise returns just global flags (for abstract classes)."
   (with-slots (actor db no-auto-flush no-auto-import
@@ -418,7 +409,6 @@ Otherwise returns just global flags (for abstract classes)."
           ;; Use metadata-based building
           (append (split-string subcommand)
                   global-args
-                  (beads-command-extra-flags command)
                   (beads-meta-build-command-line command))
         ;; No subcommand - just return global flags
         global-args))))
@@ -619,20 +609,14 @@ Signals `beads-json-parse-error' if JSON parsing fails (for JSON commands)."
     :type boolean
     :initform t
     :documentation "Output in JSON format (--json).
-Enables machine-readable output."))
+Enables machine-readable output."
+    ;; CLI properties - handled by beads-meta-build-command-line
+    :long-option "--json"
+    :option-type :boolean))
   :abstract t
   :documentation "Abstract base class for bd commands that support JSON output.
 Inherits from beads-command and adds --json flag support.
 Use this as parent class for commands that support --json flag.")
-
-(cl-defmethod beads-command-extra-flags ((command beads-command-json))
-  "Return parent flags plus --json flag for COMMAND when json slot is t.
-Calls parent method first, then appends --json if enabled."
-  (let ((parent-flags (cl-call-next-method)))
-    (with-slots (json) command
-      (if json
-          (append parent-flags (list "--json"))
-        parent-flags))))
 
 (cl-defmethod beads-command-parse ((command beads-command-json))
   "Parse JSON output from COMMAND.
