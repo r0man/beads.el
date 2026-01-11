@@ -14,7 +14,7 @@
 
 (require 'ert)
 (require 'beads)
-(require 'beads-buffer-name)
+(require 'beads-buffer)
 (require 'beads-graph)
 
 ;;; Test Helpers

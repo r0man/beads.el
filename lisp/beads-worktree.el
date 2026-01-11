@@ -32,7 +32,7 @@
 ;;; Code:
 
 (require 'beads)
-(require 'beads-buffer-name)
+(require 'beads-buffer)
 (require 'beads-command-worktree)
 (require 'beads-completion)
 (require 'beads-reader)

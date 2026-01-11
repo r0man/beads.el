@@ -431,10 +431,9 @@ Returns issue ID string or nil if not found."
    ;; From beads-show buffer
    (when (derived-mode-p 'beads-show-mode)
      beads-show--issue-id)
-   ;; From buffer name (*beads-show: bd-N*)
-   (when (string-match "\\*beads-show: \\([a-zA-Z0-9._-]+\\)\\*"
-                       (buffer-name))
-     (match-string 1 (buffer-name)))))
+   ;; From buffer name (*beads-show[PROJECT]/ISSUE-ID*)
+   (when-let ((parsed (beads-buffer-parse-show (buffer-name))))
+     (plist-get parsed :issue-id))))
 
 (defun beads-agent--read-issue-id ()
   "Read issue ID with completion, using context if available."

@@ -11,7 +11,7 @@
 (require 'ert)
 (require 'beads-agent-list)
 (require 'beads-agent-backend)
-(require 'beads-buffer-name)
+(require 'beads-buffer)
 (require 'beads-types)
 
 ;;; Test Helpers

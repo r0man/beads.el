@@ -73,7 +73,7 @@
 (ert-deftest beads-close-test-detect-issue-id-from-buffer-name ()
   "Test detecting issue ID from beads-show buffer name."
   (with-temp-buffer
-    (rename-buffer "*beads-show: bd-42*" t)
+    (rename-buffer "*beads-show[proj]/bd-42*" t)
     (should (equal (beads-close--detect-issue-id) "bd-42"))))
 
 (ert-deftest beads-close-test-detect-issue-id-no-context ()
