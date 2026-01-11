@@ -104,18 +104,21 @@ or called with nil when cancelled."
   (interactive)
   (let ((prompt (buffer-substring-no-properties (point-min) (point-max)))
         (callback beads-agent-prompt-edit--callback))
-    (beads-agent-prompt-edit--cleanup)
-    (when callback
-      (funcall callback prompt))))
+    (unwind-protect
+        (when callback
+          (funcall callback prompt))
+      (beads-agent-prompt-edit--cleanup))))
 
 (defun beads-agent-prompt-edit-cancel ()
   "Cancel prompt editing without launching agent."
   (interactive)
   (let ((callback beads-agent-prompt-edit--callback))
-    (beads-agent-prompt-edit--cleanup)
-    (when callback
-      (funcall callback nil))
-    (message "Agent launch cancelled")))
+    (unwind-protect
+        (progn
+          (when callback
+            (funcall callback nil))
+          (message "Agent launch cancelled"))
+      (beads-agent-prompt-edit--cleanup))))
 
 (defun beads-agent-prompt-edit--cleanup ()
   "Clean up prompt edit buffer."
