@@ -82,7 +82,7 @@ in list operations such as `beads-command-list'.
 
 This can be overridden per-command by explicitly setting the :limit
 argument when calling list commands."
-  :type '(integer :tag "Default limit (0 = no limit)")
+  :type 'natnum
   :group 'beads)
 
 ;;; Completion Behavior
