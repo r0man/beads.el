@@ -931,7 +931,15 @@ correct project detection (important for git worktrees)."
            (insert (format "%s" (error-message-string err)))
            (goto-char (point-min))))))
 
-    (switch-to-buffer buffer)))
+    ;; Display buffer with smart window selection:
+    ;; 1. Reuse window showing a beads-show buffer
+    ;; 2. Use some other window (not current)
+    ;; 3. As fallback, pop up a new window
+    (pop-to-buffer buffer
+                   '((display-buffer-reuse-mode-window
+                      display-buffer-use-some-window)
+                     (mode . beads-show-mode)
+                     (inhibit-same-window . t)))))
 
 ;;;###autoload
 (defun beads-show-at-point ()
