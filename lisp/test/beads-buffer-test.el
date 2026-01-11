@@ -596,5 +596,89 @@
   (should (string= (beads-buffer-list nil nil "proj" nil)
                    (beads-buffer-name-list nil nil "proj" nil))))
 
+;;; Display Function Tests
+
+(ert-deftest beads-buffer-test-display-detail-calls-pop-to-buffer ()
+  "Test that display-detail calls pop-to-buffer with correct actions."
+  (let ((called-buffer nil)
+        (called-actions nil))
+    (cl-letf (((symbol-function 'pop-to-buffer)
+               (lambda (buffer actions)
+                 (setq called-buffer buffer
+                       called-actions actions))))
+      (with-temp-buffer
+        (let ((buf (current-buffer)))
+          (beads-buffer-display-detail buf 'beads-show-mode)
+          (should (eq buf called-buffer))
+          (should (assq 'mode called-actions))
+          (should (eq 'beads-show-mode (alist-get 'mode called-actions)))
+          (should (alist-get 'inhibit-same-window called-actions)))))))
+
+(ert-deftest beads-buffer-test-display-detail-includes-reuse-action ()
+  "Test that display-detail includes reuse-mode-window action."
+  (let ((called-actions nil))
+    (cl-letf (((symbol-function 'pop-to-buffer)
+               (lambda (_buffer actions)
+                 (setq called-actions actions))))
+      (with-temp-buffer
+        (beads-buffer-display-detail (current-buffer) 'beads-show-mode)
+        ;; First element should be the list of display actions
+        (should (memq 'display-buffer-reuse-mode-window (car called-actions)))
+        (should (memq 'display-buffer-use-some-window (car called-actions)))))))
+
+(ert-deftest beads-buffer-test-display-same-or-reuse-visible-buffer ()
+  "Test that display-same-or-reuse selects existing window."
+  (let ((buf (generate-new-buffer "*beads-test-visible*")))
+    (unwind-protect
+        (save-window-excursion
+          ;; Show buffer in a window
+          (set-window-buffer (selected-window) buf)
+          ;; Switch to a different buffer
+          (switch-to-buffer (get-buffer-create "*beads-test-other*"))
+          ;; Now call display-same-or-reuse - should select the window
+          (beads-buffer-display-same-or-reuse buf)
+          (should (eq buf (current-buffer))))
+      (kill-buffer buf)
+      (when (get-buffer "*beads-test-other*")
+        (kill-buffer "*beads-test-other*")))))
+
+(ert-deftest beads-buffer-test-display-same-or-reuse-hidden-buffer ()
+  "Test that display-same-or-reuse switches to buffer when not visible."
+  (let ((buf (generate-new-buffer "*beads-test-hidden*")))
+    (unwind-protect
+        (save-window-excursion
+          ;; Buffer is not visible
+          (should (null (get-buffer-window buf)))
+          ;; Call display-same-or-reuse - should switch to it
+          (beads-buffer-display-same-or-reuse buf)
+          (should (eq buf (current-buffer))))
+      (kill-buffer buf))))
+
+(ert-deftest beads-buffer-test-display-other-window-calls-pop-to-buffer ()
+  "Test that display-other-window calls pop-to-buffer with inhibit-same-window."
+  (let ((called-buffer nil)
+        (called-actions nil))
+    (cl-letf (((symbol-function 'pop-to-buffer)
+               (lambda (buffer actions)
+                 (setq called-buffer buffer
+                       called-actions actions))))
+      (with-temp-buffer
+        (let ((buf (current-buffer)))
+          (beads-buffer-display-other-window buf)
+          (should (eq buf called-buffer))
+          (should (alist-get 'inhibit-same-window called-actions)))))))
+
+(ert-deftest beads-buffer-test-display-other-window-includes-reuse-action ()
+  "Test that display-other-window includes reuse-window action."
+  (let ((called-actions nil))
+    (cl-letf (((symbol-function 'pop-to-buffer)
+               (lambda (_buffer actions)
+                 (setq called-actions actions))))
+      (with-temp-buffer
+        (beads-buffer-display-other-window (current-buffer))
+        ;; First element should be the list of display actions
+        (should (memq 'display-buffer-reuse-window (car called-actions)))
+        (should (memq 'display-buffer-use-some-window (car called-actions)))))))
+
 (provide 'beads-buffer-test)
 ;;; beads-buffer-test.el ends here
