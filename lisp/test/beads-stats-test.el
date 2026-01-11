@@ -1062,9 +1062,11 @@ Issues without blockers should appear as ready."
       (let ((buf (get-buffer buf-name)))
         (should buf)
         (with-current-buffer buf
-          (should (eq major-mode 'beads-list-mode))
-          (let ((ids (mapcar #'car tabulated-list-entries)))
-            (should (member ready-id ids))))
+          ;; beads-ready now uses beads-ready-mode, not beads-list-mode
+          (should (eq major-mode 'beads-ready-mode))
+          ;; Verify the issue ID appears in the buffer content
+          (goto-char (point-min))
+          (should (search-forward ready-id nil t)))
         (kill-buffer buf)))))
 
 (ert-deftest beads-stats-test-full-workflow-real ()

@@ -94,31 +94,55 @@ ISSUES should be a list of alists (test data format)."
             ((symbol-function 'beads-buffer-is-main-branch-p)
              (lambda () t))
             ((symbol-function 'beads-git-in-worktree-p)
-             (lambda () nil)))
+             (lambda () nil))
+            ;; Mock the new ready/blocked command functions
+            ((symbol-function 'beads-command-ready!)
+             (lambda () nil))
+            ((symbol-function 'beads-command-blocked!)
+             (lambda () nil))
+            ((symbol-function 'beads-git-find-project-root)
+             (lambda () "/tmp/test")))
     ;; Note: beads-list now shows transient menu, not immediate buffer
 
-    ;; Test ready buffer
+    ;; Test ready buffer - now uses beads-ready-mode
     (beads-ready)
-    (should (equal (buffer-name) "*beads-ready[testproj]*"))
-    (kill-buffer)
+    (let ((buf (get-buffer "*beads-ready[testproj]*")))
+      (should buf)
+      (kill-buffer buf))
 
-    ;; Test blocked buffer
+    ;; Test blocked buffer - now uses beads-blocked-mode
     (beads-blocked)
-    (should (equal (buffer-name) "*beads-blocked[testproj]*"))
-    (kill-buffer)))
+    (let ((buf (get-buffer "*beads-blocked[testproj]*")))
+      (should buf)
+      (kill-buffer buf))))
 
 (ert-deftest beads-list-test-multiple-buffers ()
   "Test that multiple list buffers can coexist."
   (cl-letf (((symbol-function 'beads-command-execute)
              (lambda (&rest _) (beads-test--mock-command-result (vector))))
             ((symbol-function 'beads-check-executable)
-             (lambda () t)))
+             (lambda () t))
+            ;; Mock the new ready/blocked command functions
+            ((symbol-function 'beads-command-ready!)
+             (lambda () nil))
+            ((symbol-function 'beads-command-blocked!)
+             (lambda () nil))
+            ((symbol-function 'beads-git-find-project-root)
+             (lambda () default-directory))
+            ((symbol-function 'beads-git-get-project-name)
+             (lambda () "multibuf"))
+            ((symbol-function 'beads-git-get-branch)
+             (lambda () "main"))
+            ((symbol-function 'beads-buffer-is-main-branch-p)
+             (lambda (&optional _) t)))
     ;; Use beads-ready and beads-blocked instead of beads-list
     ;; since beads-list is a transient that doesn't work in batch mode
     (beads-ready)
-    (let ((ready-buf (current-buffer)))
+    (let ((ready-buf (get-buffer "*beads-ready[multibuf]*")))
       (beads-blocked)
-      (let ((blocked-buf (current-buffer)))
+      (let ((blocked-buf (get-buffer "*beads-blocked[multibuf]*")))
+        (should ready-buf)
+        (should blocked-buf)
         (should (not (eq ready-buf blocked-buf)))
         (should (buffer-live-p ready-buf))
         (should (buffer-live-p blocked-buf))
@@ -400,63 +424,26 @@ ISSUES should be a list of alists (test data format)."
 ;; Individual components (navigation, marking, refresh) are tested separately,
 ;; and transient menu tests cover the integration workflow.
 
-(ert-deftest beads-list-test-ready-command ()
-  "Test beads-ready command."
-  (cl-letf (((symbol-function 'beads-command-execute)
-             (lambda (_cmd &rest _)
-               ;; Return issue objects, not raw alists
-               (let ((alist (car beads-list-test--sample-issues)))
-                 (beads-test--mock-command-result
-                  (vector (beads-issue
-                           :id (alist-get 'id alist)
-                           :title (alist-get 'title alist)
-                           :status (alist-get 'status alist)
-                           :priority (alist-get 'priority alist)
-                           :issue-type (alist-get 'issue-type alist)
-                           :created-at (alist-get 'created-at alist)))))))
-            ((symbol-function 'beads-check-executable)
-             (lambda () t))
-            ((symbol-function 'beads-git-get-project-name)
-             (lambda () "testproj"))
-            ((symbol-function 'beads-git-get-branch)
-             (lambda () "main"))
-            ((symbol-function 'beads-buffer-is-main-branch-p)
-             (lambda () t))
-            ((symbol-function 'beads-git-in-worktree-p)
-             (lambda () nil)))
-    (beads-ready)
-    (should (equal (buffer-name) "*beads-ready[testproj]*"))
-    (should (eq beads-list--command 'ready))
-    (kill-buffer)))
+;; Note: beads-ready and beads-blocked now use dedicated modules
+;; (beads-ready.el and beads-blocked.el) with CLI-like rendering instead
+;; of tabulated-list-mode. Tests for these commands are in beads-ready-test.el
+;; and beads-blocked-test.el respectively.
 
-(ert-deftest beads-list-test-blocked-command ()
-  "Test beads-blocked command."
-  (cl-letf (((symbol-function 'beads-command-execute)
-             (lambda (_cmd &rest _)
-               ;; Return issue objects, not raw alists
-               (let ((alist (caddr beads-list-test--sample-issues)))
-                 (beads-test--mock-command-result
-                  (vector (beads-blocked-issue
-                           :id (alist-get 'id alist)
-                           :title (alist-get 'title alist)
-                           :status (alist-get 'status alist)
-                           :priority (alist-get 'priority alist)
-                           :issue-type (alist-get 'issue-type alist)
-                           :created-at (alist-get 'created-at alist)))))))
-            ((symbol-function 'beads-check-executable)
-             (lambda () t))
-            ((symbol-function 'beads-git-get-project-name)
-             (lambda () "testproj"))
-            ((symbol-function 'beads-git-get-branch)
-             (lambda () "main"))
-            ((symbol-function 'beads-buffer-is-main-branch-p)
-             (lambda () t))
-            ((symbol-function 'beads-git-in-worktree-p)
-             (lambda () nil)))
-    (beads-blocked)
-    (should (equal (buffer-name) "*beads-blocked[testproj]*"))
-    (should (eq beads-list--command 'blocked))
-    (kill-buffer)))
+(ert-deftest beads-list-test-ready-command-uses-new-module ()
+  "Test that beads-ready uses the new CLI-like rendering module."
+  (require 'beads-ready)
+  ;; Verify the new module provides the command
+  (should (fboundp 'beads-ready))
+  ;; Verify it provides the new mode
+  (should (fboundp 'beads-ready-mode)))
+
+(ert-deftest beads-list-test-blocked-command-uses-new-module ()
+  "Test that beads-blocked uses the new CLI-like rendering module."
+  (require 'beads-blocked)
+  ;; Verify the new module provides the command
+  (should (fboundp 'beads-blocked))
+  ;; Verify it provides the new mode
+  (should (fboundp 'beads-blocked-mode)))
 
 ;;; Keybinding Tests
 

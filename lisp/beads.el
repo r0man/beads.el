@@ -446,10 +446,10 @@ or set `beads-executable' to the full path" beads-executable)))
 (autoload 'beads-list "beads-list" "Display all Beads issues in a tabulated list." t)
 
 ;;;###autoload
-(autoload 'beads-ready "beads-list" "Display ready Beads issues in a tabulated list." t)
+(autoload 'beads-ready "beads-ready" "Display ready Beads issues in CLI-like format." t)
 
 ;;;###autoload
-(autoload 'beads-blocked "beads-list" "Display blocked Beads issues in a tabulated list." t)
+(autoload 'beads-blocked "beads-blocked" "Display blocked Beads issues in CLI-like format." t)
 
 ;;;###autoload
 (autoload 'beads-show "beads-show" "Show details for a Beads issue." t)
