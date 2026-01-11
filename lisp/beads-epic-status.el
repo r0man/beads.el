@@ -35,7 +35,7 @@
 ;;; Code:
 
 (require 'beads)
-(require 'beads-buffer-name)
+(require 'beads-buffer)
 (require 'beads-types)
 (require 'cl-lib)
 

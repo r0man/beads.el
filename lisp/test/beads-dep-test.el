@@ -15,7 +15,7 @@
 (require 'ert)
 (require 'json)
 (require 'beads)
-(require 'beads-buffer-name)
+(require 'beads-buffer)
 (require 'beads-dep)
 
 ;;; Test Utilities
@@ -32,6 +32,10 @@
   "Execute BODY with mocked git functions for consistent naming."
   (cl-letf (((symbol-function 'beads-git-get-project-name)
              (lambda () "test-proj"))
+            ((symbol-function 'beads-git-get-branch)
+             (lambda () "main"))
+            ((symbol-function 'beads-buffer-is-main-branch-p)
+             (lambda () t))
             ((symbol-function 'beads-git-in-worktree-p)
              (lambda () nil)))
     (funcall body)))

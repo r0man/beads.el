@@ -15,7 +15,7 @@
 (require 'ert)
 (require 'json)
 (require 'beads)
-(require 'beads-buffer-name)
+(require 'beads-buffer)
 (require 'beads-delete)
 (require 'beads-test)
 
@@ -142,6 +142,10 @@ Text references to be updated:
     ;; Mock git functions for consistent buffer naming
     (cl-letf (((symbol-function 'beads-git-get-project-name)
                (lambda () "test-proj"))
+              ((symbol-function 'beads-git-get-branch)
+               (lambda () "main"))
+              ((symbol-function 'beads-buffer-is-main-branch-p)
+               (lambda () t))
               ((symbol-function 'beads-git-in-worktree-p)
                (lambda () nil)))
       ;; Create a preview buffer with correct naming
@@ -187,7 +191,7 @@ Text references to be updated:
 
 (ert-deftest beads-delete-test-detect-issue-id-from-buffer-name ()
   "Test detecting issue ID from buffer name."
-  (with-current-buffer (get-buffer-create "*beads-show: bd-123*")
+  (with-current-buffer (get-buffer-create "*beads-show[proj]/bd-123*")
     (should (equal (beads-delete--detect-issue-id) "bd-123"))
     (kill-buffer)))
 

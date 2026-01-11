@@ -13,7 +13,7 @@
 
 (require 'ert)
 (require 'beads)
-(require 'beads-buffer-name)
+(require 'beads-buffer)
 (require 'beads-label)
 (require 'beads-test)
 
@@ -23,6 +23,10 @@
   "Execute BODY with mocked git functions for consistent naming."
   (cl-letf (((symbol-function 'beads-git-get-project-name)
              (lambda () "test-proj"))
+            ((symbol-function 'beads-git-get-branch)
+             (lambda () "main"))
+            ((symbol-function 'beads-buffer-is-main-branch-p)
+             (lambda () t))
             ((symbol-function 'beads-git-in-worktree-p)
              (lambda () nil)))
     (funcall body)))
@@ -315,7 +319,7 @@
 (ert-deftest beads-label-test-detect-issue-id-from-buffer-name ()
   "Test detecting issue ID from buffer name."
   (with-temp-buffer
-    (rename-buffer "*beads-show: bd-456*")
+    (rename-buffer "*beads-show[proj]/bd-456*")
     (cl-letf (((symbol-function 'derived-mode-p)
                (lambda (_mode) nil)))
       (should (equal (beads-label--detect-issue-id) "bd-456")))))

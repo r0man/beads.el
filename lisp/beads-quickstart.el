@@ -19,7 +19,7 @@
 ;;; Code:
 
 (require 'beads)
-(require 'beads-buffer-name)
+(require 'beads-buffer)
 (require 'beads-command)
 
 (defun beads-quickstart--execute ()

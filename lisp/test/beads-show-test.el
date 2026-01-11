@@ -15,7 +15,7 @@
 
 (require 'ert)
 (require 'beads)
-(require 'beads-buffer-name)
+(require 'beads-buffer)
 (require 'beads-show)
 (require 'beads-agent-backend)
 (require 'button)
@@ -90,19 +90,19 @@ This is needed because show buffers are now named by project, not issue."
               (lambda () "main")))
      ,@body))
 
-(defconst beads-show-test--buffer-name "*beads-show: test-project/bd-42 Implement feature X*"
+(defconst beads-show-test--buffer-name "*beads-show[test-project]/bd-42 Implement feature X*"
   "Expected buffer name when using git mocks with bd-42 issue.")
 
-(defconst beads-show-test--outline-buffer-name "*beads-show: test-project/bd-200 Issue Title*"
+(defconst beads-show-test--outline-buffer-name "*beads-show[test-project]/bd-200 Issue Title*"
   "Expected buffer name when using git mocks with bd-200 outline issue.")
 
-(defconst beads-show-test--block-buffer-name "*beads-show: test-project/bd-300 Block Navigation Test*"
+(defconst beads-show-test--block-buffer-name "*beads-show[test-project]/bd-300 Block Navigation Test*"
   "Expected buffer name when using git mocks with bd-300 block navigation issue.")
 
-(defconst beads-show-test--markdown-buffer-name "*beads-show: test-project/bd-100 Markdown test*"
+(defconst beads-show-test--markdown-buffer-name "*beads-show[test-project]/bd-100 Markdown test*"
   "Expected buffer name when using git mocks with bd-100 markdown-rich issue.")
 
-(defconst beads-show-test--minimal-buffer-name "*beads-show: test-project/bd-1 Minimal issue*"
+(defconst beads-show-test--minimal-buffer-name "*beads-show[test-project]/bd-1 Minimal issue*"
   "Expected buffer name when using git mocks with bd-1 minimal issue.")
 
 (defun beads-show-test--mock-show-command (issue-data)
@@ -528,7 +528,7 @@ This is needed because show buffers are now named by project, not issue."
 
 (ert-deftest beads-show-test-show-command-handles-error ()
   "Test that beads-show handles errors gracefully."
-  (let ((error-buffer-name "*beads-show: test-project/bd-999*"))
+  (let ((error-buffer-name "*beads-show[test-project]/bd-999*"))
     (beads-show-test-with-git-mocks
      (cl-letf (((symbol-function 'beads-command-show!)
                 (lambda (&rest args) (error "Database not found"))))
@@ -777,7 +777,7 @@ This is needed because show buffers are now named by project, not issue."
 (ert-deftest beads-show-test-multiple-buffers ()
   "Test that viewing multiple issues creates separate buffers.
 With per-issue naming, each issue in a project gets its own buffer."
-  (let ((bd1-buffer-name "*beads-show: test-project/bd-1 Minimal issue*"))
+  (let ((bd1-buffer-name "*beads-show[test-project]/bd-1 Minimal issue*"))
     (beads-show-test-with-git-mocks
      (cl-letf (((symbol-function 'beads-command-show!)
                 (lambda (&rest args)
@@ -2242,7 +2242,7 @@ Note: Notes cannot be set at creation time, only via update."
 
 (ert-deftest beads-show-test-find-buffer-for-issue-found ()
   "Test finding existing buffer by project directory and issue-id."
-  (let ((test-buffer (generate-new-buffer "*beads-show: test-project/bd-42*")))
+  (let ((test-buffer (generate-new-buffer "*beads-show[test-project]/bd-42*")))
     (unwind-protect
         (with-current-buffer test-buffer
           (beads-show-mode)
@@ -2283,7 +2283,7 @@ Note: Notes cannot be set at creation time, only via update."
 
 (ert-deftest beads-show-test-get-or-create-buffer-reuses-existing ()
   "Test get-or-create-buffer reuses buffer for same (project, issue-id)."
-  (let ((test-buffer (generate-new-buffer "*beads-show: existing-project/bd-42*")))
+  (let ((test-buffer (generate-new-buffer "*beads-show[existing-project]/bd-42*")))
     (unwind-protect
         (progn
           (with-current-buffer test-buffer
@@ -2302,7 +2302,7 @@ Note: Notes cannot be set at creation time, only via update."
 
 (ert-deftest beads-show-test-different-project-different-buffer ()
   "Test that different projects create different buffers."
-  (let ((buffer1 (generate-new-buffer "*beads-show: project1/bd-42*"))
+  (let ((buffer1 (generate-new-buffer "*beads-show[project1]/bd-42*"))
         (buffer2 nil))
     (unwind-protect
         (progn
@@ -2328,7 +2328,7 @@ Note: Notes cannot be set at creation time, only via update."
 (ert-deftest beads-show-test-same-project-different-branch-same-buffer ()
   "Test that same project but different branch uses same buffer.
 This is the CRITICAL behavioral test for directory-as-identity."
-  (let ((test-buffer (generate-new-buffer "*beads-show: project/bd-42*")))
+  (let ((test-buffer (generate-new-buffer "*beads-show[project]/bd-42*")))
     (unwind-protect
         (progn
           (with-current-buffer test-buffer
@@ -2370,7 +2370,7 @@ This is the CRITICAL behavioral test for directory-as-identity."
 
 (ert-deftest beads-show-test-different-issue-different-buffer ()
   "Test that different issues in same project get different buffers."
-  (let ((buffer1 (generate-new-buffer "*beads-show: project/bd-42*"))
+  (let ((buffer1 (generate-new-buffer "*beads-show[project]/bd-42*"))
         (buffer2 nil))
     (unwind-protect
         (progn

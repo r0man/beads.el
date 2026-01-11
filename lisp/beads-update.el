@@ -69,10 +69,9 @@ Returns issue ID string or nil if not found."
    ;; From beads-show buffer
    (when (derived-mode-p 'beads-show-mode)
      beads-show--issue-id)
-   ;; From buffer name (*beads-show: bd-N*)
-   (when (string-match "\\*beads-show: \\(bd-[0-9]+\\)\\*"
-                      (buffer-name))
-     (match-string 1 (buffer-name)))))
+   ;; From buffer name (*beads-show[PROJECT]/ISSUE-ID*)
+   (when-let ((parsed (beads-buffer-parse-show (buffer-name))))
+     (plist-get parsed :issue-id))))
 
 (defun beads-update--fetch-issue (issue-id)
   "Fetch issue data for ISSUE-ID from bd.
