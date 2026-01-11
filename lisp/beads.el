@@ -401,16 +401,19 @@ Returns a list of beads-issue EIEIO instances."
 ;;; Info/Debug Command
 
 ;;;###autoload
-(defun beads-info ()
-  "Display information about beads configuration in current context.
+(defun beads-emacs-info ()
+  "Display Emacs-specific beads configuration information.
 Shows worktree status, database path, and --no-daemon settings.
-Useful for debugging configuration issues."
+Useful for debugging Emacs configuration issues.
+
+Note: Use `beads-info' (M-x beads-info) for bd CLI info command
+which shows daemon status and database statistics."
   (interactive)
   (let* ((in-worktree (beads-git-in-worktree-p))
          (main-repo (when in-worktree (beads-git-find-main-repo)))
          (beads-dir (beads--find-beads-dir))
          (db-path (beads--get-database-path)))
-    (message "Beads Info:
+    (message "Beads Emacs Info:
   In worktree: %s
   Main repo: %s
   .beads dir: %s
