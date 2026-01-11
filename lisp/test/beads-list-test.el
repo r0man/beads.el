@@ -500,6 +500,8 @@ ISSUES should be a list of alists (test data format)."
                 #'beads-list-update))
     (should (eq (lookup-key beads-list-mode-map (kbd "w"))
                 #'beads-list-copy-id))
+    (should (eq (lookup-key beads-list-mode-map (kbd "C-w"))
+                #'beads-list-copy-id))
     (should (eq (lookup-key beads-list-mode-map (kbd "S"))
                 #'beads-list-sort))
     (should (eq (lookup-key beads-list-mode-map (kbd "l"))
@@ -891,6 +893,14 @@ ISSUES should be a list of alists (test data format)."
   (with-temp-buffer
     (beads-list-mode)
     (let ((binding (lookup-key beads-list-mode-map (kbd "w"))))
+      (should (eq binding 'beads-list-copy-id)))))
+
+(ert-deftest beads-list-test-keybinding-C-w-copy ()
+  "Integration test: Verify C-w keybinding for copy-id."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((binding (lookup-key beads-list-mode-map (kbd "C-w"))))
       (should (eq binding 'beads-list-copy-id)))))
 
 (ert-deftest beads-list-test-keybinding-S-sort ()

@@ -651,7 +651,11 @@ This is needed because show buffers are now named by project, not issue."
    (should (eq (lookup-key beads-show-mode-map (kbd "p"))
               #'beads-show-previous-section))
    (should (eq (lookup-key beads-show-mode-map (kbd "RET"))
-              #'beads-show-follow-reference))))
+              #'beads-show-follow-reference))
+   (should (eq (lookup-key beads-show-mode-map (kbd "w"))
+              #'beads-show-copy-id))
+   (should (eq (lookup-key beads-show-mode-map (kbd "C-w"))
+              #'beads-show-copy-id))))
 
 (ert-deftest beads-show-test-markdown-mode-aliases ()
   "Test that markdown-mode-style aliases are set up correctly."
@@ -1758,6 +1762,22 @@ With per-issue naming, each issue in a project gets its own buffer."
           (next-binding (lookup-key beads-show-mode-map (kbd "]"))))
       (should (eq prev-binding 'beads-show-previous-reference))
       (should (eq next-binding 'beads-show-next-reference)))))
+
+(ert-deftest beads-show-test-keybinding-w-copy-id ()
+  "Integration test: Verify w keybinding for copy-id."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-show-mode)
+    (let ((binding (lookup-key beads-show-mode-map (kbd "w"))))
+      (should (eq binding 'beads-show-copy-id)))))
+
+(ert-deftest beads-show-test-keybinding-C-w-copy-id ()
+  "Integration test: Verify C-w keybinding for copy-id."
+  :tags '(integration)
+  (with-temp-buffer
+    (beads-show-mode)
+    (let ((binding (lookup-key beads-show-mode-map (kbd "C-w"))))
+      (should (eq binding 'beads-show-copy-id)))))
 
 (ert-deftest beads-show-test-show-command-exists ()
   "Integration test: Verify beads-show command exists."
@@ -3100,6 +3120,25 @@ Empty sessions are automatically cleaned up."
 (ert-deftest beads-show-test-find-visible-buffer-function-exists ()
   "Test that beads-show--find-visible-buffer function exists."
   (should (fboundp 'beads-show--find-visible-buffer)))
+
+;;; Copy ID Tests
+
+(ert-deftest beads-show-test-copy-id-success ()
+  "Test copying issue ID to kill ring."
+  (beads-show-test-with-temp-buffer
+   (setq beads-show--issue-id "bd-42")
+   (beads-show-copy-id)
+   (should (equal (car kill-ring) "bd-42"))))
+
+(ert-deftest beads-show-test-copy-id-no-issue ()
+  "Test copy-id errors when no issue ID in buffer."
+  (beads-show-test-with-temp-buffer
+   (setq beads-show--issue-id nil)
+   (should-error (beads-show-copy-id) :type 'user-error)))
+
+(ert-deftest beads-show-test-copy-id-function-exists ()
+  "Test that beads-show-copy-id function exists."
+  (should (fboundp 'beads-show-copy-id)))
 
 (provide 'beads-show-test)
 ;;; beads-show-test.el ends here
