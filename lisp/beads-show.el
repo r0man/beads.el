@@ -892,51 +892,56 @@ Returns string like: ◐ ID · Title   [● P0 · IN_PROGRESS]"
   "Insert a dependency/dependent line with ARROW prefix.
 DEP-ID is the issue ID, TITLE is the issue title, STATUS and PRIORITY
 are used for display.  ARROW is either \"→\" for dependencies or \"↳\" for
-children."
-  (insert "  ")
-  (insert (propertize arrow 'face 'beads-show-dependency-arrow-face))
-  (insert " ")
-  ;; Status icon
-  (let ((icon (beads-show--status-icon status))
-        (icon-face (pcase status
-                     ("open" 'beads-show-status-open-face)
-                     ("in_progress" 'beads-show-status-in-progress-face)
-                     ("blocked" 'beads-show-status-blocked-face)
-                     ("closed" 'beads-show-status-closed-face)
-                     (_ 'default))))
-    (insert (propertize icon 'face icon-face)))
-  (insert " ")
-  ;; Issue ID as button
-  (let ((id-start (point)))
-    (insert dep-id)
-    (make-button id-start (point)
-                 'issue-id dep-id
-                 'action #'beads-show--button-action
-                 'follow-link t
-                 'help-echo (format "Show %s" dep-id)
-                 'face 'link))
-  ;; Title
-  (when title
-    (insert ": ")
-    (insert (if beads-show-dependency-title-max-length
-                (beads-show--truncate-title title beads-show-dependency-title-max-length)
-              title)))
-  ;; Priority badge with appropriate face
-  (when priority
+children.
+
+If DEP-ID is nil or empty, the line is not inserted."
+  ;; Validate inputs - skip if no valid dep-id
+  (when (and dep-id (not (string-empty-p dep-id)))
+    (insert "  ")
+    (insert (propertize arrow 'face 'beads-show-dependency-arrow-face))
     (insert " ")
-    (let ((priority-face (pcase priority
-                           (0 'beads-show-priority-critical-face)
-                           (1 'beads-show-priority-high-face)
-                           (2 'beads-show-priority-medium-face)
-                           (_ 'beads-show-priority-low-face))))
-      (insert (propertize (format "● P%d" priority) 'face priority-face))))
-  (insert "\n"))
+    ;; Status icon
+    (let ((icon (beads-show--status-icon (or status "unknown")))
+          (icon-face (pcase status
+                       ("open" 'beads-show-status-open-face)
+                       ("in_progress" 'beads-show-status-in-progress-face)
+                       ("blocked" 'beads-show-status-blocked-face)
+                       ("closed" 'beads-show-status-closed-face)
+                       (_ 'default))))
+      (insert (propertize icon 'face icon-face)))
+    (insert " ")
+    ;; Issue ID as button
+    (let ((id-start (point)))
+      (insert dep-id)
+      (make-button id-start (point)
+                   'issue-id dep-id
+                   'action #'beads-show--button-action
+                   'follow-link t
+                   'help-echo (format "Show %s" dep-id)
+                   'face 'link))
+    ;; Title
+    (when (and title (not (string-empty-p title)))
+      (insert ": ")
+      (insert (if beads-show-dependency-title-max-length
+                  (beads-show--truncate-title
+                   title beads-show-dependency-title-max-length)
+                title)))
+    ;; Priority badge with appropriate face
+    (when priority
+      (insert " ")
+      (let ((priority-face (pcase priority
+                             (0 'beads-show-priority-critical-face)
+                             (1 'beads-show-priority-high-face)
+                             (2 'beads-show-priority-medium-face)
+                             (_ 'beads-show-priority-low-face))))
+        (insert (propertize (format "● P%d" priority) 'face priority-face))))
+    (insert "\n")))
 
 (defun beads-show--insert-dependencies-section (dependencies)
   "Insert DEPENDS ON section for blocking DEPENDENCIES.
-Note: Currently fetches each dependency's details synchronously.
-For issues with many dependencies, this may be slow.  A future
-optimization could batch-fetch or use async fetching."
+Uses dependency info from bd show --json output directly,
+avoiding N+1 queries.  The dependency objects from bd show include
+full issue details (title, status, priority)."
   (when dependencies
     ;; Filter for blocking dependencies (blocks and parent-child types)
     (let ((blocking-deps (seq-filter
@@ -950,18 +955,12 @@ optimization could batch-fetch or use async fetching."
         (insert (propertize "DEPENDS ON" 'face 'beads-show-header-face))
         (insert "\n\n")
         (dolist (dep blocking-deps)
-          (let* ((dep-id (oref dep depends-on-id))
-                 ;; Try to fetch the dependency's title, status, and priority
-                 ;; Log errors but continue gracefully to show the link anyway
-                 (dep-info (condition-case err
-                               (beads-command-show! :issue-ids (list dep-id))
-                             (error
-                              (message "beads-show: Failed to fetch %s: %s"
-                                       dep-id (error-message-string err))
-                              nil)))
-                 (title (when dep-info (oref dep-info title)))
-                 (status (when dep-info (oref dep-info status)))
-                 (priority (when dep-info (oref dep-info priority))))
+          ;; Use dependency info directly from bd show --json
+          ;; which includes full issue details via IssueWithDependencyMetadata
+          (let ((dep-id (oref dep depends-on-id))
+                (title (oref dep title))
+                (status (oref dep status))
+                (priority (oref dep priority)))
             (beads-show--insert-dependency-line
              dep-id title (or status "unknown") priority "→")))))))
 
@@ -993,8 +992,10 @@ ISSUE must be a `beads-issue' EIEIO object."
     ;; ◐ beads.el-q35o · Title   [● P0 · IN_PROGRESS]
     (insert (beads-show--format-title-line id title status priority))
     (insert "\n")
-    (insert (propertize (make-string (min 80 (length (or title "Untitled"))) ?═)
-                       'face 'beads-show-header-face))
+    ;; Use fixed 80-column separator for visual consistency
+    ;; (title line has variable-width font scaling so matching its length
+    ;; doesn't work well)
+    (insert (propertize (make-string 80 ?═) 'face 'beads-show-header-face))
     (insert "\n\n")
 
     ;; Metadata - more compact like bd show

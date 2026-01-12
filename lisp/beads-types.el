@@ -355,8 +355,31 @@
     :initarg :created-by
     :type (or null string)
     :initform nil
-    :documentation "User who created the dependency."))
-  "Represents a dependency relationship between issues.")
+    :documentation "User who created the dependency.")
+   ;; Additional fields from IssueWithDependencyMetadata (bd show --json)
+   ;; These are populated when the dependency comes from bd show output
+   (title
+    :initarg :title
+    :type (or null string)
+    :initform nil
+    :documentation "Title of the depended-upon issue (from bd show).")
+   (status
+    :initarg :status
+    :type (or null string)
+    :initform nil
+    :documentation "Status of the depended-upon issue (from bd show).")
+   (priority
+    :initarg :priority
+    :type (or null integer)
+    :initform nil
+    :documentation "Priority of the depended-upon issue (from bd show).")
+   (issue-type
+    :initarg :issue-type
+    :type (or null string)
+    :initform nil
+    :documentation "Type of the depended-upon issue (from bd show)."))
+  "Represents a dependency relationship between issues.
+When populated from bd show --json, includes full issue details.")
 
 (defclass beads-label ()
   ((issue-id
@@ -781,13 +804,29 @@ JSON should be the parsed JSON object from bd --json output."
                (mapcar #'beads-comment-from-json (append comments nil)))))
 
 (defun beads-dependency-from-json (json)
-  "Create a beads-dependency object from JSON alist."
-  (beads-dependency
-   :issue-id (alist-get 'issue_id json)
-   :depends-on-id (alist-get 'depends_on_id json)
-   :type (alist-get 'type json)
-   :created-at (alist-get 'created_at json)
-   :created-by (alist-get 'created_by json)))
+  "Create a beads-dependency object from JSON alist.
+JSON can be either:
+- Simple dependency format (from bd dep): issue_id, depends_on_id, type
+- IssueWithDependencyMetadata format (from bd show --json):
+  Full issue fields + dependency_type"
+  ;; bd show --json returns IssueWithDependencyMetadata which has:
+  ;; - All Issue fields (id, title, status, priority, etc.)
+  ;; - dependency_type field
+  ;; The 'id' is the depends_on_id (the issue being depended on)
+  (let ((dep-type (or (alist-get 'dependency_type json)
+                      (alist-get 'type json))))
+    (beads-dependency
+     :issue-id (alist-get 'issue_id json)
+     :depends-on-id (or (alist-get 'depends_on_id json)
+                        (alist-get 'id json))  ; bd show uses 'id'
+     :type dep-type
+     :created-at (alist-get 'created_at json)
+     :created-by (alist-get 'created_by json)
+     ;; Additional fields from IssueWithDependencyMetadata
+     :title (alist-get 'title json)
+     :status (alist-get 'status json)
+     :priority (alist-get 'priority json)
+     :issue-type (alist-get 'issue_type json))))
 
 (defun beads-label-from-json (json)
   "Create a beads-label object from JSON alist."
