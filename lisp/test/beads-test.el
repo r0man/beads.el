@@ -2054,7 +2054,7 @@ The log format is compatible with `log-view-mode':
 ;;; ========================================
 
 (ert-deftest beads-test-info-not-in-worktree ()
-  "Test beads-info output when not in worktree."
+  "Test beads-emacs-info output when not in worktree."
   (cl-letf (((symbol-function 'beads-git-in-worktree-p)
              (lambda () nil))
             ((symbol-function 'beads-git-find-main-repo)
@@ -2067,14 +2067,14 @@ The log format is compatible with `log-view-mode':
           (output nil))
       (cl-letf (((symbol-function 'message)
                  (lambda (fmt &rest args) (setq output (apply #'format fmt args)))))
-        (beads-info)
+        (beads-emacs-info)
         (should output)
         (should (string-match-p "In worktree: no" output))
         (should (string-match-p "Main repo: N/A" output))
         (should (string-match-p "/path/to/.beads" output))))))
 
 (ert-deftest beads-test-info-in-worktree ()
-  "Test beads-info output when in worktree."
+  "Test beads-emacs-info output when in worktree."
   (cl-letf (((symbol-function 'beads-git-in-worktree-p)
              (lambda () t))
             ((symbol-function 'beads-git-find-main-repo)
@@ -2087,13 +2087,13 @@ The log format is compatible with `log-view-mode':
           (output nil))
       (cl-letf (((symbol-function 'message)
                  (lambda (fmt &rest args) (setq output (apply #'format fmt args)))))
-        (beads-info)
+        (beads-emacs-info)
         (should output)
         (should (string-match-p "In worktree: yes" output))
         (should (string-match-p "/main/repo/" output))))))
 
 (ert-deftest beads-test-info-no-daemon-enabled ()
-  "Test beads-info shows --no-daemon when enabled."
+  "Test beads-emacs-info shows --no-daemon when enabled."
   (cl-letf (((symbol-function 'beads-git-in-worktree-p)
              (lambda () nil))
             ((symbol-function 'beads-git-find-main-repo)
@@ -2106,13 +2106,13 @@ The log format is compatible with `log-view-mode':
           (output nil))
       (cl-letf (((symbol-function 'message)
                  (lambda (fmt &rest args) (setq output (apply #'format fmt args)))))
-        (beads-info)
+        (beads-emacs-info)
         (should output)
         (should (string-match-p "--no-daemon: enabled" output))
         (should (string-match-p "(via transient)" output))))))
 
 (ert-deftest beads-test-info-not-found ()
-  "Test beads-info when beads not found."
+  "Test beads-emacs-info when beads not found."
   (cl-letf (((symbol-function 'beads-git-in-worktree-p)
              (lambda () nil))
             ((symbol-function 'beads-git-find-main-repo)
@@ -2125,7 +2125,7 @@ The log format is compatible with `log-view-mode':
           (output nil))
       (cl-letf (((symbol-function 'message)
                  (lambda (fmt &rest args) (setq output (apply #'format fmt args)))))
-        (beads-info)
+        (beads-emacs-info)
         (should output)
         (should (string-match-p ".beads dir: NOT FOUND" output))
         (should (string-match-p "Database: NOT FOUND" output))))))
@@ -2380,8 +2380,8 @@ The log format is compatible with `log-view-mode':
 ;;; ========================================
 
 (ert-deftest beads-test-info-command-defined ()
-  "Test that beads-info command is defined."
-  (should (fboundp 'beads-info)))
+  "Test that beads-emacs-info command is defined."
+  (should (fboundp 'beads-emacs-info)))
 
 
 (provide 'beads-test)
