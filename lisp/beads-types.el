@@ -1265,6 +1265,7 @@ JSON should be parsed from bd formula list --json output."
     :documentation "Formula type (workflow, expansion, aspect).")
    (vars
     :initarg :vars
+    :type list
     :initform nil
     :documentation "Variables as an alist mapping name to var definition.")
    (steps
