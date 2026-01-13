@@ -159,9 +159,8 @@ Returns cons cell (BACKEND-SESSION . BUFFER)."
           (setq eca-session (beads-agent-eca--wait-for-session 5.0))
           (unless eca-session
             (error "Timeout waiting for ECA session"))
-          ;; Send initial prompt
-          (eca-chat-send-prompt prompt)
-          ;; Find or open the chat buffer
+          ;; Wait for chat buffer BEFORE sending prompt
+          ;; ECA's initialization is async - the chat buffer may not exist yet
           (setq buffer (or (beads-agent-eca--find-chat-buffer eca-session)
                           ;; If not found, try opening it
                           (when (fboundp 'eca-chat-open)
@@ -169,9 +168,11 @@ Returns cons cell (BACKEND-SESSION . BUFFER)."
                             (beads-agent--wait-for-buffer
                              (lambda ()
                                (beads-agent-eca--find-chat-buffer eca-session))
-                             2.0))))
+                             5.0))))
           (unless buffer
-            (error "Could not find ECA chat buffer")))
+            (error "Could not find ECA chat buffer"))
+          ;; Now send initial prompt - buffer exists
+          (eca-chat-send-prompt prompt))
       (error
        (error "Failed to start ECA: %s" (error-message-string err))))
     ;; Return (eca-session . buffer)
