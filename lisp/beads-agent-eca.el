@@ -26,7 +26,7 @@
 ;; Usage:
 ;;   The backend is automatically registered when this file is loaded.
 ;;   Ensure eca-emacs is installed from:
-;;   https://github.com/your-repo/eca-emacs (or relevant location)
+;;   https://github.com/editor-code-assistant/eca-emacs
 
 ;;; Code:
 
@@ -40,6 +40,7 @@
 (declare-function eca-stop "eca")
 (declare-function eca-restart "eca")
 (declare-function eca-session "eca")
+(declare-function eca--session-id "eca")
 (declare-function eca-create-session "eca")
 
 ;; From eca-process.el
@@ -65,10 +66,10 @@ Returns the buffer if found, nil otherwise."
   ;; ECA chat buffers follow a naming convention that includes the session ID
   ;; We search for buffers that match the ECA chat pattern for this session
   (when eca-session
-    (let* ((session-id (and (fboundp 'eca-session-id)
-                            (eca-session-id eca-session)))
-           ;; ECA chat buffer names include the session context
-           (chat-prefix (format "*eca-chat%s"
+    (let* ((session-id (and (fboundp 'eca--session-id)
+                            (eca--session-id eca-session)))
+           ;; ECA chat buffer names use angle brackets: <eca-chat:N:M>
+           (chat-prefix (format "<eca-chat%s"
                                (if session-id
                                    (format ":%s" session-id)
                                  ""))))
@@ -219,12 +220,15 @@ Returns non-nil if the ECA server process is running for this session."
       (user-error "No buffer found for session %s" (oref session id)))))
 
 (cl-defmethod beads-agent-backend-send-prompt
-    ((_backend beads-agent-backend-eca) _session prompt)
+    ((_backend beads-agent-backend-eca) session prompt)
   "Send PROMPT to active ECA session.
-Uses ECA's chat module to deliver the prompt."
+Uses ECA's chat module to deliver the prompt.
+Sets `default-directory' from SESSION for workspace-based session lookup."
   (unless (and (featurep 'eca-chat) (fboundp 'eca-chat-send-prompt))
     (require 'eca-chat))
-  (eca-chat-send-prompt prompt))
+  ;; ECA uses workspace-based session lookup via default-directory
+  (let ((default-directory (beads-agent-session-working-dir session)))
+    (eca-chat-send-prompt prompt)))
 
 ;;; Registration
 
