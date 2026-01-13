@@ -27,11 +27,18 @@
 ;;   The backend is automatically registered when this file is loaded.
 ;;   Ensure eca-emacs is installed from:
 ;;   https://github.com/editor-code-assistant/eca-emacs
+;;
+;;   Example workflow:
+;;     1. M-x beads-agent-start
+;;     2. Select 'eca' backend from the prompt
+;;     3. Work with the AI assistant in the ECA chat buffer
+;;     4. Use M-x beads-agent-stop to end the session
 
 ;;; Code:
 
 (require 'beads-agent-backend)
 (require 'seq)
+(require 'cl-lib)  ; For cl-defmethod, cl-letf, cl-some
 
 ;;; External Function Declarations
 
@@ -57,6 +64,21 @@
 ;; From eca-install.el (optional - server installation)
 (declare-function eca-install-server "eca-install")
 
+;;; Configuration
+
+(defcustom beads-agent-eca-buffer-pattern "<eca-chat"
+  "Pattern to match ECA chat buffer names.
+ECA chat buffers typically use angle brackets with session info:
+  <eca-chat:N:M> where N is session ID and M is buffer number."
+  :type 'string
+  :group 'beads-agent)
+
+(defconst beads-agent-eca-poll-interval 0.1
+  "Interval in seconds to poll for ECA session availability.")
+
+(defconst beads-agent-eca-default-timeout 5.0
+  "Default timeout in seconds for waiting on ECA operations.")
+
 ;;; Helper Functions
 
 (defun beads-agent-eca--find-chat-buffer (eca-session)
@@ -68,8 +90,9 @@ Returns the buffer if found, nil otherwise."
   (when eca-session
     (let* ((session-id (and (fboundp 'eca--session-id)
                             (eca--session-id eca-session)))
-           ;; ECA chat buffer names use angle brackets: <eca-chat:N:M>
-           (chat-prefix (format "<eca-chat%s"
+           ;; Use customizable pattern
+           (chat-prefix (format "%s%s"
+                               beads-agent-eca-buffer-pattern
                                (if session-id
                                    (format ":%s" session-id)
                                  ""))))
@@ -90,14 +113,22 @@ Returns the ECA session object if found, nil otherwise."
   "Wait for ECA session to be ready.
 TIMEOUT is the maximum time to wait in seconds (default 5).
 Returns the session if ready, nil if timed out."
-  (let* ((timeout-secs (or timeout 5.0))
+  (let* ((timeout-secs (or timeout beads-agent-eca-default-timeout))
          (deadline (+ (float-time) timeout-secs))
          (session nil))
     (while (and (null session) (< (float-time) deadline))
       (setq session (and (fboundp 'eca-session) (eca-session)))
       (unless session
-        (sit-for 0.1)))
+        ;; Use accept-process-output for better responsiveness
+        (accept-process-output nil beads-agent-eca-poll-interval)))
     session))
+
+(defun beads-agent-eca--has-feature-p (feature func)
+  "Check if FEATURE is loaded and FUNC is available.
+Returns non-nil if both conditions are met."
+  (and (or (featurep feature)
+           (require feature nil t))
+       (fboundp func)))
 
 ;;; Backend Class
 
@@ -114,20 +145,13 @@ Uses eca-emacs for AI-assisted development with multi-session support.")
     ((_backend beads-agent-backend-eca))
   "Check if ECA is available.
 Verifies the eca-emacs package is loaded and key functions exist."
-  (and ;; Check eca package can be loaded
-       (or (featurep 'eca)
-           (require 'eca nil t))
-       ;; Verify core functions exist
-       (fboundp 'eca)
+  (and ;; Check core ECA functions
+       (beads-agent-eca--has-feature-p 'eca 'eca)
        (fboundp 'eca-stop)
        ;; Chat functions for interaction
-       (or (featurep 'eca-chat)
-           (require 'eca-chat nil t))
-       (fboundp 'eca-chat-send-prompt)
+       (beads-agent-eca--has-feature-p 'eca-chat 'eca-chat-send-prompt)
        ;; Process functions for status checks
-       (or (featurep 'eca-process)
-           (require 'eca-process nil t))
-       (fboundp 'eca-process-running-p)
+       (beads-agent-eca--has-feature-p 'eca-process 'eca-process-running-p)
        ;; ECA server should be available (either in PATH or auto-downloadable)
        (or (executable-find "eca")
            (fboundp 'eca-install-server))))
@@ -192,19 +216,20 @@ We kill the buffer directly and terminate the process explicitly."
       (kill-buffer buffer)))
   ;; Also try to clean up via ECA's native stop if the backend-session is valid
   (when-let ((eca-session (oref session backend-session)))
-    (ignore-errors
-      (when (and (featurep 'eca) (fboundp 'eca-stop))
-        ;; This may fail if the session is already gone, which is fine
-        (eca-stop)))))
+    (condition-case err
+        (when (and (featurep 'eca) (fboundp 'eca-stop))
+          ;; This may fail if the session is already gone, which is fine
+          (eca-stop))
+      (error
+       (message "beads-agent-eca: Failed to stop ECA cleanly: %s"
+                (error-message-string err))))))
 
 (cl-defmethod beads-agent-backend-session-active-p
     ((_backend beads-agent-backend-eca) session)
   "Check if ECA SESSION is active.
 Returns non-nil if the ECA server process is running for this session."
   (when-let ((eca-session (oref session backend-session)))
-    (and (or (featurep 'eca-process)
-             (require 'eca-process nil t))
-         (fboundp 'eca-process-running-p)
+    (and (beads-agent-eca--has-feature-p 'eca-process 'eca-process-running-p)
          (eca-process-running-p eca-session))))
 
 (cl-defmethod beads-agent-backend-switch-to-buffer
@@ -216,7 +241,7 @@ Returns non-nil if the ECA server process is running for this session."
         (user-error "Agent buffer has been killed"))
     ;; Fallback: try to open via ECA's native function
     (if-let ((eca-session (oref session backend-session)))
-        (when (and (featurep 'eca-chat) (fboundp 'eca-chat-open))
+        (when (beads-agent-eca--has-feature-p 'eca-chat 'eca-chat-open)
           (eca-chat-open eca-session))
       (user-error "No buffer found for session %s" (oref session id)))))
 
@@ -225,8 +250,8 @@ Returns non-nil if the ECA server process is running for this session."
   "Send PROMPT to active ECA session.
 Uses ECA's chat module to deliver the prompt.
 Sets `default-directory' from SESSION for workspace-based session lookup."
-  (unless (and (featurep 'eca-chat) (fboundp 'eca-chat-send-prompt))
-    (require 'eca-chat))
+  (unless (beads-agent-eca--has-feature-p 'eca-chat 'eca-chat-send-prompt)
+    (error "ECA chat module not available"))
   ;; ECA uses workspace-based session lookup via default-directory
   (let ((default-directory (beads-agent-session-working-dir session)))
     (eca-chat-send-prompt prompt)))

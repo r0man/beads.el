@@ -471,5 +471,101 @@ ECA uses angle brackets for buffer names: <eca-chat:N:M>."
     (let ((session (beads-agent-eca--wait-for-session 0.2)))
       (should-not session))))
 
+;;; Integration Tests
+
+(ert-deftest beads-agent-eca-test-full-workflow ()
+  "Test complete workflow: start → send-prompt → stop.
+This integration test ensures state management works correctly
+across the full lifecycle."
+  (let* ((backend (beads-agent-backend-eca))
+         (mock-eca-session (list :id "integration-test"))
+         (mock-buffer (generate-new-buffer "*test-eca-integration*"))
+         (prompts-sent nil)
+         (eca-stopped nil))
+    (unwind-protect
+        (cl-letf (((symbol-function 'featurep)
+                   (lambda (f) (memq f '(eca eca-chat eca-process))))
+                  ((symbol-function 'require)
+                   (lambda (&rest _) t))
+                  ((symbol-function 'eca)
+                   (lambda () t))
+                  ((symbol-function 'eca-session)
+                   (lambda () mock-eca-session))
+                  ((symbol-function 'eca-stop)
+                   (lambda () (setq eca-stopped t)))
+                  ((symbol-function 'eca-chat-send-prompt)
+                   (lambda (prompt) (push prompt prompts-sent)))
+                  ((symbol-function 'eca-process-running-p)
+                   (lambda (_) (not eca-stopped)))
+                  ((symbol-function 'beads-agent-eca--find-chat-buffer)
+                   (lambda (_) mock-buffer))
+                  ((symbol-function 'beads-agent-eca--wait-for-session)
+                   (lambda (&optional _) mock-eca-session))
+                  ;; Mock the helper function
+                  ((symbol-function 'beads-agent-eca--has-feature-p)
+                   (lambda (feature _func)
+                     (memq feature '(eca eca-chat eca-process))))
+                  ((symbol-function 'fboundp)
+                   (lambda (f)
+                     (memq f '(eca-session eca-stop
+                                           eca-process-running-p)))))
+          ;; Step 1: Start session
+          (let* ((result (beads-agent-backend-start
+                         backend nil "Initial prompt"))
+                 (session (beads-agent-session
+                          :id "test#integration"
+                          :issue-id "test"
+                          :backend-name "eca"
+                          :project-dir "/tmp/test"
+                          :started-at "2025-01-01T00:00:00Z"
+                          :buffer (cdr result)
+                          :backend-session (car result))))
+            ;; Verify start worked
+            (should (equal (car prompts-sent) "Initial prompt"))
+            (should (beads-agent-backend-session-active-p backend session))
+
+            ;; Step 2: Send additional prompt
+            (beads-agent-backend-send-prompt backend session "Follow-up")
+            (should (equal (car prompts-sent) "Follow-up"))
+
+            ;; Step 3: Stop session
+            (beads-agent-backend-stop backend session)
+            (should eca-stopped)
+            (should-not (beads-agent-backend-session-active-p
+                        backend session))))
+      (when (buffer-live-p mock-buffer)
+        (kill-buffer mock-buffer)))))
+
+(ert-deftest beads-agent-eca-test-helper-has-feature-p ()
+  "Test the helper function for feature checking."
+  ;; When both feature and function are available
+  (cl-letf (((symbol-function 'featurep)
+             (lambda (f) (eq f 'test-feature)))
+            ((symbol-function 'require)
+             (lambda (&rest _) t))
+            ((symbol-function 'fboundp)
+             (lambda (f) (eq f 'test-func))))
+    (should (beads-agent-eca--has-feature-p 'test-feature 'test-func)))
+
+  ;; When feature is missing
+  (cl-letf (((symbol-function 'featurep)
+             (lambda (_) nil))
+            ((symbol-function 'require)
+             (lambda (&rest _) nil))
+            ((symbol-function 'fboundp)
+             (lambda (f) (eq f 'test-func))))
+    (should-not (beads-agent-eca--has-feature-p
+                'test-feature 'test-func)))
+
+  ;; When function is missing
+  (cl-letf (((symbol-function 'featurep)
+             (lambda (f) (eq f 'test-feature)))
+            ((symbol-function 'require)
+             (lambda (&rest _) t))
+            ((symbol-function 'fboundp)
+             (lambda (_) nil)))
+    (should-not (beads-agent-eca--has-feature-p
+                'test-feature 'test-func))))
+
 (provide 'beads-agent-eca-test)
 ;;; beads-agent-eca-test.el ends here
