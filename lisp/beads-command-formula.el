@@ -382,6 +382,27 @@ Optional COMMAND-OBJ is stored for refresh."
 (defvar-local beads-formula-show--project-dir nil
   "Project directory for this buffer.")
 
+(defun beads-formula-show--find-visible-buffer (&optional project-dir)
+  "Find visible formula-show buffer for PROJECT-DIR.
+If PROJECT-DIR is nil, use current project.
+Return buffer if found in a visible window, nil otherwise.
+Uses `beads-formula-list--normalize-directory' for path comparison."
+  (let ((normalized-dir (beads-formula-list--normalize-directory
+                         (or project-dir
+                             (beads-git-find-project-root)
+                             default-directory))))
+    (cl-find-if
+     (lambda (buf)
+       (and (buffer-live-p buf)
+            (with-current-buffer buf
+              (and (derived-mode-p 'beads-formula-show-mode)
+                   beads-formula-show--project-dir
+                   (equal (beads-formula-list--normalize-directory
+                           beads-formula-show--project-dir)
+                          normalized-dir)
+                   (get-buffer-window buf 'visible)))))
+     (buffer-list))))
+
 (defun beads-formula-show--render-header (label value)
   "Render a LABEL: VALUE header line."
   (insert (propertize (format "%-12s" (concat label ":"))
@@ -506,17 +527,26 @@ Optional COMMAND-OBJ is stored for refresh."
     (define-key map (kbd "g") #'beads-formula-show-refresh)
     (define-key map (kbd "q") #'beads-formula-show-quit)
     (define-key map (kbd "o") #'beads-formula-show-open-source)
+    ;; Paragraph nav works as section nav (sections are paragraph-separated)
     (define-key map (kbd "n") #'forward-paragraph)
     (define-key map (kbd "p") #'backward-paragraph)
     map)
   "Keymap for `beads-formula-show-mode'.")
+
+;; Imenu expression for formula show buffers
+;; Section format: "Description", "Variables", "Steps (N)" followed by ===
+(defvar beads-formula-show-imenu-expression
+  '((nil "^\\(Description\\|Variables\\|Steps ([0-9]+)\\)$" 1))
+  "Imenu generic expression for formula show buffers.")
 
 (define-derived-mode beads-formula-show-mode special-mode "Beads-Formula"
   "Major mode for displaying Beads formula details.
 
 \\{beads-formula-show-mode-map}"
   (setq truncate-lines nil)
-  (visual-line-mode 1))
+  (visual-line-mode 1)
+  ;; Imenu integration for section navigation
+  (setq-local imenu-generic-expression beads-formula-show-imenu-expression))
 
 ;;; ============================================================
 ;;; Public Entry Points
