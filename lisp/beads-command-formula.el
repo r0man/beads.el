@@ -483,8 +483,8 @@ Optional TYPE filters by formula type (workflow, expansion, aspect)."
                    :formula-type type))
          (_ (beads-command-execute command))
          (formulas (oref command data))
-         (buf-name (beads-buffer-name-list
-                    "formulas" nil (beads-git-get-project-name)))
+         (buf-name (format "*beads-formula-list[%s]*"
+                          (beads-git-get-project-name)))
          (buffer (get-buffer-create buf-name)))
     (with-current-buffer buffer
       (unless (derived-mode-p 'beads-formula-list-mode)
