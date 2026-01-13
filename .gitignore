@@ -53,3 +53,9 @@ bde-ks79/
 # Beads sync files (local state, not shared)
 .beads/.sync.lock
 .beads/sync_base.jsonl
+.beads/issues.jsonl
+
+# Local Emacs state (transient history, etc)
+share/
+# bd worktree
+bde-koh7.3.7/

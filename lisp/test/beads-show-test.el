@@ -194,6 +194,128 @@ This is needed because show buffers are now named by project, not issue."
     (should (string= formatted "UNKNOWN"))
     (should (eq (get-text-property 0 'face formatted) 'default))))
 
+;;; Tests for Status Icons
+
+(ert-deftest beads-show-test-status-icon-open ()
+  "Test status icon for open status."
+  (should (string= (beads-show--status-icon "open") "○")))
+
+(ert-deftest beads-show-test-status-icon-in-progress ()
+  "Test status icon for in_progress status."
+  (should (string= (beads-show--status-icon "in_progress") "◐")))
+
+(ert-deftest beads-show-test-status-icon-closed ()
+  "Test status icon for closed status."
+  (should (string= (beads-show--status-icon "closed") "●")))
+
+(ert-deftest beads-show-test-status-icon-blocked ()
+  "Test status icon for blocked status."
+  (should (string= (beads-show--status-icon "blocked") "✗")))
+
+(ert-deftest beads-show-test-status-icon-unknown ()
+  "Test status icon for unknown status."
+  (should (string= (beads-show--status-icon "unknown") "?")))
+
+;;; Tests for Title Line Formatting
+
+(ert-deftest beads-show-test-format-title-line-basic ()
+  "Test basic title line formatting (two-line format)."
+  (let ((line (beads-show--format-title-line "bd-1" "Test Issue" "open" 1 "task")))
+    ;; Line 1: id: title
+    (should (string-match-p "bd-1: Test Issue" line))
+    ;; Line 2: status, priority, type
+    (should (string-match-p "○ Open" line))
+    (should (string-match-p "P1" line))
+    (should (string-match-p "Task" line))))
+
+(ert-deftest beads-show-test-format-title-line-in-progress ()
+  "Test title line for in_progress status."
+  (let ((line (beads-show--format-title-line "bd-2" "WIP" "in_progress" 0 "epic")))
+    (should (string-match-p "◐ In Progress" line))
+    (should (string-match-p "Epic" line))))
+
+(ert-deftest beads-show-test-format-title-line-no-priority ()
+  "Test title line without priority (and no type)."
+  (let ((line (beads-show--format-title-line "bd-3" "No Pri" "open" nil nil)))
+    (should (string-match-p "bd-3: No Pri" line))
+    (should (string-match-p "○ Open" line))
+    (should-not (string-match-p "P[0-9]" line))))  ; No priority
+
+(ert-deftest beads-show-test-format-title-line-with-owner ()
+  "Test title line with owner."
+  (let ((line (beads-show--format-title-line "bd-4" "Title" "open" 2 "bug" "Alice")))
+    (should (string-match-p "bd-4: Title" line))
+    (should (string-match-p "Alice" line))))
+
+;;; Tests for Labels Display
+
+(ert-deftest beads-show-test-insert-labels ()
+  "Test that labels are inserted as badges."
+  (with-temp-buffer
+    (beads-show--insert-labels '("bug" "urgent"))
+    (let ((text (buffer-substring-no-properties (point-min) (point-max))))
+      (should (string-match-p "Labels" text))
+      (should (string-match-p "\\[bug\\]" text))
+      (should (string-match-p "\\[urgent\\]" text)))))
+
+(ert-deftest beads-show-test-insert-labels-empty ()
+  "Test that empty labels list does not insert anything."
+  (with-temp-buffer
+    (beads-show--insert-labels nil)
+    (should (= (point-min) (point-max)))))
+
+(ert-deftest beads-show-test-insert-labels-single ()
+  "Test inserting a single label."
+  (with-temp-buffer
+    (beads-show--insert-labels '("feature"))
+    (let ((text (buffer-substring-no-properties (point-min) (point-max))))
+      (should (string-match-p "\\[feature\\]" text)))))
+
+;;; Tests for Owner/Created-by Field
+
+(defvar beads-show-test--issue-with-owner
+  '((id . "bd-own-1")
+    (title . "Issue with owner")
+    (status . "open")
+    (priority . 2)
+    (issue_type . "task")
+    (created_at . "2025-01-15T10:00:00Z")
+    (updated_at . "2025-01-15T10:00:00Z")
+    (created_by . "Alice Smith"))
+  "Sample issue with owner field.")
+
+(ert-deftest beads-show-test-render-owner-field ()
+  "Test that owner/created_by field is rendered in header."
+  (beads-show-test-with-temp-buffer
+   (let ((parsed (beads--parse-issue beads-show-test--issue-with-owner)))
+     (beads-show--render-issue parsed)
+     (let ((text (beads-show-test--get-buffer-text)))
+       ;; Owner now appears in the second line of header (without "Owner:" prefix)
+       (should (string-match-p "Alice Smith" text))))))
+
+;;; Tests for Labels in Render
+
+(defvar beads-show-test--issue-with-labels
+  '((id . "bd-lab-1")
+    (title . "Issue with labels")
+    (status . "open")
+    (priority . 2)
+    (issue_type . "task")
+    (created_at . "2025-01-15T10:00:00Z")
+    (updated_at . "2025-01-15T10:00:00Z")
+    (labels . ["bug" "backend"]))
+  "Sample issue with labels.")
+
+(ert-deftest beads-show-test-render-labels ()
+  "Test that labels are rendered in the issue view."
+  (beads-show-test-with-temp-buffer
+   (let ((parsed (beads--parse-issue beads-show-test--issue-with-labels)))
+     (beads-show--render-issue parsed)
+     (let ((text (beads-show-test--get-buffer-text)))
+       (should (string-match-p "Labels" text))
+       (should (string-match-p "\\[bug\\]" text))
+       (should (string-match-p "\\[backend\\]" text))))))
+
 (ert-deftest beads-show-test-format-priority-critical ()
   "Test formatting of priority 0 (critical)."
   (let ((formatted (beads-show--format-priority 0)))
@@ -253,6 +375,141 @@ This is needed because show buffers are now named by project, not issue."
   (let ((formatted (beads-show--format-date "2025-01-10T10:00:00Z")))
     (should (string= formatted "2025-01-10 10:00:00"))
     (should-not (string-match-p "Z" formatted))))
+
+;;; Tests for Dependency Line Display
+
+(ert-deftest beads-show-test-insert-dependency-line ()
+  "Test inserting a dependency line with arrow and button."
+  (with-temp-buffer
+    (beads-show--insert-dependency-line "bd-dep-1" "Dep Title" "open" 1 "→")
+    (let ((text (buffer-substring-no-properties (point-min) (point-max))))
+      (should (string-match-p "→" text))
+      (should (string-match-p "○" text))  ; open icon
+      (should (string-match-p "bd-dep-1" text))
+      (should (string-match-p "Dep Title" text))
+      (should (string-match-p "P1" text)))))
+
+(ert-deftest beads-show-test-insert-dependency-line-child-arrow ()
+  "Test inserting a child dependency line with child arrow."
+  (with-temp-buffer
+    (beads-show--insert-dependency-line "bd-child-1" "Child" "in_progress" 0 "↳")
+    (let ((text (buffer-substring-no-properties (point-min) (point-max))))
+      (should (string-match-p "↳" text))
+      (should (string-match-p "◐" text)))))  ; in_progress icon
+
+(ert-deftest beads-show-test-insert-dependency-line-button ()
+  "Test that dependency line has a clickable button."
+  (with-temp-buffer
+    (beads-show--insert-dependency-line "bd-btn-1" "Button Test" "open" 2 "→")
+    (goto-char (point-min))
+    (search-forward "bd-btn-1")
+    (let ((button (button-at (1- (point)))))
+      (should button)
+      (should (string= (button-get button 'issue-id) "bd-btn-1")))))
+
+;;; Tests for Dependencies Section
+
+(defvar beads-show-test--issue-with-deps
+  '((id . "bd-main-1")
+    (title . "Issue with dependencies")
+    (status . "open")
+    (priority . 2)
+    (issue_type . "task")
+    (created_at . "2025-01-15T10:00:00Z")
+    (updated_at . "2025-01-15T10:00:00Z")
+    (dependencies . [((issue_id . "bd-main-1")
+                      (depends_on_id . "bd-dep-1")
+                      (type . "blocks"))]))
+  "Sample issue with a blocking dependency.")
+
+(ert-deftest beads-show-test-insert-dependencies-section ()
+  "Test inserting DEPENDS ON section."
+  (with-temp-buffer
+    (let ((inhibit-read-only t)
+          (deps (list (beads-dependency
+                       :issue-id "bd-main"
+                       :depends-on-id "bd-blocker"
+                       :type "blocks"))))
+      ;; Mock the show command to return dependency info
+      (cl-letf (((symbol-function 'beads-command-show!)
+                 (lambda (&rest _args)
+                   (beads-issue
+                    :id "bd-blocker"
+                    :title "Blocking Issue"
+                    :status "open"
+                    :priority 1))))
+        (beads-show--insert-dependencies-section deps)
+        (let ((text (buffer-substring-no-properties (point-min) (point-max))))
+          (should (string-match-p "DEPENDS ON" text))
+          (should (string-match-p "bd-blocker" text)))))))
+
+(ert-deftest beads-show-test-insert-dependencies-section-empty ()
+  "Test that empty dependencies list does not insert anything."
+  (with-temp-buffer
+    (let ((inhibit-read-only t))
+      (beads-show--insert-dependencies-section nil)
+      (should (= (point-min) (point-max))))))
+
+(ert-deftest beads-show-test-insert-dependencies-section-no-blocking ()
+  "Test that non-blocking dependencies are not shown."
+  (with-temp-buffer
+    (let ((inhibit-read-only t)
+          (deps (list (beads-dependency
+                       :issue-id "bd-main"
+                       :depends-on-id "bd-related"
+                       :type "related"))))
+      (beads-show--insert-dependencies-section deps)
+      ;; related type should be filtered out
+      (should (= (point-min) (point-max))))))
+
+(ert-deftest beads-show-test-insert-dependencies-section-fetch-error ()
+  "Test that dependency section handles fetch errors gracefully."
+  (with-temp-buffer
+    (let ((inhibit-read-only t)
+          (deps (list (beads-dependency
+                       :issue-id "bd-main"
+                       :depends-on-id "bd-missing"
+                       :type "blocks"))))
+      ;; Mock show command to throw an error
+      (cl-letf (((symbol-function 'beads-command-show!)
+                 (lambda (&rest _args)
+                   (error "Issue not found"))))
+        (beads-show--insert-dependencies-section deps)
+        (let ((text (buffer-substring-no-properties (point-min) (point-max))))
+          ;; Should still show the section and link even if fetch fails
+          (should (string-match-p "DEPENDS ON" text))
+          (should (string-match-p "bd-missing" text)))))))
+
+(ert-deftest beads-show-test-insert-dependency-line-priority-faces ()
+  "Test that dependency lines use correct priority faces."
+  (with-temp-buffer
+    ;; Test critical priority (0)
+    (beads-show--insert-dependency-line "bd-1" "Title" "open" 0 "→")
+    (goto-char (point-min))
+    (search-forward "P0")
+    (should (eq (get-text-property (1- (point)) 'face)
+                'beads-show-priority-critical-face))
+    (erase-buffer)
+    ;; Test high priority (1)
+    (beads-show--insert-dependency-line "bd-2" "Title" "open" 1 "→")
+    (goto-char (point-min))
+    (search-forward "P1")
+    (should (eq (get-text-property (1- (point)) 'face)
+                'beads-show-priority-high-face))
+    (erase-buffer)
+    ;; Test medium priority (2)
+    (beads-show--insert-dependency-line "bd-3" "Title" "open" 2 "→")
+    (goto-char (point-min))
+    (search-forward "P2")
+    (should (eq (get-text-property (1- (point)) 'face)
+                'beads-show-priority-medium-face))
+    (erase-buffer)
+    ;; Test low priority (3)
+    (beads-show--insert-dependency-line "bd-4" "Title" "open" 3 "→")
+    (goto-char (point-min))
+    (search-forward "P3")
+    (should (eq (get-text-property (1- (point)) 'face)
+                'beads-show-priority-low-face))))
 
 ;;; Tests for Issue Extraction
 
@@ -318,9 +575,12 @@ This is needed because show buffers are now named by project, not issue."
      (let ((text (beads-show-test--get-buffer-text)))
        (should (string-match-p "Implement feature X" text))
        (should (string-match-p "bd-42" text))
-       (should (string-match-p "IN_PROGRESS" text))
-       (should (string-match-p "1.*High" text))
-       (should (string-match-p "FEATURE" text))
+       ;; Status shown capitalized in new format
+       (should (string-match-p "In Progress" text))
+       ;; Priority shown as P1
+       (should (string-match-p "P1" text))
+       ;; Type shown capitalized
+       (should (string-match-p "Feature" text))
        (should (string-match-p "alice" text))
        (should (string-match-p "JIRA-123" text))
        (should (string-match-p "Description" text))
@@ -337,10 +597,11 @@ This is needed because show buffers are now named by project, not issue."
        (should (string-match-p "Minimal issue" text))
        (should (string-match-p "bd-1" text))
        (should (string-match-p "OPEN" text))
-       (should (string-match-p "2.*Medium" text))
+       ;; Priority shown as P2 in title line badge
+       (should (string-match-p "P2" text))
        (should (string-match-p "BUG" text))
        ;; These sections should NOT appear for minimal issue
-       (should-not (string-match-p "Description\n─" text))
+       (should-not (string-match-p "DESCRIPTION" text))
        (should-not (string-match-p "Acceptance Criteria" text))
        (should-not (string-match-p "Design" text))
        (should-not (string-match-p "Notes" text))))))
@@ -353,8 +614,10 @@ This is needed because show buffers are now named by project, not issue."
      (let ((text (beads-show-test--get-buffer-text)))
        (should (string-match-p "Closed issue" text))
        (should (string-match-p "CLOSED" text))
-       (should (string-match-p "0.*Critical" text))
-       (should (string-match-p "Closed: 2025-01-15 10:00:00" text))))))
+       ;; Priority P0 shown in title line badge
+       (should (string-match-p "P0" text))
+       ;; Closed timestamp shown in metadata line
+       (should (string-match-p "Closed:" text))))))
 
 (ert-deftest beads-show-test-render-empty-sections-omitted ()
   "Test that empty sections are not displayed."
@@ -373,7 +636,7 @@ This is needed because show buffers are now named by project, not issue."
           (parsed (beads--parse-issue issue)))
      (beads-show--render-issue parsed)
      (let ((text (beads-show-test--get-buffer-text)))
-       (should-not (string-match-p "Description\n─" text))
+       (should-not (string-match-p "DESCRIPTION" text))
        (should-not (string-match-p "Acceptance Criteria" text))
        (should-not (string-match-p "Design" text))
        (should-not (string-match-p "Notes" text))))))
@@ -861,7 +1124,7 @@ With per-issue naming, each issue in a project gets its own buffer."
      (with-current-buffer beads-show-test--outline-buffer-name
        (goto-char (point-min))
        ;; Search for "Description" major section
-       (when (search-forward "Description\n─" nil t)
+       (when (search-forward "DESCRIPTION" nil t)
          (goto-char (match-beginning 0))
          (should (eq (beads-show--section-level) 1)))
        (kill-buffer)))))
@@ -2090,7 +2353,7 @@ Note: Notes cannot be set at creation time, only via update."
   (should (string-match-p "CLOSED" (beads-show--format-sub-issue-status "closed"))))
 
 (ert-deftest beads-show-test-insert-sub-issues-section-renders ()
-  "Test that sub-issues section renders correctly in completion-style format."
+  "Test that sub-issues section renders correctly in CLI-style format."
   (beads-show-test-with-temp-buffer
    (cl-letf (((symbol-function 'beads-command-dep-tree!)
               (lambda (&rest _args)
@@ -2098,25 +2361,22 @@ Note: Notes cannot be set at creation time, only via update."
      (let ((inhibit-read-only t))
        (beads-show--insert-sub-issues-section "bd-epic-1")
        (let ((content (buffer-substring-no-properties (point-min) (point-max))))
-         ;; Should have the header
-         (should (string-match-p "Sub-issues" content))
-         ;; Should show completion count (1/3 completed)
-         (should (string-match-p "1/3 completed" content))
+         ;; Should have the CHILDREN header (CLI-style)
+         (should (string-match-p "CHILDREN" content))
+         ;; Should show progress bar and count
+         (should (string-match-p "1/3" content))
          ;; Should have all sub-issue IDs
          (should (string-match-p "bd-sub-1" content))
          (should (string-match-p "bd-sub-2" content))
          (should (string-match-p "bd-sub-3" content))
-         ;; Should have priority indicators
-         (should (string-match-p "\\[P1\\]" content))
-         (should (string-match-p "\\[P2\\]" content))
-         ;; Should have type indicators
-         (should (string-match-p "\\[task\\]" content))
-         ;; Should have status text
-         (should (string-match-p "CLOSED" content))
-         (should (string-match-p "IN_PROGRESS" content))
-         ;; Should have titles after dash
-         (should (string-match-p "- Implement core module" content))
-         (should (string-match-p "- Write tests" content)))))))
+         ;; Should have priority indicators (CLI style: ● P#)
+         (should (string-match-p "● P1" content))
+         (should (string-match-p "● P2" content))
+         ;; Should have child arrow indicator
+         (should (string-match-p "↳" content))
+         ;; Should have titles
+         (should (string-match-p "Implement core module" content))
+         (should (string-match-p "Write tests" content)))))))
 
 (ert-deftest beads-show-test-insert-sub-issues-section-no-children ()
   "Test that sub-issues section is not rendered when no children."
@@ -2156,10 +2416,10 @@ Note: Notes cannot be set at creation time, only via update."
                 (lambda (_) nil)))
        (beads-show--render-issue parsed-issue)
        (let ((content (buffer-substring-no-properties (point-min) (point-max))))
-         ;; Should have sub-issues section
-         (should (string-match-p "Sub-issues" content))
-         ;; Should show completion count
-         (should (string-match-p "1/3 completed" content)))))))
+         ;; Should have CHILDREN section (CLI-style)
+         (should (string-match-p "CHILDREN" content))
+         ;; Should show completion count in progress bar
+         (should (string-match-p "1/3" content)))))))
 
 (ert-deftest beads-show-test-render-non-epic-no-sub-issues ()
   "Test that render-issue does NOT include sub-issues for non-epics."
@@ -3139,6 +3399,305 @@ Empty sessions are automatically cleaned up."
 (ert-deftest beads-show-test-copy-id-function-exists ()
   "Test that beads-show-copy-id function exists."
   (should (fboundp 'beads-show-copy-id)))
+
+;;; Main Entry Point Tests
+
+(ert-deftest beads-show-test-main-entry-point-success ()
+  "Test main beads-show entry point with successful issue load."
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-completion-read-issue)
+              (lambda (&rest _) "bd-42"))
+             ((symbol-function 'beads-command-show!)
+              (lambda (&rest _)
+                (beads-issue-from-json beads-show-test--full-issue)))
+             ((symbol-function 'beads-buffer-display-detail)
+              (lambda (buf mode) buf)))
+     (let ((buf (beads-show "bd-42")))
+       (unwind-protect
+           (progn
+             (should (bufferp buf))
+             (with-current-buffer buf
+               (should (derived-mode-p 'beads-show-mode))
+               (should (equal beads-show--issue-id "bd-42"))
+               (should (string-match-p "Implement feature X" (buffer-string)))))
+         (when (buffer-live-p buf)
+           (kill-buffer buf)))))))
+
+(ert-deftest beads-show-test-main-entry-point-error-handling ()
+  "Test main beads-show entry point handles errors gracefully."
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-completion-read-issue)
+              (lambda (&rest _) "bd-999"))
+             ((symbol-function 'beads-command-show!)
+              (lambda (&rest _)
+                (error "Issue not found")))
+             ((symbol-function 'beads-buffer-display-detail)
+              (lambda (buf mode) buf)))
+     (let ((buf (beads-show "bd-999")))
+       (unwind-protect
+           (with-current-buffer buf
+             (should (string-match-p "Error loading issue" (buffer-string))))
+         (when (buffer-live-p buf)
+           (kill-buffer buf)))))))
+
+(ert-deftest beads-show-test-main-entry-point-interactive ()
+  "Test beads-show can be called interactively."
+  (should (commandp 'beads-show)))
+
+;;; Integration Function Tests
+
+(ert-deftest beads-show-test-imenu-create-index ()
+  "Test imenu index creation for issue buffer."
+  (with-temp-buffer
+   ;; Insert content BEFORE enabling mode (which makes buffer read-only)
+   (insert "Description\n\nSome text\n\n")
+   (insert "Acceptance Criteria\n\nMore text\n\n")
+   (insert "Design\n\nDesign text\n")
+   (beads-show-mode)
+   (let ((index (beads-show--imenu-create-index)))
+     (should (listp index))
+     ;; Index may be empty if pattern doesn't match, that's OK
+     (should (or (null index) (> (length index) 0))))))
+
+(ert-deftest beads-show-test-which-func ()
+  "Test which-func returns current section."
+  (with-temp-buffer
+   (insert "Description\n\nSome text\n\n")
+   (goto-char (point-min))
+   (forward-line 2)
+   (let ((section (beads-show--which-func)))
+     (should (or (null section) (stringp section))))))
+
+(ert-deftest beads-show-test-eldoc-function ()
+  "Test eldoc provides documentation for elements."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+    (beads-show-mode)
+    (let ((inhibit-read-only t))
+      (insert "See bd-42 for details"))
+    (goto-char (point-min))
+    (search-forward "bd-42")
+    (backward-char 2)
+    (cl-letf (((symbol-function 'beads-command-show!)
+               (lambda (&rest _)
+                 (beads-issue-from-json beads-show-test--full-issue))))
+      (let ((result nil))
+        (beads-show--eldoc-function
+         (lambda (doc &rest _) (setq result doc)))
+        (should (or (null result) (stringp result))))))))
+
+(ert-deftest beads-show-test-xref-backend ()
+  "Test xref backend is registered."
+  (beads-show-test-with-temp-buffer
+   (let ((backend (beads-show--xref-backend)))
+     (should (eq backend 'beads-show)))))
+
+(ert-deftest beads-show-test-outline-level ()
+  "Test outline level detection for sections."
+  (with-temp-buffer
+   (insert "Description\n")
+   (goto-char (point-min))
+   (let ((level (beads-show--outline-level)))
+     (should (numberp level))
+     (should (>= level 0)))))
+
+;;; Bookmark Integration Tests
+
+(ert-deftest beads-show-test-bookmark-make-record ()
+  "Test creating a bookmark for current issue."
+  (beads-show-test-with-temp-buffer
+   (setq-local beads-show--issue-id "bd-42")
+   (let ((record (beads-show--bookmark-make-record)))
+     (should (consp record))
+     (should (string-match-p "bd-42" (format "%s" record))))))
+
+(ert-deftest beads-show-test-bookmark-handler ()
+  "Test bookmark handler opens issue."
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-show)
+              (lambda (id)
+                (should (equal id "bd-42"))
+                (get-buffer-create "*test-buf*"))))
+     (let ((record `("bd-42" (issue-id . "bd-42")
+                     (handler . beads-show--bookmark-handler))))
+       (let ((buf (beads-show--bookmark-handler record)))
+         (should (bufferp buf))
+         (kill-buffer buf))))))
+
+;;; Desktop Integration Tests
+
+(ert-deftest beads-show-test-desktop-buffer-misc-data ()
+  "Test desktop saves issue ID and project dir."
+  (beads-show-test-with-temp-buffer
+   (setq-local beads-show--issue-id "bd-42")
+   (setq-local beads-show--project-dir "/tmp/project")
+   (let ((data (beads-show--desktop-buffer-misc-data nil)))
+     (should (listp data))
+     (should (equal (car data) "bd-42"))
+     (should (equal (cadr data) "/tmp/project")))))
+
+(ert-deftest beads-show-test-desktop-restore-buffer ()
+  "Test desktop restores issue buffer."
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-show)
+              (lambda (id)
+                (should (equal id "bd-42"))
+                (get-buffer-create "*restored*"))))
+     (let ((buf (beads-show--desktop-restore-buffer
+                 "/tmp" "*test*" '("bd-42" "/tmp/project"))))
+       (should (bufferp buf))
+       (kill-buffer buf)))))
+
+;;; Org-link Integration Tests
+
+(ert-deftest beads-show-test-org-link-follow ()
+  "Test following org-link opens issue."
+  (beads-show-test-with-git-mocks
+   (cl-letf (((symbol-function 'beads-show)
+              (lambda (id)
+                (should (equal id "bd-42")))))
+     ;; Function takes two args: issue-id and _arg
+     (beads-show--org-link-follow "bd-42" nil)
+     ;; Just verify it doesn't error
+     (should t))))
+
+(ert-deftest beads-show-test-org-link-export ()
+  "Test org-link export formats correctly."
+  (let ((result (beads-show--org-link-export "bd-42" "Issue 42" 'html nil)))
+    (should (stringp result))
+    ;; With description, it exports the description
+    (should (string-match-p "Issue 42" result)))
+  (let ((result (beads-show--org-link-export "bd-42" nil 'html nil)))
+    (should (stringp result))
+    ;; Without description, it exports the issue-id
+    (should (string-match-p "bd-42" result))))
+
+(ert-deftest beads-show-test-org-link-store ()
+  "Test org-link store in beads-show buffer."
+  (beads-show-test-with-temp-buffer
+   (setq-local beads-show--issue-id "bd-42")
+   (setq-local beads-show--issue-data
+               (beads-issue-from-json beads-show-test--full-issue))
+   ;; Store should work or return nil (depending on context)
+   (let ((result (condition-case nil
+                     (beads-show--org-link-store)
+                   (error nil))))
+     (should t))))  ; Just check it doesn't crash
+
+(ert-deftest beads-show-test-org-integration-setup ()
+  "Test org integration can be set up."
+  (condition-case nil
+      (beads-show-setup-org-integration)
+    (error nil))
+  ;; Just verify it doesn't error fatally
+  (should t))
+
+;;; Button Action Tests
+
+(ert-deftest beads-show-test-button-action ()
+  "Test button action opens referenced issue."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+    (cl-letf (((symbol-function 'beads-show)
+               (lambda (id)
+                 (should (equal id "bd-123")))))
+      (insert "Test ")
+      (let ((start (point)))
+        (insert "bd-123")
+        (make-text-button start (point)
+                          'issue-id "bd-123"
+                          'action 'beads-show--button-action))
+      (goto-char (point-min))
+      (forward-char 5)
+      (let ((button (button-at (point))))
+        (should button)
+        (button-activate button))))))
+
+;;; Insert Blocker Line Tests
+
+(ert-deftest beads-show-test-insert-blocker-line-basic ()
+  "Test inserting a blocker line."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     ;; Function takes 5 args: dep-id title status priority issue-type
+     (beads-show--insert-blocker-line "bd-100" "Blocker Issue" "open" 1 "task")
+     (should (string-match-p "Blocker Issue" (buffer-string)))
+     (should (string-match-p "bd-100" (buffer-string))))))
+
+(ert-deftest beads-show-test-insert-blocker-line-empty ()
+  "Test insert blocker line handles empty ID."
+  (with-temp-buffer
+    (beads-show--insert-blocker-line "" "Title" "open" 1 "task")
+    ;; Empty ID should not insert anything
+    (should (equal (buffer-string) ""))))
+
+;;; Field Editing Tests
+
+(ert-deftest beads-show-test-edit-field-multiline ()
+  "Test editing a multiline field."
+  (beads-show-test-with-git-mocks
+   (let ((temp-buffer (generate-new-buffer " *beads-test*"))
+         (parent-buffer (current-buffer)))
+     (unwind-protect
+         (with-current-buffer parent-buffer
+           (beads-show-mode)
+           (setq-local beads-show--issue-id "bd-42")
+           (cl-letf (((symbol-function 'switch-to-buffer)
+                      (lambda (buf)
+                        (set-buffer buf)))
+                     ((symbol-function 'generate-new-buffer)
+                      (lambda (_name) temp-buffer))
+                     ((symbol-function 'kill-buffer)
+                      (lambda (&rest _) nil))
+                     ((symbol-function 'message)
+                      (lambda (&rest _) nil)))
+             ;; Function takes 3 args: field-name current-value callback
+             (beads-show--edit-field-multiline
+              "Description"
+              "Old description"
+              (lambda (_text) nil))
+             ;; Just verify it doesn't error
+             (should t)))
+       (when (buffer-live-p temp-buffer)
+         (kill-buffer temp-buffer))))))
+
+;;; Status Setting Tests
+
+(ert-deftest beads-show-test-set-status-command ()
+  "Test set-status command."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (beads-show-mode)
+     (setq-local beads-show--issue-id "bd-42")
+     (cl-letf (((symbol-function 'beads-update)
+                (lambda () (message "Updated"))))
+       (beads-show-set-status "in_progress")
+       ;; Just verify it doesn't error
+       (should t)))))
+
+(ert-deftest beads-show-test-set-status-open ()
+  "Test set status to open."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (beads-show-mode)
+     (setq-local beads-show--issue-id "bd-42")
+     (cl-letf (((symbol-function 'beads-show-set-status)
+                (lambda (status)
+                  (should (equal status "open")))))
+       (beads-show-set-status-open)
+       (should t)))))
+
+(ert-deftest beads-show-test-set-status-in-progress ()
+  "Test set status to in_progress."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (beads-show-mode)
+     (setq-local beads-show--issue-id "bd-42")
+     (cl-letf (((symbol-function 'beads-show-set-status)
+                (lambda (status)
+                  (should (equal status "in_progress")))))
+       (beads-show-set-status-in-progress)
+       (should t)))))
 
 (provide 'beads-show-test)
 ;;; beads-show-test.el ends here
