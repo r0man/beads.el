@@ -669,9 +669,11 @@ Returns a beads-command-list object with all applicable filters set."
         (oset command label (nreverse label-values)))
       (when label-any-values
         (oset command label-any (nreverse label-any-values))))
-    ;; Numeric options
-    (when-let ((limit-str (transient-arg-value "--limit=" args)))
-      (oset command limit (string-to-number limit-str)))
+    ;; Numeric options - apply default limit if not specified
+    (oset command limit
+          (if-let ((limit-str (transient-arg-value "--limit=" args)))
+              (string-to-number limit-str)
+            beads-list-default-limit))
     (when-let ((priority-str (transient-arg-value "--priority=" args)))
       (oset command priority (string-to-number priority-str)))
     (when-let ((priority-min-str (transient-arg-value

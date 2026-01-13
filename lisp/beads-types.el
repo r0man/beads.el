@@ -1196,5 +1196,101 @@ Converts ISO 8601 timestamp to human-readable format."
     (4 "P4 (highest)")
     (_ (format "P%d" priority))))
 
+;;; Formula Types (for bd formula commands)
+
+(defclass beads-formula-summary ()
+  ((name
+    :initarg :name
+    :type (or null string)
+    :initform nil
+    :documentation "Formula name (e.g., \"emacs-lisp-dev\").")
+   (formula-type
+    :initarg :formula-type
+    :type (or null string)
+    :initform nil
+    :documentation "Formula type (workflow, expansion, aspect).")
+   (description
+    :initarg :description
+    :type (or null string)
+    :initform nil
+    :documentation "Brief description (may be truncated in list view).")
+   (source
+    :initarg :source
+    :type (or null string)
+    :initform nil
+    :documentation "File path to the formula source.")
+   (steps
+    :initarg :steps
+    :type (or null integer)
+    :initform nil
+    :documentation "Number of steps in the formula.")
+   (vars
+    :initarg :vars
+    :type (or null integer)
+    :initform nil
+    :documentation "Number of variables in the formula."))
+  :documentation "Summary of a formula for list display.")
+
+(defun beads-formula-summary-from-json (json)
+  "Create a beads-formula-summary from JSON alist.
+JSON should be parsed from bd formula list --json output."
+  (beads-formula-summary
+   :name (alist-get 'name json)
+   :formula-type (alist-get 'type json)
+   :description (alist-get 'description json)
+   :source (alist-get 'source json)
+   :steps (alist-get 'steps json)
+   :vars (alist-get 'vars json)))
+
+(defclass beads-formula ()
+  ((name
+    :initarg :name
+    :type (or null string)
+    :initform nil
+    :documentation "Formula name.")
+   (description
+    :initarg :description
+    :type (or null string)
+    :initform nil
+    :documentation "Full description of the formula.")
+   (version
+    :initarg :version
+    :type (or null integer)
+    :initform nil
+    :documentation "Formula version number.")
+   (formula-type
+    :initarg :formula-type
+    :type (or null string)
+    :initform nil
+    :documentation "Formula type (workflow, expansion, aspect).")
+   (vars
+    :initarg :vars
+    :type list
+    :initform nil
+    :documentation "Variables as an alist mapping name to var definition.")
+   (steps
+    :initarg :steps
+    :type list
+    :initform nil
+    :documentation "List of step definitions as alists.")
+   (source
+    :initarg :source
+    :type (or null string)
+    :initform nil
+    :documentation "File path to the formula source."))
+  :documentation "Full formula details from bd formula show.")
+
+(defun beads-formula-from-json (json)
+  "Create a beads-formula from JSON alist.
+JSON should be parsed from bd formula show --json output."
+  (beads-formula
+   :name (alist-get 'formula json)
+   :description (alist-get 'description json)
+   :version (alist-get 'version json)
+   :formula-type (alist-get 'type json)
+   :vars (alist-get 'vars json)
+   :steps (alist-get 'steps json)
+   :source (alist-get 'source json)))
+
 (provide 'beads-types)
 ;;; beads-types.el ends here

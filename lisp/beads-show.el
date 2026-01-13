@@ -171,6 +171,14 @@ Set to nil to disable truncation."
   "Face for dependency arrows (→, ↳)."
   :group 'beads-show)
 
+;;; Constants
+
+(defconst beads-show-issue-id-regexp
+  "\\([a-zA-Z][a-zA-Z0-9._-]*-[0-9a-fA-F]+\\(?:\\.[0-9]+\\)*\\)"
+  "Regexp matching beads issue IDs.
+Matches patterns like project-hexid with optional sub-ids:
+  bd-a1b2, worker-f14c.2, beads.el-7bea.1.3")
+
 ;;; Variables
 
 (defvar-local beads-show--issue-id nil
@@ -424,7 +432,15 @@ Returns alist of (NAME . POSITION) for sections."
   (let ((index nil))
     (save-excursion
       (goto-char (point-min))
+      ;; Find issue title line (e.g., "beads.el-7bea: Title here")
+      (when (re-search-forward
+             (concat "^" beads-show-issue-id-regexp ":")
+             nil t)
+        (let ((name (match-string 1))
+              (pos (match-beginning 0)))
+          (push (cons name pos) index)))
       ;; Find main sections (DEPENDS ON, CHILDREN, BLOCKS, Notes, etc.)
+      (goto-char (point-min))
       (while (re-search-forward "^\\([A-Z][A-Za-z ]+\\)$" nil t)
         (let ((name (match-string 1))
               (pos (match-beginning 0)))
