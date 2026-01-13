@@ -40,9 +40,13 @@
 (require 'beads-dep)
 (require 'beads-init)
 (require 'beads-sync)
+(require 'beads-export)
+(require 'beads-import)
+(require 'beads-quickstart)
 (require 'beads-epic-status)
 (require 'beads-agent)
 (require 'beads-worktree)
+(require 'beads-command-info)
 (require 'transient)
 
 ;;; Variables

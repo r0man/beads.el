@@ -48,6 +48,7 @@
 ;; Forward declarations to avoid circular dependency
 ;; (beads.el requires beads-command, so we can't require beads here)
 (defvar beads-executable)
+(defvar beads-list-default-limit)
 (declare-function beads--log "beads")
 (declare-function beads--find-beads-dir "beads")
 (declare-function beads--invalidate-completion-cache "beads")
@@ -1469,7 +1470,10 @@ Comma-separated, e.g., 'bd-1,bd-5,bd-10'."
     :initarg :limit
     :type (or null integer)
     :initform nil
-    :documentation "Limit results (-n, --limit)."
+    :documentation "Limit results (-n, --limit).
+When using `beads-command-list!', defaults to `beads-list-default-limit' if not set.
+Set to 0 for no limit, or a positive integer to limit results.
+Pass `:limit nil' explicitly to disable the default."
     ;; CLI properties
     :long-option "--limit"
     :short-option "-n"
@@ -1593,6 +1597,24 @@ Does not modify command slots."
                          :parsed-json parsed-json
                          :stderr (oref command stderr)
                          :parse-error err))))))))
+
+;; Override auto-generated beads-command-list! to apply default limit.
+;; Note: Using initialize-instance doesn't work well because:
+;; 1. EIEIO validates :initform types at class definition time (symbol fails)
+;; 2. :around/:after methods have complex slot argument handling
+;; The function override is the cleanest solution that reliably works.
+(defun beads-command-list! (&rest args)
+  "Execute `beads-command-list' and return result data.
+
+ARGS are passed to the constructor.  When :limit is not specified,
+uses `beads-list-default-limit' as the default value.  Pass `:limit nil'
+explicitly to disable the limit.
+
+This function overrides the auto-generated version to support
+the `beads-list-default-limit' customization variable."
+  (unless (plist-member args :limit)
+    (setq args (plist-put args :limit beads-list-default-limit)))
+  (oref (beads-command-execute (apply #'beads-command-list args)) data))
 
 ;;; Create Command
 
