@@ -405,13 +405,14 @@ requiring the actual eca-emacs package."
 ;;; Helper Function Tests
 
 (ert-deftest beads-agent-eca-test-find-chat-buffer-found ()
-  "Test finding ECA chat buffer by session."
+  "Test finding ECA chat buffer by session.
+ECA uses angle brackets for buffer names: <eca-chat:N:M>."
   (let* ((mock-session (list :id "test-session"))
-         (test-buf (generate-new-buffer "*eca-chat:test-session*")))
+         (test-buf (generate-new-buffer "<eca-chat:test-session>")))
     (unwind-protect
         (cl-letf (((symbol-function 'fboundp)
-                   (lambda (f) (eq f 'eca-session-id)))
-                  ((symbol-function 'eca-session-id)
+                   (lambda (f) (eq f 'eca--session-id)))
+                  ((symbol-function 'eca--session-id)
                    (lambda (_) "test-session")))
           (let ((found (beads-agent-eca--find-chat-buffer mock-session)))
             (should (equal found test-buf))))
@@ -422,8 +423,8 @@ requiring the actual eca-emacs package."
   "Test finding ECA chat buffer when not present."
   (let ((mock-session (list :id "test-session")))
     (cl-letf (((symbol-function 'fboundp)
-               (lambda (f) (eq f 'eca-session-id)))
-              ((symbol-function 'eca-session-id)
+               (lambda (f) (eq f 'eca--session-id)))
+              ((symbol-function 'eca--session-id)
                (lambda (_) "test-session")))
       (let ((found (beads-agent-eca--find-chat-buffer mock-session)))
         (should-not found)))))
