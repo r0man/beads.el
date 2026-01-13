@@ -410,7 +410,11 @@
   "Integration test for formula list command."
   :tags '(:integration)
   (skip-unless (executable-find "bd"))
-  (skip-unless (locate-dominating-file default-directory ".beads"))
+  ;; Check for .beads directory with actual database file
+  (let ((beads-dir (locate-dominating-file default-directory ".beads")))
+    (skip-unless beads-dir)
+    (skip-unless (directory-files (expand-file-name ".beads" beads-dir)
+                                  nil "\\.db\\'" t)))
   ;; This test will actually run bd formula list --json
   (let* ((cmd (beads-command-formula-list :json t))
          (result (beads-command-execute cmd)))
