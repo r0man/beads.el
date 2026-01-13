@@ -1,11 +1,13 @@
 # Tasks: Add ECA Agent Backend
 
+**Epic:** bde-496o
+
 Implementation tasks ordered by dependency. Each task is a discrete unit
 of work suitable for conversion to a beads issue.
 
 ## 1. Core Implementation
 
-### 1.1 Create beads-agent-eca.el module
+### 1.1 Create beads-agent-eca.el module → bde-jxi5
 - [ ] Create `lisp/beads-agent-eca.el` with file header and requires
 - [ ] Define `beads-agent-backend-eca` EIEIO class
 - [ ] Implement `beads-agent-backend-available-p` method
@@ -21,7 +23,7 @@ of work suitable for conversion to a beads issue.
 - Module loads without errors
 - Backend appears in `beads-agent--get-all-backends`
 
-### 1.2 Add helper functions
+### 1.2 Add helper functions → bde-887c
 - [ ] `beads-agent-eca--find-chat-buffer` - Find ECA chat buffer for session
 - [ ] `beads-agent-eca--get-session-for-dir` - Get ECA session for directory
 - [ ] Declare external eca-emacs functions to avoid compiler warnings
@@ -32,12 +34,12 @@ of work suitable for conversion to a beads issue.
 
 ## 2. Testing
 
-### 2.1 Create test file
+### 2.1 Create test file → bde-ntvn
 - [ ] Create `lisp/test/beads-agent-eca-test.el` with file header
 - [ ] Add mock helpers for eca-emacs functions
 - [ ] Add `with-mocked-eca-environment` macro
 
-### 2.2 Write unit tests
+### 2.2 Write unit tests → bde-b6g4
 - [ ] Test `beads-agent-backend-available-p` when eca loaded
 - [ ] Test `beads-agent-backend-available-p` when eca not loaded
 - [ ] Test `beads-agent-backend-start` creates session
@@ -54,18 +56,18 @@ of work suitable for conversion to a beads issue.
 
 ## 3. Quality Gates
 
-### 3.1 Compile and lint
+### 3.1 Compile and lint → bde-u8e0
 - [ ] Run byte compilation: `eldev -p -dtT compile`
 - [ ] Run linter: `eldev -p -dtT lint`
 - [ ] Fix any warnings or errors
 
-### 3.2 Full test suite
+### 3.2 Full test suite → bde-7dkk
 - [ ] Run all tests: `BD_NO_DAEMON=1 eldev -p -dtT test`
 - [ ] Verify no regressions in existing tests
 
 ## 4. Integration Testing (Manual)
 
-### 4.1 Test with live eca-emacs in tmux
+### 4.1 Test with live eca-emacs in tmux → bde-ouar
 - [ ] Create temporary beads project with `bd init`
 - [ ] Create a test issue with `bd create "Test issue" --type task`
 - [ ] Start non-graphical Emacs in tmux: `emacs -nw`
