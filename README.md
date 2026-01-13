@@ -393,6 +393,10 @@ Useful for syncing issues across branches or sharing with team.
 ;; Actor name for operations (default: nil, uses bd default)
 (setq beads-actor "your-name")
 
+;; Default limit for list operations (default: 0, meaning no limit)
+;; Set to a positive integer to limit the number of issues returned
+(setq beads-list-default-limit 50)
+
 ;; Enable debug logging (default: nil)
 (setq beads-enable-debug t)
 ```
@@ -409,6 +413,7 @@ Full example with customization and keybindings:
   (beads-executable "bd")               ; path to bd executable
   (beads-db-path nil)                   ; nil = auto-discover
   (beads-actor nil)                     ; nil = use bd default
+  (beads-list-default-limit 0)          ; 0 = no limit
   (beads-enable-debug nil)              ; enable for troubleshooting
   :bind
   (("C-c b" . beads)
