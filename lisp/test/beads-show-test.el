@@ -219,26 +219,33 @@ This is needed because show buffers are now named by project, not issue."
 ;;; Tests for Title Line Formatting
 
 (ert-deftest beads-show-test-format-title-line-basic ()
-  "Test basic title line formatting."
-  (let ((line (beads-show--format-title-line "bd-1" "Test Issue" "open" 1)))
-    (should (string-match-p "○" line))  ; open icon
-    (should (string-match-p "bd-1" line))
-    (should (string-match-p "Test Issue" line))
-    (should (string-match-p "OPEN" line))
-    (should (string-match-p "P1" line))))
+  "Test basic title line formatting (two-line format)."
+  (let ((line (beads-show--format-title-line "bd-1" "Test Issue" "open" 1 "task")))
+    ;; Line 1: id: title
+    (should (string-match-p "bd-1: Test Issue" line))
+    ;; Line 2: status, priority, type
+    (should (string-match-p "○ Open" line))
+    (should (string-match-p "P1" line))
+    (should (string-match-p "Task" line))))
 
 (ert-deftest beads-show-test-format-title-line-in-progress ()
   "Test title line for in_progress status."
-  (let ((line (beads-show--format-title-line "bd-2" "WIP" "in_progress" 0)))
-    (should (string-match-p "◐" line))  ; in_progress icon
-    (should (string-match-p "IN_PROGRESS" line))))
+  (let ((line (beads-show--format-title-line "bd-2" "WIP" "in_progress" 0 "epic")))
+    (should (string-match-p "◐ In Progress" line))
+    (should (string-match-p "Epic" line))))
 
 (ert-deftest beads-show-test-format-title-line-no-priority ()
-  "Test title line without priority."
-  (let ((line (beads-show--format-title-line "bd-3" "No Pri" "open" nil)))
-    (should (string-match-p "bd-3" line))
-    (should (string-match-p "OPEN" line))
-    (should-not (string-match-p "● P" line))))  ; No priority badge
+  "Test title line without priority (and no type)."
+  (let ((line (beads-show--format-title-line "bd-3" "No Pri" "open" nil nil)))
+    (should (string-match-p "bd-3: No Pri" line))
+    (should (string-match-p "○ Open" line))
+    (should-not (string-match-p "P[0-9]" line))))  ; No priority
+
+(ert-deftest beads-show-test-format-title-line-with-owner ()
+  "Test title line with owner."
+  (let ((line (beads-show--format-title-line "bd-4" "Title" "open" 2 "bug" "Alice")))
+    (should (string-match-p "bd-4: Title" line))
+    (should (string-match-p "Alice" line))))
 
 ;;; Tests for Labels Display
 
@@ -278,12 +285,13 @@ This is needed because show buffers are now named by project, not issue."
   "Sample issue with owner field.")
 
 (ert-deftest beads-show-test-render-owner-field ()
-  "Test that owner/created_by field is rendered."
+  "Test that owner/created_by field is rendered in header."
   (beads-show-test-with-temp-buffer
    (let ((parsed (beads--parse-issue beads-show-test--issue-with-owner)))
      (beads-show--render-issue parsed)
      (let ((text (beads-show-test--get-buffer-text)))
-       (should (string-match-p "Owner: Alice Smith" text))))))
+       ;; Owner now appears in the second line of header (without "Owner:" prefix)
+       (should (string-match-p "Alice Smith" text))))))
 
 ;;; Tests for Labels in Render
 
@@ -567,10 +575,12 @@ This is needed because show buffers are now named by project, not issue."
      (let ((text (beads-show-test--get-buffer-text)))
        (should (string-match-p "Implement feature X" text))
        (should (string-match-p "bd-42" text))
-       (should (string-match-p "IN_PROGRESS" text))
-       ;; Priority shown as P1 in title line badge
+       ;; Status shown capitalized in new format
+       (should (string-match-p "In Progress" text))
+       ;; Priority shown as P1
        (should (string-match-p "P1" text))
-       (should (string-match-p "FEATURE" text))
+       ;; Type shown capitalized
+       (should (string-match-p "Feature" text))
        (should (string-match-p "alice" text))
        (should (string-match-p "JIRA-123" text))
        (should (string-match-p "Description" text))
@@ -591,7 +601,7 @@ This is needed because show buffers are now named by project, not issue."
        (should (string-match-p "P2" text))
        (should (string-match-p "BUG" text))
        ;; These sections should NOT appear for minimal issue
-       (should-not (string-match-p "Description\n─" text))
+       (should-not (string-match-p "DESCRIPTION" text))
        (should-not (string-match-p "Acceptance Criteria" text))
        (should-not (string-match-p "Design" text))
        (should-not (string-match-p "Notes" text))))))
@@ -626,7 +636,7 @@ This is needed because show buffers are now named by project, not issue."
           (parsed (beads--parse-issue issue)))
      (beads-show--render-issue parsed)
      (let ((text (beads-show-test--get-buffer-text)))
-       (should-not (string-match-p "Description\n─" text))
+       (should-not (string-match-p "DESCRIPTION" text))
        (should-not (string-match-p "Acceptance Criteria" text))
        (should-not (string-match-p "Design" text))
        (should-not (string-match-p "Notes" text))))))
@@ -1114,7 +1124,7 @@ With per-issue naming, each issue in a project gets its own buffer."
      (with-current-buffer beads-show-test--outline-buffer-name
        (goto-char (point-min))
        ;; Search for "Description" major section
-       (when (search-forward "Description\n─" nil t)
+       (when (search-forward "DESCRIPTION" nil t)
          (goto-char (match-beginning 0))
          (should (eq (beads-show--section-level) 1)))
        (kill-buffer)))))
@@ -2343,7 +2353,7 @@ Note: Notes cannot be set at creation time, only via update."
   (should (string-match-p "CLOSED" (beads-show--format-sub-issue-status "closed"))))
 
 (ert-deftest beads-show-test-insert-sub-issues-section-renders ()
-  "Test that sub-issues section renders correctly in completion-style format."
+  "Test that sub-issues section renders correctly in CLI-style format."
   (beads-show-test-with-temp-buffer
    (cl-letf (((symbol-function 'beads-command-dep-tree!)
               (lambda (&rest _args)
@@ -2351,25 +2361,22 @@ Note: Notes cannot be set at creation time, only via update."
      (let ((inhibit-read-only t))
        (beads-show--insert-sub-issues-section "bd-epic-1")
        (let ((content (buffer-substring-no-properties (point-min) (point-max))))
-         ;; Should have the header
-         (should (string-match-p "Sub-issues" content))
-         ;; Should show completion count (1/3 completed)
-         (should (string-match-p "1/3 completed" content))
+         ;; Should have the CHILDREN header (CLI-style)
+         (should (string-match-p "CHILDREN" content))
+         ;; Should show progress bar and count
+         (should (string-match-p "1/3" content))
          ;; Should have all sub-issue IDs
          (should (string-match-p "bd-sub-1" content))
          (should (string-match-p "bd-sub-2" content))
          (should (string-match-p "bd-sub-3" content))
-         ;; Should have priority indicators
-         (should (string-match-p "\\[P1\\]" content))
-         (should (string-match-p "\\[P2\\]" content))
-         ;; Should have type indicators
-         (should (string-match-p "\\[task\\]" content))
-         ;; Should have status text
-         (should (string-match-p "CLOSED" content))
-         (should (string-match-p "IN_PROGRESS" content))
-         ;; Should have titles after dash
-         (should (string-match-p "- Implement core module" content))
-         (should (string-match-p "- Write tests" content)))))))
+         ;; Should have priority indicators (CLI style: ● P#)
+         (should (string-match-p "● P1" content))
+         (should (string-match-p "● P2" content))
+         ;; Should have child arrow indicator
+         (should (string-match-p "↳" content))
+         ;; Should have titles
+         (should (string-match-p "Implement core module" content))
+         (should (string-match-p "Write tests" content)))))))
 
 (ert-deftest beads-show-test-insert-sub-issues-section-no-children ()
   "Test that sub-issues section is not rendered when no children."
@@ -2409,10 +2416,10 @@ Note: Notes cannot be set at creation time, only via update."
                 (lambda (_) nil)))
        (beads-show--render-issue parsed-issue)
        (let ((content (buffer-substring-no-properties (point-min) (point-max))))
-         ;; Should have sub-issues section
-         (should (string-match-p "Sub-issues" content))
-         ;; Should show completion count
-         (should (string-match-p "1/3 completed" content)))))))
+         ;; Should have CHILDREN section (CLI-style)
+         (should (string-match-p "CHILDREN" content))
+         ;; Should show completion count in progress bar
+         (should (string-match-p "1/3" content)))))))
 
 (ert-deftest beads-show-test-render-non-epic-no-sub-issues ()
   "Test that render-issue does NOT include sub-issues for non-epics."

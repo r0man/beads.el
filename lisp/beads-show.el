@@ -52,6 +52,8 @@
 (require 'button)
 (require 'cl-lib)
 (require 'goto-addr)
+(require 'xref)
+(require 'bookmark)
 
 ;;; Customization
 
@@ -60,7 +62,7 @@
   :group 'beads
   :prefix "beads-show-")
 
-(defcustom beads-show-section-separator "\n\n"
+(defcustom beads-show-section-separator "\n"
   "Separator between sections in show buffer."
   :type 'string
   :group 'beads-show)
@@ -376,8 +378,19 @@ Called from `kill-buffer-hook' to clean up session state."
 
     ;; Sesman session management (CIDER/ESS convention)
     (define-key map (kbd "C-c C-s") beads-sesman-map)
+
+    ;; Quick actions transient
+    (define-key map (kbd "?") #'beads-show-actions)
+    (define-key map (kbd "s") #'beads-show-set-status)
+    (define-key map (kbd "e") #'beads-show-edit-field)
     map)
   "Keymap for `beads-show-mode'.")
+
+;; Imenu expression must be defined before mode definition
+(defvar beads-show-imenu-expression
+  '(("Sections" "^\\([A-Z][A-Z ]+\\)$" 1)
+    ("Headings" "^\\(##+ .+\\)$" 1))
+  "Imenu generic expression for beads-show buffers.")
 
 (define-derived-mode beads-show-mode special-mode "Beads-Show"
   "Major mode for displaying Beads issue details.
@@ -387,7 +400,180 @@ Key bindings:
   (setq truncate-lines (not beads-show-wrap-lines))
   (setq buffer-read-only t)
   ;; Register cleanup hook for worktree session integration
-  (add-hook 'kill-buffer-hook #'beads-show--unregister-from-session nil t))
+  (add-hook 'kill-buffer-hook #'beads-show--unregister-from-session nil t)
+  ;; Imenu integration for section navigation
+  (setq-local imenu-generic-expression beads-show-imenu-expression)
+  (setq-local imenu-create-index-function #'beads-show--imenu-create-index)
+  ;; Which-func-mode integration
+  (setq-local which-func-functions '(beads-show--which-func))
+  ;; Eldoc integration for issue ID hover
+  (add-hook 'eldoc-documentation-functions #'beads-show--eldoc-function nil t)
+  ;; Xref backend for M-. on issue IDs
+  (add-hook 'xref-backend-functions #'beads-show--xref-backend nil t)
+  ;; Outline-minor-mode support for folding
+  (setq-local outline-regexp "^[A-Z][A-Z ]+$\\|^##+ ")
+  (setq-local outline-level #'beads-show--outline-level)
+  ;; Bookmark support
+  (setq-local bookmark-make-record-function #'beads-show--bookmark-make-record))
+
+;;; Imenu Integration
+
+(defun beads-show--imenu-create-index ()
+  "Create imenu index for beads-show buffer.
+Returns alist of (NAME . POSITION) for sections."
+  (let ((index nil))
+    (save-excursion
+      (goto-char (point-min))
+      ;; Find main sections (DEPENDS ON, CHILDREN, BLOCKS, Notes, etc.)
+      (while (re-search-forward "^\\([A-Z][A-Za-z ]+\\)$" nil t)
+        (let ((name (match-string 1))
+              (pos (match-beginning 0)))
+          ;; Skip the title line separator (═══)
+          (unless (string-match "^═+$" name)
+            (push (cons name pos) index))))
+      ;; Find markdown headings in content
+      (goto-char (point-min))
+      (while (re-search-forward "^\\(##+ .+\\)$" nil t)
+        (let ((name (match-string 1))
+              (pos (match-beginning 0)))
+          (push (cons name pos) index))))
+    (nreverse index)))
+
+;;; Which-func-mode Integration
+
+(defun beads-show--which-func ()
+  "Return name of current section for which-func-mode."
+  (save-excursion
+    (beginning-of-line)
+    ;; Search backward for section header
+    (when (re-search-backward "^\\([A-Z][A-Za-z ]+\\)$\\|^\\(##+ .+\\)$" nil t)
+      (or (match-string 1) (match-string 2)))))
+
+;;; Eldoc Integration
+
+(defun beads-show--eldoc-function (callback)
+  "Eldoc function for issue IDs in beads-show buffers.
+CALLBACK is called with the documentation string."
+  (when-let* ((issue-id (beads-show--extract-issue-at-point)))
+    (condition-case nil
+        (let* ((issue (beads-command-show! :issue-ids (list issue-id)))
+               (title (oref issue title))
+               (status (oref issue status))
+               (priority (oref issue priority))
+               (doc (format "%s: %s [%s P%s]"
+                            issue-id
+                            (or title "Untitled")
+                            (upcase (or status "?"))
+                            (or priority "?"))))
+          (funcall callback doc))
+      (error nil))))
+
+;;; Xref Integration
+
+(defun beads-show--xref-backend ()
+  "Return xref backend for beads-show mode."
+  'beads-show)
+
+(cl-defmethod xref-backend-identifier-at-point ((_backend (eql beads-show)))
+  "Return issue ID at point for xref."
+  (beads-show--extract-issue-at-point))
+
+(cl-defmethod xref-backend-definitions ((_backend (eql beads-show)) identifier)
+  "Return xref definition for IDENTIFIER (issue ID)."
+  (when identifier
+    (list (xref-make
+           (format "Issue %s" identifier)
+           (xref-make-buffer-location
+            (beads-show--get-or-create-buffer identifier)
+            1)))))
+
+(cl-defmethod xref-backend-identifier-completion-table ((_backend (eql beads-show)))
+  "Return completion table for issue IDs."
+  (beads-completion-issue-table))
+
+;;; Outline Integration
+
+(defun beads-show--outline-level ()
+  "Return outline level for current line."
+  (save-excursion
+    (beginning-of-line)
+    (cond
+     ;; Main sections (DEPENDS ON, CHILDREN, etc.) are level 1
+     ((looking-at "^[A-Z][A-Z ]+$") 1)
+     ;; Markdown headings: ## = 2, ### = 3, etc.
+     ((looking-at "^\\(#+\\) ")
+      (1+ (length (match-string 1))))
+     ;; Default
+     (t 0))))
+
+;;; Bookmark Integration
+
+(defun beads-show--bookmark-make-record ()
+  "Create bookmark record for current beads-show buffer."
+  `(,(format "beads:%s" beads-show--issue-id)
+    (issue-id . ,beads-show--issue-id)
+    (project-dir . ,beads-show--project-dir)
+    (handler . beads-show--bookmark-handler)))
+
+(defun beads-show--bookmark-handler (bookmark)
+  "Handler to restore BOOKMARK for beads-show buffer."
+  (let ((issue-id (bookmark-prop-get bookmark 'issue-id))
+        (project-dir (bookmark-prop-get bookmark 'project-dir)))
+    (when issue-id
+      (let ((default-directory (or project-dir default-directory)))
+        (beads-show issue-id)))))
+
+;;; Desktop Integration
+
+(defun beads-show--desktop-buffer-misc-data (_desktop-dirname)
+  "Return misc data for desktop save."
+  (list beads-show--issue-id beads-show--project-dir))
+
+(defun beads-show--desktop-restore-buffer (_file-name _buffer-name misc-data)
+  "Restore beads-show buffer from desktop MISC-DATA."
+  (when misc-data
+    (let ((issue-id (car misc-data))
+          (project-dir (cadr misc-data)))
+      (when issue-id
+        (let ((default-directory (or project-dir default-directory)))
+          (beads-show issue-id)
+          (current-buffer))))))
+
+(add-to-list 'desktop-buffer-mode-handlers
+             '(beads-show-mode . beads-show--desktop-restore-buffer))
+
+;;; Org-link Integration
+
+(with-eval-after-load 'org
+  (org-link-set-parameters
+   "beads"
+   :follow #'beads-show--org-link-follow
+   :export #'beads-show--org-link-export
+   :store #'beads-show--org-link-store))
+
+(defun beads-show--org-link-follow (issue-id _arg)
+  "Follow beads link to ISSUE-ID."
+  (beads-show issue-id))
+
+(defun beads-show--org-link-export (issue-id description backend _info)
+  "Export beads link for ISSUE-ID with DESCRIPTION for BACKEND."
+  (let ((desc (or description issue-id)))
+    (pcase backend
+      ('html (format "<code>%s</code>" desc))
+      ('latex (format "\\texttt{%s}" desc))
+      ('ascii desc)
+      (_ desc))))
+
+(defun beads-show--org-link-store ()
+  "Store org link to current issue."
+  (when (derived-mode-p 'beads-show-mode)
+    (when beads-show--issue-id
+      (let ((title (when beads-show--issue-data
+                     (oref beads-show--issue-data title))))
+        (org-link-store-props
+         :type "beads"
+         :link (concat "beads:" beads-show--issue-id)
+         :description (or title beads-show--issue-id))))))
 
 ;;; Utility Functions
 
@@ -434,13 +620,23 @@ Icons match the bd CLI output:
                    (_ 'beads-show-priority-low-face))))
       (propertize (format "%s (%s)" text label) 'face face))))
 
-(defun beads-show--format-date (date-string)
-  "Format DATE-STRING for display."
+(defun beads-show--format-date (date-string &optional short)
+  "Format DATE-STRING for display.
+If SHORT is non-nil, return just the date portion (YYYY-MM-DD).
+The full timestamp is available via help-echo."
   (if date-string
       (let* ((cleaned (replace-regexp-in-string "\\.[0-9]+.*$" ""
                                                 date-string))
-             (without-z (replace-regexp-in-string "Z$" "" cleaned)))
-        (replace-regexp-in-string "T" " " without-z))
+             (without-z (replace-regexp-in-string "Z$" "" cleaned))
+             (full-date (replace-regexp-in-string "T" " " without-z))
+             (short-date (if (string-match "^\\([0-9]+-[0-9]+-[0-9]+\\)" full-date)
+                             (match-string 1 full-date)
+                           full-date)))
+        (if short
+            (propertize short-date
+                        'help-echo (concat "Full timestamp: " full-date)
+                        'mouse-face 'highlight)
+          full-date))
     "N/A"))
 
 (defun beads-show--insert-header (label value &optional value-face)
@@ -455,13 +651,11 @@ Optional VALUE-FACE can be used for custom face."
 
 (defun beads-show--insert-section (title content)
   "Insert a section with TITLE and CONTENT.
-CONTENT can be a string or nil (empty sections are skipped)."
+CONTENT can be a string or nil (empty sections are skipped).
+Section header is uppercase without underline, matching DEPENDS ON style."
   (when (and content (not (string-empty-p (string-trim content))))
     (insert beads-show-section-separator)
-    (insert (propertize title 'face 'beads-show-header-face))
-    (insert "\n")
-    (insert (propertize (make-string (length title) ?─)
-                       'face 'beads-show-header-face))
+    (insert (propertize (upcase title) 'face 'beads-show-header-face))
     (insert "\n\n")
     (let ((start (point)))
       (insert content)
@@ -532,10 +726,26 @@ Each alist contains: id, title, status, priority, issue_type."
       (concat (substring title 0 (- max-len 3)) "...")
     (or title "Untitled")))
 
+(defun beads-show--format-progress-bar (completed total &optional width)
+  "Format a visual progress bar for COMPLETED out of TOTAL items.
+WIDTH defaults to 20 characters.  Returns a string like [████░░░░░░] 5/10."
+  (let* ((w (or width 20))
+         (pct (if (zerop total) 0 (/ (* 100.0 completed) total)))
+         (filled (round (* w (/ pct 100.0))))
+         (empty (- w filled))
+         (bar (concat (make-string filled ?█) (make-string empty ?░))))
+    (concat
+     (propertize "[" 'face 'shadow)
+     (propertize bar 'face (if (= completed total) 'success 'warning))
+     (propertize "]" 'face 'shadow)
+     " "
+     (propertize (format "%d/%d" completed total)
+                 'face 'beads-show-sub-issue-progress-face))))
+
 (defun beads-show--insert-sub-issues-section (epic-id)
   "Insert sub-issues section for EPIC-ID if it has children.
-Shows direct child issues in completion-style format:
-ID [P#] [type] STATUS - title."
+Shows direct child issues in CLI-style format with progress bar:
+  ↳ ○ ID: Title ● P#"
   (when-let* ((sub-issues (beads-show--get-sub-issues epic-id)))
     (let* ((total (length sub-issues))
            (closed (seq-count (lambda (item)
@@ -547,14 +757,12 @@ ID [P#] [type] STATUS - title."
                                     sub-issues))
            (status-order '("in_progress" "open" "blocked" "closed")))
       (insert beads-show-section-separator)
-      (insert (propertize "Sub-issues" 'face 'beads-show-header-face))
+      (insert (propertize "CHILDREN" 'face 'beads-show-header-face))
       (insert "  ")
-      (insert (propertize (format "(%d/%d completed)" closed total)
-                          'face 'beads-show-sub-issue-progress-face))
-      (insert "\n")
-      (insert (propertize (make-string 10 ?─) 'face 'beads-show-header-face))
+      ;; Visual progress bar
+      (insert (beads-show--format-progress-bar closed total 15))
       (insert "\n\n")
-      ;; Display sub-issues grouped by status
+      ;; Display sub-issues grouped by status - CLI style
       (dolist (status status-order)
         (when-let* ((issues (alist-get status by-status nil nil #'equal)))
           (dolist (issue issues)
@@ -562,29 +770,45 @@ ID [P#] [type] STATUS - title."
                    (title (alist-get 'title issue))
                    (issue-status (alist-get 'status issue))
                    (priority (or (alist-get 'priority issue) 2))
-                   (issue-type (or (alist-get 'issue_type issue) "task")))
-              ;; Format: ID [P#] [type] STATUS - title
+                   (issue-type (or (alist-get 'issue_type issue) "task"))
+                   (icon (beads-show--status-icon issue-status))
+                   (icon-face (pcase issue-status
+                                ("open" 'beads-show-status-open-face)
+                                ("in_progress" 'beads-show-status-in-progress-face)
+                                ("blocked" 'beads-show-status-blocked-face)
+                                ("closed" 'beads-show-status-closed-face)
+                                (_ 'default))))
+              ;; CLI-style format: ↳ ○ ID: Title ● P#
               (insert "  ")
-              ;; Insert ID as button (capture start AFTER padding)
+              (insert (propertize "↳" 'face 'beads-show-dependency-arrow-face))
+              (insert " ")
+              (insert (propertize icon 'face icon-face))
+              (insert " ")
+              ;; Insert ID as button
               (let ((id-start (point)))
                 (insert id)
-                (make-button id-start (+ id-start (length id))
+                (make-button id-start (point)
                              'issue-id id
                              'action #'beads-show--button-action
                              'follow-link t
                              'help-echo (format "Show %s" id)
-                             'face 'beads-show-sub-issue-id-face))
-              ;; Priority
-              (insert (format " [P%s]" priority))
-              ;; Type
-              (insert (format " [%s]" issue-type))
-              ;; Status with face
+                             'face 'link))
+              (insert ": ")
+              ;; Type badge for non-task types
+              (unless (string= issue-type "task")
+                (insert (propertize (format "(%s) " (upcase issue-type))
+                                    'face 'beads-show-label-tag-face)))
+              ;; Title (truncated)
+              (insert (beads-show--truncate-title title 45))
+              ;; Priority badge
               (insert " ")
-              (insert (beads-show--format-sub-issue-status issue-status))
-              ;; Title
-              (insert " - ")
-              (insert (propertize (beads-show--truncate-title title 50)
-                                  'face 'beads-show-sub-issue-title-face))
+              (let ((priority-face (pcase priority
+                                     (0 'beads-show-priority-critical-face)
+                                     (1 'beads-show-priority-high-face)
+                                     (2 'beads-show-priority-medium-face)
+                                     (_ 'beads-show-priority-low-face))))
+                (insert (propertize (format "● P%d" priority)
+                                    'face priority-face)))
               (insert "\n"))))))))
 
 (defun beads-show--fontify-markdown (start end)
@@ -678,31 +902,25 @@ Recognizes issue IDs like beads.el-7bea, bd-a1b2.1, worker-f14c.2, etc."
 (defun beads-show--section-level ()
   "Return the outline level of the section at point.
 Returns:
-  0 - Title section (═══ underline)
-  1 - Major section (─── underline)
+  0 - Title section (first two lines: id: title + status line)
+  1 - Major section (UPPERCASE header like DEPENDS ON, DESCRIPTION)
   2+ - Markdown heading (## = 2, ### = 3, etc.)
   nil - Not at a heading"
   (save-excursion
     (beginning-of-line)
     (cond
-     ;; Check if we're on a ═══ underline (title level 0)
-     ((looking-at "^═+$")
+     ;; Check if we're on line 1 or 2 (title header)
+     ;; Line 1: id: title, Line 2: ○ Status  Priority  Type
+     ((and (< (line-number-at-pos) 3)
+           (or
+            ;; Line 1: id: title (starts with word chars followed by colon)
+            (looking-at "^[a-zA-Z0-9_.-]+: ")
+            ;; Line 2: starts with status icon (○, ◐, ●, ✓, ✗)
+            (looking-at "^[○◐●✓✗] ")))
       0)
-     ;; Check if we're on the title text line (followed by ═══)
-     ((and (not (eobp))
-           (save-excursion
-             (forward-line 1)
-             (looking-at "^═+$")))
-      0)
-     ;; Check if we're on a ─── underline (major section level 1)
-     ((looking-at "^─+$")
-      1)
-     ;; Check if we're on a major section heading (followed by ───)
-     ((and (looking-at "^[A-Z][a-zA-Z ]+$")
-           (not (eobp))
-           (save-excursion
-             (forward-line 1)
-             (looking-at "^─+$")))
+     ;; Check if we're on a major section heading (UPPERCASE letters/spaces)
+     ;; Examples: DEPENDS ON, DESCRIPTION, CHILDREN, BLOCKS
+     ((looking-at "^[A-Z][A-Z ]+$")
       1)
      ;; Check if we're on a markdown heading (##+ )
      ((looking-at "^\\(#+\\)\\s-+")
@@ -716,17 +934,20 @@ Returns:
   (let ((start-pos (point))
         (start-level (beads-show--section-level))
         (found nil))
-    ;; Skip current heading entirely (including underline if present)
-    (forward-line 1)
-    (when (and start-level (looking-at "^[═─]+$"))
+    ;; Skip current heading entirely
+    ;; For title section (level 0), skip past title, status, and blank line
+    (if (and start-level (= start-level 0))
+        (progn
+          ;; Skip to line 4 (past title, status, blank line)
+          (goto-char (point-min))
+          (forward-line 3))
+      ;; For other headings, just skip current line
       (forward-line 1))
     ;; Search for next heading
     (while (and (not found) (not (eobp)))
       (let ((level (beads-show--section-level)))
-        (when level
-          ;; Make sure it's a real heading line, not an underline
-          (unless (looking-at "^[═─]+$")
-            (setq found t))))
+        (when (and level (> level 0))
+          (setq found t)))
       (unless found
         (forward-line 1)))
     (if found
@@ -738,23 +959,20 @@ Returns:
   "Move to previous heading at any level."
   (interactive)
   (let ((start-pos (point))
-        (start-level (beads-show--section-level))
         (found nil))
     ;; Move back at least one line to start search
     (beginning-of-line)
     (forward-line -1)
-    ;; If we were on an underline, skip past its heading text
-    (when (and start-level (looking-at "^[═─]+$"))
-      (forward-line -1))
     ;; Search for previous heading
     (while (and (not found) (not (bobp)))
       (let ((level (beads-show--section-level)))
         (when level
-          ;; Make sure it's a real heading line, not an underline
-          (unless (looking-at "^[═─]+$")
-            (setq found t))))
+          (setq found t)))
       (unless found
         (forward-line -1)))
+    ;; If we found the title section (level 0), go to line 1
+    (when (and found (= (beads-show--section-level) 0))
+      (goto-char (point-min)))
     (if found
         (recenter-top-bottom 0)
       (goto-char start-pos)
@@ -848,11 +1066,16 @@ Returns:
 
 ;;; Buffer Rendering
 
-(defun beads-show--format-title-line (id title status priority)
-  "Format the compact title line like bd show.
+(defun beads-show--format-title-line (id title status priority issue-type
+                                      &optional owner)
+  "Format the two-line issue header.
 ID is the issue ID, TITLE is the issue title, STATUS is the status string,
-and PRIORITY is the priority level (0-4).
-Returns string like: ◐ ID · Title   [● P0 · IN_PROGRESS]"
+PRIORITY is the priority level (0-4), ISSUE-TYPE is the type (task, etc),
+and OWNER is the issue creator/owner.
+
+Returns a two-line string:
+  Line 1: id: title
+  Line 2: ○ Open · P1 · Epic · Owner"
   (let* ((icon (beads-show--status-icon status))
          (icon-face (pcase status
                       ("open" 'beads-show-status-open-face)
@@ -860,20 +1083,35 @@ Returns string like: ◐ ID · Title   [● P0 · IN_PROGRESS]"
                       ("blocked" 'beads-show-status-blocked-face)
                       ("closed" 'beads-show-status-closed-face)
                       (_ 'default)))
-         (priority-str (if priority (format "P%d" priority) ""))
-         (status-str (upcase (or status "UNKNOWN"))))
+         (status-display (pcase status
+                           ("open" "Open")
+                           ("in_progress" "In Progress")
+                           ("blocked" "Blocked")
+                           ("closed" "Closed")
+                           (_ (or status "Unknown"))))
+         (priority-str (when priority (format "P%d" priority)))
+         (type-str (when issue-type
+                     (capitalize issue-type)))
+         ;; Build metadata parts for second line
+         (meta-parts (delq nil
+                           (list
+                            (propertize (concat icon " " status-display)
+                                        'face icon-face)
+                            (when priority-str
+                              (propertize priority-str 'face icon-face))
+                            (when type-str
+                              (propertize type-str
+                                          'face 'beads-show-label-tag-face))
+                            (when owner
+                              (propertize owner 'face 'shadow))))))
     (concat
-     (propertize icon 'face icon-face)
-     " "
+     ;; Line 1: id: title
      (propertize id 'face 'font-lock-constant-face)
-     " · "
+     ": "
      (propertize (or title "Untitled") 'face '(:inherit bold :height 1.3))
-     "   "
-     (propertize "[" 'face 'shadow)
-     (when priority
-       (propertize (concat "● " priority-str " · ") 'face icon-face))
-     (propertize status-str 'face icon-face)
-     (propertize "]" 'face 'shadow))))
+     "\n"
+     ;; Line 2: metadata
+     (string-join meta-parts "  "))))
 
 (defun beads-show--insert-labels (labels)
   "Insert LABELS as visually distinct badges."
@@ -937,6 +1175,58 @@ If DEP-ID is nil or empty, the line is not inserted."
         (insert (propertize (format "● P%d" priority) 'face priority-face))))
     (insert "\n")))
 
+(defun beads-show--insert-blocker-line (dep-id title status priority issue-type)
+  "Insert a line for an issue blocked by the current issue.
+DEP-ID is the issue ID, TITLE is the issue title, STATUS, PRIORITY,
+and ISSUE-TYPE are used for display.  Uses ← arrow to indicate reverse
+relationship (this issue blocks that one).
+
+Format matches CLI: ← ○ ID: (TYPE) Title ● P#"
+  (when (and dep-id (not (string-empty-p dep-id)))
+    (insert "  ")
+    (insert (propertize "←" 'face 'beads-show-dependency-arrow-face))
+    (insert " ")
+    ;; Status icon
+    (let ((icon (beads-show--status-icon (or status "unknown")))
+          (icon-face (pcase status
+                       ("open" 'beads-show-status-open-face)
+                       ("in_progress" 'beads-show-status-in-progress-face)
+                       ("blocked" 'beads-show-status-blocked-face)
+                       ("closed" 'beads-show-status-closed-face)
+                       (_ 'default))))
+      (insert (propertize icon 'face icon-face)))
+    (insert " ")
+    ;; Issue ID as button
+    (let ((id-start (point)))
+      (insert dep-id)
+      (make-button id-start (point)
+                   'issue-id dep-id
+                   'action #'beads-show--button-action
+                   'follow-link t
+                   'help-echo (format "Show %s" dep-id)
+                   'face 'link))
+    (insert ": ")
+    ;; Type badge if available
+    (when issue-type
+      (insert (propertize (format "(%s) " (upcase issue-type))
+                          'face 'beads-show-label-tag-face)))
+    ;; Title
+    (when (and title (not (string-empty-p title)))
+      (insert (if beads-show-dependency-title-max-length
+                  (beads-show--truncate-title
+                   title beads-show-dependency-title-max-length)
+                title)))
+    ;; Priority badge
+    (when priority
+      (insert " ")
+      (let ((priority-face (pcase priority
+                             (0 'beads-show-priority-critical-face)
+                             (1 'beads-show-priority-high-face)
+                             (2 'beads-show-priority-medium-face)
+                             (_ 'beads-show-priority-low-face))))
+        (insert (propertize (format "● P%d" priority) 'face priority-face))))
+    (insert "\n")))
+
 (defun beads-show--insert-dependencies-section (dependencies)
   "Insert DEPENDS ON section for blocking DEPENDENCIES.
 Uses dependency info from bd show --json output directly,
@@ -964,9 +1254,38 @@ full issue details (title, status, priority)."
             (beads-show--insert-dependency-line
              dep-id title (or status "unknown") priority "→")))))))
 
+(defun beads-show--insert-blocks-section (dependents)
+  "Insert BLOCKS section showing issues blocked by this one.
+DEPENDENTS is a list of beads-dependency objects for issues that
+depend on the current issue (i.e., issues this one blocks)."
+  (when dependents
+    ;; Filter for blocking relationships (blocks and parent-child types)
+    ;; These are issues that DEPEND ON the current issue
+    (let ((blocked-issues (seq-filter
+                           (lambda (dep)
+                             (let ((type (oref dep type)))
+                               (or (string= type "blocks")
+                                   (string= type "parent-child"))))
+                           dependents)))
+      (when blocked-issues
+        (insert beads-show-section-separator)
+        (insert (propertize "BLOCKS" 'face 'beads-show-header-face))
+        (insert "\n\n")
+        (dolist (dep blocked-issues)
+          ;; For dependents, the dependent issue's ID was mapped to depends-on-id
+          ;; by beads-dependency-from-json (it uses 'id' from JSON for this)
+          (let ((dep-id (oref dep depends-on-id))
+                (title (oref dep title))
+                (status (oref dep status))
+                (priority (oref dep priority))
+                (issue-type (oref dep issue-type)))
+            (beads-show--insert-blocker-line
+             dep-id title status priority issue-type)))))))
+
 (defun beads-show--render-issue (issue)
   "Render ISSUE data into current buffer.
-ISSUE must be a `beads-issue' EIEIO object."
+ISSUE must be a `beads-issue' EIEIO object.
+Section order matches CLI: DEPENDS ON → CHILDREN → BLOCKS → text sections."
   (let ((inhibit-read-only t)
         (id (oref issue id))
         (title (oref issue title))
@@ -981,6 +1300,7 @@ ISSUE must be a `beads-issue' EIEIO object."
         (external-ref (oref issue external-ref))
         (labels (oref issue labels))
         (dependencies (oref issue dependencies))
+        (dependents (oref issue dependents))
         (description (oref issue description))
         (acceptance (oref issue acceptance-criteria))
         (design (oref issue design))
@@ -988,33 +1308,20 @@ ISSUE must be a `beads-issue' EIEIO object."
 
     (erase-buffer)
 
-    ;; Compact title line like bd show:
-    ;; ◐ beads.el-q35o · Title   [● P0 · IN_PROGRESS]
-    (insert (beads-show--format-title-line id title status priority))
-    (insert "\n")
-    ;; Use fixed 80-column separator for visual consistency
-    ;; (title line has variable-width font scaling so matching its length
-    ;; doesn't work well)
-    (insert (propertize (make-string 80 ?═) 'face 'beads-show-header-face))
-    (insert "\n\n")
+    ;; Two-line header:
+    ;; bde-go3g: beads.el: Magit-like Emacs interface for Beads
+    ;; ○ Open  P1  Epic  Roman Scherer
+    (insert (beads-show--format-title-line id title status priority type owner))
+    (insert "\n\n")  ; Blank line after header
 
-    ;; Metadata - more compact like bd show
-    ;; Owner: Name · Type: TASK
-    (let ((meta-parts '()))
-      (when owner
-        (push (concat "Owner: " owner) meta-parts))
-      (when type
-        (push (concat "Type: " (upcase type)) meta-parts))
-      (when meta-parts
-        (insert (string-join (nreverse meta-parts) " · "))
-        (insert "\n")))
-
-    ;; Created/Updated line
-    (insert (format "Created: %s · Updated: %s"
-                    (beads-show--format-date created)
-                    (beads-show--format-date updated)))
+    ;; Created/Updated line - use short dates with help-echo for full timestamp
+    (insert (propertize "Created: " 'face 'shadow))
+    (insert (beads-show--format-date created t))
+    (insert (propertize "  Updated: " 'face 'shadow))
+    (insert (beads-show--format-date updated t))
     (when (and closed (not (string-empty-p closed)))
-      (insert (format " · Closed: %s" (beads-show--format-date closed))))
+      (insert (propertize "  Closed: " 'face 'shadow))
+      (insert (beads-show--format-date closed t)))
     (insert "\n")
 
     ;; Assignee if set
@@ -1028,12 +1335,16 @@ ISSUE must be a `beads-issue' EIEIO object."
     ;; Labels section
     (beads-show--insert-labels labels)
 
-    ;; Dependencies section (DEPENDS ON)
+    ;; === Section order matches CLI ===
+    ;; 1. DEPENDS ON - what this issue depends on
     (beads-show--insert-dependencies-section dependencies)
 
-    ;; Sub-issues section for epics
+    ;; 2. CHILDREN - sub-issues for epics (with progress bar)
     (when (equal type "epic")
       (beads-show--insert-sub-issues-section id))
+
+    ;; 3. BLOCKS - issues blocked by this one
+    (beads-show--insert-blocks-section dependents)
 
     ;; Text sections
     (beads-show--insert-section "Description" description)
@@ -1044,10 +1355,11 @@ ISSUE must be a `beads-issue' EIEIO object."
     ;; Agent sessions (if any)
     (beads-show--insert-agent-section id)
 
-    ;; Footer
+    ;; Footer with keybinding hints
     (insert beads-show-section-separator)
-    (insert (propertize "Press 'g' to refresh, 'q' to quit, RET on issue ID to jump"
-                       'face 'shadow))
+    (insert (propertize
+             "g:refresh  q:quit  RET:follow  ?:actions  M-.:xref  TAB:next"
+             'face 'shadow))
     (insert "\n")
 
     ;; Enable URL linkification
@@ -1150,20 +1462,24 @@ Uses the stored project directory for command execution."
 (defun beads-show-next-section ()
   "Move to the next section in the show buffer."
   (interactive)
-  (let ((section-regexp "^[A-Z][a-zA-Z ]+\n─+$"))
+  ;; Match UPPERCASE section headers (DEPENDS ON, DESCRIPTION, etc.)
+  (let ((section-regexp "^[A-Z][A-Z ]+$"))
+    (forward-line 1)  ; Move past current line to find next
     (if (re-search-forward section-regexp nil t)
         (progn
-          (forward-line 2)
+          (beginning-of-line)
           (recenter-top-bottom 0))
       (message "No next section"))))
 
 (defun beads-show-previous-section ()
   "Move to the previous section in the show buffer."
   (interactive)
-  (let ((section-regexp "^[A-Z][a-zA-Z ]+\n─+$"))
+  ;; Match UPPERCASE section headers (DEPENDS ON, DESCRIPTION, etc.)
+  (let ((section-regexp "^[A-Z][A-Z ]+$"))
+    (beginning-of-line)
     (if (re-search-backward section-regexp nil t)
         (progn
-          (forward-line 2)
+          (beginning-of-line)
           (recenter-top-bottom 0))
       (message "No previous section"))))
 
@@ -1659,6 +1975,132 @@ Prompts for field to edit and opens an editing buffer."
                       ('design "--design")
                       ('notes "--notes"))))
            (beads-show--update-field field-name flag new-value)))))))
+
+;;; Quick Actions Transient
+
+(require 'transient)
+
+(transient-define-prefix beads-show-actions ()
+  "Quick actions for current issue."
+  :transient-suffix 'transient--do-stay
+  ["Issue Actions"
+   ["Status"
+    ("o" "Open" beads-show-set-status-open)
+    ("p" "In Progress" beads-show-set-status-in-progress)
+    ("b" "Blocked" beads-show-set-status-blocked)
+    ("c" "Close" beads-show-set-status-closed)]
+   ["Navigate"
+    ("d" "Dependencies" beads-show-goto-depends)
+    ("B" "Blocks" beads-show-goto-blocks)
+    ("P" "Parent" beads-show-goto-parent)
+    ("C" "Children" beads-show-goto-children)]
+   ["Edit"
+    ("e" "Edit field" beads-show-edit-field)
+    ("n" "Add note" beads-show-add-note)
+    ("L" "Add label" beads-show-add-label)]
+   ["Other"
+    ("g" "Refresh" beads-refresh-show :transient t)
+    ("w" "Copy ID" beads-show-copy-id)
+    ("q" "Quit" transient-quit-one)]])
+
+(defun beads-show-set-status (status)
+  "Set current issue STATUS."
+  (interactive
+   (list (completing-read "Status: "
+                          '("open" "in_progress" "blocked" "closed")
+                          nil t)))
+  (when beads-show--issue-id
+    (beads-show--update-field "Status" "--status" status)))
+
+(defun beads-show-set-status-open ()
+  "Set current issue status to open."
+  (interactive)
+  (beads-show-set-status "open"))
+
+(defun beads-show-set-status-in-progress ()
+  "Set current issue status to in_progress."
+  (interactive)
+  (beads-show-set-status "in_progress"))
+
+(defun beads-show-set-status-blocked ()
+  "Set current issue status to blocked."
+  (interactive)
+  (beads-show-set-status "blocked"))
+
+(defun beads-show-set-status-closed ()
+  "Close current issue."
+  (interactive)
+  (when beads-show--issue-id
+    (let ((reason (read-string "Close reason: ")))
+      (condition-case err
+          (progn
+            (beads-command-close! :issue-ids (list beads-show--issue-id)
+                                  :reason reason)
+            (beads-completion-invalidate-cache)
+            (beads-refresh-show)
+            (message "Issue closed"))
+        (error
+         (message "Failed to close: %s" (error-message-string err)))))))
+
+(defun beads-show-add-note ()
+  "Add a note to current issue."
+  (interactive)
+  (when beads-show--issue-id
+    (let* ((current (when beads-show--issue-data
+                      (oref beads-show--issue-data notes)))
+           (new-note (read-string "Add note: "))
+           (updated (if current
+                        (concat current "\n\n" new-note)
+                      new-note)))
+      (beads-show--update-field "Notes" "--notes" updated))))
+
+(defun beads-show-add-label ()
+  "Add a label to current issue."
+  (interactive)
+  (when beads-show--issue-id
+    (let ((label (read-string "Label: ")))
+      (condition-case err
+          (progn
+            (beads-command-label-add! :issue-id beads-show--issue-id
+                                      :label label)
+            (beads-refresh-show)
+            (message "Label added: %s" label))
+        (error
+         (message "Failed to add label: %s" (error-message-string err)))))))
+
+(defun beads-show-goto-depends ()
+  "Go to first dependency of current issue."
+  (interactive)
+  (goto-char (point-min))
+  (if (re-search-forward "^DEPENDS ON$" nil t)
+      (forward-line 2)
+    (message "No dependencies section")))
+
+(defun beads-show-goto-blocks ()
+  "Go to BLOCKS section of current issue."
+  (interactive)
+  (goto-char (point-min))
+  (if (re-search-forward "^BLOCKS$" nil t)
+      (forward-line 2)
+    (message "No blocks section")))
+
+(defun beads-show-goto-parent ()
+  "Go to parent issue."
+  (interactive)
+  (when beads-show--issue-data
+    (let ((deps (oref beads-show--issue-data dependencies)))
+      (when-let* ((parent (seq-find
+                           (lambda (d) (string= (oref d type) "parent-child"))
+                           deps)))
+        (beads-show (oref parent depends-on-id))))))
+
+(defun beads-show-goto-children ()
+  "Go to CHILDREN section of current issue."
+  (interactive)
+  (goto-char (point-min))
+  (if (re-search-forward "^CHILDREN" nil t)
+      (forward-line 2)
+    (message "No children section")))
 
 ;;; Footer
 

@@ -323,6 +323,11 @@
     :type list
     :initform nil
     :documentation "List of beads-dependency objects.")
+   (dependents
+    :initarg :dependents
+    :type list
+    :initform nil
+    :documentation "List of beads-dependency objects for issues blocked by this one.")
    (comments
     :initarg :comments
     :type list
@@ -800,6 +805,8 @@ JSON should be the parsed JSON object from bd --json output."
    :labels (append (alist-get 'labels json) nil)
    :dependencies (when-let ((deps (alist-get 'dependencies json)))
                    (mapcar #'beads-dependency-from-json (append deps nil)))
+   :dependents (when-let ((deps (alist-get 'dependents json)))
+                 (mapcar #'beads-dependency-from-json (append deps nil)))
    :comments (when-let ((comments (alist-get 'comments json)))
                (mapcar #'beads-comment-from-json (append comments nil)))))
 
