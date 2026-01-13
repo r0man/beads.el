@@ -544,13 +544,6 @@ CALLBACK is called with the documentation string."
 
 ;;; Org-link Integration
 
-(with-eval-after-load 'org
-  (org-link-set-parameters
-   "beads"
-   :follow #'beads-show--org-link-follow
-   :export #'beads-show--org-link-export
-   :store #'beads-show--org-link-store))
-
 (defun beads-show--org-link-follow (issue-id _arg)
   "Follow beads link to ISSUE-ID."
   (beads-show issue-id))
@@ -574,6 +567,34 @@ CALLBACK is called with the documentation string."
          :type "beads"
          :link (concat "beads:" beads-show--issue-id)
          :description (or title beads-show--issue-id))))))
+
+;;;###autoload
+(defun beads-show-setup-org-integration ()
+  "Set up Org mode integration for beads issue links.
+This function registers the beads: link type with Org mode, allowing
+you to create links like [[beads:bd-123]] in Org documents.
+
+This function should be called after Org mode is loaded, typically in
+your init.el:
+
+  (with-eval-after-load \\='org
+    (beads-show-setup-org-integration))
+
+Alternatively, if you load beads.el after org, you can call this
+function directly in your configuration."
+  (interactive)
+  (if (not (require 'org nil t))
+      (user-error "Org mode is not available")
+    (org-link-set-parameters
+     "beads"
+     :follow #'beads-show--org-link-follow
+     :export #'beads-show--org-link-export
+     :store #'beads-show--org-link-store)
+    (message "Beads Org link integration enabled")))
+
+;; Auto-setup org integration if org is already loaded.
+(when (featurep 'org)
+  (beads-show-setup-org-integration))
 
 ;;; Utility Functions
 
