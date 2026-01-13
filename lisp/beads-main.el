@@ -47,6 +47,7 @@
 (require 'beads-agent)
 (require 'beads-worktree)
 (require 'beads-command-info)
+(require 'beads-command-formula)
 (require 'transient)
 
 ;;; Variables
@@ -147,6 +148,7 @@ Key bindings:
   Dependencies:       d (dep submenu)
   Agent:              A (agent menu)
   Worktree:           W (worktree menu)
+  Formula:            F (formula menu)
   Admin:              i (init), E (export), I (import), S (sync)
   Other:              g (refresh), q (quit)"
   [:description
@@ -182,6 +184,9 @@ Key bindings:
   ["Worktree"
    :description "Git worktree management"
    ("W" "Worktree menu" beads-worktree-menu)]
+  ["Formula"
+   :description "Workflow formulas"
+   ("F" "Formula menu" beads-formula-menu)]
   ["Admin"
    :description "Project administration"
    ("i" "Init project" beads-init)
