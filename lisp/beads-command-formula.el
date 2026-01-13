@@ -15,11 +15,14 @@
 ;; - beads-command-formula-list: EIEIO class for `bd formula list'
 ;; - beads-command-formula-show: EIEIO class for `bd formula show'
 ;; - beads-formula-list-mode: tabulated-list-mode for displaying formulas
-;; - beads-formula-show: Show individual formula details in TOML-like view
+;; - beads-formula-show-mode: special-mode for formula details
+;; - beads-formula-menu: Transient menu for formula management
 ;;
 ;; Usage:
 ;;   M-x beads-formula-list    ; List available formulas
+;;   M-x beads-formula-menu    ; Open formula management transient menu
 ;;   RET on formula            ; Show formula details
+;;   o                         ; Open formula source file
 ;;   g                         ; Refresh list
 ;;   q                         ; Quit buffer
 
@@ -99,6 +102,11 @@
 (defface beads-formula-value-face
   '((t :inherit default))
   "Face for metadata values in formula show buffer."
+  :group 'beads-formula)
+
+(defface beads-formula-title-face
+  '((t :inherit font-lock-keyword-face :weight bold :height 1.3))
+  "Face for formula title in show buffer."
   :group 'beads-formula)
 
 ;;; ============================================================
@@ -191,6 +199,39 @@ Shows detailed information about a formula."))
   "Project directory for this buffer.")
 
 ;;; ============================================================
+;;; Buffer Management
+;;; ============================================================
+
+(defun beads-formula-list--normalize-directory (dir)
+  "Normalize DIR for consistent comparison.
+Strips trailing slashes and expands to absolute path."
+  (directory-file-name (expand-file-name dir)))
+
+(defun beads-formula-list--find-buffer-for-project (project-dir)
+  "Find existing formula list buffer for PROJECT-DIR.
+Return buffer or nil if not found."
+  (let ((normalized-dir (beads-formula-list--normalize-directory project-dir)))
+    (cl-find-if
+     (lambda (buf)
+       (with-current-buffer buf
+         (and (derived-mode-p 'beads-formula-list-mode)
+              beads-formula-list--project-dir
+              (equal (beads-formula-list--normalize-directory
+                      beads-formula-list--project-dir)
+                     normalized-dir))))
+     (buffer-list))))
+
+(defun beads-formula-list--get-or-create-buffer ()
+  "Get or create formula list buffer for current project.
+Reuses existing buffer for same project-dir (directory is identity)."
+  (let* ((project-dir (or (beads-git-find-project-root) default-directory))
+         (existing (beads-formula-list--find-buffer-for-project project-dir)))
+    (or existing
+        (let* ((proj-name (beads-git-get-project-name))
+               (buf-name (format "*beads-formula-list[%s]*" proj-name)))
+          (get-buffer-create buf-name)))))
+
+;;; ============================================================
 ;;; Formula List Utilities
 ;;; ============================================================
 
@@ -269,12 +310,22 @@ Optional COMMAND-OBJ is stored for refresh."
 (defun beads-formula-list-next ()
   "Move to the next formula."
   (interactive)
-  (forward-line 1))
+  (unless (eobp)
+    (forward-line 1)
+    ;; Skip to first data line if we're at header
+    (when (and (= (line-number-at-pos) 2)
+               (not (tabulated-list-get-id)))
+      (forward-line 1))))
 
 (defun beads-formula-list-previous ()
   "Move to the previous formula."
   (interactive)
-  (forward-line -1))
+  (unless (bobp)
+    (forward-line -1)
+    ;; Skip header line (line 1 in tabulated-list is header)
+    (when (<= (line-number-at-pos) 1)
+      (goto-char (point-min))
+      (forward-line 1))))
 
 (defun beads-formula-list-open-source ()
   "Open the source file of the formula at point."
@@ -386,9 +437,9 @@ Optional COMMAND-OBJ is stored for refresh."
   (let ((inhibit-read-only t))
     (erase-buffer)
     ;; Header
-    (insert (propertize (format "Formula: %s\n" (oref formula name))
-                        'face '(:inherit font-lock-keyword-face :height 1.3))
-            "\n")
+    (insert (propertize (format "Formula: %s" (oref formula name))
+                        'face 'beads-formula-title-face)
+            "\n\n")
     ;; Metadata
     (beads-formula-show--render-header "Type" (oref formula formula-type))
     (beads-formula-show--render-header "Version"
@@ -398,7 +449,7 @@ Optional COMMAND-OBJ is stored for refresh."
     ;; Description
     (when-let ((desc (oref formula description)))
       (beads-formula-show--render-section "Description")
-      (insert desc "\n"))
+      (insert (string-trim-right desc) "\n"))
     ;; Variables
     (when-let ((vars (oref formula vars)))
       (beads-formula-show--render-section "Variables")
@@ -474,18 +525,21 @@ Optional COMMAND-OBJ is stored for refresh."
 ;;;###autoload
 (defun beads-formula-list (&optional type)
   "Display available formulas in a tabulated list.
-Optional TYPE filters by formula type (workflow, expansion, aspect)."
-  (interactive)
+Optional TYPE filters by formula type (workflow, expansion, aspect).
+When called interactively with a prefix argument, prompts for TYPE."
+  (interactive
+   (list (when current-prefix-arg
+           (completing-read "Filter by type: "
+                            '("workflow" "expansion" "aspect")
+                            nil t))))
   (beads-check-executable)
   (let* ((project-dir (or (beads-git-find-project-root) default-directory))
+         (buffer (beads-formula-list--get-or-create-buffer))
          (command (beads-command-formula-list
                    :json t
                    :formula-type type))
          (_ (beads-command-execute command))
-         (formulas (oref command data))
-         (buf-name (format "*beads-formula-list[%s]*"
-                          (beads-git-get-project-name)))
-         (buffer (get-buffer-create buf-name)))
+         (formulas (oref command data)))
     (with-current-buffer buffer
       (unless (derived-mode-p 'beads-formula-list-mode)
         (beads-formula-list-mode))
@@ -506,11 +560,13 @@ Optional TYPE filters by formula type (workflow, expansion, aspect)."
 (defun beads-formula-show (formula-name)
   "Show details for FORMULA-NAME."
   (interactive
-   (list (completing-read "Formula: "
-                          (mapcar (lambda (f) (oref f name))
-                                  (beads-command-formula-list! :json t))
-                          nil t)))
-  (beads-check-executable)
+   (progn
+     (beads-check-executable)
+     (list (completing-read "Formula: "
+                            (with-temp-message "Loading formulas..."
+                              (mapcar (lambda (f) (oref f name))
+                                      (beads-command-formula-list! :json t)))
+                            nil t))))
   (let* ((project-dir (or (beads-git-find-project-root) default-directory))
          (command (beads-command-formula-show
                    :formula-name formula-name
@@ -535,15 +591,24 @@ Optional TYPE filters by formula type (workflow, expansion, aspect)."
 ;;; Transient Menu
 ;;; ============================================================
 
+(transient-define-suffix beads-formula-menu--list ()
+  "List formulas with current filter."
+  :key "l"
+  :description "List formulas"
+  (interactive)
+  (let* ((args (transient-args 'beads-formula-menu))
+         (type (transient-arg-value "--type=" args)))
+    (beads-formula-list type)))
+
 ;;;###autoload (autoload 'beads-formula-menu "beads-command-formula" nil t)
 (transient-define-prefix beads-formula-menu ()
   "Manage workflow formulas."
-  ["Actions"
-   ("l" "List formulas" beads-formula-list)
-   ("s" "Show formula" beads-formula-show)]
   ["Filters"
    ("-t" "Type" "--type="
-    :choices ("workflow" "expansion" "aspect"))])
+    :choices ("workflow" "expansion" "aspect"))]
+  ["Actions"
+   ("l" beads-formula-menu--list)
+   ("s" "Show formula" beads-formula-show)])
 
 (provide 'beads-command-formula)
 ;;; beads-command-formula.el ends here

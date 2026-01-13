@@ -256,9 +256,156 @@
       (should (string= (aref vec 3) "5")))))
 
 ;;; ========================================
+;;; Buffer Population Tests
+;;; ========================================
+
+(ert-deftest beads-command-formula-test-populate-buffer ()
+  "Test buffer population from formula list."
+  (let* ((json beads-command-formula-test--sample-list-json)
+         (formulas (mapcar #'beads-formula-summary-from-json json)))
+    (with-temp-buffer
+      (beads-formula-list-mode)
+      (beads-formula-list--populate-buffer formulas nil)
+      (should (= (length tabulated-list-entries) 2))
+      (should beads-formula-list--formulas)
+      (should (= (length beads-formula-list--formulas) 2)))))
+
+(ert-deftest beads-command-formula-test-populate-buffer-empty ()
+  "Test buffer population with empty formula list."
+  (with-temp-buffer
+    (beads-formula-list-mode)
+    (beads-formula-list--populate-buffer nil nil)
+    (should (null tabulated-list-entries))
+    (should (null beads-formula-list--formulas))))
+
+;;; ========================================
+;;; Render Tests
+;;; ========================================
+
+(ert-deftest beads-command-formula-test-render-basic ()
+  "Test formula show rendering."
+  (let ((formula (beads-formula :name "test-formula"
+                                :formula-type "workflow"
+                                :version 1
+                                :description "Test description"
+                                :vars nil
+                                :steps nil
+                                :source "/path/to/test.toml")))
+    (with-temp-buffer
+      (beads-formula-show-mode)
+      (beads-formula-show--render formula)
+      (should (string-match-p "Formula: test-formula" (buffer-string)))
+      (should (string-match-p "Type:" (buffer-string)))
+      (should (string-match-p "workflow" (buffer-string)))
+      (should (string-match-p "Description" (buffer-string)))
+      (should (string-match-p "Test description" (buffer-string))))))
+
+(ert-deftest beads-command-formula-test-render-nil-vars ()
+  "Test formula show render handles nil vars."
+  (let ((formula (beads-formula :name "test"
+                                :formula-type "workflow"
+                                :vars nil
+                                :steps nil)))
+    (with-temp-buffer
+      (beads-formula-show-mode)
+      (beads-formula-show--render formula)
+      (should (string-match-p "Formula: test" (buffer-string)))
+      ;; Should not have Variables section
+      (should-not (string-match-p "Variables" (buffer-string))))))
+
+(ert-deftest beads-command-formula-test-render-with-vars ()
+  "Test formula show render with variables."
+  (let ((formula (beads-formula :name "test"
+                                :formula-type "workflow"
+                                :vars '((feature . ((description . "Feature desc")
+                                                    (required . t)))))))
+    (with-temp-buffer
+      (beads-formula-show-mode)
+      (beads-formula-show--render formula)
+      (should (string-match-p "Variables" (buffer-string)))
+      (should (string-match-p "feature" (buffer-string)))
+      (should (string-match-p "(required)" (buffer-string))))))
+
+(ert-deftest beads-command-formula-test-render-with-steps ()
+  "Test formula show render with steps."
+  (let ((formula (beads-formula :name "test"
+                                :formula-type "workflow"
+                                :steps '(((id . "step-1")
+                                          (title . "First step")
+                                          (description . "Do something"))))))
+    (with-temp-buffer
+      (beads-formula-show-mode)
+      (beads-formula-show--render formula)
+      (should (string-match-p "Steps (1)" (buffer-string)))
+      (should (string-match-p "First step" (buffer-string))))))
+
+(ert-deftest beads-command-formula-test-render-trims-description ()
+  "Test formula show render trims trailing whitespace from description."
+  (let ((formula (beads-formula :name "test"
+                                :formula-type "workflow"
+                                :description "Test description\n\n\n")))
+    (with-temp-buffer
+      (beads-formula-show-mode)
+      (beads-formula-show--render formula)
+      ;; Should have content but trailing newlines should be trimmed
+      (should (string-match-p "Test description" (buffer-string)))
+      ;; The description should be followed by a single newline, not multiple
+      (should-not (string-match-p "Test description\n\n\n\n" (buffer-string))))))
+
+;;; ========================================
+;;; Buffer Management Tests
+;;; ========================================
+
+(ert-deftest beads-command-formula-test-normalize-directory ()
+  "Test directory normalization."
+  (should (string= (beads-formula-list--normalize-directory "/tmp/foo/")
+                   "/tmp/foo"))
+  (should (string= (beads-formula-list--normalize-directory "/tmp/foo")
+                   "/tmp/foo")))
+
+(ert-deftest beads-command-formula-test-find-buffer-for-project ()
+  "Test finding buffer for project."
+  (let ((buf nil))
+    (unwind-protect
+        (progn
+          ;; Create a test buffer
+          (setq buf (get-buffer-create "*beads-formula-list-test*"))
+          (with-current-buffer buf
+            (beads-formula-list-mode)
+            (setq beads-formula-list--project-dir "/tmp/test-project"))
+          ;; Should find buffer
+          (should (eq (beads-formula-list--find-buffer-for-project
+                       "/tmp/test-project/")
+                      buf))
+          ;; Should not find buffer for different project
+          (should (null (beads-formula-list--find-buffer-for-project
+                         "/tmp/other-project"))))
+      ;; Cleanup
+      (when buf (kill-buffer buf)))))
+
+;;; ========================================
+;;; Navigation Tests
+;;; ========================================
+
+(ert-deftest beads-command-formula-test-get-formula-by-name ()
+  "Test getting formula by name."
+  (let* ((json beads-command-formula-test--sample-list-json)
+         (formulas (mapcar #'beads-formula-summary-from-json json)))
+    (with-temp-buffer
+      (beads-formula-list-mode)
+      (beads-formula-list--populate-buffer formulas nil)
+      ;; Should find existing formula
+      (let ((found (beads-formula-list--get-formula-by-name "emacs-lisp-dev")))
+        (should found)
+        (should (string= (oref found name) "emacs-lisp-dev")))
+      ;; Should return nil for non-existent
+      (should (null (beads-formula-list--get-formula-by-name "nonexistent"))))))
+
+;;; ========================================
 ;;; Integration Tests
 ;;; ========================================
 
+;; Run integration tests with: eldev test --selector '(tag :integration)'
 (ert-deftest beads-command-formula-test-list-integration ()
   "Integration test for formula list command."
   :tags '(:integration)
