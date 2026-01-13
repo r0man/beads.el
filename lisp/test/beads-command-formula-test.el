@@ -410,6 +410,7 @@
   "Integration test for formula list command."
   :tags '(:integration)
   (skip-unless (executable-find "bd"))
+  (skip-unless (locate-dominating-file default-directory ".beads"))
   ;; This test will actually run bd formula list --json
   (let* ((cmd (beads-command-formula-list :json t))
          (result (beads-command-execute cmd)))
