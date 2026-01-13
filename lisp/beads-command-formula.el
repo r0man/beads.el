@@ -134,18 +134,6 @@ Lists available formulas from all search paths."))
   "Validate formula list command.  No required fields."
   nil)
 
-(cl-defmethod beads-command-line ((command beads-command-formula-list))
-  "Build command arguments for formula list COMMAND."
-  (with-slots (formula-type) command
-    (let ((args (list "formula" "list"))
-          (global-args (cl-call-next-method)))
-      ;; Append global flags
-      (setq args (append args global-args))
-      ;; Type filter
-      (when formula-type
-        (setq args (append args (list "--type" formula-type))))
-      args)))
-
 (cl-defmethod beads-command-parse ((command beads-command-formula-list))
   "Parse COMMAND output into beads-formula-summary objects."
   (with-slots (stdout) command
@@ -179,18 +167,6 @@ Shows detailed information about a formula."))
   (with-slots (formula-name) command
     (unless (and formula-name (not (string-empty-p formula-name)))
       "Formula name is required")))
-
-(cl-defmethod beads-command-line ((command beads-command-formula-show))
-  "Build command arguments for formula show COMMAND."
-  (with-slots (formula-name) command
-    (let ((args (list "formula" "show"))
-          (global-args (cl-call-next-method)))
-      ;; Append global flags
-      (setq args (append args global-args))
-      ;; Positional argument
-      (when formula-name
-        (setq args (append args (list formula-name))))
-      args)))
 
 (cl-defmethod beads-command-parse ((command beads-command-formula-show))
   "Parse COMMAND output into beads-formula object."
