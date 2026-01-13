@@ -50,10 +50,12 @@ bde-89aa/
 # bd worktree
 bde-ks79/
 
-# Beads sync files (local state, not shared)
+# Beads sync files - issue data lives on beads-sync branch only
 .beads/.sync.lock
 .beads/sync_base.jsonl
 .beads/issues.jsonl
+.beads/metadata.json
+.beads/config.yaml
 
 # Local Emacs state (transient history, etc)
 share/
