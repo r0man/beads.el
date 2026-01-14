@@ -135,7 +135,7 @@ Returns non-nil if both conditions are met."
 (defclass beads-agent-backend-eca (beads-agent-backend)
   ((name :initform "eca")
    (priority :initform 20)
-   (description :initform "AI pair-programming via ECA server"))
+   (description :initform "ECA - Editor Code Assistant"))
   :documentation "Backend for ECA (Editor Code Assistant) integration.
 Uses eca-emacs for AI-assisted development with multi-session support.")
 
