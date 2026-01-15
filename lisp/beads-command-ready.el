@@ -30,11 +30,17 @@
 
 ;;; Code:
 
+(require 'beads)
 (require 'beads-command)
+(require 'beads-meta)
+(require 'beads-option)
 (require 'beads-types)
 
 ;;; Ready Command
 
+;; Wrap in eval-and-compile so class is available at compile time for
+;; beads-meta-define-transient macro
+(eval-and-compile
 (beads-defcommand beads-command-ready (beads-command-json)
   ((assignee
     :initarg :assignee
@@ -275,7 +281,7 @@ Values: hybrid (default), priority, oldest."
     :transient-order 3))
   :documentation "Represents bd ready command.
 Shows ready work (no blockers, open or in-progress).
-When executed with :json t, returns list of beads-issue instances.")
+When executed with :json t, returns list of beads-issue instances."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-ready))
   "Return \"ready\" as the CLI subcommand name."
@@ -378,6 +384,33 @@ Does not modify command slots."
                          :parsed-json parsed-json
                          :stderr (oref command stderr)
                          :parse-error err))))))))
+
+(cl-defmethod beads-command-execute-interactive ((cmd beads-command-ready))
+  "Execute CMD in compilation buffer with human-readable output.
+Disables JSON mode for interactive display with colors."
+  ;; Set json to nil for human-readable colored output
+  (oset cmd json nil)
+  ;; Call the default implementation
+  (cl-call-next-method))
+
+;;; Transient Menu
+
+;; Generate the complete transient menu from slot metadata
+;;;###autoload (autoload 'beads-ready "beads-command-ready" nil t)
+(beads-meta-define-transient beads-command-ready "beads-ready"
+  "Show ready work (issues with no blockers).
+
+Ready issues are those that:
+- Have status open or in_progress
+- Have no unresolved blockers
+- Are not deferred (unless --include-deferred)
+
+Useful for finding the next task to work on.
+
+Transient levels control which options are visible (cycle with C-x l):
+  Level 1: Common filters (assignee, priority, type, limit, sort, unassigned)
+  Level 2: Label, scope, and display options"
+  beads-option-global-section)
 
 (provide 'beads-command-ready)
 ;;; beads-command-ready.el ends here

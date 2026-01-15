@@ -3122,6 +3122,118 @@ No required fields, returns nil (valid)."
 
 ;; No custom parse needed for dep-cycles - uses parent JSON parse
 
+;;; Dep List Command
+
+(beads-defcommand beads-command-dep-list (beads-command-json)
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID to list dependencies for (required positional)."
+    :positional 1
+    :required t)
+   (direction
+    :initarg :direction
+    :type (or null string)
+    :initform nil
+    :documentation "Direction: down (dependencies) or up (dependents)."
+    :long-option "--direction"
+    :option-type :string)
+   (dep-type
+    :initarg :dep-type
+    :type (or null string)
+    :initform nil
+    :documentation "Filter by dependency type (e.g., tracks, blocks)."
+    :long-option "--type"
+    :short-option "-t"
+    :option-type :string))
+  :documentation "Represents bd dep list command.
+Lists dependencies or dependents of an issue.")
+
+(cl-defmethod beads-command-subcommand ((_command beads-command-dep-list))
+  "Return \"dep list\" as the CLI subcommand name."
+  "dep list")
+
+(cl-defmethod beads-command-validate ((command beads-command-dep-list))
+  "Validate dep list COMMAND."
+  (with-slots (issue-id direction) command
+    (cond
+     ((or (null issue-id) (string-empty-p issue-id))
+      "Issue ID is required")
+     ((and direction (not (member direction '("down" "up"))))
+      "Direction must be 'down' or 'up'")
+     (t nil))))
+
+;;; Dep Relate Command
+
+(beads-defcommand beads-command-dep-relate (beads-command-json)
+  ((id1
+    :initarg :id1
+    :type (or null string)
+    :initform nil
+    :documentation "First issue ID."
+    :positional 1
+    :required t)
+   (id2
+    :initarg :id2
+    :type (or null string)
+    :initform nil
+    :documentation "Second issue ID."
+    :positional 2
+    :required t))
+  :documentation "Represents bd dep relate command.
+Creates a bidirectional relates_to link between two issues.")
+
+(cl-defmethod beads-command-subcommand ((_command beads-command-dep-relate))
+  "Return \"dep relate\" as the CLI subcommand name."
+  "dep relate")
+
+(cl-defmethod beads-command-validate ((command beads-command-dep-relate))
+  "Validate dep relate COMMAND."
+  (with-slots (id1 id2) command
+    (cond
+     ((or (null id1) (string-empty-p id1))
+      "First issue ID is required")
+     ((or (null id2) (string-empty-p id2))
+      "Second issue ID is required")
+     ((string= id1 id2)
+      "Cannot relate issue to itself")
+     (t nil))))
+
+;;; Dep Unrelate Command
+
+(beads-defcommand beads-command-dep-unrelate (beads-command-json)
+  ((id1
+    :initarg :id1
+    :type (or null string)
+    :initform nil
+    :documentation "First issue ID."
+    :positional 1
+    :required t)
+   (id2
+    :initarg :id2
+    :type (or null string)
+    :initform nil
+    :documentation "Second issue ID."
+    :positional 2
+    :required t))
+  :documentation "Represents bd dep unrelate command.
+Removes a relates_to link between two issues.")
+
+(cl-defmethod beads-command-subcommand ((_command beads-command-dep-unrelate))
+  "Return \"dep unrelate\" as the CLI subcommand name."
+  "dep unrelate")
+
+(cl-defmethod beads-command-validate ((command beads-command-dep-unrelate))
+  "Validate dep unrelate COMMAND."
+  (with-slots (id1 id2) command
+    (cond
+     ((or (null id1) (string-empty-p id1))
+      "First issue ID is required")
+     ((or (null id2) (string-empty-p id2))
+      "Second issue ID is required")
+     (t nil))))
+
 ;;; Label List-All Command
 
 (beads-defcommand beads-command-label-list-all (beads-command-json)

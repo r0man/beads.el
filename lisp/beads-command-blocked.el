@@ -26,11 +26,17 @@
 
 ;;; Code:
 
+(require 'beads)
 (require 'beads-command)
+(require 'beads-meta)
+(require 'beads-option)
 (require 'beads-types)
 
 ;;; Blocked Command
 
+;; Wrap in eval-and-compile so class is available at compile time for
+;; beads-meta-define-transient macro
+(eval-and-compile
 (beads-defcommand beads-command-blocked (beads-command-json)
   ((parent
     :initarg :parent
@@ -51,7 +57,7 @@
     :transient-order 1))
   :documentation "Represents bd blocked command.
 Shows blocked issues (issues with unresolved blockers).
-When executed with :json t, returns list of beads-blocked-issue instances.")
+When executed with :json t, returns list of beads-blocked-issue instances."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-blocked))
   "Return \"blocked\" as the CLI subcommand name."
@@ -78,6 +84,28 @@ Does not modify command slots."
                          :parsed-json parsed-json
                          :stderr (oref command stderr)
                          :parse-error err))))))))
+
+(cl-defmethod beads-command-execute-interactive ((cmd beads-command-blocked))
+  "Execute CMD in compilation buffer with human-readable output.
+Disables JSON mode for interactive display with colors."
+  ;; Set json to nil for human-readable colored output
+  (oset cmd json nil)
+  ;; Call the default implementation
+  (cl-call-next-method))
+
+;;; Transient Menu
+
+;; Generate the complete transient menu from slot metadata
+;;;###autoload (autoload 'beads-blocked "beads-command-blocked" nil t)
+(beads-meta-define-transient beads-command-blocked "beads-blocked"
+  "Show blocked issues (issues with unresolved blockers).
+
+Blocked issues are those that have dependencies that are not yet closed.
+This helps understand what work is stalled waiting on other issues.
+
+Transient levels control which options are visible (cycle with C-x l):
+  Level 2: Scope filter (parent)"
+  beads-option-global-section)
 
 (provide 'beads-command-blocked)
 ;;; beads-command-blocked.el ends here

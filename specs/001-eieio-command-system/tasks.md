@@ -25,8 +25,8 @@
 
 **Purpose**: Verify existing infrastructure and prepare for new commands
 
-- [ ] T001 Verify existing `beads-command.el` has `result` slot (rename from `data` if needed) in `lisp/beads-command.el`
-- [ ] T002 Verify `beads-command-parse` populates `result` slot correctly in `lisp/beads-command.el`
+- [x] T001 Verify existing `beads-command.el` has `data` slot in `lisp/beads-command.el` (DECISION: Keep `data` instead of renaming to `result` - slot is working and tested throughout codebase)
+- [x] T002 Verify `beads-command-parse` populates `data` slot correctly in `lisp/beads-command.el`
 - [ ] T003 [P] Verify `beads-meta-define-transient` macro generates correct autoload cookies in `lisp/beads-meta.el`
 - [ ] T004 [P] Document the quickstart pattern for adding new commands (already in specs, verify accuracy)
 
