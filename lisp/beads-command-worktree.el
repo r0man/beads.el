@@ -22,7 +22,7 @@
 ;; - beads-command-worktree-remove: Remove worktree with safety checks
 ;; - beads-command-worktree-info: Show info about current worktree
 ;;
-;; Domain types:
+;; Domain types are defined in beads-worktree-types.el:
 ;; - beads-worktree: Represents a git worktree with beads state
 ;; - beads-worktree-info: Information about current worktree context
 ;;
@@ -43,114 +43,20 @@
 
 ;;; Code:
 
-(require 'eieio)
+(require 'beads-worktree-types)
 (require 'beads-command)
+(require 'beads-meta)
+(require 'beads-option)
 (require 'cl-lib)
-
-;;; ============================================================
-;;; Domain Type: beads-worktree
-;;; ============================================================
-
-(defclass beads-worktree ()
-  ((name
-    :initarg :name
-    :type (or null string)
-    :initform nil
-    :documentation "Worktree name (directory name).")
-   (path
-    :initarg :path
-    :type (or null string)
-    :initform nil
-    :documentation "Absolute path to the worktree directory.")
-   (branch
-    :initarg :branch
-    :type (or null string)
-    :initform nil
-    :documentation "Git branch checked out in this worktree.")
-   (is-main
-    :initarg :is-main
-    :type boolean
-    :initform nil
-    :documentation "Whether this is the main worktree (not a linked worktree).")
-   (beads-state
-    :initarg :beads-state
-    :type (or null string)
-    :initform nil
-    :documentation "Beads configuration state.
-Possible values:
-- \"shared\": Main repository with .beads directory
-- \"redirect\": Worktree with redirect to main .beads
-- \"local\": Has its own .beads (not recommended)
-- \"none\": No beads configuration"))
-  :documentation "Represents a git worktree with beads configuration.")
-
-(defun beads-worktree-from-json (json)
-  "Create a beads-worktree instance from JSON alist.
-JSON is an alist with keys: name, path, branch, is_main, beads_state.
-For create command output which lacks `name', derives it from `path'."
-  (let* ((path (alist-get 'path json))
-         (name (or (alist-get 'name json)
-                   (and path (file-name-nondirectory
-                              (directory-file-name path))))))
-    (beads-worktree
-     :name name
-     :path path
-     :branch (alist-get 'branch json)
-     :is-main (eq t (alist-get 'is_main json))
-     :beads-state (alist-get 'beads_state json))))
-
-;;; ============================================================
-;;; Domain Type: beads-worktree-info
-;;; ============================================================
-
-(defclass beads-worktree-info ()
-  ((is-worktree
-    :initarg :is-worktree
-    :type boolean
-    :initform nil
-    :documentation "Whether current directory is in a worktree.")
-   (name
-    :initarg :name
-    :type (or null string)
-    :initform nil
-    :documentation "Worktree name (if in a worktree).")
-   (path
-    :initarg :path
-    :type (or null string)
-    :initform nil
-    :documentation "Worktree path (if in a worktree).")
-   (branch
-    :initarg :branch
-    :type (or null string)
-    :initform nil
-    :documentation "Branch name (if in a worktree).")
-   (main-path
-    :initarg :main-path
-    :type (or null string)
-    :initform nil
-    :documentation "Path to main repository (if in a linked worktree).")
-   (beads-state
-    :initarg :beads-state
-    :type (or null string)
-    :initform nil
-    :documentation "Beads configuration state."))
-  :documentation "Information about the current worktree context.")
-
-(defun beads-worktree-info-from-json (json)
-  "Create a beads-worktree-info instance from JSON alist.
-JSON is an alist from `bd worktree info --json'."
-  (beads-worktree-info
-   :is-worktree (eq t (alist-get 'is_worktree json))
-   :name (alist-get 'name json)
-   :path (alist-get 'path json)
-   :branch (alist-get 'branch json)
-   :main-path (alist-get 'main_path json)
-   :beads-state (alist-get 'beads_state json)))
+(require 'transient)
 
 ;;; ============================================================
 ;;; Command Class: beads-command-worktree-create
 ;;; ============================================================
 
+;; Wrap in eval-and-compile so class is available at compile time for
+;; beads-meta-define-transient macro
+(eval-and-compile
 (beads-defcommand beads-command-worktree-create (beads-command-json)
   ((name
     :initarg :name
@@ -175,7 +81,7 @@ Default: same as worktree name."
     :transient-level 1
     :transient-order 1))
   :documentation "Represents bd worktree create command.
-Creates a git worktree with beads redirect configuration.")
+Creates a git worktree with beads redirect configuration."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-worktree-create))
   "Return \"worktree create\" as the CLI subcommand."
@@ -212,10 +118,11 @@ Returns beads-worktree instance on success."
 ;;; Command Class: beads-command-worktree-list
 ;;; ============================================================
 
+(eval-and-compile
 (beads-defcommand beads-command-worktree-list (beads-command-json)
   ()
   :documentation "Represents bd worktree list command.
-Lists all git worktrees with their beads configuration state.")
+Lists all git worktrees with their beads configuration state."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-worktree-list))
   "Return \"worktree list\" as the CLI subcommand."
@@ -243,6 +150,7 @@ Returns list of beads-worktree instances."
 ;;; Command Class: beads-command-worktree-remove
 ;;; ============================================================
 
+(eval-and-compile
 (beads-defcommand beads-command-worktree-remove (beads-command-json)
   ((name
     :initarg :name
@@ -267,7 +175,7 @@ and stashes."
     :transient-level 1
     :transient-order 1))
   :documentation "Represents bd worktree remove command.
-Removes a worktree with safety checks (unless --force is used).")
+Removes a worktree with safety checks (unless --force is used)."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-worktree-remove))
   "Return \"worktree remove\" as the CLI subcommand."
@@ -286,10 +194,11 @@ Requires name to be set."
 ;;; Command Class: beads-command-worktree-info
 ;;; ============================================================
 
+(eval-and-compile
 (beads-defcommand beads-command-worktree-info (beads-command-json)
   ()
   :documentation "Represents bd worktree info command.
-Shows information about the current worktree context.")
+Shows information about the current worktree context."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-worktree-info))
   "Return \"worktree info\" as the CLI subcommand."
@@ -337,6 +246,93 @@ Returns beads-worktree instance or nil if not found."
   (seq-find (lambda (wt)
               (oref wt is-main))
             (beads-command-worktree-list!)))
+
+;;; ============================================================
+;;; Interactive Execute Methods
+;;; ============================================================
+
+(cl-defmethod beads-command-execute-interactive ((cmd beads-command-worktree-create))
+  "Execute CMD in compilation buffer with human-readable output."
+  (oset cmd json nil)
+  (cl-call-next-method))
+
+(cl-defmethod beads-command-execute-interactive ((cmd beads-command-worktree-list))
+  "Execute CMD in compilation buffer with human-readable output."
+  (oset cmd json nil)
+  (cl-call-next-method))
+
+(cl-defmethod beads-command-execute-interactive ((cmd beads-command-worktree-remove))
+  "Execute CMD in compilation buffer with human-readable output."
+  (oset cmd json nil)
+  (cl-call-next-method))
+
+(cl-defmethod beads-command-execute-interactive ((cmd beads-command-worktree-info))
+  "Execute CMD in compilation buffer with human-readable output."
+  (oset cmd json nil)
+  (cl-call-next-method))
+
+;;; ============================================================
+;;; Transient Menus
+;;; ============================================================
+
+;; Individual subcommand transients
+;;;###autoload (autoload 'beads-worktree-create "beads-command-worktree" nil t)
+(beads-meta-define-transient beads-command-worktree-create "beads-worktree-create"
+  "Create a new git worktree with beads redirect.
+
+When creating a worktree, beads automatically sets up a redirect file
+so all worktrees share the same .beads database.
+
+Transient levels control which options are visible (cycle with C-x l):
+  Level 1: Branch name option"
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-worktree-list "beads-command-worktree" nil t)
+(beads-meta-define-transient beads-command-worktree-list "beads-worktree-list"
+  "List all git worktrees.
+
+Shows all worktrees with their beads configuration state:
+- shared: Main repository with .beads directory
+- redirect: Worktree with redirect to main .beads
+- local: Has its own .beads (not recommended)
+- none: No beads configuration"
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-worktree-remove "beads-command-worktree" nil t)
+(beads-meta-define-transient beads-command-worktree-remove "beads-worktree-remove"
+  "Remove a git worktree.
+
+By default, checks for uncommitted changes, unpushed commits,
+and stashes before removing. Use --force to skip safety checks.
+
+Transient levels control which options are visible (cycle with C-x l):
+  Level 1: Force option"
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-worktree-show-info "beads-command-worktree" nil t)
+(beads-meta-define-transient beads-command-worktree-info "beads-worktree-show-info"
+  "Show information about the current worktree.
+
+Displays whether the current directory is in a worktree,
+the worktree name, branch, path to main repository,
+and beads configuration state."
+  beads-option-global-section)
+
+;;; Parent Transient Menu
+
+;;;###autoload (autoload 'beads-worktree-menu "beads-command-worktree" nil t)
+(transient-define-prefix beads-worktree-menu ()
+  "Manage git worktrees with beads configuration.
+
+Git worktrees allow parallel development on multiple branches.
+Beads automatically sets up redirect files so all worktrees
+share the same .beads database."
+  ["Worktree Commands"
+   ("c" "Create worktree" beads-worktree-create)
+   ("l" "List worktrees" beads-worktree-list)
+   ("i" "Worktree info" beads-worktree-show-info)]
+  ["Danger"
+   ("d" "Remove worktree" beads-worktree-remove)])
 
 (provide 'beads-command-worktree)
 ;;; beads-command-worktree.el ends here

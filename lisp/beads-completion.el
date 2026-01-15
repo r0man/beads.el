@@ -23,6 +23,7 @@
 ;;; Code:
 
 (require 'beads-command)
+(require 'beads-worktree-types)
 
 ;; Forward declaration for customization variable defined in beads-custom.el
 (defvar beads-completion-show-unavailable-backends)

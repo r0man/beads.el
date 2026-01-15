@@ -1766,6 +1766,117 @@ Integration test that checks for dependency cycles."
   (let ((cmd (beads-command-dep-cycles)))
     (should (null (beads-command-validate cmd)))))
 
+;;; Unit Tests: beads-command-dep-list
+
+(ert-deftest beads-command-test-dep-list-command-line-basic ()
+  "Unit test: dep-list builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-dep-list :issue-id "bd-1"))
+         (args (beads-command-line cmd)))
+    (should (member "dep" args))
+    (should (member "list" args))
+    (should (member "bd-1" args))))
+
+(ert-deftest beads-command-test-dep-list-command-line-with-direction ()
+  "Unit test: dep-list includes direction option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-dep-list :issue-id "bd-1" :direction "up"))
+         (args (beads-command-line cmd)))
+    (should (member "--direction" args))
+    (should (member "up" args))))
+
+(ert-deftest beads-command-test-dep-list-command-line-with-type ()
+  "Unit test: dep-list includes type option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-dep-list :issue-id "bd-1" :dep-type "tracks"))
+         (args (beads-command-line cmd)))
+    (should (member "--type" args))
+    (should (member "tracks" args))))
+
+(ert-deftest beads-command-test-dep-list-validation-missing-issue-id ()
+  "Unit test: dep-list validation fails without issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-list)))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-test-dep-list-validation-success ()
+  "Unit test: dep-list validation succeeds with issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-list :issue-id "bd-1")))
+    (should (null (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-test-dep-list-validation-invalid-direction ()
+  "Unit test: dep-list validation fails with invalid direction."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-list :issue-id "bd-1" :direction "invalid")))
+    (should (beads-command-validate cmd))))
+
+;;; Unit Tests: beads-command-dep-relate
+
+(ert-deftest beads-command-test-dep-relate-command-line-basic ()
+  "Unit test: dep-relate builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-dep-relate :id1 "bd-1" :id2 "bd-2"))
+         (args (beads-command-line cmd)))
+    (should (member "dep" args))
+    (should (member "relate" args))
+    (should (member "bd-1" args))
+    (should (member "bd-2" args))))
+
+(ert-deftest beads-command-test-dep-relate-validation-missing-id1 ()
+  "Unit test: dep-relate validation fails without id1."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-relate :id2 "bd-2")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-test-dep-relate-validation-missing-id2 ()
+  "Unit test: dep-relate validation fails without id2."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-relate :id1 "bd-1")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-test-dep-relate-validation-same-ids ()
+  "Unit test: dep-relate validation fails with same IDs."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-relate :id1 "bd-1" :id2 "bd-1")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-test-dep-relate-validation-success ()
+  "Unit test: dep-relate validation succeeds with both IDs."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-relate :id1 "bd-1" :id2 "bd-2")))
+    (should (null (beads-command-validate cmd)))))
+
+;;; Unit Tests: beads-command-dep-unrelate
+
+(ert-deftest beads-command-test-dep-unrelate-command-line-basic ()
+  "Unit test: dep-unrelate builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-dep-unrelate :id1 "bd-1" :id2 "bd-2"))
+         (args (beads-command-line cmd)))
+    (should (member "dep" args))
+    (should (member "unrelate" args))
+    (should (member "bd-1" args))
+    (should (member "bd-2" args))))
+
+(ert-deftest beads-command-test-dep-unrelate-validation-missing-id1 ()
+  "Unit test: dep-unrelate validation fails without id1."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-unrelate :id2 "bd-2")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-test-dep-unrelate-validation-missing-id2 ()
+  "Unit test: dep-unrelate validation fails without id2."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-unrelate :id1 "bd-1")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-test-dep-unrelate-validation-success ()
+  "Unit test: dep-unrelate validation succeeds with both IDs."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-unrelate :id1 "bd-1" :id2 "bd-2")))
+    (should (null (beads-command-validate cmd)))))
+
 ;;; Unit Tests: beads-command-delete
 
 (ert-deftest beads-command-test-delete-command-line-basic ()

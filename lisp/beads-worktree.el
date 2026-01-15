@@ -33,6 +33,7 @@
 
 (require 'beads)
 (require 'beads-buffer)
+(require 'beads-worktree-types)
 (require 'beads-command-worktree)
 (require 'beads-completion)
 (require 'beads-reader)
