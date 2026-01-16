@@ -367,7 +367,7 @@ Format: ((epic-id . (expanded-p . children)) ...)")
 
 (defun beads-epic-status--fetch-children (epic-id)
   "Fetch all child issues for EPIC-ID using dependency tree."
-  (let* ((tree-data (beads-command-dep-tree! :issue-id epic-id :reverse t)))
+  (let* ((tree-data (beads-command-dep-tree! :issue-id epic-id :direction "up")))
     ;; Tree nodes are issues with extra fields (depth, parent_id)
     ;; Filter out the epic itself (depth=0) and keep only children
     (cl-remove-if #'null

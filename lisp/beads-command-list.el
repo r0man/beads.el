@@ -175,7 +175,6 @@ Must have ALL specified labels.  Can combine with --label-any."
     :long-option "label"
     :short-option "l"
     :option-type :list
-    :option-separator ","
     ;; Transient properties
     :transient-key "l"
     :transient-description "--label"
@@ -195,7 +194,6 @@ Must have AT LEAST ONE of specified labels.  Can combine with --label."
     ;; CLI properties
     :long-option "label-any"
     :option-type :list
-    :option-separator ","
     ;; Transient properties
     :transient-key "L"
     :transient-description "--label-any"

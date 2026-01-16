@@ -288,7 +288,7 @@
       (should (string-match-p "bd-1" content))
       (should (string-match-p "bd-2" content))
       (should (string-match-p "bd-3" content))
-      (should (string-match-p "→" content)))))
+      (should (string-match-p " -> " content)))))
 
 (ert-deftest beads-dep-test-cycles-render-multiple-cycles ()
   "Test rendering with multiple cycles."
@@ -762,7 +762,7 @@
       (beads-dep-tree--render-issue issue)
       (let ((content (buffer-string)))
         ;; Should have indentation (4 spaces for depth 2)
-        (should (string-match-p "    └─" content))
+        (should (string-match-p "    - " content))
         (should (string-match-p "IN_PROGRESS" content))))))
 
 (ert-deftest beads-dep-test-tree-render-issue-status-faces ()

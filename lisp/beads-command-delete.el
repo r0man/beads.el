@@ -216,39 +216,39 @@ Returns error string or nil if valid."
 (cl-defmethod beads-command-parse ((command beads-command-delete))
   "Parse delete COMMAND output and return deleted issue(s).
 When :json is nil, falls back to parent (returns raw stdout).
-When :json is t, returns beads-issue instance (or list when multiple IDs).
-Does not modify command slots."
-  (with-slots (json issue-ids) command
+When :json is t, returns alist with deletion info.
+Does not modify command slots.
+
+The bd CLI returns JSON like:
+  {\"deleted\": \"issue-id\", \"dependencies_removed\": N,
+   \"references_updated\": N}
+
+Returns the parsed alist or nil."
+  (with-slots (json) command
     (if (not json)
         ;; If json is not enabled, use parent implementation
         (cl-call-next-method)
-      ;; Call parent to parse JSON, then convert to beads-issue instance(s)
+      ;; Call parent to parse JSON
       (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (if (eq (type-of parsed-json) 'vector)
-                ;; bd delete returns array - convert to issue objects
-                (let ((issues (mapcar #'beads-issue-from-json
-                                      (append parsed-json nil))))
-                  ;; Return single issue if only one ID, list otherwise
-                  (if (and issue-ids (= (length issue-ids) 1))
-                      (car issues)
-                    issues))
-              ;; Unexpected JSON structure - might be empty result
-              (if (null parsed-json)
-                  nil
-                (signal 'beads-json-parse-error
-                        (list "Unexpected JSON structure from bd delete"
-                              :exit-code (oref command exit-code)
-                              :parsed-json parsed-json
-                              :stderr (oref command stderr)))))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to parse delete result: %s"
-                                 (error-message-string err))
-                         :exit-code (oref command exit-code)
-                         :parsed-json parsed-json
-                         :stderr (oref command stderr)
-                         :parse-error err))))))))
+        (cond
+         ;; Empty result
+         ((null parsed-json) nil)
+         ;; Vector of results (multiple deletions)
+         ((vectorp parsed-json)
+          (append parsed-json nil))
+         ;; Single object with 'deleted' field (actual bd CLI format)
+         ((alist-get 'deleted parsed-json)
+          parsed-json)
+         ;; Legacy format with 'id' field (for backwards compatibility)
+         ((alist-get 'id parsed-json)
+          parsed-json)
+         ;; Unexpected format
+         (t
+          (signal 'beads-json-parse-error
+                  (list "Unexpected JSON structure from bd delete"
+                        :exit-code (oref command exit-code)
+                        :parsed-json parsed-json
+                        :stderr (oref command stderr)))))))))
 
 (cl-defmethod beads-command-execute-interactive ((cmd beads-command-delete))
   "Execute CMD in terminal buffer with human-readable output.

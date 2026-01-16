@@ -191,7 +191,6 @@ Must have ALL specified labels."
     :long-option "label"
     :short-option "l"
     :option-type :list
-    :option-separator ","
     ;; Transient properties
     :transient-key "l"
     :transient-description "--label"
@@ -211,7 +210,6 @@ Must have AT LEAST ONE of specified labels."
     ;; CLI properties
     :long-option "label-any"
     :option-type :list
-    :option-separator ","
     ;; Transient properties
     :transient-key "L"
     :transient-description "--label-any"
@@ -432,6 +430,20 @@ Returns list of error messages, or nil if all valid."
                     (beads-export--validate-format format)
                     (beads-export--validate-status status)))))
 
+(defun beads-export--execute (cmd)
+  "Execute export command CMD.
+CMD should be a beads-command-export instance.
+Validates the command and executes it.
+Handles errors gracefully by calling `beads--error'."
+  (let ((errors (beads-export--validate-all cmd)))
+    (if errors
+        (beads--error "Export validation failed: %s"
+                      (string-join errors ", "))
+      (condition-case err
+          (beads-command-execute cmd)
+        (error
+         (beads--error "Export failed: %s" (error-message-string err)))))))
+
 ;;; Suffix Commands
 
 (transient-define-suffix beads-export--execute-command ()
@@ -440,38 +452,29 @@ Returns list of error messages, or nil if all valid."
   :description "Export"
   (interactive)
   (let* ((args (transient-args 'beads-export))
-         (cmd (beads-export--parse-transient-args args))
-         (errors (beads-export--validate-all cmd)))
-    (if errors
-        (user-error "Validation failed: %s" (string-join errors "; "))
-      (condition-case err
-          (progn
-            (beads-command-execute cmd)
-            ;; After execution, slots are populated - read from them
-            (let* ((stdout (oref cmd stdout))
-                   (output (oref cmd output)))
-              (with-slots (format) cmd
-                ;; Display output or show message
-                (if output
-                    (message "Exported to: %s" output)
-                  ;; Show output in buffer
-                  (let ((buf (get-buffer-create
-                              (beads-buffer-name-utility "export"))))
-                    (with-current-buffer buf
-                      (let ((inhibit-read-only t))
-                        (erase-buffer)
-                        (insert stdout)
-                        (goto-char (point-min))
-                        (special-mode)
-                        (local-set-key (kbd "q") 'quit-window)))
-                    (display-buffer buf)
-                    (message "Exported (see buffer)")))))
-            nil)
-        (error
-         (let ((err-msg (format "Failed to export: %s"
-                               (error-message-string err))))
-           (message "%s" err-msg)
-           err-msg))))))
+         (cmd (beads-export--parse-transient-args args)))
+    ;; Set default output if not specified
+    (unless (oref cmd output)
+      (oset cmd output (beads-export--get-default-output)))
+    ;; Execute using beads-export--execute (validates and executes)
+    (beads-export--execute cmd)
+    ;; After execution, show result
+    (let* ((stdout (oref cmd stdout))
+           (output (oref cmd output)))
+      (if output
+          (message "Exported to: %s" output)
+        ;; Show output in buffer
+        (let ((buf (get-buffer-create
+                    (beads-buffer-name-utility "export"))))
+          (with-current-buffer buf
+            (let ((inhibit-read-only t))
+              (erase-buffer)
+              (insert (or stdout ""))
+              (goto-char (point-min))
+              (special-mode)
+              (local-set-key (kbd "q") 'quit-window)))
+          (display-buffer buf)
+          (message "Exported (see buffer)"))))))
 
 (transient-define-suffix beads-export--preview ()
   "Preview the bd export command without executing."

@@ -936,7 +936,7 @@ Integration test that filters ready issues by priority."
                   :title "Low priority"
                   :priority "3"))
            ;; Get ready issues with priority 1
-           (issues (beads-command-ready! :priority "1")))
+           (issues (beads-command-ready! :priority 1)))
       ;; Should return a list
       (should (listp issues))
       ;; All should have priority 1
@@ -1050,7 +1050,7 @@ Integration test that retrieves issue database stats."
                :priority "2"
                :issue-type "bug"
                :assignee "alice"
-               :limit "10"))
+               :limit 10))
          (args (beads-command-line cmd)))
     (should (member "list" args))
     (should (member "--status" args))
@@ -1435,7 +1435,7 @@ Integration test that retrieves issue database stats."
 (ert-deftest beads-command-test-ready-validate-priority-range ()
   "Ready validation checks priority range."
   :tags '(:unit)
-  (let ((cmd (beads-command-ready :priority "5")))
+  (let ((cmd (beads-command-ready :priority 5)))
     (should (stringp (beads-command-validate cmd)))
     (should (string-match-p "Priority" (beads-command-validate cmd)))))
 

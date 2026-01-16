@@ -92,7 +92,7 @@ Text references to be updated:
 (ert-deftest beads-delete-test-execute-deletion-success ()
   "Test successful deletion execution."
   (let ((json-output (json-encode '((id . "bd-42")
-                                    (deleted . t)))))
+                                     (deleted . t)))))
     (cl-letf (((symbol-function 'process-file)
                (beads-test--mock-call-process 0 json-output))
               ((symbol-function 'beads--invalidate-completion-cache)
