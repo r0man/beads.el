@@ -63,15 +63,13 @@
   (let* ((args '("--output=/tmp/test.jsonl"
                  "--format=jsonl"
                  "--status=open"
-                 "--force"
-                 "--no-auto-flush"))
+                 "--force"))
          (cmd (beads-export--parse-transient-args args)))
     (should (beads-command-export-p cmd))
     (should (string= (oref cmd output) "/tmp/test.jsonl"))
     (should (string= (oref cmd format) "jsonl"))
     (should (string= (oref cmd status) "open"))
-    (should (eq (oref cmd force) t))
-    (should (eq (oref cmd no-auto-flush) t))))
+    (should (eq (oref cmd force) t))))
 
 ;;; Integration Tests - Export Execution
 

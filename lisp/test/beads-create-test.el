@@ -657,7 +657,7 @@ Tests that preview catches invalid issue type."
       ;; Should return validation error message
       (should (stringp result))
       (should (string-match-p "Validation errors:" result))
-      (should (string-match-p "Type must be one of" result)))))
+      (should (string-match-p "Invalid issue type" result)))))
 
 (ert-deftest beads-create-test-preview-validation-error-invalid-priority ()
   "Integration test: Preview with invalid priority shows validation error.
