@@ -66,6 +66,7 @@
 (require 'beads-command-gate)
 (require 'beads-command-hooks)
 (require 'beads-command-integrations)
+(require 'beads-command-label)
 (require 'beads-command-merge-slot)
 (require 'beads-command-migrate)
 (require 'beads-command-misc)
