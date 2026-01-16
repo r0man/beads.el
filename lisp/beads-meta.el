@@ -22,14 +22,14 @@
 ;; Supported Custom Properties:
 ;;
 ;; CLI Properties:
-;;   :long-option     - Long CLI option (e.g., "--title")
-;;   :short-option    - Short CLI option (e.g., "-t")
+;;   :long-option     - Long CLI option name without dashes (e.g., "title")
+;;   :short-option    - Short CLI option letter without dash (e.g., "t")
 ;;   :option-type     - Serialization type (:string, :boolean, :integer, :list)
 ;;   :positional      - Position for positional args (integer 1, 2, 3... or nil)
 ;;   :option-separator - Separator for :list type (default ",")
 ;;
 ;; Transient Properties:
-;;   :transient-key         - Key binding in transient menu
+;;   :transient-key         - Key binding in transient menu (without dash prefix)
 ;;   :transient-description - Description in transient
 ;;   :transient-class       - Transient class (transient-option, etc.)
 ;;   :transient-reader      - Reader function for input
@@ -51,9 +51,11 @@
 ;;       :type (or null string)
 ;;       :initform nil
 ;;       :documentation "Issue title"
-;;       ;; CLI properties
+;;       ;; CLI properties - option names without dashes
+;;       :long-option "title"
+;;       :short-option "t"
 ;;       :positional 1
-;;       ;; Transient properties
+;;       ;; Transient properties - key without dash prefix
 ;;       :transient-key "t"
 ;;       :transient-description "Title (required)"
 ;;       :transient-class transient-option
@@ -395,7 +397,10 @@ Slots without :long-option, :short-option, or :positional are skipped."
                               positional-args))))
                    ;; Named option with value
                    ((or long-opt short-opt)
-                    (let* ((opt-name (or long-opt short-opt))
+                    ;; Prepend dashes: "--" for long options, "-" for short
+                    (let* ((opt-name (if long-opt
+                                         (concat "--" long-opt)
+                                       (concat "-" short-opt)))
                            (formatted (beads-meta--format-slot-value
                                        value option-type separator)))
                       (cond
@@ -462,11 +467,12 @@ or nil if the slot doesn't have transient metadata (no :transient-key)."
                                       'transient-switch
                                     'transient-option))))
         ;; Argument (from :transient-argument or derived from :long-option)
+        ;; Note: long-opt is stored without dashes, so prepend "--" when deriving
         (let ((arg (or trans-arg
                        (when long-opt
                          (if (eq option-type :boolean)
-                             long-opt
-                           (concat long-opt "="))))))
+                             (concat "--" long-opt)
+                           (concat "--" long-opt "="))))))
           (when arg
             (setq spec (plist-put spec :argument arg))))
         ;; Reader function

@@ -612,7 +612,7 @@ Signals `beads-json-parse-error' if JSON parsing fails (for JSON commands)."
     :documentation "Output in JSON format (--json).
 Enables machine-readable output."
     ;; CLI properties - handled by beads-meta-build-command-line
-    :long-option "--json"
+    :long-option "json"
     :option-type :boolean))
   :abstract t
   :documentation "Abstract base class for bd commands that support JSON output.
@@ -752,8 +752,8 @@ Returns process object."
     :initform nil
     :documentation "Git branch for beads commits (-b, --branch). Default: current branch."
     ;; CLI properties
-    :long-option "--branch"
-    :short-option "-b"
+    :long-option "branch"
+    :short-option "b"
     :option-type :string)
    (contributor
     :initarg :contributor
@@ -761,7 +761,7 @@ Returns process object."
     :initform nil
     :documentation "Run OSS contributor setup wizard (--contributor)."
     ;; CLI properties
-    :long-option "--contributor"
+    :long-option "contributor"
     :option-type :boolean)
    (prefix
     :initarg :prefix
@@ -769,8 +769,8 @@ Returns process object."
     :initform nil
     :documentation "Issue prefix (-p, --prefix). Default: current directory name."
     ;; CLI properties
-    :long-option "--prefix"
-    :short-option "-p"
+    :long-option "prefix"
+    :short-option "p"
     :option-type :string)
    (quiet
     :initarg :quiet
@@ -778,8 +778,8 @@ Returns process object."
     :initform nil
     :documentation "Suppress output (-q, --quiet)."
     ;; CLI properties
-    :long-option "--quiet"
-    :short-option "-q"
+    :long-option "quiet"
+    :short-option "q"
     :option-type :boolean)
    (skip-merge-driver
     :initarg :skip-merge-driver
@@ -787,7 +787,7 @@ Returns process object."
     :initform nil
     :documentation "Skip git merge driver setup (--skip-merge-driver). Non-interactive mode."
     ;; CLI properties
-    :long-option "--skip-merge-driver"
+    :long-option "skip-merge-driver"
     :option-type :boolean)
    (team
     :initarg :team
@@ -795,7 +795,7 @@ Returns process object."
     :initform nil
     :documentation "Run team workflow setup wizard (--team)."
     ;; CLI properties
-    :long-option "--team"
+    :long-option "team"
     :option-type :boolean))
   :documentation "Represents bd init command.
 Initializes bd in the current directory by creating .beads/ directory
@@ -843,7 +843,7 @@ No required fields, returns nil (valid)."
     :initform nil
     :documentation "Force export even if database is empty (--force)."
     ;; CLI properties
-    :long-option "--force"
+    :long-option "force"
     :option-type :boolean)
    (format
     :initarg :format
@@ -851,8 +851,8 @@ No required fields, returns nil (valid)."
     :initform nil
     :documentation "Export format (-f, --format). Default: jsonl."
     ;; CLI properties
-    :long-option "--format"
-    :short-option "-f"
+    :long-option "format"
+    :short-option "f"
     :option-type :string)
    (output
     :initarg :output
@@ -860,8 +860,8 @@ No required fields, returns nil (valid)."
     :initform nil
     :documentation "Output file (-o, --output). Default: stdout."
     ;; CLI properties
-    :long-option "--output"
-    :short-option "-o"
+    :long-option "output"
+    :short-option "o"
     :option-type :string)
    (status
     :initarg :status
@@ -869,8 +869,8 @@ No required fields, returns nil (valid)."
     :initform nil
     :documentation "Filter by status (-s, --status)."
     ;; CLI properties
-    :long-option "--status"
-    :short-option "-s"
+    :long-option "status"
+    :short-option "s"
     :option-type :string))
   :documentation "Represents bd export command.
 Export all issues to JSON Lines format (one JSON object per line).
@@ -934,7 +934,7 @@ Defaults to nil because import command does not produce JSON output.")
     :initform nil
     :documentation "Clear duplicate external_ref values (--clear-duplicate-external-refs). Keeps first occurrence."
     ;; CLI properties
-    :long-option "--clear-duplicate-external-refs"
+    :long-option "clear-duplicate-external-refs"
     :option-type :boolean)
    (dedupe-after
     :initarg :dedupe-after
@@ -942,7 +942,7 @@ Defaults to nil because import command does not produce JSON output.")
     :initform nil
     :documentation "Detect and report content duplicates after import (--dedupe-after)."
     ;; CLI properties
-    :long-option "--dedupe-after"
+    :long-option "dedupe-after"
     :option-type :boolean)
    (dry-run
     :initarg :dry-run
@@ -950,7 +950,7 @@ Defaults to nil because import command does not produce JSON output.")
     :initform nil
     :documentation "Preview collision detection without making changes (--dry-run)."
     ;; CLI properties
-    :long-option "--dry-run"
+    :long-option "dry-run"
     :option-type :boolean)
    (input
     :initarg :input
@@ -958,8 +958,8 @@ Defaults to nil because import command does not produce JSON output.")
     :initform nil
     :documentation "Input file (-i, --input). Default: stdin."
     ;; CLI properties
-    :long-option "--input"
-    :short-option "-i"
+    :long-option "input"
+    :short-option "i"
     :option-type :string)
    (orphan-handling
     :initarg :orphan-handling
@@ -967,7 +967,7 @@ Defaults to nil because import command does not produce JSON output.")
     :initform nil
     :documentation "How to handle missing parent issues (--orphan-handling). Options: strict, resurrect, skip, allow. Default: use config or 'allow'."
     ;; CLI properties
-    :long-option "--orphan-handling"
+    :long-option "orphan-handling"
     :option-type :string)
    (rename-on-import
     :initarg :rename-on-import
@@ -975,7 +975,7 @@ Defaults to nil because import command does not produce JSON output.")
     :initform nil
     :documentation "Rename imported issues to match database prefix (--rename-on-import). Updates all references."
     ;; CLI properties
-    :long-option "--rename-on-import"
+    :long-option "rename-on-import"
     :option-type :boolean)
    (skip-existing
     :initarg :skip-existing
@@ -983,8 +983,8 @@ Defaults to nil because import command does not produce JSON output.")
     :initform nil
     :documentation "Skip existing issues instead of updating them (-s, --skip-existing)."
     ;; CLI properties
-    :long-option "--skip-existing"
-    :short-option "-s"
+    :long-option "skip-existing"
+    :short-option "s"
     :option-type :boolean)
    (strict
     :initarg :strict
@@ -992,7 +992,7 @@ Defaults to nil because import command does not produce JSON output.")
     :initform nil
     :documentation "Fail on dependency errors instead of treating them as warnings (--strict)."
     ;; CLI properties
-    :long-option "--strict"
+    :long-option "strict"
     :option-type :boolean))
   :documentation "Represents bd import command.
 Import issues from JSON Lines format (one JSON object per line).
@@ -1058,11 +1058,11 @@ Does not modify command slots."
     :documentation "Filter by status (-s, --status).
 Values: open, in_progress, blocked, closed."
     ;; CLI properties
-    :long-option "--status"
-    :short-option "-s"
+    :long-option "status"
+    :short-option "s"
     :option-type :string
     ;; Transient properties
-    :transient-key "-s"
+    :transient-key "s"
     :transient-description "--status"
     :transient-class transient-option
     :transient-argument "--status="
@@ -1078,11 +1078,11 @@ Values: open, in_progress, blocked, closed."
     :documentation "Filter by priority (-p, --priority).
 Values: 0-4 (0=critical, 1=high, 2=medium, 3=low, 4=backlog)."
     ;; CLI properties
-    :long-option "--priority"
-    :short-option "-p"
+    :long-option "priority"
+    :short-option "p"
     :option-type :integer
     ;; Transient properties
-    :transient-key "-P"
+    :transient-key "P"
     :transient-description "--priority"
     :transient-class transient-option
     :transient-argument "--priority="
@@ -1098,11 +1098,11 @@ Values: 0-4 (0=critical, 1=high, 2=medium, 3=low, 4=backlog)."
     :documentation "Filter by type (-t, --type).
 Values: bug, feature, task, epic, chore."
     ;; CLI properties
-    :long-option "--type"
-    :short-option "-t"
+    :long-option "type"
+    :short-option "t"
     :option-type :string
     ;; Transient properties
-    :transient-key "-T"
+    :transient-key "T"
     :transient-description "--type"
     :transient-class transient-option
     :transient-argument "--type="
@@ -1117,11 +1117,11 @@ Values: bug, feature, task, epic, chore."
     :initform nil
     :documentation "Filter by assignee (-a, --assignee)."
     ;; CLI properties
-    :long-option "--assignee"
-    :short-option "-a"
+    :long-option "assignee"
+    :short-option "a"
     :option-type :string
     ;; Transient properties
-    :transient-key "-a"
+    :transient-key "a"
     :transient-description "--assignee"
     :transient-class transient-option
     :transient-argument "--assignee="
@@ -1137,10 +1137,10 @@ Values: bug, feature, task, epic, chore."
     :documentation "Filter by title text (--title).
 Case-insensitive substring match."
     ;; CLI properties
-    :long-option "--title"
+    :long-option "title"
     :option-type :string
     ;; Transient properties
-    :transient-key "-ti"
+    :transient-key "ti"
     :transient-description "--title"
     :transient-class transient-option
     :transient-argument "--title="
@@ -1156,10 +1156,10 @@ Case-insensitive substring match."
     :documentation "Filter by title substring (--title-contains).
 Case-insensitive."
     ;; CLI properties
-    :long-option "--title-contains"
+    :long-option "title-contains"
     :option-type :string
     ;; Transient properties
-    :transient-key "-tc"
+    :transient-key "tc"
     :transient-description "--title-contains"
     :transient-class transient-option
     :transient-argument "--title-contains="
@@ -1175,10 +1175,10 @@ Case-insensitive."
     :documentation "Filter by description substring (--desc-contains).
 Case-insensitive."
     ;; CLI properties
-    :long-option "--desc-contains"
+    :long-option "desc-contains"
     :option-type :string
     ;; Transient properties
-    :transient-key "-d"
+    :transient-key "d"
     :transient-description "--desc-contains"
     :transient-class transient-option
     :transient-argument "--desc-contains="
@@ -1194,10 +1194,10 @@ Case-insensitive."
     :documentation "Filter by notes substring (--notes-contains).
 Case-insensitive."
     ;; CLI properties
-    :long-option "--notes-contains"
+    :long-option "notes-contains"
     :option-type :string
     ;; Transient properties
-    :transient-key "-nc"
+    :transient-key "nc"
     :transient-description "--notes-contains"
     :transient-class transient-option
     :transient-argument "--notes-contains="
@@ -1213,10 +1213,10 @@ Case-insensitive."
     :documentation "Filter issues created after date (--created-after).
 Date format: YYYY-MM-DD or RFC3339."
     ;; CLI properties
-    :long-option "--created-after"
+    :long-option "created-after"
     :option-type :string
     ;; Transient properties
-    :transient-key "-Ca"
+    :transient-key "Ca"
     :transient-description "--created-after"
     :transient-class transient-option
     :transient-argument "--created-after="
@@ -1232,10 +1232,10 @@ Date format: YYYY-MM-DD or RFC3339."
     :documentation "Filter issues created before date (--created-before).
 Date format: YYYY-MM-DD or RFC3339."
     ;; CLI properties
-    :long-option "--created-before"
+    :long-option "created-before"
     :option-type :string
     ;; Transient properties
-    :transient-key "-Cb"
+    :transient-key "Cb"
     :transient-description "--created-before"
     :transient-class transient-option
     :transient-argument "--created-before="
@@ -1251,10 +1251,10 @@ Date format: YYYY-MM-DD or RFC3339."
     :documentation "Filter issues updated after date (--updated-after).
 Date format: YYYY-MM-DD or RFC3339."
     ;; CLI properties
-    :long-option "--updated-after"
+    :long-option "updated-after"
     :option-type :string
     ;; Transient properties
-    :transient-key "-ua"
+    :transient-key "ua"
     :transient-description "--updated-after"
     :transient-class transient-option
     :transient-argument "--updated-after="
@@ -1270,10 +1270,10 @@ Date format: YYYY-MM-DD or RFC3339."
     :documentation "Filter issues updated before date (--updated-before).
 Date format: YYYY-MM-DD or RFC3339."
     ;; CLI properties
-    :long-option "--updated-before"
+    :long-option "updated-before"
     :option-type :string
     ;; Transient properties
-    :transient-key "-ub"
+    :transient-key "ub"
     :transient-description "--updated-before"
     :transient-class transient-option
     :transient-argument "--updated-before="
@@ -1289,10 +1289,10 @@ Date format: YYYY-MM-DD or RFC3339."
     :documentation "Filter issues closed after date (--closed-after).
 Date format: YYYY-MM-DD or RFC3339."
     ;; CLI properties
-    :long-option "--closed-after"
+    :long-option "closed-after"
     :option-type :string
     ;; Transient properties
-    :transient-key "-ca"
+    :transient-key "ca"
     :transient-description "--closed-after"
     :transient-class transient-option
     :transient-argument "--closed-after="
@@ -1308,10 +1308,10 @@ Date format: YYYY-MM-DD or RFC3339."
     :documentation "Filter issues closed before date (--closed-before).
 Date format: YYYY-MM-DD or RFC3339."
     ;; CLI properties
-    :long-option "--closed-before"
+    :long-option "closed-before"
     :option-type :string
     ;; Transient properties
-    :transient-key "-cb"
+    :transient-key "cb"
     :transient-description "--closed-before"
     :transient-class transient-option
     :transient-argument "--closed-before="
@@ -1327,10 +1327,10 @@ Date format: YYYY-MM-DD or RFC3339."
     :documentation "Filter by minimum priority (--priority-min).
 Inclusive."
     ;; CLI properties
-    :long-option "--priority-min"
+    :long-option "priority-min"
     :option-type :integer
     ;; Transient properties
-    :transient-key "-p<"
+    :transient-key "p<"
     :transient-description "--priority-min"
     :transient-class transient-option
     :transient-argument "--priority-min="
@@ -1346,10 +1346,10 @@ Inclusive."
     :documentation "Filter by maximum priority (--priority-max).
 Inclusive."
     ;; CLI properties
-    :long-option "--priority-max"
+    :long-option "priority-max"
     :option-type :integer
     ;; Transient properties
-    :transient-key "-p>"
+    :transient-key "p>"
     :transient-description "--priority-max"
     :transient-class transient-option
     :transient-argument "--priority-max="
@@ -1365,12 +1365,12 @@ Inclusive."
     :documentation "Filter by labels, AND logic (-l, --label).
 Must have ALL labels. Can combine with --label-any."
     ;; CLI properties
-    :long-option "--label"
-    :short-option "-l"
+    :long-option "label"
+    :short-option "l"
     :option-type :list
     :option-separator nil  ; Each label is a separate --label arg
     ;; Transient properties
-    :transient-key "-l"
+    :transient-key "l"
     :transient-description "--label"
     :transient-class transient-option
     :transient-argument "--label="
@@ -1386,11 +1386,11 @@ Must have ALL labels. Can combine with --label-any."
     :documentation "Filter by labels, OR logic (--label-any).
 Must have AT LEAST ONE label. Can combine with --label."
     ;; CLI properties
-    :long-option "--label-any"
+    :long-option "label-any"
     :option-type :list
     :option-separator nil  ; Each label is a separate --label-any arg
     ;; Transient properties
-    :transient-key "-L"
+    :transient-key "L"
     :transient-description "--label-any"
     :transient-class transient-option
     :transient-argument "--label-any="
@@ -1406,10 +1406,10 @@ Must have AT LEAST ONE label. Can combine with --label."
     :documentation "Filter by specific issue IDs (--id).
 Comma-separated, e.g., 'bd-1,bd-5,bd-10'."
     ;; CLI properties
-    :long-option "--id"
+    :long-option "id"
     :option-type :string
     ;; Transient properties
-    :transient-key "-i"
+    :transient-key "i"
     :transient-description "--id"
     :transient-class transient-option
     :transient-argument "--id="
@@ -1424,10 +1424,10 @@ Comma-separated, e.g., 'bd-1,bd-5,bd-10'."
     :initform nil
     :documentation "Filter issues with no assignee (--no-assignee)."
     ;; CLI properties
-    :long-option "--no-assignee"
+    :long-option "no-assignee"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "-A"
+    :transient-key "A"
     :transient-description "--no-assignee"
     :transient-class transient-switch
     :transient-argument "--no-assignee"
@@ -1440,10 +1440,10 @@ Comma-separated, e.g., 'bd-1,bd-5,bd-10'."
     :initform nil
     :documentation "Filter issues with empty description (--empty-description)."
     ;; CLI properties
-    :long-option "--empty-description"
+    :long-option "empty-description"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "-E"
+    :transient-key "E"
     :transient-description "--empty-description"
     :transient-class transient-switch
     :transient-argument "--empty-description"
@@ -1456,10 +1456,10 @@ Comma-separated, e.g., 'bd-1,bd-5,bd-10'."
     :initform nil
     :documentation "Filter issues with no labels (--no-labels)."
     ;; CLI properties
-    :long-option "--no-labels"
+    :long-option "no-labels"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "-N"
+    :transient-key "N"
     :transient-description "--no-labels"
     :transient-class transient-switch
     :transient-argument "--no-labels"
@@ -1475,11 +1475,11 @@ When using `beads-command-list!', defaults to `beads-list-default-limit' if not 
 Set to 0 for no limit, or a positive integer to limit results.
 Pass `:limit nil' explicitly to disable the default."
     ;; CLI properties
-    :long-option "--limit"
-    :short-option "-n"
+    :long-option "limit"
+    :short-option "n"
     :option-type :integer
     ;; Transient properties
-    :transient-key "-n"
+    :transient-key "n"
     :transient-description "--limit"
     :transient-class transient-option
     :transient-argument "--limit="
@@ -1494,10 +1494,10 @@ Pass `:limit nil' explicitly to disable the default."
     :initform nil
     :documentation "Show detailed multi-line output (--long)."
     ;; CLI properties
-    :long-option "--long"
+    :long-option "long"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "-Lo"
+    :transient-key "Lo"
     :transient-description "--long"
     :transient-class transient-switch
     :transient-argument "--long"
@@ -1511,10 +1511,10 @@ Pass `:limit nil' explicitly to disable the default."
     :documentation "Output format (--format).
 Values: 'digraph', 'dot', or Go template."
     ;; CLI properties
-    :long-option "--format"
+    :long-option "format"
     :option-type :string
     ;; Transient properties
-    :transient-key "-f"
+    :transient-key "f"
     :transient-description "--format"
     :transient-class transient-option
     :transient-argument "--format="
@@ -1530,10 +1530,10 @@ Values: 'digraph', 'dot', or Go template."
     :documentation "Show all issues (--all).
 Default behavior, provided for CLI familiarity."
     ;; CLI properties
-    :long-option "--all"
+    :long-option "all"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "-al"
+    :transient-key "al"
     :transient-description "--all"
     :transient-class transient-switch
     :transient-argument "--all"
@@ -1645,10 +1645,10 @@ First positional argument or explicit --title flag."
     :initform nil
     :documentation "Acceptance criteria (--acceptance)."
     ;; CLI properties
-    :long-option "--acceptance"
+    :long-option "acceptance"
     :option-type :string
     ;; Transient properties
-    :transient-key "-A"
+    :transient-key "A"
     :transient-description "Acceptance criteria"
     :transient-class beads-create-transient-multiline
     :transient-argument "--acceptance="
@@ -1662,11 +1662,11 @@ First positional argument or explicit --title flag."
     :initform nil
     :documentation "Assignee (-a, --assignee)."
     ;; CLI properties
-    :long-option "--assignee"
-    :short-option "-a"
+    :long-option "assignee"
+    :short-option "a"
     :option-type :string
     ;; Transient properties
-    :transient-key "-a"
+    :transient-key "a"
     :transient-description "Assignee"
     :transient-class transient-option
     :transient-argument "--assignee="
@@ -1683,11 +1683,11 @@ First positional argument or explicit --title flag."
 List of strings in format 'type:id' or 'id'.
 Examples: 'discovered-from:bd-20', 'blocks:bd-15', 'bd-20'."
     ;; CLI properties
-    :long-option "--deps"
+    :long-option "deps"
     :option-type :list
     :option-separator ","
     ;; Transient properties
-    :transient-key "-D"
+    :transient-key "D"
     :transient-description "Dependencies"
     :transient-class transient-option
     :transient-argument "--deps="
@@ -1702,11 +1702,11 @@ Examples: 'discovered-from:bd-20', 'blocks:bd-15', 'bd-20'."
     :initform nil
     :documentation "Issue description (-d, --description)."
     ;; CLI properties
-    :long-option "--description"
-    :short-option "-d"
+    :long-option "description"
+    :short-option "d"
     :option-type :string
     ;; Transient properties
-    :transient-key "-d"
+    :transient-key "d"
     :transient-description "Description"
     :transient-class beads-create-transient-multiline
     :transient-argument "--description="
@@ -1720,10 +1720,10 @@ Examples: 'discovered-from:bd-20', 'blocks:bd-15', 'bd-20'."
     :initform nil
     :documentation "Design notes (--design)."
     ;; CLI properties
-    :long-option "--design"
+    :long-option "design"
     :option-type :string
     ;; Transient properties
-    :transient-key "-G"
+    :transient-key "G"
     :transient-description "Design notes"
     :transient-class beads-create-transient-multiline
     :transient-argument "--design="
@@ -1738,10 +1738,10 @@ Examples: 'discovered-from:bd-20', 'blocks:bd-15', 'bd-20'."
     :documentation "External reference (--external-ref).
 Examples: 'gh-9', 'jira-ABC'."
     ;; CLI properties
-    :long-option "--external-ref"
+    :long-option "external-ref"
     :option-type :string
     ;; Transient properties
-    :transient-key "-x"
+    :transient-key "x"
     :transient-description "External reference"
     :transient-class transient-option
     :transient-argument "--external-ref="
@@ -1756,11 +1756,11 @@ Examples: 'gh-9', 'jira-ABC'."
     :initform nil
     :documentation "Create multiple issues from markdown file (-f, --file)."
     ;; CLI properties
-    :long-option "--file"
-    :short-option "-f"
+    :long-option "file"
+    :short-option "f"
     :option-type :string
     ;; Transient properties
-    :transient-key "-F"
+    :transient-key "F"
     :transient-description "Create from file"
     :transient-class transient-option
     :transient-argument "--file="
@@ -1775,10 +1775,10 @@ Examples: 'gh-9', 'jira-ABC'."
     :initform nil
     :documentation "Force creation even if prefix doesn't match (--force)."
     ;; CLI properties
-    :long-option "--force"
+    :long-option "force"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "-f"
+    :transient-key "f"
     :transient-description "Force creation"
     :transient-class transient-switch
     :transient-argument "--force"
@@ -1792,10 +1792,10 @@ Examples: 'gh-9', 'jira-ABC'."
     :documentation "Create issue from template (--from-template).
 Examples: 'epic', 'bug', 'feature'."
     ;; CLI properties
-    :long-option "--from-template"
+    :long-option "from-template"
     :option-type :string
     ;; Transient properties
-    :transient-key "-T"
+    :transient-key "T"
     :transient-description "From template"
     :transient-class transient-option
     :transient-argument "--from-template="
@@ -1811,10 +1811,10 @@ Examples: 'epic', 'bug', 'feature'."
     :documentation "Explicit issue ID (--id).
 Example: 'bd-42' for partitioning."
     ;; CLI properties
-    :long-option "--id"
+    :long-option "id"
     :option-type :string
     ;; Transient properties
-    :transient-key "-i"
+    :transient-key "i"
     :transient-description "Custom ID"
     :transient-class transient-option
     :transient-argument "--id="
@@ -1830,12 +1830,12 @@ Example: 'bd-42' for partitioning."
     :documentation "Labels (-l, --labels).
 List of label strings."
     ;; CLI properties
-    :long-option "--labels"
-    :short-option "-l"
+    :long-option "labels"
+    :short-option "l"
     :option-type :list
     :option-separator ","
     ;; Transient properties
-    :transient-key "-l"
+    :transient-key "l"
     :transient-description "Labels"
     :transient-class transient-option
     :transient-argument "--labels="
@@ -1851,10 +1851,10 @@ List of label strings."
     :documentation "Parent issue ID for hierarchical child (--parent).
 Example: 'bd-a3f8e9'."
     ;; CLI properties
-    :long-option "--parent"
+    :long-option "parent"
     :option-type :string
     ;; Transient properties
-    :transient-key "-P"
+    :transient-key "P"
     :transient-description "Parent issue ID"
     :transient-class transient-option
     :transient-argument "--parent="
@@ -1871,11 +1871,11 @@ Example: 'bd-a3f8e9'."
 Values: 0-4 or P0-P4 (0=highest). Default: '2'.
 Accepts both integer (1) and string (\"1\" or \"P1\") formats."
     ;; CLI properties
-    :long-option "--priority"
-    :short-option "-p"
+    :long-option "priority"
+    :short-option "p"
     :option-type :string  ; Keep as string for P0-P4 format
     ;; Transient properties
-    :transient-key "-p"
+    :transient-key "p"
     :transient-description "Priority"
     :transient-class transient-option
     :transient-argument "--priority="
@@ -1891,10 +1891,10 @@ Accepts both integer (1) and string (\"1\" or \"P1\") formats."
     :documentation "Target repository for issue (--repo).
 Overrides auto-routing."
     ;; CLI properties
-    :long-option "--repo"
+    :long-option "repo"
     :option-type :string
     ;; Transient properties
-    :transient-key "-r"
+    :transient-key "r"
     :transient-description "Target repository"
     :transient-class transient-option
     :transient-argument "--repo="
@@ -1910,11 +1910,11 @@ Overrides auto-routing."
     :documentation "Issue type (-t, --type).
 Values: bug, feature, task, epic, chore. Default: 'task'."
     ;; CLI properties
-    :long-option "--type"
-    :short-option "-t"
+    :long-option "type"
+    :short-option "t"
     :option-type :string
     ;; Transient properties
-    :transient-key "-t"
+    :transient-key "t"
     :transient-description "Type"
     :transient-class transient-option
     :transient-argument "--type="
@@ -2042,10 +2042,10 @@ Overrides default `compilation-mode' behavior with issue-specific UX."
     :initform nil
     :documentation "Preview what would be closed without making changes (--dry-run)."
     ;; CLI properties
-    :long-option "--dry-run"
+    :long-option "dry-run"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "-n"
+    :transient-key "n"
     :transient-description "--dry-run"
     :transient-class transient-switch
     :transient-argument "--dry-run"
@@ -2074,10 +2074,10 @@ Default implementation returns nil (valid)."
     :initform nil
     :documentation "Show only epics eligible for closure (--eligible-only)."
     ;; CLI properties
-    :long-option "--eligible-only"
+    :long-option "eligible-only"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "-e"
+    :transient-key "e"
     :transient-description "--eligible-only"
     :transient-class transient-switch
     :transient-argument "--eligible-only"
@@ -2246,8 +2246,8 @@ Example: '(\"bd-1\" \"bd-2\")"
     :documentation "New status (-s, --status).
 Values: open, in_progress, blocked, closed."
     ;; CLI properties
-    :long-option "--status"
-    :short-option "-s"
+    :long-option "status"
+    :short-option "s"
     :option-type :string
     ;; Transient properties
     :transient-key "s"
@@ -2268,8 +2268,8 @@ Values: open, in_progress, blocked, closed."
 Values: 0-4 or P0-P4.
 Accepts both integer (1) and string (\"1\" or \"P1\") formats."
     ;; CLI properties
-    :long-option "--priority"
-    :short-option "-p"
+    :long-option "priority"
+    :short-option "p"
     :option-type :string
     ;; Transient properties
     :transient-key "p"
@@ -2287,7 +2287,7 @@ Accepts both integer (1) and string (\"1\" or \"P1\") formats."
     :initform nil
     :documentation "New title (--title)."
     ;; CLI properties
-    :long-option "--title"
+    :long-option "title"
     :option-type :string
     ;; Transient properties
     :transient-key "t"
@@ -2305,8 +2305,8 @@ Accepts both integer (1) and string (\"1\" or \"P1\") formats."
     :initform nil
     :documentation "New assignee (-a, --assignee)."
     ;; CLI properties
-    :long-option "--assignee"
-    :short-option "-a"
+    :long-option "assignee"
+    :short-option "a"
     :option-type :string
     ;; Transient properties
     :transient-key "a"
@@ -2325,7 +2325,7 @@ Accepts both integer (1) and string (\"1\" or \"P1\") formats."
     :documentation "External reference (--external-ref).
 Examples: 'gh-9', 'jira-ABC'."
     ;; CLI properties
-    :long-option "--external-ref"
+    :long-option "external-ref"
     :option-type :string
     ;; Transient properties
     :transient-key "x"
@@ -2343,8 +2343,8 @@ Examples: 'gh-9', 'jira-ABC'."
     :initform nil
     :documentation "Issue description (-d, --description)."
     ;; CLI properties
-    :long-option "--description"
-    :short-option "-d"
+    :long-option "description"
+    :short-option "d"
     :option-type :string
     ;; Transient properties
     :transient-key "d"
@@ -2361,7 +2361,7 @@ Examples: 'gh-9', 'jira-ABC'."
     :initform nil
     :documentation "Acceptance criteria (--acceptance)."
     ;; CLI properties
-    :long-option "--acceptance"
+    :long-option "acceptance"
     :option-type :string
     ;; Transient properties
     :transient-key "A"
@@ -2378,7 +2378,7 @@ Examples: 'gh-9', 'jira-ABC'."
     :initform nil
     :documentation "Design notes (--design)."
     ;; CLI properties
-    :long-option "--design"
+    :long-option "design"
     :option-type :string
     ;; Transient properties
     :transient-key "G"
@@ -2395,7 +2395,7 @@ Examples: 'gh-9', 'jira-ABC'."
     :initform nil
     :documentation "Additional notes (--notes)."
     ;; CLI properties
-    :long-option "--notes"
+    :long-option "notes"
     :option-type :string
     ;; Transient properties
     :transient-key "N"
@@ -2519,11 +2519,11 @@ Example: '(\"bd-1\" \"bd-2\")"
     :initform nil
     :documentation "Optional reason for reopening (-r, --reason)."
     ;; CLI properties
-    :long-option "--reason"
-    :short-option "-r"
+    :long-option "reason"
+    :short-option "r"
     :option-type :string
     ;; Transient properties
-    :transient-key "-r"
+    :transient-key "r"
     :transient-description "--reason"
     :transient-class beads-create-transient-multiline
     :transient-argument "--reason="
@@ -2605,7 +2605,7 @@ Example: \"bd-1\""
     :initform nil
     :documentation "Force deletion without preview (--force flag)."
     ;; CLI properties
-    :long-option "--force"
+    :long-option "force"
     :option-type :boolean))
   :documentation "Represents bd delete command.
 Deletes an issue with optional --force flag.
@@ -2698,11 +2698,11 @@ No required fields, returns nil (valid)."
 Values: blocks, related, parent-child, discovered-from.
 Default: blocks."
     ;; CLI properties
-    :long-option "--type"
-    :short-option "-t"
+    :long-option "type"
+    :short-option "t"
     :option-type :string
     ;; Transient properties
-    :transient-key "-t"
+    :transient-key "t"
     :transient-description "--type"
     :transient-class transient-option
     :transient-argument "--type="
@@ -2831,10 +2831,10 @@ Returns error string or nil if valid."
     :documentation "Tree direction (--direction).
 Values: down (dependencies - default), up (dependents), both (full graph)."
     ;; CLI properties
-    :long-option "--direction"
+    :long-option "direction"
     :option-type :string
     ;; Transient properties
-    :transient-key "-d"
+    :transient-key "d"
     :transient-description "--direction"
     :transient-class transient-option
     :transient-argument "--direction="
@@ -2850,10 +2850,10 @@ Values: down (dependencies - default), up (dependents), both (full graph)."
     :documentation "Output format (--format).
 Value: mermaid for Mermaid.js flowchart."
     ;; CLI properties
-    :long-option "--format"
+    :long-option "format"
     :option-type :string
     ;; Transient properties
-    :transient-key "-f"
+    :transient-key "f"
     :transient-description "--format"
     :transient-class transient-option
     :transient-argument "--format="
@@ -2869,11 +2869,11 @@ Value: mermaid for Mermaid.js flowchart."
     :documentation "Maximum tree depth (-d, --max-depth).
 Safety limit, default: 50."
     ;; CLI properties
-    :long-option "--max-depth"
-    :short-option "-d"
+    :long-option "max-depth"
+    :short-option "d"
     :option-type :integer
     ;; Transient properties
-    :transient-key "-D"
+    :transient-key "D"
     :transient-description "--max-depth"
     :transient-class transient-option
     :transient-argument "--max-depth="
@@ -2888,7 +2888,7 @@ Safety limit, default: 50."
     :documentation "Show dependent tree instead of dependency tree (--reverse).
 Deprecated: use --direction=up instead."
     ;; CLI properties
-    :long-option "--reverse"
+    :long-option "reverse"
     :option-type :boolean
     ;; Transient properties - hidden since deprecated
     :transient-level 7)
@@ -2899,10 +2899,10 @@ Deprecated: use --direction=up instead."
     :documentation "Show all paths to nodes (--show-all-paths).
 No deduplication for diamond dependencies."
     ;; CLI properties
-    :long-option "--show-all-paths"
+    :long-option "show-all-paths"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "-a"
+    :transient-key "a"
     :transient-description "--show-all-paths"
     :transient-class transient-switch
     :transient-argument "--show-all-paths"
@@ -2916,10 +2916,10 @@ No deduplication for diamond dependencies."
     :documentation "Filter to only show issues with this status (--status).
 Values: open, in_progress, blocked, deferred, closed."
     ;; CLI properties
-    :long-option "--status"
+    :long-option "status"
     :option-type :string
     ;; Transient properties
-    :transient-key "-s"
+    :transient-key "s"
     :transient-description "--status"
     :transient-class transient-option
     :transient-argument "--status="
@@ -2935,11 +2935,11 @@ Values: open, in_progress, blocked, deferred, closed."
     :documentation "Filter to only show dependencies of this type (-t, --type).
 Examples: tracks, blocks, parent-child."
     ;; CLI properties
-    :long-option "--type"
-    :short-option "-t"
+    :long-option "type"
+    :short-option "t"
     :option-type :string
     ;; Transient properties
-    :transient-key "-t"
+    :transient-key "t"
     :transient-description "--type"
     :transient-class transient-option
     :transient-argument "--type="
@@ -3011,15 +3011,15 @@ No required fields, returns nil (valid)."
     :type (or null string)
     :initform nil
     :documentation "Direction: down (dependencies) or up (dependents)."
-    :long-option "--direction"
+    :long-option "direction"
     :option-type :string)
    (dep-type
     :initarg :dep-type
     :type (or null string)
     :initform nil
     :documentation "Filter by dependency type (e.g., tracks, blocks)."
-    :long-option "--type"
-    :short-option "-t"
+    :long-option "type"
+    :short-option "t"
     :option-type :string))
   :documentation "Represents bd dep list command.
 Lists dependencies or dependents of an issue.")

@@ -38,8 +38,8 @@
     :initform nil
     :documentation "Issues not updated in this many days (--days).
 Default is 30 days."
-    :long-option "--days"
-    :short-option "-d"
+    :long-option "days"
+    :short-option "d"
     :option-type :integer
     :transient-key "d"
     :transient-description "Days threshold"
@@ -55,8 +55,8 @@ Default is 30 days."
     :initform nil
     :documentation "Maximum issues to show (--limit).
 Default is 50."
-    :long-option "--limit"
-    :short-option "-n"
+    :long-option "limit"
+    :short-option "n"
     :option-type :integer
     :transient-key "n"
     :transient-description "Result limit"
@@ -72,8 +72,8 @@ Default is 50."
     :initform nil
     :documentation "Filter by status (--status).
 Valid values: open, in_progress, blocked, deferred."
-    :long-option "--status"
-    :short-option "-s"
+    :long-option "status"
+    :short-option "s"
     :option-type :string
     :transient-key "s"
     :transient-description "Filter by status"

@@ -47,7 +47,7 @@ Defaults to current directory."
     :initform nil
     :documentation "Run specific check in detail (--check).
 Available: pollution."
-    :long-option "--check"
+    :long-option "check"
     :option-type :string
     :transient-key "c"
     :transient-description "Specific check"
@@ -64,7 +64,7 @@ Available: pollution."
     :initform nil
     :documentation "Quick health check for git hooks (--check-health).
 Silent on success."
-    :long-option "--check-health"
+    :long-option "check-health"
     :option-type :boolean
     :transient-key "h"
     :transient-description "Quick health check"
@@ -79,7 +79,7 @@ Silent on success."
     :initform nil
     :documentation "Validate full graph integrity (--deep).
 May be slow on large databases."
-    :long-option "--deep"
+    :long-option "deep"
     :option-type :boolean
     :transient-key "d"
     :transient-description "Deep validation"
@@ -94,7 +94,7 @@ May be slow on large databases."
     :initform nil
     :documentation "Run performance diagnostics (--perf).
 Generates CPU profile."
-    :long-option "--perf"
+    :long-option "perf"
     :option-type :boolean
     :transient-key "p"
     :transient-description "Performance diagnostics"
@@ -108,7 +108,7 @@ Generates CPU profile."
     :type boolean
     :initform nil
     :documentation "Automatically fix issues where possible (--fix)."
-    :long-option "--fix"
+    :long-option "fix"
     :option-type :boolean
     :transient-key "f"
     :transient-description "Auto-fix issues"
@@ -122,7 +122,7 @@ Generates CPU profile."
     :type boolean
     :initform nil
     :documentation "Preview fixes without making changes (--dry-run)."
-    :long-option "--dry-run"
+    :long-option "dry-run"
     :option-type :boolean
     :transient-key "n"
     :transient-description "Dry run (preview)"
@@ -136,8 +136,8 @@ Generates CPU profile."
     :type boolean
     :initform nil
     :documentation "Skip confirmation prompts (--yes)."
-    :long-option "--yes"
-    :short-option "-y"
+    :long-option "yes"
+    :short-option "y"
     :option-type :boolean
     :transient-key "y"
     :transient-description "Skip confirmation"
@@ -151,8 +151,8 @@ Generates CPU profile."
     :type boolean
     :initform nil
     :documentation "Confirm each fix individually (--interactive)."
-    :long-option "--interactive"
-    :short-option "-i"
+    :long-option "interactive"
+    :short-option "i"
     :option-type :boolean
     :transient-key "i"
     :transient-description "Interactive mode"
@@ -167,7 +167,7 @@ Generates CPU profile."
     :initform nil
     :documentation "Also fix child->parent deps (--fix-child-parent).
 Opt-in, requires --fix."
-    :long-option "--fix-child-parent"
+    :long-option "fix-child-parent"
     :option-type :boolean
     :transient-key "C"
     :transient-description "Fix child->parent deps"
@@ -181,7 +181,7 @@ Opt-in, requires --fix."
     :type boolean
     :initform nil
     :documentation "Force repair even when database can't be opened (--force)."
-    :long-option "--force"
+    :long-option "force"
     :option-type :boolean
     :transient-key "F"
     :transient-description "Force repair"
@@ -196,7 +196,7 @@ Opt-in, requires --fix."
     :initform nil
     :documentation "Source of truth for recovery (--source).
 Values: auto (default), jsonl, db."
-    :long-option "--source"
+    :long-option "source"
     :option-type :string
     :transient-key "s"
     :transient-description "Source of truth"
@@ -211,8 +211,8 @@ Values: auto (default), jsonl, db."
     :type (or null string)
     :initform nil
     :documentation "Export diagnostics to JSON file (--output)."
-    :long-option "--output"
-    :short-option "-o"
+    :long-option "output"
+    :short-option "o"
     :option-type :string
     :transient-key "o"
     :transient-description "Output file"
@@ -227,8 +227,8 @@ Values: auto (default), jsonl, db."
     :type boolean
     :initform nil
     :documentation "Show detailed output during fixes (--verbose)."
-    :long-option "--verbose"
-    :short-option "-v"
+    :long-option "verbose"
+    :short-option "v"
     :option-type :boolean
     :transient-key "v"
     :transient-description "Verbose output"
@@ -242,7 +242,7 @@ Values: auto (default), jsonl, db."
     :type boolean
     :initform nil
     :documentation "For pollution check: delete detected test issues (--clean)."
-    :long-option "--clean"
+    :long-option "clean"
     :option-type :boolean
     :transient-key "D"
     :transient-description "Clean (delete test issues)"

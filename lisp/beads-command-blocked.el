@@ -44,10 +44,10 @@
     :initform nil
     :documentation "Filter to descendants of this bead/epic (--parent)."
     ;; CLI properties
-    :long-option "--parent"
+    :long-option "parent"
     :option-type :string
     ;; Transient properties
-    :transient-key "-P"
+    :transient-key "P"
     :transient-description "--parent"
     :transient-class transient-option
     :transient-argument "--parent="
@@ -96,8 +96,8 @@ Disables JSON mode for interactive display with colors."
 ;;; Transient Menu
 
 ;; Generate the complete transient menu from slot metadata
-;;;###autoload (autoload 'beads-blocked "beads-command-blocked" nil t)
-(beads-meta-define-transient beads-command-blocked "beads-blocked"
+;;;###autoload (autoload 'beads-blocked-transient "beads-command-blocked" nil t)
+(beads-meta-define-transient beads-command-blocked "beads-blocked-transient"
   "Show blocked issues (issues with unresolved blockers).
 
 Blocked issues are those that have dependencies that are not yet closed.

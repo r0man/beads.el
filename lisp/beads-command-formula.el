@@ -121,7 +121,7 @@
       :initform nil
       :documentation "Filter by formula type (--type).
 Values: workflow, expansion, aspect."
-      :long-option "--type"
+      :long-option "type"
       :option-type :string
       :transient-key "t"
       :transient-description "Filter by type"

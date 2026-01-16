@@ -55,8 +55,8 @@
     :type (or null string)
     :initform nil
     :documentation "Issue type"
-    :long-option "--type"
-    :short-option "-t"
+    :long-option "type"
+    :short-option "t"
     :option-type :string
     :transient-key "T"
     :transient-description "Type"
@@ -72,8 +72,8 @@
     :type (or null integer)
     :initform nil
     :documentation "Issue priority (0-4)"
-    :long-option "--priority"
-    :short-option "-p"
+    :long-option "priority"
+    :short-option "p"
     :option-type :integer
     :transient-key "p"
     :transient-description "Priority (0-4)"
@@ -89,8 +89,8 @@
     :type (or null string)
     :initform nil
     :documentation "Issue assignee"
-    :long-option "--assignee"
-    :short-option "-a"
+    :long-option "assignee"
+    :short-option "a"
     :option-type :string
     :transient-key "a"
     :transient-description "Assignee"
@@ -105,8 +105,8 @@
     :type (or null list)
     :initform nil
     :documentation "Issue labels"
-    :long-option "--labels"
-    :short-option "-l"
+    :long-option "labels"
+    :short-option "l"
     :option-type :list
     :option-separator ","
     :transient-key "l"
@@ -122,8 +122,8 @@
     :type (or null string)
     :initform nil
     :documentation "Issue description"
-    :long-option "--description"
-    :short-option "-d"
+    :long-option "description"
+    :short-option "d"
     :option-type :string
     :transient-key "d"
     :transient-description "Description"
@@ -137,7 +137,7 @@
     :type (or null list)
     :initform nil
     :documentation "Dependencies"
-    :long-option "--deps"
+    :long-option "deps"
     :option-type :list
     :option-separator ","
     :transient-key "D"
@@ -153,7 +153,7 @@
     :type boolean
     :initform nil
     :documentation "Force creation"
-    :long-option "--force"
+    :long-option "force"
     :option-type :boolean
     :transient-key "!"
     :transient-description "Force"

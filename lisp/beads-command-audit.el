@@ -30,9 +30,9 @@
     :type (or null string)
     :initform nil
     :documentation "Entry kind (e.g. llm_call, tool_call, label)."
-    :long-option "--kind"
+    :long-option "kind"
     :option-type :string
-    :transient-key "-k"
+    :transient-key "k"
     :transient-description "--kind"
     :transient-class transient-option
     :transient-argument "--kind="
@@ -46,9 +46,9 @@
     :type (or null string)
     :initform nil
     :documentation "Related issue ID."
-    :long-option "--issue-id"
+    :long-option "issue-id"
     :option-type :string
-    :transient-key "-i"
+    :transient-key "i"
     :transient-description "--issue-id"
     :transient-class transient-option
     :transient-argument "--issue-id="
@@ -61,9 +61,9 @@
     :type (or null string)
     :initform nil
     :documentation "Model name (llm_call)."
-    :long-option "--model"
+    :long-option "model"
     :option-type :string
-    :transient-key "-m"
+    :transient-key "m"
     :transient-description "--model"
     :transient-class transient-option
     :transient-argument "--model="
@@ -76,9 +76,9 @@
     :type (or null string)
     :initform nil
     :documentation "Prompt text (llm_call)."
-    :long-option "--prompt"
+    :long-option "prompt"
     :option-type :string
-    :transient-key "-p"
+    :transient-key "p"
     :transient-description "--prompt"
     :transient-class transient-option
     :transient-argument "--prompt="
@@ -91,9 +91,9 @@
     :type (or null string)
     :initform nil
     :documentation "Response text (llm_call)."
-    :long-option "--response"
+    :long-option "response"
     :option-type :string
-    :transient-key "-r"
+    :transient-key "r"
     :transient-description "--response"
     :transient-class transient-option
     :transient-argument "--response="
@@ -106,9 +106,9 @@
     :type (or null string)
     :initform nil
     :documentation "Tool name (tool_call)."
-    :long-option "--tool-name"
+    :long-option "tool-name"
     :option-type :string
-    :transient-key "-t"
+    :transient-key "t"
     :transient-description "--tool-name"
     :transient-class transient-option
     :transient-argument "--tool-name="
@@ -121,9 +121,9 @@
     :type (or null integer)
     :initform nil
     :documentation "Exit code (tool_call)."
-    :long-option "--exit-code"
+    :long-option "exit-code"
     :option-type :integer
-    :transient-key "-e"
+    :transient-key "e"
     :transient-description "--exit-code"
     :transient-class transient-option
     :transient-argument "--exit-code="
@@ -136,9 +136,9 @@
     :type (or null string)
     :initform nil
     :documentation "Error string."
-    :long-option "--error"
+    :long-option "error"
     :option-type :string
-    :transient-key "-E"
+    :transient-key "E"
     :transient-description "--error"
     :transient-class transient-option
     :transient-argument "--error="
@@ -151,9 +151,9 @@
     :type boolean
     :initform nil
     :documentation "Read JSON object from stdin."
-    :long-option "--stdin"
+    :long-option "stdin"
     :option-type :boolean
-    :transient-key "-s"
+    :transient-key "s"
     :transient-description "--stdin"
     :transient-class transient-switch
     :transient-argument "--stdin"
@@ -184,9 +184,9 @@ Appends an audit interaction entry."))
     :type (or null string)
     :initform nil
     :documentation "Label value (e.g., good or bad)."
-    :long-option "--label"
+    :long-option "label"
     :option-type :string
-    :transient-key "-l"
+    :transient-key "l"
     :transient-description "--label"
     :transient-class transient-option
     :transient-argument "--label="
@@ -200,9 +200,9 @@ Appends an audit interaction entry."))
     :type (or null string)
     :initform nil
     :documentation "Reason for label."
-    :long-option "--reason"
+    :long-option "reason"
     :option-type :string
-    :transient-key "-r"
+    :transient-key "r"
     :transient-description "--reason"
     :transient-class transient-option
     :transient-argument "--reason="

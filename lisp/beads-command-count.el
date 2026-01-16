@@ -35,8 +35,8 @@
     :type (or null string)
     :initform nil
     :documentation "Filter by assignee (--assignee)."
-    :long-option "--assignee"
-    :short-option "-a"
+    :long-option "assignee"
+    :short-option "a"
     :option-type :string
     :transient-key "a"
     :transient-description "Filter by assignee"
@@ -52,7 +52,7 @@
     :initform nil
     :documentation "Filter by status (--status).
 Valid values: open, in_progress, blocked, closed."
-    :long-option "--status"
+    :long-option "status"
     :option-type :string
     :transient-key "s"
     :transient-description "Filter by status"
@@ -69,7 +69,7 @@ Valid values: open, in_progress, blocked, closed."
     :initform nil
     :documentation "Filter issues created after date (--created-after).
 Format: YYYY-MM-DD or RFC3339."
-    :long-option "--created-after"
+    :long-option "created-after"
     :option-type :string
     :transient-key "Ca"
     :transient-description "Created after date"
@@ -85,7 +85,7 @@ Format: YYYY-MM-DD or RFC3339."
     :initform nil
     :documentation "Filter issues created before date (--created-before).
 Format: YYYY-MM-DD or RFC3339."
-    :long-option "--created-before"
+    :long-option "created-before"
     :option-type :string
     :transient-key "Cb"
     :transient-description "Created before date"
@@ -101,7 +101,7 @@ Format: YYYY-MM-DD or RFC3339."
     :initform nil
     :documentation "Filter issues closed after date (--closed-after).
 Format: YYYY-MM-DD or RFC3339."
-    :long-option "--closed-after"
+    :long-option "closed-after"
     :option-type :string
     :transient-key "ca"
     :transient-description "Closed after date"
@@ -117,7 +117,7 @@ Format: YYYY-MM-DD or RFC3339."
     :initform nil
     :documentation "Filter issues closed before date (--closed-before).
 Format: YYYY-MM-DD or RFC3339."
-    :long-option "--closed-before"
+    :long-option "closed-before"
     :option-type :string
     :transient-key "cb"
     :transient-description "Closed before date"
@@ -132,7 +132,7 @@ Format: YYYY-MM-DD or RFC3339."
     :type boolean
     :initform nil
     :documentation "Group count by status (--by-status)."
-    :long-option "--by-status"
+    :long-option "by-status"
     :option-type :boolean
     :transient-key "bs"
     :transient-description "Group by status"
@@ -146,7 +146,7 @@ Format: YYYY-MM-DD or RFC3339."
     :type boolean
     :initform nil
     :documentation "Group count by priority (--by-priority)."
-    :long-option "--by-priority"
+    :long-option "by-priority"
     :option-type :boolean
     :transient-key "bp"
     :transient-description "Group by priority"
@@ -160,7 +160,7 @@ Format: YYYY-MM-DD or RFC3339."
     :type boolean
     :initform nil
     :documentation "Group count by issue type (--by-type)."
-    :long-option "--by-type"
+    :long-option "by-type"
     :option-type :boolean
     :transient-key "bt"
     :transient-description "Group by type"
@@ -174,7 +174,7 @@ Format: YYYY-MM-DD or RFC3339."
     :type boolean
     :initform nil
     :documentation "Group count by assignee (--by-assignee)."
-    :long-option "--by-assignee"
+    :long-option "by-assignee"
     :option-type :boolean
     :transient-key "ba"
     :transient-description "Group by assignee"
@@ -188,7 +188,7 @@ Format: YYYY-MM-DD or RFC3339."
     :type boolean
     :initform nil
     :documentation "Group count by label (--by-label)."
-    :long-option "--by-label"
+    :long-option "by-label"
     :option-type :boolean
     :transient-key "bl"
     :transient-description "Group by label"

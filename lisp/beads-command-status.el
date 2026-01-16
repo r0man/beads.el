@@ -39,7 +39,7 @@
     :type boolean
     :initform nil
     :documentation "Show all issues (default behavior) (--all)."
-    :long-option "--all"
+    :long-option "all"
     :option-type :boolean
     :transient-key "a"
     :transient-description "Show all issues"
@@ -53,7 +53,7 @@
     :type boolean
     :initform nil
     :documentation "Show issues assigned to current user (--assigned)."
-    :long-option "--assigned"
+    :long-option "assigned"
     :option-type :boolean
     :transient-key "m"
     :transient-description "Show assigned to me"
@@ -67,7 +67,7 @@
     :type boolean
     :initform nil
     :documentation "Skip git activity analysis for faster output (--no-activity)."
-    :long-option "--no-activity"
+    :long-option "no-activity"
     :option-type :boolean
     :transient-key "n"
     :transient-description "Skip activity (faster)"

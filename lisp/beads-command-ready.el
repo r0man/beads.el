@@ -48,11 +48,11 @@
     :initform nil
     :documentation "Filter by assignee (-a, --assignee)."
     ;; CLI properties
-    :long-option "--assignee"
-    :short-option "-a"
+    :long-option "assignee"
+    :short-option "a"
     :option-type :string
     ;; Transient properties
-    :transient-key "-a"
+    :transient-key "a"
     :transient-description "--assignee"
     :transient-class transient-option
     :transient-argument "--assignee="
@@ -67,10 +67,10 @@
     :documentation "Include issues with future defer_until timestamps
 (--include-deferred)."
     ;; CLI properties
-    :long-option "--include-deferred"
+    :long-option "include-deferred"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "-D"
+    :transient-key "D"
     :transient-description "--include-deferred"
     :transient-class transient-switch
     :transient-argument "--include-deferred"
@@ -85,11 +85,11 @@
 Values: task, bug, feature, epic, merge-request.
 Aliases: mr→merge-request, feat→feature, mol→molecule."
     ;; CLI properties
-    :long-option "--type"
-    :short-option "-t"
+    :long-option "type"
+    :short-option "t"
     :option-type :string
     ;; Transient properties
-    :transient-key "-T"
+    :transient-key "T"
     :transient-description "--type"
     :transient-class transient-option
     :transient-argument "--type="
@@ -104,11 +104,11 @@ Aliases: mr→merge-request, feat→feature, mol→molecule."
     :documentation "Filter by labels, AND logic (-l, --label).
 Must have ALL labels. Can combine with --label-any."
     ;; CLI properties
-    :long-option "--label"
-    :short-option "-l"
+    :long-option "label"
+    :short-option "l"
     :option-type :list
     ;; Transient properties
-    :transient-key "-l"
+    :transient-key "l"
     :transient-description "--label (AND)"
     :transient-class transient-option
     :transient-argument "--label="
@@ -123,10 +123,10 @@ Must have ALL labels. Can combine with --label-any."
     :documentation "Filter by labels, OR logic (--label-any).
 Must have AT LEAST ONE label. Can combine with --label."
     ;; CLI properties
-    :long-option "--label-any"
+    :long-option "label-any"
     :option-type :list
     ;; Transient properties
-    :transient-key "-L"
+    :transient-key "L"
     :transient-description "--label-any (OR)"
     :transient-class transient-option
     :transient-argument "--label-any="
@@ -141,11 +141,11 @@ Must have AT LEAST ONE label. Can combine with --label."
     :documentation "Maximum issues to show (-n, --limit).
 Default: 10."
     ;; CLI properties
-    :long-option "--limit"
-    :short-option "-n"
+    :long-option "limit"
+    :short-option "n"
     :option-type :integer
     ;; Transient properties
-    :transient-key "-n"
+    :transient-key "n"
     :transient-description "--limit"
     :transient-class transient-option
     :transient-argument "--limit="
@@ -160,10 +160,10 @@ Default: 10."
     :documentation "Filter to steps within a specific molecule (--mol).
 Use for agents executing molecules to see which steps can run next."
     ;; CLI properties
-    :long-option "--mol"
+    :long-option "mol"
     :option-type :string
     ;; Transient properties
-    :transient-key "-m"
+    :transient-key "m"
     :transient-description "--mol"
     :transient-class transient-option
     :transient-argument "--mol="
@@ -178,10 +178,10 @@ Use for agents executing molecules to see which steps can run next."
     :documentation "Filter by molecule type (--mol-type).
 Values: swarm, patrol, work."
     ;; CLI properties
-    :long-option "--mol-type"
+    :long-option "mol-type"
     :option-type :string
     ;; Transient properties
-    :transient-key "-M"
+    :transient-key "M"
     :transient-description "--mol-type"
     :transient-class transient-option
     :transient-argument "--mol-type="
@@ -196,10 +196,10 @@ Values: swarm, patrol, work."
     :initform nil
     :documentation "Filter to descendants of this bead/epic (--parent)."
     ;; CLI properties
-    :long-option "--parent"
+    :long-option "parent"
     :option-type :string
     ;; Transient properties
-    :transient-key "-P"
+    :transient-key "P"
     :transient-description "--parent"
     :transient-class transient-option
     :transient-argument "--parent="
@@ -213,10 +213,10 @@ Values: swarm, patrol, work."
     :initform nil
     :documentation "Display issues in tree format (--pretty)."
     ;; CLI properties
-    :long-option "--pretty"
+    :long-option "pretty"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "-y"
+    :transient-key "y"
     :transient-description "--pretty"
     :transient-class transient-switch
     :transient-argument "--pretty"
@@ -230,11 +230,11 @@ Values: swarm, patrol, work."
     :documentation "Filter by priority (-p, --priority).
 Values: 0-4."
     ;; CLI properties
-    :long-option "--priority"
-    :short-option "-p"
+    :long-option "priority"
+    :short-option "p"
     :option-type :integer
     ;; Transient properties
-    :transient-key "-p"
+    :transient-key "p"
     :transient-description "--priority"
     :transient-class transient-option
     :transient-argument "--priority="
@@ -249,11 +249,11 @@ Values: 0-4."
     :documentation "Sort policy (-s, --sort).
 Values: hybrid (default), priority, oldest."
     ;; CLI properties
-    :long-option "--sort"
-    :short-option "-s"
+    :long-option "sort"
+    :short-option "s"
     :option-type :string
     ;; Transient properties
-    :transient-key "-s"
+    :transient-key "s"
     :transient-description "--sort"
     :transient-class transient-option
     :transient-argument "--sort="
@@ -268,11 +268,11 @@ Values: hybrid (default), priority, oldest."
     :initform nil
     :documentation "Show only unassigned issues (-u, --unassigned)."
     ;; CLI properties
-    :long-option "--unassigned"
-    :short-option "-u"
+    :long-option "unassigned"
+    :short-option "u"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "-u"
+    :transient-key "u"
     :transient-description "--unassigned"
     :transient-class transient-switch
     :transient-argument "--unassigned"
@@ -396,8 +396,8 @@ Disables JSON mode for interactive display with colors."
 ;;; Transient Menu
 
 ;; Generate the complete transient menu from slot metadata
-;;;###autoload (autoload 'beads-ready "beads-command-ready" nil t)
-(beads-meta-define-transient beads-command-ready "beads-ready"
+;;;###autoload (autoload 'beads-ready-transient "beads-command-ready" nil t)
+(beads-meta-define-transient beads-command-ready "beads-ready-transient"
   "Show ready work (issues with no blockers).
 
 Ready issues are those that:

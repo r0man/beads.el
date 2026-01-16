@@ -30,10 +30,10 @@
     :type boolean
     :initform nil
     :documentation "Overwrite existing hooks."
-    :long-option "--force"
-    :short-option "-f"
+    :long-option "force"
+    :short-option "f"
     :option-type :boolean
-    :transient-key "-f"
+    :transient-key "f"
     :transient-description "--force"
     :transient-class transient-switch
     :transient-argument "--force"
@@ -45,9 +45,9 @@
     :type boolean
     :initform nil
     :documentation "Chain with existing hooks instead of replacing."
-    :long-option "--chain"
+    :long-option "chain"
     :option-type :boolean
-    :transient-key "-c"
+    :transient-key "c"
     :transient-description "--chain"
     :transient-class transient-switch
     :transient-argument "--chain"
@@ -59,9 +59,9 @@
     :type boolean
     :initform nil
     :documentation "Install for all repos using shared hooks directory."
-    :long-option "--shared"
+    :long-option "shared"
     :option-type :boolean
-    :transient-key "-s"
+    :transient-key "s"
     :transient-description "--shared"
     :transient-class transient-switch
     :transient-argument "--shared"

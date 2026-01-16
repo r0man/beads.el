@@ -41,7 +41,7 @@
     :type boolean
     :initform nil
     :documentation "Skip auto-cleanup of stale sockets (--no-cleanup)."
-    :long-option "--no-cleanup"
+    :long-option "no-cleanup"
     :option-type :boolean
     :transient-key "c"
     :transient-description "Skip cleanup"
@@ -56,7 +56,7 @@
     :initform nil
     :documentation "Directories to search for daemons (--search).
 Default: home, /tmp, cwd."
-    :long-option "--search"
+    :long-option "search"
     :option-type :string
     :transient-key "s"
     :transient-description "Search directories"
@@ -94,7 +94,7 @@ No required fields, returns nil (valid)."
     :type boolean
     :initform nil
     :documentation "Automatically commit changes (--auto-commit)."
-    :long-option "--auto-commit"
+    :long-option "auto-commit"
     :option-type :boolean
     :transient-key "c"
     :transient-description "Auto-commit"
@@ -109,7 +109,7 @@ No required fields, returns nil (valid)."
     :initform nil
     :documentation "Automatically push commits (--auto-push).
 Implies --auto-commit."
-    :long-option "--auto-push"
+    :long-option "auto-push"
     :option-type :boolean
     :transient-key "p"
     :transient-description "Auto-push"
@@ -124,7 +124,7 @@ Implies --auto-commit."
     :initform nil
     :documentation "Automatically pull from remote (--auto-pull).
 Default: true when sync.branch configured."
-    :long-option "--auto-pull"
+    :long-option "auto-pull"
     :option-type :boolean
     :transient-key "P"
     :transient-description "Auto-pull"
@@ -139,7 +139,7 @@ Default: true when sync.branch configured."
     :initform nil
     :documentation "Run in foreground, don't daemonize (--foreground).
 Useful for systemd/supervisord."
-    :long-option "--foreground"
+    :long-option "foreground"
     :option-type :boolean
     :transient-key "f"
     :transient-description "Foreground mode"
@@ -154,7 +154,7 @@ Useful for systemd/supervisord."
     :initform nil
     :documentation "Run in local-only mode (--local).
 No git required, no sync."
-    :long-option "--local"
+    :long-option "local"
     :option-type :boolean
     :transient-key "l"
     :transient-description "Local-only mode"
@@ -169,7 +169,7 @@ No git required, no sync."
     :initform nil
     :documentation "Sync check interval (--interval).
 Default: 5s."
-    :long-option "--interval"
+    :long-option "interval"
     :option-type :string
     :transient-key "i"
     :transient-description "Sync interval"
@@ -185,7 +185,7 @@ Default: 5s."
     :initform nil
     :documentation "Log file path (--log).
 Default: .beads/daemon.log."
-    :long-option "--log"
+    :long-option "log"
     :option-type :string
     :transient-key "L"
     :transient-description "Log file"
@@ -201,7 +201,7 @@ Default: .beads/daemon.log."
     :initform nil
     :documentation "Log level (--log-level).
 Values: debug, info, warn, error. Default: info."
-    :long-option "--log-level"
+    :long-option "log-level"
     :option-type :string
     :transient-key "v"
     :transient-description "Log level"
@@ -216,7 +216,7 @@ Values: debug, info, warn, error. Default: info."
     :type boolean
     :initform nil
     :documentation "Output logs in JSON format (--log-json)."
-    :long-option "--log-json"
+    :long-option "log-json"
     :option-type :boolean
     :transient-key "j"
     :transient-description "JSON logs"
@@ -283,7 +283,7 @@ Target is optional (defaults to current workspace)."
     :type boolean
     :initform nil
     :documentation "Show status of all daemons (--all)."
-    :long-option "--all"
+    :long-option "all"
     :option-type :boolean
     :transient-key "a"
     :transient-description "All daemons"
@@ -298,7 +298,7 @@ Target is optional (defaults to current workspace)."
     :initform nil
     :documentation "Directories to search for daemons (--search).
 Use with --all."
-    :long-option "--search"
+    :long-option "search"
     :option-type :string
     :transient-key "s"
     :transient-description "Search directories"
@@ -337,7 +337,7 @@ No required fields, returns nil (valid)."
     :initform nil
     :documentation "Directories to search for daemons (--search).
 Default: home, /tmp, cwd."
-    :long-option "--search"
+    :long-option "search"
     :option-type :string
     :transient-key "s"
     :transient-description "Search directories"
@@ -375,7 +375,7 @@ No required fields, returns nil (valid)."
     :type boolean
     :initform nil
     :documentation "Use SIGKILL immediately if graceful fails (--force)."
-    :long-option "--force"
+    :long-option "force"
     :option-type :boolean
     :transient-key "f"
     :transient-description "Force kill"
@@ -390,7 +390,7 @@ No required fields, returns nil (valid)."
     :initform nil
     :documentation "Directories to search for daemons (--search).
 Default: home, /tmp, cwd."
-    :long-option "--search"
+    :long-option "search"
     :option-type :string
     :transient-key "s"
     :transient-description "Search directories"
@@ -434,8 +434,8 @@ No required fields, returns nil (valid)."
     :type boolean
     :initform nil
     :documentation "Follow log output like tail -f (--follow)."
-    :long-option "--follow"
-    :short-option "-f"
+    :long-option "follow"
+    :short-option "f"
     :option-type :boolean
     :transient-key "f"
     :transient-description "Follow output"
@@ -450,8 +450,8 @@ No required fields, returns nil (valid)."
     :initform nil
     :documentation "Number of lines to show from end (--lines).
 Default: 50."
-    :long-option "--lines"
-    :short-option "-n"
+    :long-option "lines"
+    :short-option "n"
     :option-type :integer
     :transient-key "n"
     :transient-description "Number of lines"
@@ -497,7 +497,7 @@ Target is optional (defaults to current workspace)."
     :initform nil
     :documentation "Directories to search for daemons (--search).
 Default: home, /tmp, cwd."
-    :long-option "--search"
+    :long-option "search"
     :option-type :string
     :transient-key "s"
     :transient-description "Search directories"

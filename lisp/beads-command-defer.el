@@ -36,9 +36,9 @@
     :type (or null string)
     :initform nil
     :documentation "Defer until specific time (e.g., +1h, tomorrow, next monday)."
-    :long-option "--until"
+    :long-option "until"
     :option-type :string
-    :transient-key "-u"
+    :transient-key "u"
     :transient-description "--until"
     :transient-class transient-option
     :transient-argument "--until="
@@ -54,7 +54,7 @@ Defers one or more issues for later."))
   "defer")
 
 (cl-defmethod beads-command-validate ((command beads-command-defer))
-  "Validate defer COMMAND. Requires at least one issue ID."
+  "Validate defer COMMAND.  Requires at least one issue ID."
   (with-slots (issue-ids) command
     (if (null issue-ids)
         "At least one issue ID is required"
@@ -85,7 +85,7 @@ Undefers one or more issues (restores to open)."))
   "undefer")
 
 (cl-defmethod beads-command-validate ((command beads-command-undefer))
-  "Validate undefer COMMAND. Requires at least one issue ID."
+  "Validate undefer COMMAND.  Requires at least one issue ID."
   (with-slots (issue-ids) command
     (if (null issue-ids)
         "At least one issue ID is required"

@@ -58,9 +58,9 @@ Checks merge slot availability."))
     :type (or null string)
     :initform nil
     :documentation "Agent ID requesting the slot."
-    :long-option "--holder"
+    :long-option "holder"
     :option-type :string
-    :transient-key "-h"
+    :transient-key "h"
     :transient-description "--holder"
     :transient-class transient-option
     :transient-argument "--holder="
@@ -73,9 +73,9 @@ Checks merge slot availability."))
     :type boolean
     :initform nil
     :documentation "Wait for slot to become available."
-    :long-option "--wait"
+    :long-option "wait"
     :option-type :boolean
-    :transient-key "-w"
+    :transient-key "w"
     :transient-description "--wait"
     :transient-class transient-switch
     :transient-argument "--wait"
@@ -100,9 +100,9 @@ Tries to acquire the merge slot."))
     :type (or null string)
     :initform nil
     :documentation "Agent ID releasing the slot."
-    :long-option "--holder"
+    :long-option "holder"
     :option-type :string
-    :transient-key "-h"
+    :transient-key "h"
     :transient-description "--holder"
     :transient-class transient-option
     :transient-argument "--holder="

@@ -36,9 +36,9 @@
     :type boolean
     :initform nil
     :documentation "Edit the title."
-    :long-option "--title"
+    :long-option "title"
     :option-type :boolean
-    :transient-key "-t"
+    :transient-key "t"
     :transient-description "--title"
     :transient-class transient-switch
     :transient-argument "--title"
@@ -50,9 +50,9 @@
     :type boolean
     :initform nil
     :documentation "Edit the description (default)."
-    :long-option "--description"
+    :long-option "description"
     :option-type :boolean
-    :transient-key "-d"
+    :transient-key "d"
     :transient-description "--description"
     :transient-class transient-switch
     :transient-argument "--description"
@@ -64,9 +64,9 @@
     :type boolean
     :initform nil
     :documentation "Edit the design notes."
-    :long-option "--design"
+    :long-option "design"
     :option-type :boolean
-    :transient-key "-D"
+    :transient-key "D"
     :transient-description "--design"
     :transient-class transient-switch
     :transient-argument "--design"
@@ -78,9 +78,9 @@
     :type boolean
     :initform nil
     :documentation "Edit the notes."
-    :long-option "--notes"
+    :long-option "notes"
     :option-type :boolean
-    :transient-key "-n"
+    :transient-key "n"
     :transient-description "--notes"
     :transient-class transient-switch
     :transient-argument "--notes"
@@ -92,9 +92,9 @@
     :type boolean
     :initform nil
     :documentation "Edit the acceptance criteria."
-    :long-option "--acceptance"
+    :long-option "acceptance"
     :option-type :boolean
-    :transient-key "-a"
+    :transient-key "a"
     :transient-description "--acceptance"
     :transient-class transient-switch
     :transient-argument "--acceptance"
@@ -109,7 +109,7 @@ Opens an issue field in $EDITOR for modification."))
   "edit")
 
 (cl-defmethod beads-command-validate ((command beads-command-edit))
-  "Validate edit COMMAND. Requires issue-id."
+  "Validate edit COMMAND.  Requires issue-id."
   (with-slots (issue-id) command
     (cond
      ((not issue-id) "Issue ID is required")
