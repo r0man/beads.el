@@ -390,7 +390,7 @@
 
 (ert-deftest beads-option-test-state-variables-exist ()
   "Test that required state variables are defined."
-  (should (boundp 'beads-close--issue-id))
+  ;; beads-close now uses meta-generated transient (no module state variables)
   (should (boundp 'beads-reopen--issue-id))
   ;; beads-dep-add, beads-dep-remove, beads-sync, beads-export, beads-import, and beads-init
   ;; no longer use state variables (transient-args pattern)
@@ -401,19 +401,16 @@
 (ert-deftest beads-option-test-state-variables-initial-values ()
   "Test that state variables have correct initial values."
   ;; Save current state (only commands that still use state variables)
-  (let ((saved-close-issue-id beads-close--issue-id)
-        (saved-reopen-issue-id beads-reopen--issue-id))
+  ;; Note: beads-close now uses meta-generated transient, no state variables
+  (let ((saved-reopen-issue-id beads-reopen--issue-id))
     (unwind-protect
         (progn
           ;; Reset all to nil
-          (setq beads-close--issue-id nil
-                beads-reopen--issue-id nil)
+          (setq beads-reopen--issue-id nil)
           ;; All should be nil after reset
-          (should (null beads-close--issue-id))
           (should (null beads-reopen--issue-id)))
       ;; Restore original state
-      (setq beads-close--issue-id saved-close-issue-id
-            beads-reopen--issue-id saved-reopen-issue-id))))
+      (setq beads-reopen--issue-id saved-reopen-issue-id))))
 
 ;;; ============================================================
 ;;; Global Option Class Property Tests

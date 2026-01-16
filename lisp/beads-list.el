@@ -955,7 +955,7 @@ ACTION and SESSION are provided by `beads-agent-state-change-hook'."
   (interactive)
   (if-let* ((id (beads-list--current-issue-id)))
       (progn
-        (require 'beads-close)
+        (require 'beads-command-close)
         ;; beads-close will auto-detect the issue ID from beads-list context
         (call-interactively #'beads-close))
     (user-error "No issue at point")))

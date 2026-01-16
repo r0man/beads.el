@@ -33,7 +33,14 @@
 (require 'beads-show)
 (require 'beads-create)
 (require 'beads-update)
-(require 'beads-close)
+(require 'beads-command-close)
+(require 'beads-command-admin)
+(require 'beads-command-agent)
+(require 'beads-command-blocked)
+(require 'beads-command-graph)
+(require 'beads-command-ready)
+(require 'beads-command-sync)
+(require 'beads-command-worktree)
 (require 'beads-reopen)
 (require 'beads-delete)
 (require 'beads-stats)
@@ -48,6 +55,28 @@
 (require 'beads-worktree)
 (require 'beads-command-info)
 (require 'beads-command-formula)
+(require 'beads-command-activity)
+(require 'beads-command-audit)
+(require 'beads-command-comments)
+(require 'beads-command-config)
+(require 'beads-command-count)
+(require 'beads-command-daemon)
+(require 'beads-command-defer)
+(require 'beads-command-doctor)
+(require 'beads-command-edit)
+(require 'beads-command-gate)
+(require 'beads-command-hooks)
+(require 'beads-command-integrations)
+(require 'beads-command-merge-slot)
+(require 'beads-command-migrate)
+(require 'beads-command-misc)
+(require 'beads-command-mol)
+(require 'beads-command-search)
+(require 'beads-command-slot)
+(require 'beads-command-stale)
+(require 'beads-command-state)
+(require 'beads-command-status)
+(require 'beads-command-swarm)
 (require 'transient)
 
 ;;; Variables
@@ -138,67 +167,98 @@ Returns a propertized string showing project and database info."
 
 This is the primary entry point for beads.el, providing a Magit-like
 interface for all issue tracking operations.  The menu is organized
-into logical groups for easy navigation.
-
-Key bindings:
-  View issues:        l (list), r (ready), b (blocked), s (show)
-  Epic:               e (epic status)
-  Create/Edit:        c (create), u (update), x (close), o (reopen),
-                      D (delete)
-  Dependencies:       d (dep submenu)
-  Agent:              A (agent menu)
-  Worktree:           W (worktree menu)
-  Formula:            F (formula menu)
-  Admin:              i (init), E (export), I (import), S (sync)
-  Other:              g (refresh), q (quit)"
+into logical groups matching bd CLI structure."
   [:description
    (lambda () (beads-main--format-project-header))
    :pad-keys t]
-  ["View"
-   :description "View issues"
-   ("l" "List all issues" beads-list)
-   ("r" "Ready work" beads-ready)
-   ("b" "Blocked issues" beads-blocked)
-   ("s" "Show issue" beads-show)
-   ("t" "Stats" beads-stats)]
-  ["Epic"
-   :description "Epic management"
-   ("e" "Epic status" beads-epic)]
-  ["Create/Edit"
-   :description "Create and modify issues"
-   ("c" "Create issue" beads-create)
-   ("u" "Update issue" beads-update)
-   ("x" "Close issue" beads-close)
-   ("o" "Reopen issue" beads-reopen)
-   ("D" "Delete issue" beads-delete)]
-  ["Dependencies"
-   :description "Manage dependencies"
-   ("d" "Dependencies menu" beads-dep)
-   ("v" "Visual graph" beads-graph-all)]
-  ["Labels"
-   :description "Manage labels"
-   ("L" "Label menu" beads-label)]
-  ["Agent"
-   :description "AI Agent integration"
-   ("A" "Agent menu" beads-agent)]
-  ["Worktree"
-   :description "Git worktree management"
-   ("W" "Worktree menu" beads-worktree-menu)]
-  ["Formula"
-   :description "Workflow formulas"
-   ("F" "Formula menu" beads-formula-menu)]
-  ["Admin"
-   :description "Project administration"
-   ("i" "Init project" beads-init)
-   ("E" "Export to JSONL" beads-export)
-   ("I" "Import from JSONL" beads-import)
-   ("S" "Sync with remote" beads-sync)]
-  ["Other"
-   :description "Other commands"
-   ("?" "Quickstart guide" beads-quickstart)
-   ("!" "Info (debug)" beads-info)
-   ("g" "Refresh menu" beads-refresh-menu)
-   ("q" "Quit" transient-quit-one)])
+  ;; Row 1: Issues | Workflow | Setup
+  [["Working With Issues"
+    ("l" "List issues" beads-list)
+    ("c" "Create issue" beads-create)
+    ("Q" "Quick capture (q)" beads-q)
+    ("u" "Update issue" beads-update)
+    ("x" "Close issue" beads-close)
+    ("o" "Reopen issue" beads-reopen)
+    ("D" "Delete issue" beads-delete)
+    ("s" "Show issue" beads-show)
+    ("e" "Edit field" beads-edit)
+    ("O" "Move issue" beads-move)
+    ("B" "Refile issue" beads-refile)]
+   ["Workflow & Collaboration"
+    ("F" "Formula menu" beads-formula-menu)
+    ("K" "Cook formula" beads-cook)
+    ("m" "Molecule menu" beads-mol)
+    ("g" "Gate menu" beads-gate)
+    ("M" "Merge slot" beads-merge-slot)
+    ("f" "Defer issue" beads-defer)
+    ("U" "Undefer issue" beads-undefer)
+    ("H" "Ship capability" beads-ship)]
+   ["Setup & Config"
+    ("i" "Init project" beads-init)
+    ("?" "Quickstart" beads-quickstart)
+    ("." "Config menu" beads-config)
+    ("h" "Hooks menu" beads-hooks)
+    ("!" "Info/Debug" beads-info)
+    ("5" "Where (location)" beads-where)
+    ("6" "Human commands" beads-human)
+    ("7" "Onboard snippet" beads-onboard)
+    ("8" "Prime context" beads-prime)
+    ("9" "Setup integrations" beads-setup)]]
+  ;; Row 2: Views | Agent | Maintenance
+  [["Views & Reports"
+    ("r" "Ready work" beads-ready)
+    ("b" "Blocked issues" beads-blocked)
+    ("t" "Stats/Status" beads-stats)
+    ("a" "Activity feed" beads-activity)
+    ("C" "Count issues" beads-count)
+    ("S" "Stale issues" beads-stale)
+    ("/" "Search" beads-search)
+    ("T" "Lint issues" beads-lint)
+    ("Y" "Orphans" beads-orphans)]
+   ["Agent & Slots"
+    ("A" "Agent menu" beads-agent-menu)
+    ("@" "Slot menu" beads-slot)
+    ("=" "Comments" beads-comments-menu)
+    ("~" "Audit log" beads-audit)]
+   ["Maintenance"
+    ("+" "Doctor" beads-doctor)
+    ("^" "Migrate menu" beads-migrate-menu)
+    ("W" "Worktree menu" beads-worktree-menu)
+    ("&" "Admin menu" beads-admin)
+    ("0" "Preflight check" beads-preflight)
+    ("-" "Upgrade bd" beads-upgrade)
+    ("P" "Rename prefix" beads-rename-prefix)
+    (":" "Repair database" beads-repair)
+    (";" "Resolve conflicts" beads-resolve-conflicts)]]
+  ;; Row 3: Dependencies | Sync | Integrations
+  [["Dependencies & Structure"
+    ("d" "Dependencies" beads-dep)
+    ("v" "Graph (visual)" beads-graph-all)
+    ("E" "Epic status" beads-epic)
+    ("w" "Swarm menu" beads-swarm)
+    ("1" "Mark duplicate" beads-duplicate)
+    ("2" "Find duplicates" beads-duplicates)
+    ("3" "Supersede issue" beads-supersede)]
+   ["Sync & Data"
+    ("y" "Sync with remote" beads-sync)
+    ("X" "Export to JSONL" beads-export)
+    ("I" "Import from JSONL" beads-import)
+    ("n" "Daemon menu" beads-daemon)
+    ("4" "Restore from git" beads-restore)]
+   ["Integrations"
+    ("j" "Jira" beads-jira)
+    ("N" "Linear" beads-linear)
+    ("R" "Repo" beads-repo)
+    ("*" "Mail delegate" beads-mail)]]
+  ;; Row 4: Labels | Actions
+  [["Labels & State"
+    ("L" "Label menu" beads-label)
+    ("z" "Set state" beads-set-state)
+    ("Z" "State menu" beads-state-menu)]
+   ["Actions"
+    ("G" "Refresh menu" beads-refresh-menu)
+    ("V" "Version" beads-version)
+    ("q" "Quit" transient-quit-one)]])
 
 ;;; Footer
 
