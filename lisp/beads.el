@@ -464,7 +464,7 @@ or set `beads-executable' to the full path" beads-executable)))
 (autoload 'beads-update "beads-update" "Update a Beads issue using transient menu." t)
 
 ;;;###autoload
-(autoload 'beads-close "beads-close" "Close a Beads issue with optional reason." t)
+(autoload 'beads-close "beads-command-close" "Close a Beads issue with optional reason." t)
 
 ;;;###autoload
 (autoload 'beads-delete "beads-delete" "Delete a Beads issue permanently." t)

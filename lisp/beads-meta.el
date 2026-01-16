@@ -447,6 +447,7 @@ or nil if the slot doesn't have transient metadata (no :transient-key)."
          (choices (beads-meta-slot-property class slot-name :transient-choices))
          (prompt (beads-meta-slot-property class slot-name :transient-prompt))
          (long-opt (beads-meta-slot-property class slot-name :long-option))
+         (trans-arg (beads-meta-slot-property class slot-name :transient-argument))
          (option-type (beads-meta-slot-property class slot-name :option-type)))
     (when key
       (let ((spec (list :name (intern (format "%s-infix-%s" prefix slot-name))
@@ -460,11 +461,13 @@ or nil if the slot doesn't have transient metadata (no :transient-key)."
                                   (if (eq option-type :boolean)
                                       'transient-switch
                                     'transient-option))))
-        ;; Argument (from :long-option)
-        (when long-opt
-          (let ((arg (if (eq option-type :boolean)
-                         long-opt
-                       (concat long-opt "="))))
+        ;; Argument (from :transient-argument or derived from :long-option)
+        (let ((arg (or trans-arg
+                       (when long-opt
+                         (if (eq option-type :boolean)
+                             long-opt
+                           (concat long-opt "="))))))
+          (when arg
             (setq spec (plist-put spec :argument arg))))
         ;; Reader function
         (when reader
@@ -789,14 +792,23 @@ Generates:
                                  (format "^%s-infix-" (regexp-quote prefix-val))
                                  "" name-str)))
                     (arg (plist-get spec :argument))
-                    (trans-class (plist-get spec :class)))
+                    (trans-class (plist-get spec :class))
+                    ;; Check if slot has :option-type :list
+                    (option-type (beads-meta-slot-property
+                                  class-val slot-name :option-type)))
                (when arg
                  (let* ((initarg (intern (format ":%s" slot-name)))
-                        (is-switch (eq trans-class 'transient-switch)))
+                        (is-switch (eq trans-class 'transient-switch))
+                        (is-list (eq option-type :list)))
                    (list initarg
-                         (if is-switch
-                             `(transient-arg-value ,arg args)
-                           `(transient-arg-value ,arg args)))))))
+                         (cond
+                          (is-switch
+                           `(transient-arg-value ,arg args))
+                          (is-list
+                           `(let ((val (transient-arg-value ,arg args)))
+                              (when val (list val))))
+                          (t
+                           `(transient-arg-value ,arg args))))))))
            infix-specs)))))
 
 (defmacro beads-meta-define-transient (class prefix &optional docstring

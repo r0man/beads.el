@@ -962,7 +962,7 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-workflow-to-close ()
   "Integration test: Close from list buffer."
   :tags '(integration)
-  (require 'beads-close)
+  (require 'beads-command-close)
   (with-temp-buffer
     (beads-list-mode)
     ;; Verify that list mode has close command
