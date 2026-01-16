@@ -117,8 +117,8 @@
   "Test all-issues slot has correct transient properties."
   (should (equal "a" (beads-meta-slot-property
                       'beads-command-status 'all-issues :transient-key)))
-  (should (equal "--all" (beads-meta-slot-property
-                          'beads-command-status 'all-issues :long-option)))
+  (should (equal "all" (beads-meta-slot-property
+                        'beads-command-status 'all-issues :long-option)))
   (should (eq :boolean (beads-meta-slot-property
                         'beads-command-status 'all-issues :option-type))))
 
@@ -126,15 +126,15 @@
   "Test assigned slot has correct transient properties."
   (should (equal "m" (beads-meta-slot-property
                       'beads-command-status 'assigned :transient-key)))
-  (should (equal "--assigned" (beads-meta-slot-property
-                               'beads-command-status 'assigned :long-option))))
+  (should (equal "assigned" (beads-meta-slot-property
+                             'beads-command-status 'assigned :long-option))))
 
 (ert-deftest beads-command-status-test-no-activity-slot-properties ()
   "Test no-activity slot has correct transient properties."
   (should (equal "n" (beads-meta-slot-property
                       'beads-command-status 'no-activity :transient-key)))
-  (should (equal "--no-activity" (beads-meta-slot-property
-                                  'beads-command-status 'no-activity :long-option))))
+  (should (equal "no-activity" (beads-meta-slot-property
+                                'beads-command-status 'no-activity :long-option))))
 
 ;;; Transient Tests
 

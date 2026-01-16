@@ -15,7 +15,7 @@
 
 (require 'ert)
 (require 'beads)
-(require 'beads-sync)
+(require 'beads-command-sync)
 (require 'compile)
 
 ;;; Test Utilities
@@ -348,7 +348,7 @@ This test would have caught the original bug."
 
 (ert-deftest beads-sync-test-refresh-all-buffers-with-show-buffer ()
   "Test that refresh-all-buffers refreshes beads-show buffers."
-  (require 'beads-show)
+  (require 'beads-command-show)
   (let ((refreshed nil))
     (with-temp-buffer
       (beads-show-mode)

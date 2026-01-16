@@ -20,7 +20,7 @@
 (require 'ert)
 (require 'json)
 (require 'beads)
-(require 'beads-reopen)
+(require 'beads-command-reopen)
 
 ;;; Test Fixtures
 
@@ -303,7 +303,7 @@ For testing, we just verify the value is parsed correctly."
 (ert-deftest beads-reopen-test-context-from-list-mode ()
   "Integration test: Test context detection from list mode."
   :tags '(integration)
-  (require 'beads-list)
+  (require 'beads-command-list)
   (with-temp-buffer
     (beads-list-mode)
     (cl-letf (((symbol-function 'beads-list--current-issue-id)
@@ -313,7 +313,7 @@ For testing, we just verify the value is parsed correctly."
 (ert-deftest beads-reopen-test-context-from-show-mode ()
   "Integration test: Test context detection from show mode."
   :tags '(integration)
-  (require 'beads-show)
+  (require 'beads-command-show)
   (with-temp-buffer
     (beads-show-mode)
     (setq-local beads-show--issue-id "bd-99")
@@ -322,13 +322,13 @@ For testing, we just verify the value is parsed correctly."
 (ert-deftest beads-reopen-test-list-reopen-command ()
   "Integration test: Verify beads-list-reopen command exists."
   :tags '(integration)
-  (require 'beads-list)
+  (require 'beads-command-list)
   (should (fboundp 'beads-list-reopen)))
 
 (ert-deftest beads-reopen-test-list-keybinding-o ()
   "Integration test: Verify o keybinding in list mode."
   :tags '(integration)
-  (require 'beads-list)
+  (require 'beads-command-list)
   (with-temp-buffer
     (beads-list-mode)
     (let ((binding (lookup-key beads-list-mode-map (kbd "o"))))
@@ -337,13 +337,13 @@ For testing, we just verify the value is parsed correctly."
 (ert-deftest beads-reopen-test-bulk-reopen-command ()
   "Integration test: Verify beads-list-bulk-reopen command exists."
   :tags '(integration)
-  (require 'beads-list)
+  (require 'beads-command-list)
   (should (fboundp 'beads-list-bulk-reopen)))
 
 (ert-deftest beads-reopen-test-bulk-keybinding ()
   "Integration test: Verify B o keybinding in list mode."
   :tags '(integration)
-  (require 'beads-list)
+  (require 'beads-command-list)
   (with-temp-buffer
     (beads-list-mode)
     (let ((binding (lookup-key beads-list-mode-map (kbd "B o"))))
@@ -375,7 +375,7 @@ For testing, we just verify the value is parsed correctly."
 (ert-deftest beads-reopen-test-list-reopen-workflow ()
   "Integration test: Reopen from list mode workflow."
   :tags '(integration)
-  (require 'beads-list)
+  (require 'beads-command-list)
   (with-temp-buffer
     (beads-list-mode)
     ;; Mock having an issue at point
@@ -390,7 +390,7 @@ For testing, we just verify the value is parsed correctly."
 (ert-deftest beads-reopen-test-bulk-reopen-workflow ()
   "Integration test: Bulk reopen workflow with marked issues."
   :tags '(integration)
-  (require 'beads-list)
+  (require 'beads-command-list)
   ;; Verify the bulk command exists and can handle marked issues
   (should (fboundp 'beads-list-bulk-reopen))
   ;; The actual bulk operation is tested in unit tests,
@@ -474,8 +474,8 @@ We verify that reasons are properly passed through."
 (ert-deftest beads-reopen-test-context-priority ()
   "Integration test: Context detection priority."
   :tags '(integration)
-  (require 'beads-list)
-  (require 'beads-show)
+  (require 'beads-command-list)
+  (require 'beads-command-show)
 
   ;; Test list mode context
   (with-temp-buffer

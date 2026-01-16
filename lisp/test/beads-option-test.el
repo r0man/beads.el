@@ -11,6 +11,7 @@
 ;;; Code:
 
 (require 'beads-option)
+(require 'beads-command-label)  ; For label transient menus
 (require 'ert)
 (require 'transient)
 

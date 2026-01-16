@@ -18,7 +18,7 @@
 ;;; Code:
 
 (require 'ert)
-(require 'beads-worktree)
+(require 'beads-command-worktree)
 (require 'beads-command-worktree)
 
 ;;; Test Fixtures

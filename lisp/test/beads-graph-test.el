@@ -15,7 +15,8 @@
 (require 'ert)
 (require 'beads)
 (require 'beads-buffer)
-(require 'beads-graph)
+(require 'beads-types)
+(require 'beads-command-graph)
 
 ;;; Test Helpers
 
@@ -32,21 +33,12 @@
 ;;; Test Fixtures
 
 (defvar beads-graph-test--sample-issues
-  '(((id . "bd-1")
-     (title . "First Issue")
-     (status . "open")
-     (priority . 1)
-     (issue-type . "feature"))
-    ((id . "bd-2")
-     (title . "Second Issue")
-     (status . "in_progress")
-     (priority . 2)
-     (issue-type . "bug"))
-    ((id . "bd-3")
-     (title . "Third Issue")
-     (status . "closed")
-     (priority . 3)
-     (issue-type . "task")))
+  (list (beads-issue :id "bd-1" :title "First Issue" :status "open"
+                     :priority 1 :issue-type "feature")
+        (beads-issue :id "bd-2" :title "Second Issue" :status "in_progress"
+                     :priority 2 :issue-type "bug")
+        (beads-issue :id "bd-3" :title "Third Issue" :status "closed"
+                     :priority 3 :issue-type "task"))
   "Sample issues for graph tests.")
 
 (defvar beads-graph-test--sample-deps
@@ -67,64 +59,62 @@
 
 (ert-deftest beads-graph-test-issue-color-open ()
   "Test color assignment for open issues."
-  (let ((issue '((status . "open"))))
+  (let ((issue (beads-issue :id "bd-1" :title "Test" :status "open")))
     (should (string= (beads-graph--issue-color issue) "lightblue"))))
 
 (ert-deftest beads-graph-test-issue-color-in-progress ()
   "Test color assignment for in_progress issues."
-  (let ((issue '((status . "in_progress"))))
+  (let ((issue (beads-issue :id "bd-1" :title "Test" :status "in_progress")))
     (should (string= (beads-graph--issue-color issue) "yellow"))))
 
 (ert-deftest beads-graph-test-issue-color-blocked ()
   "Test color assignment for blocked issues."
-  (let ((issue '((status . "blocked"))))
+  (let ((issue (beads-issue :id "bd-1" :title "Test" :status "blocked")))
     (should (string= (beads-graph--issue-color issue) "red"))))
 
 (ert-deftest beads-graph-test-issue-color-closed ()
   "Test color assignment for closed issues."
-  (let ((issue '((status . "closed"))))
+  (let ((issue (beads-issue :id "bd-1" :title "Test" :status "closed")))
     (should (string= (beads-graph--issue-color issue) "lightgray"))))
 
 (ert-deftest beads-graph-test-issue-color-unknown ()
   "Test color assignment for unknown status."
-  (let ((issue '((status . "unknown"))))
+  (let ((issue (beads-issue :id "bd-1" :title "Test" :status "unknown")))
     (should (string= (beads-graph--issue-color issue) "white"))))
 
 ;;; Tests for Shape Assignment
 
 (ert-deftest beads-graph-test-issue-shape-epic ()
   "Test shape assignment for epic issues."
-  (let ((issue '((issue-type . "epic"))))
+  (let ((issue (beads-issue :id "bd-1" :title "Test" :issue-type "epic")))
     (should (string= (beads-graph--issue-shape issue) "box3d"))))
 
 (ert-deftest beads-graph-test-issue-shape-feature ()
   "Test shape assignment for feature issues."
-  (let ((issue '((issue-type . "feature"))))
+  (let ((issue (beads-issue :id "bd-1" :title "Test" :issue-type "feature")))
     (should (string= (beads-graph--issue-shape issue) "box"))))
 
 (ert-deftest beads-graph-test-issue-shape-bug ()
   "Test shape assignment for bug issues."
-  (let ((issue '((issue-type . "bug"))))
+  (let ((issue (beads-issue :id "bd-1" :title "Test" :issue-type "bug")))
     (should (string= (beads-graph--issue-shape issue) "octagon"))))
 
 (ert-deftest beads-graph-test-issue-shape-task ()
   "Test shape assignment for task issues."
-  (let ((issue '((issue-type . "task"))))
+  (let ((issue (beads-issue :id "bd-1" :title "Test" :issue-type "task")))
     (should (string= (beads-graph--issue-shape issue) "ellipse"))))
 
 (ert-deftest beads-graph-test-issue-shape-chore ()
   "Test shape assignment for chore issues."
-  (let ((issue '((issue-type . "chore"))))
+  (let ((issue (beads-issue :id "bd-1" :title "Test" :issue-type "chore")))
     (should (string= (beads-graph--issue-shape issue) "note"))))
 
 ;;; Tests for Label Generation
 
 (ert-deftest beads-graph-test-issue-label-short-title ()
   "Test label generation with short title."
-  (let ((issue '((id . "bd-1")
-                 (title . "Short")
-                 (status . "open")
-                 (priority . 1))))
+  (let ((issue (beads-issue :id "bd-1" :title "Short" :status "open"
+                            :priority 1)))
     (let ((label (beads-graph--issue-label issue)))
       (should (string-match-p "bd-1" label))
       (should (string-match-p "Short" label))
@@ -133,10 +123,8 @@
 
 (ert-deftest beads-graph-test-issue-label-long-title ()
   "Test label generation with long title (truncation)."
-  (let ((issue `((id . "bd-1")
-                 (title . ,(make-string 50 ?x))
-                 (status . "open")
-                 (priority . 2))))
+  (let ((issue (beads-issue :id "bd-1" :title (make-string 50 ?x)
+                            :status "open" :priority 2)))
     (let ((label (beads-graph--issue-label issue)))
       (should (string-match-p "\\.\\.\\." label))
       (should (< (length (car (split-string label "\\\\n"))) 40)))))
@@ -148,9 +136,8 @@
   (let ((beads-graph--filter-status nil)
         (beads-graph--filter-priority nil)
         (beads-graph--filter-type nil)
-        (issue '((status . "open")
-                 (priority . 1)
-                 (issue-type . "bug"))))
+        (issue (beads-issue :id "bd-1" :title "Test" :status "open"
+                            :priority 1 :issue-type "bug")))
     (should (beads-graph--filter-issue issue))))
 
 (ert-deftest beads-graph-test-filter-issue-by-status ()
@@ -158,40 +145,44 @@
   (let ((beads-graph--filter-status "open")
         (beads-graph--filter-priority nil)
         (beads-graph--filter-type nil))
-    (should (beads-graph--filter-issue '((status . "open")
-                                         (priority . 1))))
-    (should-not (beads-graph--filter-issue '((status . "closed")
-                                             (priority . 1))))))
+    (should (beads-graph--filter-issue
+             (beads-issue :id "bd-1" :title "Test" :status "open" :priority 1)))
+    (should-not (beads-graph--filter-issue
+                 (beads-issue :id "bd-2" :title "Test" :status "closed"
+                              :priority 1)))))
 
 (ert-deftest beads-graph-test-filter-issue-by-priority ()
   "Test filtering by priority."
   (let ((beads-graph--filter-status nil)
         (beads-graph--filter-priority 1)
         (beads-graph--filter-type nil))
-    (should (beads-graph--filter-issue '((status . "open")
-                                         (priority . 1))))
-    (should-not (beads-graph--filter-issue '((status . "open")
-                                             (priority . 2))))))
+    (should (beads-graph--filter-issue
+             (beads-issue :id "bd-1" :title "Test" :status "open" :priority 1)))
+    (should-not (beads-graph--filter-issue
+                 (beads-issue :id "bd-2" :title "Test" :status "open"
+                              :priority 2)))))
 
 (ert-deftest beads-graph-test-filter-issue-by-type ()
   "Test filtering by issue type."
   (let ((beads-graph--filter-status nil)
         (beads-graph--filter-priority nil)
         (beads-graph--filter-type "bug"))
-    (should (beads-graph--filter-issue '((issue-type . "bug"))))
-    (should-not (beads-graph--filter-issue '((issue-type . "feature"))))))
+    (should (beads-graph--filter-issue
+             (beads-issue :id "bd-1" :title "Test" :issue-type "bug")))
+    (should-not (beads-graph--filter-issue
+                 (beads-issue :id "bd-2" :title "Test" :issue-type "feature")))))
 
 (ert-deftest beads-graph-test-filter-issue-multiple-filters ()
   "Test filtering with multiple filters."
   (let ((beads-graph--filter-status "open")
         (beads-graph--filter-priority 1)
         (beads-graph--filter-type "bug"))
-    (should (beads-graph--filter-issue '((status . "open")
-                                         (priority . 1)
-                                         (issue-type . "bug"))))
-    (should-not (beads-graph--filter-issue '((status . "closed")
-                                             (priority . 1)
-                                             (issue-type . "bug"))))))
+    (should (beads-graph--filter-issue
+             (beads-issue :id "bd-1" :title "Test" :status "open"
+                          :priority 1 :issue-type "bug")))
+    (should-not (beads-graph--filter-issue
+                 (beads-issue :id "bd-2" :title "Test" :status "closed"
+                              :priority 1 :issue-type "bug")))))
 
 ;;; Tests for DOT Generation
 

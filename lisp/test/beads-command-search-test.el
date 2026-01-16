@@ -153,15 +153,15 @@
   "Test status slot has correct transient properties."
   (should (equal "s" (beads-meta-slot-property
                       'beads-command-search 'status :transient-key)))
-  (should (equal "--status" (beads-meta-slot-property
-                             'beads-command-search 'status :long-option))))
+  (should (equal "status" (beads-meta-slot-property
+                           'beads-command-search 'status :long-option))))
 
 (ert-deftest beads-command-search-test-sort-slot-properties ()
   "Test sort slot has correct transient properties."
   (should (equal "o" (beads-meta-slot-property
                       'beads-command-search 'sort :transient-key)))
-  (should (equal "--sort" (beads-meta-slot-property
-                           'beads-command-search 'sort :long-option)))
+  (should (equal "sort" (beads-meta-slot-property
+                         'beads-command-search 'sort :long-option)))
   (should (equal '("priority" "created" "updated" "closed" "status" "id"
                    "title" "type" "assignee")
                  (beads-meta-slot-property

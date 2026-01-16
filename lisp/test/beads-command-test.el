@@ -497,7 +497,7 @@ Integration test that filters issues by priority."
                      :title "Low priority"
                      :priority "3"))
            ;; List only priority 1 issues
-           (issues (beads-command-list! :priority 1)))
+           (issues (beads-command-list! :priority "1")))
       ;; Should return a list
       (should (listp issues))
       ;; All issues should have priority 1
@@ -555,7 +555,7 @@ Integration test that applies multiple filters together."
            ;; List with combined filters: bug AND priority 0
            (issues (beads-command-list!
                     :issue-type "bug"
-                    :priority 0)))
+                    :priority "0")))
       ;; Should return a list
       (should (listp issues))
       ;; All issues should match both filters
@@ -936,7 +936,7 @@ Integration test that filters ready issues by priority."
                   :title "Low priority"
                   :priority "3"))
            ;; Get ready issues with priority 1
-           (issues (beads-command-ready! :priority 1)))
+           (issues (beads-command-ready! :priority "1")))
       ;; Should return a list
       (should (listp issues))
       ;; All should have priority 1
@@ -1030,7 +1030,7 @@ Integration test that retrieves issue database stats."
   :tags '(:unit)
   (let* ((cmd (beads-command-list
                :status "open"
-               :priority 1
+               :priority "1"
                :no-daemon t))
          (args (beads-command-line cmd)))
     (should (listp args))
@@ -1047,10 +1047,10 @@ Integration test that retrieves issue database stats."
   :tags '(:unit)
   (let* ((cmd (beads-command-list
                :status "in_progress"
-               :priority 2
+               :priority "2"
                :issue-type "bug"
                :assignee "alice"
-               :limit 10))
+               :limit "10"))
          (args (beads-command-line cmd)))
     (should (member "list" args))
     (should (member "--status" args))
@@ -1069,7 +1069,7 @@ Integration test that retrieves issue database stats."
   :tags '(:unit)
   (let* ((cmd (beads-command-create
                :title "Test issue"
-               :priority 1
+               :priority "1"
                :issue-type "bug"))
          (args (beads-command-line cmd)))
     (should (member "create" args))
@@ -1391,7 +1391,7 @@ Integration test that retrieves issue database stats."
 (ert-deftest beads-command-test-list-validate-priority-conflicts ()
   "List validation detects priority conflicts."
   :tags '(:unit)
-  (let ((cmd (beads-command-list :priority 1 :priority-min 0)))
+  (let ((cmd (beads-command-list :priority "1" :priority-min "0")))
     (should (stringp (beads-command-validate cmd)))
     (should (string-match-p "priority" (beads-command-validate cmd)))))
 
@@ -1412,9 +1412,9 @@ Integration test that retrieves issue database stats."
 (ert-deftest beads-command-test-list-validate-priority-range ()
   "List validation checks priority range."
   :tags '(:unit)
-  (let ((cmd1 (beads-command-list :priority 5))
-        (cmd2 (beads-command-list :priority-min -1))
-        (cmd3 (beads-command-list :priority-max 10)))
+  (let ((cmd1 (beads-command-list :priority "5"))
+        (cmd2 (beads-command-list :priority-min "-1"))
+        (cmd3 (beads-command-list :priority-max "10")))
     (should (stringp (beads-command-validate cmd1)))
     (should (stringp (beads-command-validate cmd2)))
     (should (stringp (beads-command-validate cmd3)))))
@@ -1422,7 +1422,7 @@ Integration test that retrieves issue database stats."
 (ert-deftest beads-command-test-list-validate-valid ()
   "List validation accepts valid configuration."
   :tags '(:unit)
-  (let ((cmd (beads-command-list :priority 1 :status "open")))
+  (let ((cmd (beads-command-list :priority "1" :status "open")))
     (should-not (beads-command-validate cmd))))
 
 (ert-deftest beads-command-test-update-validate-issue-ids ()
@@ -1435,7 +1435,7 @@ Integration test that retrieves issue database stats."
 (ert-deftest beads-command-test-ready-validate-priority-range ()
   "Ready validation checks priority range."
   :tags '(:unit)
-  (let ((cmd (beads-command-ready :priority 5)))
+  (let ((cmd (beads-command-ready :priority "5")))
     (should (stringp (beads-command-validate cmd)))
     (should (string-match-p "Priority" (beads-command-validate cmd)))))
 
@@ -1453,7 +1453,7 @@ Integration test that retrieves issue database stats."
   :tags '(:unit)
   (let* ((cmd (beads-command-list
                :status "open"
-               :priority 1
+               :priority "1"
                :assignee "user"
                :label '("bug" "feature")))
          (args (beads-command-line cmd)))
@@ -1502,12 +1502,12 @@ Integration test that retrieves issue database stats."
     (should (member "--limit" args))
     (should (member "10" args))))
 
-(ert-deftest beads-command-test-create-command-line-integer-priority ()
-  "Create command-line handles integer priority."
+(ert-deftest beads-command-test-create-command-line-string-priority ()
+  "Create command-line handles string priority."
   :tags '(:unit)
   (let* ((cmd (beads-command-create
                :title "Test"
-               :priority 2))
+               :priority "2"))
          (args (beads-command-line cmd)))
     (should (member "--priority" args))
     (should (member "2" args))))
@@ -1528,7 +1528,7 @@ Integration test that adds a blocks dependency between two issues."
       ;; Add dependency: issue2 blocks issue1
       (let ((result (beads-command-dep-add!
                      :issue-id id1
-                     :depends-on-id id2)))
+                     :depends-on id2)))
         (should result)))))
 
 (ert-deftest beads-command-test-dep-add-with-type ()
@@ -1543,7 +1543,7 @@ Integration test that adds a related dependency."
            (id2 (oref issue2 id)))
       (let ((result (beads-command-dep-add!
                      :issue-id id1
-                     :depends-on-id id2
+                     :depends-on id2
                      :dep-type "related")))
         (should result)))))
 
@@ -1560,11 +1560,11 @@ Integration test that removes a dependency between two issues."
            (id1 (oref issue1 id))
            (id2 (oref issue2 id)))
       ;; Add dependency first
-      (beads-command-dep-add! :issue-id id1 :depends-on-id id2)
+      (beads-command-dep-add! :issue-id id1 :depends-on id2)
       ;; Then remove it
       (let ((result (beads-command-dep-remove!
                      :issue-id id1
-                     :depends-on-id id2)))
+                     :depends-on id2)))
         (should result)))))
 
 ;;; Integration Tests: beads-command-dep-tree
@@ -1594,7 +1594,7 @@ Integration test that retrieves dependency tree with depth limit."
         (should tree)))))
 
 (ert-deftest beads-command-test-dep-tree-reverse ()
-  "Test beads-command-dep-tree with reverse flag.
+  "Test beads-command-dep-tree with direction up.
 Integration test that shows what depends on this issue."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
@@ -1603,7 +1603,7 @@ Integration test that shows what depends on this issue."
            (id1 (oref issue1 id)))
       (let ((tree (beads-command-dep-tree!
                    :issue-id id1
-                   :reverse t)))
+                   :direction "up")))
         (should tree)))))
 
 ;;; Integration Tests: beads-command-dep-cycles
@@ -1624,7 +1624,7 @@ Integration test that checks for dependency cycles."
   :tags '(:unit)
   (let* ((cmd (beads-command-dep-add
                :issue-id "bd-1"
-               :depends-on-id "bd-2"))
+               :depends-on "bd-2"))
          (args (beads-command-line cmd)))
     (should (member "dep" args))
     (should (member "add" args))
@@ -1636,7 +1636,7 @@ Integration test that checks for dependency cycles."
   :tags '(:unit)
   (let* ((cmd (beads-command-dep-add
                :issue-id "bd-1"
-               :depends-on-id "bd-2"
+               :depends-on "bd-2"
                :dep-type "related"))
          (args (beads-command-line cmd)))
     (should (member "--type" args))
@@ -1647,7 +1647,7 @@ Integration test that checks for dependency cycles."
   :tags '(:unit)
   (let* ((cmd (beads-command-dep-remove
                :issue-id "bd-1"
-               :depends-on-id "bd-2"))
+               :depends-on "bd-2"))
          (args (beads-command-line cmd)))
     (should (member "dep" args))
     (should (member "remove" args))
@@ -1684,13 +1684,14 @@ Integration test that checks for dependency cycles."
     (should (member "10" args))))
 
 (ert-deftest beads-command-test-dep-tree-command-line-with-reverse ()
-  "Unit test: beads-command-dep-tree includes reverse flag."
+  "Unit test: beads-command-dep-tree includes direction flag."
   :tags '(:unit)
   (let* ((cmd (beads-command-dep-tree
                :issue-id "bd-1"
-               :reverse t))
+               :direction "up"))
          (args (beads-command-line cmd)))
-    (should (member "--reverse" args))))
+    (should (member "--direction" args))
+    (should (member "up" args))))
 
 (ert-deftest beads-command-test-dep-tree-command-line-with-show-all-paths ()
   "Unit test: beads-command-dep-tree includes show-all-paths flag."
@@ -1715,7 +1716,7 @@ Integration test that checks for dependency cycles."
   "Unit test: dep-add validation fails without issue-id."
   :tags '(:unit)
   (let ((cmd (beads-command-dep-add
-              :depends-on-id "bd-2")))
+              :depends-on "bd-2")))
     (should (beads-command-validate cmd))))
 
 (ert-deftest beads-command-test-dep-add-validation-missing-depends-on ()
@@ -1730,14 +1731,14 @@ Integration test that checks for dependency cycles."
   :tags '(:unit)
   (let ((cmd (beads-command-dep-add
               :issue-id "bd-1"
-              :depends-on-id "bd-2")))
+              :depends-on "bd-2")))
     (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-command-test-dep-remove-validation-missing-issue-id ()
   "Unit test: dep-remove validation fails without issue-id."
   :tags '(:unit)
   (let ((cmd (beads-command-dep-remove
-              :depends-on-id "bd-2")))
+              :depends-on "bd-2")))
     (should (beads-command-validate cmd))))
 
 (ert-deftest beads-command-test-dep-remove-validation-success ()
@@ -1745,7 +1746,7 @@ Integration test that checks for dependency cycles."
   :tags '(:unit)
   (let ((cmd (beads-command-dep-remove
               :issue-id "bd-1"
-              :depends-on-id "bd-2")))
+              :depends-on "bd-2")))
     (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-command-test-dep-tree-validation-missing-issue-id ()
@@ -1806,10 +1807,13 @@ Integration test that checks for dependency cycles."
     (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-command-test-dep-list-validation-invalid-direction ()
-  "Unit test: dep-list validation fails with invalid direction."
+  "Unit test: dep-list validation allows any direction string.
+The CLI will validate the direction value - not Emacs.
+This is intentional - keeping validation simple."
   :tags '(:unit)
   (let ((cmd (beads-command-dep-list :issue-id "bd-1" :direction "invalid")))
-    (should (beads-command-validate cmd))))
+    ;; Validation only checks issue-id is present, not direction values
+    (should (null (beads-command-validate cmd)))))
 
 ;;; Unit Tests: beads-command-dep-relate
 
@@ -1880,10 +1884,10 @@ Integration test that checks for dependency cycles."
 ;;; Unit Tests: beads-command-delete
 
 (ert-deftest beads-command-test-delete-command-line-basic ()
-  "Unit test: delete command-line with just issue-id.
+  "Unit test: delete command-line with just issue-ids.
 Regression test for bug where issue-id was prepended instead of appended."
   :tags '(:unit)
-  (let* ((cmd (beads-command-delete :issue-id "bd-42"))
+  (let* ((cmd (beads-command-delete :issue-ids '("bd-42")))
          (args (beads-command-line cmd)))
     ;; Should be: ("bd" "delete" <...global-flags...> "bd-42")
     ;; NOT: ("bd" "bd-42" "delete" <...global-flags...>)
@@ -1897,7 +1901,7 @@ Regression test for bug where issue-id was prepended instead of appended."
 (ert-deftest beads-command-test-delete-command-line-with-force ()
   "Unit test: delete command-line with --force flag."
   :tags '(:unit)
-  (let* ((cmd (beads-command-delete :issue-id "bd-123" :force t))
+  (let* ((cmd (beads-command-delete :issue-ids '("bd-123") :force t))
          (args (beads-command-line cmd)))
     ;; Should contain all elements in correct order
     (should (equal (car args) beads-executable))
@@ -1914,7 +1918,7 @@ Regression test for bug where issue-id was prepended instead of appended."
 (ert-deftest beads-command-test-delete-command-line-without-force ()
   "Unit test: delete command-line without --force should not include flag."
   :tags '(:unit)
-  (let* ((cmd (beads-command-delete :issue-id "bd-99" :force nil))
+  (let* ((cmd (beads-command-delete :issue-ids '("bd-99") :force nil))
          (args (beads-command-line cmd)))
     (should (equal (car args) beads-executable))
     (should (equal (nth 1 args) "delete"))
@@ -1929,16 +1933,16 @@ Regression test for bug where issue-id was prepended instead of appended."
     (should (string-match-p "issue ID" (beads-command-validate cmd)))))
 
 (ert-deftest beads-command-test-delete-validation-empty-issue-id ()
-  "Unit test: delete validation fails with empty issue-id."
+  "Unit test: delete validation fails with empty issue-ids list."
   :tags '(:unit)
-  (let ((cmd (beads-command-delete :issue-id "")))
+  (let ((cmd (beads-command-delete :issue-ids '())))
     (should (stringp (beads-command-validate cmd)))
     (should (string-match-p "issue ID" (beads-command-validate cmd)))))
 
 (ert-deftest beads-command-test-delete-validation-success ()
-  "Unit test: delete validation succeeds with valid issue-id."
+  "Unit test: delete validation succeeds with valid issue-ids."
   :tags '(:unit)
-  (let ((cmd (beads-command-delete :issue-id "bd-42")))
+  (let ((cmd (beads-command-delete :issue-ids '("bd-42"))))
     (should (null (beads-command-validate cmd)))))
 
 ;;; Tests for beads-list-default-limit

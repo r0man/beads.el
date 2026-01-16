@@ -11,7 +11,7 @@
 ;;; Code:
 
 (require 'beads-command)
-(require 'beads-list)
+(require 'beads-command-list)
 (require 'beads-test)
 (require 'ert)
 
@@ -577,7 +577,7 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-show-calls-beads-show ()
   "Test that beads-list-show requires and calls beads-show."
   ;; Pre-load beads-show so require doesn't affect test
-  (require 'beads-show)
+  (require 'beads-command-show)
   (beads-list-test--with-temp-buffer
    beads-list-test--sample-issues 'list
    (goto-char (point-min))
@@ -599,7 +599,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-show-with-custom-prefix ()
   "Test showing issues with custom ID prefixes like 'myproject-13'."
-  (require 'beads-show)
+  (require 'beads-command-show)
   (let* ((custom-prefix-issues
           '(((id . "myproject-1")
              (title . "First custom issue")
@@ -938,7 +938,7 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-workflow-to-show ()
   "Integration test: Navigate from list to show buffer."
   :tags '(integration)
-  (require 'beads-show)
+  (require 'beads-command-show)
   (with-temp-buffer
     (beads-list-mode)
     ;; Verify that list mode has show command
@@ -950,7 +950,7 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-workflow-to-update ()
   "Integration test: Update from list buffer."
   :tags '(integration)
-  (require 'beads-update)
+  (require 'beads-command-update)
   (with-temp-buffer
     (beads-list-mode)
     ;; Verify that list mode has update command
@@ -974,7 +974,7 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-workflow-to-delete ()
   "Integration test: Delete from list buffer."
   :tags '(integration)
-  (require 'beads-delete)
+  (require 'beads-command-delete)
   (with-temp-buffer
     (beads-list-mode)
     ;; Verify that list mode has delete command
@@ -986,7 +986,7 @@ ISSUES should be a list of alists (test data format)."
 (ert-deftest beads-list-test-workflow-to-create ()
   "Integration test: Create from list buffer."
   :tags '(integration)
-  (require 'beads-create)
+  (require 'beads-command-create)
   (with-temp-buffer
     (beads-list-mode)
     ;; Verify that list mode has create command
@@ -1486,7 +1486,7 @@ Even if they have the same branch name."
 (ert-deftest beads-list-test-parse-transient-args-priority ()
   "Test parsing priority filter."
   (let ((cmd (beads-list--parse-transient-args '("--priority=2"))))
-    (should (equal (oref cmd priority) 2))))
+    (should (equal (oref cmd priority) "2"))))
 
 (ert-deftest beads-list-test-parse-transient-args-all-flag ()
   "Test parsing --all flag."
@@ -1972,21 +1972,21 @@ Even if they have the same branch name."
   "Test parsing --priority-min= option."
   (let ((cmd (beads-list--parse-transient-args '("--priority-min=1"))))
     (should (beads-command-list-p cmd))
-    (should (equal (oref cmd priority-min) 1))))
+    (should (equal (oref cmd priority-min) "1"))))
 
 (ert-deftest beads-list-test-parse-transient-args-priority-max ()
   "Test parsing --priority-max= option."
   (let ((cmd (beads-list--parse-transient-args '("--priority-max=3"))))
     (should (beads-command-list-p cmd))
-    (should (equal (oref cmd priority-max) 3))))
+    (should (equal (oref cmd priority-max) "3"))))
 
 (ert-deftest beads-list-test-parse-transient-args-priority-range ()
   "Test parsing combined priority-min and priority-max options."
   (let ((cmd (beads-list--parse-transient-args
               '("--priority-min=1" "--priority-max=3"))))
     (should (beads-command-list-p cmd))
-    (should (equal (oref cmd priority-min) 1))
-    (should (equal (oref cmd priority-max) 3))))
+    (should (equal (oref cmd priority-min) "1"))
+    (should (equal (oref cmd priority-max) "3"))))
 
 (ert-deftest beads-list-test-parse-transient-args-label-any ()
   "Test parsing --label-any= options."

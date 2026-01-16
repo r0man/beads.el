@@ -24,7 +24,7 @@
 (require 'json)
 (require 'beads)
 (require 'beads-command)
-(require 'beads-label)
+(require 'beads-command-label)
 
 (defun beads-test--generate-prefix ()
   "Generate a unique test prefix without hyphens.

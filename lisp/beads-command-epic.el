@@ -1,46 +1,142 @@
-;;; beads-epic-status.el --- Epic status display for beads.el -*- lexical-binding: t; -*-
+;;; beads-command-epic.el --- Epic command classes for beads -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
 ;; Author: Beads Contributors
-;; Keywords: tools, project, issues
+;; Keywords: tools
+
+;; This file is not part of GNU Emacs.
 
 ;;; Commentary:
 
-;; This module provides epic status display functionality for beads.el.
-;; It implements an interactive buffer that shows all epics with their
-;; completion progress and allows expanding/collapsing child issues.
+;; This module defines EIEIO classes for all `bd epic' subcommands.
+;; Classes include full slot metadata for automatic transient menu
+;; generation via `beads-meta-define-transient'.
 ;;
-;; Key features:
-;; - Display all epics with progress information
-;; - SPC to expand/collapse child issues inline
-;; - TAB to navigate between epics and issues
-;; - RET to show epic or issue details
-;; - Dynamic fetching of children only when expanded
-;; - Visual hierarchy with indentation
-;; - Refresh support (g key)
-;; - Color-coded progress percentages
+;; Commands included:
+;; - beads-command-epic-status: Show epic completion status
+;; - beads-command-epic-close-eligible: Close epics where all
+;;   children are complete
 ;;
 ;; Usage:
-;;   M-x beads-epic
-;;
-;; Keybindings:
-;;   SPC       - Toggle expand/collapse epic at point
-;;   TAB       - Next epic or issue
-;;   S-TAB     - Previous epic or issue
-;;   RET       - Show epic or issue at point using beads-show
-;;   g         - Refresh epic status
-;;   q         - Quit window
+;;   (beads-command-execute (beads-command-epic-status))
+;;   (beads-command-execute (beads-command-epic-close-eligible :dry-run t))
 
 ;;; Code:
 
 (require 'beads)
 (require 'beads-buffer)
+(require 'beads-command)
+(require 'beads-command-dep)
+(require 'beads-meta)
+(require 'beads-option)
 (require 'beads-types)
 (require 'cl-lib)
+(require 'transient)
 
 ;; Forward declarations
-(declare-function beads-list-issues "beads-list")
+(declare-function beads-list-issues "beads-command-list")
+(declare-function beads-show "beads-command-show")
+
+;;; Epic Status Command
+
+(eval-and-compile
+(beads-defcommand beads-command-epic-status (beads-command-json)
+  ((eligible-only
+    :initarg :eligible-only
+    :type boolean
+    :initform nil
+    :documentation "Show only epics eligible for closure (--eligible-only)."
+    ;; CLI properties
+    :long-option "eligible-only"
+    :option-type :boolean
+    ;; Transient properties
+    :transient-key "e"
+    :transient-description "--eligible-only"
+    :transient-class transient-switch
+    :transient-argument "--eligible-only"
+    :transient-group "Epic Status"
+    :transient-level 1
+    :transient-order 1))
+  :documentation "Represents bd epic status command.
+Shows epic completion status."))
+
+(cl-defmethod beads-command-subcommand ((_command beads-command-epic-status))
+  "Return \"epic status\" as the CLI subcommand name."
+  "epic status")
+
+(cl-defmethod beads-command-validate ((_command beads-command-epic-status))
+  "Validate epic status COMMAND.
+No required fields.
+Returns nil (always valid)."
+  nil)
+
+(cl-defmethod beads-command-execute-interactive ((cmd beads-command-epic-status))
+  "Execute CMD in terminal buffer with human-readable output."
+  (oset cmd json nil)
+  (cl-call-next-method))
+
+;;; Epic Close-Eligible Command
+
+(eval-and-compile
+(beads-defcommand beads-command-epic-close-eligible (beads-command-json)
+  ((dry-run
+    :initarg :dry-run
+    :type boolean
+    :initform nil
+    :documentation "Preview what would be closed without making changes
+(--dry-run)."
+    ;; CLI properties
+    :long-option "dry-run"
+    :option-type :boolean
+    ;; Transient properties
+    :transient-key "n"
+    :transient-description "--dry-run"
+    :transient-class transient-switch
+    :transient-argument "--dry-run"
+    :transient-group "Close Eligible Epics"
+    :transient-level 1
+    :transient-order 1))
+  :documentation "Represents bd epic close-eligible command.
+Closes epics where all children are complete."))
+
+(cl-defmethod beads-command-subcommand ((_command beads-command-epic-close-eligible))
+  "Return \"epic close-eligible\" as the CLI subcommand name."
+  "epic close-eligible")
+
+(cl-defmethod beads-command-validate ((_command beads-command-epic-close-eligible))
+  "Validate epic close-eligible COMMAND.
+No required fields.
+Returns nil (always valid)."
+  nil)
+
+(cl-defmethod beads-command-execute-interactive ((cmd beads-command-epic-close-eligible))
+  "Execute CMD in terminal buffer with human-readable output."
+  (oset cmd json nil)
+  (cl-call-next-method))
+
+;;; Transient Menus
+
+;;;###autoload (autoload 'beads-epic-status-transient "beads-command-epic" nil t)
+(beads-meta-define-transient beads-command-epic-status
+  "beads-epic-status-transient"
+  "Show epic completion status.
+
+Use --eligible-only to show only epics that can be closed
+(all children are complete)."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-epic-close-eligible-transient "beads-command-epic" nil t)
+(beads-meta-define-transient beads-command-epic-close-eligible
+  "beads-epic-close-eligible-transient"
+  "Close epics where all children are complete.
+
+Use --dry-run to preview what would be closed without making changes."
+  beads-option-global-section)
+
+;;; ============================================================
+;;; Epic Status Interactive UI
+;;; ============================================================
 
 ;;; Customization
 
@@ -289,7 +385,6 @@ Format: ((epic-id . (expanded-p . children)) ...)")
   (interactive)
   (if-let* ((epic-id (get-text-property (point) 'epic-id)))
       (progn
-        (require 'beads-list)
         (beads-list-issues
          (beads-issue-filter
           :deps (format "parent-child:%s" epic-id))))
@@ -331,9 +426,7 @@ Format: ((epic-id . (expanded-p . children)) ...)")
   (let ((issue-id (or (get-text-property (point) 'epic-id)
                       (get-text-property (point) 'issue-id))))
     (if issue-id
-        (progn
-          (require 'beads-show)
-          (beads-show issue-id))
+        (beads-show issue-id)
       (user-error "No issue at point"))))
 
 (defun beads-epic-status-next-item ()
@@ -404,6 +497,5 @@ Key bindings:
   (setq truncate-lines t)
   (setq buffer-read-only t))
 
-(provide 'beads-epic-status)
-
-;;; beads-epic-status.el ends here
+(provide 'beads-command-epic)
+;;; beads-command-epic.el ends here

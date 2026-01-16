@@ -16,7 +16,7 @@
 (require 'json)
 (require 'beads)
 (require 'beads-buffer)
-(require 'beads-dep)
+(require 'beads-command-dep)
 
 ;;; Test Utilities
 
@@ -826,7 +826,7 @@
 
 (ert-deftest beads-dep-test-detect-issue-id-from-show-mode ()
   "Test detecting issue ID from beads-show buffer."
-  (require 'beads-show)
+  (require 'beads-command-show)
   (with-temp-buffer
     (beads-show-mode)
     (setq-local beads-show--current-issue-id "bd-99")

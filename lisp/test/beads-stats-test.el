@@ -17,7 +17,7 @@
 (require 'beads)
 (require 'beads-buffer)
 (require 'beads-types)
-(require 'beads-stats)
+(require 'beads-command-stats)
 (require 'beads-test)
 
 ;;; Test Fixtures
@@ -172,8 +172,8 @@ FILTER is an optional filter string."
     (let ((stats-data (beads-stats--parse-stats beads-stats-test--sample-stats)))
       (beads-stats--render stats-data)
       (let ((content (buffer-string)))
-        ;; Check for CLI-style header with emoji
-        (should (string-match-p "📊 Issue Database Status" content))
+        ;; Check for CLI-style header
+        (should (string-match-p "Issue Database Status" content))
         (should (string-match-p "Summary:" content))
         (should (string-match-p "Total Issues:" content))
         (should (string-match-p "100" content))
@@ -220,7 +220,7 @@ FILTER is an optional filter string."
       (beads-stats--render stats-data)
       (let ((content (buffer-string)))
         ;; Verify CLI-style format
-        (should (string-match-p "📊 Issue Database Status" content))
+        (should (string-match-p "Issue Database Status" content))
         (should (string-match-p "Summary:" content))
         (should (string-match-p "Total Issues:" content))
         (should (string-match-p "Open:" content))

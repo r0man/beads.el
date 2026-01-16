@@ -15,7 +15,7 @@
 
 (require 'ert)
 (require 'beads-buffer)
-(require 'beads-quickstart)
+(require 'beads-command-quickstart)
 
 ;;; Test Utilities
 
