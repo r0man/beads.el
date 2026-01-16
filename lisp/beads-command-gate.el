@@ -30,10 +30,10 @@
     :type boolean
     :initform nil
     :documentation "Show all gates including closed."
-    :long-option "--all"
-    :short-option "-a"
+    :long-option "all"
+    :short-option "a"
     :option-type :boolean
-    :transient-key "-a"
+    :transient-key "a"
     :transient-description "--all"
     :transient-class transient-switch
     :transient-argument "--all"
@@ -45,10 +45,10 @@
     :type (or null integer)
     :initform nil
     :documentation "Limit number of gates (default 50)."
-    :long-option "--limit"
-    :short-option "-n"
+    :long-option "limit"
+    :short-option "n"
     :option-type :integer
-    :transient-key "-n"
+    :transient-key "n"
     :transient-description "--limit"
     :transient-class transient-option
     :transient-argument "--limit="
@@ -74,10 +74,10 @@ Lists gate issues."))
     :type (or null string)
     :initform nil
     :documentation "Evaluate only gates of this type."
-    :long-option "--type"
-    :short-option "-t"
+    :long-option "type"
+    :short-option "t"
     :option-type :string
-    :transient-key "-t"
+    :transient-key "t"
     :transient-description "--type"
     :transient-class transient-option
     :transient-argument "--type="
@@ -90,9 +90,9 @@ Lists gate issues."))
     :type boolean
     :initform nil
     :documentation "Preview without closing gates."
-    :long-option "--dry-run"
+    :long-option "dry-run"
     :option-type :boolean
-    :transient-key "-n"
+    :transient-key "n"
     :transient-description "--dry-run"
     :transient-class transient-switch
     :transient-argument "--dry-run"
@@ -104,10 +104,10 @@ Lists gate issues."))
     :type boolean
     :initform nil
     :documentation "Escalate all open gates, skipping evaluation."
-    :long-option "--escalate"
-    :short-option "-e"
+    :long-option "escalate"
+    :short-option "e"
     :option-type :boolean
-    :transient-key "-e"
+    :transient-key "e"
     :transient-description "--escalate"
     :transient-class transient-switch
     :transient-argument "--escalate"
@@ -119,10 +119,10 @@ Lists gate issues."))
     :type (or null integer)
     :initform nil
     :documentation "Limit number of gates to check."
-    :long-option "--limit"
-    :short-option "-l"
+    :long-option "limit"
+    :short-option "l"
     :option-type :integer
-    :transient-key "-l"
+    :transient-key "l"
     :transient-description "--limit"
     :transient-class transient-option
     :transient-argument "--limit="
@@ -154,10 +154,10 @@ Evaluates gates and closes resolved ones."))
     :type (or null string)
     :initform nil
     :documentation "Reason for manual resolution."
-    :long-option "--reason"
-    :short-option "-r"
+    :long-option "reason"
+    :short-option "r"
     :option-type :string
-    :transient-key "-r"
+    :transient-key "r"
     :transient-description "--reason"
     :transient-class transient-option
     :transient-argument "--reason="

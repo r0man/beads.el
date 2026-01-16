@@ -30,9 +30,9 @@
     :type boolean
     :initform nil
     :documentation "Show what would be done."
-    :long-option "--dry-run"
+    :long-option "dry-run"
     :option-type :boolean
-    :transient-key "-n"
+    :transient-key "n"
     :transient-description "--dry-run"
     :transient-class transient-switch
     :transient-argument "--dry-run"
@@ -44,9 +44,9 @@
     :type boolean
     :initform nil
     :documentation "Remove old database files after migration."
-    :long-option "--cleanup"
+    :long-option "cleanup"
     :option-type :boolean
-    :transient-key "-c"
+    :transient-key "c"
     :transient-description "--cleanup"
     :transient-class transient-switch
     :transient-argument "--cleanup"
@@ -58,10 +58,10 @@
     :type boolean
     :initform nil
     :documentation "Auto-confirm prompts."
-    :long-option "--yes"
-    :short-option "-y"
+    :long-option "yes"
+    :short-option "y"
     :option-type :boolean
-    :transient-key "-y"
+    :transient-key "y"
     :transient-description "--yes"
     :transient-class transient-switch
     :transient-argument "--yes"
@@ -73,9 +73,9 @@
     :type boolean
     :initform nil
     :documentation "Show migration plan for AI analysis."
-    :long-option "--inspect"
+    :long-option "inspect"
     :option-type :boolean
-    :transient-key "-i"
+    :transient-key "i"
     :transient-description "--inspect"
     :transient-class transient-switch
     :transient-argument "--inspect"
@@ -87,9 +87,9 @@
     :type boolean
     :initform nil
     :documentation "Update repo_id on issues to match repo name."
-    :long-option "--update-repo-id"
+    :long-option "update-repo-id"
     :option-type :boolean
-    :transient-key "-u"
+    :transient-key "u"
     :transient-description "--update-repo-id"
     :transient-class transient-switch
     :transient-argument "--update-repo-id"
@@ -114,9 +114,9 @@ Detects and migrates database schema to current version."))
     :type boolean
     :initform nil
     :documentation "Show what would be done."
-    :long-option "--dry-run"
+    :long-option "dry-run"
     :option-type :boolean
-    :transient-key "-n"
+    :transient-key "n"
     :transient-description "--dry-run"
     :transient-class transient-switch
     :transient-argument "--dry-run"
@@ -180,9 +180,9 @@ Migrates to sync.branch workflow for multi-clone setups."))
     :type boolean
     :initform nil
     :documentation "Show what would be done."
-    :long-option "--dry-run"
+    :long-option "dry-run"
     :option-type :boolean
-    :transient-key "-n"
+    :transient-key "n"
     :transient-description "--dry-run"
     :transient-class transient-switch
     :transient-argument "--dry-run"

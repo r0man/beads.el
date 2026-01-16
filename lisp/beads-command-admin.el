@@ -30,9 +30,9 @@
     :type boolean
     :initform nil
     :documentation "Preview what would be deleted without making changes."
-    :long-option "--dry-run"
+    :long-option "dry-run"
     :option-type :boolean
-    :transient-key "-n"
+    :transient-key "n"
     :transient-description "--dry-run"
     :transient-class transient-switch
     :transient-argument "--dry-run"
@@ -44,10 +44,10 @@
     :type boolean
     :initform nil
     :documentation "Actually delete (required to perform deletion)."
-    :long-option "--force"
-    :short-option "-f"
+    :long-option "force"
+    :short-option "f"
     :option-type :boolean
-    :transient-key "-f"
+    :transient-key "f"
     :transient-description "--force"
     :transient-class transient-switch
     :transient-argument "--force"
@@ -59,9 +59,9 @@
     :type boolean
     :initform nil
     :documentation "Recursively delete all dependent issues."
-    :long-option "--cascade"
+    :long-option "cascade"
     :option-type :boolean
-    :transient-key "-C"
+    :transient-key "C"
     :transient-description "--cascade"
     :transient-class transient-switch
     :transient-argument "--cascade"
@@ -73,9 +73,9 @@
     :type boolean
     :initform nil
     :documentation "Only delete closed wisps (transient molecules)."
-    :long-option "--ephemeral"
+    :long-option "ephemeral"
     :option-type :boolean
-    :transient-key "-e"
+    :transient-key "e"
     :transient-description "--ephemeral"
     :transient-class transient-switch
     :transient-argument "--ephemeral"
@@ -87,9 +87,9 @@
     :type boolean
     :initform nil
     :documentation "Bypass tombstone TTL safety; use --older-than days as cutoff."
-    :long-option "--hard"
+    :long-option "hard"
     :option-type :boolean
-    :transient-key "-H"
+    :transient-key "H"
     :transient-description "--hard"
     :transient-class transient-switch
     :transient-argument "--hard"
@@ -101,9 +101,9 @@
     :type (or null integer)
     :initform nil
     :documentation "Only delete issues closed more than N days ago (0 = all)."
-    :long-option "--older-than"
+    :long-option "older-than"
     :option-type :integer
-    :transient-key "-o"
+    :transient-key "o"
     :transient-description "--older-than"
     :transient-class transient-option
     :transient-argument "--older-than="
@@ -129,9 +129,9 @@ Deletes closed issues and prunes expired tombstones."))
     :type boolean
     :initform nil
     :documentation "Preview without compacting."
-    :long-option "--dry-run"
+    :long-option "dry-run"
     :option-type :boolean
-    :transient-key "-n"
+    :transient-key "n"
     :transient-description "--dry-run"
     :transient-class transient-switch
     :transient-argument "--dry-run"
@@ -143,9 +143,9 @@ Deletes closed issues and prunes expired tombstones."))
     :type boolean
     :initform nil
     :documentation "Prune mode: remove expired tombstones by age."
-    :long-option "--prune"
+    :long-option "prune"
     :option-type :boolean
-    :transient-key "-p"
+    :transient-key "p"
     :transient-description "--prune"
     :transient-class transient-switch
     :transient-argument "--prune"
@@ -157,9 +157,9 @@ Deletes closed issues and prunes expired tombstones."))
     :type boolean
     :initform nil
     :documentation "Purge mode: remove tombstones with no open deps."
-    :long-option "--purge-tombstones"
+    :long-option "purge-tombstones"
     :option-type :boolean
-    :transient-key "-P"
+    :transient-key "P"
     :transient-description "--purge-tombstones"
     :transient-class transient-switch
     :transient-argument "--purge-tombstones"
@@ -171,9 +171,9 @@ Deletes closed issues and prunes expired tombstones."))
     :type boolean
     :initform nil
     :documentation "Analyze mode: export candidates for agent review."
-    :long-option "--analyze"
+    :long-option "analyze"
     :option-type :boolean
-    :transient-key "-a"
+    :transient-key "a"
     :transient-description "--analyze"
     :transient-class transient-switch
     :transient-argument "--analyze"
@@ -185,9 +185,9 @@ Deletes closed issues and prunes expired tombstones."))
     :type boolean
     :initform nil
     :documentation "Apply mode: accept agent-provided summary."
-    :long-option "--apply"
+    :long-option "apply"
     :option-type :boolean
-    :transient-key "-A"
+    :transient-key "A"
     :transient-description "--apply"
     :transient-class transient-switch
     :transient-argument "--apply"
@@ -199,9 +199,9 @@ Deletes closed issues and prunes expired tombstones."))
     :type boolean
     :initform nil
     :documentation "Auto mode: AI-powered compaction (legacy)."
-    :long-option "--auto"
+    :long-option "auto"
     :option-type :boolean
-    :transient-key "-u"
+    :transient-key "u"
     :transient-description "--auto"
     :transient-class transient-switch
     :transient-argument "--auto"
@@ -213,9 +213,9 @@ Deletes closed issues and prunes expired tombstones."))
     :type boolean
     :initform nil
     :documentation "Show compaction statistics."
-    :long-option "--stats"
+    :long-option "stats"
     :option-type :boolean
-    :transient-key "-s"
+    :transient-key "s"
     :transient-description "--stats"
     :transient-class transient-switch
     :transient-argument "--stats"
@@ -227,9 +227,9 @@ Deletes closed issues and prunes expired tombstones."))
     :type (or null string)
     :initform nil
     :documentation "Compact specific issue."
-    :long-option "--id"
+    :long-option "id"
     :option-type :string
-    :transient-key "-i"
+    :transient-key "i"
     :transient-description "--id"
     :transient-class transient-option
     :transient-argument "--id="
@@ -242,9 +242,9 @@ Deletes closed issues and prunes expired tombstones."))
     :type boolean
     :initform nil
     :documentation "Process all candidates."
-    :long-option "--all"
+    :long-option "all"
     :option-type :boolean
-    :transient-key "-l"
+    :transient-key "l"
     :transient-description "--all"
     :transient-class transient-switch
     :transient-argument "--all"
@@ -256,9 +256,9 @@ Deletes closed issues and prunes expired tombstones."))
     :type boolean
     :initform nil
     :documentation "Force compact (bypass checks, requires --id)."
-    :long-option "--force"
+    :long-option "force"
     :option-type :boolean
-    :transient-key "-f"
+    :transient-key "f"
     :transient-description "--force"
     :transient-class transient-switch
     :transient-argument "--force"
@@ -270,9 +270,9 @@ Deletes closed issues and prunes expired tombstones."))
     :type (or null integer)
     :initform nil
     :documentation "Prune tombstones older than N days (default: 30)."
-    :long-option "--older-than"
+    :long-option "older-than"
     :option-type :integer
-    :transient-key "-o"
+    :transient-key "o"
     :transient-description "--older-than"
     :transient-class transient-option
     :transient-argument "--older-than="
@@ -285,9 +285,9 @@ Deletes closed issues and prunes expired tombstones."))
     :type (or null integer)
     :initform nil
     :documentation "Limit number of candidates (0 = no limit)."
-    :long-option "--limit"
+    :long-option "limit"
     :option-type :integer
-    :transient-key "-L"
+    :transient-key "L"
     :transient-description "--limit"
     :transient-class transient-option
     :transient-argument "--limit="
@@ -300,9 +300,9 @@ Deletes closed issues and prunes expired tombstones."))
     :type (or null integer)
     :initform nil
     :documentation "Compaction tier (1 or 2)."
-    :long-option "--tier"
+    :long-option "tier"
     :option-type :integer
-    :transient-key "-t"
+    :transient-key "t"
     :transient-description "--tier"
     :transient-class transient-option
     :transient-argument "--tier="
@@ -315,9 +315,9 @@ Deletes closed issues and prunes expired tombstones."))
     :type (or null string)
     :initform nil
     :documentation "Path to summary file (use '-' for stdin)."
-    :long-option "--summary"
+    :long-option "summary"
     :option-type :string
-    :transient-key "-S"
+    :transient-key "S"
     :transient-description "--summary"
     :transient-class transient-option
     :transient-argument "--summary="
@@ -330,9 +330,9 @@ Deletes closed issues and prunes expired tombstones."))
     :type (or null integer)
     :initform nil
     :documentation "Issues per batch (default 10)."
-    :long-option "--batch-size"
+    :long-option "batch-size"
     :option-type :integer
-    :transient-key "-b"
+    :transient-key "b"
     :transient-description "--batch-size"
     :transient-class transient-option
     :transient-argument "--batch-size="
@@ -345,9 +345,9 @@ Deletes closed issues and prunes expired tombstones."))
     :type (or null integer)
     :initform nil
     :documentation "Parallel workers (default 5)."
-    :long-option "--workers"
+    :long-option "workers"
     :option-type :integer
-    :transient-key "-w"
+    :transient-key "w"
     :transient-description "--workers"
     :transient-class transient-option
     :transient-argument "--workers="
@@ -373,9 +373,9 @@ Compacts old closed issues to save space."))
     :type boolean
     :initform nil
     :documentation "Actually perform the reset (required)."
-    :long-option "--force"
+    :long-option "force"
     :option-type :boolean
-    :transient-key "-f"
+    :transient-key "f"
     :transient-description "--force"
     :transient-class transient-switch
     :transient-argument "--force"

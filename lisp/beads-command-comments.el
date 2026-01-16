@@ -39,7 +39,7 @@ Lists all comments on an issue."))
   "comments")
 
 (cl-defmethod beads-command-validate ((command beads-command-comments))
-  "Validate comments COMMAND. Requires issue-id."
+  "Validate comments COMMAND.  Requires issue-id."
   (with-slots (issue-id) command
     (cond
      ((not issue-id) "Issue ID is required")
@@ -74,10 +74,10 @@ Lists all comments on an issue."))
     :type (or null string)
     :initform nil
     :documentation "Read comment from file."
-    :long-option "--file"
-    :short-option "-f"
+    :long-option "file"
+    :short-option "f"
     :option-type :string
-    :transient-key "-f"
+    :transient-key "f"
     :transient-description "--file"
     :transient-class transient-option
     :transient-argument "--file="
@@ -90,10 +90,10 @@ Lists all comments on an issue."))
     :type (or null string)
     :initform nil
     :documentation "Add author to comment."
-    :long-option "--author"
-    :short-option "-a"
+    :long-option "author"
+    :short-option "a"
     :option-type :string
-    :transient-key "-a"
+    :transient-key "a"
     :transient-description "--author"
     :transient-class transient-option
     :transient-argument "--author="
@@ -109,7 +109,7 @@ Adds a comment to an issue."))
   "comments add")
 
 (cl-defmethod beads-command-validate ((command beads-command-comments-add))
-  "Validate comments add COMMAND. Requires issue-id and text or file."
+  "Validate comments add COMMAND.  Requires issue-id and text or file."
   (with-slots (issue-id text file) command
     (cond
      ((not issue-id) "Issue ID is required")

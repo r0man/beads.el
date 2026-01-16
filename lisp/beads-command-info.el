@@ -41,7 +41,7 @@
     :type boolean
     :initform nil
     :documentation "Include schema information in output (--schema)."
-    :long-option "--schema"
+    :long-option "schema"
     :option-type :boolean
     :transient-key "s"
     :transient-description "Show schema info"
@@ -55,7 +55,7 @@
     :type boolean
     :initform nil
     :documentation "Show agent-relevant changes from recent versions (--whats-new)."
-    :long-option "--whats-new"
+    :long-option "whats-new"
     :option-type :boolean
     :transient-key "w"
     :transient-description "Show what's new"
@@ -69,7 +69,7 @@
     :type boolean
     :initform nil
     :documentation "Show thank you page for contributors (--thanks)."
-    :long-option "--thanks"
+    :long-option "thanks"
     :option-type :boolean
     :transient-key "t"
     :transient-description "Show contributors"

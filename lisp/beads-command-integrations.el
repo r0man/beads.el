@@ -32,9 +32,9 @@
     :type boolean
     :initform nil
     :documentation "Import issues from Jira."
-    :long-option "--pull"
+    :long-option "pull"
     :option-type :boolean
-    :transient-key "-p"
+    :transient-key "p"
     :transient-description "--pull"
     :transient-class transient-switch
     :transient-argument "--pull"
@@ -46,9 +46,9 @@
     :type boolean
     :initform nil
     :documentation "Export issues to Jira."
-    :long-option "--push"
+    :long-option "push"
     :option-type :boolean
-    :transient-key "-P"
+    :transient-key "P"
     :transient-description "--push"
     :transient-class transient-switch
     :transient-argument "--push"
@@ -60,9 +60,9 @@
     :type boolean
     :initform nil
     :documentation "Preview sync without changes."
-    :long-option "--dry-run"
+    :long-option "dry-run"
     :option-type :boolean
-    :transient-key "-n"
+    :transient-key "n"
     :transient-description "--dry-run"
     :transient-class transient-switch
     :transient-argument "--dry-run"
@@ -97,9 +97,9 @@ Shows Jira sync status."))
     :type boolean
     :initform nil
     :documentation "Import issues from Linear."
-    :long-option "--pull"
+    :long-option "pull"
     :option-type :boolean
-    :transient-key "-p"
+    :transient-key "p"
     :transient-description "--pull"
     :transient-class transient-switch
     :transient-argument "--pull"
@@ -111,9 +111,9 @@ Shows Jira sync status."))
     :type boolean
     :initform nil
     :documentation "Export issues to Linear."
-    :long-option "--push"
+    :long-option "push"
     :option-type :boolean
-    :transient-key "-P"
+    :transient-key "P"
     :transient-description "--push"
     :transient-class transient-switch
     :transient-argument "--push"
@@ -125,9 +125,9 @@ Shows Jira sync status."))
     :type boolean
     :initform nil
     :documentation "Preview sync without changes."
-    :long-option "--dry-run"
+    :long-option "dry-run"
     :option-type :boolean
-    :transient-key "-n"
+    :transient-key "n"
     :transient-description "--dry-run"
     :transient-class transient-switch
     :transient-argument "--dry-run"

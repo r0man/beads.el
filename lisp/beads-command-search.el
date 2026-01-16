@@ -55,8 +55,8 @@ Searches across title, description, and ID."
     :initform nil
     :documentation "Filter by status (--status).
 Valid values: open, in_progress, blocked, deferred, closed."
-    :long-option "--status"
-    :short-option "-s"
+    :long-option "status"
+    :short-option "s"
     :option-type :string
     :transient-key "s"
     :transient-description "Filter by status"
@@ -73,8 +73,8 @@ Valid values: open, in_progress, blocked, deferred, closed."
     :initform nil
     :documentation "Filter by issue type (--type).
 Valid values: bug, feature, task, epic, chore, merge-request, molecule, gate."
-    :long-option "--type"
-    :short-option "-t"
+    :long-option "type"
+    :short-option "t"
     :option-type :string
     :transient-key "t"
     :transient-description "Filter by type"
@@ -91,8 +91,8 @@ Valid values: bug, feature, task, epic, chore, merge-request, molecule, gate."
     :type (or null string)
     :initform nil
     :documentation "Filter by assignee (--assignee)."
-    :long-option "--assignee"
-    :short-option "-a"
+    :long-option "assignee"
+    :short-option "a"
     :option-type :string
     :transient-key "a"
     :transient-description "Filter by assignee"
@@ -107,8 +107,8 @@ Valid values: bug, feature, task, epic, chore, merge-request, molecule, gate."
     :type (or null string)
     :initform nil
     :documentation "Filter by labels (AND: must have ALL) (--label)."
-    :long-option "--label"
-    :short-option "-l"
+    :long-option "label"
+    :short-option "l"
     :option-type :string
     :transient-key "l"
     :transient-description "Filter by label (AND)"
@@ -123,7 +123,7 @@ Valid values: bug, feature, task, epic, chore, merge-request, molecule, gate."
     :type (or null string)
     :initform nil
     :documentation "Filter by labels (OR: must have ANY) (--label-any)."
-    :long-option "--label-any"
+    :long-option "label-any"
     :option-type :string
     :transient-key "L"
     :transient-description "Filter by label (OR)"
@@ -139,8 +139,8 @@ Valid values: bug, feature, task, epic, chore, merge-request, molecule, gate."
     :initform nil
     :documentation "Limit number of results (--limit).
 Default is 50."
-    :long-option "--limit"
-    :short-option "-n"
+    :long-option "limit"
+    :short-option "n"
     :option-type :integer
     :transient-key "n"
     :transient-description "Result limit"
@@ -156,7 +156,7 @@ Default is 50."
     :initform nil
     :documentation "Sort field (--sort).
 Valid values: priority, created, updated, closed, status, id, title, type, assignee."
-    :long-option "--sort"
+    :long-option "sort"
     :option-type :string
     :transient-key "o"
     :transient-description "Sort by field"
@@ -173,8 +173,8 @@ Valid values: priority, created, updated, closed, status, id, title, type, assig
     :type boolean
     :initform nil
     :documentation "Reverse sort order (--reverse)."
-    :long-option "--reverse"
-    :short-option "-r"
+    :long-option "reverse"
+    :short-option "r"
     :option-type :boolean
     :transient-key "r"
     :transient-description "Reverse sort"
@@ -188,7 +188,7 @@ Valid values: priority, created, updated, closed, status, id, title, type, assig
     :type boolean
     :initform nil
     :documentation "Show detailed multi-line output (--long)."
-    :long-option "--long"
+    :long-option "long"
     :option-type :boolean
     :transient-key "g"
     :transient-description "Long output"
@@ -203,7 +203,7 @@ Valid values: priority, created, updated, closed, status, id, title, type, assig
     :initform nil
     :documentation "Filter by minimum priority (--priority-min).
 Values: 0-4 or P0-P4."
-    :long-option "--priority-min"
+    :long-option "priority-min"
     :option-type :string
     :transient-key "pm"
     :transient-description "Min priority"
@@ -219,7 +219,7 @@ Values: 0-4 or P0-P4."
     :initform nil
     :documentation "Filter by maximum priority (--priority-max).
 Values: 0-4 or P0-P4."
-    :long-option "--priority-max"
+    :long-option "priority-max"
     :option-type :string
     :transient-key "pM"
     :transient-description "Max priority"
@@ -235,7 +235,7 @@ Values: 0-4 or P0-P4."
     :initform nil
     :documentation "Filter issues created after date (--created-after).
 Format: YYYY-MM-DD or RFC3339."
-    :long-option "--created-after"
+    :long-option "created-after"
     :option-type :string
     :transient-key "Ca"
     :transient-description "Created after"
@@ -251,7 +251,7 @@ Format: YYYY-MM-DD or RFC3339."
     :initform nil
     :documentation "Filter issues created before date (--created-before).
 Format: YYYY-MM-DD or RFC3339."
-    :long-option "--created-before"
+    :long-option "created-before"
     :option-type :string
     :transient-key "Cb"
     :transient-description "Created before"
@@ -267,7 +267,7 @@ Format: YYYY-MM-DD or RFC3339."
     :initform nil
     :documentation "Filter issues updated after date (--updated-after).
 Format: YYYY-MM-DD or RFC3339."
-    :long-option "--updated-after"
+    :long-option "updated-after"
     :option-type :string
     :transient-key "Ua"
     :transient-description "Updated after"
@@ -283,7 +283,7 @@ Format: YYYY-MM-DD or RFC3339."
     :initform nil
     :documentation "Filter issues updated before date (--updated-before).
 Format: YYYY-MM-DD or RFC3339."
-    :long-option "--updated-before"
+    :long-option "updated-before"
     :option-type :string
     :transient-key "Ub"
     :transient-description "Updated before"
@@ -299,7 +299,7 @@ Format: YYYY-MM-DD or RFC3339."
     :initform nil
     :documentation "Filter issues closed after date (--closed-after).
 Format: YYYY-MM-DD or RFC3339."
-    :long-option "--closed-after"
+    :long-option "closed-after"
     :option-type :string
     :transient-key "ca"
     :transient-description "Closed after"
@@ -315,7 +315,7 @@ Format: YYYY-MM-DD or RFC3339."
     :initform nil
     :documentation "Filter issues closed before date (--closed-before).
 Format: YYYY-MM-DD or RFC3339."
-    :long-option "--closed-before"
+    :long-option "closed-before"
     :option-type :string
     :transient-key "cb"
     :transient-description "Closed before"

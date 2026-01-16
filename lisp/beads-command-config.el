@@ -39,7 +39,7 @@ Gets a configuration value."))
   "config get")
 
 (cl-defmethod beads-command-validate ((command beads-command-config-get))
-  "Validate config get COMMAND. Requires key."
+  "Validate config get COMMAND.  Requires key."
   (with-slots (key) command
     (cond
      ((not key) "Configuration key is required")
@@ -72,7 +72,7 @@ Sets a configuration value."))
   "config set")
 
 (cl-defmethod beads-command-validate ((command beads-command-config-set))
-  "Validate config set COMMAND. Requires key and value."
+  "Validate config set COMMAND.  Requires key and value."
   (with-slots (key value) command
     (cond
      ((not key) "Configuration key is required")
@@ -114,7 +114,7 @@ Deletes a configuration value."))
   "config unset")
 
 (cl-defmethod beads-command-validate ((command beads-command-config-unset))
-  "Validate config unset COMMAND. Requires key."
+  "Validate config unset COMMAND.  Requires key."
   (with-slots (key) command
     (cond
      ((not key) "Configuration key is required")

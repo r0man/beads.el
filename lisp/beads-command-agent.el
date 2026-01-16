@@ -111,9 +111,9 @@ Shows agent bead details."))
     :type boolean
     :initform nil
     :documentation "Show what would be done."
-    :long-option "--dry-run"
+    :long-option "dry-run"
     :option-type :boolean
-    :transient-key "-n"
+    :transient-key "n"
     :transient-description "--dry-run"
     :transient-class transient-switch
     :transient-argument "--dry-run"

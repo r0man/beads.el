@@ -36,9 +36,9 @@
     :type (or null string)
     :initform nil
     :documentation "Canonical issue ID."
-    :long-option "--of"
+    :long-option "of"
     :option-type :string
-    :transient-key "-o"
+    :transient-key "o"
     :transient-description "--of"
     :transient-class transient-option
     :transient-argument "--of="
@@ -72,9 +72,9 @@ Marks an issue as a duplicate of another."))
     :type boolean
     :initform nil
     :documentation "Merge duplicates with confirmation."
-    :long-option "--merge"
+    :long-option "merge"
     :option-type :boolean
-    :transient-key "-m"
+    :transient-key "m"
     :transient-description "--merge"
     :transient-class transient-switch
     :transient-argument "--merge"
@@ -105,9 +105,9 @@ Finds and optionally merges duplicate issues."))
     :type (or null string)
     :initform nil
     :documentation "Replacement issue ID."
-    :long-option "--with"
+    :long-option "with"
     :option-type :string
-    :transient-key "-w"
+    :transient-key "w"
     :transient-description "--with"
     :transient-class transient-option
     :transient-argument "--with="
@@ -141,9 +141,9 @@ Marks an issue as superseded by a newer one."))
     :type boolean
     :initform nil
     :documentation "Show full commit information."
-    :long-option "--details"
+    :long-option "details"
     :option-type :boolean
-    :transient-key "-d"
+    :transient-key "d"
     :transient-description "--details"
     :transient-class transient-switch
     :transient-argument "--details"
@@ -155,10 +155,10 @@ Marks an issue as superseded by a newer one."))
     :type boolean
     :initform nil
     :documentation "Close orphaned issues with confirmation."
-    :long-option "--fix"
-    :short-option "-f"
+    :long-option "fix"
+    :short-option "f"
     :option-type :boolean
-    :transient-key "-f"
+    :transient-key "f"
     :transient-description "--fix"
     :transient-class transient-switch
     :transient-argument "--fix"
@@ -191,10 +191,10 @@ Identifies orphaned issues referenced in commits but still open."))
     :type (or null string)
     :initform nil
     :documentation "Filter by status (default: open, 'all' for all)."
-    :long-option "--status"
-    :short-option "-s"
+    :long-option "status"
+    :short-option "s"
     :option-type :string
-    :transient-key "-s"
+    :transient-key "s"
     :transient-description "--status"
     :transient-class transient-option
     :transient-argument "--status="
@@ -207,10 +207,10 @@ Identifies orphaned issues referenced in commits but still open."))
     :type (or null string)
     :initform nil
     :documentation "Filter by issue type."
-    :long-option "--type"
-    :short-option "-t"
+    :long-option "type"
+    :short-option "t"
     :option-type :string
-    :transient-key "-t"
+    :transient-key "t"
     :transient-description "--type"
     :transient-class transient-option
     :transient-argument "--type="
@@ -243,9 +243,9 @@ Checks issues for missing template sections."))
     :type (or null string)
     :initform nil
     :documentation "Target rig or prefix."
-    :long-option "--to"
+    :long-option "to"
     :option-type :string
-    :transient-key "-t"
+    :transient-key "t"
     :transient-description "--to"
     :transient-class transient-option
     :transient-argument "--to="
@@ -258,9 +258,9 @@ Checks issues for missing template sections."))
     :type boolean
     :initform nil
     :documentation "Keep source issue open."
-    :long-option "--keep-open"
+    :long-option "keep-open"
     :option-type :boolean
-    :transient-key "-k"
+    :transient-key "k"
     :transient-description "--keep-open"
     :transient-class transient-switch
     :transient-argument "--keep-open"
@@ -272,9 +272,9 @@ Checks issues for missing template sections."))
     :type boolean
     :initform nil
     :documentation "Skip dependency remapping."
-    :long-option "--skip-deps"
+    :long-option "skip-deps"
     :option-type :boolean
-    :transient-key "-d"
+    :transient-key "d"
     :transient-description "--skip-deps"
     :transient-class transient-switch
     :transient-argument "--skip-deps"
@@ -319,9 +319,9 @@ Moves an issue to a different rig with dependency remapping."))
     :type boolean
     :initform nil
     :documentation "Keep source issue open."
-    :long-option "--keep-open"
+    :long-option "keep-open"
     :option-type :boolean
-    :transient-key "-k"
+    :transient-key "k"
     :transient-description "--keep-open"
     :transient-class transient-switch
     :transient-argument "--keep-open"
@@ -360,10 +360,10 @@ Moves an issue to a different rig."))
     :type (or null string)
     :initform nil
     :documentation "Issue type (default: task)."
-    :long-option "--type"
-    :short-option "-t"
+    :long-option "type"
+    :short-option "t"
     :option-type :string
-    :transient-key "-t"
+    :transient-key "t"
     :transient-description "--type"
     :transient-class transient-option
     :transient-argument "--type="
@@ -377,10 +377,10 @@ Moves an issue to a different rig."))
     :type (or null string)
     :initform nil
     :documentation "Priority (0-4 or P0-P4)."
-    :long-option "--priority"
-    :short-option "-p"
+    :long-option "priority"
+    :short-option "p"
     :option-type :string
-    :transient-key "-p"
+    :transient-key "p"
     :transient-description "--priority"
     :transient-class transient-option
     :transient-argument "--priority="
@@ -393,10 +393,10 @@ Moves an issue to a different rig."))
     :type list
     :initform nil
     :documentation "Labels for the issue."
-    :long-option "--labels"
-    :short-option "-l"
+    :long-option "labels"
+    :short-option "l"
     :option-type :list
-    :transient-key "-l"
+    :transient-key "l"
     :transient-description "--labels"
     :transient-class transient-option
     :transient-argument "--labels="
@@ -427,9 +427,9 @@ Quick capture: creates issue and outputs only ID."))
     :type boolean
     :initform nil
     :documentation "Check daemon version and compatibility."
-    :long-option "--daemon"
+    :long-option "daemon"
     :option-type :boolean
-    :transient-key "-d"
+    :transient-key "d"
     :transient-description "--daemon"
     :transient-class transient-switch
     :transient-argument "--daemon"

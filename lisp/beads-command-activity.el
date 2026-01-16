@@ -30,10 +30,10 @@
     :type boolean
     :initform nil
     :documentation "Stream events in real-time."
-    :long-option "--follow"
-    :short-option "-f"
+    :long-option "follow"
+    :short-option "f"
     :option-type :boolean
-    :transient-key "-f"
+    :transient-key "f"
     :transient-description "--follow"
     :transient-class transient-switch
     :transient-argument "--follow"
@@ -45,9 +45,9 @@
     :type (or null integer)
     :initform nil
     :documentation "Maximum number of events to show (default 100)."
-    :long-option "--limit"
+    :long-option "limit"
     :option-type :integer
-    :transient-key "-l"
+    :transient-key "l"
     :transient-description "--limit"
     :transient-class transient-option
     :transient-argument "--limit="
@@ -60,9 +60,9 @@
     :type (or null string)
     :initform nil
     :documentation "Filter by molecule/issue ID prefix."
-    :long-option "--mol"
+    :long-option "mol"
     :option-type :string
-    :transient-key "-m"
+    :transient-key "m"
     :transient-description "--mol"
     :transient-class transient-option
     :transient-argument "--mol="
@@ -75,9 +75,9 @@
     :type (or null string)
     :initform nil
     :documentation "Show events since duration (e.g., 5m, 1h, 30s)."
-    :long-option "--since"
+    :long-option "since"
     :option-type :string
-    :transient-key "-s"
+    :transient-key "s"
     :transient-description "--since"
     :transient-class transient-option
     :transient-argument "--since="
@@ -90,9 +90,9 @@
     :type (or null string)
     :initform nil
     :documentation "Filter by event type (create, update, delete, comment)."
-    :long-option "--type"
+    :long-option "type"
     :option-type :string
-    :transient-key "-t"
+    :transient-key "t"
     :transient-description "--type"
     :transient-class transient-option
     :transient-argument "--type="
@@ -106,9 +106,9 @@
     :type boolean
     :initform nil
     :documentation "Aggregated feed from all rigs."
-    :long-option "--town"
+    :long-option "town"
     :option-type :boolean
-    :transient-key "-T"
+    :transient-key "T"
     :transient-description "--town"
     :transient-class transient-switch
     :transient-argument "--town"
@@ -120,9 +120,9 @@
     :type (or null string)
     :initform nil
     :documentation "Polling interval for --follow mode (default 500ms)."
-    :long-option "--interval"
+    :long-option "interval"
     :option-type :string
-    :transient-key "-i"
+    :transient-key "i"
     :transient-description "--interval"
     :transient-class transient-option
     :transient-argument "--interval="

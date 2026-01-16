@@ -36,9 +36,9 @@
     :type (or null string)
     :initform nil
     :documentation "Agent to act as swarm coordinator."
-    :long-option "--coordinator"
+    :long-option "coordinator"
     :option-type :string
-    :transient-key "-c"
+    :transient-key "c"
     :transient-description "--coordinator"
     :transient-class transient-option
     :transient-argument "--coordinator="
@@ -51,9 +51,9 @@
     :type boolean
     :initform nil
     :documentation "Force creation even with validation warnings."
-    :long-option "--force"
+    :long-option "force"
     :option-type :boolean
-    :transient-key "-f"
+    :transient-key "f"
     :transient-description "--force"
     :transient-class transient-switch
     :transient-argument "--force"

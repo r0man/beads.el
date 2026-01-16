@@ -36,10 +36,10 @@
     :type boolean
     :initform nil
     :documentation "Show parallelizable steps."
-    :long-option "--parallel"
-    :short-option "-p"
+    :long-option "parallel"
+    :short-option "p"
     :option-type :boolean
-    :transient-key "-p"
+    :transient-key "p"
     :transient-description "--parallel"
     :transient-class transient-switch
     :transient-argument "--parallel"
@@ -70,9 +70,9 @@ Shows molecule details."))
     :type list
     :initform nil
     :documentation "Variable substitutions (key=value)."
-    :long-option "--var"
+    :long-option "var"
     :option-type :list
-    :transient-key "-v"
+    :transient-key "v"
     :transient-description "--var"
     :transient-class transient-option
     :transient-argument "--var="
@@ -85,9 +85,9 @@ Shows molecule details."))
     :type boolean
     :initform nil
     :documentation "Preview without creating."
-    :long-option "--dry-run"
+    :long-option "dry-run"
     :option-type :boolean
-    :transient-key "-n"
+    :transient-key "n"
     :transient-description "--dry-run"
     :transient-class transient-switch
     :transient-argument "--dry-run"
@@ -99,9 +99,9 @@ Shows molecule details."))
     :type (or null string)
     :initform nil
     :documentation "Override assignee for all steps."
-    :long-option "--assignee"
+    :long-option "assignee"
     :option-type :string
-    :transient-key "-a"
+    :transient-key "a"
     :transient-description "--assignee"
     :transient-class transient-option
     :transient-argument "--assignee="
@@ -114,9 +114,9 @@ Shows molecule details."))
     :type (or null string)
     :initform nil
     :documentation "ID to attach to (parent molecule)."
-    :long-option "--attach"
+    :long-option "attach"
     :option-type :string
-    :transient-key "-A"
+    :transient-key "A"
     :transient-description "--attach"
     :transient-class transient-option
     :transient-argument "--attach="
@@ -129,9 +129,9 @@ Shows molecule details."))
     :type (or null string)
     :initform nil
     :documentation "Attach as dep type: after, child, gate."
-    :long-option "--attach-type"
+    :long-option "attach-type"
     :option-type :string
-    :transient-key "-T"
+    :transient-key "T"
     :transient-description "--attach-type"
     :transient-class transient-option
     :transient-argument "--attach-type="
@@ -164,9 +164,9 @@ Instantiates proto as persistent mol (liquid phase)."))
     :type boolean
     :initform nil
     :documentation "Preview without creating."
-    :long-option "--dry-run"
+    :long-option "dry-run"
     :option-type :boolean
-    :transient-key "-n"
+    :transient-key "n"
     :transient-description "--dry-run"
     :transient-class transient-switch
     :transient-argument "--dry-run"
@@ -178,9 +178,9 @@ Instantiates proto as persistent mol (liquid phase)."))
     :type list
     :initform nil
     :documentation "Variable substitutions (key=value)."
-    :long-option "--var"
+    :long-option "var"
     :option-type :list
-    :transient-key "-v"
+    :transient-key "v"
     :transient-description "--var"
     :transient-class transient-option
     :transient-argument "--var="
@@ -218,9 +218,9 @@ Creates or manages wisps (ephemeral molecules)."))
     :type boolean
     :initform nil
     :documentation "Preview without bonding."
-    :long-option "--dry-run"
+    :long-option "dry-run"
     :option-type :boolean
-    :transient-key "-n"
+    :transient-key "n"
     :transient-description "--dry-run"
     :transient-class transient-switch
     :transient-argument "--dry-run"
@@ -232,9 +232,9 @@ Creates or manages wisps (ephemeral molecules)."))
     :type (or null string)
     :initform nil
     :documentation "Bond type: seq (default), par, gate."
-    :long-option "--type"
+    :long-option "type"
     :option-type :string
-    :transient-key "-t"
+    :transient-key "t"
     :transient-description "--type"
     :transient-class transient-option
     :transient-argument "--type="
@@ -248,9 +248,9 @@ Creates or manages wisps (ephemeral molecules)."))
     :type (or null string)
     :initform nil
     :documentation "Name for bonded result."
-    :long-option "--as"
+    :long-option "as"
     :option-type :string
-    :transient-key "-a"
+    :transient-key "a"
     :transient-description "--as"
     :transient-class transient-option
     :transient-argument "--as="
@@ -263,9 +263,9 @@ Creates or manages wisps (ephemeral molecules)."))
     :type boolean
     :initform nil
     :documentation "Pour result immediately."
-    :long-option "--pour"
+    :long-option "pour"
     :option-type :boolean
-    :transient-key "-p"
+    :transient-key "p"
     :transient-description "--pour"
     :transient-class transient-switch
     :transient-argument "--pour"
@@ -277,9 +277,9 @@ Creates or manages wisps (ephemeral molecules)."))
     :type boolean
     :initform nil
     :documentation "Create as wisp (ephemeral)."
-    :long-option "--ephemeral"
+    :long-option "ephemeral"
     :option-type :boolean
-    :transient-key "-e"
+    :transient-key "e"
     :transient-description "--ephemeral"
     :transient-class transient-switch
     :transient-argument "--ephemeral"
@@ -291,9 +291,9 @@ Creates or manages wisps (ephemeral molecules)."))
     :type boolean
     :initform nil
     :documentation "Reference second as dependency only."
-    :long-option "--ref"
+    :long-option "ref"
     :option-type :boolean
-    :transient-key "-r"
+    :transient-key "r"
     :transient-description "--ref"
     :transient-class transient-switch
     :transient-argument "--ref"
@@ -305,9 +305,9 @@ Creates or manages wisps (ephemeral molecules)."))
     :type list
     :initform nil
     :documentation "Variable substitutions (key=value)."
-    :long-option "--var"
+    :long-option "var"
     :option-type :list
-    :transient-key "-v"
+    :transient-key "v"
     :transient-description "--var"
     :transient-class transient-option
     :transient-argument "--var="
@@ -339,9 +339,9 @@ Bonds two protos or molecules together."))
     :type boolean
     :initform nil
     :documentation "Preview without squashing."
-    :long-option "--dry-run"
+    :long-option "dry-run"
     :option-type :boolean
-    :transient-key "-n"
+    :transient-key "n"
     :transient-description "--dry-run"
     :transient-class transient-switch
     :transient-argument "--dry-run"
@@ -353,9 +353,9 @@ Bonds two protos or molecules together."))
     :type boolean
     :initform nil
     :documentation "Keep child issues instead of deleting."
-    :long-option "--keep-children"
+    :long-option "keep-children"
     :option-type :boolean
-    :transient-key "-k"
+    :transient-key "k"
     :transient-description "--keep-children"
     :transient-class transient-switch
     :transient-argument "--keep-children"
@@ -367,9 +367,9 @@ Bonds two protos or molecules together."))
     :type (or null string)
     :initform nil
     :documentation "Path to summary file."
-    :long-option "--summary"
+    :long-option "summary"
     :option-type :string
-    :transient-key "-s"
+    :transient-key "s"
     :transient-description "--summary"
     :transient-class transient-option
     :transient-argument "--summary="
@@ -401,9 +401,9 @@ Compresses molecule execution into a digest."))
     :type boolean
     :initform nil
     :documentation "Preview without burning."
-    :long-option "--dry-run"
+    :long-option "dry-run"
     :option-type :boolean
-    :transient-key "-n"
+    :transient-key "n"
     :transient-description "--dry-run"
     :transient-class transient-switch
     :transient-argument "--dry-run"
@@ -415,9 +415,9 @@ Compresses molecule execution into a digest."))
     :type boolean
     :initform nil
     :documentation "Force burn without confirmation."
-    :long-option "--force"
+    :long-option "force"
     :option-type :boolean
-    :transient-key "-f"
+    :transient-key "f"
     :transient-description "--force"
     :transient-class transient-switch
     :transient-argument "--force"
@@ -448,9 +448,9 @@ Deletes a molecule without creating a digest."))
     :type boolean
     :initform nil
     :documentation "Preview without distilling."
-    :long-option "--dry-run"
+    :long-option "dry-run"
     :option-type :boolean
-    :transient-key "-n"
+    :transient-key "n"
     :transient-description "--dry-run"
     :transient-class transient-switch
     :transient-argument "--dry-run"
@@ -462,10 +462,10 @@ Deletes a molecule without creating a digest."))
     :type (or null string)
     :initform nil
     :documentation "Output file path."
-    :long-option "--output"
-    :short-option "-o"
+    :long-option "output"
+    :short-option "o"
     :option-type :string
-    :transient-key "-o"
+    :transient-key "o"
     :transient-description "--output"
     :transient-class transient-option
     :transient-argument "--output="
@@ -478,9 +478,9 @@ Deletes a molecule without creating a digest."))
     :type list
     :initform nil
     :documentation "Variable definitions for parameterization."
-    :long-option "--var"
+    :long-option "var"
     :option-type :list
-    :transient-key "-v"
+    :transient-key "v"
     :transient-description "--var"
     :transient-class transient-option
     :transient-argument "--var="
@@ -512,9 +512,9 @@ Extracts a formula from an existing epic."))
     :type (or null string)
     :initform nil
     :documentation "Filter for specific agent."
-    :long-option "--for"
+    :long-option "for"
     :option-type :string
-    :transient-key "-f"
+    :transient-key "f"
     :transient-description "--for"
     :transient-class transient-option
     :transient-argument "--for="
@@ -527,9 +527,9 @@ Extracts a formula from an existing epic."))
     :type (or null integer)
     :initform nil
     :documentation "Limit number of steps shown."
-    :long-option "--limit"
+    :long-option "limit"
     :option-type :integer
-    :transient-key "-l"
+    :transient-key "l"
     :transient-description "--limit"
     :transient-class transient-option
     :transient-argument "--limit="
@@ -542,9 +542,9 @@ Extracts a formula from an existing epic."))
     :type (or null string)
     :initform nil
     :documentation "Show steps in range (e.g., 1-10)."
-    :long-option "--range"
+    :long-option "range"
     :option-type :string
-    :transient-key "-r"
+    :transient-key "r"
     :transient-description "--range"
     :transient-class transient-option
     :transient-argument "--range="

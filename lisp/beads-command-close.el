@@ -70,8 +70,8 @@ Example: '(\"bd-1\" \"bd-2\")"
     :documentation "Reason for closing (-r, --reason).
 Required field."
     ;; CLI properties
-    :long-option "--reason"
-    :short-option "-r"
+    :long-option "reason"
+    :short-option "r"
     :option-type :string
     ;; Transient properties
     :transient-key "r"

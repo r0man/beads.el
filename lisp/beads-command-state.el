@@ -10,7 +10,7 @@
 ;;; Commentary:
 
 ;; This module defines EIEIO command classes for `bd state' and `bd set-state'
-;; operations. State manages operational state dimensions on issues.
+;; operations.  State manages operational state dimensions on issues.
 
 ;;; Code:
 
@@ -42,9 +42,9 @@
     :type (or null string)
     :initform nil
     :documentation "Reason for the state change."
-    :long-option "--reason"
+    :long-option "reason"
     :option-type :string
-    :transient-key "-r"
+    :transient-key "r"
     :transient-description "--reason"
     :transient-class transient-option
     :transient-argument "--reason="
