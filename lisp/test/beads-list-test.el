@@ -2596,5 +2596,39 @@ Even if they have the same branch name."
   "Test that display-buffer function is defined."
   (should (fboundp 'beads-list--display-buffer)))
 
+;;; Regression Tests for Bug bde-evrx
+
+(ert-deftest beads-list-test-filters-in-command-line ()
+  "Test that filters are included in command line.
+Regression test for bug bde-evrx."
+  (let ((beads-executable "bd")
+        (cmd (beads-command-list :status "open"
+                                  :issue-type "bug"
+                                  :assignee "roman")))
+    (let ((cmd-line (beads-command-line cmd)))
+      ;; Should contain all filter options with dashes
+      (should (member "--status" cmd-line))
+      (should (member "open" cmd-line))
+      (should (member "--type" cmd-line))
+      (should (member "bug" cmd-line))
+      (should (member "--assignee" cmd-line))
+      (should (member "roman" cmd-line)))))
+
+(ert-deftest beads-list-test-parsed-transient-filters ()
+  "Test that transient args produce correct filters in command.
+Regression test for bug bde-evrx."
+  (let ((beads-executable "bd")
+        (cmd (beads-list-transient--parse-transient-args
+              '("--type=bug" "--status=open" "--assignee=roman"))))
+    ;; Slots should be set
+    (should (equal "bug" (oref cmd issue-type)))
+    (should (equal "open" (oref cmd status)))
+    (should (equal "roman" (oref cmd assignee)))
+    ;; Command line should include all filters
+    (let ((cmd-line (beads-command-line cmd)))
+      (should (member "--type" cmd-line))
+      (should (member "--status" cmd-line))
+      (should (member "--assignee" cmd-line)))))
+
 (provide 'beads-list-test)
 ;;; beads-list-test.el ends here

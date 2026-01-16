@@ -296,5 +296,37 @@
   "Test beads-close main command exists."
   (should (fboundp 'beads-close)))
 
+;;; Regression Tests for Bug bde-65df
+
+(ert-deftest beads-close-test-command-line-has-reason-dashes ()
+  "Test that close command line includes --reason with dashes.
+Regression test for bug bde-65df."
+  (let ((beads-executable "bd")
+        (cmd (beads-command-close :issue-ids '("bd-42")
+                                   :reason "Fixed the bug")))
+    (let ((cmd-line (beads-command-line cmd)))
+      ;; Should contain --reason (with dashes)
+      (should (member "--reason" cmd-line))
+      ;; Should NOT contain just "reason" (without dashes)
+      ;; Check that "reason" only appears after --reason
+      (let ((reason-pos (cl-position "--reason" cmd-line :test #'equal)))
+        (should reason-pos)
+        (should (equal "Fixed the bug" (nth (1+ reason-pos) cmd-line)))))))
+
+(ert-deftest beads-close-test-parsed-args-command-line-has-reason-dashes ()
+  "Test that parsed transient args produce correct command line.
+Regression test for bug bde-65df."
+  (let ((beads-executable "bd")
+        (args '("--id=bd-42" "--reason=Completed testing"))
+        (cmd (beads-close--parse-transient-args
+              '("--id=bd-42" "--reason=Completed testing"))))
+    (let ((cmd-line (beads-command-line cmd)))
+      ;; Should contain --reason (with dashes)
+      (should (member "--reason" cmd-line))
+      ;; Value should follow
+      (let ((reason-pos (cl-position "--reason" cmd-line :test #'equal)))
+        (should reason-pos)
+        (should (equal "Completed testing" (nth (1+ reason-pos) cmd-line)))))))
+
 (provide 'beads-close-test)
 ;;; beads-close-test.el ends here
