@@ -29,7 +29,10 @@
 (require 'beads)
 (require 'beads-completion)
 (require 'beads-state)
-(require 'beads-label)
+
+;; Forward declare label functions (loaded later to avoid circular deps)
+(declare-function beads--label-completion-table "beads-command-label")
+(declare-function beads-label--detect-issue-id "beads-command-label")
 
 ;;; ============================================================
 ;;; Common Reader Functions

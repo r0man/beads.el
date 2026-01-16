@@ -117,8 +117,8 @@
   "Test schema slot has correct transient properties."
   (should (equal "s" (beads-meta-slot-property
                       'beads-command-info 'schema :transient-key)))
-  (should (equal "--schema" (beads-meta-slot-property
-                             'beads-command-info 'schema :long-option)))
+  (should (equal "schema" (beads-meta-slot-property
+                           'beads-command-info 'schema :long-option)))
   (should (eq :boolean (beads-meta-slot-property
                         'beads-command-info 'schema :option-type))))
 
@@ -126,15 +126,15 @@
   "Test whats-new slot has correct transient properties."
   (should (equal "w" (beads-meta-slot-property
                       'beads-command-info 'whats-new :transient-key)))
-  (should (equal "--whats-new" (beads-meta-slot-property
-                                'beads-command-info 'whats-new :long-option))))
+  (should (equal "whats-new" (beads-meta-slot-property
+                              'beads-command-info 'whats-new :long-option))))
 
 (ert-deftest beads-command-info-test-thanks-slot-properties ()
   "Test thanks slot has correct transient properties."
   (should (equal "t" (beads-meta-slot-property
                       'beads-command-info 'thanks :transient-key)))
-  (should (equal "--thanks" (beads-meta-slot-property
-                             'beads-command-info 'thanks :long-option))))
+  (should (equal "thanks" (beads-meta-slot-property
+                           'beads-command-info 'thanks :long-option))))
 
 ;;; Transient Tests
 

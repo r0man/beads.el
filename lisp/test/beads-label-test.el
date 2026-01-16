@@ -1,4 +1,4 @@
-;;; beads-label-test.el --- Tests for beads-label.el -*- lexical-binding: t; -*-
+;;; beads-label-test.el --- Tests for beads-command-label.el -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
@@ -7,14 +7,14 @@
 
 ;;; Commentary:
 
-;; Tests for beads-label.el label management functionality.
+;; Tests for beads-command-label.el label management functionality.
 
 ;;; Code:
 
 (require 'ert)
 (require 'beads)
 (require 'beads-buffer)
-(require 'beads-label)
+(require 'beads-command-label)
 (require 'beads-test)
 
 ;;; Test Utilities

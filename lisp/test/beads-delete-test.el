@@ -16,7 +16,7 @@
 (require 'json)
 (require 'beads)
 (require 'beads-buffer)
-(require 'beads-delete)
+(require 'beads-command-delete)
 (require 'beads-test)
 
 ;;; Test Fixtures
@@ -174,7 +174,7 @@ Text references to be updated:
 
 (ert-deftest beads-delete-test-detect-issue-id-from-list-mode ()
   "Test detecting issue ID from beads-list-mode."
-  (require 'beads-list)
+  (require 'beads-command-list)
   (with-temp-buffer
     (beads-list-mode)
     (cl-letf (((symbol-function 'beads-list--current-issue-id)
@@ -183,7 +183,7 @@ Text references to be updated:
 
 (ert-deftest beads-delete-test-detect-issue-id-from-show-mode ()
   "Test detecting issue ID from beads-show-mode."
-  (require 'beads-show)
+  (require 'beads-command-show)
   (with-temp-buffer
     (beads-show-mode)
     (setq-local beads-show--issue-id "bd-99")
@@ -206,12 +206,12 @@ Text references to be updated:
 
 (ert-deftest beads-delete-test-list-delete-function-defined ()
   "Test that beads-list-delete function is defined."
-  (require 'beads-list)
+  (require 'beads-command-list)
   (should (fboundp 'beads-list-delete)))
 
 (ert-deftest beads-delete-test-list-delete-with-issue ()
   "Test deleting from list view with issue at point."
-  (require 'beads-list)
+  (require 'beads-command-list)
   (with-temp-buffer
     (beads-list-mode)
     (let ((beads-delete-called nil)
@@ -228,7 +228,7 @@ Text references to be updated:
 
 (ert-deftest beads-delete-test-list-delete-no-issue ()
   "Test deleting from list view with no issue at point."
-  (require 'beads-list)
+  (require 'beads-command-list)
   (with-temp-buffer
     (beads-list-mode)
     (cl-letf (((symbol-function 'beads-list--current-issue-id)
@@ -237,13 +237,13 @@ Text references to be updated:
 
 (ert-deftest beads-delete-test-list-keybinding-exists ()
   "Test that D keybinding exists in beads-list-mode-map."
-  (require 'beads-list)
+  (require 'beads-command-list)
   (let ((binding (lookup-key beads-list-mode-map (kbd "D"))))
     (should (eq binding 'beads-list-delete))))
 
 (ert-deftest beads-delete-test-list-delete-passes-id ()
   "Test that beads-list-delete passes the issue ID to beads-delete."
-  (require 'beads-list)
+  (require 'beads-command-list)
   (let ((received-id nil))
     (cl-letf (((symbol-function 'beads-list--current-issue-id)
                (lambda () "test-123"))

@@ -92,7 +92,7 @@
 (require 'beads-command-worktree)
 (require 'beads-completion)
 (require 'beads-git)
-(require 'beads-worktree)
+(require 'beads-command-worktree)
 (require 'beads-agent-backend)
 (require 'beads-agent-prompt-edit)
 (require 'beads-agent-type)

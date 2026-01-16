@@ -20,7 +20,7 @@
 (require 'ert)
 (require 'json)
 (require 'beads)
-(require 'beads-create)
+(require 'beads-command-create)
 (require 'beads-test)
 
 ;;; Tests for Argument Parsing
@@ -143,27 +143,27 @@ For testing, we pass the multiline string on a single line with escaped \\n."
 
 (ert-deftest beads-create-test-validate-priority-zero ()
   "Test priority validation with zero (critical)."
-  (let ((cmd (beads-command-create :title "Test" :priority 0)))
+  (let ((cmd (beads-command-create :title "Test" :priority "0")))
     (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-create-test-validate-priority-one ()
   "Test priority validation with one."
-  (let ((cmd (beads-command-create :title "Test" :priority 1)))
+  (let ((cmd (beads-command-create :title "Test" :priority "1")))
     (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-create-test-validate-priority-four ()
   "Test priority validation with four (backlog)."
-  (let ((cmd (beads-command-create :title "Test" :priority 4)))
+  (let ((cmd (beads-command-create :title "Test" :priority "4")))
     (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-create-test-validate-priority-negative ()
   "Test priority validation with negative number."
-  (let ((cmd (beads-command-create :title "Test" :priority -1)))
+  (let ((cmd (beads-command-create :title "Test" :priority "-1")))
     (should (beads-command-validate cmd))))
 
 (ert-deftest beads-create-test-validate-priority-too-high ()
   "Test priority validation with number too high."
-  (let ((cmd (beads-command-create :title "Test" :priority 5)))
+  (let ((cmd (beads-command-create :title "Test" :priority "5")))
     (should (beads-command-validate cmd))))
 
 (ert-deftest beads-create-test-validate-priority-string ()

@@ -1,45 +1,32 @@
-;;; beads-show.el --- Issue detail view for beads.el -*- lexical-binding: t; -*-
+;;; beads-command-show.el --- Show command class for beads -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
 ;; Author: Beads Contributors
-;; Keywords: tools, project, issues
+;; Keywords: tools
+
+;; This file is not part of GNU Emacs.
 
 ;;; Commentary:
 
-;; This module provides issue detail display functionality for beads.el.
-;; It implements a special-mode-derived buffer that shows full issue
-;; details with markdown-like formatting and clickable issue references.
+;; This module defines the `beads-command-show' EIEIO class for the
+;; `bd show' command.  The class includes full slot metadata for
+;; automatic transient menu generation via `beads-meta-define-transient'.
 ;;
-;; Key features:
-;; - Formatted display of issue metadata and text fields
-;; - Clickable issue references using buttons
-;; - Basic text fontification (bold, colors)
-;; - Markdown-mode-style outline navigation (C-c C-n/p/f/b/u)
-;; - Inline field editing (C-c C-e)
-;; - Simple section navigation (n/p)
-;; - Reference and button navigation ([, ], TAB)
-;; - Copy issue ID to clipboard (w or C-w)
-;; - Keyboard navigation and refresh commands
-;; - Handles missing optional fields gracefully
+;; The bd show command displays detailed information about one or more
+;; issues, including their metadata, description, relationships, and
+;; history.
 ;;
-;; Outline navigation:
-;; - C-c C-n: Next heading (any level)
-;; - C-c C-p: Previous heading (any level)
-;; - C-c C-f: Next heading at same level
-;; - C-c C-b: Previous heading at same level
-;; - C-c C-u: Up to parent heading
+;; Features:
+;; - Show single or multiple issues at once
+;; - Children view shows only direct children
+;; - Refs view shows issues that reference the target
+;; - Short format for compact one-line output
+;; - Thread view for message conversations
 ;;
-;; Field editing:
-;; - C-c C-e: Edit field (prompts for field selection)
-;;
-;; Sesman session management (C-c C-s prefix):
-;; - C-c C-s s: Start new session
-;; - C-c C-s q: Quit current session
-;; - C-c C-s r: Restart current session
-;; - C-c C-s b: Open session browser
-;; - C-c C-s i: Show session info
-;; - C-c C-s l: Link session to buffer
+;; Usage:
+;;   (beads-command-execute (beads-command-show :issue-ids '("bd-1")))
+;;   (beads-command-show!)  ; convenience function
 
 ;;; Code:
 
@@ -48,13 +35,190 @@
 (require 'beads-command)
 (require 'beads-completion)
 (require 'beads-agent)
+(require 'beads-meta)
+(require 'beads-option)
 (require 'beads-sesman)
+(require 'beads-types)
 (require 'button)
 (require 'cl-lib)
 (require 'goto-addr)
+(require 'transient)
 (require 'xref)
 (require 'bookmark)
 
+;;; Show Command
+
+;; Wrap in eval-and-compile so class is available at compile time for
+;; beads-meta-define-transient macro
+(eval-and-compile
+(beads-defcommand beads-command-show (beads-command-json)
+  ((issue-ids
+    :initarg :issue-ids
+    :type (or null list)
+    :initform nil
+    :documentation "One or more issue IDs to show (positional arguments).
+Example: '(\"bd-1\" \"bd-2\")"
+    ;; CLI properties
+    :positional 1
+    :option-type :list
+    :option-separator " "
+    ;; Transient properties
+    :transient-key "i"
+    :transient-description "Issue IDs"
+    :transient-class transient-option
+    :transient-argument "--id="
+    :transient-prompt "Issue ID(s): "
+    :transient-reader beads-reader-issue-id
+    :transient-group "Show Issue"
+    :transient-level 1
+    :transient-order 1
+    ;; Validation
+    :required t)
+   (children
+    :initarg :children
+    :type boolean
+    :initform nil
+    :documentation "Show only the children of this issue (--children)."
+    ;; CLI properties
+    :long-option "children"
+    :option-type :boolean
+    ;; Transient properties
+    :transient-key "c"
+    :transient-description "--children"
+    :transient-class transient-switch
+    :transient-argument "--children"
+    :transient-group "View Options"
+    :transient-level 1
+    :transient-order 1)
+   (refs
+    :initarg :refs
+    :type boolean
+    :initform nil
+    :documentation "Show issues that reference this issue (--refs).
+Reverse lookup of references."
+    ;; CLI properties
+    :long-option "refs"
+    :option-type :boolean
+    ;; Transient properties
+    :transient-key "r"
+    :transient-description "--refs"
+    :transient-class transient-switch
+    :transient-argument "--refs"
+    :transient-group "View Options"
+    :transient-level 1
+    :transient-order 2)
+   (short
+    :initarg :short
+    :type boolean
+    :initform nil
+    :documentation "Show compact one-line output per issue (--short)."
+    ;; CLI properties
+    :long-option "short"
+    :option-type :boolean
+    ;; Transient properties
+    :transient-key "s"
+    :transient-description "--short"
+    :transient-class transient-switch
+    :transient-argument "--short"
+    :transient-group "View Options"
+    :transient-level 1
+    :transient-order 3)
+   (thread
+    :initarg :thread
+    :type boolean
+    :initform nil
+    :documentation "Show full conversation thread (--thread).
+For message type issues."
+    ;; CLI properties
+    :long-option "thread"
+    :option-type :boolean
+    ;; Transient properties
+    :transient-key "t"
+    :transient-description "--thread"
+    :transient-class transient-switch
+    :transient-argument "--thread"
+    :transient-group "View Options"
+    :transient-level 2
+    :transient-order 1))
+  :documentation "Represents bd show command.
+Shows detailed information about one or more issues.
+When executed with :json t, returns beads-issue instance (or list
+of instances when multiple IDs provided)."))
+
+(cl-defmethod beads-command-subcommand ((_command beads-command-show))
+  "Return \"show\" as the CLI subcommand name."
+  "show")
+
+(cl-defmethod beads-command-validate ((command beads-command-show))
+  "Validate show COMMAND.
+Checks that at least one issue ID is provided.
+Returns error string or nil if valid."
+  (with-slots (issue-ids) command
+    (or
+     ;; Must have at least one issue ID
+     (and (or (null issue-ids) (zerop (length issue-ids)))
+          "Must provide at least one issue ID")
+     ;; Validate list content types
+     (beads-command--validate-string-list issue-ids "issue-ids"))))
+
+(cl-defmethod beads-command-parse ((command beads-command-show))
+  "Parse show COMMAND output and return issue(s).
+When :json is nil, falls back to parent (returns raw stdout).
+When :json is t, returns beads-issue instance (or list when multiple IDs).
+Does not modify command slots."
+  (with-slots (json issue-ids) command
+    (if (not json)
+        ;; If json is not enabled, use parent implementation
+        (cl-call-next-method)
+      ;; Call parent to parse JSON, then convert to beads-issue instance(s)
+      (let ((parsed-json (cl-call-next-method)))
+        (condition-case err
+            (cond
+             ;; Array result - convert to issue objects
+             ((eq (type-of parsed-json) 'vector)
+              (let ((issues (mapcar #'beads-issue-from-json
+                                    (append parsed-json nil))))
+                ;; Return single issue if only one ID, list otherwise
+                (if (= (length issue-ids) 1)
+                    (car issues)
+                  issues)))
+             ;; Single object result
+             ((and parsed-json (listp parsed-json)
+                   (not (null parsed-json)))
+              (beads-issue-from-json parsed-json))
+             ;; Empty or null
+             (t nil))
+          (error
+           (signal 'beads-json-parse-error
+                   (list (format "Failed to create beads-issue instance: %s"
+                                 (error-message-string err))
+                         :exit-code (oref command exit-code)
+                         :parsed-json parsed-json
+                         :stderr (oref command stderr)
+                         :parse-error err))))))))
+
+(cl-defmethod beads-command-execute-interactive ((cmd beads-command-show))
+  "Execute CMD in terminal buffer with human-readable output.
+Disables JSON mode for interactive display with colors."
+  ;; Set json to nil for human-readable colored output
+  (oset cmd json nil)
+  ;; Call the default implementation
+  (cl-call-next-method))
+
+;;; Transient Menu
+
+;; Generate the complete transient menu from slot metadata
+;;;###autoload (autoload 'beads-show-transient "beads-command-show" nil t)
+(beads-meta-define-transient beads-command-show "beads-show-transient"
+  "Show detailed information about one or more issues.
+
+Displays issue metadata, description, relationships, and history.
+Use view options to control output format and content.
+
+Transient levels control which options are visible (cycle with C-x l):
+  Level 1: Issue IDs, children, refs, short
+  Level 2: Thread"
+  beads-option-global-section)
 ;;; Customization
 
 (defgroup beads-show nil
@@ -2141,5 +2305,5 @@ Prompts for field to edit and opens an editing buffer."
 
 ;;; Footer
 
-(provide 'beads-show)
-;;; beads-show.el ends here
+(provide 'beads-command-show)
+;;; beads-command-show.el ends here

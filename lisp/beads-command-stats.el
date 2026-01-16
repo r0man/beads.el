@@ -1,46 +1,144 @@
-;;; beads-stats.el --- Display issue statistics -*- lexical-binding: t; -*-
+;;; beads-command-stats.el --- Stats/Status command class for beads -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
 ;; Author: Beads Contributors
-;; Keywords: tools, project, issues
+;; Keywords: tools
+
+;; This file is not part of GNU Emacs.
 
 ;;; Commentary:
 
-;; Provides an interactive interface for viewing issue statistics in Beads.
-;; Displays statistics such as total issues, issues by status, issues
-;; by priority, and average lead time.
+;; This module defines the `beads-command-stats' EIEIO class for the
+;; `bd stats' (alias `bd status') command.  The class includes full
+;; slot metadata for automatic transient menu generation via
+;; `beads-meta-define-transient'.
+;;
+;; The bd stats command shows a quick snapshot of the issue database
+;; state and statistics, similar to how `git status' shows working
+;; tree state.
+;;
+;; Features:
+;; - Summary of issue counts by state
+;; - Ready work overview
+;; - Extended statistics (tombstones, pinned, lead time)
+;; - Recent activity from git history
+;; - Filter by assigned issues
 ;;
 ;; Usage:
-;;   M-x beads-stats RET
-;;
-;; The command opens a buffer displaying:
-;; - Total issues (clickable)
-;; - Issues by status (open, in_progress, blocked, closed) - all clickable
-;; - Ready issues (no blockers) - clickable
-;; - Average lead time
-;;
-;; Interactive Features:
-;; - Click on any statistic number to view those issues in beads-list
-;; - Hover over numbers to see tooltip with action description
-;; - Use keyboard shortcuts: g to refresh, q to quit
+;;   (beads-command-execute (beads-command-stats))
+;;   (beads-command-stats!)  ; convenience function
 
 ;;; Code:
 
 (require 'beads)
 (require 'beads-buffer)
 (require 'beads-command)
+(require 'beads-meta)
+(require 'beads-option)
 (require 'beads-types)
 (require 'button)
+(require 'transient)
 
-;;; Forward Declarations
+;; Forward declarations
+(declare-function beads-list "beads-command-list")
+(declare-function beads-ready "beads-command-list")
+(declare-function beads-blocked "beads-command-list")
+(declare-function beads-list-mode "beads-command-list")
+(declare-function beads-list--populate-buffer "beads-command-list")
+(declare-function beads-list--format-filter-string "beads-command-list")
 
-(declare-function beads-list "beads-list")
-(declare-function beads-ready "beads-list")
-(declare-function beads-blocked "beads-list")
-(declare-function beads-list-mode "beads-list")
-(declare-function beads-list--populate-buffer "beads-list")
-(declare-function beads-list--format-filter-string "beads-list")
+;;; Stats Command
+
+(eval-and-compile
+(beads-defcommand beads-command-stats (beads-command-json)
+  ((all
+    :initarg :all
+    :type boolean
+    :initform nil
+    :documentation "Show all issues (--all).
+Default behavior."
+    ;; CLI properties
+    :long-option "all"
+    :option-type :boolean
+    ;; Transient properties
+    :transient-key "A"
+    :transient-description "--all"
+    :transient-class transient-switch
+    :transient-argument "--all"
+    :transient-group "Stats Options"
+    :transient-level 2
+    :transient-order 1)
+   (assigned
+    :initarg :assigned
+    :type boolean
+    :initform nil
+    :documentation "Show issues assigned to current user (--assigned)."
+    ;; CLI properties
+    :long-option "assigned"
+    :option-type :boolean
+    ;; Transient properties
+    :transient-key "a"
+    :transient-description "--assigned"
+    :transient-class transient-switch
+    :transient-argument "--assigned"
+    :transient-group "Stats Options"
+    :transient-level 1
+    :transient-order 1)
+   (no-activity
+    :initarg :no-activity
+    :type boolean
+    :initform nil
+    :documentation "Skip git activity tracking (--no-activity).
+Faster but omits recent activity section."
+    ;; CLI properties
+    :long-option "no-activity"
+    :option-type :boolean
+    ;; Transient properties
+    :transient-key "n"
+    :transient-description "--no-activity"
+    :transient-class transient-switch
+    :transient-argument "--no-activity"
+    :transient-group "Stats Options"
+    :transient-level 1
+    :transient-order 2))
+  :documentation "Represents bd stats/status command.
+Shows a quick snapshot of the issue database state and statistics."))
+
+(cl-defmethod beads-command-subcommand ((_command beads-command-stats))
+  "Return \"stats\" as the CLI subcommand name."
+  "stats")
+
+(cl-defmethod beads-command-validate ((_command beads-command-stats))
+  "Validate stats COMMAND.
+No required fields.
+Returns nil (always valid)."
+  nil)
+
+(cl-defmethod beads-command-execute-interactive ((cmd beads-command-stats))
+  "Execute CMD in terminal buffer with human-readable output."
+  (oset cmd json nil)
+  (cl-call-next-method))
+
+;;; Transient Menu
+
+;;;###autoload (autoload 'beads-stats-transient "beads-command-stats" nil t)
+(beads-meta-define-transient beads-command-stats "beads-stats-transient"
+  "Show issue database statistics and state.
+
+Provides a summary of issue counts by state (open, in_progress,
+blocked, closed), ready work, extended statistics, and recent
+activity from git history.
+
+Use --assigned to filter to issues assigned to the current user.
+Use --no-activity to skip git activity tracking (faster).
+
+Similar to `git status' but for your issue database."
+  beads-option-global-section)
+
+;;; ============================================================
+;;; Stats Interactive UI
+;;; ============================================================
 
 ;;; Variables
 
@@ -248,8 +346,8 @@ interactive clickable numbers."
     ;; Blank line at top for padding
     (insert "\n")
 
-    ;; Header - matches CLI: " 📊 Issue Database Status"
-    (insert " 📊 Issue Database Status\n\n")
+    ;; Header - matches CLI: " Issue Database Status"
+    (insert " Issue Database Status\n\n")
 
     ;; Summary section
     (insert " Summary:\n")
@@ -347,7 +445,7 @@ interactive clickable numbers."
       (insert (format "%d\n" (oref activity issues-updated))))
 
     ;; Footer
-    (insert "\n For more details, use M-x beads-list to see individual issues.\n"))
+    (insert "\n For more details, use M-x beads-list to see issues.\n"))
 
   ;; Position point on first button (Total Issues)
   (goto-char (point-min))
@@ -389,12 +487,12 @@ INTERACTIVE FEATURES:
 All statistic numbers are clickable! Click on any number to view
 those issues in a filtered list:
 
-- Click Total Issues → View all issues
-- Click Open → View open issues only
-- Click In Progress → View in-progress issues only
-- Click Blocked → View blocked issues
-- Click Closed → View closed issues
-- Click Ready → View ready-to-work issues
+- Click Total Issues -> View all issues
+- Click Open -> View open issues only
+- Click In Progress -> View in-progress issues only
+- Click Blocked -> View blocked issues
+- Click Closed -> View closed issues
+- Click Ready -> View ready-to-work issues
 
 KEYBOARD SHORTCUTS:
   n - Move to next clickable statistic
@@ -420,5 +518,5 @@ with \\[beads-stats-refresh]."
     (beads-stats--fetch-and-display)
     (message "Statistics refreshed")))
 
-(provide 'beads-stats)
-;;; beads-stats.el ends here
+(provide 'beads-command-stats)
+;;; beads-command-stats.el ends here

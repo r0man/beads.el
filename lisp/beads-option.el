@@ -27,7 +27,6 @@
 
 (require 'beads)
 (require 'beads-state)
-(require 'beads-label)
 (require 'transient)
 
 ;; Forward declare reader functions (loaded later to avoid circular deps)
@@ -1077,58 +1076,6 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
 
 ;; Load reader functions now that state variables are defined
 (require 'beads-reader)
-
-;;; Label Transient Menus
-
-;; These transient menus are defined here (instead of beads-label.el)
-;; to avoid circular dependency: beads-option requires beads-label,
-;; and these menus need beads-option-global-section.
-
-;; Forward declare suffix functions from beads-label
-(declare-function beads-label-add--execute "beads-label")
-(declare-function beads-label-add--preview "beads-label")
-(declare-function beads-label-add--reset "beads-label")
-(declare-function beads-label-remove--execute "beads-label")
-(declare-function beads-label-remove--preview "beads-label")
-(declare-function beads-label-remove--reset "beads-label")
-
-;;;###autoload (autoload 'beads-label-add "beads-option" nil t)
-(transient-define-prefix beads-label-add ()
-  "Add a label to one or more issues.
-
-This transient menu provides an interactive interface for adding
-labels to issues using the bd label add command."
-  ["Arguments"
-   ("i" "Issue ID(s)" "--issue-ids="
-    :reader beads-reader-label-issue-ids
-    :prompt "Issue ID(s) (comma-separated): ")
-   ("l" "Label" "--label="
-    :reader beads-reader-label-name
-    :prompt "Label name: ")]
-  beads-option-global-section
-  ["Actions"
-   (beads-label-add--execute)
-   (beads-label-add--preview)
-   (beads-label-add--reset)])
-
-;;;###autoload (autoload 'beads-label-remove "beads-option" nil t)
-(transient-define-prefix beads-label-remove ()
-  "Remove a label from one or more issues.
-
-This transient menu provides an interactive interface for removing
-labels from issues using the bd label remove command."
-  ["Arguments"
-   ("i" "Issue ID(s)" "--issue-ids="
-    :reader beads-reader-label-issue-ids
-    :prompt "Issue ID(s) (comma-separated): ")
-   ("l" "Label" "--label="
-    :reader beads-reader-label-name
-    :prompt "Label name: ")]
-  beads-option-global-section
-  ["Actions"
-   (beads-label-remove--execute)
-   (beads-label-remove--preview)
-   (beads-label-remove--reset)])
 
 (provide 'beads-option)
 ;;; beads-option.el ends here

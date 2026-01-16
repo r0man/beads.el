@@ -18,7 +18,7 @@
 (require 'beads)
 (require 'beads-buffer)
 (require 'beads-types)
-(require 'beads-epic-status)
+(require 'beads-command-epic)
 
 ;;; Test Utilities
 

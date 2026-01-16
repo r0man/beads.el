@@ -16,9 +16,9 @@
 (require 'json)
 (require 'beads)
 (require 'beads-types)
-(require 'beads-list)
-(require 'beads-show)
-(require 'beads-update)
+(require 'beads-command-list)
+(require 'beads-command-show)
+(require 'beads-command-update)
 
 ;;; Test Fixtures
 
@@ -312,7 +312,7 @@
 (ert-deftest beads-update-test-context-from-show-mode ()
   "Integration test: Test context detection from show mode."
   :tags '(integration)
-  (require 'beads-show)
+  (require 'beads-command-show)
   (with-temp-buffer
     (beads-show-mode)
     (setq-local beads-show--issue-id "bd-99")

@@ -1,43 +1,59 @@
-;;; beads-label.el --- Label management for Beads -*- lexical-binding: t; -*-
+;;; beads-command-label.el --- Label command classes for beads -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
 ;; Author: Beads Contributors
-;; Keywords: tools, project, issues
+;; Keywords: tools
+
+;; This file is not part of GNU Emacs.
 
 ;;; Commentary:
 
-;; This module provides label management functionality for beads.el,
-;; including:
+;; This module defines EIEIO classes for all `bd label' subcommands
+;; and provides label management functionality for beads.el.
+;;
+;; Classes include full slot metadata for automatic transient menu
+;; generation via `beads-meta-define-transient'.
+;;
+;; Commands included:
+;; - beads-command-label-add: Add a label to one or more issues
+;; - beads-command-label-remove: Remove a label from one or more issues
+;; - beads-command-label-list: List labels for an issue
+;; - beads-command-label-list-all: List all unique labels in the database
+;;
+;; Features:
 ;; - Label fetching and caching
 ;; - Label completion for reader functions
 ;; - Label add/remove/list commands (transient menus)
 ;; - Integration with beads-list and beads-show buffers
-;;
-;; The module follows the pattern established in other beads modules
-;; (beads-dep, beads-export, beads-import, etc.) with state variables,
-;; reader functions, and transient-based command interfaces.
+;; - beads-label-list-all-mode for tabulated display
 ;;
 ;; Usage:
+;;   (beads-command-execute
+;;    (beads-command-label-add :issue-ids '("bd-42") :label "bug"))
 ;;
 ;;   ;; Get label completion table
 ;;   (beads--label-completion-table)
 ;;
 ;;   ;; Invalidate cache after label changes
 ;;   (beads--invalidate-label-cache)
-;;
-;;   ;; Fetch all labels
-;;   (beads-label-list-all)
 
 ;;; Code:
 
-(require 'beads)
-(require 'beads-buffer)
 (require 'beads-command)
-(require 'beads-completion)
+(require 'beads-meta)
+(require 'beads-option)
+(require 'beads-types)
 (require 'transient)
 
 ;; Forward declarations
+(declare-function beads--invalidate-completion-cache "beads")
+(declare-function beads--string-blank-p "beads")
+(declare-function beads--build-command "beads")
+(declare-function beads-buffer-name-list "beads-buffer")
+(declare-function beads-buffer-name-utility "beads-buffer")
+(declare-function beads-buffer-parse-show "beads-buffer")
+(declare-function beads-completion-read-issue "beads-completion")
 (declare-function beads-list--current-issue-id "beads-list")
 (declare-function beads-list--populate-buffer "beads-list")
 (declare-function beads-list-mode "beads-list")
@@ -68,6 +84,234 @@ frequently than issues."
   "Cache for label list used in completion.
 Format: (TIMESTAMP . LABELS-LIST)")
 
+;;; Label Add Command
+
+(eval-and-compile
+(beads-defcommand beads-command-label-add (beads-command-json)
+  ((issue-ids
+    :initarg :issue-ids
+    :type (or null list)
+    :initform nil
+    :documentation "One or more issue IDs to add the label to (positional)."
+    ;; CLI properties
+    :positional 1
+    :option-type :list
+    :option-separator " "
+    ;; Transient properties
+    :transient-key "i"
+    :transient-description "Issue IDs"
+    :transient-class transient-option
+    :transient-argument "--id="
+    :transient-prompt "Issue ID(s): "
+    :transient-reader beads-reader-issue-id
+    :transient-group "Add Label"
+    :transient-level 1
+    :transient-order 1
+    :required t)
+   (label
+    :initarg :label
+    :type (or null string)
+    :initform nil
+    :documentation "Label to add (positional, last argument)."
+    ;; CLI properties
+    :positional 2
+    :option-type :string
+    ;; Transient properties
+    :transient-key "l"
+    :transient-description "Label"
+    :transient-class transient-option
+    :transient-argument "--label="
+    :transient-prompt "Label: "
+    :transient-group "Add Label"
+    :transient-level 1
+    :transient-order 2
+    :required t))
+  :documentation "Represents bd label add command.
+Adds a label to one or more issues."))
+
+(cl-defmethod beads-command-subcommand ((_command beads-command-label-add))
+  "Return \"label add\" as the CLI subcommand name."
+  "label add")
+
+(cl-defmethod beads-command-validate ((command beads-command-label-add))
+  "Validate label add COMMAND.
+Checks that issue ID(s) and label are provided.
+Returns error string or nil if valid."
+  (with-slots (issue-ids label) command
+    (cond
+     ((or (null issue-ids) (zerop (length issue-ids)))
+      "Must provide at least one issue ID")
+     ((or (null label) (string-empty-p label))
+      "Must provide a label")
+     (t (beads-command--validate-string-list issue-ids "issue-ids")))))
+
+(cl-defmethod beads-command-execute-interactive ((cmd beads-command-label-add))
+  "Execute CMD to add label and show result."
+  (let ((result (beads-command-execute cmd)))
+    (beads--invalidate-completion-cache)
+    (message "Added label '%s' to %d issue%s"
+             (oref cmd label)
+             (length (oref cmd issue-ids))
+             (if (= (length (oref cmd issue-ids)) 1) "" "s"))
+    result))
+
+;;; Label Remove Command
+
+(eval-and-compile
+(beads-defcommand beads-command-label-remove (beads-command-json)
+  ((issue-ids
+    :initarg :issue-ids
+    :type (or null list)
+    :initform nil
+    :documentation "One or more issue IDs to remove the label from (positional)."
+    ;; CLI properties
+    :positional 1
+    :option-type :list
+    :option-separator " "
+    ;; Transient properties
+    :transient-key "i"
+    :transient-description "Issue IDs"
+    :transient-class transient-option
+    :transient-argument "--id="
+    :transient-prompt "Issue ID(s): "
+    :transient-reader beads-reader-issue-id
+    :transient-group "Remove Label"
+    :transient-level 1
+    :transient-order 1
+    :required t)
+   (label
+    :initarg :label
+    :type (or null string)
+    :initform nil
+    :documentation "Label to remove (positional, last argument)."
+    ;; CLI properties
+    :positional 2
+    :option-type :string
+    ;; Transient properties
+    :transient-key "l"
+    :transient-description "Label"
+    :transient-class transient-option
+    :transient-argument "--label="
+    :transient-prompt "Label: "
+    :transient-group "Remove Label"
+    :transient-level 1
+    :transient-order 2
+    :required t))
+  :documentation "Represents bd label remove command.
+Removes a label from one or more issues."))
+
+(cl-defmethod beads-command-subcommand ((_command beads-command-label-remove))
+  "Return \"label remove\" as the CLI subcommand name."
+  "label remove")
+
+(cl-defmethod beads-command-validate ((command beads-command-label-remove))
+  "Validate label remove COMMAND.
+Checks that issue ID(s) and label are provided.
+Returns error string or nil if valid."
+  (with-slots (issue-ids label) command
+    (cond
+     ((or (null issue-ids) (zerop (length issue-ids)))
+      "Must provide at least one issue ID")
+     ((or (null label) (string-empty-p label))
+      "Must provide a label")
+     (t (beads-command--validate-string-list issue-ids "issue-ids")))))
+
+(cl-defmethod beads-command-execute-interactive ((cmd beads-command-label-remove))
+  "Execute CMD to remove label and show result."
+  (let ((result (beads-command-execute cmd)))
+    (beads--invalidate-completion-cache)
+    (message "Removed label '%s' from %d issue%s"
+             (oref cmd label)
+             (length (oref cmd issue-ids))
+             (if (= (length (oref cmd issue-ids)) 1) "" "s"))
+    result))
+
+;;; Label List Command
+
+(eval-and-compile
+(beads-defcommand beads-command-label-list (beads-command-json)
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID to list labels for (positional)."
+    ;; CLI properties
+    :positional 1
+    :option-type :string
+    ;; Transient properties
+    :transient-key "i"
+    :transient-description "Issue ID"
+    :transient-class transient-option
+    :transient-argument "--id="
+    :transient-prompt "Issue ID: "
+    :transient-reader beads-reader-issue-id
+    :transient-group "List Labels"
+    :transient-level 1
+    :transient-order 1
+    :required t))
+  :documentation "Represents bd label list command.
+Lists labels for a specific issue."))
+
+(cl-defmethod beads-command-subcommand ((_command beads-command-label-list))
+  "Return \"label list\" as the CLI subcommand name."
+  "label list")
+
+(cl-defmethod beads-command-validate ((command beads-command-label-list))
+  "Validate label list COMMAND.
+Checks that issue ID is provided.
+Returns error string or nil if valid."
+  (with-slots (issue-id) command
+    (if (or (null issue-id) (string-empty-p issue-id))
+        "Must provide issue ID"
+      nil)))
+
+;;; Label List All Command
+
+(eval-and-compile
+(beads-defcommand beads-command-label-list-all (beads-command-json)
+  ()
+  :documentation "Represents bd label list-all command.
+Lists all unique labels in the database."))
+
+(cl-defmethod beads-command-subcommand ((_command beads-command-label-list-all))
+  "Return \"label list-all\" as the CLI subcommand name."
+  "label list-all")
+
+(cl-defmethod beads-command-validate ((_command beads-command-label-list-all))
+  "Validate label list-all COMMAND.
+No required fields.
+Returns nil (always valid)."
+  nil)
+
+;;; Auto-Generated Transient Menus
+
+;;;###autoload (autoload 'beads-label-add-transient "beads-command-label" nil t)
+(beads-meta-define-transient beads-command-label-add "beads-label-add-transient"
+  "Add a label to one or more issues (auto-generated menu).
+
+See `beads-label-add' for the full user-facing transient menu."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-label-remove-transient "beads-command-label" nil t)
+(beads-meta-define-transient beads-command-label-remove
+  "beads-label-remove-transient"
+  "Remove a label from one or more issues (auto-generated menu).
+
+See `beads-label-remove' for the full user-facing transient menu."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-label-list-transient "beads-command-label" nil t)
+(beads-meta-define-transient beads-command-label-list
+  "beads-label-list-transient"
+  "List labels for a specific issue (auto-generated menu)."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-label-list-all-transient "beads-command-label" nil t)
+(beads-meta-define-transient beads-command-label-list-all
+  "beads-label-list-all-transient"
+  "List all unique labels in the database (auto-generated menu)."
+  beads-option-global-section)
+
 ;;; Label Fetching and Caching
 
 (defun beads-label-list-all ()
@@ -83,7 +327,7 @@ Returns a list of label objects, each with \\='label and \\='count fields."
 
 (defun beads--get-cached-labels ()
   "Get cached label list, refreshing if stale.
-Returns list of label objects (with \\='label and \\='count fields) or nil on error."
+Returns list of label objects (with \\='label and \\='count fields) or nil."
   (let ((now (float-time)))
     (when (or (null beads--label-cache)
               (> (- now (car beads--label-cache))
@@ -125,7 +369,7 @@ Returns issue ID string or nil if not found."
    (when-let ((parsed (beads-buffer-parse-show (buffer-name))))
      (plist-get parsed :issue-id))))
 
-;;; Label Add Command
+;;; Label Add Workflow
 
 (defun beads-label-add--parse-transient-args (args)
   "Parse transient ARGS list into a plist.
@@ -167,7 +411,7 @@ Returns list of arguments for bd label add command."
     (setq args (append ids-list (list label)))
     args))
 
-;;; Suffix Commands
+;;; Label Add Suffix Commands
 
 (transient-define-suffix beads-label-add--execute ()
   "Execute the bd label add command with current parameters."
@@ -239,13 +483,7 @@ Returns list of arguments for bd label add command."
         (message "%s" preview-msg)
         preview-msg))))
 
-;;; Main Transient Menu
-
-;; Transient menu definition moved to beads-option.el
-;; to avoid circular dependency (beads-option requires beads-label)
-;; See beads-label-add in beads-option.el
-
-;;; Label Remove Command
+;;; Label Remove Workflow
 
 (defun beads-label-remove--parse-transient-args (args)
   "Parse transient ARGS list into a plist.
@@ -287,7 +525,7 @@ Returns list of arguments for bd label remove command."
     (setq args (append ids-list (list label)))
     args))
 
-;;; Suffix Commands
+;;; Label Remove Suffix Commands
 
 (transient-define-suffix beads-label-remove--execute ()
   "Execute the bd label remove command with current parameters."
@@ -360,13 +598,7 @@ Returns list of arguments for bd label remove command."
         (message "%s" preview-msg)
         preview-msg))))
 
-;;; Main Transient Menu
-
-;; Transient menu definition moved to beads-option.el
-;; to avoid circular dependency (beads-option requires beads-label)
-;; See beads-label-remove in beads-option.el
-
-;;; Label List Command
+;;; Label List Interactive Command
 
 (defun beads-label-list (issue-id)
   "List all labels for ISSUE-ID.
@@ -388,7 +620,7 @@ If called from beads-list or beads-show buffers, uses current issue."
                  (mapconcat #'identity labels ", "))
       (message "No labels for %s" issue-id))))
 
-;;; Label List-All View Command
+;;; Label List-All View Mode
 
 (defun beads-label-list-all--current-label ()
   "Return the label name at point, or nil."
@@ -403,7 +635,7 @@ If called from beads-list or beads-show buffers, uses current issue."
   (let ((label (beads-label-list-all--current-label)))
     (unless label
       (user-error "No label at point"))
-    (require 'beads-list)
+    (require 'beads-command-list)
     (require 'beads-command)
     (let* ((cmd (beads-command-list :label (list label)))
            (issues (beads-command-execute cmd))
@@ -426,7 +658,8 @@ If called from beads-list or beads-show buffers, uses current issue."
                       'mode-line-buffer-identification
                       '(:eval (format "  %d issue%s with label '%s'%s"
                                     (length tabulated-list-entries)
-                                    (if (= (length tabulated-list-entries) 1) "" "s")
+                                    (if (= (length tabulated-list-entries) 1)
+                                        "" "s")
                                     label
                                     (if beads-list--marked-issues
                                         (format " [%d marked]"
@@ -489,9 +722,49 @@ Key bindings:
       (beads-label-list-all-refresh))
     (pop-to-buffer buffer)))
 
+;;; User-Facing Transient Menus
+
+;;;###autoload (autoload 'beads-label-add "beads-command-label" nil t)
+(transient-define-prefix beads-label-add ()
+  "Add a label to one or more issues.
+
+This transient menu provides an interactive interface for adding
+labels to issues using the bd label add command."
+  ["Arguments"
+   ("i" "Issue ID(s)" "--issue-ids="
+    :reader beads-reader-label-issue-ids
+    :prompt "Issue ID(s) (comma-separated): ")
+   ("l" "Label" "--label="
+    :reader beads-reader-label-name
+    :prompt "Label name: ")]
+  beads-option-global-section
+  ["Actions"
+   (beads-label-add--execute)
+   (beads-label-add--preview)
+   (beads-label-add--reset)])
+
+;;;###autoload (autoload 'beads-label-remove "beads-command-label" nil t)
+(transient-define-prefix beads-label-remove ()
+  "Remove a label from one or more issues.
+
+This transient menu provides an interactive interface for removing
+labels from issues using the bd label remove command."
+  ["Arguments"
+   ("i" "Issue ID(s)" "--issue-ids="
+    :reader beads-reader-label-issue-ids
+    :prompt "Issue ID(s) (comma-separated): ")
+   ("l" "Label" "--label="
+    :reader beads-reader-label-name
+    :prompt "Label name: ")]
+  beads-option-global-section
+  ["Actions"
+   (beads-label-remove--execute)
+   (beads-label-remove--preview)
+   (beads-label-remove--reset)])
+
 ;;; Parent Transient Menu
 
-;;;###autoload (autoload 'beads-label "beads-label" nil t)
+;;;###autoload (autoload 'beads-label "beads-command-label" nil t)
 (transient-define-prefix beads-label ()
   "Manage labels for issues.
 
@@ -506,5 +779,5 @@ This transient menu provides access to all label management commands:
    ("l" "List labels for issue" beads-label-list-interactive)
    ("L" "List all labels" beads-label-list-all-view)])
 
-(provide 'beads-label)
-;;; beads-label.el ends here
+(provide 'beads-command-label)
+;;; beads-command-label.el ends here

@@ -24,7 +24,7 @@
 (require 'beads)
 (require 'beads-command-blocked)
 (require 'beads-command-ready)
-(require 'beads-list)
+(require 'beads-command-list)
 
 
 ;;; ========================================

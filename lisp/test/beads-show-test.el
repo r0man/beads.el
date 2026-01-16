@@ -16,7 +16,7 @@
 (require 'ert)
 (require 'beads)
 (require 'beads-buffer)
-(require 'beads-show)
+(require 'beads-command-show)
 (require 'beads-agent-backend)
 (require 'button)
 

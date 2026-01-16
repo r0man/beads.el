@@ -19,7 +19,7 @@
 
 (require 'ert)
 (require 'beads)
-(require 'beads-init)
+(require 'beads-command-init)
 
 ;;; Test Utilities
 

@@ -324,7 +324,7 @@ by checking if the function is available after requiring beads-main."
 
 (ert-deftest beads-main-test-export-execute-defined ()
   "Test that beads-export execute command is defined."
-  (should (fboundp 'beads-export--execute)))
+  (should (fboundp 'beads-export--execute-command)))
 
 ;;; Tests for beads-import command
 
@@ -334,7 +334,7 @@ by checking if the function is available after requiring beads-main."
 
 (ert-deftest beads-main-test-import-execute-defined ()
   "Test that beads-import execute command is defined."
-  (should (fboundp 'beads-import--execute)))
+  (should (fboundp 'beads-import--execute-command)))
 
 (ert-deftest beads-main-test-refresh-menu ()
   "Test refresh menu command."
@@ -357,16 +357,16 @@ by checking if the function is available after requiring beads-main."
   (should (featurep 'beads)))
 
 (ert-deftest beads-main-test-requires-beads-list ()
-  "Test that beads-main requires beads-list."
-  (should (featurep 'beads-list)))
+  "Test that beads-main requires beads-command-list."
+  (should (featurep 'beads-command-list)))
 
 (ert-deftest beads-main-test-requires-beads-show ()
-  "Test that beads-main requires beads-show."
-  (should (featurep 'beads-show)))
+  "Test that beads-main requires beads-command-show."
+  (should (featurep 'beads-command-show)))
 
 (ert-deftest beads-main-test-requires-beads-create ()
-  "Test that beads-main requires beads-create."
-  (should (featurep 'beads-create)))
+  "Test that beads-main requires beads-command-create."
+  (should (featurep 'beads-command-create)))
 
 (ert-deftest beads-main-test-list-command-available ()
   "Test that beads-list command is available from menu."
@@ -508,9 +508,9 @@ by checking if the function is available after requiring beads-main."
 (ert-deftest beads-main-test-module-dependencies ()
   "Test that all required modules are loaded."
   (should (featurep 'beads))
-  (should (featurep 'beads-list))
-  (should (featurep 'beads-show))
-  (should (featurep 'beads-create))
+  (should (featurep 'beads-command-list))
+  (should (featurep 'beads-command-show))
+  (should (featurep 'beads-command-create))
   (should (featurep 'transient)))
 
 ;;; Docstring Tests

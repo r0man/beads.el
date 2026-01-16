@@ -117,15 +117,15 @@
   "Test assignee slot has correct transient properties."
   (should (equal "a" (beads-meta-slot-property
                       'beads-command-count 'assignee :transient-key)))
-  (should (equal "--assignee" (beads-meta-slot-property
-                               'beads-command-count 'assignee :long-option))))
+  (should (equal "assignee" (beads-meta-slot-property
+                             'beads-command-count 'assignee :long-option))))
 
 (ert-deftest beads-command-count-test-by-status-slot-properties ()
   "Test by-status slot has correct transient properties."
   (should (equal "bs" (beads-meta-slot-property
                        'beads-command-count 'by-status :transient-key)))
-  (should (equal "--by-status" (beads-meta-slot-property
-                                'beads-command-count 'by-status :long-option)))
+  (should (equal "by-status" (beads-meta-slot-property
+                              'beads-command-count 'by-status :long-option)))
   (should (eq :boolean (beads-meta-slot-property
                         'beads-command-count 'by-status :option-type))))
 

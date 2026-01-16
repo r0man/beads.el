@@ -14,7 +14,7 @@
 ;;; Code:
 
 (require 'ert)
-(require 'beads-import)
+(require 'beads-command-import)
 (require 'beads-command)
 (require 'beads-test)
 

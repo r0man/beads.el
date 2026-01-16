@@ -122,8 +122,8 @@
   "Test days slot has correct transient properties."
   (should (equal "d" (beads-meta-slot-property
                       'beads-command-stale 'days :transient-key)))
-  (should (equal "--days" (beads-meta-slot-property
-                           'beads-command-stale 'days :long-option)))
+  (should (equal "days" (beads-meta-slot-property
+                         'beads-command-stale 'days :long-option)))
   (should (eq :integer (beads-meta-slot-property
                         'beads-command-stale 'days :option-type))))
 
@@ -131,8 +131,8 @@
   "Test limit slot has correct transient properties."
   (should (equal "n" (beads-meta-slot-property
                       'beads-command-stale 'limit :transient-key)))
-  (should (equal "--limit" (beads-meta-slot-property
-                            'beads-command-stale 'limit :long-option)))
+  (should (equal "limit" (beads-meta-slot-property
+                          'beads-command-stale 'limit :long-option)))
   (should (eq :integer (beads-meta-slot-property
                         'beads-command-stale 'limit :option-type))))
 
@@ -140,8 +140,8 @@
   "Test status slot has correct transient properties."
   (should (equal "s" (beads-meta-slot-property
                       'beads-command-stale 'status :transient-key)))
-  (should (equal "--status" (beads-meta-slot-property
-                             'beads-command-stale 'status :long-option)))
+  (should (equal "status" (beads-meta-slot-property
+                           'beads-command-stale 'status :long-option)))
   (should (equal '("open" "in_progress" "blocked" "deferred")
                  (beads-meta-slot-property
                   'beads-command-stale 'status :transient-choices))))
