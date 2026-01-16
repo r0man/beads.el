@@ -580,5 +580,42 @@ Tests the complete flow: create issue, update multiple fields, verify changes."
       (beads-update--reset)
       (should-not reset-called))))
 
+;;; Regression Tests for Bug bde-6d0v
+
+(ert-deftest beads-update-test-command-line-has-status-dashes ()
+  "Test that update command line includes --status with dashes.
+Regression test for bug bde-6d0v."
+  (let ((beads-executable "bd")
+        (cmd (beads-command-update :issue-ids '("bd-42")
+                                    :status "in_progress")))
+    (let ((cmd-line (beads-command-line cmd)))
+      ;; Should contain --status (with dashes)
+      (should (member "--status" cmd-line))
+      ;; Value should follow
+      (let ((status-pos (cl-position "--status" cmd-line :test #'equal)))
+        (should status-pos)
+        (should (equal "in_progress" (nth (1+ status-pos) cmd-line)))))))
+
+(ert-deftest beads-update-test-show-update-field-status ()
+  "Test that beads-show--update-field builds correct command.
+Regression test for bug bde-6d0v."
+  (require 'beads-command-show)
+  (let ((beads-executable "bd")
+        (beads-show--issue-id "bd-42")
+        (slot-keyword :status)
+        (new-value "open"))
+    ;; Test the mapping and command creation (without executing)
+    (let ((cmd (apply #'beads-command-update
+                      :issue-ids (list beads-show--issue-id)
+                      slot-keyword new-value
+                      nil)))
+      ;; Status should be set
+      (should (equal "open" (oref cmd status)))
+      ;; Validation should pass
+      (should (null (beads-command-validate cmd)))
+      ;; Command line should include --status
+      (let ((cmd-line (beads-command-line cmd)))
+        (should (member "--status" cmd-line))))))
+
 (provide 'beads-update-test)
 ;;; beads-update-test.el ends here
