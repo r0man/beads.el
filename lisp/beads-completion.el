@@ -24,6 +24,7 @@
 
 (require 'beads-command)
 (require 'beads-worktree-types)
+(require 'seq)
 
 ;; Forward declaration for customization variable defined in beads-custom.el
 (defvar beads-completion-show-unavailable-backends)
@@ -73,16 +74,19 @@ Order: in_progress (0) > open (1) > blocked (2) > closed (3)."
 (defun beads-completion--sort-issues (issues)
   "Sort ISSUES by status priority, then by issue priority.
 Status order: in_progress > open > blocked > closed.
-Within same status, higher priority (lower number) comes first."
-  (sort (copy-sequence issues)
-        (lambda (a b)
-          (let ((status-a (beads-completion--status-priority (oref a status)))
-                (status-b (beads-completion--status-priority (oref b status))))
-            (if (= status-a status-b)
-                ;; Same status: sort by priority (lower = higher priority)
-                (< (or (oref a priority) 4) (or (oref b priority) 4))
-              ;; Different status: sort by status priority
-              (< status-a status-b))))))
+Within same status, higher priority (lower number) comes first.
+Handles both lists and vectors (converts to list if needed)."
+  ;; Use seq-sort to handle both lists and vectors, always returns a list
+  (seq-sort
+   (lambda (a b)
+     (let ((status-a (beads-completion--status-priority (oref a status)))
+           (status-b (beads-completion--status-priority (oref b status))))
+       (if (= status-a status-b)
+           ;; Same status: sort by priority (lower = higher priority)
+           (< (or (oref a priority) 4) (or (oref b priority) 4))
+         ;; Different status: sort by status priority
+         (< status-a status-b))))
+   issues))
 
 ;;; Issue Completion Table
 

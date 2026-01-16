@@ -510,7 +510,7 @@ Handles errors gracefully by calling `beads--error'."
    (beads-option-export-output)]
   ["Filters"
    (beads-option-export-status)
-   (beads-option-export-type)
+   (beads-option-export-issue-type)
    (beads-option-export-assignee)
    (beads-option-export-priority)
    (beads-option-export-label)]

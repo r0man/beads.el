@@ -295,21 +295,21 @@ MESSAGE: custom commit message
 NO-PULL: skip pulling from remote
 NO-PUSH: skip pushing to remote"
   ;; Use push/nreverse for O(n) performance instead of repeated append (O(n^2))
+  ;; Push in reverse of desired order, then nreverse to get: bd sync [flags]
   (let ((parts nil))
-    ;; Build arguments in reverse order (push prepends to list)
-    (when no-push
-      (push "--no-push" parts))
-    (when no-pull
-      (push "--no-pull" parts))
+    (push beads-executable parts)
+    (push "sync" parts)
+    (when dry-run
+      (push "--dry-run" parts))
     (when message
       (let ((trimmed (string-trim message)))
         (unless (string-empty-p trimmed)
-          (push trimmed parts)
-          (push "-m" parts))))
-    (when dry-run
-      (push "--dry-run" parts))
-    (push "sync" parts)
-    (push beads-executable parts)
+          (push "-m" parts)
+          (push trimmed parts))))
+    (when no-pull
+      (push "--no-pull" parts))
+    (when no-push
+      (push "--no-push" parts))
     ;; Reverse to get correct order and return as shell command string
     (mapconcat #'shell-quote-argument (nreverse parts) " ")))
 
