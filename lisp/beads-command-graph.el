@@ -229,8 +229,8 @@ ISSUE is a beads-issue EIEIO object."
                    (lines (split-string output "\n" t)))
               (dolist (line lines)
                 (when (string-match
-                       "\\([a-zA-Z0-9._-]+-[0-9]+\\) -\\[\\([^]]+\\)\\]-> \
-\\([a-zA-Z0-9._-]+-[0-9]+\\)" line)
+                       "\\([a-zA-Z0-9._-]+-[a-zA-Z0-9]+\\) -\\[\\([^]]+\\)\\]-> \
+\\([a-zA-Z0-9._-]+-[a-zA-Z0-9]+\\)" line)
                   (push (list :from (match-string 1 line)
                               :to (match-string 3 line)
                               :type (match-string 2 line))
