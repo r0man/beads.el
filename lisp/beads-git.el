@@ -254,16 +254,16 @@ Uses `bd worktree create' which automatically sets up beads database redirect."
   (let ((cmd (beads-command-worktree-create :name issue-id :branch issue-id)))
     (beads-command-execute-async
      cmd
-     (lambda (finished-cmd)
-       (if (zerop (oref finished-cmd exit-code))
-           (let ((path (oref (oref finished-cmd data) path)))
+     (lambda (exec)
+       (if (zerop (oref exec exit-code))
+           (let ((path (oref (oref exec result) path)))
              (message "Created worktree for %s at %s (with beads redirect)"
                       issue-id path)
              (funcall callback t path))
          (funcall callback nil
-                  (or (oref finished-cmd stderr)
+                  (or (oref exec stderr)
                       (format "Command failed with exit code %d"
-                              (oref finished-cmd exit-code)))))))))
+                              (oref exec exit-code)))))))))
 
 (provide 'beads-git)
 

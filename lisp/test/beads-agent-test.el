@@ -2892,10 +2892,12 @@ When worktrees are disabled, uses beads-agent-start directly."
                                   :priority 2)))
     (cl-letf (((symbol-function 'beads-command-execute-async)
                (lambda (cmd callback)
-                 ;; Create mock result with exit-code 0 and parsed data
-                 (oset cmd exit-code 0)
-                 (oset cmd data (vector mock-issue))
-                 (funcall callback cmd))))
+                 ;; Create mock execution object with exit-code 0 and parsed data
+                 (let ((exec (beads-command-execution
+                              :command cmd
+                              :exit-code 0
+                              :result (vector mock-issue))))
+                   (funcall callback exec)))))
       (beads-agent--fetch-issue-async
        "bd-1"
        (lambda (issue) (setq callback-result issue)))
@@ -2910,11 +2912,13 @@ When worktrees are disabled, uses beads-agent-start directly."
          (callback-result 'not-set))
     (cl-letf (((symbol-function 'beads-command-execute-async)
                (lambda (cmd callback)
-                 ;; Create mock result with non-zero exit code
-                 (oset cmd exit-code 1)
-                 (oset cmd stderr "Error: issue not found")
-                 (oset cmd data nil)
-                 (funcall callback cmd))))
+                 ;; Create mock execution object with non-zero exit code
+                 (let ((exec (beads-command-execution
+                              :command cmd
+                              :exit-code 1
+                              :stderr "Error: issue not found"
+                              :result nil)))
+                   (funcall callback exec)))))
       (beads-agent--fetch-issue-async
        "bd-nonexistent"
        (lambda (issue)
@@ -2930,11 +2934,13 @@ When worktrees are disabled, uses beads-agent-start directly."
          (callback-result 'not-set))
     (cl-letf (((symbol-function 'beads-command-execute-async)
                (lambda (cmd callback)
-                 ;; Create mock result with exit-code 0 but data that causes
-                 ;; an error when accessed (empty vector with aref attempt)
-                 (oset cmd exit-code 0)
-                 (oset cmd data [])  ; Empty vector causes (aref [] 0) to error
-                 (funcall callback cmd))))
+                 ;; Create mock execution object with exit-code 0 but data that
+                 ;; causes an error when accessed (empty vector with aref attempt)
+                 (let ((exec (beads-command-execution
+                              :command cmd
+                              :exit-code 0
+                              :result [])))  ; Empty vector causes (aref [] 0) error
+                   (funcall callback exec)))))
       (beads-agent--fetch-issue-async
        "bd-1"
        (lambda (issue)
@@ -2950,17 +2956,19 @@ When worktrees are disabled, uses beads-agent-start directly."
          (callback-result 'not-set))
     (cl-letf (((symbol-function 'beads-command-execute-async)
                (lambda (cmd callback)
-                 ;; Create mock result with exit-code 0 but nil data
+                 ;; Create mock execution object with exit-code 0 but nil result
                  ;; (happens when parse returns nil due to empty result)
-                 (oset cmd exit-code 0)
-                 (oset cmd data nil)
-                 (funcall callback cmd))))
+                 (let ((exec (beads-command-execution
+                              :command cmd
+                              :exit-code 0
+                              :result nil)))
+                   (funcall callback exec)))))
       (beads-agent--fetch-issue-async
        "bd-1"
        (lambda (issue)
          (setq callback-called t)
          (setq callback-result issue)))
-      ;; Callback should have been invoked with nil due to nil data
+      ;; Callback should have been invoked with nil due to nil result
       (should callback-called)
       (should (null callback-result)))))
 
@@ -4181,12 +4189,14 @@ When worktrees are disabled, uses beads-agent-start directly."
               ((symbol-function 'beads-command-execute-async)
                (lambda (cmd callback)
                  (setq async-called t)
-                 ;; Simulate successful async completion
-                 (oset cmd exit-code 0)
-                 (oset cmd data (beads-worktree :name "bd-42"
-                                                :path "/home/user/bd-42"
-                                                :branch "feature/bd-42"))
-                 (funcall callback cmd)))
+                 ;; Simulate successful async completion with execution object
+                 (let ((exec (beads-command-execution
+                              :command cmd
+                              :exit-code 0
+                              :result (beads-worktree :name "bd-42"
+                                                      :path "/home/user/bd-42"
+                                                      :branch "feature/bd-42"))))
+                   (funcall callback exec))))
               ((symbol-function 'beads-completion-invalidate-worktree-cache)
                #'ignore))
       (beads-agent--setup-worktree-interactive
@@ -4209,10 +4219,12 @@ When worktrees are disabled, uses beads-agent-start directly."
                (lambda (_) nil))
               ((symbol-function 'beads-command-execute-async)
                (lambda (cmd callback)
-                 ;; Simulate failed async completion
-                 (oset cmd exit-code 1)
-                 (oset cmd stderr "Branch already exists")
-                 (funcall callback cmd))))
+                 ;; Simulate failed async completion with execution object
+                 (let ((exec (beads-command-execution
+                              :command cmd
+                              :exit-code 1
+                              :stderr "Branch already exists")))
+                   (funcall callback exec)))))
       (beads-agent--setup-worktree-interactive
        "bd-42"
        (lambda (success path-or-error)

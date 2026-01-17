@@ -117,11 +117,12 @@ Returns error string or nil if valid."
      ;; Validate list content types
      (beads-command--validate-string-list issue-ids "issue-ids"))))
 
-(cl-defmethod beads-command-parse ((command beads-command-reopen))
-  "Parse reopen COMMAND output and return reopened issue(s).
+(cl-defmethod beads-command-parse ((command beads-command-reopen) execution)
+  "Parse reopen COMMAND output from EXECUTION.
+Returns reopened issue(s).
 When :json is nil, falls back to parent (returns raw stdout).
 When :json is t, returns beads-issue instance (or list when multiple IDs).
-Does not modify command slots."
+Does not modify any slots."
   (with-slots (json issue-ids) command
     (if (not json)
         ;; If json is not enabled, use parent implementation
@@ -140,22 +141,22 @@ Does not modify command slots."
               ;; Unexpected JSON structure
               (signal 'beads-json-parse-error
                       (list "Unexpected JSON structure from bd reopen"
-                            :exit-code (oref command exit-code)
+                            :exit-code (oref execution exit-code)
                             :parsed-json parsed-json
-                            :stderr (oref command stderr))))
+                            :stderr (oref execution stderr))))
           (error
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-issue instance: %s"
                                  (error-message-string err))
-                         :exit-code (oref command exit-code)
+                         :exit-code (oref execution exit-code)
                          :parsed-json parsed-json
-                         :stderr (oref command stderr)
+                         :stderr (oref execution stderr)
                          :parse-error err))))))))
 
 (cl-defmethod beads-command-execute-interactive ((cmd beads-command-reopen))
   "Execute CMD to reopen issue and show result.
 Overrides default `compilation-mode' behavior."
-  (let* ((result (oref (beads-command-execute cmd) data))
+  (let* ((result (oref (beads-command-execute cmd) result))
          (issues (cond
                   ((null result) nil)
                   ((cl-typep result 'beads-issue) (list result))
@@ -246,29 +247,27 @@ Returns list of error messages, or nil if all valid."
     (if errors
         (user-error "Validation failed: %s" (string-join errors "; "))
       (condition-case err
-          (progn
-            (beads-command-execute cmd)
-            (let ((issue (oref cmd data)))
-              (message "Reopened issue: %s - %s"
-                       (oref issue id)
-                       (oref issue title))
-              ;; Invalidate completion cache
-              (beads--invalidate-completion-cache)
-              ;; Refresh any open beads buffers
-              (when beads-auto-refresh
-                (dolist (buf (buffer-list))
-                  (with-current-buffer buf
-                    (cond
-                     ((and (derived-mode-p 'beads-list-mode)
-                           (bound-and-true-p beads-list--command))
-                      (beads-list-refresh))
-                     ((and (derived-mode-p 'beads-show-mode)
-                           (string= beads-show--issue-id (oref issue id)))
-                      (beads-refresh-show)))))))
-            nil)
+          (let* ((exec (beads-command-execute cmd))
+                 (issue (oref exec result)))
+            (message "Reopened issue: %s - %s"
+                     (oref issue id)
+                     (oref issue title))
+            ;; Invalidate completion cache
+            (beads--invalidate-completion-cache)
+            ;; Refresh any open beads buffers
+            (when beads-auto-refresh
+              (dolist (buf (buffer-list))
+                (with-current-buffer buf
+                  (cond
+                   ((and (derived-mode-p 'beads-list-mode)
+                         (bound-and-true-p beads-list--command))
+                    (beads-list-refresh))
+                   ((and (derived-mode-p 'beads-show-mode)
+                         (string= beads-show--issue-id (oref issue id)))
+                    (beads-refresh-show)))))))
         (error
          (let ((err-msg (format "Failed to reopen issue: %s"
-                               (error-message-string err))))
+                                (error-message-string err))))
            (message "%s" err-msg)
            err-msg))))))
 

@@ -279,30 +279,31 @@ resurrect, skip, allow)"
 Import always uses --no-daemon to avoid daemon issues."
   (oset command no-daemon t))
 
-(cl-defmethod beads-command-parse ((command beads-command-import))
-  "Parse import COMMAND output.
+(cl-defmethod beads-command-parse ((command beads-command-import) execution)
+  "Parse import COMMAND output from EXECUTION.
 Unlike most commands, bd import writes stats to stderr, not stdout.
 When :json is nil, returns raw stderr.
 When :json is t, parses JSON from stderr.
-Does not modify command slots."
-  (with-slots (json stderr) command
-    (if (not json)
-        ;; No JSON parsing, return raw stderr
-        stderr
-      ;; Parse JSON from stderr (not stdout!)
-      (condition-case err
-          (let* ((json-object-type 'alist)
-                 (json-array-type 'vector)
-                 (json-key-type 'symbol))
-            (json-read-from-string stderr))
-        (error
-         (signal 'beads-json-parse-error
-                 (list (format "Failed to parse JSON from stderr: %s"
-                               (error-message-string err))
-                       :exit-code (oref command exit-code)
-                       :stdout (oref command stdout)
-                       :stderr stderr
-                       :parse-error err)))))))
+Does not modify any slots."
+  (with-slots (json) command
+    (let ((stderr (oref execution stderr)))
+      (if (not json)
+          ;; No JSON parsing, return raw stderr
+          stderr
+        ;; Parse JSON from stderr (not stdout!)
+        (condition-case err
+            (let* ((json-object-type 'alist)
+                   (json-array-type 'vector)
+                   (json-key-type 'symbol))
+              (json-read-from-string stderr))
+          (error
+           (signal 'beads-json-parse-error
+                   (list (format "Failed to parse JSON from stderr: %s"
+                                 (error-message-string err))
+                         :exit-code (oref execution exit-code)
+                         :stdout (oref execution stdout)
+                         :stderr stderr
+                         :parse-error err))))))))
 
 (cl-defmethod beads-command-execute-interactive ((_cmd beads-command-import))
   "Execute CMD in terminal buffer with human-readable output."
@@ -374,35 +375,33 @@ Returns list of error messages, or nil if all valid."
   "Execute bd import using CMD object.
 Displays import output in *beads-import* buffer."
   (condition-case err
-      (progn
-        ;; Execute the import command
-        (beads-command-execute cmd)
-        ;; After execution, slots are populated - read from them
-        (let* ((stdout (oref cmd stdout))
-               (stderr (oref cmd stderr))
-               ;; Combine stdout and stderr for display
-               (output (concat (when (and stdout (not (string-empty-p stdout)))
-                                 (concat stdout "\n"))
-                               stderr)))
-          (with-slots (input dry-run) cmd
-            ;; Display output in buffer
-            (when (and output (not (string-empty-p output)))
-              (let ((buf (get-buffer-create
-                          (beads-buffer-name-utility "import"))))
-                (with-current-buffer buf
-                  (let ((inhibit-read-only t))
-                    (erase-buffer)
-                    (insert output)
-                    (goto-char (point-min))
-                    (special-mode)
-                    (local-set-key (kbd "q") 'quit-window)))
-                (display-buffer buf)))
-            ;; Show appropriate message
-            (if dry-run
-                (message "Dry run completed (see *beads-import* buffer)")
-              (message "Import completed from: %s" input)))
-          ;; Return the data slot value
-          (oref cmd data)))
+      (let* ((exec (beads-command-execute cmd))
+             ;; Read from execution object
+             (stdout (oref exec stdout))
+             (stderr (oref exec stderr))
+             ;; Combine stdout and stderr for display
+             (output (concat (when (and stdout (not (string-empty-p stdout)))
+                               (concat stdout "\n"))
+                             stderr)))
+        (with-slots (input dry-run) cmd
+          ;; Display output in buffer
+          (when (and output (not (string-empty-p output)))
+            (let ((buf (get-buffer-create
+                        (beads-buffer-name-utility "import"))))
+              (with-current-buffer buf
+                (let ((inhibit-read-only t))
+                  (erase-buffer)
+                  (insert output)
+                  (goto-char (point-min))
+                  (special-mode)
+                  (local-set-key (kbd "q") 'quit-window)))
+              (display-buffer buf)))
+          ;; Show appropriate message
+          (if dry-run
+              (message "Dry run completed (see *beads-import* buffer)")
+            (message "Import completed from: %s" input)))
+        ;; Return the result slot value
+        (oref exec result))
     (error
      (beads--error "Failed to import: %s"
                    (error-message-string err)))))

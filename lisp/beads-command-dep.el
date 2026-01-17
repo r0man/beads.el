@@ -286,10 +286,12 @@ Returns error string or nil if valid."
         "Must provide issue ID"
       nil)))
 
-(cl-defmethod beads-command-parse ((command beads-command-dep-list))
-  "Parse dep list COMMAND output and return issues.
+(cl-defmethod beads-command-parse ((command beads-command-dep-list) execution)
+  "Parse dep list COMMAND output from EXECUTION.
+Returns list of beads-issue instances.
 When :json is nil, falls back to parent (returns raw stdout).
-When :json is t, returns list of beads-issue instances."
+When :json is t, returns list of beads-issue instances.
+Does not modify any slots."
   (with-slots (json) command
     (if (not json)
         (cl-call-next-method)
@@ -303,16 +305,16 @@ When :json is t, returns list of beads-issue instances."
              (t
               (signal 'beads-json-parse-error
                       (list "Unexpected JSON structure from bd dep list"
-                            :exit-code (oref command exit-code)
+                            :exit-code (oref execution exit-code)
                             :parsed-json parsed-json
-                            :stderr (oref command stderr)))))
+                            :stderr (oref execution stderr)))))
           (error
            (signal 'beads-json-parse-error
                    (list (format "Failed to parse dep list result: %s"
                                  (error-message-string err))
-                         :exit-code (oref command exit-code)
+                         :exit-code (oref execution exit-code)
                          :parsed-json parsed-json
-                         :stderr (oref command stderr)
+                         :stderr (oref execution stderr)
                          :parse-error err))))))))
 
 ;;; Dependency Tree Command

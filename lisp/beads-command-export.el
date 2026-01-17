@@ -457,24 +457,24 @@ Handles errors gracefully by calling `beads--error'."
     (unless (oref cmd output)
       (oset cmd output (beads-export--get-default-output)))
     ;; Execute using beads-export--execute (validates and executes)
-    (beads-export--execute cmd)
-    ;; After execution, show result
-    (let* ((stdout (oref cmd stdout))
-           (output (oref cmd output)))
-      (if output
-          (message "Exported to: %s" output)
-        ;; Show output in buffer
-        (let ((buf (get-buffer-create
-                    (beads-buffer-name-utility "export"))))
-          (with-current-buffer buf
-            (let ((inhibit-read-only t))
-              (erase-buffer)
-              (insert (or stdout ""))
-              (goto-char (point-min))
-              (special-mode)
-              (local-set-key (kbd "q") 'quit-window)))
-          (display-buffer buf)
-          (message "Exported (see buffer)"))))))
+    (let ((exec (beads-export--execute cmd)))
+      ;; After execution, show result
+      (let* ((stdout (oref exec stdout))
+             (output (oref cmd output)))
+        (if output
+            (message "Exported to: %s" output)
+          ;; Show output in buffer
+          (let ((buf (get-buffer-create
+                      (beads-buffer-name-utility "export"))))
+            (with-current-buffer buf
+              (let ((inhibit-read-only t))
+                (erase-buffer)
+                (insert (or stdout ""))
+                (goto-char (point-min))
+                (special-mode)
+                (local-set-key (kbd "q") 'quit-window)))
+            (display-buffer buf)
+            (message "Exported (see buffer)")))))))
 
 (transient-define-suffix beads-export--preview ()
   "Preview the bd export command without executing."

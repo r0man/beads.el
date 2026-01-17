@@ -63,11 +63,12 @@ When executed with :json t, returns list of beads-blocked-issue instances."))
   "Return \"blocked\" as the CLI subcommand name."
   "blocked")
 
-(cl-defmethod beads-command-parse ((command beads-command-blocked))
-  "Parse blocked COMMAND output and return list of beads-blocked-issue instances.
+(cl-defmethod beads-command-parse ((command beads-command-blocked) execution)
+  "Parse blocked COMMAND output from EXECUTION.
+Returns list of beads-blocked-issue instances.
 When :json is nil, falls back to parent (returns raw stdout).
 When :json is t, converts parsed JSON to beads-blocked-issue instances.
-Does not modify command slots."
+Does not modify any slots."
   (with-slots (json) command
     (if (not json)
         ;; If json is not enabled, use parent implementation
@@ -80,9 +81,9 @@ Does not modify command slots."
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-blocked-issue instances: %s"
                                  (error-message-string err))
-                         :exit-code (oref command exit-code)
+                         :exit-code (oref execution exit-code)
                          :parsed-json parsed-json
-                         :stderr (oref command stderr)
+                         :stderr (oref execution stderr)
                          :parse-error err))))))))
 
 (cl-defmethod beads-command-execute-interactive ((cmd beads-command-blocked))

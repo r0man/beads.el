@@ -173,9 +173,14 @@
 (ert-deftest beads-command-formula-test-list-parse ()
   "Test formula list JSON parsing."
   (let* ((cmd (beads-command-formula-list :json t))
-         (json-string (json-encode beads-command-formula-test--sample-list-json)))
-    (oset cmd stdout json-string)
-    (let ((result (beads-command-parse cmd)))
+         (json-string (json-encode beads-command-formula-test--sample-list-json))
+         ;; Create execution object with simulated results
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout json-string
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
       (should (= (length result) 2))
       (should (beads-formula-summary-p (car result)))
       (should (string= (oref (car result) name) "emacs-lisp-dev"))
@@ -212,9 +217,14 @@
 (ert-deftest beads-command-formula-test-show-parse ()
   "Test formula show JSON parsing."
   (let* ((cmd (beads-command-formula-show :json t :formula-name "test"))
-         (json-string (json-encode beads-command-formula-test--sample-show-json)))
-    (oset cmd stdout json-string)
-    (let ((result (beads-command-parse cmd)))
+         (json-string (json-encode beads-command-formula-test--sample-show-json))
+         ;; Create execution object with simulated results
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout json-string
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
       (should (beads-formula-p result))
       (should (string= (oref result name) "emacs-lisp-dev"))
       (should (= (oref result version) 1)))))
@@ -417,17 +427,17 @@
         (progn
           ;; Initialize beads in the temp directory
           (let* ((init-cmd (beads-command-init))
-                 (init-result (beads-command-execute init-cmd)))
-            (should (= (oref init-result exit-code) 0)))
+                 (init-exec (beads-command-execute init-cmd)))
+            (should (= (oref init-exec exit-code) 0)))
           ;; This test will actually run bd formula list --json
           (let* ((cmd (beads-command-formula-list :json t))
-                 (result (beads-command-execute cmd)))
-            ;; Should return command object
-            (should (cl-typep result 'beads-command))
+                 (exec (beads-command-execute cmd)))
+            ;; Should return execution object
+            (should (cl-typep exec 'beads-command-execution))
             ;; Exit code should be 0
-            (should (= (oref result exit-code) 0))
-            ;; Data should be a list (possibly empty)
-            (should (listp (oref result data)))))
+            (should (= (oref exec exit-code) 0))
+            ;; Result should be a list (possibly empty)
+            (should (listp (oref exec result)))))
       ;; Cleanup: remove temp directory
       (delete-directory temp-dir t))))
 

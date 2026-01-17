@@ -260,7 +260,9 @@ Integration test that verifies force flag works."
                 ((symbol-function 'beads-export--execute)
                  (lambda (cmd)
                    (setq executed t)
-                   (setq output-used (oref cmd output)))))
+                   (setq output-used (oref cmd output))
+                   ;; Return execution object
+                   (beads-command-execution :command cmd :exit-code 0))))
         (beads-export--execute-command)
         (should executed)
         (should (stringp output-used))

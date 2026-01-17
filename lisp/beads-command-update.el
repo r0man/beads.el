@@ -513,11 +513,12 @@ Returns error string or nil if valid."
      (beads-command--validate-string-list remove-label "remove-label")
      (beads-command--validate-string-list set-labels "set-labels"))))
 
-(cl-defmethod beads-command-parse ((command beads-command-update))
-  "Parse update COMMAND output and return updated issue(s).
+(cl-defmethod beads-command-parse ((command beads-command-update) execution)
+  "Parse update COMMAND output from EXECUTION.
+Returns updated issue(s).
 When :json is nil, falls back to parent (returns raw stdout).
 When :json is t, returns beads-issue instance (or list when multiple IDs).
-Does not modify command slots."
+Does not modify any slots."
   (with-slots (json issue-ids) command
     (if (not json)
         ;; If json is not enabled, use parent implementation
@@ -536,22 +537,22 @@ Does not modify command slots."
               ;; Unexpected JSON structure
               (signal 'beads-json-parse-error
                       (list "Unexpected JSON structure from bd update"
-                            :exit-code (oref command exit-code)
+                            :exit-code (oref execution exit-code)
                             :parsed-json parsed-json
-                            :stderr (oref command stderr))))
+                            :stderr (oref execution stderr))))
           (error
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-issue instance: %s"
                                  (error-message-string err))
-                         :exit-code (oref command exit-code)
+                         :exit-code (oref execution exit-code)
                          :parsed-json parsed-json
-                         :stderr (oref command stderr)
+                         :stderr (oref execution stderr)
                          :parse-error err))))))))
 
 (cl-defmethod beads-command-execute-interactive ((cmd beads-command-update))
   "Execute CMD to update issue and show result.
 Overrides default `compilation-mode' behavior."
-  (let* ((result (oref (beads-command-execute cmd) data))
+  (let* ((result (oref (beads-command-execute cmd) result))
          (issues (cond
                   ((null result) nil)
                   ((cl-typep result 'beads-issue) (list result))

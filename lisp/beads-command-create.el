@@ -780,12 +780,13 @@ Returns error string or nil if valid."
                 deps))
           "Dependencies must be in format: type:issue-id"))))
 
-(cl-defmethod beads-command-parse ((command beads-command-create))
-  "Parse create COMMAND output and return created issue(s).
+(cl-defmethod beads-command-parse ((command beads-command-create) execution)
+  "Parse create COMMAND output from EXECUTION.
+Returns created issue(s).
 When :json is nil, falls back to parent (returns raw stdout).
 When :json is t, returns beads-issue instance (or list when creating
 from file).
-Does not modify command slots."
+Does not modify any slots."
   (with-slots (json) command
     (if (not json)
         ;; If json is not enabled, use parent implementation
@@ -805,22 +806,22 @@ Does not modify command slots."
              (t
               (signal 'beads-json-parse-error
                       (list "Unexpected JSON structure from bd create"
-                            :exit-code (oref command exit-code)
+                            :exit-code (oref execution exit-code)
                             :parsed-json parsed-json
-                            :stderr (oref command stderr)))))
+                            :stderr (oref execution stderr)))))
           (error
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-issue instance: %s"
                                  (error-message-string err))
-                         :exit-code (oref command exit-code)
+                         :exit-code (oref execution exit-code)
                          :parsed-json parsed-json
-                         :stderr (oref command stderr)
+                         :stderr (oref execution stderr)
                          :parse-error err))))))))
 
 (cl-defmethod beads-command-execute-interactive ((cmd beads-command-create))
   "Execute CMD to create issue and offer to show it.
 Overrides default `compilation-mode' behavior with issue-specific UX."
-  (let* ((result (oref (beads-command-execute cmd) data))
+  (let* ((result (oref (beads-command-execute cmd) result))
          ;; Handle both single-issue and multi-issue responses
          (issues (cond
                   ((null result) nil)
@@ -920,7 +921,7 @@ This uses transient's standard argument parsing with dash-style flags."
       (if error-msg
           (user-error "Validation failed: %s" error-msg)
         (condition-case err
-            (let* ((result (oref (beads-command-execute cmd) data))
+            (let* ((result (oref (beads-command-execute cmd) result))
                    ;; Handle both single-issue and multi-issue responses:
                    ;; - With --title flag: returns one beads-issue object
                    ;; - With --file flag: returns list of beads-issue objects

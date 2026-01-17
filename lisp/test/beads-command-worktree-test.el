@@ -312,27 +312,31 @@
 
 (ert-deftest beads-command-worktree-test-create-parse ()
   "Test beads-command-worktree-create parse method."
-  (let ((cmd (beads-command-worktree-create :name "test")))
-    ;; Simulate execution results
-    (oset cmd exit-code 0)
-    (oset cmd stdout (json-encode
-                      beads-command-worktree-test--sample-worktree-json))
-    (oset cmd stderr "")
+  (let* ((cmd (beads-command-worktree-create :name "test"))
+         ;; Create execution object with simulated results
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout (json-encode
+                         beads-command-worktree-test--sample-worktree-json)
+                :stderr "")))
     ;; Parse the result
-    (let ((result (beads-command-parse cmd)))
+    (let ((result (beads-command-parse cmd exec)))
       (should (beads-worktree-p result))
       (should (string= (oref result name) "feature-auth")))))
 
 (ert-deftest beads-command-worktree-test-list-parse ()
   "Test beads-command-worktree-list parse method."
-  (let ((cmd (beads-command-worktree-list)))
-    ;; Simulate execution results
-    (oset cmd exit-code 0)
-    (oset cmd stdout (json-encode
-                      beads-command-worktree-test--sample-worktree-list-json))
-    (oset cmd stderr "")
+  (let* ((cmd (beads-command-worktree-list))
+         ;; Create execution object with simulated results
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout (json-encode
+                         beads-command-worktree-test--sample-worktree-list-json)
+                :stderr "")))
     ;; Parse the result
-    (let ((result (beads-command-parse cmd)))
+    (let ((result (beads-command-parse cmd exec)))
       (should (listp result))
       (should (= (length result) 2))
       (should (beads-worktree-p (car result)))
@@ -344,14 +348,16 @@
 
 (ert-deftest beads-command-worktree-test-info-parse ()
   "Test beads-command-worktree-info parse method."
-  (let ((cmd (beads-command-worktree-info)))
-    ;; Simulate execution results
-    (oset cmd exit-code 0)
-    (oset cmd stdout (json-encode
-                      beads-command-worktree-test--sample-info-worktree-json))
-    (oset cmd stderr "")
+  (let* ((cmd (beads-command-worktree-info))
+         ;; Create execution object with simulated results
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout (json-encode
+                         beads-command-worktree-test--sample-info-worktree-json)
+                :stderr "")))
     ;; Parse the result
-    (let ((result (beads-command-parse cmd)))
+    (let ((result (beads-command-parse cmd exec)))
       (should (beads-worktree-info-p result))
       (should (oref result is-worktree))
       (should (string= (oref result name) "feature-auth")))))
