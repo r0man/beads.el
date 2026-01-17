@@ -656,8 +656,6 @@ Returns error message string if invalid, nil if valid."
            (let ((detected-id (beads-dep--detect-issue-id)))
              (when detected-id
                (list (concat "--issue-id=" detected-id)))))
-  (interactive)
-  (beads-check-executable)
   ["Add Dependency"
    (beads-option-dep-add-issue-id)
    (beads-option-dep-add-depends-on-id)
@@ -674,6 +672,7 @@ Returns error message string if invalid, nil if valid."
 If ISSUE-ID is provided, use it directly.  Otherwise, detect from
 context or prompt the user."
   (interactive (list (beads-dep--detect-issue-id)))
+  (beads-check-executable)
   (ignore issue-id)
   (beads-dep-add--menu))
 
@@ -756,8 +755,6 @@ Returns error message string if invalid, nil if valid."
            (let ((detected-id (beads-dep--detect-issue-id)))
              (when detected-id
                (list (concat "--issue-id=" detected-id)))))
-  (interactive)
-  (beads-check-executable)
   ["Remove Dependency"
    (beads-option-dep-remove-issue-id)
    (beads-option-dep-remove-depends-on-id)]
@@ -773,6 +770,7 @@ Returns error message string if invalid, nil if valid."
 If ISSUE-ID is provided, use it directly.  Otherwise, detect from
 context or prompt the user."
   (interactive (list (beads-dep--detect-issue-id)))
+  (beads-check-executable)
   (ignore issue-id)
   (beads-dep-remove--menu))
 
