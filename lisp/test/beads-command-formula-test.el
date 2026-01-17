@@ -409,21 +409,27 @@
 (ert-deftest beads-command-formula-test-list-integration ()
   "Integration test for formula list command."
   :tags '(:integration)
-  (skip-unless (executable-find "bd"))
-  ;; Check for .beads directory with actual database file
-  (let ((beads-dir (locate-dominating-file default-directory ".beads")))
-    (skip-unless beads-dir)
-    (skip-unless (directory-files (expand-file-name ".beads" beads-dir)
-                                  nil "\\.db\\'" t)))
-  ;; This test will actually run bd formula list --json
-  (let* ((cmd (beads-command-formula-list :json t))
-         (result (beads-command-execute cmd)))
-    ;; Should return command object
-    (should (cl-typep result 'beads-command))
-    ;; Exit code should be 0
-    (should (= (oref result exit-code) 0))
-    ;; Data should be a list (possibly empty)
-    (should (listp (oref result data)))))
+  (skip-unless (executable-find beads-executable))
+  ;; Create a temporary beads directory for testing
+  (let* ((temp-dir (make-temp-file "beads-formula-test-" t))
+         (default-directory temp-dir))
+    (unwind-protect
+        (progn
+          ;; Initialize beads in the temp directory
+          (let* ((init-cmd (beads-command-init))
+                 (init-result (beads-command-execute init-cmd)))
+            (should (= (oref init-result exit-code) 0)))
+          ;; This test will actually run bd formula list --json
+          (let* ((cmd (beads-command-formula-list :json t))
+                 (result (beads-command-execute cmd)))
+            ;; Should return command object
+            (should (cl-typep result 'beads-command))
+            ;; Exit code should be 0
+            (should (= (oref result exit-code) 0))
+            ;; Data should be a list (possibly empty)
+            (should (listp (oref result data)))))
+      ;; Cleanup: remove temp directory
+      (delete-directory temp-dir t))))
 
 (provide 'beads-command-formula-test)
 ;;; beads-command-formula-test.el ends here
