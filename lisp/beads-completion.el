@@ -39,6 +39,8 @@
 
 (defun beads-completion--get-cached-issues ()
   "Get cached issue list, refreshing if stale.
+Returns all issues including closed ones so that commands like
+`beads-reopen' and `beads-delete' can complete on any issue.
 On fetch failure, returns previous cached data (if any) with a warning."
   (let ((now (float-time)))
     (when (or (null beads-completion--cache)
@@ -46,7 +48,7 @@ On fetch failure, returns previous cached data (if any) with a warning."
                  beads-completion--cache-ttl))
       (condition-case err
           (setq beads-completion--cache
-                (cons now (beads-command-list!)))
+                (cons now (beads-command-list! :all t)))
         (error
          ;; Keep existing cache data on error (stale data is better than none)
          ;; Only show warning if we have stale data to return
