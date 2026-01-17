@@ -665,12 +665,14 @@
         (callback-path nil))
     (cl-letf (((symbol-function 'beads-command-execute-async)
                (lambda (cmd callback)
-                 ;; Simulate successful command execution
-                 (oset cmd exit-code 0)
-                 (oset cmd data (beads-worktree :name (oref cmd name)
-                                                :path "/path/to/test-branch"
-                                                :branch "test-branch" :is-main nil))
-                 (funcall callback cmd))))
+                 ;; Simulate successful command execution with execution object
+                 (let ((exec (beads-command-execution
+                              :command cmd
+                              :exit-code 0
+                              :result (beads-worktree :name (oref cmd name)
+                                                      :path "/path/to/test-branch"
+                                                      :branch "test-branch" :is-main nil))))
+                   (funcall callback exec)))))
       (beads-git-create-worktree-async
        "test-branch"
        (lambda (success path)
@@ -689,10 +691,12 @@
         (callback-error nil))
     (cl-letf (((symbol-function 'beads-command-execute-async)
                (lambda (cmd callback)
-                 ;; Simulate failed command execution
-                 (oset cmd exit-code 1)
-                 (oset cmd stderr "Worktree already exists")
-                 (funcall callback cmd))))
+                 ;; Simulate failed command execution with execution object
+                 (let ((exec (beads-command-execution
+                              :command cmd
+                              :exit-code 1
+                              :stderr "Worktree already exists")))
+                   (funcall callback exec)))))
       (beads-git-create-worktree-async
        "test-branch"
        (lambda (success error)

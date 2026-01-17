@@ -233,15 +233,15 @@ CALLBACK receives (success worktree-path-or-error) where:
              (cmd (beads-command-worktree-create :name wt-name :branch branch)))
         (beads-command-execute-async
          cmd
-         (lambda (finished-cmd)
-           (if (zerop (oref finished-cmd exit-code))
-               (let ((path (oref (oref finished-cmd data) path)))
+         (lambda (exec)
+           (if (zerop (oref exec exit-code))
+               (let ((path (oref (oref exec result) path)))
                  (beads-completion-invalidate-worktree-cache)
                  (funcall callback t path))
              (funcall callback nil
-                      (or (oref finished-cmd stderr)
+                      (or (oref exec stderr)
                           (format "Command failed with exit code %d"
-                                  (oref finished-cmd exit-code))))))))))))
+                                  (oref exec exit-code))))))))))))
 
 ;;; Backend Selection
 
@@ -409,12 +409,12 @@ CALLBACK receives no arguments when done."
     (let ((cmd (beads-command-show :issue-ids (list issue-id))))
       (beads-command-execute-async
        cmd
-       (lambda (result)
-         (if (not (zerop (oref result exit-code)))
+       (lambda (exec)
+         (if (not (zerop (oref exec exit-code)))
              (funcall callback)  ; Skip on error
-           ;; Parse and check status - data slot contains parsed issue(s)
+           ;; Parse and check status - result slot contains parsed issue(s)
            (condition-case nil
-               (let* ((data (oref result data))
+               (let* ((data (oref exec result))
                       ;; data may be a single issue or vector of issues
                       (issue (if (vectorp data) (aref data 0) data))
                       (status (oref issue status)))
@@ -567,16 +567,16 @@ CALLBACK receives a beads-issue object, or nil on error."
   (let ((cmd (beads-command-show :issue-ids (list issue-id))))
     (beads-command-execute-async
      cmd
-     (lambda (result)
-       (if (not (zerop (oref result exit-code)))
+     (lambda (exec)
+       (if (not (zerop (oref exec exit-code)))
            (progn
              (message "Failed to fetch issue %s (exit %d): %s"
-                      issue-id (oref result exit-code)
-                      (string-trim (oref result stderr)))
+                      issue-id (oref exec exit-code)
+                      (string-trim (oref exec stderr)))
              (funcall callback nil))
-         ;; data slot contains parsed issue(s) - a vector from bd show
+         ;; result slot contains parsed issue(s) - a vector from bd show
          (condition-case err
-             (let* ((data (oref result data))
+             (let* ((data (oref exec result))
                     ;; bd show returns a vector, extract first element
                     (issue (if (vectorp data) (aref data 0) data)))
                (funcall callback issue))

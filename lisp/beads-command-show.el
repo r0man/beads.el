@@ -161,11 +161,12 @@ Returns error string or nil if valid."
      ;; Validate list content types
      (beads-command--validate-string-list issue-ids "issue-ids"))))
 
-(cl-defmethod beads-command-parse ((command beads-command-show))
-  "Parse show COMMAND output and return issue(s).
+(cl-defmethod beads-command-parse ((command beads-command-show) execution)
+  "Parse show COMMAND output from EXECUTION.
+Returns beads-issue instance (or list when multiple IDs).
 When :json is nil, falls back to parent (returns raw stdout).
 When :json is t, returns beads-issue instance (or list when multiple IDs).
-Does not modify command slots."
+Does not modify any slots."
   (with-slots (json issue-ids) command
     (if (not json)
         ;; If json is not enabled, use parent implementation
@@ -192,9 +193,9 @@ Does not modify command slots."
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-issue instance: %s"
                                  (error-message-string err))
-                         :exit-code (oref command exit-code)
+                         :exit-code (oref execution exit-code)
                          :parsed-json parsed-json
-                         :stderr (oref command stderr)
+                         :stderr (oref execution stderr)
                          :parse-error err))))))))
 
 (cl-defmethod beads-command-execute-interactive ((cmd beads-command-show))

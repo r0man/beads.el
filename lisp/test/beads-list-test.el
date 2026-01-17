@@ -1150,14 +1150,15 @@ Tests that executing with mocked transient-args creates a list buffer."
              (lambda () t))
             ((symbol-function 'beads-command-execute)
              (lambda (cmd &rest _args)
-               ;; Set data on the passed-in command object
-               (oset cmd data
-                     (if (cl-typep cmd 'beads-command-list)
-                         (apply #'vector
-                                (mapcar #'beads-list-test--alist-to-issue
-                                        beads-list-test--sample-issues))
-                       nil))
-               cmd))
+               ;; Return execution object with result
+               (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :result (if (cl-typep cmd 'beads-command-list)
+                            (apply #'vector
+                                   (mapcar #'beads-list-test--alist-to-issue
+                                           beads-list-test--sample-issues))
+                          nil))))
             ((symbol-function 'beads-git-get-project-name)
              (lambda () "testproj"))
             ((symbol-function 'beads-git-get-branch)

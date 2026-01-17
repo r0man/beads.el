@@ -227,7 +227,7 @@ or ready."
 Opens a beads-list buffer with all issues, bypassing the transient menu."
   (beads-check-executable)
   (let* ((cmd (beads-command-list))
-         (issues (oref (beads-command-execute cmd) data))
+         (issues (oref (beads-command-execute cmd) result))
          (buffer (get-buffer-create (beads-buffer-name-list))))
     (with-current-buffer buffer
       (beads-list-mode)
@@ -265,7 +265,7 @@ STATUS should be one of: open, in-progress, closed, or deferred."
                        ('deferred "deferred")
                        (_ (error "Invalid status: %s" status))))
          (cmd (beads-command-list :status status-str))
-         (issues (oref (beads-command-execute cmd) data))
+         (issues (oref (beads-command-execute cmd) result))
          (buffer (get-buffer-create (beads-buffer-name-list nil status-str))))
     (with-current-buffer buffer
       (beads-list-mode)

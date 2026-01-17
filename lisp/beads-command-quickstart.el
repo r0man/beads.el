@@ -67,8 +67,8 @@ Shows common bd workflows and patterns to help you get started."
   "Execute bd quickstart and display in buffer."
   (condition-case err
       (let* ((cmd (beads-command-quickstart))
-             (_ (beads-command-execute cmd))
-             (output (oref cmd data))
+             (exec (beads-command-execute cmd))
+             (output (oref exec result))
              (buf-name (beads-buffer-name-utility "quickstart"))
              (buf (get-buffer-create buf-name)))
         (with-current-buffer buf

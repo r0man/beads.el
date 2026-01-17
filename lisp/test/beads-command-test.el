@@ -33,15 +33,15 @@ Integration test that runs real bd init command."
   (let* ((temp-dir (make-temp-file "beads-test-" t))
          (default-directory temp-dir)
          (cmd (beads-command-init))
-         (result (beads-command-execute cmd)))
-    ;; Should return the command object (a beads-command subclass)
-    (should (cl-typep result 'beads-command))
+         (exec (beads-command-execute cmd)))
+    ;; Should return an execution object
+    (should (cl-typep exec 'beads-command-execution))
     ;; Exit code should be 0
-    (should (= (oref result exit-code) 0))
+    (should (= (oref exec exit-code) 0))
     ;; Stdout should be a string
-    (should (stringp (oref result stdout)))
+    (should (stringp (oref exec stdout)))
     ;; Stderr should be a string
-    (should (stringp (oref result stderr)))
+    (should (stringp (oref exec stderr)))
     ;; Should create .beads directory
     (should (file-directory-p (expand-file-name ".beads" temp-dir)))
     ;; Should create database file
@@ -58,9 +58,9 @@ Integration test that verifies --prefix flag works correctly."
   (let* ((temp-dir (make-temp-file "beads-test-" t))
          (default-directory temp-dir)
          (cmd (beads-command-init :prefix "myproject"))
-         (result (beads-command-execute cmd)))
+         (exec (beads-command-execute cmd)))
     ;; Command should succeed
-    (should (= (oref result exit-code) 0))
+    (should (= (oref exec exit-code) 0))
     ;; .beads directory should exist
     (should (file-directory-p (expand-file-name ".beads" temp-dir)))
     ;; Verify prefix is set correctly by creating an issue
@@ -79,9 +79,9 @@ Integration test that verifies quiet mode suppresses output."
          (cmd (beads-command-init
                :quiet t
                :skip-merge-driver t))
-         (result (beads-command-execute cmd)))
+         (exec (beads-command-execute cmd)))
     ;; Command should succeed
-    (should (= (oref result exit-code) 0))
+    (should (= (oref exec exit-code) 0))
     ;; .beads directory should exist
     (should (file-directory-p (expand-file-name ".beads" temp-dir)))))
 
@@ -93,9 +93,9 @@ Integration test that runs real bd quickstart command."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (let* ((cmd (beads-command-quickstart))
-         (result (beads-command-execute cmd))
-         (exit-code (oref result exit-code))
-         (stdout (oref result stdout)))
+         (exec (beads-command-execute cmd))
+         (exit-code (oref exec exit-code))
+         (stdout (oref exec stdout)))
     ;; Command should succeed
     (should (= exit-code 0))
     ;; Output should contain quickstart content
@@ -1965,7 +1965,8 @@ The default limit behavior is in beads-command-list!, not the class."
     (cl-letf (((symbol-function 'beads-command-execute)
                (lambda (cmd)
                  (setq executed-cmd cmd)
-                 cmd)))
+                 ;; Return execution object
+                 (beads-command-execution :command cmd :exit-code 0 :result nil))))
       (beads-command-list!)
       (should (eql (oref executed-cmd limit) 0)))))
 
@@ -1977,7 +1978,8 @@ The default limit behavior is in beads-command-list!, not the class."
     (cl-letf (((symbol-function 'beads-command-execute)
                (lambda (cmd)
                  (setq executed-cmd cmd)
-                 cmd)))
+                 ;; Return execution object
+                 (beads-command-execution :command cmd :exit-code 0 :result nil))))
       (beads-command-list!)
       (should (eql (oref executed-cmd limit) 25))
       (let ((args (beads-command-line executed-cmd)))
@@ -1992,7 +1994,8 @@ The default limit behavior is in beads-command-list!, not the class."
     (cl-letf (((symbol-function 'beads-command-execute)
                (lambda (cmd)
                  (setq executed-cmd cmd)
-                 cmd)))
+                 ;; Return execution object
+                 (beads-command-execution :command cmd :exit-code 0 :result nil))))
       (beads-command-list! :limit 5)
       (should (eql (oref executed-cmd limit) 5))
       (let ((args (beads-command-line executed-cmd)))
@@ -2007,7 +2010,8 @@ The default limit behavior is in beads-command-list!, not the class."
     (cl-letf (((symbol-function 'beads-command-execute)
                (lambda (cmd)
                  (setq executed-cmd cmd)
-                 cmd)))
+                 ;; Return execution object
+                 (beads-command-execution :command cmd :exit-code 0 :result nil))))
       (beads-command-list! :limit nil)
       (should (null (oref executed-cmd limit)))
       (let ((args (beads-command-line executed-cmd)))

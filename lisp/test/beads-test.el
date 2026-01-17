@@ -95,25 +95,25 @@ This is needed because transient can leave state that affects subsequent tests."
   (when (boundp 'overriding-terminal-local-map)
     (setq overriding-terminal-local-map nil)))
 
-(defun beads-test--mock-command-result (data)
-  "Create a mock command result with DATA in the data slot.
+(defun beads-test--mock-command-result (data &optional cmd)
+  "Create a mock execution object with DATA as the result.
 Use this to mock `beads-command-execute' returns in tests.
 
-Since `beads-command-execute' returns the command object itself
-with populated slots, tests that mock this function need to return
-an object with a `data' slot.
+Since `beads-command-execute' returns a `beads-command-execution' object,
+tests that mock this function need to return an execution object with
+a `result' slot.
 
-Uses `beads-command-init' as a concrete command class since the
-base `beads-command' class is abstract.
+CMD is optional; if nil, uses `beads-command-init' as a concrete command
+class since the base `beads-command' class is abstract.
 
 Example:
   (cl-letf (((symbol-function \\='beads-command-execute)
              (lambda (_cmd) (beads-test--mock-command-result my-data))))
     ...)"
-  ;; Use beads-command-init as a concrete class (beads-command is abstract)
-  (let ((cmd (beads-command-init)))
-    (oset cmd data data)
-    cmd))
+  (beads-command-execution
+   :command (or cmd (beads-command-init))
+   :exit-code 0
+   :result data))
 
 (defmacro beads-test-with-project (init-args &rest body)
   "Execute BODY with default-directory set to a temporary beads project.
@@ -172,8 +172,8 @@ Returns the issue ID of the created issue."
                :issue-type type
                :priority priority
                :description description))
-         (result (beads-command-execute cmd))
-         (issue (oref result data)))
+         (exec (beads-command-execute cmd))
+         (issue (oref exec result)))
     (oref issue id)))
 
 (defun beads-test-issue-exists-p (issue-id)

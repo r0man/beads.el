@@ -298,8 +298,8 @@ Requires name to be set."
      ((string-empty-p name) "Worktree name cannot be empty")
      (t nil))))
 
-(cl-defmethod beads-command-parse ((command beads-command-worktree-create))
-  "Parse worktree create COMMAND output.
+(cl-defmethod beads-command-parse ((command beads-command-worktree-create) execution)
+  "Parse worktree create COMMAND output from EXECUTION.
 Returns beads-worktree instance on success."
   (with-slots (json) command
     (if (not json)
@@ -311,9 +311,9 @@ Returns beads-worktree instance on success."
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-worktree: %s"
                                  (error-message-string err))
-                         :exit-code (oref command exit-code)
+                         :exit-code (oref execution exit-code)
                          :parsed-json parsed-json
-                         :stderr (oref command stderr)
+                         :stderr (oref execution stderr)
                          :parse-error err))))))))
 
 ;;; ============================================================
@@ -330,8 +330,8 @@ Lists all git worktrees with their beads configuration state."))
   "Return \"worktree list\" as the CLI subcommand."
   "worktree list")
 
-(cl-defmethod beads-command-parse ((command beads-command-worktree-list))
-  "Parse worktree list COMMAND output.
+(cl-defmethod beads-command-parse ((command beads-command-worktree-list) execution)
+  "Parse worktree list COMMAND output from EXECUTION.
 Returns list of beads-worktree instances."
   (with-slots (json) command
     (if (not json)
@@ -343,9 +343,9 @@ Returns list of beads-worktree instances."
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-worktree list: %s"
                                  (error-message-string err))
-                         :exit-code (oref command exit-code)
+                         :exit-code (oref execution exit-code)
                          :parsed-json parsed-json
-                         :stderr (oref command stderr)
+                         :stderr (oref execution stderr)
                          :parse-error err))))))))
 
 ;;; ============================================================
@@ -406,8 +406,8 @@ Shows information about the current worktree context."))
   "Return \"worktree info\" as the CLI subcommand."
   "worktree info")
 
-(cl-defmethod beads-command-parse ((command beads-command-worktree-info))
-  "Parse worktree info COMMAND output.
+(cl-defmethod beads-command-parse ((command beads-command-worktree-info) execution)
+  "Parse worktree info COMMAND output from EXECUTION.
 Returns beads-worktree-info instance."
   (with-slots (json) command
     (if (not json)
@@ -419,9 +419,9 @@ Returns beads-worktree-info instance."
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-worktree-info: %s"
                                  (error-message-string err))
-                         :exit-code (oref command exit-code)
+                         :exit-code (oref execution exit-code)
                          :parsed-json parsed-json
-                         :stderr (oref command stderr)
+                         :stderr (oref execution stderr)
                          :parse-error err))))))))
 
 ;;; ============================================================

@@ -615,16 +615,15 @@ beads-statistics class requires a float."
 (ert-deftest beads-stats-test-button-action-open ()
   "Test button action for open status filter."
   (let ((command-executed nil)
-        (beads-check-executable-called nil)
-        (mock-cmd (beads-command-list)))
-    (oset mock-cmd data nil)
+        (beads-check-executable-called nil))
     (cl-letf (((symbol-function 'beads-check-executable)
                (lambda () (setq beads-check-executable-called t)))
               ((symbol-function 'beads-command-execute)
                (lambda (cmd)
                  (when (cl-typep cmd 'beads-command-list)
                    (setq command-executed cmd))
-                 mock-cmd))
+                 ;; Return execution object
+                 (beads-command-execution :command cmd :exit-code 0 :result nil)))
               ((symbol-function 'beads-list-mode)
                (lambda ()))
               ((symbol-function 'beads-list--populate-buffer)
@@ -638,15 +637,14 @@ beads-statistics class requires a float."
 
 (ert-deftest beads-stats-test-button-action-in-progress ()
   "Test button action for in-progress status filter."
-  (let ((command-executed nil)
-        (mock-cmd (beads-command-list)))
-    (oset mock-cmd data nil)
+  (let ((command-executed nil))
     (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
               ((symbol-function 'beads-command-execute)
                (lambda (cmd)
                  (when (cl-typep cmd 'beads-command-list)
                    (setq command-executed cmd))
-                 mock-cmd))
+                 ;; Return execution object
+                 (beads-command-execution :command cmd :exit-code 0 :result nil)))
               ((symbol-function 'beads-list-mode) (lambda ()))
               ((symbol-function 'beads-list--populate-buffer)
                (lambda (_issues _view &optional _cmd)))
@@ -657,15 +655,14 @@ beads-statistics class requires a float."
 
 (ert-deftest beads-stats-test-button-action-closed ()
   "Test button action for closed status filter."
-  (let ((command-executed nil)
-        (mock-cmd (beads-command-list)))
-    (oset mock-cmd data nil)
+  (let ((command-executed nil))
     (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
               ((symbol-function 'beads-command-execute)
                (lambda (cmd)
                  (when (cl-typep cmd 'beads-command-list)
                    (setq command-executed cmd))
-                 mock-cmd))
+                 ;; Return execution object
+                 (beads-command-execution :command cmd :exit-code 0 :result nil)))
               ((symbol-function 'beads-list-mode) (lambda ()))
               ((symbol-function 'beads-list--populate-buffer)
                (lambda (_issues _view &optional _cmd)))
@@ -869,33 +866,33 @@ beads-statistics class requires a float."
 
 (ert-deftest beads-stats-test-list-all-issues-no-issues ()
   "Test beads-stats--list-all-issues with no issues.
-The function extracts issues from the data slot of the command object."
-  (let ((mock-cmd (beads-command-list)))
-    (oset mock-cmd data nil)
-    (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
-              ((symbol-function 'beads-command-execute)
-               (lambda (_cmd) mock-cmd))
-              ((symbol-function 'pop-to-buffer) (lambda (_buf))))
-      (beads-stats--list-all-issues)
-      (let ((buf (get-buffer (beads-stats-test--get-list-buffer))))
-        (should buf)
-        (with-current-buffer buf
-          (should (eq major-mode 'beads-list-mode))
-          (should (null tabulated-list-entries)))
-        (kill-buffer buf)))))
+The function extracts issues from the result slot of the execution object."
+  (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
+            ((symbol-function 'beads-command-execute)
+             (lambda (cmd)
+               ;; Return execution object with no issues
+               (beads-command-execution :command cmd :exit-code 0 :result nil)))
+            ((symbol-function 'pop-to-buffer) (lambda (_buf))))
+    (beads-stats--list-all-issues)
+    (let ((buf (get-buffer (beads-stats-test--get-list-buffer))))
+      (should buf)
+      (with-current-buffer buf
+        (should (eq major-mode 'beads-list-mode))
+        (should (null tabulated-list-entries)))
+      (kill-buffer buf))))
 
 (ert-deftest beads-stats-test-list-all-issues-with-issues ()
   "Test beads-stats--list-all-issues with issues.
-The function extracts issues from the data slot of the command object."
+The function extracts issues from the result slot of the execution object."
   (let* ((mock-issues (list (beads-issue :id "bd-1" :title "Test 1"
                                          :status "open" :priority 1)
                             (beads-issue :id "bd-2" :title "Test 2"
-                                         :status "closed" :priority 2)))
-         (mock-cmd (beads-command-list)))
-    (oset mock-cmd data mock-issues)
+                                         :status "closed" :priority 2))))
     (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
               ((symbol-function 'beads-command-execute)
-               (lambda (_cmd) mock-cmd))
+               (lambda (cmd)
+                 ;; Return execution object with mock issues
+                 (beads-command-execution :command cmd :exit-code 0 :result mock-issues)))
               ((symbol-function 'beads-list--populate-buffer)
                (lambda (issues view &optional cmd)
                  (setq tabulated-list-entries
@@ -916,16 +913,18 @@ The function extracts issues from the data slot of the command object."
 Verifies command is created with correct status filter."
   (let* ((mock-issues (list (beads-issue :id "bd-1" :title "Test 1"
                                          :status "open" :priority 1)))
-         (mock-cmd (beads-command-list))
          (captured-status nil))
-    (oset mock-cmd data mock-issues)
     (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
               ((symbol-function 'beads-command-list)
                (lambda (&rest args)
                  (setq captured-status (plist-get args :status))
-                 mock-cmd))
+                 (apply #'beads-command-list-orig args)))
+              ((symbol-function 'beads-command-list-orig)
+               (symbol-function 'beads-command-list))
               ((symbol-function 'beads-command-execute)
-               (lambda (_cmd) mock-cmd))
+               (lambda (cmd)
+                 ;; Return execution object with mock issues
+                 (beads-command-execution :command cmd :exit-code 0 :result mock-issues)))
               ((symbol-function 'beads-list--populate-buffer)
                (lambda (issues view &optional cmd)
                  (setq tabulated-list-entries
@@ -940,17 +939,18 @@ Verifies command is created with correct status filter."
 (ert-deftest beads-stats-test-list-by-status-in-progress ()
   "Test beads-stats--list-by-status with in-progress status.
 Verifies the symbol in-progress maps to string in_progress."
-  (let* ((mock-issues nil)
-         (mock-cmd (beads-command-list))
-         (captured-status nil))
-    (oset mock-cmd data mock-issues)
+  (let ((captured-status nil))
     (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
               ((symbol-function 'beads-command-list)
                (lambda (&rest args)
                  (setq captured-status (plist-get args :status))
-                 mock-cmd))
+                 (apply #'beads-command-list-orig args)))
+              ((symbol-function 'beads-command-list-orig)
+               (symbol-function 'beads-command-list))
               ((symbol-function 'beads-command-execute)
-               (lambda (_cmd) mock-cmd))
+               (lambda (cmd)
+                 ;; Return execution object with no issues
+                 (beads-command-execution :command cmd :exit-code 0 :result nil)))
               ((symbol-function 'pop-to-buffer) (lambda (_buf))))
       (beads-stats--list-by-status 'in-progress)
       (should (equal captured-status "in_progress"))
@@ -960,16 +960,18 @@ Verifies the symbol in-progress maps to string in_progress."
 
 (ert-deftest beads-stats-test-list-by-status-closed ()
   "Test beads-stats--list-by-status with closed status."
-  (let* ((mock-cmd (beads-command-list))
-         (captured-status nil))
-    (oset mock-cmd data nil)
+  (let ((captured-status nil))
     (cl-letf (((symbol-function 'beads-check-executable) (lambda ()))
               ((symbol-function 'beads-command-list)
                (lambda (&rest args)
                  (setq captured-status (plist-get args :status))
-                 mock-cmd))
+                 (apply #'beads-command-list-orig args)))
+              ((symbol-function 'beads-command-list-orig)
+               (symbol-function 'beads-command-list))
               ((symbol-function 'beads-command-execute)
-               (lambda (_cmd) mock-cmd))
+               (lambda (cmd)
+                 ;; Return execution object with no issues
+                 (beads-command-execution :command cmd :exit-code 0 :result nil)))
               ((symbol-function 'pop-to-buffer) (lambda (_buf))))
       (beads-stats--list-by-status 'closed)
       (should (equal captured-status "closed"))

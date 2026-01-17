@@ -213,11 +213,12 @@ Returns error string or nil if valid."
      ;; Otherwise valid
      (t nil))))
 
-(cl-defmethod beads-command-parse ((command beads-command-delete))
-  "Parse delete COMMAND output and return deleted issue(s).
+(cl-defmethod beads-command-parse ((command beads-command-delete) execution)
+  "Parse delete COMMAND output from EXECUTION.
+Returns deleted issue info.
 When :json is nil, falls back to parent (returns raw stdout).
 When :json is t, returns alist with deletion info.
-Does not modify command slots.
+Does not modify any slots.
 
 The bd CLI returns JSON like:
   {\"deleted\": \"issue-id\", \"dependencies_removed\": N,
@@ -246,9 +247,9 @@ Returns the parsed alist or nil."
          (t
           (signal 'beads-json-parse-error
                   (list "Unexpected JSON structure from bd delete"
-                        :exit-code (oref command exit-code)
+                        :exit-code (oref execution exit-code)
                         :parsed-json parsed-json
-                        :stderr (oref command stderr)))))))))
+                        :stderr (oref execution stderr)))))))))
 
 (cl-defmethod beads-command-execute-interactive ((cmd beads-command-delete))
   "Execute CMD in terminal buffer with human-readable output.

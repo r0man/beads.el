@@ -920,11 +920,12 @@ P can be a number or string representation."
        (beads-command--validate-string-list label "label")
        (beads-command--validate-string-list label-any "label-any")))))
 
-(cl-defmethod beads-command-parse ((command beads-command-list))
-  "Parse list COMMAND output and return issues.
+(cl-defmethod beads-command-parse ((command beads-command-list) execution)
+  "Parse list COMMAND output from EXECUTION.
+Returns list of beads-issue instances.
 When :json is nil, falls back to parent (returns raw stdout).
 When :json is t, returns list of beads-issue instances.
-Does not modify command slots."
+Does not modify any slots."
   (with-slots (json) command
     (if (not json)
         ;; If json is not enabled, use parent implementation
@@ -943,16 +944,16 @@ Does not modify command slots."
              (t
               (signal 'beads-json-parse-error
                       (list "Unexpected JSON structure from bd list"
-                            :exit-code (oref command exit-code)
+                            :exit-code (oref execution exit-code)
                             :parsed-json parsed-json
-                            :stderr (oref command stderr)))))
+                            :stderr (oref execution stderr)))))
           (error
            (signal 'beads-json-parse-error
                    (list (format "Failed to parse list result: %s"
                                  (error-message-string err))
-                         :exit-code (oref command exit-code)
+                         :exit-code (oref execution exit-code)
                          :parsed-json parsed-json
-                         :stderr (oref command stderr)
+                         :stderr (oref execution stderr)
                          :parse-error err))))))))
 
 (cl-defmethod beads-command-execute-interactive ((cmd beads-command-list))
@@ -979,7 +980,7 @@ This function overrides the auto-generated version to support
 the `beads-list-default-limit' customization variable."
   (unless (plist-member args :limit)
     (setq args (plist-put args :limit beads-list-default-limit)))
-  (oref (beads-command-execute (apply #'beads-command-list args)) data))
+  (oref (beads-command-execute (apply #'beads-command-list args)) result))
 
 ;;; Transient Menu
 
@@ -1612,8 +1613,8 @@ Uses directory-aware buffer identity: same project = same buffer."
          (args (transient-args 'beads-list))
          (command (beads-list--parse-transient-args args)))
     (condition-case err
-        (let* ((_ (beads-command-execute command))
-               (issue-objects (oref command data))
+        (let* ((exec (beads-command-execute command))
+               (issue-objects (oref exec result))
                (buffer (beads-list--get-or-create-buffer 'list)))
           (with-current-buffer buffer
             (unless (derived-mode-p 'beads-list-mode)
@@ -1744,7 +1745,7 @@ When SILENT is non-nil, suppress messages (for hook-triggered refreshes)."
   (let* ((issues (pcase beads-list--command
                    ('list
                     (if beads-list--command-obj
-                        (oref (beads-command-execute beads-list--command-obj) data)
+                        (oref (beads-command-execute beads-list--command-obj) result)
                       (beads-command-list!)))
                    ('ready
                     (beads-issue-ready))
