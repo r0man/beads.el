@@ -647,6 +647,40 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :prompt "Status: "
   :choices '("open" "in_progress" "closed" "blocked"))
 
+(transient-define-infix beads-option-export-issue-type ()
+  "Filter by issue type."
+  :class 'transient-option
+  :description "--type"
+  :key "-t"
+  :argument "--type="
+  :prompt "Type: "
+  :choices '("bug" "feature" "task" "epic" "chore"))
+
+(transient-define-infix beads-option-export-assignee ()
+  "Filter by assignee."
+  :class 'transient-option
+  :description "--assignee"
+  :key "-a"
+  :argument "--assignee="
+  :prompt "Assignee: ")
+
+(transient-define-infix beads-option-export-priority ()
+  "Filter by priority."
+  :class 'transient-option
+  :description "--priority"
+  :key "-p"
+  :argument "--priority="
+  :prompt "Priority (0-4): "
+  :choices '("0" "1" "2" "3" "4"))
+
+(transient-define-infix beads-option-export-label ()
+  "Filter by labels (AND logic)."
+  :class 'transient-option
+  :description "--label"
+  :key "-l"
+  :argument "--label="
+  :prompt "Labels (comma-separated): ")
+
 (transient-define-infix beads-option-import-input ()
   "Set the input file path."
   :class 'transient-option
