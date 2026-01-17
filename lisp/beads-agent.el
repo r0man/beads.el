@@ -943,7 +943,9 @@ to each agent's buffer.
 
 ISSUE-ID is required; detected from context or prompted."
   [:description
-   (lambda () (beads-agent-issue--format-header))]
+   (lambda () (beads-agent-issue--format-header))
+   :class transient-row
+   ("" "" ignore :if (lambda () nil))]
   ["Active Agents"
    :class transient-column
    :setup-children
@@ -1062,7 +1064,9 @@ This menu allows configuring the agent start parameters:
 The agent can work in a git worktree based on `beads-agent-use-worktrees':
 t (default) always uses worktrees, nil never uses them, \\='ask prompts."
   [:description
-   (lambda () (beads-agent-start--format-header))]
+   (lambda () (beads-agent-start--format-header))
+   :class transient-row
+   ("" "" ignore :if (lambda () nil))]
   ["Options"
    (beads-agent-start--infix-issue-id)
    (beads-agent-start--infix-backend)]
@@ -1252,7 +1256,8 @@ PROJECT-DIR is the main project directory."
   "AI Agent integration for Beads issues."
   [:description
    (lambda () (beads-agent--format-header))
-   :pad-keys t]
+   :class transient-row
+   ("" "" ignore :if (lambda () nil))]
   ["Agent Actions"
    (beads-agent--start-suffix)
    (beads-agent--sling-suffix)

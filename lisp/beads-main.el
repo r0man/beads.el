@@ -170,7 +170,8 @@ interface for all issue tracking operations.  The menu is organized
 into logical groups matching bd CLI structure."
   [:description
    (lambda () (beads-main--format-project-header))
-   :pad-keys t]
+   :class transient-row
+   ("" "" ignore :if (lambda () nil))]
   ;; Row 1: Issues | Workflow | Setup
   [["Working With Issues"
     ("l" "List issues" beads-list)
