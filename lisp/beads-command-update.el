@@ -724,7 +724,7 @@ Returns list of error messages, or nil if all valid."
   :key "x"
   :description "Update issue"
   (interactive)
-  (let* ((args (transient-args 'beads-update))
+  (let* ((args (transient-args 'beads-update--menu))
          (cmd (beads-update--parse-transient-args args))
          (errors (beads-update--validate-all cmd))
          (changes (beads-update--get-changed-fields cmd)))
@@ -779,7 +779,7 @@ Returns list of error messages, or nil if all valid."
   :description "Preview command"
   :transient t
   (interactive)
-  (let* ((args (transient-args 'beads-update))
+  (let* ((args (transient-args 'beads-update--menu))
          (cmd (beads-update--parse-transient-args args))
          (errors (beads-update--validate-all cmd)))
     (if errors

@@ -617,5 +617,32 @@ Regression test for bug bde-6d0v."
       (let ((cmd-line (beads-command-line cmd)))
         (should (member "--status" cmd-line))))))
 
+;;; Regression Tests for Bug bde-z65s
+
+(ert-deftest beads-update-test-transient-args-uses-correct-prefix ()
+  "Test that execute and preview use correct transient prefix name.
+Regression test for bug bde-z65s: 'Not a transient prefix: beads-update'."
+  (let ((beads-update--issue-id "bd-42")
+        (beads-update--original-data beads-update-test--sample-issue)
+        (beads-auto-refresh nil)
+        (transient-args-called-with nil))
+    ;; Mock transient-args to capture what it's called with
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (prefix)
+                 (setq transient-args-called-with prefix)
+                 '("--status=in_progress")))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd) beads-update-test--sample-issue))
+              ((symbol-function 'beads--invalidate-completion-cache) #'ignore))
+      ;; Test execute
+      (beads-update--execute)
+      (should (eq transient-args-called-with 'beads-update--menu))
+      ;; Reset and test preview
+      (setq transient-args-called-with nil)
+      (cl-letf (((symbol-function 'beads-command-line)
+                 (lambda (_) '("update" "bd-42" "--status" "in_progress"))))
+        (beads-update--preview)
+        (should (eq transient-args-called-with 'beads-update--menu))))))
+
 (provide 'beads-update-test)
 ;;; beads-update-test.el ends here
