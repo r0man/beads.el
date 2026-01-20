@@ -99,6 +99,7 @@
     :short-option
     :option-type
     :positional
+    :positional-rest
     :option-separator
     ;; Transient properties
     :transient-key
@@ -306,14 +307,26 @@ but not :positional."
       (nreverse result))))
 
 (defun beads-meta-transient-slots (class)
-  "Get all slots for CLASS that have transient properties.
+  "Get all slots for CLASS that should appear in transient menus.
 CLASS is a class name symbol.
 
-Returns a list of slot names that have :transient-key defined,
-sorted by :transient-group and :transient-order."
-  (let ((slots-with-key (beads-meta-slots-with-property class :transient-key)))
+Returns a list of slot names that have :transient-key defined OR
+have :positional/:positional-rest (positional args need UI input too).
+Slots are sorted by :transient-group and :transient-order."
+  (let* ((slots-with-key (beads-meta-slots-with-property class :transient-key))
+         (positional-slots (beads-meta-slots-with-property class :positional))
+         (positional-rest (beads-meta-slots-with-property class :positional-rest))
+         ;; Combine all positional slots
+         (all-positionals (append positional-slots positional-rest))
+         ;; Filter positional slots that don't already have :transient-key
+         (positionals-without-key
+          (cl-remove-if (lambda (pair)
+                          (assq (car pair) slots-with-key))
+                        all-positionals))
+         ;; Combine: slots with explicit key + positional slots needing key
+         (all-slots (append slots-with-key positionals-without-key)))
     (mapcar #'car
-            (sort slots-with-key
+            (sort all-slots
                   (lambda (a b)
                     (let* ((a-name (car a))
                            (b-name (car b))
@@ -439,12 +452,34 @@ by the base class's command-line method."
 ;;; Transient Infix Generation from Slot Metadata
 ;;; ============================================================
 
+(defun beads-meta--humanize-slot-name (slot-name)
+  "Convert SLOT-NAME symbol to human-readable string.
+E.g., issue-id -> \"Issue ID\", issue-ids -> \"Issue IDs\"."
+  (let* ((name (symbol-name slot-name))
+         ;; Replace dashes/underscores with spaces
+         (spaced (replace-regexp-in-string "[-_]" " " name))
+         ;; Capitalize first letter of each word
+         (capitalized (mapconcat #'capitalize (split-string spaced) " ")))
+    ;; Handle common abbreviations - Id, Ids
+    (setq capitalized (replace-regexp-in-string "\\bIds\\b" "IDs" capitalized))
+    (replace-regexp-in-string "\\bId\\b" "ID" capitalized)))
+
+(defun beads-meta--auto-generate-key (slot-name position)
+  "Auto-generate a transient key for SLOT-NAME.
+POSITION is the :positional value (1, 2, 3...) or nil.
+Returns the first letter of slot-name, or a number if position is given."
+  (let ((name (symbol-name slot-name)))
+    ;; Use first letter of slot name
+    (substring name 0 1)))
+
 (defun beads-meta-generate-infix-spec (class slot-name prefix)
   "Generate a transient infix specification for SLOT-NAME in CLASS.
 PREFIX is a string like \"beads-create\" for naming the infix.
 
-Returns a plist suitable for passing to `transient-define-infix',
-or nil if the slot doesn't have transient metadata (no :transient-key)."
+Returns a plist suitable for passing to `transient-define-infix'.
+Handles both explicit :transient-key slots and positional arguments.
+For positional slots without :transient-key, auto-generates the key
+and description from the slot name."
   (let* ((key (beads-meta-slot-property class slot-name :transient-key))
          (desc (beads-meta-slot-property class slot-name :transient-description))
          (trans-class (beads-meta-slot-property class slot-name :transient-class))
@@ -453,26 +488,41 @@ or nil if the slot doesn't have transient metadata (no :transient-key)."
          (prompt (beads-meta-slot-property class slot-name :transient-prompt))
          (long-opt (beads-meta-slot-property class slot-name :long-option))
          (trans-arg (beads-meta-slot-property class slot-name :transient-argument))
-         (option-type (beads-meta-slot-property class slot-name :option-type)))
-    (when key
+         (option-type (beads-meta-slot-property class slot-name :option-type))
+         (positional (beads-meta-slot-property class slot-name :positional))
+         (positional-rest (beads-meta-slot-property class slot-name :positional-rest))
+         ;; Auto-generate key for positional args without explicit key
+         (effective-key (or key
+                            (when (or positional positional-rest)
+                              (beads-meta--auto-generate-key slot-name positional))))
+         ;; Auto-generate description for positional args
+         (effective-desc (or desc
+                             (when (or positional positional-rest)
+                               (format "%s (required)"
+                                       (beads-meta--humanize-slot-name
+                                        slot-name))))))
+    (when effective-key
       (let ((spec (list :name (intern (format "%s-infix-%s" prefix slot-name))
-                        :key key)))
+                        :key effective-key)))
         ;; Description
-        (when desc
-          (setq spec (plist-put spec :description desc)))
+        (when effective-desc
+          (setq spec (plist-put spec :description effective-desc)))
         ;; Transient class (default based on option-type)
         (setq spec (plist-put spec :class
                               (or trans-class
                                   (if (eq option-type :boolean)
                                       'transient-switch
                                     'transient-option))))
-        ;; Argument (from :transient-argument or derived from :long-option)
+        ;; Argument (from :transient-argument, :long-option, or slot name)
         ;; Note: long-opt is stored without dashes, so prepend "--" when deriving
         (let ((arg (or trans-arg
                        (when long-opt
                          (if (eq option-type :boolean)
                              (concat "--" long-opt)
-                           (concat "--" long-opt "="))))))
+                           (concat "--" long-opt "=")))
+                       ;; For positional args, use slot name as pseudo-argument
+                       (when (or positional positional-rest)
+                         (concat "=" (symbol-name slot-name) "=")))))
           (when arg
             (setq spec (plist-put spec :argument arg))))
         ;; Reader function
@@ -481,9 +531,14 @@ or nil if the slot doesn't have transient metadata (no :transient-key)."
         ;; Choices
         (when choices
           (setq spec (plist-put spec :choices choices)))
-        ;; Prompt
-        (when prompt
-          (setq spec (plist-put spec :prompt prompt)))
+        ;; Prompt (auto-generate for positional args)
+        (let ((effective-prompt (or prompt
+                                    (when (or positional positional-rest)
+                                      (format "%s: "
+                                              (beads-meta--humanize-slot-name
+                                               slot-name))))))
+          (when effective-prompt
+            (setq spec (plist-put spec :prompt effective-prompt))))
         spec))))
 
 (defun beads-meta-generate-infix-specs (class prefix)
@@ -498,12 +553,22 @@ Returns a list of infix plists, sorted by :transient-group and
       (let ((spec (beads-meta-generate-infix-spec class slot-name prefix)))
         (when spec
           ;; Add group/level/order info to spec for sorting
-          (let ((group (beads-meta-slot-property class slot-name :transient-group))
-                (level (beads-meta-slot-property class slot-name :transient-level))
-                (order (beads-meta-slot-property class slot-name :transient-order)))
-            (when group (setq spec (plist-put spec :group group)))
-            (when level (setq spec (plist-put spec :level level)))
-            (when order (setq spec (plist-put spec :order order))))
+          (let* ((group (beads-meta-slot-property class slot-name :transient-group))
+                 (level (beads-meta-slot-property class slot-name :transient-level))
+                 (order (beads-meta-slot-property class slot-name :transient-order))
+                 (positional (beads-meta-slot-property class slot-name :positional))
+                 (positional-rest (beads-meta-slot-property class slot-name
+                                                            :positional-rest))
+                 ;; For positional args without explicit group/level, use defaults
+                 ;; that ensure visibility (level 1) and proper grouping
+                 (is-positional (or positional positional-rest))
+                 (effective-group (or group (when is-positional "Required")))
+                 (effective-level (or level (when is-positional 1)))
+                 (effective-order (or order positional
+                                      (when positional-rest 0))))
+            (when effective-group (setq spec (plist-put spec :group effective-group)))
+            (when effective-level (setq spec (plist-put spec :level effective-level)))
+            (when effective-order (setq spec (plist-put spec :order effective-order))))
           (push spec specs))))
     (nreverse specs)))
 

@@ -1469,5 +1469,145 @@
       (should (member "Special Filters" group-names))
       (should (member "Output Options" group-names)))))
 
+;;; ============================================================
+;;; Tests for positional args without explicit :transient-key
+;;; ============================================================
+
+;; Test class with positional args that have NO :transient-key
+(defclass beads-meta-test-positional-no-key ()
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID to edit."
+    :positional 1)
+   (target-id
+    :initarg :target-id
+    :type (or null string)
+    :initform nil
+    :documentation "Target issue ID."
+    :positional 2)
+   (option-with-key
+    :initarg :option-with-key
+    :type (or null string)
+    :initform nil
+    :documentation "An option that has a key."
+    :long-option "option"
+    :transient-key "o"
+    :transient-description "Option with key"
+    :transient-group "Options"
+    :transient-level 1))
+  :documentation "Test class with positional args without :transient-key.")
+
+;; Test class with :positional-rest
+(defclass beads-meta-test-positional-rest ()
+  ((issue-ids
+    :initarg :issue-ids
+    :type list
+    :initform nil
+    :documentation "Issue IDs to process."
+    :positional-rest t)
+   (until
+    :initarg :until
+    :type (or null string)
+    :initform nil
+    :documentation "Defer until specific time."
+    :long-option "until"
+    :transient-key "u"
+    :transient-description "--until"
+    :transient-class transient-option
+    :transient-argument "--until="
+    :transient-group "Options"
+    :transient-level 1))
+  :documentation "Test class with :positional-rest arg without :transient-key.")
+
+(ert-deftest beads-meta--humanize-slot-name-basic ()
+  "Test humanize function converts slot names correctly."
+  (should (equal "Issue ID" (beads-meta--humanize-slot-name 'issue-id)))
+  (should (equal "Issue IDs" (beads-meta--humanize-slot-name 'issue-ids)))
+  (should (equal "Target ID" (beads-meta--humanize-slot-name 'target-id)))
+  (should (equal "Title" (beads-meta--humanize-slot-name 'title))))
+
+(ert-deftest beads-meta--humanize-slot-name-underscores ()
+  "Test humanize function handles underscores."
+  (should (equal "Some Name" (beads-meta--humanize-slot-name 'some_name)))
+  (should (equal "User ID" (beads-meta--humanize-slot-name 'user_id))))
+
+(ert-deftest beads-meta--auto-generate-key-basic ()
+  "Test auto-generate key function."
+  (should (equal "i" (beads-meta--auto-generate-key 'issue-id 1)))
+  (should (equal "t" (beads-meta--auto-generate-key 'target-id 2)))
+  (should (equal "t" (beads-meta--auto-generate-key 'title nil))))
+
+(ert-deftest beads-meta-transient-slots-includes-positional-without-key ()
+  "Test that transient-slots includes positional args without :transient-key."
+  (let ((slots (beads-meta-transient-slots 'beads-meta-test-positional-no-key)))
+    ;; Should include the positional slots
+    (should (memq 'issue-id slots))
+    (should (memq 'target-id slots))
+    ;; Should include option with explicit key
+    (should (memq 'option-with-key slots))
+    ;; Total 3 slots
+    (should (= 3 (length slots)))))
+
+(ert-deftest beads-meta-transient-slots-includes-positional-rest ()
+  "Test that transient-slots includes :positional-rest args."
+  (let ((slots (beads-meta-transient-slots 'beads-meta-test-positional-rest)))
+    ;; Should include positional-rest slot
+    (should (memq 'issue-ids slots))
+    ;; Should include option with explicit key
+    (should (memq 'until slots))
+    ;; Total 2 slots
+    (should (= 2 (length slots)))))
+
+(ert-deftest beads-meta-generate-infix-spec-positional-without-key ()
+  "Test that infix spec is generated for positional arg without :transient-key."
+  (let ((spec (beads-meta-generate-infix-spec
+               'beads-meta-test-positional-no-key 'issue-id "beads-test")))
+    (should spec)
+    ;; Should have auto-generated key
+    (should (equal "i" (plist-get spec :key)))
+    ;; Should have auto-generated description
+    (should (string-match "Issue ID" (plist-get spec :description)))
+    ;; Should have pseudo-argument
+    (should (equal "=issue-id=" (plist-get spec :argument)))
+    ;; Should have auto-generated prompt
+    (should (equal "Issue ID: " (plist-get spec :prompt)))))
+
+(ert-deftest beads-meta-generate-infix-spec-positional-rest-without-key ()
+  "Test that infix spec is generated for :positional-rest arg."
+  (let ((spec (beads-meta-generate-infix-spec
+               'beads-meta-test-positional-rest 'issue-ids "beads-test")))
+    (should spec)
+    ;; Should have auto-generated key
+    (should (equal "i" (plist-get spec :key)))
+    ;; Should have auto-generated description
+    (should (string-match "Issue IDs" (plist-get spec :description)))
+    ;; Should have pseudo-argument
+    (should (equal "=issue-ids=" (plist-get spec :argument)))
+    ;; Should have auto-generated prompt
+    (should (equal "Issue IDs: " (plist-get spec :prompt)))))
+
+(ert-deftest beads-meta-generate-infix-specs-includes-positional-without-key ()
+  "Test that generate-infix-specs includes positional args without key."
+  (let ((specs (beads-meta-generate-infix-specs
+                'beads-meta-test-positional-no-key "beads-test")))
+    ;; Should have 3 specs
+    (should (= 3 (length specs)))
+    ;; Should include issue-id
+    (let ((issue-id-spec (cl-find-if
+                          (lambda (s)
+                            (eq 'beads-test-infix-issue-id (plist-get s :name)))
+                          specs)))
+      (should issue-id-spec)
+      (should (equal "i" (plist-get issue-id-spec :key))))))
+
+(ert-deftest beads-meta-positional-rest-property-preserved ()
+  "Test that :positional-rest property is correctly preserved."
+  (should (eq t (beads-meta-slot-property
+                 'beads-meta-test-positional-rest
+                 'issue-ids
+                 :positional-rest))))
+
 (provide 'beads-meta-test)
 ;;; beads-meta-test.el ends here
