@@ -870,7 +870,10 @@ Generates:
                (when arg
                  (let* ((initarg (intern (format ":%s" slot-name)))
                         (is-switch (eq trans-class 'transient-switch))
-                        (is-list (eq option-type :list)))
+                        ;; Wrap in list for :option-type :list or :positional-rest
+                        (positional-rest (beads-meta-slot-property
+                                          class-val slot-name :positional-rest))
+                        (is-list (or (eq option-type :list) positional-rest)))
                    (list initarg
                          (cond
                           (is-switch

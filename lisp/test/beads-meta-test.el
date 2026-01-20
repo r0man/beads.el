@@ -1609,5 +1609,22 @@
                  'issue-ids
                  :positional-rest))))
 
+(ert-deftest beads-meta-parse-function-wraps-positional-rest-in-list ()
+  "Test that parse function wraps :positional-rest values in a list.
+This ensures values passed via transient for list-typed slots are
+correctly wrapped, avoiding slot type validation errors."
+  ;; Define the parse function for our test class
+  (eval '(beads-meta-define-parse-function
+          beads-meta-test-positional-rest "beads-meta-test-positional-rest"))
+  ;; Test with a value - should be wrapped in a list
+  (let* ((args '("=issue-ids=bd-1"))
+         (cmd (beads-meta-test-positional-rest--parse-transient-args args)))
+    (should (listp (oref cmd issue-ids)))
+    (should (equal '("bd-1") (oref cmd issue-ids))))
+  ;; Test with nil - should remain nil
+  (let* ((args nil)
+         (cmd (beads-meta-test-positional-rest--parse-transient-args args)))
+    (should (null (oref cmd issue-ids)))))
+
 (provide 'beads-meta-test)
 ;;; beads-meta-test.el ends here
