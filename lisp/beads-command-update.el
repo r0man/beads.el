@@ -745,8 +745,10 @@ Returns list of error messages, or nil if all valid."
                 (dolist (buf (buffer-list))
                   (with-current-buffer buf
                     (cond
-                     ((derived-mode-p 'beads-list-mode)
-                      (beads-list-refresh))
+                     ;; Only refresh list buffers that have a command set
+                     ((and (derived-mode-p 'beads-list-mode)
+                           (bound-and-true-p beads-list--command))
+                      (beads-list-refresh t))
                      ((and (derived-mode-p 'beads-show-mode)
                            (string= beads-show--issue-id
                                     beads-update--issue-id))
@@ -790,8 +792,7 @@ Returns list of error messages, or nil if all valid."
           err-msg)
       (condition-case err
           (let* ((cmd-line (beads-command-line cmd))
-                 (full-cmd (cons beads-executable cmd-line))
-                 (cmd-string (mapconcat #'shell-quote-argument full-cmd " "))
+                 (cmd-string (mapconcat #'shell-quote-argument cmd-line " "))
                  (changes (beads-update--get-changed-fields cmd))
                  (preview-msg (format "Command: %s\nChanges: %s"
                                       cmd-string

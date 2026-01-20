@@ -359,12 +359,14 @@
                (lambda (_cmd) beads-update-test--sample-issue))
               ((symbol-function 'beads--invalidate-completion-cache) #'ignore)
               ((symbol-function 'beads-list-refresh)
-               (lambda () (setq refreshed-list t)))
+               (lambda (&optional _silent) (setq refreshed-list t)))
               ((symbol-function 'beads-refresh-show)
                (lambda () (setq refreshed-show t))))
       ;; Create a mock list buffer
       (with-temp-buffer
         (beads-list-mode)
+        ;; Set beads-list--command so the buffer is considered valid for refresh
+        (setq-local beads-list--command 'list)
         (should-not (beads-update--execute))
         (should refreshed-list)))))
 

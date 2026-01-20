@@ -357,8 +357,9 @@ Returns the preview buffer."
     (when beads-auto-refresh
       (dolist (buffer (buffer-list))
         (with-current-buffer buffer
-          (when (derived-mode-p 'beads-list-mode)
-            (beads-list-refresh)))))
+          (when (and (derived-mode-p 'beads-list-mode)
+                     (bound-and-true-p beads-list--command))
+            (beads-list-refresh t)))))
     result))
 
 ;;;###autoload

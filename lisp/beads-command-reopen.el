@@ -261,7 +261,7 @@ Returns list of error messages, or nil if all valid."
                   (cond
                    ((and (derived-mode-p 'beads-list-mode)
                          (bound-and-true-p beads-list--command))
-                    (beads-list-refresh))
+                    (beads-list-refresh t))
                    ((and (derived-mode-p 'beads-show-mode)
                          (string= beads-show--issue-id (oref issue id)))
                     (beads-refresh-show)))))))

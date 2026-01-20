@@ -603,7 +603,7 @@ Returns error message string if invalid, nil if valid."
   :key "x"
   :description "Add dependency"
   (interactive)
-  (let* ((args (transient-args 'beads-dep-add))
+  (let* ((args (transient-args 'beads-dep-add--menu))
          (parsed (beads-dep-add--parse-transient-args args))
          (issue-id (plist-get parsed :issue-id))
          (depends-on-id (plist-get parsed :depends-on-id))
@@ -630,7 +630,7 @@ Returns error message string if invalid, nil if valid."
   :description "Preview command"
   :transient t
   (interactive)
-  (let* ((args (transient-args 'beads-dep-add))
+  (let* ((args (transient-args 'beads-dep-add--menu))
          (parsed (beads-dep-add--parse-transient-args args))
          (issue-id (plist-get parsed :issue-id))
          (depends-on-id (plist-get parsed :depends-on-id))
@@ -704,7 +704,7 @@ Returns error message string if invalid, nil if valid."
   :key "x"
   :description "Remove dependency"
   (interactive)
-  (let* ((args (transient-args 'beads-dep-remove))
+  (let* ((args (transient-args 'beads-dep-remove--menu))
          (parsed (beads-dep-remove--parse-transient-args args))
          (issue-id (plist-get parsed :issue-id))
          (depends-on-id (plist-get parsed :depends-on-id))
@@ -731,7 +731,7 @@ Returns error message string if invalid, nil if valid."
   :description "Preview command"
   :transient t
   (interactive)
-  (let* ((args (transient-args 'beads-dep-remove))
+  (let* ((args (transient-args 'beads-dep-remove--menu))
          (parsed (beads-dep-remove--parse-transient-args args))
          (issue-id (plist-get parsed :issue-id))
          (depends-on-id (plist-get parsed :depends-on-id))
