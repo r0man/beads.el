@@ -339,9 +339,8 @@ Returns list of error messages, or nil if all valid."
   (interactive)
   (let* ((args (transient-args 'beads-init))
          (cmd (beads-init--parse-transient-args args))
-         (cmd-line (beads-command-line cmd))
-         (full-cmd (cons beads-executable cmd-line)))
-    (message "Command: %s" (string-join full-cmd " "))))
+         (cmd-line (beads-command-line cmd)))
+    (message "Command: %s" (string-join cmd-line " "))))
 
 (transient-define-suffix beads-init--reset ()
   "Reset all init parameters."

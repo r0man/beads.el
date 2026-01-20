@@ -58,7 +58,7 @@
 (declare-function beads-list--populate-buffer "beads-list")
 (declare-function beads-list-mode "beads-list")
 (declare-function beads-list-refresh "beads-list")
-(declare-function beads-show-refresh "beads-show")
+(declare-function beads-refresh-show "beads-command-show")
 (declare-function beads-reader-label-issue-ids "beads-reader")
 (declare-function beads-reader-label-name "beads-reader")
 (defvar beads-show--issue-id)
@@ -440,10 +440,11 @@ Returns list of arguments for bd label add command."
             ;; Invalidate issue cache (labels may have changed)
             (beads--invalidate-completion-cache)
             ;; Refresh current buffer if in list/show mode
-            (when (derived-mode-p 'beads-list-mode)
-              (beads-list-refresh))
+            (when (and (derived-mode-p 'beads-list-mode)
+                       (bound-and-true-p beads-list--command))
+              (beads-list-refresh t))
             (when (derived-mode-p 'beads-show-mode)
-              (beads-show-refresh))
+              (beads-refresh-show))
             nil)
         (error
          (let ((err-msg (format "Failed to add label: %s"
@@ -554,10 +555,11 @@ Returns list of arguments for bd label remove command."
             ;; Invalidate issue cache (labels may have changed)
             (beads--invalidate-completion-cache)
             ;; Refresh current buffer if in list/show mode
-            (when (derived-mode-p 'beads-list-mode)
-              (beads-list-refresh))
+            (when (and (derived-mode-p 'beads-list-mode)
+                       (bound-and-true-p beads-list--command))
+              (beads-list-refresh t))
             (when (derived-mode-p 'beads-show-mode)
-              (beads-show-refresh))
+              (beads-refresh-show))
             nil)
         (error
          (let ((err-msg (format "Failed to remove label: %s"

@@ -484,9 +484,8 @@ Handles errors gracefully by calling `beads--error'."
   (interactive)
   (let* ((args (transient-args 'beads-export))
          (cmd (beads-export--parse-transient-args args))
-         (cmd-line (beads-command-line cmd))
-         (full-cmd (cons beads-executable cmd-line)))
-    (message "Command: %s" (string-join full-cmd " "))))
+         (cmd-line (beads-command-line cmd)))
+    (message "Command: %s" (string-join cmd-line " "))))
 
 (transient-define-suffix beads-export--reset ()
   "Reset all export parameters."

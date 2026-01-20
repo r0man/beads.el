@@ -1658,8 +1658,7 @@ Uses directory-aware buffer identity: same project = same buffer."
   (let* ((args (transient-args 'beads-list))
          (command (beads-list--parse-transient-args args))
          (cmd-line (beads-command-line command))
-         (cmd (cons beads-executable cmd-line))
-         (cmd-string (mapconcat #'shell-quote-argument cmd " ")))
+         (cmd-string (mapconcat #'shell-quote-argument cmd-line " ")))
     (message "Command: %s" cmd-string)))
 
 ;;; Transient Groups

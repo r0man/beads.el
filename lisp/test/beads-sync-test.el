@@ -270,9 +270,11 @@ This test would have caught the original bug."
   "Test refresh with beads-list-mode buffer."
   (with-temp-buffer
     (setq major-mode 'beads-list-mode)
+    ;; Set beads-list--command so the buffer is considered valid for refresh
+    (setq-local beads-list--command 'list)
     (let ((refresh-called nil))
       (cl-letf (((symbol-function 'beads-list-refresh)
-                 (lambda () (setq refresh-called t))))
+                 (lambda (&optional _silent) (setq refresh-called t))))
         (beads-sync--refresh-all-buffers)
         (should refresh-called)))))
 
@@ -341,8 +343,10 @@ This test would have caught the original bug."
   (let ((refreshed nil))
     (with-temp-buffer
       (beads-list-mode)
+      ;; Set beads-list--command so the buffer is considered valid for refresh
+      (setq-local beads-list--command 'list)
       (cl-letf (((symbol-function 'beads-list-refresh)
-                 (lambda () (setq refreshed t))))
+                 (lambda (&optional _silent) (setq refreshed t))))
         (beads-sync--refresh-all-buffers)))
     (should refreshed)))
 

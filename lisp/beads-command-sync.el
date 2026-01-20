@@ -262,9 +262,10 @@ compilation buffer output."
   ;; Refresh all beads-list buffers
   (dolist (buf (buffer-list))
     (with-current-buffer buf
-      (when (eq major-mode 'beads-list-mode)
+      (when (and (eq major-mode 'beads-list-mode)
+                 (bound-and-true-p beads-list--command))
         (ignore-errors
-          (beads-list-refresh)))))
+          (beads-list-refresh t)))))
   ;; Refresh all beads-show buffers
   (dolist (buf (buffer-list))
     (with-current-buffer buf
