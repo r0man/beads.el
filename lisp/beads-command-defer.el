@@ -19,6 +19,9 @@
 (require 'beads-option)
 (require 'transient)
 
+;; Forward declarations
+(declare-function beads-reader-issue-id "beads-reader")
+
 ;;; ============================================================
 ;;; Command Class: beads-command-defer
 ;;; ============================================================
@@ -30,7 +33,17 @@
     :type list
     :initform nil
     :documentation "Issue IDs to defer."
-    :positional-rest t)
+    :positional-rest t
+    ;; Transient properties
+    :transient-key "i"
+    :transient-description "Issue IDs"
+    :transient-class transient-option
+    :transient-argument "--id="
+    :transient-prompt "Issue ID(s): "
+    :transient-reader beads-reader-issue-id
+    :transient-group "Defer"
+    :transient-level 1
+    :transient-order 1)
    (until
     :initarg :until
     :type (or null string)
@@ -76,7 +89,17 @@ Defers one or more issues for later."))
     :type list
     :initform nil
     :documentation "Issue IDs to undefer."
-    :positional-rest t))
+    :positional-rest t
+    ;; Transient properties
+    :transient-key "i"
+    :transient-description "Issue IDs"
+    :transient-class transient-option
+    :transient-argument "--id="
+    :transient-prompt "Issue ID(s): "
+    :transient-reader beads-reader-issue-id
+    :transient-group "Undefer"
+    :transient-level 1
+    :transient-order 1))
   :documentation "Represents bd undefer command.
 Undefers one or more issues (restores to open)."))
 
