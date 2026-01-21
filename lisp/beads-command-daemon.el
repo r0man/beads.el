@@ -43,13 +43,13 @@
     :documentation "Skip auto-cleanup of stale sockets (--no-cleanup)."
     :long-option "no-cleanup"
     :option-type :boolean
-    :transient-key "c"
-    :transient-description "Skip cleanup"
-    :transient-class transient-switch
-    :transient-argument "--no-cleanup"
+    :key "c"
+    :transient "Skip cleanup"
+    :class transient-switch
+    :argument "--no-cleanup"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (search
     :initarg :search
     :type (or null list)
@@ -58,14 +58,14 @@
 Default: home, /tmp, cwd."
     :long-option "search"
     :option-type :string
-    :transient-key "s"
-    :transient-description "Search directories"
-    :transient-class transient-option
-    :transient-argument "--search="
-    :transient-prompt "Search dirs (comma-sep): "
+    :key "s"
+    :transient "Search directories"
+    :class transient-option
+    :argument "--search="
+    :prompt "Search dirs (comma-sep): "
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 2))
+    :level 2
+    :order 2))
   :documentation "Represents bd daemon list command.
 Lists all running bd daemons with metadata."))
 
@@ -96,13 +96,13 @@ No required fields, returns nil (valid)."
     :documentation "Automatically commit changes (--auto-commit)."
     :long-option "auto-commit"
     :option-type :boolean
-    :transient-key "c"
-    :transient-description "Auto-commit"
-    :transient-class transient-switch
-    :transient-argument "--auto-commit"
+    :key "c"
+    :transient "Auto-commit"
+    :class transient-switch
+    :argument "--auto-commit"
     :transient-group "Sync Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (auto-push
     :initarg :auto-push
     :type boolean
@@ -111,13 +111,13 @@ No required fields, returns nil (valid)."
 Implies --auto-commit."
     :long-option "auto-push"
     :option-type :boolean
-    :transient-key "p"
-    :transient-description "Auto-push"
-    :transient-class transient-switch
-    :transient-argument "--auto-push"
+    :key "p"
+    :transient "Auto-push"
+    :class transient-switch
+    :argument "--auto-push"
     :transient-group "Sync Options"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (auto-pull
     :initarg :auto-pull
     :type boolean
@@ -126,13 +126,13 @@ Implies --auto-commit."
 Default: true when sync.branch configured."
     :long-option "auto-pull"
     :option-type :boolean
-    :transient-key "P"
-    :transient-description "Auto-pull"
-    :transient-class transient-switch
-    :transient-argument "--auto-pull"
+    :key "P"
+    :transient "Auto-pull"
+    :class transient-switch
+    :argument "--auto-pull"
     :transient-group "Sync Options"
-    :transient-level 2
-    :transient-order 3)
+    :level 2
+    :order 3)
    (foreground
     :initarg :foreground
     :type boolean
@@ -141,13 +141,13 @@ Default: true when sync.branch configured."
 Useful for systemd/supervisord."
     :long-option "foreground"
     :option-type :boolean
-    :transient-key "f"
-    :transient-description "Foreground mode"
-    :transient-class transient-switch
-    :transient-argument "--foreground"
+    :key "f"
+    :transient "Foreground mode"
+    :class transient-switch
+    :argument "--foreground"
     :transient-group "Mode"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (local
     :initarg :local
     :type boolean
@@ -156,13 +156,13 @@ Useful for systemd/supervisord."
 No git required, no sync."
     :long-option "local"
     :option-type :boolean
-    :transient-key "l"
-    :transient-description "Local-only mode"
-    :transient-class transient-switch
-    :transient-argument "--local"
+    :key "l"
+    :transient "Local-only mode"
+    :class transient-switch
+    :argument "--local"
     :transient-group "Mode"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (interval
     :initarg :interval
     :type (or null string)
@@ -171,14 +171,14 @@ No git required, no sync."
 Default: 5s."
     :long-option "interval"
     :option-type :string
-    :transient-key "i"
-    :transient-description "Sync interval"
-    :transient-class transient-option
-    :transient-argument "--interval="
-    :transient-prompt "Interval (e.g., 5s, 1m): "
+    :key "i"
+    :transient "Sync interval"
+    :class transient-option
+    :argument "--interval="
+    :prompt "Interval (e.g., 5s, 1m): "
     :transient-group "Logging"
-    :transient-level 3
-    :transient-order 1)
+    :level 3
+    :order 1)
    (log-file
     :initarg :log-file
     :type (or null string)
@@ -187,14 +187,14 @@ Default: 5s."
 Default: .beads/daemon.log."
     :long-option "log"
     :option-type :string
-    :transient-key "L"
-    :transient-description "Log file"
-    :transient-class transient-option
-    :transient-argument "--log="
-    :transient-prompt "Log file: "
+    :key "L"
+    :transient "Log file"
+    :class transient-option
+    :argument "--log="
+    :prompt "Log file: "
     :transient-group "Logging"
-    :transient-level 3
-    :transient-order 2)
+    :level 3
+    :order 2)
    (log-level
     :initarg :log-level
     :type (or null string)
@@ -203,14 +203,14 @@ Default: .beads/daemon.log."
 Values: debug, info, warn, error. Default: info."
     :long-option "log-level"
     :option-type :string
-    :transient-key "v"
-    :transient-description "Log level"
-    :transient-class transient-option
-    :transient-argument "--log-level="
-    :transient-choices ("debug" "info" "warn" "error")
+    :key "v"
+    :transient "Log level"
+    :class transient-option
+    :argument "--log-level="
+    :choices ("debug" "info" "warn" "error")
     :transient-group "Logging"
-    :transient-level 3
-    :transient-order 3)
+    :level 3
+    :order 3)
    (log-json
     :initarg :log-json
     :type boolean
@@ -218,13 +218,13 @@ Values: debug, info, warn, error. Default: info."
     :documentation "Output logs in JSON format (--log-json)."
     :long-option "log-json"
     :option-type :boolean
-    :transient-key "j"
-    :transient-description "JSON logs"
-    :transient-class transient-switch
-    :transient-argument "--log-json"
+    :key "j"
+    :transient "JSON logs"
+    :class transient-switch
+    :argument "--log-json"
     :transient-group "Logging"
-    :transient-level 3
-    :transient-order 4))
+    :level 3
+    :order 4))
   :documentation "Represents bd daemon start command.
 Starts the background sync daemon."))
 
@@ -285,13 +285,13 @@ Target is optional (defaults to current workspace)."
     :documentation "Show status of all daemons (--all)."
     :long-option "all"
     :option-type :boolean
-    :transient-key "a"
-    :transient-description "All daemons"
-    :transient-class transient-switch
-    :transient-argument "--all"
+    :key "a"
+    :transient "All daemons"
+    :class transient-switch
+    :argument "--all"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (search
     :initarg :search
     :type (or null list)
@@ -300,14 +300,14 @@ Target is optional (defaults to current workspace)."
 Use with --all."
     :long-option "search"
     :option-type :string
-    :transient-key "s"
-    :transient-description "Search directories"
-    :transient-class transient-option
-    :transient-argument "--search="
-    :transient-prompt "Search dirs (comma-sep): "
+    :key "s"
+    :transient "Search directories"
+    :class transient-option
+    :argument "--search="
+    :prompt "Search dirs (comma-sep): "
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 2))
+    :level 2
+    :order 2))
   :documentation "Represents bd daemon status command.
 Shows daemon status for current workspace or all daemons."))
 
@@ -339,14 +339,14 @@ No required fields, returns nil (valid)."
 Default: home, /tmp, cwd."
     :long-option "search"
     :option-type :string
-    :transient-key "s"
-    :transient-description "Search directories"
-    :transient-class transient-option
-    :transient-argument "--search="
-    :transient-prompt "Search dirs (comma-sep): "
+    :key "s"
+    :transient "Search directories"
+    :class transient-option
+    :argument "--search="
+    :prompt "Search dirs (comma-sep): "
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 1))
+    :level 2
+    :order 1))
   :documentation "Represents bd daemon health command.
 Checks health of all running daemons."))
 
@@ -377,13 +377,13 @@ No required fields, returns nil (valid)."
     :documentation "Use SIGKILL immediately if graceful fails (--force)."
     :long-option "force"
     :option-type :boolean
-    :transient-key "f"
-    :transient-description "Force kill"
-    :transient-class transient-switch
-    :transient-argument "--force"
+    :key "f"
+    :transient "Force kill"
+    :class transient-switch
+    :argument "--force"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (search
     :initarg :search
     :type (or null list)
@@ -392,14 +392,14 @@ No required fields, returns nil (valid)."
 Default: home, /tmp, cwd."
     :long-option "search"
     :option-type :string
-    :transient-key "s"
-    :transient-description "Search directories"
-    :transient-class transient-option
-    :transient-argument "--search="
-    :transient-prompt "Search dirs (comma-sep): "
+    :key "s"
+    :transient "Search directories"
+    :class transient-option
+    :argument "--search="
+    :prompt "Search dirs (comma-sep): "
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 2))
+    :level 2
+    :order 2))
   :documentation "Represents bd daemon killall command.
 Stops all running bd daemons."))
 
@@ -437,13 +437,13 @@ No required fields, returns nil (valid)."
     :long-option "follow"
     :short-option "f"
     :option-type :boolean
-    :transient-key "f"
-    :transient-description "Follow output"
-    :transient-class transient-switch
-    :transient-argument "--follow"
+    :key "f"
+    :transient "Follow output"
+    :class transient-switch
+    :argument "--follow"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (lines
     :initarg :lines
     :type (or null integer)
@@ -453,14 +453,14 @@ Default: 50."
     :long-option "lines"
     :short-option "n"
     :option-type :integer
-    :transient-key "n"
-    :transient-description "Number of lines"
-    :transient-class transient-option
-    :transient-argument "--lines="
-    :transient-prompt "Lines (default 50): "
+    :key "n"
+    :transient "Number of lines"
+    :class transient-option
+    :argument "--lines="
+    :prompt "Lines (default 50): "
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 2))
+    :level 2
+    :order 2))
   :documentation "Represents bd daemon logs command.
 Views logs for a specific daemon."))
 
@@ -499,14 +499,14 @@ Target is optional (defaults to current workspace)."
 Default: home, /tmp, cwd."
     :long-option "search"
     :option-type :string
-    :transient-key "s"
-    :transient-description "Search directories"
-    :transient-class transient-option
-    :transient-argument "--search="
-    :transient-prompt "Search dirs (comma-sep): "
+    :key "s"
+    :transient "Search directories"
+    :class transient-option
+    :argument "--search="
+    :prompt "Search dirs (comma-sep): "
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 1))
+    :level 2
+    :order 1))
   :documentation "Represents bd daemon restart command.
 Restarts a specific daemon."))
 

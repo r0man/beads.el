@@ -47,14 +47,14 @@
     :long-option "parent"
     :option-type :string
     ;; Transient properties
-    :transient-key "P"
-    :transient-description "--parent"
-    :transient-class transient-option
-    :transient-argument "--parent="
-    :transient-prompt "Parent ID: "
+    :key "P"
+    :transient "--parent"
+    :class transient-option
+    :argument "--parent="
+    :prompt "Parent ID: "
     :transient-group "Scope"
-    :transient-level 2
-    :transient-order 1))
+    :level 2
+    :order 1))
   :documentation "Represents bd blocked command.
 Shows blocked issues (issues with unresolved blockers).
 When executed with :json t, returns list of beads-blocked-issue instances."))

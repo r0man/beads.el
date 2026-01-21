@@ -60,15 +60,15 @@ touched issue."
     :option-type :list
     :option-separator " "
     ;; Transient properties
-    :transient-key "i"
-    :transient-description "Issue IDs"
-    :transient-class transient-option
-    :transient-argument "--id="
-    :transient-prompt "Issue ID(s): "
+    :key "i"
+    :transient "Issue IDs"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID(s): "
     :transient-reader beads-reader-issue-id
     :transient-group "Issue"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
 
    ;; Status & Priority
    (status
@@ -82,16 +82,16 @@ Values: open, in_progress, blocked, closed."
     :short-option "s"
     :option-type :string
     ;; Transient properties
-    :transient-key "s"
-    :transient-description "--status"
-    :transient-class transient-option
-    :transient-argument "--status="
-    :transient-prompt "Status: "
-    :transient-choices ("open" "in_progress" "blocked" "closed")
+    :key "s"
+    :transient "--status"
+    :class transient-option
+    :argument "--status="
+    :prompt "Status: "
+    :choices ("open" "in_progress" "blocked" "closed")
     :transient-reader beads-reader-update-status
     :transient-group "Status & Priority"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (priority
     :initarg :priority
     :type (or null string integer)
@@ -103,15 +103,15 @@ Values: 0-4 or P0-P4 (0=highest)."
     :short-option "p"
     :option-type :string
     ;; Transient properties
-    :transient-key "p"
-    :transient-description "--priority"
-    :transient-class transient-option
-    :transient-argument "--priority="
-    :transient-prompt "Priority: "
+    :key "p"
+    :transient "--priority"
+    :class transient-option
+    :argument "--priority="
+    :prompt "Priority: "
     :transient-reader beads-reader-issue-priority
     :transient-group "Status & Priority"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (claim
     :initarg :claim
     :type boolean
@@ -123,13 +123,13 @@ Fails if already claimed."
     :long-option "claim"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "c"
-    :transient-description "--claim"
-    :transient-class transient-switch
-    :transient-argument "--claim"
+    :key "c"
+    :transient "--claim"
+    :class transient-switch
+    :argument "--claim"
     :transient-group "Status & Priority"
-    :transient-level 2
-    :transient-order 3)
+    :level 2
+    :order 3)
 
    ;; Basic Info
    (title
@@ -141,15 +141,15 @@ Fails if already claimed."
     :long-option "title"
     :option-type :string
     ;; Transient properties
-    :transient-key "t"
-    :transient-description "--title"
-    :transient-class transient-option
-    :transient-argument "--title="
-    :transient-prompt "Issue title: "
+    :key "t"
+    :transient "--title"
+    :class transient-option
+    :argument "--title="
+    :prompt "Issue title: "
     :transient-reader beads-reader-issue-title
     :transient-group "Basic Info"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (issue-type
     :initarg :issue-type
     :type (or null string)
@@ -162,18 +162,18 @@ gate, agent, role, rig, convoy, event, slot."
     :short-option "t"
     :option-type :string
     ;; Transient properties
-    :transient-key "t"
-    :transient-description "--type"
-    :transient-class transient-option
-    :transient-argument "--type="
-    :transient-prompt "Type: "
-    :transient-choices ("bug" "feature" "task" "epic" "chore"
+    :key "t"
+    :transient "--type"
+    :class transient-option
+    :argument "--type="
+    :prompt "Type: "
+    :choices ("bug" "feature" "task" "epic" "chore"
                         "merge-request" "molecule" "gate" "agent"
                         "role" "rig" "convoy" "event" "slot")
     :transient-reader beads-reader-issue-type
     :transient-group "Basic Info"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (assignee
     :initarg :assignee
     :type (or null string)
@@ -184,15 +184,15 @@ gate, agent, role, rig, convoy, event, slot."
     :short-option "a"
     :option-type :string
     ;; Transient properties
-    :transient-key "a"
-    :transient-description "--assignee"
-    :transient-class transient-option
-    :transient-argument "--assignee="
-    :transient-prompt "Assignee: "
+    :key "a"
+    :transient "--assignee"
+    :class transient-option
+    :argument "--assignee="
+    :prompt "Assignee: "
     :transient-reader beads-reader-issue-assignee
     :transient-group "Basic Info"
-    :transient-level 2
-    :transient-order 3)
+    :level 2
+    :order 3)
    (external-ref
     :initarg :external-ref
     :type (or null string)
@@ -203,15 +203,15 @@ Examples: 'gh-9', 'jira-ABC'."
     :long-option "external-ref"
     :option-type :string
     ;; Transient properties
-    :transient-key "x"
-    :transient-description "--external-ref"
-    :transient-class transient-option
-    :transient-argument "--external-ref="
-    :transient-prompt "External reference: "
+    :key "x"
+    :transient "--external-ref"
+    :class transient-option
+    :argument "--external-ref="
+    :prompt "External reference: "
     :transient-reader beads-reader-issue-external-ref
     :transient-group "Basic Info"
-    :transient-level 3
-    :transient-order 4)
+    :level 3
+    :order 4)
    (parent
     :initarg :parent
     :type (or null string)
@@ -222,15 +222,15 @@ Reparents the issue.  Use empty string to remove parent."
     :long-option "parent"
     :option-type :string
     ;; Transient properties
-    :transient-key "P"
-    :transient-description "--parent"
-    :transient-class transient-option
-    :transient-argument "--parent="
-    :transient-prompt "Parent issue ID: "
+    :key "P"
+    :transient "--parent"
+    :class transient-option
+    :argument "--parent="
+    :prompt "Parent issue ID: "
     :transient-reader beads-reader-issue-id
     :transient-group "Basic Info"
-    :transient-level 3
-    :transient-order 5)
+    :level 3
+    :order 5)
 
    ;; Content
    (description
@@ -243,14 +243,14 @@ Reparents the issue.  Use empty string to remove parent."
     :short-option "d"
     :option-type :string
     ;; Transient properties
-    :transient-key "d"
-    :transient-description "--description"
-    :transient-class beads-create-transient-multiline
-    :transient-argument "--description="
-    :transient-field-name "Description"
+    :key "d"
+    :transient "--description"
+    :class beads-create-transient-multiline
+    :argument "--description="
+    :field-name "Description"
     :transient-group "Content"
-    :transient-level 3
-    :transient-order 1)
+    :level 3
+    :order 1)
    (acceptance
     :initarg :acceptance
     :type (or null string)
@@ -260,14 +260,14 @@ Reparents the issue.  Use empty string to remove parent."
     :long-option "acceptance"
     :option-type :string
     ;; Transient properties
-    :transient-key "A"
-    :transient-description "--acceptance"
-    :transient-class beads-create-transient-multiline
-    :transient-argument "--acceptance="
-    :transient-field-name "Acceptance Criteria"
+    :key "A"
+    :transient "--acceptance"
+    :class beads-create-transient-multiline
+    :argument "--acceptance="
+    :field-name "Acceptance Criteria"
     :transient-group "Content"
-    :transient-level 3
-    :transient-order 2)
+    :level 3
+    :order 2)
    (design
     :initarg :design
     :type (or null string)
@@ -277,14 +277,14 @@ Reparents the issue.  Use empty string to remove parent."
     :long-option "design"
     :option-type :string
     ;; Transient properties
-    :transient-key "G"
-    :transient-description "--design"
-    :transient-class beads-create-transient-multiline
-    :transient-argument "--design="
-    :transient-field-name "Design"
+    :key "G"
+    :transient "--design"
+    :class beads-create-transient-multiline
+    :argument "--design="
+    :field-name "Design"
     :transient-group "Content"
-    :transient-level 3
-    :transient-order 3)
+    :level 3
+    :order 3)
    (notes
     :initarg :notes
     :type (or null string)
@@ -294,14 +294,14 @@ Reparents the issue.  Use empty string to remove parent."
     :long-option "notes"
     :option-type :string
     ;; Transient properties
-    :transient-key "N"
-    :transient-description "--notes"
-    :transient-class beads-create-transient-multiline
-    :transient-argument "--notes="
-    :transient-field-name "Notes"
+    :key "N"
+    :transient "--notes"
+    :class beads-create-transient-multiline
+    :argument "--notes="
+    :field-name "Notes"
     :transient-group "Content"
-    :transient-level 3
-    :transient-order 4)
+    :level 3
+    :order 4)
    (body-file
     :initarg :body-file
     :type (or null string)
@@ -312,15 +312,15 @@ Use - for stdin."
     :long-option "body-file"
     :option-type :string
     ;; Transient properties
-    :transient-key "B"
-    :transient-description "--body-file"
-    :transient-class transient-option
-    :transient-argument "--body-file="
-    :transient-prompt "Body file: "
+    :key "B"
+    :transient "--body-file"
+    :class transient-option
+    :argument "--body-file="
+    :prompt "Body file: "
     :transient-reader transient-read-file
     :transient-group "Content"
-    :transient-level 4
-    :transient-order 5)
+    :level 4
+    :order 5)
 
    ;; Labels
    (add-label
@@ -334,15 +334,15 @@ Repeatable.  Existing labels are preserved."
     :option-type :list
     :option-separator nil  ; Each label is a separate --add-label arg
     ;; Transient properties
-    :transient-key "l"
-    :transient-description "--add-label"
-    :transient-class transient-option
-    :transient-argument "--add-label="
-    :transient-prompt "Add label: "
+    :key "l"
+    :transient "--add-label"
+    :class transient-option
+    :argument "--add-label="
+    :prompt "Add label: "
     :transient-reader beads-reader-issue-labels
     :transient-group "Labels"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (remove-label
     :initarg :remove-label
     :type (or null list)
@@ -354,15 +354,15 @@ Repeatable."
     :option-type :list
     :option-separator nil  ; Each label is a separate --remove-label arg
     ;; Transient properties
-    :transient-key "L"
-    :transient-description "--remove-label"
-    :transient-class transient-option
-    :transient-argument "--remove-label="
-    :transient-prompt "Remove label: "
+    :key "L"
+    :transient "--remove-label"
+    :class transient-option
+    :argument "--remove-label="
+    :prompt "Remove label: "
     :transient-reader beads-reader-issue-labels
     :transient-group "Labels"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (set-labels
     :initarg :set-labels
     :type (or null list)
@@ -374,15 +374,15 @@ Repeatable."
     :option-type :list
     :option-separator nil  ; Each label is a separate --set-labels arg
     ;; Transient properties
-    :transient-key "S"
-    :transient-description "--set-labels"
-    :transient-class transient-option
-    :transient-argument "--set-labels="
-    :transient-prompt "Set labels: "
+    :key "S"
+    :transient "--set-labels"
+    :class transient-option
+    :argument "--set-labels="
+    :prompt "Set labels: "
     :transient-reader beads-reader-issue-labels
     :transient-group "Labels"
-    :transient-level 3
-    :transient-order 3)
+    :level 3
+    :order 3)
 
    ;; Time Management
    (estimate
@@ -396,14 +396,14 @@ Example: 60 for 1 hour."
     :short-option "e"
     :option-type :integer
     ;; Transient properties
-    :transient-key "e"
-    :transient-description "--estimate (minutes)"
-    :transient-class transient-option
-    :transient-argument "--estimate="
-    :transient-prompt "Estimate (minutes): "
+    :key "e"
+    :transient "--estimate (minutes)"
+    :class transient-option
+    :argument "--estimate="
+    :prompt "Estimate (minutes): "
     :transient-group "Time"
-    :transient-level 3
-    :transient-order 1)
+    :level 3
+    :order 1)
    (due
     :initarg :due
     :type (or null string)
@@ -415,14 +415,14 @@ Use empty to clear.  Formats: +6h, +1d, +2w, tomorrow, next monday,
     :long-option "due"
     :option-type :string
     ;; Transient properties
-    :transient-key "D"
-    :transient-description "--due"
-    :transient-class transient-option
-    :transient-argument "--due="
-    :transient-prompt "Due date: "
+    :key "D"
+    :transient "--due"
+    :class transient-option
+    :argument "--due="
+    :prompt "Due date: "
     :transient-group "Time"
-    :transient-level 3
-    :transient-order 2)
+    :level 3
+    :order 2)
    (defer
     :initarg :defer
     :type (or null string)
@@ -433,14 +433,14 @@ Issue hidden from bd ready until then.  Use empty to clear."
     :long-option "defer"
     :option-type :string
     ;; Transient properties
-    :transient-key "E"
-    :transient-description "--defer"
-    :transient-class transient-option
-    :transient-argument "--defer="
-    :transient-prompt "Defer until: "
+    :key "E"
+    :transient "--defer"
+    :class transient-option
+    :argument "--defer="
+    :prompt "Defer until: "
     :transient-group "Time"
-    :transient-level 3
-    :transient-order 3)
+    :level 3
+    :order 3)
 
    ;; Advanced
    (await-id
@@ -453,14 +453,14 @@ E.g., GitHub run ID for gh:run gates."
     :long-option "await-id"
     :option-type :string
     ;; Transient properties
-    :transient-key "W"
-    :transient-description "--await-id"
-    :transient-class transient-option
-    :transient-argument "--await-id="
-    :transient-prompt "Await ID: "
+    :key "W"
+    :transient "--await-id"
+    :class transient-option
+    :argument "--await-id="
+    :prompt "Await ID: "
     :transient-group "Advanced"
-    :transient-level 4
-    :transient-order 1)
+    :level 4
+    :order 1)
    (session
     :initarg :session
     :type (or null string)
@@ -471,14 +471,14 @@ For status=closed.  Or set CLAUDE_SESSION_ID env var."
     :long-option "session"
     :option-type :string
     ;; Transient properties
-    :transient-key "I"
-    :transient-description "--session"
-    :transient-class transient-option
-    :transient-argument "--session="
-    :transient-prompt "Session ID: "
+    :key "I"
+    :transient "--session"
+    :class transient-option
+    :argument "--session="
+    :prompt "Session ID: "
     :transient-group "Advanced"
-    :transient-level 4
-    :transient-order 2))
+    :level 4
+    :order 2))
   :documentation "Represents bd update command.
 Updates one or more issues with new field values.
 When executed with :json t, returns beads-issue instance (or list

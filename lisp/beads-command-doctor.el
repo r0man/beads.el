@@ -49,15 +49,15 @@ Defaults to current directory."
 Available: pollution."
     :long-option "check"
     :option-type :string
-    :transient-key "c"
-    :transient-description "Specific check"
-    :transient-class transient-option
-    :transient-argument "--check="
-    :transient-prompt "Check (pollution): "
-    :transient-choices ("pollution")
+    :key "c"
+    :transient "Specific check"
+    :class transient-option
+    :argument "--check="
+    :prompt "Check (pollution): "
+    :choices ("pollution")
     :transient-group "Checks"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (check-health
     :initarg :check-health
     :type boolean
@@ -66,13 +66,13 @@ Available: pollution."
 Silent on success."
     :long-option "check-health"
     :option-type :boolean
-    :transient-key "h"
-    :transient-description "Quick health check"
-    :transient-class transient-switch
-    :transient-argument "--check-health"
+    :key "h"
+    :transient "Quick health check"
+    :class transient-switch
+    :argument "--check-health"
     :transient-group "Checks"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (deep
     :initarg :deep
     :type boolean
@@ -81,13 +81,13 @@ Silent on success."
 May be slow on large databases."
     :long-option "deep"
     :option-type :boolean
-    :transient-key "d"
-    :transient-description "Deep validation"
-    :transient-class transient-switch
-    :transient-argument "--deep"
+    :key "d"
+    :transient "Deep validation"
+    :class transient-switch
+    :argument "--deep"
     :transient-group "Checks"
-    :transient-level 2
-    :transient-order 3)
+    :level 2
+    :order 3)
    (perf
     :initarg :perf
     :type boolean
@@ -96,13 +96,13 @@ May be slow on large databases."
 Generates CPU profile."
     :long-option "perf"
     :option-type :boolean
-    :transient-key "p"
-    :transient-description "Performance diagnostics"
-    :transient-class transient-switch
-    :transient-argument "--perf"
+    :key "p"
+    :transient "Performance diagnostics"
+    :class transient-switch
+    :argument "--perf"
     :transient-group "Checks"
-    :transient-level 2
-    :transient-order 4)
+    :level 2
+    :order 4)
    (fix
     :initarg :fix
     :type boolean
@@ -110,13 +110,13 @@ Generates CPU profile."
     :documentation "Automatically fix issues where possible (--fix)."
     :long-option "fix"
     :option-type :boolean
-    :transient-key "f"
-    :transient-description "Auto-fix issues"
-    :transient-class transient-switch
-    :transient-argument "--fix"
+    :key "f"
+    :transient "Auto-fix issues"
+    :class transient-switch
+    :argument "--fix"
     :transient-group "Fix Options"
-    :transient-level 3
-    :transient-order 1)
+    :level 3
+    :order 1)
    (dry-run
     :initarg :dry-run
     :type boolean
@@ -124,13 +124,13 @@ Generates CPU profile."
     :documentation "Preview fixes without making changes (--dry-run)."
     :long-option "dry-run"
     :option-type :boolean
-    :transient-key "n"
-    :transient-description "Dry run (preview)"
-    :transient-class transient-switch
-    :transient-argument "--dry-run"
+    :key "n"
+    :transient "Dry run (preview)"
+    :class transient-switch
+    :argument "--dry-run"
     :transient-group "Fix Options"
-    :transient-level 3
-    :transient-order 2)
+    :level 3
+    :order 2)
    (yes
     :initarg :yes
     :type boolean
@@ -139,13 +139,13 @@ Generates CPU profile."
     :long-option "yes"
     :short-option "y"
     :option-type :boolean
-    :transient-key "y"
-    :transient-description "Skip confirmation"
-    :transient-class transient-switch
-    :transient-argument "--yes"
+    :key "y"
+    :transient "Skip confirmation"
+    :class transient-switch
+    :argument "--yes"
     :transient-group "Fix Options"
-    :transient-level 3
-    :transient-order 3)
+    :level 3
+    :order 3)
    (interactive-mode
     :initarg :interactive-mode
     :type boolean
@@ -154,13 +154,13 @@ Generates CPU profile."
     :long-option "interactive"
     :short-option "i"
     :option-type :boolean
-    :transient-key "i"
-    :transient-description "Interactive mode"
-    :transient-class transient-switch
-    :transient-argument "--interactive"
+    :key "i"
+    :transient "Interactive mode"
+    :class transient-switch
+    :argument "--interactive"
     :transient-group "Fix Options"
-    :transient-level 3
-    :transient-order 4)
+    :level 3
+    :order 4)
    (fix-child-parent
     :initarg :fix-child-parent
     :type boolean
@@ -169,13 +169,13 @@ Generates CPU profile."
 Opt-in, requires --fix."
     :long-option "fix-child-parent"
     :option-type :boolean
-    :transient-key "C"
-    :transient-description "Fix child->parent deps"
-    :transient-class transient-switch
-    :transient-argument "--fix-child-parent"
+    :key "C"
+    :transient "Fix child->parent deps"
+    :class transient-switch
+    :argument "--fix-child-parent"
     :transient-group "Fix Options"
-    :transient-level 4
-    :transient-order 5)
+    :level 4
+    :order 5)
    (force
     :initarg :force
     :type boolean
@@ -183,13 +183,13 @@ Opt-in, requires --fix."
     :documentation "Force repair even when database can't be opened (--force)."
     :long-option "force"
     :option-type :boolean
-    :transient-key "F"
-    :transient-description "Force repair"
-    :transient-class transient-switch
-    :transient-argument "--force"
+    :key "F"
+    :transient "Force repair"
+    :class transient-switch
+    :argument "--force"
     :transient-group "Fix Options"
-    :transient-level 4
-    :transient-order 6)
+    :level 4
+    :order 6)
    (source
     :initarg :source
     :type (or null string)
@@ -198,14 +198,14 @@ Opt-in, requires --fix."
 Values: auto (default), jsonl, db."
     :long-option "source"
     :option-type :string
-    :transient-key "s"
-    :transient-description "Source of truth"
-    :transient-class transient-option
-    :transient-argument "--source="
-    :transient-choices ("auto" "jsonl" "db")
+    :key "s"
+    :transient "Source of truth"
+    :class transient-option
+    :argument "--source="
+    :choices ("auto" "jsonl" "db")
     :transient-group "Fix Options"
-    :transient-level 4
-    :transient-order 7)
+    :level 4
+    :order 7)
    (output
     :initarg :output
     :type (or null string)
@@ -214,14 +214,14 @@ Values: auto (default), jsonl, db."
     :long-option "output"
     :short-option "o"
     :option-type :string
-    :transient-key "o"
-    :transient-description "Output file"
-    :transient-class transient-option
-    :transient-argument "--output="
-    :transient-prompt "Output file: "
+    :key "o"
+    :transient "Output file"
+    :class transient-option
+    :argument "--output="
+    :prompt "Output file: "
     :transient-group "Output"
-    :transient-level 3
-    :transient-order 1)
+    :level 3
+    :order 1)
    (verbose
     :initarg :verbose
     :type boolean
@@ -230,13 +230,13 @@ Values: auto (default), jsonl, db."
     :long-option "verbose"
     :short-option "v"
     :option-type :boolean
-    :transient-key "v"
-    :transient-description "Verbose output"
-    :transient-class transient-switch
-    :transient-argument "--verbose"
+    :key "v"
+    :transient "Verbose output"
+    :class transient-switch
+    :argument "--verbose"
     :transient-group "Output"
-    :transient-level 3
-    :transient-order 2)
+    :level 3
+    :order 2)
    (clean
     :initarg :clean
     :type boolean
@@ -244,13 +244,13 @@ Values: auto (default), jsonl, db."
     :documentation "For pollution check: delete detected test issues (--clean)."
     :long-option "clean"
     :option-type :boolean
-    :transient-key "D"
-    :transient-description "Clean (delete test issues)"
-    :transient-class transient-switch
-    :transient-argument "--clean"
+    :key "D"
+    :transient "Clean (delete test issues)"
+    :class transient-switch
+    :argument "--clean"
     :transient-group "Checks"
-    :transient-level 4
-    :transient-order 5))
+    :level 4
+    :order 5))
   :documentation "Represents bd doctor command.
 Sanity checks the beads installation.
 When executed with :json t, returns diagnostic results."))

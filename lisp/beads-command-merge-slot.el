@@ -60,14 +60,14 @@ Checks merge slot availability."))
     :documentation "Agent ID requesting the slot."
     :long-option "holder"
     :option-type :string
-    :transient-key "h"
-    :transient-description "--holder"
-    :transient-class transient-option
-    :transient-argument "--holder="
-    :transient-prompt "Holder agent: "
+    :key "h"
+    :transient "--holder"
+    :class transient-option
+    :argument "--holder="
+    :prompt "Holder agent: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (wait
     :initarg :wait
     :type boolean
@@ -75,13 +75,13 @@ Checks merge slot availability."))
     :documentation "Wait for slot to become available."
     :long-option "wait"
     :option-type :boolean
-    :transient-key "w"
-    :transient-description "--wait"
-    :transient-class transient-switch
-    :transient-argument "--wait"
+    :key "w"
+    :transient "--wait"
+    :class transient-switch
+    :argument "--wait"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 2))
+    :level 1
+    :order 2))
   :documentation "Represents bd merge-slot acquire command.
 Tries to acquire the merge slot."))
 
@@ -102,14 +102,14 @@ Tries to acquire the merge slot."))
     :documentation "Agent ID releasing the slot."
     :long-option "holder"
     :option-type :string
-    :transient-key "h"
-    :transient-description "--holder"
-    :transient-class transient-option
-    :transient-argument "--holder="
-    :transient-prompt "Holder agent: "
+    :key "h"
+    :transient "--holder"
+    :class transient-option
+    :argument "--holder="
+    :prompt "Holder agent: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1))
+    :level 1
+    :order 1))
   :documentation "Represents bd merge-slot release command.
 Releases the merge slot."))
 

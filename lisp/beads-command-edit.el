@@ -42,15 +42,15 @@
     :documentation "Issue ID to edit."
     :positional 1
     ;; Transient properties
-    :transient-key "i"
-    :transient-description "Issue ID (required)"
-    :transient-class transient-option
-    :transient-argument "--id="
-    :transient-prompt "Issue ID: "
+    :key "i"
+    :transient "Issue ID (required)"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID: "
     :transient-reader beads-reader-edit-issue-id
     :transient-group "Edit Issue"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (title
     :initarg :title
     :type boolean
@@ -58,13 +58,13 @@
     :documentation "Edit the title."
     :long-option "title"
     :option-type :boolean
-    :transient-key "t"
-    :transient-description "--title"
-    :transient-class transient-switch
-    :transient-argument "--title"
+    :key "t"
+    :transient "--title"
+    :class transient-switch
+    :argument "--title"
     :transient-group "Field"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (description
     :initarg :description
     :type boolean
@@ -72,13 +72,13 @@
     :documentation "Edit the description (default)."
     :long-option "description"
     :option-type :boolean
-    :transient-key "d"
-    :transient-description "--description"
-    :transient-class transient-switch
-    :transient-argument "--description"
+    :key "d"
+    :transient "--description"
+    :class transient-switch
+    :argument "--description"
     :transient-group "Field"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (design
     :initarg :design
     :type boolean
@@ -86,13 +86,13 @@
     :documentation "Edit the design notes."
     :long-option "design"
     :option-type :boolean
-    :transient-key "D"
-    :transient-description "--design"
-    :transient-class transient-switch
-    :transient-argument "--design"
+    :key "D"
+    :transient "--design"
+    :class transient-switch
+    :argument "--design"
     :transient-group "Field"
-    :transient-level 1
-    :transient-order 3)
+    :level 1
+    :order 3)
    (notes
     :initarg :notes
     :type boolean
@@ -100,13 +100,13 @@
     :documentation "Edit the notes."
     :long-option "notes"
     :option-type :boolean
-    :transient-key "n"
-    :transient-description "--notes"
-    :transient-class transient-switch
-    :transient-argument "--notes"
+    :key "n"
+    :transient "--notes"
+    :class transient-switch
+    :argument "--notes"
     :transient-group "Field"
-    :transient-level 1
-    :transient-order 4)
+    :level 1
+    :order 4)
    (acceptance
     :initarg :acceptance
     :type boolean
@@ -114,13 +114,13 @@
     :documentation "Edit the acceptance criteria."
     :long-option "acceptance"
     :option-type :boolean
-    :transient-key "a"
-    :transient-description "--acceptance"
-    :transient-class transient-switch
-    :transient-argument "--acceptance"
+    :key "a"
+    :transient "--acceptance"
+    :class transient-switch
+    :argument "--acceptance"
     :transient-group "Field"
-    :transient-level 1
-    :transient-order 5))
+    :level 1
+    :order 5))
   :documentation "Represents bd edit command.
 Opens an issue field in $EDITOR for modification."))
 

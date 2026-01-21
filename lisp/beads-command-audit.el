@@ -32,15 +32,15 @@
     :documentation "Entry kind (e.g. llm_call, tool_call, label)."
     :long-option "kind"
     :option-type :string
-    :transient-key "k"
-    :transient-description "--kind"
-    :transient-class transient-option
-    :transient-argument "--kind="
-    :transient-prompt "Kind: "
-    :transient-choices ("llm_call" "tool_call" "label")
+    :key "k"
+    :transient "--kind"
+    :class transient-option
+    :argument "--kind="
+    :prompt "Kind: "
+    :choices ("llm_call" "tool_call" "label")
     :transient-group "Entry"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (issue-id
     :initarg :issue-id
     :type (or null string)
@@ -48,14 +48,14 @@
     :documentation "Related issue ID."
     :long-option "issue-id"
     :option-type :string
-    :transient-key "i"
-    :transient-description "--issue-id"
-    :transient-class transient-option
-    :transient-argument "--issue-id="
-    :transient-prompt "Issue ID: "
+    :key "i"
+    :transient "--issue-id"
+    :class transient-option
+    :argument "--issue-id="
+    :prompt "Issue ID: "
     :transient-group "Entry"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (model
     :initarg :model
     :type (or null string)
@@ -63,14 +63,14 @@
     :documentation "Model name (llm_call)."
     :long-option "model"
     :option-type :string
-    :transient-key "m"
-    :transient-description "--model"
-    :transient-class transient-option
-    :transient-argument "--model="
-    :transient-prompt "Model: "
+    :key "m"
+    :transient "--model"
+    :class transient-option
+    :argument "--model="
+    :prompt "Model: "
     :transient-group "LLM Call"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (prompt
     :initarg :prompt
     :type (or null string)
@@ -78,14 +78,14 @@
     :documentation "Prompt text (llm_call)."
     :long-option "prompt"
     :option-type :string
-    :transient-key "p"
-    :transient-description "--prompt"
-    :transient-class transient-option
-    :transient-argument "--prompt="
-    :transient-prompt "Prompt: "
+    :key "p"
+    :transient "--prompt"
+    :class transient-option
+    :argument "--prompt="
+    :prompt "Prompt: "
     :transient-group "LLM Call"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (response
     :initarg :response
     :type (or null string)
@@ -93,14 +93,14 @@
     :documentation "Response text (llm_call)."
     :long-option "response"
     :option-type :string
-    :transient-key "r"
-    :transient-description "--response"
-    :transient-class transient-option
-    :transient-argument "--response="
-    :transient-prompt "Response: "
+    :key "r"
+    :transient "--response"
+    :class transient-option
+    :argument "--response="
+    :prompt "Response: "
     :transient-group "LLM Call"
-    :transient-level 2
-    :transient-order 3)
+    :level 2
+    :order 3)
    (tool-name
     :initarg :tool-name
     :type (or null string)
@@ -108,14 +108,14 @@
     :documentation "Tool name (tool_call)."
     :long-option "tool-name"
     :option-type :string
-    :transient-key "t"
-    :transient-description "--tool-name"
-    :transient-class transient-option
-    :transient-argument "--tool-name="
-    :transient-prompt "Tool name: "
+    :key "t"
+    :transient "--tool-name"
+    :class transient-option
+    :argument "--tool-name="
+    :prompt "Tool name: "
     :transient-group "Tool Call"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (exit-code
     :initarg :exit-code
     :type (or null integer)
@@ -123,14 +123,14 @@
     :documentation "Exit code (tool_call)."
     :long-option "exit-code"
     :option-type :integer
-    :transient-key "e"
-    :transient-description "--exit-code"
-    :transient-class transient-option
-    :transient-argument "--exit-code="
-    :transient-prompt "Exit code: "
+    :key "e"
+    :transient "--exit-code"
+    :class transient-option
+    :argument "--exit-code="
+    :prompt "Exit code: "
     :transient-group "Tool Call"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (error-msg
     :initarg :error-msg
     :type (or null string)
@@ -138,14 +138,14 @@
     :documentation "Error string."
     :long-option "error"
     :option-type :string
-    :transient-key "E"
-    :transient-description "--error"
-    :transient-class transient-option
-    :transient-argument "--error="
-    :transient-prompt "Error: "
+    :key "E"
+    :transient "--error"
+    :class transient-option
+    :argument "--error="
+    :prompt "Error: "
     :transient-group "Tool Call"
-    :transient-level 2
-    :transient-order 3)
+    :level 2
+    :order 3)
    (stdin
     :initarg :stdin
     :type boolean
@@ -153,13 +153,13 @@
     :documentation "Read JSON object from stdin."
     :long-option "stdin"
     :option-type :boolean
-    :transient-key "s"
-    :transient-description "--stdin"
-    :transient-class transient-switch
-    :transient-argument "--stdin"
+    :key "s"
+    :transient "--stdin"
+    :class transient-switch
+    :argument "--stdin"
     :transient-group "Entry"
-    :transient-level 2
-    :transient-order 3))
+    :level 2
+    :order 3))
   :documentation "Represents bd audit record command.
 Appends an audit interaction entry."))
 
@@ -186,15 +186,15 @@ Appends an audit interaction entry."))
     :documentation "Label value (e.g., good or bad)."
     :long-option "label"
     :option-type :string
-    :transient-key "l"
-    :transient-description "--label"
-    :transient-class transient-option
-    :transient-argument "--label="
-    :transient-prompt "Label (good/bad): "
-    :transient-choices ("good" "bad")
+    :key "l"
+    :transient "--label"
+    :class transient-option
+    :argument "--label="
+    :prompt "Label (good/bad): "
+    :choices ("good" "bad")
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (reason
     :initarg :reason
     :type (or null string)
@@ -202,14 +202,14 @@ Appends an audit interaction entry."))
     :documentation "Reason for label."
     :long-option "reason"
     :option-type :string
-    :transient-key "r"
-    :transient-description "--reason"
-    :transient-class transient-option
-    :transient-argument "--reason="
-    :transient-prompt "Reason: "
+    :key "r"
+    :transient "--reason"
+    :class transient-option
+    :argument "--reason="
+    :prompt "Reason: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 2))
+    :level 1
+    :order 2))
   :documentation "Represents bd audit label command.
 Appends a label entry referencing an existing interaction."))
 

@@ -41,14 +41,14 @@
     :documentation "Search query text (positional or --query).
 Searches across title, description, and ID."
     :positional 1
-    :transient-key "q"
-    :transient-description "Search query"
-    :transient-class transient-option
-    :transient-argument "--query="
-    :transient-prompt "Search query: "
+    :key "q"
+    :transient "Search query"
+    :class transient-option
+    :argument "--query="
+    :prompt "Search query: "
     :transient-group "Query"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (status
     :initarg :status
     :type (or null string)
@@ -58,15 +58,15 @@ Valid values: open, in_progress, blocked, deferred, closed."
     :long-option "status"
     :short-option "s"
     :option-type :string
-    :transient-key "s"
-    :transient-description "Filter by status"
-    :transient-class transient-option
-    :transient-argument "--status="
-    :transient-prompt "Status: "
-    :transient-choices ("open" "in_progress" "blocked" "deferred" "closed")
+    :key "s"
+    :transient "Filter by status"
+    :class transient-option
+    :argument "--status="
+    :prompt "Status: "
+    :choices ("open" "in_progress" "blocked" "deferred" "closed")
     :transient-group "Filters"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (issue-type
     :initarg :issue-type
     :type (or null string)
@@ -76,16 +76,16 @@ Valid values: bug, feature, task, epic, chore, merge-request, molecule, gate."
     :long-option "type"
     :short-option "t"
     :option-type :string
-    :transient-key "t"
-    :transient-description "Filter by type"
-    :transient-class transient-option
-    :transient-argument "--type="
-    :transient-prompt "Type: "
-    :transient-choices ("bug" "feature" "task" "epic" "chore" "merge-request"
+    :key "t"
+    :transient "Filter by type"
+    :class transient-option
+    :argument "--type="
+    :prompt "Type: "
+    :choices ("bug" "feature" "task" "epic" "chore" "merge-request"
                         "molecule" "gate")
     :transient-group "Filters"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (assignee
     :initarg :assignee
     :type (or null string)
@@ -94,14 +94,14 @@ Valid values: bug, feature, task, epic, chore, merge-request, molecule, gate."
     :long-option "assignee"
     :short-option "a"
     :option-type :string
-    :transient-key "a"
-    :transient-description "Filter by assignee"
-    :transient-class transient-option
-    :transient-argument "--assignee="
-    :transient-prompt "Assignee: "
+    :key "a"
+    :transient "Filter by assignee"
+    :class transient-option
+    :argument "--assignee="
+    :prompt "Assignee: "
     :transient-group "Filters"
-    :transient-level 2
-    :transient-order 3)
+    :level 2
+    :order 3)
    (label
     :initarg :label
     :type (or null string)
@@ -110,14 +110,14 @@ Valid values: bug, feature, task, epic, chore, merge-request, molecule, gate."
     :long-option "label"
     :short-option "l"
     :option-type :string
-    :transient-key "l"
-    :transient-description "Filter by label (AND)"
-    :transient-class transient-option
-    :transient-argument "--label="
-    :transient-prompt "Label: "
+    :key "l"
+    :transient "Filter by label (AND)"
+    :class transient-option
+    :argument "--label="
+    :prompt "Label: "
     :transient-group "Filters"
-    :transient-level 2
-    :transient-order 4)
+    :level 2
+    :order 4)
    (label-any
     :initarg :label-any
     :type (or null string)
@@ -125,14 +125,14 @@ Valid values: bug, feature, task, epic, chore, merge-request, molecule, gate."
     :documentation "Filter by labels (OR: must have ANY) (--label-any)."
     :long-option "label-any"
     :option-type :string
-    :transient-key "L"
-    :transient-description "Filter by label (OR)"
-    :transient-class transient-option
-    :transient-argument "--label-any="
-    :transient-prompt "Label (any): "
+    :key "L"
+    :transient "Filter by label (OR)"
+    :class transient-option
+    :argument "--label-any="
+    :prompt "Label (any): "
     :transient-group "Filters"
-    :transient-level 3
-    :transient-order 1)
+    :level 3
+    :order 1)
    (limit
     :initarg :limit
     :type (or null integer)
@@ -142,14 +142,14 @@ Default is 50."
     :long-option "limit"
     :short-option "n"
     :option-type :integer
-    :transient-key "n"
-    :transient-description "Result limit"
-    :transient-class transient-option
-    :transient-argument "--limit="
-    :transient-prompt "Limit (default 50): "
+    :key "n"
+    :transient "Result limit"
+    :class transient-option
+    :argument "--limit="
+    :prompt "Limit (default 50): "
     :transient-group "Output"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (sort
     :initarg :sort
     :type (or null string)
@@ -158,16 +158,16 @@ Default is 50."
 Valid values: priority, created, updated, closed, status, id, title, type, assignee."
     :long-option "sort"
     :option-type :string
-    :transient-key "o"
-    :transient-description "Sort by field"
-    :transient-class transient-option
-    :transient-argument "--sort="
-    :transient-prompt "Sort by: "
-    :transient-choices ("priority" "created" "updated" "closed" "status" "id"
+    :key "o"
+    :transient "Sort by field"
+    :class transient-option
+    :argument "--sort="
+    :prompt "Sort by: "
+    :choices ("priority" "created" "updated" "closed" "status" "id"
                         "title" "type" "assignee")
     :transient-group "Output"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (reverse
     :initarg :reverse
     :type boolean
@@ -176,13 +176,13 @@ Valid values: priority, created, updated, closed, status, id, title, type, assig
     :long-option "reverse"
     :short-option "r"
     :option-type :boolean
-    :transient-key "r"
-    :transient-description "Reverse sort"
-    :transient-class transient-switch
-    :transient-argument "--reverse"
+    :key "r"
+    :transient "Reverse sort"
+    :class transient-switch
+    :argument "--reverse"
     :transient-group "Output"
-    :transient-level 2
-    :transient-order 3)
+    :level 2
+    :order 3)
    (long
     :initarg :long
     :type boolean
@@ -190,13 +190,13 @@ Valid values: priority, created, updated, closed, status, id, title, type, assig
     :documentation "Show detailed multi-line output (--long)."
     :long-option "long"
     :option-type :boolean
-    :transient-key "g"
-    :transient-description "Long output"
-    :transient-class transient-switch
-    :transient-argument "--long"
+    :key "g"
+    :transient "Long output"
+    :class transient-switch
+    :argument "--long"
     :transient-group "Output"
-    :transient-level 3
-    :transient-order 1)
+    :level 3
+    :order 1)
    (priority-min
     :initarg :priority-min
     :type (or null string)
@@ -205,14 +205,14 @@ Valid values: priority, created, updated, closed, status, id, title, type, assig
 Values: 0-4 or P0-P4."
     :long-option "priority-min"
     :option-type :string
-    :transient-key "pm"
-    :transient-description "Min priority"
-    :transient-class transient-option
-    :transient-argument "--priority-min="
-    :transient-prompt "Min priority (0-4): "
+    :key "pm"
+    :transient "Min priority"
+    :class transient-option
+    :argument "--priority-min="
+    :prompt "Min priority (0-4): "
     :transient-group "Priority"
-    :transient-level 3
-    :transient-order 1)
+    :level 3
+    :order 1)
    (priority-max
     :initarg :priority-max
     :type (or null string)
@@ -221,14 +221,14 @@ Values: 0-4 or P0-P4."
 Values: 0-4 or P0-P4."
     :long-option "priority-max"
     :option-type :string
-    :transient-key "pM"
-    :transient-description "Max priority"
-    :transient-class transient-option
-    :transient-argument "--priority-max="
-    :transient-prompt "Max priority (0-4): "
+    :key "pM"
+    :transient "Max priority"
+    :class transient-option
+    :argument "--priority-max="
+    :prompt "Max priority (0-4): "
     :transient-group "Priority"
-    :transient-level 3
-    :transient-order 2)
+    :level 3
+    :order 2)
    (created-after
     :initarg :created-after
     :type (or null string)
@@ -237,14 +237,14 @@ Values: 0-4 or P0-P4."
 Format: YYYY-MM-DD or RFC3339."
     :long-option "created-after"
     :option-type :string
-    :transient-key "Ca"
-    :transient-description "Created after"
-    :transient-class transient-option
-    :transient-argument "--created-after="
-    :transient-prompt "Created after (YYYY-MM-DD): "
+    :key "Ca"
+    :transient "Created after"
+    :class transient-option
+    :argument "--created-after="
+    :prompt "Created after (YYYY-MM-DD): "
     :transient-group "Date Filters"
-    :transient-level 3
-    :transient-order 1)
+    :level 3
+    :order 1)
    (created-before
     :initarg :created-before
     :type (or null string)
@@ -253,14 +253,14 @@ Format: YYYY-MM-DD or RFC3339."
 Format: YYYY-MM-DD or RFC3339."
     :long-option "created-before"
     :option-type :string
-    :transient-key "Cb"
-    :transient-description "Created before"
-    :transient-class transient-option
-    :transient-argument "--created-before="
-    :transient-prompt "Created before (YYYY-MM-DD): "
+    :key "Cb"
+    :transient "Created before"
+    :class transient-option
+    :argument "--created-before="
+    :prompt "Created before (YYYY-MM-DD): "
     :transient-group "Date Filters"
-    :transient-level 3
-    :transient-order 2)
+    :level 3
+    :order 2)
    (updated-after
     :initarg :updated-after
     :type (or null string)
@@ -269,14 +269,14 @@ Format: YYYY-MM-DD or RFC3339."
 Format: YYYY-MM-DD or RFC3339."
     :long-option "updated-after"
     :option-type :string
-    :transient-key "Ua"
-    :transient-description "Updated after"
-    :transient-class transient-option
-    :transient-argument "--updated-after="
-    :transient-prompt "Updated after (YYYY-MM-DD): "
+    :key "Ua"
+    :transient "Updated after"
+    :class transient-option
+    :argument "--updated-after="
+    :prompt "Updated after (YYYY-MM-DD): "
     :transient-group "Date Filters"
-    :transient-level 3
-    :transient-order 3)
+    :level 3
+    :order 3)
    (updated-before
     :initarg :updated-before
     :type (or null string)
@@ -285,14 +285,14 @@ Format: YYYY-MM-DD or RFC3339."
 Format: YYYY-MM-DD or RFC3339."
     :long-option "updated-before"
     :option-type :string
-    :transient-key "Ub"
-    :transient-description "Updated before"
-    :transient-class transient-option
-    :transient-argument "--updated-before="
-    :transient-prompt "Updated before (YYYY-MM-DD): "
+    :key "Ub"
+    :transient "Updated before"
+    :class transient-option
+    :argument "--updated-before="
+    :prompt "Updated before (YYYY-MM-DD): "
     :transient-group "Date Filters"
-    :transient-level 3
-    :transient-order 4)
+    :level 3
+    :order 4)
    (closed-after
     :initarg :closed-after
     :type (or null string)
@@ -301,14 +301,14 @@ Format: YYYY-MM-DD or RFC3339."
 Format: YYYY-MM-DD or RFC3339."
     :long-option "closed-after"
     :option-type :string
-    :transient-key "ca"
-    :transient-description "Closed after"
-    :transient-class transient-option
-    :transient-argument "--closed-after="
-    :transient-prompt "Closed after (YYYY-MM-DD): "
+    :key "ca"
+    :transient "Closed after"
+    :class transient-option
+    :argument "--closed-after="
+    :prompt "Closed after (YYYY-MM-DD): "
     :transient-group "Date Filters"
-    :transient-level 3
-    :transient-order 5)
+    :level 3
+    :order 5)
    (closed-before
     :initarg :closed-before
     :type (or null string)
@@ -317,14 +317,14 @@ Format: YYYY-MM-DD or RFC3339."
 Format: YYYY-MM-DD or RFC3339."
     :long-option "closed-before"
     :option-type :string
-    :transient-key "cb"
-    :transient-description "Closed before"
-    :transient-class transient-option
-    :transient-argument "--closed-before="
-    :transient-prompt "Closed before (YYYY-MM-DD): "
+    :key "cb"
+    :transient "Closed before"
+    :class transient-option
+    :argument "--closed-before="
+    :prompt "Closed before (YYYY-MM-DD): "
     :transient-group "Date Filters"
-    :transient-level 3
-    :transient-order 6))
+    :level 3
+    :order 6))
   :documentation "Represents bd search command.
 Full-text search across issues.
 When executed with :json t, returns matching issues as JSON."))

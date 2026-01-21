@@ -52,14 +52,14 @@
     :short-option "a"
     :option-type :string
     ;; Transient properties
-    :transient-key "a"
-    :transient-description "--assignee"
-    :transient-class transient-option
-    :transient-argument "--assignee="
-    :transient-prompt "Assignee: "
+    :key "a"
+    :transient "--assignee"
+    :class transient-option
+    :argument "--assignee="
+    :prompt "Assignee: "
     :transient-group "Filters"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (include-deferred
     :initarg :include-deferred
     :type boolean
@@ -70,13 +70,13 @@
     :long-option "include-deferred"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "D"
-    :transient-description "--include-deferred"
-    :transient-class transient-switch
-    :transient-argument "--include-deferred"
+    :key "D"
+    :transient "--include-deferred"
+    :class transient-switch
+    :argument "--include-deferred"
     :transient-group "Filters"
-    :transient-level 2
-    :transient-order 8)
+    :level 2
+    :order 8)
    (issue-type
     :initarg :issue-type
     :type (or null string)
@@ -89,14 +89,14 @@ Aliases: mr→merge-request, feat→feature, mol→molecule."
     :short-option "t"
     :option-type :string
     ;; Transient properties
-    :transient-key "T"
-    :transient-description "--type"
-    :transient-class transient-option
-    :transient-argument "--type="
-    :transient-prompt "Type: "
+    :key "T"
+    :transient "--type"
+    :class transient-option
+    :argument "--type="
+    :prompt "Type: "
     :transient-group "Filters"
-    :transient-level 1
-    :transient-order 4)
+    :level 1
+    :order 4)
    (label
     :initarg :label
     :type (or null list)
@@ -108,14 +108,14 @@ Must have ALL labels. Can combine with --label-any."
     :short-option "l"
     :option-type :list
     ;; Transient properties
-    :transient-key "l"
-    :transient-description "--label (AND)"
-    :transient-class transient-option
-    :transient-argument "--label="
-    :transient-prompt "Label (AND): "
+    :key "l"
+    :transient "--label (AND)"
+    :class transient-option
+    :argument "--label="
+    :prompt "Label (AND): "
     :transient-group "Label Filters"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (label-any
     :initarg :label-any
     :type (or null list)
@@ -126,14 +126,14 @@ Must have AT LEAST ONE label. Can combine with --label."
     :long-option "label-any"
     :option-type :list
     ;; Transient properties
-    :transient-key "L"
-    :transient-description "--label-any (OR)"
-    :transient-class transient-option
-    :transient-argument "--label-any="
-    :transient-prompt "Label (OR): "
+    :key "L"
+    :transient "--label-any (OR)"
+    :class transient-option
+    :argument "--label-any="
+    :prompt "Label (OR): "
     :transient-group "Label Filters"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (limit
     :initarg :limit
     :type (or null integer)
@@ -145,14 +145,14 @@ Default: 10."
     :short-option "n"
     :option-type :integer
     ;; Transient properties
-    :transient-key "n"
-    :transient-description "--limit"
-    :transient-class transient-option
-    :transient-argument "--limit="
-    :transient-prompt "Limit: "
+    :key "n"
+    :transient "--limit"
+    :class transient-option
+    :argument "--limit="
+    :prompt "Limit: "
     :transient-group "Display"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (mol
     :initarg :mol
     :type (or null string)
@@ -163,14 +163,14 @@ Use for agents executing molecules to see which steps can run next."
     :long-option "mol"
     :option-type :string
     ;; Transient properties
-    :transient-key "m"
-    :transient-description "--mol"
-    :transient-class transient-option
-    :transient-argument "--mol="
-    :transient-prompt "Molecule ID: "
+    :key "m"
+    :transient "--mol"
+    :class transient-option
+    :argument "--mol="
+    :prompt "Molecule ID: "
     :transient-group "Scope"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (mol-type
     :initarg :mol-type
     :type (or null string)
@@ -181,15 +181,15 @@ Values: swarm, patrol, work."
     :long-option "mol-type"
     :option-type :string
     ;; Transient properties
-    :transient-key "M"
-    :transient-description "--mol-type"
-    :transient-class transient-option
-    :transient-argument "--mol-type="
-    :transient-prompt "Molecule type: "
-    :transient-choices '("swarm" "patrol" "work")
+    :key "M"
+    :transient "--mol-type"
+    :class transient-option
+    :argument "--mol-type="
+    :prompt "Molecule type: "
+    :choices '("swarm" "patrol" "work")
     :transient-group "Scope"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (parent
     :initarg :parent
     :type (or null string)
@@ -199,14 +199,14 @@ Values: swarm, patrol, work."
     :long-option "parent"
     :option-type :string
     ;; Transient properties
-    :transient-key "P"
-    :transient-description "--parent"
-    :transient-class transient-option
-    :transient-argument "--parent="
-    :transient-prompt "Parent ID: "
+    :key "P"
+    :transient "--parent"
+    :class transient-option
+    :argument "--parent="
+    :prompt "Parent ID: "
     :transient-group "Scope"
-    :transient-level 2
-    :transient-order 3)
+    :level 2
+    :order 3)
    (pretty
     :initarg :pretty
     :type boolean
@@ -216,13 +216,13 @@ Values: swarm, patrol, work."
     :long-option "pretty"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "y"
-    :transient-description "--pretty"
-    :transient-class transient-switch
-    :transient-argument "--pretty"
+    :key "y"
+    :transient "--pretty"
+    :class transient-switch
+    :argument "--pretty"
     :transient-group "Display"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (priority
     :initarg :priority
     :type (or null integer)
@@ -234,14 +234,14 @@ Values: 0-4."
     :short-option "p"
     :option-type :integer
     ;; Transient properties
-    :transient-key "p"
-    :transient-description "--priority"
-    :transient-class transient-option
-    :transient-argument "--priority="
-    :transient-prompt "Priority: "
+    :key "p"
+    :transient "--priority"
+    :class transient-option
+    :argument "--priority="
+    :prompt "Priority: "
     :transient-group "Filters"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (sort
     :initarg :sort
     :type (or null string)
@@ -253,15 +253,15 @@ Values: hybrid (default), priority, oldest."
     :short-option "s"
     :option-type :string
     ;; Transient properties
-    :transient-key "s"
-    :transient-description "--sort"
-    :transient-class transient-option
-    :transient-argument "--sort="
-    :transient-prompt "Sort: "
-    :transient-choices '("hybrid" "priority" "oldest")
+    :key "s"
+    :transient "--sort"
+    :class transient-option
+    :argument "--sort="
+    :prompt "Sort: "
+    :choices '("hybrid" "priority" "oldest")
     :transient-group "Display"
-    :transient-level 1
-    :transient-order 3)
+    :level 1
+    :order 3)
    (unassigned
     :initarg :unassigned
     :type boolean
@@ -272,13 +272,13 @@ Values: hybrid (default), priority, oldest."
     :short-option "u"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "u"
-    :transient-description "--unassigned"
-    :transient-class transient-switch
-    :transient-argument "--unassigned"
+    :key "u"
+    :transient "--unassigned"
+    :class transient-switch
+    :argument "--unassigned"
     :transient-group "Filters"
-    :transient-level 1
-    :transient-order 3))
+    :level 1
+    :order 3))
   :documentation "Represents bd ready command.
 Shows ready work (no blockers, open or in-progress).
 When executed with :json t, returns list of beads-issue instances."))

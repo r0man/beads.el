@@ -32,13 +32,13 @@
     :documentation "Preview what would be deleted without making changes."
     :long-option "dry-run"
     :option-type :boolean
-    :transient-key "n"
-    :transient-description "--dry-run"
-    :transient-class transient-switch
-    :transient-argument "--dry-run"
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (force
     :initarg :force
     :type boolean
@@ -47,13 +47,13 @@
     :long-option "force"
     :short-option "f"
     :option-type :boolean
-    :transient-key "f"
-    :transient-description "--force"
-    :transient-class transient-switch
-    :transient-argument "--force"
+    :key "f"
+    :transient "--force"
+    :class transient-switch
+    :argument "--force"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (cascade
     :initarg :cascade
     :type boolean
@@ -61,13 +61,13 @@
     :documentation "Recursively delete all dependent issues."
     :long-option "cascade"
     :option-type :boolean
-    :transient-key "C"
-    :transient-description "--cascade"
-    :transient-class transient-switch
-    :transient-argument "--cascade"
+    :key "C"
+    :transient "--cascade"
+    :class transient-switch
+    :argument "--cascade"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 3)
+    :level 1
+    :order 3)
    (ephemeral
     :initarg :ephemeral
     :type boolean
@@ -75,13 +75,13 @@
     :documentation "Only delete closed wisps (transient molecules)."
     :long-option "ephemeral"
     :option-type :boolean
-    :transient-key "e"
-    :transient-description "--ephemeral"
-    :transient-class transient-switch
-    :transient-argument "--ephemeral"
+    :key "e"
+    :transient "--ephemeral"
+    :class transient-switch
+    :argument "--ephemeral"
     :transient-group "Filters"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (hard
     :initarg :hard
     :type boolean
@@ -89,13 +89,13 @@
     :documentation "Bypass tombstone TTL safety; use --older-than days as cutoff."
     :long-option "hard"
     :option-type :boolean
-    :transient-key "H"
-    :transient-description "--hard"
-    :transient-class transient-switch
-    :transient-argument "--hard"
+    :key "H"
+    :transient "--hard"
+    :class transient-switch
+    :argument "--hard"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 4)
+    :level 2
+    :order 4)
    (older-than
     :initarg :older-than
     :type (or null integer)
@@ -103,14 +103,14 @@
     :documentation "Only delete issues closed more than N days ago (0 = all)."
     :long-option "older-than"
     :option-type :integer
-    :transient-key "o"
-    :transient-description "--older-than"
-    :transient-class transient-option
-    :transient-argument "--older-than="
-    :transient-prompt "Days: "
+    :key "o"
+    :transient "--older-than"
+    :class transient-option
+    :argument "--older-than="
+    :prompt "Days: "
     :transient-group "Filters"
-    :transient-level 1
-    :transient-order 2))
+    :level 1
+    :order 2))
   :documentation "Represents bd admin cleanup command.
 Deletes closed issues and prunes expired tombstones."))
 
@@ -131,13 +131,13 @@ Deletes closed issues and prunes expired tombstones."))
     :documentation "Preview without compacting."
     :long-option "dry-run"
     :option-type :boolean
-    :transient-key "n"
-    :transient-description "--dry-run"
-    :transient-class transient-switch
-    :transient-argument "--dry-run"
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (prune
     :initarg :prune
     :type boolean
@@ -145,13 +145,13 @@ Deletes closed issues and prunes expired tombstones."))
     :documentation "Prune mode: remove expired tombstones by age."
     :long-option "prune"
     :option-type :boolean
-    :transient-key "p"
-    :transient-description "--prune"
-    :transient-class transient-switch
-    :transient-argument "--prune"
+    :key "p"
+    :transient "--prune"
+    :class transient-switch
+    :argument "--prune"
     :transient-group "Mode"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (purge-tombstones
     :initarg :purge-tombstones
     :type boolean
@@ -159,13 +159,13 @@ Deletes closed issues and prunes expired tombstones."))
     :documentation "Purge mode: remove tombstones with no open deps."
     :long-option "purge-tombstones"
     :option-type :boolean
-    :transient-key "P"
-    :transient-description "--purge-tombstones"
-    :transient-class transient-switch
-    :transient-argument "--purge-tombstones"
+    :key "P"
+    :transient "--purge-tombstones"
+    :class transient-switch
+    :argument "--purge-tombstones"
     :transient-group "Mode"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (analyze
     :initarg :analyze
     :type boolean
@@ -173,13 +173,13 @@ Deletes closed issues and prunes expired tombstones."))
     :documentation "Analyze mode: export candidates for agent review."
     :long-option "analyze"
     :option-type :boolean
-    :transient-key "a"
-    :transient-description "--analyze"
-    :transient-class transient-switch
-    :transient-argument "--analyze"
+    :key "a"
+    :transient "--analyze"
+    :class transient-switch
+    :argument "--analyze"
     :transient-group "Mode"
-    :transient-level 1
-    :transient-order 3)
+    :level 1
+    :order 3)
    (apply
     :initarg :apply
     :type boolean
@@ -187,13 +187,13 @@ Deletes closed issues and prunes expired tombstones."))
     :documentation "Apply mode: accept agent-provided summary."
     :long-option "apply"
     :option-type :boolean
-    :transient-key "A"
-    :transient-description "--apply"
-    :transient-class transient-switch
-    :transient-argument "--apply"
+    :key "A"
+    :transient "--apply"
+    :class transient-switch
+    :argument "--apply"
     :transient-group "Mode"
-    :transient-level 1
-    :transient-order 4)
+    :level 1
+    :order 4)
    (auto
     :initarg :auto
     :type boolean
@@ -201,13 +201,13 @@ Deletes closed issues and prunes expired tombstones."))
     :documentation "Auto mode: AI-powered compaction (legacy)."
     :long-option "auto"
     :option-type :boolean
-    :transient-key "u"
-    :transient-description "--auto"
-    :transient-class transient-switch
-    :transient-argument "--auto"
+    :key "u"
+    :transient "--auto"
+    :class transient-switch
+    :argument "--auto"
     :transient-group "Mode"
-    :transient-level 2
-    :transient-order 5)
+    :level 2
+    :order 5)
    (stats
     :initarg :stats
     :type boolean
@@ -215,13 +215,13 @@ Deletes closed issues and prunes expired tombstones."))
     :documentation "Show compaction statistics."
     :long-option "stats"
     :option-type :boolean
-    :transient-key "s"
-    :transient-description "--stats"
-    :transient-class transient-switch
-    :transient-argument "--stats"
+    :key "s"
+    :transient "--stats"
+    :class transient-switch
+    :argument "--stats"
     :transient-group "Mode"
-    :transient-level 1
-    :transient-order 6)
+    :level 1
+    :order 6)
    (id
     :initarg :id
     :type (or null string)
@@ -229,14 +229,14 @@ Deletes closed issues and prunes expired tombstones."))
     :documentation "Compact specific issue."
     :long-option "id"
     :option-type :string
-    :transient-key "i"
-    :transient-description "--id"
-    :transient-class transient-option
-    :transient-argument "--id="
-    :transient-prompt "Issue ID: "
+    :key "i"
+    :transient "--id"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (all
     :initarg :all
     :type boolean
@@ -244,13 +244,13 @@ Deletes closed issues and prunes expired tombstones."))
     :documentation "Process all candidates."
     :long-option "all"
     :option-type :boolean
-    :transient-key "l"
-    :transient-description "--all"
-    :transient-class transient-switch
-    :transient-argument "--all"
+    :key "l"
+    :transient "--all"
+    :class transient-switch
+    :argument "--all"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 3)
+    :level 1
+    :order 3)
    (force
     :initarg :force
     :type boolean
@@ -258,13 +258,13 @@ Deletes closed issues and prunes expired tombstones."))
     :documentation "Force compact (bypass checks, requires --id)."
     :long-option "force"
     :option-type :boolean
-    :transient-key "f"
-    :transient-description "--force"
-    :transient-class transient-switch
-    :transient-argument "--force"
+    :key "f"
+    :transient "--force"
+    :class transient-switch
+    :argument "--force"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 4)
+    :level 2
+    :order 4)
    (older-than
     :initarg :older-than
     :type (or null integer)
@@ -272,14 +272,14 @@ Deletes closed issues and prunes expired tombstones."))
     :documentation "Prune tombstones older than N days (default: 30)."
     :long-option "older-than"
     :option-type :integer
-    :transient-key "o"
-    :transient-description "--older-than"
-    :transient-class transient-option
-    :transient-argument "--older-than="
-    :transient-prompt "Days: "
+    :key "o"
+    :transient "--older-than"
+    :class transient-option
+    :argument "--older-than="
+    :prompt "Days: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 5)
+    :level 1
+    :order 5)
    (limit
     :initarg :limit
     :type (or null integer)
@@ -287,14 +287,14 @@ Deletes closed issues and prunes expired tombstones."))
     :documentation "Limit number of candidates (0 = no limit)."
     :long-option "limit"
     :option-type :integer
-    :transient-key "L"
-    :transient-description "--limit"
-    :transient-class transient-option
-    :transient-argument "--limit="
-    :transient-prompt "Limit: "
+    :key "L"
+    :transient "--limit"
+    :class transient-option
+    :argument "--limit="
+    :prompt "Limit: "
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 6)
+    :level 2
+    :order 6)
    (tier
     :initarg :tier
     :type (or null integer)
@@ -302,14 +302,14 @@ Deletes closed issues and prunes expired tombstones."))
     :documentation "Compaction tier (1 or 2)."
     :long-option "tier"
     :option-type :integer
-    :transient-key "t"
-    :transient-description "--tier"
-    :transient-class transient-option
-    :transient-argument "--tier="
-    :transient-prompt "Tier (1 or 2): "
+    :key "t"
+    :transient "--tier"
+    :class transient-option
+    :argument "--tier="
+    :prompt "Tier (1 or 2): "
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 7)
+    :level 2
+    :order 7)
    (summary
     :initarg :summary
     :type (or null string)
@@ -317,14 +317,14 @@ Deletes closed issues and prunes expired tombstones."))
     :documentation "Path to summary file (use '-' for stdin)."
     :long-option "summary"
     :option-type :string
-    :transient-key "S"
-    :transient-description "--summary"
-    :transient-class transient-option
-    :transient-argument "--summary="
-    :transient-prompt "Summary file: "
+    :key "S"
+    :transient "--summary"
+    :class transient-option
+    :argument "--summary="
+    :prompt "Summary file: "
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 8)
+    :level 2
+    :order 8)
    (batch-size
     :initarg :batch-size
     :type (or null integer)
@@ -332,14 +332,14 @@ Deletes closed issues and prunes expired tombstones."))
     :documentation "Issues per batch (default 10)."
     :long-option "batch-size"
     :option-type :integer
-    :transient-key "b"
-    :transient-description "--batch-size"
-    :transient-class transient-option
-    :transient-argument "--batch-size="
-    :transient-prompt "Batch size: "
+    :key "b"
+    :transient "--batch-size"
+    :class transient-option
+    :argument "--batch-size="
+    :prompt "Batch size: "
     :transient-group "Options"
-    :transient-level 3
-    :transient-order 9)
+    :level 3
+    :order 9)
    (workers
     :initarg :workers
     :type (or null integer)
@@ -347,14 +347,14 @@ Deletes closed issues and prunes expired tombstones."))
     :documentation "Parallel workers (default 5)."
     :long-option "workers"
     :option-type :integer
-    :transient-key "w"
-    :transient-description "--workers"
-    :transient-class transient-option
-    :transient-argument "--workers="
-    :transient-prompt "Workers: "
+    :key "w"
+    :transient "--workers"
+    :class transient-option
+    :argument "--workers="
+    :prompt "Workers: "
     :transient-group "Options"
-    :transient-level 3
-    :transient-order 10))
+    :level 3
+    :order 10))
   :documentation "Represents bd admin compact command.
 Compacts old closed issues to save space."))
 
@@ -375,13 +375,13 @@ Compacts old closed issues to save space."))
     :documentation "Actually perform the reset (required)."
     :long-option "force"
     :option-type :boolean
-    :transient-key "f"
-    :transient-description "--force"
-    :transient-class transient-switch
-    :transient-argument "--force"
+    :key "f"
+    :transient "--force"
+    :class transient-switch
+    :argument "--force"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1))
+    :level 1
+    :order 1))
   :documentation "Represents bd admin reset command.
 Removes all beads data and configuration. DANGEROUS!"))
 

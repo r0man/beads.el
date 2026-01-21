@@ -38,14 +38,14 @@
     :documentation "Agent to act as swarm coordinator."
     :long-option "coordinator"
     :option-type :string
-    :transient-key "c"
-    :transient-description "--coordinator"
-    :transient-class transient-option
-    :transient-argument "--coordinator="
-    :transient-prompt "Coordinator agent: "
+    :key "c"
+    :transient "--coordinator"
+    :class transient-option
+    :argument "--coordinator="
+    :prompt "Coordinator agent: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (force
     :initarg :force
     :type boolean
@@ -53,13 +53,13 @@
     :documentation "Force creation even with validation warnings."
     :long-option "force"
     :option-type :boolean
-    :transient-key "f"
-    :transient-description "--force"
-    :transient-class transient-switch
-    :transient-argument "--force"
+    :key "f"
+    :transient "--force"
+    :class transient-switch
+    :argument "--force"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 2))
+    :level 1
+    :order 2))
   :documentation "Represents bd swarm create command.
 Creates a swarm molecule from an epic."))
 

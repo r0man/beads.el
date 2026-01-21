@@ -41,13 +41,13 @@
     :documentation "Show all issues (default behavior) (--all)."
     :long-option "all"
     :option-type :boolean
-    :transient-key "a"
-    :transient-description "Show all issues"
-    :transient-class transient-switch
-    :transient-argument "--all"
+    :key "a"
+    :transient "Show all issues"
+    :class transient-switch
+    :argument "--all"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (assigned
     :initarg :assigned
     :type boolean
@@ -55,13 +55,13 @@
     :documentation "Show issues assigned to current user (--assigned)."
     :long-option "assigned"
     :option-type :boolean
-    :transient-key "m"
-    :transient-description "Show assigned to me"
-    :transient-class transient-switch
-    :transient-argument "--assigned"
+    :key "m"
+    :transient "Show assigned to me"
+    :class transient-switch
+    :argument "--assigned"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (no-activity
     :initarg :no-activity
     :type boolean
@@ -69,13 +69,13 @@
     :documentation "Skip git activity analysis for faster output (--no-activity)."
     :long-option "no-activity"
     :option-type :boolean
-    :transient-key "n"
-    :transient-description "Skip activity (faster)"
-    :transient-class transient-switch
-    :transient-argument "--no-activity"
+    :key "n"
+    :transient "Skip activity (faster)"
+    :class transient-switch
+    :argument "--no-activity"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 3))
+    :level 2
+    :order 3))
   :documentation "Represents bd status command.
 Shows a quick snapshot of the issue database state and statistics.
 When executed with :json t, returns status data as JSON."))

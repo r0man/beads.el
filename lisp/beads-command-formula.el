@@ -123,14 +123,14 @@
 Values: workflow, expansion, aspect."
       :long-option "type"
       :option-type :string
-      :transient-key "t"
-      :transient-description "Filter by type"
-      :transient-class transient-option
-      :transient-argument "--type="
-      :transient-choices ("workflow" "expansion" "aspect")
+      :key "t"
+      :transient "Filter by type"
+      :class transient-option
+      :argument "--type="
+      :choices ("workflow" "expansion" "aspect")
       :transient-group "Filters"
-      :transient-level 2
-      :transient-order 1))
+      :level 2
+      :order 1))
     :documentation "Represents bd formula list command.
 Lists available formulas from all search paths."))
 

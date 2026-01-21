@@ -109,29 +109,28 @@
     :positional
     :positional-rest
     :option-separator
-    ;; Transient properties (new concise names - preferred)
+    ;; Transient properties (new concise names where possible)
     :key                    ; key binding in transient menu
     :transient              ; description shown in transient menu
     :class                  ; transient class (transient-option, etc.)
-    :reader                 ; reader function for input
+    ;; Note: :reader and :group are reserved by EIEIO, use :transient-*
     :choices                ; valid choices list
     :prompt                 ; input prompt string
     :argument               ; CLI argument format (e.g., "--title=")
     :field-name             ; field name for multiline editors
     :level                  ; menu visibility level (1-7)
-    :group                  ; group name for organization
     :order                  ; order within group (lower = first)
-    ;; Transient properties (legacy names - for backwards compatibility)
+    ;; Transient properties (legacy/canonical names)
     :transient-key
     :transient-description
     :transient-class
-    :transient-reader
+    :transient-reader       ; reader function (cannot use :reader - EIEIO reserved)
     :transient-choices
     :transient-prompt
     :transient-argument
     :transient-field-name
     :transient-level
-    :transient-group
+    :transient-group        ; group name (cannot use :group - EIEIO reserved)
     :transient-order
     ;; Validation properties
     :required
@@ -144,17 +143,212 @@ Property name mappings (new -> legacy):
   :key         -> :transient-key
   :transient   -> :transient-description
   :class       -> :transient-class
-  :reader      -> :transient-reader
   :choices     -> :transient-choices
   :prompt      -> :transient-prompt
   :argument    -> :transient-argument
   :field-name  -> :transient-field-name
   :level       -> :transient-level
-  :group       -> :transient-group
   :order       -> :transient-order
 
-The new concise names are preferred for new code.  Legacy names
+Note: :reader and :group CANNOT be aliased because they conflict with
+standard EIEIO slot options.  Use :transient-reader and :transient-group
+for those properties.
+
+The new concise names are preferred where possible.  Legacy names
 are preserved for backwards compatibility.")
+
+;;; ============================================================
+;;; Property Name Mapping (New Concise -> Legacy)
+;;; ============================================================
+
+(defconst beads-meta--property-aliases
+  '((:key         . :transient-key)
+    (:transient   . :transient-description)
+    (:class       . :transient-class)
+    ;; Note: :reader and :group are reserved by EIEIO, so we keep
+    ;; :transient-reader and :transient-group as the canonical names
+    (:choices     . :transient-choices)
+    (:prompt      . :transient-prompt)
+    (:argument    . :transient-argument)
+    (:field-name  . :transient-field-name)
+    (:level       . :transient-level)
+    (:order       . :transient-order))
+  "Mapping from new concise property names to legacy names.
+This allows slot definitions to use either naming convention.
+
+Note: :reader and :group are NOT aliased because they conflict with
+standard EIEIO slot options.  Use :transient-reader and :transient-group
+for those properties.")
+
+(defun beads-meta--normalize-property-name (prop)
+  "Normalize PROP to the legacy transient-prefixed name if applicable.
+Returns the legacy name if PROP is a concise alias, otherwise PROP."
+  (or (alist-get prop beads-meta--property-aliases) prop))
+
+(defun beads-meta--concise-property-name (prop)
+  "Return the concise name for PROP if it has one.
+Returns the concise name if PROP is a legacy name, otherwise PROP."
+  (or (car (rassq prop beads-meta--property-aliases)) prop))
+
+;;; ============================================================
+;;; Inference Functions
+;;; ============================================================
+
+(defun beads-meta--infer-option-type (slot-options)
+  "Infer :option-type from SLOT-OPTIONS.
+Uses the :type slot property to determine the option type:
+- `boolean' type -> :boolean
+- `list' type -> :list
+- `integer' type -> :integer
+- Otherwise -> :string
+
+Returns nil if :option-type is already set."
+  (when-let* ((type-spec (plist-get slot-options :type))
+              ;; Only infer if not already set
+              (not-set (not (plist-get slot-options :option-type))))
+    (cond
+     ;; Handle (or null X) type specs
+     ((and (listp type-spec) (eq (car type-spec) 'or))
+      (let ((types (cdr type-spec)))
+        (cond
+         ((memq 'boolean types) :boolean)
+         ((memq 'list types) :list)
+         ((or (memq 'integer types) (memq 'number types)) :integer)
+         (t :string))))
+     ;; Direct type
+     ((eq type-spec 'boolean) :boolean)
+     ((eq type-spec 'list) :list)
+     ((or (eq type-spec 'integer) (eq type-spec 'number)) :integer)
+     (t :string))))
+
+(defun beads-meta--resolve-long-option (slot-name slot-options)
+  "Resolve :long-option from SLOT-NAME if not already set in SLOT-OPTIONS.
+Converts slot name to CLI option format (e.g., `issue-type' -> \"type\").
+Returns nil if :long-option is already set or slot has :positional."
+  (when (and (not (plist-get slot-options :long-option))
+             (not (plist-get slot-options :positional))
+             (not (plist-get slot-options :positional-rest)))
+    ;; Only generate long-option if there's a transient key or the slot
+    ;; otherwise appears to be a CLI option
+    (when (or (plist-get slot-options :transient-key)
+              (plist-get slot-options :key)
+              (plist-get slot-options :short-option))
+      (symbol-name slot-name))))
+
+(defun beads-meta--infer-argument (slot-options)
+  "Infer :transient-argument from :long-option in SLOT-OPTIONS.
+For boolean types: \"--option\"
+For other types: \"--option=\"
+Returns nil if :transient-argument or :argument is already set."
+  (when-let* ((long-opt (plist-get slot-options :long-option))
+              (not-set (and (not (plist-get slot-options :transient-argument))
+                            (not (plist-get slot-options :argument)))))
+    (let ((option-type (or (plist-get slot-options :option-type)
+                           (beads-meta--infer-option-type slot-options)
+                           :string)))
+      (if (eq option-type :boolean)
+          (concat "--" long-opt)
+        (concat "--" long-opt "=")))))
+
+(defun beads-meta--infer-description (slot-name slot-options)
+  "Infer :transient-description from SLOT-NAME or :long-option in SLOT-OPTIONS.
+Uses the humanized slot name or --option format.
+Returns nil if :transient-description or :transient is already set."
+  (when (and (not (plist-get slot-options :transient-description))
+             (not (plist-get slot-options :transient)))
+    (if-let ((long-opt (plist-get slot-options :long-option)))
+        (concat "--" long-opt)
+      (beads-meta--humanize-slot-name slot-name))))
+
+(defun beads-meta--infer-class (slot-options)
+  "Infer :transient-class from :option-type in SLOT-OPTIONS.
+Boolean options use `transient-switch', others use `transient-option'.
+Returns nil if :transient-class or :class is already set."
+  (when (and (not (plist-get slot-options :transient-class))
+             (not (plist-get slot-options :class)))
+    (let ((option-type (or (plist-get slot-options :option-type)
+                           (beads-meta--infer-option-type slot-options)
+                           :string)))
+      (if (eq option-type :boolean)
+          'transient-switch
+        'transient-option))))
+
+(defun beads-meta--infer-prompt (slot-name slot-options)
+  "Infer :transient-prompt from SLOT-NAME using SLOT-OPTIONS for context.
+Only for non-boolean options that don't have a prompt set.
+Returns nil if :transient-prompt or :prompt is already set."
+  (when (and (not (plist-get slot-options :transient-prompt))
+             (not (plist-get slot-options :prompt)))
+    (let ((option-type (or (plist-get slot-options :option-type)
+                           (beads-meta--infer-option-type slot-options)
+                           :string)))
+      (unless (eq option-type :boolean)
+        (format "%s: " (beads-meta--humanize-slot-name slot-name))))))
+
+(defun beads-meta--expand-concise-properties (slot-options)
+  "Expand concise property names in SLOT-OPTIONS to legacy names.
+Also expands both names so lookups work with either.
+Returns a new plist with both concise and legacy names."
+  (let ((result (copy-sequence slot-options)))
+    ;; For each alias, if concise name is set, also set legacy name
+    (dolist (alias beads-meta--property-aliases)
+      (let ((concise (car alias))
+            (legacy (cdr alias)))
+        ;; If concise is set but legacy is not, copy value to legacy
+        (when-let ((value (plist-get result concise)))
+          (unless (plist-get result legacy)
+            (setq result (plist-put result legacy value))))
+        ;; If legacy is set but concise is not, copy value to concise
+        (when-let ((value (plist-get result legacy)))
+          (unless (plist-get result concise)
+            (setq result (plist-put result concise value))))))
+    result))
+
+(defun beads-meta--slot-is-command-option-p (slot-options)
+  "Return non-nil if SLOT-OPTIONS indicate a CLI or transient option.
+A slot is considered a command option if it has any of:
+- :long-option or :short-option (CLI option)
+- :transient-key or :key (transient menu item)
+- :positional or :positional-rest (positional argument)
+- :option-type (explicit CLI type)"
+  (or (plist-get slot-options :long-option)
+      (plist-get slot-options :short-option)
+      (plist-get slot-options :transient-key)
+      (plist-get slot-options :key)
+      (plist-get slot-options :positional)
+      (plist-get slot-options :positional-rest)
+      (plist-get slot-options :option-type)))
+
+(defun beads-meta--run-inference (slot-name slot-options)
+  "Run all inference functions on SLOT-OPTIONS for SLOT-NAME.
+Returns an alist of inferred properties that can be merged with
+existing properties.
+
+Inference only runs for slots that are intended to be CLI options
+or transient menu items (have :long-option, :transient-key, etc.)."
+  ;; Only run inference for slots that are command options
+  (when (beads-meta--slot-is-command-option-p slot-options)
+    (let ((inferred nil))
+      ;; Infer option-type first since other inferences depend on it
+      (when-let ((option-type (beads-meta--infer-option-type slot-options)))
+        (push (cons :option-type option-type) inferred))
+      ;; Infer argument (depends on long-option and option-type)
+      (when-let ((argument (beads-meta--infer-argument slot-options)))
+        (push (cons :transient-argument argument) inferred)
+        (push (cons :argument argument) inferred))
+      ;; Infer description
+      (when-let ((desc (beads-meta--infer-description slot-name slot-options)))
+        (push (cons :transient-description desc) inferred)
+        (push (cons :transient desc) inferred))
+      ;; Infer class
+      (when-let ((class (beads-meta--infer-class slot-options)))
+        (push (cons :transient-class class) inferred)
+        (push (cons :class class) inferred))
+      ;; Infer prompt
+      (when-let ((prompt (beads-meta--infer-prompt slot-name slot-options)))
+        (push (cons :transient-prompt prompt) inferred)
+        (push (cons :prompt prompt) inferred))
+      inferred)))
 
 ;;; ============================================================
 ;;; EIEIO Advice for Custom Property Preservation
@@ -166,18 +360,32 @@ are preserved for backwards compatibility.")
 This advice intercepts class definition and stores custom properties
 in the slot descriptor's property alist.
 
+The advice performs the following steps:
+1. Expand concise property names to legacy names (bidirectional)
+2. Run inference to fill in missing properties
+3. Store all custom properties in the slot descriptor
+
 CNAME is the class name being defined.
 SLOTS is the list of slot specifications."
   (dolist (slot slots)
     (when (consp slot)
       (let* ((slot-name (car slot))
              (slot-options (cdr slot))
+             ;; Step 1: Expand concise names to legacy names (and vice versa)
+             (expanded-options (beads-meta--expand-concise-properties
+                                slot-options))
+             ;; Step 2: Run inference to fill in missing properties
+             (inferred-props (beads-meta--run-inference slot-name expanded-options))
              (custom-props nil))
-        ;; Extract custom properties from slot options
+        ;; Extract custom properties from expanded slot options
         (dolist (prop beads-meta--slot-properties)
-          (let ((value (plist-get slot-options prop)))
+          (let ((value (plist-get expanded-options prop)))
             (when value
               (push (cons prop value) custom-props))))
+        ;; Add inferred properties (only if not already present)
+        (dolist (inferred inferred-props)
+          (unless (assq (car inferred) custom-props)
+            (push inferred custom-props)))
         ;; Store custom properties in slot descriptor if any found
         (when custom-props
           (let* ((class (cl--find-class cname))

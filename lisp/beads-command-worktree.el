@@ -274,14 +274,14 @@ Returns error message string or nil if valid."
 Default: same as worktree name."
     :long-option "branch"
     :option-type :string
-    :transient-key "b"
-    :transient-description "--branch"
-    :transient-class transient-option
-    :transient-argument "--branch="
-    :transient-prompt "Branch name: "
+    :key "b"
+    :transient "--branch"
+    :class transient-option
+    :argument "--branch="
+    :prompt "Branch name: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1))
+    :level 1
+    :order 1))
   :documentation "Represents bd worktree create command.
 Creates a git worktree with beads redirect configuration."))
 
@@ -369,13 +369,13 @@ By default, removal checks for uncommitted changes, unpushed commits,
 and stashes."
     :long-option "force"
     :option-type :boolean
-    :transient-key "f"
-    :transient-description "--force"
-    :transient-class transient-switch
-    :transient-argument "--force"
+    :key "f"
+    :transient "--force"
+    :class transient-switch
+    :argument "--force"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1))
+    :level 1
+    :order 1))
   :documentation "Represents bd worktree remove command.
 Removes a worktree with safety checks (unless --force is used)."))
 

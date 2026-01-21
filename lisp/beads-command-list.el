@@ -79,13 +79,13 @@ Overrides default filter that excludes closed issues."
     :long-option "all"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "A"
-    :transient-description "--all"
-    :transient-class transient-switch
-    :transient-argument "--all"
+    :key "A"
+    :transient "--all"
+    :class transient-switch
+    :argument "--all"
     :transient-group "Basic Filters"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (status
     :initarg :status
     :type (or null string)
@@ -97,15 +97,15 @@ Values: open, in_progress, blocked, deferred, closed."
     :short-option "s"
     :option-type :string
     ;; Transient properties
-    :transient-key "s"
-    :transient-description "--status"
-    :transient-class transient-option
-    :transient-argument "--status="
-    :transient-prompt "Status: "
+    :key "s"
+    :transient "--status"
+    :class transient-option
+    :argument "--status="
+    :prompt "Status: "
     :transient-reader beads-reader-list-status
     :transient-group "Basic Filters"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (issue-type
     :initarg :issue-type
     :type (or null string)
@@ -118,15 +118,15 @@ gate, convoy.  Aliases: mr→merge-request, feat→feature, mol→molecule."
     :short-option "t"
     :option-type :string
     ;; Transient properties
-    :transient-key "t"
-    :transient-description "--type"
-    :transient-class transient-option
-    :transient-argument "--type="
-    :transient-prompt "Type: "
+    :key "t"
+    :transient "--type"
+    :class transient-option
+    :argument "--type="
+    :prompt "Type: "
     :transient-reader beads-reader-issue-type
     :transient-group "Basic Filters"
-    :transient-level 1
-    :transient-order 3)
+    :level 1
+    :order 3)
    (assignee
     :initarg :assignee
     :type (or null string)
@@ -137,14 +137,14 @@ gate, convoy.  Aliases: mr→merge-request, feat→feature, mol→molecule."
     :short-option "a"
     :option-type :string
     ;; Transient properties
-    :transient-key "a"
-    :transient-description "--assignee"
-    :transient-class transient-option
-    :transient-argument "--assignee="
-    :transient-prompt "Assignee: "
+    :key "a"
+    :transient "--assignee"
+    :class transient-option
+    :argument "--assignee="
+    :prompt "Assignee: "
     :transient-group "Basic Filters"
-    :transient-level 1
-    :transient-order 4)
+    :level 1
+    :order 4)
    (priority
     :initarg :priority
     :type (or null string)
@@ -156,15 +156,15 @@ Values: 0-4 or P0-P4 (0=highest)."
     :short-option "p"
     :option-type :string
     ;; Transient properties
-    :transient-key "p"
-    :transient-description "--priority"
-    :transient-class transient-option
-    :transient-argument "--priority="
-    :transient-prompt "Priority (0-4 or P0-P4): "
+    :key "p"
+    :transient "--priority"
+    :class transient-option
+    :argument "--priority="
+    :prompt "Priority (0-4 or P0-P4): "
     :transient-reader beads-reader-priority
     :transient-group "Basic Filters"
-    :transient-level 1
-    :transient-order 5)
+    :level 1
+    :order 5)
    (label
     :initarg :label
     :type (or null list)
@@ -176,15 +176,15 @@ Must have ALL specified labels.  Can combine with --label-any."
     :short-option "l"
     :option-type :list
     ;; Transient properties
-    :transient-key "l"
-    :transient-description "--label"
-    :transient-class transient-option
-    :transient-argument "--label="
-    :transient-prompt "Labels (AND): "
+    :key "l"
+    :transient "--label"
+    :class transient-option
+    :argument "--label="
+    :prompt "Labels (AND): "
     :transient-reader beads-reader-issue-labels
     :transient-group "Basic Filters"
-    :transient-level 1
-    :transient-order 6)
+    :level 1
+    :order 6)
    (label-any
     :initarg :label-any
     :type (or null list)
@@ -195,15 +195,15 @@ Must have AT LEAST ONE of specified labels.  Can combine with --label."
     :long-option "label-any"
     :option-type :list
     ;; Transient properties
-    :transient-key "L"
-    :transient-description "--label-any"
-    :transient-class transient-option
-    :transient-argument "--label-any="
-    :transient-prompt "Labels (OR): "
+    :key "L"
+    :transient "--label-any"
+    :class transient-option
+    :argument "--label-any="
+    :prompt "Labels (OR): "
     :transient-reader beads-reader-issue-labels
     :transient-group "Basic Filters"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (id
     :initarg :id
     :type (or null string)
@@ -214,14 +214,14 @@ Comma-separated, e.g., bd-1,bd-5,bd-10."
     :long-option "id"
     :option-type :string
     ;; Transient properties
-    :transient-key "i"
-    :transient-description "--id"
-    :transient-class transient-option
-    :transient-argument "--id="
-    :transient-prompt "Issue IDs (comma-separated): "
+    :key "i"
+    :transient "--id"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue IDs (comma-separated): "
     :transient-group "Basic Filters"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (parent
     :initarg :parent
     :type (or null string)
@@ -232,15 +232,15 @@ Shows children of specified issue."
     :long-option "parent"
     :option-type :string
     ;; Transient properties
-    :transient-key "P"
-    :transient-description "--parent"
-    :transient-class transient-option
-    :transient-argument "--parent="
-    :transient-prompt "Parent ID: "
+    :key "P"
+    :transient "--parent"
+    :class transient-option
+    :argument "--parent="
+    :prompt "Parent ID: "
     :transient-reader beads-reader-issue-id
     :transient-group "Basic Filters"
-    :transient-level 2
-    :transient-order 3)
+    :level 2
+    :order 3)
    (ready
     :initarg :ready
     :type boolean
@@ -251,13 +251,13 @@ Status=open, excludes hooked/in_progress/blocked/deferred."
     :long-option "ready"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "R"
-    :transient-description "--ready"
-    :transient-class transient-switch
-    :transient-argument "--ready"
+    :key "R"
+    :transient "--ready"
+    :class transient-switch
+    :argument "--ready"
     :transient-group "Basic Filters"
-    :transient-level 1
-    :transient-order 7)
+    :level 1
+    :order 7)
 
    ;; === Date Filters ===
    (created-after
@@ -270,14 +270,14 @@ Format: YYYY-MM-DD or RFC3339."
     :long-option "created-after"
     :option-type :string
     ;; Transient properties
-    :transient-key "ca"
-    :transient-description "--created-after"
-    :transient-class transient-option
-    :transient-argument "--created-after="
-    :transient-prompt "Created after (YYYY-MM-DD): "
+    :key "ca"
+    :transient "--created-after"
+    :class transient-option
+    :argument "--created-after="
+    :prompt "Created after (YYYY-MM-DD): "
     :transient-group "Date Filters"
-    :transient-level 3
-    :transient-order 1)
+    :level 3
+    :order 1)
    (created-before
     :initarg :created-before
     :type (or null string)
@@ -288,14 +288,14 @@ Format: YYYY-MM-DD or RFC3339."
     :long-option "created-before"
     :option-type :string
     ;; Transient properties
-    :transient-key "cb"
-    :transient-description "--created-before"
-    :transient-class transient-option
-    :transient-argument "--created-before="
-    :transient-prompt "Created before (YYYY-MM-DD): "
+    :key "cb"
+    :transient "--created-before"
+    :class transient-option
+    :argument "--created-before="
+    :prompt "Created before (YYYY-MM-DD): "
     :transient-group "Date Filters"
-    :transient-level 3
-    :transient-order 2)
+    :level 3
+    :order 2)
    (updated-after
     :initarg :updated-after
     :type (or null string)
@@ -306,14 +306,14 @@ Format: YYYY-MM-DD or RFC3339."
     :long-option "updated-after"
     :option-type :string
     ;; Transient properties
-    :transient-key "ua"
-    :transient-description "--updated-after"
-    :transient-class transient-option
-    :transient-argument "--updated-after="
-    :transient-prompt "Updated after (YYYY-MM-DD): "
+    :key "ua"
+    :transient "--updated-after"
+    :class transient-option
+    :argument "--updated-after="
+    :prompt "Updated after (YYYY-MM-DD): "
     :transient-group "Date Filters"
-    :transient-level 3
-    :transient-order 3)
+    :level 3
+    :order 3)
    (updated-before
     :initarg :updated-before
     :type (or null string)
@@ -324,14 +324,14 @@ Format: YYYY-MM-DD or RFC3339."
     :long-option "updated-before"
     :option-type :string
     ;; Transient properties
-    :transient-key "ub"
-    :transient-description "--updated-before"
-    :transient-class transient-option
-    :transient-argument "--updated-before="
-    :transient-prompt "Updated before (YYYY-MM-DD): "
+    :key "ub"
+    :transient "--updated-before"
+    :class transient-option
+    :argument "--updated-before="
+    :prompt "Updated before (YYYY-MM-DD): "
     :transient-group "Date Filters"
-    :transient-level 3
-    :transient-order 4)
+    :level 3
+    :order 4)
    (closed-after
     :initarg :closed-after
     :type (or null string)
@@ -342,14 +342,14 @@ Format: YYYY-MM-DD or RFC3339."
     :long-option "closed-after"
     :option-type :string
     ;; Transient properties
-    :transient-key "xa"
-    :transient-description "--closed-after"
-    :transient-class transient-option
-    :transient-argument "--closed-after="
-    :transient-prompt "Closed after (YYYY-MM-DD): "
+    :key "xa"
+    :transient "--closed-after"
+    :class transient-option
+    :argument "--closed-after="
+    :prompt "Closed after (YYYY-MM-DD): "
     :transient-group "Date Filters"
-    :transient-level 3
-    :transient-order 5)
+    :level 3
+    :order 5)
    (closed-before
     :initarg :closed-before
     :type (or null string)
@@ -360,14 +360,14 @@ Format: YYYY-MM-DD or RFC3339."
     :long-option "closed-before"
     :option-type :string
     ;; Transient properties
-    :transient-key "xb"
-    :transient-description "--closed-before"
-    :transient-class transient-option
-    :transient-argument "--closed-before="
-    :transient-prompt "Closed before (YYYY-MM-DD): "
+    :key "xb"
+    :transient "--closed-before"
+    :class transient-option
+    :argument "--closed-before="
+    :prompt "Closed before (YYYY-MM-DD): "
     :transient-group "Date Filters"
-    :transient-level 3
-    :transient-order 6)
+    :level 3
+    :order 6)
    (due-after
     :initarg :due-after
     :type (or null string)
@@ -378,14 +378,14 @@ Supports relative: +6h, tomorrow."
     :long-option "due-after"
     :option-type :string
     ;; Transient properties
-    :transient-key "da"
-    :transient-description "--due-after"
-    :transient-class transient-option
-    :transient-argument "--due-after="
-    :transient-prompt "Due after: "
+    :key "da"
+    :transient "--due-after"
+    :class transient-option
+    :argument "--due-after="
+    :prompt "Due after: "
     :transient-group "Date Filters"
-    :transient-level 3
-    :transient-order 7)
+    :level 3
+    :order 7)
    (due-before
     :initarg :due-before
     :type (or null string)
@@ -396,14 +396,14 @@ Supports relative: +6h, tomorrow."
     :long-option "due-before"
     :option-type :string
     ;; Transient properties
-    :transient-key "db"
-    :transient-description "--due-before"
-    :transient-class transient-option
-    :transient-argument "--due-before="
-    :transient-prompt "Due before: "
+    :key "db"
+    :transient "--due-before"
+    :class transient-option
+    :argument "--due-before="
+    :prompt "Due before: "
     :transient-group "Date Filters"
-    :transient-level 3
-    :transient-order 8)
+    :level 3
+    :order 8)
    (defer-after
     :initarg :defer-after
     :type (or null string)
@@ -414,14 +414,14 @@ Supports relative: +6h, tomorrow."
     :long-option "defer-after"
     :option-type :string
     ;; Transient properties
-    :transient-key "fa"
-    :transient-description "--defer-after"
-    :transient-class transient-option
-    :transient-argument "--defer-after="
-    :transient-prompt "Deferred after: "
+    :key "fa"
+    :transient "--defer-after"
+    :class transient-option
+    :argument "--defer-after="
+    :prompt "Deferred after: "
     :transient-group "Date Filters"
-    :transient-level 3
-    :transient-order 9)
+    :level 3
+    :order 9)
    (defer-before
     :initarg :defer-before
     :type (or null string)
@@ -432,14 +432,14 @@ Supports relative: +6h, tomorrow."
     :long-option "defer-before"
     :option-type :string
     ;; Transient properties
-    :transient-key "fb"
-    :transient-description "--defer-before"
-    :transient-class transient-option
-    :transient-argument "--defer-before="
-    :transient-prompt "Deferred before: "
+    :key "fb"
+    :transient "--defer-before"
+    :class transient-option
+    :argument "--defer-before="
+    :prompt "Deferred before: "
     :transient-group "Date Filters"
-    :transient-level 3
-    :transient-order 10)
+    :level 3
+    :order 10)
 
    ;; === Content Filters ===
    (title
@@ -452,14 +452,14 @@ Case-insensitive substring match."
     :long-option "title"
     :option-type :string
     ;; Transient properties
-    :transient-key "T"
-    :transient-description "--title"
-    :transient-class transient-option
-    :transient-argument "--title="
-    :transient-prompt "Title contains: "
+    :key "T"
+    :transient "--title"
+    :class transient-option
+    :argument "--title="
+    :prompt "Title contains: "
     :transient-group "Content Filters"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (title-contains
     :initarg :title-contains
     :type (or null string)
@@ -470,14 +470,14 @@ Case-insensitive."
     :long-option "title-contains"
     :option-type :string
     ;; Transient properties
-    :transient-key "tc"
-    :transient-description "--title-contains"
-    :transient-class transient-option
-    :transient-argument "--title-contains="
-    :transient-prompt "Title contains: "
+    :key "tc"
+    :transient "--title-contains"
+    :class transient-option
+    :argument "--title-contains="
+    :prompt "Title contains: "
     :transient-group "Content Filters"
-    :transient-level 3
-    :transient-order 1)
+    :level 3
+    :order 1)
    (desc-contains
     :initarg :desc-contains
     :type (or null string)
@@ -488,14 +488,14 @@ Case-insensitive."
     :long-option "desc-contains"
     :option-type :string
     ;; Transient properties
-    :transient-key "dc"
-    :transient-description "--desc-contains"
-    :transient-class transient-option
-    :transient-argument "--desc-contains="
-    :transient-prompt "Description contains: "
+    :key "dc"
+    :transient "--desc-contains"
+    :class transient-option
+    :argument "--desc-contains="
+    :prompt "Description contains: "
     :transient-group "Content Filters"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (notes-contains
     :initarg :notes-contains
     :type (or null string)
@@ -506,14 +506,14 @@ Case-insensitive."
     :long-option "notes-contains"
     :option-type :string
     ;; Transient properties
-    :transient-key "nc"
-    :transient-description "--notes-contains"
-    :transient-class transient-option
-    :transient-argument "--notes-contains="
-    :transient-prompt "Notes contains: "
+    :key "nc"
+    :transient "--notes-contains"
+    :class transient-option
+    :argument "--notes-contains="
+    :prompt "Notes contains: "
     :transient-group "Content Filters"
-    :transient-level 3
-    :transient-order 2)
+    :level 3
+    :order 2)
    (empty-description
     :initarg :empty-description
     :type boolean
@@ -524,13 +524,13 @@ Case-insensitive."
     :long-option "empty-description"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "ed"
-    :transient-description "--empty-description"
-    :transient-class transient-switch
-    :transient-argument "--empty-description"
+    :key "ed"
+    :transient "--empty-description"
+    :class transient-switch
+    :argument "--empty-description"
     :transient-group "Content Filters"
-    :transient-level 3
-    :transient-order 3)
+    :level 3
+    :order 3)
 
    ;; === Special Filters ===
    (no-assignee
@@ -542,13 +542,13 @@ Case-insensitive."
     :long-option "no-assignee"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "na"
-    :transient-description "--no-assignee"
-    :transient-class transient-switch
-    :transient-argument "--no-assignee"
+    :key "na"
+    :transient "--no-assignee"
+    :class transient-switch
+    :argument "--no-assignee"
     :transient-group "Special Filters"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (no-labels
     :initarg :no-labels
     :type boolean
@@ -558,13 +558,13 @@ Case-insensitive."
     :long-option "no-labels"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "nl"
-    :transient-description "--no-labels"
-    :transient-class transient-switch
-    :transient-argument "--no-labels"
+    :key "nl"
+    :transient "--no-labels"
+    :class transient-switch
+    :argument "--no-labels"
     :transient-group "Special Filters"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (pinned
     :initarg :pinned
     :type boolean
@@ -574,13 +574,13 @@ Case-insensitive."
     :long-option "pinned"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "pi"
-    :transient-description "--pinned"
-    :transient-class transient-switch
-    :transient-argument "--pinned"
+    :key "pi"
+    :transient "--pinned"
+    :class transient-switch
+    :argument "--pinned"
     :transient-group "Special Filters"
-    :transient-level 2
-    :transient-order 3)
+    :level 2
+    :order 3)
    (no-pinned
     :initarg :no-pinned
     :type boolean
@@ -590,13 +590,13 @@ Case-insensitive."
     :long-option "no-pinned"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "np"
-    :transient-description "--no-pinned"
-    :transient-class transient-switch
-    :transient-argument "--no-pinned"
+    :key "np"
+    :transient "--no-pinned"
+    :class transient-switch
+    :argument "--no-pinned"
     :transient-group "Special Filters"
-    :transient-level 3
-    :transient-order 1)
+    :level 3
+    :order 1)
    (overdue
     :initarg :overdue
     :type boolean
@@ -607,13 +607,13 @@ Due_at in the past and not closed."
     :long-option "overdue"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "od"
-    :transient-description "--overdue"
-    :transient-class transient-switch
-    :transient-argument "--overdue"
+    :key "od"
+    :transient "--overdue"
+    :class transient-switch
+    :argument "--overdue"
     :transient-group "Special Filters"
-    :transient-level 2
-    :transient-order 4)
+    :level 2
+    :order 4)
    (deferred
     :initarg :deferred
     :type boolean
@@ -623,13 +623,13 @@ Due_at in the past and not closed."
     :long-option "deferred"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "df"
-    :transient-description "--deferred"
-    :transient-class transient-switch
-    :transient-argument "--deferred"
+    :key "df"
+    :transient "--deferred"
+    :class transient-switch
+    :argument "--deferred"
     :transient-group "Special Filters"
-    :transient-level 2
-    :transient-order 5)
+    :level 2
+    :order 5)
    (priority-min
     :initarg :priority-min
     :type (or null string)
@@ -640,15 +640,15 @@ Inclusive, 0-4 or P0-P4."
     :long-option "priority-min"
     :option-type :string
     ;; Transient properties
-    :transient-key "pm"
-    :transient-description "--priority-min"
-    :transient-class transient-option
-    :transient-argument "--priority-min="
-    :transient-prompt "Min priority (0-4 or P0-P4): "
+    :key "pm"
+    :transient "--priority-min"
+    :class transient-option
+    :argument "--priority-min="
+    :prompt "Min priority (0-4 or P0-P4): "
     :transient-reader beads-reader-priority
     :transient-group "Special Filters"
-    :transient-level 3
-    :transient-order 2)
+    :level 3
+    :order 2)
    (priority-max
     :initarg :priority-max
     :type (or null string)
@@ -659,15 +659,15 @@ Inclusive, 0-4 or P0-P4."
     :long-option "priority-max"
     :option-type :string
     ;; Transient properties
-    :transient-key "px"
-    :transient-description "--priority-max"
-    :transient-class transient-option
-    :transient-argument "--priority-max="
-    :transient-prompt "Max priority (0-4 or P0-P4): "
+    :key "px"
+    :transient "--priority-max"
+    :class transient-option
+    :argument "--priority-max="
+    :prompt "Max priority (0-4 or P0-P4): "
     :transient-reader beads-reader-priority
     :transient-group "Special Filters"
-    :transient-level 3
-    :transient-order 3)
+    :level 3
+    :order 3)
    (mol-type
     :initarg :mol-type
     :type (or null string)
@@ -678,14 +678,14 @@ Values: swarm, patrol, or work."
     :long-option "mol-type"
     :option-type :string
     ;; Transient properties
-    :transient-key "mt"
-    :transient-description "--mol-type"
-    :transient-class transient-option
-    :transient-argument "--mol-type="
-    :transient-prompt "Molecule type: "
+    :key "mt"
+    :transient "--mol-type"
+    :class transient-option
+    :argument "--mol-type="
+    :prompt "Molecule type: "
     :transient-group "Special Filters"
-    :transient-level 3
-    :transient-order 4)
+    :level 3
+    :order 4)
    (include-gates
     :initarg :include-gates
     :type boolean
@@ -696,13 +696,13 @@ Normally hidden."
     :long-option "include-gates"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "ig"
-    :transient-description "--include-gates"
-    :transient-class transient-switch
-    :transient-argument "--include-gates"
+    :key "ig"
+    :transient "--include-gates"
+    :class transient-switch
+    :argument "--include-gates"
     :transient-group "Special Filters"
-    :transient-level 3
-    :transient-order 5)
+    :level 3
+    :order 5)
    (include-templates
     :initarg :include-templates
     :type boolean
@@ -713,13 +713,13 @@ Normally hidden."
     :long-option "include-templates"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "it"
-    :transient-description "--include-templates"
-    :transient-class transient-switch
-    :transient-argument "--include-templates"
+    :key "it"
+    :transient "--include-templates"
+    :class transient-switch
+    :argument "--include-templates"
     :transient-group "Special Filters"
-    :transient-level 3
-    :transient-order 6)
+    :level 3
+    :order 6)
 
    ;; === Output Options ===
    (limit
@@ -733,14 +733,14 @@ Default 50, use 0 for unlimited."
     :short-option "n"
     :option-type :integer
     ;; Transient properties
-    :transient-key "n"
-    :transient-description "--limit"
-    :transient-class transient-option
-    :transient-argument "--limit="
-    :transient-prompt "Limit: "
+    :key "n"
+    :transient "--limit"
+    :class transient-option
+    :argument "--limit="
+    :prompt "Limit: "
     :transient-group "Output Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (sort
     :initarg :sort
     :type (or null string)
@@ -752,14 +752,14 @@ type, assignee."
     :long-option "sort"
     :option-type :string
     ;; Transient properties
-    :transient-key "S"
-    :transient-description "--sort"
-    :transient-class transient-option
-    :transient-argument "--sort="
-    :transient-prompt "Sort by: "
+    :key "S"
+    :transient "--sort"
+    :class transient-option
+    :argument "--sort="
+    :prompt "Sort by: "
     :transient-group "Output Options"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (reverse
     :initarg :reverse
     :type boolean
@@ -770,13 +770,13 @@ type, assignee."
     :short-option "r"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "r"
-    :transient-description "--reverse"
-    :transient-class transient-switch
-    :transient-argument "--reverse"
+    :key "r"
+    :transient "--reverse"
+    :class transient-switch
+    :argument "--reverse"
     :transient-group "Output Options"
-    :transient-level 1
-    :transient-order 3)
+    :level 1
+    :order 3)
    (format
     :initarg :format
     :type (or null string)
@@ -788,14 +788,14 @@ Values: 'digraph' (for golang.org/x/tools/cmd/digraph),
     :long-option "format"
     :option-type :string
     ;; Transient properties
-    :transient-key "F"
-    :transient-description "--format"
-    :transient-class transient-option
-    :transient-argument "--format="
-    :transient-prompt "Format: "
+    :key "F"
+    :transient "--format"
+    :class transient-option
+    :argument "--format="
+    :prompt "Format: "
     :transient-group "Output Options"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (long
     :initarg :long
     :type boolean
@@ -805,13 +805,13 @@ Values: 'digraph' (for golang.org/x/tools/cmd/digraph),
     :long-option "long"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "lo"
-    :transient-description "--long"
-    :transient-class transient-switch
-    :transient-argument "--long"
+    :key "lo"
+    :transient "--long"
+    :class transient-switch
+    :argument "--long"
     :transient-group "Output Options"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (pretty
     :initarg :pretty
     :type boolean
@@ -822,13 +822,13 @@ Shows status/priority symbols."
     :long-option "pretty"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "pr"
-    :transient-description "--pretty"
-    :transient-class transient-switch
-    :transient-argument "--pretty"
+    :key "pr"
+    :transient "--pretty"
+    :class transient-switch
+    :argument "--pretty"
     :transient-group "Output Options"
-    :transient-level 2
-    :transient-order 3)
+    :level 2
+    :order 3)
    (tree
     :initarg :tree
     :type boolean
@@ -838,13 +838,13 @@ Shows status/priority symbols."
     :long-option "tree"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "tr"
-    :transient-description "--tree"
-    :transient-class transient-switch
-    :transient-argument "--tree"
+    :key "tr"
+    :transient "--tree"
+    :class transient-switch
+    :argument "--tree"
     :transient-group "Output Options"
-    :transient-level 3
-    :transient-order 1)
+    :level 3
+    :order 1)
    (no-pager
     :initarg :no-pager
     :type boolean
@@ -854,13 +854,13 @@ Shows status/priority symbols."
     :long-option "no-pager"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "nP"
-    :transient-description "--no-pager"
-    :transient-class transient-switch
-    :transient-argument "--no-pager"
+    :key "nP"
+    :transient "--no-pager"
+    :class transient-switch
+    :argument "--no-pager"
     :transient-group "Output Options"
-    :transient-level 3
-    :transient-order 2)
+    :level 3
+    :order 2)
    (watch
     :initarg :watch
     :type boolean
@@ -872,13 +872,13 @@ Implies --pretty."
     :short-option "w"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "w"
-    :transient-description "--watch"
-    :transient-class transient-switch
-    :transient-argument "--watch"
+    :key "w"
+    :transient "--watch"
+    :class transient-switch
+    :argument "--watch"
     :transient-group "Output Options"
-    :transient-level 2
-    :transient-order 4))
+    :level 2
+    :order 4))
   :documentation "Represents bd list command.
 Lists issues with extensive filtering and output formatting options.
 When executed with :json t, returns list of beads-issue instances."))

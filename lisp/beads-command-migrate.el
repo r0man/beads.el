@@ -32,13 +32,13 @@
     :documentation "Show what would be done."
     :long-option "dry-run"
     :option-type :boolean
-    :transient-key "n"
-    :transient-description "--dry-run"
-    :transient-class transient-switch
-    :transient-argument "--dry-run"
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (cleanup
     :initarg :cleanup
     :type boolean
@@ -46,13 +46,13 @@
     :documentation "Remove old database files after migration."
     :long-option "cleanup"
     :option-type :boolean
-    :transient-key "c"
-    :transient-description "--cleanup"
-    :transient-class transient-switch
-    :transient-argument "--cleanup"
+    :key "c"
+    :transient "--cleanup"
+    :class transient-switch
+    :argument "--cleanup"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (yes
     :initarg :yes
     :type boolean
@@ -61,13 +61,13 @@
     :long-option "yes"
     :short-option "y"
     :option-type :boolean
-    :transient-key "y"
-    :transient-description "--yes"
-    :transient-class transient-switch
-    :transient-argument "--yes"
+    :key "y"
+    :transient "--yes"
+    :class transient-switch
+    :argument "--yes"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 3)
+    :level 1
+    :order 3)
    (inspect
     :initarg :inspect
     :type boolean
@@ -75,13 +75,13 @@
     :documentation "Show migration plan for AI analysis."
     :long-option "inspect"
     :option-type :boolean
-    :transient-key "i"
-    :transient-description "--inspect"
-    :transient-class transient-switch
-    :transient-argument "--inspect"
+    :key "i"
+    :transient "--inspect"
+    :class transient-switch
+    :argument "--inspect"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 4)
+    :level 2
+    :order 4)
    (update-repo-id
     :initarg :update-repo-id
     :type boolean
@@ -89,13 +89,13 @@
     :documentation "Update repo_id on issues to match repo name."
     :long-option "update-repo-id"
     :option-type :boolean
-    :transient-key "u"
-    :transient-description "--update-repo-id"
-    :transient-class transient-switch
-    :transient-argument "--update-repo-id"
+    :key "u"
+    :transient "--update-repo-id"
+    :class transient-switch
+    :argument "--update-repo-id"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 5))
+    :level 2
+    :order 5))
   :documentation "Represents bd migrate command.
 Detects and migrates database schema to current version."))
 
@@ -116,13 +116,13 @@ Detects and migrates database schema to current version."))
     :documentation "Show what would be done."
     :long-option "dry-run"
     :option-type :boolean
-    :transient-key "n"
-    :transient-description "--dry-run"
-    :transient-class transient-switch
-    :transient-argument "--dry-run"
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1))
+    :level 1
+    :order 1))
   :documentation "Represents bd migrate hash-ids command.
 Migrates sequential IDs to hash-based IDs (legacy)."))
 
@@ -182,13 +182,13 @@ Migrates to sync.branch workflow for multi-clone setups."))
     :documentation "Show what would be done."
     :long-option "dry-run"
     :option-type :boolean
-    :transient-key "n"
-    :transient-description "--dry-run"
-    :transient-class transient-switch
-    :transient-argument "--dry-run"
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1))
+    :level 1
+    :order 1))
   :documentation "Represents bd migrate tombstones command.
 Converts deletions.jsonl to inline tombstones."))
 

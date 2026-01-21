@@ -42,13 +42,13 @@
     :documentation "Preview sync without making changes."
     :long-option "dry-run"
     :option-type :boolean
-    :transient-key "n"
-    :transient-description "--dry-run"
-    :transient-class transient-switch
-    :transient-argument "--dry-run"
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (no-pull
     :initarg :no-pull
     :type boolean
@@ -56,13 +56,13 @@
     :documentation "Skip pulling from remote."
     :long-option "no-pull"
     :option-type :boolean
-    :transient-key "P"
-    :transient-description "--no-pull"
-    :transient-class transient-switch
-    :transient-argument "--no-pull"
+    :key "P"
+    :transient "--no-pull"
+    :class transient-switch
+    :argument "--no-pull"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (no-push
     :initarg :no-push
     :type boolean
@@ -70,13 +70,13 @@
     :documentation "Skip pushing to remote."
     :long-option "no-push"
     :option-type :boolean
-    :transient-key "p"
-    :transient-description "--no-push"
-    :transient-class transient-switch
-    :transient-argument "--no-push"
+    :key "p"
+    :transient "--no-push"
+    :class transient-switch
+    :argument "--no-push"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 3)
+    :level 1
+    :order 3)
    (flush-only
     :initarg :flush-only
     :type boolean
@@ -84,13 +84,13 @@
     :documentation "Only export pending changes to JSONL."
     :long-option "flush-only"
     :option-type :boolean
-    :transient-key "f"
-    :transient-description "--flush-only"
-    :transient-class transient-switch
-    :transient-argument "--flush-only"
+    :key "f"
+    :transient "--flush-only"
+    :class transient-switch
+    :argument "--flush-only"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 4)
+    :level 2
+    :order 4)
    (import-only
     :initarg :import-only
     :type boolean
@@ -98,13 +98,13 @@
     :documentation "Only import from JSONL."
     :long-option "import-only"
     :option-type :boolean
-    :transient-key "i"
-    :transient-description "--import-only"
-    :transient-class transient-switch
-    :transient-argument "--import-only"
+    :key "i"
+    :transient "--import-only"
+    :class transient-switch
+    :argument "--import-only"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 5)
+    :level 2
+    :order 5)
    (squash
     :initarg :squash
     :type boolean
@@ -112,13 +112,13 @@
     :documentation "Accumulate changes without committing."
     :long-option "squash"
     :option-type :boolean
-    :transient-key "s"
-    :transient-description "--squash"
-    :transient-class transient-switch
-    :transient-argument "--squash"
+    :key "s"
+    :transient "--squash"
+    :class transient-switch
+    :argument "--squash"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 6)
+    :level 2
+    :order 6)
    (message
     :initarg :message
     :type (or null string)
@@ -127,14 +127,14 @@
     :long-option "message"
     :short-option "m"
     :option-type :string
-    :transient-key "m"
-    :transient-description "--message"
-    :transient-class transient-option
-    :transient-argument "--message="
-    :transient-prompt "Commit message: "
+    :key "m"
+    :transient "--message"
+    :class transient-option
+    :argument "--message="
+    :prompt "Commit message: "
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 7)
+    :level 2
+    :order 7)
    (status-flag
     :initarg :status-flag
     :type boolean
@@ -142,13 +142,13 @@
     :documentation "Show diff between sync branch and main."
     :long-option "status"
     :option-type :boolean
-    :transient-key "S"
-    :transient-description "--status"
-    :transient-class transient-switch
-    :transient-argument "--status"
+    :key "S"
+    :transient "--status"
+    :class transient-switch
+    :argument "--status"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 8)
+    :level 2
+    :order 8)
    (merge-flag
     :initarg :merge-flag
     :type boolean
@@ -156,13 +156,13 @@
     :documentation "Merge sync branch back to main."
     :long-option "merge"
     :option-type :boolean
-    :transient-key "M"
-    :transient-description "--merge"
-    :transient-class transient-switch
-    :transient-argument "--merge"
+    :key "M"
+    :transient "--merge"
+    :class transient-switch
+    :argument "--merge"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 9)
+    :level 2
+    :order 9)
    (check
     :initarg :check
     :type boolean
@@ -170,13 +170,13 @@
     :documentation "Pre-sync integrity check."
     :long-option "check"
     :option-type :boolean
-    :transient-key "c"
-    :transient-description "--check"
-    :transient-class transient-switch
-    :transient-argument "--check"
+    :key "c"
+    :transient "--check"
+    :class transient-switch
+    :argument "--check"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 10)
+    :level 2
+    :order 10)
    (accept-rebase
     :initarg :accept-rebase
     :type boolean
@@ -184,13 +184,13 @@
     :documentation "Accept rebased history from remote."
     :long-option "accept-rebase"
     :option-type :boolean
-    :transient-key "r"
-    :transient-description "--accept-rebase"
-    :transient-class transient-switch
-    :transient-argument "--accept-rebase"
+    :key "r"
+    :transient "--accept-rebase"
+    :class transient-switch
+    :argument "--accept-rebase"
     :transient-group "Options"
-    :transient-level 3
-    :transient-order 11)
+    :level 3
+    :order 11)
    (from-main
     :initarg :from-main
     :type boolean
@@ -198,13 +198,13 @@
     :documentation "Merge from main branch instead of sync branch."
     :long-option "from-main"
     :option-type :boolean
-    :transient-key "F"
-    :transient-description "--from-main"
-    :transient-class transient-switch
-    :transient-argument "--from-main"
+    :key "F"
+    :transient "--from-main"
+    :class transient-switch
+    :argument "--from-main"
     :transient-group "Options"
-    :transient-level 3
-    :transient-order 12)
+    :level 3
+    :order 12)
    (no-git-history
     :initarg :no-git-history
     :type boolean
@@ -212,13 +212,13 @@
     :documentation "Disable git history tracking in sync."
     :long-option "no-git-history"
     :option-type :boolean
-    :transient-key "H"
-    :transient-description "--no-git-history"
-    :transient-class transient-switch
-    :transient-argument "--no-git-history"
+    :key "H"
+    :transient "--no-git-history"
+    :class transient-switch
+    :argument "--no-git-history"
     :transient-group "Options"
-    :transient-level 3
-    :transient-order 13)
+    :level 3
+    :order 13)
    (rename-on-import
     :initarg :rename-on-import
     :type boolean
@@ -226,13 +226,13 @@
     :documentation "Rename issues to match repo on import."
     :long-option "rename-on-import"
     :option-type :boolean
-    :transient-key "R"
-    :transient-description "--rename-on-import"
-    :transient-class transient-switch
-    :transient-argument "--rename-on-import"
+    :key "R"
+    :transient "--rename-on-import"
+    :class transient-switch
+    :argument "--rename-on-import"
     :transient-group "Options"
-    :transient-level 3
-    :transient-order 14))
+    :level 3
+    :order 14))
   :documentation "Represents bd sync command.
 Synchronizes issues with git remote."))
 

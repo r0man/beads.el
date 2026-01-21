@@ -73,15 +73,15 @@ Example: '(\"bd-1\" \"bd-2\" \"bd-3\")"
     :option-type :list
     :option-separator " "
     ;; Transient properties
-    :transient-key "i"
-    :transient-description "Issue IDs (required)"
-    :transient-class transient-option
-    :transient-argument "--id="
-    :transient-prompt "Issue ID(s): "
+    :key "i"
+    :transient "Issue IDs (required)"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID(s): "
     :transient-reader beads-reader-issue-id
     :transient-group "Delete Issue"
-    :transient-level 1
-    :transient-order 1
+    :level 1
+    :order 1
     ;; Validation
     :required t)
    (cascade
@@ -93,13 +93,13 @@ Example: '(\"bd-1\" \"bd-2\" \"bd-3\")"
     :long-option "cascade"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "c"
-    :transient-description "--cascade"
-    :transient-class transient-switch
-    :transient-argument "--cascade"
+    :key "c"
+    :transient "--cascade"
+    :class transient-switch
+    :argument "--cascade"
     :transient-group "Dependency Handling"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (dry-run
     :initarg :dry-run
     :type boolean
@@ -110,13 +110,13 @@ Example: '(\"bd-1\" \"bd-2\" \"bd-3\")"
     :long-option "dry-run"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "n"
-    :transient-description "--dry-run"
-    :transient-class transient-switch
-    :transient-argument "--dry-run"
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (force
     :initarg :force
     :type boolean
@@ -128,13 +128,13 @@ Without this flag, shows preview only."
     :short-option "f"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "f"
-    :transient-description "--force"
-    :transient-class transient-switch
-    :transient-argument "--force"
+    :key "f"
+    :transient "--force"
+    :class transient-switch
+    :argument "--force"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 3)
+    :level 1
+    :order 3)
    (from-file
     :initarg :from-file
     :type (or null string)
@@ -144,15 +144,15 @@ Without this flag, shows preview only."
     :long-option "from-file"
     :option-type :string
     ;; Transient properties
-    :transient-key "F"
-    :transient-description "--from-file"
-    :transient-class transient-option
-    :transient-argument "--from-file="
-    :transient-prompt "File path: "
+    :key "F"
+    :transient "--from-file"
+    :class transient-option
+    :argument "--from-file="
+    :prompt "File path: "
     :transient-reader transient-read-file
     :transient-group "Batch Delete"
-    :transient-level 3
-    :transient-order 1)
+    :level 3
+    :order 1)
    (hard
     :initarg :hard
     :type boolean
@@ -164,13 +164,13 @@ will not resurrect from remote branches."
     :long-option "hard"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "H"
-    :transient-description "--hard (permanent)"
-    :transient-class transient-switch
-    :transient-argument "--hard"
+    :key "H"
+    :transient "--hard (permanent)"
+    :class transient-switch
+    :argument "--hard"
     :transient-group "Options"
-    :transient-level 3
-    :transient-order 2)
+    :level 3
+    :order 2)
    (reason
     :initarg :reason
     :type (or null string)
@@ -181,14 +181,14 @@ Stored in tombstone for audit trail."
     :long-option "reason"
     :option-type :string
     ;; Transient properties
-    :transient-key "r"
-    :transient-description "--reason"
-    :transient-class transient-option
-    :transient-argument "--reason="
-    :transient-prompt "Reason: "
+    :key "r"
+    :transient "--reason"
+    :class transient-option
+    :argument "--reason="
+    :prompt "Reason: "
     :transient-group "Delete Issue"
-    :transient-level 2
-    :transient-order 2))
+    :level 2
+    :order 2))
   :documentation "Represents bd delete command.
 Deletes one or more issues and cleans up all references to them.
 When executed with :json t, returns deleted issue(s) data."))

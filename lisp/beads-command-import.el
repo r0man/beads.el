@@ -69,15 +69,15 @@ Default: stdin."
     :short-option "i"
     :option-type :string
     ;; Transient properties
-    :transient-key "i"
-    :transient-description "--input"
-    :transient-class transient-option
-    :transient-argument "--input="
-    :transient-prompt "Input file: "
+    :key "i"
+    :transient "--input"
+    :class transient-option
+    :argument "--input="
+    :prompt "Input file: "
     :transient-reader transient-read-file
     :transient-group "Import Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (dry-run
     :initarg :dry-run
     :type boolean
@@ -88,13 +88,13 @@ Default: stdin."
     :long-option "dry-run"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "n"
-    :transient-description "--dry-run"
-    :transient-class transient-switch
-    :transient-argument "--dry-run"
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
     :transient-group "Import Options"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (skip-existing
     :initarg :skip-existing
     :type boolean
@@ -106,13 +106,13 @@ Default: stdin."
     :short-option "s"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "s"
-    :transient-description "--skip-existing"
-    :transient-class transient-switch
-    :transient-argument "--skip-existing"
+    :key "s"
+    :transient "--skip-existing"
+    :class transient-switch
+    :argument "--skip-existing"
     :transient-group "Import Options"
-    :transient-level 1
-    :transient-order 3)
+    :level 1
+    :order 3)
    (force
     :initarg :force
     :type boolean
@@ -123,13 +123,13 @@ in sync with JSONL (--force)."
     :long-option "force"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "f"
-    :transient-description "--force"
-    :transient-class transient-switch
-    :transient-argument "--force"
+    :key "f"
+    :transient "--force"
+    :class transient-switch
+    :argument "--force"
     :transient-group "Import Options"
-    :transient-level 1
-    :transient-order 4)
+    :level 1
+    :order 4)
    (dedupe-after
     :initarg :dedupe-after
     :type boolean
@@ -140,13 +140,13 @@ in sync with JSONL (--force)."
     :long-option "dedupe-after"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "d"
-    :transient-description "--dedupe-after"
-    :transient-class transient-switch
-    :transient-argument "--dedupe-after"
+    :key "d"
+    :transient "--dedupe-after"
+    :class transient-switch
+    :argument "--dedupe-after"
     :transient-group "Import Options"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (strict
     :initarg :strict
     :type boolean
@@ -157,13 +157,13 @@ as warnings (--strict)."
     :long-option "strict"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "S"
-    :transient-description "--strict"
-    :transient-class transient-switch
-    :transient-argument "--strict"
+    :key "S"
+    :transient "--strict"
+    :class transient-switch
+    :argument "--strict"
     :transient-group "Import Options"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (rename-on-import
     :initarg :rename-on-import
     :type boolean
@@ -174,13 +174,13 @@ as warnings (--strict)."
     :long-option "rename-on-import"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "R"
-    :transient-description "--rename-on-import"
-    :transient-class transient-switch
-    :transient-argument "--rename-on-import"
+    :key "R"
+    :transient "--rename-on-import"
+    :class transient-switch
+    :argument "--rename-on-import"
     :transient-group "Import Options"
-    :transient-level 2
-    :transient-order 3)
+    :level 2
+    :order 3)
    (orphan-handling
     :initarg :orphan-handling
     :type (or null string)
@@ -192,14 +192,14 @@ Default: use config or 'allow'."
     :long-option "orphan-handling"
     :option-type :string
     ;; Transient properties
-    :transient-key "oh"
-    :transient-description "--orphan-handling"
-    :transient-class transient-option
-    :transient-argument "--orphan-handling="
-    :transient-prompt "Orphan handling: "
+    :key "oh"
+    :transient "--orphan-handling"
+    :class transient-option
+    :argument "--orphan-handling="
+    :prompt "Orphan handling: "
     :transient-group "Advanced"
-    :transient-level 3
-    :transient-order 1)
+    :level 3
+    :order 1)
    (clear-duplicate-external-refs
     :initarg :clear-duplicate-external-refs
     :type boolean
@@ -210,13 +210,13 @@ Default: use config or 'allow'."
     :long-option "clear-duplicate-external-refs"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "ce"
-    :transient-description "--clear-duplicate-external-refs"
-    :transient-class transient-switch
-    :transient-argument "--clear-duplicate-external-refs"
+    :key "ce"
+    :transient "--clear-duplicate-external-refs"
+    :class transient-switch
+    :argument "--clear-duplicate-external-refs"
     :transient-group "Advanced"
-    :transient-level 3
-    :transient-order 2)
+    :level 3
+    :order 2)
    (no-git-history
     :initarg :no-git-history
     :type boolean
@@ -227,13 +227,13 @@ Default: use config or 'allow'."
     :long-option "no-git-history"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "ng"
-    :transient-description "--no-git-history"
-    :transient-class transient-switch
-    :transient-argument "--no-git-history"
+    :key "ng"
+    :transient "--no-git-history"
+    :class transient-switch
+    :argument "--no-git-history"
     :transient-group "Advanced"
-    :transient-level 3
-    :transient-order 3)
+    :level 3
+    :order 3)
    (protect-left-snapshot
     :initarg :protect-left-snapshot
     :type boolean
@@ -244,13 +244,13 @@ git-history-backfill (--protect-left-snapshot)."
     :long-option "protect-left-snapshot"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "pl"
-    :transient-description "--protect-left-snapshot"
-    :transient-class transient-switch
-    :transient-argument "--protect-left-snapshot"
+    :key "pl"
+    :transient "--protect-left-snapshot"
+    :class transient-switch
+    :argument "--protect-left-snapshot"
     :transient-group "Advanced"
-    :transient-level 3
-    :transient-order 4))
+    :level 3
+    :order 4))
   :documentation "Represents bd import command.
 Imports issues from JSON Lines format (one JSON object per line).
 When executed with :json t, returns import statistics."))
