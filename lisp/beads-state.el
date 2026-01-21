@@ -61,6 +61,30 @@ When non-nil, uses no-db mode: load from JSONL only, no SQLite.")
   "Global sandbox flag.
 When non-nil, enables sandbox mode: disables daemon and auto-sync.")
 
+(defvar beads-global-allow-stale nil
+  "Global allow-stale flag.
+When non-nil, allows operations on potentially stale data.")
+
+(defvar beads-global-lock-timeout nil
+  "Global lock-timeout value.
+SQLite busy timeout duration (e.g., \"30s\").")
+
+(defvar beads-global-profile nil
+  "Global profile flag.
+When non-nil, generates CPU profile for performance analysis.")
+
+(defvar beads-global-quiet nil
+  "Global quiet flag.
+When non-nil, suppresses `non-essential' output (errors only).")
+
+(defvar beads-global-readonly nil
+  "Global readonly flag.
+When non-nil, blocks write operations (for worker sandboxes).")
+
+(defvar beads-global-verbose nil
+  "Global verbose flag.
+When non-nil, enables verbose/debug output.")
+
 ;;; ============================================================
 ;;; beads-update state variables
 ;;; ============================================================
