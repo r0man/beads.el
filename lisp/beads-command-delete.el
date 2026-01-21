@@ -183,9 +183,9 @@
       ;; Transient properties
       :key "r"
       :transient "--reason"
-      :class transient-option
+      :class beads-create-transient-multiline
       :argument "--reason="
-      :prompt "Reason: "
+      :field-name "Delete Reason"
       :transient-group "Delete Issue"
       :level 2
       :order 2))
