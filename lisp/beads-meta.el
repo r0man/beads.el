@@ -697,6 +697,42 @@ by the base class's command-line method."
   (cons subcommand (beads-meta-build-command-line command)))
 
 ;;; ============================================================
+;;; Global Options Building from Slot Metadata
+;;; ============================================================
+
+(defconst beads-meta--global-option-slots
+  '(actor allow-stale db lock-timeout no-auto-flush no-auto-import
+    no-daemon no-db profile quiet readonly sandbox verbose)
+  "List of slot names that are global bd CLI options.
+These slots are defined in `beads-command-global-options' class.")
+
+(defun beads-meta-build-global-options (command)
+  "Build command-line arguments for global options in COMMAND.
+COMMAND is an EIEIO object that inherits from `beads-command-global-options'.
+
+Returns a list of strings representing global CLI flags.
+Uses slot metadata (:long-option, :short-option, :option-type) to build args."
+  (let ((result nil)
+        (class-name (eieio-object-class command)))
+    (dolist (slot-name beads-meta--global-option-slots)
+      (when (and (slot-exists-p command slot-name)
+                 (slot-boundp command slot-name))
+        (let* ((value (eieio-oref command slot-name))
+               (long-opt (beads-meta-slot-property class-name slot-name
+                                                   :long-option))
+               (option-type (or (beads-meta-slot-property class-name slot-name
+                                                          :option-type)
+                                :string)))
+          (when (and value long-opt)
+            (pcase option-type
+              (:boolean
+               (push (concat "--" long-opt) result))
+              (_
+               (push (concat "--" long-opt) result)
+               (push (if (stringp value) value (format "%s" value)) result)))))))
+    (nreverse result)))
+
+;;; ============================================================
 ;;; Transient Infix Generation from Slot Metadata
 ;;; ============================================================
 

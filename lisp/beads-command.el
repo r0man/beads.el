@@ -234,54 +234,125 @@ When nil, auto-detects best available backend."
       ('compile (beads-command--run-compile cmd-string buffer-name default-dir))
       (_ (beads-command--run-term cmd-string buffer-name default-dir)))))
 
-;;; Base Command Class
+;;; Global Options Mixin Class
 
-(defclass beads-command ()
+(defclass beads-command-global-options ()
   ((actor
     :initarg :actor
     :type (or null string)
     :initform nil
     :documentation "Actor name for audit trail (--actor).
-Overrides $BD_ACTOR or $USER.")
+Overrides $BD_ACTOR or $USER."
+    :long-option "actor"
+    :option-type :string)
+   (allow-stale
+    :initarg :allow-stale
+    :type boolean
+    :initform nil
+    :documentation "Allow operations on potentially stale data (--allow-stale).
+Skip staleness check."
+    :long-option "allow-stale"
+    :option-type :boolean)
    (db
     :initarg :db
     :type (or null string)
     :initform nil
     :documentation "Database path (--db).
-Overrides auto-discovery of .beads/*.db.")
+Overrides auto-discovery of .beads/*.db."
+    :long-option "db"
+    :option-type :string)
+   (lock-timeout
+    :initarg :lock-timeout
+    :type (or null string)
+    :initform nil
+    :documentation "SQLite busy timeout (--lock-timeout).
+E.g., \"30s\". 0 means fail immediately if locked."
+    :long-option "lock-timeout"
+    :option-type :string)
    (no-auto-flush
     :initarg :no-auto-flush
     :type boolean
     :initform nil
     :documentation "Disable automatic JSONL sync (--no-auto-flush).
-Prevents auto-export after CRUD operations.")
+Prevents auto-export after CRUD operations."
+    :long-option "no-auto-flush"
+    :option-type :boolean)
    (no-auto-import
     :initarg :no-auto-import
     :type boolean
     :initform nil
     :documentation "Disable automatic JSONL import (--no-auto-import).
-Prevents auto-import when JSONL is newer than DB.")
+Prevents auto-import when JSONL is newer than DB."
+    :long-option "no-auto-import"
+    :option-type :boolean)
    (no-daemon
     :initarg :no-daemon
     :type boolean
     :initform nil
     :documentation "Force direct storage mode (--no-daemon).
-Bypass daemon if running.")
+Bypass daemon if running."
+    :long-option "no-daemon"
+    :option-type :boolean)
    (no-db
     :initarg :no-db
     :type boolean
     :initform nil
     :documentation "Use no-db mode (--no-db).
-Load from JSONL, no SQLite database.")
+Load from JSONL, no SQLite database."
+    :long-option "no-db"
+    :option-type :boolean)
+   (profile
+    :initarg :profile
+    :type boolean
+    :initform nil
+    :documentation "Generate CPU profile (--profile).
+For performance analysis."
+    :long-option "profile"
+    :option-type :boolean)
+   (quiet
+    :initarg :quiet
+    :type boolean
+    :initform nil
+    :documentation "Suppress non-essential output (-q, --quiet).
+Errors only."
+    :long-option "quiet"
+    :short-option "q"
+    :option-type :boolean)
+   (readonly
+    :initarg :readonly
+    :type boolean
+    :initform nil
+    :documentation "Read-only mode (--readonly).
+Block write operations for worker sandboxes."
+    :long-option "readonly"
+    :option-type :boolean)
    (sandbox
     :initarg :sandbox
     :type boolean
     :initform nil
     :documentation "Sandbox mode (--sandbox).
-Disables daemon and auto-sync."))
+Disables daemon and auto-sync."
+    :long-option "sandbox"
+    :option-type :boolean)
+   (verbose
+    :initarg :verbose
+    :type boolean
+    :initform nil
+    :documentation "Enable verbose output (-v, --verbose).
+Debug output."
+    :long-option "verbose"
+    :short-option "v"
+    :option-type :boolean))
+  :documentation "Mixin class providing global bd CLI options.
+These flags apply to all bd commands and are built using slot metadata.")
+
+;;; Base Command Class
+
+(defclass beads-command (beads-command-global-options)
+  ()
   :abstract t
   :documentation "Abstract base class for all bd commands.
-Contains slots for global flags that apply to all commands.
+Inherits global options from `beads-command-global-options'.
 Execution results are returned in `beads-command-execution' objects,
 not stored on the command itself (commands are immutable/reusable).")
 
@@ -398,32 +469,20 @@ This :around method ensures all command lines start with beads-executable."
 If `beads-command-subcommand' returns a subcommand name, builds:
   (SUBCOMMAND... ...global-flags... ...metadata-args...)
 Supports multi-word subcommands like \"worktree create\".
-Otherwise returns just global flags (for abstract classes)."
-  (with-slots (actor db no-auto-flush no-auto-import
-                     no-daemon no-db sandbox) command
-    (let ((global-args nil)
-          (subcommand (beads-command-subcommand command)))
-      ;; Build global flags
-      (when no-auto-flush (push "--no-auto-flush" global-args))
-      (when no-auto-import (push "--no-auto-import" global-args))
-      (when no-daemon (push "--no-daemon" global-args))
-      (when no-db (push "--no-db" global-args))
-      (when sandbox (push "--sandbox" global-args))
-      (when actor
-        (push "--actor" global-args)
-        (push actor global-args))
-      (when db
-        (push "--db" global-args)
-        (push db global-args))
-      (setq global-args (nreverse global-args))
-      ;; Build full command line
-      (if subcommand
-          ;; Use metadata-based building
-          (append (split-string subcommand)
-                  global-args
-                  (beads-meta-build-command-line command))
-        ;; No subcommand - just return global flags
-        global-args))))
+Otherwise returns just global flags (for abstract classes).
+
+Global options are built from `beads-command-global-options' slot metadata
+via `beads-meta-build-global-options'."
+  (let ((global-args (beads-meta-build-global-options command))
+        (subcommand (beads-command-subcommand command)))
+    ;; Build full command line
+    (if subcommand
+        ;; Use metadata-based building
+        (append (split-string subcommand)
+                global-args
+                (beads-meta-build-command-line command))
+      ;; No subcommand - just return global flags
+      global-args)))
 
 (cl-defmethod beads-command-validate ((_command beads-command))
   "Validate base COMMAND.
