@@ -134,5 +134,12 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
 (defvar beads-dep--dep-type nil
   "Dependency type (blocks, related, parent-child, discovered-from).")
 
+;;; ============================================================
+;;; beads-move state variables
+;;; ============================================================
+
+(defvar beads-move--issue-id nil
+  "Issue ID to move.")
+
 (provide 'beads-state)
 ;;; beads-state.el ends here

@@ -17,6 +17,7 @@
 (require 'beads-command)
 (require 'beads-meta)
 (require 'beads-option)
+(require 'beads-reader)
 (require 'transient)
 
 ;;; ============================================================
@@ -237,7 +238,17 @@ Checks issues for missing template sections."))
     :type (or null string)
     :initform nil
     :documentation "Issue ID to move."
-    :positional 1)
+    :positional 1
+    ;; Transient properties for UI input
+    :transient-key "i"
+    :transient-description "Issue ID (required)"
+    :transient-class transient-option
+    :transient-argument "--id="
+    :transient-reader beads-reader-move-issue-id
+    :transient-prompt "Issue ID: "
+    :transient-group "Move Issue"
+    :transient-level 1
+    :transient-order 0)
    (to
     :initarg :to
     :type (or null string)
@@ -246,11 +257,11 @@ Checks issues for missing template sections."))
     :long-option "to"
     :option-type :string
     :transient-key "t"
-    :transient-description "--to"
+    :transient-description "--to (required)"
     :transient-class transient-option
     :transient-argument "--to="
     :transient-prompt "Target rig: "
-    :transient-group "Options"
+    :transient-group "Move Issue"
     :transient-level 1
     :transient-order 1)
    (keep-open
