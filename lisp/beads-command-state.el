@@ -46,9 +46,9 @@
       :option-type :string
       :key "r"
       :transient "--reason"
-      :class transient-option
+      :class beads-create-transient-multiline
       :argument "--reason="
-      :prompt "Reason: "
+      :field-name "State Change Reason"
       :transient-group "Options"
       :level 1
       :order 1))
