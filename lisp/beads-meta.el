@@ -28,16 +28,24 @@
 ;;   :positional      - Position for positional args (integer 1, 2, 3... or nil)
 ;;   :option-separator - Separator for :list type (default ",")
 ;;
-;; Transient Properties:
-;;   :transient-key         - Key binding in transient menu (without dash prefix)
-;;   :transient-description - Description in transient
-;;   :transient-class       - Transient class (transient-option, etc.)
-;;   :transient-reader      - Reader function for input
-;;   :transient-choices     - Valid choices list
-;;   :transient-prompt      - Input prompt string
-;;   :transient-level       - Menu visibility level (1-7)
-;;   :transient-group       - Group name for organization
-;;   :transient-order       - Order within group (lower = first)
+;; Transient Properties (preferred concise names):
+;;   :key        - Key binding in transient menu (e.g., "t")
+;;   :transient  - Description shown in transient menu
+;;   :class      - Transient class (transient-option, transient-switch, etc.)
+;;   :reader     - Reader function for input
+;;   :choices    - Valid choices list
+;;   :prompt     - Input prompt string
+;;   :argument   - CLI argument format (e.g., "--title=")
+;;   :field-name - Field name for multiline editors
+;;   :level      - Menu visibility level (1-7)
+;;   :group      - Group name for organization
+;;   :order      - Order within group (lower = first)
+;;
+;; Legacy Transient Property Names (for backwards compatibility):
+;;   :transient-key, :transient-description, :transient-class,
+;;   :transient-reader, :transient-choices, :transient-prompt,
+;;   :transient-argument, :transient-field-name, :transient-level,
+;;   :transient-group, :transient-order
 ;;
 ;; Validation Properties:
 ;;   :required  - Is field required?
@@ -55,18 +63,18 @@
 ;;       :long-option "title"
 ;;       :short-option "t"
 ;;       :positional 1
-;;       ;; Transient properties - key without dash prefix
-;;       :transient-key "t"
-;;       :transient-description "Title (required)"
-;;       :transient-class transient-option
-;;       :transient-reader beads-reader-issue-title
-;;       :transient-group "Required"
-;;       :transient-level 1
+;;       ;; Transient properties (using new concise names)
+;;       :key "t"
+;;       :transient "Title (required)"
+;;       :class transient-option
+;;       :reader beads-reader-issue-title
+;;       :group "Required"
+;;       :level 1
 ;;       ;; Validation
 ;;       :required t)))
 ;;
-;;   ;; Get a property for a slot
-;;   (beads-meta-slot-property 'my-command 'title :transient-key)
+;;   ;; Get a property for a slot (works with both new and legacy names)
+;;   (beads-meta-slot-property 'my-command 'title :key)
 ;;   ;; => "t"
 ;;
 ;;   ;; Get all custom properties for a slot
@@ -101,7 +109,19 @@
     :positional
     :positional-rest
     :option-separator
-    ;; Transient properties
+    ;; Transient properties (new concise names - preferred)
+    :key                    ; key binding in transient menu
+    :transient              ; description shown in transient menu
+    :class                  ; transient class (transient-option, etc.)
+    :reader                 ; reader function for input
+    :choices                ; valid choices list
+    :prompt                 ; input prompt string
+    :argument               ; CLI argument format (e.g., "--title=")
+    :field-name             ; field name for multiline editors
+    :level                  ; menu visibility level (1-7)
+    :group                  ; group name for organization
+    :order                  ; order within group (lower = first)
+    ;; Transient properties (legacy names - for backwards compatibility)
     :transient-key
     :transient-description
     :transient-class
@@ -118,7 +138,23 @@
     :validator)
   "List of custom slot properties supported by beads-meta.
 These properties are preserved in slot descriptors via advice on
-`eieio-defclass-internal' and `eieio--slot-override'.")
+`eieio-defclass-internal' and `eieio--slot-override'.
+
+Property name mappings (new -> legacy):
+  :key         -> :transient-key
+  :transient   -> :transient-description
+  :class       -> :transient-class
+  :reader      -> :transient-reader
+  :choices     -> :transient-choices
+  :prompt      -> :transient-prompt
+  :argument    -> :transient-argument
+  :field-name  -> :transient-field-name
+  :level       -> :transient-level
+  :group       -> :transient-group
+  :order       -> :transient-order
+
+The new concise names are preferred for new code.  Legacy names
+are preserved for backwards compatibility.")
 
 ;;; ============================================================
 ;;; EIEIO Advice for Custom Property Preservation
