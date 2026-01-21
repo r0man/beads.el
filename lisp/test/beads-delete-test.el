@@ -100,6 +100,47 @@ Text references to be updated:
       (let ((result (beads-delete--execute-deletion "bd-42")))
         (should result)))))
 
+(ert-deftest beads-delete-test-execute-deletion-daemon-rpc-format ()
+  "Test deletion with daemon RPC response format (deleted_count only).
+The daemon returns a different JSON format than direct mode."
+  (let ((json-output (json-encode '((deleted_count . 1)
+                                     (total_count . 1)))))
+    (cl-letf (((symbol-function 'process-file)
+               (beads-test--mock-call-process 0 json-output))
+              ((symbol-function 'beads--invalidate-completion-cache)
+               (lambda () nil)))
+      (let ((result (beads-delete--execute-deletion "bd-42")))
+        (should result)
+        (should (alist-get 'deleted_count result))
+        (should (equal 1 (alist-get 'deleted_count result)))))))
+
+(ert-deftest beads-delete-test-execute-deletion-direct-mode-single ()
+  "Test deletion with direct mode single-issue response format."
+  (let ((json-output (json-encode '((deleted . "bd-42")
+                                     (dependencies_removed . 2)
+                                     (references_updated . 1)))))
+    (cl-letf (((symbol-function 'process-file)
+               (beads-test--mock-call-process 0 json-output))
+              ((symbol-function 'beads--invalidate-completion-cache)
+               (lambda () nil)))
+      (let ((result (beads-delete--execute-deletion "bd-42")))
+        (should result)
+        (should (equal "bd-42" (alist-get 'deleted result)))))))
+
+(ert-deftest beads-delete-test-execute-deletion-direct-mode-batch ()
+  "Test deletion with direct mode batch response format (deleted as array)."
+  (let ((json-output (json-encode '((deleted . ["bd-42" "bd-43"])
+                                     (deleted_count . 2)
+                                     (dependencies_removed . 3)))))
+    (cl-letf (((symbol-function 'process-file)
+               (beads-test--mock-call-process 0 json-output))
+              ((symbol-function 'beads--invalidate-completion-cache)
+               (lambda () nil)))
+      (let ((result (beads-delete--execute-deletion "bd-42")))
+        (should result)
+        ;; deleted is an array when in batch mode
+        (should (vectorp (alist-get 'deleted result)))))))
+
 (ert-deftest beads-delete-test-execute-deletion-command-failure ()
   "Test deletion handles bd command failure."
   (cl-letf (((symbol-function 'process-file)

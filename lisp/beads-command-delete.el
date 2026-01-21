@@ -220,9 +220,17 @@ When :json is nil, falls back to parent (returns raw stdout).
 When :json is t, returns alist with deletion info.
 Does not modify any slots.
 
-The bd CLI returns JSON like:
+The bd CLI returns different JSON formats:
+
+Direct mode (single issue):
   {\"deleted\": \"issue-id\", \"dependencies_removed\": N,
    \"references_updated\": N}
+
+Direct mode (batch):
+  {\"deleted\": [\"id1\", \"id2\"], \"deleted_count\": N, ...}
+
+Daemon RPC mode:
+  {\"deleted_count\": N, \"total_count\": N}
 
 Returns the parsed alist or nil."
   (with-slots (json) command
@@ -237,11 +245,14 @@ Returns the parsed alist or nil."
          ;; Vector of results (multiple deletions)
          ((vectorp parsed-json)
           (append parsed-json nil))
-         ;; Single object with 'deleted' field (actual bd CLI format)
+         ;; Single object with 'deleted' field (direct mode CLI format)
          ((alist-get 'deleted parsed-json)
           parsed-json)
          ;; Legacy format with 'id' field (for backwards compatibility)
          ((alist-get 'id parsed-json)
+          parsed-json)
+         ;; Daemon RPC format with 'deleted_count' field (no 'deleted')
+         ((alist-get 'deleted_count parsed-json)
           parsed-json)
          ;; Unexpected format
          (t
@@ -412,7 +423,7 @@ from context."
           (when (buffer-live-p preview-buffer)
             (kill-buffer preview-buffer))))
     (error
-     (message "Failed to get deletion preview: %s"
+     (message "Delete operation failed: %s"
               (error-message-string err)))))
 
 (provide 'beads-command-delete)
