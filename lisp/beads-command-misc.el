@@ -365,7 +365,16 @@ Moves an issue to a different rig."))
     :type (or null string)
     :initform nil
     :documentation "Issue title."
-    :positional 1)
+    :positional 1
+    ;; Transient properties for UI input
+    :transient-key "T"
+    :transient-description "Title (required)"
+    :transient-class transient-option
+    :transient-argument "--title="
+    :transient-prompt "Title: "
+    :transient-group "Quick Capture"
+    :transient-level 1
+    :transient-order 0)
    (issue-type
     :initarg :issue-type
     :type (or null string)
