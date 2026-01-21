@@ -259,31 +259,31 @@ Returns error message string or nil if valid."
 ;; Wrap in eval-and-compile so class is available at compile time for
 ;; beads-meta-define-transient macro
 (eval-and-compile
-(beads-defcommand beads-command-worktree-create (beads-command-json)
-  ((name
-    :initarg :name
-    :type (or null string)
-    :initform nil
-    :documentation "Worktree name (also used as directory name)."
-    :positional 1)
-   (branch
-    :initarg :branch
-    :type (or null string)
-    :initform nil
-    :documentation "Branch name for the worktree (--branch).
-Default: same as worktree name."
-    :long-option "branch"
-    :option-type :string
-    :key "b"
-    :transient "--branch"
-    :class transient-option
-    :argument "--branch="
-    :prompt "Branch name: "
-    :transient-group "Options"
-    :level 1
-    :order 1))
-  :documentation "Represents bd worktree create command.
-Creates a git worktree with beads redirect configuration."))
+  (beads-defcommand beads-command-worktree-create (beads-command-json)
+    ((name
+      :initarg :name
+      :type (or null string)
+      :initform nil
+      :documentation "Worktree name (also used as directory name)."
+      :positional 1)
+     (branch
+      :initarg :branch
+      :type (or null string)
+      :initform nil
+      :documentation "Branch name for the worktree (--branch).
+  Default: same as worktree name."
+      :long-option "branch"
+      :option-type :string
+      :key "b"
+      :transient "--branch"
+      :class transient-option
+      :argument "--branch="
+      :prompt "Branch name: "
+      :transient-group "Options"
+      :level 1
+      :order 1))
+    :documentation "Represents bd worktree create command.
+  Creates a git worktree with beads redirect configuration."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-worktree-create))
   "Return \"worktree create\" as the CLI subcommand."
@@ -321,10 +321,10 @@ Returns beads-worktree instance on success."
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-worktree-list (beads-command-json)
-  ()
-  :documentation "Represents bd worktree list command.
-Lists all git worktrees with their beads configuration state."))
+  (beads-defcommand beads-command-worktree-list (beads-command-json)
+    ()
+    :documentation "Represents bd worktree list command.
+  Lists all git worktrees with their beads configuration state."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-worktree-list))
   "Return \"worktree list\" as the CLI subcommand."
@@ -353,31 +353,31 @@ Returns list of beads-worktree instances."
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-worktree-remove (beads-command-json)
-  ((name
-    :initarg :name
-    :type (or null string)
-    :initform nil
-    :documentation "Worktree name to remove."
-    :positional 1)
-   (force
-    :initarg :force
-    :type boolean
-    :initform nil
-    :documentation "Skip safety checks (--force).
-By default, removal checks for uncommitted changes, unpushed commits,
-and stashes."
-    :long-option "force"
-    :option-type :boolean
-    :key "f"
-    :transient "--force"
-    :class transient-switch
-    :argument "--force"
-    :transient-group "Options"
-    :level 1
-    :order 1))
-  :documentation "Represents bd worktree remove command.
-Removes a worktree with safety checks (unless --force is used)."))
+  (beads-defcommand beads-command-worktree-remove (beads-command-json)
+    ((name
+      :initarg :name
+      :type (or null string)
+      :initform nil
+      :documentation "Worktree name to remove."
+      :positional 1)
+     (force
+      :initarg :force
+      :type boolean
+      :initform nil
+      :documentation "Skip safety checks (--force).
+  By default, removal checks for uncommitted changes, unpushed commits,
+  and stashes."
+      :long-option "force"
+      :option-type :boolean
+      :key "f"
+      :transient "--force"
+      :class transient-switch
+      :argument "--force"
+      :transient-group "Options"
+      :level 1
+      :order 1))
+    :documentation "Represents bd worktree remove command.
+  Removes a worktree with safety checks (unless --force is used)."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-worktree-remove))
   "Return \"worktree remove\" as the CLI subcommand."
@@ -397,10 +397,10 @@ Requires name to be set."
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-worktree-info (beads-command-json)
-  ()
-  :documentation "Represents bd worktree info command.
-Shows information about the current worktree context."))
+  (beads-defcommand beads-command-worktree-info (beads-command-json)
+    ()
+    :documentation "Represents bd worktree info command.
+  Shows information about the current worktree context."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-worktree-info))
   "Return \"worktree info\" as the CLI subcommand."

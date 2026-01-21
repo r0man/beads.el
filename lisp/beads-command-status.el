@@ -33,52 +33,52 @@
 ;; Wrap in eval-and-compile so class is available at compile time for
 ;; beads-meta-define-transient macro
 (eval-and-compile
-(beads-defcommand beads-command-status (beads-command-json)
-  ((all-issues
-    :initarg :all-issues
-    :type boolean
-    :initform nil
-    :documentation "Show all issues (default behavior) (--all)."
-    :long-option "all"
-    :option-type :boolean
-    :key "a"
-    :transient "Show all issues"
-    :class transient-switch
-    :argument "--all"
-    :transient-group "Options"
-    :level 2
-    :order 1)
-   (assigned
-    :initarg :assigned
-    :type boolean
-    :initform nil
-    :documentation "Show issues assigned to current user (--assigned)."
-    :long-option "assigned"
-    :option-type :boolean
-    :key "m"
-    :transient "Show assigned to me"
-    :class transient-switch
-    :argument "--assigned"
-    :transient-group "Options"
-    :level 2
-    :order 2)
-   (no-activity
-    :initarg :no-activity
-    :type boolean
-    :initform nil
-    :documentation "Skip git activity analysis for faster output (--no-activity)."
-    :long-option "no-activity"
-    :option-type :boolean
-    :key "n"
-    :transient "Skip activity (faster)"
-    :class transient-switch
-    :argument "--no-activity"
-    :transient-group "Options"
-    :level 2
-    :order 3))
-  :documentation "Represents bd status command.
-Shows a quick snapshot of the issue database state and statistics.
-When executed with :json t, returns status data as JSON."))
+  (beads-defcommand beads-command-status (beads-command-json)
+    ((all-issues
+      :initarg :all-issues
+      :type boolean
+      :initform nil
+      :documentation "Show all issues (default behavior) (--all)."
+      :long-option "all"
+      :option-type :boolean
+      :key "a"
+      :transient "Show all issues"
+      :class transient-switch
+      :argument "--all"
+      :transient-group "Options"
+      :level 2
+      :order 1)
+     (assigned
+      :initarg :assigned
+      :type boolean
+      :initform nil
+      :documentation "Show issues assigned to current user (--assigned)."
+      :long-option "assigned"
+      :option-type :boolean
+      :key "m"
+      :transient "Show assigned to me"
+      :class transient-switch
+      :argument "--assigned"
+      :transient-group "Options"
+      :level 2
+      :order 2)
+     (no-activity
+      :initarg :no-activity
+      :type boolean
+      :initform nil
+      :documentation "Skip git activity analysis for faster output (--no-activity)."
+      :long-option "no-activity"
+      :option-type :boolean
+      :key "n"
+      :transient "Skip activity (faster)"
+      :class transient-switch
+      :argument "--no-activity"
+      :transient-group "Options"
+      :level 2
+      :order 3))
+    :documentation "Represents bd status command.
+  Shows a quick snapshot of the issue database state and statistics.
+  When executed with :json t, returns status data as JSON."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-status))
   "Return subcommand name for status command."

@@ -25,30 +25,30 @@
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-duplicate (beads-command-json)
-  ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to mark as duplicate."
-    :positional 1)
-   (of
-    :initarg :of
-    :type (or null string)
-    :initform nil
-    :documentation "Canonical issue ID."
-    :long-option "of"
-    :option-type :string
-    :key "o"
-    :transient "--of"
-    :class transient-option
-    :argument "--of="
-    :prompt "Canonical issue: "
-    :transient-group "Options"
-    :level 1
-    :order 1))
-  :documentation "Represents bd duplicate command.
-Marks an issue as a duplicate of another."))
+  (beads-defcommand beads-command-duplicate (beads-command-json)
+    ((issue-id
+      :initarg :issue-id
+      :type (or null string)
+      :initform nil
+      :documentation "Issue ID to mark as duplicate."
+      :positional 1)
+     (of
+      :initarg :of
+      :type (or null string)
+      :initform nil
+      :documentation "Canonical issue ID."
+      :long-option "of"
+      :option-type :string
+      :key "o"
+      :transient "--of"
+      :class transient-option
+      :argument "--of="
+      :prompt "Canonical issue: "
+      :transient-group "Options"
+      :level 1
+      :order 1))
+    :documentation "Represents bd duplicate command.
+  Marks an issue as a duplicate of another."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-duplicate))
   "Return \"duplicate\" as the CLI subcommand."
@@ -67,23 +67,23 @@ Marks an issue as a duplicate of another."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-duplicates (beads-command-json)
-  ((merge
-    :initarg :merge
-    :type boolean
-    :initform nil
-    :documentation "Merge duplicates with confirmation."
-    :long-option "merge"
-    :option-type :boolean
-    :key "m"
-    :transient "--merge"
-    :class transient-switch
-    :argument "--merge"
-    :transient-group "Options"
-    :level 1
-    :order 1))
-  :documentation "Represents bd duplicates command.
-Finds and optionally merges duplicate issues."))
+  (beads-defcommand beads-command-duplicates (beads-command-json)
+    ((merge
+      :initarg :merge
+      :type boolean
+      :initform nil
+      :documentation "Merge duplicates with confirmation."
+      :long-option "merge"
+      :option-type :boolean
+      :key "m"
+      :transient "--merge"
+      :class transient-switch
+      :argument "--merge"
+      :transient-group "Options"
+      :level 1
+      :order 1))
+    :documentation "Represents bd duplicates command.
+  Finds and optionally merges duplicate issues."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-duplicates))
   "Return \"duplicates\" as the CLI subcommand."
@@ -94,30 +94,30 @@ Finds and optionally merges duplicate issues."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-supersede (beads-command-json)
-  ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to mark as superseded."
-    :positional 1)
-   (with-id
-    :initarg :with-id
-    :type (or null string)
-    :initform nil
-    :documentation "Replacement issue ID."
-    :long-option "with"
-    :option-type :string
-    :key "w"
-    :transient "--with"
-    :class transient-option
-    :argument "--with="
-    :prompt "Replacement issue: "
-    :transient-group "Options"
-    :level 1
-    :order 1))
-  :documentation "Represents bd supersede command.
-Marks an issue as superseded by a newer one."))
+  (beads-defcommand beads-command-supersede (beads-command-json)
+    ((issue-id
+      :initarg :issue-id
+      :type (or null string)
+      :initform nil
+      :documentation "Issue ID to mark as superseded."
+      :positional 1)
+     (with-id
+      :initarg :with-id
+      :type (or null string)
+      :initform nil
+      :documentation "Replacement issue ID."
+      :long-option "with"
+      :option-type :string
+      :key "w"
+      :transient "--with"
+      :class transient-option
+      :argument "--with="
+      :prompt "Replacement issue: "
+      :transient-group "Options"
+      :level 1
+      :order 1))
+    :documentation "Represents bd supersede command.
+  Marks an issue as superseded by a newer one."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-supersede))
   "Return \"supersede\" as the CLI subcommand."
@@ -136,38 +136,38 @@ Marks an issue as superseded by a newer one."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-orphans (beads-command-json)
-  ((details
-    :initarg :details
-    :type boolean
-    :initform nil
-    :documentation "Show full commit information."
-    :long-option "details"
-    :option-type :boolean
-    :key "d"
-    :transient "--details"
-    :class transient-switch
-    :argument "--details"
-    :transient-group "Options"
-    :level 1
-    :order 1)
-   (fix
-    :initarg :fix
-    :type boolean
-    :initform nil
-    :documentation "Close orphaned issues with confirmation."
-    :long-option "fix"
-    :short-option "f"
-    :option-type :boolean
-    :key "f"
-    :transient "--fix"
-    :class transient-switch
-    :argument "--fix"
-    :transient-group "Options"
-    :level 1
-    :order 2))
-  :documentation "Represents bd orphans command.
-Identifies orphaned issues referenced in commits but still open."))
+  (beads-defcommand beads-command-orphans (beads-command-json)
+    ((details
+      :initarg :details
+      :type boolean
+      :initform nil
+      :documentation "Show full commit information."
+      :long-option "details"
+      :option-type :boolean
+      :key "d"
+      :transient "--details"
+      :class transient-switch
+      :argument "--details"
+      :transient-group "Options"
+      :level 1
+      :order 1)
+     (fix
+      :initarg :fix
+      :type boolean
+      :initform nil
+      :documentation "Close orphaned issues with confirmation."
+      :long-option "fix"
+      :short-option "f"
+      :option-type :boolean
+      :key "f"
+      :transient "--fix"
+      :class transient-switch
+      :argument "--fix"
+      :transient-group "Options"
+      :level 1
+      :order 2))
+    :documentation "Represents bd orphans command.
+  Identifies orphaned issues referenced in commits but still open."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-orphans))
   "Return \"orphans\" as the CLI subcommand."
@@ -178,50 +178,50 @@ Identifies orphaned issues referenced in commits but still open."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-lint (beads-command-json)
-  ((issue-ids
-    :initarg :issue-ids
-    :type list
-    :initform nil
-    :documentation "Issue IDs to lint (optional)."
-    :positional 1
-    :option-type :list
-    :option-separator nil)
-   (status
-    :initarg :status
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by status (default: open, 'all' for all)."
-    :long-option "status"
-    :short-option "s"
-    :option-type :string
-    :key "s"
-    :transient "--status"
-    :class transient-option
-    :argument "--status="
-    :prompt "Status: "
-    :transient-group "Options"
-    :level 1
-    :order 1)
-   (issue-type
-    :initarg :issue-type
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by issue type."
-    :long-option "type"
-    :short-option "t"
-    :option-type :string
-    :key "t"
-    :transient "--type"
-    :class transient-option
-    :argument "--type="
-    :prompt "Type: "
-    :choices ("bug" "task" "feature" "epic" "chore")
-    :transient-group "Options"
-    :level 1
-    :order 2))
-  :documentation "Represents bd lint command.
-Checks issues for missing template sections."))
+  (beads-defcommand beads-command-lint (beads-command-json)
+    ((issue-ids
+      :initarg :issue-ids
+      :type list
+      :initform nil
+      :documentation "Issue IDs to lint (optional)."
+      :positional 1
+      :option-type :list
+      :option-separator nil)
+     (status
+      :initarg :status
+      :type (or null string)
+      :initform nil
+      :documentation "Filter by status (default: open, 'all' for all)."
+      :long-option "status"
+      :short-option "s"
+      :option-type :string
+      :key "s"
+      :transient "--status"
+      :class transient-option
+      :argument "--status="
+      :prompt "Status: "
+      :transient-group "Options"
+      :level 1
+      :order 1)
+     (issue-type
+      :initarg :issue-type
+      :type (or null string)
+      :initform nil
+      :documentation "Filter by issue type."
+      :long-option "type"
+      :short-option "t"
+      :option-type :string
+      :key "t"
+      :transient "--type"
+      :class transient-option
+      :argument "--type="
+      :prompt "Type: "
+      :choices ("bug" "task" "feature" "epic" "chore")
+      :transient-group "Options"
+      :level 1
+      :order 2))
+    :documentation "Represents bd lint command.
+  Checks issues for missing template sections."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-lint))
   "Return \"lint\" as the CLI subcommand."
@@ -232,68 +232,68 @@ Checks issues for missing template sections."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-move (beads-command-json)
-  ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to move."
-    :positional 1
-    ;; Transient properties for UI input
-    :key "i"
-    :transient "Issue ID (required)"
-    :class transient-option
-    :argument "--id="
-    :transient-reader beads-reader-move-issue-id
-    :prompt "Issue ID: "
-    :transient-group "Move Issue"
-    :level 1
-    :order 0)
-   (to
-    :initarg :to
-    :type (or null string)
-    :initform nil
-    :documentation "Target rig or prefix."
-    :long-option "to"
-    :option-type :string
-    :key "t"
-    :transient "--to (required)"
-    :class transient-option
-    :argument "--to="
-    :prompt "Target rig: "
-    :transient-group "Move Issue"
-    :level 1
-    :order 1)
-   (keep-open
-    :initarg :keep-open
-    :type boolean
-    :initform nil
-    :documentation "Keep source issue open."
-    :long-option "keep-open"
-    :option-type :boolean
-    :key "k"
-    :transient "--keep-open"
-    :class transient-switch
-    :argument "--keep-open"
-    :transient-group "Options"
-    :level 2
-    :order 2)
-   (skip-deps
-    :initarg :skip-deps
-    :type boolean
-    :initform nil
-    :documentation "Skip dependency remapping."
-    :long-option "skip-deps"
-    :option-type :boolean
-    :key "d"
-    :transient "--skip-deps"
-    :class transient-switch
-    :argument "--skip-deps"
-    :transient-group "Options"
-    :level 2
-    :order 3))
-  :documentation "Represents bd move command.
-Moves an issue to a different rig with dependency remapping."))
+  (beads-defcommand beads-command-move (beads-command-json)
+    ((issue-id
+      :initarg :issue-id
+      :type (or null string)
+      :initform nil
+      :documentation "Issue ID to move."
+      :positional 1
+      ;; Transient properties for UI input
+      :key "i"
+      :transient "Issue ID (required)"
+      :class transient-option
+      :argument "--id="
+      :transient-reader beads-reader-move-issue-id
+      :prompt "Issue ID: "
+      :transient-group "Move Issue"
+      :level 1
+      :order 0)
+     (to
+      :initarg :to
+      :type (or null string)
+      :initform nil
+      :documentation "Target rig or prefix."
+      :long-option "to"
+      :option-type :string
+      :key "t"
+      :transient "--to (required)"
+      :class transient-option
+      :argument "--to="
+      :prompt "Target rig: "
+      :transient-group "Move Issue"
+      :level 1
+      :order 1)
+     (keep-open
+      :initarg :keep-open
+      :type boolean
+      :initform nil
+      :documentation "Keep source issue open."
+      :long-option "keep-open"
+      :option-type :boolean
+      :key "k"
+      :transient "--keep-open"
+      :class transient-switch
+      :argument "--keep-open"
+      :transient-group "Options"
+      :level 2
+      :order 2)
+     (skip-deps
+      :initarg :skip-deps
+      :type boolean
+      :initform nil
+      :documentation "Skip dependency remapping."
+      :long-option "skip-deps"
+      :option-type :boolean
+      :key "d"
+      :transient "--skip-deps"
+      :class transient-switch
+      :argument "--skip-deps"
+      :transient-group "Options"
+      :level 2
+      :order 3))
+    :documentation "Represents bd move command.
+  Moves an issue to a different rig with dependency remapping."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-move))
   "Return \"move\" as the CLI subcommand."
@@ -312,35 +312,35 @@ Moves an issue to a different rig with dependency remapping."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-refile (beads-command-json)
-  ((source-id
-    :initarg :source-id
-    :type (or null string)
-    :initform nil
-    :documentation "Source issue ID."
-    :positional 1)
-   (target-rig
-    :initarg :target-rig
-    :type (or null string)
-    :initform nil
-    :documentation "Target rig name or prefix."
-    :positional 2)
-   (keep-open
-    :initarg :keep-open
-    :type boolean
-    :initform nil
-    :documentation "Keep source issue open."
-    :long-option "keep-open"
-    :option-type :boolean
-    :key "k"
-    :transient "--keep-open"
-    :class transient-switch
-    :argument "--keep-open"
-    :transient-group "Options"
-    :level 1
-    :order 1))
-  :documentation "Represents bd refile command.
-Moves an issue to a different rig."))
+  (beads-defcommand beads-command-refile (beads-command-json)
+    ((source-id
+      :initarg :source-id
+      :type (or null string)
+      :initform nil
+      :documentation "Source issue ID."
+      :positional 1)
+     (target-rig
+      :initarg :target-rig
+      :type (or null string)
+      :initform nil
+      :documentation "Target rig name or prefix."
+      :positional 2)
+     (keep-open
+      :initarg :keep-open
+      :type boolean
+      :initform nil
+      :documentation "Keep source issue open."
+      :long-option "keep-open"
+      :option-type :boolean
+      :key "k"
+      :transient "--keep-open"
+      :class transient-switch
+      :argument "--keep-open"
+      :transient-group "Options"
+      :level 1
+      :order 1))
+    :documentation "Represents bd refile command.
+  Moves an issue to a different rig."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-refile))
   "Return \"refile\" as the CLI subcommand."
@@ -359,73 +359,73 @@ Moves an issue to a different rig."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-q (beads-command-json)
-  ((title
-    :initarg :title
-    :type (or null string)
-    :initform nil
-    :documentation "Issue title."
-    :positional 1
-    ;; Transient properties for UI input
-    :key "T"
-    :transient "Title (required)"
-    :class transient-option
-    :argument "--title="
-    :prompt "Title: "
-    :transient-group "Quick Capture"
-    :level 1
-    :order 0)
-   (issue-type
-    :initarg :issue-type
-    :type (or null string)
-    :initform nil
-    :documentation "Issue type (default: task)."
-    :long-option "type"
-    :short-option "t"
-    :option-type :string
-    :key "t"
-    :transient "--type"
-    :class transient-option
-    :argument "--type="
-    :prompt "Type: "
-    :choices ("task" "bug" "feature" "epic" "chore")
-    :transient-group "Options"
-    :level 1
-    :order 1)
-   (priority
-    :initarg :priority
-    :type (or null string)
-    :initform nil
-    :documentation "Priority (0-4 or P0-P4)."
-    :long-option "priority"
-    :short-option "p"
-    :option-type :string
-    :key "p"
-    :transient "--priority"
-    :class transient-option
-    :argument "--priority="
-    :prompt "Priority: "
-    :transient-group "Options"
-    :level 1
-    :order 2)
-   (labels
-    :initarg :labels
-    :type list
-    :initform nil
-    :documentation "Labels for the issue."
-    :long-option "labels"
-    :short-option "l"
-    :option-type :list
-    :key "l"
-    :transient "--labels"
-    :class transient-option
-    :argument "--labels="
-    :prompt "Labels: "
-    :transient-group "Options"
-    :level 1
-    :order 3))
-  :documentation "Represents bd q command.
-Quick capture: creates issue and outputs only ID."))
+  (beads-defcommand beads-command-q (beads-command-json)
+    ((title
+      :initarg :title
+      :type (or null string)
+      :initform nil
+      :documentation "Issue title."
+      :positional 1
+      ;; Transient properties for UI input
+      :key "T"
+      :transient "Title (required)"
+      :class transient-option
+      :argument "--title="
+      :prompt "Title: "
+      :transient-group "Quick Capture"
+      :level 1
+      :order 0)
+     (issue-type
+      :initarg :issue-type
+      :type (or null string)
+      :initform nil
+      :documentation "Issue type (default: task)."
+      :long-option "type"
+      :short-option "t"
+      :option-type :string
+      :key "t"
+      :transient "--type"
+      :class transient-option
+      :argument "--type="
+      :prompt "Type: "
+      :choices ("task" "bug" "feature" "epic" "chore")
+      :transient-group "Options"
+      :level 1
+      :order 1)
+     (priority
+      :initarg :priority
+      :type (or null string)
+      :initform nil
+      :documentation "Priority (0-4 or P0-P4)."
+      :long-option "priority"
+      :short-option "p"
+      :option-type :string
+      :key "p"
+      :transient "--priority"
+      :class transient-option
+      :argument "--priority="
+      :prompt "Priority: "
+      :transient-group "Options"
+      :level 1
+      :order 2)
+     (labels
+      :initarg :labels
+      :type list
+      :initform nil
+      :documentation "Labels for the issue."
+      :long-option "labels"
+      :short-option "l"
+      :option-type :list
+      :key "l"
+      :transient "--labels"
+      :class transient-option
+      :argument "--labels="
+      :prompt "Labels: "
+      :transient-group "Options"
+      :level 1
+      :order 3))
+    :documentation "Represents bd q command.
+  Quick capture: creates issue and outputs only ID."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-q))
   "Return \"q\" as the CLI subcommand."
@@ -441,23 +441,23 @@ Quick capture: creates issue and outputs only ID."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-version (beads-command-json)
-  ((daemon
-    :initarg :daemon
-    :type boolean
-    :initform nil
-    :documentation "Check daemon version and compatibility."
-    :long-option "daemon"
-    :option-type :boolean
-    :key "d"
-    :transient "--daemon"
-    :class transient-switch
-    :argument "--daemon"
-    :transient-group "Options"
-    :level 1
-    :order 1))
-  :documentation "Represents bd version command.
-Prints version information."))
+  (beads-defcommand beads-command-version (beads-command-json)
+    ((daemon
+      :initarg :daemon
+      :type boolean
+      :initform nil
+      :documentation "Check daemon version and compatibility."
+      :long-option "daemon"
+      :option-type :boolean
+      :key "d"
+      :transient "--daemon"
+      :class transient-switch
+      :argument "--daemon"
+      :transient-group "Options"
+      :level 1
+      :order 1))
+    :documentation "Represents bd version command.
+  Prints version information."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-version))
   "Return \"version\" as the CLI subcommand."
@@ -468,10 +468,10 @@ Prints version information."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-where (beads-command-json)
-  ()
-  :documentation "Represents bd where command.
-Shows active beads location."))
+  (beads-defcommand beads-command-where (beads-command-json)
+    ()
+    :documentation "Represents bd where command.
+  Shows active beads location."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-where))
   "Return \"where\" as the CLI subcommand."
@@ -482,10 +482,10 @@ Shows active beads location."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-human (beads-command-json)
-  ()
-  :documentation "Represents bd human command.
-Shows essential commands for human users."))
+  (beads-defcommand beads-command-human (beads-command-json)
+    ()
+    :documentation "Represents bd human command.
+  Shows essential commands for human users."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-human))
   "Return \"human\" as the CLI subcommand."
@@ -496,10 +496,10 @@ Shows essential commands for human users."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-onboard (beads-command-json)
-  ()
-  :documentation "Represents bd onboard command.
-Displays minimal snippet for AGENTS.md."))
+  (beads-defcommand beads-command-onboard (beads-command-json)
+    ()
+    :documentation "Represents bd onboard command.
+  Displays minimal snippet for AGENTS.md."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-onboard))
   "Return \"onboard\" as the CLI subcommand."
@@ -510,10 +510,10 @@ Displays minimal snippet for AGENTS.md."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-prime (beads-command-json)
-  ()
-  :documentation "Represents bd prime command.
-Outputs AI-optimized workflow context."))
+  (beads-defcommand beads-command-prime (beads-command-json)
+    ()
+    :documentation "Represents bd prime command.
+  Outputs AI-optimized workflow context."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-prime))
   "Return \"prime\" as the CLI subcommand."
@@ -524,10 +524,10 @@ Outputs AI-optimized workflow context."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-preflight (beads-command-json)
-  ()
-  :documentation "Represents bd preflight command.
-Shows PR readiness checklist."))
+  (beads-defcommand beads-command-preflight (beads-command-json)
+    ()
+    :documentation "Represents bd preflight command.
+  Shows PR readiness checklist."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-preflight))
   "Return \"preflight\" as the CLI subcommand."
@@ -538,10 +538,10 @@ Shows PR readiness checklist."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-upgrade (beads-command-json)
-  ()
-  :documentation "Represents bd upgrade command.
-Check and manage bd version upgrades."))
+  (beads-defcommand beads-command-upgrade (beads-command-json)
+    ()
+    :documentation "Represents bd upgrade command.
+  Check and manage bd version upgrades."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-upgrade))
   "Return \"upgrade\" as the CLI subcommand."
@@ -552,21 +552,21 @@ Check and manage bd version upgrades."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-rename-prefix (beads-command-json)
-  ((old-prefix
-    :initarg :old-prefix
-    :type (or null string)
-    :initform nil
-    :documentation "Old prefix to replace."
-    :positional 1)
-   (new-prefix
-    :initarg :new-prefix
-    :type (or null string)
-    :initform nil
-    :documentation "New prefix to use."
-    :positional 2))
-  :documentation "Represents bd rename-prefix command.
-Renames the issue prefix for all issues in the database."))
+  (beads-defcommand beads-command-rename-prefix (beads-command-json)
+    ((old-prefix
+      :initarg :old-prefix
+      :type (or null string)
+      :initform nil
+      :documentation "Old prefix to replace."
+      :positional 1)
+     (new-prefix
+      :initarg :new-prefix
+      :type (or null string)
+      :initform nil
+      :documentation "New prefix to use."
+      :positional 2))
+    :documentation "Represents bd rename-prefix command.
+  Renames the issue prefix for all issues in the database."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-rename-prefix))
   "Return \"rename-prefix\" as the CLI subcommand."
@@ -585,10 +585,10 @@ Renames the issue prefix for all issues in the database."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-repair (beads-command-json)
-  ()
-  :documentation "Represents bd repair command.
-Repairs corrupted database by cleaning orphaned references."))
+  (beads-defcommand beads-command-repair (beads-command-json)
+    ()
+    :documentation "Represents bd repair command.
+  Repairs corrupted database by cleaning orphaned references."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-repair))
   "Return \"repair\" as the CLI subcommand."
@@ -599,10 +599,10 @@ Repairs corrupted database by cleaning orphaned references."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-resolve-conflicts (beads-command-json)
-  ()
-  :documentation "Represents bd resolve-conflicts command.
-Resolves git merge conflicts in JSONL files."))
+  (beads-defcommand beads-command-resolve-conflicts (beads-command-json)
+    ()
+    :documentation "Represents bd resolve-conflicts command.
+  Resolves git merge conflicts in JSONL files."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-resolve-conflicts))
   "Return \"resolve-conflicts\" as the CLI subcommand."
@@ -613,15 +613,15 @@ Resolves git merge conflicts in JSONL files."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-restore (beads-command-json)
-  ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to restore."
-    :positional 1))
-  :documentation "Represents bd restore command.
-Restores full history of a compacted issue from git."))
+  (beads-defcommand beads-command-restore (beads-command-json)
+    ((issue-id
+      :initarg :issue-id
+      :type (or null string)
+      :initform nil
+      :documentation "Issue ID to restore."
+      :positional 1))
+    :documentation "Represents bd restore command.
+  Restores full history of a compacted issue from git."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-restore))
   "Return \"restore\" as the CLI subcommand."
@@ -637,27 +637,27 @@ Restores full history of a compacted issue from git."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-merge (beads-command-json)
-  ((ancestor
-    :initarg :ancestor
-    :type (or null string)
-    :initform nil
-    :documentation "Ancestor file path."
-    :positional 1)
-   (current
-    :initarg :current
-    :type (or null string)
-    :initform nil
-    :documentation "Current file path."
-    :positional 2)
-   (other
-    :initarg :other
-    :type (or null string)
-    :initform nil
-    :documentation "Other file path."
-    :positional 3))
-  :documentation "Represents bd merge command.
-Git merge driver for beads JSONL files."))
+  (beads-defcommand beads-command-merge (beads-command-json)
+    ((ancestor
+      :initarg :ancestor
+      :type (or null string)
+      :initform nil
+      :documentation "Ancestor file path."
+      :positional 1)
+     (current
+      :initarg :current
+      :type (or null string)
+      :initform nil
+      :documentation "Current file path."
+      :positional 2)
+     (other
+      :initarg :other
+      :type (or null string)
+      :initform nil
+      :documentation "Other file path."
+      :positional 3))
+    :documentation "Represents bd merge command.
+  Git merge driver for beads JSONL files."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-merge))
   "Return \"merge\" as the CLI subcommand."
@@ -668,15 +668,15 @@ Git merge driver for beads JSONL files."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-setup (beads-command-json)
-  ((editor
-    :initarg :editor
-    :type (or null string)
-    :initform nil
-    :documentation "Editor to set up (cursor, vscode, claude, etc.)."
-    :positional 1))
-  :documentation "Represents bd setup command.
-Setup integration with AI editors."))
+  (beads-defcommand beads-command-setup (beads-command-json)
+    ((editor
+      :initarg :editor
+      :type (or null string)
+      :initform nil
+      :documentation "Editor to set up (cursor, vscode, claude, etc.)."
+      :positional 1))
+    :documentation "Represents bd setup command.
+  Setup integration with AI editors."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-setup))
   "Return \"setup\" as the CLI subcommand."
@@ -687,15 +687,15 @@ Setup integration with AI editors."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-ship (beads-command-json)
-  ((capability
-    :initarg :capability
-    :type (or null string)
-    :initform nil
-    :documentation "Capability to publish."
-    :positional 1))
-  :documentation "Represents bd ship command.
-Publishes a capability for cross-project dependencies."))
+  (beads-defcommand beads-command-ship (beads-command-json)
+    ((capability
+      :initarg :capability
+      :type (or null string)
+      :initform nil
+      :documentation "Capability to publish."
+      :positional 1))
+    :documentation "Represents bd ship command.
+  Publishes a capability for cross-project dependencies."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-ship))
   "Return \"ship\" as the CLI subcommand."
@@ -706,15 +706,15 @@ Publishes a capability for cross-project dependencies."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-cook (beads-command-json)
-  ((formula-id
-    :initarg :formula-id
-    :type (or null string)
-    :initform nil
-    :documentation "Formula ID to compile."
-    :positional 1))
-  :documentation "Represents bd cook command.
-Compiles a formula into a proto (ephemeral by default)."))
+  (beads-defcommand beads-command-cook (beads-command-json)
+    ((formula-id
+      :initarg :formula-id
+      :type (or null string)
+      :initform nil
+      :documentation "Formula ID to compile."
+      :positional 1))
+    :documentation "Represents bd cook command.
+  Compiles a formula into a proto (ephemeral by default)."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-cook))
   "Return \"cook\" as the CLI subcommand."
@@ -725,10 +725,10 @@ Compiles a formula into a proto (ephemeral by default)."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-mail (beads-command-json)
-  ()
-  :documentation "Represents bd mail command.
-Delegates to mail provider."))
+  (beads-defcommand beads-command-mail (beads-command-json)
+    ()
+    :documentation "Represents bd mail command.
+  Delegates to mail provider."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-mail))
   "Return \"mail\" as the CLI subcommand."

@@ -33,10 +33,10 @@
 ;;; Quickstart Command
 
 (eval-and-compile
-(beads-defcommand beads-command-quickstart (beads-command)
-  ()
-  :documentation "Represents bd quickstart command.
-Displays a quick start guide showing common bd workflows and patterns."))
+  (beads-defcommand beads-command-quickstart (beads-command)
+    ()
+    :documentation "Represents bd quickstart command.
+  Displays a quick start guide showing common bd workflows and patterns."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-quickstart))
   "Return \"quickstart\" as the CLI subcommand name."

@@ -24,15 +24,15 @@
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-slot-show (beads-command-json)
-  ((agent-id
-    :initarg :agent-id
-    :type (or null string)
-    :initform nil
-    :documentation "Agent bead ID."
-    :positional 1))
-  :documentation "Represents bd slot show command.
-Shows all slots on an agent bead."))
+  (beads-defcommand beads-command-slot-show (beads-command-json)
+    ((agent-id
+      :initarg :agent-id
+      :type (or null string)
+      :initform nil
+      :documentation "Agent bead ID."
+      :positional 1))
+    :documentation "Represents bd slot show command.
+  Shows all slots on an agent bead."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-slot-show))
   "Return \"slot show\" as the CLI subcommand."
@@ -48,27 +48,27 @@ Shows all slots on an agent bead."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-slot-set (beads-command-json)
-  ((agent-id
-    :initarg :agent-id
-    :type (or null string)
-    :initform nil
-    :documentation "Agent bead ID."
-    :positional 1)
-   (slot-name
-    :initarg :slot-name
-    :type (or null string)
-    :initform nil
-    :documentation "Slot name (hook, role)."
-    :positional 2)
-   (bead-id
-    :initarg :bead-id
-    :type (or null string)
-    :initform nil
-    :documentation "Bead ID to set in slot."
-    :positional 3))
-  :documentation "Represents bd slot set command.
-Sets a slot on an agent bead."))
+  (beads-defcommand beads-command-slot-set (beads-command-json)
+    ((agent-id
+      :initarg :agent-id
+      :type (or null string)
+      :initform nil
+      :documentation "Agent bead ID."
+      :positional 1)
+     (slot-name
+      :initarg :slot-name
+      :type (or null string)
+      :initform nil
+      :documentation "Slot name (hook, role)."
+      :positional 2)
+     (bead-id
+      :initarg :bead-id
+      :type (or null string)
+      :initform nil
+      :documentation "Bead ID to set in slot."
+      :positional 3))
+    :documentation "Represents bd slot set command.
+  Sets a slot on an agent bead."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-slot-set))
   "Return \"slot set\" as the CLI subcommand."
@@ -88,21 +88,21 @@ Sets a slot on an agent bead."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-slot-clear (beads-command-json)
-  ((agent-id
-    :initarg :agent-id
-    :type (or null string)
-    :initform nil
-    :documentation "Agent bead ID."
-    :positional 1)
-   (slot-name
-    :initarg :slot-name
-    :type (or null string)
-    :initform nil
-    :documentation "Slot name to clear."
-    :positional 2))
-  :documentation "Represents bd slot clear command.
-Clears a slot on an agent bead."))
+  (beads-defcommand beads-command-slot-clear (beads-command-json)
+    ((agent-id
+      :initarg :agent-id
+      :type (or null string)
+      :initform nil
+      :documentation "Agent bead ID."
+      :positional 1)
+     (slot-name
+      :initarg :slot-name
+      :type (or null string)
+      :initform nil
+      :documentation "Slot name to clear."
+      :positional 2))
+    :documentation "Represents bd slot clear command.
+  Clears a slot on an agent bead."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-slot-clear))
   "Return \"slot clear\" as the CLI subcommand."

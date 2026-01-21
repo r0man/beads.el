@@ -51,99 +51,99 @@
 ;; Wrap in eval-and-compile so class is available at compile time for
 ;; beads-meta-define-transient macro
 (eval-and-compile
-(beads-defcommand beads-command-show (beads-command-json)
-  ((issue-ids
-    :initarg :issue-ids
-    :type (or null list)
-    :initform nil
-    :documentation "One or more issue IDs to show (positional arguments).
-Example: '(\"bd-1\" \"bd-2\")"
-    ;; CLI properties
-    :positional 1
-    :option-type :list
-    :option-separator " "
-    ;; Transient properties
-    :key "i"
-    :transient "Issue IDs"
-    :class transient-option
-    :argument "--id="
-    :prompt "Issue ID(s): "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Show Issue"
-    :level 1
-    :order 1
-    ;; Validation
-    :required t)
-   (children
-    :initarg :children
-    :type boolean
-    :initform nil
-    :documentation "Show only the children of this issue (--children)."
-    ;; CLI properties
-    :long-option "children"
-    :option-type :boolean
-    ;; Transient properties
-    :key "c"
-    :transient "--children"
-    :class transient-switch
-    :argument "--children"
-    :transient-group "View Options"
-    :level 1
-    :order 1)
-   (refs
-    :initarg :refs
-    :type boolean
-    :initform nil
-    :documentation "Show issues that reference this issue (--refs).
-Reverse lookup of references."
-    ;; CLI properties
-    :long-option "refs"
-    :option-type :boolean
-    ;; Transient properties
-    :key "r"
-    :transient "--refs"
-    :class transient-switch
-    :argument "--refs"
-    :transient-group "View Options"
-    :level 1
-    :order 2)
-   (short
-    :initarg :short
-    :type boolean
-    :initform nil
-    :documentation "Show compact one-line output per issue (--short)."
-    ;; CLI properties
-    :long-option "short"
-    :option-type :boolean
-    ;; Transient properties
-    :key "s"
-    :transient "--short"
-    :class transient-switch
-    :argument "--short"
-    :transient-group "View Options"
-    :level 1
-    :order 3)
-   (thread
-    :initarg :thread
-    :type boolean
-    :initform nil
-    :documentation "Show full conversation thread (--thread).
-For message type issues."
-    ;; CLI properties
-    :long-option "thread"
-    :option-type :boolean
-    ;; Transient properties
-    :key "t"
-    :transient "--thread"
-    :class transient-switch
-    :argument "--thread"
-    :transient-group "View Options"
-    :level 2
-    :order 1))
-  :documentation "Represents bd show command.
-Shows detailed information about one or more issues.
-When executed with :json t, returns beads-issue instance (or list
-of instances when multiple IDs provided)."))
+  (beads-defcommand beads-command-show (beads-command-json)
+    ((issue-ids
+      :initarg :issue-ids
+      :type (or null list)
+      :initform nil
+      :documentation "One or more issue IDs to show (positional arguments).
+  Example: '(\"bd-1\" \"bd-2\")"
+      ;; CLI properties
+      :positional 1
+      :option-type :list
+      :option-separator " "
+      ;; Transient properties
+      :key "i"
+      :transient "Issue IDs"
+      :class transient-option
+      :argument "--id="
+      :prompt "Issue ID(s): "
+      :transient-reader beads-reader-issue-id
+      :transient-group "Show Issue"
+      :level 1
+      :order 1
+      ;; Validation
+      :required t)
+     (children
+      :initarg :children
+      :type boolean
+      :initform nil
+      :documentation "Show only the children of this issue (--children)."
+      ;; CLI properties
+      :long-option "children"
+      :option-type :boolean
+      ;; Transient properties
+      :key "c"
+      :transient "--children"
+      :class transient-switch
+      :argument "--children"
+      :transient-group "View Options"
+      :level 1
+      :order 1)
+     (refs
+      :initarg :refs
+      :type boolean
+      :initform nil
+      :documentation "Show issues that reference this issue (--refs).
+  Reverse lookup of references."
+      ;; CLI properties
+      :long-option "refs"
+      :option-type :boolean
+      ;; Transient properties
+      :key "r"
+      :transient "--refs"
+      :class transient-switch
+      :argument "--refs"
+      :transient-group "View Options"
+      :level 1
+      :order 2)
+     (short
+      :initarg :short
+      :type boolean
+      :initform nil
+      :documentation "Show compact one-line output per issue (--short)."
+      ;; CLI properties
+      :long-option "short"
+      :option-type :boolean
+      ;; Transient properties
+      :key "s"
+      :transient "--short"
+      :class transient-switch
+      :argument "--short"
+      :transient-group "View Options"
+      :level 1
+      :order 3)
+     (thread
+      :initarg :thread
+      :type boolean
+      :initform nil
+      :documentation "Show full conversation thread (--thread).
+  For message type issues."
+      ;; CLI properties
+      :long-option "thread"
+      :option-type :boolean
+      ;; Transient properties
+      :key "t"
+      :transient "--thread"
+      :class transient-switch
+      :argument "--thread"
+      :transient-group "View Options"
+      :level 2
+      :order 1))
+    :documentation "Represents bd show command.
+  Shows detailed information about one or more issues.
+  When executed with :json t, returns beads-issue instance (or list
+  of instances when multiple IDs provided)."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-show))
   "Return \"show\" as the CLI subcommand name."

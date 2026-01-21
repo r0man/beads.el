@@ -26,61 +26,61 @@
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-jira-sync (beads-command-json)
-  ((pull
-    :initarg :pull
-    :type boolean
-    :initform nil
-    :documentation "Import issues from Jira."
-    :long-option "pull"
-    :option-type :boolean
-    :key "p"
-    :transient "--pull"
-    :class transient-switch
-    :argument "--pull"
-    :transient-group "Direction"
-    :level 1
-    :order 1)
-   (push
-    :initarg :push
-    :type boolean
-    :initform nil
-    :documentation "Export issues to Jira."
-    :long-option "push"
-    :option-type :boolean
-    :key "P"
-    :transient "--push"
-    :class transient-switch
-    :argument "--push"
-    :transient-group "Direction"
-    :level 1
-    :order 2)
-   (dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Preview sync without changes."
-    :long-option "dry-run"
-    :option-type :boolean
-    :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :transient-group "Options"
-    :level 1
-    :order 1))
-  :documentation "Represents bd jira sync command.
-Synchronizes issues with Jira."))
+  (beads-defcommand beads-command-jira-sync (beads-command-json)
+    ((pull
+      :initarg :pull
+      :type boolean
+      :initform nil
+      :documentation "Import issues from Jira."
+      :long-option "pull"
+      :option-type :boolean
+      :key "p"
+      :transient "--pull"
+      :class transient-switch
+      :argument "--pull"
+      :transient-group "Direction"
+      :level 1
+      :order 1)
+     (push
+      :initarg :push
+      :type boolean
+      :initform nil
+      :documentation "Export issues to Jira."
+      :long-option "push"
+      :option-type :boolean
+      :key "P"
+      :transient "--push"
+      :class transient-switch
+      :argument "--push"
+      :transient-group "Direction"
+      :level 1
+      :order 2)
+     (dry-run
+      :initarg :dry-run
+      :type boolean
+      :initform nil
+      :documentation "Preview sync without changes."
+      :long-option "dry-run"
+      :option-type :boolean
+      :key "n"
+      :transient "--dry-run"
+      :class transient-switch
+      :argument "--dry-run"
+      :transient-group "Options"
+      :level 1
+      :order 1))
+    :documentation "Represents bd jira sync command.
+  Synchronizes issues with Jira."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-jira-sync))
   "Return \"jira sync\" as the CLI subcommand."
   "jira sync")
 
 (eval-and-compile
-(beads-defcommand beads-command-jira-status (beads-command-json)
-  ()
-  :documentation "Represents bd jira status command.
-Shows Jira sync status."))
+  (beads-defcommand beads-command-jira-status (beads-command-json)
+    ()
+    :documentation "Represents bd jira status command.
+  Shows Jira sync status."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-jira-status))
   "Return \"jira status\" as the CLI subcommand."
@@ -91,71 +91,71 @@ Shows Jira sync status."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-linear-sync (beads-command-json)
-  ((pull
-    :initarg :pull
-    :type boolean
-    :initform nil
-    :documentation "Import issues from Linear."
-    :long-option "pull"
-    :option-type :boolean
-    :key "p"
-    :transient "--pull"
-    :class transient-switch
-    :argument "--pull"
-    :transient-group "Direction"
-    :level 1
-    :order 1)
-   (push
-    :initarg :push
-    :type boolean
-    :initform nil
-    :documentation "Export issues to Linear."
-    :long-option "push"
-    :option-type :boolean
-    :key "P"
-    :transient "--push"
-    :class transient-switch
-    :argument "--push"
-    :transient-group "Direction"
-    :level 1
-    :order 2)
-   (dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Preview sync without changes."
-    :long-option "dry-run"
-    :option-type :boolean
-    :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :transient-group "Options"
-    :level 1
-    :order 1))
-  :documentation "Represents bd linear sync command.
-Synchronizes issues with Linear."))
+  (beads-defcommand beads-command-linear-sync (beads-command-json)
+    ((pull
+      :initarg :pull
+      :type boolean
+      :initform nil
+      :documentation "Import issues from Linear."
+      :long-option "pull"
+      :option-type :boolean
+      :key "p"
+      :transient "--pull"
+      :class transient-switch
+      :argument "--pull"
+      :transient-group "Direction"
+      :level 1
+      :order 1)
+     (push
+      :initarg :push
+      :type boolean
+      :initform nil
+      :documentation "Export issues to Linear."
+      :long-option "push"
+      :option-type :boolean
+      :key "P"
+      :transient "--push"
+      :class transient-switch
+      :argument "--push"
+      :transient-group "Direction"
+      :level 1
+      :order 2)
+     (dry-run
+      :initarg :dry-run
+      :type boolean
+      :initform nil
+      :documentation "Preview sync without changes."
+      :long-option "dry-run"
+      :option-type :boolean
+      :key "n"
+      :transient "--dry-run"
+      :class transient-switch
+      :argument "--dry-run"
+      :transient-group "Options"
+      :level 1
+      :order 1))
+    :documentation "Represents bd linear sync command.
+  Synchronizes issues with Linear."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-linear-sync))
   "Return \"linear sync\" as the CLI subcommand."
   "linear sync")
 
 (eval-and-compile
-(beads-defcommand beads-command-linear-status (beads-command-json)
-  ()
-  :documentation "Represents bd linear status command.
-Shows Linear sync status."))
+  (beads-defcommand beads-command-linear-status (beads-command-json)
+    ()
+    :documentation "Represents bd linear status command.
+  Shows Linear sync status."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-linear-status))
   "Return \"linear status\" as the CLI subcommand."
   "linear status")
 
 (eval-and-compile
-(beads-defcommand beads-command-linear-teams (beads-command-json)
-  ()
-  :documentation "Represents bd linear teams command.
-Lists available Linear teams."))
+  (beads-defcommand beads-command-linear-teams (beads-command-json)
+    ()
+    :documentation "Represents bd linear teams command.
+  Lists available Linear teams."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-linear-teams))
   "Return \"linear teams\" as the CLI subcommand."
@@ -166,15 +166,15 @@ Lists available Linear teams."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-repo-add (beads-command-json)
-  ((repo-path
-    :initarg :repo-path
-    :type (or null string)
-    :initform nil
-    :documentation "Repository path to add."
-    :positional 1))
-  :documentation "Represents bd repo add command.
-Adds an additional repository to sync."))
+  (beads-defcommand beads-command-repo-add (beads-command-json)
+    ((repo-path
+      :initarg :repo-path
+      :type (or null string)
+      :initform nil
+      :documentation "Repository path to add."
+      :positional 1))
+    :documentation "Represents bd repo add command.
+  Adds an additional repository to sync."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-repo-add))
   "Return \"repo add\" as the CLI subcommand."
@@ -186,25 +186,25 @@ Adds an additional repository to sync."))
     (if (not repo-path) "Repository path is required" nil)))
 
 (eval-and-compile
-(beads-defcommand beads-command-repo-list (beads-command-json)
-  ()
-  :documentation "Represents bd repo list command.
-Lists all configured repositories."))
+  (beads-defcommand beads-command-repo-list (beads-command-json)
+    ()
+    :documentation "Represents bd repo list command.
+  Lists all configured repositories."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-repo-list))
   "Return \"repo list\" as the CLI subcommand."
   "repo list")
 
 (eval-and-compile
-(beads-defcommand beads-command-repo-remove (beads-command-json)
-  ((repo-path
-    :initarg :repo-path
-    :type (or null string)
-    :initform nil
-    :documentation "Repository path to remove."
-    :positional 1))
-  :documentation "Represents bd repo remove command.
-Removes a repository from sync configuration."))
+  (beads-defcommand beads-command-repo-remove (beads-command-json)
+    ((repo-path
+      :initarg :repo-path
+      :type (or null string)
+      :initform nil
+      :documentation "Repository path to remove."
+      :positional 1))
+    :documentation "Represents bd repo remove command.
+  Removes a repository from sync configuration."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-repo-remove))
   "Return \"repo remove\" as the CLI subcommand."
@@ -216,10 +216,10 @@ Removes a repository from sync configuration."))
     (if (not repo-path) "Repository path is required" nil)))
 
 (eval-and-compile
-(beads-defcommand beads-command-repo-sync (beads-command-json)
-  ()
-  :documentation "Represents bd repo sync command.
-Manually triggers multi-repo sync."))
+  (beads-defcommand beads-command-repo-sync (beads-command-json)
+    ()
+    :documentation "Represents bd repo sync command.
+  Manually triggers multi-repo sync."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-repo-sync))
   "Return \"repo sync\" as the CLI subcommand."

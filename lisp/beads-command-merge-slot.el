@@ -24,10 +24,10 @@
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-merge-slot-create (beads-command-json)
-  ()
-  :documentation "Represents bd merge-slot create command.
-Creates a merge slot bead for the current rig."))
+  (beads-defcommand beads-command-merge-slot-create (beads-command-json)
+    ()
+    :documentation "Represents bd merge-slot create command.
+  Creates a merge slot bead for the current rig."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-merge-slot-create))
   "Return \"merge-slot create\" as the CLI subcommand."
@@ -38,10 +38,10 @@ Creates a merge slot bead for the current rig."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-merge-slot-check (beads-command-json)
-  ()
-  :documentation "Represents bd merge-slot check command.
-Checks merge slot availability."))
+  (beads-defcommand beads-command-merge-slot-check (beads-command-json)
+    ()
+    :documentation "Represents bd merge-slot check command.
+  Checks merge slot availability."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-merge-slot-check))
   "Return \"merge-slot check\" as the CLI subcommand."
@@ -52,38 +52,38 @@ Checks merge slot availability."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-merge-slot-acquire (beads-command-json)
-  ((holder
-    :initarg :holder
-    :type (or null string)
-    :initform nil
-    :documentation "Agent ID requesting the slot."
-    :long-option "holder"
-    :option-type :string
-    :key "h"
-    :transient "--holder"
-    :class transient-option
-    :argument "--holder="
-    :prompt "Holder agent: "
-    :transient-group "Options"
-    :level 1
-    :order 1)
-   (wait
-    :initarg :wait
-    :type boolean
-    :initform nil
-    :documentation "Wait for slot to become available."
-    :long-option "wait"
-    :option-type :boolean
-    :key "w"
-    :transient "--wait"
-    :class transient-switch
-    :argument "--wait"
-    :transient-group "Options"
-    :level 1
-    :order 2))
-  :documentation "Represents bd merge-slot acquire command.
-Tries to acquire the merge slot."))
+  (beads-defcommand beads-command-merge-slot-acquire (beads-command-json)
+    ((holder
+      :initarg :holder
+      :type (or null string)
+      :initform nil
+      :documentation "Agent ID requesting the slot."
+      :long-option "holder"
+      :option-type :string
+      :key "h"
+      :transient "--holder"
+      :class transient-option
+      :argument "--holder="
+      :prompt "Holder agent: "
+      :transient-group "Options"
+      :level 1
+      :order 1)
+     (wait
+      :initarg :wait
+      :type boolean
+      :initform nil
+      :documentation "Wait for slot to become available."
+      :long-option "wait"
+      :option-type :boolean
+      :key "w"
+      :transient "--wait"
+      :class transient-switch
+      :argument "--wait"
+      :transient-group "Options"
+      :level 1
+      :order 2))
+    :documentation "Represents bd merge-slot acquire command.
+  Tries to acquire the merge slot."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-merge-slot-acquire))
   "Return \"merge-slot acquire\" as the CLI subcommand."
@@ -94,24 +94,24 @@ Tries to acquire the merge slot."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-merge-slot-release (beads-command-json)
-  ((holder
-    :initarg :holder
-    :type (or null string)
-    :initform nil
-    :documentation "Agent ID releasing the slot."
-    :long-option "holder"
-    :option-type :string
-    :key "h"
-    :transient "--holder"
-    :class transient-option
-    :argument "--holder="
-    :prompt "Holder agent: "
-    :transient-group "Options"
-    :level 1
-    :order 1))
-  :documentation "Represents bd merge-slot release command.
-Releases the merge slot."))
+  (beads-defcommand beads-command-merge-slot-release (beads-command-json)
+    ((holder
+      :initarg :holder
+      :type (or null string)
+      :initform nil
+      :documentation "Agent ID releasing the slot."
+      :long-option "holder"
+      :option-type :string
+      :key "h"
+      :transient "--holder"
+      :class transient-option
+      :argument "--holder="
+      :prompt "Holder agent: "
+      :transient-group "Options"
+      :level 1
+      :order 1))
+    :documentation "Represents bd merge-slot release command.
+  Releases the merge slot."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-merge-slot-release))
   "Return \"merge-slot release\" as the CLI subcommand."

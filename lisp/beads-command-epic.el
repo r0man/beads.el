@@ -41,25 +41,25 @@
 ;;; Epic Status Command
 
 (eval-and-compile
-(beads-defcommand beads-command-epic-status (beads-command-json)
-  ((eligible-only
-    :initarg :eligible-only
-    :type boolean
-    :initform nil
-    :documentation "Show only epics eligible for closure (--eligible-only)."
-    ;; CLI properties
-    :long-option "eligible-only"
-    :option-type :boolean
-    ;; Transient properties
-    :key "e"
-    :transient "--eligible-only"
-    :class transient-switch
-    :argument "--eligible-only"
-    :transient-group "Epic Status"
-    :level 1
-    :order 1))
-  :documentation "Represents bd epic status command.
-Shows epic completion status."))
+  (beads-defcommand beads-command-epic-status (beads-command-json)
+    ((eligible-only
+      :initarg :eligible-only
+      :type boolean
+      :initform nil
+      :documentation "Show only epics eligible for closure (--eligible-only)."
+      ;; CLI properties
+      :long-option "eligible-only"
+      :option-type :boolean
+      ;; Transient properties
+      :key "e"
+      :transient "--eligible-only"
+      :class transient-switch
+      :argument "--eligible-only"
+      :transient-group "Epic Status"
+      :level 1
+      :order 1))
+    :documentation "Represents bd epic status command.
+  Shows epic completion status."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-epic-status))
   "Return \"epic status\" as the CLI subcommand name."
@@ -79,26 +79,26 @@ Returns nil (always valid)."
 ;;; Epic Close-Eligible Command
 
 (eval-and-compile
-(beads-defcommand beads-command-epic-close-eligible (beads-command-json)
-  ((dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Preview what would be closed without making changes
-(--dry-run)."
-    ;; CLI properties
-    :long-option "dry-run"
-    :option-type :boolean
-    ;; Transient properties
-    :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :transient-group "Close Eligible Epics"
-    :level 1
-    :order 1))
-  :documentation "Represents bd epic close-eligible command.
-Closes epics where all children are complete."))
+  (beads-defcommand beads-command-epic-close-eligible (beads-command-json)
+    ((dry-run
+      :initarg :dry-run
+      :type boolean
+      :initform nil
+      :documentation "Preview what would be closed without making changes
+  (--dry-run)."
+      ;; CLI properties
+      :long-option "dry-run"
+      :option-type :boolean
+      ;; Transient properties
+      :key "n"
+      :transient "--dry-run"
+      :class transient-switch
+      :argument "--dry-run"
+      :transient-group "Close Eligible Epics"
+      :level 1
+      :order 1))
+    :documentation "Represents bd epic close-eligible command.
+  Closes epics where all children are complete."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-epic-close-eligible))
   "Return \"epic close-eligible\" as the CLI subcommand name."
