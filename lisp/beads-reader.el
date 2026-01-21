@@ -34,6 +34,11 @@
 (declare-function beads--label-completion-table "beads-command-label")
 (declare-function beads-label--detect-issue-id "beads-command-label")
 
+;; Forward declare list/show functions (loaded later to avoid circular deps)
+(declare-function beads-list--current-issue-id "beads-list")
+(declare-function beads-buffer-parse-show "beads-buffer")
+(defvar beads-show--issue-id)
+
 ;;; ============================================================
 ;;; Common Reader Functions
 ;;; ============================================================
@@ -199,6 +204,36 @@ Matches on both issue ID and title."
 Matches on both issue ID and title."
   (beads-completion-read-issue "Issue ID to reopen: " nil t
                                beads-reopen--issue-id 'beads--issue-id-history))
+
+;;; ============================================================
+;;; beads-move Reader Functions
+;;; ============================================================
+
+(defun beads-reader-move--detect-issue-id ()
+  "Detect issue ID from current context for move operations.
+Returns issue ID string if detected, nil otherwise."
+  (or
+   ;; From beads-list buffer
+   (when (derived-mode-p 'beads-list-mode)
+     (beads-list--current-issue-id))
+   ;; From beads-show buffer
+   (when (derived-mode-p 'beads-show-mode)
+     beads-show--issue-id)
+   ;; From buffer name (*beads-show[PROJECT]/ISSUE-ID*)
+   (when-let ((parsed (beads-buffer-parse-show (buffer-name))))
+     (plist-get parsed :issue-id))))
+
+(defun beads-reader-move-issue-id (_prompt _initial-input _history)
+  "Read issue ID to move, with context detection.
+First attempts to detect issue ID from current buffer (beads-list or
+beads-show mode), then falls back to `completing-read' with issue completion.
+Matches on both issue ID and title."
+  (let ((detected-id (beads-reader-move--detect-issue-id)))
+    (if detected-id
+        detected-id
+      (beads-completion-read-issue "Issue ID to move: " nil t
+                                   beads-move--issue-id
+                                   'beads--issue-id-history))))
 
 ;;; ============================================================
 ;;; beads-sync Reader Functions
