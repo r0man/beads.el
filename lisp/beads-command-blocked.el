@@ -37,27 +37,27 @@
 ;; Wrap in eval-and-compile so class is available at compile time for
 ;; beads-meta-define-transient macro
 (eval-and-compile
-(beads-defcommand beads-command-blocked (beads-command-json)
-  ((parent
-    :initarg :parent
-    :type (or null string)
-    :initform nil
-    :documentation "Filter to descendants of this bead/epic (--parent)."
-    ;; CLI properties
-    :long-option "parent"
-    :option-type :string
-    ;; Transient properties
-    :key "P"
-    :transient "--parent"
-    :class transient-option
-    :argument "--parent="
-    :prompt "Parent ID: "
-    :transient-group "Scope"
-    :level 2
-    :order 1))
-  :documentation "Represents bd blocked command.
-Shows blocked issues (issues with unresolved blockers).
-When executed with :json t, returns list of beads-blocked-issue instances."))
+  (beads-defcommand beads-command-blocked (beads-command-json)
+    ((parent
+      :initarg :parent
+      :type (or null string)
+      :initform nil
+      :documentation "Filter to descendants of this bead/epic (--parent)."
+      ;; CLI properties
+      :long-option "parent"
+      :option-type :string
+      ;; Transient properties
+      :key "P"
+      :transient "--parent"
+      :class transient-option
+      :argument "--parent="
+      :prompt "Parent ID: "
+      :transient-group "Scope"
+      :level 2
+      :order 1))
+    :documentation "Represents bd blocked command.
+  Shows blocked issues (issues with unresolved blockers).
+  When executed with :json t, returns list of beads-blocked-issue instances."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-blocked))
   "Return \"blocked\" as the CLI subcommand name."

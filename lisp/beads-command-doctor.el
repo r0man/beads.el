@@ -33,227 +33,227 @@
 ;; Wrap in eval-and-compile so class is available at compile time for
 ;; beads-meta-define-transient macro
 (eval-and-compile
-(beads-defcommand beads-command-doctor (beads-command-json)
-  ((path
-    :initarg :path
-    :type (or null string)
-    :initform nil
-    :documentation "Repository path to check (positional argument).
-Defaults to current directory."
-    :positional 1)
-   (check
-    :initarg :check
-    :type (or null string)
-    :initform nil
-    :documentation "Run specific check in detail (--check).
-Available: pollution."
-    :long-option "check"
-    :option-type :string
-    :key "c"
-    :transient "Specific check"
-    :class transient-option
-    :argument "--check="
-    :prompt "Check (pollution): "
-    :choices ("pollution")
-    :transient-group "Checks"
-    :level 2
-    :order 1)
-   (check-health
-    :initarg :check-health
-    :type boolean
-    :initform nil
-    :documentation "Quick health check for git hooks (--check-health).
-Silent on success."
-    :long-option "check-health"
-    :option-type :boolean
-    :key "h"
-    :transient "Quick health check"
-    :class transient-switch
-    :argument "--check-health"
-    :transient-group "Checks"
-    :level 2
-    :order 2)
-   (deep
-    :initarg :deep
-    :type boolean
-    :initform nil
-    :documentation "Validate full graph integrity (--deep).
-May be slow on large databases."
-    :long-option "deep"
-    :option-type :boolean
-    :key "d"
-    :transient "Deep validation"
-    :class transient-switch
-    :argument "--deep"
-    :transient-group "Checks"
-    :level 2
-    :order 3)
-   (perf
-    :initarg :perf
-    :type boolean
-    :initform nil
-    :documentation "Run performance diagnostics (--perf).
-Generates CPU profile."
-    :long-option "perf"
-    :option-type :boolean
-    :key "p"
-    :transient "Performance diagnostics"
-    :class transient-switch
-    :argument "--perf"
-    :transient-group "Checks"
-    :level 2
-    :order 4)
-   (fix
-    :initarg :fix
-    :type boolean
-    :initform nil
-    :documentation "Automatically fix issues where possible (--fix)."
-    :long-option "fix"
-    :option-type :boolean
-    :key "f"
-    :transient "Auto-fix issues"
-    :class transient-switch
-    :argument "--fix"
-    :transient-group "Fix Options"
-    :level 3
-    :order 1)
-   (dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Preview fixes without making changes (--dry-run)."
-    :long-option "dry-run"
-    :option-type :boolean
-    :key "n"
-    :transient "Dry run (preview)"
-    :class transient-switch
-    :argument "--dry-run"
-    :transient-group "Fix Options"
-    :level 3
-    :order 2)
-   (yes
-    :initarg :yes
-    :type boolean
-    :initform nil
-    :documentation "Skip confirmation prompts (--yes)."
-    :long-option "yes"
-    :short-option "y"
-    :option-type :boolean
-    :key "y"
-    :transient "Skip confirmation"
-    :class transient-switch
-    :argument "--yes"
-    :transient-group "Fix Options"
-    :level 3
-    :order 3)
-   (interactive-mode
-    :initarg :interactive-mode
-    :type boolean
-    :initform nil
-    :documentation "Confirm each fix individually (--interactive)."
-    :long-option "interactive"
-    :short-option "i"
-    :option-type :boolean
-    :key "i"
-    :transient "Interactive mode"
-    :class transient-switch
-    :argument "--interactive"
-    :transient-group "Fix Options"
-    :level 3
-    :order 4)
-   (fix-child-parent
-    :initarg :fix-child-parent
-    :type boolean
-    :initform nil
-    :documentation "Also fix child->parent deps (--fix-child-parent).
-Opt-in, requires --fix."
-    :long-option "fix-child-parent"
-    :option-type :boolean
-    :key "C"
-    :transient "Fix child->parent deps"
-    :class transient-switch
-    :argument "--fix-child-parent"
-    :transient-group "Fix Options"
-    :level 4
-    :order 5)
-   (force
-    :initarg :force
-    :type boolean
-    :initform nil
-    :documentation "Force repair even when database can't be opened (--force)."
-    :long-option "force"
-    :option-type :boolean
-    :key "F"
-    :transient "Force repair"
-    :class transient-switch
-    :argument "--force"
-    :transient-group "Fix Options"
-    :level 4
-    :order 6)
-   (source
-    :initarg :source
-    :type (or null string)
-    :initform nil
-    :documentation "Source of truth for recovery (--source).
-Values: auto (default), jsonl, db."
-    :long-option "source"
-    :option-type :string
-    :key "s"
-    :transient "Source of truth"
-    :class transient-option
-    :argument "--source="
-    :choices ("auto" "jsonl" "db")
-    :transient-group "Fix Options"
-    :level 4
-    :order 7)
-   (output
-    :initarg :output
-    :type (or null string)
-    :initform nil
-    :documentation "Export diagnostics to JSON file (--output)."
-    :long-option "output"
-    :short-option "o"
-    :option-type :string
-    :key "o"
-    :transient "Output file"
-    :class transient-option
-    :argument "--output="
-    :prompt "Output file: "
-    :transient-group "Output"
-    :level 3
-    :order 1)
-   (verbose
-    :initarg :verbose
-    :type boolean
-    :initform nil
-    :documentation "Show detailed output during fixes (--verbose)."
-    :long-option "verbose"
-    :short-option "v"
-    :option-type :boolean
-    :key "v"
-    :transient "Verbose output"
-    :class transient-switch
-    :argument "--verbose"
-    :transient-group "Output"
-    :level 3
-    :order 2)
-   (clean
-    :initarg :clean
-    :type boolean
-    :initform nil
-    :documentation "For pollution check: delete detected test issues (--clean)."
-    :long-option "clean"
-    :option-type :boolean
-    :key "D"
-    :transient "Clean (delete test issues)"
-    :class transient-switch
-    :argument "--clean"
-    :transient-group "Checks"
-    :level 4
-    :order 5))
-  :documentation "Represents bd doctor command.
-Sanity checks the beads installation.
-When executed with :json t, returns diagnostic results."))
+  (beads-defcommand beads-command-doctor (beads-command-json)
+    ((path
+      :initarg :path
+      :type (or null string)
+      :initform nil
+      :documentation "Repository path to check (positional argument).
+  Defaults to current directory."
+      :positional 1)
+     (check
+      :initarg :check
+      :type (or null string)
+      :initform nil
+      :documentation "Run specific check in detail (--check).
+  Available: pollution."
+      :long-option "check"
+      :option-type :string
+      :key "c"
+      :transient "Specific check"
+      :class transient-option
+      :argument "--check="
+      :prompt "Check (pollution): "
+      :choices ("pollution")
+      :transient-group "Checks"
+      :level 2
+      :order 1)
+     (check-health
+      :initarg :check-health
+      :type boolean
+      :initform nil
+      :documentation "Quick health check for git hooks (--check-health).
+  Silent on success."
+      :long-option "check-health"
+      :option-type :boolean
+      :key "h"
+      :transient "Quick health check"
+      :class transient-switch
+      :argument "--check-health"
+      :transient-group "Checks"
+      :level 2
+      :order 2)
+     (deep
+      :initarg :deep
+      :type boolean
+      :initform nil
+      :documentation "Validate full graph integrity (--deep).
+  May be slow on large databases."
+      :long-option "deep"
+      :option-type :boolean
+      :key "d"
+      :transient "Deep validation"
+      :class transient-switch
+      :argument "--deep"
+      :transient-group "Checks"
+      :level 2
+      :order 3)
+     (perf
+      :initarg :perf
+      :type boolean
+      :initform nil
+      :documentation "Run performance diagnostics (--perf).
+  Generates CPU profile."
+      :long-option "perf"
+      :option-type :boolean
+      :key "p"
+      :transient "Performance diagnostics"
+      :class transient-switch
+      :argument "--perf"
+      :transient-group "Checks"
+      :level 2
+      :order 4)
+     (fix
+      :initarg :fix
+      :type boolean
+      :initform nil
+      :documentation "Automatically fix issues where possible (--fix)."
+      :long-option "fix"
+      :option-type :boolean
+      :key "f"
+      :transient "Auto-fix issues"
+      :class transient-switch
+      :argument "--fix"
+      :transient-group "Fix Options"
+      :level 3
+      :order 1)
+     (dry-run
+      :initarg :dry-run
+      :type boolean
+      :initform nil
+      :documentation "Preview fixes without making changes (--dry-run)."
+      :long-option "dry-run"
+      :option-type :boolean
+      :key "n"
+      :transient "Dry run (preview)"
+      :class transient-switch
+      :argument "--dry-run"
+      :transient-group "Fix Options"
+      :level 3
+      :order 2)
+     (yes
+      :initarg :yes
+      :type boolean
+      :initform nil
+      :documentation "Skip confirmation prompts (--yes)."
+      :long-option "yes"
+      :short-option "y"
+      :option-type :boolean
+      :key "y"
+      :transient "Skip confirmation"
+      :class transient-switch
+      :argument "--yes"
+      :transient-group "Fix Options"
+      :level 3
+      :order 3)
+     (interactive-mode
+      :initarg :interactive-mode
+      :type boolean
+      :initform nil
+      :documentation "Confirm each fix individually (--interactive)."
+      :long-option "interactive"
+      :short-option "i"
+      :option-type :boolean
+      :key "i"
+      :transient "Interactive mode"
+      :class transient-switch
+      :argument "--interactive"
+      :transient-group "Fix Options"
+      :level 3
+      :order 4)
+     (fix-child-parent
+      :initarg :fix-child-parent
+      :type boolean
+      :initform nil
+      :documentation "Also fix child->parent deps (--fix-child-parent).
+  Opt-in, requires --fix."
+      :long-option "fix-child-parent"
+      :option-type :boolean
+      :key "C"
+      :transient "Fix child->parent deps"
+      :class transient-switch
+      :argument "--fix-child-parent"
+      :transient-group "Fix Options"
+      :level 4
+      :order 5)
+     (force
+      :initarg :force
+      :type boolean
+      :initform nil
+      :documentation "Force repair even when database can't be opened (--force)."
+      :long-option "force"
+      :option-type :boolean
+      :key "F"
+      :transient "Force repair"
+      :class transient-switch
+      :argument "--force"
+      :transient-group "Fix Options"
+      :level 4
+      :order 6)
+     (source
+      :initarg :source
+      :type (or null string)
+      :initform nil
+      :documentation "Source of truth for recovery (--source).
+  Values: auto (default), jsonl, db."
+      :long-option "source"
+      :option-type :string
+      :key "s"
+      :transient "Source of truth"
+      :class transient-option
+      :argument "--source="
+      :choices ("auto" "jsonl" "db")
+      :transient-group "Fix Options"
+      :level 4
+      :order 7)
+     (output
+      :initarg :output
+      :type (or null string)
+      :initform nil
+      :documentation "Export diagnostics to JSON file (--output)."
+      :long-option "output"
+      :short-option "o"
+      :option-type :string
+      :key "o"
+      :transient "Output file"
+      :class transient-option
+      :argument "--output="
+      :prompt "Output file: "
+      :transient-group "Output"
+      :level 3
+      :order 1)
+     (verbose
+      :initarg :verbose
+      :type boolean
+      :initform nil
+      :documentation "Show detailed output during fixes (--verbose)."
+      :long-option "verbose"
+      :short-option "v"
+      :option-type :boolean
+      :key "v"
+      :transient "Verbose output"
+      :class transient-switch
+      :argument "--verbose"
+      :transient-group "Output"
+      :level 3
+      :order 2)
+     (clean
+      :initarg :clean
+      :type boolean
+      :initform nil
+      :documentation "For pollution check: delete detected test issues (--clean)."
+      :long-option "clean"
+      :option-type :boolean
+      :key "D"
+      :transient "Clean (delete test issues)"
+      :class transient-switch
+      :argument "--clean"
+      :transient-group "Checks"
+      :level 4
+      :order 5))
+    :documentation "Represents bd doctor command.
+  Sanity checks the beads installation.
+  When executed with :json t, returns diagnostic results."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-doctor))
   "Return subcommand name for doctor command."

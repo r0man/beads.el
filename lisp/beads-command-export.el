@@ -45,296 +45,296 @@
 ;; Wrap in eval-and-compile so class is available at compile time for
 ;; beads-meta-define-transient macro
 (eval-and-compile
-(beads-defcommand beads-command-export (beads-command-json)
-  ((format
-    :initarg :format
-    :type (or null string)
-    :initform nil
-    :documentation "Export format (-f, --format).
-Values: jsonl (default), obsidian."
-    ;; CLI properties
-    :long-option "format"
-    :short-option "f"
-    :option-type :string
-    ;; Transient properties
-    :key "f"
-    :transient "--format"
-    :class transient-option
-    :argument "--format="
-    :prompt "Format (jsonl/obsidian): "
-    :transient-group "Export Options"
-    :level 1
-    :order 1)
-   (output
-    :initarg :output
-    :type (or null string)
-    :initform nil
-    :documentation "Output file (-o, --output).
-Default: stdout.  For obsidian format, defaults to ai_docs/changes-log.md."
-    ;; CLI properties
-    :long-option "output"
-    :short-option "o"
-    :option-type :string
-    ;; Transient properties
-    :key "o"
-    :transient "--output"
-    :class transient-option
-    :argument "--output="
-    :prompt "Output file: "
-    :transient-reader transient-read-file
-    :transient-group "Export Options"
-    :level 1
-    :order 2)
-   (force
-    :initarg :force
-    :type boolean
-    :initform nil
-    :documentation "Force export even if database is empty (--force)."
-    ;; CLI properties
-    :long-option "force"
-    :option-type :boolean
-    ;; Transient properties
-    :key "F"
-    :transient "--force"
-    :class transient-switch
-    :argument "--force"
-    :transient-group "Export Options"
-    :level 2
-    :order 1)
+  (beads-defcommand beads-command-export (beads-command-json)
+    ((format
+      :initarg :format
+      :type (or null string)
+      :initform nil
+      :documentation "Export format (-f, --format).
+  Values: jsonl (default), obsidian."
+      ;; CLI properties
+      :long-option "format"
+      :short-option "f"
+      :option-type :string
+      ;; Transient properties
+      :key "f"
+      :transient "--format"
+      :class transient-option
+      :argument "--format="
+      :prompt "Format (jsonl/obsidian): "
+      :transient-group "Export Options"
+      :level 1
+      :order 1)
+     (output
+      :initarg :output
+      :type (or null string)
+      :initform nil
+      :documentation "Output file (-o, --output).
+  Default: stdout.  For obsidian format, defaults to ai_docs/changes-log.md."
+      ;; CLI properties
+      :long-option "output"
+      :short-option "o"
+      :option-type :string
+      ;; Transient properties
+      :key "o"
+      :transient "--output"
+      :class transient-option
+      :argument "--output="
+      :prompt "Output file: "
+      :transient-reader transient-read-file
+      :transient-group "Export Options"
+      :level 1
+      :order 2)
+     (force
+      :initarg :force
+      :type boolean
+      :initform nil
+      :documentation "Force export even if database is empty (--force)."
+      ;; CLI properties
+      :long-option "force"
+      :option-type :boolean
+      ;; Transient properties
+      :key "F"
+      :transient "--force"
+      :class transient-switch
+      :argument "--force"
+      :transient-group "Export Options"
+      :level 2
+      :order 1)
 
-   ;; === Filters ===
-   (status
-    :initarg :status
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by status (-s, --status)."
-    ;; CLI properties
-    :long-option "status"
-    :short-option "s"
-    :option-type :string
-    ;; Transient properties
-    :key "s"
-    :transient "--status"
-    :class transient-option
-    :argument "--status="
-    :prompt "Status: "
-    :transient-reader beads-reader-list-status
-    :transient-group "Filters"
-    :level 1
-    :order 1)
-   (issue-type
-    :initarg :issue-type
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by type (-t, --type).
-Values: bug, feature, task, epic, chore, merge-request, molecule, gate.
-Aliases: mr→merge-request, feat→feature, mol→molecule."
-    ;; CLI properties
-    :long-option "type"
-    :short-option "t"
-    :option-type :string
-    ;; Transient properties
-    :key "t"
-    :transient "--type"
-    :class transient-option
-    :argument "--type="
-    :prompt "Type: "
-    :transient-reader beads-reader-issue-type
-    :transient-group "Filters"
-    :level 1
-    :order 2)
-   (assignee
-    :initarg :assignee
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by assignee (-a, --assignee)."
-    ;; CLI properties
-    :long-option "assignee"
-    :short-option "a"
-    :option-type :string
-    ;; Transient properties
-    :key "a"
-    :transient "--assignee"
-    :class transient-option
-    :argument "--assignee="
-    :prompt "Assignee: "
-    :transient-group "Filters"
-    :level 1
-    :order 3)
-   (priority
-    :initarg :priority
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by priority (-p, --priority).
-Values: 0-4 or P0-P4 (0=highest)."
-    ;; CLI properties
-    :long-option "priority"
-    :short-option "p"
-    :option-type :string
-    ;; Transient properties
-    :key "p"
-    :transient "--priority"
-    :class transient-option
-    :argument "--priority="
-    :prompt "Priority (0-4 or P0-P4): "
-    :transient-reader beads-reader-priority
-    :transient-group "Filters"
-    :level 1
-    :order 4)
-   (label
-    :initarg :label
-    :type (or null list)
-    :initform nil
-    :documentation "Filter by labels - AND logic (-l, --label).
-Must have ALL specified labels."
-    ;; CLI properties
-    :long-option "label"
-    :short-option "l"
-    :option-type :list
-    ;; Transient properties
-    :key "l"
-    :transient "--label"
-    :class transient-option
-    :argument "--label="
-    :prompt "Labels (AND): "
-    :transient-reader beads-reader-issue-labels
-    :transient-group "Filters"
-    :level 1
-    :order 5)
-   (label-any
-    :initarg :label-any
-    :type (or null list)
-    :initform nil
-    :documentation "Filter by labels - OR logic (--label-any).
-Must have AT LEAST ONE of specified labels."
-    ;; CLI properties
-    :long-option "label-any"
-    :option-type :list
-    ;; Transient properties
-    :key "L"
-    :transient "--label-any"
-    :class transient-option
-    :argument "--label-any="
-    :prompt "Labels (OR): "
-    :transient-reader beads-reader-issue-labels
-    :transient-group "Filters"
-    :level 2
-    :order 1)
-   (priority-min
-    :initarg :priority-min
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by minimum priority (--priority-min).
-Inclusive, 0-4 or P0-P4."
-    ;; CLI properties
-    :long-option "priority-min"
-    :option-type :string
-    ;; Transient properties
-    :key "pm"
-    :transient "--priority-min"
-    :class transient-option
-    :argument "--priority-min="
-    :prompt "Min priority (0-4 or P0-P4): "
-    :transient-reader beads-reader-priority
-    :transient-group "Filters"
-    :level 2
-    :order 2)
-   (priority-max
-    :initarg :priority-max
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by maximum priority (--priority-max).
-Inclusive, 0-4 or P0-P4."
-    ;; CLI properties
-    :long-option "priority-max"
-    :option-type :string
-    ;; Transient properties
-    :key "px"
-    :transient "--priority-max"
-    :class transient-option
-    :argument "--priority-max="
-    :prompt "Max priority (0-4 or P0-P4): "
-    :transient-reader beads-reader-priority
-    :transient-group "Filters"
-    :level 2
-    :order 3)
+     ;; === Filters ===
+     (status
+      :initarg :status
+      :type (or null string)
+      :initform nil
+      :documentation "Filter by status (-s, --status)."
+      ;; CLI properties
+      :long-option "status"
+      :short-option "s"
+      :option-type :string
+      ;; Transient properties
+      :key "s"
+      :transient "--status"
+      :class transient-option
+      :argument "--status="
+      :prompt "Status: "
+      :transient-reader beads-reader-list-status
+      :transient-group "Filters"
+      :level 1
+      :order 1)
+     (issue-type
+      :initarg :issue-type
+      :type (or null string)
+      :initform nil
+      :documentation "Filter by type (-t, --type).
+  Values: bug, feature, task, epic, chore, merge-request, molecule, gate.
+  Aliases: mr→merge-request, feat→feature, mol→molecule."
+      ;; CLI properties
+      :long-option "type"
+      :short-option "t"
+      :option-type :string
+      ;; Transient properties
+      :key "t"
+      :transient "--type"
+      :class transient-option
+      :argument "--type="
+      :prompt "Type: "
+      :transient-reader beads-reader-issue-type
+      :transient-group "Filters"
+      :level 1
+      :order 2)
+     (assignee
+      :initarg :assignee
+      :type (or null string)
+      :initform nil
+      :documentation "Filter by assignee (-a, --assignee)."
+      ;; CLI properties
+      :long-option "assignee"
+      :short-option "a"
+      :option-type :string
+      ;; Transient properties
+      :key "a"
+      :transient "--assignee"
+      :class transient-option
+      :argument "--assignee="
+      :prompt "Assignee: "
+      :transient-group "Filters"
+      :level 1
+      :order 3)
+     (priority
+      :initarg :priority
+      :type (or null string)
+      :initform nil
+      :documentation "Filter by priority (-p, --priority).
+  Values: 0-4 or P0-P4 (0=highest)."
+      ;; CLI properties
+      :long-option "priority"
+      :short-option "p"
+      :option-type :string
+      ;; Transient properties
+      :key "p"
+      :transient "--priority"
+      :class transient-option
+      :argument "--priority="
+      :prompt "Priority (0-4 or P0-P4): "
+      :transient-reader beads-reader-priority
+      :transient-group "Filters"
+      :level 1
+      :order 4)
+     (label
+      :initarg :label
+      :type (or null list)
+      :initform nil
+      :documentation "Filter by labels - AND logic (-l, --label).
+  Must have ALL specified labels."
+      ;; CLI properties
+      :long-option "label"
+      :short-option "l"
+      :option-type :list
+      ;; Transient properties
+      :key "l"
+      :transient "--label"
+      :class transient-option
+      :argument "--label="
+      :prompt "Labels (AND): "
+      :transient-reader beads-reader-issue-labels
+      :transient-group "Filters"
+      :level 1
+      :order 5)
+     (label-any
+      :initarg :label-any
+      :type (or null list)
+      :initform nil
+      :documentation "Filter by labels - OR logic (--label-any).
+  Must have AT LEAST ONE of specified labels."
+      ;; CLI properties
+      :long-option "label-any"
+      :option-type :list
+      ;; Transient properties
+      :key "L"
+      :transient "--label-any"
+      :class transient-option
+      :argument "--label-any="
+      :prompt "Labels (OR): "
+      :transient-reader beads-reader-issue-labels
+      :transient-group "Filters"
+      :level 2
+      :order 1)
+     (priority-min
+      :initarg :priority-min
+      :type (or null string)
+      :initform nil
+      :documentation "Filter by minimum priority (--priority-min).
+  Inclusive, 0-4 or P0-P4."
+      ;; CLI properties
+      :long-option "priority-min"
+      :option-type :string
+      ;; Transient properties
+      :key "pm"
+      :transient "--priority-min"
+      :class transient-option
+      :argument "--priority-min="
+      :prompt "Min priority (0-4 or P0-P4): "
+      :transient-reader beads-reader-priority
+      :transient-group "Filters"
+      :level 2
+      :order 2)
+     (priority-max
+      :initarg :priority-max
+      :type (or null string)
+      :initform nil
+      :documentation "Filter by maximum priority (--priority-max).
+  Inclusive, 0-4 or P0-P4."
+      ;; CLI properties
+      :long-option "priority-max"
+      :option-type :string
+      ;; Transient properties
+      :key "px"
+      :transient "--priority-max"
+      :class transient-option
+      :argument "--priority-max="
+      :prompt "Max priority (0-4 or P0-P4): "
+      :transient-reader beads-reader-priority
+      :transient-group "Filters"
+      :level 2
+      :order 3)
 
-   ;; === Date Filters ===
-   (created-after
-    :initarg :created-after
-    :type (or null string)
-    :initform nil
-    :documentation "Filter issues created after date (--created-after).
-Format: YYYY-MM-DD or RFC3339."
-    ;; CLI properties
-    :long-option "created-after"
-    :option-type :string
-    ;; Transient properties
-    :key "ca"
-    :transient "--created-after"
-    :class transient-option
-    :argument "--created-after="
-    :prompt "Created after (YYYY-MM-DD): "
-    :transient-group "Date Filters"
-    :level 2
-    :order 1)
-   (created-before
-    :initarg :created-before
-    :type (or null string)
-    :initform nil
-    :documentation "Filter issues created before date (--created-before).
-Format: YYYY-MM-DD or RFC3339."
-    ;; CLI properties
-    :long-option "created-before"
-    :option-type :string
-    ;; Transient properties
-    :key "cb"
-    :transient "--created-before"
-    :class transient-option
-    :argument "--created-before="
-    :prompt "Created before (YYYY-MM-DD): "
-    :transient-group "Date Filters"
-    :level 2
-    :order 2)
-   (updated-after
-    :initarg :updated-after
-    :type (or null string)
-    :initform nil
-    :documentation "Filter issues updated after date (--updated-after).
-Format: YYYY-MM-DD or RFC3339."
-    ;; CLI properties
-    :long-option "updated-after"
-    :option-type :string
-    ;; Transient properties
-    :key "ua"
-    :transient "--updated-after"
-    :class transient-option
-    :argument "--updated-after="
-    :prompt "Updated after (YYYY-MM-DD): "
-    :transient-group "Date Filters"
-    :level 2
-    :order 3)
-   (updated-before
-    :initarg :updated-before
-    :type (or null string)
-    :initform nil
-    :documentation "Filter issues updated before date (--updated-before).
-Format: YYYY-MM-DD or RFC3339."
-    ;; CLI properties
-    :long-option "updated-before"
-    :option-type :string
-    ;; Transient properties
-    :key "ub"
-    :transient "--updated-before"
-    :class transient-option
-    :argument "--updated-before="
-    :prompt "Updated before (YYYY-MM-DD): "
-    :transient-group "Date Filters"
-    :level 2
-    :order 4))
-  :documentation "Represents bd export command.
-Exports issues to JSON Lines or Obsidian Tasks markdown format.
-When executed with :json t, returns export statistics."))
+     ;; === Date Filters ===
+     (created-after
+      :initarg :created-after
+      :type (or null string)
+      :initform nil
+      :documentation "Filter issues created after date (--created-after).
+  Format: YYYY-MM-DD or RFC3339."
+      ;; CLI properties
+      :long-option "created-after"
+      :option-type :string
+      ;; Transient properties
+      :key "ca"
+      :transient "--created-after"
+      :class transient-option
+      :argument "--created-after="
+      :prompt "Created after (YYYY-MM-DD): "
+      :transient-group "Date Filters"
+      :level 2
+      :order 1)
+     (created-before
+      :initarg :created-before
+      :type (or null string)
+      :initform nil
+      :documentation "Filter issues created before date (--created-before).
+  Format: YYYY-MM-DD or RFC3339."
+      ;; CLI properties
+      :long-option "created-before"
+      :option-type :string
+      ;; Transient properties
+      :key "cb"
+      :transient "--created-before"
+      :class transient-option
+      :argument "--created-before="
+      :prompt "Created before (YYYY-MM-DD): "
+      :transient-group "Date Filters"
+      :level 2
+      :order 2)
+     (updated-after
+      :initarg :updated-after
+      :type (or null string)
+      :initform nil
+      :documentation "Filter issues updated after date (--updated-after).
+  Format: YYYY-MM-DD or RFC3339."
+      ;; CLI properties
+      :long-option "updated-after"
+      :option-type :string
+      ;; Transient properties
+      :key "ua"
+      :transient "--updated-after"
+      :class transient-option
+      :argument "--updated-after="
+      :prompt "Updated after (YYYY-MM-DD): "
+      :transient-group "Date Filters"
+      :level 2
+      :order 3)
+     (updated-before
+      :initarg :updated-before
+      :type (or null string)
+      :initform nil
+      :documentation "Filter issues updated before date (--updated-before).
+  Format: YYYY-MM-DD or RFC3339."
+      ;; CLI properties
+      :long-option "updated-before"
+      :option-type :string
+      ;; Transient properties
+      :key "ub"
+      :transient "--updated-before"
+      :class transient-option
+      :argument "--updated-before="
+      :prompt "Updated before (YYYY-MM-DD): "
+      :transient-group "Date Filters"
+      :level 2
+      :order 4))
+    :documentation "Represents bd export command.
+  Exports issues to JSON Lines or Obsidian Tasks markdown format.
+  When executed with :json t, returns export statistics."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-export))
   "Return \"export\" as the CLI subcommand name."

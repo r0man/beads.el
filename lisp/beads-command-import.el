@@ -51,209 +51,209 @@
 ;; Wrap in eval-and-compile so class is available at compile time for
 ;; beads-meta-define-transient macro
 (eval-and-compile
-(beads-defcommand beads-command-import (beads-command-json)
-  ((json
-    :initarg :json
-    :type boolean
-    :initform nil
-    :documentation "Output in JSON format (--json).
-Defaults to nil because import command does not produce JSON output.")
-   (input
-    :initarg :input
-    :type (or null string)
-    :initform nil
-    :documentation "Input file (-i, --input).
-Default: stdin."
-    ;; CLI properties
-    :long-option "input"
-    :short-option "i"
-    :option-type :string
-    ;; Transient properties
-    :key "i"
-    :transient "--input"
-    :class transient-option
-    :argument "--input="
-    :prompt "Input file: "
-    :transient-reader transient-read-file
-    :transient-group "Import Options"
-    :level 1
-    :order 1)
-   (dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Preview collision detection without making changes
-(--dry-run)."
-    ;; CLI properties
-    :long-option "dry-run"
-    :option-type :boolean
-    ;; Transient properties
-    :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :transient-group "Import Options"
-    :level 1
-    :order 2)
-   (skip-existing
-    :initarg :skip-existing
-    :type boolean
-    :initform nil
-    :documentation "Skip existing issues instead of updating them
-(-s, --skip-existing)."
-    ;; CLI properties
-    :long-option "skip-existing"
-    :short-option "s"
-    :option-type :boolean
-    ;; Transient properties
-    :key "s"
-    :transient "--skip-existing"
-    :class transient-switch
-    :argument "--skip-existing"
-    :transient-group "Import Options"
-    :level 1
-    :order 3)
-   (force
-    :initarg :force
-    :type boolean
-    :initform nil
-    :documentation "Force metadata update even when database is already
-in sync with JSONL (--force)."
-    ;; CLI properties
-    :long-option "force"
-    :option-type :boolean
-    ;; Transient properties
-    :key "f"
-    :transient "--force"
-    :class transient-switch
-    :argument "--force"
-    :transient-group "Import Options"
-    :level 1
-    :order 4)
-   (dedupe-after
-    :initarg :dedupe-after
-    :type boolean
-    :initform nil
-    :documentation "Detect and report content duplicates after import
-(--dedupe-after)."
-    ;; CLI properties
-    :long-option "dedupe-after"
-    :option-type :boolean
-    ;; Transient properties
-    :key "d"
-    :transient "--dedupe-after"
-    :class transient-switch
-    :argument "--dedupe-after"
-    :transient-group "Import Options"
-    :level 2
-    :order 1)
-   (strict
-    :initarg :strict
-    :type boolean
-    :initform nil
-    :documentation "Fail on dependency errors instead of treating them
-as warnings (--strict)."
-    ;; CLI properties
-    :long-option "strict"
-    :option-type :boolean
-    ;; Transient properties
-    :key "S"
-    :transient "--strict"
-    :class transient-switch
-    :argument "--strict"
-    :transient-group "Import Options"
-    :level 2
-    :order 2)
-   (rename-on-import
-    :initarg :rename-on-import
-    :type boolean
-    :initform nil
-    :documentation "Rename imported issues to match database prefix
-(--rename-on-import).  Updates all references."
-    ;; CLI properties
-    :long-option "rename-on-import"
-    :option-type :boolean
-    ;; Transient properties
-    :key "R"
-    :transient "--rename-on-import"
-    :class transient-switch
-    :argument "--rename-on-import"
-    :transient-group "Import Options"
-    :level 2
-    :order 3)
-   (orphan-handling
-    :initarg :orphan-handling
-    :type (or null string)
-    :initform nil
-    :documentation "How to handle missing parent issues (--orphan-handling).
-Values: strict, resurrect, skip, allow.
-Default: use config or 'allow'."
-    ;; CLI properties
-    :long-option "orphan-handling"
-    :option-type :string
-    ;; Transient properties
-    :key "oh"
-    :transient "--orphan-handling"
-    :class transient-option
-    :argument "--orphan-handling="
-    :prompt "Orphan handling: "
-    :transient-group "Advanced"
-    :level 3
-    :order 1)
-   (clear-duplicate-external-refs
-    :initarg :clear-duplicate-external-refs
-    :type boolean
-    :initform nil
-    :documentation "Clear duplicate external_ref values
-(--clear-duplicate-external-refs).  Keeps first occurrence."
-    ;; CLI properties
-    :long-option "clear-duplicate-external-refs"
-    :option-type :boolean
-    ;; Transient properties
-    :key "ce"
-    :transient "--clear-duplicate-external-refs"
-    :class transient-switch
-    :argument "--clear-duplicate-external-refs"
-    :transient-group "Advanced"
-    :level 3
-    :order 2)
-   (no-git-history
-    :initarg :no-git-history
-    :type boolean
-    :initform nil
-    :documentation "Skip git history backfill for deletions
-(--no-git-history).  Passed by bd sync."
-    ;; CLI properties
-    :long-option "no-git-history"
-    :option-type :boolean
-    ;; Transient properties
-    :key "ng"
-    :transient "--no-git-history"
-    :class transient-switch
-    :argument "--no-git-history"
-    :transient-group "Advanced"
-    :level 3
-    :order 3)
-   (protect-left-snapshot
-    :initarg :protect-left-snapshot
-    :type boolean
-    :initform nil
-    :documentation "Protect issues in left snapshot from
-git-history-backfill (--protect-left-snapshot)."
-    ;; CLI properties
-    :long-option "protect-left-snapshot"
-    :option-type :boolean
-    ;; Transient properties
-    :key "pl"
-    :transient "--protect-left-snapshot"
-    :class transient-switch
-    :argument "--protect-left-snapshot"
-    :transient-group "Advanced"
-    :level 3
-    :order 4))
-  :documentation "Represents bd import command.
-Imports issues from JSON Lines format (one JSON object per line).
-When executed with :json t, returns import statistics."))
+  (beads-defcommand beads-command-import (beads-command-json)
+    ((json
+      :initarg :json
+      :type boolean
+      :initform nil
+      :documentation "Output in JSON format (--json).
+  Defaults to nil because import command does not produce JSON output.")
+     (input
+      :initarg :input
+      :type (or null string)
+      :initform nil
+      :documentation "Input file (-i, --input).
+  Default: stdin."
+      ;; CLI properties
+      :long-option "input"
+      :short-option "i"
+      :option-type :string
+      ;; Transient properties
+      :key "i"
+      :transient "--input"
+      :class transient-option
+      :argument "--input="
+      :prompt "Input file: "
+      :transient-reader transient-read-file
+      :transient-group "Import Options"
+      :level 1
+      :order 1)
+     (dry-run
+      :initarg :dry-run
+      :type boolean
+      :initform nil
+      :documentation "Preview collision detection without making changes
+  (--dry-run)."
+      ;; CLI properties
+      :long-option "dry-run"
+      :option-type :boolean
+      ;; Transient properties
+      :key "n"
+      :transient "--dry-run"
+      :class transient-switch
+      :argument "--dry-run"
+      :transient-group "Import Options"
+      :level 1
+      :order 2)
+     (skip-existing
+      :initarg :skip-existing
+      :type boolean
+      :initform nil
+      :documentation "Skip existing issues instead of updating them
+  (-s, --skip-existing)."
+      ;; CLI properties
+      :long-option "skip-existing"
+      :short-option "s"
+      :option-type :boolean
+      ;; Transient properties
+      :key "s"
+      :transient "--skip-existing"
+      :class transient-switch
+      :argument "--skip-existing"
+      :transient-group "Import Options"
+      :level 1
+      :order 3)
+     (force
+      :initarg :force
+      :type boolean
+      :initform nil
+      :documentation "Force metadata update even when database is already
+  in sync with JSONL (--force)."
+      ;; CLI properties
+      :long-option "force"
+      :option-type :boolean
+      ;; Transient properties
+      :key "f"
+      :transient "--force"
+      :class transient-switch
+      :argument "--force"
+      :transient-group "Import Options"
+      :level 1
+      :order 4)
+     (dedupe-after
+      :initarg :dedupe-after
+      :type boolean
+      :initform nil
+      :documentation "Detect and report content duplicates after import
+  (--dedupe-after)."
+      ;; CLI properties
+      :long-option "dedupe-after"
+      :option-type :boolean
+      ;; Transient properties
+      :key "d"
+      :transient "--dedupe-after"
+      :class transient-switch
+      :argument "--dedupe-after"
+      :transient-group "Import Options"
+      :level 2
+      :order 1)
+     (strict
+      :initarg :strict
+      :type boolean
+      :initform nil
+      :documentation "Fail on dependency errors instead of treating them
+  as warnings (--strict)."
+      ;; CLI properties
+      :long-option "strict"
+      :option-type :boolean
+      ;; Transient properties
+      :key "S"
+      :transient "--strict"
+      :class transient-switch
+      :argument "--strict"
+      :transient-group "Import Options"
+      :level 2
+      :order 2)
+     (rename-on-import
+      :initarg :rename-on-import
+      :type boolean
+      :initform nil
+      :documentation "Rename imported issues to match database prefix
+  (--rename-on-import).  Updates all references."
+      ;; CLI properties
+      :long-option "rename-on-import"
+      :option-type :boolean
+      ;; Transient properties
+      :key "R"
+      :transient "--rename-on-import"
+      :class transient-switch
+      :argument "--rename-on-import"
+      :transient-group "Import Options"
+      :level 2
+      :order 3)
+     (orphan-handling
+      :initarg :orphan-handling
+      :type (or null string)
+      :initform nil
+      :documentation "How to handle missing parent issues (--orphan-handling).
+  Values: strict, resurrect, skip, allow.
+  Default: use config or 'allow'."
+      ;; CLI properties
+      :long-option "orphan-handling"
+      :option-type :string
+      ;; Transient properties
+      :key "oh"
+      :transient "--orphan-handling"
+      :class transient-option
+      :argument "--orphan-handling="
+      :prompt "Orphan handling: "
+      :transient-group "Advanced"
+      :level 3
+      :order 1)
+     (clear-duplicate-external-refs
+      :initarg :clear-duplicate-external-refs
+      :type boolean
+      :initform nil
+      :documentation "Clear duplicate external_ref values
+  (--clear-duplicate-external-refs).  Keeps first occurrence."
+      ;; CLI properties
+      :long-option "clear-duplicate-external-refs"
+      :option-type :boolean
+      ;; Transient properties
+      :key "ce"
+      :transient "--clear-duplicate-external-refs"
+      :class transient-switch
+      :argument "--clear-duplicate-external-refs"
+      :transient-group "Advanced"
+      :level 3
+      :order 2)
+     (no-git-history
+      :initarg :no-git-history
+      :type boolean
+      :initform nil
+      :documentation "Skip git history backfill for deletions
+  (--no-git-history).  Passed by bd sync."
+      ;; CLI properties
+      :long-option "no-git-history"
+      :option-type :boolean
+      ;; Transient properties
+      :key "ng"
+      :transient "--no-git-history"
+      :class transient-switch
+      :argument "--no-git-history"
+      :transient-group "Advanced"
+      :level 3
+      :order 3)
+     (protect-left-snapshot
+      :initarg :protect-left-snapshot
+      :type boolean
+      :initform nil
+      :documentation "Protect issues in left snapshot from
+  git-history-backfill (--protect-left-snapshot)."
+      ;; CLI properties
+      :long-option "protect-left-snapshot"
+      :option-type :boolean
+      ;; Transient properties
+      :key "pl"
+      :transient "--protect-left-snapshot"
+      :class transient-switch
+      :argument "--protect-left-snapshot"
+      :transient-group "Advanced"
+      :level 3
+      :order 4))
+    :documentation "Represents bd import command.
+  Imports issues from JSON Lines format (one JSON object per line).
+  When executed with :json t, returns import statistics."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-import))
   "Return \"import\" as the CLI subcommand name."

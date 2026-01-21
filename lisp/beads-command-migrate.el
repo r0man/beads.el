@@ -24,80 +24,80 @@
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-migrate (beads-command-json)
-  ((dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Show what would be done."
-    :long-option "dry-run"
-    :option-type :boolean
-    :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :transient-group "Options"
-    :level 1
-    :order 1)
-   (cleanup
-    :initarg :cleanup
-    :type boolean
-    :initform nil
-    :documentation "Remove old database files after migration."
-    :long-option "cleanup"
-    :option-type :boolean
-    :key "c"
-    :transient "--cleanup"
-    :class transient-switch
-    :argument "--cleanup"
-    :transient-group "Options"
-    :level 1
-    :order 2)
-   (yes
-    :initarg :yes
-    :type boolean
-    :initform nil
-    :documentation "Auto-confirm prompts."
-    :long-option "yes"
-    :short-option "y"
-    :option-type :boolean
-    :key "y"
-    :transient "--yes"
-    :class transient-switch
-    :argument "--yes"
-    :transient-group "Options"
-    :level 1
-    :order 3)
-   (inspect
-    :initarg :inspect
-    :type boolean
-    :initform nil
-    :documentation "Show migration plan for AI analysis."
-    :long-option "inspect"
-    :option-type :boolean
-    :key "i"
-    :transient "--inspect"
-    :class transient-switch
-    :argument "--inspect"
-    :transient-group "Options"
-    :level 2
-    :order 4)
-   (update-repo-id
-    :initarg :update-repo-id
-    :type boolean
-    :initform nil
-    :documentation "Update repo_id on issues to match repo name."
-    :long-option "update-repo-id"
-    :option-type :boolean
-    :key "u"
-    :transient "--update-repo-id"
-    :class transient-switch
-    :argument "--update-repo-id"
-    :transient-group "Options"
-    :level 2
-    :order 5))
-  :documentation "Represents bd migrate command.
-Detects and migrates database schema to current version."))
+  (beads-defcommand beads-command-migrate (beads-command-json)
+    ((dry-run
+      :initarg :dry-run
+      :type boolean
+      :initform nil
+      :documentation "Show what would be done."
+      :long-option "dry-run"
+      :option-type :boolean
+      :key "n"
+      :transient "--dry-run"
+      :class transient-switch
+      :argument "--dry-run"
+      :transient-group "Options"
+      :level 1
+      :order 1)
+     (cleanup
+      :initarg :cleanup
+      :type boolean
+      :initform nil
+      :documentation "Remove old database files after migration."
+      :long-option "cleanup"
+      :option-type :boolean
+      :key "c"
+      :transient "--cleanup"
+      :class transient-switch
+      :argument "--cleanup"
+      :transient-group "Options"
+      :level 1
+      :order 2)
+     (yes
+      :initarg :yes
+      :type boolean
+      :initform nil
+      :documentation "Auto-confirm prompts."
+      :long-option "yes"
+      :short-option "y"
+      :option-type :boolean
+      :key "y"
+      :transient "--yes"
+      :class transient-switch
+      :argument "--yes"
+      :transient-group "Options"
+      :level 1
+      :order 3)
+     (inspect
+      :initarg :inspect
+      :type boolean
+      :initform nil
+      :documentation "Show migration plan for AI analysis."
+      :long-option "inspect"
+      :option-type :boolean
+      :key "i"
+      :transient "--inspect"
+      :class transient-switch
+      :argument "--inspect"
+      :transient-group "Options"
+      :level 2
+      :order 4)
+     (update-repo-id
+      :initarg :update-repo-id
+      :type boolean
+      :initform nil
+      :documentation "Update repo_id on issues to match repo name."
+      :long-option "update-repo-id"
+      :option-type :boolean
+      :key "u"
+      :transient "--update-repo-id"
+      :class transient-switch
+      :argument "--update-repo-id"
+      :transient-group "Options"
+      :level 2
+      :order 5))
+    :documentation "Represents bd migrate command.
+  Detects and migrates database schema to current version."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-migrate))
   "Return \"migrate\" as the CLI subcommand."
@@ -108,23 +108,23 @@ Detects and migrates database schema to current version."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-migrate-hash-ids (beads-command-json)
-  ((dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Show what would be done."
-    :long-option "dry-run"
-    :option-type :boolean
-    :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :transient-group "Options"
-    :level 1
-    :order 1))
-  :documentation "Represents bd migrate hash-ids command.
-Migrates sequential IDs to hash-based IDs (legacy)."))
+  (beads-defcommand beads-command-migrate-hash-ids (beads-command-json)
+    ((dry-run
+      :initarg :dry-run
+      :type boolean
+      :initform nil
+      :documentation "Show what would be done."
+      :long-option "dry-run"
+      :option-type :boolean
+      :key "n"
+      :transient "--dry-run"
+      :class transient-switch
+      :argument "--dry-run"
+      :transient-group "Options"
+      :level 1
+      :order 1))
+    :documentation "Represents bd migrate hash-ids command.
+  Migrates sequential IDs to hash-based IDs (legacy)."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-migrate-hash-ids))
   "Return \"migrate hash-ids\" as the CLI subcommand."
@@ -135,21 +135,21 @@ Migrates sequential IDs to hash-based IDs (legacy)."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-migrate-issues (beads-command-json)
-  ((source
-    :initarg :source
-    :type (or null string)
-    :initform nil
-    :documentation "Source repository path."
-    :positional 1)
-   (target
-    :initarg :target
-    :type (or null string)
-    :initform nil
-    :documentation "Target repository path."
-    :positional 2))
-  :documentation "Represents bd migrate issues command.
-Moves issues between repositories."))
+  (beads-defcommand beads-command-migrate-issues (beads-command-json)
+    ((source
+      :initarg :source
+      :type (or null string)
+      :initform nil
+      :documentation "Source repository path."
+      :positional 1)
+     (target
+      :initarg :target
+      :type (or null string)
+      :initform nil
+      :documentation "Target repository path."
+      :positional 2))
+    :documentation "Represents bd migrate issues command.
+  Moves issues between repositories."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-migrate-issues))
   "Return \"migrate issues\" as the CLI subcommand."
@@ -160,10 +160,10 @@ Moves issues between repositories."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-migrate-sync (beads-command-json)
-  ()
-  :documentation "Represents bd migrate sync command.
-Migrates to sync.branch workflow for multi-clone setups."))
+  (beads-defcommand beads-command-migrate-sync (beads-command-json)
+    ()
+    :documentation "Represents bd migrate sync command.
+  Migrates to sync.branch workflow for multi-clone setups."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-migrate-sync))
   "Return \"migrate sync\" as the CLI subcommand."
@@ -174,23 +174,23 @@ Migrates to sync.branch workflow for multi-clone setups."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-migrate-tombstones (beads-command-json)
-  ((dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Show what would be done."
-    :long-option "dry-run"
-    :option-type :boolean
-    :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :transient-group "Options"
-    :level 1
-    :order 1))
-  :documentation "Represents bd migrate tombstones command.
-Converts deletions.jsonl to inline tombstones."))
+  (beads-defcommand beads-command-migrate-tombstones (beads-command-json)
+    ((dry-run
+      :initarg :dry-run
+      :type boolean
+      :initform nil
+      :documentation "Show what would be done."
+      :long-option "dry-run"
+      :option-type :boolean
+      :key "n"
+      :transient "--dry-run"
+      :class transient-switch
+      :argument "--dry-run"
+      :transient-group "Options"
+      :level 1
+      :order 1))
+    :documentation "Represents bd migrate tombstones command.
+  Converts deletions.jsonl to inline tombstones."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-migrate-tombstones))
   "Return \"migrate tombstones\" as the CLI subcommand."

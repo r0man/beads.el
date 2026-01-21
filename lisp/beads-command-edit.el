@@ -34,95 +34,95 @@
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-edit (beads-command-json)
-  ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to edit."
-    :positional 1
-    ;; Transient properties
-    :key "i"
-    :transient "Issue ID (required)"
-    :class transient-option
-    :argument "--id="
-    :prompt "Issue ID: "
-    :transient-reader beads-reader-edit-issue-id
-    :transient-group "Edit Issue"
-    :level 1
-    :order 1)
-   (title
-    :initarg :title
-    :type boolean
-    :initform nil
-    :documentation "Edit the title."
-    :long-option "title"
-    :option-type :boolean
-    :key "t"
-    :transient "--title"
-    :class transient-switch
-    :argument "--title"
-    :transient-group "Field"
-    :level 1
-    :order 1)
-   (description
-    :initarg :description
-    :type boolean
-    :initform nil
-    :documentation "Edit the description (default)."
-    :long-option "description"
-    :option-type :boolean
-    :key "d"
-    :transient "--description"
-    :class transient-switch
-    :argument "--description"
-    :transient-group "Field"
-    :level 1
-    :order 2)
-   (design
-    :initarg :design
-    :type boolean
-    :initform nil
-    :documentation "Edit the design notes."
-    :long-option "design"
-    :option-type :boolean
-    :key "D"
-    :transient "--design"
-    :class transient-switch
-    :argument "--design"
-    :transient-group "Field"
-    :level 1
-    :order 3)
-   (notes
-    :initarg :notes
-    :type boolean
-    :initform nil
-    :documentation "Edit the notes."
-    :long-option "notes"
-    :option-type :boolean
-    :key "n"
-    :transient "--notes"
-    :class transient-switch
-    :argument "--notes"
-    :transient-group "Field"
-    :level 1
-    :order 4)
-   (acceptance
-    :initarg :acceptance
-    :type boolean
-    :initform nil
-    :documentation "Edit the acceptance criteria."
-    :long-option "acceptance"
-    :option-type :boolean
-    :key "a"
-    :transient "--acceptance"
-    :class transient-switch
-    :argument "--acceptance"
-    :transient-group "Field"
-    :level 1
-    :order 5))
-  :documentation "Represents bd edit command.
-Opens an issue field in $EDITOR for modification."))
+  (beads-defcommand beads-command-edit (beads-command-json)
+    ((issue-id
+      :initarg :issue-id
+      :type (or null string)
+      :initform nil
+      :documentation "Issue ID to edit."
+      :positional 1
+      ;; Transient properties
+      :key "i"
+      :transient "Issue ID (required)"
+      :class transient-option
+      :argument "--id="
+      :prompt "Issue ID: "
+      :transient-reader beads-reader-edit-issue-id
+      :transient-group "Edit Issue"
+      :level 1
+      :order 1)
+     (title
+      :initarg :title
+      :type boolean
+      :initform nil
+      :documentation "Edit the title."
+      :long-option "title"
+      :option-type :boolean
+      :key "t"
+      :transient "--title"
+      :class transient-switch
+      :argument "--title"
+      :transient-group "Field"
+      :level 1
+      :order 1)
+     (description
+      :initarg :description
+      :type boolean
+      :initform nil
+      :documentation "Edit the description (default)."
+      :long-option "description"
+      :option-type :boolean
+      :key "d"
+      :transient "--description"
+      :class transient-switch
+      :argument "--description"
+      :transient-group "Field"
+      :level 1
+      :order 2)
+     (design
+      :initarg :design
+      :type boolean
+      :initform nil
+      :documentation "Edit the design notes."
+      :long-option "design"
+      :option-type :boolean
+      :key "D"
+      :transient "--design"
+      :class transient-switch
+      :argument "--design"
+      :transient-group "Field"
+      :level 1
+      :order 3)
+     (notes
+      :initarg :notes
+      :type boolean
+      :initform nil
+      :documentation "Edit the notes."
+      :long-option "notes"
+      :option-type :boolean
+      :key "n"
+      :transient "--notes"
+      :class transient-switch
+      :argument "--notes"
+      :transient-group "Field"
+      :level 1
+      :order 4)
+     (acceptance
+      :initarg :acceptance
+      :type boolean
+      :initform nil
+      :documentation "Edit the acceptance criteria."
+      :long-option "acceptance"
+      :option-type :boolean
+      :key "a"
+      :transient "--acceptance"
+      :class transient-switch
+      :argument "--acceptance"
+      :transient-group "Field"
+      :level 1
+      :order 5))
+    :documentation "Represents bd edit command.
+  Opens an issue field in $EDITOR for modification."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-edit))
   "Return \"edit\" as the CLI subcommand."

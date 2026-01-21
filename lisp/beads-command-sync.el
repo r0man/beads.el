@@ -34,207 +34,207 @@
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-sync (beads-command-json)
-  ((dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Preview sync without making changes."
-    :long-option "dry-run"
-    :option-type :boolean
-    :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :transient-group "Options"
-    :level 1
-    :order 1)
-   (no-pull
-    :initarg :no-pull
-    :type boolean
-    :initform nil
-    :documentation "Skip pulling from remote."
-    :long-option "no-pull"
-    :option-type :boolean
-    :key "P"
-    :transient "--no-pull"
-    :class transient-switch
-    :argument "--no-pull"
-    :transient-group "Options"
-    :level 1
-    :order 2)
-   (no-push
-    :initarg :no-push
-    :type boolean
-    :initform nil
-    :documentation "Skip pushing to remote."
-    :long-option "no-push"
-    :option-type :boolean
-    :key "p"
-    :transient "--no-push"
-    :class transient-switch
-    :argument "--no-push"
-    :transient-group "Options"
-    :level 1
-    :order 3)
-   (flush-only
-    :initarg :flush-only
-    :type boolean
-    :initform nil
-    :documentation "Only export pending changes to JSONL."
-    :long-option "flush-only"
-    :option-type :boolean
-    :key "f"
-    :transient "--flush-only"
-    :class transient-switch
-    :argument "--flush-only"
-    :transient-group "Options"
-    :level 2
-    :order 4)
-   (import-only
-    :initarg :import-only
-    :type boolean
-    :initform nil
-    :documentation "Only import from JSONL."
-    :long-option "import-only"
-    :option-type :boolean
-    :key "i"
-    :transient "--import-only"
-    :class transient-switch
-    :argument "--import-only"
-    :transient-group "Options"
-    :level 2
-    :order 5)
-   (squash
-    :initarg :squash
-    :type boolean
-    :initform nil
-    :documentation "Accumulate changes without committing."
-    :long-option "squash"
-    :option-type :boolean
-    :key "s"
-    :transient "--squash"
-    :class transient-switch
-    :argument "--squash"
-    :transient-group "Options"
-    :level 2
-    :order 6)
-   (message
-    :initarg :message
-    :type (or null string)
-    :initform nil
-    :documentation "Commit message."
-    :long-option "message"
-    :short-option "m"
-    :option-type :string
-    :key "m"
-    :transient "--message"
-    :class transient-option
-    :argument "--message="
-    :prompt "Commit message: "
-    :transient-group "Options"
-    :level 2
-    :order 7)
-   (status-flag
-    :initarg :status-flag
-    :type boolean
-    :initform nil
-    :documentation "Show diff between sync branch and main."
-    :long-option "status"
-    :option-type :boolean
-    :key "S"
-    :transient "--status"
-    :class transient-switch
-    :argument "--status"
-    :transient-group "Options"
-    :level 2
-    :order 8)
-   (merge-flag
-    :initarg :merge-flag
-    :type boolean
-    :initform nil
-    :documentation "Merge sync branch back to main."
-    :long-option "merge"
-    :option-type :boolean
-    :key "M"
-    :transient "--merge"
-    :class transient-switch
-    :argument "--merge"
-    :transient-group "Options"
-    :level 2
-    :order 9)
-   (check
-    :initarg :check
-    :type boolean
-    :initform nil
-    :documentation "Pre-sync integrity check."
-    :long-option "check"
-    :option-type :boolean
-    :key "c"
-    :transient "--check"
-    :class transient-switch
-    :argument "--check"
-    :transient-group "Options"
-    :level 2
-    :order 10)
-   (accept-rebase
-    :initarg :accept-rebase
-    :type boolean
-    :initform nil
-    :documentation "Accept rebased history from remote."
-    :long-option "accept-rebase"
-    :option-type :boolean
-    :key "r"
-    :transient "--accept-rebase"
-    :class transient-switch
-    :argument "--accept-rebase"
-    :transient-group "Options"
-    :level 3
-    :order 11)
-   (from-main
-    :initarg :from-main
-    :type boolean
-    :initform nil
-    :documentation "Merge from main branch instead of sync branch."
-    :long-option "from-main"
-    :option-type :boolean
-    :key "F"
-    :transient "--from-main"
-    :class transient-switch
-    :argument "--from-main"
-    :transient-group "Options"
-    :level 3
-    :order 12)
-   (no-git-history
-    :initarg :no-git-history
-    :type boolean
-    :initform nil
-    :documentation "Disable git history tracking in sync."
-    :long-option "no-git-history"
-    :option-type :boolean
-    :key "H"
-    :transient "--no-git-history"
-    :class transient-switch
-    :argument "--no-git-history"
-    :transient-group "Options"
-    :level 3
-    :order 13)
-   (rename-on-import
-    :initarg :rename-on-import
-    :type boolean
-    :initform nil
-    :documentation "Rename issues to match repo on import."
-    :long-option "rename-on-import"
-    :option-type :boolean
-    :key "R"
-    :transient "--rename-on-import"
-    :class transient-switch
-    :argument "--rename-on-import"
-    :transient-group "Options"
-    :level 3
-    :order 14))
-  :documentation "Represents bd sync command.
-Synchronizes issues with git remote."))
+  (beads-defcommand beads-command-sync (beads-command-json)
+    ((dry-run
+      :initarg :dry-run
+      :type boolean
+      :initform nil
+      :documentation "Preview sync without making changes."
+      :long-option "dry-run"
+      :option-type :boolean
+      :key "n"
+      :transient "--dry-run"
+      :class transient-switch
+      :argument "--dry-run"
+      :transient-group "Options"
+      :level 1
+      :order 1)
+     (no-pull
+      :initarg :no-pull
+      :type boolean
+      :initform nil
+      :documentation "Skip pulling from remote."
+      :long-option "no-pull"
+      :option-type :boolean
+      :key "P"
+      :transient "--no-pull"
+      :class transient-switch
+      :argument "--no-pull"
+      :transient-group "Options"
+      :level 1
+      :order 2)
+     (no-push
+      :initarg :no-push
+      :type boolean
+      :initform nil
+      :documentation "Skip pushing to remote."
+      :long-option "no-push"
+      :option-type :boolean
+      :key "p"
+      :transient "--no-push"
+      :class transient-switch
+      :argument "--no-push"
+      :transient-group "Options"
+      :level 1
+      :order 3)
+     (flush-only
+      :initarg :flush-only
+      :type boolean
+      :initform nil
+      :documentation "Only export pending changes to JSONL."
+      :long-option "flush-only"
+      :option-type :boolean
+      :key "f"
+      :transient "--flush-only"
+      :class transient-switch
+      :argument "--flush-only"
+      :transient-group "Options"
+      :level 2
+      :order 4)
+     (import-only
+      :initarg :import-only
+      :type boolean
+      :initform nil
+      :documentation "Only import from JSONL."
+      :long-option "import-only"
+      :option-type :boolean
+      :key "i"
+      :transient "--import-only"
+      :class transient-switch
+      :argument "--import-only"
+      :transient-group "Options"
+      :level 2
+      :order 5)
+     (squash
+      :initarg :squash
+      :type boolean
+      :initform nil
+      :documentation "Accumulate changes without committing."
+      :long-option "squash"
+      :option-type :boolean
+      :key "s"
+      :transient "--squash"
+      :class transient-switch
+      :argument "--squash"
+      :transient-group "Options"
+      :level 2
+      :order 6)
+     (message
+      :initarg :message
+      :type (or null string)
+      :initform nil
+      :documentation "Commit message."
+      :long-option "message"
+      :short-option "m"
+      :option-type :string
+      :key "m"
+      :transient "--message"
+      :class transient-option
+      :argument "--message="
+      :prompt "Commit message: "
+      :transient-group "Options"
+      :level 2
+      :order 7)
+     (status-flag
+      :initarg :status-flag
+      :type boolean
+      :initform nil
+      :documentation "Show diff between sync branch and main."
+      :long-option "status"
+      :option-type :boolean
+      :key "S"
+      :transient "--status"
+      :class transient-switch
+      :argument "--status"
+      :transient-group "Options"
+      :level 2
+      :order 8)
+     (merge-flag
+      :initarg :merge-flag
+      :type boolean
+      :initform nil
+      :documentation "Merge sync branch back to main."
+      :long-option "merge"
+      :option-type :boolean
+      :key "M"
+      :transient "--merge"
+      :class transient-switch
+      :argument "--merge"
+      :transient-group "Options"
+      :level 2
+      :order 9)
+     (check
+      :initarg :check
+      :type boolean
+      :initform nil
+      :documentation "Pre-sync integrity check."
+      :long-option "check"
+      :option-type :boolean
+      :key "c"
+      :transient "--check"
+      :class transient-switch
+      :argument "--check"
+      :transient-group "Options"
+      :level 2
+      :order 10)
+     (accept-rebase
+      :initarg :accept-rebase
+      :type boolean
+      :initform nil
+      :documentation "Accept rebased history from remote."
+      :long-option "accept-rebase"
+      :option-type :boolean
+      :key "r"
+      :transient "--accept-rebase"
+      :class transient-switch
+      :argument "--accept-rebase"
+      :transient-group "Options"
+      :level 3
+      :order 11)
+     (from-main
+      :initarg :from-main
+      :type boolean
+      :initform nil
+      :documentation "Merge from main branch instead of sync branch."
+      :long-option "from-main"
+      :option-type :boolean
+      :key "F"
+      :transient "--from-main"
+      :class transient-switch
+      :argument "--from-main"
+      :transient-group "Options"
+      :level 3
+      :order 12)
+     (no-git-history
+      :initarg :no-git-history
+      :type boolean
+      :initform nil
+      :documentation "Disable git history tracking in sync."
+      :long-option "no-git-history"
+      :option-type :boolean
+      :key "H"
+      :transient "--no-git-history"
+      :class transient-switch
+      :argument "--no-git-history"
+      :transient-group "Options"
+      :level 3
+      :order 13)
+     (rename-on-import
+      :initarg :rename-on-import
+      :type boolean
+      :initform nil
+      :documentation "Rename issues to match repo on import."
+      :long-option "rename-on-import"
+      :option-type :boolean
+      :key "R"
+      :transient "--rename-on-import"
+      :class transient-switch
+      :argument "--rename-on-import"
+      :transient-group "Options"
+      :level 3
+      :order 14))
+    :documentation "Represents bd sync command.
+  Synchronizes issues with git remote."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-sync))
   "Return \"sync\" as the CLI subcommand."

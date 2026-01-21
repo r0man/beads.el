@@ -24,21 +24,21 @@
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-agent-state (beads-command-json)
-  ((agent-id
-    :initarg :agent-id
-    :type (or null string)
-    :initform nil
-    :documentation "Agent bead ID."
-    :positional 1)
-   (state
-    :initarg :state
-    :type (or null string)
-    :initform nil
-    :documentation "State to set (idle, spawning, running, working, stuck, done, stopped, dead)."
-    :positional 2))
-  :documentation "Represents bd agent state command.
-Sets agent state for monitoring."))
+  (beads-defcommand beads-command-agent-state (beads-command-json)
+    ((agent-id
+      :initarg :agent-id
+      :type (or null string)
+      :initform nil
+      :documentation "Agent bead ID."
+      :positional 1)
+     (state
+      :initarg :state
+      :type (or null string)
+      :initform nil
+      :documentation "State to set (idle, spawning, running, working, stuck, done, stopped, dead)."
+      :positional 2))
+    :documentation "Represents bd agent state command.
+  Sets agent state for monitoring."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-agent-state))
   "Return \"agent state\" as the CLI subcommand."
@@ -57,15 +57,15 @@ Sets agent state for monitoring."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-agent-heartbeat (beads-command-json)
-  ((agent-id
-    :initarg :agent-id
-    :type (or null string)
-    :initform nil
-    :documentation "Agent bead ID."
-    :positional 1))
-  :documentation "Represents bd agent heartbeat command.
-Updates agent last_activity timestamp."))
+  (beads-defcommand beads-command-agent-heartbeat (beads-command-json)
+    ((agent-id
+      :initarg :agent-id
+      :type (or null string)
+      :initform nil
+      :documentation "Agent bead ID."
+      :positional 1))
+    :documentation "Represents bd agent heartbeat command.
+  Updates agent last_activity timestamp."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-agent-heartbeat))
   "Return \"agent heartbeat\" as the CLI subcommand."
@@ -81,15 +81,15 @@ Updates agent last_activity timestamp."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-agent-show (beads-command-json)
-  ((agent-id
-    :initarg :agent-id
-    :type (or null string)
-    :initform nil
-    :documentation "Agent bead ID."
-    :positional 1))
-  :documentation "Represents bd agent show command.
-Shows agent bead details."))
+  (beads-defcommand beads-command-agent-show (beads-command-json)
+    ((agent-id
+      :initarg :agent-id
+      :type (or null string)
+      :initform nil
+      :documentation "Agent bead ID."
+      :positional 1))
+    :documentation "Represents bd agent show command.
+  Shows agent bead details."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-agent-show))
   "Return \"agent show\" as the CLI subcommand."
@@ -105,23 +105,23 @@ Shows agent bead details."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-agent-backfill-labels (beads-command-json)
-  ((dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Show what would be done."
-    :long-option "dry-run"
-    :option-type :boolean
-    :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :transient-group "Options"
-    :level 1
-    :order 1))
-  :documentation "Represents bd agent backfill-labels command.
-Backfills role_type/rig labels on existing agent beads."))
+  (beads-defcommand beads-command-agent-backfill-labels (beads-command-json)
+    ((dry-run
+      :initarg :dry-run
+      :type boolean
+      :initform nil
+      :documentation "Show what would be done."
+      :long-option "dry-run"
+      :option-type :boolean
+      :key "n"
+      :transient "--dry-run"
+      :class transient-switch
+      :argument "--dry-run"
+      :transient-group "Options"
+      :level 1
+      :order 1))
+    :documentation "Represents bd agent backfill-labels command.
+  Backfills role_type/rig labels on existing agent beads."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-agent-backfill-labels))
   "Return \"agent backfill-labels\" as the CLI subcommand."

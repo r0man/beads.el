@@ -24,44 +24,44 @@
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-swarm-create (beads-command-json)
-  ((epic-id
-    :initarg :epic-id
-    :type (or null string)
-    :initform nil
-    :documentation "Epic ID to create swarm from."
-    :positional 1)
-   (coordinator
-    :initarg :coordinator
-    :type (or null string)
-    :initform nil
-    :documentation "Agent to act as swarm coordinator."
-    :long-option "coordinator"
-    :option-type :string
-    :key "c"
-    :transient "--coordinator"
-    :class transient-option
-    :argument "--coordinator="
-    :prompt "Coordinator agent: "
-    :transient-group "Options"
-    :level 1
-    :order 1)
-   (force
-    :initarg :force
-    :type boolean
-    :initform nil
-    :documentation "Force creation even with validation warnings."
-    :long-option "force"
-    :option-type :boolean
-    :key "f"
-    :transient "--force"
-    :class transient-switch
-    :argument "--force"
-    :transient-group "Options"
-    :level 1
-    :order 2))
-  :documentation "Represents bd swarm create command.
-Creates a swarm molecule from an epic."))
+  (beads-defcommand beads-command-swarm-create (beads-command-json)
+    ((epic-id
+      :initarg :epic-id
+      :type (or null string)
+      :initform nil
+      :documentation "Epic ID to create swarm from."
+      :positional 1)
+     (coordinator
+      :initarg :coordinator
+      :type (or null string)
+      :initform nil
+      :documentation "Agent to act as swarm coordinator."
+      :long-option "coordinator"
+      :option-type :string
+      :key "c"
+      :transient "--coordinator"
+      :class transient-option
+      :argument "--coordinator="
+      :prompt "Coordinator agent: "
+      :transient-group "Options"
+      :level 1
+      :order 1)
+     (force
+      :initarg :force
+      :type boolean
+      :initform nil
+      :documentation "Force creation even with validation warnings."
+      :long-option "force"
+      :option-type :boolean
+      :key "f"
+      :transient "--force"
+      :class transient-switch
+      :argument "--force"
+      :transient-group "Options"
+      :level 1
+      :order 2))
+    :documentation "Represents bd swarm create command.
+  Creates a swarm molecule from an epic."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-swarm-create))
   "Return \"swarm create\" as the CLI subcommand."
@@ -77,10 +77,10 @@ Creates a swarm molecule from an epic."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-swarm-list (beads-command-json)
-  ()
-  :documentation "Represents bd swarm list command.
-Lists all swarm molecules."))
+  (beads-defcommand beads-command-swarm-list (beads-command-json)
+    ()
+    :documentation "Represents bd swarm list command.
+  Lists all swarm molecules."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-swarm-list))
   "Return \"swarm list\" as the CLI subcommand."
@@ -91,15 +91,15 @@ Lists all swarm molecules."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-swarm-status (beads-command-json)
-  ((swarm-id
-    :initarg :swarm-id
-    :type (or null string)
-    :initform nil
-    :documentation "Swarm ID to show status for."
-    :positional 1))
-  :documentation "Represents bd swarm status command.
-Shows current swarm status."))
+  (beads-defcommand beads-command-swarm-status (beads-command-json)
+    ((swarm-id
+      :initarg :swarm-id
+      :type (or null string)
+      :initform nil
+      :documentation "Swarm ID to show status for."
+      :positional 1))
+    :documentation "Represents bd swarm status command.
+  Shows current swarm status."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-swarm-status))
   "Return \"swarm status\" as the CLI subcommand."
@@ -110,15 +110,15 @@ Shows current swarm status."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-swarm-validate (beads-command-json)
-  ((epic-id
-    :initarg :epic-id
-    :type (or null string)
-    :initform nil
-    :documentation "Epic ID to validate."
-    :positional 1))
-  :documentation "Represents bd swarm validate command.
-Validates epic structure for swarming."))
+  (beads-defcommand beads-command-swarm-validate (beads-command-json)
+    ((epic-id
+      :initarg :epic-id
+      :type (or null string)
+      :initform nil
+      :documentation "Epic ID to validate."
+      :positional 1))
+    :documentation "Represents bd swarm validate command.
+  Validates epic structure for swarming."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-swarm-validate))
   "Return \"swarm validate\" as the CLI subcommand."

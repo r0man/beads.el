@@ -38,29 +38,29 @@
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-comments (beads-command-json)
-  ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to list comments for."
-    ;; CLI properties
-    :positional 1
-    :option-type :string
-    ;; Transient properties
-    :key "i"
-    :transient "Issue ID (required)"
-    :class transient-option
-    :argument "--issue-id="
-    :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "List Comments"
-    :level 1
-    :order 1
-    ;; Validation
-    :required t))
-  :documentation "Represents bd comments command.
-Lists all comments on an issue."))
+  (beads-defcommand beads-command-comments (beads-command-json)
+    ((issue-id
+      :initarg :issue-id
+      :type (or null string)
+      :initform nil
+      :documentation "Issue ID to list comments for."
+      ;; CLI properties
+      :positional 1
+      :option-type :string
+      ;; Transient properties
+      :key "i"
+      :transient "Issue ID (required)"
+      :class transient-option
+      :argument "--issue-id="
+      :prompt "Issue ID: "
+      :transient-reader beads-reader-issue-id
+      :transient-group "List Comments"
+      :level 1
+      :order 1
+      ;; Validation
+      :required t))
+    :documentation "Represents bd comments command.
+  Lists all comments on an issue."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-comments))
   "Return \"comments\" as the CLI subcommand."
@@ -84,82 +84,82 @@ Lists all comments on an issue."))
 ;;; ============================================================
 
 (eval-and-compile
-(beads-defcommand beads-command-comments-add (beads-command-json)
-  ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to add comment to."
-    ;; CLI properties
-    :positional 1
-    :option-type :string
-    ;; Transient properties
-    :key "i"
-    :transient "Issue ID (required)"
-    :class transient-option
-    :argument "--issue-id="
-    :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Add Comment"
-    :level 1
-    :order 1
-    ;; Validation
-    :required t)
-   (text
-    :initarg :text
-    :type (or null string)
-    :initform nil
-    :documentation "Comment text."
-    ;; CLI properties
-    :positional 2
-    :option-type :string
-    ;; Transient properties
-    :key "t"
-    :transient "Comment text"
-    :class beads-create-transient-multiline
-    :argument "--text="
-    :field-name "Comment"
-    :transient-group "Add Comment"
-    :level 1
-    :order 2)
-   (file
-    :initarg :file
-    :type (or null string)
-    :initform nil
-    :documentation "Read comment from file."
-    ;; CLI properties
-    :long-option "file"
-    :short-option "f"
-    :option-type :string
-    ;; Transient properties
-    :key "f"
-    :transient "--file"
-    :class transient-option
-    :argument "--file="
-    :prompt "File path: "
-    :transient-group "Add Comment"
-    :level 2
-    :order 3)
-   (author
-    :initarg :author
-    :type (or null string)
-    :initform nil
-    :documentation "Add author to comment."
-    ;; CLI properties
-    :long-option "author"
-    :short-option "a"
-    :option-type :string
-    ;; Transient properties
-    :key "a"
-    :transient "--author"
-    :class transient-option
-    :argument "--author="
-    :prompt "Author: "
-    :transient-group "Add Comment"
-    :level 2
-    :order 4))
-  :documentation "Represents bd comments add command.
-Adds a comment to an issue."))
+  (beads-defcommand beads-command-comments-add (beads-command-json)
+    ((issue-id
+      :initarg :issue-id
+      :type (or null string)
+      :initform nil
+      :documentation "Issue ID to add comment to."
+      ;; CLI properties
+      :positional 1
+      :option-type :string
+      ;; Transient properties
+      :key "i"
+      :transient "Issue ID (required)"
+      :class transient-option
+      :argument "--issue-id="
+      :prompt "Issue ID: "
+      :transient-reader beads-reader-issue-id
+      :transient-group "Add Comment"
+      :level 1
+      :order 1
+      ;; Validation
+      :required t)
+     (text
+      :initarg :text
+      :type (or null string)
+      :initform nil
+      :documentation "Comment text."
+      ;; CLI properties
+      :positional 2
+      :option-type :string
+      ;; Transient properties
+      :key "t"
+      :transient "Comment text"
+      :class beads-create-transient-multiline
+      :argument "--text="
+      :field-name "Comment"
+      :transient-group "Add Comment"
+      :level 1
+      :order 2)
+     (file
+      :initarg :file
+      :type (or null string)
+      :initform nil
+      :documentation "Read comment from file."
+      ;; CLI properties
+      :long-option "file"
+      :short-option "f"
+      :option-type :string
+      ;; Transient properties
+      :key "f"
+      :transient "--file"
+      :class transient-option
+      :argument "--file="
+      :prompt "File path: "
+      :transient-group "Add Comment"
+      :level 2
+      :order 3)
+     (author
+      :initarg :author
+      :type (or null string)
+      :initform nil
+      :documentation "Add author to comment."
+      ;; CLI properties
+      :long-option "author"
+      :short-option "a"
+      :option-type :string
+      ;; Transient properties
+      :key "a"
+      :transient "--author"
+      :class transient-option
+      :argument "--author="
+      :prompt "Author: "
+      :transient-group "Add Comment"
+      :level 2
+      :order 4))
+    :documentation "Represents bd comments add command.
+  Adds a comment to an issue."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-comments-add))
   "Return \"comments add\" as the CLI subcommand."

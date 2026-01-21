@@ -31,62 +31,62 @@
 ;; Wrap in eval-and-compile so class is available at compile time for
 ;; beads-meta-define-transient macro
 (eval-and-compile
-(beads-defcommand beads-command-stale (beads-command-json)
-  ((days
-    :initarg :days
-    :type (or null integer)
-    :initform nil
-    :documentation "Issues not updated in this many days (--days).
-Default is 30 days."
-    :long-option "days"
-    :short-option "d"
-    :option-type :integer
-    :key "d"
-    :transient "Days threshold"
-    :class transient-option
-    :argument "--days="
-    :prompt "Days (default 30): "
-    :transient-group "Filters"
-    :level 2
-    :order 1)
-   (limit
-    :initarg :limit
-    :type (or null integer)
-    :initform nil
-    :documentation "Maximum issues to show (--limit).
-Default is 50."
-    :long-option "limit"
-    :short-option "n"
-    :option-type :integer
-    :key "n"
-    :transient "Result limit"
-    :class transient-option
-    :argument "--limit="
-    :prompt "Limit (default 50): "
-    :transient-group "Filters"
-    :level 2
-    :order 2)
-   (status
-    :initarg :status
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by status (--status).
-Valid values: open, in_progress, blocked, deferred."
-    :long-option "status"
-    :short-option "s"
-    :option-type :string
-    :key "s"
-    :transient "Filter by status"
-    :class transient-option
-    :argument "--status="
-    :prompt "Status: "
-    :choices ("open" "in_progress" "blocked" "deferred")
-    :transient-group "Filters"
-    :level 2
-    :order 3))
-  :documentation "Represents bd stale command.
-Shows issues that haven't been updated recently.
-When executed with :json t, returns issue list as JSON."))
+  (beads-defcommand beads-command-stale (beads-command-json)
+    ((days
+      :initarg :days
+      :type (or null integer)
+      :initform nil
+      :documentation "Issues not updated in this many days (--days).
+  Default is 30 days."
+      :long-option "days"
+      :short-option "d"
+      :option-type :integer
+      :key "d"
+      :transient "Days threshold"
+      :class transient-option
+      :argument "--days="
+      :prompt "Days (default 30): "
+      :transient-group "Filters"
+      :level 2
+      :order 1)
+     (limit
+      :initarg :limit
+      :type (or null integer)
+      :initform nil
+      :documentation "Maximum issues to show (--limit).
+  Default is 50."
+      :long-option "limit"
+      :short-option "n"
+      :option-type :integer
+      :key "n"
+      :transient "Result limit"
+      :class transient-option
+      :argument "--limit="
+      :prompt "Limit (default 50): "
+      :transient-group "Filters"
+      :level 2
+      :order 2)
+     (status
+      :initarg :status
+      :type (or null string)
+      :initform nil
+      :documentation "Filter by status (--status).
+  Valid values: open, in_progress, blocked, deferred."
+      :long-option "status"
+      :short-option "s"
+      :option-type :string
+      :key "s"
+      :transient "Filter by status"
+      :class transient-option
+      :argument "--status="
+      :prompt "Status: "
+      :choices ("open" "in_progress" "blocked" "deferred")
+      :transient-group "Filters"
+      :level 2
+      :order 3))
+    :documentation "Represents bd stale command.
+  Shows issues that haven't been updated recently.
+  When executed with :json t, returns issue list as JSON."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-stale))
   "Return subcommand name for stale command."

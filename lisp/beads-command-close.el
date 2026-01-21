@@ -40,54 +40,54 @@
 ;; Wrap in eval-and-compile so class is available at compile time for
 ;; beads-meta-define-transient macro
 (eval-and-compile
-(beads-defcommand beads-command-close (beads-command-json)
-  ((issue-ids
-    :initarg :issue-ids
-    :type (or null list)
-    :initform nil
-    :documentation "One or more issue IDs to close (positional arguments).
-Example: '(\"bd-1\" \"bd-2\")"
-    ;; CLI properties
-    :positional 1
-    :option-type :list
-    :option-separator " "
-    ;; Transient properties
-    :key "i"
-    :transient "Issue ID (required)"
-    :class transient-option
-    :argument "--id="
-    :prompt "Issue ID: "
-    :transient-reader beads-reader-close-issue-id
-    :transient-group "Close Issue"
-    :level 1
-    :order 1
-    ;; Validation
-    :required t)
-   (reason
-    :initarg :reason
-    :type (or null string)
-    :initform nil
-    :documentation "Reason for closing (-r, --reason).
-Required field."
-    ;; CLI properties
-    :long-option "reason"
-    :short-option "r"
-    :option-type :string
-    ;; Transient properties
-    :key "r"
-    :transient "--reason"
-    :class beads-create-transient-multiline
-    :argument "--reason="
-    :field-name "Close Reason"
-    :transient-group "Close Issue"
-    :level 1
-    :order 2
-    ;; Validation
-    :required t))
-  :documentation "Represents bd close command.
-Closes one or more issues with a required reason.
-When executed with :json t, returns beads-issue instance (or list
-of instances when multiple IDs provided)."))
+  (beads-defcommand beads-command-close (beads-command-json)
+    ((issue-ids
+      :initarg :issue-ids
+      :type (or null list)
+      :initform nil
+      :documentation "One or more issue IDs to close (positional arguments).
+  Example: '(\"bd-1\" \"bd-2\")"
+      ;; CLI properties
+      :positional 1
+      :option-type :list
+      :option-separator " "
+      ;; Transient properties
+      :key "i"
+      :transient "Issue ID (required)"
+      :class transient-option
+      :argument "--id="
+      :prompt "Issue ID: "
+      :transient-reader beads-reader-close-issue-id
+      :transient-group "Close Issue"
+      :level 1
+      :order 1
+      ;; Validation
+      :required t)
+     (reason
+      :initarg :reason
+      :type (or null string)
+      :initform nil
+      :documentation "Reason for closing (-r, --reason).
+  Required field."
+      ;; CLI properties
+      :long-option "reason"
+      :short-option "r"
+      :option-type :string
+      ;; Transient properties
+      :key "r"
+      :transient "--reason"
+      :class beads-create-transient-multiline
+      :argument "--reason="
+      :field-name "Close Reason"
+      :transient-group "Close Issue"
+      :level 1
+      :order 2
+      ;; Validation
+      :required t))
+    :documentation "Represents bd close command.
+  Closes one or more issues with a required reason.
+  When executed with :json t, returns beads-issue instance (or list
+  of instances when multiple IDs provided)."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-close))
   "Return \"close\" as the CLI subcommand name."

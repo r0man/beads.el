@@ -61,137 +61,137 @@
 ;; Wrap in eval-and-compile so class is available at compile time for
 ;; beads-meta-define-transient macro
 (eval-and-compile
-(beads-defcommand beads-command-delete (beads-command-json)
-  ((issue-ids
-    :initarg :issue-ids
-    :type (or null list)
-    :initform nil
-    :documentation "One or more issue IDs to delete (positional arguments).
-Example: '(\"bd-1\" \"bd-2\" \"bd-3\")"
-    ;; CLI properties
-    :positional 1
-    :option-type :list
-    :option-separator " "
-    ;; Transient properties
-    :key "i"
-    :transient "Issue IDs (required)"
-    :class transient-option
-    :argument "--id="
-    :prompt "Issue ID(s): "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Delete Issue"
-    :level 1
-    :order 1
-    ;; Validation
-    :required t)
-   (cascade
-    :initarg :cascade
-    :type boolean
-    :initform nil
-    :documentation "Recursively delete all dependent issues (--cascade)."
-    ;; CLI properties
-    :long-option "cascade"
-    :option-type :boolean
-    ;; Transient properties
-    :key "c"
-    :transient "--cascade"
-    :class transient-switch
-    :argument "--cascade"
-    :transient-group "Dependency Handling"
-    :level 2
-    :order 1)
-   (dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Preview what would be deleted without making changes
-(--dry-run)."
-    ;; CLI properties
-    :long-option "dry-run"
-    :option-type :boolean
-    ;; Transient properties
-    :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :transient-group "Options"
-    :level 1
-    :order 2)
-   (force
-    :initarg :force
-    :type boolean
-    :initform nil
-    :documentation "Actually delete without preview (-f, --force).
-Without this flag, shows preview only."
-    ;; CLI properties
-    :long-option "force"
-    :short-option "f"
-    :option-type :boolean
-    ;; Transient properties
-    :key "f"
-    :transient "--force"
-    :class transient-switch
-    :argument "--force"
-    :transient-group "Options"
-    :level 1
-    :order 3)
-   (from-file
-    :initarg :from-file
-    :type (or null string)
-    :initform nil
-    :documentation "Read issue IDs from file, one per line (--from-file)."
-    ;; CLI properties
-    :long-option "from-file"
-    :option-type :string
-    ;; Transient properties
-    :key "F"
-    :transient "--from-file"
-    :class transient-option
-    :argument "--from-file="
-    :prompt "File path: "
-    :transient-reader transient-read-file
-    :transient-group "Batch Delete"
-    :level 3
-    :order 1)
-   (hard
-    :initarg :hard
-    :type boolean
-    :initform nil
-    :documentation "Permanently delete, skip tombstone (--hard).
-Cannot be recovered via sync.  Use only when certain issues
-will not resurrect from remote branches."
-    ;; CLI properties
-    :long-option "hard"
-    :option-type :boolean
-    ;; Transient properties
-    :key "H"
-    :transient "--hard (permanent)"
-    :class transient-switch
-    :argument "--hard"
-    :transient-group "Options"
-    :level 3
-    :order 2)
-   (reason
-    :initarg :reason
-    :type (or null string)
-    :initform nil
-    :documentation "Reason for deletion (--reason).
-Stored in tombstone for audit trail."
-    ;; CLI properties
-    :long-option "reason"
-    :option-type :string
-    ;; Transient properties
-    :key "r"
-    :transient "--reason"
-    :class transient-option
-    :argument "--reason="
-    :prompt "Reason: "
-    :transient-group "Delete Issue"
-    :level 2
-    :order 2))
-  :documentation "Represents bd delete command.
-Deletes one or more issues and cleans up all references to them.
-When executed with :json t, returns deleted issue(s) data."))
+  (beads-defcommand beads-command-delete (beads-command-json)
+    ((issue-ids
+      :initarg :issue-ids
+      :type (or null list)
+      :initform nil
+      :documentation "One or more issue IDs to delete (positional arguments).
+  Example: '(\"bd-1\" \"bd-2\" \"bd-3\")"
+      ;; CLI properties
+      :positional 1
+      :option-type :list
+      :option-separator " "
+      ;; Transient properties
+      :key "i"
+      :transient "Issue IDs (required)"
+      :class transient-option
+      :argument "--id="
+      :prompt "Issue ID(s): "
+      :transient-reader beads-reader-issue-id
+      :transient-group "Delete Issue"
+      :level 1
+      :order 1
+      ;; Validation
+      :required t)
+     (cascade
+      :initarg :cascade
+      :type boolean
+      :initform nil
+      :documentation "Recursively delete all dependent issues (--cascade)."
+      ;; CLI properties
+      :long-option "cascade"
+      :option-type :boolean
+      ;; Transient properties
+      :key "c"
+      :transient "--cascade"
+      :class transient-switch
+      :argument "--cascade"
+      :transient-group "Dependency Handling"
+      :level 2
+      :order 1)
+     (dry-run
+      :initarg :dry-run
+      :type boolean
+      :initform nil
+      :documentation "Preview what would be deleted without making changes
+  (--dry-run)."
+      ;; CLI properties
+      :long-option "dry-run"
+      :option-type :boolean
+      ;; Transient properties
+      :key "n"
+      :transient "--dry-run"
+      :class transient-switch
+      :argument "--dry-run"
+      :transient-group "Options"
+      :level 1
+      :order 2)
+     (force
+      :initarg :force
+      :type boolean
+      :initform nil
+      :documentation "Actually delete without preview (-f, --force).
+  Without this flag, shows preview only."
+      ;; CLI properties
+      :long-option "force"
+      :short-option "f"
+      :option-type :boolean
+      ;; Transient properties
+      :key "f"
+      :transient "--force"
+      :class transient-switch
+      :argument "--force"
+      :transient-group "Options"
+      :level 1
+      :order 3)
+     (from-file
+      :initarg :from-file
+      :type (or null string)
+      :initform nil
+      :documentation "Read issue IDs from file, one per line (--from-file)."
+      ;; CLI properties
+      :long-option "from-file"
+      :option-type :string
+      ;; Transient properties
+      :key "F"
+      :transient "--from-file"
+      :class transient-option
+      :argument "--from-file="
+      :prompt "File path: "
+      :transient-reader transient-read-file
+      :transient-group "Batch Delete"
+      :level 3
+      :order 1)
+     (hard
+      :initarg :hard
+      :type boolean
+      :initform nil
+      :documentation "Permanently delete, skip tombstone (--hard).
+  Cannot be recovered via sync.  Use only when certain issues
+  will not resurrect from remote branches."
+      ;; CLI properties
+      :long-option "hard"
+      :option-type :boolean
+      ;; Transient properties
+      :key "H"
+      :transient "--hard (permanent)"
+      :class transient-switch
+      :argument "--hard"
+      :transient-group "Options"
+      :level 3
+      :order 2)
+     (reason
+      :initarg :reason
+      :type (or null string)
+      :initform nil
+      :documentation "Reason for deletion (--reason).
+  Stored in tombstone for audit trail."
+      ;; CLI properties
+      :long-option "reason"
+      :option-type :string
+      ;; Transient properties
+      :key "r"
+      :transient "--reason"
+      :class transient-option
+      :argument "--reason="
+      :prompt "Reason: "
+      :transient-group "Delete Issue"
+      :level 2
+      :order 2))
+    :documentation "Represents bd delete command.
+  Deletes one or more issues and cleans up all references to them.
+  When executed with :json t, returns deleted issue(s) data."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-delete))
   "Return \"delete\" as the CLI subcommand name."

@@ -87,47 +87,47 @@ Format: (TIMESTAMP . LABELS-LIST)")
 ;;; Label Add Command
 
 (eval-and-compile
-(beads-defcommand beads-command-label-add (beads-command-json)
-  ((issue-ids
-    :initarg :issue-ids
-    :type (or null list)
-    :initform nil
-    :documentation "One or more issue IDs to add the label to (positional)."
-    ;; CLI properties
-    :positional 1
-    :option-type :list
-    :option-separator " "
-    ;; Transient properties
-    :key "i"
-    :transient "Issue IDs"
-    :class transient-option
-    :argument "--id="
-    :prompt "Issue ID(s): "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Add Label"
-    :level 1
-    :order 1
-    :required t)
-   (label
-    :initarg :label
-    :type (or null string)
-    :initform nil
-    :documentation "Label to add (positional, last argument)."
-    ;; CLI properties
-    :positional 2
-    :option-type :string
-    ;; Transient properties
-    :key "l"
-    :transient "Label"
-    :class transient-option
-    :argument "--label="
-    :prompt "Label: "
-    :transient-group "Add Label"
-    :level 1
-    :order 2
-    :required t))
-  :documentation "Represents bd label add command.
-Adds a label to one or more issues."))
+  (beads-defcommand beads-command-label-add (beads-command-json)
+    ((issue-ids
+      :initarg :issue-ids
+      :type (or null list)
+      :initform nil
+      :documentation "One or more issue IDs to add the label to (positional)."
+      ;; CLI properties
+      :positional 1
+      :option-type :list
+      :option-separator " "
+      ;; Transient properties
+      :key "i"
+      :transient "Issue IDs"
+      :class transient-option
+      :argument "--id="
+      :prompt "Issue ID(s): "
+      :transient-reader beads-reader-issue-id
+      :transient-group "Add Label"
+      :level 1
+      :order 1
+      :required t)
+     (label
+      :initarg :label
+      :type (or null string)
+      :initform nil
+      :documentation "Label to add (positional, last argument)."
+      ;; CLI properties
+      :positional 2
+      :option-type :string
+      ;; Transient properties
+      :key "l"
+      :transient "Label"
+      :class transient-option
+      :argument "--label="
+      :prompt "Label: "
+      :transient-group "Add Label"
+      :level 1
+      :order 2
+      :required t))
+    :documentation "Represents bd label add command.
+  Adds a label to one or more issues."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-label-add))
   "Return \"label add\" as the CLI subcommand name."
@@ -158,47 +158,47 @@ Returns error string or nil if valid."
 ;;; Label Remove Command
 
 (eval-and-compile
-(beads-defcommand beads-command-label-remove (beads-command-json)
-  ((issue-ids
-    :initarg :issue-ids
-    :type (or null list)
-    :initform nil
-    :documentation "One or more issue IDs to remove the label from (positional)."
-    ;; CLI properties
-    :positional 1
-    :option-type :list
-    :option-separator " "
-    ;; Transient properties
-    :key "i"
-    :transient "Issue IDs"
-    :class transient-option
-    :argument "--id="
-    :prompt "Issue ID(s): "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Remove Label"
-    :level 1
-    :order 1
-    :required t)
-   (label
-    :initarg :label
-    :type (or null string)
-    :initform nil
-    :documentation "Label to remove (positional, last argument)."
-    ;; CLI properties
-    :positional 2
-    :option-type :string
-    ;; Transient properties
-    :key "l"
-    :transient "Label"
-    :class transient-option
-    :argument "--label="
-    :prompt "Label: "
-    :transient-group "Remove Label"
-    :level 1
-    :order 2
-    :required t))
-  :documentation "Represents bd label remove command.
-Removes a label from one or more issues."))
+  (beads-defcommand beads-command-label-remove (beads-command-json)
+    ((issue-ids
+      :initarg :issue-ids
+      :type (or null list)
+      :initform nil
+      :documentation "One or more issue IDs to remove the label from (positional)."
+      ;; CLI properties
+      :positional 1
+      :option-type :list
+      :option-separator " "
+      ;; Transient properties
+      :key "i"
+      :transient "Issue IDs"
+      :class transient-option
+      :argument "--id="
+      :prompt "Issue ID(s): "
+      :transient-reader beads-reader-issue-id
+      :transient-group "Remove Label"
+      :level 1
+      :order 1
+      :required t)
+     (label
+      :initarg :label
+      :type (or null string)
+      :initform nil
+      :documentation "Label to remove (positional, last argument)."
+      ;; CLI properties
+      :positional 2
+      :option-type :string
+      ;; Transient properties
+      :key "l"
+      :transient "Label"
+      :class transient-option
+      :argument "--label="
+      :prompt "Label: "
+      :transient-group "Remove Label"
+      :level 1
+      :order 2
+      :required t))
+    :documentation "Represents bd label remove command.
+  Removes a label from one or more issues."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-label-remove))
   "Return \"label remove\" as the CLI subcommand name."
@@ -229,28 +229,28 @@ Returns error string or nil if valid."
 ;;; Label List Command
 
 (eval-and-compile
-(beads-defcommand beads-command-label-list (beads-command-json)
-  ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to list labels for (positional)."
-    ;; CLI properties
-    :positional 1
-    :option-type :string
-    ;; Transient properties
-    :key "i"
-    :transient "Issue ID"
-    :class transient-option
-    :argument "--id="
-    :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "List Labels"
-    :level 1
-    :order 1
-    :required t))
-  :documentation "Represents bd label list command.
-Lists labels for a specific issue."))
+  (beads-defcommand beads-command-label-list (beads-command-json)
+    ((issue-id
+      :initarg :issue-id
+      :type (or null string)
+      :initform nil
+      :documentation "Issue ID to list labels for (positional)."
+      ;; CLI properties
+      :positional 1
+      :option-type :string
+      ;; Transient properties
+      :key "i"
+      :transient "Issue ID"
+      :class transient-option
+      :argument "--id="
+      :prompt "Issue ID: "
+      :transient-reader beads-reader-issue-id
+      :transient-group "List Labels"
+      :level 1
+      :order 1
+      :required t))
+    :documentation "Represents bd label list command.
+  Lists labels for a specific issue."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-label-list))
   "Return \"label list\" as the CLI subcommand name."
@@ -268,10 +268,10 @@ Returns error string or nil if valid."
 ;;; Label List All Command
 
 (eval-and-compile
-(beads-defcommand beads-command-label-list-all (beads-command-json)
-  ()
-  :documentation "Represents bd label list-all command.
-Lists all unique labels in the database."))
+  (beads-defcommand beads-command-label-list-all (beads-command-json)
+    ()
+    :documentation "Represents bd label list-all command.
+  Lists all unique labels in the database."))
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-label-list-all))
   "Return \"label list-all\" as the CLI subcommand name."
