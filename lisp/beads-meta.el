@@ -358,7 +358,11 @@ SEPARATOR is used for :list type (default \",\").
 Returns a string or nil if value should not be included."
   (pcase option-type
     (:boolean (if value t nil))  ; Return t for truthy, nil for falsy
-    (:integer (when value (number-to-string value)))
+    (:integer (when value
+                 (cond
+                  ((stringp value) value)
+                  ((numberp value) (number-to-string value))
+                  (t nil))))
     (:list (when (and value (listp value) (not (null value)))
              (mapconcat (lambda (v) (if (stringp v) v (format "%s" v)))
                         value
