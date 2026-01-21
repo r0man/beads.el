@@ -206,6 +206,16 @@ Matches on both issue ID and title."
                                beads-reopen--issue-id 'beads--issue-id-history))
 
 ;;; ============================================================
+;;; beads-edit Reader Functions
+;;; ============================================================
+
+(defun beads-reader-edit-issue-id (_prompt _initial-input _history)
+  "Read issue ID to edit.
+Matches on both issue ID and title."
+  (beads-completion-read-issue "Issue ID to edit: " nil t
+                               beads-edit--issue-id 'beads--issue-id-history))
+
+;;; ============================================================
 ;;; beads-move Reader Functions
 ;;; ============================================================
 
