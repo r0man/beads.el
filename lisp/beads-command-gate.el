@@ -33,13 +33,13 @@
     :long-option "all"
     :short-option "a"
     :option-type :boolean
-    :transient-key "a"
-    :transient-description "--all"
-    :transient-class transient-switch
-    :transient-argument "--all"
+    :key "a"
+    :transient "--all"
+    :class transient-switch
+    :argument "--all"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (limit
     :initarg :limit
     :type (or null integer)
@@ -48,14 +48,14 @@
     :long-option "limit"
     :short-option "n"
     :option-type :integer
-    :transient-key "n"
-    :transient-description "--limit"
-    :transient-class transient-option
-    :transient-argument "--limit="
-    :transient-prompt "Limit: "
+    :key "n"
+    :transient "--limit"
+    :class transient-option
+    :argument "--limit="
+    :prompt "Limit: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 2))
+    :level 1
+    :order 2))
   :documentation "Represents bd gate list command.
 Lists gate issues."))
 
@@ -77,14 +77,14 @@ Lists gate issues."))
     :long-option "type"
     :short-option "t"
     :option-type :string
-    :transient-key "t"
-    :transient-description "--type"
-    :transient-class transient-option
-    :transient-argument "--type="
-    :transient-prompt "Gate type: "
+    :key "t"
+    :transient "--type"
+    :class transient-option
+    :argument "--type="
+    :prompt "Gate type: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (dry-run
     :initarg :dry-run
     :type boolean
@@ -92,13 +92,13 @@ Lists gate issues."))
     :documentation "Preview without closing gates."
     :long-option "dry-run"
     :option-type :boolean
-    :transient-key "n"
-    :transient-description "--dry-run"
-    :transient-class transient-switch
-    :transient-argument "--dry-run"
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (escalate
     :initarg :escalate
     :type boolean
@@ -107,13 +107,13 @@ Lists gate issues."))
     :long-option "escalate"
     :short-option "e"
     :option-type :boolean
-    :transient-key "e"
-    :transient-description "--escalate"
-    :transient-class transient-switch
-    :transient-argument "--escalate"
+    :key "e"
+    :transient "--escalate"
+    :class transient-switch
+    :argument "--escalate"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 3)
+    :level 1
+    :order 3)
    (limit
     :initarg :limit
     :type (or null integer)
@@ -122,14 +122,14 @@ Lists gate issues."))
     :long-option "limit"
     :short-option "l"
     :option-type :integer
-    :transient-key "l"
-    :transient-description "--limit"
-    :transient-class transient-option
-    :transient-argument "--limit="
-    :transient-prompt "Limit: "
+    :key "l"
+    :transient "--limit"
+    :class transient-option
+    :argument "--limit="
+    :prompt "Limit: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 4))
+    :level 1
+    :order 4))
   :documentation "Represents bd gate check command.
 Evaluates gates and closes resolved ones."))
 
@@ -157,14 +157,14 @@ Evaluates gates and closes resolved ones."))
     :long-option "reason"
     :short-option "r"
     :option-type :string
-    :transient-key "r"
-    :transient-description "--reason"
-    :transient-class transient-option
-    :transient-argument "--reason="
-    :transient-prompt "Reason: "
+    :key "r"
+    :transient "--reason"
+    :class transient-option
+    :argument "--reason="
+    :prompt "Reason: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1))
+    :level 1
+    :order 1))
   :documentation "Represents bd gate resolve command.
 Manually resolves (closes) a gate."))
 

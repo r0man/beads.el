@@ -33,13 +33,13 @@
     :long-option "follow"
     :short-option "f"
     :option-type :boolean
-    :transient-key "f"
-    :transient-description "--follow"
-    :transient-class transient-switch
-    :transient-argument "--follow"
+    :key "f"
+    :transient "--follow"
+    :class transient-switch
+    :argument "--follow"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (limit
     :initarg :limit
     :type (or null integer)
@@ -47,14 +47,14 @@
     :documentation "Maximum number of events to show (default 100)."
     :long-option "limit"
     :option-type :integer
-    :transient-key "l"
-    :transient-description "--limit"
-    :transient-class transient-option
-    :transient-argument "--limit="
-    :transient-prompt "Limit: "
+    :key "l"
+    :transient "--limit"
+    :class transient-option
+    :argument "--limit="
+    :prompt "Limit: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (mol
     :initarg :mol
     :type (or null string)
@@ -62,14 +62,14 @@
     :documentation "Filter by molecule/issue ID prefix."
     :long-option "mol"
     :option-type :string
-    :transient-key "m"
-    :transient-description "--mol"
-    :transient-class transient-option
-    :transient-argument "--mol="
-    :transient-prompt "Molecule/issue prefix: "
+    :key "m"
+    :transient "--mol"
+    :class transient-option
+    :argument "--mol="
+    :prompt "Molecule/issue prefix: "
     :transient-group "Filters"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (since
     :initarg :since
     :type (or null string)
@@ -77,14 +77,14 @@
     :documentation "Show events since duration (e.g., 5m, 1h, 30s)."
     :long-option "since"
     :option-type :string
-    :transient-key "s"
-    :transient-description "--since"
-    :transient-class transient-option
-    :transient-argument "--since="
-    :transient-prompt "Since (e.g., 5m, 1h): "
+    :key "s"
+    :transient "--since"
+    :class transient-option
+    :argument "--since="
+    :prompt "Since (e.g., 5m, 1h): "
     :transient-group "Filters"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (event-type
     :initarg :event-type
     :type (or null string)
@@ -92,15 +92,15 @@
     :documentation "Filter by event type (create, update, delete, comment)."
     :long-option "type"
     :option-type :string
-    :transient-key "t"
-    :transient-description "--type"
-    :transient-class transient-option
-    :transient-argument "--type="
-    :transient-prompt "Event type: "
-    :transient-choices ("create" "update" "delete" "comment")
+    :key "t"
+    :transient "--type"
+    :class transient-option
+    :argument "--type="
+    :prompt "Event type: "
+    :choices ("create" "update" "delete" "comment")
     :transient-group "Filters"
-    :transient-level 1
-    :transient-order 3)
+    :level 1
+    :order 3)
    (town
     :initarg :town
     :type boolean
@@ -108,13 +108,13 @@
     :documentation "Aggregated feed from all rigs."
     :long-option "town"
     :option-type :boolean
-    :transient-key "T"
-    :transient-description "--town"
-    :transient-class transient-switch
-    :transient-argument "--town"
+    :key "T"
+    :transient "--town"
+    :class transient-switch
+    :argument "--town"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 3)
+    :level 2
+    :order 3)
    (interval
     :initarg :interval
     :type (or null string)
@@ -122,14 +122,14 @@
     :documentation "Polling interval for --follow mode (default 500ms)."
     :long-option "interval"
     :option-type :string
-    :transient-key "i"
-    :transient-description "--interval"
-    :transient-class transient-option
-    :transient-argument "--interval="
-    :transient-prompt "Interval: "
+    :key "i"
+    :transient "--interval"
+    :class transient-option
+    :argument "--interval="
+    :prompt "Interval: "
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 4))
+    :level 2
+    :order 4))
   :documentation "Represents bd activity command.
 Displays a real-time feed of issue and molecule state changes."))
 

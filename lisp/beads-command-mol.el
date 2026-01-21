@@ -39,13 +39,13 @@
     :long-option "parallel"
     :short-option "p"
     :option-type :boolean
-    :transient-key "p"
-    :transient-description "--parallel"
-    :transient-class transient-switch
-    :transient-argument "--parallel"
+    :key "p"
+    :transient "--parallel"
+    :class transient-switch
+    :argument "--parallel"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1))
+    :level 1
+    :order 1))
   :documentation "Represents bd mol show command.
 Shows molecule details."))
 
@@ -72,14 +72,14 @@ Shows molecule details."))
     :documentation "Variable substitutions (key=value)."
     :long-option "var"
     :option-type :list
-    :transient-key "v"
-    :transient-description "--var"
-    :transient-class transient-option
-    :transient-argument "--var="
-    :transient-prompt "Variable (key=value): "
+    :key "v"
+    :transient "--var"
+    :class transient-option
+    :argument "--var="
+    :prompt "Variable (key=value): "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (dry-run
     :initarg :dry-run
     :type boolean
@@ -87,13 +87,13 @@ Shows molecule details."))
     :documentation "Preview without creating."
     :long-option "dry-run"
     :option-type :boolean
-    :transient-key "n"
-    :transient-description "--dry-run"
-    :transient-class transient-switch
-    :transient-argument "--dry-run"
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (assignee
     :initarg :assignee
     :type (or null string)
@@ -101,14 +101,14 @@ Shows molecule details."))
     :documentation "Override assignee for all steps."
     :long-option "assignee"
     :option-type :string
-    :transient-key "a"
-    :transient-description "--assignee"
-    :transient-class transient-option
-    :transient-argument "--assignee="
-    :transient-prompt "Assignee: "
+    :key "a"
+    :transient "--assignee"
+    :class transient-option
+    :argument "--assignee="
+    :prompt "Assignee: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 3)
+    :level 1
+    :order 3)
    (attach
     :initarg :attach
     :type (or null string)
@@ -116,14 +116,14 @@ Shows molecule details."))
     :documentation "ID to attach to (parent molecule)."
     :long-option "attach"
     :option-type :string
-    :transient-key "A"
-    :transient-description "--attach"
-    :transient-class transient-option
-    :transient-argument "--attach="
-    :transient-prompt "Attach to: "
+    :key "A"
+    :transient "--attach"
+    :class transient-option
+    :argument "--attach="
+    :prompt "Attach to: "
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 4)
+    :level 2
+    :order 4)
    (attach-type
     :initarg :attach-type
     :type (or null string)
@@ -131,15 +131,15 @@ Shows molecule details."))
     :documentation "Attach as dep type: after, child, gate."
     :long-option "attach-type"
     :option-type :string
-    :transient-key "T"
-    :transient-description "--attach-type"
-    :transient-class transient-option
-    :transient-argument "--attach-type="
-    :transient-prompt "Attach type (after/child/gate): "
-    :transient-choices ("after" "child" "gate")
+    :key "T"
+    :transient "--attach-type"
+    :class transient-option
+    :argument "--attach-type="
+    :prompt "Attach type (after/child/gate): "
+    :choices ("after" "child" "gate")
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 5))
+    :level 2
+    :order 5))
   :documentation "Represents bd mol pour command.
 Instantiates proto as persistent mol (liquid phase)."))
 
@@ -166,13 +166,13 @@ Instantiates proto as persistent mol (liquid phase)."))
     :documentation "Preview without creating."
     :long-option "dry-run"
     :option-type :boolean
-    :transient-key "n"
-    :transient-description "--dry-run"
-    :transient-class transient-switch
-    :transient-argument "--dry-run"
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (var
     :initarg :var
     :type list
@@ -180,14 +180,14 @@ Instantiates proto as persistent mol (liquid phase)."))
     :documentation "Variable substitutions (key=value)."
     :long-option "var"
     :option-type :list
-    :transient-key "v"
-    :transient-description "--var"
-    :transient-class transient-option
-    :transient-argument "--var="
-    :transient-prompt "Variable (key=value): "
+    :key "v"
+    :transient "--var"
+    :class transient-option
+    :argument "--var="
+    :prompt "Variable (key=value): "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 2))
+    :level 1
+    :order 2))
   :documentation "Represents bd mol wisp command.
 Creates or manages wisps (ephemeral molecules)."))
 
@@ -220,13 +220,13 @@ Creates or manages wisps (ephemeral molecules)."))
     :documentation "Preview without bonding."
     :long-option "dry-run"
     :option-type :boolean
-    :transient-key "n"
-    :transient-description "--dry-run"
-    :transient-class transient-switch
-    :transient-argument "--dry-run"
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (bond-type
     :initarg :bond-type
     :type (or null string)
@@ -234,15 +234,15 @@ Creates or manages wisps (ephemeral molecules)."))
     :documentation "Bond type: seq (default), par, gate."
     :long-option "type"
     :option-type :string
-    :transient-key "t"
-    :transient-description "--type"
-    :transient-class transient-option
-    :transient-argument "--type="
-    :transient-prompt "Bond type (seq/par/gate): "
-    :transient-choices ("seq" "par" "gate")
+    :key "t"
+    :transient "--type"
+    :class transient-option
+    :argument "--type="
+    :prompt "Bond type (seq/par/gate): "
+    :choices ("seq" "par" "gate")
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (as
     :initarg :as
     :type (or null string)
@@ -250,14 +250,14 @@ Creates or manages wisps (ephemeral molecules)."))
     :documentation "Name for bonded result."
     :long-option "as"
     :option-type :string
-    :transient-key "a"
-    :transient-description "--as"
-    :transient-class transient-option
-    :transient-argument "--as="
-    :transient-prompt "Result name: "
+    :key "a"
+    :transient "--as"
+    :class transient-option
+    :argument "--as="
+    :prompt "Result name: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 3)
+    :level 1
+    :order 3)
    (pour
     :initarg :pour
     :type boolean
@@ -265,13 +265,13 @@ Creates or manages wisps (ephemeral molecules)."))
     :documentation "Pour result immediately."
     :long-option "pour"
     :option-type :boolean
-    :transient-key "p"
-    :transient-description "--pour"
-    :transient-class transient-switch
-    :transient-argument "--pour"
+    :key "p"
+    :transient "--pour"
+    :class transient-switch
+    :argument "--pour"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 4)
+    :level 1
+    :order 4)
    (ephemeral
     :initarg :ephemeral
     :type boolean
@@ -279,13 +279,13 @@ Creates or manages wisps (ephemeral molecules)."))
     :documentation "Create as wisp (ephemeral)."
     :long-option "ephemeral"
     :option-type :boolean
-    :transient-key "e"
-    :transient-description "--ephemeral"
-    :transient-class transient-switch
-    :transient-argument "--ephemeral"
+    :key "e"
+    :transient "--ephemeral"
+    :class transient-switch
+    :argument "--ephemeral"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 5)
+    :level 2
+    :order 5)
    (ref
     :initarg :ref
     :type boolean
@@ -293,13 +293,13 @@ Creates or manages wisps (ephemeral molecules)."))
     :documentation "Reference second as dependency only."
     :long-option "ref"
     :option-type :boolean
-    :transient-key "r"
-    :transient-description "--ref"
-    :transient-class transient-switch
-    :transient-argument "--ref"
+    :key "r"
+    :transient "--ref"
+    :class transient-switch
+    :argument "--ref"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 6)
+    :level 2
+    :order 6)
    (var
     :initarg :var
     :type list
@@ -307,14 +307,14 @@ Creates or manages wisps (ephemeral molecules)."))
     :documentation "Variable substitutions (key=value)."
     :long-option "var"
     :option-type :list
-    :transient-key "v"
-    :transient-description "--var"
-    :transient-class transient-option
-    :transient-argument "--var="
-    :transient-prompt "Variable (key=value): "
+    :key "v"
+    :transient "--var"
+    :class transient-option
+    :argument "--var="
+    :prompt "Variable (key=value): "
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 7))
+    :level 2
+    :order 7))
   :documentation "Represents bd mol bond command.
 Bonds two protos or molecules together."))
 
@@ -341,13 +341,13 @@ Bonds two protos or molecules together."))
     :documentation "Preview without squashing."
     :long-option "dry-run"
     :option-type :boolean
-    :transient-key "n"
-    :transient-description "--dry-run"
-    :transient-class transient-switch
-    :transient-argument "--dry-run"
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (keep-children
     :initarg :keep-children
     :type boolean
@@ -355,13 +355,13 @@ Bonds two protos or molecules together."))
     :documentation "Keep child issues instead of deleting."
     :long-option "keep-children"
     :option-type :boolean
-    :transient-key "k"
-    :transient-description "--keep-children"
-    :transient-class transient-switch
-    :transient-argument "--keep-children"
+    :key "k"
+    :transient "--keep-children"
+    :class transient-switch
+    :argument "--keep-children"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (summary
     :initarg :summary
     :type (or null string)
@@ -369,14 +369,14 @@ Bonds two protos or molecules together."))
     :documentation "Path to summary file."
     :long-option "summary"
     :option-type :string
-    :transient-key "s"
-    :transient-description "--summary"
-    :transient-class transient-option
-    :transient-argument "--summary="
-    :transient-prompt "Summary file: "
+    :key "s"
+    :transient "--summary"
+    :class transient-option
+    :argument "--summary="
+    :prompt "Summary file: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 3))
+    :level 1
+    :order 3))
   :documentation "Represents bd mol squash command.
 Compresses molecule execution into a digest."))
 
@@ -403,13 +403,13 @@ Compresses molecule execution into a digest."))
     :documentation "Preview without burning."
     :long-option "dry-run"
     :option-type :boolean
-    :transient-key "n"
-    :transient-description "--dry-run"
-    :transient-class transient-switch
-    :transient-argument "--dry-run"
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (force
     :initarg :force
     :type boolean
@@ -417,13 +417,13 @@ Compresses molecule execution into a digest."))
     :documentation "Force burn without confirmation."
     :long-option "force"
     :option-type :boolean
-    :transient-key "f"
-    :transient-description "--force"
-    :transient-class transient-switch
-    :transient-argument "--force"
+    :key "f"
+    :transient "--force"
+    :class transient-switch
+    :argument "--force"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 2))
+    :level 1
+    :order 2))
   :documentation "Represents bd mol burn command.
 Deletes a molecule without creating a digest."))
 
@@ -450,13 +450,13 @@ Deletes a molecule without creating a digest."))
     :documentation "Preview without distilling."
     :long-option "dry-run"
     :option-type :boolean
-    :transient-key "n"
-    :transient-description "--dry-run"
-    :transient-class transient-switch
-    :transient-argument "--dry-run"
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (output
     :initarg :output
     :type (or null string)
@@ -465,14 +465,14 @@ Deletes a molecule without creating a digest."))
     :long-option "output"
     :short-option "o"
     :option-type :string
-    :transient-key "o"
-    :transient-description "--output"
-    :transient-class transient-option
-    :transient-argument "--output="
-    :transient-prompt "Output file: "
+    :key "o"
+    :transient "--output"
+    :class transient-option
+    :argument "--output="
+    :prompt "Output file: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (var
     :initarg :var
     :type list
@@ -480,14 +480,14 @@ Deletes a molecule without creating a digest."))
     :documentation "Variable definitions for parameterization."
     :long-option "var"
     :option-type :list
-    :transient-key "v"
-    :transient-description "--var"
-    :transient-class transient-option
-    :transient-argument "--var="
-    :transient-prompt "Variable (key=value): "
+    :key "v"
+    :transient "--var"
+    :class transient-option
+    :argument "--var="
+    :prompt "Variable (key=value): "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 3))
+    :level 1
+    :order 3))
   :documentation "Represents bd mol distill command.
 Extracts a formula from an existing epic."))
 
@@ -514,14 +514,14 @@ Extracts a formula from an existing epic."))
     :documentation "Filter for specific agent."
     :long-option "for"
     :option-type :string
-    :transient-key "f"
-    :transient-description "--for"
-    :transient-class transient-option
-    :transient-argument "--for="
-    :transient-prompt "Agent ID: "
+    :key "f"
+    :transient "--for"
+    :class transient-option
+    :argument "--for="
+    :prompt "Agent ID: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (limit
     :initarg :limit
     :type (or null integer)
@@ -529,14 +529,14 @@ Extracts a formula from an existing epic."))
     :documentation "Limit number of steps shown."
     :long-option "limit"
     :option-type :integer
-    :transient-key "l"
-    :transient-description "--limit"
-    :transient-class transient-option
-    :transient-argument "--limit="
-    :transient-prompt "Limit: "
+    :key "l"
+    :transient "--limit"
+    :class transient-option
+    :argument "--limit="
+    :prompt "Limit: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (range
     :initarg :range
     :type (or null string)
@@ -544,14 +544,14 @@ Extracts a formula from an existing epic."))
     :documentation "Show steps in range (e.g., 1-10)."
     :long-option "range"
     :option-type :string
-    :transient-key "r"
-    :transient-description "--range"
-    :transient-class transient-option
-    :transient-argument "--range="
-    :transient-prompt "Range (e.g., 1-10): "
+    :key "r"
+    :transient "--range"
+    :class transient-option
+    :argument "--range="
+    :prompt "Range (e.g., 1-10): "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 3))
+    :level 1
+    :order 3))
   :documentation "Represents bd mol current command.
 Shows current position in molecule workflow."))
 

@@ -34,13 +34,13 @@
     :documentation "Import issues from Jira."
     :long-option "pull"
     :option-type :boolean
-    :transient-key "p"
-    :transient-description "--pull"
-    :transient-class transient-switch
-    :transient-argument "--pull"
+    :key "p"
+    :transient "--pull"
+    :class transient-switch
+    :argument "--pull"
     :transient-group "Direction"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (push
     :initarg :push
     :type boolean
@@ -48,13 +48,13 @@
     :documentation "Export issues to Jira."
     :long-option "push"
     :option-type :boolean
-    :transient-key "P"
-    :transient-description "--push"
-    :transient-class transient-switch
-    :transient-argument "--push"
+    :key "P"
+    :transient "--push"
+    :class transient-switch
+    :argument "--push"
     :transient-group "Direction"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (dry-run
     :initarg :dry-run
     :type boolean
@@ -62,13 +62,13 @@
     :documentation "Preview sync without changes."
     :long-option "dry-run"
     :option-type :boolean
-    :transient-key "n"
-    :transient-description "--dry-run"
-    :transient-class transient-switch
-    :transient-argument "--dry-run"
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1))
+    :level 1
+    :order 1))
   :documentation "Represents bd jira sync command.
 Synchronizes issues with Jira."))
 
@@ -99,13 +99,13 @@ Shows Jira sync status."))
     :documentation "Import issues from Linear."
     :long-option "pull"
     :option-type :boolean
-    :transient-key "p"
-    :transient-description "--pull"
-    :transient-class transient-switch
-    :transient-argument "--pull"
+    :key "p"
+    :transient "--pull"
+    :class transient-switch
+    :argument "--pull"
     :transient-group "Direction"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (push
     :initarg :push
     :type boolean
@@ -113,13 +113,13 @@ Shows Jira sync status."))
     :documentation "Export issues to Linear."
     :long-option "push"
     :option-type :boolean
-    :transient-key "P"
-    :transient-description "--push"
-    :transient-class transient-switch
-    :transient-argument "--push"
+    :key "P"
+    :transient "--push"
+    :class transient-switch
+    :argument "--push"
     :transient-group "Direction"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (dry-run
     :initarg :dry-run
     :type boolean
@@ -127,13 +127,13 @@ Shows Jira sync status."))
     :documentation "Preview sync without changes."
     :long-option "dry-run"
     :option-type :boolean
-    :transient-key "n"
-    :transient-description "--dry-run"
-    :transient-class transient-switch
-    :transient-argument "--dry-run"
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1))
+    :level 1
+    :order 1))
   :documentation "Represents bd linear sync command.
 Synchronizes issues with Linear."))
 

@@ -62,13 +62,13 @@ Default behavior."
     :long-option "all"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "A"
-    :transient-description "--all"
-    :transient-class transient-switch
-    :transient-argument "--all"
+    :key "A"
+    :transient "--all"
+    :class transient-switch
+    :argument "--all"
     :transient-group "Stats Options"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (assigned
     :initarg :assigned
     :type boolean
@@ -78,13 +78,13 @@ Default behavior."
     :long-option "assigned"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "a"
-    :transient-description "--assigned"
-    :transient-class transient-switch
-    :transient-argument "--assigned"
+    :key "a"
+    :transient "--assigned"
+    :class transient-switch
+    :argument "--assigned"
     :transient-group "Stats Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (no-activity
     :initarg :no-activity
     :type boolean
@@ -95,13 +95,13 @@ Faster but omits recent activity section."
     :long-option "no-activity"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "n"
-    :transient-description "--no-activity"
-    :transient-class transient-switch
-    :transient-argument "--no-activity"
+    :key "n"
+    :transient "--no-activity"
+    :class transient-switch
+    :argument "--no-activity"
     :transient-group "Stats Options"
-    :transient-level 1
-    :transient-order 2))
+    :level 1
+    :order 2))
   :documentation "Represents bd stats/status command.
 Shows a quick snapshot of the issue database state and statistics."))
 

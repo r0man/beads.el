@@ -98,15 +98,15 @@ Format: (TIMESTAMP . LABELS-LIST)")
     :option-type :list
     :option-separator " "
     ;; Transient properties
-    :transient-key "i"
-    :transient-description "Issue IDs"
-    :transient-class transient-option
-    :transient-argument "--id="
-    :transient-prompt "Issue ID(s): "
+    :key "i"
+    :transient "Issue IDs"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID(s): "
     :transient-reader beads-reader-issue-id
     :transient-group "Add Label"
-    :transient-level 1
-    :transient-order 1
+    :level 1
+    :order 1
     :required t)
    (label
     :initarg :label
@@ -117,14 +117,14 @@ Format: (TIMESTAMP . LABELS-LIST)")
     :positional 2
     :option-type :string
     ;; Transient properties
-    :transient-key "l"
-    :transient-description "Label"
-    :transient-class transient-option
-    :transient-argument "--label="
-    :transient-prompt "Label: "
+    :key "l"
+    :transient "Label"
+    :class transient-option
+    :argument "--label="
+    :prompt "Label: "
     :transient-group "Add Label"
-    :transient-level 1
-    :transient-order 2
+    :level 1
+    :order 2
     :required t))
   :documentation "Represents bd label add command.
 Adds a label to one or more issues."))
@@ -169,15 +169,15 @@ Returns error string or nil if valid."
     :option-type :list
     :option-separator " "
     ;; Transient properties
-    :transient-key "i"
-    :transient-description "Issue IDs"
-    :transient-class transient-option
-    :transient-argument "--id="
-    :transient-prompt "Issue ID(s): "
+    :key "i"
+    :transient "Issue IDs"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID(s): "
     :transient-reader beads-reader-issue-id
     :transient-group "Remove Label"
-    :transient-level 1
-    :transient-order 1
+    :level 1
+    :order 1
     :required t)
    (label
     :initarg :label
@@ -188,14 +188,14 @@ Returns error string or nil if valid."
     :positional 2
     :option-type :string
     ;; Transient properties
-    :transient-key "l"
-    :transient-description "Label"
-    :transient-class transient-option
-    :transient-argument "--label="
-    :transient-prompt "Label: "
+    :key "l"
+    :transient "Label"
+    :class transient-option
+    :argument "--label="
+    :prompt "Label: "
     :transient-group "Remove Label"
-    :transient-level 1
-    :transient-order 2
+    :level 1
+    :order 2
     :required t))
   :documentation "Represents bd label remove command.
 Removes a label from one or more issues."))
@@ -239,15 +239,15 @@ Returns error string or nil if valid."
     :positional 1
     :option-type :string
     ;; Transient properties
-    :transient-key "i"
-    :transient-description "Issue ID"
-    :transient-class transient-option
-    :transient-argument "--id="
-    :transient-prompt "Issue ID: "
+    :key "i"
+    :transient "Issue ID"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID: "
     :transient-reader beads-reader-issue-id
     :transient-group "List Labels"
-    :transient-level 1
-    :transient-order 1
+    :level 1
+    :order 1
     :required t))
   :documentation "Represents bd label list command.
 Lists labels for a specific issue."))

@@ -113,13 +113,13 @@ Shows agent bead details."))
     :documentation "Show what would be done."
     :long-option "dry-run"
     :option-type :boolean
-    :transient-key "n"
-    :transient-description "--dry-run"
-    :transient-class transient-switch
-    :transient-argument "--dry-run"
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1))
+    :level 1
+    :order 1))
   :documentation "Represents bd agent backfill-labels command.
 Backfills role_type/rig labels on existing agent beads."))
 

@@ -57,14 +57,14 @@ Values: jsonl (default), obsidian."
     :short-option "f"
     :option-type :string
     ;; Transient properties
-    :transient-key "f"
-    :transient-description "--format"
-    :transient-class transient-option
-    :transient-argument "--format="
-    :transient-prompt "Format (jsonl/obsidian): "
+    :key "f"
+    :transient "--format"
+    :class transient-option
+    :argument "--format="
+    :prompt "Format (jsonl/obsidian): "
     :transient-group "Export Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (output
     :initarg :output
     :type (or null string)
@@ -76,15 +76,15 @@ Default: stdout.  For obsidian format, defaults to ai_docs/changes-log.md."
     :short-option "o"
     :option-type :string
     ;; Transient properties
-    :transient-key "o"
-    :transient-description "--output"
-    :transient-class transient-option
-    :transient-argument "--output="
-    :transient-prompt "Output file: "
+    :key "o"
+    :transient "--output"
+    :class transient-option
+    :argument "--output="
+    :prompt "Output file: "
     :transient-reader transient-read-file
     :transient-group "Export Options"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (force
     :initarg :force
     :type boolean
@@ -94,13 +94,13 @@ Default: stdout.  For obsidian format, defaults to ai_docs/changes-log.md."
     :long-option "force"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "F"
-    :transient-description "--force"
-    :transient-class transient-switch
-    :transient-argument "--force"
+    :key "F"
+    :transient "--force"
+    :class transient-switch
+    :argument "--force"
     :transient-group "Export Options"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
 
    ;; === Filters ===
    (status
@@ -113,15 +113,15 @@ Default: stdout.  For obsidian format, defaults to ai_docs/changes-log.md."
     :short-option "s"
     :option-type :string
     ;; Transient properties
-    :transient-key "s"
-    :transient-description "--status"
-    :transient-class transient-option
-    :transient-argument "--status="
-    :transient-prompt "Status: "
+    :key "s"
+    :transient "--status"
+    :class transient-option
+    :argument "--status="
+    :prompt "Status: "
     :transient-reader beads-reader-list-status
     :transient-group "Filters"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (issue-type
     :initarg :issue-type
     :type (or null string)
@@ -134,15 +134,15 @@ Aliases: mr→merge-request, feat→feature, mol→molecule."
     :short-option "t"
     :option-type :string
     ;; Transient properties
-    :transient-key "t"
-    :transient-description "--type"
-    :transient-class transient-option
-    :transient-argument "--type="
-    :transient-prompt "Type: "
+    :key "t"
+    :transient "--type"
+    :class transient-option
+    :argument "--type="
+    :prompt "Type: "
     :transient-reader beads-reader-issue-type
     :transient-group "Filters"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (assignee
     :initarg :assignee
     :type (or null string)
@@ -153,14 +153,14 @@ Aliases: mr→merge-request, feat→feature, mol→molecule."
     :short-option "a"
     :option-type :string
     ;; Transient properties
-    :transient-key "a"
-    :transient-description "--assignee"
-    :transient-class transient-option
-    :transient-argument "--assignee="
-    :transient-prompt "Assignee: "
+    :key "a"
+    :transient "--assignee"
+    :class transient-option
+    :argument "--assignee="
+    :prompt "Assignee: "
     :transient-group "Filters"
-    :transient-level 1
-    :transient-order 3)
+    :level 1
+    :order 3)
    (priority
     :initarg :priority
     :type (or null string)
@@ -172,15 +172,15 @@ Values: 0-4 or P0-P4 (0=highest)."
     :short-option "p"
     :option-type :string
     ;; Transient properties
-    :transient-key "p"
-    :transient-description "--priority"
-    :transient-class transient-option
-    :transient-argument "--priority="
-    :transient-prompt "Priority (0-4 or P0-P4): "
+    :key "p"
+    :transient "--priority"
+    :class transient-option
+    :argument "--priority="
+    :prompt "Priority (0-4 or P0-P4): "
     :transient-reader beads-reader-priority
     :transient-group "Filters"
-    :transient-level 1
-    :transient-order 4)
+    :level 1
+    :order 4)
    (label
     :initarg :label
     :type (or null list)
@@ -192,15 +192,15 @@ Must have ALL specified labels."
     :short-option "l"
     :option-type :list
     ;; Transient properties
-    :transient-key "l"
-    :transient-description "--label"
-    :transient-class transient-option
-    :transient-argument "--label="
-    :transient-prompt "Labels (AND): "
+    :key "l"
+    :transient "--label"
+    :class transient-option
+    :argument "--label="
+    :prompt "Labels (AND): "
     :transient-reader beads-reader-issue-labels
     :transient-group "Filters"
-    :transient-level 1
-    :transient-order 5)
+    :level 1
+    :order 5)
    (label-any
     :initarg :label-any
     :type (or null list)
@@ -211,15 +211,15 @@ Must have AT LEAST ONE of specified labels."
     :long-option "label-any"
     :option-type :list
     ;; Transient properties
-    :transient-key "L"
-    :transient-description "--label-any"
-    :transient-class transient-option
-    :transient-argument "--label-any="
-    :transient-prompt "Labels (OR): "
+    :key "L"
+    :transient "--label-any"
+    :class transient-option
+    :argument "--label-any="
+    :prompt "Labels (OR): "
     :transient-reader beads-reader-issue-labels
     :transient-group "Filters"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (priority-min
     :initarg :priority-min
     :type (or null string)
@@ -230,15 +230,15 @@ Inclusive, 0-4 or P0-P4."
     :long-option "priority-min"
     :option-type :string
     ;; Transient properties
-    :transient-key "pm"
-    :transient-description "--priority-min"
-    :transient-class transient-option
-    :transient-argument "--priority-min="
-    :transient-prompt "Min priority (0-4 or P0-P4): "
+    :key "pm"
+    :transient "--priority-min"
+    :class transient-option
+    :argument "--priority-min="
+    :prompt "Min priority (0-4 or P0-P4): "
     :transient-reader beads-reader-priority
     :transient-group "Filters"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (priority-max
     :initarg :priority-max
     :type (or null string)
@@ -249,15 +249,15 @@ Inclusive, 0-4 or P0-P4."
     :long-option "priority-max"
     :option-type :string
     ;; Transient properties
-    :transient-key "px"
-    :transient-description "--priority-max"
-    :transient-class transient-option
-    :transient-argument "--priority-max="
-    :transient-prompt "Max priority (0-4 or P0-P4): "
+    :key "px"
+    :transient "--priority-max"
+    :class transient-option
+    :argument "--priority-max="
+    :prompt "Max priority (0-4 or P0-P4): "
     :transient-reader beads-reader-priority
     :transient-group "Filters"
-    :transient-level 2
-    :transient-order 3)
+    :level 2
+    :order 3)
 
    ;; === Date Filters ===
    (created-after
@@ -270,14 +270,14 @@ Format: YYYY-MM-DD or RFC3339."
     :long-option "created-after"
     :option-type :string
     ;; Transient properties
-    :transient-key "ca"
-    :transient-description "--created-after"
-    :transient-class transient-option
-    :transient-argument "--created-after="
-    :transient-prompt "Created after (YYYY-MM-DD): "
+    :key "ca"
+    :transient "--created-after"
+    :class transient-option
+    :argument "--created-after="
+    :prompt "Created after (YYYY-MM-DD): "
     :transient-group "Date Filters"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (created-before
     :initarg :created-before
     :type (or null string)
@@ -288,14 +288,14 @@ Format: YYYY-MM-DD or RFC3339."
     :long-option "created-before"
     :option-type :string
     ;; Transient properties
-    :transient-key "cb"
-    :transient-description "--created-before"
-    :transient-class transient-option
-    :transient-argument "--created-before="
-    :transient-prompt "Created before (YYYY-MM-DD): "
+    :key "cb"
+    :transient "--created-before"
+    :class transient-option
+    :argument "--created-before="
+    :prompt "Created before (YYYY-MM-DD): "
     :transient-group "Date Filters"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (updated-after
     :initarg :updated-after
     :type (or null string)
@@ -306,14 +306,14 @@ Format: YYYY-MM-DD or RFC3339."
     :long-option "updated-after"
     :option-type :string
     ;; Transient properties
-    :transient-key "ua"
-    :transient-description "--updated-after"
-    :transient-class transient-option
-    :transient-argument "--updated-after="
-    :transient-prompt "Updated after (YYYY-MM-DD): "
+    :key "ua"
+    :transient "--updated-after"
+    :class transient-option
+    :argument "--updated-after="
+    :prompt "Updated after (YYYY-MM-DD): "
     :transient-group "Date Filters"
-    :transient-level 2
-    :transient-order 3)
+    :level 2
+    :order 3)
    (updated-before
     :initarg :updated-before
     :type (or null string)
@@ -324,14 +324,14 @@ Format: YYYY-MM-DD or RFC3339."
     :long-option "updated-before"
     :option-type :string
     ;; Transient properties
-    :transient-key "ub"
-    :transient-description "--updated-before"
-    :transient-class transient-option
-    :transient-argument "--updated-before="
-    :transient-prompt "Updated before (YYYY-MM-DD): "
+    :key "ub"
+    :transient "--updated-before"
+    :class transient-option
+    :argument "--updated-before="
+    :prompt "Updated before (YYYY-MM-DD): "
     :transient-group "Date Filters"
-    :transient-level 2
-    :transient-order 4))
+    :level 2
+    :order 4))
   :documentation "Represents bd export command.
 Exports issues to JSON Lines or Obsidian Tasks markdown format.
 When executed with :json t, returns export statistics."))

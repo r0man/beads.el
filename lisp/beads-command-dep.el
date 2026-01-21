@@ -57,15 +57,15 @@
     :positional 1
     :option-type :string
     ;; Transient properties
-    :transient-key "i"
-    :transient-description "Issue ID"
-    :transient-class transient-option
-    :transient-argument "--id="
-    :transient-prompt "Issue ID: "
+    :key "i"
+    :transient "Issue ID"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID: "
     :transient-reader beads-reader-issue-id
     :transient-group "Add Dependency"
-    :transient-level 1
-    :transient-order 1
+    :level 1
+    :order 1
     :required t)
    (depends-on
     :initarg :depends-on
@@ -78,15 +78,15 @@ Can be a local issue ID or external:project:capability."
     :positional 2
     :option-type :string
     ;; Transient properties
-    :transient-key "d"
-    :transient-description "Depends on"
-    :transient-class transient-option
-    :transient-argument "--depends-on="
-    :transient-prompt "Depends on: "
+    :key "d"
+    :transient "Depends on"
+    :class transient-option
+    :argument "--depends-on="
+    :prompt "Depends on: "
     :transient-reader beads-reader-issue-id
     :transient-group "Add Dependency"
-    :transient-level 1
-    :transient-order 2
+    :level 1
+    :order 2
     :required t)
    (blocked-by
     :initarg :blocked-by
@@ -98,15 +98,15 @@ Alternative to positional arg.  Alias for --depends-on."
     :long-option "blocked-by"
     :option-type :string
     ;; Transient properties
-    :transient-key "b"
-    :transient-description "--blocked-by"
-    :transient-class transient-option
-    :transient-argument "--blocked-by="
-    :transient-prompt "Blocked by: "
+    :key "b"
+    :transient "--blocked-by"
+    :class transient-option
+    :argument "--blocked-by="
+    :prompt "Blocked by: "
     :transient-reader beads-reader-issue-id
     :transient-group "Add Dependency"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (dep-type
     :initarg :dep-type
     :type (or null string)
@@ -120,14 +120,14 @@ Default: blocks."
     :short-option "t"
     :option-type :string
     ;; Transient properties
-    :transient-key "t"
-    :transient-description "--type"
-    :transient-class transient-option
-    :transient-argument "--type="
-    :transient-prompt "Dependency type: "
+    :key "t"
+    :transient "--type"
+    :class transient-option
+    :argument "--type="
+    :prompt "Dependency type: "
     :transient-group "Add Dependency"
-    :transient-level 1
-    :transient-order 3))
+    :level 1
+    :order 3))
   :documentation "Represents bd dep add command.
 Adds a dependency between two issues."))
 
@@ -161,15 +161,15 @@ Returns error string or nil if valid."
     :positional 1
     :option-type :string
     ;; Transient properties
-    :transient-key "i"
-    :transient-description "Issue ID"
-    :transient-class transient-option
-    :transient-argument "--id="
-    :transient-prompt "Issue ID: "
+    :key "i"
+    :transient "Issue ID"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID: "
     :transient-reader beads-reader-issue-id
     :transient-group "Remove Dependency"
-    :transient-level 1
-    :transient-order 1
+    :level 1
+    :order 1
     :required t)
    (depends-on
     :initarg :depends-on
@@ -180,15 +180,15 @@ Returns error string or nil if valid."
     :positional 2
     :option-type :string
     ;; Transient properties
-    :transient-key "d"
-    :transient-description "Depends on"
-    :transient-class transient-option
-    :transient-argument "--depends-on="
-    :transient-prompt "Remove dependency on: "
+    :key "d"
+    :transient "Depends on"
+    :class transient-option
+    :argument "--depends-on="
+    :prompt "Remove dependency on: "
     :transient-reader beads-reader-issue-id
     :transient-group "Remove Dependency"
-    :transient-level 1
-    :transient-order 2
+    :level 1
+    :order 2
     :required t))
   :documentation "Represents bd dep remove command.
 Removes a dependency between two issues."))
@@ -222,15 +222,15 @@ Returns error string or nil if valid."
     :positional 1
     :option-type :string
     ;; Transient properties
-    :transient-key "i"
-    :transient-description "Issue ID"
-    :transient-class transient-option
-    :transient-argument "--id="
-    :transient-prompt "Issue ID: "
+    :key "i"
+    :transient "Issue ID"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID: "
     :transient-reader beads-reader-issue-id
     :transient-group "List Dependencies"
-    :transient-level 1
-    :transient-order 1
+    :level 1
+    :order 1
     :required t)
    (direction
     :initarg :direction
@@ -243,14 +243,14 @@ Default: down."
     :long-option "direction"
     :option-type :string
     ;; Transient properties
-    :transient-key "D"
-    :transient-description "--direction"
-    :transient-class transient-option
-    :transient-argument "--direction="
-    :transient-prompt "Direction (down/up): "
+    :key "D"
+    :transient "--direction"
+    :class transient-option
+    :argument "--direction="
+    :prompt "Direction (down/up): "
     :transient-group "List Dependencies"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (dep-type
     :initarg :dep-type
     :type (or null string)
@@ -262,14 +262,14 @@ Values: tracks, blocks, parent-child, etc."
     :short-option "t"
     :option-type :string
     ;; Transient properties
-    :transient-key "t"
-    :transient-description "--type"
-    :transient-class transient-option
-    :transient-argument "--type="
-    :transient-prompt "Dependency type: "
+    :key "t"
+    :transient "--type"
+    :class transient-option
+    :argument "--type="
+    :prompt "Dependency type: "
     :transient-group "List Dependencies"
-    :transient-level 1
-    :transient-order 3))
+    :level 1
+    :order 3))
   :documentation "Represents bd dep list command.
 Lists dependencies or dependents of an issue."))
 
@@ -330,15 +330,15 @@ Does not modify any slots."
     :positional 1
     :option-type :string
     ;; Transient properties
-    :transient-key "i"
-    :transient-description "Issue ID"
-    :transient-class transient-option
-    :transient-argument "--id="
-    :transient-prompt "Issue ID: "
+    :key "i"
+    :transient "Issue ID"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID: "
     :transient-reader beads-reader-issue-id
     :transient-group "Dependency Tree"
-    :transient-level 1
-    :transient-order 1
+    :level 1
+    :order 1
     :required t)
    (direction
     :initarg :direction
@@ -351,14 +351,14 @@ Default: down."
     :long-option "direction"
     :option-type :string
     ;; Transient properties
-    :transient-key "D"
-    :transient-description "--direction"
-    :transient-class transient-option
-    :transient-argument "--direction="
-    :transient-prompt "Direction (down/up/both): "
+    :key "D"
+    :transient "--direction"
+    :class transient-option
+    :argument "--direction="
+    :prompt "Direction (down/up/both): "
     :transient-group "Dependency Tree"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (max-depth
     :initarg :max-depth
     :type (or null integer)
@@ -370,14 +370,14 @@ Safety limit, default: 50."
     :short-option "d"
     :option-type :integer
     ;; Transient properties
-    :transient-key "d"
-    :transient-description "--max-depth"
-    :transient-class transient-option
-    :transient-argument "--max-depth="
-    :transient-prompt "Max depth: "
+    :key "d"
+    :transient "--max-depth"
+    :class transient-option
+    :argument "--max-depth="
+    :prompt "Max depth: "
     :transient-group "Dependency Tree"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (status
     :initarg :status
     :type (or null string)
@@ -388,15 +388,15 @@ Values: open, in_progress, blocked, deferred, closed."
     :long-option "status"
     :option-type :string
     ;; Transient properties
-    :transient-key "s"
-    :transient-description "--status"
-    :transient-class transient-option
-    :transient-argument "--status="
-    :transient-prompt "Status filter: "
+    :key "s"
+    :transient "--status"
+    :class transient-option
+    :argument "--status="
+    :prompt "Status filter: "
     :transient-reader beads-reader-list-status
     :transient-group "Dependency Tree"
-    :transient-level 1
-    :transient-order 3)
+    :level 1
+    :order 3)
    (dep-type
     :initarg :dep-type
     :type (or null string)
@@ -408,14 +408,14 @@ Values: tracks, blocks, parent-child, etc."
     :short-option "t"
     :option-type :string
     ;; Transient properties
-    :transient-key "t"
-    :transient-description "--type"
-    :transient-class transient-option
-    :transient-argument "--type="
-    :transient-prompt "Dependency type: "
+    :key "t"
+    :transient "--type"
+    :class transient-option
+    :argument "--type="
+    :prompt "Dependency type: "
     :transient-group "Dependency Tree"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (format
     :initarg :format
     :type (or null string)
@@ -426,14 +426,14 @@ Values: 'mermaid' for Mermaid.js flowchart."
     :long-option "format"
     :option-type :string
     ;; Transient properties
-    :transient-key "F"
-    :transient-description "--format"
-    :transient-class transient-option
-    :transient-argument "--format="
-    :transient-prompt "Format (mermaid): "
+    :key "F"
+    :transient "--format"
+    :class transient-option
+    :argument "--format="
+    :prompt "Format (mermaid): "
     :transient-group "Dependency Tree"
-    :transient-level 2
-    :transient-order 3)
+    :level 2
+    :order 3)
    (show-all-paths
     :initarg :show-all-paths
     :type boolean
@@ -444,13 +444,13 @@ No deduplication for diamond dependencies."
     :long-option "show-all-paths"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "ap"
-    :transient-description "--show-all-paths"
-    :transient-class transient-switch
-    :transient-argument "--show-all-paths"
+    :key "ap"
+    :transient "--show-all-paths"
+    :class transient-switch
+    :argument "--show-all-paths"
     :transient-group "Dependency Tree"
-    :transient-level 3
-    :transient-order 1))
+    :level 3
+    :order 1))
   :documentation "Represents bd dep tree command.
 Shows dependency tree rooted at the given issue."))
 

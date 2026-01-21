@@ -38,14 +38,14 @@
     :long-option "assignee"
     :short-option "a"
     :option-type :string
-    :transient-key "a"
-    :transient-description "Filter by assignee"
-    :transient-class transient-option
-    :transient-argument "--assignee="
-    :transient-prompt "Assignee: "
+    :key "a"
+    :transient "Filter by assignee"
+    :class transient-option
+    :argument "--assignee="
+    :prompt "Assignee: "
     :transient-group "Filters"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (status
     :initarg :status
     :type (or null string)
@@ -54,15 +54,15 @@
 Valid values: open, in_progress, blocked, closed."
     :long-option "status"
     :option-type :string
-    :transient-key "s"
-    :transient-description "Filter by status"
-    :transient-class transient-option
-    :transient-argument "--status="
-    :transient-prompt "Status: "
-    :transient-choices ("open" "in_progress" "blocked" "closed")
+    :key "s"
+    :transient "Filter by status"
+    :class transient-option
+    :argument "--status="
+    :prompt "Status: "
+    :choices ("open" "in_progress" "blocked" "closed")
     :transient-group "Filters"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (created-after
     :initarg :created-after
     :type (or null string)
@@ -71,14 +71,14 @@ Valid values: open, in_progress, blocked, closed."
 Format: YYYY-MM-DD or RFC3339."
     :long-option "created-after"
     :option-type :string
-    :transient-key "Ca"
-    :transient-description "Created after date"
-    :transient-class transient-option
-    :transient-argument "--created-after="
-    :transient-prompt "Created after (YYYY-MM-DD): "
+    :key "Ca"
+    :transient "Created after date"
+    :class transient-option
+    :argument "--created-after="
+    :prompt "Created after (YYYY-MM-DD): "
     :transient-group "Date Filters"
-    :transient-level 3
-    :transient-order 1)
+    :level 3
+    :order 1)
    (created-before
     :initarg :created-before
     :type (or null string)
@@ -87,14 +87,14 @@ Format: YYYY-MM-DD or RFC3339."
 Format: YYYY-MM-DD or RFC3339."
     :long-option "created-before"
     :option-type :string
-    :transient-key "Cb"
-    :transient-description "Created before date"
-    :transient-class transient-option
-    :transient-argument "--created-before="
-    :transient-prompt "Created before (YYYY-MM-DD): "
+    :key "Cb"
+    :transient "Created before date"
+    :class transient-option
+    :argument "--created-before="
+    :prompt "Created before (YYYY-MM-DD): "
     :transient-group "Date Filters"
-    :transient-level 3
-    :transient-order 2)
+    :level 3
+    :order 2)
    (closed-after
     :initarg :closed-after
     :type (or null string)
@@ -103,14 +103,14 @@ Format: YYYY-MM-DD or RFC3339."
 Format: YYYY-MM-DD or RFC3339."
     :long-option "closed-after"
     :option-type :string
-    :transient-key "ca"
-    :transient-description "Closed after date"
-    :transient-class transient-option
-    :transient-argument "--closed-after="
-    :transient-prompt "Closed after (YYYY-MM-DD): "
+    :key "ca"
+    :transient "Closed after date"
+    :class transient-option
+    :argument "--closed-after="
+    :prompt "Closed after (YYYY-MM-DD): "
     :transient-group "Date Filters"
-    :transient-level 3
-    :transient-order 3)
+    :level 3
+    :order 3)
    (closed-before
     :initarg :closed-before
     :type (or null string)
@@ -119,14 +119,14 @@ Format: YYYY-MM-DD or RFC3339."
 Format: YYYY-MM-DD or RFC3339."
     :long-option "closed-before"
     :option-type :string
-    :transient-key "cb"
-    :transient-description "Closed before date"
-    :transient-class transient-option
-    :transient-argument "--closed-before="
-    :transient-prompt "Closed before (YYYY-MM-DD): "
+    :key "cb"
+    :transient "Closed before date"
+    :class transient-option
+    :argument "--closed-before="
+    :prompt "Closed before (YYYY-MM-DD): "
     :transient-group "Date Filters"
-    :transient-level 3
-    :transient-order 4)
+    :level 3
+    :order 4)
    (by-status
     :initarg :by-status
     :type boolean
@@ -134,13 +134,13 @@ Format: YYYY-MM-DD or RFC3339."
     :documentation "Group count by status (--by-status)."
     :long-option "by-status"
     :option-type :boolean
-    :transient-key "bs"
-    :transient-description "Group by status"
-    :transient-class transient-switch
-    :transient-argument "--by-status"
+    :key "bs"
+    :transient "Group by status"
+    :class transient-switch
+    :argument "--by-status"
     :transient-group "Grouping"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (by-priority
     :initarg :by-priority
     :type boolean
@@ -148,13 +148,13 @@ Format: YYYY-MM-DD or RFC3339."
     :documentation "Group count by priority (--by-priority)."
     :long-option "by-priority"
     :option-type :boolean
-    :transient-key "bp"
-    :transient-description "Group by priority"
-    :transient-class transient-switch
-    :transient-argument "--by-priority"
+    :key "bp"
+    :transient "Group by priority"
+    :class transient-switch
+    :argument "--by-priority"
     :transient-group "Grouping"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (by-type
     :initarg :by-type
     :type boolean
@@ -162,13 +162,13 @@ Format: YYYY-MM-DD or RFC3339."
     :documentation "Group count by issue type (--by-type)."
     :long-option "by-type"
     :option-type :boolean
-    :transient-key "bt"
-    :transient-description "Group by type"
-    :transient-class transient-switch
-    :transient-argument "--by-type"
+    :key "bt"
+    :transient "Group by type"
+    :class transient-switch
+    :argument "--by-type"
     :transient-group "Grouping"
-    :transient-level 2
-    :transient-order 3)
+    :level 2
+    :order 3)
    (by-assignee
     :initarg :by-assignee
     :type boolean
@@ -176,13 +176,13 @@ Format: YYYY-MM-DD or RFC3339."
     :documentation "Group count by assignee (--by-assignee)."
     :long-option "by-assignee"
     :option-type :boolean
-    :transient-key "ba"
-    :transient-description "Group by assignee"
-    :transient-class transient-switch
-    :transient-argument "--by-assignee"
+    :key "ba"
+    :transient "Group by assignee"
+    :class transient-switch
+    :argument "--by-assignee"
     :transient-group "Grouping"
-    :transient-level 2
-    :transient-order 4)
+    :level 2
+    :order 4)
    (by-label
     :initarg :by-label
     :type boolean
@@ -190,13 +190,13 @@ Format: YYYY-MM-DD or RFC3339."
     :documentation "Group count by label (--by-label)."
     :long-option "by-label"
     :option-type :boolean
-    :transient-key "bl"
-    :transient-description "Group by label"
-    :transient-class transient-switch
-    :transient-argument "--by-label"
+    :key "bl"
+    :transient "Group by label"
+    :class transient-switch
+    :argument "--by-label"
     :transient-group "Grouping"
-    :transient-level 2
-    :transient-order 5))
+    :level 2
+    :order 5))
   :documentation "Represents bd count command.
 Counts issues matching the specified filters.
 When executed with :json t, returns count data as JSON."))

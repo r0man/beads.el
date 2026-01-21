@@ -33,13 +33,13 @@
     :long-option "force"
     :short-option "f"
     :option-type :boolean
-    :transient-key "f"
-    :transient-description "--force"
-    :transient-class transient-switch
-    :transient-argument "--force"
+    :key "f"
+    :transient "--force"
+    :class transient-switch
+    :argument "--force"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (chain
     :initarg :chain
     :type boolean
@@ -47,13 +47,13 @@
     :documentation "Chain with existing hooks instead of replacing."
     :long-option "chain"
     :option-type :boolean
-    :transient-key "c"
-    :transient-description "--chain"
-    :transient-class transient-switch
-    :transient-argument "--chain"
+    :key "c"
+    :transient "--chain"
+    :class transient-switch
+    :argument "--chain"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (shared
     :initarg :shared
     :type boolean
@@ -61,13 +61,13 @@
     :documentation "Install for all repos using shared hooks directory."
     :long-option "shared"
     :option-type :boolean
-    :transient-key "s"
-    :transient-description "--shared"
-    :transient-class transient-switch
-    :transient-argument "--shared"
+    :key "s"
+    :transient "--shared"
+    :class transient-switch
+    :argument "--shared"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 3))
+    :level 1
+    :order 3))
   :documentation "Represents bd hooks install command.
 Installs bd git hooks."))
 

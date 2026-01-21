@@ -35,15 +35,15 @@
     :documentation "Issue IDs to defer."
     :positional-rest t
     ;; Transient properties
-    :transient-key "i"
-    :transient-description "Issue IDs"
-    :transient-class transient-option
-    :transient-argument "--id="
-    :transient-prompt "Issue ID(s): "
+    :key "i"
+    :transient "Issue IDs"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID(s): "
     :transient-reader beads-reader-issue-id
     :transient-group "Defer"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (until
     :initarg :until
     :type (or null string)
@@ -51,14 +51,14 @@
     :documentation "Defer until specific time (e.g., +1h, tomorrow, next monday)."
     :long-option "until"
     :option-type :string
-    :transient-key "u"
-    :transient-description "--until"
-    :transient-class transient-option
-    :transient-argument "--until="
-    :transient-prompt "Until (e.g., +1h, tomorrow): "
+    :key "u"
+    :transient "--until"
+    :class transient-option
+    :argument "--until="
+    :prompt "Until (e.g., +1h, tomorrow): "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1))
+    :level 1
+    :order 1))
   :documentation "Represents bd defer command.
 Defers one or more issues for later."))
 
@@ -91,15 +91,15 @@ Defers one or more issues for later."))
     :documentation "Issue IDs to undefer."
     :positional-rest t
     ;; Transient properties
-    :transient-key "i"
-    :transient-description "Issue IDs"
-    :transient-class transient-option
-    :transient-argument "--id="
-    :transient-prompt "Issue ID(s): "
+    :key "i"
+    :transient "Issue IDs"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID(s): "
     :transient-reader beads-reader-issue-id
     :transient-group "Undefer"
-    :transient-level 1
-    :transient-order 1))
+    :level 1
+    :order 1))
   :documentation "Represents bd undefer command.
 Undefers one or more issues (restores to open)."))
 

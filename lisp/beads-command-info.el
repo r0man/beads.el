@@ -43,13 +43,13 @@
     :documentation "Include schema information in output (--schema)."
     :long-option "schema"
     :option-type :boolean
-    :transient-key "s"
-    :transient-description "Show schema info"
-    :transient-class transient-switch
-    :transient-argument "--schema"
+    :key "s"
+    :transient "Show schema info"
+    :class transient-switch
+    :argument "--schema"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (whats-new
     :initarg :whats-new
     :type boolean
@@ -57,13 +57,13 @@
     :documentation "Show agent-relevant changes from recent versions (--whats-new)."
     :long-option "whats-new"
     :option-type :boolean
-    :transient-key "w"
-    :transient-description "Show what's new"
-    :transient-class transient-switch
-    :transient-argument "--whats-new"
+    :key "w"
+    :transient "Show what's new"
+    :class transient-switch
+    :argument "--whats-new"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (thanks
     :initarg :thanks
     :type boolean
@@ -71,13 +71,13 @@
     :documentation "Show thank you page for contributors (--thanks)."
     :long-option "thanks"
     :option-type :boolean
-    :transient-key "t"
-    :transient-description "Show contributors"
-    :transient-class transient-switch
-    :transient-argument "--thanks"
+    :key "t"
+    :transient "Show contributors"
+    :class transient-switch
+    :argument "--thanks"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 3))
+    :level 2
+    :order 3))
   :documentation "Represents bd info command.
 Shows database and daemon information for debugging.
 When executed with :json t, returns info data as JSON."))

@@ -44,14 +44,14 @@
     :documentation "Reason for the state change."
     :long-option "reason"
     :option-type :string
-    :transient-key "r"
-    :transient-description "--reason"
-    :transient-class transient-option
-    :transient-argument "--reason="
-    :transient-prompt "Reason: "
+    :key "r"
+    :transient "--reason"
+    :class transient-option
+    :argument "--reason="
+    :prompt "Reason: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1))
+    :level 1
+    :order 1))
   :documentation "Represents bd set-state command.
 Atomically sets operational state on an issue."))
 

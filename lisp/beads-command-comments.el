@@ -48,15 +48,15 @@
     :positional 1
     :option-type :string
     ;; Transient properties
-    :transient-key "i"
-    :transient-description "Issue ID (required)"
-    :transient-class transient-option
-    :transient-argument "--issue-id="
-    :transient-prompt "Issue ID: "
+    :key "i"
+    :transient "Issue ID (required)"
+    :class transient-option
+    :argument "--issue-id="
+    :prompt "Issue ID: "
     :transient-reader beads-reader-issue-id
     :transient-group "List Comments"
-    :transient-level 1
-    :transient-order 1
+    :level 1
+    :order 1
     ;; Validation
     :required t))
   :documentation "Represents bd comments command.
@@ -94,15 +94,15 @@ Lists all comments on an issue."))
     :positional 1
     :option-type :string
     ;; Transient properties
-    :transient-key "i"
-    :transient-description "Issue ID (required)"
-    :transient-class transient-option
-    :transient-argument "--issue-id="
-    :transient-prompt "Issue ID: "
+    :key "i"
+    :transient "Issue ID (required)"
+    :class transient-option
+    :argument "--issue-id="
+    :prompt "Issue ID: "
     :transient-reader beads-reader-issue-id
     :transient-group "Add Comment"
-    :transient-level 1
-    :transient-order 1
+    :level 1
+    :order 1
     ;; Validation
     :required t)
    (text
@@ -114,14 +114,14 @@ Lists all comments on an issue."))
     :positional 2
     :option-type :string
     ;; Transient properties
-    :transient-key "t"
-    :transient-description "Comment text"
-    :transient-class beads-create-transient-multiline
-    :transient-argument "--text="
-    :transient-field-name "Comment"
+    :key "t"
+    :transient "Comment text"
+    :class beads-create-transient-multiline
+    :argument "--text="
+    :field-name "Comment"
     :transient-group "Add Comment"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (file
     :initarg :file
     :type (or null string)
@@ -132,14 +132,14 @@ Lists all comments on an issue."))
     :short-option "f"
     :option-type :string
     ;; Transient properties
-    :transient-key "f"
-    :transient-description "--file"
-    :transient-class transient-option
-    :transient-argument "--file="
-    :transient-prompt "File path: "
+    :key "f"
+    :transient "--file"
+    :class transient-option
+    :argument "--file="
+    :prompt "File path: "
     :transient-group "Add Comment"
-    :transient-level 2
-    :transient-order 3)
+    :level 2
+    :order 3)
    (author
     :initarg :author
     :type (or null string)
@@ -150,14 +150,14 @@ Lists all comments on an issue."))
     :short-option "a"
     :option-type :string
     ;; Transient properties
-    :transient-key "a"
-    :transient-description "--author"
-    :transient-class transient-option
-    :transient-argument "--author="
-    :transient-prompt "Author: "
+    :key "a"
+    :transient "--author"
+    :class transient-option
+    :argument "--author="
+    :prompt "Author: "
     :transient-group "Add Comment"
-    :transient-level 2
-    :transient-order 4))
+    :level 2
+    :order 4))
   :documentation "Represents bd comments add command.
 Adds a comment to an issue."))
 

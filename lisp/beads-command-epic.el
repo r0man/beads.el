@@ -51,13 +51,13 @@
     :long-option "eligible-only"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "e"
-    :transient-description "--eligible-only"
-    :transient-class transient-switch
-    :transient-argument "--eligible-only"
+    :key "e"
+    :transient "--eligible-only"
+    :class transient-switch
+    :argument "--eligible-only"
     :transient-group "Epic Status"
-    :transient-level 1
-    :transient-order 1))
+    :level 1
+    :order 1))
   :documentation "Represents bd epic status command.
 Shows epic completion status."))
 
@@ -90,13 +90,13 @@ Returns nil (always valid)."
     :long-option "dry-run"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "n"
-    :transient-description "--dry-run"
-    :transient-class transient-switch
-    :transient-argument "--dry-run"
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
     :transient-group "Close Eligible Epics"
-    :transient-level 1
-    :transient-order 1))
+    :level 1
+    :order 1))
   :documentation "Represents bd epic close-eligible command.
 Closes epics where all children are complete."))
 

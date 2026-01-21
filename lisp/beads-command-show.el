@@ -63,15 +63,15 @@ Example: '(\"bd-1\" \"bd-2\")"
     :option-type :list
     :option-separator " "
     ;; Transient properties
-    :transient-key "i"
-    :transient-description "Issue IDs"
-    :transient-class transient-option
-    :transient-argument "--id="
-    :transient-prompt "Issue ID(s): "
+    :key "i"
+    :transient "Issue IDs"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID(s): "
     :transient-reader beads-reader-issue-id
     :transient-group "Show Issue"
-    :transient-level 1
-    :transient-order 1
+    :level 1
+    :order 1
     ;; Validation
     :required t)
    (children
@@ -83,13 +83,13 @@ Example: '(\"bd-1\" \"bd-2\")"
     :long-option "children"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "c"
-    :transient-description "--children"
-    :transient-class transient-switch
-    :transient-argument "--children"
+    :key "c"
+    :transient "--children"
+    :class transient-switch
+    :argument "--children"
     :transient-group "View Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (refs
     :initarg :refs
     :type boolean
@@ -100,13 +100,13 @@ Reverse lookup of references."
     :long-option "refs"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "r"
-    :transient-description "--refs"
-    :transient-class transient-switch
-    :transient-argument "--refs"
+    :key "r"
+    :transient "--refs"
+    :class transient-switch
+    :argument "--refs"
     :transient-group "View Options"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (short
     :initarg :short
     :type boolean
@@ -116,13 +116,13 @@ Reverse lookup of references."
     :long-option "short"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "s"
-    :transient-description "--short"
-    :transient-class transient-switch
-    :transient-argument "--short"
+    :key "s"
+    :transient "--short"
+    :class transient-switch
+    :argument "--short"
     :transient-group "View Options"
-    :transient-level 1
-    :transient-order 3)
+    :level 1
+    :order 3)
    (thread
     :initarg :thread
     :type boolean
@@ -133,13 +133,13 @@ For message type issues."
     :long-option "thread"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "t"
-    :transient-description "--thread"
-    :transient-class transient-switch
-    :transient-argument "--thread"
+    :key "t"
+    :transient "--thread"
+    :class transient-switch
+    :argument "--thread"
     :transient-group "View Options"
-    :transient-level 2
-    :transient-order 1))
+    :level 2
+    :order 1))
   :documentation "Represents bd show command.
 Shows detailed information about one or more issues.
 When executed with :json t, returns beads-issue instance (or list

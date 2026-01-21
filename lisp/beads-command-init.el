@@ -57,14 +57,14 @@ Default: current branch."
     :short-option "b"
     :option-type :string
     ;; Transient properties
-    :transient-key "b"
-    :transient-description "--branch"
-    :transient-class transient-option
-    :transient-argument "--branch="
-    :transient-prompt "Branch: "
+    :key "b"
+    :transient "--branch"
+    :class transient-option
+    :argument "--branch="
+    :prompt "Branch: "
     :transient-group "Basic Options"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (contributor
     :initarg :contributor
     :type boolean
@@ -74,13 +74,13 @@ Default: current branch."
     :long-option "contributor"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "C"
-    :transient-description "--contributor"
-    :transient-class transient-switch
-    :transient-argument "--contributor"
+    :key "C"
+    :transient "--contributor"
+    :class transient-switch
+    :argument "--contributor"
     :transient-group "Setup Wizards"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (force
     :initarg :force
     :type boolean
@@ -91,13 +91,13 @@ Default: current branch."
     :long-option "force"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "f"
-    :transient-description "--force (may lose data)"
-    :transient-class transient-switch
-    :transient-argument "--force"
+    :key "f"
+    :transient "--force (may lose data)"
+    :class transient-switch
+    :argument "--force"
     :transient-group "Advanced"
-    :transient-level 3
-    :transient-order 1)
+    :level 3
+    :order 1)
    (from-jsonl
     :initarg :from-jsonl
     :type boolean
@@ -108,13 +108,13 @@ of git history (--from-jsonl).  Preserves manual cleanups."
     :long-option "from-jsonl"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "j"
-    :transient-description "--from-jsonl"
-    :transient-class transient-switch
-    :transient-argument "--from-jsonl"
+    :key "j"
+    :transient "--from-jsonl"
+    :class transient-switch
+    :argument "--from-jsonl"
     :transient-group "Advanced"
-    :transient-level 3
-    :transient-order 2)
+    :level 3
+    :order 2)
    (prefix
     :initarg :prefix
     :type (or null string)
@@ -126,14 +126,14 @@ Default: current directory name."
     :short-option "p"
     :option-type :string
     ;; Transient properties
-    :transient-key "p"
-    :transient-description "--prefix"
-    :transient-class transient-option
-    :transient-argument "--prefix="
-    :transient-prompt "Prefix: "
+    :key "p"
+    :transient "--prefix"
+    :class transient-option
+    :argument "--prefix="
+    :prompt "Prefix: "
     :transient-group "Basic Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (quiet
     :initarg :quiet
     :type boolean
@@ -144,13 +144,13 @@ Default: current directory name."
     :short-option "q"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "q"
-    :transient-description "--quiet"
-    :transient-class transient-switch
-    :transient-argument "--quiet"
+    :key "q"
+    :transient "--quiet"
+    :class transient-switch
+    :argument "--quiet"
     :transient-group "Other Options"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (setup-exclude
     :initarg :setup-exclude
     :type boolean
@@ -161,13 +161,13 @@ Default: current directory name."
     :long-option "setup-exclude"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "e"
-    :transient-description "--setup-exclude"
-    :transient-class transient-switch
-    :transient-argument "--setup-exclude"
+    :key "e"
+    :transient "--setup-exclude"
+    :class transient-switch
+    :argument "--setup-exclude"
     :transient-group "Advanced"
-    :transient-level 3
-    :transient-order 3)
+    :level 3
+    :order 3)
    (skip-hooks
     :initarg :skip-hooks
     :type boolean
@@ -177,13 +177,13 @@ Default: current directory name."
     :long-option "skip-hooks"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "H"
-    :transient-description "--skip-hooks"
-    :transient-class transient-switch
-    :transient-argument "--skip-hooks"
+    :key "H"
+    :transient "--skip-hooks"
+    :class transient-switch
+    :argument "--skip-hooks"
     :transient-group "Other Options"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (skip-merge-driver
     :initarg :skip-merge-driver
     :type boolean
@@ -194,13 +194,13 @@ Non-interactive mode."
     :long-option "skip-merge-driver"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "M"
-    :transient-description "--skip-merge-driver"
-    :transient-class transient-switch
-    :transient-argument "--skip-merge-driver"
+    :key "M"
+    :transient "--skip-merge-driver"
+    :class transient-switch
+    :argument "--skip-merge-driver"
     :transient-group "Other Options"
-    :transient-level 2
-    :transient-order 3)
+    :level 2
+    :order 3)
    (stealth
     :initarg :stealth
     :type boolean
@@ -212,13 +212,13 @@ Perfect for personal use without affecting repo collaborators."
     :long-option "stealth"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "s"
-    :transient-description "--stealth"
-    :transient-class transient-switch
-    :transient-argument "--stealth"
+    :key "s"
+    :transient "--stealth"
+    :class transient-switch
+    :argument "--stealth"
     :transient-group "Advanced"
-    :transient-level 3
-    :transient-order 4)
+    :level 3
+    :order 4)
    (team
     :initarg :team
     :type boolean
@@ -228,13 +228,13 @@ Perfect for personal use without affecting repo collaborators."
     :long-option "team"
     :option-type :boolean
     ;; Transient properties
-    :transient-key "T"
-    :transient-description "--team"
-    :transient-class transient-switch
-    :transient-argument "--team"
+    :key "T"
+    :transient "--team"
+    :class transient-switch
+    :argument "--team"
     :transient-group "Setup Wizards"
-    :transient-level 2
-    :transient-order 2))
+    :level 2
+    :order 2))
   :documentation "Represents bd init command.
 Initializes bd in the current directory by creating .beads/ directory
 and database file."))

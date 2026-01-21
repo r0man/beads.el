@@ -41,14 +41,14 @@ Default is 30 days."
     :long-option "days"
     :short-option "d"
     :option-type :integer
-    :transient-key "d"
-    :transient-description "Days threshold"
-    :transient-class transient-option
-    :transient-argument "--days="
-    :transient-prompt "Days (default 30): "
+    :key "d"
+    :transient "Days threshold"
+    :class transient-option
+    :argument "--days="
+    :prompt "Days (default 30): "
     :transient-group "Filters"
-    :transient-level 2
-    :transient-order 1)
+    :level 2
+    :order 1)
    (limit
     :initarg :limit
     :type (or null integer)
@@ -58,14 +58,14 @@ Default is 50."
     :long-option "limit"
     :short-option "n"
     :option-type :integer
-    :transient-key "n"
-    :transient-description "Result limit"
-    :transient-class transient-option
-    :transient-argument "--limit="
-    :transient-prompt "Limit (default 50): "
+    :key "n"
+    :transient "Result limit"
+    :class transient-option
+    :argument "--limit="
+    :prompt "Limit (default 50): "
     :transient-group "Filters"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (status
     :initarg :status
     :type (or null string)
@@ -75,15 +75,15 @@ Valid values: open, in_progress, blocked, deferred."
     :long-option "status"
     :short-option "s"
     :option-type :string
-    :transient-key "s"
-    :transient-description "Filter by status"
-    :transient-class transient-option
-    :transient-argument "--status="
-    :transient-prompt "Status: "
-    :transient-choices ("open" "in_progress" "blocked" "deferred")
+    :key "s"
+    :transient "Filter by status"
+    :class transient-option
+    :argument "--status="
+    :prompt "Status: "
+    :choices ("open" "in_progress" "blocked" "deferred")
     :transient-group "Filters"
-    :transient-level 2
-    :transient-order 3))
+    :level 2
+    :order 3))
   :documentation "Represents bd stale command.
 Shows issues that haven't been updated recently.
 When executed with :json t, returns issue list as JSON."))

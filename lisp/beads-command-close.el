@@ -52,15 +52,15 @@ Example: '(\"bd-1\" \"bd-2\")"
     :option-type :list
     :option-separator " "
     ;; Transient properties
-    :transient-key "i"
-    :transient-description "Issue ID (required)"
-    :transient-class transient-option
-    :transient-argument "--id="
-    :transient-prompt "Issue ID: "
+    :key "i"
+    :transient "Issue ID (required)"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID: "
     :transient-reader beads-reader-close-issue-id
     :transient-group "Close Issue"
-    :transient-level 1
-    :transient-order 1
+    :level 1
+    :order 1
     ;; Validation
     :required t)
    (reason
@@ -74,14 +74,14 @@ Required field."
     :short-option "r"
     :option-type :string
     ;; Transient properties
-    :transient-key "r"
-    :transient-description "--reason"
-    :transient-class beads-create-transient-multiline
-    :transient-argument "--reason="
-    :transient-field-name "Close Reason"
+    :key "r"
+    :transient "--reason"
+    :class beads-create-transient-multiline
+    :argument "--reason="
+    :field-name "Close Reason"
     :transient-group "Close Issue"
-    :transient-level 1
-    :transient-order 2
+    :level 1
+    :order 2
     ;; Validation
     :required t))
   :documentation "Represents bd close command.

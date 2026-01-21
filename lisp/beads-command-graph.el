@@ -43,13 +43,13 @@
     :documentation "Show graph for all open issues."
     :long-option "all"
     :option-type :boolean
-    :transient-key "a"
-    :transient-description "--all"
-    :transient-class transient-switch
-    :transient-argument "--all"
+    :key "a"
+    :transient "--all"
+    :class transient-switch
+    :argument "--all"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (box
     :initarg :box
     :type boolean
@@ -57,13 +57,13 @@
     :documentation "ASCII boxes showing layers (default)."
     :long-option "box"
     :option-type :boolean
-    :transient-key "b"
-    :transient-description "--box"
-    :transient-class transient-switch
-    :transient-argument "--box"
+    :key "b"
+    :transient "--box"
+    :class transient-switch
+    :argument "--box"
     :transient-group "Display"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (compact
     :initarg :compact
     :type boolean
@@ -71,13 +71,13 @@
     :documentation "Tree format, one line per issue."
     :long-option "compact"
     :option-type :boolean
-    :transient-key "c"
-    :transient-description "--compact"
-    :transient-class transient-switch
-    :transient-argument "--compact"
+    :key "c"
+    :transient "--compact"
+    :class transient-switch
+    :argument "--compact"
     :transient-group "Display"
-    :transient-level 1
-    :transient-order 3))
+    :level 1
+    :order 3))
   :documentation "Represents bd graph command.
 Displays issue dependency graph visualization."))
 

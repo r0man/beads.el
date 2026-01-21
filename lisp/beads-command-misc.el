@@ -39,14 +39,14 @@
     :documentation "Canonical issue ID."
     :long-option "of"
     :option-type :string
-    :transient-key "o"
-    :transient-description "--of"
-    :transient-class transient-option
-    :transient-argument "--of="
-    :transient-prompt "Canonical issue: "
+    :key "o"
+    :transient "--of"
+    :class transient-option
+    :argument "--of="
+    :prompt "Canonical issue: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1))
+    :level 1
+    :order 1))
   :documentation "Represents bd duplicate command.
 Marks an issue as a duplicate of another."))
 
@@ -75,13 +75,13 @@ Marks an issue as a duplicate of another."))
     :documentation "Merge duplicates with confirmation."
     :long-option "merge"
     :option-type :boolean
-    :transient-key "m"
-    :transient-description "--merge"
-    :transient-class transient-switch
-    :transient-argument "--merge"
+    :key "m"
+    :transient "--merge"
+    :class transient-switch
+    :argument "--merge"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1))
+    :level 1
+    :order 1))
   :documentation "Represents bd duplicates command.
 Finds and optionally merges duplicate issues."))
 
@@ -108,14 +108,14 @@ Finds and optionally merges duplicate issues."))
     :documentation "Replacement issue ID."
     :long-option "with"
     :option-type :string
-    :transient-key "w"
-    :transient-description "--with"
-    :transient-class transient-option
-    :transient-argument "--with="
-    :transient-prompt "Replacement issue: "
+    :key "w"
+    :transient "--with"
+    :class transient-option
+    :argument "--with="
+    :prompt "Replacement issue: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1))
+    :level 1
+    :order 1))
   :documentation "Represents bd supersede command.
 Marks an issue as superseded by a newer one."))
 
@@ -144,13 +144,13 @@ Marks an issue as superseded by a newer one."))
     :documentation "Show full commit information."
     :long-option "details"
     :option-type :boolean
-    :transient-key "d"
-    :transient-description "--details"
-    :transient-class transient-switch
-    :transient-argument "--details"
+    :key "d"
+    :transient "--details"
+    :class transient-switch
+    :argument "--details"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (fix
     :initarg :fix
     :type boolean
@@ -159,13 +159,13 @@ Marks an issue as superseded by a newer one."))
     :long-option "fix"
     :short-option "f"
     :option-type :boolean
-    :transient-key "f"
-    :transient-description "--fix"
-    :transient-class transient-switch
-    :transient-argument "--fix"
+    :key "f"
+    :transient "--fix"
+    :class transient-switch
+    :argument "--fix"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 2))
+    :level 1
+    :order 2))
   :documentation "Represents bd orphans command.
 Identifies orphaned issues referenced in commits but still open."))
 
@@ -195,14 +195,14 @@ Identifies orphaned issues referenced in commits but still open."))
     :long-option "status"
     :short-option "s"
     :option-type :string
-    :transient-key "s"
-    :transient-description "--status"
-    :transient-class transient-option
-    :transient-argument "--status="
-    :transient-prompt "Status: "
+    :key "s"
+    :transient "--status"
+    :class transient-option
+    :argument "--status="
+    :prompt "Status: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (issue-type
     :initarg :issue-type
     :type (or null string)
@@ -211,15 +211,15 @@ Identifies orphaned issues referenced in commits but still open."))
     :long-option "type"
     :short-option "t"
     :option-type :string
-    :transient-key "t"
-    :transient-description "--type"
-    :transient-class transient-option
-    :transient-argument "--type="
-    :transient-prompt "Type: "
-    :transient-choices ("bug" "task" "feature" "epic" "chore")
+    :key "t"
+    :transient "--type"
+    :class transient-option
+    :argument "--type="
+    :prompt "Type: "
+    :choices ("bug" "task" "feature" "epic" "chore")
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 2))
+    :level 1
+    :order 2))
   :documentation "Represents bd lint command.
 Checks issues for missing template sections."))
 
@@ -240,15 +240,15 @@ Checks issues for missing template sections."))
     :documentation "Issue ID to move."
     :positional 1
     ;; Transient properties for UI input
-    :transient-key "i"
-    :transient-description "Issue ID (required)"
-    :transient-class transient-option
-    :transient-argument "--id="
+    :key "i"
+    :transient "Issue ID (required)"
+    :class transient-option
+    :argument "--id="
     :transient-reader beads-reader-move-issue-id
-    :transient-prompt "Issue ID: "
+    :prompt "Issue ID: "
     :transient-group "Move Issue"
-    :transient-level 1
-    :transient-order 0)
+    :level 1
+    :order 0)
    (to
     :initarg :to
     :type (or null string)
@@ -256,14 +256,14 @@ Checks issues for missing template sections."))
     :documentation "Target rig or prefix."
     :long-option "to"
     :option-type :string
-    :transient-key "t"
-    :transient-description "--to (required)"
-    :transient-class transient-option
-    :transient-argument "--to="
-    :transient-prompt "Target rig: "
+    :key "t"
+    :transient "--to (required)"
+    :class transient-option
+    :argument "--to="
+    :prompt "Target rig: "
     :transient-group "Move Issue"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (keep-open
     :initarg :keep-open
     :type boolean
@@ -271,13 +271,13 @@ Checks issues for missing template sections."))
     :documentation "Keep source issue open."
     :long-option "keep-open"
     :option-type :boolean
-    :transient-key "k"
-    :transient-description "--keep-open"
-    :transient-class transient-switch
-    :transient-argument "--keep-open"
+    :key "k"
+    :transient "--keep-open"
+    :class transient-switch
+    :argument "--keep-open"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 2)
+    :level 2
+    :order 2)
    (skip-deps
     :initarg :skip-deps
     :type boolean
@@ -285,13 +285,13 @@ Checks issues for missing template sections."))
     :documentation "Skip dependency remapping."
     :long-option "skip-deps"
     :option-type :boolean
-    :transient-key "d"
-    :transient-description "--skip-deps"
-    :transient-class transient-switch
-    :transient-argument "--skip-deps"
+    :key "d"
+    :transient "--skip-deps"
+    :class transient-switch
+    :argument "--skip-deps"
     :transient-group "Options"
-    :transient-level 2
-    :transient-order 3))
+    :level 2
+    :order 3))
   :documentation "Represents bd move command.
 Moves an issue to a different rig with dependency remapping."))
 
@@ -332,13 +332,13 @@ Moves an issue to a different rig with dependency remapping."))
     :documentation "Keep source issue open."
     :long-option "keep-open"
     :option-type :boolean
-    :transient-key "k"
-    :transient-description "--keep-open"
-    :transient-class transient-switch
-    :transient-argument "--keep-open"
+    :key "k"
+    :transient "--keep-open"
+    :class transient-switch
+    :argument "--keep-open"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1))
+    :level 1
+    :order 1))
   :documentation "Represents bd refile command.
 Moves an issue to a different rig."))
 
@@ -367,14 +367,14 @@ Moves an issue to a different rig."))
     :documentation "Issue title."
     :positional 1
     ;; Transient properties for UI input
-    :transient-key "T"
-    :transient-description "Title (required)"
-    :transient-class transient-option
-    :transient-argument "--title="
-    :transient-prompt "Title: "
+    :key "T"
+    :transient "Title (required)"
+    :class transient-option
+    :argument "--title="
+    :prompt "Title: "
     :transient-group "Quick Capture"
-    :transient-level 1
-    :transient-order 0)
+    :level 1
+    :order 0)
    (issue-type
     :initarg :issue-type
     :type (or null string)
@@ -383,15 +383,15 @@ Moves an issue to a different rig."))
     :long-option "type"
     :short-option "t"
     :option-type :string
-    :transient-key "t"
-    :transient-description "--type"
-    :transient-class transient-option
-    :transient-argument "--type="
-    :transient-prompt "Type: "
-    :transient-choices ("task" "bug" "feature" "epic" "chore")
+    :key "t"
+    :transient "--type"
+    :class transient-option
+    :argument "--type="
+    :prompt "Type: "
+    :choices ("task" "bug" "feature" "epic" "chore")
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1)
+    :level 1
+    :order 1)
    (priority
     :initarg :priority
     :type (or null string)
@@ -400,14 +400,14 @@ Moves an issue to a different rig."))
     :long-option "priority"
     :short-option "p"
     :option-type :string
-    :transient-key "p"
-    :transient-description "--priority"
-    :transient-class transient-option
-    :transient-argument "--priority="
-    :transient-prompt "Priority: "
+    :key "p"
+    :transient "--priority"
+    :class transient-option
+    :argument "--priority="
+    :prompt "Priority: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 2)
+    :level 1
+    :order 2)
    (labels
     :initarg :labels
     :type list
@@ -416,14 +416,14 @@ Moves an issue to a different rig."))
     :long-option "labels"
     :short-option "l"
     :option-type :list
-    :transient-key "l"
-    :transient-description "--labels"
-    :transient-class transient-option
-    :transient-argument "--labels="
-    :transient-prompt "Labels: "
+    :key "l"
+    :transient "--labels"
+    :class transient-option
+    :argument "--labels="
+    :prompt "Labels: "
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 3))
+    :level 1
+    :order 3))
   :documentation "Represents bd q command.
 Quick capture: creates issue and outputs only ID."))
 
@@ -449,13 +449,13 @@ Quick capture: creates issue and outputs only ID."))
     :documentation "Check daemon version and compatibility."
     :long-option "daemon"
     :option-type :boolean
-    :transient-key "d"
-    :transient-description "--daemon"
-    :transient-class transient-switch
-    :transient-argument "--daemon"
+    :key "d"
+    :transient "--daemon"
+    :class transient-switch
+    :argument "--daemon"
     :transient-group "Options"
-    :transient-level 1
-    :transient-order 1))
+    :level 1
+    :order 1))
   :documentation "Represents bd version command.
 Prints version information."))
 
