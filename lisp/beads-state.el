@@ -141,5 +141,12 @@ When non-nil, enables sandbox mode: disables daemon and auto-sync.")
 (defvar beads-move--issue-id nil
   "Issue ID to move.")
 
+;;; ============================================================
+;;; beads-edit state variables
+;;; ============================================================
+
+(defvar beads-edit--issue-id nil
+  "Issue ID to edit.")
+
 (provide 'beads-state)
 ;;; beads-state.el ends here
