@@ -27,6 +27,7 @@
 ;;; Code:
 
 (require 'beads-command)
+(require 'beads-error)
 (require 'beads-meta)
 (require 'beads-option)
 (require 'beads-types)
@@ -630,6 +631,9 @@ Returns error message string if invalid, nil if valid."
             (message "Dependency added: %s" formatted)
             (beads--invalidate-completion-cache)
             nil)
+        (beads-command-error
+         (message "Failed to add dependency: %s"
+                  (beads-error-extract-message err)))
         (error
          (message "Failed to add dependency: %s"
                   (error-message-string err)))))))
@@ -731,6 +735,9 @@ Returns error message string if invalid, nil if valid."
                      issue-id depends-on-id)
             (beads--invalidate-completion-cache)
             nil)
+        (beads-command-error
+         (message "Failed to remove dependency: %s"
+                  (beads-error-extract-message err)))
         (error
          (message "Failed to remove dependency: %s"
                   (error-message-string err)))))))
