@@ -29,6 +29,11 @@
 (require 'beads-state)
 (require 'transient)
 
+;; Ensure beads-command functions are available at macro-expansion time
+;; for beads-defcommand-with-transient macro
+(eval-when-compile
+  (require 'beads-command))
+
 ;; Forward declare reader functions (loaded later to avoid circular deps)
 (declare-function beads-reader-create-title "beads-reader")
 (declare-function beads-reader-create-type "beads-reader")
