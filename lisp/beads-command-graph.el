@@ -215,26 +215,21 @@ ISSUE is a beads-issue EIEIO object."
            (string= (oref issue issue-type) beads-graph--filter-type))))
 
 (defun beads-graph--get-dependencies ()
-  "Get all dependencies from all issues."
+  "Get all dependencies from all issues.
+Returns a list of plists with :from, :to, and :type keys."
   (let ((issues (beads-command-list!))
         (deps nil))
     (dolist (issue issues)
       (let ((issue-id (oref issue id)))
         ;; Get dependencies for this issue using EIEIO command class
-        ;; Use text output (json nil) to preserve parsing logic
+        ;; JSON mode returns beads-dependency objects
         (condition-case nil
-            (let* ((cmd (beads-command-dep-list :issue-id issue-id :json nil))
-                   (_ (beads-command-execute cmd))
-                   (output (oref cmd stdout))
-                   (lines (split-string output "\n" t)))
-              (dolist (line lines)
-                (when (string-match
-                       "\\([a-zA-Z0-9._-]+-[a-zA-Z0-9]+\\) -\\[\\([^]]+\\)\\]-> \
-\\([a-zA-Z0-9._-]+-[a-zA-Z0-9]+\\)" line)
-                  (push (list :from (match-string 1 line)
-                              :to (match-string 3 line)
-                              :type (match-string 2 line))
-                        deps))))
+            (let ((dep-list (beads-command-dep-list! :issue-id issue-id)))
+              (dolist (dep dep-list)
+                (push (list :from (oref dep issue-id)
+                            :to (oref dep depends-on-id)
+                            :type (oref dep type))
+                      deps)))
           (error nil))))
     (nreverse deps)))
 

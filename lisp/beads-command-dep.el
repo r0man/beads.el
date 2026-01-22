@@ -288,18 +288,28 @@ Returns error string or nil if valid."
 
 (cl-defmethod beads-command-parse ((command beads-command-dep-list) execution)
   "Parse dep list COMMAND output from EXECUTION.
-Returns list of beads-issue instances.
+Returns list of beads-dependency instances.
 When :json is nil, falls back to parent (returns raw stdout).
-When :json is t, returns list of beads-issue instances.
+When :json is t, returns list of beads-dependency instances which
+include full issue details plus the dependency_type field.
 Does not modify any slots."
-  (with-slots (json) command
+  (with-slots (json issue-id) command
     (if (not json)
         (cl-call-next-method)
       (let ((parsed-json (cl-call-next-method)))
         (condition-case err
             (cond
              ((eq (type-of parsed-json) 'vector)
-              (mapcar #'beads-issue-from-json (append parsed-json nil)))
+              ;; bd dep list returns IssueWithDependencyMetadata objects
+              ;; which have full issue fields + dependency_type.
+              ;; Use beads-dependency-from-json which handles this format.
+              ;; Also set issue-id slot since bd dep list doesn't include it
+              ;; (it's implicit from the command argument).
+              (mapcar (lambda (item)
+                        (let ((dep (beads-dependency-from-json item)))
+                          (oset dep issue-id issue-id)
+                          dep))
+                      (append parsed-json nil)))
              ((or (null parsed-json) (eq parsed-json :null))
               nil)
              (t
