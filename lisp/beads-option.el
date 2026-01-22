@@ -1166,5 +1166,66 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
 ;; Load reader functions now that state variables are defined
 (require 'beads-reader)
 
+;;; ============================================================
+;;; Command Definition with Auto-Generated Transient
+;;; ============================================================
+
+(defmacro beads-defcommand-with-transient (name superclasses slots &rest options)
+  "Define a beads command class with auto-generated transient menu.
+
+NAME is the class name (a symbol like `beads-command-foo').
+SUPERCLASSES is the list of parent classes.
+SLOTS is the list of slot definitions.
+OPTIONS are additional class options like :documentation.
+
+This macro:
+1. Defines the class using `beads-defcommand' (which also creates NAME!)
+2. Auto-generates a transient menu from slot metadata
+
+The transient name is derived by stripping \"-command-\" from NAME.
+For example, `beads-command-close' generates a transient named `beads-close'.
+
+The transient docstring uses the first sentence of :documentation.
+
+Example:
+  (eval-and-compile
+    (beads-defcommand-with-transient beads-command-foo (beads-command-json)
+      ((name :initarg :name :key \"n\" :transient \"Name\")
+       (force :initarg :force :type boolean :key \"f\" :transient \"Force\"))
+      :documentation \"Foo command. More details here.\"))
+
+This generates:
+  (defclass beads-command-foo ...)
+  (defun beads-command-foo! (&rest args) ...)
+  (transient-define-prefix beads-foo () \"Foo command.\" ...)
+
+To override the auto-generated transient, define a custom one AFTER:
+  (eval-and-compile
+    (beads-defcommand-with-transient beads-command-foo ...))
+  (transient-define-prefix beads-foo ()
+    \"Custom transient with different layout.\"
+    ...)
+
+Note: This macro must be wrapped in `eval-and-compile' so the class
+is available at compile time for transient generation.
+
+Usage:
+  (beads-command-foo! :name \"test\" :force t)
+  (beads-foo)  ; invoke transient menu"
+  (declare (indent 2))
+  (let* ((transient-name (beads--derive-transient-name name))
+         (transient-prefix (symbol-name transient-name))
+         ;; Extract :documentation from options
+         (doc-pos (cl-position :documentation options))
+         (docstring (when doc-pos (nth (1+ doc-pos) options)))
+         (short-doc (beads--extract-first-sentence docstring)))
+    `(progn
+       ;; Define the class and bang function
+       (beads-defcommand ,name ,superclasses ,slots ,@options)
+       ;; Auto-generate transient from slot metadata
+       (beads-meta-define-transient ,name ,transient-prefix
+         ,short-doc
+         beads-option-global-section))))
+
 (provide 'beads-option)
 ;;; beads-option.el ends here
