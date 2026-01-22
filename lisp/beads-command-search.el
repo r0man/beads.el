@@ -27,6 +27,7 @@
 (require 'beads-command)
 (require 'beads-meta)
 (require 'beads-option)
+(require 'beads-reader)
 
 ;;; Search Command
 
@@ -115,6 +116,7 @@
       :class transient-option
       :argument "--label="
       :prompt "Label: "
+      :transient-reader beads-reader-list-label
       :transient-group "Filters"
       :level 2
       :order 4)
@@ -130,6 +132,7 @@
       :class transient-option
       :argument "--label-any="
       :prompt "Label (any): "
+      :transient-reader beads-reader-list-label
       :transient-group "Filters"
       :level 3
       :order 1)
@@ -210,6 +213,7 @@
       :class transient-option
       :argument "--priority-min="
       :prompt "Min priority (0-4): "
+      :transient-reader beads-reader-list-priority
       :transient-group "Priority"
       :level 3
       :order 1)
@@ -226,6 +230,7 @@
       :class transient-option
       :argument "--priority-max="
       :prompt "Max priority (0-4): "
+      :transient-reader beads-reader-list-priority
       :transient-group "Priority"
       :level 3
       :order 2)
