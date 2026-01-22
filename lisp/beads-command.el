@@ -71,6 +71,25 @@
 ;;; Command Definition Macro
 ;;; ============================================================
 
+(defun beads--derive-transient-name (class-name)
+  "Derive transient menu name from CLASS-NAME.
+Strips \"-command-\" from class name to get the transient name.
+Example: beads-command-close -> beads-close"
+  (let ((name-str (symbol-name class-name)))
+    (intern (replace-regexp-in-string "-command-" "-" name-str))))
+
+(defun beads--extract-first-sentence (docstring)
+  "Extract the first sentence from DOCSTRING.
+Returns the text up to the first period followed by whitespace or end.
+If no sentence ending is found, returns the first line.
+Returns nil if DOCSTRING is nil or empty."
+  (when (and docstring (not (string-empty-p docstring)))
+    (let ((trimmed (string-trim docstring)))
+      (if (string-match "\\([^.]*\\.\\)\\(?:[ \t\n]\\|$\\)" trimmed)
+          (string-trim (match-string 1 trimmed))
+        ;; No sentence ending found, return first line
+        (car (split-string trimmed "\n"))))))
+
 (defmacro beads-defcommand (name superclasses slots &rest options)
   "Define a beads command class with auto-generated ! convenience function.
 
@@ -83,6 +102,14 @@ This macro:
 1. Defines the class using `defclass'
 2. Generates a NAME! convenience function that executes the command
    and returns the result from the execution object
+
+The transient menu generation has been moved out of this macro due to
+load order dependencies.  Use `beads-meta-define-transient' after
+requiring `beads-option' to generate the transient menu.
+
+Helper functions for transient generation:
+- `beads--derive-transient-name': Derive transient name from class name
+- `beads--extract-first-sentence': Extract first sentence from docstring
 
 Example:
   (beads-defcommand beads-command-foo (beads-command-json)
