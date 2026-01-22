@@ -78,7 +78,7 @@
       :class transient-option
       :argument "--id="
       :prompt "Issue ID(s): "
-      :reader beads-reader-issue-id
+      :transient-reader beads-reader-issue-id
       :transient-group "Delete Issue"
       :level 1
       :order 1
@@ -149,7 +149,7 @@
       :class transient-option
       :argument "--from-file="
       :prompt "File path: "
-      :reader transient-read-file
+      :transient-reader transient-read-file
       :transient-group "Batch Delete"
       :level 3
       :order 1)

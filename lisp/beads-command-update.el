@@ -65,7 +65,7 @@
       :class transient-option
       :argument "--id="
       :prompt "Issue ID(s): "
-      :reader beads-reader-issue-id
+      :transient-reader beads-reader-issue-id
       :transient-group "Issue"
       :level 1
       :order 1)
@@ -88,7 +88,7 @@
       :argument "--status="
       :prompt "Status: "
       :choices ("open" "in_progress" "blocked" "closed")
-      :reader beads-reader-update-status
+      :transient-reader beads-reader-update-status
       :transient-group "Status & Priority"
       :level 1
       :order 1)
@@ -108,7 +108,7 @@
       :class transient-option
       :argument "--priority="
       :prompt "Priority: "
-      :reader beads-reader-issue-priority
+      :transient-reader beads-reader-issue-priority
       :transient-group "Status & Priority"
       :level 1
       :order 2)
@@ -146,7 +146,7 @@
       :class transient-option
       :argument "--title="
       :prompt "Issue title: "
-      :reader beads-reader-issue-title
+      :transient-reader beads-reader-issue-title
       :transient-group "Basic Info"
       :level 2
       :order 1)
@@ -170,7 +170,7 @@
       :choices ("bug" "feature" "task" "epic" "chore"
                           "merge-request" "molecule" "gate" "agent"
                           "role" "rig" "convoy" "event" "slot")
-      :reader beads-reader-issue-type
+      :transient-reader beads-reader-issue-type
       :transient-group "Basic Info"
       :level 2
       :order 2)
@@ -189,7 +189,7 @@
       :class transient-option
       :argument "--assignee="
       :prompt "Assignee: "
-      :reader beads-reader-issue-assignee
+      :transient-reader beads-reader-issue-assignee
       :transient-group "Basic Info"
       :level 2
       :order 3)
@@ -208,7 +208,7 @@
       :class transient-option
       :argument "--external-ref="
       :prompt "External reference: "
-      :reader beads-reader-issue-external-ref
+      :transient-reader beads-reader-issue-external-ref
       :transient-group "Basic Info"
       :level 3
       :order 4)
@@ -227,7 +227,7 @@
       :class transient-option
       :argument "--parent="
       :prompt "Parent issue ID: "
-      :reader beads-reader-issue-id
+      :transient-reader beads-reader-issue-id
       :transient-group "Basic Info"
       :level 3
       :order 5)
@@ -317,7 +317,7 @@
       :class transient-option
       :argument "--body-file="
       :prompt "Body file: "
-      :reader transient-read-file
+      :transient-reader transient-read-file
       :transient-group "Content"
       :level 4
       :order 5)
@@ -339,7 +339,7 @@
       :class transient-option
       :argument "--add-label="
       :prompt "Add label: "
-      :reader beads-reader-issue-labels
+      :transient-reader beads-reader-issue-labels
       :transient-group "Labels"
       :level 2
       :order 1)
@@ -359,7 +359,7 @@
       :class transient-option
       :argument "--remove-label="
       :prompt "Remove label: "
-      :reader beads-reader-issue-labels
+      :transient-reader beads-reader-issue-labels
       :transient-group "Labels"
       :level 2
       :order 2)
@@ -379,7 +379,7 @@
       :class transient-option
       :argument "--set-labels="
       :prompt "Set labels: "
-      :reader beads-reader-issue-labels
+      :transient-reader beads-reader-issue-labels
       :transient-group "Labels"
       :level 3
       :order 3)

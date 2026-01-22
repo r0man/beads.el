@@ -221,7 +221,7 @@
       :class transient-option
       :argument "--id="
       :prompt "Issue ID: "
-      :reader beads-reader-issue-id
+      :transient-reader beads-reader-issue-id
       :transient-group "Apply Options"
       :level 1
       :order 1
@@ -289,7 +289,7 @@
       :class transient-option
       :argument "--id="
       :prompt "Issue ID (or leave empty for all): "
-      :reader beads-reader-issue-id
+      :transient-reader beads-reader-issue-id
       :transient-group "Auto Options"
       :level 1
       :order 1)
