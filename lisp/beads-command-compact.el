@@ -29,6 +29,7 @@
 (require 'beads-command)
 (require 'beads-meta)
 (require 'beads-option)
+(require 'beads-reader)
 (require 'beads-types)
 (require 'transient)
 
@@ -220,6 +221,7 @@
       :class transient-option
       :argument "--id="
       :prompt "Issue ID: "
+      :transient-reader beads-reader-issue-id
       :transient-group "Apply Options"
       :level 1
       :order 1
@@ -287,6 +289,7 @@
       :class transient-option
       :argument "--id="
       :prompt "Issue ID (or leave empty for all): "
+      :transient-reader beads-reader-issue-id
       :transient-group "Auto Options"
       :level 1
       :order 1)

@@ -17,6 +17,7 @@
 (require 'beads-command)
 (require 'beads-meta)
 (require 'beads-option)
+(require 'beads-reader)
 (require 'transient)
 
 ;;; ============================================================
@@ -234,6 +235,7 @@
       :class transient-option
       :argument "--id="
       :prompt "Issue ID: "
+      :transient-reader beads-reader-issue-id
       :transient-group "Options"
       :level 1
       :order 2)
