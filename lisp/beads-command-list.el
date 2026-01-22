@@ -102,7 +102,7 @@
       :class transient-option
       :argument "--status="
       :prompt "Status: "
-      :transient-reader beads-reader-list-status
+      :reader beads-reader-list-status
       :transient-group "Basic Filters"
       :level 1
       :order 2)
@@ -123,7 +123,7 @@
       :class transient-option
       :argument "--type="
       :prompt "Type: "
-      :transient-reader beads-reader-issue-type
+      :reader beads-reader-issue-type
       :transient-group "Basic Filters"
       :level 1
       :order 3)
@@ -161,7 +161,7 @@
       :class transient-option
       :argument "--priority="
       :prompt "Priority (0-4 or P0-P4): "
-      :transient-reader beads-reader-priority
+      :reader beads-reader-priority
       :transient-group "Basic Filters"
       :level 1
       :order 5)
@@ -181,7 +181,7 @@
       :class transient-option
       :argument "--label="
       :prompt "Labels (AND): "
-      :transient-reader beads-reader-issue-labels
+      :reader beads-reader-issue-labels
       :transient-group "Basic Filters"
       :level 1
       :order 6)
@@ -200,7 +200,7 @@
       :class transient-option
       :argument "--label-any="
       :prompt "Labels (OR): "
-      :transient-reader beads-reader-issue-labels
+      :reader beads-reader-issue-labels
       :transient-group "Basic Filters"
       :level 2
       :order 1)
@@ -237,7 +237,7 @@
       :class transient-option
       :argument "--parent="
       :prompt "Parent ID: "
-      :transient-reader beads-reader-issue-id
+      :reader beads-reader-issue-id
       :transient-group "Basic Filters"
       :level 2
       :order 3)
@@ -645,7 +645,7 @@
       :class transient-option
       :argument "--priority-min="
       :prompt "Min priority (0-4 or P0-P4): "
-      :transient-reader beads-reader-priority
+      :reader beads-reader-priority
       :transient-group "Special Filters"
       :level 3
       :order 2)
@@ -664,7 +664,7 @@
       :class transient-option
       :argument "--priority-max="
       :prompt "Max priority (0-4 or P0-P4): "
-      :transient-reader beads-reader-priority
+      :reader beads-reader-priority
       :transient-group "Special Filters"
       :level 3
       :order 3)

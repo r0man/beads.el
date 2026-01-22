@@ -165,7 +165,7 @@
     (should (assq :transient-key props))
     (should (assq :transient-description props))
     (should (assq :transient-class props))
-    (should (assq :transient-reader props))
+    (should (assq :reader props))
     (should (assq :transient-group props))
     (should (assq :transient-level props))
     (should (assq :transient-order props))
@@ -339,7 +339,7 @@
   (should (memq :transient-key beads-meta--slot-properties))
   (should (memq :transient-description beads-meta--slot-properties))
   (should (memq :transient-class beads-meta--slot-properties))
-  (should (memq :transient-reader beads-meta--slot-properties))
+  (should (memq :reader beads-meta--slot-properties))
   (should (memq :transient-choices beads-meta--slot-properties))
   (should (memq :transient-prompt beads-meta--slot-properties))
   (should (memq :transient-level beads-meta--slot-properties))
@@ -1027,7 +1027,7 @@
                                :transient-prompt)))
   (should (eq 'beads-reader-close-issue-id (beads-meta-slot-property
                                             'beads-command-close 'issue-ids
-                                            :transient-reader)))
+                                            :reader)))
   (should (equal "Close Issue" (beads-meta-slot-property
                                 'beads-command-close 'issue-ids
                                 :transient-group)))
@@ -1144,7 +1144,7 @@
                                   :transient-prompt)))
   (should (eq 'beads-reader-issue-id (beads-meta-slot-property
                                       'beads-command-show 'issue-ids
-                                      :transient-reader)))
+                                      :reader)))
   (should (equal "Show Issue" (beads-meta-slot-property
                                'beads-command-show 'issue-ids
                                :transient-group)))

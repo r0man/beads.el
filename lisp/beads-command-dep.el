@@ -62,7 +62,7 @@
       :class transient-option
       :argument "--id="
       :prompt "Issue ID: "
-      :transient-reader beads-reader-issue-id
+      :reader beads-reader-issue-id
       :transient-group "Add Dependency"
       :level 1
       :order 1
@@ -83,7 +83,7 @@
       :class transient-option
       :argument "--depends-on="
       :prompt "Depends on: "
-      :transient-reader beads-reader-issue-id
+      :reader beads-reader-issue-id
       :transient-group "Add Dependency"
       :level 1
       :order 2
@@ -103,7 +103,7 @@
       :class transient-option
       :argument "--blocked-by="
       :prompt "Blocked by: "
-      :transient-reader beads-reader-issue-id
+      :reader beads-reader-issue-id
       :transient-group "Add Dependency"
       :level 2
       :order 1)
@@ -166,7 +166,7 @@ Returns error string or nil if valid."
       :class transient-option
       :argument "--id="
       :prompt "Issue ID: "
-      :transient-reader beads-reader-issue-id
+      :reader beads-reader-issue-id
       :transient-group "Remove Dependency"
       :level 1
       :order 1
@@ -185,7 +185,7 @@ Returns error string or nil if valid."
       :class transient-option
       :argument "--depends-on="
       :prompt "Remove dependency on: "
-      :transient-reader beads-reader-issue-id
+      :reader beads-reader-issue-id
       :transient-group "Remove Dependency"
       :level 1
       :order 2
@@ -227,7 +227,7 @@ Returns error string or nil if valid."
       :class transient-option
       :argument "--id="
       :prompt "Issue ID: "
-      :transient-reader beads-reader-issue-id
+      :reader beads-reader-issue-id
       :transient-group "List Dependencies"
       :level 1
       :order 1
@@ -335,7 +335,7 @@ Does not modify any slots."
       :class transient-option
       :argument "--id="
       :prompt "Issue ID: "
-      :transient-reader beads-reader-issue-id
+      :reader beads-reader-issue-id
       :transient-group "Dependency Tree"
       :level 1
       :order 1
@@ -393,7 +393,7 @@ Does not modify any slots."
       :class transient-option
       :argument "--status="
       :prompt "Status filter: "
-      :transient-reader beads-reader-list-status
+      :reader beads-reader-list-status
       :transient-group "Dependency Tree"
       :level 1
       :order 3)

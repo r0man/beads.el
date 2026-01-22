@@ -95,7 +95,7 @@
       :class transient-option
       :argument "--type="
       :prompt "Type: "
-      :transient-reader beads-reader-list-type
+      :reader beads-reader-list-type
       :transient-group "Filters"
       :level 1
       :order 4)
@@ -115,7 +115,7 @@
       :class transient-option
       :argument "--label="
       :prompt "Label (AND): "
-      :transient-reader beads-reader-list-label
+      :reader beads-reader-list-label
       :transient-group "Label Filters"
       :level 2
       :order 1)
@@ -134,7 +134,7 @@
       :class transient-option
       :argument "--label-any="
       :prompt "Label (OR): "
-      :transient-reader beads-reader-list-label
+      :reader beads-reader-list-label
       :transient-group "Label Filters"
       :level 2
       :order 2)
@@ -172,7 +172,7 @@
       :class transient-option
       :argument "--mol="
       :prompt "Molecule ID: "
-      :transient-reader beads-reader-issue-id
+      :reader beads-reader-issue-id
       :transient-group "Scope"
       :level 2
       :order 1)
@@ -209,7 +209,7 @@
       :class transient-option
       :argument "--parent="
       :prompt "Parent ID: "
-      :transient-reader beads-reader-issue-id
+      :reader beads-reader-issue-id
       :transient-group "Scope"
       :level 2
       :order 3)
@@ -245,7 +245,7 @@
       :class transient-option
       :argument "--priority="
       :prompt "Priority: "
-      :transient-reader beads-reader-list-priority
+      :reader beads-reader-list-priority
       :transient-group "Filters"
       :level 1
       :order 2)

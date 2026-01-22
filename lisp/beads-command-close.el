@@ -57,7 +57,7 @@
       :class transient-option
       :argument "--id="
       :prompt "Issue ID: "
-      :transient-reader beads-reader-close-issue-id
+      :reader beads-reader-close-issue-id
       :transient-group "Close Issue"
       :level 1
       :order 1

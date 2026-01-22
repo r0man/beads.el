@@ -62,7 +62,7 @@
       :class transient-option
       :argument "--title="
       :prompt "Issue title: "
-      :transient-reader beads-reader-issue-title
+      :reader beads-reader-issue-title
       :transient-group "Required"
       :level 1
       :order 1
@@ -90,7 +90,7 @@
       :choices ("bug" "feature" "task" "epic" "chore"
                           "merge-request" "molecule" "gate" "agent"
                           "role" "rig" "convoy" "event")
-      :transient-reader beads-reader-issue-type
+      :reader beads-reader-issue-type
       :transient-group "Issue Attributes"
       :level 2
       :order 1)
@@ -110,7 +110,7 @@
       :class transient-option
       :argument "--priority="
       :prompt "Priority: "
-      :transient-reader beads-reader-issue-priority
+      :reader beads-reader-issue-priority
       :transient-group "Issue Attributes"
       :level 2
       :order 2)
@@ -129,7 +129,7 @@
       :class transient-option
       :argument "--assignee="
       :prompt "Assignee: "
-      :transient-reader beads-reader-issue-assignee
+      :reader beads-reader-issue-assignee
       :transient-group "Issue Attributes"
       :level 2
       :order 3)
@@ -150,7 +150,7 @@
       :class transient-option
       :argument "--labels="
       :prompt "Labels (comma-separated): "
-      :transient-reader beads-reader-issue-labels
+      :reader beads-reader-issue-labels
       :transient-group "Issue Attributes"
       :level 2
       :order 4)
@@ -240,7 +240,7 @@
       :class transient-option
       :argument "--body-file="
       :prompt "Body file: "
-      :transient-reader transient-read-file
+      :reader transient-read-file
       :transient-group "Content"
       :level 4
       :order 5)
@@ -318,7 +318,7 @@
       :class transient-option
       :argument "--parent="
       :prompt "Parent issue ID: "
-      :transient-reader beads-reader-create-parent
+      :reader beads-reader-create-parent
       :transient-group "Relationships"
       :level 4
       :order 1)
@@ -339,7 +339,7 @@
       :class transient-option
       :argument "--deps="
       :prompt "Dependencies (type:id,...): "
-      :transient-reader beads-reader-create-dependencies
+      :reader beads-reader-create-dependencies
       :transient-group "Relationships"
       :level 4
       :order 2)
@@ -398,7 +398,7 @@
       :class transient-option
       :argument "--external-ref="
       :prompt "External reference: "
-      :transient-reader beads-reader-issue-external-ref
+      :reader beads-reader-issue-external-ref
       :transient-group "Advanced"
       :level 4
       :order 1)
@@ -417,7 +417,7 @@
       :class transient-option
       :argument "--id="
       :prompt "Custom ID: "
-      :transient-reader beads-reader-create-custom-id
+      :reader beads-reader-create-custom-id
       :transient-group "Advanced"
       :level 4
       :order 2)
@@ -472,7 +472,7 @@
       :class transient-option
       :argument "--repo="
       :prompt "Target repository: "
-      :transient-reader beads-reader-create-repo
+      :reader beads-reader-create-repo
       :transient-group "Advanced"
       :level 4
       :order 5)
@@ -493,7 +493,7 @@
       :class transient-option
       :argument "--file="
       :prompt "Markdown file: "
-      :transient-reader beads-reader-create-file
+      :reader beads-reader-create-file
       :transient-group "Batch"
       :level 5
       :order 1)
@@ -512,7 +512,7 @@
       :class transient-option
       :argument "--from-template="
       :prompt "Template: "
-      :transient-reader beads-reader-create-from-template
+      :reader beads-reader-create-from-template
       :transient-group "Batch"
       :level 5
       :order 2)
