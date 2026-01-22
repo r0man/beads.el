@@ -33,6 +33,8 @@
 (require 'beads)
 (require 'beads-buffer)
 (require 'beads-command)
+(require 'beads-command-blocked)
+(require 'beads-command-ready)
 (require 'beads-meta)
 (require 'beads-option)
 (require 'beads-sesman)
@@ -1706,7 +1708,7 @@ Uses directory-aware buffer identity: same project = same buffer."
 
 ;;; Main Transient
 
-;;;###autoload (autoload 'beads-list "beads-list" nil t)
+;;;###autoload (autoload 'beads-list "beads-command-list" nil t)
 (transient-define-prefix beads-list ()
   "List issues in Beads with filter options.
 

@@ -446,91 +446,91 @@ or set `beads-executable' to the full path" beads-executable)))
 (autoload 'beads "beads-main" "Open the main Beads transient menu." t)
 
 ;;;###autoload
-(autoload 'beads-list "beads-list" "Display all Beads issues in a tabulated list." t)
+(autoload 'beads-list "beads-command-list" "Display all Beads issues in a tabulated list." t)
 
 ;;;###autoload
-(autoload 'beads-ready "beads-list" "Display ready Beads issues in a tabulated list." t)
+(autoload 'beads-ready "beads-command-list" "Display ready Beads issues in a tabulated list." t)
 
 ;;;###autoload
-(autoload 'beads-blocked "beads-list" "Display blocked Beads issues in a tabulated list." t)
+(autoload 'beads-blocked "beads-command-list" "Display blocked Beads issues in a tabulated list." t)
 
 ;;;###autoload
-(autoload 'beads-show "beads-show" "Show details for a Beads issue." t)
+(autoload 'beads-show "beads-command-show" "Show details for a Beads issue." t)
 
 ;;;###autoload
-(autoload 'beads-create "beads-create" "Create a new Beads issue using transient menu." t)
+(autoload 'beads-create "beads-command-create" "Create a new Beads issue using transient menu." t)
 
 ;;;###autoload
-(autoload 'beads-update "beads-update" "Update a Beads issue using transient menu." t)
+(autoload 'beads-update "beads-command-update" "Update a Beads issue using transient menu." t)
 
 ;;;###autoload
 (autoload 'beads-close "beads-command-close" "Close a Beads issue with optional reason." t)
 
 ;;;###autoload
-(autoload 'beads-delete "beads-delete" "Delete a Beads issue permanently." t)
+(autoload 'beads-delete "beads-command-delete" "Delete a Beads issue permanently." t)
 
 ;;;###autoload
-(autoload 'beads-stats "beads-stats" "Display Beads issue statistics." t)
+(autoload 'beads-stats "beads-command-stats" "Display Beads issue statistics." t)
 
 ;;;###autoload
-(autoload 'beads-dep "beads-dep" "Manage dependencies in Beads." t)
+(autoload 'beads-dep "beads-command-dep" "Manage dependencies in Beads." t)
 
 ;;;###autoload
-(autoload 'beads-dep-add "beads-dep" "Add a dependency to an issue." t)
+(autoload 'beads-dep-add "beads-command-dep" "Add a dependency to an issue." t)
 
 ;;;###autoload
-(autoload 'beads-dep-remove "beads-dep" "Remove a dependency from an issue." t)
+(autoload 'beads-dep-remove "beads-command-dep" "Remove a dependency from an issue." t)
 
 ;;;###autoload
-(autoload 'beads-dep-tree "beads-dep" "Display dependency tree for an issue." t)
+(autoload 'beads-dep-tree "beads-command-dep" "Display dependency tree for an issue." t)
 
 ;;;###autoload
-(autoload 'beads-dep-cycles "beads-dep" "Check for dependency cycles." t)
+(autoload 'beads-dep-cycles "beads-command-dep" "Check for dependency cycles." t)
 
 ;;;###autoload
-(autoload 'beads-quickstart "beads-quickstart" "Show Beads quickstart guide." t)
+(autoload 'beads-quickstart "beads-command-quickstart" "Show Beads quickstart guide." t)
 
 ;;;###autoload
-(autoload 'beads-import "beads-import" "Import issues from JSONL." t)
+(autoload 'beads-import "beads-command-import" "Import issues from JSONL." t)
 
 ;;;###autoload
-(autoload 'beads-export "beads-export" "Export issues to JSONL format." t)
+(autoload 'beads-export "beads-command-export" "Export issues to JSONL format." t)
 
 ;;;###autoload
-(autoload 'beads-sync "beads-sync" "Synchronize issues with git remote." t)
+(autoload 'beads-sync "beads-command-sync" "Synchronize issues with git remote." t)
 
 ;;;###autoload
-(autoload 'beads-graph-all "beads-graph" "Show dependency graph for all issues." t)
+(autoload 'beads-graph-all "beads-command-graph" "Show dependency graph for all issues." t)
 
 ;;;###autoload
-(autoload 'beads-graph-issue "beads-graph" "Show dependency graph focused on issue." t)
+(autoload 'beads-graph-issue "beads-command-graph" "Show dependency graph focused on issue." t)
 
 ;;;###autoload
-(autoload 'beads-label "beads-label" "Manage labels for issues." t)
+(autoload 'beads-label "beads-command-label" "Manage labels for issues." t)
 
 ;;;###autoload
-(autoload 'beads-label-add "beads-label" "Add a label to one or more issues." t)
+(autoload 'beads-label-add "beads-command-label" "Add a label to one or more issues." t)
 
 ;;;###autoload
-(autoload 'beads-label-remove "beads-label" "Remove a label from one or more issues." t)
+(autoload 'beads-label-remove "beads-command-label" "Remove a label from one or more issues." t)
 
 ;;;###autoload
-(autoload 'beads-label-list-interactive "beads-label" "List labels for an issue." t)
+(autoload 'beads-label-list-interactive "beads-command-label" "List labels for an issue." t)
 
 ;;;###autoload
-(autoload 'beads-label-list-all-view "beads-label" "Display all labels in a tabulated list buffer." t)
+(autoload 'beads-label-list-all-view "beads-command-label" "Display all labels in a tabulated list buffer." t)
 
 ;;;###autoload
-(autoload 'beads-label-list-all "beads-label" "Return a list of all labels from bd label list-all.")
+(autoload 'beads-label-list-all "beads-command-label" "Return a list of all labels from bd label list-all.")
 
 ;;;###autoload
-(autoload 'beads--get-cached-labels "beads-label" "Get labels from cache or fetch if needed.")
+(autoload 'beads--get-cached-labels "beads-command-label" "Get labels from cache or fetch if needed.")
 
 ;;;###autoload
-(autoload 'beads--invalidate-label-cache "beads-label" "Invalidate the label cache.")
+(autoload 'beads--invalidate-label-cache "beads-command-label" "Invalidate the label cache.")
 
 ;;;###autoload
-(autoload 'beads--label-completion-table "beads-label" "Return completion table for labels.")
+(autoload 'beads--label-completion-table "beads-command-label" "Return completion table for labels.")
 
 ;;;###autoload
 (autoload 'beads-eldoc-mode "beads-eldoc"
