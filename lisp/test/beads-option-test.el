@@ -45,14 +45,14 @@
 ;;; ============================================================
 
 (ert-deftest beads-option-test-multiline-class-exists ()
-  "Test that beads-create-transient-multiline class is defined."
-  (should (class-p 'beads-create-transient-multiline))
-  (should (child-of-class-p 'beads-create-transient-multiline
+  "Test that beads-transient-multiline class is defined."
+  (should (class-p 'beads-transient-multiline))
+  (should (child-of-class-p 'beads-transient-multiline
                             'transient-option)))
 
 (ert-deftest beads-option-test-multiline-format-value-empty ()
   "Test multiline formatter with empty value."
-  (let ((obj (beads-create-transient-multiline)))
+  (let ((obj (beads-transient-multiline)))
     (oset obj value nil)
     (oset obj argument "--test=")
     (let ((result (transient-format-value obj)))
@@ -63,7 +63,7 @@
 
 (ert-deftest beads-option-test-multiline-format-value-short ()
   "Test multiline formatter with short value."
-  (let ((obj (beads-create-transient-multiline)))
+  (let ((obj (beads-transient-multiline)))
     (oset obj value "Short text")
     (oset obj argument "--test=")
     (let ((result (transient-format-value obj)))
@@ -74,7 +74,7 @@
 
 (ert-deftest beads-option-test-multiline-format-value-multiline ()
   "Test multiline formatter with multiline value (shows all lines escaped)."
-  (let ((obj (beads-create-transient-multiline)))
+  (let ((obj (beads-transient-multiline)))
     (oset obj value "Line one\nLine two\nLine three")
     (oset obj argument "--test=")
     (let ((result (transient-format-value obj)))
@@ -85,7 +85,7 @@
 
 (ert-deftest beads-option-test-multiline-format-value-long ()
   "Test multiline formatter with long first line (truncation)."
-  (let ((obj (beads-create-transient-multiline))
+  (let ((obj (beads-transient-multiline))
         (long-line (make-string 50 ?x)))
     (oset obj value long-line)
     (oset obj argument "--test=")

@@ -183,7 +183,7 @@
       ;; Transient properties
       :key "r"
       :transient "--reason"
-      :class beads-create-transient-multiline
+      :class beads-transient-multiline
       :argument "--reason="
       :field-name "Delete Reason"
       :transient-group "Delete Issue"

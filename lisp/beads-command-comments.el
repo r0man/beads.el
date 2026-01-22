@@ -116,7 +116,7 @@
       ;; Transient properties
       :key "t"
       :transient "Comment text"
-      :class beads-create-transient-multiline
+      :class beads-transient-multiline
       :argument "--text="
       :field-name "Comment"
       :transient-group "Add Comment"

@@ -1730,7 +1730,7 @@ First positional argument or explicit --title flag."
     ;; Transient properties
     :transient-key "A"
     :transient-description "Acceptance criteria"
-    :transient-class beads-create-transient-multiline
+    :transient-class beads-transient-multiline
     :transient-argument "--acceptance="
     :transient-field-name "Acceptance Criteria"
     :transient-group "Content"
@@ -1788,7 +1788,7 @@ Examples: 'discovered-from:bd-20', 'blocks:bd-15', 'bd-20'."
     ;; Transient properties
     :transient-key "d"
     :transient-description "Description"
-    :transient-class beads-create-transient-multiline
+    :transient-class beads-transient-multiline
     :transient-argument "--description="
     :transient-field-name "Description"
     :transient-group "Content"
@@ -1805,7 +1805,7 @@ Examples: 'discovered-from:bd-20', 'blocks:bd-15', 'bd-20'."
     ;; Transient properties
     :transient-key "G"
     :transient-description "Design notes"
-    :transient-class beads-create-transient-multiline
+    :transient-class beads-transient-multiline
     :transient-argument "--design="
     :transient-field-name "Design"
     :transient-group "Content"
@@ -2432,7 +2432,7 @@ Examples: 'gh-9', 'jira-ABC'."
     ;; Transient properties
     :transient-key "d"
     :transient-description "Description"
-    :transient-class beads-create-transient-multiline
+    :transient-class beads-transient-multiline
     :transient-argument "--description="
     :transient-field-name "Description"
     :transient-group "Content"
@@ -2449,7 +2449,7 @@ Examples: 'gh-9', 'jira-ABC'."
     ;; Transient properties
     :transient-key "A"
     :transient-description "Acceptance criteria"
-    :transient-class beads-create-transient-multiline
+    :transient-class beads-transient-multiline
     :transient-argument "--acceptance="
     :transient-field-name "Acceptance Criteria"
     :transient-group "Content"
@@ -2466,7 +2466,7 @@ Examples: 'gh-9', 'jira-ABC'."
     ;; Transient properties
     :transient-key "G"
     :transient-description "Design notes"
-    :transient-class beads-create-transient-multiline
+    :transient-class beads-transient-multiline
     :transient-argument "--design="
     :transient-field-name "Design"
     :transient-group "Content"
@@ -2483,7 +2483,7 @@ Examples: 'gh-9', 'jira-ABC'."
     ;; Transient properties
     :transient-key "N"
     :transient-description "Notes"
-    :transient-class beads-create-transient-multiline
+    :transient-class beads-transient-multiline
     :transient-argument "--notes="
     :transient-field-name "Notes"
     :transient-group "Content"
@@ -2609,7 +2609,7 @@ Example: '(\"bd-1\" \"bd-2\")"
     ;; Transient properties
     :transient-key "r"
     :transient-description "--reason"
-    :transient-class beads-create-transient-multiline
+    :transient-class beads-transient-multiline
     :transient-argument "--reason="
     :transient-field-name "Reopen Reason"
     :transient-group "Reopen Issue"
