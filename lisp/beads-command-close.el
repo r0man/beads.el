@@ -76,7 +76,7 @@
       ;; Transient properties
       :key "r"
       :transient "--reason"
-      :class beads-create-transient-multiline
+      :class beads-transient-multiline
       :argument "--reason="
       :field-name "Close Reason"
       :transient-group "Close Issue"

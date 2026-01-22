@@ -16,7 +16,7 @@
 ;; - Provide a single source of truth for option definitions
 ;;
 ;; This module includes:
-;; - Custom transient classes (beads-create-transient-multiline)
+;; - Custom transient classes (beads-transient-multiline)
 ;; - Utility functions for formatting values
 ;; - All transient-define-infix declarations
 ;;
@@ -124,7 +124,7 @@ Shows \"(argument)\" with proper face based on whether it's set."
                                                'transient-argument
                                              'transient-inactive-argument))))
 
-(defclass beads-create-transient-multiline (transient-option)
+(defclass beads-transient-multiline (transient-option)
   ((multi-line :initarg :multi-line :initform t)
    (field-name :initarg :field-name :initform "Text"))
   "Transient infix class for multiline text fields.
@@ -132,7 +132,7 @@ This class provides an editor buffer for multiline text entry,
 similar to git commit message editing.")
 
 
-(cl-defmethod transient-infix-read ((obj beads-create-transient-multiline))
+(cl-defmethod transient-infix-read ((obj beads-transient-multiline))
   "Read multiline text value for OBJ using a dedicated buffer."
   (let* ((value (oref obj value))
          (field-name (oref obj field-name))
@@ -177,7 +177,7 @@ similar to git commit message editing.")
     result))
 
 
-(cl-defmethod transient-format-value ((obj beads-create-transient-multiline))
+(cl-defmethod transient-format-value ((obj beads-transient-multiline))
   "Format the value of multiline OBJ for display in transient menu.
 Shows argument and value with appropriate faces, like transient-option.
 Multiline text is escaped to single line and truncated at 40 chars."
@@ -247,7 +247,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
 
 (transient-define-infix beads-option-issue-description ()
   "Set the description using a multiline editor."
-  :class 'beads-create-transient-multiline
+  :class 'beads-transient-multiline
   :field-name "Description"
   :description "Description"
   :key "-d"
@@ -273,7 +273,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
 
 (transient-define-infix beads-option-issue-acceptance ()
   "Set acceptance criteria using a multiline editor."
-  :class 'beads-create-transient-multiline
+  :class 'beads-transient-multiline
   :field-name "Acceptance Criteria"
   :description "Acceptance criteria"
   :key "-A"
@@ -290,7 +290,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
 
 (transient-define-infix beads-option-issue-design ()
   "Set design notes using a multiline editor."
-  :class 'beads-create-transient-multiline
+  :class 'beads-transient-multiline
   :field-name "Design"
   :description "Design notes"
   :key "-G"
@@ -419,7 +419,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
 
 (transient-define-infix beads-option-update-description ()
   "Set the description using a multiline editor."
-  :class 'beads-create-transient-multiline
+  :class 'beads-transient-multiline
   :field-name "Description"
   :description "--description"
   :key "d"
@@ -427,7 +427,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
 
 (transient-define-infix beads-option-update-acceptance-multiline ()
   "Set the acceptance criteria using a multiline editor."
-  :class 'beads-create-transient-multiline
+  :class 'beads-transient-multiline
   :field-name "Acceptance Criteria"
   :description "--acceptance-criteria"
   :key "A"
@@ -435,7 +435,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
 
 (transient-define-infix beads-option-update-design-multiline ()
   "Set the design notes using a multiline editor."
-  :class 'beads-create-transient-multiline
+  :class 'beads-transient-multiline
   :field-name "Design"
   :description "--design"
   :key "G"
@@ -443,7 +443,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
 
 (transient-define-infix beads-option-update-notes-multiline ()
   "Set the notes using a multiline editor."
-  :class 'beads-create-transient-multiline
+  :class 'beads-transient-multiline
   :field-name "Notes"
   :description "--notes"
   :key "N"
@@ -464,7 +464,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
 
 (transient-define-infix beads-option-close-reason ()
   "Set the reason for closing using a multiline editor."
-  :class 'beads-create-transient-multiline
+  :class 'beads-transient-multiline
   :field-name "Close Reason"
   :description "--reason"
   :key "r"
@@ -485,7 +485,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
 
 (transient-define-infix beads-option-reopen-reason ()
   "Set the reason for reopening using a multiline editor."
-  :class 'beads-create-transient-multiline
+  :class 'beads-transient-multiline
   :field-name "Reopen Reason"
   :description "--reason"
   :key "-r"

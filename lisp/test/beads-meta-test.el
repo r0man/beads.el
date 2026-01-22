@@ -892,7 +892,7 @@
   ;; Transient properties
   (should (equal "d" (beads-meta-slot-property
                        'beads-command-update 'description :transient-key)))
-  (should (eq 'beads-create-transient-multiline
+  (should (eq 'beads-transient-multiline
               (beads-meta-slot-property
                'beads-command-update 'description :transient-class)))
   (should (equal "Description" (beads-meta-slot-property
@@ -911,7 +911,7 @@
   ;; Transient properties
   (should (equal "A" (beads-meta-slot-property
                        'beads-command-update 'acceptance :transient-key)))
-  (should (eq 'beads-create-transient-multiline
+  (should (eq 'beads-transient-multiline
               (beads-meta-slot-property
                'beads-command-update 'acceptance :transient-class)))
   (should (equal "Acceptance Criteria" (beads-meta-slot-property
@@ -926,7 +926,7 @@
   ;; Transient properties
   (should (equal "G" (beads-meta-slot-property
                        'beads-command-update 'design :transient-key)))
-  (should (eq 'beads-create-transient-multiline
+  (should (eq 'beads-transient-multiline
               (beads-meta-slot-property
                'beads-command-update 'design :transient-class)))
   (should (equal "Design" (beads-meta-slot-property
@@ -940,7 +940,7 @@
   ;; Transient properties
   (should (equal "N" (beads-meta-slot-property
                        'beads-command-update 'notes :transient-key)))
-  (should (eq 'beads-create-transient-multiline
+  (should (eq 'beads-transient-multiline
               (beads-meta-slot-property
                'beads-command-update 'notes :transient-class)))
   (should (equal "Notes" (beads-meta-slot-property
@@ -1054,7 +1054,7 @@
   (should (equal "--reason" (beads-meta-slot-property
                                'beads-command-close 'reason
                                :transient-description)))
-  (should (eq 'beads-create-transient-multiline (beads-meta-slot-property
+  (should (eq 'beads-transient-multiline (beads-meta-slot-property
                                                  'beads-command-close 'reason
                                                  :transient-class)))
   (should (equal "--reason=" (beads-meta-slot-property

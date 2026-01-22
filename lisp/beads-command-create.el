@@ -168,7 +168,7 @@
       ;; Transient properties
       :key "d"
       :transient "--description"
-      :class beads-create-transient-multiline
+      :class beads-transient-multiline
       :argument "--description="
       :field-name "Description"
       :transient-group "Content"
@@ -185,7 +185,7 @@
       ;; Transient properties
       :key "A"
       :transient "--acceptance"
-      :class beads-create-transient-multiline
+      :class beads-transient-multiline
       :argument "--acceptance="
       :field-name "Acceptance Criteria"
       :transient-group "Content"
@@ -202,7 +202,7 @@
       ;; Transient properties
       :key "G"
       :transient "--design"
-      :class beads-create-transient-multiline
+      :class beads-transient-multiline
       :argument "--design="
       :field-name "Design"
       :transient-group "Content"
@@ -219,7 +219,7 @@
       ;; Transient properties
       :key "N"
       :transient "--notes"
-      :class beads-create-transient-multiline
+      :class beads-transient-multiline
       :argument "--notes="
       :field-name "Notes"
       :transient-group "Content"

@@ -204,7 +204,7 @@
       :option-type :string
       :key "r"
       :transient "--reason"
-      :class beads-create-transient-multiline
+      :class beads-transient-multiline
       :argument "--reason="
       :field-name "Label Reason"
       :transient-group "Options"
