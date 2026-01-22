@@ -32,14 +32,18 @@
 ;;   :key        - Key binding in transient menu (e.g., "t")
 ;;   :transient  - Description shown in transient menu
 ;;   :class      - Transient class (transient-option, transient-switch, etc.)
-;;   :reader     - Reader function for input
+;;   :reader     - Reader function for input (transformed by beads-defcommand)
 ;;   :choices    - Valid choices list
 ;;   :prompt     - Input prompt string
 ;;   :argument   - CLI argument format (e.g., "--title=")
 ;;   :field-name - Field name for multiline editors
 ;;   :level      - Menu visibility level (1-7)
-;;   :group      - Group name for organization
+;;   :group      - Group name for organization (use :transient-group in slots)
 ;;   :order      - Order within group (lower = first)
+;;
+;; Note: :reader and :group are reserved EIEIO keywords.  When using
+;; beads-defcommand, you can use :reader directly - it will be auto-
+;; transformed to :transient-reader.  For :group, use :transient-group.
 ;;
 ;; Legacy Transient Property Names (for backwards compatibility):
 ;;   :transient-key, :transient-description, :transient-class,
@@ -53,7 +57,8 @@
 ;;
 ;; Usage:
 ;;
-;;   (defclass my-command (beads-command)
+;;   ;; Use beads-defcommand to auto-transform :reader to :transient-reader
+;;   (beads-defcommand my-command (beads-command)
 ;;     ((title
 ;;       :initarg :title
 ;;       :type (or null string)
@@ -63,12 +68,12 @@
 ;;       :long-option "title"
 ;;       :short-option "t"
 ;;       :positional 1
-;;       ;; Transient properties (using new concise names)
+;;       ;; Transient properties (using concise names)
 ;;       :key "t"
 ;;       :transient "Title (required)"
 ;;       :class transient-option
-;;       :reader beads-reader-issue-title
-;;       :group "Required"
+;;       :reader beads-reader-issue-title  ; auto-transformed to :transient-reader
+;;       :transient-group "Required"       ; :group is EIEIO reserved, use this
 ;;       :level 1
 ;;       ;; Validation
 ;;       :required t)))
@@ -113,7 +118,7 @@
     :key                    ; key binding in transient menu
     :transient              ; description shown in transient menu
     :class                  ; transient class (transient-option, etc.)
-    ;; Note: :reader and :group are reserved by EIEIO, use :transient-*
+    :reader                 ; reader function (beads-defcommand transforms this)
     :choices                ; valid choices list
     :prompt                 ; input prompt string
     :argument               ; CLI argument format (e.g., "--title=")
@@ -124,7 +129,7 @@
     :transient-key
     :transient-description
     :transient-class
-    :transient-reader       ; reader function (cannot use :reader - EIEIO reserved)
+    :transient-reader       ; canonical storage for :reader
     :transient-choices
     :transient-prompt
     :transient-argument
@@ -143,6 +148,7 @@ Property name mappings (new -> legacy):
   :key         -> :transient-key
   :transient   -> :transient-description
   :class       -> :transient-class
+  :reader      -> :transient-reader (transformed by beads-defcommand)
   :choices     -> :transient-choices
   :prompt      -> :transient-prompt
   :argument    -> :transient-argument
@@ -150,9 +156,9 @@ Property name mappings (new -> legacy):
   :level       -> :transient-level
   :order       -> :transient-order
 
-Note: :reader and :group CANNOT be aliased because they conflict with
-standard EIEIO slot options.  Use :transient-reader and :transient-group
-for those properties.
+Note: :reader and :group are reserved EIEIO keywords.  When using
+`beads-defcommand', :reader is auto-transformed to :transient-reader.
+For :group, use :transient-group directly.
 
 The new concise names are preferred where possible.  Legacy names
 are preserved for backwards compatibility.")
@@ -165,8 +171,7 @@ are preserved for backwards compatibility.")
   '((:key         . :transient-key)
     (:transient   . :transient-description)
     (:class       . :transient-class)
-    ;; Note: :reader and :group are reserved by EIEIO, so we keep
-    ;; :transient-reader and :transient-group as the canonical names
+    (:reader      . :transient-reader)
     (:choices     . :transient-choices)
     (:prompt      . :transient-prompt)
     (:argument    . :transient-argument)
@@ -176,9 +181,10 @@ are preserved for backwards compatibility.")
   "Mapping from new concise property names to legacy names.
 This allows slot definitions to use either naming convention.
 
-Note: :reader and :group are NOT aliased because they conflict with
-standard EIEIO slot options.  Use :transient-reader and :transient-group
-for those properties.")
+Note: :reader and :group are reserved EIEIO keywords:
+- :reader is transformed to :transient-reader by `beads-defcommand'
+  before passing to defclass, so you can use :reader in slot definitions.
+- :group cannot be used; use :transient-group directly.")
 
 (defun beads-meta--normalize-property-name (prop)
   "Normalize PROP to the legacy transient-prefixed name if applicable.

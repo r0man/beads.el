@@ -53,7 +53,7 @@
       :class transient-option
       :argument "--issue-id="
       :prompt "Issue ID: "
-      :transient-reader beads-reader-issue-id
+      :reader beads-reader-issue-id
       :transient-group "List Comments"
       :level 1
       :order 1
@@ -99,7 +99,7 @@
       :class transient-option
       :argument "--issue-id="
       :prompt "Issue ID: "
-      :transient-reader beads-reader-issue-id
+      :reader beads-reader-issue-id
       :transient-group "Add Comment"
       :level 1
       :order 1

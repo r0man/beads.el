@@ -235,7 +235,7 @@
       :class transient-option
       :argument "--id="
       :prompt "Issue ID: "
-      :transient-reader beads-reader-issue-id
+      :reader beads-reader-issue-id
       :transient-group "Options"
       :level 1
       :order 2)

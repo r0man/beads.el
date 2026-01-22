@@ -244,7 +244,7 @@
       :transient "Issue ID (required)"
       :class transient-option
       :argument "--id="
-      :transient-reader beads-reader-move-issue-id
+      :reader beads-reader-move-issue-id
       :prompt "Issue ID: "
       :transient-group "Move Issue"
       :level 1
