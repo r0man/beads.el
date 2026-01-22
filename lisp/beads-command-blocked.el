@@ -53,7 +53,7 @@
       :class transient-option
       :argument "--parent="
       :prompt "Parent ID: "
-      :reader beads-reader-issue-id
+      :transient-reader beads-reader-issue-id
       :transient-group "Scope"
       :level 2
       :order 1))

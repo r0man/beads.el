@@ -71,27 +71,6 @@
 ;;; Command Definition Macro
 ;;; ============================================================
 
-(eval-and-compile
-  (defun beads-defcommand--transform-slot (slot)
-    "Transform SLOT to rename EIEIO-conflicting properties.
-Renames :reader to :transient-reader to avoid conflict with EIEIO's
-:reader slot option which generates accessor methods."
-    (if (not (consp slot))
-        slot
-      (let* ((slot-name (car slot))
-             (slot-options (cdr slot))
-             (new-options '()))
-        ;; Transform slot options, renaming :reader to :transient-reader
-        (while slot-options
-          (let ((key (car slot-options))
-                (value (cadr slot-options)))
-            (if (eq key :reader)
-                ;; Rename :reader to :transient-reader
-                (setq new-options (append new-options (list :transient-reader value)))
-              (setq new-options (append new-options (list key value)))))
-          (setq slot-options (cddr slot-options)))
-        (cons slot-name new-options)))))
-
 (defmacro beads-defcommand (name superclasses slots &rest options)
   "Define a beads command class with auto-generated ! convenience function.
 
@@ -104,11 +83,6 @@ This macro:
 1. Defines the class using `defclass'
 2. Generates a NAME! convenience function that executes the command
    and returns the result from the execution object
-
-Slot property transformations:
-- :reader is renamed to :transient-reader to avoid conflict with EIEIO's
-  :reader option (which generates accessor methods).  You can use :reader
-  in your slot definitions and it will be transformed automatically.
 
 Example:
   (beads-defcommand beads-command-foo (beads-command-json)
@@ -123,10 +97,9 @@ This generates:
 Usage:
   (beads-command-foo! :name \"test\" :force t)"
   (declare (indent 2))
-  (let ((bang-fn (intern (concat (symbol-name name) "!")))
-        (transformed-slots (mapcar #'beads-defcommand--transform-slot slots)))
+  (let ((bang-fn (intern (concat (symbol-name name) "!"))))
     `(progn
-       (defclass ,name ,superclasses ,transformed-slots ,@options)
+       (defclass ,name ,superclasses ,slots ,@options)
        (defun ,bang-fn (&rest args)
          ,(format "Execute %s and return result.\n\nARGS are passed to the constructor." name)
          (oref (beads-command-execute (apply #',name args)) result)))))
@@ -1173,7 +1146,7 @@ Values: open, in_progress, blocked, closed."
     :transient-class transient-option
     :transient-argument "--status="
     :transient-prompt "Status: "
-    :reader beads-reader-list-status
+    :transient-reader beads-reader-list-status
     :transient-group "Basic Filters"
     :transient-level 1
     :transient-order 1)
@@ -1193,7 +1166,7 @@ Values: 0-4 (0=critical, 1=high, 2=medium, 3=low, 4=backlog)."
     :transient-class transient-option
     :transient-argument "--priority="
     :transient-prompt "Priority: "
-    :reader beads-reader-list-priority
+    :transient-reader beads-reader-list-priority
     :transient-group "Basic Filters"
     :transient-level 1
     :transient-order 2)
@@ -1213,7 +1186,7 @@ Values: bug, feature, task, epic, chore."
     :transient-class transient-option
     :transient-argument "--type="
     :transient-prompt "Type: "
-    :reader beads-reader-list-type
+    :transient-reader beads-reader-list-type
     :transient-group "Basic Filters"
     :transient-level 1
     :transient-order 3)
@@ -1232,7 +1205,7 @@ Values: bug, feature, task, epic, chore."
     :transient-class transient-option
     :transient-argument "--assignee="
     :transient-prompt "Assignee: "
-    :reader beads-reader-list-assignee
+    :transient-reader beads-reader-list-assignee
     :transient-group "Basic Filters"
     :transient-level 1
     :transient-order 4)
@@ -1251,7 +1224,7 @@ Case-insensitive substring match."
     :transient-class transient-option
     :transient-argument "--title="
     :transient-prompt "Title: "
-    :reader beads-reader-list-title
+    :transient-reader beads-reader-list-title
     :transient-group "Text Search"
     :transient-level 2
     :transient-order 1)
@@ -1270,7 +1243,7 @@ Case-insensitive."
     :transient-class transient-option
     :transient-argument "--title-contains="
     :transient-prompt "Title contains: "
-    :reader beads-reader-list-title-contains
+    :transient-reader beads-reader-list-title-contains
     :transient-group "Text Search"
     :transient-level 2
     :transient-order 2)
@@ -1289,7 +1262,7 @@ Case-insensitive."
     :transient-class transient-option
     :transient-argument "--desc-contains="
     :transient-prompt "Description contains: "
-    :reader beads-reader-list-desc-contains
+    :transient-reader beads-reader-list-desc-contains
     :transient-group "Text Search"
     :transient-level 2
     :transient-order 3)
@@ -1308,7 +1281,7 @@ Case-insensitive."
     :transient-class transient-option
     :transient-argument "--notes-contains="
     :transient-prompt "Notes contains: "
-    :reader beads-reader-list-notes-contains
+    :transient-reader beads-reader-list-notes-contains
     :transient-group "Text Search"
     :transient-level 2
     :transient-order 4)
@@ -1327,7 +1300,7 @@ Date format: YYYY-MM-DD or RFC3339."
     :transient-class transient-option
     :transient-argument "--created-after="
     :transient-prompt "Created after: "
-    :reader beads-reader-list-date
+    :transient-reader beads-reader-list-date
     :transient-group "Date Filters"
     :transient-level 3
     :transient-order 1)
@@ -1346,7 +1319,7 @@ Date format: YYYY-MM-DD or RFC3339."
     :transient-class transient-option
     :transient-argument "--created-before="
     :transient-prompt "Created before: "
-    :reader beads-reader-list-date
+    :transient-reader beads-reader-list-date
     :transient-group "Date Filters"
     :transient-level 3
     :transient-order 2)
@@ -1365,7 +1338,7 @@ Date format: YYYY-MM-DD or RFC3339."
     :transient-class transient-option
     :transient-argument "--updated-after="
     :transient-prompt "Updated after: "
-    :reader beads-reader-list-date
+    :transient-reader beads-reader-list-date
     :transient-group "Date Filters"
     :transient-level 3
     :transient-order 3)
@@ -1384,7 +1357,7 @@ Date format: YYYY-MM-DD or RFC3339."
     :transient-class transient-option
     :transient-argument "--updated-before="
     :transient-prompt "Updated before: "
-    :reader beads-reader-list-date
+    :transient-reader beads-reader-list-date
     :transient-group "Date Filters"
     :transient-level 3
     :transient-order 4)
@@ -1403,7 +1376,7 @@ Date format: YYYY-MM-DD or RFC3339."
     :transient-class transient-option
     :transient-argument "--closed-after="
     :transient-prompt "Closed after: "
-    :reader beads-reader-list-date
+    :transient-reader beads-reader-list-date
     :transient-group "Date Filters"
     :transient-level 3
     :transient-order 5)
@@ -1422,7 +1395,7 @@ Date format: YYYY-MM-DD or RFC3339."
     :transient-class transient-option
     :transient-argument "--closed-before="
     :transient-prompt "Closed before: "
-    :reader beads-reader-list-date
+    :transient-reader beads-reader-list-date
     :transient-group "Date Filters"
     :transient-level 3
     :transient-order 6)
@@ -1441,7 +1414,7 @@ Inclusive."
     :transient-class transient-option
     :transient-argument "--priority-min="
     :transient-prompt "Min priority: "
-    :reader beads-reader-list-priority-min
+    :transient-reader beads-reader-list-priority-min
     :transient-group "Advanced Filters"
     :transient-level 4
     :transient-order 1)
@@ -1460,7 +1433,7 @@ Inclusive."
     :transient-class transient-option
     :transient-argument "--priority-max="
     :transient-prompt "Max priority: "
-    :reader beads-reader-list-priority-max
+    :transient-reader beads-reader-list-priority-max
     :transient-group "Advanced Filters"
     :transient-level 4
     :transient-order 2)
@@ -1481,7 +1454,7 @@ Must have ALL labels. Can combine with --label-any."
     :transient-class transient-option
     :transient-argument "--label="
     :transient-prompt "Label (AND): "
-    :reader beads-reader-list-label
+    :transient-reader beads-reader-list-label
     :transient-group "Advanced Filters"
     :transient-level 4
     :transient-order 3)
@@ -1501,7 +1474,7 @@ Must have AT LEAST ONE label. Can combine with --label."
     :transient-class transient-option
     :transient-argument "--label-any="
     :transient-prompt "Label (OR): "
-    :reader beads-reader-list-label
+    :transient-reader beads-reader-list-label
     :transient-group "Advanced Filters"
     :transient-level 4
     :transient-order 4)
@@ -1520,7 +1493,7 @@ Comma-separated, e.g., 'bd-1,bd-5,bd-10'."
     :transient-class transient-option
     :transient-argument "--id="
     :transient-prompt "Issue IDs: "
-    :reader beads-reader-list-id
+    :transient-reader beads-reader-list-id
     :transient-group "Advanced Filters"
     :transient-level 4
     :transient-order 5)
@@ -1590,7 +1563,7 @@ Pass `:limit nil' explicitly to disable the default."
     :transient-class transient-option
     :transient-argument "--limit="
     :transient-prompt "Limit: "
-    :reader beads-reader-list-limit
+    :transient-reader beads-reader-list-limit
     :transient-group "Output Options"
     :transient-level 5
     :transient-order 1)
@@ -1625,7 +1598,7 @@ Values: 'digraph', 'dot', or Go template."
     :transient-class transient-option
     :transient-argument "--format="
     :transient-prompt "Format: "
-    :reader beads-reader-list-format
+    :transient-reader beads-reader-list-format
     :transient-group "Output Options"
     :transient-level 5
     :transient-order 3)
@@ -1740,7 +1713,7 @@ First positional argument or explicit --title flag."
     :transient-class transient-option
     :transient-argument "--title="
     :transient-prompt "Issue title: "
-    :reader beads-reader-issue-title
+    :transient-reader beads-reader-issue-title
     :transient-group "Required"
     :transient-level 1
     :transient-order 1
@@ -1778,7 +1751,7 @@ First positional argument or explicit --title flag."
     :transient-class transient-option
     :transient-argument "--assignee="
     :transient-prompt "Assignee: "
-    :reader beads-reader-issue-assignee
+    :transient-reader beads-reader-issue-assignee
     :transient-group "Issue attributes"
     :transient-level 2
     :transient-order 3)
@@ -1799,7 +1772,7 @@ Examples: 'discovered-from:bd-20', 'blocks:bd-15', 'bd-20'."
     :transient-class transient-option
     :transient-argument "--deps="
     :transient-prompt "Dependencies (type:id,...): "
-    :reader beads-reader-create-dependencies
+    :transient-reader beads-reader-create-dependencies
     :transient-group "Advanced"
     :transient-level 4
     :transient-order 3)
@@ -1853,7 +1826,7 @@ Examples: 'gh-9', 'jira-ABC'."
     :transient-class transient-option
     :transient-argument "--external-ref="
     :transient-prompt "External reference: "
-    :reader beads-reader-issue-external-ref
+    :transient-reader beads-reader-issue-external-ref
     :transient-group "Advanced"
     :transient-level 4
     :transient-order 1)
@@ -1872,7 +1845,7 @@ Examples: 'gh-9', 'jira-ABC'."
     :transient-class transient-option
     :transient-argument "--file="
     :transient-prompt "Markdown file: "
-    :reader beads-reader-create-file
+    :transient-reader beads-reader-create-file
     :transient-group "Advanced"
     :transient-level 4
     :transient-order 7)
@@ -1907,7 +1880,7 @@ Examples: 'epic', 'bug', 'feature'."
     :transient-class transient-option
     :transient-argument "--from-template="
     :transient-prompt "Template (epic, bug, feature): "
-    :reader beads-reader-create-from-template
+    :transient-reader beads-reader-create-from-template
     :transient-group "Advanced"
     :transient-level 4
     :transient-order 6)
@@ -1926,7 +1899,7 @@ Example: 'bd-42' for partitioning."
     :transient-class transient-option
     :transient-argument "--id="
     :transient-prompt "Custom ID: "
-    :reader beads-reader-create-custom-id
+    :transient-reader beads-reader-create-custom-id
     :transient-group "Advanced"
     :transient-level 4
     :transient-order 2)
@@ -1947,7 +1920,7 @@ List of label strings."
     :transient-class transient-option
     :transient-argument "--labels="
     :transient-prompt "Labels (comma-separated): "
-    :reader beads-reader-issue-labels
+    :transient-reader beads-reader-issue-labels
     :transient-group "Issue attributes"
     :transient-level 2
     :transient-order 4)
@@ -1966,7 +1939,7 @@ Example: 'bd-a3f8e9'."
     :transient-class transient-option
     :transient-argument "--parent="
     :transient-prompt "Parent issue ID (e.g., bd-a3f8e9): "
-    :reader beads-reader-create-parent
+    :transient-reader beads-reader-create-parent
     :transient-group "Advanced"
     :transient-level 4
     :transient-order 4)
@@ -1987,7 +1960,7 @@ Accepts both integer (1) and string (\"1\" or \"P1\") formats."
     :transient-class transient-option
     :transient-argument "--priority="
     :transient-prompt "Priority: "
-    :reader beads-reader-issue-priority
+    :transient-reader beads-reader-issue-priority
     :transient-group "Issue attributes"
     :transient-level 2
     :transient-order 2)
@@ -2006,7 +1979,7 @@ Overrides auto-routing."
     :transient-class transient-option
     :transient-argument "--repo="
     :transient-prompt "Target repository: "
-    :reader beads-reader-create-repo
+    :transient-reader beads-reader-create-repo
     :transient-group "Advanced"
     :transient-level 4
     :transient-order 5)
@@ -2027,7 +2000,7 @@ Values: bug, feature, task, epic, chore. Default: 'task'."
     :transient-argument "--type="
     :transient-prompt "Type: "
     :transient-choices ("bug" "feature" "task" "epic" "chore")
-    :reader beads-reader-issue-type
+    :transient-reader beads-reader-issue-type
     :transient-group "Issue attributes"
     :transient-level 2
     :transient-order 1))
@@ -2264,7 +2237,7 @@ Example: '(\"bd-1\" \"bd-2\")"
     :transient-class transient-option
     :transient-argument "--id="
     :transient-prompt "Issue ID: "
-    :reader beads-reader-issue-id
+    :transient-reader beads-reader-issue-id
     :transient-group "Show Issue"
     :transient-level 1
     :transient-order 1
@@ -2366,7 +2339,7 @@ Values: open, in_progress, blocked, closed."
     :transient-argument "--status="
     :transient-prompt "Status: "
     :transient-choices ("open" "in_progress" "blocked" "closed")
-    :reader beads-reader-update-status
+    :transient-reader beads-reader-update-status
     :transient-group "Status & Priority"
     :transient-level 1
     :transient-order 1)
@@ -2387,7 +2360,7 @@ Accepts both integer (1) and string (\"1\" or \"P1\") formats."
     :transient-class transient-option
     :transient-argument "--priority="
     :transient-prompt "Priority: "
-    :reader beads-reader-issue-priority
+    :transient-reader beads-reader-issue-priority
     :transient-group "Status & Priority"
     :transient-level 1
     :transient-order 2)
@@ -2405,7 +2378,7 @@ Accepts both integer (1) and string (\"1\" or \"P1\") formats."
     :transient-class transient-option
     :transient-argument "--title="
     :transient-prompt "Issue title: "
-    :reader beads-reader-issue-title
+    :transient-reader beads-reader-issue-title
     :transient-group "Basic Info"
     :transient-level 2
     :transient-order 1)
@@ -2424,7 +2397,7 @@ Accepts both integer (1) and string (\"1\" or \"P1\") formats."
     :transient-class transient-option
     :transient-argument "--assignee="
     :transient-prompt "Assignee: "
-    :reader beads-reader-issue-assignee
+    :transient-reader beads-reader-issue-assignee
     :transient-group "Basic Info"
     :transient-level 2
     :transient-order 2)
@@ -2443,7 +2416,7 @@ Examples: 'gh-9', 'jira-ABC'."
     :transient-class transient-option
     :transient-argument "--external-ref="
     :transient-prompt "External reference: "
-    :reader beads-reader-issue-external-ref
+    :transient-reader beads-reader-issue-external-ref
     :transient-group "Basic Info"
     :transient-level 2
     :transient-order 3)
@@ -2618,7 +2591,7 @@ Example: '(\"bd-1\" \"bd-2\")"
     :transient-class transient-option
     :transient-argument "--id="
     :transient-prompt "Issue ID: "
-    :reader beads-reader-reopen-issue-id
+    :transient-reader beads-reader-reopen-issue-id
     :transient-group "Reopen Issue"
     :transient-level 1
     :transient-order 1
@@ -2777,7 +2750,7 @@ No required fields, returns nil (valid)."
     :transient-class transient-option
     :transient-argument "--issue-id="
     :transient-prompt "Issue ID: "
-    :reader beads-reader-dep-add-issue-id
+    :transient-reader beads-reader-dep-add-issue-id
     :transient-group "Add Dependency"
     :transient-level 1
     :transient-order 1
@@ -2796,7 +2769,7 @@ No required fields, returns nil (valid)."
     :transient-class transient-option
     :transient-argument "--depends-on="
     :transient-prompt "Depends on issue ID: "
-    :reader beads-reader-dep-add-depends-on-id
+    :transient-reader beads-reader-dep-add-depends-on-id
     :transient-group "Add Dependency"
     :transient-level 1
     :transient-order 2
@@ -2866,7 +2839,7 @@ Returns error string or nil if valid."
     :transient-class transient-option
     :transient-argument "--issue-id="
     :transient-prompt "Issue ID: "
-    :reader beads-reader-dep-remove-issue-id
+    :transient-reader beads-reader-dep-remove-issue-id
     :transient-group "Remove Dependency"
     :transient-level 1
     :transient-order 1
@@ -2885,7 +2858,7 @@ Returns error string or nil if valid."
     :transient-class transient-option
     :transient-argument "--depends-on="
     :transient-prompt "Depends on issue ID: "
-    :reader beads-reader-dep-remove-depends-on-id
+    :transient-reader beads-reader-dep-remove-depends-on-id
     :transient-group "Remove Dependency"
     :transient-level 1
     :transient-order 2
@@ -2930,7 +2903,7 @@ Returns error string or nil if valid."
     :transient-class transient-option
     :transient-argument "--issue-id="
     :transient-prompt "Issue ID: "
-    :reader beads-reader-dep-tree-issue-id
+    :transient-reader beads-reader-dep-tree-issue-id
     :transient-group "Issue"
     :transient-level 1
     :transient-order 1
@@ -3256,7 +3229,7 @@ No required fields, returns nil (valid)."
     :transient-description "Issue ID(s)"
     :transient-class transient-option
     :transient-argument "--issue-ids="
-    :reader beads-reader-label-issue-ids
+    :transient-reader beads-reader-label-issue-ids
     :transient-prompt "Issue ID(s) (comma-separated): "
     :transient-group "Add Label"
     :transient-level 1
@@ -3276,7 +3249,7 @@ No required fields, returns nil (valid)."
     :transient-description "Label"
     :transient-class transient-option
     :transient-argument "--label="
-    :reader beads-reader-label-name
+    :transient-reader beads-reader-label-name
     :transient-prompt "Label name: "
     :transient-group "Add Label"
     :transient-level 1
@@ -3325,7 +3298,7 @@ Returns error string or nil if valid."
     :transient-description "Issue ID(s)"
     :transient-class transient-option
     :transient-argument "--issue-ids="
-    :reader beads-reader-label-issue-ids
+    :transient-reader beads-reader-label-issue-ids
     :transient-prompt "Issue ID(s) (comma-separated): "
     :transient-group "Remove Label"
     :transient-level 1
@@ -3345,7 +3318,7 @@ Returns error string or nil if valid."
     :transient-description "Label"
     :transient-class transient-option
     :transient-argument "--label="
-    :reader beads-reader-label-name
+    :transient-reader beads-reader-label-name
     :transient-prompt "Label name: "
     :transient-group "Remove Label"
     :transient-level 1
@@ -3393,7 +3366,7 @@ Returns error string or nil if valid."
     :transient-class transient-option
     :transient-argument "--issue-id="
     :transient-prompt "Issue ID: "
-    :reader beads-reader-issue-id
+    :transient-reader beads-reader-issue-id
     :transient-group "Issue"
     :transient-level 1
     :transient-order 1

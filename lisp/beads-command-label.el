@@ -103,7 +103,7 @@ Format: (TIMESTAMP . LABELS-LIST)")
       :class transient-option
       :argument "--id="
       :prompt "Issue ID(s): "
-      :reader beads-reader-issue-id
+      :transient-reader beads-reader-issue-id
       :transient-group "Add Label"
       :level 1
       :order 1
@@ -174,7 +174,7 @@ Returns error string or nil if valid."
       :class transient-option
       :argument "--id="
       :prompt "Issue ID(s): "
-      :reader beads-reader-issue-id
+      :transient-reader beads-reader-issue-id
       :transient-group "Remove Label"
       :level 1
       :order 1
@@ -244,7 +244,7 @@ Returns error string or nil if valid."
       :class transient-option
       :argument "--id="
       :prompt "Issue ID: "
-      :reader beads-reader-issue-id
+      :transient-reader beads-reader-issue-id
       :transient-group "List Labels"
       :level 1
       :order 1

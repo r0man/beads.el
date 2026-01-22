@@ -74,7 +74,7 @@
       :class transient-option
       :argument "--input="
       :prompt "Input file: "
-      :reader transient-read-file
+      :transient-reader transient-read-file
       :transient-group "Import Options"
       :level 1
       :order 1)

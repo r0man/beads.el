@@ -40,7 +40,7 @@
       :class transient-option
       :argument "--id="
       :prompt "Issue ID(s): "
-      :reader beads-reader-issue-id
+      :transient-reader beads-reader-issue-id
       :transient-group "Defer"
       :level 1
       :order 1)
@@ -96,7 +96,7 @@
       :class transient-option
       :argument "--id="
       :prompt "Issue ID(s): "
-      :reader beads-reader-issue-id
+      :transient-reader beads-reader-issue-id
       :transient-group "Undefer"
       :level 1
       :order 1))
