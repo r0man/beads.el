@@ -58,5 +58,31 @@
   "Beads command validation error"
   'beads-error)
 
+;;; Error Extraction Utilities
+
+(defun beads-error-extract-message (err)
+  "Extract user-friendly message from beads error ERR.
+ERR is the error data from `condition-case'.
+
+For `beads-command-error', this extracts the stderr message which
+typically contains the actual error text from the bd CLI.
+If stderr is empty, falls back to stdout, then to the generic message.
+
+Returns a string suitable for display to the user."
+  (let* ((err-data (cdr err))
+         (message (car err-data))
+         (plist (cdr err-data))
+         (stderr (plist-get plist :stderr))
+         (stdout (plist-get plist :stdout)))
+    (cond
+     ;; Prefer stderr if non-empty (typical for CLI errors)
+     ((and stderr (not (string-empty-p (string-trim stderr))))
+      (string-trim stderr))
+     ;; Fall back to stdout if stderr is empty
+     ((and stdout (not (string-empty-p (string-trim stdout))))
+      (string-trim stdout))
+     ;; Use the error message if nothing else
+     (t (or message (error-message-string err))))))
+
 (provide 'beads-error)
 ;;; beads-error.el ends here
