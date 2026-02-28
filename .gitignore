@@ -69,3 +69,5 @@ eca-support/
 .runtime/
 .claude/commands/
 .logs/
+# Beads local database
+.beads/
