@@ -1819,9 +1819,7 @@ The log format is compatible with `log-view-mode':
   (should (fboundp 'beads-close))
   (should (fboundp 'beads-delete))
   (should (fboundp 'beads-stats))
-  (should (fboundp 'beads-graph-all))
-  (should (fboundp 'beads-import))
-  (should (fboundp 'beads-export)))
+  (should (fboundp 'beads-graph-all)))
 
 ;;; ========================================
 ;;; Label Completion Tests

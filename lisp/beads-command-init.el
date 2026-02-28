@@ -184,23 +184,6 @@
       :transient-group "Other Options"
       :level 2
       :order 2)
-     (skip-merge-driver
-      :initarg :skip-merge-driver
-      :type boolean
-      :initform nil
-      :documentation "Skip git merge driver setup (--skip-merge-driver).
-  Non-interactive mode."
-      ;; CLI properties
-      :long-option "skip-merge-driver"
-      :option-type :boolean
-      ;; Transient properties
-      :key "M"
-      :transient "--skip-merge-driver"
-      :class transient-switch
-      :argument "--skip-merge-driver"
-      :transient-group "Other Options"
-      :level 2
-      :order 3)
      (stealth
       :initarg :stealth
       :type boolean
@@ -287,7 +270,7 @@ flags."
               (transient-arg-value "--db=" args)))
          (contributor (and (member "--contributor" args) t))
          (quiet (and (member "--quiet" args) t))
-         (skip-merge-driver (and (member "--skip-merge-driver" args) t))
+         (skip-hooks (and (member "--skip-hooks" args) t))
          (team (and (member "--team" args) t)))
     (beads-command-init
      :prefix prefix
@@ -295,7 +278,7 @@ flags."
      :db db
      :contributor contributor
      :quiet quiet
-     :skip-merge-driver skip-merge-driver
+     :skip-hooks skip-hooks
      :team team)))
 
 (defun beads-init--validate-all (cmd)
@@ -380,7 +363,7 @@ the initialization."
     (beads-option-init-team)]
    ["Other Options"
     (beads-option-init-quiet)
-    (beads-option-init-skip-merge-driver)]]
+    (beads-option-init-skip-hooks)]]
   ["Actions"
    (beads-init--execute)
    (beads-init--preview)

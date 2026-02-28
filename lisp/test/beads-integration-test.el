@@ -53,6 +53,16 @@
 (defvar beads-executable)
 
 ;;; ============================================================
+;;; CLI Feature Detection
+;;; ============================================================
+
+(defun beads-test-bd-has-subcommand-p (subcommand)
+  "Return non-nil if bd CLI supports SUBCOMMAND.
+Uses `bd SUBCOMMAND --help' to test availability."
+  (zerop (call-process (or (bound-and-true-p beads-executable) "bd")
+                       nil nil nil subcommand "--help")))
+
+;;; ============================================================
 ;;; Temporary Repository Creation
 ;;; ============================================================
 
@@ -85,7 +95,7 @@ Returns DIR for convenience."
          (effective-prefix (or prefix (beads-test--generate-unique-prefix)))
          (cmd (beads-command-init :prefix effective-prefix
                                   :quiet quiet
-                                  :skip-merge-driver t)))
+                                  :skip-hooks t)))
     (beads-command-execute cmd))
   dir)
 
