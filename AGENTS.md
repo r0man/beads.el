@@ -42,7 +42,11 @@ For full workflow details: `bd prime`
 **MANDATORY WORKFLOW:**
 
 1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed)
+2. **Run quality gates** (if code changed):
+   - Run byte compilation: `guix shell -D -f guix.scm -- eldev -p -dtT compile`
+   - Run linter: `guix shell -D -f guix.scm -- eldev -p -dtT lint`
+   - Run tests: `BD_NO_DAEMON=1 guix shell -D -f guix.scm -- eldev -p -dtT test`
+   - **ALL MUST PASS** before pushing
 3. **Update issue status** - Close finished work, update in-progress items
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
@@ -65,23 +69,19 @@ For full workflow details: `bd prime`
 
 **CRITICAL - MANDATORY FOR ALL CODE CHANGES**
 
-After EVERY code change, you MUST run and pass ALL three checks before
-considering the change complete:
+During development, you MUST:
 
-1. **Code review** - Do a thorough code review **AND** address all critical issues
-2. **Byte Compilation** - Code must compile without warnings
-3. **Lint** - All linters must pass with zero warnings
-4. **Tests** - All tests must pass
+1. **Test in live Emacs first** - Load changes and verify interactively
+2. **Run unit tests** - All tests must pass
+3. **Do a code review** - Review changes and address critical issues
 
-**A code change is NOT complete until all 4 checks pass.**
-
-Do NOT commit code that fails any of these checks. Do NOT skip these
-checks. Do NOT defer these checks. Run them immediately after making
-any code modification.
+Before committing (Landing the Plane), also run:
+- Byte compilation (must compile without warnings)
+- Linter (must pass with zero warnings)
 
 If any check fails:
 - Fix the issue immediately
-- Re-run all three checks
+- Re-run the failing check
 - Only proceed when all checks pass
 
 This is a non-negotiable requirement for code quality.
@@ -284,22 +284,26 @@ When working on an issue:
 1. Create a branch for the issue: `git checkout -b beads.el-X-short-description`
 2. Update issue status: `bd update beads.el-X --status in_progress`
 3. Edit source files in lisp/*.el
-4. **MANDATORY: Verify code quality** (run after EVERY code change):
-   a. Run tests: `guix shell -D -f guix.scm -- eldev -p -dtT test`
-   b. Run linter: `guix shell -D -f guix.scm -- eldev -p -dtT lint`
-   c. Run compiler: `guix shell -D -f guix.scm -- eldev -p -dtT compile`
-   d. **ALL THREE MUST PASS** - Fix any failures immediately
-   e. Test the feature in a live Emacs session. Start a new emacs server and test the feature with emacsclient against the server.
-5. Repeat steps 3-4 until feature is complete and all checks pass
-6. Commit changes with descriptive message (only after all checks pass)
-7. Push branch to GitHub: `git push -u origin beads.el-X-short-description`
-8. Verify tests pass on GitHub Actions CI
-9. Create pull request or merge to main after CI passes
-10. Close issue: `bd close beads.el-X --reason "Completed"`
+4. **MANDATORY: Test in live Emacs first** (catches issues early):
+   a. Start a live Emacs session in tmux for testing
+   b. Load the modified code and test interactively
+   c. This catches hard-to-test issues that unit tests miss
+5. **Run unit tests**:
+   ```bash
+   BD_NO_DAEMON=1 guix shell -D -f guix.scm -- eldev -p -dtT test
+   ```
+6. **Run integration tests** (if applicable)
+7. **ALL TESTS MUST PASS** - Fix any failures immediately
+8. Repeat steps 3-7 until feature is complete
+9. Commit changes with descriptive message (only after tests pass)
+10. Push branch to GitHub: `git push -u origin beads.el-X-short-description`
+11. Verify tests pass on GitHub Actions CI
+12. Create pull request or merge to main after CI passes
+13. Close issue: `bd close beads.el-X --reason "Completed"`
 
-**CRITICAL**: Never commit code that fails tests, lint, or compilation.
-The workflow at step 4 is mandatory and non-negotiable for every code
-modification.
+**CRITICAL**: Never commit code that fails tests. The live testing
+followed by unit/integration tests catches issues early, before they
+become harder to debug.
 
 Branch naming convention: `beads.el-X-short-description` where X is the
 issue number and short-description briefly describes the work (e.g.,
@@ -393,79 +397,19 @@ The codebase is organized into focused modules in lisp/:
 - Use pcase for pattern matching (cleaner than cond)
 - Prefer seq-* functions over cl-* for sequence operations
 
-### Adding New Commands (EIEIO Pattern)
+### Adding New Commands
 
-When adding a new bd command, use the EIEIO command pattern with
-automatic transient generation. Reference implementation:
-`beads-command-doctor.el` + `beads-doctor.el`.
+When adding a new bd command:
+1. Add command execution to appropriate module or create new one
+2. Add transient menu if interactive (see beads-create.el as template)
+3. Add autoload to beads.el if it's a public entry point
+4. Add comprehensive tests (>80% coverage target)
+5. **Run all checks (test, lint, compile) - ALL MUST PASS**
+6. Update README.md if user-facing
+7. Add keybinding to beads-main.el or relevant mode-map
 
-**Step 1: Create Command Class** (lisp/beads-command-<name>.el)
-
-```elisp
-(require 'beads-command)
-
-(defclass beads-command-<name> (beads-command-json)
-  ((option-name
-    :initarg :option-name
-    :type (or null string)
-    :initform nil
-    :documentation "Description of the option."
-    :long-option "--option-name"
-    :option-type :string
-    :transient-key "o"
-    :transient-description "Option label"
-    :transient-class transient-option
-    :transient-argument "--option-name="
-    :transient-group "Options"
-    :transient-level 2
-    :transient-order 1))
-  :documentation "Command description.")
-
-(cl-defmethod beads-command-subcommand ((_cmd beads-command-<name>))
-  "<name>")
-
-(cl-defmethod beads-command-validate ((cmd beads-command-<name>))
-  ;; Return error string or nil if valid
-  nil)
-
-(provide 'beads-command-<name>)
-```
-
-**Step 2: Create Transient Interface** (lisp/beads-<name>.el)
-
-```elisp
-(require 'beads-command-<name>)
-(require 'beads-meta)
-(require 'beads-option)
-
-;;;###autoload (autoload 'beads-<name> "beads-<name>" nil t)
-(beads-meta-define-transient beads-command-<name> "beads-<name>"
-  "Command description for transient menu."
-  beads-option-global-section)
-
-(provide 'beads-<name>)
-```
-
-**Step 3: Complete Setup**
-1. Add autoload to beads.el if public entry point
-2. Add keybinding to beads-main.el or relevant mode-map
-3. Add comprehensive tests (>80% coverage target)
-4. **Run all checks (test, lint, compile) - ALL MUST PASS**
-5. Update README.md if user-facing
-
-**Slot Metadata Reference:**
-- `:long-option` / `:short-option` - CLI flags
-- `:option-type` - :boolean or :string
-- `:positional` - For positional arguments (1, 2, etc.)
-- `:transient-key` - Keyboard shortcut
-- `:transient-description` - Menu label
-- `:transient-class` - transient-switch or transient-option
-- `:transient-argument` - CLI argument (with = for options)
-- `:transient-group` - Menu section name
-- `:transient-level` - Visibility level (2=basic, 3=advanced, 4=expert)
-- `:transient-order` - Order within group
-- `:transient-choices` - List of valid choices
-- `:transient-prompt` - User input prompt
+**Remember**: After implementing, you MUST run and pass all three
+checks (test, lint, compile) before the work is considered complete.
 
 ### Testing Requirements
 
@@ -476,8 +420,39 @@ automatic transient generation. Reference implementation:
 - Test both success and error paths
 - Target >80% code coverage for core modules
 - Use descriptive test names: beads-<module>-<function>-<scenario>
-- **Tests must pass before committing any code**
+- **Tests must pass (921/921) before committing any code**
 - Run: `guix shell -D -f guix.scm -- eldev -p -dtT test`
+
+### Transient Menu Patterns
+
+Follow this pattern for new transient menus (based on
+beads-create.el):
+
+```elisp
+;; State variables (reset after execution)
+(defvar beads-cmd--param nil)
+
+;; Reset function
+(defun beads-cmd--reset-state () ...)
+
+;; Validation functions (return error string or nil)
+(defun beads-cmd--validate-param () ...)
+(defun beads-cmd--validate-all () ...)
+
+;; Build command arguments
+(defun beads-cmd--build-command-args () ...)
+
+;; Infix commands (set state variables)
+(transient-define-infix beads-cmd--infix-param () ...)
+
+;; Suffix commands (execute, preview, reset)
+(transient-define-suffix beads-cmd--execute () ...)
+(transient-define-suffix beads-cmd--preview () :transient t ...)
+(transient-define-suffix beads-cmd--reset () :transient t ...)
+
+;; Main menu
+(transient-define-prefix beads-cmd () ...)
+```
 
 ### Common Gotchas
 
@@ -522,3 +497,10 @@ The bd CLI is the source of truth. All operations go through:
 The .beads directory is auto-discovered via locate-dominating-file,
 starting from project root or current directory. Database path
 extracted from .beads/*.db files.
+
+## Active Technologies
+- Emacs Lisp (Emacs 27.1+) + transient, EIEIO (built-in), vterm/eat/term (optional) (001-eieio-command-system)
+- N/A (uses bd CLI for persistence) (001-eieio-command-system)
+
+## Recent Changes
+- 001-eieio-command-system: Added Emacs Lisp (Emacs 27.1+) + transient, EIEIO (built-in), vterm/eat/term (optional)
