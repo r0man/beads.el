@@ -41,7 +41,7 @@
   "Test getting default input path."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((default-input (beads-import--get-default-input)))
       (should (stringp default-input))
       (should (string-match-p "issues\\.jsonl$" default-input)))))
@@ -86,7 +86,7 @@
 Integration test that runs real bd import command."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create and export an issue first
     (beads-command-create! :title "Import test issue")
     (let ((temp-file (make-temp-file "beads-import-test-" nil ".jsonl")))
@@ -95,7 +95,7 @@ Integration test that runs real bd import command."
             ;; Export to temp file
             (beads-command-export! :output temp-file)
             ;; Create a new project to import into
-            (beads-test-with-project ()
+            (beads-test-with-shared-project
               ;; Import from temp file (use rename-on-import for prefix mismatch)
               (let* ((cmd (beads-command-import :input temp-file
                                                 :rename-on-import t))
@@ -119,7 +119,7 @@ Integration test that runs real bd import command."
 Integration test that verifies dry-run doesn't modify database."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create and export an issue
     (beads-command-create! :title "Dry run test issue")
     (let ((temp-file (make-temp-file "beads-import-test-" nil ".jsonl")))
@@ -128,7 +128,7 @@ Integration test that verifies dry-run doesn't modify database."
             ;; Export to temp file
             (beads-command-export! :output temp-file)
             ;; Create new project and import with dry-run
-            (beads-test-with-project ()
+            (beads-test-with-shared-project
               (let* ((cmd (beads-command-import :input temp-file
                                                 :dry-run t
                                                 :rename-on-import t))
@@ -147,7 +147,7 @@ Integration test that verifies dry-run doesn't modify database."
 Integration test that verifies skip-existing import succeeds."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create initial issue
     (let ((issue (beads-command-create! :title "Original title")))
       (let ((temp-file (make-temp-file "beads-import-test-" nil ".jsonl")))
@@ -342,7 +342,7 @@ Integration test that verifies skip-existing import succeeds."
   "Test execute-command uses default input when not specified."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((executed nil)
           (input-used nil))
       (cl-letf (((symbol-function 'transient-args)
@@ -363,7 +363,7 @@ Integration test that verifies skip-existing import succeeds."
   "Test preview displays command."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((message-output nil))
       (cl-letf (((symbol-function 'transient-args)
                  (lambda (_prefix)

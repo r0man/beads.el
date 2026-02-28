@@ -285,7 +285,7 @@ directly in the transient-define-prefix definition."
 Tests successful creation with only title set."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((show-called nil)
           (result
            (beads-test-with-cache-tracking
@@ -316,7 +316,7 @@ Tests successful creation with only title set."
 Tests successful creation with ALL field types including deps, parent, force."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; First create a parent issue for --parent and --deps flags
     (let* ((parent (beads-command-create! :title "Parent Issue" :issue-type "epic"))
            (parent-id (oref parent id))
@@ -438,7 +438,7 @@ Tests that a user-friendly error message is returned instead of a type error."
 Verifies error handling when the bd create command fails."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (beads-test-with-transient-args 'beads-create
         '("--title=Test Issue")
       ;; Mock beads-command-execute to simulate bd failure
@@ -476,7 +476,7 @@ Tests the multi-issue code path (e.g., from --file flag)."
 Tests that beads--invalidate-completion-cache is called."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (beads-test-with-transient-args 'beads-create
         '("--title=Cache Test Issue")
       (let ((result
@@ -498,7 +498,7 @@ Tests that beads--invalidate-completion-cache is called."
 Verifies that beads-show is called when user says yes."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((show-called nil)
           (shown-issue-id nil))
       (cl-letf (((symbol-function 'y-or-n-p)
@@ -524,7 +524,7 @@ Verifies that beads-show is called when user says yes."
 Tests creating an issue with dependency links."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; First create a parent issue
     (let* ((parent (beads-command-create!
                     :title "Parent Issue"
@@ -551,7 +551,7 @@ Tests creating an issue with dependency links."
 Tests the --file flag which is mutually exclusive with --title."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((issue-file (expand-file-name "test-issue.md" default-directory)))
       (unwind-protect
           (progn
@@ -724,7 +724,7 @@ Tests that dependency format is preserved in preview."
 Tests that preview is read-only and doesn't mutate state."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (beads-test-with-transient-args 'beads-create
         '("--title=Should Not Be Created")
       ;; Get initial issue count
@@ -739,7 +739,7 @@ Tests that preview is read-only and doesn't mutate state."
 Tests that preview is truly read-only with no side effects."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (beads-test-with-transient-args 'beads-create
         '("--title=Preview Cache Test")
       (let ((result
@@ -916,7 +916,7 @@ Tests that reset shows 'All fields reset' message to user."
 Tests that titles with various Unicode characters are handled correctly."
   :tags '(:integration :slow :edge-case)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((unicode-titles
            '("Issue with emoji 🐛🔧✨"
              "日本語のタイトル"  ; Japanese
@@ -947,7 +947,7 @@ Tests that reasonably long titles are handled correctly.
 Note: Using 300 chars instead of 1500 to stay within shell/bd limits."
   :tags '(:integration :slow :edge-case)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create a 300 character title (more realistic limit)
     (let ((long-title (concat "Issue with long title: "
                               (make-string 277 ?x))))
@@ -975,7 +975,7 @@ Tests that special shell characters are properly handled.
 Note: Some characters like newlines/tabs may be normalized by bd."
   :tags '(:integration :slow :edge-case)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Test special characters that should work
     (let ((special-titles
            '("Issue with 'single quotes'"
@@ -1004,7 +1004,7 @@ Note: Some characters like newlines/tabs may be normalized by bd."
 Tests distinction between empty string and nil value."
   :tags '(:integration :slow :edge-case)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Test with nil description (field not provided)
     (beads-test-with-transient-args 'beads-create
         '("--title=Nil Description Test")
@@ -1044,7 +1044,7 @@ Tests distinction between empty string and nil value."
 Tests all valid priority values including boundaries."
   :tags '(:integration :slow :edge-case)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (dolist (priority '(0 1 2 3 4))
       (let ((title (format "Priority %d Test" priority)))
         (beads-test-with-transient-args 'beads-create
@@ -1073,7 +1073,7 @@ Tests all valid priority values including boundaries."
 Tests that omitting priority uses bd default behavior."
   :tags '(:integration :slow :edge-case)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (beads-test-with-transient-args 'beads-create
         '("--title=Default Priority Test")
       (cl-letf (((symbol-function 'y-or-n-p)
@@ -1096,7 +1096,7 @@ Tests that omitting priority uses bd default behavior."
 Tests that all supported issue types work correctly."
   :tags '(:integration :slow :edge-case)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (dolist (type '("bug" "feature" "task" "epic" "chore"))
       (let ((title (format "Type %s Test" type)))
         (beads-test-with-transient-args 'beads-create
@@ -1143,7 +1143,7 @@ Tests that whitespace-only values are properly rejected or normalized."
 Tests handling of multiple labels in comma-separated format."
   :tags '(:integration :slow :edge-case)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((many-labels "label1,label2,label3,label4,label5,label6,label7,label8,label9,label10"))
       (beads-test-with-transient-args 'beads-create
           (list "--title=Many Labels Test"
@@ -1168,7 +1168,7 @@ Tests handling of multiple labels in comma-separated format."
 Tests that labels with hyphens, underscores, and numbers work."
   :tags '(:integration :slow :edge-case)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((special-labels "bug-fix,v2.0,high_priority,test-123"))
       (beads-test-with-transient-args 'beads-create
           (list "--title=Special Labels Test"

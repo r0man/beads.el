@@ -41,7 +41,7 @@
   "Test getting default output path."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((default-output (beads-export--get-default-output)))
       (should (stringp default-output))
       (should (string-match-p "issues\\.jsonl$" default-output)))))
@@ -78,7 +78,7 @@
 Integration test that runs real bd export command."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create a test issue
     (beads-command-create! :title "Export test issue")
     ;; Export to temp file
@@ -101,7 +101,7 @@ Integration test that runs real bd export command."
 Integration test that verifies status filtering."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create issues with different statuses
     (beads-command-create! :title "Open issue")
     (let ((closed-issue (beads-command-create! :title "Closed issue")))
@@ -133,7 +133,7 @@ Integration test that verifies status filtering."
 Integration test that verifies force flag works."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Don't create any issues - database is empty
     (let* ((temp-file (make-temp-file "beads-export-test-" nil ".jsonl"))
            (cmd (beads-command-export :output temp-file
@@ -203,7 +203,7 @@ Integration test that verifies force flag works."
   "Test execute-command suffix flow with mocked transient-args."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create test issue
     (beads-command-create! :title "Export flow test")
     (let ((temp-file (make-temp-file "beads-export-test-" nil ".jsonl")))
@@ -220,7 +220,7 @@ Integration test that verifies force flag works."
   "Test preview command shows correct command."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((message-output nil))
       (cl-letf (((symbol-function 'transient-args)
                  (lambda (_prefix)
@@ -249,7 +249,7 @@ Integration test that verifies force flag works."
   "Test execute-command uses default output when not specified."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create test issue
     (beads-command-create! :title "Default output test")
     (let ((executed nil)
