@@ -327,7 +327,7 @@ Tests the complete flow: preview -> confirm -> execute -> cleanup."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (require 'beads-test)
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; First create an issue to delete
     (let* ((issue (beads-command-create! :title "Issue to Delete"
                                          :issue-type "task"))
@@ -372,7 +372,7 @@ Tests that issue is NOT deleted when user says no to confirmation."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (require 'beads-test)
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; First create an issue
     (let* ((issue (beads-command-create! :title "Issue Not to Delete"
                                          :issue-type "task"))
@@ -414,7 +414,7 @@ Tests that delete detects issue ID from list buffer context."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (require 'beads-test)
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create an issue
     (let* ((issue (beads-command-create! :title "List Context Delete"
                                          :issue-type "task"))
@@ -443,7 +443,7 @@ Tests that delete detects issue ID from show buffer context."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (require 'beads-test)
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create an issue
     (let* ((issue (beads-command-create! :title "Show Context Delete"
                                          :issue-type "task"))
@@ -473,7 +473,7 @@ Tests that preview content is shown to user."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (require 'beads-test)
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let* ((issue (beads-command-create! :title "Preview Test Issue"))
            (issue-id (oref issue id))
            (preview-buffer-shown nil))
@@ -493,7 +493,7 @@ Tests that show and preview buffers are killed."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (require 'beads-test)
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let* ((issue (beads-command-create! :title "Cleanup Test"))
            (issue-id (oref issue id))
            ;; Get buffer names using centralized naming

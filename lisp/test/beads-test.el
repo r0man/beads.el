@@ -482,6 +482,96 @@ STRUCTURE is a list of paths to create (dirs end with /)."
 
 
 ;;; ========================================
+;;; Shared Test Fixture (Session-Level)
+;;; ========================================
+
+;; A single beads project shared across all tests in a session.
+;; This avoids running `bd init` (which takes ~52s due to Dolt backoff)
+;; for each of the 121 uses of `beads-test-with-project'.
+
+(defvar beads-test--shared-project-dir nil
+  "Directory of the shared test project, or nil if not yet created.")
+
+(defvar beads-test--shared-project-prefix nil
+  "Prefix used for the shared test project.")
+
+(defun beads-test-get-shared-project ()
+  "Return the shared test project directory, creating it on first call.
+Lazily initializes a single beads project that all tests can share.
+The project is created with a unique prefix and persists for the
+duration of the test session."
+  (unless (and beads-test--shared-project-dir
+               (file-directory-p beads-test--shared-project-dir))
+    (let ((prefix (beads-test--generate-prefix)))
+      (setq beads-test--shared-project-prefix prefix)
+      (setq beads-test--shared-project-dir
+            (beads-test-create-project :prefix prefix))))
+  beads-test--shared-project-dir)
+
+(defun beads-test-cleanup-shared-project ()
+  "Delete all issues in the shared project to ensure test isolation.
+Call this at the start of each test that uses the shared project.
+Uses `bd delete --force' to remove issues without re-initializing."
+  (when (and beads-test--shared-project-dir
+             (file-directory-p beads-test--shared-project-dir))
+    (let ((default-directory beads-test--shared-project-dir)
+          (beads-executable "bd"))
+      ;; List all issue IDs and delete them
+      (let ((output (with-output-to-string
+                      (with-current-buffer standard-output
+                        (call-process beads-executable nil t nil
+                                      "list" "--json" "--status" "all"
+                                      "--limit" "0")))))
+        (when (and output (not (string-empty-p output)))
+          (condition-case nil
+              (let* ((json-array-type 'list)
+                     (json-object-type 'alist)
+                     (issues (json-read-from-string output)))
+                (dolist (issue issues)
+                  (let ((id (alist-get 'id issue)))
+                    (when id
+                      (call-process beads-executable nil nil nil
+                                    "delete" "--force" id)))))
+            (error nil)))))))
+
+(defun beads-test-destroy-shared-project ()
+  "Destroy the shared test project and clean up.
+Call this at the end of the test session (e.g., in a teardown hook)."
+  (when (and beads-test--shared-project-dir
+             (file-directory-p beads-test--shared-project-dir))
+    (delete-directory beads-test--shared-project-dir t))
+  (setq beads-test--shared-project-dir nil)
+  (setq beads-test--shared-project-prefix nil))
+
+(defmacro beads-test-with-shared-project (&rest body)
+  "Execute BODY with `default-directory' set to the shared test project.
+Like `beads-test-with-project' but uses a session-level shared fixture
+instead of creating a new project for each test.  This avoids the ~52s
+`bd init' overhead per test.
+
+The shared project is lazily created on first use and all issues are
+deleted between tests to ensure isolation.
+
+Tests that need custom init args (e.g., a specific :prefix) should
+continue using `beads-test-with-project' instead."
+  (declare (indent 0))
+  `(let ((default-directory (beads-test-get-shared-project))
+         (beads--project-cache (make-hash-table :test 'equal)))
+     ;; Clean up issues from previous tests
+     (beads-test-cleanup-shared-project)
+     ;; Clear any active transient state from previous tests
+     (beads-test--clear-transient-state)
+     ;; Mock beads-git-find-project-root to return the shared project dir
+     (let ((test-project-dir default-directory))
+       (cl-letf (((symbol-function 'beads-git-find-project-root)
+                  (lambda () test-project-dir)))
+         (unwind-protect
+             (progn ,@body)
+           ;; Clear transient state after test too
+           (beads-test--clear-transient-state))))))
+
+
+;;; ========================================
 ;;; Customization Variable Tests
 ;;; ========================================
 

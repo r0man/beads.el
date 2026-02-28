@@ -506,8 +506,8 @@ Tests the complete flow: create issue, update multiple fields, verify changes."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (require 'beads-test)
-  ;; Create temporary project using beads-test-with-project
-  (beads-test-with-project ()
+  ;; Create temporary project using beads-test-with-shared-project
+  (beads-test-with-shared-project
     ;; Create a test issue
     (let* ((created-issue (beads-command-create!
                            :json t

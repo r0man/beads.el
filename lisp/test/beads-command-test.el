@@ -123,7 +123,7 @@ Integration test that verifies the convenience function works."
 Integration test that runs real bd export command."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create a test issue first
     (beads-command-create! :title "Export test issue")
     ;; Export to temp file
@@ -146,7 +146,7 @@ Integration test that runs real bd export command."
 Integration test that verifies status filtering works."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create issues with different statuses
     (beads-command-create! :title "Open issue")
     (let ((closed-issue (beads-command-create! :title "Closed issue")))
@@ -171,7 +171,7 @@ Integration test that verifies status filtering works."
 Integration test that verifies force flag works."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let* ((temp-file (make-temp-file "beads-export-test-" nil ".jsonl"))
            (stats (beads-command-export! :output temp-file
                                          :force t)))
@@ -190,7 +190,7 @@ Integration test that verifies force flag works."
 Integration test that verifies the convenience function works."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create a test issue
     (beads-command-create! :title "Helper test issue")
     (let* ((temp-file (make-temp-file "beads-export-test-" nil ".jsonl"))
@@ -212,7 +212,7 @@ Integration test that verifies the convenience function works."
 Integration test that runs real bd import command."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create and export an issue first
     (beads-command-create! :title "Import test issue")
     (let ((temp-file (make-temp-file "beads-import-test-" nil ".jsonl")))
@@ -221,7 +221,7 @@ Integration test that runs real bd import command."
             ;; Export to temp file
             (beads-command-export! :output temp-file)
             ;; Create a new project to import into
-            (beads-test-with-project ()
+            (beads-test-with-shared-project
               ;; Import from temp file (use rename-on-import for prefix mismatch)
               (let ((result (beads-command-import! :input temp-file
                                                    :rename-on-import t)))
@@ -244,7 +244,7 @@ Integration test that runs real bd import command."
 Integration test that verifies dry-run doesn't modify database."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create and export an issue
     (beads-command-create! :title "Dry run test issue")
     (let ((temp-file (make-temp-file "beads-import-test-" nil ".jsonl")))
@@ -253,7 +253,7 @@ Integration test that verifies dry-run doesn't modify database."
             ;; Export to temp file
             (beads-command-export! :output temp-file)
             ;; Create new project and import with dry-run
-            (beads-test-with-project ()
+            (beads-test-with-shared-project
               (let ((result (beads-command-import! :input temp-file
                                                    :dry-run t
                                                    :rename-on-import t)))
@@ -271,7 +271,7 @@ Integration test that verifies dry-run doesn't modify database."
 Integration test that verifies skip-existing import succeeds."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create initial issue
     (let ((issue (beads-command-create! :title "Original title")))
       (let ((temp-file (make-temp-file "beads-import-test-" nil ".jsonl")))
@@ -296,7 +296,7 @@ Integration test that verifies skip-existing import succeeds."
 Integration test that verifies the convenience function works."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create and export an issue
     (beads-command-create! :title "Helper test issue")
     (let ((temp-file (make-temp-file "beads-import-test-" nil ".jsonl")))
@@ -305,7 +305,7 @@ Integration test that verifies the convenience function works."
             ;; Export to temp file
             (beads-command-export! :output temp-file)
             ;; Create new project and test helper function
-            (beads-test-with-project ()
+            (beads-test-with-shared-project
               (let ((result (beads-command-import! :input temp-file
                                                    :rename-on-import t)))
                 ;; Should return a string (import output)
@@ -324,7 +324,7 @@ Integration test that verifies the convenience function works."
 Integration test that runs real bd create command."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((issue (beads-command-create! :title "Test issue")))
       ;; Should return a beads-issue instance
       (should (beads-issue-p issue))
@@ -340,7 +340,7 @@ Integration test that runs real bd create command."
 Integration test that verifies type and priority options work."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((issue (beads-command-create!
                   :title "Bug fix"
                   :issue-type "bug"
@@ -359,7 +359,7 @@ Integration test that verifies type and priority options work."
 Integration test that verifies description is set correctly."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((issue (beads-command-create!
                   :title "Feature request"
                   :description "Add new feature to improve UX")))
@@ -374,7 +374,7 @@ Integration test that verifies description is set correctly."
 Integration test that verifies assignee is set correctly."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((issue (beads-command-create!
                   :title "Assigned task"
                   :assignee "alice")))
@@ -388,7 +388,7 @@ Integration test that verifies assignee is set correctly."
 Integration test that verifies labels are set correctly."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((issue (beads-command-create!
                   :title "Labeled issue"
                   :labels '("urgent" "backend"))))
@@ -402,7 +402,7 @@ Integration test that verifies labels are set correctly."
 Integration test that verifies dependencies are set correctly."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; First create a parent issue
     (let* ((parent-issue (beads-command-create! :title "Parent issue"))
            (parent-id (oref parent-issue id))
@@ -420,7 +420,7 @@ Integration test that verifies dependencies are set correctly."
 Integration test with comprehensive option set."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((issue (beads-command-create!
                   :title "Complex issue"
                   :issue-type "feature"
@@ -444,7 +444,7 @@ Integration test with comprehensive option set."
 Integration test that lists all issues in a project."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create some test issues
     (let* ((issue1 (beads-command-create! :title "Issue 1"))
            (id1 (oref issue1 id))
@@ -471,7 +471,7 @@ Integration test that lists all issues in a project."
 Integration test that filters issues by status."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create test issues (all open by default)
     (beads-command-create! :title "Open issue")
     ;; List only open issues
@@ -488,7 +488,7 @@ Integration test that filters issues by status."
 Integration test that filters issues by priority."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create issues with different priorities
     (let* ((issue1 (beads-command-create!
                     :title "High priority"
@@ -513,7 +513,7 @@ Integration test that filters issues by priority."
 Integration test that filters issues by type."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create issues with different types
     (let* ((bug-issue (beads-command-create!
                        :title "Bug issue"
@@ -538,7 +538,7 @@ Integration test that filters issues by type."
 Integration test that applies multiple filters together."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create issues with various attributes
     (let* ((target-issue (beads-command-create!
                           :title "Critical bug"
@@ -572,7 +572,7 @@ Integration test that applies multiple filters together."
 Integration test that verifies result limiting works."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create several issues
     (beads-command-create! :title "Issue 1")
     (beads-command-create! :title "Issue 2")
@@ -591,7 +591,7 @@ Integration test that verifies result limiting works."
 Integration test that filters issues by assignee."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create issues with different assignees
     (let* ((alice-issue (beads-command-create!
                          :title "Alice's task"
@@ -616,7 +616,7 @@ Integration test that filters issues by assignee."
 Integration test that verifies empty list is returned correctly."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((issues (beads-command-list! :issue-type "epic")))
       (should (listp issues))
       (should (zerop (length issues))))))
@@ -628,7 +628,7 @@ Integration test that verifies empty list is returned correctly."
 Integration test that runs real bd epic status command."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create an epic with some children
     (let* ((epic (beads-command-create!
                   :title "Test Epic"
@@ -654,7 +654,7 @@ Integration test that runs real bd epic status command."
 Integration test that filters to show only eligible epics."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create an epic with all children closed
     (let* ((epic (beads-command-create!
                   :title "Complete Epic"
@@ -685,7 +685,7 @@ Integration test that filters to show only eligible epics."
 Integration test that previews eligible epics without closing."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create an epic with all children closed
     (let* ((epic (beads-command-create!
                   :title "Ready Epic"
@@ -717,7 +717,7 @@ Integration test that previews eligible epics without closing."
 Integration test that closes epics where all children are complete."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create an epic with all children closed
     (let* ((epic (beads-command-create!
                   :title "Closeable Epic"
@@ -752,7 +752,7 @@ Integration test that closes epics where all children are complete."
 Integration test that shows details for one issue."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create a test issue
     (let* ((created (beads-command-create! :title "Test Issue"))
            (issue-id (oref created id))
@@ -770,7 +770,7 @@ Integration test that shows details for one issue."
 Integration test that shows details for multiple issues."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create test issues
     (let* ((issue1 (beads-command-create! :title "Issue 1"))
            (id1 (oref issue1 id))
@@ -795,7 +795,7 @@ Integration test that shows details for multiple issues."
 Integration test that updates issue title."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create a test issue
     (let* ((created (beads-command-create! :title "Original Title"))
            (issue-id (oref created id))
@@ -815,7 +815,7 @@ Integration test that updates issue title."
 Integration test that updates title, status, and priority."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create a test issue
     (let* ((created (beads-command-create! :title "Original"))
            (issue-id (oref created id))
@@ -837,7 +837,7 @@ Integration test that updates title, status, and priority."
 Integration test that sets/updates description field."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create a test issue
     (let* ((created (beads-command-create! :title "Test"))
            (issue-id (oref created id))
@@ -857,7 +857,7 @@ Integration test that sets/updates description field."
 Integration test that closes one issue with a reason."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create a test issue
     (let* ((created (beads-command-create! :title "To Close"))
            (issue-id (oref created id))
@@ -877,7 +877,7 @@ Integration test that closes one issue with a reason."
 Integration test that closes several issues at once."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create test issues
     (let* ((issue1 (beads-command-create! :title "Issue 1"))
            (id1 (oref issue1 id))
@@ -906,7 +906,7 @@ Integration test that closes several issues at once."
 Integration test that lists unblocked open/in-progress issues."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create some test issues (all should be ready by default)
     (let* ((issue1 (beads-command-create! :title "Ready 1"))
            (_issue2 (beads-command-create! :title "Ready 2"))
@@ -927,7 +927,7 @@ Integration test that lists unblocked open/in-progress issues."
 Integration test that filters ready issues by priority."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create issues with different priorities
     (let* ((high (beads-command-create!
                   :title "High priority"
@@ -952,7 +952,7 @@ Integration test that filters ready issues by priority."
 Integration test that verifies result limiting works."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create several issues
     (beads-command-create! :title "Issue 1")
     (beads-command-create! :title "Issue 2")
@@ -971,7 +971,7 @@ Integration test that verifies result limiting works."
 Integration test that lists issues with unresolved blockers."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create a blocker and a blocked issue
     (let* ((blocker (beads-command-create! :title "Blocker"))
            (blocked (beads-command-create!
@@ -992,7 +992,7 @@ Integration test that lists issues with unresolved blockers."
 Integration test that verifies empty list when no blockers exist."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create issues without blockers
     (beads-command-create! :title "Issue 1")
     (beads-command-create! :title "Issue 2")
@@ -1008,7 +1008,7 @@ Integration test that verifies empty list when no blockers exist."
 Integration test that retrieves issue database stats."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create some test issues
     (beads-command-create! :title "Issue 1")
     (beads-command-create! :title "Issue 2")
@@ -1519,7 +1519,7 @@ Integration test that retrieves issue database stats."
 Integration test that adds a blocks dependency between two issues."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create two test issues
     (let* ((issue1 (beads-command-create! :title "Issue 1"))
            (issue2 (beads-command-create! :title "Issue 2"))
@@ -1536,7 +1536,7 @@ Integration test that adds a blocks dependency between two issues."
 Integration test that adds a related dependency."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let* ((issue1 (beads-command-create! :title "Issue 1"))
            (issue2 (beads-command-create! :title "Issue 2"))
            (id1 (oref issue1 id))
@@ -1554,7 +1554,7 @@ Integration test that adds a related dependency."
 Integration test that removes a dependency between two issues."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let* ((issue1 (beads-command-create! :title "Issue 1"))
            (issue2 (beads-command-create! :title "Issue 2"))
            (id1 (oref issue1 id))
@@ -1574,7 +1574,7 @@ Integration test that removes a dependency between two issues."
 Integration test that retrieves the dependency tree for an issue."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let* ((issue1 (beads-command-create! :title "Issue 1"))
            (id1 (oref issue1 id)))
       (let ((tree (beads-command-dep-tree! :issue-id id1)))
@@ -1585,7 +1585,7 @@ Integration test that retrieves the dependency tree for an issue."
 Integration test that retrieves dependency tree with depth limit."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let* ((issue1 (beads-command-create! :title "Issue 1"))
            (id1 (oref issue1 id)))
       (let ((tree (beads-command-dep-tree!
@@ -1598,7 +1598,7 @@ Integration test that retrieves dependency tree with depth limit."
 Integration test that shows what depends on this issue."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let* ((issue1 (beads-command-create! :title "Issue 1"))
            (id1 (oref issue1 id)))
       (let ((tree (beads-command-dep-tree!
@@ -1613,7 +1613,7 @@ Integration test that shows what depends on this issue."
 Integration test that checks for dependency cycles."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((result (beads-command-dep-cycles!)))
       (should (not (null result))))))
 

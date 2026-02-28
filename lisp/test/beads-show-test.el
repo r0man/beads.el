@@ -2062,7 +2062,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 Tests the full workflow: create issue -> update description -> verify update."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create an issue with initial description
     (let* ((initial-desc "Initial description text")
            (issue-title "Test Issue for Field Editing")
@@ -2106,7 +2106,7 @@ Tests the full workflow: create issue -> update description -> verify update."
 Tests editing a different multiline field to ensure all fields work."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create an issue with initial acceptance criteria
     (let* ((initial-ac "- [ ] Must do X\n- [ ] Must do Y")
            (issue-title "Test Issue for AC Editing")
@@ -2150,7 +2150,7 @@ Tests editing the notes field specifically.
 Note: Notes cannot be set at creation time, only via update."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create an issue without notes (notes not supported in create command)
     (let* ((issue-title "Test Issue for Notes Editing")
            (issue (beads-command-create!
@@ -3183,7 +3183,7 @@ Empty sessions are automatically cleaned up."
   "Integration test: show a real issue created with bd."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create a real issue
     (let ((issue (beads-command-create! :title "Test Issue for Show"
                                          :description "Test description"
@@ -3205,7 +3205,7 @@ Empty sessions are automatically cleaned up."
   "Integration test: get-or-create-buffer creates per-issue buffer."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Get or create buffer should return a buffer named after project and issue
     (let ((buf (beads-show--get-or-create-buffer "bd-42" "Test Issue")))
       (should (bufferp buf))
@@ -3219,7 +3219,7 @@ Empty sessions are automatically cleaned up."
   "Integration test: format status from real issue."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((issue (beads-command-create! :title "Status Test"
                                          :priority 2
                                          :issue-type "task")))
@@ -3232,7 +3232,7 @@ Empty sessions are automatically cleaned up."
   "Integration test: format priority from real issue."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((issue (beads-command-create! :title "Priority Test"
                                          :priority 1
                                          :issue-type "task")))
@@ -3245,7 +3245,7 @@ Empty sessions are automatically cleaned up."
   "Integration test: buttonize issue references."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let* ((issue1 (beads-command-create! :title "First Issue" :priority 2 :issue-type "task"))
            (issue2 (beads-command-create! :title "Second Issue" :priority 2 :issue-type "task"))
            (id1 (oref issue1 id))
@@ -3265,7 +3265,7 @@ Empty sessions are automatically cleaned up."
   "Integration test: insert header function."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (with-temp-buffer
       (beads-show--insert-header "Test Label" "Test Value")
       (should (string-match-p "Test Label" (buffer-string)))
@@ -3275,7 +3275,7 @@ Empty sessions are automatically cleaned up."
   "Integration test: insert section function."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (with-temp-buffer
       (beads-show--insert-section "Description" "This is the content")
       (should (string-match-p "Description" (buffer-string)))

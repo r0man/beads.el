@@ -4012,7 +4012,7 @@ When worktrees are disabled, uses beads-agent-start directly."
   "Integration test: build prompt from real issue."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((issue (beads-command-create! :title "Test Agent Issue"
                                          :description "Agent should do X"
                                          :acceptance "Must pass tests"
@@ -4028,7 +4028,7 @@ When worktrees are disabled, uses beads-agent-start directly."
   "Integration test: detect issue ID from beads-show buffer."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((issue (beads-command-create! :title "Detect Test"
                                          :priority 2
                                          :issue-type "bug")))
@@ -4044,7 +4044,7 @@ When worktrees are disabled, uses beads-agent-start directly."
   "Integration test: maybe-update-status with real issue."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((issue (beads-command-create! :title "Status Update Test"
                                          :priority 2
                                          :issue-type "task")))
@@ -4087,7 +4087,7 @@ When worktrees are disabled, uses beads-agent-start directly."
   "Integration test: read-issue-id with real issues."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((issue (beads-command-create! :title "Read ID Test"
                                          :priority 2
                                          :issue-type "task")))
@@ -4104,7 +4104,7 @@ When worktrees are disabled, uses beads-agent-start directly."
   (skip-unless (executable-find beads-executable))
   (beads-agent-test--setup)
   (unwind-protect
-      (beads-test-with-project ()
+      (beads-test-with-shared-project
         (let ((ctx (beads-agent--mode-line-context)))
           (should (listp ctx))
           ;; Should have all expected keys (values may be nil in batch mode)

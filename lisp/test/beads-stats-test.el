@@ -275,7 +275,7 @@ FILTER is an optional filter string."
 
 (ert-deftest beads-stats-test-command-creates-buffer ()
   "Test that beads-stats creates a buffer."
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((json-output (json-encode beads-stats-test--sample-stats)))
       (cl-letf (((symbol-function 'call-process)
                  (beads-stats-test--mock-call-process 0 json-output)))
@@ -285,7 +285,7 @@ FILTER is an optional filter string."
 
 (ert-deftest beads-stats-test-command-sets-mode ()
   "Test that beads-stats sets the correct mode."
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((json-output (json-encode beads-stats-test--sample-stats)))
       (cl-letf (((symbol-function 'call-process)
                  (beads-stats-test--mock-call-process 0 json-output)))
@@ -296,7 +296,7 @@ FILTER is an optional filter string."
 
 (ert-deftest beads-stats-test-command-displays-content ()
   "Test that beads-stats displays statistics content."
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((json-output (json-encode beads-stats-test--sample-stats)))
       (cl-letf (((symbol-function 'call-process)
                  (beads-stats-test--mock-call-process 0 json-output)))
@@ -309,7 +309,7 @@ FILTER is an optional filter string."
 
 (ert-deftest beads-stats-test-command-error-handling ()
   "Test that beads-stats handles command failure gracefully."
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((json-output (json-encode beads-stats-test--sample-stats)))
       (cl-letf (((symbol-function 'call-process)
                  (beads-stats-test--mock-call-process 1 "Error: failed")))
@@ -324,7 +324,7 @@ FILTER is an optional filter string."
 
 (ert-deftest beads-stats-test-refresh-updates-buffer ()
   "Test that beads-stats-refresh updates the buffer."
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((json-output (json-encode beads-stats-test--sample-stats)))
       (cl-letf (((symbol-function 'call-process)
                  (beads-stats-test--mock-call-process 0 json-output)))
@@ -353,7 +353,7 @@ FILTER is an optional filter string."
 
 (ert-deftest beads-stats-test-full-workflow ()
   "Test complete workflow from fetching to display."
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     (let ((json-output (json-encode beads-stats-test--sample-stats)))
       (cl-letf (((symbol-function 'call-process)
                  (beads-stats-test--mock-call-process 0 json-output)))
@@ -994,7 +994,7 @@ Verifies the symbol in-progress maps to string in_progress."
   "Integration test: clicking Total Issues shows all issues.
 Creates real issues and verifies they appear in the list buffer."
   :tags '(integration)
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create real issues in the temp project
     (let ((id1 (beads-test-create-issue "Open Issue" "task" 1))
           (id2 (beads-test-create-issue "Another Open" "bug" 2)))
@@ -1014,7 +1014,7 @@ Creates real issues and verifies they appear in the list buffer."
   "Integration test: clicking Open shows only open issues.
 Creates issues with different statuses and verifies filtering."
   :tags '(integration)
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create issues - one open, one we'll close
     (let ((open-id (beads-test-create-issue "Open Issue" "task" 1))
           (closed-id (beads-test-create-issue "Will Close" "task" 2)))
@@ -1036,7 +1036,7 @@ Creates issues with different statuses and verifies filtering."
 (ert-deftest beads-stats-test-click-closed-issues-real ()
   "Integration test: clicking Closed shows only closed issues."
   :tags '(integration)
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create and close an issue
     (let ((open-id (beads-test-create-issue "Stays Open" "task" 1))
           (closed-id (beads-test-create-issue "Will Close" "task" 2)))
@@ -1056,7 +1056,7 @@ Creates issues with different statuses and verifies filtering."
   "Integration test: clicking Ready shows ready issues.
 Issues without blockers should appear as ready."
   :tags '(integration)
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create an open issue - it should be ready (no blockers)
     (let* ((ready-id (beads-test-create-issue "Ready Issue" "task" 1))
            (buf-name (beads-buffer-list "ready" nil)))
@@ -1073,7 +1073,7 @@ Issues without blockers should appear as ready."
   "Integration test: full workflow from beads-stats to filtered list.
 Runs beads-stats, clicks a button, verifies correct list appears."
   :tags '(integration)
-  (beads-test-with-project ()
+  (beads-test-with-shared-project
     ;; Create some issues
     (let ((id1 (beads-test-create-issue "Issue One" "task" 1))
           (id2 (beads-test-create-issue "Issue Two" "bug" 2)))
