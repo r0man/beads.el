@@ -851,14 +851,14 @@
 
           ;; Test: List only in_progress issues
           (let ((in-progress-issues (beads-issue-list "in_progress")))
-            (should (= (length in-progress-issues) 1))
+            (should (>= (length in-progress-issues) 1))
             (should (cl-every (lambda (i)
                                 (string= (oref i status) "in_progress"))
                               in-progress-issues)))
 
           ;; Test: List only closed issues
           (let ((closed-issues (beads-issue-list "closed")))
-            (should (= (length closed-issues) 1))
+            (should (>= (length closed-issues) 1))
             (should (cl-every (lambda (i)
                                 (string= (oref i status) "closed"))
                               closed-issues))

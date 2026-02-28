@@ -19,7 +19,7 @@
 ;; - View: Commands for viewing issues (list, ready, blocked, show, stats)
 ;; - Create/Edit: Commands for creating/modifying (create, update, close)
 ;; - Dependencies: Dependency management (dep submenu)
-;; - Admin: Project administration (init, export, import)
+;; - Admin: Project administration (init)
 ;;
 ;; The menu header displays:
 ;; - Current project name and root directory
@@ -46,8 +46,6 @@
 (require 'beads-command-stats)
 (require 'beads-command-dep)
 (require 'beads-command-init)
-(require 'beads-command-export)
-(require 'beads-command-import)
 (require 'beads-command-quickstart)
 (require 'beads-command-epic)
 (require 'beads-agent)
@@ -259,8 +257,6 @@ into logical groups matching bd CLI structure."
     ("3" "Supersede issue" beads-supersede)]
    ["Sync & Data"
     ("y" "Sync (deprecated)" beads-sync)
-    ("X" "Export to JSONL" beads-export)
-    ("I" "Import from JSONL" beads-import)
     ("n" "Daemon menu" beads-daemon)
     ("4" "Restore issue" beads-restore)
     ("J" "SQL query" beads-sql)]

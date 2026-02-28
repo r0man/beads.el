@@ -204,46 +204,6 @@
   "Test that sync no-push infix is defined."
   (should (commandp 'beads-option-sync-no-push)))
 
-(ert-deftest beads-option-test-export-output-infix-exists ()
-  "Test that export output infix is defined."
-  (should (commandp 'beads-option-export-output)))
-
-(ert-deftest beads-option-test-export-no-auto-flush-infix-exists ()
-  "Test that export no-auto-flush infix is defined."
-  (should (commandp 'beads-option-export-no-auto-flush)))
-
-(ert-deftest beads-option-test-import-input-infix-exists ()
-  "Test that import input infix is defined."
-  (should (commandp 'beads-option-import-input)))
-
-(ert-deftest beads-option-test-import-dry-run-infix-exists ()
-  "Test that import dry-run infix is defined."
-  (should (commandp 'beads-option-import-dry-run)))
-
-(ert-deftest beads-option-test-import-skip-existing-infix-exists ()
-  "Test that import skip-existing infix is defined."
-  (should (commandp 'beads-option-import-skip-existing)))
-
-(ert-deftest beads-option-test-import-clear-duplicate-external-refs-infix-exists ()
-  "Test that import clear-duplicate-external-refs infix is defined."
-  (should (commandp 'beads-option-import-clear-duplicate-external-refs)))
-
-(ert-deftest beads-option-test-import-dedupe-after-infix-exists ()
-  "Test that import dedupe-after infix is defined."
-  (should (commandp 'beads-option-import-dedupe-after)))
-
-(ert-deftest beads-option-test-import-rename-on-import-infix-exists ()
-  "Test that import rename-on-import infix is defined."
-  (should (commandp 'beads-option-import-rename-on-import)))
-
-(ert-deftest beads-option-test-import-strict-infix-exists ()
-  "Test that import strict infix is defined."
-  (should (commandp 'beads-option-import-strict)))
-
-(ert-deftest beads-option-test-import-orphan-handling-infix-exists ()
-  "Test that import orphan-handling infix is defined."
-  (should (commandp 'beads-option-import-orphan-handling)))
-
 (ert-deftest beads-option-test-init-prefix-infix-exists ()
   "Test that init prefix infix is defined."
   (should (commandp 'beads-option-init-prefix)))
@@ -393,7 +353,7 @@
   "Test that required state variables are defined."
   ;; beads-close now uses meta-generated transient (no module state variables)
   (should (boundp 'beads-reopen--issue-id))
-  ;; beads-dep-add, beads-dep-remove, beads-sync, beads-export, beads-import, and beads-init
+  ;; beads-dep-add, beads-dep-remove, beads-sync, and beads-init
   ;; no longer use state variables (transient-args pattern)
   (should (boundp 'beads-dep--from-issue))
   (should (boundp 'beads-dep--to-issue))
@@ -639,30 +599,12 @@
   "Test that init quiet infix is defined."
   (should (commandp 'beads-option-init-quiet)))
 
-(ert-deftest beads-option-test-init-skip-merge-driver-infix-exists ()
-  "Test that init skip-merge-driver infix is defined."
-  (should (commandp 'beads-option-init-skip-merge-driver)))
-
 (ert-deftest beads-option-test-init-team-infix-exists ()
   "Test that init team infix is defined."
   (should (commandp 'beads-option-init-team)))
 
 ;;; ============================================================
 ;;; Export Infix Tests (additional)
-;;; ============================================================
-
-(ert-deftest beads-option-test-export-force-infix-exists ()
-  "Test that export force infix is defined."
-  (should (commandp 'beads-option-export-force)))
-
-(ert-deftest beads-option-test-export-format-infix-exists ()
-  "Test that export format infix is defined."
-  (should (commandp 'beads-option-export-format)))
-
-(ert-deftest beads-option-test-export-status-infix-exists ()
-  "Test that export status infix is defined."
-  (should (commandp 'beads-option-export-status)))
-
 ;;; ============================================================
 ;;; Label Transient Menu Tests
 ;;; ============================================================

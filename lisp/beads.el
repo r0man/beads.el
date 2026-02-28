@@ -491,12 +491,6 @@ or set `beads-executable' to the full path" beads-executable)))
 (autoload 'beads-quickstart "beads-command-quickstart" "Show Beads quickstart guide." t)
 
 ;;;###autoload
-(autoload 'beads-import "beads-command-import" "Import issues from JSONL." t)
-
-;;;###autoload
-(autoload 'beads-export "beads-command-export" "Export issues to JSONL format." t)
-
-;;;###autoload
 (autoload 'beads-sync "beads-command-sync" "Synchronize issues with git remote." t)
 
 ;;;###autoload
