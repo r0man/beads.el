@@ -41,6 +41,10 @@ When set, bypasses auto-discovery of .beads/*.db.")
   "Global JSON output flag.
 When non-nil, forces JSON output format.")
 
+(defvar beads-global-dolt-auto-commit nil
+  "Global dolt-auto-commit value.
+Dolt auto-commit policy: off, on, or batch.")
+
 (defvar beads-global-no-auto-flush nil
   "Global no-auto-flush flag.
 When non-nil, disables automatic JSONL sync after CRUD operations.")
