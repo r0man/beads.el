@@ -10,8 +10,16 @@
 ;;; Commentary:
 
 ;; This module defines the EIEIO command class for `bd sync' operation.
-;; Sync synchronizes issues with git remote through pull, merge, export,
-;; commit, and push operations.
+;;
+;; DEPRECATED: `bd sync' is now a no-op with the Dolt backend.
+;; Use the following replacements:
+;;   - `bd dolt push' instead of `bd sync' (push)
+;;   - `bd dolt pull' instead of `bd sync' (pull)
+;;   - `bd import' instead of `bd sync --import'
+;;   - `bd export' instead of `bd sync --export'
+;;
+;; The module is kept for backward compatibility but displays a
+;; deprecation warning when invoked.
 
 ;;; Code:
 
@@ -428,16 +436,15 @@ NO-PUSH: skip pushing to remote"
 (transient-define-prefix beads-sync ()
   "Synchronize issues with git remote.
 
-This transient menu provides an interface for the bd sync command,
-which performs a complete git-based sync workflow:
-1. Export pending changes to JSONL
-2. Commit changes to git
-3. Pull from remote (with conflict resolution)
-4. Import updated JSONL
-5. Push local commits to remote
+DEPRECATED: `bd sync' is now a no-op with the Dolt backend.
+Use instead:
+  - `bd dolt push' (M-x beads-dolt RET p)
+  - `bd dolt pull' (M-x beads-dolt RET P)
+  - `bd import' for importing
+  - `bd export' for exporting
 
-Use --dry-run to preview changes without making them."
-  ["Sync Options"
+This menu is kept for backward compatibility."
+  ["⚠ DEPRECATED — use bd dolt push/pull instead"
    (beads-option-sync-dry-run)
    (beads-option-sync-message)
    (beads-option-sync-no-pull)

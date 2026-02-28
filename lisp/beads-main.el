@@ -77,6 +77,14 @@
 (require 'beads-command-state)
 (require 'beads-command-status)
 (require 'beads-command-swarm)
+(require 'beads-command-diff)
+(require 'beads-command-history)
+(require 'beads-command-branch)
+(require 'beads-command-vc)
+(require 'beads-command-dolt)
+(require 'beads-command-restore)
+(require 'beads-command-sql)
+(require 'beads-command-federation)
 (require 'transient)
 
 ;;; Variables
@@ -231,6 +239,15 @@ into logical groups matching bd CLI structure."
     ("P" "Rename prefix" beads-rename-prefix)
     (":" "Repair database" beads-repair)
     (";" "Resolve conflicts" beads-resolve-conflicts)]]
+  ;; Row 2.5: Dolt & Version Control
+  [["Dolt & Version Control"
+    ("k" "Dolt menu" beads-dolt)
+    ("#" "VC menu" beads-vc)
+    ("p" "Branch" beads-branch)
+    ("`" "Diff" beads-diff)
+    ("%" "History" beads-history)]
+   ["Federation"
+    ("$" "Federation menu" beads-federation)]]
   ;; Row 3: Dependencies | Sync | Integrations
   [["Dependencies & Structure"
     ("d" "Dependencies" beads-dep)
@@ -241,11 +258,12 @@ into logical groups matching bd CLI structure."
     ("2" "Find duplicates" beads-duplicates)
     ("3" "Supersede issue" beads-supersede)]
    ["Sync & Data"
-    ("y" "Sync with remote" beads-sync)
+    ("y" "Sync (deprecated)" beads-sync)
     ("X" "Export to JSONL" beads-export)
     ("I" "Import from JSONL" beads-import)
     ("n" "Daemon menu" beads-daemon)
-    ("4" "Restore from git" beads-restore)]
+    ("4" "Restore issue" beads-restore)
+    ("J" "SQL query" beads-sql)]
    ["Integrations"
     ("j" "Jira" beads-jira)
     ("N" "Linear" beads-linear)

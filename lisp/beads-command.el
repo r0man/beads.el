@@ -288,6 +288,15 @@ Skip staleness check."
 Overrides auto-discovery of .beads/*.db."
     :long-option "db"
     :option-type :string)
+   (dolt-auto-commit
+    :initarg :dolt-auto-commit
+    :type (or null string)
+    :initform nil
+    :documentation "Dolt auto-commit policy (--dolt-auto-commit).
+Values: off, on, batch.  on: commit after each write.
+batch: defer commits to bd dolt commit."
+    :long-option "dolt-auto-commit"
+    :option-type :string)
    (lock-timeout
     :initarg :lock-timeout
     :type (or null string)

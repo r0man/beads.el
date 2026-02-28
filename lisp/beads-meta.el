@@ -701,8 +701,8 @@ by the base class's command-line method."
 ;;; ============================================================
 
 (defconst beads-meta--global-option-slots
-  '(actor allow-stale db lock-timeout no-auto-flush no-auto-import
-    no-daemon no-db profile quiet readonly sandbox verbose)
+  '(actor allow-stale db dolt-auto-commit lock-timeout no-auto-flush
+    no-auto-import no-daemon no-db profile quiet readonly sandbox verbose)
   "List of slot names that are global bd CLI options.
 These slots are defined in `beads-command-global-options' class.")
 

@@ -1108,6 +1108,15 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "=S"
   :argument "--allow-stale")
 
+(transient-define-infix beads-option-global-dolt-auto-commit ()
+  "Set Dolt auto-commit policy (off|on|batch)."
+  :class 'beads-option-global
+  :variable 'beads-global-dolt-auto-commit
+  :description "Dolt auto-commit"
+  :key "=C"
+  :argument "--dolt-auto-commit="
+  :prompt "Auto-commit policy (off|on|batch): ")
+
 (transient-define-infix beads-option-global-lock-timeout ()
   "Set SQLite lock timeout."
   :class 'beads-option-global
@@ -1155,6 +1164,7 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
           (beads-option-global-db)
           (beads-option-global-json)
           (beads-option-global-allow-stale)
+          (beads-option-global-dolt-auto-commit)
           (beads-option-global-lock-timeout)
           (beads-option-global-no-auto-flush)
           (beads-option-global-no-auto-import)
