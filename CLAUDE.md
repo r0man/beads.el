@@ -31,7 +31,8 @@ Run `bd prime` for workflow context, or install hooks (`bd hooks install`) for a
 - `bd ready` - Find unblocked work
 - `bd create "Title" --type task --priority 2` - Create issue
 - `bd close <id>` - Complete work
-- `bd sync` - Sync with git (run at session end)
+- `bd dolt push` - Push beads data to remote (replaces deprecated `bd sync`)
+- `bd dolt pull` - Pull beads data from remote
 
 For full workflow details: `bd prime`
 
@@ -51,7 +52,7 @@ For full workflow details: `bd prime`
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git pull --rebase
-   bd sync
+   bd dolt push
    git push
    git status  # MUST show "up to date with origin"
    ```
@@ -120,6 +121,105 @@ BD_NO_DAEMON=1 guix shell -D -f guix.scm -- eldev -p -dtT test
 # Without guix (assumes eldev installed):
 BD_NO_DAEMON=1 eldev -p -dtT test
 ```
+
+## Interactive Development Environment
+
+**MANDATORY FOR ALL AGENT WORK** — polecats, crew, any agent
+touching the codebase.
+
+All development, feature work, bug fixing, and UX testing on
+beads.el MUST happen interactively in a live non-graphical Emacs
+server controlled by agents via emacsclient.
+
+### Starting the Emacs Dev Server
+
+Start a dedicated non-graphical Emacs server for development:
+
+```bash
+emacs --daemon=beads-dev
+```
+
+The server loads beads.el from the working tree. Adapt the load-path
+to point at the current worktree's `lisp/` directory (the
+`share/emacs.d/init.el` uses `~/workspace/beads.el/lisp` — adjust
+for your actual worktree location):
+
+```bash
+emacsclient -s beads-dev -e '(add-to-list '\''load-path "'"$(pwd)"'/lisp")'
+emacsclient -s beads-dev -e '(require '\''beads)'
+```
+
+### Interactive Testing via emacsclient
+
+Use emacsclient against the dev server for all interactive testing:
+
+```bash
+# Evaluate elisp expressions
+emacsclient -s beads-dev -e '(elisp-expression)'
+
+# Open a terminal UI (in tmux)
+emacsclient -s beads-dev -nw
+```
+
+### Reloading After Code Changes
+
+After modifying source files, reload them into the running server:
+
+```bash
+emacsclient -s beads-dev -e '(load-file "lisp/beads-foo.el")'
+```
+
+Agents MUST try the features they develop interactively — invoke
+transient menus, trigger commands, verify buffer output, check
+error handling.
+
+### Killing the Server
+
+Kill the dev server at session end:
+
+```bash
+emacsclient -s beads-dev -e '(kill-emacs)'
+```
+
+## Acceptance Testing in tmux
+
+**MANDATORY** — every feature and bug fix MUST have acceptance
+testing done in a tmux session. Use the tmux skill to control
+Emacs non-graphically.
+
+### Workflow
+
+1. **Create a tmux session:**
+   ```bash
+   tmux new-session -d -s beads-test
+   ```
+
+2. **Start emacsclient in it:**
+   Send keys to the pane:
+   ```bash
+   tmux send-keys -t beads-test 'emacsclient -s beads-dev -nw' Enter
+   ```
+
+3. **Drive Emacs via tmux send-keys:**
+   Type commands, invoke keybindings:
+   ```bash
+   tmux send-keys -t beads-test 'M-x beads' Enter
+   ```
+
+4. **Capture pane output to verify results:**
+   ```bash
+   tmux capture-pane -t beads-test -p
+   ```
+
+5. **Test actual user-facing behavior:**
+   Verify that menus appear, buffers show correct data, errors
+   display properly.
+
+This catches UX issues that unit tests cannot: rendering,
+keybindings, interactive flows.
+
+**Do NOT skip this step** — a feature is not complete until it has
+been acceptance-tested in tmux.
 
 ## Beads Reference Documentation
 
@@ -284,22 +384,28 @@ When working on an issue:
 1. Create a branch for the issue: `git checkout -b beads.el-X-short-description`
 2. Update issue status: `bd update beads.el-X --status in_progress`
 3. Edit source files in lisp/*.el
-4. **MANDATORY: Test in live Emacs first** (catches issues early):
-   a. Start a live Emacs session in tmux for testing
-   b. Load the modified code and test interactively
-   c. This catches hard-to-test issues that unit tests miss
-5. **Run unit tests**:
-   ```bash
-   BD_NO_DAEMON=1 guix shell -D -f guix.scm -- eldev -p -dtT test
-   ```
-6. **Run integration tests** (if applicable)
-7. **ALL TESTS MUST PASS** - Fix any failures immediately
-8. Repeat steps 3-7 until feature is complete
-9. Commit changes with descriptive message (only after tests pass)
-10. Push branch to GitHub: `git push -u origin beads.el-X-short-description`
-11. Verify tests pass on GitHub Actions CI
-12. Create pull request or merge to main after CI passes
-13. Close issue: `bd close beads.el-X --reason "Completed"`
+4. **MANDATORY: Interactive testing in live Emacs** (catches issues
+   early):
+   a. Start the Emacs dev server if not running:
+      `emacs --daemon=beads-dev`
+   b. Load modified code into server via emacsclient:
+      `emacsclient -s beads-dev -e '(load-file "lisp/beads-foo.el")'`
+   c. Try the feature interactively — invoke commands, check buffers:
+      `emacsclient -s beads-dev -e '(beads)'`
+   d. Run acceptance test in tmux — open emacsclient in tmux, drive
+      full workflow (see "Acceptance Testing in tmux" section above)
+   e. Run unit tests:
+      `BD_NO_DAEMON=1 guix shell -D -f guix.scm -- eldev -p -dtT test`
+   f. Run linter and byte compiler:
+      `guix shell -D -f guix.scm -- eldev -p -dtT lint`
+      `guix shell -D -f guix.scm -- eldev -p -dtT compile`
+5. **ALL TESTS MUST PASS** - Fix any failures immediately
+6. Repeat steps 3-5 until feature is complete
+7. Commit changes with descriptive message (only after tests pass)
+8. Push branch to GitHub: `git push -u origin beads.el-X-short-description`
+9. Verify tests pass on GitHub Actions CI
+10. Create pull request or merge to main after CI passes
+11. Close issue: `bd close beads.el-X --reason "Completed"`
 
 **CRITICAL**: Never commit code that fails tests. The live testing
 followed by unit/integration tests catches issues early, before they
