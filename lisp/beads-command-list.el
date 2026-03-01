@@ -67,9 +67,11 @@
 ;;; List Command
 
 ;; Wrap in eval-and-compile so class is available at compile time for
-;; beads-meta-define-transient macro
+;; beads-meta-define-transient macro.  Use defclass directly (not
+;; beads-defcommand) to avoid auto-generating beads-command-list!,
+;; which would conflict with the custom override below.
 (eval-and-compile
-  (beads-defcommand beads-command-list (beads-command-json)
+  (defclass beads-command-list (beads-command-json)
     (;; === Basic Filters ===
      (all
       :initarg :all

@@ -288,7 +288,7 @@
 
 (ert-deftest beads-update-test-validation-workflow ()
   "Integration test: Test validation workflow."
-  :tags '(integration)
+  :tags '(:integration)
   (let* ((beads-update--issue-id nil)  ; Missing issue ID should fail
          (beads-update--original-data beads-update-test--sample-issue)
          (cmd (beads-update--parse-transient-args nil))  ; No changes
@@ -298,7 +298,7 @@
 
 (ert-deftest beads-update-test-command-building-workflow ()
   "Integration test: Test complete workflow with validation and changes."
-  :tags '(integration)
+  :tags '(:integration)
   (let ((beads-update--issue-id "bd-42")
         (beads-update--original-data beads-update-test--sample-issue))
     (let ((cmd (beads-update--parse-transient-args
@@ -311,7 +311,7 @@
 
 (ert-deftest beads-update-test-context-from-show-mode ()
   "Integration test: Test context detection from show mode."
-  :tags '(integration)
+  :tags '(:integration)
   (require 'beads-command-show)
   (with-temp-buffer
     (beads-show-mode)

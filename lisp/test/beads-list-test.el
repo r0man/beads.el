@@ -800,7 +800,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-integration-date-format-change ()
   "Integration test: Changing date format affects display."
-  :tags '(integration)
+  :tags '(:integration)
   (let ((beads-list-date-format 'absolute))
     (beads-list-test--with-temp-buffer
      beads-list-test--sample-issues 'list
@@ -814,7 +814,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-integration-created-width-custom ()
   "Integration test: Created column width is customizable."
-  :tags '(integration)
+  :tags '(:integration)
   (let ((beads-list-created-width 20))
     (with-temp-buffer
       (beads-list-mode)
@@ -828,12 +828,12 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-mode-defined ()
   "Integration test: Verify beads-list-mode is defined."
-  :tags '(integration)
+  :tags '(:integration)
   (should (fboundp 'beads-list-mode)))
 
 (ert-deftest beads-list-test-keybinding-n-next ()
   "Integration test: Verify n keybinding for next."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-list-mode)
     (let ((binding (lookup-key beads-list-mode-map (kbd "n"))))
@@ -841,7 +841,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-keybinding-p-previous ()
   "Integration test: Verify p keybinding for previous."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-list-mode)
     (let ((binding (lookup-key beads-list-mode-map (kbd "p"))))
@@ -849,7 +849,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-keybinding-ret-show ()
   "Integration test: Verify RET keybinding for show."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-list-mode)
     (let ((binding (lookup-key beads-list-mode-map (kbd "RET"))))
@@ -857,7 +857,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-keybinding-g-refresh ()
   "Integration test: Verify g keybinding for refresh."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-list-mode)
     (let ((binding (lookup-key beads-list-mode-map (kbd "g"))))
@@ -865,7 +865,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-keybinding-q-quit ()
   "Integration test: Verify q keybinding for quit."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-list-mode)
     (let ((binding (lookup-key beads-list-mode-map (kbd "q"))))
@@ -873,7 +873,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-keybinding-m-mark ()
   "Integration test: Verify m keybinding for mark."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-list-mode)
     (let ((binding (lookup-key beads-list-mode-map (kbd "m"))))
@@ -881,7 +881,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-keybinding-u-unmark ()
   "Integration test: Verify u keybinding for unmark."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-list-mode)
     (let ((binding (lookup-key beads-list-mode-map (kbd "u"))))
@@ -889,7 +889,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-keybinding-w-copy ()
   "Integration test: Verify w keybinding for copy-id."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-list-mode)
     (let ((binding (lookup-key beads-list-mode-map (kbd "w"))))
@@ -897,7 +897,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-keybinding-C-w-copy ()
   "Integration test: Verify C-w keybinding for copy-id."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-list-mode)
     (let ((binding (lookup-key beads-list-mode-map (kbd "C-w"))))
@@ -905,7 +905,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-keybinding-S-sort ()
   "Integration test: Verify S keybinding for sort."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-list-mode)
     (let ((binding (lookup-key beads-list-mode-map (kbd "S"))))
@@ -913,7 +913,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-list-mode-setup ()
   "Integration test: Verify list mode can be set up."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-list-mode)
     (should (eq major-mode 'beads-list-mode))
@@ -922,22 +922,22 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-list-command-exists ()
   "Integration test: Verify beads-list command exists."
-  :tags '(integration)
+  :tags '(:integration)
   (should (fboundp 'beads-list)))
 
 (ert-deftest beads-list-test-ready-command-exists ()
   "Integration test: Verify beads-ready command exists."
-  :tags '(integration)
+  :tags '(:integration)
   (should (fboundp 'beads-ready)))
 
 (ert-deftest beads-list-test-blocked-command-exists ()
   "Integration test: Verify beads-blocked command exists."
-  :tags '(integration)
+  :tags '(:integration)
   (should (fboundp 'beads-blocked)))
 
 (ert-deftest beads-list-test-workflow-to-show ()
   "Integration test: Navigate from list to show buffer."
-  :tags '(integration)
+  :tags '(:integration)
   (require 'beads-command-show)
   (with-temp-buffer
     (beads-list-mode)
@@ -949,7 +949,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-workflow-to-update ()
   "Integration test: Update from list buffer."
-  :tags '(integration)
+  :tags '(:integration)
   (require 'beads-command-update)
   (with-temp-buffer
     (beads-list-mode)
@@ -961,7 +961,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-workflow-to-close ()
   "Integration test: Close from list buffer."
-  :tags '(integration)
+  :tags '(:integration)
   (require 'beads-command-close)
   (with-temp-buffer
     (beads-list-mode)
@@ -973,7 +973,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-workflow-to-delete ()
   "Integration test: Delete from list buffer."
-  :tags '(integration)
+  :tags '(:integration)
   (require 'beads-command-delete)
   (with-temp-buffer
     (beads-list-mode)
@@ -985,7 +985,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-workflow-to-create ()
   "Integration test: Create from list buffer."
-  :tags '(integration)
+  :tags '(:integration)
   (require 'beads-command-create)
   (with-temp-buffer
     (beads-list-mode)
@@ -997,7 +997,7 @@ ISSUES should be a list of alists (test data format)."
 
 (ert-deftest beads-list-test-context-detection ()
   "Integration test: Context detection works in list mode."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-list-mode)
     ;; List mode should be active
@@ -1132,7 +1132,7 @@ Active session should take priority over previous outcome."
 (ert-deftest beads-list-test-transient-menu-displays ()
   "Integration test: Verify beads-list transient is properly defined.
 Tests that the transient prefix and its suffixes are correctly set up."
-  :tags '(integration transient)
+  :tags '(:integration :transient)
   ;; Verify beads-list is a transient prefix
   (should (get 'beads-list 'transient--prefix))
   ;; Verify the execute suffix is defined and has correct key
@@ -1145,7 +1145,7 @@ Tests that the transient prefix and its suffixes are correctly set up."
 (ert-deftest beads-list-test-transient-menu-executes ()
   "Integration test: Verify beads-list execute suffix works correctly.
 Tests that executing with mocked transient-args creates a list buffer."
-  :tags '(integration transient)
+  :tags '(:integration :transient)
   (cl-letf (((symbol-function 'beads-check-executable)
              (lambda () t))
             ((symbol-function 'beads-command-execute)
@@ -1182,7 +1182,7 @@ Tests that executing with mocked transient-args creates a list buffer."
 (ert-deftest beads-list-test-transient-menu-preview ()
   "Integration test: Verify beads-list preview suffix displays command.
 Tests that the preview command shows the bd command that would be executed."
-  :tags '(integration transient)
+  :tags '(:integration :transient)
   (cl-letf (((symbol-function 'beads-check-executable)
              (lambda () t)))
     (let ((message-shown nil))

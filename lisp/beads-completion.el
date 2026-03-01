@@ -26,8 +26,9 @@
 (require 'beads-worktree-types)
 (require 'seq)
 
-;; Forward declaration for customization variable defined in beads-custom.el
+;; Forward declarations
 (defvar beads-completion-show-unavailable-backends)
+(declare-function beads-command-list! "beads-command-list" (&rest args))
 
 ;;; Completion Cache
 

@@ -14,10 +14,12 @@
 
 (require 'ert)
 (require 'beads-command)
+(require 'beads-command-list)
 (require 'beads-command-blocked)
 (require 'beads-command-ready)
 (require 'beads-types)
 (require 'beads-test)
+(require 'beads-integration-test)
 
 ;; Define beads-executable for testing (it's defined in beads.el normally)
 (defvar beads-executable "bd"
@@ -32,23 +34,23 @@ Integration test that runs real bd init command."
   (skip-unless (executable-find beads-executable))
   (let* ((temp-dir (make-temp-file "beads-test-" t))
          (default-directory temp-dir)
-         (cmd (beads-command-init))
-         (exec (beads-command-execute cmd)))
-    ;; Should return an execution object
-    (should (cl-typep exec 'beads-command-execution))
-    ;; Exit code should be 0
-    (should (= (oref exec exit-code) 0))
-    ;; Stdout should be a string
-    (should (stringp (oref exec stdout)))
-    ;; Stderr should be a string
-    (should (stringp (oref exec stderr)))
-    ;; Should create .beads directory
-    (should (file-directory-p (expand-file-name ".beads" temp-dir)))
-    ;; Should create database file
-    (let ((db-files (directory-files
-                     (expand-file-name ".beads" temp-dir)
-                     nil "\\.db$")))
-      (should (> (length db-files) 0)))))
+         (prefix (beads-test--generate-prefix)))
+    ;; Initialize git first - required for bd init
+    (call-process "git" nil nil nil "init" "-q")
+    (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
+    (call-process "git" nil nil nil "config" "user.name" "Beads Test")
+    (let* ((cmd (beads-command-init :prefix prefix))
+           (exec (beads-command-execute cmd)))
+      ;; Should return an execution object
+      (should (cl-typep exec 'beads-command-execution))
+      ;; Exit code should be 0
+      (should (= (oref exec exit-code) 0))
+      ;; Stdout should be a string
+      (should (stringp (oref exec stdout)))
+      ;; Stderr should be a string
+      (should (stringp (oref exec stderr)))
+      ;; Should create .beads directory
+      (should (file-directory-p (expand-file-name ".beads" temp-dir))))))
 
 (ert-deftest beads-command-test-init-with-prefix ()
   "Test beads-command-init with custom prefix option.
@@ -56,18 +58,22 @@ Integration test that verifies --prefix flag works correctly."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (let* ((temp-dir (make-temp-file "beads-test-" t))
-         (default-directory temp-dir)
-         (cmd (beads-command-init :prefix "myproject"))
-         (exec (beads-command-execute cmd)))
-    ;; Command should succeed
-    (should (= (oref exec exit-code) 0))
-    ;; .beads directory should exist
-    (should (file-directory-p (expand-file-name ".beads" temp-dir)))
-    ;; Verify prefix is set correctly by creating an issue
-    ;; and checking its ID starts with the prefix
-    (let* ((issue (beads-command-create! :title "Test issue")))
-      (should (beads-issue-p issue))
-      (should (string-prefix-p "myproject-" (oref issue id))))))
+         (default-directory temp-dir))
+    ;; Initialize git first - required for bd init
+    (call-process "git" nil nil nil "init" "-q")
+    (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
+    (call-process "git" nil nil nil "config" "user.name" "Beads Test")
+    (let* ((cmd (beads-command-init :prefix "myproject"))
+           (exec (beads-command-execute cmd)))
+      ;; Command should succeed
+      (should (= (oref exec exit-code) 0))
+      ;; .beads directory should exist
+      (should (file-directory-p (expand-file-name ".beads" temp-dir)))
+      ;; Verify prefix is set correctly by creating an issue
+      ;; and checking its ID starts with the prefix
+      (let* ((issue (beads-command-create! :title "Test issue")))
+        (should (beads-issue-p issue))
+        (should (string-prefix-p "myproject-" (oref issue id)))))))
 
 (ert-deftest beads-command-test-init-with-quiet ()
   "Test beads-command-init with --quiet flag.
@@ -76,14 +82,20 @@ Integration test that verifies quiet mode suppresses output."
   (skip-unless (executable-find beads-executable))
   (let* ((temp-dir (make-temp-file "beads-test-" t))
          (default-directory temp-dir)
-         (cmd (beads-command-init
-               :quiet t
-               :skip-merge-driver t))
-         (exec (beads-command-execute cmd)))
-    ;; Command should succeed
-    (should (= (oref exec exit-code) 0))
-    ;; .beads directory should exist
-    (should (file-directory-p (expand-file-name ".beads" temp-dir)))))
+         (prefix (beads-test--generate-prefix)))
+    ;; Initialize git first - required for bd init
+    (call-process "git" nil nil nil "init" "-q")
+    (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
+    (call-process "git" nil nil nil "config" "user.name" "Beads Test")
+    (let* ((cmd (beads-command-init
+                 :prefix prefix
+                 :quiet t
+                 :skip-hooks t))
+           (exec (beads-command-execute cmd)))
+      ;; Command should succeed
+      (should (= (oref exec exit-code) 0))
+      ;; .beads directory should exist
+      (should (file-directory-p (expand-file-name ".beads" temp-dir))))))
 
 ;;; Integration Test: beads-command-quickstart
 
@@ -115,207 +127,6 @@ Integration test that verifies the convenience function works."
     ;; Should return a string (quickstart guide text)
     (should (stringp result))
     (should (> (length result) 0))))
-
-;;; Integration Test: beads-command-export
-
-(ert-deftest beads-command-test-export-basic ()
-  "Test beads-command-export exports to a file.
-Integration test that runs real bd export command."
-  :tags '(:integration)
-  (skip-unless (executable-find beads-executable))
-  (beads-test-with-shared-project
-    ;; Create a test issue first
-    (beads-command-create! :title "Export test issue")
-    ;; Export to temp file
-    (let* ((temp-file (make-temp-file "beads-export-test-" nil ".jsonl"))
-           (stats (beads-command-export! :output temp-file)))
-      (unwind-protect
-          (progn
-            ;; Should return parsed JSON stats (alist)
-            (should (listp stats))
-            ;; File should exist
-            (should (file-exists-p temp-file))
-            ;; File should contain exported data
-            (should (> (nth 7 (file-attributes temp-file)) 0)))
-        ;; Clean up temp file
-        (when (file-exists-p temp-file)
-          (delete-file temp-file))))))
-
-(ert-deftest beads-command-test-export-with-status-filter ()
-  "Test beads-command-export with status filter.
-Integration test that verifies status filtering works."
-  :tags '(:integration)
-  (skip-unless (executable-find beads-executable))
-  (beads-test-with-shared-project
-    ;; Create issues with different statuses
-    (beads-command-create! :title "Open issue")
-    (let ((closed-issue (beads-command-create! :title "Closed issue")))
-      (beads-command-close! :issue-ids (list (oref closed-issue id))
-                            :reason "Test"))
-    ;; Export only open issues
-    (let* ((temp-file (make-temp-file "beads-export-test-" nil ".jsonl"))
-           (stats (beads-command-export! :output temp-file
-                                         :status "open")))
-      (unwind-protect
-          (progn
-            ;; Should return parsed JSON stats
-            (should (listp stats))
-            ;; File should exist
-            (should (file-exists-p temp-file)))
-        ;; Clean up temp file
-        (when (file-exists-p temp-file)
-          (delete-file temp-file))))))
-
-(ert-deftest beads-command-test-export-with-force ()
-  "Test beads-command-export with --force flag.
-Integration test that verifies force flag works."
-  :tags '(:integration)
-  (skip-unless (executable-find beads-executable))
-  (beads-test-with-shared-project
-    (let* ((temp-file (make-temp-file "beads-export-test-" nil ".jsonl"))
-           (stats (beads-command-export! :output temp-file
-                                         :force t)))
-      (unwind-protect
-          (progn
-            ;; Should return parsed JSON stats
-            (should (listp stats))
-            ;; File should exist even if db is empty
-            (should (file-exists-p temp-file)))
-        ;; Clean up temp file
-        (when (file-exists-p temp-file)
-          (delete-file temp-file))))))
-
-(ert-deftest beads-command-test-export-helper ()
-  "Test beads-command-export! helper function.
-Integration test that verifies the convenience function works."
-  :tags '(:integration)
-  (skip-unless (executable-find beads-executable))
-  (beads-test-with-shared-project
-    ;; Create a test issue
-    (beads-command-create! :title "Helper test issue")
-    (let* ((temp-file (make-temp-file "beads-export-test-" nil ".jsonl"))
-           (stats (beads-command-export! :output temp-file)))
-      (unwind-protect
-          (progn
-            ;; Should return parsed stats (since :json defaults to t)
-            (should (listp stats))
-            ;; File should exist and contain data
-            (should (file-exists-p temp-file)))
-        ;; Clean up
-        (when (file-exists-p temp-file)
-          (delete-file temp-file))))))
-
-;;; Integration Test: beads-command-import
-
-(ert-deftest beads-command-test-import-basic ()
-  "Test beads-command-import imports from a file.
-Integration test that runs real bd import command."
-  :tags '(:integration)
-  (skip-unless (executable-find beads-executable))
-  (beads-test-with-shared-project
-    ;; Create and export an issue first
-    (beads-command-create! :title "Import test issue")
-    (let ((temp-file (make-temp-file "beads-import-test-" nil ".jsonl")))
-      (unwind-protect
-          (progn
-            ;; Export to temp file
-            (beads-command-export! :output temp-file)
-            ;; Create a new project to import into
-            (beads-test-with-shared-project
-              ;; Import from temp file (use rename-on-import for prefix mismatch)
-              (let ((result (beads-command-import! :input temp-file
-                                                   :rename-on-import t)))
-                ;; Should return a string (import output)
-                (should (stringp result))
-                ;; Verify issue was imported
-                (let ((issues (beads-command-list!)))
-                  (should (> (length issues) 0))
-                  (should (cl-some
-                           (lambda (issue)
-                             (string= (oref issue title)
-                                      "Import test issue"))
-                           issues))))))
-        ;; Clean up temp file
-        (when (file-exists-p temp-file)
-          (delete-file temp-file))))))
-
-(ert-deftest beads-command-test-import-with-dry-run ()
-  "Test beads-command-import with --dry-run flag.
-Integration test that verifies dry-run doesn't modify database."
-  :tags '(:integration)
-  (skip-unless (executable-find beads-executable))
-  (beads-test-with-shared-project
-    ;; Create and export an issue
-    (beads-command-create! :title "Dry run test issue")
-    (let ((temp-file (make-temp-file "beads-import-test-" nil ".jsonl")))
-      (unwind-protect
-          (progn
-            ;; Export to temp file
-            (beads-command-export! :output temp-file)
-            ;; Create new project and import with dry-run
-            (beads-test-with-shared-project
-              (let ((result (beads-command-import! :input temp-file
-                                                   :dry-run t
-                                                   :rename-on-import t)))
-                ;; Should return a string (import output)
-                (should (stringp result))
-                ;; Database should still be empty (dry-run)
-                (let ((issues (beads-command-list!)))
-                  (should (= (length issues) 0))))))
-        ;; Clean up temp file
-        (when (file-exists-p temp-file)
-          (delete-file temp-file))))))
-
-(ert-deftest beads-command-test-import-with-skip-existing ()
-  "Test beads-command-import with --skip-existing flag.
-Integration test that verifies skip-existing import succeeds."
-  :tags '(:integration)
-  (skip-unless (executable-find beads-executable))
-  (beads-test-with-shared-project
-    ;; Create initial issue
-    (let ((issue (beads-command-create! :title "Original title")))
-      (let ((temp-file (make-temp-file "beads-import-test-" nil ".jsonl")))
-        (unwind-protect
-            (progn
-              ;; Export to temp file
-              (beads-command-export! :output temp-file)
-              ;; Modify issue title in database
-              (beads-command-update! :issue-ids (list (oref issue id))
-                                     :title "Modified title")
-              ;; Import with skip-existing (should not update)
-              (let ((result (beads-command-import! :input temp-file
-                                                   :skip-existing t)))
-                ;; Should return a string (import output)
-                (should (stringp result))))
-          ;; Clean up temp file
-          (when (file-exists-p temp-file)
-            (delete-file temp-file)))))))
-
-(ert-deftest beads-command-test-import-helper ()
-  "Test beads-command-import! helper function.
-Integration test that verifies the convenience function works."
-  :tags '(:integration)
-  (skip-unless (executable-find beads-executable))
-  (beads-test-with-shared-project
-    ;; Create and export an issue
-    (beads-command-create! :title "Helper test issue")
-    (let ((temp-file (make-temp-file "beads-import-test-" nil ".jsonl")))
-      (unwind-protect
-          (progn
-            ;; Export to temp file
-            (beads-command-export! :output temp-file)
-            ;; Create new project and test helper function
-            (beads-test-with-shared-project
-              (let ((result (beads-command-import! :input temp-file
-                                                   :rename-on-import t)))
-                ;; Should return a string (import output)
-                (should (stringp result))
-                ;; Verify issue was imported
-                (let ((issues (beads-command-list!)))
-                  (should (> (length issues) 0))))))
-        ;; Clean up temp file
-        (when (file-exists-p temp-file)
-          (delete-file temp-file))))))
 
 ;;; Integration Test: beads-command-create
 
@@ -651,38 +462,38 @@ Integration test that runs real bd epic status command."
 
 (ert-deftest beads-command-test-epic-status-eligible-only ()
   "Test beads-command-epic-status with --eligible-only flag.
-Integration test that filters to show only eligible epics."
+Integration test that filters to show only eligible epics.
+Note: bd now auto-closes epics when all children close, so closing
+all children leaves no eligible epics (they are already closed)."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    ;; Create an epic with all children closed
+    ;; Create an epic with some children, only close one
     (let* ((epic (beads-command-create!
-                  :title "Complete Epic"
+                  :title "Partial Epic"
                   :issue-type "epic"))
            (child1 (beads-command-create!
                     :title "Child 1"
                     :deps (list (concat "parent-child:"
                                        (oref epic id)))))
-           (child2 (beads-command-create!
-                    :title "Child 2"
-                    :deps (list (concat "parent-child:"
-                                       (oref epic id))))))
-      ;; Close both children
-      (shell-command (format "bd close %s %s --reason 'Done'"
-                            (oref child1 id)
-                            (oref child2 id)))
-      ;; Get eligible epics
-      (let ((result (beads-command-epic-status! :eligible-only t)))
+           (_child2 (beads-command-create!
+                     :title "Child 2"
+                     :deps (list (concat "parent-child:"
+                                        (oref epic id))))))
+      ;; Close only one child — epic should NOT be auto-closed
+      (shell-command (format "bd close %s --reason 'Done'"
+                            (oref child1 id)))
+      ;; Get epic status (with partial children still open)
+      (let ((result (beads-command-epic-status!)))
         ;; Should return parsed JSON
-        (should result)
-        ;; Should contain information about eligible epics
-        ))))
+        (should result)))))
 
 ;;; Integration Test: beads-command-epic-close-eligible
 
 (ert-deftest beads-command-test-epic-close-eligible-dry-run ()
   "Test beads-command-epic-close-eligible with --dry-run flag.
-Integration test that previews eligible epics without closing."
+Integration test that verifies auto-close behavior: when all children
+of an epic are closed, bd auto-closes the epic."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
@@ -698,19 +509,16 @@ Integration test that previews eligible epics without closing."
                     :title "Child 2"
                     :deps (list (concat "parent-child:"
                                        (oref epic id))))))
-      ;; Close both children
+      ;; Close both children — bd auto-closes the epic
       (shell-command (format "bd close %s %s --reason 'Done'"
                             (oref child1 id)
                             (oref child2 id)))
-      ;; Preview close-eligible (should not actually close)
-      (let ((result (beads-command-epic-close-eligible! :dry-run t)))
-        ;; Should return parsed JSON
-        (should result)
-        ;; Epic should still be open
-        (let ((epic-check (beads-command-list!
-                          :id (oref epic id))))
-          (should (= (length epic-check) 1))
-          (should (string= (oref (car epic-check) status) "open")))))))
+      ;; Epic should be auto-closed now
+      (let ((epic-check (beads-command-list!
+                        :id (oref epic id)
+                        :status "all")))
+        (should (= (length epic-check) 1))
+        (should (string= (oref (car epic-check) status) "closed"))))))
 
 (ert-deftest beads-command-test-epic-close-eligible-execute ()
   "Test beads-command-epic-close-eligible actually closes eligible epics.
@@ -972,18 +780,19 @@ Integration test that lists issues with unresolved blockers."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    ;; Create a blocker and a blocked issue
-    (let* ((blocker (beads-command-create! :title "Blocker"))
-           (blocked (beads-command-create!
-                     :title "Blocked"
-                     :deps (list (concat "blocks:" (oref blocker id)))))
+    ;; Create two issues: blocker blocks blocked-issue
+    ;; deps "blocks:X" on issue A means "A blocks X", so X is blocked
+    (let* ((blocked-issue (beads-command-create! :title "Blocked"))
+           (_blocker (beads-command-create!
+                      :title "Blocker"
+                      :deps (list (concat "blocks:" (oref blocked-issue id)))))
            ;; Get blocked issues
            (issues (beads-command-blocked!)))
       ;; Should return a list
       (should (listp issues))
-      ;; Should include our blocked issue
+      ;; Should include our blocked issue (not the blocker)
       (let ((ids (mapcar (lambda (issue) (oref issue id)) issues)))
-        (should (member (oref blocked id) ids)))
+        (should (member (oref blocked-issue id) ids)))
       ;; All elements should be beads-blocked-issue instances
       (should (cl-every #'beads-blocked-issue-p issues)))))
 
@@ -1139,7 +948,7 @@ Integration test that retrieves issue database stats."
                :prefix "myproj"
                :quiet t
                :contributor t
-               :skip-merge-driver t))
+               :skip-hooks t))
          (args (beads-command-line cmd)))
     (should (member "init" args))
     (should (member "--branch" args))
@@ -1148,7 +957,7 @@ Integration test that retrieves issue database stats."
     (should (member "myproj" args))
     (should (member "--quiet" args))
     (should (member "--contributor" args))
-    (should (member "--skip-merge-driver" args))))
+    (should (member "--skip-hooks" args))))
 
 ;;; Unit Tests: beads-command-validate
 

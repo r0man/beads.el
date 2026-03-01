@@ -298,14 +298,6 @@ by checking if the function is available after requiring beads-main."
   "Test that beads-init is defined."
   (should (fboundp 'beads-init)))
 
-(ert-deftest beads-main-test-placeholder-export-defined ()
-  "Test that beads-export is defined."
-  (should (fboundp 'beads-export)))
-
-(ert-deftest beads-main-test-placeholder-import-defined ()
-  "Test that beads-import is defined."
-  (should (fboundp 'beads-import)))
-
 ;;; Tests for beads-init command
 
 (ert-deftest beads-main-test-init-is-transient-prefix ()
@@ -315,26 +307,6 @@ by checking if the function is available after requiring beads-main."
 (ert-deftest beads-main-test-init-execute-defined ()
   "Test that beads-init execute command is defined."
   (should (fboundp 'beads-init--execute)))
-
-;;; Tests for beads-export command
-
-(ert-deftest beads-main-test-export-is-transient-prefix ()
-  "Test that beads-export is a transient prefix."
-  (should (get 'beads-export 'transient--prefix)))
-
-(ert-deftest beads-main-test-export-execute-defined ()
-  "Test that beads-export execute command is defined."
-  (should (fboundp 'beads-export--execute-command)))
-
-;;; Tests for beads-import command
-
-(ert-deftest beads-main-test-import-is-transient-prefix ()
-  "Test that beads-import is a transient prefix."
-  (should (get 'beads-import 'transient--prefix)))
-
-(ert-deftest beads-main-test-import-execute-defined ()
-  "Test that beads-import execute command is defined."
-  (should (fboundp 'beads-import--execute-command)))
 
 (ert-deftest beads-main-test-refresh-menu ()
   "Test refresh menu command."
@@ -525,9 +497,7 @@ by checking if the function is available after requiring beads-main."
   (should (documentation 'beads-close))
   (should (documentation 'beads-stats))
   (should (documentation 'beads-dep))
-  (should (documentation 'beads-init))
-  (should (documentation 'beads-export))
-  (should (documentation 'beads-import)))
+  (should (documentation 'beads-init)))
 
 ;;; ============================================================
 ;;; Integration Tests
@@ -535,13 +505,13 @@ by checking if the function is available after requiring beads-main."
 
 (ert-deftest beads-main-test-main-menu-defined ()
   "Integration test: Verify beads main entry point is defined."
-  :tags '(integration)
+  :tags '(:integration)
   ;; The main beads command should exist (autoloaded from beads-main)
   (should (fboundp 'beads)))
 
 (ert-deftest beads-main-test-module-loaded ()
   "Integration test: Verify beads-main module can be loaded."
-  :tags '(integration)
+  :tags '(:integration)
   ;; The module should be loadable
   (should (featurep 'beads-main)))
 

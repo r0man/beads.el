@@ -786,12 +786,12 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "-q"
   :argument "--quiet")
 
-(transient-define-infix beads-option-init-skip-merge-driver ()
-  "Skip git merge driver setup (non-interactive)."
+(transient-define-infix beads-option-init-skip-hooks ()
+  "Skip git hooks installation (non-interactive)."
   :class 'transient-switch
-  :description "--skip-merge-driver"
-  :key "-s"
-  :argument "--skip-merge-driver")
+  :description "--skip-hooks"
+  :key "-H"
+  :argument "--skip-hooks")
 
 (transient-define-infix beads-option-init-team ()
   "Run team workflow setup wizard."

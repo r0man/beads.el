@@ -1803,13 +1803,13 @@ The log format is compatible with `log-view-mode':
 
 (ert-deftest beads-test-cache-invalidation ()
   "Integration test: Verify cache invalidation functions exist."
-  :tags '(integration)
+  :tags '(:integration)
   ;; The cache invalidation function should be defined
   (should (fboundp 'beads--invalidate-completion-cache)))
 
 (ert-deftest beads-test-all-commands-autoloaded ()
   "Integration test: Verify all main commands are autoloaded."
-  :tags '(integration)
+  :tags '(:integration)
   (should (fboundp 'beads-list))
   (should (fboundp 'beads-ready))
   (should (fboundp 'beads-blocked))
@@ -1819,9 +1819,7 @@ The log format is compatible with `log-view-mode':
   (should (fboundp 'beads-close))
   (should (fboundp 'beads-delete))
   (should (fboundp 'beads-stats))
-  (should (fboundp 'beads-graph-all))
-  (should (fboundp 'beads-import))
-  (should (fboundp 'beads-export)))
+  (should (fboundp 'beads-graph-all)))
 
 ;;; ========================================
 ;;; Label Completion Tests

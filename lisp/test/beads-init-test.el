@@ -53,7 +53,7 @@ ARGS should be a list of strings like (\"--prefix=myproj\" \"--branch=main\")."
     (should (null (oref cmd db)))
     (should (null (oref cmd contributor)))
     (should (null (oref cmd quiet)))
-    (should (null (oref cmd skip-merge-driver)))
+    (should (null (oref cmd skip-hooks)))
     (should (null (oref cmd team)))))
 
 (ert-deftest beads-init-test-parse-args-prefix-only ()
@@ -72,14 +72,14 @@ ARGS should be a list of strings like (\"--prefix=myproj\" \"--branch=main\")."
                 "--db=/path/to/db"
                 "--contributor"
                 "--quiet"
-                "--skip-merge-driver"))))
+                "--skip-hooks"))))
     (should (beads-command-init-p cmd))
     (should (equal (oref cmd prefix) "myproj"))
     (should (equal (oref cmd branch) "develop"))
     (should (equal (oref cmd db) "/path/to/db"))
     (should (equal (oref cmd contributor) t))
     (should (equal (oref cmd quiet) t))
-    (should (equal (oref cmd skip-merge-driver) t))
+    (should (equal (oref cmd skip-hooks) t))
     (should (null (oref cmd team)))))
 
 (ert-deftest beads-init-test-parse-args-team-wizard ()
@@ -132,7 +132,7 @@ ARGS should be a list of strings like (\"--prefix=myproj\" \"--branch=main\")."
               :prefix "myproj"
               :branch "develop"
               :quiet t
-              :skip-merge-driver t)))
+              :skip-hooks t)))
     (should (null (beads-init--validate-all cmd)))))
 
 ;;; Tests for Execution (with mocking)
@@ -159,7 +159,7 @@ ARGS should be a list of strings like (\"--prefix=myproj\" \"--branch=main\")."
   (let* ((args '("--prefix=proj"
                 "--branch=main"
                 "--quiet"
-                "--skip-merge-driver"))
+                "--skip-hooks"))
          (cmd (beads-init--parse-transient-args args))
          (executed-args nil))
     ;; Mock beads-command-execute to capture args
@@ -174,7 +174,7 @@ ARGS should be a list of strings like (\"--prefix=myproj\" \"--branch=main\")."
       (should (member "--branch" executed-args))
       (should (member "main" executed-args))
       (should (member "--quiet" executed-args))
-      (should (member "--skip-merge-driver" executed-args)))))
+      (should (member "--skip-hooks" executed-args)))))
 
 (ert-deftest beads-init-test-execute-with-team ()
   "Test init execution with team wizard."
@@ -240,10 +240,10 @@ ARGS should be a list of strings like (\"--prefix=myproj\" \"--branch=main\")."
 (ert-deftest beads-init-test-parse-args-all-booleans ()
   "Test parsing with all boolean flags."
   (let ((cmd (beads-init--parse-transient-args
-              '("--quiet" "--skip-merge-driver" "--contributor"))))
+              '("--quiet" "--skip-hooks" "--contributor"))))
     (should (beads-command-init-p cmd))
     (should (eq (oref cmd quiet) t))
-    (should (eq (oref cmd skip-merge-driver) t))
+    (should (eq (oref cmd skip-hooks) t))
     (should (eq (oref cmd contributor) t))))
 
 (ert-deftest beads-init-test-parse-args-unknown-arg ()
@@ -290,11 +290,11 @@ ARGS should be a list of strings like (\"--prefix=myproj\" \"--branch=main\")."
 
 (ert-deftest beads-init-test-command-line-with-booleans ()
   "Test command line construction with boolean flags."
-  (let* ((cmd (beads-command-init :quiet t :skip-merge-driver t))
+  (let* ((cmd (beads-command-init :quiet t :skip-hooks t))
          (args (beads-command-line cmd)))
     (should (member "init" args))
     (should (member "--quiet" args))
-    (should (member "--skip-merge-driver" args))))
+    (should (member "--skip-hooks" args))))
 
 (ert-deftest beads-init-test-command-line-contributor ()
   "Test command line construction with contributor flag."
