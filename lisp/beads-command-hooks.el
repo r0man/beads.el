@@ -23,53 +23,52 @@
 ;;; Command Class: beads-command-hooks-install
 ;;; ============================================================
 
-(eval-and-compile
-  (beads-defcommand beads-command-hooks-install (beads-command-json)
-    ((force
-      :initarg :force
-      :type boolean
-      :initform nil
-      :documentation "Overwrite existing hooks."
-      :long-option "force"
-      :short-option "f"
-      :option-type :boolean
-      :key "f"
-      :transient "--force"
-      :class transient-switch
-      :argument "--force"
-      :transient-group "Options"
-      :level 1
-      :order 1)
-     (chain
-      :initarg :chain
-      :type boolean
-      :initform nil
-      :documentation "Chain with existing hooks instead of replacing."
-      :long-option "chain"
-      :option-type :boolean
-      :key "c"
-      :transient "--chain"
-      :class transient-switch
-      :argument "--chain"
-      :transient-group "Options"
-      :level 1
-      :order 2)
-     (shared
-      :initarg :shared
-      :type boolean
-      :initform nil
-      :documentation "Install for all repos using shared hooks directory."
-      :long-option "shared"
-      :option-type :boolean
-      :key "s"
-      :transient "--shared"
-      :class transient-switch
-      :argument "--shared"
-      :transient-group "Options"
-      :level 1
-      :order 3))
-    :documentation "Represents bd hooks install command.
-  Installs bd git hooks."))
+(beads-defcommand beads-command-hooks-install (beads-command-json)
+  ((force
+    :initarg :force
+    :type boolean
+    :initform nil
+    :documentation "Overwrite existing hooks."
+    :long-option "force"
+    :short-option "f"
+    :option-type :boolean
+    :key "f"
+    :transient "--force"
+    :class transient-switch
+    :argument "--force"
+    :transient-group "Options"
+    :level 1
+    :order 1)
+   (chain
+    :initarg :chain
+    :type boolean
+    :initform nil
+    :documentation "Chain with existing hooks instead of replacing."
+    :long-option "chain"
+    :option-type :boolean
+    :key "c"
+    :transient "--chain"
+    :class transient-switch
+    :argument "--chain"
+    :transient-group "Options"
+    :level 1
+    :order 2)
+   (shared
+    :initarg :shared
+    :type boolean
+    :initform nil
+    :documentation "Install for all repos using shared hooks directory."
+    :long-option "shared"
+    :option-type :boolean
+    :key "s"
+    :transient "--shared"
+    :class transient-switch
+    :argument "--shared"
+    :transient-group "Options"
+    :level 1
+    :order 3))
+  :documentation "Represents bd hooks install command.
+Installs bd git hooks.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-hooks-install))
   "Return \"hooks install\" as the CLI subcommand."
@@ -79,11 +78,10 @@
 ;;; Command Class: beads-command-hooks-uninstall
 ;;; ============================================================
 
-(eval-and-compile
-  (beads-defcommand beads-command-hooks-uninstall (beads-command-json)
-    ()
-    :documentation "Represents bd hooks uninstall command.
-  Uninstalls bd git hooks."))
+(beads-defcommand beads-command-hooks-uninstall (beads-command-json)
+  ()
+  :documentation "Represents bd hooks uninstall command.
+Uninstalls bd git hooks.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-hooks-uninstall))
   "Return \"hooks uninstall\" as the CLI subcommand."
@@ -93,11 +91,10 @@
 ;;; Command Class: beads-command-hooks-list
 ;;; ============================================================
 
-(eval-and-compile
-  (beads-defcommand beads-command-hooks-list (beads-command-json)
-    ()
-    :documentation "Represents bd hooks list command.
-  Lists installed git hooks status."))
+(beads-defcommand beads-command-hooks-list (beads-command-json)
+  ()
+  :documentation "Represents bd hooks list command.
+Lists installed git hooks status.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-hooks-list))
   "Return \"hooks list\" as the CLI subcommand."
@@ -107,16 +104,15 @@
 ;;; Command Class: beads-command-hooks-run
 ;;; ============================================================
 
-(eval-and-compile
-  (beads-defcommand beads-command-hooks-run (beads-command-json)
-    ((hook-name
-      :initarg :hook-name
-      :type (or null string)
-      :initform nil
-      :documentation "Hook name to run."
-      :positional 1))
-    :documentation "Represents bd hooks run command.
-  Executes a git hook (called by thin shims)."))
+(beads-defcommand beads-command-hooks-run (beads-command-json)
+  ((hook-name
+    :initarg :hook-name
+    :type (or null string)
+    :initform nil
+    :documentation "Hook name to run."
+    :positional 1))
+  :documentation "Represents bd hooks run command.
+Executes a git hook (called by thin shims).")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-hooks-run))
   "Return \"hooks run\" as the CLI subcommand."

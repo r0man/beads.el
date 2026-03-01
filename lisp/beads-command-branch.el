@@ -30,28 +30,27 @@
 
 ;;; Branch Command
 
-(eval-and-compile
-  (beads-defcommand beads-command-branch (beads-command-json)
-    ((name
-      :initarg :name
-      :type (or null string)
-      :initform nil
-      :documentation "Branch name to create (positional, optional).
+(beads-defcommand beads-command-branch (beads-command-json)
+  ((name
+    :initarg :name
+    :type (or null string)
+    :initform nil
+    :documentation "Branch name to create (positional, optional).
 When nil, lists all branches."
-      :positional 1
-      :option-type :string
-      :key "n"
-      :transient "Branch name"
-      :class transient-option
-      :argument "--name="
-      :prompt "Branch name (empty=list): "
-      :transient-group "Branch"
-      :level 1
-      :order 1))
-    :documentation "List or create Dolt branches.
-  Without arguments, lists all branches.
-  With a name, creates a new branch.
-  Requires Dolt backend."))
+    :positional 1
+    :option-type :string
+    :key "n"
+    :transient "Branch name"
+    :class transient-option
+    :argument "--name="
+    :prompt "Branch name (empty=list): "
+    :transient-group "Branch"
+    :level 1
+    :order 1))
+  :documentation "List or create Dolt branches.
+Without arguments, lists all branches.
+With a name, creates a new branch.
+Requires Dolt backend.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-branch))
   "Return \"branch\" as the CLI subcommand name."

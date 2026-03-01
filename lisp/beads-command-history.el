@@ -26,43 +26,42 @@
 
 ;;; History Command
 
-(eval-and-compile
-  (beads-defcommand beads-command-history (beads-command-json)
-    ((issue-id
-      :initarg :issue-id
-      :type (or null string)
-      :initform nil
-      :documentation "Issue ID to show history for (positional argument)."
-      :positional 1
-      :option-type :string
-      :key "i"
-      :transient "Issue ID (required)"
-      :class transient-option
-      :argument "--id="
-      :prompt "Issue ID: "
-      :transient-reader beads-reader-close-issue-id
-      :transient-group "History"
-      :level 1
-      :order 1
-      :required t)
-     (limit
-      :initarg :limit
-      :type (or null integer)
-      :initform nil
-      :documentation "Limit number of history entries (--limit).
+(beads-defcommand beads-command-history (beads-command-json)
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID to show history for (positional argument)."
+    :positional 1
+    :option-type :string
+    :key "i"
+    :transient "Issue ID (required)"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID: "
+    :transient-reader beads-reader-close-issue-id
+    :transient-group "History"
+    :level 1
+    :order 1
+    :required t)
+   (limit
+    :initarg :limit
+    :type (or null integer)
+    :initform nil
+    :documentation "Limit number of history entries (--limit).
 0 means show all entries."
-      :long-option "limit"
-      :option-type :integer
-      :key "l"
-      :transient "--limit"
-      :class transient-option
-      :argument "--limit="
-      :prompt "Limit (0=all): "
-      :transient-group "Options"
-      :level 2
-      :order 2))
-    :documentation "Show version history for an issue.
-  Requires Dolt backend."))
+    :long-option "limit"
+    :option-type :integer
+    :key "l"
+    :transient "--limit"
+    :class transient-option
+    :argument "--limit="
+    :prompt "Limit (0=all): "
+    :transient-group "Options"
+    :level 2
+    :order 2))
+  :documentation "Show version history for an issue.
+Requires Dolt backend.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-history))
   "Return \"history\" as the CLI subcommand name."

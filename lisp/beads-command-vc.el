@@ -26,26 +26,25 @@
 ;;; Command Class: beads-command-vc-commit
 ;;; ============================================================
 
-(eval-and-compile
-  (beads-defcommand beads-command-vc-commit (beads-command-json)
-    ((message
-      :initarg :message
-      :type (or null string)
-      :initform nil
-      :documentation "Commit message (-m, --message)."
-      :long-option "message"
-      :short-option "m"
-      :option-type :string
-      :key "m"
-      :transient "--message"
-      :class transient-option
-      :argument "--message="
-      :prompt "Commit message: "
-      :transient-group "Commit"
-      :level 1
-      :order 1))
-    :documentation "Create a Dolt commit from pending changes.
-  Requires Dolt backend."))
+(beads-defcommand beads-command-vc-commit (beads-command-json)
+  ((message
+    :initarg :message
+    :type (or null string)
+    :initform nil
+    :documentation "Commit message (-m, --message)."
+    :long-option "message"
+    :short-option "m"
+    :option-type :string
+    :key "m"
+    :transient "--message"
+    :class transient-option
+    :argument "--message="
+    :prompt "Commit message: "
+    :transient-group "Commit"
+    :level 1
+    :order 1))
+  :documentation "Create a Dolt commit from pending changes.
+Requires Dolt backend.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-vc-commit))
   "Return \"vc commit\" as the CLI subcommand."
@@ -60,42 +59,41 @@
 ;;; Command Class: beads-command-vc-merge
 ;;; ============================================================
 
-(eval-and-compile
-  (beads-defcommand beads-command-vc-merge (beads-command-json)
-    ((branch
-      :initarg :branch
-      :type (or null string)
-      :initform nil
-      :documentation "Branch name to merge (positional argument)."
-      :positional 1
-      :option-type :string
-      :key "b"
-      :transient "Branch (required)"
-      :class transient-option
-      :argument "--branch="
-      :prompt "Branch to merge: "
-      :transient-group "Merge"
-      :level 1
-      :order 1
-      :required t)
-     (strategy
-      :initarg :strategy
-      :type (or null string)
-      :initform nil
-      :documentation "Conflict resolution strategy (--strategy).
+(beads-defcommand beads-command-vc-merge (beads-command-json)
+  ((branch
+    :initarg :branch
+    :type (or null string)
+    :initform nil
+    :documentation "Branch name to merge (positional argument)."
+    :positional 1
+    :option-type :string
+    :key "b"
+    :transient "Branch (required)"
+    :class transient-option
+    :argument "--branch="
+    :prompt "Branch to merge: "
+    :transient-group "Merge"
+    :level 1
+    :order 1
+    :required t)
+   (strategy
+    :initarg :strategy
+    :type (or null string)
+    :initform nil
+    :documentation "Conflict resolution strategy (--strategy).
 Values: ours, theirs."
-      :long-option "strategy"
-      :option-type :string
-      :key "s"
-      :transient "--strategy"
-      :class transient-option
-      :argument "--strategy="
-      :prompt "Strategy (ours|theirs): "
-      :transient-group "Options"
-      :level 2
-      :order 2))
-    :documentation "Merge a Dolt branch into the current branch.
-  Requires Dolt backend."))
+    :long-option "strategy"
+    :option-type :string
+    :key "s"
+    :transient "--strategy"
+    :class transient-option
+    :argument "--strategy="
+    :prompt "Strategy (ours|theirs): "
+    :transient-group "Options"
+    :level 2
+    :order 2))
+  :documentation "Merge a Dolt branch into the current branch.
+Requires Dolt backend.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-vc-merge))
   "Return \"vc merge\" as the CLI subcommand."
@@ -117,11 +115,10 @@ Branch is required."
 ;;; Command Class: beads-command-vc-status
 ;;; ============================================================
 
-(eval-and-compile
-  (beads-defcommand beads-command-vc-status (beads-command-json)
-    ()
-    :documentation "Show current branch and uncommitted changes.
-  Requires Dolt backend."))
+(beads-defcommand beads-command-vc-status (beads-command-json)
+  ()
+  :documentation "Show current branch and uncommitted changes.
+Requires Dolt backend.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-vc-status))
   "Return \"vc status\" as the CLI subcommand."

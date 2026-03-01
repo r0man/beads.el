@@ -113,26 +113,25 @@
 ;;; Formula List Command Class
 ;;; ============================================================
 
-(eval-and-compile
-  (beads-defcommand beads-command-formula-list (beads-command-json)
-    ((formula-type
-      :initarg :formula-type
-      :type (or null string)
-      :initform nil
-      :documentation "Filter by formula type (--type).
+(beads-defcommand beads-command-formula-list (beads-command-json)
+  ((formula-type
+    :initarg :formula-type
+    :type (or null string)
+    :initform nil
+    :documentation "Filter by formula type (--type).
 Values: workflow, expansion, aspect."
-      :long-option "type"
-      :option-type :string
-      :key "t"
-      :transient "Filter by type"
-      :class transient-option
-      :argument "--type="
-      :choices ("workflow" "expansion" "aspect")
-      :transient-group "Filters"
-      :level 2
-      :order 1))
-    :documentation "Represents bd formula list command.
-Lists available formulas from all search paths."))
+    :long-option "type"
+    :option-type :string
+    :key "t"
+    :transient "Filter by type"
+    :class transient-option
+    :argument "--type="
+    :choices ("workflow" "expansion" "aspect")
+    :transient-group "Filters"
+    :level 2
+    :order 1))
+  :documentation "Represents bd formula list command.
+Lists available formulas from all search paths.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-formula-list))
   "Return subcommand name for formula list."
@@ -155,16 +154,15 @@ Lists available formulas from all search paths."))
 ;;; Formula Show Command Class
 ;;; ============================================================
 
-(eval-and-compile
-  (beads-defcommand beads-command-formula-show (beads-command-json)
-    ((formula-name
-      :initarg :formula-name
-      :type (or null string)
-      :initform nil
-      :documentation "Name of the formula to show (positional argument)."
-      :positional 1))
-    :documentation "Represents bd formula show command.
-Shows detailed information about a formula."))
+(beads-defcommand beads-command-formula-show (beads-command-json)
+  ((formula-name
+    :initarg :formula-name
+    :type (or null string)
+    :initform nil
+    :documentation "Name of the formula to show (positional argument)."
+    :positional 1))
+  :documentation "Represents bd formula show command.
+Shows detailed information about a formula.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-formula-show))
   "Return subcommand name for formula show."

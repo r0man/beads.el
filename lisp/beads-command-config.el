@@ -23,16 +23,15 @@
 ;;; Command Class: beads-command-config-get
 ;;; ============================================================
 
-(eval-and-compile
-  (beads-defcommand beads-command-config-get (beads-command-json)
-    ((key
-      :initarg :key
-      :type (or null string)
-      :initform nil
-      :documentation "Configuration key to get."
-      :positional 1))
-    :documentation "Represents bd config get command.
-  Gets a configuration value."))
+(beads-defcommand beads-command-config-get (beads-command-json)
+  ((key
+    :initarg :key
+    :type (or null string)
+    :initform nil
+    :documentation "Configuration key to get."
+    :positional 1))
+  :documentation "Represents bd config get command.
+Gets a configuration value.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-config-get))
   "Return \"config get\" as the CLI subcommand."
@@ -50,22 +49,21 @@
 ;;; Command Class: beads-command-config-set
 ;;; ============================================================
 
-(eval-and-compile
-  (beads-defcommand beads-command-config-set (beads-command-json)
-    ((key
-      :initarg :key
-      :type (or null string)
-      :initform nil
-      :documentation "Configuration key to set."
-      :positional 1)
-     (value
-      :initarg :value
-      :type (or null string)
-      :initform nil
-      :documentation "Value to set."
-      :positional 2))
-    :documentation "Represents bd config set command.
-  Sets a configuration value."))
+(beads-defcommand beads-command-config-set (beads-command-json)
+  ((key
+    :initarg :key
+    :type (or null string)
+    :initform nil
+    :documentation "Configuration key to set."
+    :positional 1)
+   (value
+    :initarg :value
+    :type (or null string)
+    :initform nil
+    :documentation "Value to set."
+    :positional 2))
+  :documentation "Represents bd config set command.
+Sets a configuration value.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-config-set))
   "Return \"config set\" as the CLI subcommand."
@@ -84,11 +82,10 @@
 ;;; Command Class: beads-command-config-list
 ;;; ============================================================
 
-(eval-and-compile
-  (beads-defcommand beads-command-config-list (beads-command-json)
-    ()
-    :documentation "Represents bd config list command.
-  Lists all configuration values."))
+(beads-defcommand beads-command-config-list (beads-command-json)
+  ()
+  :documentation "Represents bd config list command.
+Lists all configuration values.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-config-list))
   "Return \"config list\" as the CLI subcommand."
@@ -98,16 +95,15 @@
 ;;; Command Class: beads-command-config-unset
 ;;; ============================================================
 
-(eval-and-compile
-  (beads-defcommand beads-command-config-unset (beads-command-json)
-    ((key
-      :initarg :key
-      :type (or null string)
-      :initform nil
-      :documentation "Configuration key to unset."
-      :positional 1))
-    :documentation "Represents bd config unset command.
-  Deletes a configuration value."))
+(beads-defcommand beads-command-config-unset (beads-command-json)
+  ((key
+    :initarg :key
+    :type (or null string)
+    :initform nil
+    :documentation "Configuration key to unset."
+    :positional 1))
+  :documentation "Represents bd config unset command.
+Deletes a configuration value.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-config-unset))
   "Return \"config unset\" as the CLI subcommand."
