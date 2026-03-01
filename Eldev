@@ -130,3 +130,12 @@ ORIG-FN is the original function, STATS is the test statistics."
 (eldev-add-loading-roots 'build "lisp")
 (eldev-add-loading-roots 'test "lisp")
 (eldev-add-loading-roots 'test "lisp/test")
+
+;; Clean up shared test project Dolt database on exit.
+;; The shared fixture persists for the test session to avoid
+;; re-running `bd init' per test, but its Dolt database must
+;; be dropped when the Emacs process exits.
+(add-hook 'kill-emacs-hook
+          (lambda ()
+            (when (fboundp 'beads-test-destroy-shared-project)
+              (beads-test-destroy-shared-project))))
