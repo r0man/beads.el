@@ -94,15 +94,6 @@ Returns nil if DOCSTRING is nil or empty."
         ;; No sentence ending found, return first line
         (car (split-string trimmed "\n"))))))
 
-(defun beads--slots-have-transient-p (slots)
-  "Return non-nil if any slot in SLOTS has transient annotations.
-SLOTS is the raw slot form list from a defclass-style macro."
-  (cl-some (lambda (slot)
-             (let ((plist (cdr slot)))
-               (or (plist-member plist :key)
-                   (plist-member plist :transient-key))))
-           slots))
-
 (defun beads--extract-option (keyword options)
   "Extract value for KEYWORD from OPTIONS plist and return (VALUE . REST).
 Returns (nil . OPTIONS) if KEYWORD is not found."
@@ -163,8 +154,11 @@ Example (without transient):
          (defclass-options (cdr result-1))
          ;; Derived names
          (bang-fn (intern (concat (symbol-name name) "!")))
-         (transient-name (beads--derive-transient-name name))
-         (transient-prefix (symbol-name transient-name))
+         ;; Transient-related names (only needed when generating a menu)
+         (transient-name (when global-section
+                           (beads--derive-transient-name name)))
+         (transient-prefix (when transient-name
+                             (symbol-name transient-name)))
          ;; Extract docstring for transient
          (doc-pos (cl-position :documentation defclass-options))
          (docstring (when doc-pos (nth (1+ doc-pos) defclass-options)))
