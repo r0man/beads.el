@@ -425,6 +425,10 @@
          (default-directory temp-dir))
     (unwind-protect
         (progn
+          ;; Initialize git first - required for bd init
+          (call-process "git" nil nil nil "init" "-q")
+          (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
+          (call-process "git" nil nil nil "config" "user.name" "Beads Test")
           ;; Initialize beads in the temp directory
           (let* ((init-cmd (beads-command-init))
                  (init-exec (beads-command-execute init-cmd)))

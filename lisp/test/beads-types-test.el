@@ -769,7 +769,10 @@
          (default-directory project-dir))
     (unwind-protect
         (progn
-          ;; Initialize beads project
+          ;; Initialize git and beads project
+          (call-process "git" nil nil nil "init" "-q")
+          (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
+          (call-process "git" nil nil nil "config" "user.name" "Beads Test")
           (call-process "bd" nil nil nil "init" "--prefix" "test")
 
           ;; Create a test issue
@@ -809,7 +812,10 @@
          (default-directory project-dir))
     (unwind-protect
         (progn
-          ;; Initialize beads project
+          ;; Initialize git and beads project
+          (call-process "git" nil nil nil "init" "-q")
+          (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
+          (call-process "git" nil nil nil "config" "user.name" "Beads Test")
           (call-process "bd" nil nil nil "init" "--prefix" "test")
 
           ;; Create issues with different statuses
@@ -877,7 +883,10 @@
          (default-directory project-dir))
     (unwind-protect
         (progn
-          ;; Initialize beads project
+          ;; Initialize git and beads project
+          (call-process "git" nil nil nil "init" "-q")
+          (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
+          (call-process "git" nil nil nil "config" "user.name" "Beads Test")
           (call-process "bd" nil nil nil "init" "--prefix" "test")
 
           ;; Create a ready issue (open with no blockers)
@@ -912,7 +921,10 @@
          (default-directory project-dir))
     (unwind-protect
         (progn
-          ;; Initialize beads project
+          ;; Initialize git and beads project
+          (call-process "git" nil nil nil "init" "-q")
+          (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
+          (call-process "git" nil nil nil "config" "user.name" "Beads Test")
           (call-process "bd" nil nil nil "init" "--prefix" "test")
 
           ;; Create two issues and make one depend on the other
