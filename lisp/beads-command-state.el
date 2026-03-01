@@ -23,37 +23,36 @@
 ;;; Command Class: beads-command-set-state
 ;;; ============================================================
 
-(eval-and-compile
-  (beads-defcommand beads-command-set-state (beads-command-json)
-    ((issue-id
-      :initarg :issue-id
-      :type (or null string)
-      :initform nil
-      :documentation "Issue ID."
-      :positional 1)
-     (dimension-value
-      :initarg :dimension-value
-      :type (or null string)
-      :initform nil
-      :documentation "State change as dimension=value."
-      :positional 2)
-     (reason
-      :initarg :reason
-      :type (or null string)
-      :initform nil
-      :documentation "Reason for the state change."
-      :long-option "reason"
-      :option-type :string
-      :key "r"
-      :transient "--reason"
-      :class beads-transient-multiline
-      :argument "--reason="
-      :field-name "State Change Reason"
-      :transient-group "Options"
-      :level 1
-      :order 1))
-    :documentation "Represents bd set-state command.
-  Atomically sets operational state on an issue."))
+(beads-defcommand beads-command-set-state (beads-command-json)
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID."
+    :positional 1)
+   (dimension-value
+    :initarg :dimension-value
+    :type (or null string)
+    :initform nil
+    :documentation "State change as dimension=value."
+    :positional 2)
+   (reason
+    :initarg :reason
+    :type (or null string)
+    :initform nil
+    :documentation "Reason for the state change."
+    :long-option "reason"
+    :option-type :string
+    :key "r"
+    :transient "--reason"
+    :class beads-transient-multiline
+    :argument "--reason="
+    :field-name "State Change Reason"
+    :transient-group "Options"
+    :level 1
+    :order 1))
+  :documentation "Represents bd set-state command.
+Atomically sets operational state on an issue.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-set-state))
   "Return \"set-state\" as the CLI subcommand."
@@ -73,22 +72,21 @@
 ;;; Command Class: beads-command-state
 ;;; ============================================================
 
-(eval-and-compile
-  (beads-defcommand beads-command-state (beads-command-json)
-    ((issue-id
-      :initarg :issue-id
-      :type (or null string)
-      :initform nil
-      :documentation "Issue ID."
-      :positional 1)
-     (dimension
-      :initarg :dimension
-      :type (or null string)
-      :initform nil
-      :documentation "State dimension to query."
-      :positional 2))
-    :documentation "Represents bd state command.
-  Queries the current value of a state dimension."))
+(beads-defcommand beads-command-state (beads-command-json)
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID."
+    :positional 1)
+   (dimension
+    :initarg :dimension
+    :type (or null string)
+    :initform nil
+    :documentation "State dimension to query."
+    :positional 2))
+  :documentation "Represents bd state command.
+Queries the current value of a state dimension.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-state))
   "Return \"state\" as the CLI subcommand."
@@ -106,16 +104,15 @@
 ;;; Command Class: beads-command-state-list
 ;;; ============================================================
 
-(eval-and-compile
-  (beads-defcommand beads-command-state-list (beads-command-json)
-    ((issue-id
-      :initarg :issue-id
-      :type (or null string)
-      :initform nil
-      :documentation "Issue ID."
-      :positional 1))
-    :documentation "Represents bd state list command.
-  Lists all state dimensions on an issue."))
+(beads-defcommand beads-command-state-list (beads-command-json)
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID."
+    :positional 1))
+  :documentation "Represents bd state list command.
+Lists all state dimensions on an issue.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-state-list))
   "Return \"state list\" as the CLI subcommand."

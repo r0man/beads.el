@@ -23,41 +23,40 @@
 ;;; Command Class: beads-command-gate-list
 ;;; ============================================================
 
-(eval-and-compile
-  (beads-defcommand beads-command-gate-list (beads-command-json)
-    ((all
-      :initarg :all
-      :type boolean
-      :initform nil
-      :documentation "Show all gates including closed."
-      :long-option "all"
-      :short-option "a"
-      :option-type :boolean
-      :key "a"
-      :transient "--all"
-      :class transient-switch
-      :argument "--all"
-      :transient-group "Options"
-      :level 1
-      :order 1)
-     (limit
-      :initarg :limit
-      :type (or null integer)
-      :initform nil
-      :documentation "Limit number of gates (default 50)."
-      :long-option "limit"
-      :short-option "n"
-      :option-type :integer
-      :key "n"
-      :transient "--limit"
-      :class transient-option
-      :argument "--limit="
-      :prompt "Limit: "
-      :transient-group "Options"
-      :level 1
-      :order 2))
-    :documentation "Represents bd gate list command.
-  Lists gate issues."))
+(beads-defcommand beads-command-gate-list (beads-command-json)
+  ((all
+    :initarg :all
+    :type boolean
+    :initform nil
+    :documentation "Show all gates including closed."
+    :long-option "all"
+    :short-option "a"
+    :option-type :boolean
+    :key "a"
+    :transient "--all"
+    :class transient-switch
+    :argument "--all"
+    :transient-group "Options"
+    :level 1
+    :order 1)
+   (limit
+    :initarg :limit
+    :type (or null integer)
+    :initform nil
+    :documentation "Limit number of gates (default 50)."
+    :long-option "limit"
+    :short-option "n"
+    :option-type :integer
+    :key "n"
+    :transient "--limit"
+    :class transient-option
+    :argument "--limit="
+    :prompt "Limit: "
+    :transient-group "Options"
+    :level 1
+    :order 2))
+  :documentation "Represents bd gate list command.
+Lists gate issues.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-gate-list))
   "Return \"gate list\" as the CLI subcommand."
@@ -67,71 +66,70 @@
 ;;; Command Class: beads-command-gate-check
 ;;; ============================================================
 
-(eval-and-compile
-  (beads-defcommand beads-command-gate-check (beads-command-json)
-    ((type
-      :initarg :type
-      :type (or null string)
-      :initform nil
-      :documentation "Evaluate only gates of this type."
-      :long-option "type"
-      :short-option "t"
-      :option-type :string
-      :key "t"
-      :transient "--type"
-      :class transient-option
-      :argument "--type="
-      :prompt "Gate type: "
-      :transient-group "Options"
-      :level 1
-      :order 1)
-     (dry-run
-      :initarg :dry-run
-      :type boolean
-      :initform nil
-      :documentation "Preview without closing gates."
-      :long-option "dry-run"
-      :option-type :boolean
-      :key "n"
-      :transient "--dry-run"
-      :class transient-switch
-      :argument "--dry-run"
-      :transient-group "Options"
-      :level 1
-      :order 2)
-     (escalate
-      :initarg :escalate
-      :type boolean
-      :initform nil
-      :documentation "Escalate all open gates, skipping evaluation."
-      :long-option "escalate"
-      :short-option "e"
-      :option-type :boolean
-      :key "e"
-      :transient "--escalate"
-      :class transient-switch
-      :argument "--escalate"
-      :transient-group "Options"
-      :level 1
-      :order 3)
-     (limit
-      :initarg :limit
-      :type (or null integer)
-      :initform nil
-      :documentation "Limit number of gates to check."
-      :long-option "limit"
-      :short-option "l"
-      :option-type :integer
-      :key "l"
-      :transient "--limit"
-      :class transient-option
-      :argument "--limit="
-      :prompt "Limit: "
-      :transient-group "Options"
-      :level 1
-      :order 4))
-    :documentation "Represents bd gate check command.
-  Evaluates gates and closes resolved ones."))
+(beads-defcommand beads-command-gate-check (beads-command-json)
+  ((type
+    :initarg :type
+    :type (or null string)
+    :initform nil
+    :documentation "Evaluate only gates of this type."
+    :long-option "type"
+    :short-option "t"
+    :option-type :string
+    :key "t"
+    :transient "--type"
+    :class transient-option
+    :argument "--type="
+    :prompt "Gate type: "
+    :transient-group "Options"
+    :level 1
+    :order 1)
+   (dry-run
+    :initarg :dry-run
+    :type boolean
+    :initform nil
+    :documentation "Preview without closing gates."
+    :long-option "dry-run"
+    :option-type :boolean
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
+    :transient-group "Options"
+    :level 1
+    :order 2)
+   (escalate
+    :initarg :escalate
+    :type boolean
+    :initform nil
+    :documentation "Escalate all open gates, skipping evaluation."
+    :long-option "escalate"
+    :short-option "e"
+    :option-type :boolean
+    :key "e"
+    :transient "--escalate"
+    :class transient-switch
+    :argument "--escalate"
+    :transient-group "Options"
+    :level 1
+    :order 3)
+   (limit
+    :initarg :limit
+    :type (or null integer)
+    :initform nil
+    :documentation "Limit number of gates to check."
+    :long-option "limit"
+    :short-option "l"
+    :option-type :integer
+    :key "l"
+    :transient "--limit"
+    :class transient-option
+    :argument "--limit="
+    :prompt "Limit: "
+    :transient-group "Options"
+    :level 1
+    :order 4))
+  :documentation "Represents bd gate check command.
+Evaluates gates and closes resolved ones.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-gate-check))
   "Return \"gate check\" as the CLI subcommand."
@@ -141,32 +139,31 @@
 ;;; Command Class: beads-command-gate-resolve
 ;;; ============================================================
 
-(eval-and-compile
-  (beads-defcommand beads-command-gate-resolve (beads-command-json)
-    ((gate-id
-      :initarg :gate-id
-      :type (or null string)
-      :initform nil
-      :documentation "Gate ID to resolve."
-      :positional 1)
-     (reason
-      :initarg :reason
-      :type (or null string)
-      :initform nil
-      :documentation "Reason for manual resolution."
-      :long-option "reason"
-      :short-option "r"
-      :option-type :string
-      :key "r"
-      :transient "--reason"
-      :class beads-transient-multiline
-      :argument "--reason="
-      :field-name "Resolve Reason"
-      :transient-group "Options"
-      :level 1
-      :order 1))
-    :documentation "Represents bd gate resolve command.
-  Manually resolves (closes) a gate."))
+(beads-defcommand beads-command-gate-resolve (beads-command-json)
+  ((gate-id
+    :initarg :gate-id
+    :type (or null string)
+    :initform nil
+    :documentation "Gate ID to resolve."
+    :positional 1)
+   (reason
+    :initarg :reason
+    :type (or null string)
+    :initform nil
+    :documentation "Reason for manual resolution."
+    :long-option "reason"
+    :short-option "r"
+    :option-type :string
+    :key "r"
+    :transient "--reason"
+    :class beads-transient-multiline
+    :argument "--reason="
+    :field-name "Resolve Reason"
+    :transient-group "Options"
+    :level 1
+    :order 1))
+  :documentation "Represents bd gate resolve command.
+Manually resolves (closes) a gate.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-gate-resolve))
   "Return \"gate resolve\" as the CLI subcommand."
@@ -181,16 +178,15 @@
 ;;; Command Class: beads-command-gate-show
 ;;; ============================================================
 
-(eval-and-compile
-  (beads-defcommand beads-command-gate-show (beads-command-json)
-    ((gate-id
-      :initarg :gate-id
-      :type (or null string)
-      :initform nil
-      :documentation "Gate ID to show."
-      :positional 1))
-    :documentation "Represents bd gate show command.
-  Shows a gate issue."))
+(beads-defcommand beads-command-gate-show (beads-command-json)
+  ((gate-id
+    :initarg :gate-id
+    :type (or null string)
+    :initform nil
+    :documentation "Gate ID to show."
+    :positional 1))
+  :documentation "Represents bd gate show command.
+Shows a gate issue.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-gate-show))
   "Return \"gate show\" as the CLI subcommand."
@@ -205,22 +201,21 @@
 ;;; Command Class: beads-command-gate-add-waiter
 ;;; ============================================================
 
-(eval-and-compile
-  (beads-defcommand beads-command-gate-add-waiter (beads-command-json)
-    ((gate-id
-      :initarg :gate-id
-      :type (or null string)
-      :initform nil
-      :documentation "Gate ID."
-      :positional 1)
-     (waiter-id
-      :initarg :waiter-id
-      :type (or null string)
-      :initform nil
-      :documentation "Issue ID to add as waiter."
-      :positional 2))
-    :documentation "Represents bd gate add-waiter command.
-  Adds a waiter to a gate."))
+(beads-defcommand beads-command-gate-add-waiter (beads-command-json)
+  ((gate-id
+    :initarg :gate-id
+    :type (or null string)
+    :initform nil
+    :documentation "Gate ID."
+    :positional 1)
+   (waiter-id
+    :initarg :waiter-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID to add as waiter."
+    :positional 2))
+  :documentation "Represents bd gate add-waiter command.
+Adds a waiter to a gate.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-gate-add-waiter))
   "Return \"gate add-waiter\" as the CLI subcommand."
@@ -230,16 +225,15 @@
 ;;; Command Class: beads-command-gate-discover
 ;;; ============================================================
 
-(eval-and-compile
-  (beads-defcommand beads-command-gate-discover (beads-command-json)
-    ((gate-id
-      :initarg :gate-id
-      :type (or null string)
-      :initform nil
-      :documentation "Gate ID."
-      :positional 1))
-    :documentation "Represents bd gate discover command.
-  Discovers await_id for gh:run gates."))
+(beads-defcommand beads-command-gate-discover (beads-command-json)
+  ((gate-id
+    :initarg :gate-id
+    :type (or null string)
+    :initform nil
+    :documentation "Gate ID."
+    :positional 1))
+  :documentation "Represents bd gate discover command.
+Discovers await_id for gh:run gates.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-gate-discover))
   "Return \"gate discover\" as the CLI subcommand."

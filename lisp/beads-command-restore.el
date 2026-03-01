@@ -26,27 +26,26 @@
 
 ;;; Restore Command
 
-(eval-and-compile
-  (beads-defcommand beads-command-restore (beads-command-json)
-    ((issue-id
-      :initarg :issue-id
-      :type (or null string)
-      :initform nil
-      :documentation "Issue ID to restore (positional argument)."
-      :positional 1
-      :option-type :string
-      :key "i"
-      :transient "Issue ID (required)"
-      :class transient-option
-      :argument "--id="
-      :prompt "Issue ID: "
-      :transient-reader beads-reader-close-issue-id
-      :transient-group "Restore"
-      :level 1
-      :order 1
-      :required t))
-    :documentation "Restore a compacted issue from Dolt history.
-  Requires Dolt backend."))
+(beads-defcommand beads-command-restore (beads-command-json)
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID to restore (positional argument)."
+    :positional 1
+    :option-type :string
+    :key "i"
+    :transient "Issue ID (required)"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID: "
+    :transient-reader beads-reader-close-issue-id
+    :transient-group "Restore"
+    :level 1
+    :order 1
+    :required t))
+  :documentation "Restore a compacted issue from Dolt history.
+Requires Dolt backend.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-restore))
   "Return \"restore\" as the CLI subcommand name."

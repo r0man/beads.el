@@ -26,41 +26,40 @@
 
 ;;; SQL Command
 
-(eval-and-compile
-  (beads-defcommand beads-command-sql (beads-command-json)
-    ((query
-      :initarg :query
-      :type (or null string)
-      :initform nil
-      :documentation "SQL query to execute (positional argument)."
-      :positional 1
-      :option-type :string
-      :key "q"
-      :transient "SQL query (required)"
-      :class transient-option
-      :argument "--query="
-      :prompt "SQL query: "
-      :transient-group "SQL"
-      :level 1
-      :order 1
-      :required t)
-     (csv
-      :initarg :csv
-      :type boolean
-      :initform nil
-      :documentation "Output results in CSV format (--csv).
+(beads-defcommand beads-command-sql (beads-command-json)
+  ((query
+    :initarg :query
+    :type (or null string)
+    :initform nil
+    :documentation "SQL query to execute (positional argument)."
+    :positional 1
+    :option-type :string
+    :key "q"
+    :transient "SQL query (required)"
+    :class transient-option
+    :argument "--query="
+    :prompt "SQL query: "
+    :transient-group "SQL"
+    :level 1
+    :order 1
+    :required t)
+   (csv
+    :initarg :csv
+    :type boolean
+    :initform nil
+    :documentation "Output results in CSV format (--csv).
 For SELECT queries only."
-      :long-option "csv"
-      :option-type :boolean
-      :key "c"
-      :transient "--csv"
-      :class transient-switch
-      :argument "--csv"
-      :transient-group "Options"
-      :level 2
-      :order 2))
-    :documentation "Execute raw SQL against the beads database.
-  Supports SELECT, INSERT, UPDATE, DELETE, and other SQL statements."))
+    :long-option "csv"
+    :option-type :boolean
+    :key "c"
+    :transient "--csv"
+    :class transient-switch
+    :argument "--csv"
+    :transient-group "Options"
+    :level 2
+    :order 2))
+  :documentation "Execute raw SQL against the beads database.
+Supports SELECT, INSERT, UPDATE, DELETE, and other SQL statements.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-sql))
   "Return \"sql\" as the CLI subcommand name."
