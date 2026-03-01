@@ -236,7 +236,7 @@
 
 (ert-deftest beads-close-test-context-from-list-mode ()
   "Integration test: Test context detection from list mode."
-  :tags '(integration)
+  :tags '(:integration)
   (require 'beads-command-list)
   (with-temp-buffer
     (beads-list-mode)
@@ -245,7 +245,7 @@
 
 (ert-deftest beads-close-test-context-from-show-mode ()
   "Integration test: Test context detection from show mode."
-  :tags '(integration)
+  :tags '(:integration)
   (require 'beads-command-show)
   ;; Verify show mode is compatible with close command
   (should (fboundp 'beads-show-mode)))

@@ -1941,12 +1941,12 @@ With per-issue naming, each issue in a project gets its own buffer."
 
 (ert-deftest beads-show-test-mode-defined ()
   "Integration test: Verify beads-show-mode is defined."
-  :tags '(integration)
+  :tags '(:integration)
   (should (fboundp 'beads-show-mode)))
 
 (ert-deftest beads-show-test-keybinding-g-refresh ()
   "Integration test: Verify g keybinding for refresh."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-show-mode)
     (let ((binding (lookup-key beads-show-mode-map (kbd "g"))))
@@ -1954,7 +1954,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 
 (ert-deftest beads-show-test-keybinding-q-quit ()
   "Integration test: Verify q keybinding for quit."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-show-mode)
     (let ((binding (lookup-key beads-show-mode-map (kbd "q"))))
@@ -1962,7 +1962,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 
 (ert-deftest beads-show-test-keybinding-n-next ()
   "Integration test: Verify n keybinding for next section."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-show-mode)
     (let ((binding (lookup-key beads-show-mode-map (kbd "n"))))
@@ -1970,7 +1970,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 
 (ert-deftest beads-show-test-keybinding-p-prev ()
   "Integration test: Verify p keybinding for previous section."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-show-mode)
     (let ((binding (lookup-key beads-show-mode-map (kbd "p"))))
@@ -1978,7 +1978,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 
 (ert-deftest beads-show-test-outline-navigation-next ()
   "Integration test: Verify C-c C-n outline navigation."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-show-mode)
     (let ((binding (lookup-key beads-show-mode-map (kbd "C-c C-n"))))
@@ -1986,7 +1986,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 
 (ert-deftest beads-show-test-outline-navigation-previous ()
   "Integration test: Verify C-c C-p outline navigation."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-show-mode)
     (let ((binding (lookup-key beads-show-mode-map (kbd "C-c C-p"))))
@@ -1994,7 +1994,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 
 (ert-deftest beads-show-test-outline-navigation-forward ()
   "Integration test: Verify C-c C-f outline navigation."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-show-mode)
     (let ((binding (lookup-key beads-show-mode-map (kbd "C-c C-f"))))
@@ -2002,7 +2002,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 
 (ert-deftest beads-show-test-outline-navigation-backward ()
   "Integration test: Verify C-c C-b outline navigation."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-show-mode)
     (let ((binding (lookup-key beads-show-mode-map (kbd "C-c C-b"))))
@@ -2010,7 +2010,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 
 (ert-deftest beads-show-test-outline-navigation-up ()
   "Integration test: Verify C-c C-u outline navigation."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-show-mode)
     (let ((binding (lookup-key beads-show-mode-map (kbd "C-c C-u"))))
@@ -2018,7 +2018,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 
 (ert-deftest beads-show-test-reference-navigation ()
   "Integration test: Verify [ and ] for reference navigation."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-show-mode)
     (let ((prev-binding (lookup-key beads-show-mode-map (kbd "[")))
@@ -2028,7 +2028,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 
 (ert-deftest beads-show-test-keybinding-w-copy-id ()
   "Integration test: Verify w keybinding for copy-id."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-show-mode)
     (let ((binding (lookup-key beads-show-mode-map (kbd "w"))))
@@ -2036,7 +2036,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 
 (ert-deftest beads-show-test-keybinding-C-w-copy-id ()
   "Integration test: Verify C-w keybinding for copy-id."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-show-mode)
     (let ((binding (lookup-key beads-show-mode-map (kbd "C-w"))))
@@ -2044,12 +2044,12 @@ With per-issue naming, each issue in a project gets its own buffer."
 
 (ert-deftest beads-show-test-show-command-exists ()
   "Integration test: Verify beads-show command exists."
-  :tags '(integration)
+  :tags '(:integration)
   (should (fboundp 'beads-show)))
 
 (ert-deftest beads-show-test-context-detection ()
   "Integration test: Context detection works in show mode."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-show-mode)
     ;; Show mode should be active

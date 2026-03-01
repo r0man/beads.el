@@ -548,12 +548,12 @@
 
 (ert-deftest beads-epic-status-test-command-exists ()
   "Integration test: Verify beads-epic command exists."
-  :tags '(integration)
+  :tags '(:integration)
   (should (fboundp 'beads-epic)))
 
 (ert-deftest beads-epic-status-test-autoload ()
   "Test that beads-epic is autoloaded or already loaded."
-  :tags '(integration)
+  :tags '(:integration)
   ;; Function should either be autoloaded or already loaded (compiled)
   (should (or (autoloadp (symbol-function 'beads-epic))
               (functionp 'beads-epic))))

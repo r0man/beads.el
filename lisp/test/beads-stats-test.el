@@ -444,12 +444,12 @@ FILTER is an optional filter string."
 
 (ert-deftest beads-stats-test-stats-command-exists ()
   "Integration test: Verify beads-stats command exists."
-  :tags '(integration)
+  :tags '(:integration)
   (should (fboundp 'beads-stats)))
 
 (ert-deftest beads-stats-test-keybinding-g-refresh ()
   "Integration test: Verify g keybinding for refresh."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-stats-mode)
     (let ((binding (lookup-key beads-stats-mode-map (kbd "g"))))
@@ -457,7 +457,7 @@ FILTER is an optional filter string."
 
 (ert-deftest beads-stats-test-keybinding-q-quit ()
   "Integration test: Verify q keybinding for quit."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-stats-mode)
     (let ((binding (lookup-key beads-stats-mode-map (kbd "q"))))
@@ -993,7 +993,7 @@ Verifies the symbol in-progress maps to string in_progress."
 (ert-deftest beads-stats-test-click-total-issues-real ()
   "Integration test: clicking Total Issues shows all issues.
 Creates real issues and verifies they appear in the list buffer."
-  :tags '(integration)
+  :tags '(:integration)
   (beads-test-with-shared-project
     ;; Create real issues in the temp project
     (let ((id1 (beads-test-create-issue "Open Issue" "task" 1))
@@ -1013,7 +1013,7 @@ Creates real issues and verifies they appear in the list buffer."
 (ert-deftest beads-stats-test-click-open-issues-real ()
   "Integration test: clicking Open shows only open issues.
 Creates issues with different statuses and verifies filtering."
-  :tags '(integration)
+  :tags '(:integration)
   (beads-test-with-shared-project
     ;; Create issues - one open, one we'll close
     (let ((open-id (beads-test-create-issue "Open Issue" "task" 1))
@@ -1035,7 +1035,7 @@ Creates issues with different statuses and verifies filtering."
 
 (ert-deftest beads-stats-test-click-closed-issues-real ()
   "Integration test: clicking Closed shows only closed issues."
-  :tags '(integration)
+  :tags '(:integration)
   (beads-test-with-shared-project
     ;; Create and close an issue
     (let ((open-id (beads-test-create-issue "Stays Open" "task" 1))
@@ -1055,7 +1055,7 @@ Creates issues with different statuses and verifies filtering."
 (ert-deftest beads-stats-test-click-ready-real ()
   "Integration test: clicking Ready shows ready issues.
 Issues without blockers should appear as ready."
-  :tags '(integration)
+  :tags '(:integration)
   (beads-test-with-shared-project
     ;; Create an open issue - it should be ready (no blockers)
     (let* ((ready-id (beads-test-create-issue "Ready Issue" "task" 1))
@@ -1072,7 +1072,7 @@ Issues without blockers should appear as ready."
 (ert-deftest beads-stats-test-full-workflow-real ()
   "Integration test: full workflow from beads-stats to filtered list.
 Runs beads-stats, clicks a button, verifies correct list appears."
-  :tags '(integration)
+  :tags '(:integration)
   (beads-test-with-shared-project
     ;; Create some issues
     (let ((id1 (beads-test-create-issue "Issue One" "task" 1))

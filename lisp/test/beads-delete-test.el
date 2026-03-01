@@ -315,7 +315,7 @@ The daemon returns a different JSON format than direct mode."
 
 (ert-deftest beads-delete-test-keybinding-exists ()
   "Integration test: Verify D keybinding exists in list mode."
-  :tags '(integration)
+  :tags '(:integration)
   (with-temp-buffer
     (beads-list-mode)
     (let ((binding (lookup-key beads-list-mode-map (kbd "D"))))

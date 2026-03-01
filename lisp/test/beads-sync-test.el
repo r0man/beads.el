@@ -321,17 +321,17 @@ This test would have caught the original bug."
 
 (ert-deftest beads-sync-test-transient-menu-defined ()
   "Integration test: Verify beads-sync transient menu is defined."
-  :tags '(integration)
+  :tags '(:integration)
   (should (fboundp 'beads-sync)))
 
 (ert-deftest beads-sync-test-execute-function-defined ()
   "Integration test: Verify execute function is defined."
-  :tags '(integration)
+  :tags '(:integration)
   (should (fboundp 'beads-sync--execute)))
 
 (ert-deftest beads-sync-test-autoload-defined ()
   "Integration test: Verify beads-sync has autoload."
-  :tags '(integration)
+  :tags '(:integration)
   (should (get 'beads-sync 'transient--prefix)))
 
 ;;; ============================================================
