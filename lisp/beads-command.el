@@ -266,6 +266,10 @@ When nil, auto-detects best available backend."
 
 ;;; Global Options Mixin Class
 
+;; Wrap base class hierarchy in eval-and-compile so subclasses defined
+;; via beads-defcommand (which also uses eval-and-compile) can find
+;; their parent classes at compile time.
+(eval-and-compile
 (defclass beads-command-global-options ()
   ((actor
     :initarg :actor
@@ -429,7 +433,7 @@ Set by `beads-command-parse' after execution."))
   :documentation "Result of executing a beads-command.
 Separates execution results (mutable, per-execution) from command
 definition (immutable, reusable). Created by `beads-command-execute'
-and `beads-command-execute-async'.")
+and `beads-command-execute-async'.")) ;; end eval-and-compile for base classes
 
 ;;; Helper Functions
 
@@ -716,6 +720,7 @@ Signals `beads-json-parse-error' if JSON parsing fails (for JSON commands)."
 
 ;;; JSON Command
 
+(eval-and-compile
 (defclass beads-command-json (beads-command)
   ((json
     :initarg :json
@@ -729,7 +734,7 @@ Enables machine-readable output."
   :abstract t
   :documentation "Abstract base class for bd commands that support JSON output.
 Inherits from beads-command and adds --json flag support.
-Use this as parent class for commands that support --json flag.")
+Use this as parent class for commands that support --json flag."))
 
 (cl-defmethod beads-command-parse ((command beads-command-json) execution)
   "Parse JSON output from COMMAND using EXECUTION data.
