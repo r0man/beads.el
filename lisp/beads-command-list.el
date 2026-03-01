@@ -882,9 +882,6 @@
   Lists issues with extensive filtering and output formatting options.
   When executed with :json t, returns list of beads-issue instances.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-list))
-  "Return \"list\" as the CLI subcommand name."
-  "list")
 
 (cl-defmethod beads-command-validate ((command beads-command-list))
   "Validate list COMMAND.
@@ -955,13 +952,6 @@ Does not modify any slots."
                          :stderr (oref execution stderr)
                          :parse-error err))))))))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-list))
-  "Execute CMD in terminal buffer with human-readable output.
-Disables JSON mode for interactive display with colors."
-  ;; Set json to nil for human-readable colored output
-  (oset cmd json nil)
-  ;; Call the default implementation
-  (cl-call-next-method))
 
 ;; Override auto-generated beads-command-list! to apply default limit.
 ;; Note: Using initialize-instance doesn't work well because:

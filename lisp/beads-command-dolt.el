@@ -38,14 +38,7 @@
   :documentation "Show current Dolt configuration.
 Displays backend, database, host, port, and connection status.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-dolt-show))
-  "Return \"dolt show\" as the CLI subcommand."
-  "dolt show")
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-dolt-show))
-  "Execute CMD in terminal buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-dolt-set
@@ -102,9 +95,6 @@ Valid keys: database, host, port, user, data-dir."
   :documentation "Set a Dolt configuration value.
 Valid keys: database, host, port, user, data-dir.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-dolt-set))
-  "Return \"dolt set\" as the CLI subcommand."
-  "dolt set")
 
 (cl-defmethod beads-command-validate ((command beads-command-dolt-set))
   "Validate dolt set COMMAND.
@@ -116,10 +106,6 @@ Both key and value are required."
      ((or (null config-value) (string-empty-p config-value))
       "Must provide a value"))))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-dolt-set))
-  "Execute CMD in terminal buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-dolt-test
@@ -130,14 +116,7 @@ Both key and value are required."
   :documentation "Test connection to Dolt server.
 Reports host, port, and connection status.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-dolt-test))
-  "Return \"dolt test\" as the CLI subcommand."
-  "dolt test")
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-dolt-test))
-  "Execute CMD in terminal buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-dolt-commit
@@ -164,14 +143,7 @@ Auto-generates if not provided."
   :documentation "Create a Dolt commit from pending changes.
 Auto-generates commit message if not provided.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-dolt-commit))
-  "Return \"dolt commit\" as the CLI subcommand."
-  "dolt commit")
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-dolt-commit))
-  "Execute CMD in terminal buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-dolt-push
@@ -195,14 +167,7 @@ Auto-generates commit message if not provided.")
   :documentation "Push commits to Dolt remote.
 Use --force to overwrite remote changes.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-dolt-push))
-  "Return \"dolt push\" as the CLI subcommand."
-  "dolt push")
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-dolt-push))
-  "Execute CMD in terminal buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-dolt-pull
@@ -212,14 +177,7 @@ Use --force to overwrite remote changes.")
   ()
   :documentation "Pull commits from Dolt remote.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-dolt-pull))
-  "Return \"dolt pull\" as the CLI subcommand."
-  "dolt pull")
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-dolt-pull))
-  "Execute CMD in terminal buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-dolt-start
@@ -230,9 +188,6 @@ Use --force to overwrite remote changes.")
   :documentation "Start the Dolt SQL server.
 Starts server with per-project derived port.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-dolt-start))
-  "Return \"dolt start\" as the CLI subcommand."
-  "dolt start")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-dolt-stop
@@ -255,9 +210,6 @@ Starts server with per-project derived port.")
     :order 1))
   :documentation "Stop the Dolt SQL server.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-dolt-stop))
-  "Return \"dolt stop\" as the CLI subcommand."
-  "dolt stop")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-dolt-status
@@ -268,14 +220,7 @@ Starts server with per-project derived port.")
   :documentation "Show Dolt server status.
 Reports PID, port, and running status.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-dolt-status))
-  "Return \"dolt status\" as the CLI subcommand."
-  "dolt status")
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-dolt-status))
-  "Execute CMD in terminal buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-dolt-remote-add
@@ -316,9 +261,6 @@ Reports PID, port, and running status.")
     :required t))
   :documentation "Add a Dolt remote.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-dolt-remote-add))
-  "Return \"dolt remote add\" as the CLI subcommand."
-  "dolt remote add")
 
 (cl-defmethod beads-command-validate ((command beads-command-dolt-remote-add))
   "Validate dolt remote add COMMAND."
@@ -337,14 +279,7 @@ Reports PID, port, and running status.")
   ()
   :documentation "List configured Dolt remotes.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-dolt-remote-list))
-  "Return \"dolt remote list\" as the CLI subcommand."
-  "dolt remote list")
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-dolt-remote-list))
-  "Execute CMD in terminal buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-dolt-remote-remove
@@ -369,9 +304,6 @@ Reports PID, port, and running status.")
     :required t))
   :documentation "Remove a Dolt remote.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-dolt-remote-remove))
-  "Return \"dolt remote remove\" as the CLI subcommand."
-  "dolt remote remove")
 
 (cl-defmethod beads-command-validate ((command beads-command-dolt-remote-remove))
   "Validate dolt remote remove COMMAND."

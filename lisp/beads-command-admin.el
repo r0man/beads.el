@@ -114,9 +114,6 @@
   :documentation "Represents bd admin cleanup command.
 Deletes closed issues and prunes expired tombstones.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-admin-cleanup))
-  "Return \"admin cleanup\" as the CLI subcommand."
-  "admin cleanup")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-admin-compact
@@ -358,9 +355,6 @@ Deletes closed issues and prunes expired tombstones.")
   :documentation "Represents bd admin compact command.
 Compacts old closed issues to save space.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-admin-compact))
-  "Return \"admin compact\" as the CLI subcommand."
-  "admin compact")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-admin-reset
@@ -384,26 +378,11 @@ Compacts old closed issues to save space.")
   :documentation "Represents bd admin reset command.
 Removes all beads data and configuration. DANGEROUS!")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-admin-reset))
-  "Return \"admin reset\" as the CLI subcommand."
-  "admin reset")
 
 ;;; Execute Interactive Methods
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-admin-cleanup))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-admin-compact))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-admin-reset))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menus
 

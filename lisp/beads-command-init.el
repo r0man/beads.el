@@ -219,9 +219,6 @@ Perfect for personal use without affecting repo collaborators."
 Initializes bd in the current directory by creating .beads/ directory
 and database file.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-init))
-  "Return \"init\" as the CLI subcommand name."
-  "init")
 
 (cl-defmethod beads-command-validate ((command beads-command-init))
   "Validate init COMMAND.

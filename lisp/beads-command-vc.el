@@ -46,14 +46,7 @@
   :documentation "Create a Dolt commit from pending changes.
 Requires Dolt backend.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-vc-commit))
-  "Return \"vc commit\" as the CLI subcommand."
-  "vc commit")
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-vc-commit))
-  "Execute CMD in terminal buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-vc-merge
@@ -95,9 +88,6 @@ Values: ours, theirs."
   :documentation "Merge a Dolt branch into the current branch.
 Requires Dolt backend.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-vc-merge))
-  "Return \"vc merge\" as the CLI subcommand."
-  "vc merge")
 
 (cl-defmethod beads-command-validate ((command beads-command-vc-merge))
   "Validate vc merge COMMAND.
@@ -106,10 +96,6 @@ Branch is required."
     (when (or (null branch) (string-empty-p branch))
       "Must provide a branch name")))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-vc-merge))
-  "Execute CMD in terminal buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-vc-status
@@ -120,14 +106,7 @@ Branch is required."
   :documentation "Show current branch and uncommitted changes.
 Requires Dolt backend.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-vc-status))
-  "Return \"vc status\" as the CLI subcommand."
-  "vc status")
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-vc-status))
-  "Execute CMD in terminal buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menus
 

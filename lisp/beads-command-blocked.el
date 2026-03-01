@@ -58,9 +58,6 @@
 Shows blocked issues (issues with unresolved blockers).
 When executed with :json t, returns list of beads-blocked-issue instances.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-blocked))
-  "Return \"blocked\" as the CLI subcommand name."
-  "blocked")
 
 (cl-defmethod beads-command-parse ((command beads-command-blocked) execution)
   "Parse blocked COMMAND output from EXECUTION.
@@ -85,13 +82,6 @@ Does not modify any slots."
                          :stderr (oref execution stderr)
                          :parse-error err))))))))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-blocked))
-  "Execute CMD in compilation buffer with human-readable output.
-Disables JSON mode for interactive display with colors."
-  ;; Set json to nil for human-readable colored output
-  (oset cmd json nil)
-  ;; Call the default implementation
-  (cl-call-next-method))
 
 ;;; Transient Menu
 

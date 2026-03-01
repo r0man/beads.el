@@ -128,9 +128,6 @@ Format: (TIMESTAMP . LABELS-LIST)")
   :documentation "Represents bd label add command.
 Adds a label to one or more issues.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-label-add))
-  "Return \"label add\" as the CLI subcommand name."
-  "label add")
 
 (cl-defmethod beads-command-validate ((command beads-command-label-add))
   "Validate label add COMMAND.
@@ -198,9 +195,6 @@ Returns error string or nil if valid."
   :documentation "Represents bd label remove command.
 Removes a label from one or more issues.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-label-remove))
-  "Return \"label remove\" as the CLI subcommand name."
-  "label remove")
 
 (cl-defmethod beads-command-validate ((command beads-command-label-remove))
   "Validate label remove COMMAND.
@@ -249,9 +243,6 @@ Returns error string or nil if valid."
   :documentation "Represents bd label list command.
 Lists labels for a specific issue.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-label-list))
-  "Return \"label list\" as the CLI subcommand name."
-  "label list")
 
 (cl-defmethod beads-command-validate ((command beads-command-label-list))
   "Validate label list COMMAND.

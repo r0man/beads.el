@@ -33,9 +33,6 @@
   :documentation "Represents bd config get command.
 Gets a configuration value.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-config-get))
-  "Return \"config get\" as the CLI subcommand."
-  "config get")
 
 (cl-defmethod beads-command-validate ((command beads-command-config-get))
   "Validate config get COMMAND.  Requires key."
@@ -65,9 +62,6 @@ Gets a configuration value.")
   :documentation "Represents bd config set command.
 Sets a configuration value.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-config-set))
-  "Return \"config set\" as the CLI subcommand."
-  "config set")
 
 (cl-defmethod beads-command-validate ((command beads-command-config-set))
   "Validate config set COMMAND.  Requires key and value."
@@ -87,9 +81,6 @@ Sets a configuration value.")
   :documentation "Represents bd config list command.
 Lists all configuration values.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-config-list))
-  "Return \"config list\" as the CLI subcommand."
-  "config list")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-config-unset
@@ -105,9 +96,6 @@ Lists all configuration values.")
   :documentation "Represents bd config unset command.
 Deletes a configuration value.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-config-unset))
-  "Return \"config unset\" as the CLI subcommand."
-  "config unset")
 
 (cl-defmethod beads-command-validate ((command beads-command-config-unset))
   "Validate config unset COMMAND.  Requires key."
@@ -119,25 +107,9 @@ Deletes a configuration value.")
 
 ;;; Execute Interactive Methods
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-config-get))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-config-set))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-config-list))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-config-unset))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menus
 

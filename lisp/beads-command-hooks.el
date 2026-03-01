@@ -70,9 +70,6 @@
   :documentation "Represents bd hooks install command.
 Installs bd git hooks.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-hooks-install))
-  "Return \"hooks install\" as the CLI subcommand."
-  "hooks install")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-hooks-uninstall
@@ -83,9 +80,6 @@ Installs bd git hooks.")
   :documentation "Represents bd hooks uninstall command.
 Uninstalls bd git hooks.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-hooks-uninstall))
-  "Return \"hooks uninstall\" as the CLI subcommand."
-  "hooks uninstall")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-hooks-list
@@ -96,9 +90,6 @@ Uninstalls bd git hooks.")
   :documentation "Represents bd hooks list command.
 Lists installed git hooks status.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-hooks-list))
-  "Return \"hooks list\" as the CLI subcommand."
-  "hooks list")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-hooks-run
@@ -114,31 +105,12 @@ Lists installed git hooks status.")
   :documentation "Represents bd hooks run command.
 Executes a git hook (called by thin shims).")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-hooks-run))
-  "Return \"hooks run\" as the CLI subcommand."
-  "hooks run")
 
 ;;; Execute Interactive Methods
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-hooks-install))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-hooks-uninstall))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-hooks-list))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-hooks-run))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menus
 

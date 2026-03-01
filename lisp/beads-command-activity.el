@@ -132,16 +132,9 @@
   :documentation "Represents bd activity command.
 Displays a real-time feed of issue and molecule state changes.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-activity))
-  "Return \"activity\" as the CLI subcommand."
-  "activity")
 
 ;;; Execute Interactive Methods
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-activity))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menus
 

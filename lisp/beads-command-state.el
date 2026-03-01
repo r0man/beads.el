@@ -88,9 +88,6 @@ Atomically sets operational state on an issue.")
   :documentation "Represents bd state command.
 Queries the current value of a state dimension.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-state))
-  "Return \"state\" as the CLI subcommand."
-  "state")
 
 (cl-defmethod beads-command-validate ((command beads-command-state))
   "Validate state COMMAND."
@@ -114,9 +111,6 @@ Queries the current value of a state dimension.")
   :documentation "Represents bd state list command.
 Lists all state dimensions on an issue.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-state-list))
-  "Return \"state list\" as the CLI subcommand."
-  "state list")
 
 (cl-defmethod beads-command-validate ((command beads-command-state-list))
   "Validate state list COMMAND."
@@ -125,20 +119,8 @@ Lists all state dimensions on an issue.")
 
 ;;; Execute Interactive Methods
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-set-state))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-state))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-state-list))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menus
 

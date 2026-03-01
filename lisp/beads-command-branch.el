@@ -52,19 +52,12 @@ Without arguments, lists all branches.
 With a name, creates a new branch.
 Requires Dolt backend.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-branch))
-  "Return \"branch\" as the CLI subcommand name."
-  "branch")
 
 (cl-defmethod beads-command-validate ((_command beads-command-branch))
   "Validate branch COMMAND.
 No required fields, returns nil (valid)."
   nil)
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-branch))
-  "Execute CMD in terminal buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menu
 

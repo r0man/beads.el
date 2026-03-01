@@ -331,22 +331,12 @@ Format: YYYY-MM-DD or RFC3339."
 Full-text search across issues.
 When executed with :json t, returns matching issues as JSON.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-search))
-  "Return subcommand name for search command."
-  "search")
 
 (cl-defmethod beads-command-validate ((_command beads-command-search))
   "Validate search COMMAND.
 No required fields, returns nil (valid)."
   nil)
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-search))
-  "Execute CMD in compilation buffer with human-readable output.
-Disables JSON mode for interactive display with colors."
-  ;; Set json to nil for human-readable colored output
-  (oset cmd json nil)
-  ;; Call the default implementation
-  (cl-call-next-method))
 
 ;;; Transient Menu
 

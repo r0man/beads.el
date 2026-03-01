@@ -62,9 +62,6 @@
   :documentation "Show differences between two commits or branches.
 Requires Dolt backend.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-diff))
-  "Return \"diff\" as the CLI subcommand name."
-  "diff")
 
 (cl-defmethod beads-command-validate ((command beads-command-diff))
   "Validate diff COMMAND.
@@ -76,10 +73,6 @@ Both from-ref and to-ref are required."
      ((or (null to-ref) (string-empty-p to-ref))
       "Must provide a to-ref"))))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-diff))
-  "Execute CMD in terminal buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menu
 

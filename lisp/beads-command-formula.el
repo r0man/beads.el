@@ -133,9 +133,6 @@ Values: workflow, expansion, aspect."
   :documentation "Represents bd formula list command.
 Lists available formulas from all search paths.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-formula-list))
-  "Return subcommand name for formula list."
-  "formula list")
 
 (cl-defmethod beads-command-validate ((_command beads-command-formula-list))
   "Validate formula list command.  No required fields."
@@ -164,9 +161,6 @@ Lists available formulas from all search paths.")
   :documentation "Represents bd formula show command.
 Shows detailed information about a formula.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-formula-show))
-  "Return subcommand name for formula show."
-  "formula show")
 
 (cl-defmethod beads-command-validate ((command beads-command-formula-show))
   "Validate COMMAND.  Requires formula name."

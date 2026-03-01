@@ -58,9 +58,6 @@
   :documentation "Represents bd gate list command.
 Lists gate issues.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-gate-list))
-  "Return \"gate list\" as the CLI subcommand."
-  "gate list")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-gate-check
@@ -131,9 +128,6 @@ Lists gate issues.")
   :documentation "Represents bd gate check command.
 Evaluates gates and closes resolved ones.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-gate-check))
-  "Return \"gate check\" as the CLI subcommand."
-  "gate check")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-gate-resolve
@@ -165,9 +159,6 @@ Evaluates gates and closes resolved ones.")
   :documentation "Represents bd gate resolve command.
 Manually resolves (closes) a gate.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-gate-resolve))
-  "Return \"gate resolve\" as the CLI subcommand."
-  "gate resolve")
 
 (cl-defmethod beads-command-validate ((command beads-command-gate-resolve))
   "Validate gate resolve COMMAND."
@@ -188,9 +179,6 @@ Manually resolves (closes) a gate.")
   :documentation "Represents bd gate show command.
 Shows a gate issue.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-gate-show))
-  "Return \"gate show\" as the CLI subcommand."
-  "gate show")
 
 (cl-defmethod beads-command-validate ((command beads-command-gate-show))
   "Validate gate show COMMAND."
@@ -235,41 +223,14 @@ Adds a waiter to a gate.")
   :documentation "Represents bd gate discover command.
 Discovers await_id for gh:run gates.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-gate-discover))
-  "Return \"gate discover\" as the CLI subcommand."
-  "gate discover")
 
 ;;; Execute Interactive Methods
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-gate-list))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-gate-check))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-gate-resolve))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-gate-show))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-gate-add-waiter))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-gate-discover))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menus
 

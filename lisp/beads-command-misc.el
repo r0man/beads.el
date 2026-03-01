@@ -49,9 +49,6 @@
   :documentation "Represents bd duplicate command.
 Marks an issue as a duplicate of another.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-duplicate))
-  "Return \"duplicate\" as the CLI subcommand."
-  "duplicate")
 
 (cl-defmethod beads-command-validate ((command beads-command-duplicate))
   "Validate duplicate COMMAND."
@@ -83,9 +80,6 @@ Marks an issue as a duplicate of another.")
   :documentation "Represents bd duplicates command.
 Finds and optionally merges duplicate issues.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-duplicates))
-  "Return \"duplicates\" as the CLI subcommand."
-  "duplicates")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-supersede
@@ -116,9 +110,6 @@ Finds and optionally merges duplicate issues.")
   :documentation "Represents bd supersede command.
 Marks an issue as superseded by a newer one.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-supersede))
-  "Return \"supersede\" as the CLI subcommand."
-  "supersede")
 
 (cl-defmethod beads-command-validate ((command beads-command-supersede))
   "Validate supersede COMMAND."
@@ -165,9 +156,6 @@ Marks an issue as superseded by a newer one.")
   :documentation "Represents bd orphans command.
 Identifies orphaned issues referenced in commits but still open.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-orphans))
-  "Return \"orphans\" as the CLI subcommand."
-  "orphans")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-lint
@@ -218,9 +206,6 @@ Identifies orphaned issues referenced in commits but still open.")
   :documentation "Represents bd lint command.
 Checks issues for missing template sections.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-lint))
-  "Return \"lint\" as the CLI subcommand."
-  "lint")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-move
@@ -289,9 +274,6 @@ Checks issues for missing template sections.")
   :documentation "Represents bd move command.
 Moves an issue to a different rig with dependency remapping.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-move))
-  "Return \"move\" as the CLI subcommand."
-  "move")
 
 (cl-defmethod beads-command-validate ((command beads-command-move))
   "Validate move COMMAND."
@@ -335,9 +317,6 @@ Moves an issue to a different rig with dependency remapping.")
   :documentation "Represents bd refile command.
 Moves an issue to a different rig.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-refile))
-  "Return \"refile\" as the CLI subcommand."
-  "refile")
 
 (cl-defmethod beads-command-validate ((command beads-command-refile))
   "Validate refile COMMAND."
@@ -419,9 +398,6 @@ Moves an issue to a different rig.")
   :documentation "Represents bd q command.
 Quick capture: creates issue and outputs only ID.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-q))
-  "Return \"q\" as the CLI subcommand."
-  "q")
 
 (cl-defmethod beads-command-validate ((command beads-command-q))
   "Validate q COMMAND."
@@ -450,9 +426,6 @@ Quick capture: creates issue and outputs only ID.")
   :documentation "Represents bd version command.
 Prints version information.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-version))
-  "Return \"version\" as the CLI subcommand."
-  "version")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-where
@@ -463,9 +436,6 @@ Prints version information.")
   :documentation "Represents bd where command.
 Shows active beads location.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-where))
-  "Return \"where\" as the CLI subcommand."
-  "where")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-human
@@ -476,9 +446,6 @@ Shows active beads location.")
   :documentation "Represents bd human command.
 Shows essential commands for human users.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-human))
-  "Return \"human\" as the CLI subcommand."
-  "human")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-onboard
@@ -489,9 +456,6 @@ Shows essential commands for human users.")
   :documentation "Represents bd onboard command.
 Displays minimal snippet for AGENTS.md.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-onboard))
-  "Return \"onboard\" as the CLI subcommand."
-  "onboard")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-prime
@@ -502,9 +466,6 @@ Displays minimal snippet for AGENTS.md.")
   :documentation "Represents bd prime command.
 Outputs AI-optimized workflow context.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-prime))
-  "Return \"prime\" as the CLI subcommand."
-  "prime")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-preflight
@@ -515,9 +476,6 @@ Outputs AI-optimized workflow context.")
   :documentation "Represents bd preflight command.
 Shows PR readiness checklist.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-preflight))
-  "Return \"preflight\" as the CLI subcommand."
-  "preflight")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-upgrade
@@ -528,9 +486,6 @@ Shows PR readiness checklist.")
   :documentation "Represents bd upgrade command.
 Check and manage bd version upgrades.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-upgrade))
-  "Return \"upgrade\" as the CLI subcommand."
-  "upgrade")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-rename-prefix
@@ -573,9 +528,6 @@ Renames the issue prefix for all issues in the database.")
   :documentation "Represents bd repair command.
 Repairs corrupted database by cleaning orphaned references.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-repair))
-  "Return \"repair\" as the CLI subcommand."
-  "repair")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-resolve-conflicts
@@ -604,9 +556,6 @@ Resolves git merge conflicts in JSONL files.")
   :documentation "Represents bd restore command.
 Restores full history of a compacted issue from git.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-restore))
-  "Return \"restore\" as the CLI subcommand."
-  "restore")
 
 (cl-defmethod beads-command-validate ((command beads-command-restore))
   "Validate restore COMMAND."
@@ -639,9 +588,6 @@ Restores full history of a compacted issue from git.")
   :documentation "Represents bd merge command.
 Git merge driver for beads JSONL files.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-merge))
-  "Return \"merge\" as the CLI subcommand."
-  "merge")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-setup
@@ -657,9 +603,6 @@ Git merge driver for beads JSONL files.")
   :documentation "Represents bd setup command.
 Setup integration with AI editors.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-setup))
-  "Return \"setup\" as the CLI subcommand."
-  "setup")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-ship
@@ -675,9 +618,6 @@ Setup integration with AI editors.")
   :documentation "Represents bd ship command.
 Publishes a capability for cross-project dependencies.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-ship))
-  "Return \"ship\" as the CLI subcommand."
-  "ship")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-cook
@@ -693,9 +633,6 @@ Publishes a capability for cross-project dependencies.")
   :documentation "Represents bd cook command.
 Compiles a formula into a proto (ephemeral by default).")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-cook))
-  "Return \"cook\" as the CLI subcommand."
-  "cook")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-mail
@@ -706,131 +643,32 @@ Compiles a formula into a proto (ephemeral by default).")
   :documentation "Represents bd mail command.
 Delegates to mail provider.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-mail))
-  "Return \"mail\" as the CLI subcommand."
-  "mail")
 
 ;;; Execute Interactive Methods
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-duplicate))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-duplicates))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-supersede))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-orphans))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-lint))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-move))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-refile))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-q))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-version))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-where))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-human))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-onboard))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-prime))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-preflight))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-upgrade))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-rename-prefix))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-repair))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-resolve-conflicts))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-restore))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-merge))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-setup))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-ship))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-cook))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-mail))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menus
 

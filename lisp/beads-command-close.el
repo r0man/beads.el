@@ -88,9 +88,6 @@
   of instances when multiple IDs provided)."
   :global-section beads-option-global-section)
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-close))
-  "Return \"close\" as the CLI subcommand name."
-  "close")
 
 (cl-defmethod beads-command-validate ((command beads-command-close))
   "Validate close COMMAND.

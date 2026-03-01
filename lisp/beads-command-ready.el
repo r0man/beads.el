@@ -287,9 +287,6 @@ Values: hybrid (default), priority, oldest."
 Shows ready work (no blockers, open or in-progress).
 When executed with :json t, returns list of beads-issue instances.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-ready))
-  "Return \"ready\" as the CLI subcommand name."
-  "ready")
 
 (cl-defmethod beads-command-line ((command beads-command-ready))
   "Build command arguments for ready COMMAND (without executable).
@@ -390,13 +387,6 @@ Does not modify any slots."
                          :stderr (oref execution stderr)
                          :parse-error err))))))))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-ready))
-  "Execute CMD in compilation buffer with human-readable output.
-Disables JSON mode for interactive display with colors."
-  ;; Set json to nil for human-readable colored output
-  (oset cmd json nil)
-  ;; Call the default implementation
-  (cl-call-next-method))
 
 ;;; Transient Menu
 

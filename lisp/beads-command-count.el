@@ -198,22 +198,12 @@ Format: YYYY-MM-DD or RFC3339."
 Counts issues matching the specified filters.
 When executed with :json t, returns count data as JSON.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-count))
-  "Return subcommand name for count command."
-  "count")
 
 (cl-defmethod beads-command-validate ((_command beads-command-count))
   "Validate count COMMAND.
 No required fields, returns nil (valid)."
   nil)
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-count))
-  "Execute CMD in compilation buffer with human-readable output.
-Disables JSON mode for interactive display."
-  ;; Set json to nil for human-readable output
-  (oset cmd json nil)
-  ;; Call the default implementation
-  (cl-call-next-method))
 
 ;;; Transient Menu
 

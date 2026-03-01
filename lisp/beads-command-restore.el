@@ -47,9 +47,6 @@
   :documentation "Restore a compacted issue from Dolt history.
 Requires Dolt backend.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-restore))
-  "Return \"restore\" as the CLI subcommand name."
-  "restore")
 
 (cl-defmethod beads-command-validate ((command beads-command-restore))
   "Validate restore COMMAND.
@@ -58,10 +55,6 @@ Issue ID is required."
     (when (or (null issue-id) (string-empty-p issue-id))
       "Must provide an issue ID")))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-restore))
-  "Execute CMD in terminal buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menu
 

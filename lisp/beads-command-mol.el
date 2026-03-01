@@ -48,9 +48,6 @@
   :documentation "Represents bd mol show command.
 Shows molecule details.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-mol-show))
-  "Return \"mol show\" as the CLI subcommand."
-  "mol show")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-mol-pour
@@ -141,9 +138,6 @@ Shows molecule details.")
   :documentation "Represents bd mol pour command.
 Instantiates proto as persistent mol (liquid phase).")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-mol-pour))
-  "Return \"mol pour\" as the CLI subcommand."
-  "mol pour")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-mol-wisp
@@ -188,9 +182,6 @@ Instantiates proto as persistent mol (liquid phase).")
   :documentation "Represents bd mol wisp command.
 Creates or manages wisps (ephemeral molecules).")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-mol-wisp))
-  "Return \"mol wisp\" as the CLI subcommand."
-  "mol wisp")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-mol-bond
@@ -314,9 +305,6 @@ Creates or manages wisps (ephemeral molecules).")
   :documentation "Represents bd mol bond command.
 Bonds two protos or molecules together.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-mol-bond))
-  "Return \"mol bond\" as the CLI subcommand."
-  "mol bond")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-mol-squash
@@ -375,9 +363,6 @@ Bonds two protos or molecules together.")
   :documentation "Represents bd mol squash command.
 Compresses molecule execution into a digest.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-mol-squash))
-  "Return \"mol squash\" as the CLI subcommand."
-  "mol squash")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-mol-burn
@@ -421,9 +406,6 @@ Compresses molecule execution into a digest.")
   :documentation "Represents bd mol burn command.
 Deletes a molecule without creating a digest.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-mol-burn))
-  "Return \"mol burn\" as the CLI subcommand."
-  "mol burn")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-mol-distill
@@ -484,9 +466,6 @@ Deletes a molecule without creating a digest.")
   :documentation "Represents bd mol distill command.
 Extracts a formula from an existing epic.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-mol-distill))
-  "Return \"mol distill\" as the CLI subcommand."
-  "mol distill")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-mol-current
@@ -547,9 +526,6 @@ Extracts a formula from an existing epic.")
   :documentation "Represents bd mol current command.
 Shows current position in molecule workflow.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-mol-current))
-  "Return \"mol current\" as the CLI subcommand."
-  "mol current")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-mol-progress
@@ -565,9 +541,6 @@ Shows current position in molecule workflow.")
   :documentation "Represents bd mol progress command.
 Shows molecule progress summary.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-mol-progress))
-  "Return \"mol progress\" as the CLI subcommand."
-  "mol progress")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-mol-ready
@@ -578,9 +551,6 @@ Shows molecule progress summary.")
   :documentation "Represents bd mol ready command.
 Finds molecules ready for gate-resume dispatch.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-mol-ready))
-  "Return \"mol ready\" as the CLI subcommand."
-  "mol ready")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-mol-stale
@@ -591,66 +561,19 @@ Finds molecules ready for gate-resume dispatch.")
   :documentation "Represents bd mol stale command.
 Detects complete-but-unclosed molecules.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-mol-stale))
-  "Return \"mol stale\" as the CLI subcommand."
-  "mol stale")
 
 ;;; Execute Interactive Methods
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-mol-show))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-mol-pour))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-mol-wisp))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-mol-bond))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-mol-squash))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-mol-burn))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-mol-distill))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-mol-current))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-mol-progress))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-mol-ready))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-mol-stale))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menus
 

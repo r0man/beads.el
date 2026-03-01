@@ -282,9 +282,6 @@ Default: same as worktree name."
   :documentation "Represents bd worktree create command.
 Creates a git worktree with beads redirect configuration.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-worktree-create))
-  "Return \"worktree create\" as the CLI subcommand."
-  "worktree create")
 
 (cl-defmethod beads-command-validate ((command beads-command-worktree-create))
   "Validate worktree create COMMAND.
@@ -322,9 +319,6 @@ Returns beads-worktree instance on success."
   :documentation "Represents bd worktree list command.
 Lists all git worktrees with their beads configuration state.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-worktree-list))
-  "Return \"worktree list\" as the CLI subcommand."
-  "worktree list")
 
 (cl-defmethod beads-command-parse ((command beads-command-worktree-list) execution)
   "Parse worktree list COMMAND output from EXECUTION.
@@ -374,9 +368,6 @@ and stashes."
   :documentation "Represents bd worktree remove command.
 Removes a worktree with safety checks (unless --force is used).")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-worktree-remove))
-  "Return \"worktree remove\" as the CLI subcommand."
-  "worktree remove")
 
 (cl-defmethod beads-command-validate ((command beads-command-worktree-remove))
   "Validate worktree remove COMMAND.
@@ -396,9 +387,6 @@ Requires name to be set."
   :documentation "Represents bd worktree info command.
 Shows information about the current worktree context.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-worktree-info))
-  "Return \"worktree info\" as the CLI subcommand."
-  "worktree info")
 
 (cl-defmethod beads-command-parse ((command beads-command-worktree-info) execution)
   "Parse worktree info COMMAND output from EXECUTION.
@@ -448,25 +436,9 @@ Returns beads-worktree instance or nil if not found."
 ;;; Interactive Execute Methods
 ;;; ============================================================
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-worktree-create))
-  "Execute CMD in compilation buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-worktree-list))
-  "Execute CMD in compilation buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-worktree-remove))
-  "Execute CMD in compilation buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-worktree-info))
-  "Execute CMD in compilation buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Transient Menus
