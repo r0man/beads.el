@@ -41,6 +41,12 @@ jobs:
       - name: Verify Beads installation
         run: bd version
 
+      - name: Install Dolt
+        run: sudo bash -c 'curl -L https://github.com/dolthub/dolt/releases/latest/download/install.sh | bash'
+
+      - name: Verify Dolt installation
+        run: dolt version
+
       - name: Install Graphviz
         run: sudo apt-get update && sudo apt-get install -y graphviz
 
