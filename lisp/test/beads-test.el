@@ -37,6 +37,19 @@ issue IDs by splitting on the first hyphen."
       (setq suffix (concat suffix (string (aref chars (random (length chars)))))))
     (concat "beadsTest" suffix)))
 
+(defvar beads-test--last-created-prefix nil
+  "Prefix used by the most recent `beads-test-create-project' call.
+Set as a side effect so callers can retrieve the prefix for cleanup.")
+
+(defun beads-test--drop-dolt-database (prefix)
+  "Drop the Dolt database named PREFIX from the shared server.
+Silently ignores errors (e.g., if the database doesn't exist or
+the server is unavailable)."
+  (when (and prefix (not (string-empty-p prefix)))
+    (ignore-errors
+      (call-process "bd" nil nil nil
+                    "sql" (format "DROP DATABASE IF EXISTS `%s`" prefix)))))
+
 (defun beads-test-create-project (&rest init-args)
   "Create a temporary beads project and return its directory.
 INIT-ARGS are keyword arguments passed to beads-command-init when
@@ -48,13 +61,15 @@ If no INIT-ARGS are provided, creates a project with a unique
 auto-generated prefix (without hyphens, for --rename-on-import
 compatibility).
 
-The project is initialized with git to enable proper JSONL auto-sync."
+The project is initialized with git to enable proper JSONL auto-sync.
+Sets `beads-test--last-created-prefix' as a side effect."
   (let* ((default-directory (make-temp-file "beads-test-" t))
          ;; Generate a unique prefix if none specified
          (effective-args (if (plist-member init-args :prefix)
                              init-args
                            (append (list :prefix (beads-test--generate-prefix))
                                    init-args))))
+    (setq beads-test--last-created-prefix (plist-get effective-args :prefix))
     ;; Initialize git first - required for bd's JSONL auto-sync
     (call-process "git" nil nil nil "init" "-q")
     (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
@@ -130,8 +145,10 @@ For a project with default settings, use an empty list:
     ;; test code here
     )"
   (declare (indent 1))
-  (let ((temp-dir (make-symbol "temp-dir")))
+  (let ((temp-dir (make-symbol "temp-dir"))
+        (prefix (make-symbol "prefix")))
     `(let* ((,temp-dir (beads-test-create-project ,@init-args))
+            (,prefix beads-test--last-created-prefix)
             (default-directory ,temp-dir)
             (beads--project-cache (make-hash-table :test 'equal)))
        ;; Clear any active transient state from previous tests
@@ -146,7 +163,9 @@ For a project with default settings, use an empty list:
                (progn ,@body)
              ;; Clear transient state after test too
              (beads-test--clear-transient-state)
-             ;; Clean up temp directory to avoid leaking Dolt files
+             ;; Drop the Dolt database to prevent orphan accumulation
+             (beads-test--drop-dolt-database ,prefix)
+             ;; Clean up temp directory
              (when (file-directory-p ,temp-dir)
                (delete-directory ,temp-dir t))))))))
 
@@ -541,7 +560,10 @@ Uses `bd delete --force' to remove issues without re-initializing."
 
 (defun beads-test-destroy-shared-project ()
   "Destroy the shared test project and clean up.
-Call this at the end of the test session (e.g., in a teardown hook)."
+Call this at the end of the test session (e.g., in a teardown hook).
+Also drops the Dolt database to prevent orphan accumulation."
+  ;; Drop the Dolt database before removing the filesystem
+  (beads-test--drop-dolt-database beads-test--shared-project-prefix)
   (when (and beads-test--shared-project-dir
              (file-directory-p beads-test--shared-project-dir))
     (delete-directory beads-test--shared-project-dir t))

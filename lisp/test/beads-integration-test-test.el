@@ -69,22 +69,26 @@
   "Test temp repo creation with beads initialization."
   :tags '(:integration)
   (skip-unless (executable-find "bd"))
-  (let ((temp-dir (beads-test-create-temp-repo :init-beads t)))
+  (let* ((temp-dir (beads-test-create-temp-repo :init-beads t))
+         (prefix beads-test--last-init-prefix))
     (unwind-protect
         (progn
           ;; Should have .beads directory
           (should (file-directory-p (expand-file-name ".beads" temp-dir))))
+      (beads-test--drop-dolt-database prefix)
       (delete-directory temp-dir t))))
 
 (ert-deftest beads-integration-test-create-temp-repo-with-prefix ()
   "Test temp repo creation with custom prefix."
   :tags '(:integration)
   (skip-unless (executable-find "bd"))
-  (let ((temp-dir (beads-test-create-temp-repo :init-beads t :prefix "testpfx")))
+  (let* ((temp-dir (beads-test-create-temp-repo :init-beads t :prefix "testpfx"))
+         (prefix beads-test--last-init-prefix))
     (unwind-protect
         (let ((default-directory temp-dir))
           ;; Should have .beads directory
           (should (file-directory-p ".beads")))
+      (beads-test--drop-dolt-database prefix)
       (delete-directory temp-dir t))))
 
 ;;; Test: beads-test-with-temp-repo macro

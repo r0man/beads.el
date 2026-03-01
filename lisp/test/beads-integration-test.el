@@ -52,6 +52,10 @@
 (defvar beads--completion-cache)
 (defvar beads-executable)
 
+(defvar beads-test--last-init-prefix nil
+  "Prefix used by the most recent `beads-test--init-beads' call.
+Set as a side effect so callers can retrieve the prefix for cleanup.")
+
 ;;; ============================================================
 ;;; CLI Feature Detection
 ;;; ============================================================
@@ -89,6 +93,7 @@ Returns DIR for convenience."
 (defun beads-test--init-beads (dir &optional prefix quiet)
   "Initialize beads in DIR with optional PREFIX.
 If QUIET is non-nil, suppress bd output.
+Sets `beads-test--last-init-prefix' as a side effect.
 Returns DIR for convenience."
   (require 'beads-command)
   (let* ((default-directory dir)
@@ -96,6 +101,7 @@ Returns DIR for convenience."
          (cmd (beads-command-init :prefix effective-prefix
                                   :quiet quiet
                                   :skip-hooks t)))
+    (setq beads-test--last-init-prefix effective-prefix)
     (beads-command-execute cmd))
   dir)
 
@@ -107,6 +113,16 @@ Returns DIR for convenience."
   ;; Clear completion cache
   (when (boundp 'beads--completion-cache)
     (setq beads--completion-cache nil)))
+
+(defun beads-test--drop-dolt-database (prefix)
+  "Drop the Dolt database named PREFIX from the shared server.
+Silently ignores errors (e.g., if the database doesn't exist or
+the server is unavailable)."
+  (when (and prefix (not (string-empty-p prefix)))
+    (ignore-errors
+      (call-process (or (bound-and-true-p beads-executable) "bd")
+                    nil nil nil
+                    "sql" (format "DROP DATABASE IF EXISTS `%s`" prefix)))))
 
 (defun beads-test--clear-transient-state ()
   "Clear any active transient state to ensure test isolation."
@@ -199,6 +215,7 @@ Examples:
       ))"
   (declare (indent 1) (debug (form body)))
   (let ((temp-dir (make-symbol "temp-dir"))
+        (db-prefix (make-symbol "db-prefix"))
         (init-beads (plist-get args :init-beads))
         (prefix (plist-get args :prefix))
         (cleanup (if (plist-member args :cleanup)
@@ -207,10 +224,12 @@ Examples:
         (quiet (if (plist-member args :quiet)
                    (plist-get args :quiet)
                  t)))  ; Default quiet to t
-    `(let* ((,temp-dir (beads-test-create-temp-repo
+    `(let* ((beads-test--last-init-prefix nil)
+            (,temp-dir (beads-test-create-temp-repo
                         ,@(when init-beads '(:init-beads t))
                         ,@(when prefix `(:prefix ,prefix))
                         :quiet ,quiet))
+            (,db-prefix beads-test--last-init-prefix)
             (default-directory ,temp-dir)
             ;; Fresh caches for isolation
             (beads--project-cache (make-hash-table :test 'equal))
@@ -225,6 +244,8 @@ Examples:
            ;; Clear state after test
            (beads-test--clear-transient-state)
            (beads-test--clear-caches)
+           ;; Drop the Dolt database to prevent orphan accumulation
+           (beads-test--drop-dolt-database ,db-prefix)
            ;; Optionally cleanup temp dir
            (when ,cleanup
              (delete-directory ,temp-dir t)))))))

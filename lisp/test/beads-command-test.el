@@ -53,6 +53,10 @@ Integration test that runs real bd init command."
             (should (stringp (oref exec stderr)))
             ;; Should create .beads directory
             (should (file-directory-p (expand-file-name ".beads" temp-dir)))))
+      ;; Drop the Dolt database to prevent orphan accumulation
+      (ignore-errors
+        (call-process "bd" nil nil nil
+                      "sql" (format "DROP DATABASE IF EXISTS `%s`" prefix)))
       (when (file-directory-p temp-dir)
         (delete-directory temp-dir t)))))
 
@@ -80,6 +84,10 @@ Integration test that verifies --prefix flag works correctly."
             (let* ((issue (beads-command-create! :title "Test issue")))
               (should (beads-issue-p issue))
               (should (string-prefix-p "myproject-" (oref issue id))))))
+      ;; Drop the Dolt database to prevent orphan accumulation
+      (ignore-errors
+        (call-process "bd" nil nil nil
+                      "sql" "DROP DATABASE IF EXISTS `myproject`"))
       (when (file-directory-p temp-dir)
         (delete-directory temp-dir t)))))
 
@@ -106,6 +114,10 @@ Integration test that verifies quiet mode suppresses output."
             (should (= (oref exec exit-code) 0))
             ;; .beads directory should exist
             (should (file-directory-p (expand-file-name ".beads" temp-dir)))))
+      ;; Drop the Dolt database to prevent orphan accumulation
+      (ignore-errors
+        (call-process "bd" nil nil nil
+                      "sql" (format "DROP DATABASE IF EXISTS `%s`" prefix)))
       (when (file-directory-p temp-dir)
         (delete-directory temp-dir t)))))
 

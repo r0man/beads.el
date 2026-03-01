@@ -422,7 +422,8 @@
   (skip-unless (executable-find beads-executable))
   ;; Create a temporary beads directory for testing
   (let* ((temp-dir (make-temp-file "beads-formula-test-" t))
-         (default-directory temp-dir))
+         (default-directory temp-dir)
+         (prefix (format "beadsTest%06d" (random 999999))))
     (unwind-protect
         (progn
           ;; Initialize git first - required for bd init
@@ -430,7 +431,7 @@
           (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
           (call-process "git" nil nil nil "config" "user.name" "Beads Test")
           ;; Initialize beads in the temp directory
-          (let* ((init-cmd (beads-command-init))
+          (let* ((init-cmd (beads-command-init :prefix prefix))
                  (init-exec (beads-command-execute init-cmd)))
             (should (= (oref init-exec exit-code) 0)))
           ;; This test will actually run bd formula list --json
@@ -442,6 +443,10 @@
             (should (= (oref exec exit-code) 0))
             ;; Result should be a list (possibly empty)
             (should (listp (oref exec result)))))
+      ;; Drop the Dolt database to prevent orphan accumulation
+      (ignore-errors
+        (call-process "bd" nil nil nil
+                      "sql" (format "DROP DATABASE IF EXISTS `%s`" prefix)))
       ;; Cleanup: remove temp directory
       (delete-directory temp-dir t))))
 
