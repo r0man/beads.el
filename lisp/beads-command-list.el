@@ -66,13 +66,8 @@
 
 ;;; List Command
 
-;; Wrap in eval-and-compile so class is available at compile time for
-;; beads-meta-define-transient macro.  Use defclass directly (not
-;; beads-defcommand) to avoid auto-generating beads-command-list!,
-;; which would conflict with the custom override below.
-(eval-and-compile
-  (defclass beads-command-list (beads-command-json)
-    (;; === Basic Filters ===
+(beads-defcommand beads-command-list (beads-command-json)
+  (;; === Basic Filters ===
      (all
       :initarg :all
       :type boolean
@@ -885,7 +880,7 @@
       :order 4))
     :documentation "Represents bd list command.
   Lists issues with extensive filtering and output formatting options.
-  When executed with :json t, returns list of beads-issue instances."))
+  When executed with :json t, returns list of beads-issue instances.")
 
 (cl-defmethod beads-command-subcommand ((_command beads-command-list))
   "Return \"list\" as the CLI subcommand name."
