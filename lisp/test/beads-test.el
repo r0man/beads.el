@@ -130,20 +130,25 @@ For a project with default settings, use an empty list:
     ;; test code here
     )"
   (declare (indent 1))
-  `(let ((default-directory (beads-test-create-project ,@init-args))
-         (beads--project-cache (make-hash-table :test 'equal)))
-     ;; Clear any active transient state from previous tests
-     (beads-test--clear-transient-state)
-     ;; Mock beads-git-find-project-root to return default-directory (the temp
-     ;; test project) instead of discovering the main repository via project.el.
-     ;; This is captured at macro expansion time to ensure proper scoping.
-     (let ((test-project-dir default-directory))
-       (cl-letf (((symbol-function 'beads-git-find-project-root)
-                  (lambda () test-project-dir)))
-         (unwind-protect
-             (progn ,@body)
-           ;; Clear transient state after test too
-           (beads-test--clear-transient-state))))))
+  (let ((temp-dir (make-symbol "temp-dir")))
+    `(let* ((,temp-dir (beads-test-create-project ,@init-args))
+            (default-directory ,temp-dir)
+            (beads--project-cache (make-hash-table :test 'equal)))
+       ;; Clear any active transient state from previous tests
+       (beads-test--clear-transient-state)
+       ;; Mock beads-git-find-project-root to return default-directory (the temp
+       ;; test project) instead of discovering the main repository via project.el.
+       ;; This is captured at macro expansion time to ensure proper scoping.
+       (let ((test-project-dir default-directory))
+         (cl-letf (((symbol-function 'beads-git-find-project-root)
+                    (lambda () test-project-dir)))
+           (unwind-protect
+               (progn ,@body)
+             ;; Clear transient state after test too
+             (beads-test--clear-transient-state)
+             ;; Clean up temp directory to avoid leaking Dolt files
+             (when (file-directory-p ,temp-dir)
+               (delete-directory ,temp-dir t))))))))
 
 (defun beads-test-execute-commands (cmds)
   (dolist (cmd cmds)
