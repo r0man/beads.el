@@ -1132,7 +1132,7 @@ Active session should take priority over previous outcome."
 (ert-deftest beads-list-test-transient-menu-displays ()
   "Integration test: Verify beads-list transient is properly defined.
 Tests that the transient prefix and its suffixes are correctly set up."
-  :tags '(integration transient)
+  :tags '(:integration :transient)
   ;; Verify beads-list is a transient prefix
   (should (get 'beads-list 'transient--prefix))
   ;; Verify the execute suffix is defined and has correct key
@@ -1145,7 +1145,7 @@ Tests that the transient prefix and its suffixes are correctly set up."
 (ert-deftest beads-list-test-transient-menu-executes ()
   "Integration test: Verify beads-list execute suffix works correctly.
 Tests that executing with mocked transient-args creates a list buffer."
-  :tags '(integration transient)
+  :tags '(:integration :transient)
   (cl-letf (((symbol-function 'beads-check-executable)
              (lambda () t))
             ((symbol-function 'beads-command-execute)
@@ -1182,7 +1182,7 @@ Tests that executing with mocked transient-args creates a list buffer."
 (ert-deftest beads-list-test-transient-menu-preview ()
   "Integration test: Verify beads-list preview suffix displays command.
 Tests that the preview command shows the bd command that would be executed."
-  :tags '(integration transient)
+  :tags '(:integration :transient)
   (cl-letf (((symbol-function 'beads-check-executable)
              (lambda () t)))
     (let ((message-shown nil))
