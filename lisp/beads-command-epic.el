@@ -67,6 +67,45 @@ No required fields.
 Returns nil (always valid)."
   nil)
 
+(cl-defmethod beads-command-parse ((command beads-command-epic-status) execution)
+  "Parse epic status COMMAND output from EXECUTION.
+Returns list of beads-epic-status instances.
+When :json is nil, falls back to parent (returns raw stdout).
+When :json is t, returns list of beads-epic-status instances.
+Does not modify any slots."
+  (with-slots (json) command
+    (if (not json)
+        (cl-call-next-method)
+      (let ((parsed-json (cl-call-next-method)))
+        (condition-case err
+            (cond
+             ((null parsed-json)
+              nil)
+             ((eq (type-of parsed-json) 'vector)
+              (mapcar #'beads-epic-status-from-json
+                      (append parsed-json nil)))
+             ((eq (type-of parsed-json) 'cons)
+              (list (beads-epic-status-from-json parsed-json)))
+             (t
+              (signal 'beads-json-parse-error
+                      (list "Unexpected JSON structure from bd epic status"
+                            :exit-code (oref execution exit-code)
+                            :parsed-json parsed-json
+                            :stderr (oref execution stderr)))))
+          (error
+           (signal 'beads-json-parse-error
+                   (list (format "Failed to create beads-epic-status: %s"
+                                 (error-message-string err))
+                         :exit-code (oref execution exit-code)
+                         :parsed-json parsed-json
+                         :stderr (oref execution stderr)
+                         :parse-error err))))))))
+
+(cl-defmethod beads-command-execute-interactive ((cmd beads-command-epic-status))
+  "Execute CMD in terminal buffer with human-readable output."
+  (oset cmd json nil)
+  (cl-call-next-method))
+
 
 ;;; Epic Close-Eligible Command
 
