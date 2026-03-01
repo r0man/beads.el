@@ -51,6 +51,7 @@
 (defvar beads-list-default-limit)
 (declare-function beads--log "beads")
 (declare-function beads--find-beads-dir "beads")
+(declare-function beads--string-blank-p "beads")
 (declare-function beads--invalidate-completion-cache "beads")
 (declare-function beads-show "beads-show")
 
