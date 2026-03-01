@@ -496,6 +496,76 @@ No required fields.
 Returns nil (always valid)."
   nil)
 
+;;; Dep Relate Command
+
+(beads-defcommand beads-command-dep-relate (beads-command-json)
+  ((id1
+    :initarg :id1
+    :type (or null string)
+    :initform nil
+    :documentation "First issue ID."
+    :positional 1
+    :required t)
+   (id2
+    :initarg :id2
+    :type (or null string)
+    :initform nil
+    :documentation "Second issue ID."
+    :positional 2
+    :required t))
+  :documentation "Represents bd dep relate command.
+Creates a bidirectional relates_to link between two issues.")
+
+(cl-defmethod beads-command-subcommand ((_command beads-command-dep-relate))
+  "Return \"dep relate\" as the CLI subcommand name."
+  "dep relate")
+
+(cl-defmethod beads-command-validate ((command beads-command-dep-relate))
+  "Validate dep relate COMMAND."
+  (with-slots (id1 id2) command
+    (cond
+     ((or (null id1) (string-empty-p id1))
+      "First issue ID is required")
+     ((or (null id2) (string-empty-p id2))
+      "Second issue ID is required")
+     ((string= id1 id2)
+      "Cannot relate issue to itself")
+     (t nil))))
+
+;;; Dep Unrelate Command
+
+(beads-defcommand beads-command-dep-unrelate (beads-command-json)
+  ((id1
+    :initarg :id1
+    :type (or null string)
+    :initform nil
+    :documentation "First issue ID."
+    :positional 1
+    :required t)
+   (id2
+    :initarg :id2
+    :type (or null string)
+    :initform nil
+    :documentation "Second issue ID."
+    :positional 2
+    :required t))
+  :documentation "Represents bd dep unrelate command.
+Removes a relates_to link between two issues.")
+
+(cl-defmethod beads-command-subcommand ((_command beads-command-dep-unrelate))
+  "Return \"dep unrelate\" as the CLI subcommand name."
+  "dep unrelate")
+
+(cl-defmethod beads-command-validate ((command beads-command-dep-unrelate))
+  "Validate dep unrelate COMMAND."
+  (with-slots (id1 id2) command
+    (cond
+     ((or (null id1) (string-empty-p id1))
+      "First issue ID is required")
+     ((or (null id2) (string-empty-p id2))
+      "Second issue ID is required")
+     (t nil))))
+
 ;;; Transient Menus
 
 ;;;###autoload (autoload 'beads-dep-add-transient "beads-command-dep" nil t)
