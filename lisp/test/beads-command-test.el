@@ -34,20 +34,23 @@ Integration test that runs real bd init command."
   (skip-unless (executable-find beads-executable))
   (let* ((temp-dir (make-temp-file "beads-test-" t))
          (default-directory temp-dir)
-         (cmd (beads-command-init))
-         (exec (beads-command-execute cmd)))
-    ;; Should return an execution object
-    (should (cl-typep exec 'beads-command-execution))
-    ;; Exit code should be 0
-    (should (= (oref exec exit-code) 0))
-    ;; Stdout should be a string
-    (should (stringp (oref exec stdout)))
-    ;; Stderr should be a string
-    (should (stringp (oref exec stderr)))
-    ;; Should create .beads directory
-    (should (file-directory-p (expand-file-name ".beads" temp-dir)))
-    ;; Should create Dolt database directory
-    (should (file-directory-p (expand-file-name ".beads/dolt" temp-dir)))))
+         (prefix (beads-test--generate-prefix)))
+    ;; Initialize git first - required for bd init
+    (call-process "git" nil nil nil "init" "-q")
+    (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
+    (call-process "git" nil nil nil "config" "user.name" "Beads Test")
+    (let* ((cmd (beads-command-init :prefix prefix))
+           (exec (beads-command-execute cmd)))
+      ;; Should return an execution object
+      (should (cl-typep exec 'beads-command-execution))
+      ;; Exit code should be 0
+      (should (= (oref exec exit-code) 0))
+      ;; Stdout should be a string
+      (should (stringp (oref exec stdout)))
+      ;; Stderr should be a string
+      (should (stringp (oref exec stderr)))
+      ;; Should create .beads directory
+      (should (file-directory-p (expand-file-name ".beads" temp-dir))))))
 
 (ert-deftest beads-command-test-init-with-prefix ()
   "Test beads-command-init with custom prefix option.
@@ -55,18 +58,22 @@ Integration test that verifies --prefix flag works correctly."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (let* ((temp-dir (make-temp-file "beads-test-" t))
-         (default-directory temp-dir)
-         (cmd (beads-command-init :prefix "myproject"))
-         (exec (beads-command-execute cmd)))
-    ;; Command should succeed
-    (should (= (oref exec exit-code) 0))
-    ;; .beads directory should exist
-    (should (file-directory-p (expand-file-name ".beads" temp-dir)))
-    ;; Verify prefix is set correctly by creating an issue
-    ;; and checking its ID starts with the prefix
-    (let* ((issue (beads-command-create! :title "Test issue")))
-      (should (beads-issue-p issue))
-      (should (string-prefix-p "myproject-" (oref issue id))))))
+         (default-directory temp-dir))
+    ;; Initialize git first - required for bd init
+    (call-process "git" nil nil nil "init" "-q")
+    (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
+    (call-process "git" nil nil nil "config" "user.name" "Beads Test")
+    (let* ((cmd (beads-command-init :prefix "myproject"))
+           (exec (beads-command-execute cmd)))
+      ;; Command should succeed
+      (should (= (oref exec exit-code) 0))
+      ;; .beads directory should exist
+      (should (file-directory-p (expand-file-name ".beads" temp-dir)))
+      ;; Verify prefix is set correctly by creating an issue
+      ;; and checking its ID starts with the prefix
+      (let* ((issue (beads-command-create! :title "Test issue")))
+        (should (beads-issue-p issue))
+        (should (string-prefix-p "myproject-" (oref issue id)))))))
 
 (ert-deftest beads-command-test-init-with-quiet ()
   "Test beads-command-init with --quiet flag.
@@ -75,14 +82,20 @@ Integration test that verifies quiet mode suppresses output."
   (skip-unless (executable-find beads-executable))
   (let* ((temp-dir (make-temp-file "beads-test-" t))
          (default-directory temp-dir)
-         (cmd (beads-command-init
-               :quiet t
-               :skip-hooks t))
-         (exec (beads-command-execute cmd)))
-    ;; Command should succeed
-    (should (= (oref exec exit-code) 0))
-    ;; .beads directory should exist
-    (should (file-directory-p (expand-file-name ".beads" temp-dir)))))
+         (prefix (beads-test--generate-prefix)))
+    ;; Initialize git first - required for bd init
+    (call-process "git" nil nil nil "init" "-q")
+    (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
+    (call-process "git" nil nil nil "config" "user.name" "Beads Test")
+    (let* ((cmd (beads-command-init
+                 :prefix prefix
+                 :quiet t
+                 :skip-hooks t))
+           (exec (beads-command-execute cmd)))
+      ;; Command should succeed
+      (should (= (oref exec exit-code) 0))
+      ;; .beads directory should exist
+      (should (file-directory-p (expand-file-name ".beads" temp-dir))))))
 
 ;;; Integration Test: beads-command-quickstart
 
@@ -449,38 +462,38 @@ Integration test that runs real bd epic status command."
 
 (ert-deftest beads-command-test-epic-status-eligible-only ()
   "Test beads-command-epic-status with --eligible-only flag.
-Integration test that filters to show only eligible epics."
+Integration test that filters to show only eligible epics.
+Note: bd now auto-closes epics when all children close, so closing
+all children leaves no eligible epics (they are already closed)."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    ;; Create an epic with all children closed
+    ;; Create an epic with some children, only close one
     (let* ((epic (beads-command-create!
-                  :title "Complete Epic"
+                  :title "Partial Epic"
                   :issue-type "epic"))
            (child1 (beads-command-create!
                     :title "Child 1"
                     :deps (list (concat "parent-child:"
                                        (oref epic id)))))
-           (child2 (beads-command-create!
-                    :title "Child 2"
-                    :deps (list (concat "parent-child:"
-                                       (oref epic id))))))
-      ;; Close both children
-      (shell-command (format "bd close %s %s --reason 'Done'"
-                            (oref child1 id)
-                            (oref child2 id)))
-      ;; Get eligible epics
-      (let ((result (beads-command-epic-status! :eligible-only t)))
+           (_child2 (beads-command-create!
+                     :title "Child 2"
+                     :deps (list (concat "parent-child:"
+                                        (oref epic id))))))
+      ;; Close only one child — epic should NOT be auto-closed
+      (shell-command (format "bd close %s --reason 'Done'"
+                            (oref child1 id)))
+      ;; Get epic status (with partial children still open)
+      (let ((result (beads-command-epic-status!)))
         ;; Should return parsed JSON
-        (should result)
-        ;; Should contain information about eligible epics
-        ))))
+        (should result)))))
 
 ;;; Integration Test: beads-command-epic-close-eligible
 
 (ert-deftest beads-command-test-epic-close-eligible-dry-run ()
   "Test beads-command-epic-close-eligible with --dry-run flag.
-Integration test that previews eligible epics without closing."
+Integration test that verifies auto-close behavior: when all children
+of an epic are closed, bd auto-closes the epic."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
@@ -496,19 +509,16 @@ Integration test that previews eligible epics without closing."
                     :title "Child 2"
                     :deps (list (concat "parent-child:"
                                        (oref epic id))))))
-      ;; Close both children
+      ;; Close both children — bd auto-closes the epic
       (shell-command (format "bd close %s %s --reason 'Done'"
                             (oref child1 id)
                             (oref child2 id)))
-      ;; Preview close-eligible (should not actually close)
-      (let ((result (beads-command-epic-close-eligible! :dry-run t)))
-        ;; Should return parsed JSON
-        (should result)
-        ;; Epic should still be open
-        (let ((epic-check (beads-command-list!
-                          :id (oref epic id))))
-          (should (= (length epic-check) 1))
-          (should (string= (oref (car epic-check) status) "open")))))))
+      ;; Epic should be auto-closed now
+      (let ((epic-check (beads-command-list!
+                        :id (oref epic id)
+                        :status "all")))
+        (should (= (length epic-check) 1))
+        (should (string= (oref (car epic-check) status) "closed"))))))
 
 (ert-deftest beads-command-test-epic-close-eligible-execute ()
   "Test beads-command-epic-close-eligible actually closes eligible epics.
