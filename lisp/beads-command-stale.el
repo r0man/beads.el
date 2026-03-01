@@ -85,22 +85,12 @@ Valid values: open, in_progress, blocked, deferred."
 Shows issues that haven't been updated recently.
 When executed with :json t, returns issue list as JSON.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-stale))
-  "Return subcommand name for stale command."
-  "stale")
 
 (cl-defmethod beads-command-validate ((_command beads-command-stale))
   "Validate stale COMMAND.
 No required fields, returns nil (valid)."
   nil)
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-stale))
-  "Execute CMD in compilation buffer with human-readable output.
-Disables JSON mode for interactive display with colors."
-  ;; Set json to nil for human-readable colored output
-  (oset cmd json nil)
-  ;; Call the default implementation
-  (cl-call-next-method))
 
 ;;; Transient Menu
 

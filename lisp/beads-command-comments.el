@@ -61,9 +61,6 @@
   :documentation "Represents bd comments command.
 Lists all comments on an issue.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-comments))
-  "Return \"comments\" as the CLI subcommand."
-  "comments")
 
 (cl-defmethod beads-command-validate ((command beads-command-comments))
   "Validate comments COMMAND.  Requires issue-id."
@@ -73,10 +70,6 @@ Lists all comments on an issue.")
      ((string-empty-p issue-id) "Issue ID cannot be empty")
      (t nil))))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-comments))
-  "Execute CMD in compilation buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-comments-add
@@ -159,9 +152,6 @@ Lists all comments on an issue.")
   :documentation "Represents bd comments add command.
 Adds a comment to an issue.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-comments-add))
-  "Return \"comments add\" as the CLI subcommand."
-  "comments add")
 
 (cl-defmethod beads-command-validate ((command beads-command-comments-add))
   "Validate comments add COMMAND.  Requires issue-id and text or file."

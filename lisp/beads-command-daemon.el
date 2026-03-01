@@ -68,19 +68,12 @@ Default: home, /tmp, cwd."
   :documentation "Represents bd daemon list command.
 Lists all running bd daemons with metadata.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-daemon-list))
-  "Return subcommand name for daemon list command."
-  "daemon list")
 
 (cl-defmethod beads-command-validate ((_command beads-command-daemon-list))
   "Validate daemon list COMMAND.
 No required fields, returns nil (valid)."
   nil)
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-daemon-list))
-  "Execute CMD in compilation buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Daemon Start Command
@@ -226,19 +219,12 @@ Values: debug, info, warn, error. Default: info."
   :documentation "Represents bd daemon start command.
 Starts the background sync daemon.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-daemon-start))
-  "Return subcommand name for daemon start command."
-  "daemon start")
 
 (cl-defmethod beads-command-validate ((_command beads-command-daemon-start))
   "Validate daemon start COMMAND.
 No required fields, returns nil (valid)."
   nil)
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-daemon-start))
-  "Execute CMD in compilation buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Daemon Stop Command
@@ -254,9 +240,6 @@ No required fields, returns nil (valid)."
   :documentation "Represents bd daemon stop command.
 Stops a specific bd daemon gracefully.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-daemon-stop))
-  "Return subcommand name for daemon stop command."
-  "daemon stop")
 
 (cl-defmethod beads-command-validate ((command beads-command-daemon-stop))
   "Validate daemon stop COMMAND.
@@ -264,10 +247,6 @@ Target is optional (defaults to current workspace)."
   (ignore command)
   nil)
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-daemon-stop))
-  "Execute CMD in compilation buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Daemon Status Command
@@ -307,19 +286,12 @@ Use with --all."
   :documentation "Represents bd daemon status command.
 Shows daemon status for current workspace or all daemons.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-daemon-status))
-  "Return subcommand name for daemon status command."
-  "daemon status")
 
 (cl-defmethod beads-command-validate ((_command beads-command-daemon-status))
   "Validate daemon status COMMAND.
 No required fields, returns nil (valid)."
   nil)
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-daemon-status))
-  "Execute CMD in compilation buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Daemon Health Command
@@ -345,19 +317,12 @@ Default: home, /tmp, cwd."
   :documentation "Represents bd daemon health command.
 Checks health of all running daemons.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-daemon-health))
-  "Return subcommand name for daemon health command."
-  "daemon health")
 
 (cl-defmethod beads-command-validate ((_command beads-command-daemon-health))
   "Validate daemon health COMMAND.
 No required fields, returns nil (valid)."
   nil)
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-daemon-health))
-  "Execute CMD in compilation buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Daemon Killall Command
@@ -397,19 +362,12 @@ Default: home, /tmp, cwd."
   :documentation "Represents bd daemon killall command.
 Stops all running bd daemons.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-daemon-killall))
-  "Return subcommand name for daemon killall command."
-  "daemon killall")
 
 (cl-defmethod beads-command-validate ((_command beads-command-daemon-killall))
   "Validate daemon killall COMMAND.
 No required fields, returns nil (valid)."
   nil)
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-daemon-killall))
-  "Execute CMD in compilation buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Daemon Logs Command
@@ -457,9 +415,6 @@ Default: 50."
   :documentation "Represents bd daemon logs command.
 Views logs for a specific daemon.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-daemon-logs))
-  "Return subcommand name for daemon logs command."
-  "daemon logs")
 
 (cl-defmethod beads-command-validate ((command beads-command-daemon-logs))
   "Validate daemon logs COMMAND.
@@ -467,10 +422,6 @@ Target is optional (defaults to current workspace)."
   (ignore command)
   nil)
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-daemon-logs))
-  "Execute CMD in compilation buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Daemon Restart Command
@@ -502,9 +453,6 @@ Default: home, /tmp, cwd."
   :documentation "Represents bd daemon restart command.
 Restarts a specific daemon.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-daemon-restart))
-  "Return subcommand name for daemon restart command."
-  "daemon restart")
 
 (cl-defmethod beads-command-validate ((command beads-command-daemon-restart))
   "Validate daemon restart COMMAND.
@@ -512,10 +460,6 @@ Target is optional (defaults to current workspace)."
   (ignore command)
   nil)
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-daemon-restart))
-  "Execute CMD in compilation buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Transient Menus

@@ -37,9 +37,6 @@
   :documentation "Represents bd quickstart command.
 Displays a quick start guide showing common bd workflows and patterns.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-quickstart))
-  "Return \"quickstart\" as the CLI subcommand name."
-  "quickstart")
 
 (cl-defmethod beads-command-validate ((_command beads-command-quickstart))
   "Validate quickstart COMMAND.

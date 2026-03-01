@@ -131,9 +131,6 @@ Default: blocks."
   :documentation "Represents bd dep add command.
 Adds a dependency between two issues.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-dep-add))
-  "Return \"dep add\" as the CLI subcommand name."
-  "dep add")
 
 (cl-defmethod beads-command-validate ((command beads-command-dep-add))
   "Validate dep add COMMAND.
@@ -192,9 +189,6 @@ Returns error string or nil if valid."
   :documentation "Represents bd dep remove command.
 Removes a dependency between two issues.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-dep-remove))
-  "Return \"dep remove\" as the CLI subcommand name."
-  "dep remove")
 
 (cl-defmethod beads-command-validate ((command beads-command-dep-remove))
   "Validate dep remove COMMAND.
@@ -271,9 +265,6 @@ Values: tracks, blocks, parent-child, etc."
   :documentation "Represents bd dep list command.
 Lists dependencies or dependents of an issue.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-dep-list))
-  "Return \"dep list\" as the CLI subcommand name."
-  "dep list")
 
 (cl-defmethod beads-command-validate ((command beads-command-dep-list))
   "Validate dep list COMMAND.
@@ -461,9 +452,6 @@ No deduplication for diamond dependencies."
   :documentation "Represents bd dep tree command.
 Shows dependency tree rooted at the given issue.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-dep-tree))
-  "Return \"dep tree\" as the CLI subcommand name."
-  "dep tree")
 
 (cl-defmethod beads-command-validate ((command beads-command-dep-tree))
   "Validate dep tree COMMAND.
@@ -474,10 +462,6 @@ Returns error string or nil if valid."
         "Must provide issue ID"
       nil)))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-dep-tree))
-  "Execute CMD in terminal buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Dependency Cycles Command
 
@@ -486,9 +470,6 @@ Returns error string or nil if valid."
   :documentation "Represents bd dep cycles command.
 Detects dependency cycles in the issue graph.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-dep-cycles))
-  "Return \"dep cycles\" as the CLI subcommand name."
-  "dep cycles")
 
 (cl-defmethod beads-command-validate ((_command beads-command-dep-cycles))
   "Validate dep cycles COMMAND.

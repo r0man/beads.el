@@ -145,9 +145,6 @@ Shows detailed information about one or more issues.
 When executed with :json t, returns beads-issue instance (or list
 of instances when multiple IDs provided).")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-show))
-  "Return \"show\" as the CLI subcommand name."
-  "show")
 
 (cl-defmethod beads-command-validate ((command beads-command-show))
   "Validate show COMMAND.
@@ -198,13 +195,6 @@ Does not modify any slots."
                          :stderr (oref execution stderr)
                          :parse-error err))))))))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-show))
-  "Execute CMD in terminal buffer with human-readable output.
-Disables JSON mode for interactive display with colors."
-  ;; Set json to nil for human-readable colored output
-  (oset cmd json nil)
-  ;; Call the default implementation
-  (cl-call-next-method))
 
 ;;; Transient Menu
 

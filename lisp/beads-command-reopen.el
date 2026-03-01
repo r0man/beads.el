@@ -89,9 +89,6 @@ Reopens one or more closed issues with optional reason.
 When executed with :json t, returns beads-issue instance (or list
 of instances when multiple IDs provided).")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-reopen))
-  "Return \"reopen\" as the CLI subcommand name."
-  "reopen")
 
 (cl-defmethod beads-command-validate ((command beads-command-reopen))
   "Validate reopen COMMAND.

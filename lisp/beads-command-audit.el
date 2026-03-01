@@ -164,9 +164,6 @@
   :documentation "Represents bd audit record command.
 Appends an audit interaction entry.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-audit-record))
-  "Return \"audit record\" as the CLI subcommand."
-  "audit record")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-audit-label
@@ -213,9 +210,6 @@ Appends an audit interaction entry.")
   :documentation "Represents bd audit label command.
 Appends a label entry referencing an existing interaction.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-audit-label))
-  "Return \"audit label\" as the CLI subcommand."
-  "audit label")
 
 (cl-defmethod beads-command-validate ((command beads-command-audit-label))
   "Validate audit label COMMAND."
@@ -227,15 +221,7 @@ Appends a label entry referencing an existing interaction.")
 
 ;;; Execute Interactive Methods
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-audit-record))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-audit-label))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menus
 

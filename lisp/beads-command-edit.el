@@ -123,9 +123,6 @@
   :documentation "Represents bd edit command.
 Opens an issue field in $EDITOR for modification.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-edit))
-  "Return \"edit\" as the CLI subcommand."
-  "edit")
 
 (cl-defmethod beads-command-validate ((command beads-command-edit))
   "Validate edit COMMAND.  Requires issue-id."
@@ -135,10 +132,6 @@ Opens an issue field in $EDITOR for modification.")
      ((string-empty-p issue-id) "Issue ID cannot be empty")
      (t nil))))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-edit))
-  "Execute CMD in compilation buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Interactive Edit Workflow
 

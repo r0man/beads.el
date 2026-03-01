@@ -243,14 +243,7 @@
   :documentation "Represents bd sync command.
 Synchronizes issues with git remote.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-sync))
-  "Return \"sync\" as the CLI subcommand."
-  "sync")
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-sync))
-  "Execute CMD in compilation buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menu
 

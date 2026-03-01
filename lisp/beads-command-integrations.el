@@ -71,18 +71,12 @@
   :documentation "Represents bd jira sync command.
 Synchronizes issues with Jira.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-jira-sync))
-  "Return \"jira sync\" as the CLI subcommand."
-  "jira sync")
 
 (beads-defcommand beads-command-jira-status (beads-command-json)
   ()
   :documentation "Represents bd jira status command.
 Shows Jira sync status.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-jira-status))
-  "Return \"jira status\" as the CLI subcommand."
-  "jira status")
 
 ;;; ============================================================
 ;;; Linear Commands
@@ -134,27 +128,18 @@ Shows Jira sync status.")
   :documentation "Represents bd linear sync command.
 Synchronizes issues with Linear.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-linear-sync))
-  "Return \"linear sync\" as the CLI subcommand."
-  "linear sync")
 
 (beads-defcommand beads-command-linear-status (beads-command-json)
   ()
   :documentation "Represents bd linear status command.
 Shows Linear sync status.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-linear-status))
-  "Return \"linear status\" as the CLI subcommand."
-  "linear status")
 
 (beads-defcommand beads-command-linear-teams (beads-command-json)
   ()
   :documentation "Represents bd linear teams command.
 Lists available Linear teams.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-linear-teams))
-  "Return \"linear teams\" as the CLI subcommand."
-  "linear teams")
 
 ;;; ============================================================
 ;;; Repo Commands
@@ -170,9 +155,6 @@ Lists available Linear teams.")
   :documentation "Represents bd repo add command.
 Adds an additional repository to sync.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-repo-add))
-  "Return \"repo add\" as the CLI subcommand."
-  "repo add")
 
 (cl-defmethod beads-command-validate ((command beads-command-repo-add))
   "Validate repo add COMMAND."
@@ -184,9 +166,6 @@ Adds an additional repository to sync.")
   :documentation "Represents bd repo list command.
 Lists all configured repositories.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-repo-list))
-  "Return \"repo list\" as the CLI subcommand."
-  "repo list")
 
 (beads-defcommand beads-command-repo-remove (beads-command-json)
   ((repo-path
@@ -198,9 +177,6 @@ Lists all configured repositories.")
   :documentation "Represents bd repo remove command.
 Removes a repository from sync configuration.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-repo-remove))
-  "Return \"repo remove\" as the CLI subcommand."
-  "repo remove")
 
 (cl-defmethod beads-command-validate ((command beads-command-repo-remove))
   "Validate repo remove COMMAND."
@@ -212,56 +188,17 @@ Removes a repository from sync configuration.")
   :documentation "Represents bd repo sync command.
 Manually triggers multi-repo sync.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-repo-sync))
-  "Return \"repo sync\" as the CLI subcommand."
-  "repo sync")
 
 ;;; Execute Interactive Methods
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-jira-sync))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-jira-status))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-linear-sync))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-linear-status))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-linear-teams))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-repo-add))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-repo-list))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-repo-remove))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-repo-sync))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menus
 

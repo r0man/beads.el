@@ -98,9 +98,6 @@
   :documentation "Represents bd migrate command.
 Detects and migrates database schema to current version.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-migrate))
-  "Return \"migrate\" as the CLI subcommand."
-  "migrate")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-migrate-hash-ids
@@ -148,9 +145,6 @@ Migrates sequential IDs to hash-based IDs (legacy).")
   :documentation "Represents bd migrate issues command.
 Moves issues between repositories.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-migrate-issues))
-  "Return \"migrate issues\" as the CLI subcommand."
-  "migrate issues")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-migrate-sync
@@ -161,9 +155,6 @@ Moves issues between repositories.")
   :documentation "Represents bd migrate sync command.
 Migrates to sync.branch workflow for multi-clone setups.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-migrate-sync))
-  "Return \"migrate sync\" as the CLI subcommand."
-  "migrate sync")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-migrate-tombstones
@@ -187,36 +178,13 @@ Migrates to sync.branch workflow for multi-clone setups.")
   :documentation "Represents bd migrate tombstones command.
 Converts deletions.jsonl to inline tombstones.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-migrate-tombstones))
-  "Return \"migrate tombstones\" as the CLI subcommand."
-  "migrate tombstones")
 
 ;;; Execute Interactive Methods
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-migrate))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-migrate-hash-ids))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-migrate-issues))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-migrate-sync))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-migrate-tombstones))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menus
 

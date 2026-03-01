@@ -39,9 +39,6 @@
   :documentation "Represents bd agent state command.
 Sets agent state for monitoring.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-agent-state))
-  "Return \"agent state\" as the CLI subcommand."
-  "agent state")
 
 (cl-defmethod beads-command-validate ((command beads-command-agent-state))
   "Validate agent state COMMAND."
@@ -65,9 +62,6 @@ Sets agent state for monitoring.")
   :documentation "Represents bd agent heartbeat command.
 Updates agent last_activity timestamp.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-agent-heartbeat))
-  "Return \"agent heartbeat\" as the CLI subcommand."
-  "agent heartbeat")
 
 (cl-defmethod beads-command-validate ((command beads-command-agent-heartbeat))
   "Validate agent heartbeat COMMAND."
@@ -88,9 +82,6 @@ Updates agent last_activity timestamp.")
   :documentation "Represents bd agent show command.
 Shows agent bead details.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-agent-show))
-  "Return \"agent show\" as the CLI subcommand."
-  "agent show")
 
 (cl-defmethod beads-command-validate ((command beads-command-agent-show))
   "Validate agent show COMMAND."
@@ -125,25 +116,9 @@ Backfills role_type/rig labels on existing agent beads.")
 
 ;;; Execute Interactive Methods
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-agent-state))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-agent-heartbeat))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-agent-show))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-agent-backfill-labels))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menus
 

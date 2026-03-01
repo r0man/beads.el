@@ -252,9 +252,6 @@ Values: auto (default), jsonl, db."
 Sanity checks the beads installation.
 When executed with :json t, returns diagnostic results.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-doctor))
-  "Return subcommand name for doctor command."
-  "doctor")
 
 (cl-defmethod beads-command-validate ((_command beads-command-doctor))
   "Validate doctor COMMAND.
@@ -312,13 +309,6 @@ Returns list: (\"doctor\" ...global-flags... [path] ...options...)."
 
 ;; No custom parse needed for doctor - uses parent JSON parse
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-doctor))
-  "Execute CMD in compilation buffer with human-readable output.
-Disables JSON mode for interactive display with colors."
-  ;; Set json to nil for human-readable colored output
-  (oset cmd json nil)
-  ;; Call the default implementation
-  (cl-call-next-method))
 
 ;;; Transient Menu
 

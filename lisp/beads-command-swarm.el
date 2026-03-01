@@ -62,9 +62,6 @@
   :documentation "Represents bd swarm create command.
 Creates a swarm molecule from an epic.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-swarm-create))
-  "Return \"swarm create\" as the CLI subcommand."
-  "swarm create")
 
 (cl-defmethod beads-command-validate ((command beads-command-swarm-create))
   "Validate swarm create COMMAND."
@@ -80,9 +77,6 @@ Creates a swarm molecule from an epic.")
   :documentation "Represents bd swarm list command.
 Lists all swarm molecules.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-swarm-list))
-  "Return \"swarm list\" as the CLI subcommand."
-  "swarm list")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-swarm-status
@@ -98,9 +92,6 @@ Lists all swarm molecules.")
   :documentation "Represents bd swarm status command.
 Shows current swarm status.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-swarm-status))
-  "Return \"swarm status\" as the CLI subcommand."
-  "swarm status")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-swarm-validate
@@ -116,9 +107,6 @@ Shows current swarm status.")
   :documentation "Represents bd swarm validate command.
 Validates epic structure for swarming.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-swarm-validate))
-  "Return \"swarm validate\" as the CLI subcommand."
-  "swarm validate")
 
 (cl-defmethod beads-command-validate ((command beads-command-swarm-validate))
   "Validate swarm validate COMMAND."
@@ -127,25 +115,9 @@ Validates epic structure for swarming.")
 
 ;;; Execute Interactive Methods
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-swarm-create))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-swarm-list))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-swarm-status))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-swarm-validate))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menus
 

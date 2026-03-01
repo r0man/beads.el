@@ -61,9 +61,6 @@
   :documentation "Represents bd defer command.
 Defers one or more issues for later.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-defer))
-  "Return \"defer\" as the CLI subcommand."
-  "defer")
 
 (cl-defmethod beads-command-validate ((command beads-command-defer))
   "Validate defer COMMAND.  Requires at least one issue ID."
@@ -72,10 +69,6 @@ Defers one or more issues for later.")
         "At least one issue ID is required"
       nil)))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-defer))
-  "Execute CMD in compilation buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-undefer
@@ -101,9 +94,6 @@ Defers one or more issues for later.")
   :documentation "Represents bd undefer command.
 Undefers one or more issues (restores to open).")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-undefer))
-  "Return \"undefer\" as the CLI subcommand."
-  "undefer")
 
 (cl-defmethod beads-command-validate ((command beads-command-undefer))
   "Validate undefer COMMAND.  Requires at least one issue ID."
@@ -112,10 +102,6 @@ Undefers one or more issues (restores to open).")
         "At least one issue ID is required"
       nil)))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-undefer))
-  "Execute CMD in compilation buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menus
 

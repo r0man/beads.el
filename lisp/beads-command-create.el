@@ -736,9 +736,6 @@ Requires --type=event."
 Creates a new issue (or multiple issues from markdown file).
 When executed with :json t, returns the created beads-issue instance(s).")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-create))
-  "Return \"create\" as the CLI subcommand name."
-  "create")
 
 (cl-defmethod beads-command-validate ((command beads-command-create))
   "Validate create COMMAND.

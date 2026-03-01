@@ -117,6 +117,8 @@ This macro generates:
 1. Class definition wrapped in `eval-and-compile'
 2. NAME! convenience function that executes the command
 3. Transient menu (when :global-section is specified)
+4. CLI subcommand method (when :cli-command is specified)
+5. Parse method (when :parse-as is specified)
 
 Custom keyword options (stripped before passing to defclass):
   :global-section SYM   - Generate a transient menu and include SYM
@@ -125,6 +127,14 @@ Custom keyword options (stripped before passing to defclass):
                           from NAME (e.g., beads-command-close ->
                           beads-close).  The docstring uses the first
                           sentence of :documentation.
+  :cli-command STR      - Explicit CLI subcommand string.  When not
+                          specified, the subcommand is auto-derived
+                          from the class name by the default method
+                          on `beads-command-json'.
+  :parse-as KEYWORD     - Auto-generate a `beads-command-parse' method.
+                          :issue  - Parse JSON as single beads-issue
+                                    (or list when multiple IDs).
+                          :issues - Parse JSON as list of beads-issue.
 
 When :global-section is specified, the macro generates the transient
 menu automatically from slot metadata via `beads-meta-define-transient'.
@@ -141,6 +151,8 @@ Example (with transient):
     ((issue-ids :initarg :issue-ids :key \"i\" :transient \"Issue ID\")
      (reason :initarg :reason :key \"r\" :transient \"Reason\"))
     :documentation \"Close issue.\"
+    :cli-command \"close\"
+    :parse-as :issue
     :global-section beads-option-global-section)
 
 Example (without transient):
@@ -151,7 +163,21 @@ Example (without transient):
   ;; Extract custom keywords from options before passing to defclass
   (let* ((result-1 (beads--extract-option :global-section options))
          (global-section (car result-1))
-         (defclass-options (cdr result-1))
+         (options-2 (cdr result-1))
+         (result-2 (beads--extract-option :cli-command options-2))
+         (cli-command (car result-2))
+         (options-3 (cdr result-2))
+         (result-3 (beads--extract-option :parse-as options-3))
+         (parse-as (car result-3))
+         (defclass-options (cdr result-3))
+         ;; Add cli-command as a class-allocated slot if specified
+         (final-slots (if cli-command
+                         (append slots
+                                 `((cli-command
+                                    :initform ,cli-command
+                                    :allocation :class
+                                    :documentation "CLI subcommand name.")))
+                       slots))
          ;; Derived names
          (bang-fn (intern (concat (symbol-name name) "!")))
          ;; Transient-related names (only needed when generating a menu)
@@ -166,14 +192,88 @@ Example (without transient):
                       (beads--extract-first-sentence docstring))))
     `(progn
        (eval-and-compile
-         (defclass ,name ,superclasses ,slots ,@defclass-options))
+         (defclass ,name ,superclasses ,final-slots ,@defclass-options))
        (defun ,bang-fn (&rest args)
          ,(format "Execute %s and return result.\n\nARGS are passed to the constructor." name)
          (oref (beads-command-execute (apply #',name args)) result))
+       ,@(when cli-command
+           `((cl-defmethod beads-command-subcommand ((_command ,name))
+               ,(format "Return %S as the CLI subcommand name." cli-command)
+               ,cli-command)))
+       ,@(when parse-as
+           (beads--generate-parse-method name parse-as))
        ,@(when global-section
            `((beads-meta-define-transient ,name ,transient-prefix
                ,short-doc
                ,global-section))))))
+
+(defun beads--generate-parse-method (class-name parse-as)
+  "Generate a `beads-command-parse' method for CLASS-NAME.
+PARSE-AS is :issue (single/multi depending on issue-ids count)
+or :issues (always list)."
+  (pcase parse-as
+    (:issue
+     `((cl-defmethod beads-command-parse ((command ,class-name) execution)
+         ,(format "Parse %s output from EXECUTION into beads-issue objects." class-name)
+         (with-slots (json) command
+           (if (not json)
+               (cl-call-next-method)
+             (let ((parsed-json (cl-call-next-method)))
+               (condition-case err
+                   (if (eq (type-of parsed-json) 'vector)
+                       (let ((issues (mapcar #'beads-issue-from-json
+                                             (append parsed-json nil))))
+                         (if (and (slot-exists-p command 'issue-ids)
+                                  (slot-boundp command 'issue-ids)
+                                  (oref command issue-ids)
+                                  (= (length (oref command issue-ids)) 1))
+                             (car issues)
+                           issues))
+                     ;; Single object response
+                     (if (consp parsed-json)
+                         (beads-issue-from-json parsed-json)
+                       (signal 'beads-json-parse-error
+                               (list ,(format "Unexpected JSON structure from %s"
+                                              class-name)
+                                     :exit-code (oref execution exit-code)
+                                     :parsed-json parsed-json
+                                     :stderr (oref execution stderr)))))
+                 (beads-json-parse-error (signal (car err) (cdr err)))
+                 (error
+                  (signal 'beads-json-parse-error
+                          (list (format "Failed to create beads-issue: %s"
+                                        (error-message-string err))
+                                :exit-code (oref execution exit-code)
+                                :parsed-json parsed-json
+                                :stderr (oref execution stderr)
+                                :parse-error err))))))))))
+    (:issues
+     `((cl-defmethod beads-command-parse ((command ,class-name) execution)
+         ,(format "Parse %s output from EXECUTION into list of beads-issue objects." class-name)
+         (with-slots (json) command
+           (if (not json)
+               (cl-call-next-method)
+             (let ((parsed-json (cl-call-next-method)))
+               (condition-case err
+                   (if (eq (type-of parsed-json) 'vector)
+                       (mapcar #'beads-issue-from-json
+                               (append parsed-json nil))
+                     (signal 'beads-json-parse-error
+                             (list ,(format "Unexpected JSON structure from %s"
+                                            class-name)
+                                   :exit-code (oref execution exit-code)
+                                   :parsed-json parsed-json
+                                   :stderr (oref execution stderr))))
+                 (beads-json-parse-error (signal (car err) (cdr err)))
+                 (error
+                  (signal 'beads-json-parse-error
+                          (list (format "Failed to create beads-issue: %s"
+                                        (error-message-string err))
+                                :exit-code (oref execution exit-code)
+                                :parsed-json parsed-json
+                                :stderr (oref execution stderr)
+                                :parse-error err))))))))))
+    (_ (error "Invalid :parse-as value: %S (must be :issue or :issues)" parse-as))))
 
 ;;; Terminal Backend Customization
 
@@ -573,12 +673,30 @@ Subclasses override to add validation."
 (cl-defgeneric beads-command-subcommand (command)
   "Return the CLI subcommand name for COMMAND.
 For example, \"create\", \"update\", \"doctor\", etc.
-Subclasses should override this to return their subcommand string.
-Returns nil by default, which disables metadata-based command building.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command))
-  "Return nil (no subcommand) for base command class."
-  nil)
+The default implementation auto-derives the subcommand from the class
+name by stripping the \"beads-command-\" prefix and converting hyphens
+in multi-word commands to spaces:
+  beads-command-close     -> \"close\"
+  beads-command-dep-add   -> \"dep add\"
+
+Override this method only for non-standard subcommand names.
+Returns nil for the abstract base class `beads-command'.")
+
+(cl-defmethod beads-command-subcommand ((command beads-command))
+  "Auto-derive subcommand name from COMMAND class name.
+Strips \"beads-command-\" prefix and replaces hyphens with spaces.
+For the abstract `beads-command' class itself, returns nil.
+Checks for :cli-command class-allocated slot first."
+  (let ((class-name (symbol-name (eieio-object-class command))))
+    (unless (equal class-name "beads-command")
+      (let ((cli-cmd (and (slot-exists-p command 'cli-command)
+                          (slot-boundp command 'cli-command)
+                          (oref command cli-command))))
+        (or cli-cmd
+            (when (string-match "\\`beads-command-\\(.+\\)\\'" class-name)
+              (replace-regexp-in-string
+               "-" " " (match-string 1 class-name))))))))
 
 ;;; Interactive Execution Methods
 ;;
@@ -771,6 +889,14 @@ Enables machine-readable output."
   :documentation "Abstract base class for bd commands that support JSON output.
 Inherits from beads-command and adds --json flag support.
 Use this as parent class for commands that support --json flag.")
+
+(cl-defmethod beads-command-execute-interactive ((cmd beads-command-json))
+  "Execute CMD with JSON disabled for human-readable terminal output.
+Sets json slot to nil so bd outputs colored human-readable text,
+then delegates to the base `beads-command' implementation which runs
+the command in a terminal buffer."
+  (oset cmd json nil)
+  (cl-call-next-method))
 
 (cl-defmethod beads-command-parse ((command beads-command-json) execution)
   "Parse JSON output from COMMAND using EXECUTION data.

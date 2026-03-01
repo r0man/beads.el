@@ -80,14 +80,7 @@
   :documentation "Represents bd graph command.
 Displays issue dependency graph visualization.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-graph))
-  "Return \"graph\" as the CLI subcommand."
-  "graph")
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-graph))
-  "Execute CMD in compilation buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menu
 

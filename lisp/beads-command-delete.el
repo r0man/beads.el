@@ -190,9 +190,6 @@ Stored in tombstone for audit trail."
 Deletes one or more issues and cleans up all references to them.
 When executed with :json t, returns deleted issue(s) data.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-delete))
-  "Return \"delete\" as the CLI subcommand name."
-  "delete")
 
 (cl-defmethod beads-command-validate ((command beads-command-delete))
   "Validate delete COMMAND.
@@ -259,13 +256,6 @@ Returns the parsed alist or nil."
                         :parsed-json parsed-json
                         :stderr (oref execution stderr)))))))))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-delete))
-  "Execute CMD in terminal buffer with human-readable output.
-Disables JSON mode for interactive display with colors."
-  ;; Set json to nil for human-readable colored output
-  (oset cmd json nil)
-  ;; Call the default implementation
-  (cl-call-next-method))
 
 ;;; Transient Menu
 

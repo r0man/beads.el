@@ -61,9 +61,6 @@ For SELECT queries only."
   :documentation "Execute raw SQL against the beads database.
 Supports SELECT, INSERT, UPDATE, DELETE, and other SQL statements.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-sql))
-  "Return \"sql\" as the CLI subcommand name."
-  "sql")
 
 (cl-defmethod beads-command-validate ((command beads-command-sql))
   "Validate sql COMMAND.
@@ -72,10 +69,6 @@ Query is required."
     (when (or (null query) (string-empty-p query))
       "Must provide a SQL query")))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-sql))
-  "Execute CMD in terminal buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menu
 

@@ -33,9 +33,6 @@
   :documentation "Represents bd slot show command.
 Shows all slots on an agent bead.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-slot-show))
-  "Return \"slot show\" as the CLI subcommand."
-  "slot show")
 
 (cl-defmethod beads-command-validate ((command beads-command-slot-show))
   "Validate slot show COMMAND."
@@ -68,9 +65,6 @@ Shows all slots on an agent bead.")
   :documentation "Represents bd slot set command.
 Sets a slot on an agent bead.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-slot-set))
-  "Return \"slot set\" as the CLI subcommand."
-  "slot set")
 
 (cl-defmethod beads-command-validate ((command beads-command-slot-set))
   "Validate slot set COMMAND."
@@ -101,9 +95,6 @@ Sets a slot on an agent bead.")
   :documentation "Represents bd slot clear command.
 Clears a slot on an agent bead.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-slot-clear))
-  "Return \"slot clear\" as the CLI subcommand."
-  "slot clear")
 
 (cl-defmethod beads-command-validate ((command beads-command-slot-clear))
   "Validate slot clear COMMAND."
@@ -115,20 +106,8 @@ Clears a slot on an agent bead.")
 
 ;;; Execute Interactive Methods
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-slot-show))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-slot-set))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-slot-clear))
-  "Execute CMD in compilation buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menus
 

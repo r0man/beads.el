@@ -77,22 +77,12 @@
 Shows a quick snapshot of the issue database state and statistics.
 When executed with :json t, returns status data as JSON.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-status))
-  "Return subcommand name for status command."
-  "status")
 
 (cl-defmethod beads-command-validate ((_command beads-command-status))
   "Validate status COMMAND.
 No required fields, returns nil (valid)."
   nil)
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-status))
-  "Execute CMD in compilation buffer with human-readable output.
-Disables JSON mode for interactive display with colors."
-  ;; Set json to nil for human-readable colored output
-  (oset cmd json nil)
-  ;; Call the default implementation
-  (cl-call-next-method))
 
 ;;; Transient Menu
 

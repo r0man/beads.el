@@ -224,10 +224,6 @@ Values: ours, theirs."
   :documentation "Synchronize with federation peers.
 Requires Dolt backend.")
 
-(cl-defmethod beads-command-subcommand
-    ((_command beads-command-federation-sync))
-  "Return \"federation sync\" as the CLI subcommand."
-  "federation sync")
 
 (cl-defmethod beads-command-execute-interactive
     ((cmd beads-command-federation-sync))
@@ -259,10 +255,6 @@ When nil, shows all peers."
   :documentation "Show federation sync status.
 Requires Dolt backend.")
 
-(cl-defmethod beads-command-subcommand
-    ((_command beads-command-federation-status))
-  "Return \"federation status\" as the CLI subcommand."
-  "federation status")
 
 (cl-defmethod beads-command-execute-interactive
     ((cmd beads-command-federation-status))

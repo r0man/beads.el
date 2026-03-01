@@ -481,9 +481,6 @@ Updates one or more issues with new field values.
 When executed with :json t, returns beads-issue instance (or list
 of instances when multiple IDs provided).")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-update))
-  "Return \"update\" as the CLI subcommand name."
-  "update")
 
 (cl-defmethod beads-command-validate ((command beads-command-update))
   "Validate update COMMAND.

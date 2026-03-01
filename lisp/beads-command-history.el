@@ -63,9 +63,6 @@
   :documentation "Show version history for an issue.
 Requires Dolt backend.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-history))
-  "Return \"history\" as the CLI subcommand name."
-  "history")
 
 (cl-defmethod beads-command-validate ((command beads-command-history))
   "Validate history COMMAND.
@@ -74,10 +71,6 @@ Issue ID is required."
     (when (or (null issue-id) (string-empty-p issue-id))
       "Must provide an issue ID")))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-history))
-  "Execute CMD in terminal buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menu
 

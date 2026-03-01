@@ -104,9 +104,6 @@ Faster but omits recent activity section."
   :documentation "Represents bd stats/status command.
 Shows a quick snapshot of the issue database state and statistics.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-stats))
-  "Return \"stats\" as the CLI subcommand name."
-  "stats")
 
 (cl-defmethod beads-command-validate ((_command beads-command-stats))
   "Validate stats COMMAND.
@@ -114,10 +111,6 @@ No required fields.
 Returns nil (always valid)."
   nil)
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-stats))
-  "Execute CMD in terminal buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; Transient Menu
 
