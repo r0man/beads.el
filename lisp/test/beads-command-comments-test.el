@@ -220,14 +220,14 @@
 
 (ert-deftest beads-comments-test-full-workflow ()
   "Integration test: Full workflow for listing comments."
-  :tags '(integration)
+  :tags '(:integration)
   (let ((cmd (beads-comments--parse-transient-args '("--issue-id=bd-42"))))
     ;; Validate
     (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-comments-add-test-full-workflow ()
   "Integration test: Full workflow for adding comment."
-  :tags '(integration)
+  :tags '(:integration)
   (let ((cmd (beads-comments-add--parse-transient-args
               '("--issue-id=bd-42" "--text=Test comment"))))
     ;; Validate
