@@ -1309,73 +1309,6 @@ Returns error string or nil if valid."
      (beads-command--validate-string-list deps "deps")
      (beads-command--validate-string-list labels "labels"))))
 
-(cl-defmethod beads-command-parse ((command beads-command-create) execution)
-  "Parse create COMMAND output from EXECUTION.
-Returns created issue(s).
-When :json is nil, falls back to parent (returns raw stdout).
-When :json is t, returns beads-issue instance (or list when creating
-from file).
-Does not modify any slots."
-  (with-slots (json) command
-    (if (not json)
-        ;; If json is not enabled, use parent implementation
-        (cl-call-next-method)
-      ;; Call parent to parse JSON, then convert to beads-issue instance(s)
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (cond
-             ;; Single issue (JSON object)
-             ((eq (type-of parsed-json) 'cons)
-              (beads-issue-from-json parsed-json))
-             ;; Multiple issues from file (JSON array)
-             ((eq (type-of parsed-json) 'vector)
-              (mapcar #'beads-issue-from-json
-                      (append parsed-json nil)))
-             ;; Unexpected JSON structure
-             (t
-              (signal 'beads-json-parse-error
-                      (list "Unexpected JSON structure from bd create"
-                            :exit-code (oref execution exit-code)
-                            :parsed-json parsed-json
-                            :stderr (oref execution stderr)))))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to create beads-issue instance: %s"
-                                 (error-message-string err))
-                         :exit-code (oref execution exit-code)
-                         :parsed-json parsed-json
-                         :stderr (oref execution stderr)
-                         :parse-error err))))))))
-
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-create))
-  "Execute CMD to create issue and offer to show it.
-Overrides default `compilation-mode' behavior with issue-specific UX."
-  (let* ((result (oref (beads-command-execute cmd) result))
-         ;; Handle both single-issue and multi-issue responses
-         (issues (cond
-                  ((null result) nil)
-                  ((cl-typep result 'beads-issue) (list result))
-                  ((and (listp result)
-                        (not (null result))
-                        (cl-typep (car result) 'beads-issue))
-                   result)
-                  (t nil)))
-         (first-issue (car issues)))
-    ;; Invalidate completion cache after creating issues
-    (beads--invalidate-completion-cache)
-    (cond
-     ((null first-issue)
-      (message "No issues created"))
-     ((= (length issues) 1)
-      (message "Created issue: %s - %s"
-               (oref first-issue id)
-               (oref first-issue title))
-      (when (y-or-n-p (format "Show issue %s? " (oref first-issue id)))
-        (beads-show (oref first-issue id))))
-     (t
-      (message "Created %d issues from file (first: %s)"
-               (length issues) (oref first-issue id))))))
-
 ;;; Epic Commands
 
 (beads-defcommand beads-command-epic-close-eligible (beads-command-json)
@@ -1525,51 +1458,6 @@ Returns error string or nil if valid."
           "Must provide at least one issue ID")
      ;; Validate list content types
      (beads-command--validate-string-list issue-ids "issue-ids"))))
-
-(cl-defmethod beads-command-parse ((command beads-command-show) execution)
-  "Parse show COMMAND output from EXECUTION.
-Returns beads-issue instance (or list when multiple IDs).
-When :json is nil, falls back to parent (returns raw stdout).
-When :json is t, returns beads-issue instance (or list when multiple IDs).
-Does not modify any slots."
-  (with-slots (json issue-ids) command
-    (if (not json)
-        ;; If json is not enabled, use parent implementation
-        (cl-call-next-method)
-      ;; Call parent to parse JSON, then convert to beads-issue instance(s)
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (if (eq (type-of parsed-json) 'vector)
-                ;; bd show returns array - convert to issue objects
-                (let ((issues (mapcar #'beads-issue-from-json
-                                      (append parsed-json nil))))
-                  ;; Return single issue if only one ID, list otherwise
-                  (if (= (length issue-ids) 1)
-                      (car issues)
-                    issues))
-              ;; Unexpected JSON structure
-              (signal 'beads-json-parse-error
-                      (list "Unexpected JSON structure from bd show"
-                            :exit-code (oref execution exit-code)
-                            :parsed-json parsed-json
-                            :stderr (oref execution stderr))))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to create beads-issue instance: %s"
-                                 (error-message-string err))
-                         :exit-code (oref execution exit-code)
-                         :parsed-json parsed-json
-                         :stderr (oref execution stderr)
-                         :parse-error err))))))))
-
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-show))
-  "Execute CMD to show issue in a dedicated buffer.
-Overrides default `compilation-mode' behavior."
-  (let* ((result (oref (beads-command-execute cmd) result))
-         (issue (if (listp result) (car result) result)))
-    (if issue
-        (beads-show (oref issue id))
-      (message "Issue not found"))))
 
 ;;; Update Command
 
@@ -1777,63 +1665,6 @@ Returns error string or nil if valid."
      ;; Validate list content types
      (beads-command--validate-string-list issue-ids "issue-ids"))))
 
-(cl-defmethod beads-command-parse ((command beads-command-update) execution)
-  "Parse update COMMAND output from EXECUTION.
-Returns updated issue(s).
-When :json is nil, falls back to parent (returns raw stdout).
-When :json is t, returns beads-issue instance (or list when multiple IDs).
-Does not modify any slots."
-  (with-slots (json issue-ids) command
-    (if (not json)
-        ;; If json is not enabled, use parent implementation
-        (cl-call-next-method)
-      ;; Call parent to parse JSON, then convert to beads-issue instance(s)
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (if (eq (type-of parsed-json) 'vector)
-                ;; bd update returns array - convert to issue objects
-                (let ((issues (mapcar #'beads-issue-from-json
-                                      (append parsed-json nil))))
-                  ;; Return single issue if only one ID, list otherwise
-                  (if (= (length issue-ids) 1)
-                      (car issues)
-                    issues))
-              ;; Unexpected JSON structure
-              (signal 'beads-json-parse-error
-                      (list "Unexpected JSON structure from bd update"
-                            :exit-code (oref execution exit-code)
-                            :parsed-json parsed-json
-                            :stderr (oref execution stderr))))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to create beads-issue instance: %s"
-                                 (error-message-string err))
-                         :exit-code (oref execution exit-code)
-                         :parsed-json parsed-json
-                         :stderr (oref execution stderr)
-                         :parse-error err))))))))
-
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-update))
-  "Execute CMD to update issue and show result.
-Overrides default `compilation-mode' behavior."
-  (let* ((result (oref (beads-command-execute cmd) result))
-         (issues (cond
-                  ((null result) nil)
-                  ((cl-typep result 'beads-issue) (list result))
-                  ((and (listp result)
-                        (not (null result))
-                        (cl-typep (car result) 'beads-issue))
-                   result)
-                  (t nil))))
-    ;; Invalidate completion cache after updating
-    (beads--invalidate-completion-cache)
-    (if issues
-        (message "Updated %d issue%s: %s"
-                 (length issues)
-                 (if (= (length issues) 1) "" "s")
-                 (mapconcat (lambda (i) (oref i id)) issues ", "))
-      (message "No issues updated"))))
-
 ;;; Reopen Command
 
 (beads-defcommand beads-command-reopen (beads-command-json)
@@ -1897,42 +1728,6 @@ Returns error string or nil if valid."
           "Must provide at least one issue ID")
      ;; Validate list content types
      (beads-command--validate-string-list issue-ids "issue-ids"))))
-
-(cl-defmethod beads-command-parse ((command beads-command-reopen) execution)
-  "Parse reopen COMMAND output from EXECUTION.
-Returns reopened issue(s).
-When :json is nil, falls back to parent (returns raw stdout).
-When :json is t, returns beads-issue instance (or list when multiple IDs).
-Does not modify any slots."
-  (with-slots (json issue-ids) command
-    (if (not json)
-        ;; If json is not enabled, use parent implementation
-        (cl-call-next-method)
-      ;; Call parent to parse JSON, then convert to beads-issue instance(s)
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (if (eq (type-of parsed-json) 'vector)
-                ;; bd reopen returns array - convert to issue objects
-                (let ((issues (mapcar #'beads-issue-from-json
-                                      (append parsed-json nil))))
-                  ;; Return single issue if only one ID, list otherwise
-                  (if (= (length issue-ids) 1)
-                      (car issues)
-                    issues))
-              ;; Unexpected JSON structure
-              (signal 'beads-json-parse-error
-                      (list "Unexpected JSON structure from bd reopen"
-                            :exit-code (oref execution exit-code)
-                            :parsed-json parsed-json
-                            :stderr (oref execution stderr))))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to create beads-issue instance: %s"
-                                 (error-message-string err))
-                         :exit-code (oref execution exit-code)
-                         :parsed-json parsed-json
-                         :stderr (oref execution stderr)
-                         :parse-error err))))))))
 
 ;;; Delete Command
 
