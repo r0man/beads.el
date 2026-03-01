@@ -162,7 +162,7 @@
 
 ;;; Parent Transient Menu
 
-;;;###autoload (autoload 'beads-state "beads-command-state" nil t)
+;;;###autoload (autoload 'beads-state-menu "beads-command-state" nil t)
 (transient-define-prefix beads-state-menu ()
   "State management for issues.
 

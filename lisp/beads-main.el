@@ -10,16 +10,16 @@
 ;; This module provides the main entry point and root transient menu
 ;; for beads.el.  The `beads' command opens a Magit-like menu interface
 ;; that provides access to all beads functionality organized into
-;; logical groups.
+;; logical groups matching the `bd --help' categories.
 ;;
 ;; Usage:
 ;;   M-x beads RET    ; Open main transient menu
 ;;
-;; The menu is organized into groups:
-;; - View: Commands for viewing issues (list, ready, blocked, show, stats)
-;; - Create/Edit: Commands for creating/modifying (create, update, close)
-;; - Dependencies: Dependency management (dep submenu)
-;; - Admin: Project administration (init)
+;; This module does NOT require any beads-command-*.el modules.
+;; All command symbols are resolved via autoload cookies defined in
+;; their respective files.  Adding a new command to the menu requires
+;; only that the command file has a proper autoload cookie — no
+;; changes to require forms are needed here.
 ;;
 ;; The menu header displays:
 ;; - Current project name and root directory
@@ -29,60 +29,6 @@
 ;;; Code:
 
 (require 'beads)
-(require 'beads-command-list)
-(require 'beads-command-show)
-(require 'beads-command-create)
-(require 'beads-command-update)
-(require 'beads-command-close)
-(require 'beads-command-admin)
-(require 'beads-command-agent)
-(require 'beads-command-blocked)
-(require 'beads-command-graph)
-(require 'beads-command-ready)
-(require 'beads-command-sync)
-(require 'beads-command-worktree)
-(require 'beads-command-reopen)
-(require 'beads-command-delete)
-(require 'beads-command-stats)
-(require 'beads-command-dep)
-(require 'beads-command-init)
-(require 'beads-command-quickstart)
-(require 'beads-command-epic)
-(require 'beads-agent)
-(require 'beads-command-worktree)
-(require 'beads-command-info)
-(require 'beads-command-formula)
-(require 'beads-command-activity)
-(require 'beads-command-audit)
-(require 'beads-command-comments)
-(require 'beads-command-config)
-(require 'beads-command-count)
-(require 'beads-command-daemon)
-(require 'beads-command-defer)
-(require 'beads-command-doctor)
-(require 'beads-command-edit)
-(require 'beads-command-gate)
-(require 'beads-command-hooks)
-(require 'beads-command-integrations)
-(require 'beads-command-label)
-(require 'beads-command-merge-slot)
-(require 'beads-command-migrate)
-(require 'beads-command-misc)
-(require 'beads-command-mol)
-(require 'beads-command-search)
-(require 'beads-command-slot)
-(require 'beads-command-stale)
-(require 'beads-command-state)
-(require 'beads-command-status)
-(require 'beads-command-swarm)
-(require 'beads-command-diff)
-(require 'beads-command-history)
-(require 'beads-command-branch)
-(require 'beads-command-vc)
-(require 'beads-command-dolt)
-(require 'beads-command-restore)
-(require 'beads-command-sql)
-(require 'beads-command-federation)
 (require 'transient)
 
 ;;; Variables

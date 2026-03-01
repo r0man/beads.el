@@ -442,78 +442,13 @@ Returns t if found, signals error otherwise."
 Install bd CLI from https://github.com/steveyegge/beads
 or set `beads-executable' to the full path" beads-executable)))
 
+;; Main entry point autoload — all other command autoloads are provided
+;; by ;;;###autoload cookies in their respective beads-command-*.el files.
 ;;;###autoload
 (autoload 'beads "beads-main" "Open the main Beads transient menu." t)
 
-;;;###autoload
-(autoload 'beads-list "beads-command-list" "Display all Beads issues in a tabulated list." t)
-
-;;;###autoload
-(autoload 'beads-ready "beads-command-list" "Display ready Beads issues in a tabulated list." t)
-
-;;;###autoload
-(autoload 'beads-blocked "beads-command-list" "Display blocked Beads issues in a tabulated list." t)
-
-;;;###autoload
-(autoload 'beads-show "beads-command-show" "Show details for a Beads issue." t)
-
-;;;###autoload
-(autoload 'beads-create "beads-command-create" "Create a new Beads issue using transient menu." t)
-
-;;;###autoload
-(autoload 'beads-update "beads-command-update" "Update a Beads issue using transient menu." t)
-
-;;;###autoload
-(autoload 'beads-close "beads-command-close" "Close a Beads issue with optional reason." t)
-
-;;;###autoload
-(autoload 'beads-delete "beads-command-delete" "Delete a Beads issue permanently." t)
-
-;;;###autoload
-(autoload 'beads-stats "beads-command-stats" "Display Beads issue statistics." t)
-
-;;;###autoload
-(autoload 'beads-dep "beads-command-dep" "Manage dependencies in Beads." t)
-
-;;;###autoload
-(autoload 'beads-dep-add "beads-command-dep" "Add a dependency to an issue." t)
-
-;;;###autoload
-(autoload 'beads-dep-remove "beads-command-dep" "Remove a dependency from an issue." t)
-
-;;;###autoload
-(autoload 'beads-dep-tree "beads-command-dep" "Display dependency tree for an issue." t)
-
-;;;###autoload
-(autoload 'beads-dep-cycles "beads-command-dep" "Check for dependency cycles." t)
-
-;;;###autoload
-(autoload 'beads-quickstart "beads-command-quickstart" "Show Beads quickstart guide." t)
-
-;;;###autoload
-(autoload 'beads-sync "beads-command-sync" "Synchronize issues with git remote." t)
-
-;;;###autoload
-(autoload 'beads-graph-all "beads-command-graph" "Show dependency graph for all issues." t)
-
-;;;###autoload
-(autoload 'beads-graph-issue "beads-command-graph" "Show dependency graph focused on issue." t)
-
-;;;###autoload
-(autoload 'beads-label "beads-command-label" "Manage labels for issues." t)
-
-;;;###autoload
-(autoload 'beads-label-add "beads-command-label" "Add a label to one or more issues." t)
-
-;;;###autoload
-(autoload 'beads-label-remove "beads-command-label" "Remove a label from one or more issues." t)
-
-;;;###autoload
-(autoload 'beads-label-list-interactive "beads-command-label" "List labels for an issue." t)
-
-;;;###autoload
-(autoload 'beads-label-list-all-view "beads-command-label" "Display all labels in a tabulated list buffer." t)
-
+;; Label API autoloads — these are used by other modules (e.g., readers,
+;; completion) that depend on beads.el, so they must be available early.
 ;;;###autoload
 (autoload 'beads-label-list-all "beads-command-label" "Return a list of all labels from bd label list-all.")
 

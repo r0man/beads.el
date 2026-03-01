@@ -100,7 +100,8 @@ SLOTS is the list of slot definitions.
 OPTIONS are additional class options like :documentation.
 
 This macro:
-1. Defines the class using `defclass'
+1. Defines the class inside `eval-and-compile' so it is available
+   at macro-expansion time (needed for transient generation)
 2. Generates a NAME! convenience function that executes the command
    and returns the result from the execution object
 
@@ -119,7 +120,7 @@ Example:
     :documentation \"Foo command.\")
 
 This generates:
-  (defclass beads-command-foo ...)
+  (eval-and-compile (defclass beads-command-foo ...))
   (defun beads-command-foo! (&rest args) ...)
 
 Usage:
@@ -127,7 +128,8 @@ Usage:
   (declare (indent 2))
   (let ((bang-fn (intern (concat (symbol-name name) "!"))))
     `(progn
-       (defclass ,name ,superclasses ,slots ,@options)
+       (eval-and-compile
+         (defclass ,name ,superclasses ,slots ,@options))
        (defun ,bang-fn (&rest args)
          ,(format "Execute %s and return result.\n\nARGS are passed to the constructor." name)
          (oref (beads-command-execute (apply #',name args)) result)))))
