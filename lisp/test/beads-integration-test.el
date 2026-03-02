@@ -51,6 +51,7 @@
 (defvar beads--project-cache)
 (defvar beads--completion-cache)
 (defvar beads-executable)
+(defvar beads-test-no-daemon)
 
 (defvar beads-test--last-init-prefix nil
   "Prefix used by the most recent `beads-test--init-beads' call.
@@ -100,7 +101,12 @@ Returns DIR for convenience."
          (effective-prefix (or prefix (beads-test--generate-unique-prefix)))
          (cmd (beads-command-init :prefix effective-prefix
                                   :quiet quiet
-                                  :skip-hooks t)))
+                                  :skip-hooks t))
+         ;; Isolate from production Dolt server
+         (process-environment (if (bound-and-true-p beads-test-no-daemon)
+                                   (cons "BD_NO_DAEMON=1"
+                                         process-environment)
+                                 process-environment)))
     (setq beads-test--last-init-prefix effective-prefix)
     (beads-command-execute cmd))
   dir)
@@ -117,8 +123,10 @@ Returns DIR for convenience."
 (defun beads-test--drop-dolt-database (prefix)
   "Drop the Dolt database named PREFIX from the shared server.
 Silently ignores errors (e.g., if the database doesn't exist or
-the server is unavailable)."
-  (when (and prefix (not (string-empty-p prefix)))
+the server is unavailable).  Skipped when `beads-test-no-daemon'
+is non-nil since no server database exists in no-daemon mode."
+  (when (and prefix (not (string-empty-p prefix))
+             (not (bound-and-true-p beads-test-no-daemon)))
     (ignore-errors
       (call-process (or (bound-and-true-p beads-executable) "bd")
                     nil nil nil
@@ -233,7 +241,12 @@ Examples:
             (default-directory ,temp-dir)
             ;; Fresh caches for isolation
             (beads--project-cache (make-hash-table :test 'equal))
-            (beads--completion-cache nil))
+            (beads--completion-cache nil)
+            ;; Isolate from production Dolt server
+            (process-environment
+             (if (bound-and-true-p beads-test-no-daemon)
+                 (cons "BD_NO_DAEMON=1" process-environment)
+               process-environment)))
        ;; Clear state before test
        (beads-test--clear-transient-state)
        ;; Mock project discovery to use temp dir

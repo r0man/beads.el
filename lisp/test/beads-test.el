@@ -41,11 +41,19 @@ issue IDs by splitting on the first hyphen."
   "Prefix used by the most recent `beads-test-create-project' call.
 Set as a side effect so callers can retrieve the prefix for cleanup.")
 
+(defvar beads-test-no-daemon t
+  "When non-nil, run test bd commands with BD_NO_DAEMON=1.
+This prevents tests from connecting to the production Dolt server
+on port 3307, which would create orphan databases and cause
+interference with Gas Town operations.  Defaults to t for safety.")
+
 (defun beads-test--drop-dolt-database (prefix)
   "Drop the Dolt database named PREFIX from the shared server.
 Silently ignores errors (e.g., if the database doesn't exist or
-the server is unavailable)."
-  (when (and prefix (not (string-empty-p prefix)))
+the server is unavailable).  Skipped when `beads-test-no-daemon'
+is non-nil since no server database exists in no-daemon mode."
+  (when (and prefix (not (string-empty-p prefix))
+             (not beads-test-no-daemon))
     (ignore-errors
       (call-process "bd" nil nil nil
                     "sql" (format "DROP DATABASE IF EXISTS `%s`" prefix)))))
@@ -74,7 +82,11 @@ Sets `beads-test--last-created-prefix' as a side effect."
     (call-process "git" nil nil nil "init" "-q")
     (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
     (call-process "git" nil nil nil "config" "user.name" "Beads Test")
-    (beads-command-execute (apply #'beads-command-init effective-args))
+    ;; Use isolated environment to prevent production server pollution
+    (let ((process-environment (if beads-test-no-daemon
+                                   (cons "BD_NO_DAEMON=1" process-environment)
+                                 process-environment)))
+      (beads-command-execute (apply #'beads-command-init effective-args)))
     default-directory))
 
 (defun beads-test--clear-transient-state ()
@@ -150,7 +162,12 @@ For a project with default settings, use an empty list:
     `(let* ((,temp-dir (beads-test-create-project ,@init-args))
             (,prefix beads-test--last-created-prefix)
             (default-directory ,temp-dir)
-            (beads--project-cache (make-hash-table :test 'equal)))
+            (beads--project-cache (make-hash-table :test 'equal))
+            ;; Isolate from production Dolt server
+            (process-environment (if beads-test-no-daemon
+                                     (cons "BD_NO_DAEMON=1"
+                                           process-environment)
+                                   process-environment)))
        ;; Clear any active transient state from previous tests
        (beads-test--clear-transient-state)
        ;; Mock beads-git-find-project-root to return default-directory (the temp
@@ -583,7 +600,12 @@ Tests that need custom init args (e.g., a specific :prefix) should
 continue using `beads-test-with-project' instead."
   (declare (indent 0))
   `(let ((default-directory (beads-test-get-shared-project))
-         (beads--project-cache (make-hash-table :test 'equal)))
+         (beads--project-cache (make-hash-table :test 'equal))
+         ;; Isolate from production Dolt server
+         (process-environment (if beads-test-no-daemon
+                                   (cons "BD_NO_DAEMON=1"
+                                         process-environment)
+                                 process-environment)))
      ;; Clean up issues from previous tests
      (beads-test-cleanup-shared-project)
      ;; Clear any active transient state from previous tests
