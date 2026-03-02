@@ -2253,7 +2253,7 @@ Prompts for field to edit and opens an editing buffer."
     (let ((label (read-string "Label: ")))
       (condition-case err
           (progn
-            (beads-command-label-add! :issue-id beads-show--issue-id
+            (beads-command-label-add! :issue-ids (list beads-show--issue-id)
                                       :label label)
             (beads-refresh-show)
             (message "Label added: %s" label))
