@@ -148,6 +148,54 @@ Default: current directory name."
     :transient-group "Other Options"
     :level 2
     :order 1)
+   (server-host
+    :initarg :server-host
+    :type (or null string)
+    :initform nil
+    :documentation "Dolt server host (--server-host).
+Default: 127.0.0.1."
+    :long-option "server-host"
+    :option-type :string
+    :key "h"
+    :transient "--server-host"
+    :class transient-option
+    :argument "--server-host="
+    :prompt "Server host: "
+    :transient-group "Server Connection"
+    :level 3
+    :order 1)
+   (server-port
+    :initarg :server-port
+    :type (or null integer)
+    :initform nil
+    :documentation "Dolt server port (--server-port).
+Default: 3307."
+    :long-option "server-port"
+    :option-type :integer
+    :key "P"
+    :transient "--server-port"
+    :class transient-option
+    :argument "--server-port="
+    :prompt "Server port: "
+    :transient-group "Server Connection"
+    :level 3
+    :order 2)
+   (server-user
+    :initarg :server-user
+    :type (or null string)
+    :initform nil
+    :documentation "Dolt server MySQL user (--server-user).
+Default: root."
+    :long-option "server-user"
+    :option-type :string
+    :key "U"
+    :transient "--server-user"
+    :class transient-option
+    :argument "--server-user="
+    :prompt "Server user: "
+    :transient-group "Server Connection"
+    :level 3
+    :order 3)
    (setup-exclude
     :initarg :setup-exclude
     :type boolean
@@ -265,7 +313,14 @@ flags."
          (contributor (and (member "--contributor" args) t))
          (quiet (and (member "--quiet" args) t))
          (skip-hooks (and (member "--skip-hooks" args) t))
-         (team (and (member "--team" args) t)))
+         (team (and (member "--team" args) t))
+         (server-host (beads--sanitize-string
+                       (transient-arg-value "--server-host=" args)))
+         (server-port-str (transient-arg-value "--server-port=" args))
+         (server-port (when server-port-str
+                        (string-to-number server-port-str)))
+         (server-user (beads--sanitize-string
+                       (transient-arg-value "--server-user=" args))))
     (beads-command-init
      :prefix prefix
      :branch branch
@@ -273,7 +328,10 @@ flags."
      :contributor contributor
      :quiet quiet
      :skip-hooks skip-hooks
-     :team team)))
+     :team team
+     :server-host server-host
+     :server-port server-port
+     :server-user server-user)))
 
 (defun beads-init--validate-all (cmd)
   "Validate all parameters from CMD beads-command-init instance.
