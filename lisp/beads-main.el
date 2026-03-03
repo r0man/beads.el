@@ -162,7 +162,6 @@ into logical groups matching bd CLI structure."
     ("r" "Ready work" beads-ready)
     ("b" "Blocked issues" beads-blocked)
     ("t" "Stats/Status" beads-stats)
-    ("a" "Activity feed" beads-activity)
     ("C" "Count issues" beads-count)
     ("S" "Stale issues" beads-stale)
     ("/" "Search" beads-search)
