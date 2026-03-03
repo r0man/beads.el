@@ -211,7 +211,8 @@ Returns error string or nil if valid."
   "Parse delete COMMAND output from EXECUTION.
 Returns deleted issue info.
 When :json is nil, falls back to parent (returns raw stdout).
-When :json is t, returns alist with deletion info.
+When :force is nil, returns raw stdout (preview text, not JSON).
+When :json is t and :force is t, returns alist with deletion info.
 Does not modify any slots.
 
 The bd CLI returns different JSON formats:
@@ -226,35 +227,40 @@ Direct mode (batch):
 Daemon RPC mode:
   {\"deleted_count\": N, \"total_count\": N}
 
-Returns the parsed alist or nil."
-  (with-slots (json) command
+Returns the parsed alist, nil, or raw stdout string (preview mode)."
+  (with-slots (json force) command
     (if (not json)
         ;; If json is not enabled, use parent implementation
         (cl-call-next-method)
-      ;; Call parent to parse JSON
-      (let ((parsed-json (cl-call-next-method)))
-        (cond
-         ;; Empty result
-         ((null parsed-json) nil)
-         ;; Vector of results (multiple deletions)
-         ((vectorp parsed-json)
-          (append parsed-json nil))
-         ;; Single object with 'deleted' field (direct mode CLI format)
-         ((alist-get 'deleted parsed-json)
-          parsed-json)
-         ;; Legacy format with 'id' field (for backwards compatibility)
-         ((alist-get 'id parsed-json)
-          parsed-json)
-         ;; Daemon RPC format with 'deleted_count' field (no 'deleted')
-         ((alist-get 'deleted_count parsed-json)
-          parsed-json)
-         ;; Unexpected format
-         (t
-          (signal 'beads-json-parse-error
-                  (list "Unexpected JSON structure from bd delete"
-                        :exit-code (oref execution exit-code)
-                        :parsed-json parsed-json
-                        :stderr (oref execution stderr)))))))))
+      ;; Without --force, bd delete returns human-readable preview text
+      ;; even when --json is passed.  Return raw stdout in this case.
+      (if (not force)
+          (oref execution stdout)
+        ;; Force mode: parse JSON response
+        (let ((parsed-json (cl-call-next-method)))
+          (cond
+           ;; Empty result
+           ((null parsed-json) nil)
+           ;; Vector of results (multiple deletions)
+           ((vectorp parsed-json)
+            (append parsed-json nil))
+           ;; Single object with 'deleted' field (direct mode CLI format)
+           ((alist-get 'deleted parsed-json)
+            parsed-json)
+           ;; Legacy format with 'id' field (for backwards compatibility)
+           ((alist-get 'id parsed-json)
+            parsed-json)
+           ;; Daemon RPC format with 'deleted_count' field (no 'deleted')
+           ((alist-get 'deleted_count parsed-json)
+            parsed-json)
+           ;; Unexpected format
+           (t
+            (signal 'beads-json-parse-error
+                    (list "Unexpected JSON structure from bd delete"
+                          :exit-code (oref execution exit-code)
+                          :parsed-json parsed-json
+                          :stderr (oref execution stderr))))))))))
+
 
 
 ;;; Transient Menu
