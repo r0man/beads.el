@@ -1788,6 +1788,33 @@ Regression test for bug where issue-id was prepended instead of appended."
   (let ((cmd (beads-command-delete :issue-ids '("bd-42"))))
     (should (null (beads-command-validate cmd)))))
 
+(ert-deftest beads-command-test-delete-without-force-returns-preview-text ()
+  "Unit test: delete without :force returns raw preview text, not JSON.
+Regression test for be-3l0.4: beads-command-delete! without :force
+would fail with beads-json-parse-error because bd returns preview
+text (not JSON) when --force is not passed."
+  :tags '(:unit)
+  (let ((preview-text "Issue: bd-42 - Test Issue\n\nThis will delete 1 issue.\n"))
+    (cl-letf (((symbol-function 'process-file)
+               (beads-test--mock-call-process 0 preview-text)))
+      (let ((result (beads-command-delete! :issue-ids '("bd-42"))))
+        ;; Should return raw preview string, not signal JSON parse error
+        (should (stringp result))
+        (should (string-match-p "bd-42" result))))))
+
+(ert-deftest beads-command-test-delete-with-force-parses-json ()
+  "Unit test: delete with :force parses JSON response correctly."
+  :tags '(:unit)
+  (let ((json-output (json-encode '((deleted . "bd-42")
+                                     (dependencies_removed . 0)
+                                     (references_updated . 0)))))
+    (cl-letf (((symbol-function 'process-file)
+               (beads-test--mock-call-process 0 json-output)))
+      (let ((result (beads-command-delete! :issue-ids '("bd-42") :force t)))
+        ;; Should return parsed alist
+        (should (consp result))
+        (should (equal "bd-42" (alist-get 'deleted result)))))))
+
 ;;; Tests for beads-list-default-limit
 
 (ert-deftest beads-command-test-list-class-has-nil-initform ()
