@@ -126,7 +126,7 @@ Returns:
 
 (defun beads-buffer-list (&optional type filter project branch)
   "Generate list buffer name.
-TYPE is one of: nil/\"list\", \"ready\", \"blocked\".
+TYPE is one of: nil/\"list\", \"ready\", \"blocked\", \"search\".
 FILTER is optional filter info (e.g., \"label=backend\", \"open\").
 PROJECT and BRANCH are optional overrides.
 
@@ -135,6 +135,8 @@ Examples:
     => \"*beads-list[myproject]*\"
   (beads-buffer-list \"ready\")
     => \"*beads-ready[myproject]*\"
+  (beads-buffer-list \"search\")
+    => \"*beads-search[myproject]*\"
   (beads-buffer-list nil \"label=api\")
     => \"*beads-list[myproject] label=api*\"
   (beads-buffer-list nil nil \"proj\" \"feature\")
@@ -145,6 +147,7 @@ Examples:
                     ((string= type "list") "list")
                     ((string= type "ready") "ready")
                     ((string= type "blocked") "blocked")
+                    ((string= type "search") "search")
                     (t "list")))
          (base (format "*beads-%s[%s]*" buf-type context)))
     (if (and filter (not (string-empty-p filter)))
@@ -214,7 +217,7 @@ Examples:
   "Parse BUFFER-NAME as a list buffer name.
 Returns plist with :type, :project, :branch, :filter, or nil."
   (when (string-match
-         (concat "\\`\\*beads-\\(list\\|ready\\|blocked\\)"
+         (concat "\\`\\*beads-\\(list\\|ready\\|blocked\\|search\\)"
                  "\\[\\([^]@]+\\)\\(?:@\\([^]]+\\)\\)?\\]"
                  "\\(?: \\(.+\\)\\)?\\*\\'")
          buffer-name)
@@ -269,7 +272,7 @@ Returns plist with :type, :project, :branch, :suffix, or nil."
          buffer-name)
     (let ((type (match-string 1 buffer-name)))
       ;; Exclude known non-utility types
-      (unless (member type '("list" "ready" "blocked" "show" "agent"))
+      (unless (member type '("list" "ready" "blocked" "search" "show" "agent"))
         (list :type type
               :project (match-string 2 buffer-name)
               :branch (match-string 3 buffer-name)

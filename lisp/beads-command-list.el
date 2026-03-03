@@ -1178,7 +1178,7 @@ Strips trailing slashes and expands to absolute path."
 
 (defun beads-list--find-buffer-for-project (buffer-type project-dir)
   "Find existing buffer for BUFFER-TYPE and PROJECT-DIR.
-BUFFER-TYPE is a symbol: `list', `ready', or `blocked'.
+BUFFER-TYPE is a symbol: `list', `ready', `blocked', or `search'.
 Return buffer or nil if not found."
   (let ((normalized-dir (beads-list--normalize-directory project-dir)))
     (cl-find-if
@@ -1193,7 +1193,7 @@ Return buffer or nil if not found."
 
 (defun beads-list--get-or-create-buffer (buffer-type)
   "Get or create list buffer for current project context.
-BUFFER-TYPE is a symbol: `list', `ready', or `blocked'.
+BUFFER-TYPE is a symbol: `list', `ready', `blocked', or `search'.
 Reuses existing buffer for same project-dir (directory is identity)."
   (let* ((project-dir (or (beads-git-find-project-root) default-directory))
          (existing (beads-list--find-buffer-for-project buffer-type project-dir)))
@@ -1739,6 +1739,11 @@ When SILENT is non-nil, suppress messages (for hook-triggered refreshes)."
                     (beads-issue-ready))
                    ('blocked
                     (beads-blocked-issue-list))
+                   ('search
+                    (when-let ((cmd (and (boundp 'beads-search--command-obj)
+                                        beads-search--command-obj)))
+                      (oset cmd json t)
+                      (oref (beads-command-execute cmd) result)))
                    (_ (error "Unknown command: %s" beads-list--command))))
          ;; Save window point if buffer is displayed, otherwise buffer point.
          ;; This ensures we preserve point correctly when called via
