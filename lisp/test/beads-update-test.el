@@ -646,5 +646,259 @@ Regression test for bug bde-z65s: 'Not a transient prefix: beads-update'."
         (beads-update--preview)
         (should (eq transient-args-called-with 'beads-update--menu))))))
 
+;;; Tests for beads-command-update parse method
+
+(ert-deftest beads-update-test-parse-json-single-issue ()
+  "Test parse method returns single issue for single ID."
+  (let* ((cmd (beads-command-update :json t :issue-ids '("bd-42")
+                                     :status "open"))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout "[{\"id\":\"bd-42\",\"title\":\"Test\"}]"
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
+      (should (beads-issue-p result))
+      (should (string= (oref result id) "bd-42")))))
+
+(ert-deftest beads-update-test-parse-json-multiple-issues ()
+  "Test parse method returns list for multiple IDs."
+  (let* ((cmd (beads-command-update :json t :issue-ids '("bd-1" "bd-2")
+                                     :status "open"))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout "[{\"id\":\"bd-1\",\"title\":\"A\"},{\"id\":\"bd-2\",\"title\":\"B\"}]"
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
+      (should (listp result))
+      (should (= (length result) 2))
+      (should (beads-issue-p (car result))))))
+
+(ert-deftest beads-update-test-parse-json-nil ()
+  "Test parse method with json disabled returns raw string."
+  (let* ((cmd (beads-command-update :json nil :issue-ids '("bd-42")
+                                     :status "open"))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout "Updated bd-42"
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
+      (should (stringp result)))))
+
+(ert-deftest beads-update-test-parse-json-error ()
+  "Test parse signals error on bad JSON."
+  (let* ((cmd (beads-command-update :json t :issue-ids '("bd-42")
+                                     :status "open"))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout "not json"
+                :stderr "")))
+    (should-error (beads-command-parse cmd exec)
+                  :type 'beads-json-parse-error)))
+
+;;; Tests for beads-command-update execute-interactive
+
+(ert-deftest beads-update-test-execute-interactive-single ()
+  "Test execute-interactive messages for single issue update."
+  (let* ((issue (beads-issue :id "bd-42" :title "Test"))
+         (cmd (beads-command-update :json t :issue-ids '("bd-42")
+                                    :status "open"))
+         (exec (beads-command-execution
+                :command cmd :exit-code 0
+                :stdout "" :stderr "")))
+    (oset exec result issue)
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_cmd) exec))
+              ((symbol-function 'beads--invalidate-completion-cache)
+               #'ignore))
+      (beads-command-execute-interactive cmd)
+      (should t))))
+
+(ert-deftest beads-update-test-execute-interactive-no-result ()
+  "Test execute-interactive handles nil result."
+  (let* ((cmd (beads-command-update :json t :issue-ids '("bd-42")
+                                    :status "open"))
+         (exec (beads-command-execution
+                :command cmd :exit-code 0
+                :stdout "" :stderr "")))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_cmd) exec))
+              ((symbol-function 'beads--invalidate-completion-cache)
+               #'ignore))
+      (beads-command-execute-interactive cmd)
+      (should t))))
+
+;;; Tests for beads-update--get-changed-fields
+
+(ert-deftest beads-update-test-get-changed-fields-no-changes ()
+  "Test get-changed-fields returns nil when nothing changed."
+  (let ((beads-update--original-data
+         '((title . "Test") (description . "Desc"))))
+    (cl-letf (((symbol-function 'beads-update--get-original)
+               (lambda (key)
+                 (alist-get key beads-update--original-data))))
+      ;; Create a command with same values as original
+      (let ((cmd (beads-command-update :issue-ids '("bd-42")
+                                        :title "Test")))
+        (should (null (beads-update--get-changed-fields cmd)))))))
+
+(ert-deftest beads-update-test-get-changed-fields-with-changes ()
+  "Test get-changed-fields detects modified fields."
+  (let ((beads-update--original-data
+         '((title . "Old") (description . "Old desc"))))
+    (cl-letf (((symbol-function 'beads-update--get-original)
+               (lambda (key)
+                 (alist-get key beads-update--original-data))))
+      ;; Create a command with different title and new design
+      (let ((cmd (beads-command-update :issue-ids '("bd-42")
+                                        :title "New Title"
+                                        :design "New design")))
+        (let ((changes (beads-update--get-changed-fields cmd)))
+          (should (assoc 'title changes))
+          (should (assoc 'design changes)))))))
+
+;;; Tests for beads-command-update validation
+
+(ert-deftest beads-update-test-validate-no-issue-id ()
+  "Test validation fails with no issue IDs."
+  (let ((cmd (beads-command-update :issue-ids nil :status "open")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-update-test-validate-no-fields ()
+  "Test validation fails with no fields to update."
+  (let ((cmd (beads-command-update :issue-ids '("bd-42"))))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-update-test-validate-invalid-labels ()
+  "Test validation fails with non-string label list."
+  (let ((cmd (beads-command-update :issue-ids '("bd-42")
+                                    :add-label '("valid" 42))))
+    (should (beads-command-validate cmd))))
+
+;;; Tests for beads-update--get-changed-fields (acceptance, design, notes,
+;;; assignee, external-ref fields — lines 687-702)
+
+(ert-deftest beads-update-test-collect-changes-acceptance ()
+  "Test get-changed-fields detects changed acceptance-criteria."
+  :tags '(:unit)
+  (let ((beads-update--original-data
+         (beads-issue :id "bd-42" :title "T"
+                      :acceptance-criteria "old AC")))
+    (let ((cmd (beads-command-update :issue-ids '("bd-42")
+                                      :acceptance "new AC")))
+      (let ((changes (beads-update--get-changed-fields cmd)))
+        (should (= (length changes) 1))
+        (should (equal (car changes) '(acceptance . "new AC")))))))
+
+(ert-deftest beads-update-test-collect-changes-design ()
+  "Test get-changed-fields detects changed design."
+  :tags '(:unit)
+  (let ((beads-update--original-data
+         (beads-issue :id "bd-42" :title "T"
+                      :design "old design")))
+    (let ((cmd (beads-command-update :issue-ids '("bd-42")
+                                      :design "new design")))
+      (let ((changes (beads-update--get-changed-fields cmd)))
+        (should (= (length changes) 1))
+        (should (equal (car changes) '(design . "new design")))))))
+
+(ert-deftest beads-update-test-collect-changes-notes ()
+  "Test get-changed-fields detects changed notes."
+  :tags '(:unit)
+  (let ((beads-update--original-data
+         (beads-issue :id "bd-42" :title "T"
+                      :notes "old notes")))
+    (let ((cmd (beads-command-update :issue-ids '("bd-42")
+                                      :notes "new notes")))
+      (let ((changes (beads-update--get-changed-fields cmd)))
+        (should (= (length changes) 1))
+        (should (equal (car changes) '(notes . "new notes")))))))
+
+(ert-deftest beads-update-test-collect-changes-assignee ()
+  "Test get-changed-fields detects changed assignee."
+  :tags '(:unit)
+  (let ((beads-update--original-data
+         (beads-issue :id "bd-42" :title "T"
+                      :assignee "old-user")))
+    (let ((cmd (beads-command-update :issue-ids '("bd-42")
+                                      :assignee "new-user")))
+      (let ((changes (beads-update--get-changed-fields cmd)))
+        (should (= (length changes) 1))
+        (should (equal (car changes) '(assignee . "new-user")))))))
+
+(ert-deftest beads-update-test-collect-changes-external-ref ()
+  "Test get-changed-fields detects changed external-ref."
+  :tags '(:unit)
+  (let ((beads-update--original-data
+         (beads-issue :id "bd-42" :title "T"
+                      :external-ref "gh-100")))
+    (let ((cmd (beads-command-update :issue-ids '("bd-42")
+                                      :external-ref "gh-200")))
+      (let ((changes (beads-update--get-changed-fields cmd)))
+        (should (= (length changes) 1))
+        (should (equal (car changes) '(external-ref . "gh-200")))))))
+
+(ert-deftest beads-update-test-collect-changes-multiple-text-fields ()
+  "Test get-changed-fields detects multiple text field changes at once."
+  :tags '(:unit)
+  (let ((beads-update--original-data
+         (beads-issue :id "bd-42" :title "T"
+                      :acceptance-criteria "old AC"
+                      :design "old design"
+                      :notes "old notes"
+                      :assignee "old-user"
+                      :external-ref "gh-100")))
+    (let ((cmd (beads-command-update :issue-ids '("bd-42")
+                                      :acceptance "new AC"
+                                      :design "new design"
+                                      :notes "new notes"
+                                      :assignee "new-user"
+                                      :external-ref "gh-200")))
+      (let ((changes (beads-update--get-changed-fields cmd)))
+        (should (= (length changes) 5))
+        (should (assoc 'acceptance changes))
+        (should (assoc 'design changes))
+        (should (assoc 'notes changes))
+        (should (assoc 'assignee changes))
+        (should (assoc 'external-ref changes))))))
+
+(ert-deftest beads-update-test-collect-changes-same-values-no-change ()
+  "Test get-changed-fields ignores fields set to their original values."
+  :tags '(:unit)
+  (let ((beads-update--original-data
+         (beads-issue :id "bd-42" :title "T"
+                      :acceptance-criteria "same AC"
+                      :design "same design"
+                      :notes "same notes"
+                      :assignee "same-user"
+                      :external-ref "gh-100")))
+    (let ((cmd (beads-command-update :issue-ids '("bd-42")
+                                      :acceptance "same AC"
+                                      :design "same design"
+                                      :notes "same notes"
+                                      :assignee "same-user"
+                                      :external-ref "gh-100")))
+      (should (null (beads-update--get-changed-fields cmd))))))
+
+;;; Tests for beads-command-parse unexpected JSON structure (lines 532-536)
+
+(ert-deftest beads-update-test-parse-json-unexpected-structure ()
+  "Test parse signals beads-json-parse-error on non-vector JSON."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-update :json t :issue-ids '("bd-42")
+                                     :status "open"))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                ;; Return a JSON object (not an array), which will
+                ;; parse as an alist, not a vector
+                :stdout "{\"id\":\"bd-42\",\"title\":\"Test\"}"
+                :stderr "")))
+    (should-error (beads-command-parse cmd exec)
+                  :type 'beads-json-parse-error)))
+
 (provide 'beads-update-test)
 ;;; beads-update-test.el ends here

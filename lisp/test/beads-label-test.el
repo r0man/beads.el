@@ -667,5 +667,324 @@
       (should message-output)
       (should (string-match-p "label" message-output)))))
 
+;;; Tests for label-add validation
+
+(ert-deftest beads-label-test-add-validate-no-issue ()
+  "Test label-add validation fails without issue IDs."
+  :tags '(:unit)
+  (let ((cmd (beads-command-label-add :label "bug")))
+    (should (beads-command-validate cmd))
+    (should (string-match-p "issue" (beads-command-validate cmd)))))
+
+(ert-deftest beads-label-test-add-validate-no-label ()
+  "Test label-add validation fails without label."
+  :tags '(:unit)
+  (let ((cmd (beads-command-label-add :issue-ids '("bd-1"))))
+    (should (beads-command-validate cmd))
+    (should (string-match-p "label" (beads-command-validate cmd)))))
+
+(ert-deftest beads-label-test-add-validate-empty-label ()
+  "Test label-add validation fails with empty label."
+  :tags '(:unit)
+  (let ((cmd (beads-command-label-add :issue-ids '("bd-1") :label "")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-label-test-add-validate-valid ()
+  "Test label-add validation passes with valid args."
+  :tags '(:unit)
+  (let ((cmd (beads-command-label-add :issue-ids '("bd-1") :label "bug")))
+    (should (null (beads-command-validate cmd)))))
+
+(ert-deftest beads-label-test-add-validate-non-string-ids ()
+  "Test label-add validation fails with non-string issue IDs."
+  :tags '(:unit)
+  (let ((cmd (beads-command-label-add :issue-ids '("bd-1" 42) :label "bug")))
+    (should (beads-command-validate cmd))))
+
+;;; Tests for label-remove validation
+
+(ert-deftest beads-label-test-remove-validate-no-issue ()
+  "Test label-remove validation fails without issue IDs."
+  :tags '(:unit)
+  (let ((cmd (beads-command-label-remove :label "bug")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-label-test-remove-validate-no-label ()
+  "Test label-remove validation fails without label."
+  :tags '(:unit)
+  (let ((cmd (beads-command-label-remove :issue-ids '("bd-1"))))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-label-test-remove-validate-valid ()
+  "Test label-remove validation passes with valid args."
+  :tags '(:unit)
+  (let ((cmd (beads-command-label-remove :issue-ids '("bd-1") :label "bug")))
+    (should (null (beads-command-validate cmd)))))
+
+;;; Tests for label-add execute-interactive
+
+(ert-deftest beads-label-test-add-execute-interactive ()
+  "Test label-add execute-interactive calls execute and messages."
+  :tags '(:unit)
+  (let ((cmd (beads-command-label-add :issue-ids '("bd-1") :label "bug"))
+        (exec-called nil))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (c)
+                 (setq exec-called t)
+                 (beads-command-execution :command c :exit-code 0
+                                          :stdout "" :stderr "")))
+              ((symbol-function 'beads--invalidate-completion-cache)
+               #'ignore))
+      (beads-command-execute-interactive cmd)
+      (should exec-called))))
+
+;;; Tests for label-remove execute-interactive
+
+(ert-deftest beads-label-test-remove-execute-interactive ()
+  "Test label-remove execute-interactive calls execute and messages."
+  :tags '(:unit)
+  (let ((cmd (beads-command-label-remove :issue-ids '("bd-1") :label "bug"))
+        (exec-called nil))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (c)
+                 (setq exec-called t)
+                 (beads-command-execution :command c :exit-code 0
+                                          :stdout "" :stderr "")))
+              ((symbol-function 'beads--invalidate-completion-cache)
+               #'ignore))
+      (beads-command-execute-interactive cmd)
+      (should exec-called))))
+
+;;; Tests for label-list command
+
+(ert-deftest beads-label-test-list-class-exists ()
+  "Test label-list class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-label-list)))
+
+(ert-deftest beads-label-test-list-subcommand ()
+  "Test label-list subcommand."
+  :tags '(:unit)
+  (let ((cmd (beads-command-label-list)))
+    (should (string= (beads-command-subcommand cmd) "label list"))))
+
+(ert-deftest beads-label-test-list-command-line ()
+  "Test label-list command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-label-list :issue-id "bd-1" :json t))
+         (args (beads-command-line cmd)))
+    (should (member "label" args))
+    (should (member "list" args))
+    (should (member "--json" args))
+    (should (member "bd-1" args))))
+
+;;; Tests for beads-command-label-list validate (lines 251-254)
+
+(ert-deftest beads-label-test-list-validate-no-issue-id ()
+  "Test label-list validate fails when issue-id is nil."
+  :tags '(:unit)
+  (let ((cmd (beads-command-label-list :issue-id nil)))
+    (should (equal (beads-command-validate cmd) "Must provide issue ID"))))
+
+(ert-deftest beads-label-test-list-validate-empty-issue-id ()
+  "Test label-list validate fails when issue-id is empty string."
+  :tags '(:unit)
+  (let ((cmd (beads-command-label-list :issue-id "")))
+    (should (equal (beads-command-validate cmd) "Must provide issue ID"))))
+
+(ert-deftest beads-label-test-list-validate-valid-issue-id ()
+  "Test label-list validate passes with a valid issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-label-list :issue-id "bd-42")))
+    (should (null (beads-command-validate cmd)))))
+
+;;; Tests for label-add execute in list-mode context (lines 431-434)
+
+(ert-deftest beads-label-test-add-execute-refreshes-list-buffer ()
+  "Test that label-add execute refreshes beads-list buffer."
+  :tags '(:unit)
+  (let ((list-refreshed nil)
+        (message-output nil))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_prefix)
+                 '("--issue-ids=bd-1" "--label=bug")))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd) nil))
+              ((symbol-function 'beads--invalidate-label-cache)
+               #'ignore)
+              ((symbol-function 'beads--invalidate-completion-cache)
+               #'ignore)
+              ((symbol-function 'beads-list-refresh)
+               (lambda (_force) (setq list-refreshed t)))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-output (apply #'format fmt args)))))
+      (with-temp-buffer
+        (beads-list-mode)
+        (setq-local beads-list--command 'list)
+        (beads-label-add--execute)
+        (should list-refreshed)))))
+
+(ert-deftest beads-label-test-add-execute-refreshes-show-buffer ()
+  "Test that label-add execute refreshes beads-show buffer."
+  :tags '(:unit)
+  (let ((show-refreshed nil)
+        (message-output nil))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_prefix)
+                 '("--issue-ids=bd-1" "--label=bug")))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd) nil))
+              ((symbol-function 'beads--invalidate-label-cache)
+               #'ignore)
+              ((symbol-function 'beads--invalidate-completion-cache)
+               #'ignore)
+              ((symbol-function 'beads-refresh-show)
+               (lambda () (setq show-refreshed t)))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-output (apply #'format fmt args)))))
+      (with-temp-buffer
+        (beads-show-mode)
+        (beads-label-add--execute)
+        (should show-refreshed)))))
+
+;;; Tests for label-remove execute in list/show context (lines 546-555)
+
+(ert-deftest beads-label-test-remove-execute-refreshes-list-buffer ()
+  "Test that label-remove execute refreshes beads-list buffer."
+  :tags '(:unit)
+  (let ((list-refreshed nil)
+        (message-output nil))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_prefix)
+                 '("--issue-ids=bd-1" "--label=bug")))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd) nil))
+              ((symbol-function 'beads--invalidate-label-cache)
+               #'ignore)
+              ((symbol-function 'beads--invalidate-completion-cache)
+               #'ignore)
+              ((symbol-function 'beads-list-refresh)
+               (lambda (_force) (setq list-refreshed t)))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-output (apply #'format fmt args)))))
+      (with-temp-buffer
+        (beads-list-mode)
+        (setq-local beads-list--command 'list)
+        (beads-label-remove--execute)
+        (should list-refreshed)))))
+
+(ert-deftest beads-label-test-remove-execute-refreshes-show-buffer ()
+  "Test that label-remove execute refreshes beads-show buffer."
+  :tags '(:unit)
+  (let ((show-refreshed nil)
+        (message-output nil))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_prefix)
+                 '("--issue-ids=bd-1" "--label=bug")))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd) nil))
+              ((symbol-function 'beads--invalidate-label-cache)
+               #'ignore)
+              ((symbol-function 'beads--invalidate-completion-cache)
+               #'ignore)
+              ((symbol-function 'beads-refresh-show)
+               (lambda () (setq show-refreshed t)))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-output (apply #'format fmt args)))))
+      (with-temp-buffer
+        (beads-show-mode)
+        (beads-label-remove--execute)
+        (should show-refreshed)))))
+
+(ert-deftest beads-label-test-remove-execute-command-error ()
+  "Test that label-remove execute handles command errors gracefully."
+  :tags '(:unit)
+  (let ((message-output nil))
+    (cl-letf (((symbol-function 'transient-args)
+               (lambda (_prefix)
+                 '("--issue-ids=bd-1" "--label=bug")))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd) (error "Command failed")))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-output (apply #'format fmt args)))))
+      (let ((result (beads-label-remove--execute)))
+        (should (stringp result))
+        (should (string-match-p "Failed to remove label" result))))))
+
+;;; Tests for beads-label-list and beads-label-list-interactive (lines 595-610)
+
+(ert-deftest beads-label-test-label-list-calls-execute ()
+  "Test beads-label-list creates command and calls execute."
+  :tags '(:unit)
+  (let ((exec-cmd nil))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (cmd)
+                 (setq exec-cmd cmd)
+                 (beads-command-execution
+                  :command cmd :exit-code 0
+                  :stdout "" :stderr ""))))
+      (beads-label-list "bd-42")
+      (should exec-cmd)
+      (should (beads-command-label-list-p exec-cmd))
+      (should (equal (oref exec-cmd issue-id) "bd-42")))))
+
+(ert-deftest beads-label-test-label-list-interactive-with-labels ()
+  "Test beads-label-list-interactive shows labels when present."
+  :tags '(:unit)
+  (let ((message-output nil))
+    (cl-letf (((symbol-function 'beads-label-list)
+               (lambda (_id) '("bug" "feature" "docs")))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-output (apply #'format fmt args)))))
+      (beads-label-list-interactive "bd-42")
+      (should message-output)
+      (should (string-match-p "Labels for bd-42" message-output))
+      (should (string-match-p "bug" message-output))
+      (should (string-match-p "feature" message-output))
+      (should (string-match-p "docs" message-output)))))
+
+(ert-deftest beads-label-test-label-list-interactive-no-labels ()
+  "Test beads-label-list-interactive shows message when no labels."
+  :tags '(:unit)
+  (let ((message-output nil))
+    (cl-letf (((symbol-function 'beads-label-list)
+               (lambda (_id) nil))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-output (apply #'format fmt args)))))
+      (beads-label-list-interactive "bd-42")
+      (should message-output)
+      (should (string-match-p "No labels for bd-42" message-output)))))
+
+;;; Tests for beads-label-list-all-show-issues no-issues branch (lines 636-643)
+
+(ert-deftest beads-label-test-show-issues-no-results ()
+  "Test show-issues displays empty state when no issues match label."
+  :tags '(:unit)
+  (beads-label-test--with-mock-project
+   (lambda ()
+     (let ((expected-buf-name (beads-buffer-name-list
+                               nil "label=nonexistent")))
+       (cl-letf (((symbol-function 'tabulated-list-get-id)
+                  (lambda () "nonexistent"))
+                 ((symbol-function 'beads-command-execute)
+                  (lambda (_cmd) nil))
+                 ((symbol-function 'pop-to-buffer)
+                  (lambda (_buffer) nil)))
+         (let ((default-directory "/tmp/"))
+           (beads-label-list-all-show-issues)
+           ;; Should create buffer
+           (should (get-buffer expected-buf-name))
+           ;; Buffer should have empty entries
+           (with-current-buffer expected-buf-name
+             (should (null tabulated-list-entries)))
+           (kill-buffer expected-buf-name)))))))
+
 (provide 'beads-label-test)
 ;;; beads-label-test.el ends here

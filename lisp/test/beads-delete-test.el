@@ -839,5 +839,211 @@ Tests handling when beads is not initialized."
       ;; Buffer should be killed by unwind-protect even on cancel
       (should-not (buffer-live-p preview-buffer)))))
 
+;;; Tests for beads-command-delete Parse Method
+
+(ert-deftest beads-delete-test-parse-json-single-deleted ()
+  "Test parse method with single deletion response."
+  (let* ((cmd (beads-command-delete :issue-ids '("bd-42") :json t))
+         (json-string (json-encode '((deleted . "bd-42")
+                                      (dependencies_removed . 2)
+                                      (references_updated . 1))))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout json-string
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
+      (should (consp result))
+      (should (equal (alist-get 'deleted result) "bd-42"))
+      (should (= (alist-get 'dependencies_removed result) 2)))))
+
+(ert-deftest beads-delete-test-parse-json-batch-deleted ()
+  "Test parse method with batch deletion response."
+  (let* ((cmd (beads-command-delete :issue-ids '("bd-42" "bd-43") :json t))
+         (json-string (json-encode '((deleted . ("bd-42" "bd-43"))
+                                      (deleted_count . 2))))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout json-string
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
+      (should (consp result))
+      (should (alist-get 'deleted result)))))
+
+(ert-deftest beads-delete-test-parse-json-daemon-rpc-format ()
+  "Test parse method with daemon RPC response."
+  (let* ((cmd (beads-command-delete :issue-ids '("bd-42") :json t))
+         (json-string (json-encode '((deleted_count . 1)
+                                      (total_count . 1))))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout json-string
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
+      (should (consp result))
+      (should (= (alist-get 'deleted_count result) 1)))))
+
+(ert-deftest beads-delete-test-parse-json-vector-result ()
+  "Test parse method with vector result."
+  (let* ((cmd (beads-command-delete :issue-ids '("bd-42" "bd-43") :json t))
+         (json-string (json-encode (vector '((id . "bd-42"))
+                                           '((id . "bd-43")))))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout json-string
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
+      (should (listp result))
+      (should (= (length result) 2)))))
+
+(ert-deftest beads-delete-test-parse-json-legacy-format ()
+  "Test parse method with legacy id format."
+  (let* ((cmd (beads-command-delete :issue-ids '("bd-42") :json t))
+         (json-string (json-encode '((id . "bd-42"))))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout json-string
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
+      (should (consp result))
+      (should (equal (alist-get 'id result) "bd-42")))))
+
+(ert-deftest beads-delete-test-parse-json-nil-result ()
+  "Test parse method with null JSON."
+  (let* ((cmd (beads-command-delete :issue-ids '("bd-42") :json t))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout "null"
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
+      (should (null result)))))
+
+(ert-deftest beads-delete-test-parse-json-disabled ()
+  "Test parse method with :json nil."
+  (let* ((cmd (beads-command-delete :issue-ids '("bd-42") :json nil))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout "Deleted bd-42"
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
+      (should (stringp result)))))
+
+(ert-deftest beads-delete-test-parse-json-unexpected-structure ()
+  "Test parse method signals error on unexpected JSON."
+  (let* ((cmd (beads-command-delete :issue-ids '("bd-42") :json t))
+         (json-string (json-encode '((unexpected_field . "value"))))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout json-string
+                :stderr "")))
+    (should-error (beads-command-parse cmd exec)
+                  :type 'beads-json-parse-error)))
+
+;;; Tests for beads-command-delete Validation
+
+(ert-deftest beads-delete-test-validate-missing-all ()
+  "Test validation fails when no issue-ids or from-file."
+  (let ((cmd (beads-command-delete)))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-delete-test-validate-with-from-file ()
+  "Test validation passes with from-file."
+  (let ((cmd (beads-command-delete :from-file "/tmp/issues.txt")))
+    (should (null (beads-command-validate cmd)))))
+
+(ert-deftest beads-delete-test-validate-non-string-list ()
+  "Test validation fails with non-string elements in issue-ids."
+  (let ((cmd (beads-command-delete :issue-ids '("bd-42" 123))))
+    (should (beads-command-validate cmd))))
+
+;;; Tests for beads-delete--show-preview
+
+(ert-deftest beads-delete-test-show-preview ()
+  "Test show-preview creates buffer with preview text."
+  (let ((buf nil))
+    (unwind-protect
+        (progn
+          (setq buf (beads-delete--show-preview "bd-42" "Preview: bd-42 will be deleted"))
+          (should (bufferp buf))
+          (with-current-buffer buf
+            (should (string-match-p "Preview" (buffer-string)))
+            (should buffer-read-only)))
+      (when (and buf (buffer-live-p buf))
+        (kill-buffer buf)))))
+
+;;; Tests for beads-delete--execute-deletion
+
+(ert-deftest beads-delete-test-execute-deletion ()
+  "Test execute-deletion calls delete with force."
+  (let ((deleted nil))
+    (cl-letf (((symbol-function 'beads-command-delete!)
+               (lambda (&rest args)
+                 (setq deleted args)
+                 nil))
+              ((symbol-function 'beads--invalidate-completion-cache)
+               #'ignore)
+              ((symbol-function 'beads-buffer-name-find-show-buffers)
+               (lambda (&rest _) nil)))
+      (let ((beads-auto-refresh nil))
+        (beads-delete--execute-deletion "bd-42")
+        (should deleted)
+        (should (equal (plist-get deleted :force) t))))))
+
+;;; Tests for beads-delete interactive flow
+
+(ert-deftest beads-delete-test-delete-confirmed ()
+  "Test beads-delete executes when confirmed."
+  (let ((deleted nil))
+    (cl-letf (((symbol-function 'beads-check-executable) #'ignore)
+              ((symbol-function 'beads-delete--get-preview)
+               (lambda (_id) "Preview text"))
+              ((symbol-function 'beads-delete--show-preview)
+               (lambda (_id _text)
+                 (get-buffer-create "*test-preview*")))
+              ((symbol-function 'pop-to-buffer) #'ignore)
+              ((symbol-function 'yes-or-no-p)
+               (lambda (_prompt) t))
+              ((symbol-function 'beads-delete--execute-deletion)
+               (lambda (id) (setq deleted id))))
+      (beads-delete "bd-42")
+      (should (equal deleted "bd-42"))
+      (when-let ((buf (get-buffer "*test-preview*")))
+        (kill-buffer buf)))))
+
+(ert-deftest beads-delete-test-delete-cancelled ()
+  "Test beads-delete cancels when not confirmed."
+  (let ((deleted nil))
+    (cl-letf (((symbol-function 'beads-check-executable) #'ignore)
+              ((symbol-function 'beads-delete--get-preview)
+               (lambda (_id) "Preview text"))
+              ((symbol-function 'beads-delete--show-preview)
+               (lambda (_id _text)
+                 (get-buffer-create "*test-preview*")))
+              ((symbol-function 'pop-to-buffer) #'ignore)
+              ((symbol-function 'yes-or-no-p)
+               (lambda (_prompt) nil))
+              ((symbol-function 'beads-delete--execute-deletion)
+               (lambda (id) (setq deleted id))))
+      (beads-delete "bd-42")
+      (should (null deleted))
+      (when-let ((buf (get-buffer "*test-preview*")))
+        (kill-buffer buf)))))
+
+(ert-deftest beads-delete-test-delete-error ()
+  "Test beads-delete handles errors."
+  (cl-letf (((symbol-function 'beads-check-executable) #'ignore)
+            ((symbol-function 'beads-delete--get-preview)
+             (lambda (_id) (error "Connection failed"))))
+    (beads-delete "bd-42")
+    ;; Should not signal, just message
+    (should t)))
+
 (provide 'beads-delete-test)
 ;;; beads-delete-test.el ends here

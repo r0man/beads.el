@@ -1058,5 +1058,170 @@
       (beads-reader-worktree-existing nil nil nil)
       (should require-match-arg))))
 
+;;; Create Reader Tests
+
+(ert-deftest beads-reader-test-create-repo-reads-string ()
+  "Test reading repository name."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (prompt &rest _args)
+               (should (string-match-p "repository" (downcase prompt)))
+               "my-org/my-repo")))
+    (let ((result (beads-reader-create-repo nil nil nil)))
+      (should (equal result "my-org/my-repo")))))
+
+(ert-deftest beads-reader-test-create-from-template-choices ()
+  "Test reading template name."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (_prompt collection &rest _args)
+               (should (member "epic" collection))
+               (should (member "bug" collection))
+               (should (member "feature" collection))
+               "epic")))
+    (let ((result (beads-reader-create-from-template nil nil nil)))
+      (should (equal result "epic")))))
+
+(ert-deftest beads-reader-test-create-file-path ()
+  "Test reading file path."
+  (cl-letf (((symbol-function 'read-file-name)
+             (lambda (_prompt &rest _args) "/tmp/issues.md")))
+    (let ((result (beads-reader-create-file nil nil nil)))
+      (should (equal result "/tmp/issues.md")))))
+
+;;; Update Reader Tests
+
+(ert-deftest beads-reader-test-update-status-choices ()
+  "Test reading update status."
+  (let ((beads-update--status "open"))
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (_prompt collection &rest _args)
+                 (should (member "open" collection))
+                 (should (member "blocked" collection))
+                 "in_progress")))
+      (let ((result (beads-reader-update-status nil nil nil)))
+        (should (equal result "in_progress"))))))
+
+(ert-deftest beads-reader-test-update-type ()
+  "Test reading update type."
+  (let ((beads-update--type nil))
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (_prompt collection &rest _args)
+                 (should (member "bug" collection))
+                 (should (member "feature" collection))
+                 "task")))
+      (let ((result (beads-reader-update-type nil nil nil)))
+        (should (equal result "task"))))))
+
+(ert-deftest beads-reader-test-update-title ()
+  "Test reading update title."
+  (let ((beads-update--title "old title"))
+    (cl-letf (((symbol-function 'read-string)
+               (lambda (_prompt initial &rest _args)
+                 (should (equal initial "old title"))
+                 "new title")))
+      (let ((result (beads-reader-update-title nil nil nil)))
+        (should (equal result "new title"))))))
+
+(ert-deftest beads-reader-test-update-assignee ()
+  "Test reading update assignee."
+  (let ((beads-update--assignee "alice"))
+    (cl-letf (((symbol-function 'read-string)
+               (lambda (_prompt initial &rest _args)
+                 (should (equal initial "alice"))
+                 "bob")))
+      (let ((result (beads-reader-update-assignee nil nil nil)))
+        (should (equal result "bob"))))))
+
+(ert-deftest beads-reader-test-update-external-ref ()
+  "Test reading update external reference."
+  (let ((beads-update--external-ref "gh-5"))
+    (cl-letf (((symbol-function 'read-string)
+               (lambda (_prompt initial &rest _args)
+                 (should (equal initial "gh-5"))
+                 "jira-ABC")))
+      (let ((result (beads-reader-update-external-ref nil nil nil)))
+        (should (equal result "jira-ABC"))))))
+
+;;; Close/Reopen/Edit Reader Tests
+
+(ert-deftest beads-reader-test-close-issue-id-prompt ()
+  "Test reading issue ID to close."
+  (let ((beads-close--issue-id "bd-5"))
+    (cl-letf (((symbol-function 'beads-completion-read-issue)
+               (lambda (prompt &rest _args)
+                 (should (string-match-p "close" (downcase prompt)))
+                 "bd-5")))
+      (let ((result (beads-reader-close-issue-id nil nil nil)))
+        (should (equal result "bd-5"))))))
+
+(ert-deftest beads-reader-test-reopen-issue-id-prompt ()
+  "Test reading issue ID to reopen."
+  (let ((beads-reopen--issue-id "bd-10"))
+    (cl-letf (((symbol-function 'beads-completion-read-issue)
+               (lambda (prompt &rest _args)
+                 (should (string-match-p "reopen" (downcase prompt)))
+                 "bd-10")))
+      (let ((result (beads-reader-reopen-issue-id nil nil nil)))
+        (should (equal result "bd-10"))))))
+
+(ert-deftest beads-reader-test-edit-issue-id ()
+  "Test reading issue ID to edit."
+  (let ((beads-edit--issue-id "bd-7"))
+    (cl-letf (((symbol-function 'beads-completion-read-issue)
+               (lambda (prompt &rest _args)
+                 (should (string-match-p "edit" (downcase prompt)))
+                 "bd-7")))
+      (let ((result (beads-reader-edit-issue-id nil nil nil)))
+        (should (equal result "bd-7"))))))
+
+;;; Move Reader Tests
+
+(ert-deftest beads-reader-test-move-detect-issue-id-none ()
+  "Test move detect returns nil in non-beads buffer."
+  (with-temp-buffer
+    (fundamental-mode)
+    (should (null (beads-reader-move--detect-issue-id)))))
+
+(ert-deftest beads-reader-test-move-issue-id-with-detection ()
+  "Test move issue ID reader uses detected ID."
+  (let ((beads-move--issue-id nil))
+    (cl-letf (((symbol-function 'beads-reader-move--detect-issue-id)
+               (lambda () "bd-99")))
+      (let ((result (beads-reader-move-issue-id nil nil nil)))
+        (should (equal result "bd-99"))))))
+
+(ert-deftest beads-reader-test-move-issue-id-without-detection ()
+  "Test move issue ID reader falls back to completion."
+  (let ((beads-move--issue-id nil))
+    (cl-letf (((symbol-function 'beads-reader-move--detect-issue-id)
+               (lambda () nil))
+              ((symbol-function 'beads-completion-read-issue)
+               (lambda (_prompt &rest _args) "bd-50")))
+      (let ((result (beads-reader-move-issue-id nil nil nil)))
+        (should (equal result "bd-50"))))))
+
+;;; Dep Reader Tests
+
+(ert-deftest beads-reader-test-dep-add-type-choices ()
+  "Test reading dependency type."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (prompt collection &rest _args)
+               (should (member "blocks" collection))
+               (should (member "related" collection))
+               (should (member "parent-child" collection))
+               "blocks")))
+    (let ((result (beads-reader-dep-add-type "Type: " nil nil)))
+      (should (equal result "blocks")))))
+
+;;; Sync Reader Tests
+
+(ert-deftest beads-reader-test-sync-message-prompt ()
+  "Test reading sync commit message."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (prompt &rest _args)
+               (should (string-match-p "Commit" prompt))
+               "sync data")))
+    (let ((result (beads-reader-sync-message nil nil nil)))
+      (should (equal result "sync data")))))
+
 (provide 'beads-reader-test)
 ;;; beads-reader-test.el ends here
