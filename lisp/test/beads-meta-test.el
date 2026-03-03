@@ -1632,5 +1632,61 @@ correctly wrapped, avoiding slot type validation errors."
          (cmd (beads-meta-test-positional-rest--parse-transient-args args)))
     (should (null (oref cmd issue-ids)))))
 
+;;; ============================================================
+;;; Tests for autoload generation
+;;; ============================================================
+
+(ert-deftest beads-meta-define-transient-generates-autoload ()
+  "Test that beads-meta-define-transient includes an autoload form.
+When the class is available, the expansion should contain an autoload
+form for the transient prefix command."
+  (let* ((load-file-name "/path/to/beads-command-test-autoload.el")
+         (expansion (macroexpand-1
+                     '(beads-meta-define-transient
+                       beads-meta-test-child "beads-test-child"
+                       "Test transient."
+                       nil))))
+    ;; Should expand to a progn
+    (should (eq 'progn (car expansion)))
+    ;; First form should be an autoload
+    (let ((autoload-form (cadr expansion)))
+      (should (eq 'autoload (car autoload-form)))
+      ;; The symbol is quoted: (autoload 'sym ...) => (autoload (quote sym) ...)
+      (should (equal '(quote beads-test-child) (cadr autoload-form)))
+      (should (equal "beads-command-test-autoload"
+                     (caddr autoload-form))))))
+
+(ert-deftest beads-meta-define-transient-autoload-graceful-fallback ()
+  "Test graceful fallback when class is not defined.
+During autoload generation, the class may not exist.  The macro
+should emit only the autoload form."
+  (let* ((load-file-name "/path/to/beads-command-phantom.el")
+         (expansion (macroexpand-1
+                     '(beads-meta-define-transient
+                       beads-nonexistent-class "beads-phantom"
+                       "Phantom transient."
+                       nil))))
+    ;; Should produce just an autoload form (not a progn)
+    (should (eq 'autoload (car expansion)))
+    (should (equal '(quote beads-phantom) (cadr expansion)))
+    (should (equal "beads-command-phantom" (caddr expansion)))))
+
+(ert-deftest beads-meta-current-feature-name ()
+  "Test that beads--current-feature-name derives the feature name."
+  ;; With load-file-name
+  (let ((load-file-name "/home/user/project/lisp/beads-command-close.el"))
+    (should (equal "beads-command-close"
+                   (beads--current-feature-name))))
+  ;; With byte-compile-current-file
+  (let ((load-file-name nil)
+        (byte-compile-current-file "/home/user/project/lisp/beads-foo.el"))
+    (should (equal "beads-foo"
+                   (beads--current-feature-name))))
+  ;; With no file context
+  (let ((load-file-name nil)
+        (byte-compile-current-file nil)
+        (buffer-file-name nil))
+    (should (null (beads--current-feature-name)))))
+
 (provide 'beads-meta-test)
 ;;; beads-meta-test.el ends here
