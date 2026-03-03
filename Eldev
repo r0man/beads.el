@@ -131,6 +131,17 @@ ORIG-FN is the original function, STATS is the test statistics."
 (eldev-add-loading-roots 'test "lisp")
 (eldev-add-loading-roots 'test "lisp/test")
 
+;; Ensure beads macros are available during autoload generation.
+;; This allows ;;;###autoload before beads-defcommand and
+;; beads-meta-define-transient to work correctly — the autoload
+;; generator can macroexpand the forms and extract autoload stubs
+;; from the expansion.
+(advice-add 'loaddefs-generate :before
+            (lambda (&rest _)
+              (let ((lisp-dir (expand-file-name "lisp" eldev-project-dir)))
+                (when (file-exists-p (expand-file-name "beads-meta.el" lisp-dir))
+                  (load (expand-file-name "beads-meta.el" lisp-dir) nil t)))))
+
 ;; Clean up shared test project Dolt database on exit.
 ;; The shared fixture persists for the test session to avoid
 ;; re-running `bd init' per test, but its Dolt database must

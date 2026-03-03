@@ -97,6 +97,20 @@
 (declare-function beads-command-execute-interactive "beads-command")
 (declare-function beads-command-preview "beads-command")
 
+;; Used at macroexpansion time by beads-meta-define-transient and
+;; beads-defcommand to derive the feature name for autoload forms.
+(eval-and-compile
+(defun beads--current-feature-name ()
+  "Return the feature name of the file currently being processed.
+Works during byte compilation, autoload generation, and normal loading.
+Returns a string like \"beads-command-close\" suitable for `autoload'."
+  (let ((file (or load-file-name
+                  (bound-and-true-p byte-compile-current-file)
+                  buffer-file-name)))
+    (when file
+      (file-name-sans-extension
+       (file-name-nondirectory file))))))
+
 ;;; ============================================================
 ;;; Custom Slot Properties List
 ;;; ============================================================
@@ -1182,60 +1196,64 @@ This macro generates everything needed for a transient menu:
 2. All groups organized by :transient-group
 3. Standard suffixes (execute, preview, reset) using generic methods
 4. The prefix combining all groups plus actions
+5. An `autoload' form for the prefix command
 
 The generated suffixes call generic methods from beads-command.el:
 - Execute calls `beads-command-execute-interactive' (override per class)
 - Preview calls `beads-command-preview' (override per class)
 - Reset calls `transient-reset'
 
-IMPORTANT: Autoload cookies must be added manually.  Since this macro
-generates a `transient-define-prefix' form, the autoload machinery
-cannot automatically generate the autoload stub.  You MUST add an
-explicit autoload cookie before the macro call:
+The macro automatically generates an `autoload' form for the
+transient prefix command.  Manual autoload cookies are no longer
+required — a simple ;;;###autoload before the macro call suffices:
 
-  ;;;###autoload (autoload \\='beads-foo \"beads-foo\" nil t)
+  ;;;###autoload
   (beads-meta-define-transient beads-command-foo \"beads-foo\"
     \"Do something with foo.\"
     beads-option-global-section)
 
-The autoload form parameters are:
-  - Symbol name (must match PREFIX)
-  - File name (without .el extension)
-  - nil (docstring will be loaded from the actual definition)
-  - t (marks function as interactive)
-
-Example (complete):
-  ;;;###autoload (autoload \\='beads-create \"beads-create\" nil t)
-  (beads-meta-define-transient beads-command-create \"beads-create\"
-    \"Create a new issue.\"
-    beads-option-global-section)
+During autoload generation, if the class is not yet defined, the
+macro gracefully emits only the autoload form.
 
 This replaces ~100 lines of manual infix/group/suffix definitions
 with a single macro call."
-  (let* ((class-val (eval class))
-         (prefix-val (eval prefix))
-         (group-specs (beads-meta-generate-group-specs class-val prefix-val))
+  (let* ((prefix-val (eval prefix))
          (prefix-sym (intern prefix-val))
-         (execute-sym (intern (format "%s--execute" prefix-val)))
-         (preview-sym (intern (format "%s--preview" prefix-val)))
-         (reset-sym (intern (format "%s--reset" prefix-val))))
-    `(progn
-       ;; Define infixes from slot metadata
-       (beads-meta-define-infixes ,class ,prefix)
-       ;; Define groups
-       (beads-meta-define-groups ,class ,prefix)
-       ;; Define standard suffixes (execute, preview, reset)
-       (beads-meta-define-standard-suffixes ,class ,prefix)
-       ;; Define prefix
-       (transient-define-prefix ,prefix-sym ()
-         ,(or (eval docstring)
-              (format "Transient menu for %s." prefix-val))
-         ,@(mapcar (lambda (gs) (plist-get gs :name)) group-specs)
-         ,@(when global-section (list global-section))
-         ["Actions"
-          (,execute-sym)
-          (,preview-sym)
-          (,reset-sym)]))))
+         (autoload-file (beads--current-feature-name))
+         ;; Try to evaluate class — may fail during autoload generation
+         (class-val (condition-case nil (eval class) (error nil))))
+    (if class-val
+        ;; Full expansion: class is available (normal compile/load)
+        (let* ((group-specs (beads-meta-generate-group-specs
+                             class-val prefix-val))
+               (execute-sym (intern (format "%s--execute" prefix-val)))
+               (preview-sym (intern (format "%s--preview" prefix-val)))
+               (reset-sym (intern (format "%s--reset" prefix-val))))
+          `(progn
+             ;; Autoload for the generated transient command
+             ,@(when autoload-file
+                 `((autoload ',prefix-sym ,autoload-file nil t)))
+             ;; Define infixes from slot metadata
+             (beads-meta-define-infixes ,class ,prefix)
+             ;; Define groups
+             (beads-meta-define-groups ,class ,prefix)
+             ;; Define standard suffixes (execute, preview, reset)
+             (beads-meta-define-standard-suffixes ,class ,prefix)
+             ;; Define prefix
+             (transient-define-prefix ,prefix-sym ()
+               ,(or (eval docstring)
+                    (format "Transient menu for %s." prefix-val))
+               ,@(mapcar (lambda (gs) (plist-get gs :name)) group-specs)
+               ,@(when global-section (list global-section))
+               ["Actions"
+                (,execute-sym)
+                (,preview-sym)
+                (,reset-sym)])))
+      ;; Minimal expansion: class not available (autoload generation)
+      ;; Emit only the autoload stub so the autoload generator can
+      ;; extract it without needing the full class definition.
+      (when autoload-file
+        `(autoload ',prefix-sym ,autoload-file nil t)))))
 
 (provide 'beads-meta)
 ;;; beads-meta.el ends here
