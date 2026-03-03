@@ -24,7 +24,9 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-buffer)
 (require 'beads-command)
+(require 'beads-command-list)
 (require 'beads-meta)
 (require 'beads-option)
 (require 'beads-reader)
@@ -329,13 +331,56 @@ Format: YYYY-MM-DD or RFC3339."
     :order 6))
   :documentation "Represents bd search command.
 Full-text search across issues.
-When executed with :json t, returns matching issues as JSON.")
+When executed with :json t, returns matching issues as JSON."
+  :parse-as :issues)
 
 
 (cl-defmethod beads-command-validate ((_command beads-command-search))
   "Validate search COMMAND.
 No required fields, returns nil (valid)."
   nil)
+
+;;; Interactive Execution — display results in tabulated-list-mode
+
+(defvar-local beads-search--command-obj nil
+  "The beads-command-search object used to populate this search buffer.
+Used for refresh support.")
+
+(cl-defmethod beads-command-execute-interactive
+  ((cmd beads-command-search))
+  "Execute search CMD and display results in `beads-list-mode'.
+Runs with JSON enabled to parse results into beads-issue objects,
+then displays them in a tabulated list buffer."
+  ;; Force JSON on for structured output (override beads-command-json default)
+  (oset cmd json t)
+  (condition-case err
+      (let* ((caller-dir default-directory)
+             (project-dir (or (beads-git-find-project-root)
+                              default-directory))
+             (exec (beads-command-execute cmd))
+             (issue-objects (oref exec result))
+             (buffer (beads-list--get-or-create-buffer 'search)))
+        (with-current-buffer buffer
+          (unless (derived-mode-p 'beads-list-mode)
+            (beads-list-mode))
+          ;; Update directory-aware state
+          (setq beads-list--project-dir project-dir)
+          (setq beads-list--branch (beads-git-get-branch))
+          (setq beads-list--proj-name (beads-git-get-project-name))
+          (setq beads-search--command-obj cmd)
+          (setq default-directory caller-dir)
+          (if (not issue-objects)
+              (progn
+                (setq tabulated-list-entries nil)
+                (tabulated-list-print t)
+                (message "No issues found for search"))
+            (beads-list--populate-buffer issue-objects 'search)
+            (message "Found %d issue%s"
+                     (length issue-objects)
+                     (if (= (length issue-objects) 1) "" "s"))))
+        (beads-list--display-buffer buffer))
+    (error
+     (message "Search failed: %s" (error-message-string err)))))
 
 
 ;;; Transient Menu
