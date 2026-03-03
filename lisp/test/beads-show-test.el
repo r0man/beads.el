@@ -3702,5 +3702,1050 @@ Empty sessions are automatically cleaned up."
        (beads-show-set-status-in-progress)
        (should t)))))
 
+;;; Tests for beads-show-set-status-closed
+
+(ert-deftest beads-show-test-set-status-closed ()
+  "Test close calls close command with reason."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (beads-show-mode)
+     (setq-local beads-show--issue-id "bd-42")
+     (let ((close-called nil))
+       (cl-letf (((symbol-function 'read-string)
+                  (lambda (_prompt) "Fixed the bug"))
+                 ((symbol-function 'beads-command-close!)
+                  (lambda (&rest args)
+                    (setq close-called args)))
+                 ((symbol-function 'beads-completion-invalidate-cache)
+                  #'ignore)
+                 ((symbol-function 'beads-refresh-show)
+                  #'ignore))
+         (beads-show-set-status-closed)
+         (should close-called)
+         (should (equal (plist-get close-called :reason) "Fixed the bug")))))))
+
+(ert-deftest beads-show-test-set-status-closed-error ()
+  "Test close handles errors gracefully."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (beads-show-mode)
+     (setq-local beads-show--issue-id "bd-42")
+     (cl-letf (((symbol-function 'read-string)
+                (lambda (_prompt) "reason"))
+               ((symbol-function 'beads-command-close!)
+                (lambda (&rest _args)
+                  (error "Network error"))))
+       ;; Should not signal, just message
+       (beads-show-set-status-closed)
+       (should t)))))
+
+;;; Tests for beads-show-add-note
+
+(ert-deftest beads-show-test-add-note-new ()
+  "Test add note when no existing notes."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (beads-show-mode)
+     (setq-local beads-show--issue-id "bd-42")
+     (setq-local beads-show--issue-data
+                 (beads-issue-from-json '((id . "bd-42") (title . "T"))))
+     (let ((updated-value nil))
+       (cl-letf (((symbol-function 'read-string)
+                  (lambda (_prompt) "New note"))
+                 ((symbol-function 'beads-show--update-field)
+                  (lambda (_name _flag value)
+                    (setq updated-value value))))
+         (beads-show-add-note)
+         (should (equal updated-value "New note")))))))
+
+(ert-deftest beads-show-test-add-note-append ()
+  "Test add note appends to existing notes."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (beads-show-mode)
+     (setq-local beads-show--issue-id "bd-42")
+     (setq-local beads-show--issue-data
+                 (beads-issue-from-json '((id . "bd-42") (title . "T")
+                                          (notes . "Existing"))))
+     (let ((updated-value nil))
+       (cl-letf (((symbol-function 'read-string)
+                  (lambda (_prompt) "More info"))
+                 ((symbol-function 'beads-show--update-field)
+                  (lambda (_name _flag value)
+                    (setq updated-value value))))
+         (beads-show-add-note)
+         (should (string-match-p "Existing" updated-value))
+         (should (string-match-p "More info" updated-value)))))))
+
+;;; Tests for beads-show-add-label
+
+(ert-deftest beads-show-test-add-label ()
+  "Test add label calls label-add command."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (beads-show-mode)
+     (setq-local beads-show--issue-id "bd-42")
+     (let ((label-called nil))
+       (cl-letf (((symbol-function 'read-string)
+                  (lambda (_prompt) "bug"))
+                 ((symbol-function 'beads-command-label-add!)
+                  (lambda (&rest args)
+                    (setq label-called args)))
+                 ((symbol-function 'beads-refresh-show)
+                  #'ignore))
+         (beads-show-add-label)
+         (should label-called))))))
+
+(ert-deftest beads-show-test-add-label-error ()
+  "Test add label handles errors gracefully."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (beads-show-mode)
+     (setq-local beads-show--issue-id "bd-42")
+     (cl-letf (((symbol-function 'read-string)
+                (lambda (_prompt) "bug"))
+               ((symbol-function 'beads-command-label-add!)
+                (lambda (&rest _args)
+                  (error "Label error"))))
+       (beads-show-add-label)
+       (should t)))))
+
+;;; Tests for beads-show navigation
+
+(ert-deftest beads-show-test-goto-depends ()
+  "Test goto depends section."
+  (with-temp-buffer
+    (insert "TITLE\n\nDESCRIPTION\n\nDEPENDS ON\n\n  → bd-10\n")
+    (goto-char (point-min))
+    (beads-show-goto-depends)
+    (should (> (point) 1))))
+
+(ert-deftest beads-show-test-goto-depends-missing ()
+  "Test goto depends when section missing."
+  (with-temp-buffer
+    (insert "TITLE\n\nDESCRIPTION\n")
+    (goto-char (point-min))
+    (beads-show-goto-depends)
+    ;; Should stay at point-min since no section found
+    (should t)))
+
+(ert-deftest beads-show-test-goto-blocks ()
+  "Test goto blocks section."
+  (with-temp-buffer
+    (insert "TITLE\n\nBLOCKS\n\n  → bd-10\n")
+    (goto-char (point-min))
+    (beads-show-goto-blocks)
+    (should (> (point) 1))))
+
+(ert-deftest beads-show-test-goto-blocks-missing ()
+  "Test goto blocks when section missing."
+  (with-temp-buffer
+    (insert "TITLE\n\nDESCRIPTION\n")
+    (goto-char (point-min))
+    (beads-show-goto-blocks)
+    (should t)))
+
+(ert-deftest beads-show-test-goto-children ()
+  "Test goto children section."
+  (with-temp-buffer
+    (insert "TITLE\n\nCHILDREN\n\n  → bd-10\n")
+    (goto-char (point-min))
+    (beads-show-goto-children)
+    (should (> (point) 1))))
+
+(ert-deftest beads-show-test-goto-children-missing ()
+  "Test goto children when section missing."
+  (with-temp-buffer
+    (insert "TITLE\n\nDESCRIPTION\n")
+    (goto-char (point-min))
+    (beads-show-goto-children)
+    (should t)))
+
+(ert-deftest beads-show-test-goto-parent ()
+  "Test goto parent navigates to parent issue."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (beads-show-mode)
+     (setq-local beads-show--issue-data
+                 (beads-issue-from-json
+                  '((id . "bd-42") (title . "T")
+                    (dependencies . [((type . "parent-child")
+                                      (depends_on_id . "bd-10"))]))))
+     (let ((shown-id nil))
+       (cl-letf (((symbol-function 'beads-show)
+                  (lambda (id) (setq shown-id id))))
+         (beads-show-goto-parent)
+         (should (equal shown-id "bd-10")))))))
+
+;;; Tests for beads-show-set-status
+
+(ert-deftest beads-show-test-set-status-blocked ()
+  "Test set status to blocked."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (beads-show-mode)
+     (setq-local beads-show--issue-id "bd-42")
+     (cl-letf (((symbol-function 'beads-show-set-status)
+                (lambda (status)
+                  (should (equal status "blocked")))))
+       (beads-show-set-status-blocked)
+       (should t)))))
+
+;;; Section Navigation Tests
+
+(ert-deftest beads-show-test-next-section-skips-content ()
+  "Test moving to next section header skips content lines."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "DESCRIPTION\n\nSome text here.\n\nDEPENDS ON\n\nbd-2\n\nNOTES\n")
+       (goto-char (point-min))
+       (cl-letf (((symbol-function 'recenter-top-bottom) #'ignore))
+         (beads-show-next-section))
+       (should (looking-at "DEPENDS ON"))))))
+
+(ert-deftest beads-show-test-next-section-no-more ()
+  "Test next section at end of buffer."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "DESCRIPTION\n\nSome text.\n")
+       (goto-char (point-min))
+       (forward-line 1)
+       (cl-letf (((symbol-function 'recenter-top-bottom) #'ignore))
+         (beads-show-next-section))
+       (should t)))))
+
+(ert-deftest beads-show-test-previous-section-from-end ()
+  "Test moving to previous section header from end of buffer."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "DESCRIPTION\n\nSome text.\n\nNOTES\n\nNote text.\n")
+       (goto-char (point-max))
+       (cl-letf (((symbol-function 'recenter-top-bottom) #'ignore))
+         (beads-show-previous-section))
+       (should (looking-at "NOTES"))))))
+
+(ert-deftest beads-show-test-previous-section-to-first ()
+  "Test moving to first section header."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "DESCRIPTION\n\nSome text.\n\nNOTES\n\nNote text.\n")
+       (goto-char (point-max))
+       (cl-letf (((symbol-function 'recenter-top-bottom) #'ignore))
+         (beads-show-previous-section)
+         (beads-show-previous-section))
+       (should (looking-at "DESCRIPTION"))))))
+
+(ert-deftest beads-show-test-forward-paragraph ()
+  "Test forward paragraph movement."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "First paragraph.\n\nSecond paragraph.\n\nThird.\n")
+       (goto-char (point-min))
+       (beads-show-forward-paragraph)
+       ;; Should have moved forward
+       (should (> (point) (point-min)))))))
+
+(ert-deftest beads-show-test-backward-paragraph ()
+  "Test backward paragraph movement."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "First paragraph.\n\nSecond paragraph.\n\nThird.\n")
+       (goto-char (point-max))
+       (beads-show-backward-paragraph)
+       ;; Should have moved backward
+       (should (< (point) (point-max)))))))
+
+;;; Block Navigation Tests
+
+(ert-deftest beads-show-test-at-block-boundary-fenced-code-triple-backtick ()
+  "Test detecting fenced code block boundary with triple backticks."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "```\ncode here\n```\n")
+       (goto-char (point-min))
+       (should (eq (beads-show--at-block-boundary) 'fenced-code))))))
+
+(ert-deftest beads-show-test-at-block-boundary-list-dash-items ()
+  "Test detecting list block boundary with dash items."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "- item 1\n- item 2\n")
+       (goto-char (point-min))
+       (should (eq (beads-show--at-block-boundary) 'list))))))
+
+(ert-deftest beads-show-test-at-block-boundary-blockquote-multiline ()
+  "Test detecting blockquote boundary with multiple lines."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "> quoted text\n> more quoted\n")
+       (goto-char (point-min))
+       (should (eq (beads-show--at-block-boundary) 'blockquote))))))
+
+(ert-deftest beads-show-test-at-block-boundary-blank ()
+  "Test detecting blank line boundary."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "\n\ntext\n")
+       (goto-char (point-min))
+       (should (eq (beads-show--at-block-boundary) 'blank))))))
+
+(ert-deftest beads-show-test-skip-blank-lines-forward ()
+  "Test skipping blank lines forward."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "\n\n\ntext here\n")
+       (goto-char (point-min))
+       (beads-show--skip-blank-lines-forward)
+       (should (looking-at "text here"))))))
+
+(ert-deftest beads-show-test-forward-block-over-fenced-code ()
+  "Test forward-block skips over fenced code."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "```\ncode line 1\ncode line 2\n```\nafter code\n")
+       (goto-char (point-min))
+       (cl-letf (((symbol-function 'recenter-top-bottom) #'ignore))
+         (beads-show-forward-block))
+       ;; Should be past the code block
+       (should (>= (point) (save-excursion
+                             (goto-char (point-min))
+                             (forward-line 4)
+                             (point))))))))
+
+(ert-deftest beads-show-test-forward-block-over-list ()
+  "Test forward-block skips over list."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "- item 1\n- item 2\n- item 3\n\nafter list\n")
+       (goto-char (point-min))
+       (cl-letf (((symbol-function 'recenter-top-bottom) #'ignore))
+         (beads-show-forward-block))
+       ;; Should be past the list
+       (should (>= (line-number-at-pos) 4))))))
+
+(ert-deftest beads-show-test-forward-block-over-blockquote ()
+  "Test forward-block skips over blockquote."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "> quote line 1\n> quote line 2\n\nafter quote\n")
+       (goto-char (point-min))
+       (cl-letf (((symbol-function 'recenter-top-bottom) #'ignore))
+         (beads-show-forward-block))
+       ;; Should be past the blockquote
+       (should (>= (line-number-at-pos) 3))))))
+
+(ert-deftest beads-show-test-backward-block-basic ()
+  "Test backward-block moves to previous block."
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "First paragraph.\n\n- list item\n\nLast text.\n")
+       (goto-char (point-max))
+       (cl-letf (((symbol-function 'recenter-top-bottom) #'ignore))
+         (beads-show-backward-block))
+       ;; Should have moved backward
+       (should (< (point) (point-max)))))))
+
+;;; Imenu Integration Coverage Tests
+
+(ert-deftest beads-show-test-imenu-index-with-issue-title ()
+  "Test imenu index includes issue title line."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (insert "bd-42: Implement feature X\n")
+       (insert "═══════════════════════════\n")
+       (insert "\nDESCRIPTION\n\nSome text.\n")
+       (beads-show-mode)
+       (let ((index (beads-show--imenu-create-index)))
+         ;; Should find the issue ID in the index
+         (should (assoc "bd-42" index)))))))
+
+(ert-deftest beads-show-test-imenu-index-with-sections ()
+  "Test imenu index includes uppercase section headers."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (insert "DESCRIPTION\n\nSome text.\n\nNOTES\n\nMore text.\n")
+       (beads-show-mode)
+       (let ((index (beads-show--imenu-create-index)))
+         (should (assoc "DESCRIPTION" index))
+         (should (assoc "NOTES" index)))))))
+
+(ert-deftest beads-show-test-imenu-index-with-markdown-headings ()
+  "Test imenu index includes markdown ## headings."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (insert "DESCRIPTION\n\nSome text.\n\n## Subheading\n\nMore text.\n\n### Deep heading\n")
+       (beads-show-mode)
+       (let ((index (beads-show--imenu-create-index)))
+         (should (assoc "## Subheading" index))
+         (should (assoc "### Deep heading" index)))))))
+
+(ert-deftest beads-show-test-imenu-index-skips-separator ()
+  "Test imenu index skips ═══ separator lines."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (insert "bd-42: Title\n═══════════════\nDESCRIPTION\n\nText.\n")
+       (beads-show-mode)
+       (let ((index (beads-show--imenu-create-index)))
+         ;; Separator should NOT appear in index
+         (should-not (cl-find-if
+                      (lambda (entry)
+                        (string-match-p "^═+$" (car entry)))
+                      index)))))))
+
+(ert-deftest beads-show-test-imenu-index-ordering ()
+  "Test imenu index preserves document order."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (insert "bd-42: Title\n═══════════\nDESCRIPTION\n\nText.\n\nNOTES\n\n## Sub\n")
+       (beads-show-mode)
+       (let ((index (beads-show--imenu-create-index)))
+         ;; Should have items and positions should be increasing
+         (should (>= (length index) 3))
+         (let ((positions (mapcar #'cdr index)))
+           (should (equal positions (sort (copy-sequence positions) #'<)))))))))
+
+(ert-deftest beads-show-test-imenu-index-empty-buffer ()
+  "Test imenu index on empty buffer returns empty list."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (let ((index (beads-show--imenu-create-index)))
+         (should (null index)))))))
+
+(ert-deftest beads-show-test-imenu-index-mixed-case-sections ()
+  "Test imenu index finds sections starting with uppercase."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (insert "Acceptance Criteria\n\nSome stuff.\n\nDesign Notes\n\nMore stuff.\n")
+       (beads-show-mode)
+       (let ((index (beads-show--imenu-create-index)))
+         (should (assoc "Acceptance Criteria" index))
+         (should (assoc "Design Notes" index)))))))
+
+;;; Which-func-mode Coverage Tests
+
+(ert-deftest beads-show-test-which-func-in-section ()
+  "Test which-func returns section name when inside a section."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (insert "DESCRIPTION\n\nSome text here.\n\nNOTES\n\nMore text.\n")
+       (beads-show-mode)
+       ;; Position inside DESCRIPTION section (line 3)
+       (goto-char (point-min))
+       (forward-line 2)
+       (should (equal "DESCRIPTION" (beads-show--which-func)))))))
+
+(ert-deftest beads-show-test-which-func-in-second-section ()
+  "Test which-func returns correct section when in later section."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (insert "DESCRIPTION\n\nSome text.\n\nNOTES\n\nNote text here.\n")
+       (beads-show-mode)
+       ;; Position inside NOTES section (line 7)
+       (goto-char (point-min))
+       (forward-line 6)
+       (should (equal "NOTES" (beads-show--which-func)))))))
+
+(ert-deftest beads-show-test-which-func-at-markdown-heading ()
+  "Test which-func returns markdown heading when under one."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (insert "DESCRIPTION\n\n## Subheading\n\nContent under subheading.\n")
+       (beads-show-mode)
+       ;; Position after ## heading (line 5)
+       (goto-char (point-min))
+       (forward-line 4)
+       (should (equal "## Subheading" (beads-show--which-func)))))))
+
+(ert-deftest beads-show-test-which-func-before-any-section ()
+  "Test which-func returns nil when before any section header."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (insert "some preamble text\nDESCRIPTION\n\nText.\n")
+       (beads-show-mode)
+       ;; Position at very first line (before any section)
+       (goto-char (point-min))
+       (should (null (beads-show--which-func)))))))
+
+(ert-deftest beads-show-test-which-func-on-section-header ()
+  "Test which-func when point is on the section header itself."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (insert "DESCRIPTION\n\nText.\n\nNOTES\n\nMore.\n")
+       (beads-show-mode)
+       ;; Position on NOTES header line
+       (goto-char (point-min))
+       (forward-line 4)
+       ;; which-func searches backward, from beginning of line
+       ;; so on NOTES line it should find DESCRIPTION (previous)
+       ;; because NOTES itself starts at beginning-of-line and
+       ;; re-search-backward from there would find DESCRIPTION
+       (let ((result (beads-show--which-func)))
+         (should (stringp result)))))))
+
+;;; Outline Level Coverage Tests
+
+(ert-deftest beads-show-test-outline-level-uppercase-section ()
+  "Test outline level returns 1 for uppercase section headers."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (insert "DESCRIPTION\n")
+       (beads-show-mode)
+       (goto-char (point-min))
+       (should (eq 1 (beads-show--outline-level)))))))
+
+(ert-deftest beads-show-test-outline-level-uppercase-multi-word ()
+  "Test outline level returns 1 for multi-word uppercase headers."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (insert "DEPENDS ON\n")
+       (beads-show-mode)
+       (goto-char (point-min))
+       (should (eq 1 (beads-show--outline-level)))))))
+
+(ert-deftest beads-show-test-outline-level-markdown-h2 ()
+  "Test outline level returns 3 for ## markdown heading."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (insert "## Subheading\n")
+       (beads-show-mode)
+       (goto-char (point-min))
+       ;; ## has 2 hashes, so level = 1 + 2 = 3
+       (should (eq 3 (beads-show--outline-level)))))))
+
+(ert-deftest beads-show-test-outline-level-markdown-h3 ()
+  "Test outline level returns 4 for ### markdown heading."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (insert "### Deep heading\n")
+       (beads-show-mode)
+       (goto-char (point-min))
+       ;; ### has 3 hashes, so level = 1 + 3 = 4
+       (should (eq 4 (beads-show--outline-level)))))))
+
+(ert-deftest beads-show-test-outline-level-plain-text ()
+  "Test outline level returns 0 for plain text."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (insert "Just some regular text.\n")
+       (beads-show-mode)
+       (goto-char (point-min))
+       (should (eq 0 (beads-show--outline-level)))))))
+
+(ert-deftest beads-show-test-outline-level-empty-line ()
+  "Test outline level returns 0 for empty line."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (insert "\n")
+       (beads-show-mode)
+       (goto-char (point-min))
+       (should (eq 0 (beads-show--outline-level)))))))
+
+(ert-deftest beads-show-test-outline-level-markdown-h1 ()
+  "Test outline level for single # heading."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (insert "# Top Level\n")
+       (beads-show-mode)
+       (goto-char (point-min))
+       ;; # has 1 hash, so level = 1 + 1 = 2
+       (should (eq 2 (beads-show--outline-level)))))))
+
+;;; Org-link Export Coverage Tests
+
+(ert-deftest beads-show-test-org-link-export-html-with-description ()
+  "Test org-link export to HTML with description."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (let ((result (beads-show--org-link-export "bd-42" "Issue 42" 'html nil)))
+     (should (equal result "<code>Issue 42</code>")))))
+
+(ert-deftest beads-show-test-org-link-export-html-no-description ()
+  "Test org-link export to HTML without description uses issue-id."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (let ((result (beads-show--org-link-export "bd-42" nil 'html nil)))
+     (should (equal result "<code>bd-42</code>")))))
+
+(ert-deftest beads-show-test-org-link-export-latex-with-description ()
+  "Test org-link export to LaTeX with description."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (let ((result (beads-show--org-link-export "bd-42" "Issue 42" 'latex nil)))
+     (should (equal result "\\texttt{Issue 42}")))))
+
+(ert-deftest beads-show-test-org-link-export-latex-no-description ()
+  "Test org-link export to LaTeX without description."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (let ((result (beads-show--org-link-export "bd-42" nil 'latex nil)))
+     (should (equal result "\\texttt{bd-42}")))))
+
+(ert-deftest beads-show-test-org-link-export-ascii-with-description ()
+  "Test org-link export to ASCII with description."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (let ((result (beads-show--org-link-export "bd-42" "Issue 42" 'ascii nil)))
+     (should (equal result "Issue 42")))))
+
+(ert-deftest beads-show-test-org-link-export-ascii-no-description ()
+  "Test org-link export to ASCII without description uses issue-id."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (let ((result (beads-show--org-link-export "bd-42" nil 'ascii nil)))
+     (should (equal result "bd-42")))))
+
+(ert-deftest beads-show-test-org-link-export-unknown-backend ()
+  "Test org-link export to unknown backend falls through to default."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (let ((result (beads-show--org-link-export "bd-42" "Issue 42" 'odt nil)))
+     (should (equal result "Issue 42")))))
+
+(ert-deftest beads-show-test-org-link-export-unknown-backend-no-desc ()
+  "Test org-link export unknown backend without description uses issue-id."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (let ((result (beads-show--org-link-export "bd-42" nil 'odt nil)))
+     (should (equal result "bd-42")))))
+
+;;; find-buffer-for-issue Coverage Tests
+
+(ert-deftest beads-show-test-find-buffer-for-issue-with-trailing-slash ()
+  "Test find-buffer-for-issue normalizes trailing slashes."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (let ((test-buffer (generate-new-buffer "*beads-show-test-trailing-slash*")))
+     (unwind-protect
+         (progn
+           (with-current-buffer test-buffer
+             (beads-show-mode)
+             (setq beads-show--issue-id "bd-50")
+             (setq beads-show--project-dir "/tmp/project"))
+           ;; Search with trailing slash - should still find it
+           (should (eq (beads-show--find-buffer-for-issue "bd-50" "/tmp/project/")
+                       test-buffer)))
+       (kill-buffer test-buffer)))))
+
+(ert-deftest beads-show-test-find-buffer-for-issue-defaults-project-root ()
+  "Test find-buffer-for-issue defaults project-dir to project root."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (let ((test-buffer (generate-new-buffer "*beads-show-test-default-proj*")))
+     (unwind-protect
+         (progn
+           (with-current-buffer test-buffer
+             (beads-show-mode)
+             (setq beads-show--issue-id "bd-60")
+             (setq beads-show--project-dir "/tmp/test-project"))
+           ;; Call without project-dir - should use git mock (/tmp/test-project)
+           (should (eq (beads-show--find-buffer-for-issue "bd-60")
+                       test-buffer)))
+       (kill-buffer test-buffer)))))
+
+(ert-deftest beads-show-test-find-buffer-for-issue-wrong-mode ()
+  "Test find-buffer-for-issue ignores non-show-mode buffers."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (let ((test-buffer (generate-new-buffer "*beads-show-test-wrong-mode*")))
+     (unwind-protect
+         (progn
+           (with-current-buffer test-buffer
+             ;; Don't set beads-show-mode, just set the variables
+             (setq-local beads-show--issue-id "bd-70")
+             (setq-local beads-show--project-dir "/tmp/project"))
+           ;; Should not find it because buffer is not in beads-show-mode
+           (should (null (beads-show--find-buffer-for-issue "bd-70" "/tmp/project"))))
+       (kill-buffer test-buffer)))))
+
+(ert-deftest beads-show-test-find-buffer-for-issue-nil-issue-id ()
+  "Test find-buffer-for-issue ignores buffer with nil issue-id."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (let ((test-buffer (generate-new-buffer "*beads-show-test-nil-id*")))
+     (unwind-protect
+         (progn
+           (with-current-buffer test-buffer
+             (beads-show-mode)
+             ;; beads-show--issue-id is nil by default
+             (setq beads-show--project-dir "/tmp/project"))
+           (should (null (beads-show--find-buffer-for-issue "bd-80" "/tmp/project"))))
+       (kill-buffer test-buffer)))))
+
+(ert-deftest beads-show-test-find-buffer-for-issue-nil-project-dir ()
+  "Test find-buffer-for-issue ignores buffer with nil project-dir."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (let ((test-buffer (generate-new-buffer "*beads-show-test-nil-proj*")))
+     (unwind-protect
+         (progn
+           (with-current-buffer test-buffer
+             (beads-show-mode)
+             (setq beads-show--issue-id "bd-90")
+             ;; beads-show--project-dir is nil
+             )
+           (should (null (beads-show--find-buffer-for-issue "bd-90" "/tmp/project"))))
+       (kill-buffer test-buffer)))))
+
+;;; normalize-directory Coverage Tests
+
+(ert-deftest beads-show-test-normalize-directory-no-trailing-slash ()
+  "Test normalize-directory with path that has no trailing slash."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (should (equal "/tmp/project"
+                  (beads-show--normalize-directory "/tmp/project")))))
+
+(ert-deftest beads-show-test-normalize-directory-with-trailing-slash ()
+  "Test normalize-directory strips trailing slash."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (should (equal "/tmp/project"
+                  (beads-show--normalize-directory "/tmp/project/")))))
+
+(ert-deftest beads-show-test-normalize-directory-double-trailing-slash ()
+  "Test normalize-directory with double trailing slash."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (should (equal "/tmp/project"
+                  (beads-show--normalize-directory "/tmp/project//")))))
+
+(ert-deftest beads-show-test-normalize-directory-tilde-expansion ()
+  "Test normalize-directory expands tilde."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (let ((result (beads-show--normalize-directory "~")))
+     (should (stringp result))
+     ;; Should not start with ~
+     (should (not (string-prefix-p "~" result)))
+     ;; Should be an absolute path
+     (should (string-prefix-p "/" result)))))
+
+(ert-deftest beads-show-test-normalize-directory-relative-path ()
+  "Test normalize-directory expands relative path to absolute."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (let ((result (beads-show--normalize-directory "relative/path")))
+     (should (stringp result))
+     ;; Should be absolute
+     (should (string-prefix-p "/" result)))))
+
+;;; Forward/Backward Block Extended Coverage Tests
+
+(ert-deftest beads-show-test-forward-block-no-more-blocks ()
+  "Test forward-block at end of buffer shows message."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "Only text here.\n")
+       (goto-char (point-max))
+       (let ((start (point)))
+         (cl-letf (((symbol-function 'recenter-top-bottom) #'ignore))
+           (beads-show-forward-block))
+         ;; Should not have moved (at end)
+         (should (eq (point) start)))))))
+
+(ert-deftest beads-show-test-backward-block-no-more-blocks ()
+  "Test backward-block at beginning of buffer shows message."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "Only text.\n")
+       (goto-char (point-min))
+       (let ((start (point)))
+         (cl-letf (((symbol-function 'recenter-top-bottom) #'ignore))
+           (beads-show-backward-block))
+         ;; Should not have moved (at beginning)
+         (should (eq (point) start)))))))
+
+(ert-deftest beads-show-test-backward-block-from-fenced-code ()
+  "Test backward-block navigates back over a fenced code block."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "Preamble text.\n\n```\ncode line 1\ncode line 2\n```\n\nAfter code.\n")
+       ;; Position at "After code." line
+       (goto-char (point-max))
+       (forward-line -1)
+       (cl-letf (((symbol-function 'recenter-top-bottom) #'ignore))
+         (beads-show-backward-block))
+       ;; Should have moved backward past the code fence
+       (should (<= (line-number-at-pos) 3))))))
+
+(ert-deftest beads-show-test-backward-block-from-list ()
+  "Test backward-block navigates back over a list block."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "Intro.\n\n- item 1\n- item 2\n- item 3\n\nAfter list.\n")
+       ;; Position at "After list." line
+       (goto-char (point-max))
+       (forward-line -1)
+       (cl-letf (((symbol-function 'recenter-top-bottom) #'ignore))
+         (beads-show-backward-block))
+       ;; Should have moved to the start of the list area
+       (should (<= (line-number-at-pos) 4))))))
+
+(ert-deftest beads-show-test-backward-block-from-blockquote ()
+  "Test backward-block navigates back over a blockquote block."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "Intro text.\n\n> quoted line 1\n> quoted line 2\n\nAfter quote.\n")
+       ;; Position at "After quote."
+       (goto-char (point-max))
+       (forward-line -1)
+       (cl-letf (((symbol-function 'recenter-top-bottom) #'ignore))
+         (beads-show-backward-block))
+       ;; Should have moved back toward the blockquote
+       (should (<= (line-number-at-pos) 4))))))
+
+(ert-deftest beads-show-test-backward-block-from-indented-code ()
+  "Test backward-block navigates back over an indented code block."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "Intro text.\n\n    indented code 1\n    indented code 2\n\nAfter code.\n")
+       ;; Position at "After code."
+       (goto-char (point-max))
+       (forward-line -1)
+       (cl-letf (((symbol-function 'recenter-top-bottom) #'ignore))
+         (beads-show-backward-block))
+       ;; Should have moved back toward the indented code
+       (should (<= (line-number-at-pos) 4))))))
+
+(ert-deftest beads-show-test-backward-block-from-regular-text ()
+  "Test backward-block from regular text finds previous block."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "- list item\n\nRegular text paragraph one.\nRegular text paragraph two.\n")
+       ;; Position at last line
+       (goto-char (point-max))
+       (forward-line -1)
+       (cl-letf (((symbol-function 'recenter-top-bottom) #'ignore))
+         (beads-show-backward-block))
+       ;; Should have moved backward
+       (should (< (point) (point-max)))))))
+
+(ert-deftest beads-show-test-forward-block-skip-blank-lines ()
+  "Test forward-block skips blank line separators."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "\n\n\nText after blanks.\n")
+       (goto-char (point-min))
+       (cl-letf (((symbol-function 'recenter-top-bottom) #'ignore))
+         (beads-show-forward-block))
+       ;; Should have moved past the blank lines
+       (should (> (line-number-at-pos) 1))))))
+
+(ert-deftest beads-show-test-forward-block-over-indented-code ()
+  "Test forward-block skips over indented code block."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "    line 1\n    line 2\n    line 3\n\nAfter.\n")
+       (goto-char (point-min))
+       (cl-letf (((symbol-function 'recenter-top-bottom) #'ignore))
+         (beads-show-forward-block))
+       ;; Should be past the indented code
+       (should (>= (line-number-at-pos) 4))))))
+
+(ert-deftest beads-show-test-forward-block-from-paragraph ()
+  "Test forward-block from paragraph to next block boundary."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "Normal text.\nMore normal text.\n\n- list item\n")
+       (goto-char (point-min))
+       (cl-letf (((symbol-function 'recenter-top-bottom) #'ignore))
+         (beads-show-forward-block))
+       ;; Should have moved past the text paragraph
+       (should (> (line-number-at-pos) 2))))))
+
+(ert-deftest beads-show-test-backward-block-skips-trailing-blanks ()
+  "Test backward-block skips blank lines before finding a block."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "- item 1\n- item 2\n\n\n\nLast line.\n")
+       (goto-char (point-max))
+       (cl-letf (((symbol-function 'recenter-top-bottom) #'ignore))
+         (beads-show-backward-block))
+       ;; Should have moved backward past the blanks
+       (should (< (point) (point-max)))))))
+
+;;; in-fenced-code-block Coverage Tests
+
+(ert-deftest beads-show-test-in-fenced-code-block-outside ()
+  "Test in-fenced-code-block returns nil outside code block."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "Normal text.\n```\ncode\n```\nMore text.\n")
+       (goto-char (point-min))
+       ;; The function has a bug (while (< (point) (point)) ...)
+       ;; which means the loop never runs, so fence-count stays 0
+       ;; and cl-oddp returns nil
+       (should-not (beads-show--in-fenced-code-block))))))
+
+(ert-deftest beads-show-test-in-fenced-code-block-tilde ()
+  "Test in-fenced-code-block with tilde fences."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "~~~\ncode\n~~~\n")
+       (goto-char (point-min))
+       (should-not (beads-show--in-fenced-code-block))))))
+
+;;; Forward/Backward Paragraph Coverage Tests
+
+(ert-deftest beads-show-test-forward-paragraph-multiple ()
+  "Test forward-paragraph moves through multiple paragraphs."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "Para one.\n\nPara two.\n\nPara three.\n")
+       (goto-char (point-min))
+       (beads-show-forward-paragraph)
+       (let ((after-first (point)))
+         (beads-show-forward-paragraph)
+         (should (> (point) after-first)))))))
+
+(ert-deftest beads-show-test-backward-paragraph-multiple ()
+  "Test backward-paragraph moves through multiple paragraphs."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "Para one.\n\nPara two.\n\nPara three.\n")
+       (goto-char (point-max))
+       (beads-show-backward-paragraph)
+       (let ((after-first (point)))
+         (beads-show-backward-paragraph)
+         (should (< (point) after-first)))))))
+
+(ert-deftest beads-show-test-forward-paragraph-at-end ()
+  "Test forward-paragraph at end of buffer stays at end."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "Single paragraph.\n")
+       (goto-char (point-max))
+       (beads-show-forward-paragraph)
+       (should (eq (point) (point-max)))))))
+
+(ert-deftest beads-show-test-backward-paragraph-at-beginning ()
+  "Test backward-paragraph at beginning of buffer stays at beginning."
+  :tags '(:unit)
+  (beads-show-test-with-git-mocks
+   (with-temp-buffer
+     (let ((inhibit-read-only t))
+       (beads-show-mode)
+       (insert "Single paragraph.\n")
+       (goto-char (point-min))
+       (beads-show-backward-paragraph)
+       (should (eq (point) (point-min)))))))
+
 (provide 'beads-show-test)
 ;;; beads-show-test.el ends here

@@ -450,5 +450,227 @@
       ;; Cleanup: remove temp directory
       (delete-directory temp-dir t))))
 
+;;; ========================================
+;;; Formula Show Render Tests
+;;; ========================================
+
+(ert-deftest beads-command-formula-test-show-render-header ()
+  "Test render-header produces label-value pair."
+  (with-temp-buffer
+    (beads-formula-show--render-header "Type" "workflow")
+    (let ((text (buffer-string)))
+      (should (string-match-p "Type:" text))
+      (should (string-match-p "workflow" text)))))
+
+(ert-deftest beads-command-formula-test-show-render-header-nil ()
+  "Test render-header handles nil value."
+  (with-temp-buffer
+    (beads-formula-show--render-header "Source" nil)
+    (let ((text (buffer-string)))
+      (should (string-match-p "Source:" text)))))
+
+(ert-deftest beads-command-formula-test-show-render-section ()
+  "Test render-section produces section header."
+  (with-temp-buffer
+    (beads-formula-show--render-section "Variables")
+    (let ((text (buffer-string)))
+      (should (string-match-p "Variables" text))
+      (should (string-match-p "=========" text)))))
+
+(ert-deftest beads-command-formula-test-show-render-var ()
+  "Test render-var produces variable description."
+  (with-temp-buffer
+    (beads-formula-show--render-var "project-name"
+                                    '((description . "The project name")
+                                      (default . "my-project")
+                                      (required . t)))
+    (let ((text (buffer-string)))
+      (should (string-match-p "project-name" text))
+      (should (string-match-p "required" text))
+      (should (string-match-p "The project name" text))
+      (should (string-match-p "my-project" text)))))
+
+(ert-deftest beads-command-formula-test-show-render-var-minimal ()
+  "Test render-var with minimal definition."
+  (with-temp-buffer
+    (beads-formula-show--render-var "simple" '((description . nil)))
+    (let ((text (buffer-string)))
+      (should (string-match-p "simple" text)))))
+
+(ert-deftest beads-command-formula-test-show-render-step ()
+  "Test render-step produces step info."
+  (with-temp-buffer
+    (beads-formula-show--render-step
+     '((id . "step-1")
+       (title . "Setup Environment")
+       (description . "Configure the development environment")
+       (needs . ("step-0")))
+     0)
+    (let ((text (buffer-string)))
+      (should (string-match-p "1\\. Setup Environment" text))
+      (should (string-match-p "ID: step-1" text))
+      (should (string-match-p "Needs: step-0" text))
+      (should (string-match-p "Configure" text)))))
+
+(ert-deftest beads-command-formula-test-show-render-step-no-needs ()
+  "Test render-step without dependencies."
+  (with-temp-buffer
+    (beads-formula-show--render-step
+     '((id . "step-2")
+       (title . "Simple Step"))
+     1)
+    (let ((text (buffer-string)))
+      (should (string-match-p "2\\. Simple Step" text))
+      (should-not (string-match-p "Needs:" text)))))
+
+;;; Formula List Navigation Tests
+
+(ert-deftest beads-command-formula-test-list-next ()
+  "Test formula list next navigation."
+  (with-temp-buffer
+    (let ((inhibit-read-only t))
+      (beads-formula-list-mode)
+      (insert "header\nformula-1\nformula-2\n")
+      (goto-char (point-min))
+      (forward-line 1)
+      (beads-formula-list-next)
+      ;; Should have moved forward
+      (should (= (line-number-at-pos) 3)))))
+
+(ert-deftest beads-command-formula-test-list-previous ()
+  "Test formula list previous navigation."
+  (with-temp-buffer
+    (let ((inhibit-read-only t))
+      (beads-formula-list-mode)
+      (insert "header\nformula-1\nformula-2\n")
+      (goto-char (point-max))
+      (forward-line -1)
+      (beads-formula-list-previous)
+      ;; Should have moved backward
+      (should (<= (line-number-at-pos) 2)))))
+
+(ert-deftest beads-command-formula-test-list-quit ()
+  "Test formula list quit is callable."
+  (should (fboundp 'beads-formula-list-quit)))
+
+(ert-deftest beads-command-formula-test-show-quit ()
+  "Test formula show quit is callable."
+  (should (fboundp 'beads-formula-show-quit)))
+
+(ert-deftest beads-command-formula-test-show-mode-defined ()
+  "Test formula show mode is defined."
+  (should (fboundp 'beads-formula-show-mode)))
+
+(ert-deftest beads-command-formula-test-show-mode-keymap ()
+  "Test formula show mode has keybindings."
+  (should (keymapp beads-formula-show-mode-map))
+  (should (lookup-key beads-formula-show-mode-map "g"))
+  (should (lookup-key beads-formula-show-mode-map "q"))
+  (should (lookup-key beads-formula-show-mode-map "o")))
+
+;;; Formula List Error Path Tests
+
+(ert-deftest beads-command-formula-test-list-show-no-formula ()
+  "Test list-show signals error when no formula at point."
+  :tags '(:unit)
+  (with-temp-buffer
+    (let ((inhibit-read-only t))
+      (beads-formula-list-mode)
+      (should-error (beads-formula-list-show) :type 'user-error))))
+
+(ert-deftest beads-command-formula-test-list-open-source-no-formula ()
+  "Test list-open-source signals error when no formula at point."
+  :tags '(:unit)
+  (with-temp-buffer
+    (let ((inhibit-read-only t))
+      (beads-formula-list-mode)
+      (should-error (beads-formula-list-open-source) :type 'user-error))))
+
+(ert-deftest beads-command-formula-test-list-next-at-header ()
+  "Test list-next skips header line."
+  :tags '(:unit)
+  (with-temp-buffer
+    (let ((inhibit-read-only t))
+      (beads-formula-list-mode)
+      (insert "Name  Type\nformula-1  workflow\nformula-2  expansion\n")
+      (goto-char (point-min))
+      (beads-formula-list-next)
+      ;; Should move forward from header
+      (should (> (line-number-at-pos) 1)))))
+
+(ert-deftest beads-command-formula-test-list-previous-at-start ()
+  "Test list-previous stops at beginning."
+  :tags '(:unit)
+  (with-temp-buffer
+    (let ((inhibit-read-only t))
+      (beads-formula-list-mode)
+      (insert "Name  Type\nformula-1  workflow\n")
+      (goto-char (point-min))
+      ;; Already at beginning, should not error
+      (beads-formula-list-previous)
+      (should (= (line-number-at-pos) 1)))))
+
+(ert-deftest beads-command-formula-test-list-next-at-eob ()
+  "Test list-next at end of buffer does nothing."
+  :tags '(:unit)
+  (with-temp-buffer
+    (let ((inhibit-read-only t))
+      (beads-formula-list-mode)
+      (insert "Name  Type\nformula-1  workflow\n")
+      (goto-char (point-max))
+      (beads-formula-list-next)
+      (should (eobp)))))
+
+(ert-deftest beads-command-formula-test-formula-to-entry-with-type ()
+  "Test formula-to-entry produces formatted type."
+  :tags '(:unit)
+  (let* ((formula (beads-formula-summary
+                   :name "test-formula"
+                   :formula-type "workflow"
+                   :description "A test formula"
+                   :steps 3
+                   :vars 2))
+         (entry (beads-formula-list--formula-to-entry formula)))
+    (should (equal (car entry) "test-formula"))
+    (let ((vec (cadr entry)))
+      (should (equal (aref vec 0) "test-formula"))
+      ;; Type should be propertized
+      (should (stringp (aref vec 1)))
+      (should (equal (aref vec 2) "3"))
+      (should (equal (aref vec 3) "2"))
+      (should (equal (aref vec 4) "A test formula")))))
+
+(ert-deftest beads-command-formula-test-formula-to-entry-nil-fields ()
+  "Test formula-to-entry handles nil fields."
+  :tags '(:unit)
+  (let* ((formula (beads-formula-summary :name nil :formula-type nil))
+         (entry (beads-formula-list--formula-to-entry formula)))
+    (should entry)
+    (let ((vec (cadr entry)))
+      (should (equal (aref vec 0) ""))
+      (should (equal (aref vec 2) "0"))
+      (should (equal (aref vec 3) "0")))))
+
+(ert-deftest beads-command-formula-test-format-type-workflow ()
+  "Test format-type applies workflow face."
+  :tags '(:unit)
+  (let ((result (beads-formula-list--format-type "workflow")))
+    (should (equal (get-text-property 0 'face result)
+                   'beads-formula-type-workflow))))
+
+(ert-deftest beads-command-formula-test-format-type-unknown ()
+  "Test format-type applies default face for unknown type."
+  :tags '(:unit)
+  (let ((result (beads-formula-list--format-type "bogus")))
+    (should (equal (get-text-property 0 'face result)
+                   'default))))
+
+(ert-deftest beads-command-formula-test-format-type-nil ()
+  "Test format-type handles nil type."
+  :tags '(:unit)
+  (let ((result (beads-formula-list--format-type nil)))
+    (should (stringp result))
+    (should (equal result ""))))
+
 (provide 'beads-command-formula-test)
 ;;; beads-command-formula-test.el ends here

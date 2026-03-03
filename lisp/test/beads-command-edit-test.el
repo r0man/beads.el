@@ -148,5 +148,93 @@
   :tags '(:unit)
   (should (fboundp 'beads-edit-transient)))
 
+;;; Parse and Validation Tests
+
+(ert-deftest beads-command-edit-test-parse-transient-args-with-id ()
+  "Test parsing transient args with issue ID."
+  :tags '(:unit)
+  (let ((cmd (beads-edit--parse-transient-args
+              '("--id=bd-42" "--title" "--description"))))
+    (should (cl-typep cmd 'beads-command-edit))
+    (should (equal (oref cmd issue-id) "bd-42"))
+    (should (eq (oref cmd title) t))
+    (should (eq (oref cmd description) t))
+    (should (null (oref cmd design)))
+    (should (null (oref cmd notes)))
+    (should (null (oref cmd acceptance)))))
+
+(ert-deftest beads-command-edit-test-parse-transient-args-empty ()
+  "Test parsing empty transient args."
+  :tags '(:unit)
+  (let ((cmd (beads-edit--parse-transient-args nil)))
+    (should (cl-typep cmd 'beads-command-edit))
+    (should (null (oref cmd issue-id)))
+    (should (null (oref cmd title)))))
+
+(ert-deftest beads-command-edit-test-parse-transient-args-all-fields ()
+  "Test parsing transient args with all fields."
+  :tags '(:unit)
+  (let ((cmd (beads-edit--parse-transient-args
+              '("--id=bd-1" "--title" "--description"
+                "--design" "--notes" "--acceptance"))))
+    (should (eq (oref cmd title) t))
+    (should (eq (oref cmd description) t))
+    (should (eq (oref cmd design) t))
+    (should (eq (oref cmd notes) t))
+    (should (eq (oref cmd acceptance) t))))
+
+(ert-deftest beads-command-edit-test-validate-issue-id-missing ()
+  "Test validation fails when issue ID is missing."
+  :tags '(:unit)
+  (should (equal (beads-edit--validate-issue-id nil)
+                 "Issue ID is required"))
+  (should (equal (beads-edit--validate-issue-id "")
+                 "Issue ID is required")))
+
+(ert-deftest beads-command-edit-test-validate-issue-id-valid ()
+  "Test validation passes with valid issue ID."
+  :tags '(:unit)
+  (should (null (beads-edit--validate-issue-id "bd-42"))))
+
+(ert-deftest beads-command-edit-test-validate-all-no-issue ()
+  "Test validate-all catches missing issue ID."
+  :tags '(:unit)
+  (let ((cmd (beads-command-edit :issue-id nil)))
+    (let ((errors (beads-edit--validate-all cmd)))
+      (should errors)
+      (should (member "Issue ID is required" errors)))))
+
+(ert-deftest beads-command-edit-test-validate-all-valid ()
+  "Test validate-all passes with valid command."
+  :tags '(:unit)
+  (let ((cmd (beads-command-edit :issue-id "bd-42" :title t)))
+    (should (null (beads-edit--validate-all cmd)))))
+
+(ert-deftest beads-command-edit-test-detect-issue-id-from-show-buffer ()
+  "Test issue ID detection from show buffer name."
+  :tags '(:unit)
+  (with-temp-buffer
+    (rename-buffer "*beads-show[proj]/bd-42 Test Issue*" t)
+    (let ((id (beads-edit--detect-issue-id)))
+      (should (equal id "bd-42")))))
+
+(ert-deftest beads-command-edit-test-command-line-with-title ()
+  "Test edit command line with title flag and specific ID."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-edit :issue-id "bd-42" :title t))
+         (args (beads-command-line cmd)))
+    (should (member "edit" args))
+    (should (member "bd-42" args))
+    (should (member "--title" args))))
+
+(ert-deftest beads-command-edit-test-command-line-multi-fields ()
+  "Test edit command line with multiple fields."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-edit :issue-id "bd-1"
+                                  :description t :notes t))
+         (args (beads-command-line cmd)))
+    (should (member "--description" args))
+    (should (member "--notes" args))))
+
 (provide 'beads-command-edit-test)
 ;;; beads-command-edit-test.el ends here

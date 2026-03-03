@@ -2631,5 +2631,132 @@ Regression test for bug bde-evrx."
       (should (member "--status" cmd-line))
       (should (member "--assignee" cmd-line)))))
 
+;;; Tests for beads-list-update/close/reopen/delete success paths
+
+(ert-deftest beads-list-test-update-dispatches-to-transient ()
+  "Test that beads-list-update calls beads-update when issue at point."
+  :tags '(:unit)
+  (beads-list-test--with-temp-buffer
+   beads-list-test--sample-issues 'list
+   (goto-char (point-min))
+   (let ((update-called nil))
+     (cl-letf (((symbol-function 'beads-list--current-issue-id)
+                (lambda () "bd-42"))
+               ((symbol-function 'call-interactively)
+                (lambda (fn &rest _)
+                  (when (eq fn #'beads-update)
+                    (setq update-called t)))))
+       (require 'beads-command-update)
+       (beads-list-update)
+       (should update-called)))))
+
+(ert-deftest beads-list-test-update-no-issue-signals-error ()
+  "Test that beads-list-update signals user-error when no issue at point."
+  :tags '(:unit)
+  (beads-list-test--with-temp-buffer
+   beads-list-test--sample-issues 'list
+   (cl-letf (((symbol-function 'beads-list--current-issue-id)
+              (lambda () nil)))
+     (should-error (beads-list-update) :type 'user-error))))
+
+(ert-deftest beads-list-test-close-dispatches-to-transient ()
+  "Test that beads-list-close calls beads-close when issue at point."
+  :tags '(:unit)
+  (beads-list-test--with-temp-buffer
+   beads-list-test--sample-issues 'list
+   (goto-char (point-min))
+   (let ((close-called nil))
+     (cl-letf (((symbol-function 'beads-list--current-issue-id)
+                (lambda () "bd-42"))
+               ((symbol-function 'call-interactively)
+                (lambda (fn &rest _)
+                  (when (eq fn #'beads-close)
+                    (setq close-called t)))))
+       (require 'beads-command-close)
+       (beads-list-close)
+       (should close-called)))))
+
+(ert-deftest beads-list-test-close-no-issue-signals-error ()
+  "Test that beads-list-close signals user-error when no issue at point."
+  :tags '(:unit)
+  (beads-list-test--with-temp-buffer
+   beads-list-test--sample-issues 'list
+   (cl-letf (((symbol-function 'beads-list--current-issue-id)
+              (lambda () nil)))
+     (should-error (beads-list-close) :type 'user-error))))
+
+(ert-deftest beads-list-test-reopen-dispatches-to-transient ()
+  "Test that beads-list-reopen calls beads-reopen when issue at point."
+  :tags '(:unit)
+  (beads-list-test--with-temp-buffer
+   beads-list-test--sample-issues 'list
+   (goto-char (point-min))
+   (let ((reopen-called nil))
+     (cl-letf (((symbol-function 'beads-list--current-issue-id)
+                (lambda () "bd-42"))
+               ((symbol-function 'call-interactively)
+                (lambda (fn &rest _)
+                  (when (eq fn #'beads-reopen)
+                    (setq reopen-called t)))))
+       (require 'beads-command-reopen)
+       (beads-list-reopen)
+       (should reopen-called)))))
+
+(ert-deftest beads-list-test-reopen-no-issue-signals-error ()
+  "Test that beads-list-reopen signals user-error when no issue at point."
+  :tags '(:unit)
+  (beads-list-test--with-temp-buffer
+   beads-list-test--sample-issues 'list
+   (cl-letf (((symbol-function 'beads-list--current-issue-id)
+              (lambda () nil)))
+     (should-error (beads-list-reopen) :type 'user-error))))
+
+(ert-deftest beads-list-test-delete-dispatches-to-function ()
+  "Test that beads-list-delete calls beads-delete when issue at point."
+  :tags '(:unit)
+  (beads-list-test--with-temp-buffer
+   beads-list-test--sample-issues 'list
+   (goto-char (point-min))
+   (let ((delete-called nil)
+         (delete-arg nil))
+     (cl-letf (((symbol-function 'beads-list--current-issue-id)
+                (lambda () "bd-42"))
+               ((symbol-function 'beads-delete)
+                (lambda (id)
+                  (setq delete-called t
+                        delete-arg id))))
+       (require 'beads-command-delete)
+       (beads-list-delete)
+       (should delete-called)
+       (should (equal delete-arg "bd-42"))))))
+
+(ert-deftest beads-list-test-delete-no-issue-signals-error ()
+  "Test that beads-list-delete signals user-error when no issue at point."
+  :tags '(:unit)
+  (beads-list-test--with-temp-buffer
+   beads-list-test--sample-issues 'list
+   (cl-letf (((symbol-function 'beads-list--current-issue-id)
+              (lambda () nil)))
+     (should-error (beads-list-delete) :type 'user-error))))
+
+(ert-deftest beads-list-test-copy-id-copies-to-kill-ring ()
+  "Test that beads-list-copy-id copies ID via mock."
+  :tags '(:unit)
+  (beads-list-test--with-temp-buffer
+   beads-list-test--sample-issues 'list
+   (cl-letf (((symbol-function 'beads-list--current-issue-id)
+              (lambda () "bd-42")))
+     (beads-list-copy-id)
+     (should (equal (car kill-ring) "bd-42")))))
+
+(ert-deftest beads-list-test-copy-id-no-issue-signals-error ()
+  "Test that beads-list-copy-id signals user-error via mock."
+  :tags '(:unit)
+  (beads-list-test--with-temp-buffer
+   beads-list-test--sample-issues 'list
+   (cl-letf (((symbol-function 'beads-list--current-issue-id)
+              (lambda () nil)))
+     (should-error (beads-list-copy-id) :type 'user-error))))
+
 (provide 'beads-list-test)
 ;;; beads-list-test.el ends here

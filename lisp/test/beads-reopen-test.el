@@ -298,5 +298,117 @@
         (should reason-pos)
         (should (equal "Reopening issue" (nth (1+ reason-pos) cmd-line)))))))
 
+;;; Tests for Parse Method
+
+(ert-deftest beads-reopen-test-parse-json-single-issue ()
+  "Test beads-command-parse with JSON array for single issue."
+  (let* ((cmd (beads-command-reopen :issue-ids '("bd-42") :json t))
+         (json-string (json-encode
+                       (vector '((id . "bd-42")
+                                 (title . "Test Issue")
+                                 (status . "open")
+                                 (priority . 1)
+                                 (issue_type . "bug")
+                                 (created_at . "2025-01-15T10:00:00Z")
+                                 (updated_at . "2025-01-15T10:00:00Z")))))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout json-string
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
+      ;; Single issue-id should return a single issue
+      (should (beads-issue-p result))
+      (should (string= (oref result id) "bd-42"))
+      (should (string= (oref result status) "open")))))
+
+(ert-deftest beads-reopen-test-parse-json-multiple-issues ()
+  "Test beads-command-parse with JSON array for multiple issues."
+  (let* ((cmd (beads-command-reopen :issue-ids '("bd-42" "bd-43") :json t))
+         (json-string (json-encode
+                       (vector '((id . "bd-42") (title . "Issue 1")
+                                 (status . "open") (priority . 1)
+                                 (issue_type . "bug")
+                                 (created_at . "2025-01-15T10:00:00Z")
+                                 (updated_at . "2025-01-15T10:00:00Z"))
+                               '((id . "bd-43") (title . "Issue 2")
+                                 (status . "open") (priority . 2)
+                                 (issue_type . "task")
+                                 (created_at . "2025-01-15T10:00:00Z")
+                                 (updated_at . "2025-01-15T10:00:00Z")))))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout json-string
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
+      ;; Multiple issue-ids should return a list
+      (should (listp result))
+      (should (= (length result) 2))
+      (should (beads-issue-p (car result))))))
+
+(ert-deftest beads-reopen-test-parse-json-disabled ()
+  "Test beads-command-parse with :json nil falls back to raw stdout."
+  (let* ((cmd (beads-command-reopen :issue-ids '("bd-42") :json nil))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout "Reopened bd-42"
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
+      (should (stringp result))
+      (should (string= result "Reopened bd-42")))))
+
+(ert-deftest beads-reopen-test-parse-json-unexpected-structure ()
+  "Test beads-command-parse signals error on unexpected JSON."
+  (let* ((cmd (beads-command-reopen :issue-ids '("bd-42") :json t))
+         (json-string (json-encode "just-a-string"))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout json-string
+                :stderr "")))
+    (should-error (beads-command-parse cmd exec)
+                  :type 'beads-json-parse-error)))
+
+;;; Tests for Execute-Interactive Method
+
+(ert-deftest beads-reopen-test-execute-interactive-single-issue ()
+  "Test execute-interactive with single issue result."
+  (let* ((cmd (beads-command-reopen :issue-ids '("bd-42") :json t))
+         (issue (beads-issue :id "bd-42" :title "Test" :status "open"))
+         (exec (beads-command-execution
+                :command cmd :exit-code 0 :stdout "" :stderr ""
+                :result issue))
+         (message-output nil))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_cmd) exec))
+              ((symbol-function 'beads--invalidate-completion-cache)
+               (lambda ()))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-output (apply #'format fmt args)))))
+      (beads-command-execute-interactive cmd)
+      (should (stringp message-output))
+      (should (string-match-p "Reopened 1 issue" message-output))
+      (should (string-match-p "bd-42" message-output)))))
+
+(ert-deftest beads-reopen-test-execute-interactive-nil-result ()
+  "Test execute-interactive with nil result."
+  (let* ((cmd (beads-command-reopen :issue-ids '("bd-42") :json t))
+         (exec (beads-command-execution
+                :command cmd :exit-code 0 :stdout "" :stderr ""
+                :result nil))
+         (message-output nil))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_cmd) exec))
+              ((symbol-function 'beads--invalidate-completion-cache)
+               (lambda ()))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq message-output (apply #'format fmt args)))))
+      (beads-command-execute-interactive cmd)
+      (should (string-match-p "No issues reopened" message-output)))))
+
 (provide 'beads-reopen-test)
 ;;; beads-reopen-test.el ends here

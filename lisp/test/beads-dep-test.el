@@ -985,5 +985,206 @@
   "Test beads-dep-remove transient exists."
   (should (fboundp 'beads-dep-remove)))
 
+;;; Dep List Parse Tests
+
+(ert-deftest beads-dep-test-dep-list-parse-json-vector ()
+  "Test dep list parse method with vector of deps."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-dep-list :json t :issue-id "bd-1"))
+         (json-data (vector '((id . "bd-2")
+                              (title . "Dep Issue")
+                              (status . "open")
+                              (priority . 1)
+                              (issue_type . "task")
+                              (dependency_type . "blocks")
+                              (created_at . "2025-01-01T00:00:00Z")
+                              (updated_at . "2025-01-01T00:00:00Z"))))
+         (json-string (json-encode json-data))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout json-string
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
+      (should (listp result))
+      (should (= (length result) 1))
+      (should (cl-typep (car result) 'beads-dependency)))))
+
+(ert-deftest beads-dep-test-dep-list-parse-json-empty ()
+  "Test dep list parse method with empty array."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-dep-list :json t :issue-id "bd-1"))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout "[]"
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
+      (should (listp result))
+      (should (= (length result) 0)))))
+
+(ert-deftest beads-dep-test-dep-list-parse-json-null ()
+  "Test dep list parse method with null result."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-dep-list :json t :issue-id "bd-1"))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout "null"
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
+      (should (null result)))))
+
+(ert-deftest beads-dep-test-dep-list-parse-unexpected-json ()
+  "Test dep list parse signals error on unexpected structure."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-dep-list :json t :issue-id "bd-1"))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout "\"just a string\""
+                :stderr "")))
+    (should-error (beads-command-parse cmd exec)
+                  :type 'beads-json-parse-error)))
+
+(ert-deftest beads-dep-test-dep-list-parse-no-json ()
+  "Test dep list parse with json=nil returns raw output."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-dep-list :json nil :issue-id "bd-1"))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout "Some text output"
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
+      (should (stringp result)))))
+
+;;; Dep Remove Validate Tests
+
+(ert-deftest beads-dep-test-remove-validate-no-issue ()
+  "Test remove validate fails without issue ID."
+  :tags '(:unit)
+  (should (equal (beads-dep-remove--validate nil "bd-2")
+                 "Issue ID is required"))
+  (should (equal (beads-dep-remove--validate "" "bd-2")
+                 "Issue ID is required")))
+
+(ert-deftest beads-dep-test-remove-validate-no-depends ()
+  "Test remove validate fails without depends-on ID."
+  :tags '(:unit)
+  (should (equal (beads-dep-remove--validate "bd-1" nil)
+                 "Depends-on ID is required"))
+  (should (equal (beads-dep-remove--validate "bd-1" "")
+                 "Depends-on ID is required")))
+
+(ert-deftest beads-dep-test-remove-validate-both-valid ()
+  "Test remove validate passes with valid IDs."
+  :tags '(:unit)
+  (should (null (beads-dep-remove--validate "bd-1" "bd-2"))))
+
+(ert-deftest beads-dep-test-remove-parse-transient-args ()
+  "Test remove parse transient args."
+  :tags '(:unit)
+  (let ((result (beads-dep-remove--parse-transient-args
+                 '("--issue-id=bd-1" "--depends-on=bd-2"))))
+    (should (equal (plist-get result :issue-id) "bd-1"))
+    (should (equal (plist-get result :depends-on-id) "bd-2"))))
+
+(ert-deftest beads-dep-test-remove-parse-transient-args-empty ()
+  "Test remove parse transient args with empty list."
+  :tags '(:unit)
+  (let ((result (beads-dep-remove--parse-transient-args nil)))
+    (should (null (plist-get result :issue-id)))
+    (should (null (plist-get result :depends-on-id)))))
+
+;;; Dep Tree Render Tests
+
+(ert-deftest beads-dep-test-tree-render-issue ()
+  "Test dep tree renders a single issue."
+  :tags '(:unit)
+  (with-temp-buffer
+    (beads-dep-tree--render-issue
+     '((id . "bd-1")
+       (title . "Test Issue")
+       (status . "open")
+       (depth . 0)))
+    (let ((text (buffer-string)))
+      (should (string-match-p "bd-1" text))
+      (should (string-match-p "Test Issue" text))
+      (should (string-match-p "OPEN" text)))))
+
+(ert-deftest beads-dep-test-tree-render-issue-indented ()
+  "Test dep tree renders indented issue."
+  :tags '(:unit)
+  (with-temp-buffer
+    (beads-dep-tree--render-issue
+     '((id . "bd-2")
+       (title . "Child Issue")
+       (status . "in_progress")
+       (depth . 2)))
+    (let ((text (buffer-string)))
+      (should (string-match-p "bd-2" text))
+      (should (string-match-p "- " text))
+      (should (string-match-p "IN_PROGRESS" text)))))
+
+(ert-deftest beads-dep-test-tree-render-issue-truncated ()
+  "Test dep tree renders truncated indicator."
+  :tags '(:unit)
+  (with-temp-buffer
+    (beads-dep-tree--render-issue
+     '((id . "bd-3")
+       (title . "Truncated")
+       (status . "open")
+       (depth . 1)
+       (truncated . t)))
+    (let ((text (buffer-string)))
+      (should (string-match-p "\\[truncated\\]" text)))))
+
+(ert-deftest beads-dep-test-tree-render-full ()
+  "Test dep tree full render with header."
+  :tags '(:unit)
+  (with-temp-buffer
+    (let ((issues (list '((id . "bd-1")
+                          (title . "Root")
+                          (status . "open")
+                          (depth . 0))
+                        '((id . "bd-2")
+                          (title . "Child")
+                          (status . "closed")
+                          (depth . 1)))))
+      (beads-dep-tree--render issues "bd-1")
+      (let ((text (buffer-string)))
+        (should (string-match-p "Dependency Tree for bd-1" text))
+        (should (string-match-p "bd-1" text))
+        (should (string-match-p "bd-2" text))
+        (should (string-match-p "Commands:" text))))))
+
+(ert-deftest beads-dep-test-tree-render-no-deps ()
+  "Test dep tree render with no dependencies."
+  :tags '(:unit)
+  (with-temp-buffer
+    (beads-dep-tree--render nil "bd-1")
+    (should (string-match-p "No dependencies found" (buffer-string)))))
+
+(ert-deftest beads-dep-test-tree-get-issue-at-point-rendered ()
+  "Test getting issue ID from text property after render."
+  :tags '(:unit)
+  (with-temp-buffer
+    (beads-dep-tree--render-issue
+     '((id . "bd-42")
+       (title . "Test")
+       (status . "open")
+       (depth . 0)))
+    (goto-char (point-min))
+    (should (equal (beads-dep-tree--get-issue-at-point) "bd-42"))))
+
+(ert-deftest beads-dep-test-tree-mode-has-keybindings ()
+  "Test dep tree mode has expected keybindings."
+  :tags '(:unit)
+  (should (keymapp beads-dep-tree-mode-map))
+  (should (lookup-key beads-dep-tree-mode-map "q"))
+  (should (lookup-key beads-dep-tree-mode-map "g"))
+  (should (lookup-key beads-dep-tree-mode-map (kbd "RET"))))
+
 (provide 'beads-dep-test)
 ;;; beads-dep-test.el ends here

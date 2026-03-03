@@ -614,5 +614,312 @@
         (should (string-match-p "bd-1" content))
         (should (string-match-p "Child Issue" content))))))
 
+;;; Tests for beads-command-epic-status Parse Method
+
+(ert-deftest beads-epic-status-test-parse-json-vector ()
+  "Test parse method with JSON vector of epic statuses."
+  (let* ((cmd (beads-command-epic-status :json t))
+         (sample-json (vector
+                       '((epic . ((id . "bd-10") (title . "Epic 1")
+                                  (status . "open") (priority . 1)
+                                  (issue_type . "epic")))
+                         (total_children . 5)
+                         (open_children . 3)
+                         (closed_children . 2)
+                         (in_progress_children . 1)
+                         (completion_pct . 40))))
+         (json-string (json-encode sample-json))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout json-string
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
+      (should (listp result))
+      (should (= (length result) 1))
+      (should (beads-epic-status-p (car result))))))
+
+(ert-deftest beads-epic-status-test-parse-json-single-object ()
+  "Test parse method with single JSON object (cons)."
+  (let* ((cmd (beads-command-epic-status :json t))
+         (sample-json '((epic . ((id . "bd-10") (title . "Epic 1")
+                                 (status . "open") (priority . 1)
+                                 (issue_type . "epic")))
+                        (total_children . 5)
+                        (open_children . 3)
+                        (closed_children . 2)
+                        (in_progress_children . 1)
+                        (completion_pct . 40)))
+         (json-string (json-encode sample-json))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout json-string
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
+      (should (listp result))
+      (should (= (length result) 1))
+      (should (beads-epic-status-p (car result))))))
+
+(ert-deftest beads-epic-status-test-parse-json-null ()
+  "Test parse method with null JSON."
+  (let* ((cmd (beads-command-epic-status :json t))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout "null"
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
+      (should (null result)))))
+
+(ert-deftest beads-epic-status-test-parse-json-disabled ()
+  "Test parse method with :json nil."
+  (let* ((cmd (beads-command-epic-status :json nil))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout "Epic status text"
+                :stderr "")))
+    (let ((result (beads-command-parse cmd exec)))
+      (should (stringp result)))))
+
+(ert-deftest beads-epic-status-test-parse-json-unexpected ()
+  "Test parse method signals error on unexpected JSON structure."
+  (let* ((cmd (beads-command-epic-status :json t))
+         (json-string (json-encode 42))
+         (exec (beads-command-execution
+                :command cmd
+                :exit-code 0
+                :stdout json-string
+                :stderr "")))
+    (should-error (beads-command-parse cmd exec)
+                  :type 'beads-json-parse-error)))
+
+;;; Tests for beads-command-epic-status execute-interactive
+
+(ert-deftest beads-epic-status-test-execute-interactive-disables-json ()
+  "Test execute-interactive disables JSON for human-readable output."
+  (let* ((cmd (beads-command-epic-status :json t))
+         (terminal-called nil))
+    (cl-letf (((symbol-function 'beads-command--run-in-terminal)
+               (lambda (_cmd _buf _dir) (setq terminal-called t)))
+              ((symbol-function 'beads--find-beads-dir)
+               (lambda () "/tmp/.beads")))
+      (beads-command-execute-interactive cmd)
+      (should-not (oref cmd json))
+      (should terminal-called))))
+
+;;; Tests for Epic Status Navigation
+
+(ert-deftest beads-epic-status-test-next-epic-raw-props ()
+  "Test navigating to next epic with raw text properties."
+  (with-temp-buffer
+    ;; Insert some text with properties
+    (insert (propertize "Epic 1 line\n" 'epic-id "bd-10"))
+    (insert "  child line\n")
+    (insert (propertize "Epic 2 line\n" 'epic-id "bd-20"))
+    (goto-char (point-min))
+    (beads-epic-status-next)
+    ;; Should move to Epic 2
+    (should (string= (get-text-property (point) 'epic-id) "bd-20"))))
+
+(ert-deftest beads-epic-status-test-previous-epic-raw-props ()
+  "Test navigating to previous epic with raw text properties."
+  (with-temp-buffer
+    (insert (propertize "Epic 1 line\n" 'epic-id "bd-10"))
+    (insert "  child line\n")
+    (insert (propertize "Epic 2 line\n" 'epic-id "bd-20"))
+    ;; Start at Epic 2
+    (goto-char (point-max))
+    (forward-line -1)
+    (beads-epic-status-previous)
+    ;; Should move to Epic 1
+    (should (string= (get-text-property (point) 'epic-id) "bd-10"))))
+
+(ert-deftest beads-epic-status-test-next-item ()
+  "Test navigating to next epic or issue item."
+  (with-temp-buffer
+    (insert (propertize "Epic 1\n" 'epic-id "bd-10"))
+    (insert (propertize "  Child 1\n" 'issue-id "bd-1"))
+    (insert "  plain line\n")
+    (insert (propertize "  Child 2\n" 'issue-id "bd-2"))
+    (goto-char (point-min))
+    (beads-epic-status-next-item)
+    ;; Should move to Child 1
+    (should (string= (get-text-property (point) 'issue-id) "bd-1"))))
+
+(ert-deftest beads-epic-status-test-previous-item ()
+  "Test navigating to previous epic or issue item."
+  (with-temp-buffer
+    (insert (propertize "Epic 1\n" 'epic-id "bd-10"))
+    (insert (propertize "  Child 1\n" 'issue-id "bd-1"))
+    (insert "  plain line\n")
+    (insert (propertize "  Child 2\n" 'issue-id "bd-2"))
+    ;; Start at Child 2
+    (goto-char (point-max))
+    (forward-line -1)
+    (beads-epic-status-previous-item)
+    ;; Should move to Child 1
+    (should (string= (get-text-property (point) 'issue-id) "bd-1"))))
+
+(ert-deftest beads-epic-status-test-show-at-point-no-issue ()
+  "Test show-at-point signals error when no issue at point."
+  (with-temp-buffer
+    (insert "plain text\n")
+    (goto-char (point-min))
+    (should-error (beads-epic-status-show-at-point) :type 'user-error)))
+
+(ert-deftest beads-epic-status-test-show-children-no-epic ()
+  "Test show-children signals error when no epic at point."
+  (with-temp-buffer
+    (insert "plain text\n")
+    (goto-char (point-min))
+    (should-error (beads-epic-status-show-children) :type 'user-error)))
+
+(ert-deftest beads-epic-status-test-move-to-epic-line ()
+  "Test moving point to nearest epic line."
+  (with-temp-buffer
+    (insert "plain line 1\n")
+    (insert (propertize "Epic 1\n" 'epic-id "bd-10"))
+    (insert "plain line 2\n")
+    (goto-char (point-min))
+    (beads-epic-status--move-to-epic-line)
+    (should (string= (get-text-property (point) 'epic-id) "bd-10"))))
+
+;;; Epic Navigation Tests
+
+(ert-deftest beads-epic-status-test-next-epic-nav ()
+  "Test next epic navigation."
+  (with-temp-buffer
+    (insert (propertize "Epic 1\n" 'epic-id "bd-1"))
+    (insert "progress line\n")
+    (insert "\n")
+    (insert (propertize "Epic 2\n" 'epic-id "bd-2"))
+    (goto-char (point-min))
+    (beads-epic-status-next)
+    (should (equal (get-text-property (point) 'epic-id) "bd-2"))))
+
+(ert-deftest beads-epic-status-test-next-epic-at-end ()
+  "Test next epic at end of buffer."
+  (with-temp-buffer
+    (insert (propertize "Epic 1\n" 'epic-id "bd-1"))
+    (insert "no more epics\n")
+    (goto-char (point-min))
+    (let ((start (point)))
+      (beads-epic-status-next)
+      ;; Should stay at same position
+      (should (= (point) start)))))
+
+(ert-deftest beads-epic-status-test-previous-epic-nav ()
+  "Test previous epic navigation."
+  (with-temp-buffer
+    (insert (propertize "Epic 1\n" 'epic-id "bd-1"))
+    (insert "progress line\n")
+    (insert "\n")
+    (insert (propertize "Epic 2\n" 'epic-id "bd-2"))
+    ;; Start at Epic 2
+    (goto-char (1- (point-max)))
+    (beads-epic-status-previous)
+    (should (equal (get-text-property (point) 'epic-id) "bd-1"))))
+
+(ert-deftest beads-epic-status-test-previous-epic-at-start ()
+  "Test previous epic at beginning of buffer."
+  (with-temp-buffer
+    (insert "no epic here\n")
+    (insert (propertize "Epic 1\n" 'epic-id "bd-1"))
+    (goto-char (point-min))
+    (let ((start (point)))
+      (beads-epic-status-previous)
+      ;; Should stay at same position (no previous epic)
+      (should (= (point) start)))))
+
+(ert-deftest beads-epic-status-test-next-item-nav ()
+  "Test next item navigation (epics and issues)."
+  (with-temp-buffer
+    (insert (propertize "Epic 1\n" 'epic-id "bd-1"))
+    (insert "progress\n")
+    (insert (propertize "  Child 1\n" 'issue-id "bd-2"))
+    (insert (propertize "  Child 2\n" 'issue-id "bd-3"))
+    (goto-char (point-min))
+    (beads-epic-status-next-item)
+    ;; Should land on child issue
+    (should (or (equal (get-text-property (point) 'issue-id) "bd-2")
+                (equal (get-text-property (point) 'epic-id) "bd-1")))))
+
+(ert-deftest beads-epic-status-test-previous-item-nav ()
+  "Test previous item navigation."
+  (with-temp-buffer
+    (insert (propertize "Epic 1\n" 'epic-id "bd-1"))
+    (insert "progress\n")
+    (insert (propertize "  Child 1\n" 'issue-id "bd-2"))
+    (goto-char (point-max))
+    (beads-epic-status-previous-item)
+    (should (equal (get-text-property (point) 'issue-id) "bd-2"))))
+
+;;; Render Tests
+
+(ert-deftest beads-epic-status-test-render-child ()
+  "Test rendering a child issue."
+  (with-temp-buffer
+    (let ((child (beads-issue :id "bd-5" :title "Child Task"
+                              :status "open" :priority 2
+                              :issue-type "task")))
+      (beads-epic-status--render-child child)
+      (let ((text (buffer-string)))
+        (should (string-match-p "bd-5" text))
+        (should (string-match-p "Child Task" text))
+        (should (string-match-p "open" text))
+        (should (string-match-p "P2" text))))))
+
+(ert-deftest beads-epic-status-test-render-child-closed ()
+  "Test rendering a closed child issue."
+  (with-temp-buffer
+    (let ((child (beads-issue :id "bd-6" :title "Done Task"
+                              :status "closed" :priority 1
+                              :issue-type "bug")))
+      (beads-epic-status--render-child child)
+      (let ((text (buffer-string)))
+        (should (string-match-p "bd-6" text))
+        (should (string-match-p "closed" text))
+        (should (string-match-p "bug" text))))))
+
+(ert-deftest beads-epic-status-test-render-epic-basic ()
+  "Test rendering a basic epic status."
+  (with-temp-buffer
+    (let* ((epic (beads-issue :id "bd-10" :title "Epic Title"
+                              :status "open" :priority 1
+                              :issue-type "epic"))
+           (epic-status (beads-epic-status
+                         :epic epic
+                         :total-children 5
+                         :closed-children 2
+                         :eligible-for-close nil))
+           (beads-epic-status--expanded
+            (list (list "bd-10" nil))))
+      (beads-epic-status--render-epic epic-status)
+      (let ((text (buffer-string)))
+        (should (string-match-p "bd-10" text))
+        (should (string-match-p "Epic Title" text))
+        (should (string-match-p "2/5" text))
+        (should (string-match-p "40%" text))))))
+
+(ert-deftest beads-epic-status-test-render-epic-eligible ()
+  "Test rendering an epic eligible for closure."
+  (with-temp-buffer
+    (let* ((epic (beads-issue :id "bd-20" :title "Done Epic"
+                              :status "open" :priority 1
+                              :issue-type "epic"))
+           (epic-status (beads-epic-status
+                         :epic epic
+                         :total-children 3
+                         :closed-children 3
+                         :eligible-for-close t))
+           (beads-epic-status--expanded
+            (list (list "bd-20" nil))))
+      (beads-epic-status--render-epic epic-status)
+      (let ((text (buffer-string)))
+        (should (string-match-p "Eligible for closure" text))
+        (should (string-match-p "100%" text))))))
+
 (provide 'beads-epic-status-test)
 ;;; beads-epic-status-test.el ends here

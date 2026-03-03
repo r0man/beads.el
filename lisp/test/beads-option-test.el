@@ -619,5 +619,99 @@
   (should (commandp 'beads-label-remove))
   (should (get 'beads-label-remove 'transient--prefix)))
 
+;;; ============================================================
+;;; Transient class method tests
+;;; ============================================================
+
+(ert-deftest beads-option-test-global-class-hierarchy ()
+  "Test beads-option-global inherits from transient-lisp-variable."
+  (should (cl-find-class 'beads-option-global))
+  (let ((obj (beads-option-global :variable 'beads-actor)))
+    (should (cl-typep obj 'transient-lisp-variable))))
+
+(ert-deftest beads-option-test-global-switch-class-hierarchy ()
+  "Test beads-option-global-switch inherits from transient-lisp-variable."
+  (should (cl-find-class 'beads-option-global-switch))
+  (let ((obj (beads-option-global-switch :variable 'beads-actor)))
+    (should (cl-typep obj 'transient-lisp-variable))))
+
+(ert-deftest beads-option-test-multiline-inherits-transient-option ()
+  "Test beads-transient-multiline inherits from transient-option."
+  (let ((obj (beads-transient-multiline :argument "--desc=")))
+    (should (cl-typep obj 'transient-option))))
+
+(ert-deftest beads-option-test-global-infix-value ()
+  "Test beads-option-global infix-value returns nil."
+  (let ((obj (beads-option-global :variable 'beads-actor)))
+    (oset obj value "test")
+    (should (null (transient-infix-value obj)))))
+
+(ert-deftest beads-option-test-global-switch-infix-value ()
+  "Test beads-option-global-switch infix-value returns nil."
+  (let ((obj (beads-option-global-switch :variable 'beads-actor)))
+    (oset obj value t)
+    (should (null (transient-infix-value obj)))))
+
+(ert-deftest beads-option-test-global-format-with-value ()
+  "Test beads-option-global format-value with value."
+  (let ((obj (beads-option-global :argument "--actor="
+                                   :variable 'beads-actor)))
+    (oset obj value "test")
+    (let ((result (transient-format-value obj)))
+      (should (stringp result))
+      (should (string-match-p "test" result)))))
+
+(ert-deftest beads-option-test-global-format-empty ()
+  "Test beads-option-global format-value without value."
+  (let ((obj (beads-option-global :argument "--actor="
+                                   :variable 'beads-actor)))
+    (oset obj value nil)
+    (let ((result (transient-format-value obj)))
+      (should (stringp result)))))
+
+(ert-deftest beads-option-test-global-switch-format-on ()
+  "Test beads-option-global-switch format when on."
+  (let ((obj (beads-option-global-switch :argument "--verbose"
+                                          :variable 'beads-actor)))
+    (oset obj value t)
+    (let ((result (transient-format-value obj)))
+      (should (stringp result)))))
+
+(ert-deftest beads-option-test-global-switch-format-off ()
+  "Test beads-option-global-switch format when off."
+  (let ((obj (beads-option-global-switch :argument "--verbose"
+                                          :variable 'beads-actor)))
+    (oset obj value nil)
+    (let ((result (transient-format-value obj)))
+      (should (stringp result)))))
+
+(ert-deftest beads-option-test-multiline-format-with-value ()
+  "Test beads-transient-multiline format-value with value."
+  (let ((obj (beads-transient-multiline :argument "--desc=")))
+    (oset obj value "line1\nline2")
+    (let ((result (transient-format-value obj)))
+      (should (stringp result)))))
+
+(ert-deftest beads-option-test-multiline-format-nil ()
+  "Test beads-transient-multiline format-value with nil."
+  (let ((obj (beads-transient-multiline :argument "--desc=")))
+    (oset obj value nil)
+    (let ((result (transient-format-value obj)))
+      (should (stringp result)))))
+
+(ert-deftest beads-option-test-global-infix-value-nil-with-value ()
+  "Test beads-option-global infix-value always returns nil even with value set."
+  (let ((obj (beads-option-global)))
+    (oset obj argument "--actor=")
+    (oset obj value "some-value")
+    (should (null (transient-infix-value obj)))))
+
+(ert-deftest beads-option-test-global-switch-infix-value-nil-with-value ()
+  "Test beads-option-global-switch infix-value returns nil even when toggled."
+  (let ((obj (beads-option-global-switch)))
+    (oset obj argument "--verbose")
+    (oset obj value t)
+    (should (null (transient-infix-value obj)))))
+
 (provide 'beads-option-test)
 ;;; beads-option-test.el ends here
