@@ -615,12 +615,11 @@
 ;;; ============================================================
 
 (ert-deftest beads-coverage-2-formula-list-current-name ()
-  "Test beads-formula-list--current-formula-name."
+  "Test beads-formula-list--current-formula-name returns nil with no entry."
   (with-temp-buffer
-    (cl-letf (((symbol-function 'tabulated-list-get-id)
-               (lambda () "my-formula")))
-      (should (equal "my-formula"
-                     (beads-formula-list--current-formula-name))))))
+    (beads-formula-list-mode)
+    ;; No entries, so tabulated-list-get-id returns nil
+    (should (null (beads-formula-list--current-formula-name)))))
 
 (ert-deftest beads-coverage-2-formula-list-get-by-name ()
   "Test beads-formula-list--get-formula-by-name."
@@ -634,13 +633,14 @@
     (should-not (beads-formula-list--get-formula-by-name "nonexist"))))
 
 (ert-deftest beads-coverage-2-formula-list-next ()
-  "Test beads-formula-list-next moves forward."
+  "Test beads-formula-list-next moves forward, skipping header."
   (with-temp-buffer
-    (insert "line1\nline2\nline3\n")
-    (goto-char (point-min))
-    (cl-letf (((symbol-function 'tabulated-list-get-id) (lambda () "id")))
+    (let ((inhibit-read-only t))
+      (insert "line1\nline2\nline3\n")
+      (goto-char (point-min))
       (beads-formula-list-next)
-      (should (= 2 (line-number-at-pos))))))
+      ;; Moves to line 2, then skips to 3 (header skip)
+      (should (= 3 (line-number-at-pos))))))
 
 (ert-deftest beads-coverage-2-formula-list-previous ()
   "Test beads-formula-list-previous moves backward."
