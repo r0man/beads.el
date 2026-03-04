@@ -18,10 +18,10 @@
 (ert-deftest beads-integration-test-generate-prefix-format ()
   "Test that generated prefix has correct format."
   (let ((prefix (beads-test--generate-unique-prefix)))
-    ;; Should start with beadsTest
-    (should (string-prefix-p "beadsTest" prefix))
+    ;; Should start with bt
+    (should (string-prefix-p "bt" prefix))
     ;; Should have 6 random chars after prefix
-    (should (= (length prefix) 15))  ; "beadsTest" (9) + 6 random
+    (should (= (length prefix) 8))  ; "bt" (2) + 6 random
     ;; Should not contain hyphens
     (should-not (string-match-p "-" prefix))))
 
