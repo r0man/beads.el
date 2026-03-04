@@ -640,7 +640,9 @@ Returns a list of strings representing CLI arguments.  Positional
 arguments come first (sorted by :positional value), followed by
 named options (--option value or --flag).
 
-Slots without :long-option, :short-option, or :positional are skipped."
+Slots without :long-option, :short-option, or :positional are skipped.
+Slots in `beads-meta--global-option-slots' are skipped to avoid
+duplication with `beads-meta-build-global-options'."
   (let* ((class-name (eieio-object-class command))
          (class-obj (cl--find-class class-name))
          (slots-vec (eieio--class-slots class-obj))
@@ -657,39 +659,42 @@ Slots without :long-option, :short-option, or :positional are skipped."
                        (separator (alist-get :option-separator props))
                        (value (when (slot-boundp command slot-name)
                                 (eieio-oref command slot-name))))
-                  (cond
-                   ;; Positional argument
-                   (positional
-                    (let ((formatted (beads-meta--format-slot-value
-                                      value option-type separator)))
-                      (when formatted
-                        (push (cons positional
-                                    (if (eq option-type :list)
-                                        ;; Lists become multiple positional args
-                                        (split-string formatted
-                                                      (or separator ","))
-                                      (list formatted)))
-                              positional-args))))
-                   ;; Named option with value
-                   ((or long-opt short-opt)
-                    ;; Prepend dashes: "--" for long options, "-" for short
-                    (let* ((opt-name (if long-opt
-                                         (concat "--" long-opt)
-                                       (concat "-" short-opt)))
-                           (formatted (beads-meta--format-slot-value
-                                       value option-type separator)))
-                      (cond
-                       ;; Boolean flag
-                       ((eq option-type :boolean)
+                  ;; Skip global option slots (handled by
+                  ;; beads-meta-build-global-options)
+                  (unless (memq slot-name beads-meta--global-option-slots)
+                    (cond
+                     ;; Positional argument
+                     (positional
+                      (let ((formatted (beads-meta--format-slot-value
+                                        value option-type separator)))
                         (when formatted
-                          (push (list opt-name) named-args)))
-                       ;; List type with nil separator - each item becomes separate option
-                       ((and (eq option-type :list) formatted (null separator))
-                        (dolist (item (split-string formatted ","))
-                          (push (list opt-name item) named-args)))
-                       ;; Option with value
-                       (formatted
-                        (push (list opt-name formatted) named-args))))))))
+                          (push (cons positional
+                                      (if (eq option-type :list)
+                                          ;; Lists become multiple positional args
+                                          (split-string formatted
+                                                        (or separator ","))
+                                        (list formatted)))
+                                positional-args))))
+                     ;; Named option with value
+                     ((or long-opt short-opt)
+                      ;; Prepend dashes: "--" for long options, "-" for short
+                      (let* ((opt-name (if long-opt
+                                           (concat "--" long-opt)
+                                         (concat "-" short-opt)))
+                             (formatted (beads-meta--format-slot-value
+                                         value option-type separator)))
+                        (cond
+                         ;; Boolean flag
+                         ((eq option-type :boolean)
+                          (when formatted
+                            (push (list opt-name) named-args)))
+                         ;; List type with nil separator - each item becomes separate option
+                         ((and (eq option-type :list) formatted (null separator))
+                          (dolist (item (split-string formatted ","))
+                            (push (list opt-name item) named-args)))
+                         ;; Option with value
+                         (formatted
+                          (push (list opt-name formatted) named-args)))))))))
     ;; Build final argument list
     (let ((result nil))
       ;; Sort positional args by position and add them

@@ -62,14 +62,15 @@ Integration test that runs real bd init command."
 Integration test that verifies --prefix flag works correctly."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (beads-test-with-temp-repo (:init-beads t :prefix "myproject")
-    ;; .beads directory should exist
-    (should (file-directory-p (expand-file-name ".beads" default-directory)))
-    ;; Verify prefix is set correctly by creating an issue
-    ;; and checking its ID starts with the prefix
-    (let* ((issue (beads-command-create! :title "Test issue")))
-      (should (beads-issue-p issue))
-      (should (string-prefix-p "myproject-" (oref issue id))))))
+  (let ((prefix (beads-test--generate-unique-prefix)))
+    (beads-test-with-temp-repo (:init-beads t :prefix prefix)
+      ;; .beads directory should exist
+      (should (file-directory-p (expand-file-name ".beads" default-directory)))
+      ;; Verify prefix is set correctly by creating an issue
+      ;; and checking its ID starts with the prefix
+      (let* ((issue (beads-command-create! :title "Test issue")))
+        (should (beads-issue-p issue))
+        (should (string-prefix-p (concat prefix "-") (oref issue id)))))))
 
 (ert-deftest beads-command-test-init-with-quiet ()
   "Test beads-command-init with --quiet flag.
