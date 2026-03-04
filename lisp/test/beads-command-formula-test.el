@@ -423,7 +423,7 @@
   ;; Create a temporary beads directory for testing
   (let* ((temp-dir (make-temp-file "beads-formula-test-" t))
          (default-directory temp-dir)
-         (prefix (format "beadsTest%06d" (random 999999))))
+         (prefix (format "bt%06d" (random 999999))))
     (unwind-protect
         (progn
           ;; Initialize git first - required for bd init
