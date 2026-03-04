@@ -1089,14 +1089,14 @@
       (should-error (beads-formula-list-show) :type 'user-error))))
 
 (ert-deftest beads-coverage-test-formula-list-next ()
-  "Test formula-list-next moves forward."
+  "Test formula-list-next moves forward, skipping header."
   (with-temp-buffer
-    (insert "line 1\nline 2\nline 3\n")
-    (goto-char (point-min))
-    (cl-letf (((symbol-function 'tabulated-list-get-id)
-               (lambda () "something")))
+    (let ((inhibit-read-only t))
+      (insert "line 1\nline 2\nline 3\n")
+      (goto-char (point-min))
       (beads-formula-list-next)
-      (should (= (line-number-at-pos) 2)))))
+      ;; Moves to line 2, then skips to 3 (header skip)
+      (should (= (line-number-at-pos) 3)))))
 
 (ert-deftest beads-coverage-test-formula-list-previous ()
   "Test formula-list-previous moves backward."
