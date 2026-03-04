@@ -28,14 +28,15 @@
 
 (defun beads-test--generate-prefix ()
   "Generate a unique test prefix without hyphens.
-Uses a format like `beadsTestXXXXXX' where XXXXXX is random.
+Uses a format like `btXXXXXX' where XXXXXX is random alphanumeric.
+The `bt' prefix identifies test databases for easy cleanup.
 This format works with bd's --rename-on-import flag which parses
 issue IDs by splitting on the first hyphen."
   (let ((chars "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
         (suffix ""))
     (dotimes (_ 6)
       (setq suffix (concat suffix (string (aref chars (random (length chars)))))))
-    (concat "beadsTest" suffix)))
+    (concat "bt" suffix)))
 
 (defvar beads-test--last-created-prefix nil
   "Prefix used by the most recent `beads-test-create-project' call.
@@ -46,6 +47,13 @@ Set as a side effect so callers can retrieve the prefix for cleanup.")
 This prevents tests from connecting to the production Dolt server
 on port 3307, which would create orphan databases and cause
 interference with Gas Town operations.  Defaults to t for safety.")
+
+;; Enforce BD_NO_DAEMON=1 globally at load time.  This ensures ALL
+;; subprocess calls (including tests that don't use the test macros)
+;; inherit the environment variable and never connect to the
+;; production Dolt server on port 3307.
+(when beads-test-no-daemon
+  (setenv "BD_NO_DAEMON" "1"))
 
 (defun beads-test--drop-dolt-database (prefix)
   "Drop the Dolt database named PREFIX from the shared server.

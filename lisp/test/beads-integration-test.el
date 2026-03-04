@@ -57,6 +57,12 @@
   "Prefix used by the most recent `beads-test--init-beads' call.
 Set as a side effect so callers can retrieve the prefix for cleanup.")
 
+;; Enforce BD_NO_DAEMON=1 globally at load time.  Ensures all
+;; integration tests use file-backed storage and never connect to
+;; the production Dolt server on port 3307.
+(when (bound-and-true-p beads-test-no-daemon)
+  (setenv "BD_NO_DAEMON" "1"))
+
 ;;; ============================================================
 ;;; CLI Feature Detection
 ;;; ============================================================
@@ -73,14 +79,15 @@ Uses `bd SUBCOMMAND --help' to test availability."
 
 (defun beads-test--generate-unique-prefix ()
   "Generate a unique test prefix without hyphens.
-Uses a format like `beadsTestXXXXXX' where XXXXXX is random.
+Uses a format like `btXXXXXX' where XXXXXX is random alphanumeric.
+The `bt' prefix identifies test databases for easy cleanup.
 This format works with bd's --rename-on-import flag which parses
 issue IDs by splitting on the first hyphen."
   (let ((chars "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
         (suffix ""))
     (dotimes (_ 6)
       (setq suffix (concat suffix (string (aref chars (random (length chars)))))))
-    (concat "beadsTest" suffix)))
+    (concat "bt" suffix)))
 
 (defun beads-test--init-git-repo (dir)
   "Initialize a git repository in DIR with test user config.

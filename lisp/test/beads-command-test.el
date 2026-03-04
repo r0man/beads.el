@@ -42,94 +42,51 @@
 Integration test that runs real bd init command."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (let* ((temp-dir (make-temp-file "beads-test-" t))
-         (default-directory temp-dir)
-         (prefix (beads-test--generate-prefix)))
-    (unwind-protect
-        (progn
-          ;; Initialize git first - required for bd init
-          (call-process "git" nil nil nil "init" "-q")
-          (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
-          (call-process "git" nil nil nil "config" "user.name" "Beads Test")
-          (let* ((cmd (beads-command-init :prefix prefix))
-                 (exec (beads-command-execute cmd)))
-            ;; Should return an execution object
-            (should (cl-typep exec 'beads-command-execution))
-            ;; Exit code should be 0
-            (should (= (oref exec exit-code) 0))
-            ;; Stdout should be a string
-            (should (stringp (oref exec stdout)))
-            ;; Stderr should be a string
-            (should (stringp (oref exec stderr)))
-            ;; Should create .beads directory
-            (should (file-directory-p (expand-file-name ".beads" temp-dir)))))
-      ;; Drop the Dolt database to prevent orphan accumulation
-      (ignore-errors
-        (call-process "bd" nil nil nil
-                      "sql" (format "DROP DATABASE IF EXISTS `%s`" prefix)))
-      (when (file-directory-p temp-dir)
-        (delete-directory temp-dir t)))))
+  (beads-test-with-temp-repo ()
+    (let* ((prefix (beads-test--generate-unique-prefix))
+           (cmd (beads-command-init :prefix prefix))
+           (exec (beads-command-execute cmd)))
+      ;; Should return an execution object
+      (should (cl-typep exec 'beads-command-execution))
+      ;; Exit code should be 0
+      (should (= (oref exec exit-code) 0))
+      ;; Stdout should be a string
+      (should (stringp (oref exec stdout)))
+      ;; Stderr should be a string
+      (should (stringp (oref exec stderr)))
+      ;; Should create .beads directory
+      (should (file-directory-p (expand-file-name ".beads" default-directory))))))
 
 (ert-deftest beads-command-test-init-with-prefix ()
   "Test beads-command-init with custom prefix option.
 Integration test that verifies --prefix flag works correctly."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (let* ((temp-dir (make-temp-file "beads-test-" t))
-         (default-directory temp-dir))
-    (unwind-protect
-        (progn
-          ;; Initialize git first - required for bd init
-          (call-process "git" nil nil nil "init" "-q")
-          (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
-          (call-process "git" nil nil nil "config" "user.name" "Beads Test")
-          (let* ((cmd (beads-command-init :prefix "myproject"))
-                 (exec (beads-command-execute cmd)))
-            ;; Command should succeed
-            (should (= (oref exec exit-code) 0))
-            ;; .beads directory should exist
-            (should (file-directory-p (expand-file-name ".beads" temp-dir)))
-            ;; Verify prefix is set correctly by creating an issue
-            ;; and checking its ID starts with the prefix
-            (let* ((issue (beads-command-create! :title "Test issue")))
-              (should (beads-issue-p issue))
-              (should (string-prefix-p "myproject-" (oref issue id))))))
-      ;; Drop the Dolt database to prevent orphan accumulation
-      (ignore-errors
-        (call-process "bd" nil nil nil
-                      "sql" "DROP DATABASE IF EXISTS `myproject`"))
-      (when (file-directory-p temp-dir)
-        (delete-directory temp-dir t)))))
+  (beads-test-with-temp-repo (:init-beads t :prefix "myproject")
+    ;; .beads directory should exist
+    (should (file-directory-p (expand-file-name ".beads" default-directory)))
+    ;; Verify prefix is set correctly by creating an issue
+    ;; and checking its ID starts with the prefix
+    (let* ((issue (beads-command-create! :title "Test issue")))
+      (should (beads-issue-p issue))
+      (should (string-prefix-p "myproject-" (oref issue id))))))
 
 (ert-deftest beads-command-test-init-with-quiet ()
   "Test beads-command-init with --quiet flag.
 Integration test that verifies quiet mode suppresses output."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (let* ((temp-dir (make-temp-file "beads-test-" t))
-         (default-directory temp-dir)
-         (prefix (beads-test--generate-prefix)))
-    (unwind-protect
-        (progn
-          ;; Initialize git first - required for bd init
-          (call-process "git" nil nil nil "init" "-q")
-          (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
-          (call-process "git" nil nil nil "config" "user.name" "Beads Test")
-          (let* ((cmd (beads-command-init
-                       :prefix prefix
-                       :quiet t
-                       :skip-hooks t))
-                 (exec (beads-command-execute cmd)))
-            ;; Command should succeed
-            (should (= (oref exec exit-code) 0))
-            ;; .beads directory should exist
-            (should (file-directory-p (expand-file-name ".beads" temp-dir)))))
-      ;; Drop the Dolt database to prevent orphan accumulation
-      (ignore-errors
-        (call-process "bd" nil nil nil
-                      "sql" (format "DROP DATABASE IF EXISTS `%s`" prefix)))
-      (when (file-directory-p temp-dir)
-        (delete-directory temp-dir t)))))
+  (beads-test-with-temp-repo ()
+    (let* ((prefix (beads-test--generate-unique-prefix))
+           (cmd (beads-command-init
+                 :prefix prefix
+                 :quiet t
+                 :skip-hooks t))
+           (exec (beads-command-execute cmd)))
+      ;; Command should succeed
+      (should (= (oref exec exit-code) 0))
+      ;; .beads directory should exist
+      (should (file-directory-p (expand-file-name ".beads" default-directory))))))
 
 ;;; Integration Test: beads-command-quickstart
 
