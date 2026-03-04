@@ -519,7 +519,7 @@ Tests the complete flow: create issue, update multiple fields, verify changes."
 
       ;; Verify issue was created
       (should (stringp issue-id))
-      (should (string-match-p "^beadsTest[A-Za-z0-9]+-" issue-id))
+      (should (string-match-p "^bt[A-Za-z0-9]+-" issue-id))
 
       ;; Update the issue using beads-command-update
       (let ((updated-issue (beads-command-update!
