@@ -569,7 +569,7 @@ Uses `bd delete --force' to remove issues without re-initializing."
       (let ((output (with-output-to-string
                       (with-current-buffer standard-output
                         (call-process beads-executable nil t nil
-                                      "list" "--json" "--flat"
+                                      "list" "--json"
                                       "--status" "all"
                                       "--limit" "0")))))
         (when (and output (not (string-empty-p output)))
