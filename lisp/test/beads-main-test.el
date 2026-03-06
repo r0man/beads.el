@@ -20,7 +20,6 @@
 
 (require 'ert)
 (require 'beads)
-(require 'beads-main)
 
 ;;; Test Utilities
 
@@ -270,7 +269,7 @@
 (ert-deftest beads-main-test-transient-has-autoload ()
   "Test that beads command has autoload cookie.
 This test verifies the beads command is properly marked for autoloading
-by checking if the function is available after requiring beads-main."
+by checking if the function is available after requiring beads."
   ;; In batch mode, the module is already loaded, so we just verify
   ;; the command is callable which proves autoloading will work
   (should (fboundp 'beads))
@@ -325,19 +324,19 @@ by checking if the function is available after requiring beads-main."
 ;;; Tests for Integration with Other Modules
 
 (ert-deftest beads-main-test-requires-beads ()
-  "Test that beads-main requires beads."
+  "Test that beads module is loaded."
   (should (featurep 'beads)))
 
 (ert-deftest beads-main-test-requires-beads-list ()
-  "Test that beads-main requires beads-command-list."
+  "Test that beads-command-list is loaded."
   (should (featurep 'beads-command-list)))
 
 (ert-deftest beads-main-test-requires-beads-show ()
-  "Test that beads-main requires beads-command-show."
+  "Test that beads-command-show is loaded."
   (should (featurep 'beads-command-show)))
 
 (ert-deftest beads-main-test-requires-beads-create ()
-  "Test that beads-main requires beads-command-create."
+  "Test that beads-command-create is loaded."
   (should (featurep 'beads-command-create)))
 
 (ert-deftest beads-main-test-list-command-available ()
@@ -474,15 +473,14 @@ by checking if the function is available after requiring beads-main."
 ;;; Module Lifecycle Tests
 
 (ert-deftest beads-main-test-provides-beads-main ()
-  "Test that module provides beads-main feature."
-  (should (featurep 'beads-main)))
+  "Test that beads module is provided (beads-main merged into beads)."
+  (should (featurep 'beads)))
 
 (ert-deftest beads-main-test-module-dependencies ()
   "Test that all required modules are loaded."
   (should (featurep 'beads))
-  (should (featurep 'beads-command-list))
-  (should (featurep 'beads-command-show))
-  (should (featurep 'beads-command-create))
+  (should (featurep 'beads-command))
+  (should (featurep 'beads-git))
   (should (featurep 'transient)))
 
 ;;; Docstring Tests
@@ -506,14 +504,14 @@ by checking if the function is available after requiring beads-main."
 (ert-deftest beads-main-test-main-menu-defined ()
   "Integration test: Verify beads main entry point is defined."
   :tags '(:integration)
-  ;; The main beads command should exist (autoloaded from beads-main)
+  ;; The main beads command is now defined directly in beads.el
   (should (fboundp 'beads)))
 
 (ert-deftest beads-main-test-module-loaded ()
-  "Integration test: Verify beads-main module can be loaded."
+  "Integration test: Verify beads module is loaded."
   :tags '(:integration)
-  ;; The module should be loadable
-  (should (featurep 'beads-main)))
+  ;; beads-main functionality is now in beads.el
+  (should (featurep 'beads)))
 
 (provide 'beads-main-test)
 ;;; beads-main-test.el ends here

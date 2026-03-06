@@ -360,7 +360,7 @@ All statistic numbers are **clickable**! Click on any number to instantly view t
 - `q` - Quit statistics buffer
 
 **Example Workflow:**
-1. Run `M-x beads-stats` (or `S` from beads-main menu)
+1. Run `M-x beads-stats` (or `S` from the beads main menu)
 2. See at-a-glance view of project health
 3. Click on "Open: 30" to see all open issues
 4. Work on issues, then return to stats with `M-x beads-stats`
@@ -800,7 +800,7 @@ lisp/
 ├── beads-create.el               # Create transient
 ├── beads-update.el               # Update transient
 ├── beads-misc.el                 # Misc transients (close/dep/stats/etc)
-├── beads-main.el                 # Root transient menu
+│   (main transient menu is now in beads.el)
 ├── beads-agent.el                # AI agent integration
 ├── beads-worktree.el             # Worktree management transient
 ├── beads-command-worktree.el     # EIEIO classes for bd worktree

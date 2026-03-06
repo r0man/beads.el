@@ -387,7 +387,7 @@ Forge uses hierarchical menu organization:
 3. **Specific action menus** - `forge-topic-state-menu`
 
 **Pattern for beads.el:**
-- `beads-main` - Top-level dispatch (already exists)
+- `beads` - Top-level dispatch (defined in beads.el)
 - Category menus - `beads-create`, `beads-update`, `beads-close` (already
   exist)
 - Add more specific menus as needed (e.g., `beads-label-menu`)
