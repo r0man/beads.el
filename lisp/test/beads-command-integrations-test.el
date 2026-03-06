@@ -161,5 +161,56 @@
     (should (member "repo" args))
     (should (member "sync" args))))
 
+;;; Unit Tests: beads-command-gitlab-sync command-line
+
+(ert-deftest beads-command-gitlab-sync-test-command-line-basic ()
+  "Unit test: gitlab sync builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-gitlab-sync))
+         (args (beads-command-line cmd)))
+    (should (member "gitlab" args))
+    (should (member "sync" args))))
+
+(ert-deftest beads-command-gitlab-sync-test-command-line-pull ()
+  "Unit test: gitlab sync includes --pull option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-gitlab-sync :pull t))
+         (args (beads-command-line cmd)))
+    (should (member "--pull" args))))
+
+(ert-deftest beads-command-gitlab-sync-test-command-line-push ()
+  "Unit test: gitlab sync includes --push option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-gitlab-sync :push t))
+         (args (beads-command-line cmd)))
+    (should (member "--push" args))))
+
+(ert-deftest beads-command-gitlab-sync-test-command-line-dry-run ()
+  "Unit test: gitlab sync includes --dry-run option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-gitlab-sync :dry-run t))
+         (args (beads-command-line cmd)))
+    (should (member "--dry-run" args))))
+
+;;; Unit Tests: beads-command-gitlab-status command-line
+
+(ert-deftest beads-command-gitlab-status-test-command-line-basic ()
+  "Unit test: gitlab status builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-gitlab-status))
+         (args (beads-command-line cmd)))
+    (should (member "gitlab" args))
+    (should (member "status" args))))
+
+;;; Unit Tests: beads-command-gitlab-projects command-line
+
+(ert-deftest beads-command-gitlab-projects-test-command-line-basic ()
+  "Unit test: gitlab projects builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-gitlab-projects))
+         (args (beads-command-line cmd)))
+    (should (member "gitlab" args))
+    (should (member "projects" args))))
+
 (provide 'beads-command-integrations-test)
 ;;; beads-command-integrations-test.el ends here

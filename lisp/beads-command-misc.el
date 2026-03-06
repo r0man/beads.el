@@ -1060,5 +1060,53 @@ Stores a persistent memory.")
   "Store a persistent memory."
   beads-option-global-section)
 
+;;; Additional Commands — rename stub
+
+(beads-defcommand beads-command-rename (beads-command-json)
+  ((old-id
+    :initarg :old-id
+    :type (or null string)
+    :initform nil
+    :documentation "Current issue ID to rename."
+    :positional 1
+    :key "o"
+    :transient "Old issue ID (required)"
+    :class transient-option
+    :argument "--old-id="
+    :prompt "Old issue ID: "
+    :transient-group "Rename Issue"
+    :level 1
+    :order 0)
+   (new-id
+    :initarg :new-id
+    :type (or null string)
+    :initform nil
+    :documentation "New issue ID to assign."
+    :positional 2
+    :key "n"
+    :transient "New issue ID (required)"
+    :class transient-option
+    :argument "--new-id="
+    :prompt "New issue ID: "
+    :transient-group "Rename Issue"
+    :level 1
+    :order 1))
+  :documentation "Represents bd rename command.
+Renames an issue from one ID to another, updating all references.")
+
+
+(cl-defmethod beads-command-validate ((command beads-command-rename))
+  "Validate rename COMMAND."
+  (with-slots (old-id new-id) command
+    (cond
+     ((not old-id) "Old issue ID is required")
+     ((not new-id) "New issue ID is required")
+     (t nil))))
+
+;;;###autoload (autoload 'beads-rename "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-rename "beads-rename"
+  "Rename an issue from one ID to another."
+  beads-option-global-section)
+
 (provide 'beads-command-misc)
 ;;; beads-command-misc.el ends here
