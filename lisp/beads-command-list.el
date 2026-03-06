@@ -63,6 +63,10 @@
                   (&optional project-dir))
 (declare-function beads-show-update-buffer "beads-command-show"
                   (issue-id buffer))
+(declare-function beads-command-reopen! "beads-command-reopen" (&rest args))
+(declare-function beads-command-update "beads-command-update" (&rest args))
+(declare-function beads-command-show! "beads-command-show" (&rest args))
+(defvar beads-show--issue-id)
 
 ;;; List Command
 
@@ -959,6 +963,7 @@ Does not modify any slots."
 ;; 1. EIEIO validates :initform types at class definition time (symbol fails)
 ;; 2. :around/:after methods have complex slot argument handling
 ;; The function override is the cleanest solution that reliably works.
+(with-no-warnings
 (defun beads-command-list! (&rest args)
   "Execute `beads-command-list' and return result data.
 
@@ -972,7 +977,7 @@ the `beads-list-default-limit' customization variable."
     (setq args (plist-put args :limit beads-list-default-limit)))
   (unless (plist-member args :json)
     (setq args (plist-put args :json t)))
-  (oref (beads-command-execute (apply #'beads-command-list args)) result))
+  (oref (beads-command-execute (apply #'beads-command-list args)) result)))
 
 ;;; Transient Menu
 

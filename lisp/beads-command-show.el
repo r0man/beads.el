@@ -49,6 +49,10 @@
 (require 'xref)
 (require 'bookmark)
 
+;; Forward declarations
+(declare-function org-link-set-parameters "org" (type &rest parameters))
+(declare-function org-link-store-props "org" (&rest args))
+
 ;;; Show Command
 
 (beads-defcommand beads-command-show (beads-command-global-options)

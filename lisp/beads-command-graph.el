@@ -24,6 +24,11 @@
 (require 'beads-option)
 (require 'transient)
 
+;; Forward declarations
+(declare-function beads-command-reopen! "beads-command-reopen" (&rest args))
+(declare-function beads-command-update "beads-command-update" (&rest args))
+(declare-function beads-command-show! "beads-command-show" (&rest args))
+
 ;;; ============================================================
 ;;; Command Class: beads-command-graph
 ;;; ============================================================
