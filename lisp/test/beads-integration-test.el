@@ -64,6 +64,112 @@ Set as a side effect so callers can retrieve the prefix for cleanup.")
   (setenv "BD_NO_DAEMON" "1"))
 
 ;;; ============================================================
+;;; Test-Local Dolt Server Management
+;;; ============================================================
+
+(defvar beads-test--dolt-server-process nil
+  "Process object for the test-local Dolt SQL server.
+Non-nil when the server is running.  Tests that need the Dolt
+backend use this server instead of the production server on
+port 3307.")
+
+(defvar beads-test--dolt-server-port nil
+  "TCP port number for the test-local Dolt SQL server.
+Set by `beads-test--start-test-dolt-server' and cleared by
+`beads-test--stop-test-dolt-server'.")
+
+(defvar beads-test--dolt-server-data-dir nil
+  "Temporary data directory for the test-local Dolt SQL server.
+Deleted when the server is stopped via
+`beads-test--stop-test-dolt-server'.")
+
+(defun beads-test--find-free-port ()
+  "Find a free TCP port by binding to port 0 and reading the assigned port.
+Returns the port number as an integer.  The port is guaranteed to
+have been free at the moment this function returns, though it may
+be taken by another process immediately afterward."
+  (let* ((server (make-network-process
+                  :name "beads-test-port-probe"
+                  :server t
+                  :host "127.0.0.1"
+                  :service 0
+                  :family 'ipv4
+                  :noquery t))
+         (port (process-contact server :service)))
+    (delete-process server)
+    port))
+
+(defun beads-test--dolt-server-ready-p (port)
+  "Return non-nil if a server is accepting TCP connections on PORT.
+Used to poll for the Dolt SQL server startup."
+  (condition-case nil
+      (let ((conn (open-network-stream
+                   "beads-test-dolt-probe" nil "127.0.0.1" port)))
+        (delete-process conn)
+        t)
+    (error nil)))
+
+(defun beads-test--wait-for-dolt-server (port &optional max-wait-ms)
+  "Wait until the Dolt server on PORT accepts connections.
+MAX-WAIT-MS is the maximum wait time in milliseconds (default 10000).
+Signals an error if the server does not become ready in time."
+  (let* ((max-ms (or max-wait-ms 10000))
+         (interval-ms 200)
+         (attempts (/ max-ms interval-ms))
+         (ready nil))
+    (while (and (> attempts 0) (not ready))
+      (setq ready (beads-test--dolt-server-ready-p port))
+      (unless ready
+        (sleep-for 0 interval-ms)
+        (setq attempts (1- attempts))))
+    (unless ready
+      (error "Dolt test server did not start on port %d within %dms"
+             port max-ms))))
+
+(defun beads-test--start-test-dolt-server ()
+  "Start a test-local Dolt SQL server on a free port.
+Sets `beads-test--dolt-server-process', `beads-test--dolt-server-port',
+and `beads-test--dolt-server-data-dir'.  Idempotent: does nothing if
+the server is already running.  Signals an error if dolt is not
+installed.
+
+The server uses a temporary data directory and a dynamically allocated
+port, so it never conflicts with the production server on port 3307.
+All test databases are automatically destroyed when the server stops."
+  (unless beads-test--dolt-server-process
+    (unless (executable-find "dolt")
+      (error "dolt not found in PATH; cannot start test Dolt server"))
+    (let* ((port (beads-test--find-free-port))
+           (data-dir (make-temp-file "beads-test-dolt-" t))
+           (proc (start-process
+                  "beads-test-dolt" nil
+                  "dolt" "sql-server"
+                  "--port" (number-to-string port)
+                  "--data-dir" data-dir)))
+      (set-process-query-on-exit-flag proc nil)
+      (setq beads-test--dolt-server-process proc
+            beads-test--dolt-server-port port
+            beads-test--dolt-server-data-dir data-dir)
+      (beads-test--wait-for-dolt-server port))))
+
+(defun beads-test--stop-test-dolt-server ()
+  "Stop the test-local Dolt SQL server and clean up its data directory.
+Resets `beads-test--dolt-server-process', `beads-test--dolt-server-port',
+and `beads-test--dolt-server-data-dir' to nil.  Idempotent: does nothing
+if no server is running.
+
+Stopping the server destroys all test databases automatically — no
+explicit DROP DATABASE cleanup is needed."
+  (when beads-test--dolt-server-process
+    (ignore-errors (delete-process beads-test--dolt-server-process))
+    (setq beads-test--dolt-server-process nil))
+  (when beads-test--dolt-server-data-dir
+    (ignore-errors (delete-directory beads-test--dolt-server-data-dir t))
+    (setq beads-test--dolt-server-data-dir nil))
+  (setq beads-test--dolt-server-port nil)
+  nil)
+
+;;; ============================================================
 ;;; CLI Feature Detection
 ;;; ============================================================
 
@@ -102,20 +208,39 @@ Returns DIR for convenience."
   "Initialize beads in DIR with optional PREFIX.
 If QUIET is non-nil, suppress bd output.
 Sets `beads-test--last-init-prefix' as a side effect.
+
+When `beads-test-no-daemon' is non-nil (or BD_NO_DAEMON=1 is set),
+uses file-backed storage (SQLite) and never contacts a Dolt server.
+
+When Dolt mode is active (no-daemon not set), automatically starts the
+test-local Dolt server (if not already running) and configures this
+repo to use it, ensuring the production server on port 3307 is never
+touched.
+
 Returns DIR for convenience."
   (require 'beads-command)
   (let* ((default-directory dir)
          (effective-prefix (or prefix (beads-test--generate-unique-prefix)))
+         (no-daemon (or (bound-and-true-p beads-test-no-daemon)
+                        (getenv "BD_NO_DAEMON")))
          (cmd (beads-command-init :prefix effective-prefix
                                   :quiet quiet
                                   :skip-hooks t))
          ;; Isolate from production Dolt server
-         (process-environment (if (bound-and-true-p beads-test-no-daemon)
-                                   (cons "BD_NO_DAEMON=1"
-                                         process-environment)
-                                 process-environment)))
+         (process-environment (if no-daemon
+                                  (cons "BD_NO_DAEMON=1"
+                                        process-environment)
+                                process-environment)))
     (setq beads-test--last-init-prefix effective-prefix)
-    (beads-command-execute cmd))
+    (beads-command-execute cmd)
+    ;; When running in Dolt mode, auto-start the test server and
+    ;; configure this repo to use it, never port 3307.
+    (unless no-daemon
+      (beads-test--start-test-dolt-server)
+      (call-process (or (bound-and-true-p beads-executable) "bd")
+                    nil nil nil
+                    "dolt" "set" "port"
+                    (number-to-string beads-test--dolt-server-port))))
   dir)
 
 (defun beads-test--clear-caches ()
@@ -127,17 +252,6 @@ Returns DIR for convenience."
   (when (boundp 'beads--completion-cache)
     (setq beads--completion-cache nil)))
 
-(defun beads-test--drop-dolt-database (prefix)
-  "Drop the Dolt database named PREFIX from the shared server.
-Silently ignores errors (e.g., if the database doesn't exist or
-the server is unavailable).  Skipped when `beads-test-no-daemon'
-is non-nil since no server database exists in no-daemon mode."
-  (when (and prefix (not (string-empty-p prefix))
-             (not (bound-and-true-p beads-test-no-daemon)))
-    (ignore-errors
-      (call-process (or (bound-and-true-p beads-executable) "bd")
-                    nil nil nil
-                    "sql" (format "DROP DATABASE IF EXISTS `%s`" prefix)))))
 
 (defun beads-test--clear-transient-state ()
   "Clear any active transient state to ensure test isolation."
@@ -230,7 +344,6 @@ Examples:
       ))"
   (declare (indent 1) (debug (form body)))
   (let ((temp-dir (make-symbol "temp-dir"))
-        (db-prefix (make-symbol "db-prefix"))
         (init-beads (plist-get args :init-beads))
         (prefix (plist-get args :prefix))
         (cleanup (if (plist-member args :cleanup)
@@ -244,7 +357,6 @@ Examples:
                         ,@(when init-beads '(:init-beads t))
                         ,@(when prefix `(:prefix ,prefix))
                         :quiet ,quiet))
-            (,db-prefix beads-test--last-init-prefix)
             (default-directory ,temp-dir)
             ;; Fresh caches for isolation
             (beads--project-cache (make-hash-table :test 'equal))
@@ -264,8 +376,6 @@ Examples:
            ;; Clear state after test
            (beads-test--clear-transient-state)
            (beads-test--clear-caches)
-           ;; Drop the Dolt database to prevent orphan accumulation
-           (beads-test--drop-dolt-database ,db-prefix)
            ;; Optionally cleanup temp dir
            (when ,cleanup
              (delete-directory ,temp-dir t)))))))
