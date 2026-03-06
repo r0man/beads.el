@@ -68,6 +68,44 @@ If any check fails:
 
 This is a non-negotiable requirement for code quality.
 
+## Development Dolt Server
+
+beads.el development and testing uses a **dedicated Dolt server on port 3308**,
+completely isolated from the Gas Town production server (port 3307).
+
+### Start the dev Dolt server
+
+Before running integration tests or bd commands in dev, start the dedicated server:
+
+```bash
+# Start Dolt on port 3308 (beads.el dev port)
+dolt sql-server --port 3308 --data-dir ~/.dolt-beads-dev &
+DOLT_PID=$!
+
+# Or use bd dolt start after configuring port in your test repo:
+# bd dolt set port 3308
+```
+
+Configure your test/dev beads repos to use port 3308:
+
+```bash
+cd /path/to/your/test-repo
+bd dolt set port 3308
+```
+
+### NEVER touch port 3307
+
+Port 3307 is the live Gas Town production Dolt server. Tests and development
+work MUST NEVER connect to it. Always verify you are on port 3308 before
+running bd commands that touch Dolt.
+
+### Stop the dev server
+
+```bash
+kill $DOLT_PID
+# Or: bd dolt stop  (in a repo configured for port 3308)
+```
+
 ## Build and Test Commands
 
 **MANDATORY**: Run these commands after EVERY code change.
@@ -201,6 +239,44 @@ keybindings, interactive flows.
 
 **Do NOT skip this step** — a feature is not complete until it has
 been acceptance-tested in tmux.
+
+### Using the tmux skill
+
+In Claude Code, use the tmux skill to drive the Emacs session
+programmatically:
+
+```
+/tmux
+```
+
+This allows you to send keystrokes and capture pane output. Drive
+the full user workflow: open menus, navigate transients, verify
+output — all without a graphical display.
+
+### Full acceptance test example
+
+```bash
+# 1. Create tmux session
+tmux new-session -d -s beads-accept
+
+# 2. Start non-graphical Emacs with beads loaded
+tmux send-keys -t beads-accept \
+  "emacs -nw -Q --eval '(progn (add-to-list (quote load-path) \"$(pwd)/lisp\") (require (quote beads)))'" \
+  Enter
+
+# 3. Wait for Emacs to start, then invoke the main menu
+sleep 2
+tmux send-keys -t beads-accept "M-x beads" Enter
+
+# 4. Verify the transient menu appeared
+tmux capture-pane -t beads-accept -p | grep -q "Working With Issues"
+
+# 5. Navigate — press l for list
+tmux send-keys -t beads-accept "l" ""
+
+# 6. Capture and inspect the result
+tmux capture-pane -t beads-accept -p
+```
 
 ## Beads Reference Documentation
 
@@ -365,6 +441,22 @@ When working on an issue:
 1. Create a branch for the issue: `git checkout -b beads.el-X-short-description`
 2. Update issue status: `bd update beads.el-X --status in_progress`
 3. Edit source files in lisp/*.el
+
+### TDD Loop (MANDATORY)
+
+For every code change, follow this cycle strictly:
+1. **Write the test first** — add ERT test to the relevant test file
+2. **Run tests — they should FAIL** (red):
+   `BD_NO_DAEMON=1 eldev -p -dtT test`
+3. **Implement the minimum code** to make the test pass
+4. **Run tests — they should PASS** (green):
+   `BD_NO_DAEMON=1 eldev -p -dtT test`
+5. **Refactor** if needed, keeping tests green
+6. **Repeat** for the next change
+
+Never write implementation before writing the test. If a test is hard to
+write, that is a signal the design needs simplification.
+
 4. **MANDATORY: Interactive testing in live Emacs** (catches issues
    early):
    a. Start the Emacs dev server if not running:
