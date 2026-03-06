@@ -751,19 +751,20 @@ labels from issues using the bd label remove command."
 ;;; Parent Transient Menu
 
 ;;;###autoload (autoload 'beads-label "beads-command-label" nil t)
-(transient-define-prefix beads-label ()
-  "Manage labels for issues.
+(with-no-warnings
+  (transient-define-prefix beads-label ()
+    "Manage labels for issues.
 
 This transient menu provides access to all label management commands:
 - Add labels to issues
 - Remove labels from issues
 - List labels for an issue
 - List all labels in the database"
-  ["Label Commands"
-   ("a" "Add label to issue(s)" beads-label-add)
-   ("r" "Remove label from issue(s)" beads-label-remove)
-   ("l" "List labels for issue" beads-label-list-interactive)
-   ("L" "List all labels" beads-label-list-all-view)])
+    ["Label Commands"
+     ("a" "Add label to issue(s)" beads-label-add)
+     ("r" "Remove label from issue(s)" beads-label-remove)
+     ("l" "List labels for issue" beads-label-list-interactive)
+     ("L" "List all labels" beads-label-list-all-view)]))
 
 (provide 'beads-command-label)
 ;;; beads-command-label.el ends here

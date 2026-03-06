@@ -157,7 +157,8 @@ Default is 50."
     :type (or null string)
     :initform nil
     :documentation "Sort field (--sort).
-Valid values: priority, created, updated, closed, status, id, title, type, assignee."
+Valid values: priority, created, updated, closed, status,
+id, title, type, assignee."
     :long-option "sort"
     :option-type :string
     :key "o"

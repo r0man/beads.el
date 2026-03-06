@@ -44,6 +44,7 @@
 (declare-function beads-agent-jump "beads-agent")
 (declare-function beads-agent-cleanup-stale-sessions "beads-agent")
 (declare-function beads-show "beads-show")
+(declare-function beads-command-show! "beads-command-show" (&rest args))
 
 ;;; Customization
 

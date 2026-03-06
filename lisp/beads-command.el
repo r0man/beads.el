@@ -192,18 +192,8 @@ Example (without transient):
          (doc-pos (cl-position :documentation defclass-options))
          (docstring (when doc-pos (nth (1+ doc-pos) defclass-options)))
          (short-doc (when global-section
-                      (beads--extract-first-sentence docstring)))
-         ;; Autoload file name (for generated transient commands)
-         (autoload-file
-          (when transient-name
-            (beads--current-feature-name))))
+                      (beads--extract-first-sentence docstring))))
     `(progn
-       ;; Autoload for the generated transient command (picked up by
-       ;; the autoload generator when ;;;###autoload precedes this
-       ;; macro call; harmless no-op at normal load time since the
-       ;; function is defined immediately after).
-       ,@(when (and transient-name autoload-file)
-           `((autoload ',transient-name ,autoload-file nil t)))
        (eval-and-compile
          (defclass ,name ,superclasses ,final-slots ,@defclass-options))
        (defun ,bang-fn (&rest args)
@@ -265,7 +255,7 @@ or :issues (always list)."
                                 :parse-error err))))))))))
     (:issues
      `((cl-defmethod beads-command-parse ((command ,class-name) execution)
-         ,(format "Parse %s output from EXECUTION into list of beads-issue objects." class-name)
+         ,(format "Parse %s output from EXECUTION.\nReturn list of beads-issue objects." class-name)
          (with-slots (json) command
            (if (not json)
                (cl-call-next-method)
@@ -717,7 +707,7 @@ Checks for :cli-command class-allocated slot first."
     (unless (equal class-name "beads-command")
       (let ((cli-cmd (and (slot-exists-p command 'cli-command)
                           (slot-boundp command 'cli-command)
-                          (oref command cli-command))))
+                          (with-no-warnings (oref command cli-command)))))
         (or cli-cmd
             (when (string-match "\\`beads-command-\\(.+\\)\\'" class-name)
               (replace-regexp-in-string

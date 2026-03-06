@@ -1637,9 +1637,9 @@ correctly wrapped, avoiding slot type validation errors."
 ;;; ============================================================
 
 (ert-deftest beads-meta-define-transient-generates-autoload ()
-  "Test that beads-meta-define-transient includes an autoload form.
-When the class is available, the expansion should contain an autoload
-form for the transient prefix command."
+  "Test that beads-meta-define-transient expands to a progn with infixes.
+When the class is available, the expansion should be a progn starting
+with a beads-meta-define-infixes form."
   (let* ((load-file-name "/path/to/beads-command-test-autoload.el")
          (expansion (macroexpand-1
                      '(beads-meta-define-transient
@@ -1648,13 +1648,10 @@ form for the transient prefix command."
                        nil))))
     ;; Should expand to a progn
     (should (eq 'progn (car expansion)))
-    ;; First form should be an autoload
-    (let ((autoload-form (cadr expansion)))
-      (should (eq 'autoload (car autoload-form)))
-      ;; The symbol is quoted: (autoload 'sym ...) => (autoload (quote sym) ...)
-      (should (equal '(quote beads-test-child) (cadr autoload-form)))
-      (should (equal "beads-command-test-autoload"
-                     (caddr autoload-form))))))
+    ;; First form should be beads-meta-define-infixes (no autoload in
+    ;; full expansion — autoload is handled by ;;;###autoload cookie)
+    (let ((first-form (cadr expansion)))
+      (should (eq 'beads-meta-define-infixes (car first-form))))))
 
 (ert-deftest beads-meta-define-transient-autoload-graceful-fallback ()
   "Test graceful fallback when class is not defined.

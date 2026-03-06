@@ -29,6 +29,7 @@
 ;; Forward declarations
 (defvar beads-completion-show-unavailable-backends)
 (declare-function beads-command-list! "beads-command-list" (&rest args))
+(declare-function beads-command-worktree-list! "beads-command-worktree" (&rest args))
 
 ;;; Completion Cache
 

@@ -103,6 +103,10 @@
 (declare-function beads-list--current-issue-id "beads-list")
 (declare-function beads-show--issue-id "beads-show")
 (declare-function beads-sesman--link-session-buffer "beads-sesman")
+(declare-function beads-command-update "beads-command-update" (&rest args))
+(declare-function beads-command-update! "beads-command-update" (&rest args))
+(declare-function beads-command-show "beads-command-show" (&rest args))
+(declare-function beads-command-show! "beads-command-show" (&rest args))
 (defvar beads-show--issue-id)
 (defvar beads-sesman--buffer-session-id)
 

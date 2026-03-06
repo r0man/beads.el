@@ -632,6 +632,16 @@ Returns a string or nil if value should not be included."
         ((numberp value) (number-to-string value))
         (t nil)))))
 
+;;; ============================================================
+;;; Global Options Building from Slot Metadata
+;;; ============================================================
+
+(defconst beads-meta--global-option-slots
+  '(actor allow-stale db dolt-auto-commit lock-timeout no-auto-flush
+    no-auto-import no-daemon no-db profile quiet readonly sandbox verbose)
+  "List of slot names that are global bd CLI options.
+These slots are defined in `beads-command-global-options' class.")
+
 (defun beads-meta-build-command-line (command)
   "Build command-line arguments from slot metadata for COMMAND.
 COMMAND is an EIEIO object instance.
@@ -715,16 +725,6 @@ This does NOT include global flags or executable - those are handled
 by the base class's command-line method."
   (cons subcommand (beads-meta-build-command-line command)))
 
-;;; ============================================================
-;;; Global Options Building from Slot Metadata
-;;; ============================================================
-
-(defconst beads-meta--global-option-slots
-  '(actor allow-stale db dolt-auto-commit lock-timeout no-auto-flush
-    no-auto-import no-daemon no-db profile quiet readonly sandbox verbose)
-  "List of slot names that are global bd CLI options.
-These slots are defined in `beads-command-global-options' class.")
-
 (defun beads-meta-build-global-options (command)
   "Build command-line arguments for global options in COMMAND.
 COMMAND is an EIEIO object that inherits from `beads-command-global-options'.
@@ -767,10 +767,10 @@ E.g., issue-id -> \"Issue ID\", issue-ids -> \"Issue IDs\"."
     (setq capitalized (replace-regexp-in-string "\\bIds\\b" "IDs" capitalized))
     (replace-regexp-in-string "\\bId\\b" "ID" capitalized)))
 
-(defun beads-meta--auto-generate-key (slot-name position)
+(defun beads-meta--auto-generate-key (slot-name _position)
   "Auto-generate a transient key for SLOT-NAME.
-POSITION is the :positional value (1, 2, 3...) or nil.
-Returns the first letter of slot-name, or a number if position is given."
+_POSITION is the :positional value (1, 2, 3...) or nil (currently unused).
+Returns the first letter of slot-name."
   (let ((name (symbol-name slot-name)))
     ;; Use first letter of slot name
     (substring name 0 1)))
@@ -1153,7 +1153,7 @@ Generates:
          (prefix-val (eval prefix))
          (fn-name (beads-meta-generate-parse-function-name prefix-val))
          (infix-specs (beads-meta-generate-infix-specs class-val prefix-val)))
-    `(defun ,fn-name (args)
+    `(defun ,fn-name (,(if infix-specs 'args '_args))
        ,(format "Parse transient ARGS into a %s instance." class-val)
        (,class-val
         ,@(cl-mapcan
@@ -1235,9 +1235,6 @@ with a single macro call."
                (preview-sym (intern (format "%s--preview" prefix-val)))
                (reset-sym (intern (format "%s--reset" prefix-val))))
           `(progn
-             ;; Autoload for the generated transient command
-             ,@(when autoload-file
-                 `((autoload ',prefix-sym ,autoload-file nil t)))
              ;; Define infixes from slot metadata
              (beads-meta-define-infixes ,class ,prefix)
              ;; Define groups

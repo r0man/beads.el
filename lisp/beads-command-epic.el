@@ -101,8 +101,8 @@ Does not modify any slots."
                          :stderr (oref execution stderr)
                          :parse-error err))))))))
 
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-epic-status))
-  "Execute CMD in terminal buffer with human-readable output."
+(cl-defmethod beads-command-execute-interactive ((_cmd beads-command-epic-status))
+  "Execute in terminal buffer with human-readable output."
   (cl-call-next-method))
 
 
