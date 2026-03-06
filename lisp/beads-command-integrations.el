@@ -247,6 +247,86 @@ Manually triggers multi-repo sync.")
   "Trigger multi-repo sync."
   beads-option-global-section)
 
+;;; ============================================================
+;;; GitLab Commands
+;;; ============================================================
+
+(beads-defcommand beads-command-gitlab-sync (beads-command-json)
+  ((pull
+    :initarg :pull
+    :type boolean
+    :initform nil
+    :documentation "Import issues from GitLab."
+    :long-option "pull"
+    :option-type :boolean
+    :key "p"
+    :transient "--pull"
+    :class transient-switch
+    :argument "--pull"
+    :transient-group "Direction"
+    :level 1
+    :order 1)
+   (push
+    :initarg :push
+    :type boolean
+    :initform nil
+    :documentation "Export issues to GitLab."
+    :long-option "push"
+    :option-type :boolean
+    :key "P"
+    :transient "--push"
+    :class transient-switch
+    :argument "--push"
+    :transient-group "Direction"
+    :level 1
+    :order 2)
+   (dry-run
+    :initarg :dry-run
+    :type boolean
+    :initform nil
+    :documentation "Preview sync without changes."
+    :long-option "dry-run"
+    :option-type :boolean
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
+    :transient-group "Options"
+    :level 1
+    :order 1))
+  :documentation "Represents bd gitlab sync command.
+Synchronizes issues with GitLab.")
+
+
+(beads-defcommand beads-command-gitlab-status (beads-command-json)
+  ()
+  :documentation "Represents bd gitlab status command.
+Shows GitLab sync status.")
+
+
+(beads-defcommand beads-command-gitlab-projects (beads-command-json)
+  ()
+  :documentation "Represents bd gitlab projects command.
+Lists accessible GitLab projects.")
+
+
+;;; Autoloads for GitLab sub-commands
+
+;;;###autoload (autoload 'beads-gitlab-sync "beads-command-integrations" nil t)
+(beads-meta-define-transient beads-command-gitlab-sync "beads-gitlab-sync"
+  "Sync issues with GitLab."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-gitlab-status "beads-command-integrations" nil t)
+(beads-meta-define-transient beads-command-gitlab-status "beads-gitlab-status"
+  "Show GitLab sync status."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-gitlab-projects "beads-command-integrations" nil t)
+(beads-meta-define-transient beads-command-gitlab-projects "beads-gitlab-projects"
+  "List accessible GitLab projects."
+  beads-option-global-section)
+
 ;;; Parent Transient Menus
 
 ;;;###autoload (autoload 'beads-jira "beads-command-integrations" nil t)
@@ -272,6 +352,14 @@ Manually triggers multi-repo sync.")
    ("l" "List repos" beads-repo-list)
    ("r" "Remove repo" beads-repo-remove)
    ("s" "Sync all" beads-repo-sync)])
+
+;;;###autoload (autoload 'beads-gitlab "beads-command-integrations" nil t)
+(transient-define-prefix beads-gitlab ()
+  "GitLab integration commands."
+  ["GitLab Commands"
+   ("s" "Sync" beads-gitlab-sync)
+   ("S" "Status" beads-gitlab-status)
+   ("p" "Projects" beads-gitlab-projects)])
 
 (provide 'beads-command-integrations)
 ;;; beads-command-integrations.el ends here

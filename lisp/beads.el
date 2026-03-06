@@ -508,7 +508,8 @@ into logical groups matching bd CLI structure."
     ("a" "Children" beads-children)
     (">" "Promote wisp" beads-promote)
     ("X" "Query issues" beads-query)
-    ("[" "Todo items" beads-todo)]
+    ("[" "Todo items" beads-todo)
+    ("rn" "Rename issue" beads-rename)]
    ["Workflow & Collaboration"
     ("F" "Formula menu" beads-formula-menu)
     ("K" "Cook formula" beads-cook)
@@ -584,8 +585,6 @@ into logical groups matching bd CLI structure."
     ("2" "Find duplicates" beads-duplicates)
     ("3" "Supersede issue" beads-supersede)]
    ["Sync & Data"
-    ("y" "Sync (deprecated)" beads-sync)
-    ("n" "Daemon menu" beads-daemon)
     ("4" "Restore issue" beads-restore)
     ("J" "SQL query" beads-sql)
     ("bu" "Backup database" beads-backup)
@@ -593,6 +592,7 @@ into logical groups matching bd CLI structure."
    ["Integrations"
     ("j" "Jira" beads-jira)
     ("N" "Linear" beads-linear)
+    ("gl" "GitLab" beads-gitlab)
     ("R" "Repo" beads-repo)
     ("*" "Mail delegate" beads-mail)]]
   ;; Row 4: Labels | Actions
@@ -648,6 +648,11 @@ Returns t if found, signals error otherwise."
     (beads--error "Cannot find bd executable '%s'.
 Install bd CLI from https://github.com/steveyegge/beads
 or set `beads-executable' to the full path" beads-executable)))
+
+;; beads-list autoload — ensures `beads-list' is available when the main
+;; transient menu renders, without requiring the full beads-command-list module.
+;;;###autoload
+(autoload 'beads-list "beads-command-list" nil t)
 
 ;; Label API autoloads — these are used by other modules (e.g., readers,
 ;; completion) that depend on beads.el, so they must be available early.

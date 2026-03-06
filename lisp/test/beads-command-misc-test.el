@@ -346,5 +346,34 @@
          (args (beads-command-line cmd)))
     (should (member "mail" args))))
 
+;;; Unit Tests: beads-command-rename command-line
+
+(ert-deftest beads-command-rename-test-command-line-basic ()
+  "Unit test: rename builds correct command line with both IDs."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-rename :old-id "bd-w382l" :new-id "bd-auth"))
+         (args (beads-command-line cmd)))
+    (should (member "rename" args))
+    (should (member "bd-w382l" args))
+    (should (member "bd-auth" args))))
+
+(ert-deftest beads-command-rename-test-validation-missing-old-id ()
+  "Unit test: rename validation fails without old-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-rename :new-id "bd-auth")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-rename-test-validation-missing-new-id ()
+  "Unit test: rename validation fails without new-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-rename :old-id "bd-w382l")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-rename-test-validation-valid ()
+  "Unit test: rename validation passes with both IDs."
+  :tags '(:unit)
+  (let ((cmd (beads-command-rename :old-id "bd-w382l" :new-id "bd-auth")))
+    (should-not (beads-command-validate cmd))))
+
 (provide 'beads-command-misc-test)
 ;;; beads-command-misc-test.el ends here
