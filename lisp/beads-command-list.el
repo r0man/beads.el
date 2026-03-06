@@ -66,7 +66,7 @@
 
 ;;; List Command
 
-(beads-defcommand beads-command-list (beads-command)
+(beads-defcommand beads-command-list (beads-command-global-options)
   (;; === Basic Filters ===
      (all
       :initarg :all

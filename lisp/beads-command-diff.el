@@ -26,7 +26,7 @@
 
 ;;; Diff Command
 
-(beads-defcommand beads-command-diff (beads-command)
+(beads-defcommand beads-command-diff (beads-command-global-options)
   ((from-ref
     :initarg :from-ref
     :type (or null string)

@@ -33,7 +33,7 @@
 ;;; Command Class: beads-command-edit
 ;;; ============================================================
 
-(beads-defcommand beads-command-edit (beads-command)
+(beads-defcommand beads-command-edit (beads-command-global-options)
   ((issue-id
     :initarg :issue-id
     :type (or null string)

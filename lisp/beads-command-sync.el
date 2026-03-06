@@ -41,7 +41,7 @@
 ;;; Command Class: beads-command-sync
 ;;; ============================================================
 
-(beads-defcommand beads-command-sync (beads-command)
+(beads-defcommand beads-command-sync (beads-command-global-options)
   ((dry-run
     :initarg :dry-run
     :type boolean

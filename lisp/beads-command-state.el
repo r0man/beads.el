@@ -23,7 +23,7 @@
 ;;; Command Class: beads-command-set-state
 ;;; ============================================================
 
-(beads-defcommand beads-command-set-state (beads-command)
+(beads-defcommand beads-command-set-state (beads-command-global-options)
   ((issue-id
     :initarg :issue-id
     :type (or null string)
@@ -72,7 +72,7 @@ Atomically sets operational state on an issue.")
 ;;; Command Class: beads-command-state
 ;;; ============================================================
 
-(beads-defcommand beads-command-state (beads-command)
+(beads-defcommand beads-command-state (beads-command-global-options)
   ((issue-id
     :initarg :issue-id
     :type (or null string)
@@ -101,7 +101,7 @@ Queries the current value of a state dimension.")
 ;;; Command Class: beads-command-state-list
 ;;; ============================================================
 
-(beads-defcommand beads-command-state-list (beads-command)
+(beads-defcommand beads-command-state-list (beads-command-global-options)
   ((issue-id
     :initarg :issue-id
     :type (or null string)

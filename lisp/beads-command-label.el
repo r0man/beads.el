@@ -86,7 +86,7 @@ Format: (TIMESTAMP . LABELS-LIST)")
 
 ;;; Label Add Command
 
-(beads-defcommand beads-command-label-add (beads-command)
+(beads-defcommand beads-command-label-add (beads-command-global-options)
   ((issue-ids
     :initarg :issue-ids
     :type (or null list)
@@ -153,7 +153,7 @@ Returns error string or nil if valid."
 
 ;;; Label Remove Command
 
-(beads-defcommand beads-command-label-remove (beads-command)
+(beads-defcommand beads-command-label-remove (beads-command-global-options)
   ((issue-ids
     :initarg :issue-ids
     :type (or null list)
@@ -220,7 +220,7 @@ Returns error string or nil if valid."
 
 ;;; Label List Command
 
-(beads-defcommand beads-command-label-list (beads-command)
+(beads-defcommand beads-command-label-list (beads-command-global-options)
   ((issue-id
     :initarg :issue-id
     :type (or null string)
@@ -255,7 +255,7 @@ Returns error string or nil if valid."
 
 ;;; Label List All Command
 
-(beads-defcommand beads-command-label-list-all (beads-command)
+(beads-defcommand beads-command-label-list-all (beads-command-global-options)
   ()
   :documentation "Represents bd label list-all command.
 Lists all unique labels in the database.")

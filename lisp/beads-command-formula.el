@@ -113,7 +113,7 @@
 ;;; Formula List Command Class
 ;;; ============================================================
 
-(beads-defcommand beads-command-formula-list (beads-command)
+(beads-defcommand beads-command-formula-list (beads-command-global-options)
   ((formula-type
     :initarg :formula-type
     :type (or null string)
@@ -151,7 +151,7 @@ Lists available formulas from all search paths.")
 ;;; Formula Show Command Class
 ;;; ============================================================
 
-(beads-defcommand beads-command-formula-show (beads-command)
+(beads-defcommand beads-command-formula-show (beads-command-global-options)
   ((formula-name
     :initarg :formula-name
     :type (or null string)

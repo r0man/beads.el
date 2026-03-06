@@ -30,7 +30,7 @@
 
 ;;; Branch Command
 
-(beads-defcommand beads-command-branch (beads-command)
+(beads-defcommand beads-command-branch (beads-command-global-options)
   ((name
     :initarg :name
     :type (or null string)

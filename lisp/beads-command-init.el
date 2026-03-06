@@ -42,7 +42,7 @@
 
 ;;; Init Command
 
-(beads-defcommand beads-command-init (beads-command)
+(beads-defcommand beads-command-init (beads-command-global-options)
   ((branch
     :initarg :branch
     :type (or null string)

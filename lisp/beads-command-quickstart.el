@@ -32,7 +32,7 @@
 
 ;;; Quickstart Command
 
-(beads-defcommand beads-command-quickstart (beads-command)
+(beads-defcommand beads-command-quickstart (beads-command-global-options)
   ()
   :documentation "Represents bd quickstart command.
 Displays a quick start guide showing common bd workflows and patterns.")

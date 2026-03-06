@@ -28,7 +28,7 @@
 ;;; Command Class: beads-command-federation-add-peer
 ;;; ============================================================
 
-(beads-defcommand beads-command-federation-add-peer (beads-command)
+(beads-defcommand beads-command-federation-add-peer (beads-command-global-options)
   ((peer-name
     :initarg :peer-name
     :type (or null string)
@@ -132,7 +132,7 @@ Requires Dolt backend.")
 ;;; Command Class: beads-command-federation-remove-peer
 ;;; ============================================================
 
-(beads-defcommand beads-command-federation-remove-peer (beads-command)
+(beads-defcommand beads-command-federation-remove-peer (beads-command-global-options)
   ((peer-name
     :initarg :peer-name
     :type (or null string)
@@ -168,7 +168,7 @@ Requires Dolt backend.")
 ;;; Command Class: beads-command-federation-list-peers
 ;;; ============================================================
 
-(beads-defcommand beads-command-federation-list-peers (beads-command)
+(beads-defcommand beads-command-federation-list-peers (beads-command-global-options)
   ()
   :documentation "List configured federation peers.
 Requires Dolt backend.")
@@ -188,7 +188,7 @@ Requires Dolt backend.")
 ;;; Command Class: beads-command-federation-sync
 ;;; ============================================================
 
-(beads-defcommand beads-command-federation-sync (beads-command)
+(beads-defcommand beads-command-federation-sync (beads-command-global-options)
   ((peer
     :initarg :peer
     :type (or null string)
@@ -235,7 +235,7 @@ Requires Dolt backend.")
 ;;; Command Class: beads-command-federation-status
 ;;; ============================================================
 
-(beads-defcommand beads-command-federation-status (beads-command)
+(beads-defcommand beads-command-federation-status (beads-command-global-options)
   ((peer
     :initarg :peer
     :type (or null string)

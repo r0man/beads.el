@@ -30,7 +30,7 @@
 
 ;;; Doctor Command
 
-(beads-defcommand beads-command-doctor (beads-command)
+(beads-defcommand beads-command-doctor (beads-command-global-options)
   ((path
     :initarg :path
     :type (or null string)

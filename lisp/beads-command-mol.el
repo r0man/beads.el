@@ -23,7 +23,7 @@
 ;;; Command Class: beads-command-mol-show
 ;;; ============================================================
 
-(beads-defcommand beads-command-mol-show (beads-command)
+(beads-defcommand beads-command-mol-show (beads-command-global-options)
   ((mol-id
     :initarg :mol-id
     :type (or null string)
@@ -53,7 +53,7 @@ Shows molecule details.")
 ;;; Command Class: beads-command-mol-pour
 ;;; ============================================================
 
-(beads-defcommand beads-command-mol-pour (beads-command)
+(beads-defcommand beads-command-mol-pour (beads-command-global-options)
   ((proto-id
     :initarg :proto-id
     :type (or null string)
@@ -143,7 +143,7 @@ Instantiates proto as persistent mol (liquid phase).")
 ;;; Command Class: beads-command-mol-wisp
 ;;; ============================================================
 
-(beads-defcommand beads-command-mol-wisp (beads-command)
+(beads-defcommand beads-command-mol-wisp (beads-command-global-options)
   ((proto-id
     :initarg :proto-id
     :type (or null string)
@@ -187,7 +187,7 @@ Creates or manages wisps (ephemeral molecules).")
 ;;; Command Class: beads-command-mol-bond
 ;;; ============================================================
 
-(beads-defcommand beads-command-mol-bond (beads-command)
+(beads-defcommand beads-command-mol-bond (beads-command-global-options)
   ((first-id
     :initarg :first-id
     :type (or null string)
@@ -310,7 +310,7 @@ Bonds two protos or molecules together.")
 ;;; Command Class: beads-command-mol-squash
 ;;; ============================================================
 
-(beads-defcommand beads-command-mol-squash (beads-command)
+(beads-defcommand beads-command-mol-squash (beads-command-global-options)
   ((mol-id
     :initarg :mol-id
     :type (or null string)
@@ -368,7 +368,7 @@ Compresses molecule execution into a digest.")
 ;;; Command Class: beads-command-mol-burn
 ;;; ============================================================
 
-(beads-defcommand beads-command-mol-burn (beads-command)
+(beads-defcommand beads-command-mol-burn (beads-command-global-options)
   ((mol-id
     :initarg :mol-id
     :type (or null string)
@@ -411,7 +411,7 @@ Deletes a molecule without creating a digest.")
 ;;; Command Class: beads-command-mol-distill
 ;;; ============================================================
 
-(beads-defcommand beads-command-mol-distill (beads-command)
+(beads-defcommand beads-command-mol-distill (beads-command-global-options)
   ((epic-id
     :initarg :epic-id
     :type (or null string)
@@ -471,7 +471,7 @@ Extracts a formula from an existing epic.")
 ;;; Command Class: beads-command-mol-current
 ;;; ============================================================
 
-(beads-defcommand beads-command-mol-current (beads-command)
+(beads-defcommand beads-command-mol-current (beads-command-global-options)
   ((mol-id
     :initarg :mol-id
     :type (or null string)
@@ -531,7 +531,7 @@ Shows current position in molecule workflow.")
 ;;; Command Class: beads-command-mol-progress
 ;;; ============================================================
 
-(beads-defcommand beads-command-mol-progress (beads-command)
+(beads-defcommand beads-command-mol-progress (beads-command-global-options)
   ((mol-id
     :initarg :mol-id
     :type (or null string)
@@ -546,7 +546,7 @@ Shows molecule progress summary.")
 ;;; Command Class: beads-command-mol-ready
 ;;; ============================================================
 
-(beads-defcommand beads-command-mol-ready (beads-command)
+(beads-defcommand beads-command-mol-ready (beads-command-global-options)
   ()
   :documentation "Represents bd mol ready command.
 Finds molecules ready for gate-resume dispatch.")
@@ -556,7 +556,7 @@ Finds molecules ready for gate-resume dispatch.")
 ;;; Command Class: beads-command-mol-stale
 ;;; ============================================================
 
-(beads-defcommand beads-command-mol-stale (beads-command)
+(beads-defcommand beads-command-mol-stale (beads-command-global-options)
   ()
   :documentation "Represents bd mol stale command.
 Detects complete-but-unclosed molecules.")

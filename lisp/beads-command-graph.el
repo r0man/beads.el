@@ -28,7 +28,7 @@
 ;;; Command Class: beads-command-graph
 ;;; ============================================================
 
-(beads-defcommand beads-command-graph (beads-command)
+(beads-defcommand beads-command-graph (beads-command-global-options)
   ((issue-id
     :initarg :issue-id
     :type (or null string)
