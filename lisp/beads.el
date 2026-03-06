@@ -509,7 +509,7 @@ into logical groups matching bd CLI structure."
     (">" "Promote wisp" beads-promote)
     ("X" "Query issues" beads-query)
     ("[" "Todo items" beads-todo)
-    ("rn" "Rename issue" beads-rename)]
+    ("nr" "Rename issue" beads-rename)]
    ["Workflow & Collaboration"
     ("F" "Formula menu" beads-formula-menu)
     ("K" "Cook formula" beads-cook)
@@ -562,10 +562,10 @@ into logical groups matching bd CLI structure."
     ("P" "Rename prefix" beads-rename-prefix)
     (":" "Repair database" beads-repair)
     (";" "Resolve conflicts" beads-resolve-conflicts)
-    ("cc" "Compact menu" beads-compact)
-    ("fl" "Flatten Dolt" beads-flatten)
-    ("gc" "Garbage collect" beads-gc)
-    ("pg" "Purge ephemeral" beads-purge)]]
+    ("nc" "Compact menu" beads-compact)
+    ("nf" "Flatten Dolt" beads-flatten)
+    ("ng" "Garbage collect" beads-gc)
+    ("np" "Purge ephemeral" beads-purge)]]
   ;; Row 2.5: Dolt & Version Control
   [["Dolt & Version Control"
     ("k" "Dolt menu" beads-dolt)
@@ -587,12 +587,12 @@ into logical groups matching bd CLI structure."
    ["Sync & Data"
     ("4" "Restore issue" beads-restore)
     ("J" "SQL query" beads-sql)
-    ("bu" "Backup database" beads-backup)
-    ("ex" "Export to JSONL" beads-export)]
+    ("nb" "Backup database" beads-backup)
+    ("ne" "Export to JSONL" beads-export)]
    ["Integrations"
     ("j" "Jira" beads-jira)
     ("N" "Linear" beads-linear)
-    ("gl" "GitLab" beads-gitlab)
+    ("yl" "GitLab" beads-gitlab)
     ("R" "Repo" beads-repo)
     ("*" "Mail delegate" beads-mail)]]
   ;; Row 4: Labels | Actions
@@ -649,10 +649,292 @@ Returns t if found, signals error otherwise."
 Install bd CLI from https://github.com/steveyegge/beads
 or set `beads-executable' to the full path" beads-executable)))
 
-;; beads-list autoload — ensures `beads-list' is available when the main
-;; transient menu renders, without requiring the full beads-command-list module.
+;; Main menu command autoloads — ensures all commands referenced in the
+;; `beads' transient menu are available when the menu renders, without
+;; eagerly requiring every module.  When beads.el is loaded directly
+;; (e.g. -l beads or (require 'beads)) these forms execute immediately.
+;; When the package is installed via ELPA the generated loaddefs file takes
+;; precedence, but these forms are harmless no-ops in that case.
+
+;; beads-command-list
 ;;;###autoload
 (autoload 'beads-list "beads-command-list" nil t)
+;;;###autoload
+(autoload 'beads-ready "beads-command-list" nil t)
+;;;###autoload
+(autoload 'beads-blocked "beads-command-list" nil t)
+
+;; beads-command-create
+;;;###autoload
+(autoload 'beads-create "beads-command-create" nil t)
+
+;; beads-command-update
+;;;###autoload
+(autoload 'beads-update "beads-command-update" nil t)
+
+;; beads-command-close
+;;;###autoload
+(autoload 'beads-close "beads-command-close" nil t)
+
+;; beads-command-reopen
+;;;###autoload
+(autoload 'beads-reopen "beads-command-reopen" nil t)
+
+;; beads-command-delete
+;;;###autoload
+(autoload 'beads-delete "beads-command-delete" nil t)
+
+;; beads-command-show
+;;;###autoload
+(autoload 'beads-show "beads-command-show" nil t)
+
+;; beads-command-edit
+;;;###autoload
+(autoload 'beads-edit "beads-command-edit" nil t)
+
+;; beads-command-dep
+;;;###autoload
+(autoload 'beads-dep "beads-command-dep" nil t)
+
+;; beads-command-formula
+;;;###autoload
+(autoload 'beads-formula-menu "beads-command-formula" nil t)
+
+;; beads-command-mol
+;;;###autoload
+(autoload 'beads-mol "beads-command-mol" nil t)
+
+;; beads-command-gate
+;;;###autoload
+(autoload 'beads-gate "beads-command-gate" nil t)
+
+;; beads-command-merge-slot
+;;;###autoload
+(autoload 'beads-merge-slot "beads-command-merge-slot" nil t)
+
+;; beads-command-defer
+;;;###autoload
+(autoload 'beads-defer "beads-command-defer" nil t)
+;;;###autoload
+(autoload 'beads-undefer "beads-command-defer" nil t)
+
+;; beads-command-init
+;;;###autoload
+(autoload 'beads-init "beads-command-init" nil t)
+
+;; beads-command-quickstart
+;;;###autoload
+(autoload 'beads-quickstart "beads-command-quickstart" nil t)
+
+;; beads-command-config
+;;;###autoload
+(autoload 'beads-config "beads-command-config" nil t)
+
+;; beads-command-hooks
+;;;###autoload
+(autoload 'beads-hooks "beads-command-hooks" nil t)
+
+;; beads-command-info
+;;;###autoload
+(autoload 'beads-info "beads-command-info" nil t)
+
+;; beads-command-stats
+;;;###autoload
+(autoload 'beads-stats "beads-command-stats" nil t)
+
+;; beads-command-count
+;;;###autoload
+(autoload 'beads-count "beads-command-count" nil t)
+
+;; beads-command-stale
+;;;###autoload
+(autoload 'beads-stale "beads-command-stale" nil t)
+
+;; beads-command-search
+;;;###autoload
+(autoload 'beads-search "beads-command-search" nil t)
+
+;; beads-command-agent
+;;;###autoload
+(autoload 'beads-agent-menu "beads-command-agent" nil t)
+
+;; beads-command-slot
+;;;###autoload
+(autoload 'beads-slot "beads-command-slot" nil t)
+
+;; beads-command-comments
+;;;###autoload
+(autoload 'beads-comments-menu "beads-command-comments" nil t)
+
+;; beads-command-audit
+;;;###autoload
+(autoload 'beads-audit "beads-command-audit" nil t)
+
+;; beads-command-doctor
+;;;###autoload
+(autoload 'beads-doctor "beads-command-doctor" nil t)
+
+;; beads-command-migrate
+;;;###autoload
+(autoload 'beads-migrate-menu "beads-command-migrate" nil t)
+
+;; beads-command-worktree
+;;;###autoload
+(autoload 'beads-worktree-menu "beads-command-worktree" nil t)
+
+;; beads-command-admin
+;;;###autoload
+(autoload 'beads-admin "beads-command-admin" nil t)
+
+;; beads-command-compact
+;;;###autoload
+(autoload 'beads-compact "beads-command-compact" nil t)
+
+;; beads-command-dolt
+;;;###autoload
+(autoload 'beads-dolt "beads-command-dolt" nil t)
+
+;; beads-command-vc
+;;;###autoload
+(autoload 'beads-vc "beads-command-vc" nil t)
+
+;; beads-command-branch
+;;;###autoload
+(autoload 'beads-branch "beads-command-branch" nil t)
+
+;; beads-command-diff
+;;;###autoload
+(autoload 'beads-diff "beads-command-diff" nil t)
+
+;; beads-command-history
+;;;###autoload
+(autoload 'beads-history "beads-command-history" nil t)
+
+;; beads-command-federation
+;;;###autoload
+(autoload 'beads-federation "beads-command-federation" nil t)
+
+;; beads-command-graph
+;;;###autoload
+(autoload 'beads-graph-all "beads-command-graph" nil t)
+
+;; beads-command-epic
+;;;###autoload
+(autoload 'beads-epic "beads-command-epic" nil t)
+
+;; beads-command-swarm
+;;;###autoload
+(autoload 'beads-swarm "beads-command-swarm" nil t)
+
+;; beads-command-restore
+;;;###autoload
+(autoload 'beads-restore "beads-command-restore" nil t)
+
+;; beads-command-sql
+;;;###autoload
+(autoload 'beads-sql "beads-command-sql" nil t)
+
+;; beads-command-integrations
+;;;###autoload
+(autoload 'beads-jira "beads-command-integrations" nil t)
+;;;###autoload
+(autoload 'beads-linear "beads-command-integrations" nil t)
+;;;###autoload
+(autoload 'beads-gitlab "beads-command-integrations" nil t)
+;;;###autoload
+(autoload 'beads-repo "beads-command-integrations" nil t)
+
+;; beads-command-state
+;;;###autoload
+(autoload 'beads-set-state "beads-command-state" nil t)
+;;;###autoload
+(autoload 'beads-state-menu "beads-command-state" nil t)
+
+;; beads-command-label
+;;;###autoload
+(autoload 'beads-label "beads-command-label" nil t)
+
+;; beads-command-misc — miscellaneous commands referenced from main menu
+;;;###autoload
+(autoload 'beads-create-form "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-q "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-move "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-refile "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-children "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-promote "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-query "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-todo "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-rename "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-cook "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-ship "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-where "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-human "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-onboard "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-prime "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-setup "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-forget "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-kv "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-memories "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-recall "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-remember "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-lint "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-orphans "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-types "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-find-duplicates "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-flatten "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-gc "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-mail "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-preflight "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-upgrade "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-rename-prefix "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-repair "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-resolve-conflicts "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-purge "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-duplicate "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-duplicates "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-supersede "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-backup "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-export "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-version "beads-command-misc" nil t)
 
 ;; Label API autoloads — these are used by other modules (e.g., readers,
 ;; completion) that depend on beads.el, so they must be available early.
