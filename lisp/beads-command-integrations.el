@@ -251,7 +251,7 @@ Manually triggers multi-repo sync.")
 ;;; GitLab Commands
 ;;; ============================================================
 
-(beads-defcommand beads-command-gitlab-sync (beads-command-json)
+(beads-defcommand beads-command-gitlab-sync (beads-command)
   ((pull
     :initarg :pull
     :type boolean
@@ -298,13 +298,13 @@ Manually triggers multi-repo sync.")
 Synchronizes issues with GitLab.")
 
 
-(beads-defcommand beads-command-gitlab-status (beads-command-json)
+(beads-defcommand beads-command-gitlab-status (beads-command)
   ()
   :documentation "Represents bd gitlab status command.
 Shows GitLab sync status.")
 
 
-(beads-defcommand beads-command-gitlab-projects (beads-command-json)
+(beads-defcommand beads-command-gitlab-projects (beads-command)
   ()
   :documentation "Represents bd gitlab projects command.
 Lists accessible GitLab projects.")

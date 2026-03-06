@@ -1062,7 +1062,7 @@ Stores a persistent memory.")
 
 ;;; Additional Commands — rename stub
 
-(beads-defcommand beads-command-rename (beads-command-json)
+(beads-defcommand beads-command-rename (beads-command)
   ((old-id
     :initarg :old-id
     :type (or null string)
