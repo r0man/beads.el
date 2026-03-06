@@ -258,11 +258,8 @@ Returns error string or nil if valid."
 (beads-defcommand beads-command-label-list-all (beads-command-global-options)
   ()
   :documentation "Represents bd label list-all command.
-Lists all unique labels in the database.")
-
-(cl-defmethod beads-command-subcommand ((_command beads-command-label-list-all))
-  "Return \"label list-all\" as the CLI subcommand name."
-  "label list-all")
+Lists all unique labels in the database."
+  :cli-command "label list-all")
 
 (cl-defmethod beads-command-validate ((_command beads-command-label-list-all))
   "Validate label list-all COMMAND.

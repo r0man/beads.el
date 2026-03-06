@@ -505,11 +505,8 @@ Check and manage bd version upgrades.")
     :documentation "New prefix to use."
     :positional 2))
   :documentation "Represents bd rename-prefix command.
-Renames the issue prefix for all issues in the database.")
-
-(cl-defmethod beads-command-subcommand ((_command beads-command-rename-prefix))
-  "Return \"rename-prefix\" as the CLI subcommand."
-  "rename-prefix")
+Renames the issue prefix for all issues in the database."
+  :cli-command "rename-prefix")
 
 (cl-defmethod beads-command-validate ((command beads-command-rename-prefix))
   "Validate rename-prefix COMMAND."
@@ -536,11 +533,8 @@ Repairs corrupted database by cleaning orphaned references.")
 (beads-defcommand beads-command-resolve-conflicts (beads-command-global-options)
   ()
   :documentation "Represents bd resolve-conflicts command.
-Resolves git merge conflicts in JSONL files.")
-
-(cl-defmethod beads-command-subcommand ((_command beads-command-resolve-conflicts))
-  "Return \"resolve-conflicts\" as the CLI subcommand."
-  "resolve-conflicts")
+Resolves git merge conflicts in JSONL files."
+  :cli-command "resolve-conflicts")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-restore
@@ -822,11 +816,8 @@ Lists child beads of a parent issue.")
 (beads-defcommand beads-command-create-form (beads-command-global-options)
   ()
   :documentation "Represents bd create-form command.
-Creates a new issue using an interactive form.")
-
-(cl-defmethod beads-command-subcommand ((_command beads-command-create-form))
-  "Return \"create-form\" as the CLI subcommand."
-  "create-form")
+Creates a new issue using an interactive form."
+  :cli-command "create-form")
 
 ;;;###autoload (autoload 'beads-create-form "beads-command-misc" nil t)
 (beads-meta-define-transient beads-command-create-form "beads-create-form"
@@ -904,11 +895,8 @@ Lists valid issue types.")
 (beads-defcommand beads-command-find-duplicates (beads-command-global-options)
   ()
   :documentation "Represents bd find-duplicates command.
-Finds semantically similar issues using text analysis or AI.")
-
-(cl-defmethod beads-command-subcommand ((_command beads-command-find-duplicates))
-  "Return \"find-duplicates\" as the CLI subcommand."
-  "find-duplicates")
+Finds semantically similar issues using text analysis or AI."
+  :cli-command "find-duplicates")
 
 ;;;###autoload (autoload 'beads-find-duplicates "beads-command-misc" nil t)
 (beads-meta-define-transient beads-command-find-duplicates "beads-find-duplicates"

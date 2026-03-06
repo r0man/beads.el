@@ -497,10 +497,6 @@ Returns nil (always valid)."
   :documentation "Represents bd dep relate command.
 Creates a bidirectional relates_to link between two issues.")
 
-(cl-defmethod beads-command-subcommand ((_command beads-command-dep-relate))
-  "Return \"dep relate\" as the CLI subcommand name."
-  "dep relate")
-
 (cl-defmethod beads-command-validate ((command beads-command-dep-relate))
   "Validate dep relate COMMAND."
   (with-slots (id1 id2) command
@@ -532,10 +528,6 @@ Creates a bidirectional relates_to link between two issues.")
     :required t))
   :documentation "Represents bd dep unrelate command.
 Removes a relates_to link between two issues.")
-
-(cl-defmethod beads-command-subcommand ((_command beads-command-dep-unrelate))
-  "Return \"dep unrelate\" as the CLI subcommand name."
-  "dep unrelate")
 
 (cl-defmethod beads-command-validate ((command beads-command-dep-unrelate))
   "Validate dep unrelate COMMAND."

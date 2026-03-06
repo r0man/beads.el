@@ -45,22 +45,13 @@
 (beads-defcommand beads-command-compact-stats (beads-command-global-options)
   ()
   :documentation "Represents bd compact --stats command.
-Shows compaction statistics including tier 1 and tier 2 candidates.")
-
-(cl-defmethod beads-command-subcommand ((_command beads-command-compact-stats))
-  "Return \"compact\" as the CLI subcommand."
-  "compact")
+Shows compaction statistics including tier 1 and tier 2 candidates."
+  :cli-command "compact")
 
 (cl-defmethod beads-command-line ((_command beads-command-compact-stats))
   "Build command line for stats _COMMAND."
   (append (cl-call-next-method)
           '("--stats")))
-
-(cl-defmethod beads-command-execute-interactive
-    ((cmd beads-command-compact-stats))
-  "Execute CMD in compilation buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-compact-prune
@@ -97,22 +88,13 @@ Shows compaction statistics including tier 1 and tier 2 candidates.")
     :level 1
     :order 2))
   :documentation "Represents bd compact --prune command.
-Removes expired tombstones from issues.jsonl.")
-
-(cl-defmethod beads-command-subcommand ((_command beads-command-compact-prune))
-  "Return \"compact\" as the CLI subcommand."
-  "compact")
+Removes expired tombstones from issues.jsonl."
+  :cli-command "compact")
 
 (cl-defmethod beads-command-line ((_command beads-command-compact-prune))
   "Build command line for prune _COMMAND."
   (append (cl-call-next-method)
           '("--prune")))
-
-(cl-defmethod beads-command-execute-interactive
-    ((cmd beads-command-compact-prune))
-  "Execute CMD in compilation buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-compact-purge
@@ -134,22 +116,13 @@ Removes expired tombstones from issues.jsonl.")
     :level 1
     :order 1))
   :documentation "Represents bd compact --purge-tombstones command.
-Removes tombstones by dependency analysis (more aggressive than prune).")
-
-(cl-defmethod beads-command-subcommand ((_command beads-command-compact-purge))
-  "Return \"compact\" as the CLI subcommand."
-  "compact")
+Removes tombstones by dependency analysis (more aggressive than prune)."
+  :cli-command "compact")
 
 (cl-defmethod beads-command-line ((_command beads-command-compact-purge))
   "Build command line for purge _COMMAND."
   (append (cl-call-next-method)
           '("--purge-tombstones")))
-
-(cl-defmethod beads-command-execute-interactive
-    ((cmd beads-command-compact-purge))
-  "Execute CMD in compilation buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-compact-analyze
@@ -188,11 +161,8 @@ Removes tombstones by dependency analysis (more aggressive than prune).")
     :level 1
     :order 2))
   :documentation "Represents bd compact --analyze command.
-Exports compaction candidates for agent review.")
-
-(cl-defmethod beads-command-subcommand ((_command beads-command-compact-analyze))
-  "Return \"compact\" as the CLI subcommand."
-  "compact")
+Exports compaction candidates for agent review."
+  :cli-command "compact")
 
 (cl-defmethod beads-command-line ((_command beads-command-compact-analyze))
   "Build command line for analyze _COMMAND."
@@ -238,11 +208,8 @@ Exports compaction candidates for agent review.")
     :order 2
     :required t))
   :documentation "Represents bd compact --apply command.
-Accepts agent-provided summary for an issue.")
-
-(cl-defmethod beads-command-subcommand ((_command beads-command-compact-apply))
-  "Return \"compact\" as the CLI subcommand."
-  "compact")
+Accepts agent-provided summary for an issue."
+  :cli-command "compact")
 
 (cl-defmethod beads-command-line ((_command beads-command-compact-apply))
   "Build command line for apply _COMMAND."
@@ -376,11 +343,8 @@ Accepts agent-provided summary for an issue.")
     :level 3
     :order 7))
   :documentation "Represents bd compact --auto command.
-AI-powered compaction (legacy, requires ANTHROPIC_API_KEY).")
-
-(cl-defmethod beads-command-subcommand ((_command beads-command-compact-auto))
-  "Return \"compact\" as the CLI subcommand."
-  "compact")
+AI-powered compaction (legacy, requires ANTHROPIC_API_KEY)."
+  :cli-command "compact")
 
 (cl-defmethod beads-command-line ((_command beads-command-compact-auto))
   "Build command line for auto _COMMAND."

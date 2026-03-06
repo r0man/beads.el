@@ -52,11 +52,8 @@
     :level 1
     :order 1))
   :documentation "Represents bd set-state command.
-Atomically sets operational state on an issue.")
-
-(cl-defmethod beads-command-subcommand ((_command beads-command-set-state))
-  "Return \"set-state\" as the CLI subcommand."
-  "set-state")
+Atomically sets operational state on an issue."
+  :cli-command "set-state")
 
 (cl-defmethod beads-command-validate ((command beads-command-set-state))
   "Validate set-state COMMAND."
