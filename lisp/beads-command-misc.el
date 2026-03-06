@@ -787,5 +787,278 @@ Delegates to mail provider.")
   "Delegate to mail provider."
   beads-option-global-section)
 
+;;; Stub commands for bd --help coverage
+;;
+;; These commands wrap bd subcommands that don't yet have full
+;; transient implementations.  They use beads-defcommand to define
+;; minimal command classes and beads-meta-define-transient to create
+;; a simple transient UI for each.
+
+;;; Working With Issues — stubs
+
+(beads-defcommand beads-command-children (beads-command-json)
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Parent issue ID."
+    :positional 1
+    :key "i"
+    :transient "Parent issue ID (required)"
+    :class transient-option
+    :argument "--id="
+    :prompt "Parent issue ID: "
+    :transient-group "Options"
+    :level 1
+    :order 0))
+  :documentation "Represents bd children command.
+Lists child beads of a parent issue.")
+
+;;;###autoload (autoload 'beads-children "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-children "beads-children"
+  "List child beads of a parent issue."
+  beads-option-global-section)
+
+(beads-defcommand beads-command-create-form (beads-command-json)
+  ()
+  :documentation "Represents bd create-form command.
+Creates a new issue using an interactive form.")
+
+(cl-defmethod beads-command-subcommand ((_command beads-command-create-form))
+  "Return \"create-form\" as the CLI subcommand."
+  "create-form")
+
+;;;###autoload (autoload 'beads-create-form "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-create-form "beads-create-form"
+  "Create a new issue using an interactive form."
+  beads-option-global-section)
+
+(beads-defcommand beads-command-promote (beads-command-json)
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID (wisp) to promote."
+    :positional 1
+    :key "i"
+    :transient "Issue ID (required)"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID to promote: "
+    :transient-group "Options"
+    :level 1
+    :order 0))
+  :documentation "Represents bd promote command.
+Promotes a wisp to a permanent bead.")
+
+;;;###autoload (autoload 'beads-promote "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-promote "beads-promote"
+  "Promote a wisp to a permanent bead."
+  beads-option-global-section)
+
+(beads-defcommand beads-command-query (beads-command-json)
+  ((query-string
+    :initarg :query-string
+    :type (or null string)
+    :initform nil
+    :documentation "Query string."
+    :positional 1
+    :key "q"
+    :transient "Query (required)"
+    :class transient-option
+    :argument "--query="
+    :prompt "Query: "
+    :transient-group "Options"
+    :level 1
+    :order 0))
+  :documentation "Represents bd query command.
+Queries issues using a simple query language.")
+
+;;;###autoload (autoload 'beads-query "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-query "beads-query"
+  "Query issues using a simple query language."
+  beads-option-global-section)
+
+(beads-defcommand beads-command-todo (beads-command-json)
+  ()
+  :documentation "Represents bd todo command.
+Manages TODO items (convenience wrapper for task issues).")
+
+;;;###autoload (autoload 'beads-todo "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-todo "beads-todo"
+  "Manage TODO items."
+  beads-option-global-section)
+
+;;; Views & Reports — stubs
+
+(beads-defcommand beads-command-types (beads-command-json)
+  ()
+  :documentation "Represents bd types command.
+Lists valid issue types.")
+
+;;;###autoload (autoload 'beads-types "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-types "beads-types"
+  "List valid issue types."
+  beads-option-global-section)
+
+(beads-defcommand beads-command-find-duplicates (beads-command-json)
+  ()
+  :documentation "Represents bd find-duplicates command.
+Finds semantically similar issues using text analysis or AI.")
+
+(cl-defmethod beads-command-subcommand ((_command beads-command-find-duplicates))
+  "Return \"find-duplicates\" as the CLI subcommand."
+  "find-duplicates")
+
+;;;###autoload (autoload 'beads-find-duplicates "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-find-duplicates "beads-find-duplicates"
+  "Find semantically similar issues using AI."
+  beads-option-global-section)
+
+;;; Sync & Data — stubs
+
+(beads-defcommand beads-command-backup (beads-command-json)
+  ()
+  :documentation "Represents bd backup command.
+Backs up your beads database.")
+
+;;;###autoload (autoload 'beads-backup "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-backup "beads-backup"
+  "Back up your beads database."
+  beads-option-global-section)
+
+(beads-defcommand beads-command-export (beads-command-json)
+  ()
+  :documentation "Represents bd export command.
+Exports issues to JSONL format.")
+
+;;;###autoload (autoload 'beads-export "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-export "beads-export"
+  "Export issues to JSONL format."
+  beads-option-global-section)
+
+;;; Maintenance — stubs
+
+(beads-defcommand beads-command-flatten (beads-command-json)
+  ()
+  :documentation "Represents bd flatten command.
+Squashes all Dolt history into a single commit.")
+
+;;;###autoload (autoload 'beads-flatten "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-flatten "beads-flatten"
+  "Squash all Dolt history into a single commit."
+  beads-option-global-section)
+
+(beads-defcommand beads-command-gc (beads-command-json)
+  ()
+  :documentation "Represents bd gc command.
+Garbage collects: decays old issues, compacts Dolt, runs GC.")
+
+;;;###autoload (autoload 'beads-gc "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-gc "beads-gc"
+  "Garbage collect: decay issues, compact Dolt, run GC."
+  beads-option-global-section)
+
+(beads-defcommand beads-command-purge (beads-command-json)
+  ()
+  :documentation "Represents bd purge command.
+Deletes closed ephemeral beads to reclaim space.")
+
+;;;###autoload (autoload 'beads-purge "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-purge "beads-purge"
+  "Delete closed ephemeral beads to reclaim space."
+  beads-option-global-section)
+
+;;; Setup & Configuration — memory stubs
+
+(beads-defcommand beads-command-forget (beads-command-json)
+  ((memory-id
+    :initarg :memory-id
+    :type (or null string)
+    :initform nil
+    :documentation "Memory ID to remove."
+    :positional 1
+    :key "m"
+    :transient "Memory ID (required)"
+    :class transient-option
+    :argument "--id="
+    :prompt "Memory ID: "
+    :transient-group "Options"
+    :level 1
+    :order 0))
+  :documentation "Represents bd forget command.
+Removes a persistent memory.")
+
+;;;###autoload (autoload 'beads-forget "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-forget "beads-forget"
+  "Remove a persistent memory."
+  beads-option-global-section)
+
+(beads-defcommand beads-command-kv (beads-command-json)
+  ()
+  :documentation "Represents bd kv command.
+Key-value store commands.")
+
+;;;###autoload (autoload 'beads-kv "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-kv "beads-kv"
+  "Key-value store commands."
+  beads-option-global-section)
+
+(beads-defcommand beads-command-memories (beads-command-json)
+  ()
+  :documentation "Represents bd memories command.
+Lists or searches persistent memories.")
+
+;;;###autoload (autoload 'beads-memories "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-memories "beads-memories"
+  "List or search persistent memories."
+  beads-option-global-section)
+
+(beads-defcommand beads-command-recall (beads-command-json)
+  ((memory-id
+    :initarg :memory-id
+    :type (or null string)
+    :initform nil
+    :documentation "Memory ID to retrieve."
+    :positional 1
+    :key "m"
+    :transient "Memory ID (required)"
+    :class transient-option
+    :argument "--id="
+    :prompt "Memory ID: "
+    :transient-group "Options"
+    :level 1
+    :order 0))
+  :documentation "Represents bd recall command.
+Retrieves a specific memory.")
+
+;;;###autoload (autoload 'beads-recall "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-recall "beads-recall"
+  "Retrieve a specific memory."
+  beads-option-global-section)
+
+(beads-defcommand beads-command-remember (beads-command-json)
+  ((content
+    :initarg :content
+    :type (or null string)
+    :initform nil
+    :documentation "Memory content to store."
+    :positional 1
+    :key "c"
+    :transient "Content (required)"
+    :class transient-option
+    :argument "--content="
+    :prompt "Memory content: "
+    :transient-group "Options"
+    :level 1
+    :order 0))
+  :documentation "Represents bd remember command.
+Stores a persistent memory.")
+
+;;;###autoload (autoload 'beads-remember "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-remember "beads-remember"
+  "Store a persistent memory."
+  beads-option-global-section)
+
 (provide 'beads-command-misc)
 ;;; beads-command-misc.el ends here
