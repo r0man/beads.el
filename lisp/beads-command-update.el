@@ -546,6 +546,7 @@ Does not modify any slots."
 (cl-defmethod beads-command-execute-interactive ((cmd beads-command-update))
   "Execute CMD to update issue and show result.
 Overrides default `compilation-mode' behavior."
+  (oset cmd json t)
   (let* ((result (oref (beads-command-execute cmd) result))
          (issues (cond
                   ((null result) nil)

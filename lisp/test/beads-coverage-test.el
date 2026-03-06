@@ -210,10 +210,9 @@
 ;;; ============================================================
 
 (ert-deftest beads-coverage-test-execute-interactive-json-disable ()
-  "Test execute-interactive on JSON command disables JSON."
-  (let* ((cmd (beads-command-show :issue-ids '("bd-1") :json t))
-         (json-before (oref cmd json)))
-    (should json-before)
+  "Test execute-interactive does not modify json slot (nil by default)."
+  (let ((cmd (beads-command-show :issue-ids '("bd-1"))))
+    (should-not (oref cmd json))
     (cl-letf (((symbol-function 'beads-command-line)
                (lambda (_cmd) '("bd" "show" "bd-1")))
               ((symbol-function 'beads-command--run-in-terminal)
@@ -221,7 +220,7 @@
               ((symbol-function 'beads--find-beads-dir)
                (lambda () "/tmp/.beads")))
       (beads-command-execute-interactive cmd)
-      ;; JSON should have been disabled
+      ;; JSON slot should remain nil (not modified by execute-interactive)
       (should-not (oref cmd json)))))
 
 ;;; ============================================================

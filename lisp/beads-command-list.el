@@ -970,6 +970,8 @@ This function overrides the auto-generated version to support
 the `beads-list-default-limit' customization variable."
   (unless (plist-member args :limit)
     (setq args (plist-put args :limit beads-list-default-limit)))
+  (unless (plist-member args :json)
+    (setq args (plist-put args :json t)))
   (oref (beads-command-execute (apply #'beads-command-list args)) result))
 
 ;;; Transient Menu
@@ -1588,6 +1590,8 @@ Returns a beads-command-list object with all applicable filters set."
     (when-let ((priority-max-str (transient-arg-value
                                     "--priority-max=" args)))
       (oset command priority-max priority-max-str))
+    ;; Enable JSON for structured data access (display pipeline needs objects)
+    (oset command json t)
     command))
 
 ;;; Transient Suffix Commands

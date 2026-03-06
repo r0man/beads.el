@@ -141,14 +141,14 @@
 
 (ert-deftest beads-command-worktree-test-create-command-line-basic ()
   "Test beads-command-worktree-create builds correct command line."
-  (let* ((cmd (beads-command-worktree-create :name "feature-x"))
+  (let* ((cmd (beads-command-worktree-create :json t :name "feature-x"))
          (args (beads-command-line cmd)))
     ;; Should start with executable
     (should (string= (car args) "bd"))
     ;; Should have worktree create subcommand
     (should (member "worktree" args))
     (should (member "create" args))
-    ;; Should have --json by default
+    ;; Should have --json when explicitly set
     (should (member "--json" args))
     ;; Should have the name
     (should (member "feature-x" args))))
@@ -210,7 +210,7 @@
 
 (ert-deftest beads-command-worktree-test-list-command-line-basic ()
   "Test beads-command-worktree-list builds correct command line."
-  (let* ((cmd (beads-command-worktree-list))
+  (let* ((cmd (beads-command-worktree-list :json t))
          (args (beads-command-line cmd)))
     (should (string= (car args) "bd"))
     (should (member "worktree" args))
@@ -234,7 +234,7 @@
 
 (ert-deftest beads-command-worktree-test-remove-command-line-basic ()
   "Test beads-command-worktree-remove builds correct command line."
-  (let* ((cmd (beads-command-worktree-remove :name "old-feature"))
+  (let* ((cmd (beads-command-worktree-remove :json t :name "old-feature"))
          (args (beads-command-line cmd)))
     (should (string= (car args) "bd"))
     (should (member "worktree" args))
@@ -273,7 +273,7 @@
 
 (ert-deftest beads-command-worktree-test-info-command-line-basic ()
   "Test beads-command-worktree-info builds correct command line."
-  (let* ((cmd (beads-command-worktree-info))
+  (let* ((cmd (beads-command-worktree-info :json t))
          (args (beads-command-line cmd)))
     (should (string= (car args) "bd"))
     (should (member "worktree" args))
@@ -312,7 +312,7 @@
 
 (ert-deftest beads-command-worktree-test-create-parse ()
   "Test beads-command-worktree-create parse method."
-  (let* ((cmd (beads-command-worktree-create :name "test"))
+  (let* ((cmd (beads-command-worktree-create :json t :name "test"))
          ;; Create execution object with simulated results
          (exec (beads-command-execution
                 :command cmd
@@ -327,7 +327,7 @@
 
 (ert-deftest beads-command-worktree-test-list-parse ()
   "Test beads-command-worktree-list parse method."
-  (let* ((cmd (beads-command-worktree-list))
+  (let* ((cmd (beads-command-worktree-list :json t))
          ;; Create execution object with simulated results
          (exec (beads-command-execution
                 :command cmd
@@ -348,7 +348,7 @@
 
 (ert-deftest beads-command-worktree-test-info-parse ()
   "Test beads-command-worktree-info parse method."
-  (let* ((cmd (beads-command-worktree-info))
+  (let* ((cmd (beads-command-worktree-info :json t))
          ;; Create execution object with simulated results
          (exec (beads-command-execution
                 :command cmd

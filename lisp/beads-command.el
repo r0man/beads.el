@@ -207,8 +207,11 @@ Example (without transient):
        (eval-and-compile
          (defclass ,name ,superclasses ,final-slots ,@defclass-options))
        (defun ,bang-fn (&rest args)
-         ,(format "Execute %s and return result.\n\nARGS are passed to the constructor." name)
-         (oref (beads-command-execute (apply #',name args)) result))
+         ,(format "Execute %s and return result.\n\nARGS are passed to the constructor.\nJSON output is enabled by default for data access.\nPass :json nil to disable." name)
+         (let ((cmd (apply #',name args)))
+           (unless (plist-member args :json)
+             (oset cmd json t))
+           (oref (beads-command-execute cmd) result)))
        ,@(when cli-command
            `((cl-defmethod beads-command-subcommand ((_command ,name))
                ,(format "Return %S as the CLI subcommand name." cli-command)
@@ -550,9 +553,11 @@ Debug output."
    (json
     :initarg :json
     :type boolean
-    :initform t
+    :initform nil
     :documentation "Output in JSON format (--json).
-Enables machine-readable output."
+Enables machine-readable output.
+Defaults to nil (human-readable terminal output).
+Programmatic callers that need structured data must set this to t."
     :long-option "json"
     :option-type :boolean))
   :documentation "Class providing global bd CLI options.
@@ -757,10 +762,9 @@ Also strips OSC escape sequences (terminal queries)."
 
 (cl-defmethod beads-command-execute-interactive ((command beads-command))
   "Default: run COMMAND in terminal buffer.
-Sets json slot to nil so bd outputs colored human-readable text,
-then runs the command via the backend specified by
-`beads-terminal-backend' from the beads project root."
-  (oset command json nil)
+Runs the command via the backend specified by `beads-terminal-backend'
+from the beads project root.  The json slot defaults to nil so bd
+outputs colored human-readable text without modification."
   (let* ((cmd-line (beads-command-line command))
          (cmd-string (mapconcat #'shell-quote-argument cmd-line " "))
          (buffer-name (format "*bd %s*" (nth 1 cmd-line)))
@@ -804,8 +808,8 @@ IMPORTANT: This method must NOT modify any slots.  The caller
 for setting the EXECUTION's `result' slot to the returned value.
 
 Dispatches based on json slot:
-- When :json is t (default): Parses JSON from stdout, returns alist/vector
-- When :json is nil: Returns raw stdout string
+- When :json is t: Parses JSON from stdout, returns alist/vector
+- When :json is nil (default): Returns raw stdout string
 - Subclasses may override to transform parsed JSON into domain objects
 
 Signals `beads-json-parse-error' if JSON parsing fails.")

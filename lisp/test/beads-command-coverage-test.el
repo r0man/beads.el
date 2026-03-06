@@ -225,17 +225,15 @@
 ;;; ============================================================
 
 (ert-deftest beads-command-coverage-test-json-execute-interactive ()
-  "Test that beads-command execute-interactive disables JSON."
-  (let* ((json-was-set nil)
-         (terminal-called nil))
+  "Test that beads-command execute-interactive does not modify json slot."
+  (let ((terminal-called nil))
     (cl-letf (((symbol-function 'beads-command--run-in-terminal)
                (lambda (_cmd _buf _dir) (setq terminal-called t)))
               ((symbol-function 'beads--find-beads-dir)
                (lambda () "/tmp/.beads")))
-      ;; Use beads-command-list as an example of beads-command
-      (let ((cmd (beads-command-list :json t)))
+      ;; Default json is nil; execute-interactive should leave it alone
+      (let ((cmd (beads-command-list)))
         (beads-command-execute-interactive cmd)
-        ;; After execute-interactive, json should have been set to nil
         (should-not (oref cmd json))
         (should terminal-called)))))
 
