@@ -883,6 +883,15 @@
   When executed with :json t, returns list of beads-issue instances.")
 
 
+(cl-defmethod beads-command-line ((command beads-command-list))
+  "Build command line for list COMMAND.
+When :json is enabled, appends --flat to disable tree format.
+Tree format cannot produce JSON output; --flat uses legacy flat format."
+  (let ((args (cl-call-next-method)))
+    (if (oref command json)
+        (append args '("--flat"))
+      args)))
+
 (cl-defmethod beads-command-validate ((command beads-command-list))
   "Validate list COMMAND.
 Checks for conflicts between options.
