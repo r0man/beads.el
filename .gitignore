@@ -70,3 +70,4 @@ eca-support/
 # Gas Town (added by gt)
 .claude/
 __pycache__/
+dist/
