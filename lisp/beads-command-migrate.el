@@ -119,11 +119,8 @@ Detects and migrates database schema to current version.")
     :level 1
     :order 1))
   :documentation "Represents bd migrate hash-ids command.
-Migrates sequential IDs to hash-based IDs (legacy).")
-
-(cl-defmethod beads-command-subcommand ((_command beads-command-migrate-hash-ids))
-  "Return \"migrate hash-ids\" as the CLI subcommand."
-  "migrate hash-ids")
+Migrates sequential IDs to hash-based IDs (legacy)."
+  :cli-command "migrate hash-ids")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-migrate-issues

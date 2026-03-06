@@ -203,11 +203,8 @@ Shows a gate issue.")
     :documentation "Issue ID to add as waiter."
     :positional 2))
   :documentation "Represents bd gate add-waiter command.
-Adds a waiter to a gate.")
-
-(cl-defmethod beads-command-subcommand ((_command beads-command-gate-add-waiter))
-  "Return \"gate add-waiter\" as the CLI subcommand."
-  "gate add-waiter")
+Adds a waiter to a gate."
+  :cli-command "gate add-waiter")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-gate-discover

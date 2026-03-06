@@ -108,11 +108,8 @@ Shows agent bead details.")
     :level 1
     :order 1))
   :documentation "Represents bd agent backfill-labels command.
-Backfills role_type/rig labels on existing agent beads.")
-
-(cl-defmethod beads-command-subcommand ((_command beads-command-agent-backfill-labels))
-  "Return \"agent backfill-labels\" as the CLI subcommand."
-  "agent backfill-labels")
+Backfills role_type/rig labels on existing agent beads."
+  :cli-command "agent backfill-labels")
 
 ;;; Execute Interactive Methods
 

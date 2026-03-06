@@ -111,12 +111,8 @@ Values: T1, T2, T3, T4."
     :level 2
     :order 5))
   :documentation "Add a federation peer.
-Requires Dolt backend.")
-
-(cl-defmethod beads-command-subcommand
-    ((_command beads-command-federation-add-peer))
-  "Return \"federation add-peer\" as the CLI subcommand."
-  "federation add-peer")
+Requires Dolt backend."
+  :cli-command "federation add-peer")
 
 (cl-defmethod beads-command-validate
     ((command beads-command-federation-add-peer))
@@ -150,12 +146,8 @@ Requires Dolt backend.")
     :order 1
     :required t))
   :documentation "Remove a federation peer.
-Requires Dolt backend.")
-
-(cl-defmethod beads-command-subcommand
-    ((_command beads-command-federation-remove-peer))
-  "Return \"federation remove-peer\" as the CLI subcommand."
-  "federation remove-peer")
+Requires Dolt backend."
+  :cli-command "federation remove-peer")
 
 (cl-defmethod beads-command-validate
     ((command beads-command-federation-remove-peer))
@@ -171,18 +163,8 @@ Requires Dolt backend.")
 (beads-defcommand beads-command-federation-list-peers (beads-command-global-options)
   ()
   :documentation "List configured federation peers.
-Requires Dolt backend.")
-
-(cl-defmethod beads-command-subcommand
-    ((_command beads-command-federation-list-peers))
-  "Return \"federation list-peers\" as the CLI subcommand."
-  "federation list-peers")
-
-(cl-defmethod beads-command-execute-interactive
-    ((cmd beads-command-federation-list-peers))
-  "Execute CMD in terminal buffer with human-readable output."
-  (oset cmd json nil)
-  (cl-call-next-method))
+Requires Dolt backend."
+  :cli-command "federation list-peers")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-federation-sync

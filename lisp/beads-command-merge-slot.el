@@ -26,11 +26,8 @@
 (beads-defcommand beads-command-merge-slot-create (beads-command-global-options)
   ()
   :documentation "Represents bd merge-slot create command.
-Creates a merge slot bead for the current rig.")
-
-(cl-defmethod beads-command-subcommand ((_command beads-command-merge-slot-create))
-  "Return \"merge-slot create\" as the CLI subcommand."
-  "merge-slot create")
+Creates a merge slot bead for the current rig."
+  :cli-command "merge-slot create")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-merge-slot-check
@@ -39,11 +36,8 @@ Creates a merge slot bead for the current rig.")
 (beads-defcommand beads-command-merge-slot-check (beads-command-global-options)
   ()
   :documentation "Represents bd merge-slot check command.
-Checks merge slot availability.")
-
-(cl-defmethod beads-command-subcommand ((_command beads-command-merge-slot-check))
-  "Return \"merge-slot check\" as the CLI subcommand."
-  "merge-slot check")
+Checks merge slot availability."
+  :cli-command "merge-slot check")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-merge-slot-acquire
@@ -80,11 +74,8 @@ Checks merge slot availability.")
     :level 1
     :order 2))
   :documentation "Represents bd merge-slot acquire command.
-Tries to acquire the merge slot.")
-
-(cl-defmethod beads-command-subcommand ((_command beads-command-merge-slot-acquire))
-  "Return \"merge-slot acquire\" as the CLI subcommand."
-  "merge-slot acquire")
+Tries to acquire the merge slot."
+  :cli-command "merge-slot acquire")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-merge-slot-release
@@ -107,11 +98,8 @@ Tries to acquire the merge slot.")
     :level 1
     :order 1))
   :documentation "Represents bd merge-slot release command.
-Releases the merge slot.")
-
-(cl-defmethod beads-command-subcommand ((_command beads-command-merge-slot-release))
-  "Return \"merge-slot release\" as the CLI subcommand."
-  "merge-slot release")
+Releases the merge slot."
+  :cli-command "merge-slot release")
 
 ;;; Execute Interactive Methods
 

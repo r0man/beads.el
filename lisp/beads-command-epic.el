@@ -127,11 +127,8 @@ Does not modify any slots."
     :level 1
     :order 1))
   :documentation "Represents bd epic close-eligible command.
-Closes epics where all children are complete.")
-
-(cl-defmethod beads-command-subcommand ((_command beads-command-epic-close-eligible))
-  "Return \"epic close-eligible\" as the CLI subcommand name."
-  "epic close-eligible")
+Closes epics where all children are complete."
+  :cli-command "epic close-eligible")
 
 (cl-defmethod beads-command-validate ((_command beads-command-epic-close-eligible))
   "Validate epic close-eligible COMMAND.

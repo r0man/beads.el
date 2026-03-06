@@ -285,12 +285,6 @@ Returns error string or nil if valid."
 Returns raw stdout string.  bd init does not produce JSON output."
   (oref execution stdout))
 
-(cl-defmethod beads-command-execute-interactive ((_cmd beads-command-init))
-  "Execute CMD in terminal buffer.
-Uses the terminal backend for interactive setup wizards."
-  ;; Call the default implementation
-  (cl-call-next-method))
-
 ;;; Transient Menu
 
 ;; Generate the complete transient menu from slot metadata

@@ -49,10 +49,6 @@ Returns nil (always valid)."
 Returns raw stdout string.  bd quickstart does not produce JSON output."
   (oref execution stdout))
 
-(cl-defmethod beads-command-execute-interactive ((_cmd beads-command-quickstart))
-  "Execute CMD in terminal buffer."
-  (cl-call-next-method))
-
 ;;; Transient Menu
 
 ;;;###autoload (autoload 'beads-quickstart-transient "beads-command-quickstart" nil t)
