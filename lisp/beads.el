@@ -398,6 +398,213 @@ Returns a list of beads-issue EIEIO instances."
   (when (and json (vectorp json))
     (mapcar #'beads-issue-from-json (append json nil))))
 
+;;; Main Menu Variables (formerly beads-main.el)
+
+(defvar beads-main--cached-version nil
+  "Cached version string from bd CLI.")
+
+(defvar beads-main--cached-project-info nil
+  "Cached project info (root and db path).")
+
+;;; Main Menu Utility Functions
+
+(defun beads-main--get-version ()
+  "Get beads version from bd CLI.
+Returns cached version if available, otherwise queries bd."
+  (or beads-main--cached-version
+      (condition-case nil
+          (let* ((output (with-temp-buffer
+                           (call-process beads-executable nil t nil
+                                        "version")
+                           (buffer-string)))
+                 (version (if (string-match "bd version \\([^ \n]+\\)" output)
+                             (match-string 1 output)
+                           "unknown")))
+            (setq beads-main--cached-version version)
+            version)
+        (error "Unknown version"))))
+
+(defun beads-main--get-project-info ()
+  "Get current project root and database path.
+Returns cons cell (PROJECT-ROOT . DB-PATH) or nil if not in project."
+  (or beads-main--cached-project-info
+      (let ((root (beads-git-find-project-root))
+            (db (beads--get-database-path)))
+        (when root
+          (let ((info (cons root db)))
+            (setq beads-main--cached-project-info info)
+            info)))))
+
+(defun beads-main--clear-cache ()
+  "Clear cached project and version information."
+  (setq beads-main--cached-version nil
+        beads-main--cached-project-info nil))
+
+(defun beads-main--format-project-header ()
+  "Format project header for transient menu.
+Returns a propertized string showing project and database info."
+  (let ((info (beads-main--get-project-info)))
+    (if info
+        (let* ((root (car info))
+               (db (cdr info))
+               (project-name (file-name-nondirectory
+                              (directory-file-name root)))
+               (db-display (if db
+                              (file-name-nondirectory db)
+                            "auto-discover")))
+          (concat
+           (propertize "Project: " 'face 'bold)
+           (propertize project-name 'face 'font-lock-constant-face)
+           (propertize " (" 'face 'shadow)
+           (propertize root 'face 'shadow)
+           (propertize ")" 'face 'shadow)
+           "\n"
+           (propertize "Database: " 'face 'bold)
+           (propertize db-display 'face 'font-lock-string-face)
+           "\n"
+           (propertize "Version: " 'face 'bold)
+           (propertize (beads-main--get-version)
+                      'face 'font-lock-keyword-face)))
+      (propertize "No beads project found in current directory"
+                 'face 'warning))))
+
+;;; Menu Refresh
+
+(transient-define-suffix beads-refresh-menu ()
+  "Refresh the beads menu (clear cache and redisplay)."
+  :description "Refresh menu"
+  :transient t
+  (interactive)
+  (beads-main--clear-cache)
+  (message "Menu refreshed"))
+
+;;; Main Transient Menu
+
+;;;###autoload
+(transient-define-prefix beads ()
+  "Main transient menu for Beads issue tracker.
+
+This is the primary entry point for beads.el, providing a Magit-like
+interface for all issue tracking operations.  The menu is organized
+into logical groups matching bd CLI structure."
+  [:description
+   (lambda () (beads-main--format-project-header))
+   :class transient-row
+   ("" "" ignore :if (lambda () nil))]
+  ;; Row 1: Issues | Workflow | Setup
+  [["Working With Issues"
+    ("l" "List issues" beads-list)
+    ("c" "Create issue" beads-create)
+    ("I" "Create (form)" beads-create-form)
+    ("Q" "Quick capture (q)" beads-q)
+    ("u" "Update issue" beads-update)
+    ("x" "Close issue" beads-close)
+    ("o" "Reopen issue" beads-reopen)
+    ("D" "Delete issue" beads-delete)
+    ("s" "Show issue" beads-show)
+    ("e" "Edit field" beads-edit)
+    ("O" "Move issue" beads-move)
+    ("B" "Refile issue" beads-refile)
+    ("a" "Children" beads-children)
+    (">" "Promote wisp" beads-promote)
+    ("X" "Query issues" beads-query)
+    ("[" "Todo items" beads-todo)]
+   ["Workflow & Collaboration"
+    ("F" "Formula menu" beads-formula-menu)
+    ("K" "Cook formula" beads-cook)
+    ("m" "Molecule menu" beads-mol)
+    ("g" "Gate menu" beads-gate)
+    ("M" "Merge slot" beads-merge-slot)
+    ("f" "Defer issue" beads-defer)
+    ("U" "Undefer issue" beads-undefer)
+    ("H" "Ship capability" beads-ship)]
+   ["Setup & Config"
+    ("i" "Init project" beads-init)
+    ("?" "Quickstart" beads-quickstart)
+    ("." "Config menu" beads-config)
+    ("h" "Hooks menu" beads-hooks)
+    ("!" "Info/Debug" beads-info)
+    ("5" "Where (location)" beads-where)
+    ("6" "Human commands" beads-human)
+    ("7" "Onboard snippet" beads-onboard)
+    ("8" "Prime context" beads-prime)
+    ("9" "Setup integrations" beads-setup)
+    ("_" "Forget memory" beads-forget)
+    ("\\" "KV store" beads-kv)
+    ("|" "Memories" beads-memories)
+    ("{" "Recall memory" beads-recall)
+    ("}" "Remember" beads-remember)]]
+  ;; Row 2: Views | Agent | Maintenance
+  [["Views & Reports"
+    ("r" "Ready work" beads-ready)
+    ("b" "Blocked issues" beads-blocked)
+    ("t" "Stats/Status" beads-stats)
+    ("C" "Count issues" beads-count)
+    ("S" "Stale issues" beads-stale)
+    ("/" "Search" beads-search)
+    ("T" "Lint issues" beads-lint)
+    ("Y" "Orphans" beads-orphans)
+    ("]" "Issue types" beads-types)
+    ("<" "Find duplicates (AI)" beads-find-duplicates)]
+   ["Agent & Slots"
+    ("A" "Agent menu" beads-agent-menu)
+    ("@" "Slot menu" beads-slot)
+    ("=" "Comments" beads-comments-menu)
+    ("~" "Audit log" beads-audit)]
+   ["Maintenance"
+    ("+" "Doctor" beads-doctor)
+    ("^" "Migrate menu" beads-migrate-menu)
+    ("W" "Worktree menu" beads-worktree-menu)
+    ("&" "Admin menu" beads-admin)
+    ("0" "Preflight check" beads-preflight)
+    ("-" "Upgrade bd" beads-upgrade)
+    ("P" "Rename prefix" beads-rename-prefix)
+    (":" "Repair database" beads-repair)
+    (";" "Resolve conflicts" beads-resolve-conflicts)
+    ("cc" "Compact menu" beads-compact)
+    ("fl" "Flatten Dolt" beads-flatten)
+    ("gc" "Garbage collect" beads-gc)
+    ("pg" "Purge ephemeral" beads-purge)]]
+  ;; Row 2.5: Dolt & Version Control
+  [["Dolt & Version Control"
+    ("k" "Dolt menu" beads-dolt)
+    ("#" "VC menu" beads-vc)
+    ("p" "Branch" beads-branch)
+    ("`" "Diff" beads-diff)
+    ("%" "History" beads-history)]
+   ["Federation"
+    ("$" "Federation menu" beads-federation)]]
+  ;; Row 3: Dependencies | Sync | Integrations
+  [["Dependencies & Structure"
+    ("d" "Dependencies" beads-dep)
+    ("v" "Graph (visual)" beads-graph-all)
+    ("E" "Epic status" beads-epic)
+    ("w" "Swarm menu" beads-swarm)
+    ("1" "Mark duplicate" beads-duplicate)
+    ("2" "Find duplicates" beads-duplicates)
+    ("3" "Supersede issue" beads-supersede)]
+   ["Sync & Data"
+    ("y" "Sync (deprecated)" beads-sync)
+    ("n" "Daemon menu" beads-daemon)
+    ("4" "Restore issue" beads-restore)
+    ("J" "SQL query" beads-sql)
+    ("bu" "Backup database" beads-backup)
+    ("ex" "Export to JSONL" beads-export)]
+   ["Integrations"
+    ("j" "Jira" beads-jira)
+    ("N" "Linear" beads-linear)
+    ("R" "Repo" beads-repo)
+    ("*" "Mail delegate" beads-mail)]]
+  ;; Row 4: Labels | Actions
+  [["Labels & State"
+    ("L" "Label menu" beads-label)
+    ("z" "Set state" beads-set-state)
+    ("Z" "State menu" beads-state-menu)]
+   ["Actions"
+    ("G" "Refresh menu" beads-refresh-menu)
+    ("V" "Version" beads-version)
+    ("q" "Quit" transient-quit-one)]])
+
 ;;; Info/Debug Command
 
 ;;;###autoload
@@ -441,11 +648,6 @@ Returns t if found, signals error otherwise."
     (beads--error "Cannot find bd executable '%s'.
 Install bd CLI from https://github.com/steveyegge/beads
 or set `beads-executable' to the full path" beads-executable)))
-
-;; Main entry point autoload — all other command autoloads are provided
-;; by ;;;###autoload cookies in their respective beads-command-*.el files.
-;;;###autoload
-(autoload 'beads "beads-main" "Open the main Beads transient menu." t)
 
 ;; Label API autoloads — these are used by other modules (e.g., readers,
 ;; completion) that depend on beads.el, so they must be available early.

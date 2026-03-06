@@ -418,7 +418,7 @@ The codebase is organized into focused modules in lisp/:
   ready, blocked)
 - beads-show.el: Read-only detail view with markdown-like rendering
   and clickable bd-N references
-- beads-main.el: Root transient menu that ties everything together
+- beads.el: Core module AND root transient menu (main transient merged here)
 
 **Transient Command Modules**
 - beads-create.el: Create new issues with validation
@@ -493,7 +493,7 @@ When adding a new bd command:
 4. Add comprehensive tests (>80% coverage target)
 5. **Run all checks (test, lint, compile) - ALL MUST PASS**
 6. Update README.md if user-facing
-7. Add keybinding to beads-main.el or relevant mode-map
+7. Add keybinding to beads.el (main menu) or relevant mode-map
 
 **Remember**: After implementing, you MUST run and pass all three
 checks (test, lint, compile) before the work is considered complete.
