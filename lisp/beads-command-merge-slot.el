@@ -23,7 +23,7 @@
 ;;; Command Class: beads-command-merge-slot-create
 ;;; ============================================================
 
-(beads-defcommand beads-command-merge-slot-create (beads-command-json)
+(beads-defcommand beads-command-merge-slot-create (beads-command)
   ()
   :documentation "Represents bd merge-slot create command.
 Creates a merge slot bead for the current rig.")
@@ -36,7 +36,7 @@ Creates a merge slot bead for the current rig.")
 ;;; Command Class: beads-command-merge-slot-check
 ;;; ============================================================
 
-(beads-defcommand beads-command-merge-slot-check (beads-command-json)
+(beads-defcommand beads-command-merge-slot-check (beads-command)
   ()
   :documentation "Represents bd merge-slot check command.
 Checks merge slot availability.")
@@ -49,7 +49,7 @@ Checks merge slot availability.")
 ;;; Command Class: beads-command-merge-slot-acquire
 ;;; ============================================================
 
-(beads-defcommand beads-command-merge-slot-acquire (beads-command-json)
+(beads-defcommand beads-command-merge-slot-acquire (beads-command)
   ((holder
     :initarg :holder
     :type (or null string)
@@ -90,7 +90,7 @@ Tries to acquire the merge slot.")
 ;;; Command Class: beads-command-merge-slot-release
 ;;; ============================================================
 
-(beads-defcommand beads-command-merge-slot-release (beads-command-json)
+(beads-defcommand beads-command-merge-slot-release (beads-command)
   ((holder
     :initarg :holder
     :type (or null string)

@@ -22,8 +22,8 @@
   (should (find-class 'beads-command-stale)))
 
 (ert-deftest beads-command-stale-test-inherits-from-json ()
-  "Test that beads-command-stale inherits from beads-command-json."
-  (should (child-of-class-p 'beads-command-stale 'beads-command-json)))
+  "Test that beads-command-stale inherits from beads-command."
+  (should (child-of-class-p 'beads-command-stale 'beads-command)))
 
 (ert-deftest beads-command-stale-test-create-default ()
   "Test creating stale command with defaults."

@@ -10,7 +10,7 @@
 ;; - Terminal backend detection and dispatch
 ;; - beads-command-subcommand auto-derivation with cli-command slot
 ;; - beads-command--ansi-color-filter
-;; - beads-command-execute-interactive for beads-command-json
+;; - beads-command-execute-interactive for beads-command
 ;; - beads-command-execute with validation error
 ;; - beads-command-execute-async
 ;; - beads-command--validate-string-list
@@ -221,18 +221,18 @@
       (should-not (string-match-p "\033" (buffer-string))))))
 
 ;;; ============================================================
-;;; beads-command-execute-interactive for beads-command-json Tests
+;;; beads-command-execute-interactive for beads-command Tests
 ;;; ============================================================
 
 (ert-deftest beads-command-coverage-test-json-execute-interactive ()
-  "Test that beads-command-json execute-interactive disables JSON."
+  "Test that beads-command execute-interactive disables JSON."
   (let* ((json-was-set nil)
          (terminal-called nil))
     (cl-letf (((symbol-function 'beads-command--run-in-terminal)
                (lambda (_cmd _buf _dir) (setq terminal-called t)))
               ((symbol-function 'beads--find-beads-dir)
                (lambda () "/tmp/.beads")))
-      ;; Use beads-command-list as an example of beads-command-json
+      ;; Use beads-command-list as an example of beads-command
       (let ((cmd (beads-command-list :json t)))
         (beads-command-execute-interactive cmd)
         ;; After execute-interactive, json should have been set to nil
@@ -297,11 +297,11 @@
         (delete-process proc)))))
 
 ;;; ============================================================
-;;; beads-command-json parse Tests
+;;; beads-command parse Tests
 ;;; ============================================================
 
 (ert-deftest beads-command-coverage-test-json-parse-with-json ()
-  "Test beads-command-json parse method with valid JSON."
+  "Test beads-command parse method with valid JSON."
   (let* ((cmd (beads-command-list :json t))
          (exec (beads-command-execution
                 :command cmd
@@ -313,7 +313,7 @@
       (should (= (length result) 1)))))
 
 (ert-deftest beads-command-coverage-test-json-parse-with-json-nil ()
-  "Test beads-command-json parse method with :json nil."
+  "Test beads-command parse method with :json nil."
   (let* ((cmd (beads-command-list :json nil))
          (exec (beads-command-execution
                 :command cmd
@@ -325,7 +325,7 @@
       (should (string= result "raw text output")))))
 
 (ert-deftest beads-command-coverage-test-json-parse-invalid-json ()
-  "Test beads-command-json parse signals error on invalid JSON."
+  "Test beads-command parse signals error on invalid JSON."
   (let* ((cmd (beads-command-list :json t))
          (exec (beads-command-execution
                 :command cmd
@@ -348,17 +348,17 @@
       (should (string-match-p "close" preview)))))
 
 ;;; ============================================================
-;;; beads-command-line for beads-command-json Tests
+;;; beads-command-line for beads-command Tests
 ;;; ============================================================
 
 (ert-deftest beads-command-coverage-test-command-line-json-flag ()
-  "Test beads-command-json adds --json flag."
+  "Test beads-command adds --json flag."
   (let* ((cmd (beads-command-list :json t))
          (args (beads-command-line cmd)))
     (should (member "--json" args))))
 
 (ert-deftest beads-command-coverage-test-command-line-no-json-flag ()
-  "Test beads-command-json without --json."
+  "Test beads-command without --json."
   (let* ((cmd (beads-command-list :json nil))
          (args (beads-command-line cmd)))
     (should-not (member "--json" args))))

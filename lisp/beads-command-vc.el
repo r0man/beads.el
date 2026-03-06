@@ -26,7 +26,7 @@
 ;;; Command Class: beads-command-vc-commit
 ;;; ============================================================
 
-(beads-defcommand beads-command-vc-commit (beads-command-json)
+(beads-defcommand beads-command-vc-commit (beads-command)
   ((message
     :initarg :message
     :type (or null string)
@@ -52,7 +52,7 @@ Requires Dolt backend.")
 ;;; Command Class: beads-command-vc-merge
 ;;; ============================================================
 
-(beads-defcommand beads-command-vc-merge (beads-command-json)
+(beads-defcommand beads-command-vc-merge (beads-command)
   ((branch
     :initarg :branch
     :type (or null string)
@@ -101,7 +101,7 @@ Branch is required."
 ;;; Command Class: beads-command-vc-status
 ;;; ============================================================
 
-(beads-defcommand beads-command-vc-status (beads-command-json)
+(beads-defcommand beads-command-vc-status (beads-command)
   ()
   :documentation "Show current branch and uncommitted changes.
 Requires Dolt backend.")

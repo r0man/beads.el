@@ -24,7 +24,7 @@
 ;;; Command Class: beads-command-duplicate
 ;;; ============================================================
 
-(beads-defcommand beads-command-duplicate (beads-command-json)
+(beads-defcommand beads-command-duplicate (beads-command)
   ((issue-id
     :initarg :issue-id
     :type (or null string)
@@ -62,7 +62,7 @@ Marks an issue as a duplicate of another.")
 ;;; Command Class: beads-command-duplicates
 ;;; ============================================================
 
-(beads-defcommand beads-command-duplicates (beads-command-json)
+(beads-defcommand beads-command-duplicates (beads-command)
   ((merge
     :initarg :merge
     :type boolean
@@ -85,7 +85,7 @@ Finds and optionally merges duplicate issues.")
 ;;; Command Class: beads-command-supersede
 ;;; ============================================================
 
-(beads-defcommand beads-command-supersede (beads-command-json)
+(beads-defcommand beads-command-supersede (beads-command)
   ((issue-id
     :initarg :issue-id
     :type (or null string)
@@ -123,7 +123,7 @@ Marks an issue as superseded by a newer one.")
 ;;; Command Class: beads-command-orphans
 ;;; ============================================================
 
-(beads-defcommand beads-command-orphans (beads-command-json)
+(beads-defcommand beads-command-orphans (beads-command)
   ((details
     :initarg :details
     :type boolean
@@ -161,7 +161,7 @@ Identifies orphaned issues referenced in commits but still open.")
 ;;; Command Class: beads-command-lint
 ;;; ============================================================
 
-(beads-defcommand beads-command-lint (beads-command-json)
+(beads-defcommand beads-command-lint (beads-command)
   ((issue-ids
     :initarg :issue-ids
     :type list
@@ -211,7 +211,7 @@ Checks issues for missing template sections.")
 ;;; Command Class: beads-command-move
 ;;; ============================================================
 
-(beads-defcommand beads-command-move (beads-command-json)
+(beads-defcommand beads-command-move (beads-command)
   ((issue-id
     :initarg :issue-id
     :type (or null string)
@@ -287,7 +287,7 @@ Moves an issue to a different rig with dependency remapping.")
 ;;; Command Class: beads-command-refile
 ;;; ============================================================
 
-(beads-defcommand beads-command-refile (beads-command-json)
+(beads-defcommand beads-command-refile (beads-command)
   ((source-id
     :initarg :source-id
     :type (or null string)
@@ -330,7 +330,7 @@ Moves an issue to a different rig.")
 ;;; Command Class: beads-command-q (quick capture)
 ;;; ============================================================
 
-(beads-defcommand beads-command-q (beads-command-json)
+(beads-defcommand beads-command-q (beads-command)
   ((title
     :initarg :title
     :type (or null string)
@@ -408,7 +408,7 @@ Quick capture: creates issue and outputs only ID.")
 ;;; Command Class: beads-command-version
 ;;; ============================================================
 
-(beads-defcommand beads-command-version (beads-command-json)
+(beads-defcommand beads-command-version (beads-command)
   ((daemon
     :initarg :daemon
     :type boolean
@@ -431,7 +431,7 @@ Prints version information.")
 ;;; Command Class: beads-command-where
 ;;; ============================================================
 
-(beads-defcommand beads-command-where (beads-command-json)
+(beads-defcommand beads-command-where (beads-command)
   ()
   :documentation "Represents bd where command.
 Shows active beads location.")
@@ -441,7 +441,7 @@ Shows active beads location.")
 ;;; Command Class: beads-command-human
 ;;; ============================================================
 
-(beads-defcommand beads-command-human (beads-command-json)
+(beads-defcommand beads-command-human (beads-command)
   ()
   :documentation "Represents bd human command.
 Shows essential commands for human users.")
@@ -451,7 +451,7 @@ Shows essential commands for human users.")
 ;;; Command Class: beads-command-onboard
 ;;; ============================================================
 
-(beads-defcommand beads-command-onboard (beads-command-json)
+(beads-defcommand beads-command-onboard (beads-command)
   ()
   :documentation "Represents bd onboard command.
 Displays minimal snippet for AGENTS.md.")
@@ -461,7 +461,7 @@ Displays minimal snippet for AGENTS.md.")
 ;;; Command Class: beads-command-prime
 ;;; ============================================================
 
-(beads-defcommand beads-command-prime (beads-command-json)
+(beads-defcommand beads-command-prime (beads-command)
   ()
   :documentation "Represents bd prime command.
 Outputs AI-optimized workflow context.")
@@ -471,7 +471,7 @@ Outputs AI-optimized workflow context.")
 ;;; Command Class: beads-command-preflight
 ;;; ============================================================
 
-(beads-defcommand beads-command-preflight (beads-command-json)
+(beads-defcommand beads-command-preflight (beads-command)
   ()
   :documentation "Represents bd preflight command.
 Shows PR readiness checklist.")
@@ -481,7 +481,7 @@ Shows PR readiness checklist.")
 ;;; Command Class: beads-command-upgrade
 ;;; ============================================================
 
-(beads-defcommand beads-command-upgrade (beads-command-json)
+(beads-defcommand beads-command-upgrade (beads-command)
   ()
   :documentation "Represents bd upgrade command.
 Check and manage bd version upgrades.")
@@ -491,7 +491,7 @@ Check and manage bd version upgrades.")
 ;;; Command Class: beads-command-rename-prefix
 ;;; ============================================================
 
-(beads-defcommand beads-command-rename-prefix (beads-command-json)
+(beads-defcommand beads-command-rename-prefix (beads-command)
   ((old-prefix
     :initarg :old-prefix
     :type (or null string)
@@ -523,7 +523,7 @@ Renames the issue prefix for all issues in the database.")
 ;;; Command Class: beads-command-repair
 ;;; ============================================================
 
-(beads-defcommand beads-command-repair (beads-command-json)
+(beads-defcommand beads-command-repair (beads-command)
   ()
   :documentation "Represents bd repair command.
 Repairs corrupted database by cleaning orphaned references.")
@@ -533,7 +533,7 @@ Repairs corrupted database by cleaning orphaned references.")
 ;;; Command Class: beads-command-resolve-conflicts
 ;;; ============================================================
 
-(beads-defcommand beads-command-resolve-conflicts (beads-command-json)
+(beads-defcommand beads-command-resolve-conflicts (beads-command)
   ()
   :documentation "Represents bd resolve-conflicts command.
 Resolves git merge conflicts in JSONL files.")
@@ -546,7 +546,7 @@ Resolves git merge conflicts in JSONL files.")
 ;;; Command Class: beads-command-restore
 ;;; ============================================================
 
-(beads-defcommand beads-command-restore (beads-command-json)
+(beads-defcommand beads-command-restore (beads-command)
   ((issue-id
     :initarg :issue-id
     :type (or null string)
@@ -566,7 +566,7 @@ Restores full history of a compacted issue from git.")
 ;;; Command Class: beads-command-merge
 ;;; ============================================================
 
-(beads-defcommand beads-command-merge (beads-command-json)
+(beads-defcommand beads-command-merge (beads-command)
   ((ancestor
     :initarg :ancestor
     :type (or null string)
@@ -593,7 +593,7 @@ Git merge driver for beads JSONL files.")
 ;;; Command Class: beads-command-setup
 ;;; ============================================================
 
-(beads-defcommand beads-command-setup (beads-command-json)
+(beads-defcommand beads-command-setup (beads-command)
   ((editor
     :initarg :editor
     :type (or null string)
@@ -608,7 +608,7 @@ Setup integration with AI editors.")
 ;;; Command Class: beads-command-ship
 ;;; ============================================================
 
-(beads-defcommand beads-command-ship (beads-command-json)
+(beads-defcommand beads-command-ship (beads-command)
   ((capability
     :initarg :capability
     :type (or null string)
@@ -623,7 +623,7 @@ Publishes a capability for cross-project dependencies.")
 ;;; Command Class: beads-command-cook
 ;;; ============================================================
 
-(beads-defcommand beads-command-cook (beads-command-json)
+(beads-defcommand beads-command-cook (beads-command)
   ((formula-id
     :initarg :formula-id
     :type (or null string)
@@ -638,7 +638,7 @@ Compiles a formula into a proto (ephemeral by default).")
 ;;; Command Class: beads-command-mail
 ;;; ============================================================
 
-(beads-defcommand beads-command-mail (beads-command-json)
+(beads-defcommand beads-command-mail (beads-command)
   ()
   :documentation "Represents bd mail command.
 Delegates to mail provider.")
@@ -796,7 +796,7 @@ Delegates to mail provider.")
 
 ;;; Working With Issues — stubs
 
-(beads-defcommand beads-command-children (beads-command-json)
+(beads-defcommand beads-command-children (beads-command)
   ((issue-id
     :initarg :issue-id
     :type (or null string)
@@ -819,7 +819,7 @@ Lists child beads of a parent issue.")
   "List child beads of a parent issue."
   beads-option-global-section)
 
-(beads-defcommand beads-command-create-form (beads-command-json)
+(beads-defcommand beads-command-create-form (beads-command)
   ()
   :documentation "Represents bd create-form command.
 Creates a new issue using an interactive form.")
@@ -833,7 +833,7 @@ Creates a new issue using an interactive form.")
   "Create a new issue using an interactive form."
   beads-option-global-section)
 
-(beads-defcommand beads-command-promote (beads-command-json)
+(beads-defcommand beads-command-promote (beads-command)
   ((issue-id
     :initarg :issue-id
     :type (or null string)
@@ -856,7 +856,7 @@ Promotes a wisp to a permanent bead.")
   "Promote a wisp to a permanent bead."
   beads-option-global-section)
 
-(beads-defcommand beads-command-query (beads-command-json)
+(beads-defcommand beads-command-query (beads-command)
   ((query-string
     :initarg :query-string
     :type (or null string)
@@ -879,7 +879,7 @@ Queries issues using a simple query language.")
   "Query issues using a simple query language."
   beads-option-global-section)
 
-(beads-defcommand beads-command-todo (beads-command-json)
+(beads-defcommand beads-command-todo (beads-command)
   ()
   :documentation "Represents bd todo command.
 Manages TODO items (convenience wrapper for task issues).")
@@ -891,7 +891,7 @@ Manages TODO items (convenience wrapper for task issues).")
 
 ;;; Views & Reports — stubs
 
-(beads-defcommand beads-command-types (beads-command-json)
+(beads-defcommand beads-command-types (beads-command)
   ()
   :documentation "Represents bd types command.
 Lists valid issue types.")
@@ -901,7 +901,7 @@ Lists valid issue types.")
   "List valid issue types."
   beads-option-global-section)
 
-(beads-defcommand beads-command-find-duplicates (beads-command-json)
+(beads-defcommand beads-command-find-duplicates (beads-command)
   ()
   :documentation "Represents bd find-duplicates command.
 Finds semantically similar issues using text analysis or AI.")
@@ -917,7 +917,7 @@ Finds semantically similar issues using text analysis or AI.")
 
 ;;; Sync & Data — stubs
 
-(beads-defcommand beads-command-backup (beads-command-json)
+(beads-defcommand beads-command-backup (beads-command)
   ()
   :documentation "Represents bd backup command.
 Backs up your beads database.")
@@ -927,7 +927,7 @@ Backs up your beads database.")
   "Back up your beads database."
   beads-option-global-section)
 
-(beads-defcommand beads-command-export (beads-command-json)
+(beads-defcommand beads-command-export (beads-command)
   ()
   :documentation "Represents bd export command.
 Exports issues to JSONL format.")
@@ -939,7 +939,7 @@ Exports issues to JSONL format.")
 
 ;;; Maintenance — stubs
 
-(beads-defcommand beads-command-flatten (beads-command-json)
+(beads-defcommand beads-command-flatten (beads-command)
   ()
   :documentation "Represents bd flatten command.
 Squashes all Dolt history into a single commit.")
@@ -949,7 +949,7 @@ Squashes all Dolt history into a single commit.")
   "Squash all Dolt history into a single commit."
   beads-option-global-section)
 
-(beads-defcommand beads-command-gc (beads-command-json)
+(beads-defcommand beads-command-gc (beads-command)
   ()
   :documentation "Represents bd gc command.
 Garbage collects: decays old issues, compacts Dolt, runs GC.")
@@ -959,7 +959,7 @@ Garbage collects: decays old issues, compacts Dolt, runs GC.")
   "Garbage collect: decay issues, compact Dolt, run GC."
   beads-option-global-section)
 
-(beads-defcommand beads-command-purge (beads-command-json)
+(beads-defcommand beads-command-purge (beads-command)
   ()
   :documentation "Represents bd purge command.
 Deletes closed ephemeral beads to reclaim space.")
@@ -971,7 +971,7 @@ Deletes closed ephemeral beads to reclaim space.")
 
 ;;; Setup & Configuration — memory stubs
 
-(beads-defcommand beads-command-forget (beads-command-json)
+(beads-defcommand beads-command-forget (beads-command)
   ((memory-id
     :initarg :memory-id
     :type (or null string)
@@ -994,7 +994,7 @@ Removes a persistent memory.")
   "Remove a persistent memory."
   beads-option-global-section)
 
-(beads-defcommand beads-command-kv (beads-command-json)
+(beads-defcommand beads-command-kv (beads-command)
   ()
   :documentation "Represents bd kv command.
 Key-value store commands.")
@@ -1004,7 +1004,7 @@ Key-value store commands.")
   "Key-value store commands."
   beads-option-global-section)
 
-(beads-defcommand beads-command-memories (beads-command-json)
+(beads-defcommand beads-command-memories (beads-command)
   ()
   :documentation "Represents bd memories command.
 Lists or searches persistent memories.")
@@ -1014,7 +1014,7 @@ Lists or searches persistent memories.")
   "List or search persistent memories."
   beads-option-global-section)
 
-(beads-defcommand beads-command-recall (beads-command-json)
+(beads-defcommand beads-command-recall (beads-command)
   ((memory-id
     :initarg :memory-id
     :type (or null string)
@@ -1037,7 +1037,7 @@ Retrieves a specific memory.")
   "Retrieve a specific memory."
   beads-option-global-section)
 
-(beads-defcommand beads-command-remember (beads-command-json)
+(beads-defcommand beads-command-remember (beads-command)
   ((content
     :initarg :content
     :type (or null string)

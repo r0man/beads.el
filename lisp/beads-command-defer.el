@@ -26,7 +26,7 @@
 ;;; Command Class: beads-command-defer
 ;;; ============================================================
 
-(beads-defcommand beads-command-defer (beads-command-json)
+(beads-defcommand beads-command-defer (beads-command)
   ((issue-ids
     :initarg :issue-ids
     :type list
@@ -74,7 +74,7 @@ Defers one or more issues for later.")
 ;;; Command Class: beads-command-undefer
 ;;; ============================================================
 
-(beads-defcommand beads-command-undefer (beads-command-json)
+(beads-defcommand beads-command-undefer (beads-command)
   ((issue-ids
     :initarg :issue-ids
     :type list

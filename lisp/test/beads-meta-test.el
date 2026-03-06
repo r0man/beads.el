@@ -1167,7 +1167,7 @@
 (ert-deftest beads-meta-show-option-slots ()
   "Test that option slots are identified correctly."
   (let ((options (beads-meta-option-slots 'beads-command-show)))
-    ;; Should include json slot inherited from beads-command-json
+    ;; Should include json slot inherited from beads-command
     (should (memq 'json options))
     ;; Should include global options inherited from beads-command-global-options
     (should (memq 'actor options))
@@ -1439,7 +1439,7 @@
     (should (memq 'label options))
     (should (memq 'no-assignee options))
     (should (memq 'all options))
-    ;; Should include json slot inherited from beads-command-json
+    ;; Should include json slot inherited from beads-command
     (should (memq 'json options))
     ;; Should include global options inherited from beads-command-global-options
     (should (memq 'actor options))

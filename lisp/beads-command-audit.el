@@ -24,7 +24,7 @@
 ;;; Command Class: beads-command-audit-record
 ;;; ============================================================
 
-(beads-defcommand beads-command-audit-record (beads-command-json)
+(beads-defcommand beads-command-audit-record (beads-command)
   ((kind
     :initarg :kind
     :type (or null string)
@@ -169,7 +169,7 @@ Appends an audit interaction entry.")
 ;;; Command Class: beads-command-audit-label
 ;;; ============================================================
 
-(beads-defcommand beads-command-audit-label (beads-command-json)
+(beads-defcommand beads-command-audit-label (beads-command)
   ((entry-id
     :initarg :entry-id
     :type (or null string)

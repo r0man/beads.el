@@ -256,7 +256,7 @@ Returns error message string or nil if valid."
 ;;; Command Class: beads-command-worktree-create
 ;;; ============================================================
 
-(beads-defcommand beads-command-worktree-create (beads-command-json)
+(beads-defcommand beads-command-worktree-create (beads-command)
   ((name
     :initarg :name
     :type (or null string)
@@ -314,7 +314,7 @@ Returns beads-worktree instance on success."
 ;;; Command Class: beads-command-worktree-list
 ;;; ============================================================
 
-(beads-defcommand beads-command-worktree-list (beads-command-json)
+(beads-defcommand beads-command-worktree-list (beads-command)
   ()
   :documentation "Represents bd worktree list command.
 Lists all git worktrees with their beads configuration state.")
@@ -342,7 +342,7 @@ Returns list of beads-worktree instances."
 ;;; Command Class: beads-command-worktree-remove
 ;;; ============================================================
 
-(beads-defcommand beads-command-worktree-remove (beads-command-json)
+(beads-defcommand beads-command-worktree-remove (beads-command)
   ((name
     :initarg :name
     :type (or null string)
@@ -382,7 +382,7 @@ Requires name to be set."
 ;;; Command Class: beads-command-worktree-info
 ;;; ============================================================
 
-(beads-defcommand beads-command-worktree-info (beads-command-json)
+(beads-defcommand beads-command-worktree-info (beads-command)
   ()
   :documentation "Represents bd worktree info command.
 Shows information about the current worktree context.")

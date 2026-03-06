@@ -23,7 +23,7 @@
 ;;; Command Class: beads-command-hooks-install
 ;;; ============================================================
 
-(beads-defcommand beads-command-hooks-install (beads-command-json)
+(beads-defcommand beads-command-hooks-install (beads-command)
   ((force
     :initarg :force
     :type boolean
@@ -75,7 +75,7 @@ Installs bd git hooks.")
 ;;; Command Class: beads-command-hooks-uninstall
 ;;; ============================================================
 
-(beads-defcommand beads-command-hooks-uninstall (beads-command-json)
+(beads-defcommand beads-command-hooks-uninstall (beads-command)
   ()
   :documentation "Represents bd hooks uninstall command.
 Uninstalls bd git hooks.")
@@ -85,7 +85,7 @@ Uninstalls bd git hooks.")
 ;;; Command Class: beads-command-hooks-list
 ;;; ============================================================
 
-(beads-defcommand beads-command-hooks-list (beads-command-json)
+(beads-defcommand beads-command-hooks-list (beads-command)
   ()
   :documentation "Represents bd hooks list command.
 Lists installed git hooks status.")
@@ -95,7 +95,7 @@ Lists installed git hooks status.")
 ;;; Command Class: beads-command-hooks-run
 ;;; ============================================================
 
-(beads-defcommand beads-command-hooks-run (beads-command-json)
+(beads-defcommand beads-command-hooks-run (beads-command)
   ((hook-name
     :initarg :hook-name
     :type (or null string)

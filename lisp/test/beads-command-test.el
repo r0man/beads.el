@@ -1187,7 +1187,7 @@ Integration test that retrieves issue database stats."
     ;; Should be instance of parent classes (using cl-typep since EIEIO
     ;; predicates don't work for parent classes)
     (should (cl-typep cmd 'beads-command))
-    (should (cl-typep cmd 'beads-command-json))
+    (should (cl-typep cmd 'beads-command))
     ;; Should be an EIEIO object
     (should (eieio-object-p cmd))))
 

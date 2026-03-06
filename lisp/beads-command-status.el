@@ -30,7 +30,7 @@
 
 ;;; Status Command
 
-(beads-defcommand beads-command-status (beads-command-json)
+(beads-defcommand beads-command-status (beads-command)
   ((all-issues
     :initarg :all-issues
     :type boolean

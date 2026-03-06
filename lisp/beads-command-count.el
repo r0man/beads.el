@@ -26,7 +26,7 @@
 
 ;;; Count Command
 
-(beads-defcommand beads-command-count (beads-command-json)
+(beads-defcommand beads-command-count (beads-command)
   ((assignee
     :initarg :assignee
     :type (or null string)

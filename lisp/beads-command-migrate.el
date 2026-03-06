@@ -23,7 +23,7 @@
 ;;; Command Class: beads-command-migrate (main)
 ;;; ============================================================
 
-(beads-defcommand beads-command-migrate (beads-command-json)
+(beads-defcommand beads-command-migrate (beads-command)
   ((dry-run
     :initarg :dry-run
     :type boolean
@@ -103,7 +103,7 @@ Detects and migrates database schema to current version.")
 ;;; Command Class: beads-command-migrate-hash-ids
 ;;; ============================================================
 
-(beads-defcommand beads-command-migrate-hash-ids (beads-command-json)
+(beads-defcommand beads-command-migrate-hash-ids (beads-command)
   ((dry-run
     :initarg :dry-run
     :type boolean
@@ -129,7 +129,7 @@ Migrates sequential IDs to hash-based IDs (legacy).")
 ;;; Command Class: beads-command-migrate-issues
 ;;; ============================================================
 
-(beads-defcommand beads-command-migrate-issues (beads-command-json)
+(beads-defcommand beads-command-migrate-issues (beads-command)
   ((source
     :initarg :source
     :type (or null string)
@@ -150,7 +150,7 @@ Moves issues between repositories.")
 ;;; Command Class: beads-command-migrate-sync
 ;;; ============================================================
 
-(beads-defcommand beads-command-migrate-sync (beads-command-json)
+(beads-defcommand beads-command-migrate-sync (beads-command)
   ()
   :documentation "Represents bd migrate sync command.
 Migrates to sync.branch workflow for multi-clone setups.")
@@ -160,7 +160,7 @@ Migrates to sync.branch workflow for multi-clone setups.")
 ;;; Command Class: beads-command-migrate-tombstones
 ;;; ============================================================
 
-(beads-defcommand beads-command-migrate-tombstones (beads-command-json)
+(beads-defcommand beads-command-migrate-tombstones (beads-command)
   ((dry-run
     :initarg :dry-run
     :type boolean

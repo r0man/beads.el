@@ -43,7 +43,7 @@
 
 ;;; Create Command
 
-(beads-defcommand beads-command-create (beads-command-json)
+(beads-defcommand beads-command-create (beads-command)
   (;; Required - Title
    (title
     :initarg :title

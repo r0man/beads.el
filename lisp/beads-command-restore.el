@@ -26,7 +26,7 @@
 
 ;;; Restore Command
 
-(beads-defcommand beads-command-restore (beads-command-json)
+(beads-defcommand beads-command-restore (beads-command)
   ((issue-id
     :initarg :issue-id
     :type (or null string)

@@ -23,7 +23,7 @@
 ;;; Command Class: beads-command-config-get
 ;;; ============================================================
 
-(beads-defcommand beads-command-config-get (beads-command-json)
+(beads-defcommand beads-command-config-get (beads-command)
   ((key
     :initarg :key
     :type (or null string)
@@ -46,7 +46,7 @@ Gets a configuration value.")
 ;;; Command Class: beads-command-config-set
 ;;; ============================================================
 
-(beads-defcommand beads-command-config-set (beads-command-json)
+(beads-defcommand beads-command-config-set (beads-command)
   ((key
     :initarg :key
     :type (or null string)
@@ -76,7 +76,7 @@ Sets a configuration value.")
 ;;; Command Class: beads-command-config-list
 ;;; ============================================================
 
-(beads-defcommand beads-command-config-list (beads-command-json)
+(beads-defcommand beads-command-config-list (beads-command)
   ()
   :documentation "Represents bd config list command.
 Lists all configuration values.")
@@ -86,7 +86,7 @@ Lists all configuration values.")
 ;;; Command Class: beads-command-config-unset
 ;;; ============================================================
 
-(beads-defcommand beads-command-config-unset (beads-command-json)
+(beads-defcommand beads-command-config-unset (beads-command)
   ((key
     :initarg :key
     :type (or null string)

@@ -39,7 +39,7 @@
 ;;; Close Command
 
 ;;;###autoload (autoload 'beads-close "beads-command-close" nil t)
-(beads-defcommand beads-command-close (beads-command-json)
+(beads-defcommand beads-command-close (beads-command)
   ((issue-ids
     :initarg :issue-ids
     :type (or null list)
