@@ -841,7 +841,24 @@ Integration test that retrieves issue database stats."
     (should (member "--priority" args))
     (should (member "1" args))
     (should (member "--no-daemon" args))
-    (should (member "--json" args))))
+    (should (member "--json" args))
+    ;; --flat must be present when json=t (tree format can't output JSON)
+    (should (member "--flat" args))))
+
+(ert-deftest beads-command-test-unit-list-command-line-flat-with-json ()
+  "Unit test: --flat is added to bd list when json=t."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-list :json t))
+         (args (beads-command-line cmd)))
+    (should (member "--json" args))
+    (should (member "--flat" args))))
+
+(ert-deftest beads-command-test-unit-list-command-line-no-flat-without-json ()
+  "Unit test: --flat is NOT added to bd list when json=nil."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-list :json nil))
+         (args (beads-command-line cmd)))
+    (should-not (member "--flat" args))))
 
 (ert-deftest beads-command-test-unit-list-command-line-all-filters ()
   "Unit test: beads-command-list with all filter options."
