@@ -1071,9 +1071,9 @@
 ;;; ============================================================
 
 (ert-deftest beads-coverage-2-epic-status-execute-interactive ()
-  "Test beads-command-execute-interactive for epic-status."
-  (let* ((cmd (beads-command-epic-status :json t)))
-    ;; execute-interactive should set json to nil then call parent
+  "Test beads-command-execute-interactive for epic-status calls parent."
+  (let* ((cmd (beads-command-epic-status)))
+    ;; execute-interactive calls parent (json defaults to nil)
     (cl-letf (((symbol-function 'cl-call-next-method)
                (lambda (&rest _) nil)))
       (beads-command-execute-interactive cmd)

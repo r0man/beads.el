@@ -698,8 +698,8 @@
 ;;; Tests for beads-command-epic-status execute-interactive
 
 (ert-deftest beads-epic-status-test-execute-interactive-disables-json ()
-  "Test execute-interactive disables JSON for human-readable output."
-  (let* ((cmd (beads-command-epic-status :json t))
+  "Test execute-interactive runs in terminal (json defaults to nil)."
+  (let* ((cmd (beads-command-epic-status))
          (terminal-called nil))
     (cl-letf (((symbol-function 'beads-command--run-in-terminal)
                (lambda (_cmd _buf _dir) (setq terminal-called t)))

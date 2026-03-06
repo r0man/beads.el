@@ -217,6 +217,7 @@ Use this over `execute-kbd-macro' in order to not change
 Optional TYPE, PRIORITY, and DESCRIPTION can be specified.
 Returns the issue ID of the created issue."
   (let* ((cmd (beads-command-create
+               :json t
                :title title
                :issue-type type
                :priority priority

@@ -830,6 +830,7 @@ Integration test that retrieves issue database stats."
   "Unit test: beads-command-list builds correct arguments."
   :tags '(:unit)
   (let* ((cmd (beads-command-list
+               :json t
                :status "open"
                :priority "1"
                :no-daemon t))
@@ -886,6 +887,7 @@ Integration test that retrieves issue database stats."
   "Unit test: beads-command-create builds correct arguments."
   :tags '(:unit)
   (let* ((cmd (beads-command-create
+               :json t
                :title "Test issue"
                :priority "1"
                :issue-type "bug"))
@@ -940,6 +942,7 @@ Integration test that retrieves issue database stats."
   "Unit test: beads-command-close builds correct arguments."
   :tags '(:unit)
   (let* ((cmd (beads-command-close
+               :json t
                :issue-ids '("bd-789")
                :reason "Completed"))
          (args (beads-command-line cmd)))
@@ -1151,7 +1154,7 @@ Integration test that retrieves issue database stats."
   (let ((cmd (beads-command-create :title "Test")))
     (should (beads-command-create-p cmd))
     (should (string= (oref cmd title) "Test"))
-    (should (equal (oref cmd json) t))
+    (should-not (oref cmd json))
     (should-not (oref cmd priority))
     (should-not (oref cmd issue-type))
     (should-not (oref cmd description))))
@@ -1161,7 +1164,7 @@ Integration test that retrieves issue database stats."
   :tags '(:unit)
   (let ((cmd (beads-command-list)))
     (should (beads-command-list-p cmd))
-    (should (equal (oref cmd json) t))
+    (should-not (oref cmd json))
     (should-not (oref cmd status))
     (should-not (oref cmd priority))
     ;; Class initform is nil; default limit applied by beads-command-list!
@@ -1270,6 +1273,7 @@ Integration test that retrieves issue database stats."
   "List command-line includes all filters."
   :tags '(:unit)
   (let* ((cmd (beads-command-list
+               :json t
                :status "open"
                :priority "1"
                :assignee "user"

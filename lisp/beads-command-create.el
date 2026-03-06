@@ -815,6 +815,7 @@ Does not modify any slots."
 (cl-defmethod beads-command-execute-interactive ((cmd beads-command-create))
   "Execute CMD to create issue and offer to show it.
 Overrides default `compilation-mode' behavior with issue-specific UX."
+  (oset cmd json t)
   (let* ((result (oref (beads-command-execute cmd) result))
          ;; Handle both single-issue and multi-issue responses
          (issues (cond
@@ -914,6 +915,7 @@ This uses transient's standard argument parsing with dash-style flags."
     (let ((error-msg (beads-command-validate cmd)))
       (if error-msg
           (user-error "Validation failed: %s" error-msg)
+        (oset cmd json t)
         (condition-case err
             (let* ((result (oref (beads-command-execute cmd) result))
                    ;; Handle both single-issue and multi-issue responses:

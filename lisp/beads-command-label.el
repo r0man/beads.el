@@ -304,7 +304,7 @@ See `beads-label-remove' for the full user-facing transient menu."
 (defun beads-label-list-all ()
   "Fetch all labels from bd label list-all.
 Returns a list of label objects, each with \\='label and \\='count fields."
-  (let* ((cmd (beads-command-label-list-all))
+  (let* ((cmd (beads-command-label-list-all :json t))
          ;; Execute command and get result from execution object
          (exec (beads-command-execute cmd))
          (json (oref exec result))

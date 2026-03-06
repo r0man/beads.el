@@ -103,7 +103,6 @@ Does not modify any slots."
 
 (cl-defmethod beads-command-execute-interactive ((cmd beads-command-epic-status))
   "Execute CMD in terminal buffer with human-readable output."
-  (oset cmd json nil)
   (cl-call-next-method))
 
 
