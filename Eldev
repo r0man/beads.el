@@ -157,3 +157,13 @@ ORIG-FN is the original function, STATS is the test statistics."
           (lambda ()
             (when (fboundp 'beads-test-destroy-shared-project)
               (beads-test-destroy-shared-project))))
+
+;; Stop the test-local Dolt server on exit.
+;; When integration tests run in Dolt mode (BD_NO_DAEMON unset),
+;; a dedicated dolt sql-server is started on a free port.  Killing
+;; it here drops all test databases automatically — no explicit
+;; DROP DATABASE cleanup is needed.
+(add-hook 'kill-emacs-hook
+          (lambda ()
+            (when (fboundp 'beads-test--stop-test-dolt-server)
+              (beads-test--stop-test-dolt-server))))
