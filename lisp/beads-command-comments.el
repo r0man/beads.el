@@ -37,7 +37,7 @@
 ;;; Command Class: beads-command-comments (list)
 ;;; ============================================================
 
-(beads-defcommand beads-command-comments (beads-command-json)
+(beads-defcommand beads-command-comments (beads-command)
   ((issue-id
     :initarg :issue-id
     :type (or null string)
@@ -75,7 +75,7 @@ Lists all comments on an issue.")
 ;;; Command Class: beads-command-comments-add
 ;;; ============================================================
 
-(beads-defcommand beads-command-comments-add (beads-command-json)
+(beads-defcommand beads-command-comments-add (beads-command)
   ((issue-id
     :initarg :issue-id
     :type (or null string)

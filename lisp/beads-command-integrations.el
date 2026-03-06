@@ -25,7 +25,7 @@
 ;;; Jira Commands
 ;;; ============================================================
 
-(beads-defcommand beads-command-jira-sync (beads-command-json)
+(beads-defcommand beads-command-jira-sync (beads-command)
   ((pull
     :initarg :pull
     :type boolean
@@ -72,7 +72,7 @@
 Synchronizes issues with Jira.")
 
 
-(beads-defcommand beads-command-jira-status (beads-command-json)
+(beads-defcommand beads-command-jira-status (beads-command)
   ()
   :documentation "Represents bd jira status command.
 Shows Jira sync status.")
@@ -82,7 +82,7 @@ Shows Jira sync status.")
 ;;; Linear Commands
 ;;; ============================================================
 
-(beads-defcommand beads-command-linear-sync (beads-command-json)
+(beads-defcommand beads-command-linear-sync (beads-command)
   ((pull
     :initarg :pull
     :type boolean
@@ -129,13 +129,13 @@ Shows Jira sync status.")
 Synchronizes issues with Linear.")
 
 
-(beads-defcommand beads-command-linear-status (beads-command-json)
+(beads-defcommand beads-command-linear-status (beads-command)
   ()
   :documentation "Represents bd linear status command.
 Shows Linear sync status.")
 
 
-(beads-defcommand beads-command-linear-teams (beads-command-json)
+(beads-defcommand beads-command-linear-teams (beads-command)
   ()
   :documentation "Represents bd linear teams command.
 Lists available Linear teams.")
@@ -145,7 +145,7 @@ Lists available Linear teams.")
 ;;; Repo Commands
 ;;; ============================================================
 
-(beads-defcommand beads-command-repo-add (beads-command-json)
+(beads-defcommand beads-command-repo-add (beads-command)
   ((repo-path
     :initarg :repo-path
     :type (or null string)
@@ -161,13 +161,13 @@ Adds an additional repository to sync.")
   (with-slots (repo-path) command
     (if (not repo-path) "Repository path is required" nil)))
 
-(beads-defcommand beads-command-repo-list (beads-command-json)
+(beads-defcommand beads-command-repo-list (beads-command)
   ()
   :documentation "Represents bd repo list command.
 Lists all configured repositories.")
 
 
-(beads-defcommand beads-command-repo-remove (beads-command-json)
+(beads-defcommand beads-command-repo-remove (beads-command)
   ((repo-path
     :initarg :repo-path
     :type (or null string)
@@ -183,7 +183,7 @@ Removes a repository from sync configuration.")
   (with-slots (repo-path) command
     (if (not repo-path) "Repository path is required" nil)))
 
-(beads-defcommand beads-command-repo-sync (beads-command-json)
+(beads-defcommand beads-command-repo-sync (beads-command)
   ()
   :documentation "Represents bd repo sync command.
 Manually triggers multi-repo sync.")

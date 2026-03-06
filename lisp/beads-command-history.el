@@ -26,7 +26,7 @@
 
 ;;; History Command
 
-(beads-defcommand beads-command-history (beads-command-json)
+(beads-defcommand beads-command-history (beads-command)
   ((issue-id
     :initarg :issue-id
     :type (or null string)

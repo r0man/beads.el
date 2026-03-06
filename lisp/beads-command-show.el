@@ -51,7 +51,7 @@
 
 ;;; Show Command
 
-(beads-defcommand beads-command-show (beads-command-json)
+(beads-defcommand beads-command-show (beads-command)
   ((issue-ids
     :initarg :issue-ids
     :type (or null list)

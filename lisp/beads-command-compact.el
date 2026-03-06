@@ -42,7 +42,7 @@
 ;;; Command Class: beads-command-compact-stats
 ;;; ============================================================
 
-(beads-defcommand beads-command-compact-stats (beads-command-json)
+(beads-defcommand beads-command-compact-stats (beads-command)
   ()
   :documentation "Represents bd compact --stats command.
 Shows compaction statistics including tier 1 and tier 2 candidates.")
@@ -66,7 +66,7 @@ Shows compaction statistics including tier 1 and tier 2 candidates.")
 ;;; Command Class: beads-command-compact-prune
 ;;; ============================================================
 
-(beads-defcommand beads-command-compact-prune (beads-command-json)
+(beads-defcommand beads-command-compact-prune (beads-command)
   ((older-than
     :initarg :older-than
     :type (or null string)
@@ -118,7 +118,7 @@ Removes expired tombstones from issues.jsonl.")
 ;;; Command Class: beads-command-compact-purge
 ;;; ============================================================
 
-(beads-defcommand beads-command-compact-purge (beads-command-json)
+(beads-defcommand beads-command-compact-purge (beads-command)
   ((dry-run
     :initarg :dry-run
     :type boolean
@@ -155,7 +155,7 @@ Removes tombstones by dependency analysis (more aggressive than prune).")
 ;;; Command Class: beads-command-compact-analyze
 ;;; ============================================================
 
-(beads-defcommand beads-command-compact-analyze (beads-command-json)
+(beads-defcommand beads-command-compact-analyze (beads-command)
   ((tier
     :initarg :tier
     :type (or null string)
@@ -203,7 +203,7 @@ Exports compaction candidates for agent review.")
 ;;; Command Class: beads-command-compact-apply
 ;;; ============================================================
 
-(beads-defcommand beads-command-compact-apply (beads-command-json)
+(beads-defcommand beads-command-compact-apply (beads-command)
   ((issue-id
     :initarg :issue-id
     :type (or null string)
@@ -270,7 +270,7 @@ Accepts agent-provided summary for an issue.")
 ;;; Command Class: beads-command-compact-auto
 ;;; ============================================================
 
-(beads-defcommand beads-command-compact-auto (beads-command-json)
+(beads-defcommand beads-command-compact-auto (beads-command)
   ((issue-id
     :initarg :issue-id
     :type (or null string)

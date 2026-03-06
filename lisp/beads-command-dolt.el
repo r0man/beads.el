@@ -33,7 +33,7 @@
 ;;; Command Class: beads-command-dolt-show
 ;;; ============================================================
 
-(beads-defcommand beads-command-dolt-show (beads-command-json)
+(beads-defcommand beads-command-dolt-show (beads-command)
   ()
   :documentation "Show current Dolt configuration.
 Displays backend, database, host, port, and connection status.")
@@ -44,7 +44,7 @@ Displays backend, database, host, port, and connection status.")
 ;;; Command Class: beads-command-dolt-set
 ;;; ============================================================
 
-(beads-defcommand beads-command-dolt-set (beads-command-json)
+(beads-defcommand beads-command-dolt-set (beads-command)
   ((config-key
     :initarg :config-key
     :type (or null string)
@@ -111,7 +111,7 @@ Both key and value are required."
 ;;; Command Class: beads-command-dolt-test
 ;;; ============================================================
 
-(beads-defcommand beads-command-dolt-test (beads-command-json)
+(beads-defcommand beads-command-dolt-test (beads-command)
   ()
   :documentation "Test connection to Dolt server.
 Reports host, port, and connection status.")
@@ -122,7 +122,7 @@ Reports host, port, and connection status.")
 ;;; Command Class: beads-command-dolt-commit
 ;;; ============================================================
 
-(beads-defcommand beads-command-dolt-commit (beads-command-json)
+(beads-defcommand beads-command-dolt-commit (beads-command)
   ((message
     :initarg :message
     :type (or null string)
@@ -149,7 +149,7 @@ Auto-generates commit message if not provided.")
 ;;; Command Class: beads-command-dolt-push
 ;;; ============================================================
 
-(beads-defcommand beads-command-dolt-push (beads-command-json)
+(beads-defcommand beads-command-dolt-push (beads-command)
   ((force
     :initarg :force
     :type boolean
@@ -173,7 +173,7 @@ Use --force to overwrite remote changes.")
 ;;; Command Class: beads-command-dolt-pull
 ;;; ============================================================
 
-(beads-defcommand beads-command-dolt-pull (beads-command-json)
+(beads-defcommand beads-command-dolt-pull (beads-command)
   ()
   :documentation "Pull commits from Dolt remote.")
 
@@ -215,7 +215,7 @@ Starts server with per-project derived port.")
 ;;; Command Class: beads-command-dolt-status
 ;;; ============================================================
 
-(beads-defcommand beads-command-dolt-status (beads-command-json)
+(beads-defcommand beads-command-dolt-status (beads-command)
   ()
   :documentation "Show Dolt server status.
 Reports PID, port, and running status.")
@@ -226,7 +226,7 @@ Reports PID, port, and running status.")
 ;;; Command Class: beads-command-dolt-remote-add
 ;;; ============================================================
 
-(beads-defcommand beads-command-dolt-remote-add (beads-command-json)
+(beads-defcommand beads-command-dolt-remote-add (beads-command)
   ((remote-name
     :initarg :remote-name
     :type (or null string)
@@ -275,7 +275,7 @@ Reports PID, port, and running status.")
 ;;; Command Class: beads-command-dolt-remote-list
 ;;; ============================================================
 
-(beads-defcommand beads-command-dolt-remote-list (beads-command-json)
+(beads-defcommand beads-command-dolt-remote-list (beads-command)
   ()
   :documentation "List configured Dolt remotes.")
 
@@ -285,7 +285,7 @@ Reports PID, port, and running status.")
 ;;; Command Class: beads-command-dolt-remote-remove
 ;;; ============================================================
 
-(beads-defcommand beads-command-dolt-remote-remove (beads-command-json)
+(beads-defcommand beads-command-dolt-remote-remove (beads-command)
   ((remote-name
     :initarg :remote-name
     :type (or null string)

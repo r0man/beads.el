@@ -23,7 +23,7 @@
 ;;; Command Class: beads-command-swarm-create
 ;;; ============================================================
 
-(beads-defcommand beads-command-swarm-create (beads-command-json)
+(beads-defcommand beads-command-swarm-create (beads-command)
   ((epic-id
     :initarg :epic-id
     :type (or null string)
@@ -72,7 +72,7 @@ Creates a swarm molecule from an epic.")
 ;;; Command Class: beads-command-swarm-list
 ;;; ============================================================
 
-(beads-defcommand beads-command-swarm-list (beads-command-json)
+(beads-defcommand beads-command-swarm-list (beads-command)
   ()
   :documentation "Represents bd swarm list command.
 Lists all swarm molecules.")
@@ -82,7 +82,7 @@ Lists all swarm molecules.")
 ;;; Command Class: beads-command-swarm-status
 ;;; ============================================================
 
-(beads-defcommand beads-command-swarm-status (beads-command-json)
+(beads-defcommand beads-command-swarm-status (beads-command)
   ((swarm-id
     :initarg :swarm-id
     :type (or null string)
@@ -97,7 +97,7 @@ Shows current swarm status.")
 ;;; Command Class: beads-command-swarm-validate
 ;;; ============================================================
 
-(beads-defcommand beads-command-swarm-validate (beads-command-json)
+(beads-defcommand beads-command-swarm-validate (beads-command)
   ((epic-id
     :initarg :epic-id
     :type (or null string)

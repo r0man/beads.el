@@ -44,6 +44,11 @@ No required fields.
 Returns nil (always valid)."
   nil)
 
+(cl-defmethod beads-command-parse ((_command beads-command-quickstart) execution)
+  "Parse bd quickstart output from EXECUTION.
+Returns raw stdout string.  bd quickstart does not produce JSON output."
+  (oref execution stdout))
+
 (cl-defmethod beads-command-execute-interactive ((_cmd beads-command-quickstart))
   "Execute CMD in terminal buffer."
   (cl-call-next-method))

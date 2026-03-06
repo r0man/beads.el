@@ -47,7 +47,7 @@
 
 ;;; Dependency Add Command
 
-(beads-defcommand beads-command-dep-add (beads-command-json)
+(beads-defcommand beads-command-dep-add (beads-command)
   ((issue-id
     :initarg :issue-id
     :type (or null string)
@@ -147,7 +147,7 @@ Returns error string or nil if valid."
 
 ;;; Dependency Remove Command
 
-(beads-defcommand beads-command-dep-remove (beads-command-json)
+(beads-defcommand beads-command-dep-remove (beads-command)
   ((issue-id
     :initarg :issue-id
     :type (or null string)
@@ -204,7 +204,7 @@ Returns error string or nil if valid."
 
 ;;; Dependency List Command
 
-(beads-defcommand beads-command-dep-list (beads-command-json)
+(beads-defcommand beads-command-dep-list (beads-command)
   ((issue-id
     :initarg :issue-id
     :type (or null string)
@@ -318,7 +318,7 @@ Does not modify any slots."
 
 ;;; Dependency Tree Command
 
-(beads-defcommand beads-command-dep-tree (beads-command-json)
+(beads-defcommand beads-command-dep-tree (beads-command)
   ((issue-id
     :initarg :issue-id
     :type (or null string)
@@ -465,7 +465,7 @@ Returns error string or nil if valid."
 
 ;;; Dependency Cycles Command
 
-(beads-defcommand beads-command-dep-cycles (beads-command-json)
+(beads-defcommand beads-command-dep-cycles (beads-command)
   ()
   :documentation "Represents bd dep cycles command.
 Detects dependency cycles in the issue graph.")
@@ -479,7 +479,7 @@ Returns nil (always valid)."
 
 ;;; Dep Relate Command
 
-(beads-defcommand beads-command-dep-relate (beads-command-json)
+(beads-defcommand beads-command-dep-relate (beads-command)
   ((id1
     :initarg :id1
     :type (or null string)
@@ -515,7 +515,7 @@ Creates a bidirectional relates_to link between two issues.")
 
 ;;; Dep Unrelate Command
 
-(beads-defcommand beads-command-dep-unrelate (beads-command-json)
+(beads-defcommand beads-command-dep-unrelate (beads-command)
   ((id1
     :initarg :id1
     :type (or null string)

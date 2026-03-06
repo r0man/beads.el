@@ -23,7 +23,7 @@
 ;;; Command Class: beads-command-slot-show
 ;;; ============================================================
 
-(beads-defcommand beads-command-slot-show (beads-command-json)
+(beads-defcommand beads-command-slot-show (beads-command)
   ((agent-id
     :initarg :agent-id
     :type (or null string)
@@ -43,7 +43,7 @@ Shows all slots on an agent bead.")
 ;;; Command Class: beads-command-slot-set
 ;;; ============================================================
 
-(beads-defcommand beads-command-slot-set (beads-command-json)
+(beads-defcommand beads-command-slot-set (beads-command)
   ((agent-id
     :initarg :agent-id
     :type (or null string)
@@ -79,7 +79,7 @@ Sets a slot on an agent bead.")
 ;;; Command Class: beads-command-slot-clear
 ;;; ============================================================
 
-(beads-defcommand beads-command-slot-clear (beads-command-json)
+(beads-defcommand beads-command-slot-clear (beads-command)
   ((agent-id
     :initarg :agent-id
     :type (or null string)

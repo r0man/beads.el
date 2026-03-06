@@ -25,8 +25,8 @@
   (should (find-class 'beads-command-daemon-list)))
 
 (ert-deftest beads-command-daemon-list-test-inherits-from-json ()
-  "Test that beads-command-daemon-list inherits from beads-command-json."
-  (should (child-of-class-p 'beads-command-daemon-list 'beads-command-json)))
+  "Test that beads-command-daemon-list inherits from beads-command."
+  (should (child-of-class-p 'beads-command-daemon-list 'beads-command)))
 
 (ert-deftest beads-command-daemon-list-test-create-default ()
   "Test creating daemon list command with defaults."
@@ -79,8 +79,8 @@
   (should (find-class 'beads-command-daemon-start)))
 
 (ert-deftest beads-command-daemon-start-test-inherits-from-json ()
-  "Test that beads-command-daemon-start inherits from beads-command-json."
-  (should (child-of-class-p 'beads-command-daemon-start 'beads-command-json)))
+  "Test that beads-command-daemon-start inherits from beads-command."
+  (should (child-of-class-p 'beads-command-daemon-start 'beads-command)))
 
 (ert-deftest beads-command-daemon-start-test-create-default ()
   "Test creating daemon start command with defaults."
@@ -181,8 +181,8 @@
   (should (find-class 'beads-command-daemon-stop)))
 
 (ert-deftest beads-command-daemon-stop-test-inherits-from-json ()
-  "Test that beads-command-daemon-stop inherits from beads-command-json."
-  (should (child-of-class-p 'beads-command-daemon-stop 'beads-command-json)))
+  "Test that beads-command-daemon-stop inherits from beads-command."
+  (should (child-of-class-p 'beads-command-daemon-stop 'beads-command)))
 
 (ert-deftest beads-command-daemon-stop-test-create-default ()
   "Test creating daemon stop command with defaults."
@@ -225,8 +225,8 @@
   (should (find-class 'beads-command-daemon-status)))
 
 (ert-deftest beads-command-daemon-status-test-inherits-from-json ()
-  "Test that beads-command-daemon-status inherits from beads-command-json."
-  (should (child-of-class-p 'beads-command-daemon-status 'beads-command-json)))
+  "Test that beads-command-daemon-status inherits from beads-command."
+  (should (child-of-class-p 'beads-command-daemon-status 'beads-command)))
 
 (ert-deftest beads-command-daemon-status-test-create-default ()
   "Test creating daemon status command with defaults."
@@ -275,8 +275,8 @@
   (should (find-class 'beads-command-daemon-health)))
 
 (ert-deftest beads-command-daemon-health-test-inherits-from-json ()
-  "Test that beads-command-daemon-health inherits from beads-command-json."
-  (should (child-of-class-p 'beads-command-daemon-health 'beads-command-json)))
+  "Test that beads-command-daemon-health inherits from beads-command."
+  (should (child-of-class-p 'beads-command-daemon-health 'beads-command)))
 
 (ert-deftest beads-command-daemon-health-test-create-default ()
   "Test creating daemon health command with defaults."
@@ -314,8 +314,8 @@
   (should (find-class 'beads-command-daemon-killall)))
 
 (ert-deftest beads-command-daemon-killall-test-inherits-from-json ()
-  "Test that beads-command-daemon-killall inherits from beads-command-json."
-  (should (child-of-class-p 'beads-command-daemon-killall 'beads-command-json)))
+  "Test that beads-command-daemon-killall inherits from beads-command."
+  (should (child-of-class-p 'beads-command-daemon-killall 'beads-command)))
 
 (ert-deftest beads-command-daemon-killall-test-create-default ()
   "Test creating daemon killall command with defaults."
@@ -364,8 +364,8 @@
   (should (find-class 'beads-command-daemon-logs)))
 
 (ert-deftest beads-command-daemon-logs-test-inherits-from-json ()
-  "Test that beads-command-daemon-logs inherits from beads-command-json."
-  (should (child-of-class-p 'beads-command-daemon-logs 'beads-command-json)))
+  "Test that beads-command-daemon-logs inherits from beads-command."
+  (should (child-of-class-p 'beads-command-daemon-logs 'beads-command)))
 
 (ert-deftest beads-command-daemon-logs-test-create-default ()
   "Test creating daemon logs command with defaults."
@@ -426,8 +426,8 @@
   (should (find-class 'beads-command-daemon-restart)))
 
 (ert-deftest beads-command-daemon-restart-test-inherits-from-json ()
-  "Test that beads-command-daemon-restart inherits from beads-command-json."
-  (should (child-of-class-p 'beads-command-daemon-restart 'beads-command-json)))
+  "Test that beads-command-daemon-restart inherits from beads-command."
+  (should (child-of-class-p 'beads-command-daemon-restart 'beads-command)))
 
 (ert-deftest beads-command-daemon-restart-test-create-default ()
   "Test creating daemon restart command with defaults."

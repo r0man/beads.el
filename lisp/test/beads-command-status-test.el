@@ -22,8 +22,8 @@
   (should (find-class 'beads-command-status)))
 
 (ert-deftest beads-command-status-test-inherits-from-json ()
-  "Test that beads-command-status inherits from beads-command-json."
-  (should (child-of-class-p 'beads-command-status 'beads-command-json)))
+  "Test that beads-command-status inherits from beads-command."
+  (should (child-of-class-p 'beads-command-status 'beads-command)))
 
 (ert-deftest beads-command-status-test-create-default ()
   "Test creating status command with defaults."

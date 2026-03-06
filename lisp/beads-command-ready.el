@@ -39,7 +39,7 @@
 
 ;;; Ready Command
 
-(beads-defcommand beads-command-ready (beads-command-json)
+(beads-defcommand beads-command-ready (beads-command)
   ((assignee
     :initarg :assignee
     :type (or null string)

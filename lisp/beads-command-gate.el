@@ -23,7 +23,7 @@
 ;;; Command Class: beads-command-gate-list
 ;;; ============================================================
 
-(beads-defcommand beads-command-gate-list (beads-command-json)
+(beads-defcommand beads-command-gate-list (beads-command)
   ((all
     :initarg :all
     :type boolean
@@ -63,7 +63,7 @@ Lists gate issues.")
 ;;; Command Class: beads-command-gate-check
 ;;; ============================================================
 
-(beads-defcommand beads-command-gate-check (beads-command-json)
+(beads-defcommand beads-command-gate-check (beads-command)
   ((type
     :initarg :type
     :type (or null string)
@@ -133,7 +133,7 @@ Evaluates gates and closes resolved ones.")
 ;;; Command Class: beads-command-gate-resolve
 ;;; ============================================================
 
-(beads-defcommand beads-command-gate-resolve (beads-command-json)
+(beads-defcommand beads-command-gate-resolve (beads-command)
   ((gate-id
     :initarg :gate-id
     :type (or null string)
@@ -169,7 +169,7 @@ Manually resolves (closes) a gate.")
 ;;; Command Class: beads-command-gate-show
 ;;; ============================================================
 
-(beads-defcommand beads-command-gate-show (beads-command-json)
+(beads-defcommand beads-command-gate-show (beads-command)
   ((gate-id
     :initarg :gate-id
     :type (or null string)
@@ -189,7 +189,7 @@ Shows a gate issue.")
 ;;; Command Class: beads-command-gate-add-waiter
 ;;; ============================================================
 
-(beads-defcommand beads-command-gate-add-waiter (beads-command-json)
+(beads-defcommand beads-command-gate-add-waiter (beads-command)
   ((gate-id
     :initarg :gate-id
     :type (or null string)
@@ -213,7 +213,7 @@ Adds a waiter to a gate.")
 ;;; Command Class: beads-command-gate-discover
 ;;; ============================================================
 
-(beads-defcommand beads-command-gate-discover (beads-command-json)
+(beads-defcommand beads-command-gate-discover (beads-command)
   ((gate-id
     :initarg :gate-id
     :type (or null string)

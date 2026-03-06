@@ -24,7 +24,7 @@
 ;;; Command Class: beads-command-admin-cleanup
 ;;; ============================================================
 
-(beads-defcommand beads-command-admin-cleanup (beads-command-json)
+(beads-defcommand beads-command-admin-cleanup (beads-command)
   ((dry-run
     :initarg :dry-run
     :type boolean
@@ -119,7 +119,7 @@ Deletes closed issues and prunes expired tombstones.")
 ;;; Command Class: beads-command-admin-compact
 ;;; ============================================================
 
-(beads-defcommand beads-command-admin-compact (beads-command-json)
+(beads-defcommand beads-command-admin-compact (beads-command)
   ((dry-run
     :initarg :dry-run
     :type boolean
@@ -360,7 +360,7 @@ Compacts old closed issues to save space.")
 ;;; Command Class: beads-command-admin-reset
 ;;; ============================================================
 
-(beads-defcommand beads-command-admin-reset (beads-command-json)
+(beads-defcommand beads-command-admin-reset (beads-command)
   ((force
     :initarg :force
     :type boolean

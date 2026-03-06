@@ -50,7 +50,7 @@
 
 ;;; Stats Command
 
-(beads-defcommand beads-command-stats (beads-command-json)
+(beads-defcommand beads-command-stats (beads-command)
   ((all
     :initarg :all
     :type boolean

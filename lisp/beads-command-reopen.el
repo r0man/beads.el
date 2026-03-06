@@ -42,7 +42,7 @@
 
 ;;; Reopen Command
 
-(beads-defcommand beads-command-reopen (beads-command-json)
+(beads-defcommand beads-command-reopen (beads-command)
   ((issue-ids
     :initarg :issue-ids
     :type (or null list)

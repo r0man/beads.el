@@ -28,7 +28,7 @@
 
 ;;; Stale Command
 
-(beads-defcommand beads-command-stale (beads-command-json)
+(beads-defcommand beads-command-stale (beads-command)
   ((days
     :initarg :days
     :type (or null integer)

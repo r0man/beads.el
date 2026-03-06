@@ -33,7 +33,7 @@
 
 ;;; Search Command
 
-(beads-defcommand beads-command-search (beads-command-json)
+(beads-defcommand beads-command-search (beads-command)
   ((query
     :initarg :query
     :type (or null string)
@@ -351,7 +351,7 @@ Used for refresh support.")
   "Execute search CMD and display results in `beads-list-mode'.
 Runs with JSON enabled to parse results into beads-issue objects,
 then displays them in a tabulated list buffer."
-  ;; Force JSON on for structured output (override beads-command-json default)
+  ;; Force JSON on for structured output
   (oset cmd json t)
   (condition-case err
       (let* ((caller-dir default-directory)

@@ -10,12 +10,13 @@
 ;; providing an object-oriented interface to bd command execution.
 ;;
 ;; The class hierarchy mirrors bd command structure:
-;; - beads-command: Base class with global flags (--actor, --db, etc.)
-;;   - beads-command-json: Commands that support --json flag (abstract)
+;; - beads-command-global-options: Mixin with all global flags
+;;     (--actor, --db, --json, etc.)
+;; - beads-command: Base class inheriting all global options
 ;;     - beads-command-create: bd create command
 ;;     - beads-command-update: bd update command (future)
 ;;     - beads-command-list: bd list command
-;;   - beads-command-init: bd init command (no JSON support)
+;;   - beads-command-init: bd init command
 ;;
 ;; Each command class:
 ;; - Has slots for all applicable flags
@@ -132,7 +133,7 @@ Custom keyword options (stripped before passing to defclass):
   :cli-command STR      - Explicit CLI subcommand string.  When not
                           specified, the subcommand is auto-derived
                           from the class name by the default method
-                          on `beads-command-json'.
+                          on `beads-command'.
   :parse-as KEYWORD     - Auto-generate a `beads-command-parse' method.
                           :issue  - Parse JSON as single beads-issue
                                     (or list when multiple IDs).
@@ -149,7 +150,7 @@ cookies are no longer needed.  The file name is derived from
 
 Example (with transient):
   ;;;###autoload
-  (beads-defcommand beads-command-close (beads-command-json)
+  (beads-defcommand beads-command-close (beads-command)
     ((issue-ids :initarg :issue-ids :key \"i\" :transient \"Issue ID\")
      (reason :initarg :reason :key \"r\" :transient \"Reason\"))
     :documentation \"Close issue.\"
@@ -158,7 +159,7 @@ Example (with transient):
     :global-section beads-option-global-section)
 
 Example (without transient):
-  (beads-defcommand beads-command-foo (beads-command-json)
+  (beads-defcommand beads-command-foo (beads-command)
     ((name :initarg :name))
     :documentation \"Foo command.\")"
   (declare (indent 2))
@@ -534,6 +535,14 @@ Disables daemon and auto-sync."
 Debug output."
     :long-option "verbose"
     :short-option "v"
+    :option-type :boolean)
+   (json
+    :initarg :json
+    :type boolean
+    :initform t
+    :documentation "Output in JSON format (--json).
+Enables machine-readable output."
+    :long-option "json"
     :option-type :boolean))
   :documentation "Mixin class providing global bd CLI options.
 These flags apply to all bd commands and are built using slot metadata.")
@@ -612,11 +621,7 @@ Returns a `beads-command-execution' object with slots:
 
 The `result' slot contents depend on command type:
 
-For non-JSON commands (beads-command):
-  `result' contains raw stdout string
-
-For JSON commands (beads-command-json and subclasses):
-  DEFAULT BEHAVIOR (:json t, the default):
+DEFAULT BEHAVIOR (:json t, the default):
     `result' contains domain objects:
     - beads-command-list: list of beads-issue instances
     - beads-command-create: beads-issue instance (or list)
@@ -636,8 +641,8 @@ Signals errors:
   - beads-command-error: Command execution failed (non-zero exit)
   - beads-json-parse-error: JSON parsing failed
 
-Subclasses should not override this; implementations are
-provided for beads-command and beads-json-command.")
+Subclasses should not override this; the implementation is
+provided for beads-command.")
 
 (cl-defgeneric beads-command-line (command)
   "Build full command line from COMMAND object.
@@ -749,8 +754,10 @@ Also strips OSC escape sequences (terminal queries)."
 
 (cl-defmethod beads-command-execute-interactive ((command beads-command))
   "Default: run COMMAND in terminal buffer.
-Uses the backend specified by `beads-terminal-backend'.
-Runs from the beads project root and enables ANSI color support."
+Sets json slot to nil so bd outputs colored human-readable text,
+then runs the command via the backend specified by
+`beads-terminal-backend' from the beads project root."
+  (oset command json nil)
   (let* ((cmd-line (beads-command-line command))
          (cmd-string (mapconcat #'shell-quote-argument cmd-line " "))
          (buffer-name (format "*bd %s*" (nth 1 cmd-line)))
@@ -793,17 +800,36 @@ IMPORTANT: This method must NOT modify any slots.  The caller
 \(`beads-command-execute' or `beads-command-execute-async') is responsible
 for setting the EXECUTION's `result' slot to the returned value.
 
-Dispatches based on command type:
-- `beads-command': Returns raw stdout string
-- `beads-command-json': Parses JSON from stdout, returns parsed alist/vector
+Dispatches based on json slot:
+- When :json is t (default): Parses JSON from stdout, returns alist/vector
+- When :json is nil: Returns raw stdout string
 - Subclasses may override to transform parsed JSON into domain objects
 
 Signals `beads-json-parse-error' if JSON parsing fails.")
 
-(cl-defmethod beads-command-parse ((_command beads-command) execution)
-  "Parse non-JSON COMMAND output from EXECUTION.
-Returns stdout string.  Does not modify any slots."
-  (oref execution stdout))
+(cl-defmethod beads-command-parse ((command beads-command) execution)
+  "Parse COMMAND output from EXECUTION.
+When json slot is t, parses JSON from stdout and returns it.
+When json slot is nil, returns raw stdout string.
+Does not modify any slots.
+Signals `beads-json-parse-error' if JSON parsing fails."
+  (with-slots (json) command
+    (if (not json)
+        (oref execution stdout)
+      (let ((stdout (oref execution stdout)))
+        (condition-case err
+            (let* ((json-object-type 'alist)
+                   (json-array-type 'vector)
+                   (json-key-type 'symbol))
+              (json-read-from-string stdout))
+          (error
+           (signal 'beads-json-parse-error
+                   (list (format "Failed to parse JSON: %s"
+                                 (error-message-string err))
+                         :exit-code (oref execution exit-code)
+                         :stdout stdout
+                         :stderr (oref execution stderr)
+                         :parse-error err))))))))
 
 ;;; Base Command Execution - Non-JSON Commands
 
@@ -884,57 +910,6 @@ Signals `beads-json-parse-error' if JSON parsing fails (for JSON commands)."
       ;; Cleanup temp file
       (when (file-exists-p stderr-file)
         (delete-file stderr-file)))))
-
-;;; JSON Command
-
-(defclass beads-command-json (beads-command)
-  ((json
-    :initarg :json
-    :type boolean
-    :initform t
-    :documentation "Output in JSON format (--json).
-Enables machine-readable output."
-    ;; CLI properties - handled by beads-meta-build-command-line
-    :long-option "json"
-    :option-type :boolean))
-  :abstract t
-  :documentation "Abstract base class for bd commands that support JSON output.
-Inherits from beads-command and adds --json flag support.
-Use this as parent class for commands that support --json flag.")
-
-(cl-defmethod beads-command-execute-interactive ((cmd beads-command-json))
-  "Execute CMD with JSON disabled for human-readable terminal output.
-Sets json slot to nil so bd outputs colored human-readable text,
-then delegates to the base `beads-command' implementation which runs
-the command in a terminal buffer."
-  (oset cmd json nil)
-  (cl-call-next-method))
-
-(cl-defmethod beads-command-parse ((command beads-command-json) execution)
-  "Parse JSON output from COMMAND using EXECUTION data.
-When :json is t, parses JSON from EXECUTION's stdout and returns it.
-When :json is nil, falls back to parent (returns raw stdout).
-Does not modify any slots.
-Signals `beads-json-parse-error' if JSON parsing fails."
-  (with-slots (json) command
-    (if (not json)
-        ;; If json is not enabled, use parent implementation
-        (cl-call-next-method)
-      ;; Parse JSON from execution's stdout
-      (let ((stdout (oref execution stdout)))
-        (condition-case err
-            (let* ((json-object-type 'alist)
-                   (json-array-type 'vector)
-                   (json-key-type 'symbol))
-              (json-read-from-string stdout))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to parse JSON: %s"
-                                 (error-message-string err))
-                         :exit-code (oref execution exit-code)
-                         :stdout stdout
-                         :stderr (oref execution stderr)
-                         :parse-error err))))))))
 
 ;;; Async Command Execution
 
