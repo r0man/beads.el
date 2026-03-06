@@ -170,7 +170,7 @@
 (ert-deftest beads-coverage-boost-compact-stats-execute-interactive ()
   "Test compact-stats execute-interactive disables json."
   (let ((cmd (beads-command-compact-stats)))
-    (cl-letf (((symbol-function 'cl-call-next-method)
+    (cl-letf (((symbol-function 'beads-command--run-in-terminal)
                (lambda (&rest _) nil)))
       (beads-command-execute-interactive cmd)
       (should (null (oref cmd json))))))
@@ -178,7 +178,7 @@
 (ert-deftest beads-coverage-boost-compact-prune-execute-interactive ()
   "Test compact-prune execute-interactive disables json."
   (let ((cmd (beads-command-compact-prune)))
-    (cl-letf (((symbol-function 'cl-call-next-method)
+    (cl-letf (((symbol-function 'beads-command--run-in-terminal)
                (lambda (&rest _) nil)))
       (beads-command-execute-interactive cmd)
       (should (null (oref cmd json))))))
@@ -186,7 +186,7 @@
 (ert-deftest beads-coverage-boost-compact-purge-execute-interactive ()
   "Test compact-purge execute-interactive disables json."
   (let ((cmd (beads-command-compact-purge)))
-    (cl-letf (((symbol-function 'cl-call-next-method)
+    (cl-letf (((symbol-function 'beads-command--run-in-terminal)
                (lambda (&rest _) nil)))
       (beads-command-execute-interactive cmd)
       (should (null (oref cmd json))))))
