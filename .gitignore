@@ -66,3 +66,7 @@ eca-support/
 .logs/
 # Beads local database
 .beads/
+
+# Gas Town (added by gt)
+.claude/
+__pycache__/
