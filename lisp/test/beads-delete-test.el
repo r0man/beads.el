@@ -843,7 +843,7 @@ Tests handling when beads is not initialized."
 
 (ert-deftest beads-delete-test-parse-json-single-deleted ()
   "Test parse method with single deletion response."
-  (let* ((cmd (beads-command-delete :issue-ids '("bd-42") :json t))
+  (let* ((cmd (beads-command-delete :issue-ids '("bd-42") :json t :force t))
          (json-string (json-encode '((deleted . "bd-42")
                                       (dependencies_removed . 2)
                                       (references_updated . 1))))
@@ -859,7 +859,7 @@ Tests handling when beads is not initialized."
 
 (ert-deftest beads-delete-test-parse-json-batch-deleted ()
   "Test parse method with batch deletion response."
-  (let* ((cmd (beads-command-delete :issue-ids '("bd-42" "bd-43") :json t))
+  (let* ((cmd (beads-command-delete :issue-ids '("bd-42" "bd-43") :json t :force t))
          (json-string (json-encode '((deleted . ("bd-42" "bd-43"))
                                       (deleted_count . 2))))
          (exec (beads-command-execution
@@ -873,7 +873,7 @@ Tests handling when beads is not initialized."
 
 (ert-deftest beads-delete-test-parse-json-daemon-rpc-format ()
   "Test parse method with daemon RPC response."
-  (let* ((cmd (beads-command-delete :issue-ids '("bd-42") :json t))
+  (let* ((cmd (beads-command-delete :issue-ids '("bd-42") :json t :force t))
          (json-string (json-encode '((deleted_count . 1)
                                       (total_count . 1))))
          (exec (beads-command-execution
@@ -887,7 +887,7 @@ Tests handling when beads is not initialized."
 
 (ert-deftest beads-delete-test-parse-json-vector-result ()
   "Test parse method with vector result."
-  (let* ((cmd (beads-command-delete :issue-ids '("bd-42" "bd-43") :json t))
+  (let* ((cmd (beads-command-delete :issue-ids '("bd-42" "bd-43") :json t :force t))
          (json-string (json-encode (vector '((id . "bd-42"))
                                            '((id . "bd-43")))))
          (exec (beads-command-execution
@@ -901,7 +901,7 @@ Tests handling when beads is not initialized."
 
 (ert-deftest beads-delete-test-parse-json-legacy-format ()
   "Test parse method with legacy id format."
-  (let* ((cmd (beads-command-delete :issue-ids '("bd-42") :json t))
+  (let* ((cmd (beads-command-delete :issue-ids '("bd-42") :json t :force t))
          (json-string (json-encode '((id . "bd-42"))))
          (exec (beads-command-execution
                 :command cmd
@@ -914,7 +914,7 @@ Tests handling when beads is not initialized."
 
 (ert-deftest beads-delete-test-parse-json-nil-result ()
   "Test parse method with null JSON."
-  (let* ((cmd (beads-command-delete :issue-ids '("bd-42") :json t))
+  (let* ((cmd (beads-command-delete :issue-ids '("bd-42") :json t :force t))
          (exec (beads-command-execution
                 :command cmd
                 :exit-code 0
@@ -936,7 +936,7 @@ Tests handling when beads is not initialized."
 
 (ert-deftest beads-delete-test-parse-json-unexpected-structure ()
   "Test parse method signals error on unexpected JSON."
-  (let* ((cmd (beads-command-delete :issue-ids '("bd-42") :json t))
+  (let* ((cmd (beads-command-delete :issue-ids '("bd-42") :json t :force t))
          (json-string (json-encode '((unexpected_field . "value"))))
          (exec (beads-command-execution
                 :command cmd
