@@ -32,7 +32,7 @@
 
 ;;; Info Command
 
-(beads-defcommand beads-command-info (beads-command)
+(beads-defcommand beads-command-info (beads-command-global-options)
   ((schema
     :initarg :schema
     :type boolean

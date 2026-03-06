@@ -33,7 +33,7 @@
 
 ;;; Search Command
 
-(beads-defcommand beads-command-search (beads-command)
+(beads-defcommand beads-command-search (beads-command-global-options)
   ((query
     :initarg :query
     :type (or null string)

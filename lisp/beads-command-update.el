@@ -43,7 +43,7 @@
 
 ;;; Update Command
 
-(beads-defcommand beads-command-update (beads-command)
+(beads-defcommand beads-command-update (beads-command-global-options)
   (;; Issue IDs
    (issue-ids
     :initarg :issue-ids

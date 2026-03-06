@@ -35,7 +35,7 @@
 
 ;;; Blocked Command
 
-(beads-defcommand beads-command-blocked (beads-command)
+(beads-defcommand beads-command-blocked (beads-command-global-options)
   ((parent
     :initarg :parent
     :type (or null string)

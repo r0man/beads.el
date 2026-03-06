@@ -51,7 +51,7 @@
 
 ;;; Show Command
 
-(beads-defcommand beads-command-show (beads-command)
+(beads-defcommand beads-command-show (beads-command-global-options)
   ((issue-ids
     :initarg :issue-ids
     :type (or null list)

@@ -40,7 +40,7 @@
 
 ;;; Epic Status Command
 
-(beads-defcommand beads-command-epic-status (beads-command)
+(beads-defcommand beads-command-epic-status (beads-command-global-options)
   ((eligible-only
     :initarg :eligible-only
     :type boolean
@@ -109,7 +109,7 @@ Does not modify any slots."
 
 ;;; Epic Close-Eligible Command
 
-(beads-defcommand beads-command-epic-close-eligible (beads-command)
+(beads-defcommand beads-command-epic-close-eligible (beads-command-global-options)
   ((dry-run
     :initarg :dry-run
     :type boolean

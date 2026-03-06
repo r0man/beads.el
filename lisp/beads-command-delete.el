@@ -58,7 +58,7 @@
 
 ;;; Delete Command
 
-(beads-defcommand beads-command-delete (beads-command)
+(beads-defcommand beads-command-delete (beads-command-global-options)
   ((issue-ids
     :initarg :issue-ids
     :type (or null list)

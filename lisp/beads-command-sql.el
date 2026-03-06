@@ -26,7 +26,7 @@
 
 ;;; SQL Command
 
-(beads-defcommand beads-command-sql (beads-command)
+(beads-defcommand beads-command-sql (beads-command-global-options)
   ((query
     :initarg :query
     :type (or null string)

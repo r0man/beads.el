@@ -34,7 +34,7 @@
 ;;; Daemon List Command
 ;;; ============================================================
 
-(beads-defcommand beads-command-daemon-list (beads-command)
+(beads-defcommand beads-command-daemon-list (beads-command-global-options)
   ((no-cleanup
     :initarg :no-cleanup
     :type boolean
@@ -79,7 +79,7 @@ No required fields, returns nil (valid)."
 ;;; Daemon Start Command
 ;;; ============================================================
 
-(beads-defcommand beads-command-daemon-start (beads-command)
+(beads-defcommand beads-command-daemon-start (beads-command-global-options)
   ((auto-commit
     :initarg :auto-commit
     :type boolean
@@ -230,7 +230,7 @@ No required fields, returns nil (valid)."
 ;;; Daemon Stop Command
 ;;; ============================================================
 
-(beads-defcommand beads-command-daemon-stop (beads-command)
+(beads-defcommand beads-command-daemon-stop (beads-command-global-options)
   ((target
     :initarg :target
     :type (or null string)
@@ -252,7 +252,7 @@ Target is optional (defaults to current workspace)."
 ;;; Daemon Status Command
 ;;; ============================================================
 
-(beads-defcommand beads-command-daemon-status (beads-command)
+(beads-defcommand beads-command-daemon-status (beads-command-global-options)
   ((all
     :initarg :all
     :type boolean
@@ -297,7 +297,7 @@ No required fields, returns nil (valid)."
 ;;; Daemon Health Command
 ;;; ============================================================
 
-(beads-defcommand beads-command-daemon-health (beads-command)
+(beads-defcommand beads-command-daemon-health (beads-command-global-options)
   ((search
     :initarg :search
     :type (or null list)
@@ -328,7 +328,7 @@ No required fields, returns nil (valid)."
 ;;; Daemon Killall Command
 ;;; ============================================================
 
-(beads-defcommand beads-command-daemon-killall (beads-command)
+(beads-defcommand beads-command-daemon-killall (beads-command-global-options)
   ((force
     :initarg :force
     :type boolean
@@ -373,7 +373,7 @@ No required fields, returns nil (valid)."
 ;;; Daemon Logs Command
 ;;; ============================================================
 
-(beads-defcommand beads-command-daemon-logs (beads-command)
+(beads-defcommand beads-command-daemon-logs (beads-command-global-options)
   ((target
     :initarg :target
     :type (or null string)
@@ -427,7 +427,7 @@ Target is optional (defaults to current workspace)."
 ;;; Daemon Restart Command
 ;;; ============================================================
 
-(beads-defcommand beads-command-daemon-restart (beads-command)
+(beads-defcommand beads-command-daemon-restart (beads-command-global-options)
   ((target
     :initarg :target
     :type (or null string)

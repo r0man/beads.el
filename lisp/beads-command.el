@@ -10,13 +10,13 @@
 ;; providing an object-oriented interface to bd command execution.
 ;;
 ;; The class hierarchy mirrors bd command structure:
-;; - beads-command-global-options: Mixin with all global flags
+;; - beads-command: Minimal abstract base (execution machinery, generics only)
+;; - beads-command-global-options: Inherits beads-command, adds global flags
 ;;     (--actor, --db, --json, etc.)
-;; - beads-command: Base class inheriting all global options
 ;;     - beads-command-create: bd create command
 ;;     - beads-command-update: bd update command (future)
 ;;     - beads-command-list: bd list command
-;;   - beads-command-init: bd init command
+;;     - beads-command-init: bd init command
 ;;
 ;; Each command class:
 ;; - Has slots for all applicable flags
@@ -150,7 +150,7 @@ cookies are no longer needed.  The file name is derived from
 
 Example (with transient):
   ;;;###autoload
-  (beads-defcommand beads-command-close (beads-command)
+  (beads-defcommand beads-command-close (beads-command-global-options)
     ((issue-ids :initarg :issue-ids :key \"i\" :transient \"Issue ID\")
      (reason :initarg :reason :key \"r\" :transient \"Reason\"))
     :documentation \"Close issue.\"
@@ -159,7 +159,7 @@ Example (with transient):
     :global-section beads-option-global-section)
 
 Example (without transient):
-  (beads-defcommand beads-command-foo (beads-command)
+  (beads-defcommand beads-command-foo (beads-command-global-options)
     ((name :initarg :name))
     :documentation \"Foo command.\")"
   (declare (indent 2))
@@ -418,9 +418,20 @@ When nil, auto-detects best available backend."
       ('compile (beads-command--run-compile cmd-string buffer-name default-dir))
       (_ (beads-command--run-term cmd-string buffer-name default-dir)))))
 
-;;; Global Options Mixin Class
+;;; Base Command Class
 
-(defclass beads-command-global-options ()
+(defclass beads-command ()
+  ()
+  :abstract t
+  :documentation "Minimal abstract base class for all bd commands.
+Provides execution machinery and generic method definitions only.
+Global CLI options are provided by `beads-command-global-options'.
+Execution results are returned in `beads-command-execution' objects,
+not stored on the command itself (commands are immutable/reusable).")
+
+;;; Global Options Class
+
+(defclass beads-command-global-options (beads-command)
   ((actor
     :initarg :actor
     :type (or null string)
@@ -544,18 +555,10 @@ Debug output."
 Enables machine-readable output."
     :long-option "json"
     :option-type :boolean))
-  :documentation "Mixin class providing global bd CLI options.
-These flags apply to all bd commands and are built using slot metadata.")
-
-;;; Base Command Class
-
-(defclass beads-command (beads-command-global-options)
-  ()
-  :abstract t
-  :documentation "Abstract base class for all bd commands.
-Inherits global options from `beads-command-global-options'.
-Execution results are returned in `beads-command-execution' objects,
-not stored on the command itself (commands are immutable/reusable).")
+  :documentation "Class providing global bd CLI options.
+Inherits `beads-command' base and adds all global flag slots.
+These flags apply to all bd commands and are built using slot metadata.
+All concrete command classes should inherit from this class.")
 
 ;;; Command Execution Result
 

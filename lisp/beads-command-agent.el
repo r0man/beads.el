@@ -23,7 +23,7 @@
 ;;; Command Class: beads-command-agent-state
 ;;; ============================================================
 
-(beads-defcommand beads-command-agent-state (beads-command)
+(beads-defcommand beads-command-agent-state (beads-command-global-options)
   ((agent-id
     :initarg :agent-id
     :type (or null string)
@@ -52,7 +52,7 @@ Sets agent state for monitoring.")
 ;;; Command Class: beads-command-agent-heartbeat
 ;;; ============================================================
 
-(beads-defcommand beads-command-agent-heartbeat (beads-command)
+(beads-defcommand beads-command-agent-heartbeat (beads-command-global-options)
   ((agent-id
     :initarg :agent-id
     :type (or null string)
@@ -72,7 +72,7 @@ Updates agent last_activity timestamp.")
 ;;; Command Class: beads-command-agent-show
 ;;; ============================================================
 
-(beads-defcommand beads-command-agent-show (beads-command)
+(beads-defcommand beads-command-agent-show (beads-command-global-options)
   ((agent-id
     :initarg :agent-id
     :type (or null string)
@@ -92,7 +92,7 @@ Shows agent bead details.")
 ;;; Command Class: beads-command-agent-backfill-labels
 ;;; ============================================================
 
-(beads-defcommand beads-command-agent-backfill-labels (beads-command)
+(beads-defcommand beads-command-agent-backfill-labels (beads-command-global-options)
   ((dry-run
     :initarg :dry-run
     :type boolean

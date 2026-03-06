@@ -23,7 +23,7 @@
 ;;; Command Class: beads-command-gate-list
 ;;; ============================================================
 
-(beads-defcommand beads-command-gate-list (beads-command)
+(beads-defcommand beads-command-gate-list (beads-command-global-options)
   ((all
     :initarg :all
     :type boolean
@@ -63,7 +63,7 @@ Lists gate issues.")
 ;;; Command Class: beads-command-gate-check
 ;;; ============================================================
 
-(beads-defcommand beads-command-gate-check (beads-command)
+(beads-defcommand beads-command-gate-check (beads-command-global-options)
   ((type
     :initarg :type
     :type (or null string)
@@ -133,7 +133,7 @@ Evaluates gates and closes resolved ones.")
 ;;; Command Class: beads-command-gate-resolve
 ;;; ============================================================
 
-(beads-defcommand beads-command-gate-resolve (beads-command)
+(beads-defcommand beads-command-gate-resolve (beads-command-global-options)
   ((gate-id
     :initarg :gate-id
     :type (or null string)
@@ -169,7 +169,7 @@ Manually resolves (closes) a gate.")
 ;;; Command Class: beads-command-gate-show
 ;;; ============================================================
 
-(beads-defcommand beads-command-gate-show (beads-command)
+(beads-defcommand beads-command-gate-show (beads-command-global-options)
   ((gate-id
     :initarg :gate-id
     :type (or null string)
@@ -189,7 +189,7 @@ Shows a gate issue.")
 ;;; Command Class: beads-command-gate-add-waiter
 ;;; ============================================================
 
-(beads-defcommand beads-command-gate-add-waiter (beads-command)
+(beads-defcommand beads-command-gate-add-waiter (beads-command-global-options)
   ((gate-id
     :initarg :gate-id
     :type (or null string)
@@ -213,7 +213,7 @@ Adds a waiter to a gate.")
 ;;; Command Class: beads-command-gate-discover
 ;;; ============================================================
 
-(beads-defcommand beads-command-gate-discover (beads-command)
+(beads-defcommand beads-command-gate-discover (beads-command-global-options)
   ((gate-id
     :initarg :gate-id
     :type (or null string)
