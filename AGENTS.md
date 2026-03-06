@@ -26,9 +26,12 @@ For full workflow details: `bd prime`
 1. **File issues for remaining work** - Create issues for anything that needs follow-up
 2. **Run quality gates** (if code changed):
    - Run byte compilation: `guix shell -D -f guix.scm -- eldev -p -dtT compile`
+     - **MUST produce zero compile warnings**
    - Run linter: `guix shell -D -f guix.scm -- eldev -p -dtT lint`
+     - **MUST produce zero lint warnings and zero lint errors**
    - Run tests: `BD_NO_DAEMON=1 guix shell -D -f guix.scm -- eldev -p -dtT test`
-   - **ALL MUST PASS** before pushing
+     - **MUST show 0 unexpected results** (all tests pass, no failures, no errors)
+   - **ALL THREE CHECKS MUST PASS before pushing — no exceptions**
 3. **Update issue status** - Close finished work, update in-progress items
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
@@ -46,6 +49,9 @@ For full workflow details: `bd prime`
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
+- **Any compile warning = STOP, fix it, recompile before proceeding**
+- **Any lint warning or error = STOP, fix it, re-lint before proceeding**
+- **Any test failure or unexpected result = STOP, fix it, re-test before proceeding**
 
 ## Code Quality Requirements
 
