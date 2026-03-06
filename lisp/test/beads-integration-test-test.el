@@ -146,5 +146,98 @@
   (beads-test-skip-unless-bd)
   (should t))
 
+;;; Test: beads-test--find-free-port
+
+(ert-deftest beads-integration-test-find-free-port-returns-integer ()
+  "Test that find-free-port returns an integer port number."
+  (let ((port (beads-test--find-free-port)))
+    (should (integerp port))
+    (should (> port 0))
+    (should (< port 65536))))
+
+(ert-deftest beads-integration-test-find-free-port-above-1024 ()
+  "Test that find-free-port returns a port above the privileged range."
+  (let ((port (beads-test--find-free-port)))
+    (should (> port 1024))))
+
+(ert-deftest beads-integration-test-find-free-port-is-free ()
+  "Test that the returned port is actually free (bindable)."
+  (let* ((port (beads-test--find-free-port))
+         (server (make-network-process
+                  :name "beads-test-port-verify"
+                  :server t
+                  :host "127.0.0.1"
+                  :service port
+                  :family 'ipv4
+                  :noquery t)))
+    (unwind-protect
+        (should server)
+      (delete-process server))))
+
+;;; Test: beads-test--dolt-server-ready-p
+
+(ert-deftest beads-integration-test-dolt-server-ready-p-false ()
+  "Test that dolt-server-ready-p returns nil for a port not in use."
+  ;; Find a free port and verify it reports as not ready (nothing listening)
+  (let ((port (beads-test--find-free-port)))
+    ;; Port is free so nothing is listening — should not be ready
+    (should-not (beads-test--dolt-server-ready-p port))))
+
+(ert-deftest beads-integration-test-dolt-server-ready-p-true ()
+  "Test that dolt-server-ready-p returns t for a port that is in use."
+  (let* ((port (beads-test--find-free-port))
+         (server (make-network-process
+                  :name "beads-test-ready-verify"
+                  :server t
+                  :host "127.0.0.1"
+                  :service port
+                  :family 'ipv4
+                  :noquery t)))
+    (unwind-protect
+        (should (beads-test--dolt-server-ready-p port))
+      (delete-process server))))
+
+;;; Test: beads-test--start/stop-test-dolt-server
+
+(ert-deftest beads-integration-test-dolt-server-start-stop ()
+  "Test that the test Dolt server can be started and stopped."
+  :tags '(:integration)
+  (skip-unless (executable-find "dolt"))
+  ;; Ensure clean state before test
+  (let ((beads-test--dolt-server-process nil)
+        (beads-test--dolt-server-port nil)
+        (beads-test--dolt-server-data-dir nil))
+    (unwind-protect
+        (progn
+          ;; Start the server
+          (beads-test--start-test-dolt-server)
+          ;; State variables should be set
+          (should beads-test--dolt-server-process)
+          (should (integerp beads-test--dolt-server-port))
+          (should (> beads-test--dolt-server-port 0))
+          (should beads-test--dolt-server-data-dir)
+          ;; Server should be accepting connections
+          (should (beads-test--dolt-server-ready-p beads-test--dolt-server-port))
+          ;; Idempotent: starting again should not change the port
+          (let ((port-before beads-test--dolt-server-port))
+            (beads-test--start-test-dolt-server)
+            (should (= beads-test--dolt-server-port port-before)))
+          ;; Stop the server
+          (beads-test--stop-test-dolt-server)
+          ;; State should be cleared
+          (should-not beads-test--dolt-server-process)
+          (should-not beads-test--dolt-server-port)
+          (should-not beads-test--dolt-server-data-dir))
+      ;; Cleanup in case of failure
+      (beads-test--stop-test-dolt-server))))
+
+(ert-deftest beads-integration-test-dolt-server-stop-when-not-running ()
+  "Test that stopping the server when not running is a no-op."
+  (let ((beads-test--dolt-server-process nil)
+        (beads-test--dolt-server-port nil)
+        (beads-test--dolt-server-data-dir nil))
+    ;; Should not signal an error
+    (should (null (beads-test--stop-test-dolt-server)))))
+
 (provide 'beads-integration-test-test)
 ;;; beads-integration-test-test.el ends here
