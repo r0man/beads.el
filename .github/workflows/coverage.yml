@@ -30,13 +30,10 @@ jobs:
       - name: Install Eldev
         run: curl --fail --silent --show-error --location https://raw.github.com/doublep/eldev/master/webinstall/github-eldev | sh
 
-      - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@master
-
-      - name: Install Beads via Homebrew
+      - name: Install Beads v0.58.0
         run: |
-          brew tap steveyegge/beads
-          brew install bd
+          curl -fsSL https://github.com/steveyegge/beads/releases/download/v0.58.0/beads_0.58.0_linux_amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin bd
 
       - name: Verify Beads installation
         run: bd version
