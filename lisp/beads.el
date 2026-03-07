@@ -464,7 +464,10 @@ Returns a propertized string showing project and database info."
            "\n"
            (propertize "Version: " 'face 'bold)
            (propertize (beads-main--get-version)
-                      'face 'font-lock-keyword-face)))
+                      'face 'font-lock-keyword-face)
+           "\n"
+           (propertize "↓ more commands below — scroll transient window"
+                      'face 'shadow)))
       (propertize "No beads project found in current directory"
                  'face 'warning))))
 

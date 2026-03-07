@@ -513,5 +513,18 @@ by checking if the function is available after requiring beads."
   ;; beads-main functionality is now in beads.el
   (should (featurep 'beads)))
 
+(ert-deftest beads-main-test-format-project-header-has-scroll-hint ()
+  "Test that header includes a scroll hint for hidden commands."
+  (beads-main-test-with-clean-cache
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
+               (lambda () "/home/user/project"))
+              ((symbol-function 'beads--get-database-path)
+               (lambda () "/home/user/project/.beads/issues.db"))
+              ((symbol-function 'call-process)
+               (beads-main-test--mock-call-process-version
+                "bd version 0.9.2\n")))
+      (let ((header (beads-main--format-project-header)))
+        (should (string-match-p "more commands" header))))))
+
 (provide 'beads-main-test)
 ;;; beads-main-test.el ends here
