@@ -80,7 +80,7 @@ mode-line, and a small margin.  Minimum is 5."
 (defun beads-pager--total-count ()
   "Return total entry count regardless of current page.
 When pager mode is active and all-entries is set, returns the full
-count.  Otherwise returns `(length tabulated-list-entries)'."
+count.  Otherwise returns the length of `tabulated-list-entries'."
   (if (and (bound-and-true-p beads-pager-mode)
            beads-pager--all-entries)
       (length beads-pager--all-entries)
@@ -191,7 +191,7 @@ Active in any tabulated-list buffer where pager mode is enabled.")
 
 ;;;###autoload
 (define-minor-mode beads-pager-mode
-  "Minor mode for paginating tabulated-list-mode buffers.
+  "Minor mode for paginating `tabulated-list-mode' buffers.
 
 When enabled, use `beads-pager-set-entries' to populate the buffer
 instead of setting `tabulated-list-entries' directly.  The page
