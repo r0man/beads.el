@@ -33,6 +33,7 @@
 (require 'beads-command)
 (require 'beads-meta)
 (require 'beads-option)
+(require 'beads-pager)
 (require 'beads-types)
 (require 'transient)
 
@@ -257,10 +258,9 @@ Reuses existing buffer for same project-dir (directory is identity)."
   "Populate current buffer with FORMULAS.
 Optional COMMAND-OBJ is stored for refresh."
   (setq beads-formula-list--formulas formulas
-        beads-formula-list--command-obj command-obj
-        tabulated-list-entries
-        (mapcar #'beads-formula-list--formula-to-entry formulas))
-  (tabulated-list-print t))
+        beads-formula-list--command-obj command-obj)
+  (beads-pager-set-entries
+   (mapcar #'beads-formula-list--formula-to-entry formulas)))
 
 (defun beads-formula-list--current-formula-name ()
   "Return the name of the formula at point, or nil."
@@ -359,7 +359,8 @@ Optional COMMAND-OBJ is stored for refresh."
   (setq tabulated-list-padding 2)
   (setq tabulated-list-sort-key (cons "Name" nil))
   (tabulated-list-init-header)
-  (hl-line-mode 1))
+  (hl-line-mode 1)
+  (beads-pager-mode 1))
 
 ;;; ============================================================
 ;;; Formula Show Buffer
@@ -569,7 +570,8 @@ When called interactively with a prefix argument, prompts for TYPE."
       (setq default-directory project-dir)
       (if (not formulas)
           (progn
-            (setq tabulated-list-entries nil)
+            (setq beads-pager--all-entries nil
+                  tabulated-list-entries nil)
             (tabulated-list-print t)
             (message "No formulas found"))
         (beads-formula-list--populate-buffer formulas command)

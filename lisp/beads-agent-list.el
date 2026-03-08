@@ -35,6 +35,7 @@
 (require 'beads-buffer)
 (require 'beads-command)
 (require 'beads-agent-backend)
+(require 'beads-pager)
 (require 'beads-sesman)
 
 ;;; Forward Declarations
@@ -216,9 +217,8 @@
     (setq beads-agent-list--title-cache
           (beads-agent-list--fetch-titles issue-ids))
     ;; Build entries
-    (setq tabulated-list-entries
-          (mapcar #'beads-agent-list--session-to-entry sessions))
-    (tabulated-list-print t)))
+    (beads-pager-set-entries
+     (mapcar #'beads-agent-list--session-to-entry sessions))))
 
 (defun beads-agent-list--current-session-id ()
   "Return the session ID at point, or nil."
@@ -237,8 +237,8 @@
   (interactive)
   (beads-agent-list--populate-buffer)
   (message "Refreshed %d session%s"
-           (length tabulated-list-entries)
-           (if (= (length tabulated-list-entries) 1) "" "s")))
+           (beads-pager--total-count)
+           (if (= (beads-pager--total-count) 1) "" "s")))
 
 (defun beads-agent-list-jump ()
   "Jump to the agent buffer for session at point."
@@ -370,7 +370,8 @@ Stops the current session and starts a new one for the same issue."
   (setq tabulated-list-padding 2)
   (setq tabulated-list-sort-key nil)
   (tabulated-list-init-header)
-  (hl-line-mode 1))
+  (hl-line-mode 1)
+  (beads-pager-mode 1))
 
 ;;; Public Entry Point
 
@@ -387,9 +388,11 @@ with their status, duration, and working directory."
       (setq mode-line-format
             '("%e" mode-line-front-space
               mode-line-buffer-identification
-              (:eval (format "  %d session%s"
-                             (length tabulated-list-entries)
-                             (if (= (length tabulated-list-entries) 1) "" "s"))))))
+              (:eval (let ((count (beads-pager--total-count)))
+                       (format "  %d session%s%s"
+                               count
+                               (if (= count 1) "" "s")
+                               (or (beads-pager--mode-line-fragment) "")))))))
     (pop-to-buffer buffer)))
 
 ;;; Hook Integration

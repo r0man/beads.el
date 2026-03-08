@@ -43,6 +43,7 @@
 (require 'beads-command)
 (require 'beads-meta)
 (require 'beads-option)
+(require 'beads-pager)
 (require 'beads-types)
 (require 'transient)
 
@@ -679,21 +680,21 @@ Key bindings:
   (setq tabulated-list-padding 2)
   (setq tabulated-list-sort-key (cons "Label" nil))
   (tabulated-list-init-header)
-  (hl-line-mode 1))
+  (hl-line-mode 1)
+  (beads-pager-mode 1))
 
 (defun beads-label-list-all-refresh ()
   "Refresh the label list-all view."
   (interactive)
   (let ((labels (beads-label-list-all)))
-    (setq tabulated-list-entries
-          (mapcar (lambda (entry)
-                    (let ((label (alist-get 'label entry))
-                          (count (alist-get 'count entry)))
-                      (list label
-                            (vector label
-                                    (number-to-string count)))))
-                  labels))
-    (tabulated-list-print t)))
+    (beads-pager-set-entries
+     (mapcar (lambda (entry)
+               (let ((label (alist-get 'label entry))
+                     (count (alist-get 'count entry)))
+                 (list label
+                       (vector label
+                               (number-to-string count)))))
+             labels))))
 
 ;;;###autoload
 (defun beads-label-list-all-view ()

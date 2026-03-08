@@ -37,6 +37,7 @@
 (require 'beads-command-ready)
 (require 'beads-meta)
 (require 'beads-option)
+(require 'beads-pager)
 (require 'beads-sesman)
 (require 'beads-types)
 (require 'transient)
@@ -1458,9 +1459,7 @@ Optional COMMAND-OBJ is a beads-command-list object for context."
   (setq beads-list--command command
         beads-list--raw-issues issues
         beads-list--command-obj command-obj)
-  (setq tabulated-list-entries
-        (mapcar #'beads-list--issue-to-entry issues))
-  (tabulated-list-print t))
+  (beads-pager-set-entries (mapcar #'beads-list--issue-to-entry issues)))
 
 (defun beads-list--current-issue-id ()
   "Return the ID of the issue at point, or nil."
@@ -1625,7 +1624,8 @@ Uses directory-aware buffer identity: same project = same buffer."
             (setq default-directory caller-dir)
             (if (not issue-objects)
                 (progn
-                  (setq tabulated-list-entries nil)
+                  (setq beads-pager--all-entries nil
+                        tabulated-list-entries nil)
                   (tabulated-list-print t)
                   (message "No issues found"))
               (beads-list--populate-buffer issue-objects 'list command)
@@ -1762,7 +1762,8 @@ When SILENT is non-nil, suppress messages (for hook-triggered refreshes)."
          (pos (if win (window-point win) (point))))
     (if (not issues)
         (progn
-          (setq tabulated-list-entries nil)
+          (setq beads-pager--all-entries nil
+                tabulated-list-entries nil)
           (tabulated-list-print t)
           (unless silent (message "No issues found")))
       (beads-list--populate-buffer issues beads-list--command beads-list--command-obj)
@@ -2190,6 +2191,11 @@ Uses an idle timer to debounce rapid navigation, similar to
     (define-key map (kbd "J") #'beads-agent-jump-at-point)  ; Jump to agent
     (define-key map (kbd "A") #'beads-agent-start-at-point) ; Backward compat
 
+    ;; Pagination (beads-pager-mode provides these; also here for discoverability)
+    (define-key map (kbd "]") #'beads-pager-next-page)
+    (define-key map (kbd "[") #'beads-pager-prev-page)
+    (define-key map (kbd "G") #'beads-pager-goto-page)
+
     ;; Sesman session management (CIDER/ESS convention)
     (define-key map (kbd "C-c C-s") beads-sesman-map)
 
@@ -2220,7 +2226,8 @@ Uses an idle timer to debounce rapid navigation, similar to
   (setq tabulated-list-padding 2)
   (setq tabulated-list-sort-key (cons "Created" t))
   (tabulated-list-init-header)
-  (hl-line-mode 1))
+  (hl-line-mode 1)
+  (beads-pager-mode 1))
 
 ;;; Public Commands
 
@@ -2255,13 +2262,15 @@ Uses directory-aware buffer identity: same project = same buffer."
         (setq mode-line-format
               '("%e" mode-line-front-space
                 mode-line-buffer-identification
-                (:eval (format "  %d ready issue%s%s"
-                             (length tabulated-list-entries)
-                             (if (= (length tabulated-list-entries) 1) "" "s")
-                             (if beads-list--marked-issues
-                                 (format " [%d marked]"
-                                        (length beads-list--marked-issues))
-                               "")))))))
+                (:eval (let ((count (beads-pager--total-count)))
+                         (format "  %d ready issue%s%s%s"
+                                 count
+                                 (if (= count 1) "" "s")
+                                 (if beads-list--marked-issues
+                                     (format " [%d marked]"
+                                             (length beads-list--marked-issues))
+                                   "")
+                                 (or (beads-pager--mode-line-fragment) ""))))))))
     (beads-list--display-buffer buffer)))
 
 ;;;###autoload
@@ -2295,13 +2304,15 @@ Uses directory-aware buffer identity: same project = same buffer."
         (setq mode-line-format
               '("%e" mode-line-front-space
                 mode-line-buffer-identification
-                (:eval (format "  %d blocked issue%s%s"
-                             (length tabulated-list-entries)
-                             (if (= (length tabulated-list-entries) 1) "" "s")
-                             (if beads-list--marked-issues
-                                 (format " [%d marked]"
-                                        (length beads-list--marked-issues))
-                               "")))))))
+                (:eval (let ((count (beads-pager--total-count)))
+                         (format "  %d blocked issue%s%s%s"
+                                 count
+                                 (if (= count 1) "" "s")
+                                 (if beads-list--marked-issues
+                                     (format " [%d marked]"
+                                             (length beads-list--marked-issues))
+                                   "")
+                                 (or (beads-pager--mode-line-fragment) ""))))))))
     (beads-list--display-buffer buffer)))
 
 ;;; Hook Registration
