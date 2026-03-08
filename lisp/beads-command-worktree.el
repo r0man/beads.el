@@ -50,6 +50,7 @@
 (require 'beads-command)
 (require 'beads-meta)
 (require 'beads-option)
+(require 'beads-pager)
 (require 'beads-reader)
 (require 'cl-lib)
 (require 'transient)
@@ -531,7 +532,8 @@ share the same .beads database."
          ("Path" 40 t)])
   (setq tabulated-list-padding 2)
   (setq tabulated-list-sort-key '("Name" . nil))
-  (tabulated-list-init-header))
+  (tabulated-list-init-header)
+  (beads-pager-mode 1))
 
 (defun beads-worktree--format-entry (worktree)
   "Format WORKTREE as a tabulated-list entry."
@@ -561,9 +563,7 @@ share the same .beads database."
          (buffer (get-buffer-create buf-name)))
     (with-current-buffer buffer
       (beads-worktree-list-mode)
-      (setq tabulated-list-entries
-            (mapcar #'beads-worktree--format-entry worktrees))
-      (tabulated-list-print t))
+      (beads-pager-set-entries (mapcar #'beads-worktree--format-entry worktrees)))
     (pop-to-buffer buffer)))
 
 (defun beads-worktree-list-info ()
@@ -605,9 +605,7 @@ share the same .beads database."
   (beads-completion-invalidate-worktree-cache)
   (condition-case err
       (let ((worktrees (beads-command-worktree-list!)))
-        (setq tabulated-list-entries
-              (mapcar #'beads-worktree--format-entry worktrees))
-        (tabulated-list-print t)
+        (beads-pager-set-entries (mapcar #'beads-worktree--format-entry worktrees))
         (message "Worktree list refreshed"))
     (error
      (user-error "Failed to refresh worktrees: %s"
