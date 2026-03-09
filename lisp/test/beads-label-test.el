@@ -986,5 +986,59 @@
              (should (null tabulated-list-entries)))
            (kill-buffer expected-buf-name)))))))
 
+;;; Tests for label propagate command
+
+(ert-deftest beads-label-test-propagate-command-class-exists ()
+  "Test that beads-command-label-propagate class is defined."
+  :tags '(:unit)
+  (should (fboundp 'beads-command-label-propagate)))
+
+(ert-deftest beads-label-test-propagate-command-line-basic ()
+  "Test label propagate builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-label-propagate
+               :parent-id "bd-1" :label "feature"))
+         (args (beads-command-line cmd)))
+    (should (member "label" args))
+    (should (member "propagate" args))
+    (should (member "bd-1" args))
+    (should (member "feature" args))))
+
+(ert-deftest beads-label-test-propagate-validation-missing-parent ()
+  "Test label propagate validation fails without parent ID."
+  :tags '(:unit)
+  (let ((cmd (beads-command-label-propagate :label "feature")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-label-test-propagate-validation-missing-label ()
+  "Test label propagate validation fails without label."
+  :tags '(:unit)
+  (let ((cmd (beads-command-label-propagate :parent-id "bd-1")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-label-test-propagate-validation-success ()
+  "Test label propagate validation succeeds with parent ID and label."
+  :tags '(:unit)
+  (let ((cmd (beads-command-label-propagate
+              :parent-id "bd-1" :label "feature")))
+    (should (null (beads-command-validate cmd)))))
+
+(ert-deftest beads-label-test-propagate-transient-defined ()
+  "Test that beads-label-propagate transient is defined."
+  :tags '(:unit)
+  (should (fboundp 'beads-label-propagate)))
+
+(ert-deftest beads-label-test-propagate-transient-is-prefix ()
+  "Test that beads-label-propagate is a transient prefix."
+  :tags '(:unit)
+  (should (get 'beads-label-propagate 'transient--prefix)))
+
+(ert-deftest beads-label-test-label-menu-has-propagate ()
+  "Test that beads-label menu includes propagate command."
+  :tags '(:unit)
+  (let* ((layout (get 'beads-label 'transient--layout))
+         (layout-str (format "%s" layout)))
+    (should (string-match-p "beads-label-propagate" layout-str))))
+
 (provide 'beads-label-test)
 ;;; beads-label-test.el ends here

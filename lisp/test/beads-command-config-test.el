@@ -95,5 +95,43 @@
   (let ((cmd (beads-command-config-unset :key "test.key")))
     (should (null (beads-command-validate cmd)))))
 
+;;; Unit Tests: beads-command-config-validate command-line
+
+(ert-deftest beads-command-config-validate-test-command-class-exists ()
+  "Unit test: config validate command class is defined."
+  :tags '(:unit)
+  (should (fboundp 'beads-command-config-validate)))
+
+(ert-deftest beads-command-config-validate-test-command-line-basic ()
+  "Unit test: config validate builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-config-validate))
+         (args (beads-command-line cmd)))
+    (should (member "config" args))
+    (should (member "validate" args))))
+
+(ert-deftest beads-command-config-validate-test-validation-always-valid ()
+  "Unit test: config validate has no required fields."
+  :tags '(:unit)
+  (let ((cmd (beads-command-config-validate)))
+    (should (null (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-config-validate-test-transient-defined ()
+  "Unit test: beads-config-validate transient is defined."
+  :tags '(:unit)
+  (should (fboundp 'beads-config-validate)))
+
+(ert-deftest beads-command-config-validate-test-transient-is-prefix ()
+  "Unit test: beads-config-validate is a transient prefix."
+  :tags '(:unit)
+  (should (get 'beads-config-validate 'transient--prefix)))
+
+(ert-deftest beads-command-config-validate-test-config-menu-has-validate ()
+  "Unit test: beads-config menu includes validate command."
+  :tags '(:unit)
+  (let* ((layout (get 'beads-config 'transient--layout))
+         (layout-str (format "%s" layout)))
+    (should (string-match-p "beads-config-validate" layout-str))))
+
 (provide 'beads-command-config-test)
 ;;; beads-command-config-test.el ends here

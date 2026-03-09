@@ -1186,5 +1186,134 @@
   (should (lookup-key beads-dep-tree-mode-map "g"))
   (should (lookup-key beads-dep-tree-mode-map (kbd "RET"))))
 
+;;; Tests for dep relate command
+
+(ert-deftest beads-dep-test-relate-command-class-exists ()
+  "Test that beads-command-dep-relate class is defined."
+  :tags '(:unit)
+  (should (fboundp 'beads-command-dep-relate)))
+
+(ert-deftest beads-dep-test-relate-command-line-basic ()
+  "Test dep relate builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-dep-relate :id1 "bd-1" :id2 "bd-2"))
+         (args (beads-command-line cmd)))
+    (should (member "dep" args))
+    (should (member "relate" args))
+    (should (member "bd-1" args))
+    (should (member "bd-2" args))))
+
+(ert-deftest beads-dep-test-relate-validation-missing-id1 ()
+  "Test dep relate validation fails without first issue ID."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-relate :id2 "bd-2")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-dep-test-relate-validation-missing-id2 ()
+  "Test dep relate validation fails without second issue ID."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-relate :id1 "bd-1")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-dep-test-relate-validation-same-issue ()
+  "Test dep relate validation fails when both IDs are the same."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-relate :id1 "bd-1" :id2 "bd-1")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-dep-test-relate-validation-success ()
+  "Test dep relate validation succeeds with two different IDs."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-relate :id1 "bd-1" :id2 "bd-2")))
+    (should (null (beads-command-validate cmd)))))
+
+(ert-deftest beads-dep-test-relate-transient-defined ()
+  "Test that beads-dep-relate transient is defined."
+  :tags '(:unit)
+  (should (fboundp 'beads-dep-relate)))
+
+(ert-deftest beads-dep-test-relate-transient-is-prefix ()
+  "Test that beads-dep-relate is a transient prefix."
+  :tags '(:unit)
+  (should (get 'beads-dep-relate 'transient--prefix)))
+
+;;; Tests for dep unrelate command
+
+(ert-deftest beads-dep-test-unrelate-command-class-exists ()
+  "Test that beads-command-dep-unrelate class is defined."
+  :tags '(:unit)
+  (should (fboundp 'beads-command-dep-unrelate)))
+
+(ert-deftest beads-dep-test-unrelate-command-line-basic ()
+  "Test dep unrelate builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-dep-unrelate :id1 "bd-1" :id2 "bd-2"))
+         (args (beads-command-line cmd)))
+    (should (member "dep" args))
+    (should (member "unrelate" args))
+    (should (member "bd-1" args))
+    (should (member "bd-2" args))))
+
+(ert-deftest beads-dep-test-unrelate-validation-missing-id1 ()
+  "Test dep unrelate validation fails without first issue ID."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-unrelate :id2 "bd-2")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-dep-test-unrelate-validation-missing-id2 ()
+  "Test dep unrelate validation fails without second issue ID."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-unrelate :id1 "bd-1")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-dep-test-unrelate-validation-success ()
+  "Test dep unrelate validation succeeds with two IDs."
+  :tags '(:unit)
+  (let ((cmd (beads-command-dep-unrelate :id1 "bd-1" :id2 "bd-2")))
+    (should (null (beads-command-validate cmd)))))
+
+(ert-deftest beads-dep-test-unrelate-transient-defined ()
+  "Test that beads-dep-unrelate transient is defined."
+  :tags '(:unit)
+  (should (fboundp 'beads-dep-unrelate)))
+
+(ert-deftest beads-dep-test-unrelate-transient-is-prefix ()
+  "Test that beads-dep-unrelate is a transient prefix."
+  :tags '(:unit)
+  (should (get 'beads-dep-unrelate 'transient--prefix)))
+
+;;; Tests for dep list interactive command
+
+(ert-deftest beads-dep-test-dep-list-function-defined ()
+  "Test that beads-dep-list is defined as a function."
+  :tags '(:unit)
+  (should (fboundp 'beads-dep-list)))
+
+(ert-deftest beads-dep-test-dep-list-is-interactive ()
+  "Test that beads-dep-list is interactive."
+  :tags '(:unit)
+  (should (commandp 'beads-dep-list)))
+
+(ert-deftest beads-dep-test-dep-menu-has-relate ()
+  "Test that beads-dep menu includes relate command."
+  :tags '(:unit)
+  (let* ((layout (get 'beads-dep 'transient--layout))
+         (layout-str (format "%s" layout)))
+    (should (string-match-p "beads-dep-relate" layout-str))))
+
+(ert-deftest beads-dep-test-dep-menu-has-unrelate ()
+  "Test that beads-dep menu includes unrelate command."
+  :tags '(:unit)
+  (let* ((layout (get 'beads-dep 'transient--layout))
+         (layout-str (format "%s" layout)))
+    (should (string-match-p "beads-dep-unrelate" layout-str))))
+
+(ert-deftest beads-dep-test-dep-menu-has-list ()
+  "Test that beads-dep menu includes list command."
+  :tags '(:unit)
+  (let* ((layout (get 'beads-dep 'transient--layout))
+         (layout-str (format "%s" layout)))
+    (should (string-match-p "beads-dep-list" layout-str))))
+
 (provide 'beads-dep-test)
 ;;; beads-dep-test.el ends here
