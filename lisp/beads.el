@@ -481,6 +481,106 @@ Returns a propertized string showing project and database info."
   (beads-main--clear-cache)
   (message "Menu refreshed"))
 
+;;; More Commands Sub-dispatch
+
+;;;###autoload
+(transient-define-prefix beads-more-menu ()
+  "Additional beads commands not in the main dispatch.
+
+This menu contains less frequently used commands organized
+into logical groups for easy access."
+  ["More Issue Operations"
+   ("o" "Reopen issue" beads-reopen)
+   ("D" "Delete issue" beads-delete)
+   ("e" "Edit field" beads-edit)
+   ("I" "Create (form)" beads-create-form)
+   ("Q" "Quick capture (q)" beads-q)
+   ("O" "Move issue" beads-move)
+   ("B" "Refile issue" beads-refile)
+   ("a" "Children" beads-children)
+   (">" "Promote wisp" beads-promote)
+   ("X" "Query issues" beads-query)
+   ("[" "Todo items" beads-todo)
+   ("nr" "Rename issue" beads-rename)]
+  ["Workflow & Collaboration"
+   ("K" "Cook formula" beads-cook)
+   ("g" "Gate menu" beads-gate)
+   ("M" "Merge slot" beads-merge-slot)
+   ("f" "Defer issue" beads-defer)
+   ("U" "Undefer issue" beads-undefer)
+   ("H" "Ship capability" beads-ship)]
+  ["Views & Reports"
+   ("t" "Stats/Status" beads-stats)
+   ("C" "Count issues" beads-count)
+   ("S" "Stale issues" beads-stale)
+   ("/" "Search" beads-search)
+   ("T" "Lint issues" beads-lint)
+   ("Y" "Orphans" beads-orphans)
+   ("]" "Issue types" beads-types)
+   ("<" "Find duplicates (AI)" beads-find-duplicates)
+   ("v" "Graph (visual)" beads-graph-all)
+   ("E" "Epic status" beads-epic)]
+  ["Agent, Slots & Audit"
+   ("@" "Slot menu" beads-slot)
+   ("=" "Comments" beads-comments-menu)
+   ("~" "Audit log" beads-audit)
+   ("w" "Swarm menu" beads-swarm)]
+  ["Maintenance"
+   ("+" "Doctor" beads-doctor)
+   ("^" "Migrate menu" beads-migrate-menu)
+   ("W" "Worktree menu" beads-worktree-menu)
+   ("&" "Admin menu" beads-admin)
+   ("0" "Preflight check" beads-preflight)
+   ("-" "Upgrade bd" beads-upgrade)
+   ("P" "Rename prefix" beads-rename-prefix)
+   (":" "Repair database" beads-repair)
+   (";" "Resolve conflicts" beads-resolve-conflicts)
+   ("nc" "Compact menu" beads-compact)
+   ("nf" "Flatten Dolt" beads-flatten)
+   ("ng" "Garbage collect" beads-gc)
+   ("np" "Purge ephemeral" beads-purge)]
+  ["Dolt & Version Control"
+   ("#" "VC menu" beads-vc)
+   ("p" "Branch" beads-branch)
+   ("`" "Diff" beads-diff)
+   ("%" "History" beads-history)
+   ("$" "Federation menu" beads-federation)]
+  ["Structure & Data"
+   ("1" "Mark duplicate" beads-duplicate)
+   ("2" "Find duplicates" beads-duplicates)
+   ("3" "Supersede issue" beads-supersede)
+   ("4" "Restore issue" beads-restore)
+   ("J" "SQL query" beads-sql)
+   ("nb" "Backup database" beads-backup)
+   ("ne" "Export to JSONL" beads-export)]
+  ["Integrations"
+   ("j" "Jira" beads-jira)
+   ("N" "Linear" beads-linear)
+   ("yl" "GitLab" beads-gitlab)
+   ("R" "Repo" beads-repo)
+   ("*" "Mail delegate" beads-mail)]
+  ["Setup & Config"
+   ("i" "Init project" beads-init)
+   ("?" "Quickstart" beads-quickstart)
+   ("h" "Hooks menu" beads-hooks)
+   ("!" "Info/Debug" beads-info)
+   ("5" "Where (location)" beads-where)
+   ("6" "Human commands" beads-human)
+   ("7" "Onboard snippet" beads-onboard)
+   ("8" "Prime context" beads-prime)
+   ("9" "Setup integrations" beads-setup)
+   ("_" "Forget memory" beads-forget)
+   ("\\" "KV store" beads-kv)
+   ("|" "Memories" beads-memories)
+   ("{" "Recall memory" beads-recall)
+   ("}" "Remember" beads-remember)]
+  ["State & Info"
+   ("z" "Set state" beads-set-state)
+   ("Z" "State menu" beads-state-menu)
+   ("V" "Version" beads-version)]
+  ["Actions"
+   ("q" "Quit" transient-quit-one)])
+
 ;;; Main Transient Menu
 
 ;;;###autoload
@@ -489,123 +589,33 @@ Returns a propertized string showing project and database info."
 
 This is the primary entry point for beads.el, providing a Magit-like
 interface for all issue tracking operations.  The menu is organized
-into logical groups matching bd CLI structure."
+into a compact hierarchical structure with sub-dispatches."
   [:description
    (lambda () (beads-main--format-project-header))
    :class transient-row
    ("" "" ignore :if (lambda () nil))]
-  ;; Row 1: Issues | Workflow | Setup
-  [["Working With Issues"
-    ("l" "List issues" beads-list)
-    ("c" "Create issue" beads-create)
-    ("I" "Create (form)" beads-create-form)
-    ("Q" "Quick capture (q)" beads-q)
-    ("u" "Update issue" beads-update)
-    ("x" "Close issue" beads-close)
-    ("o" "Reopen issue" beads-reopen)
-    ("D" "Delete issue" beads-delete)
-    ("s" "Show issue" beads-show)
-    ("e" "Edit field" beads-edit)
-    ("O" "Move issue" beads-move)
-    ("B" "Refile issue" beads-refile)
-    ("a" "Children" beads-children)
-    (">" "Promote wisp" beads-promote)
-    ("X" "Query issues" beads-query)
-    ("[" "Todo items" beads-todo)
-    ("nr" "Rename issue" beads-rename)]
-   ["Workflow & Collaboration"
-    ("F" "Formula menu" beads-formula-menu)
-    ("K" "Cook formula" beads-cook)
-    ("m" "Molecule menu" beads-mol)
-    ("g" "Gate menu" beads-gate)
-    ("M" "Merge slot" beads-merge-slot)
-    ("f" "Defer issue" beads-defer)
-    ("U" "Undefer issue" beads-undefer)
-    ("H" "Ship capability" beads-ship)]
-   ["Setup & Config"
-    ("i" "Init project" beads-init)
-    ("?" "Quickstart" beads-quickstart)
-    ("." "Config menu" beads-config)
-    ("h" "Hooks menu" beads-hooks)
-    ("!" "Info/Debug" beads-info)
-    ("5" "Where (location)" beads-where)
-    ("6" "Human commands" beads-human)
-    ("7" "Onboard snippet" beads-onboard)
-    ("8" "Prime context" beads-prime)
-    ("9" "Setup integrations" beads-setup)
-    ("_" "Forget memory" beads-forget)
-    ("\\" "KV store" beads-kv)
-    ("|" "Memories" beads-memories)
-    ("{" "Recall memory" beads-recall)
-    ("}" "Remember" beads-remember)]]
-  ;; Row 2: Views | Agent | Maintenance
-  [["Views & Reports"
-    ("r" "Ready work" beads-ready)
-    ("b" "Blocked issues" beads-blocked)
-    ("t" "Stats/Status" beads-stats)
-    ("C" "Count issues" beads-count)
-    ("S" "Stale issues" beads-stale)
-    ("/" "Search" beads-search)
-    ("T" "Lint issues" beads-lint)
-    ("Y" "Orphans" beads-orphans)
-    ("]" "Issue types" beads-types)
-    ("<" "Find duplicates (AI)" beads-find-duplicates)]
-   ["Agent & Slots"
-    ("A" "Agent menu" beads-agent-menu)
-    ("@" "Slot menu" beads-slot)
-    ("=" "Comments" beads-comments-menu)
-    ("~" "Audit log" beads-audit)]
-   ["Maintenance"
-    ("+" "Doctor" beads-doctor)
-    ("^" "Migrate menu" beads-migrate-menu)
-    ("W" "Worktree menu" beads-worktree-menu)
-    ("&" "Admin menu" beads-admin)
-    ("0" "Preflight check" beads-preflight)
-    ("-" "Upgrade bd" beads-upgrade)
-    ("P" "Rename prefix" beads-rename-prefix)
-    (":" "Repair database" beads-repair)
-    (";" "Resolve conflicts" beads-resolve-conflicts)
-    ("nc" "Compact menu" beads-compact)
-    ("nf" "Flatten Dolt" beads-flatten)
-    ("ng" "Garbage collect" beads-gc)
-    ("np" "Purge ephemeral" beads-purge)]]
-  ;; Row 2.5: Dolt & Version Control
-  [["Dolt & Version Control"
-    ("k" "Dolt menu" beads-dolt)
-    ("#" "VC menu" beads-vc)
-    ("p" "Branch" beads-branch)
-    ("`" "Diff" beads-diff)
-    ("%" "History" beads-history)]
-   ["Federation"
-    ("$" "Federation menu" beads-federation)]]
-  ;; Row 3: Dependencies | Sync | Integrations
-  [["Dependencies & Structure"
+  [["Issues"
+    ("l" "List" beads-list)
+    ("c" "Create" beads-create)
+    ("s" "Show" beads-show)
+    ("u" "Update" beads-update)
+    ("x" "Close" beads-close)]
+   ["Workflow"
+    ("r" "Ready" beads-ready)
+    ("b" "Blocked" beads-blocked)
     ("d" "Dependencies" beads-dep)
-    ("v" "Graph (visual)" beads-graph-all)
-    ("E" "Epic status" beads-epic)
-    ("w" "Swarm menu" beads-swarm)
-    ("1" "Mark duplicate" beads-duplicate)
-    ("2" "Find duplicates" beads-duplicates)
-    ("3" "Supersede issue" beads-supersede)]
-   ["Sync & Data"
-    ("4" "Restore issue" beads-restore)
-    ("J" "SQL query" beads-sql)
-    ("nb" "Backup database" beads-backup)
-    ("ne" "Export to JSONL" beads-export)]
-   ["Integrations"
-    ("j" "Jira" beads-jira)
-    ("N" "Linear" beads-linear)
-    ("yl" "GitLab" beads-gitlab)
-    ("R" "Repo" beads-repo)
-    ("*" "Mail delegate" beads-mail)]]
-  ;; Row 4: Labels | Actions
-  [["Labels & State"
-    ("L" "Label menu" beads-label)
-    ("z" "Set state" beads-set-state)
-    ("Z" "State menu" beads-state-menu)]
+    ("F" "Formula" beads-formula-menu)
+    ("m" "Molecule" beads-mol)]
+   ["Manage"
+    ("L" "Labels" beads-label)
+    ("A" "Agents" beads-agent-menu)
+    ("." "Config" beads-config)
+    ("k" "Dolt" beads-dolt)]
+   ["Extensions"
+    ("G" "Gas Town" gastown :if (lambda () (featurep 'gastown)))]
    ["Actions"
-    ("G" "Refresh menu" beads-refresh-menu)
-    ("V" "Version" beads-version)
+    ("!" "More..." beads-more-menu)
+    ("g" "Refresh" beads-refresh-menu)
     ("q" "Quit" transient-quit-one)]])
 
 ;;; Info/Debug Command

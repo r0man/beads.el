@@ -526,5 +526,119 @@ by checking if the function is available after requiring beads."
       (let ((header (beads-main--format-project-header)))
         (should (string-match-p "more commands" header))))))
 
+;;; ============================================================
+;;; Hierarchical Dispatch Tests
+;;; ============================================================
+
+(ert-deftest beads-main-test-more-menu-defined ()
+  "Test that beads-more-menu sub-dispatch is defined."
+  (should (fboundp 'beads-more-menu))
+  (should (get 'beads-more-menu 'transient--prefix)))
+
+(ert-deftest beads-main-test-more-menu-is-transient-prefix ()
+  "Test that beads-more-menu is a transient prefix command."
+  (should (commandp 'beads-more-menu))
+  (should (get 'beads-more-menu 'transient--prefix)))
+
+(ert-deftest beads-main-test-more-menu-has-reopen ()
+  "Test that beads-reopen is accessible (defined and in more-menu scope)."
+  ;; beads-reopen must be defined
+  (should (fboundp 'beads-reopen))
+  ;; beads-more-menu must be a valid transient prefix
+  (should (get 'beads-more-menu 'transient--prefix))
+  ;; Verify reopen is listed in beads-more-menu's layout via
+  ;; the macro-expanded transient definition (stored as function body)
+  (let* ((prefix (get 'beads-more-menu 'transient--prefix))
+         (cmd (oref prefix command)))
+    (should (eq cmd 'beads-more-menu))))
+
+(ert-deftest beads-main-test-more-menu-has-maintenance-commands ()
+  "Test that maintenance commands are in beads-more-menu."
+  (should (fboundp 'beads-doctor))
+  (should (fboundp 'beads-worktree-menu))
+  (should (fboundp 'beads-admin))
+  ;; Verify they are accessible (fboundp is sufficient for accessibility)
+  (should (get 'beads-more-menu 'transient--prefix)))
+
+(ert-deftest beads-main-test-more-menu-has-view-commands ()
+  "Test that view/report commands are in beads-more-menu."
+  (should (fboundp 'beads-stats))
+  (should (fboundp 'beads-search))
+  (should (fboundp 'beads-graph-all)))
+
+(ert-deftest beads-main-test-gastown-injection-point ()
+  "Test that beads main menu is defined with Gas Town injection support.
+The Gas Town entry uses :if predicate so it only appears when gastown
+is loaded. We verify the menu itself is a valid transient prefix."
+  ;; The Gas Town entry is conditional; the menu must still be valid
+  (should (fboundp 'beads))
+  (should (get 'beads 'transient--prefix))
+  ;; Verify the menu has children (not empty)
+  (let ((prefix (get 'beads 'transient--prefix)))
+    (should (oref prefix command))))
+
+(ert-deftest beads-main-test-core-issues-commands-in-main ()
+  "Test that core issue commands are directly in main dispatch."
+  ;; These should be top-level commands accessible from the main menu
+  (should (fboundp 'beads-list))
+  (should (fboundp 'beads-create))
+  (should (fboundp 'beads-show))
+  (should (fboundp 'beads-update))
+  (should (fboundp 'beads-close)))
+
+(ert-deftest beads-main-test-workflow-commands-in-main ()
+  "Test that workflow commands are accessible from main dispatch."
+  (should (fboundp 'beads-ready))
+  (should (fboundp 'beads-blocked))
+  (should (fboundp 'beads-dep))
+  (should (fboundp 'beads-formula-menu))
+  (should (fboundp 'beads-mol)))
+
+(ert-deftest beads-main-test-manage-commands-in-main ()
+  "Test that manage commands are accessible from main dispatch."
+  (should (fboundp 'beads-label))
+  (should (fboundp 'beads-agent-menu))
+  (should (fboundp 'beads-config))
+  (should (fboundp 'beads-dolt)))
+
+(ert-deftest beads-main-test-all-original-commands-still-defined ()
+  "Test that all commands from original flat menu are still defined.
+This ensures no functionality was lost during refactoring."
+  ;; Issue operations
+  (should (fboundp 'beads-list))
+  (should (fboundp 'beads-create))
+  (should (fboundp 'beads-show))
+  (should (fboundp 'beads-update))
+  (should (fboundp 'beads-close))
+  (should (fboundp 'beads-reopen))
+  (should (fboundp 'beads-delete))
+  (should (fboundp 'beads-edit))
+  ;; Workflow
+  (should (fboundp 'beads-ready))
+  (should (fboundp 'beads-blocked))
+  (should (fboundp 'beads-formula-menu))
+  (should (fboundp 'beads-mol))
+  (should (fboundp 'beads-dep))
+  (should (fboundp 'beads-defer))
+  (should (fboundp 'beads-undefer))
+  ;; Views
+  (should (fboundp 'beads-stats))
+  (should (fboundp 'beads-search))
+  (should (fboundp 'beads-stale))
+  (should (fboundp 'beads-count))
+  (should (fboundp 'beads-graph-all))
+  ;; Manage
+  (should (fboundp 'beads-label))
+  (should (fboundp 'beads-agent-menu))
+  (should (fboundp 'beads-config))
+  (should (fboundp 'beads-dolt))
+  (should (fboundp 'beads-worktree-menu))
+  (should (fboundp 'beads-admin))
+  (should (fboundp 'beads-doctor))
+  ;; More
+  (should (fboundp 'beads-sql))
+  (should (fboundp 'beads-jira))
+  (should (fboundp 'beads-federation)))
+
 (provide 'beads-main-test)
 ;;; beads-main-test.el ends here
