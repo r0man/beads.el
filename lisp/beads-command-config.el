@@ -105,6 +105,21 @@ Deletes a configuration value.")
      ((string-empty-p key) "Configuration key cannot be empty")
      (t nil))))
 
+;;; ============================================================
+;;; Command Class: beads-command-config-validate
+;;; ============================================================
+
+(beads-defcommand beads-command-config-validate (beads-command-global-options)
+  ()
+  :documentation "Represents bd config validate command.
+Validates sync-related configuration settings.")
+
+(cl-defmethod beads-command-validate ((_command beads-command-config-validate))
+  "Validate config validate COMMAND.
+No required fields.
+Returns nil (always valid)."
+  nil)
+
 ;;; Execute Interactive Methods
 
 
@@ -133,6 +148,18 @@ Deletes a configuration value.")
   "Delete a configuration value."
   beads-option-global-section)
 
+;;;###autoload (autoload 'beads-config-validate "beads-command-config" nil t)
+(beads-meta-define-transient beads-command-config-validate "beads-config-validate"
+  "Validate sync-related configuration settings.
+
+Checks:
+  - sync.mode is a valid value (dolt-native)
+  - conflict.strategy is valid (newest, ours, theirs, manual)
+  - federation.sovereignty is valid
+  - Remote URL format is valid
+  - routing.mode is valid"
+  beads-option-global-section)
+
 ;;; Parent Transient Menu
 
 ;;;###autoload (autoload 'beads-config "beads-command-config" nil t)
@@ -150,7 +177,8 @@ Common namespaces:
    ("g" "Get value" beads-config-get)
    ("s" "Set value" beads-config-set)
    ("l" "List all" beads-config-list)
-   ("u" "Unset value" beads-config-unset)])
+   ("u" "Unset value" beads-config-unset)
+   ("v" "Validate config" beads-config-validate)])
 
 (provide 'beads-command-config)
 ;;; beads-command-config.el ends here

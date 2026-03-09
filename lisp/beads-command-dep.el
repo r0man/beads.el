@@ -567,6 +567,22 @@ Use --direction=up to show dependents (what depends on this issue).
 Use --type to filter by dependency type."
   beads-option-global-section)
 
+;;;###autoload (autoload 'beads-dep-relate "beads-command-dep" nil t)
+(beads-meta-define-transient beads-command-dep-relate "beads-dep-relate"
+  "Create a bidirectional relates_to link between two issues.
+
+The link is bidirectional - both issues will reference each other.
+This enables knowledge-graph connections without blocking or hierarchy.
+
+Examples:
+  bd dep relate bd-abc bd-xyz    ; Link two related issues"
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-dep-unrelate "beads-command-dep" nil t)
+(beads-meta-define-transient beads-command-dep-unrelate "beads-dep-unrelate"
+  "Remove a bidirectional relates_to link between two issues."
+  beads-option-global-section)
+
 ;;;###autoload (autoload 'beads-dep-tree-transient "beads-command-dep" nil t)
 (beads-meta-define-transient beads-command-dep-tree "beads-dep-tree-transient"
   "Show dependency tree rooted at an issue.
@@ -949,6 +965,21 @@ Completion matches on both issue ID and title."
       (beads-dep-tree--render (append issues nil) issue-id))
     (pop-to-buffer buffer)))
 
+;;; Dependency List View
+
+;;;###autoload
+(defun beads-dep-list (&optional issue-id)
+  "List dependencies of ISSUE-ID using a transient menu.
+If ISSUE-ID is not provided, prompt for it or detect from context."
+  (interactive
+   (list (or (beads-dep--detect-issue-id)
+             (beads-completion-read-issue "Issue ID: " nil nil nil
+                                          'beads--issue-id-history))))
+  (beads-check-executable)
+  (when (or (null issue-id) (string-empty-p issue-id))
+    (user-error "Issue ID is required"))
+  (beads-dep-list-transient))
+
 ;;; Dependency Cycles View
 
 (defvar beads-dep-cycles-mode-map
@@ -1032,15 +1063,19 @@ Completion matches on both issue ID and title."
   "Manage dependencies in Beads.
 
 This menu provides access to all dependency management operations:
-- Add dependencies with type selection
-- Remove dependencies
+- Add/remove dependencies with type selection
+- Create/remove bidirectional relates_to links
+- List dependencies for an issue
 - View dependency trees
 - Detect dependency cycles"
   ["Dependency Operations"
    ("a" "Add dependency" beads-dep-add)
    ("r" "Remove dependency" beads-dep-remove)
+   ("l" "List dependencies" beads-dep-list)
    ("t" "Show dependency tree" beads-dep-tree)
-   ("c" "Check for cycles" beads-dep-cycles)]
+   ("c" "Check for cycles" beads-dep-cycles)
+   ("R" "Relate issues" beads-dep-relate)
+   ("U" "Unrelate issues" beads-dep-unrelate)]
   ["Other"
    ("q" "Quit" transient-quit-one)])
 
