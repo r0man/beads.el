@@ -295,6 +295,7 @@ Caller is responsible for cleanup."
 ARGS is a plist with optional keys:
   :init-beads - If non-nil, initialize beads in the repo (default nil)
   :prefix     - Custom prefix for beads (requires :init-beads)
+  :use-dolt   - If non-nil, route bd to the suite Dolt server (default nil)
   :quiet      - Suppress bd output during init (default t)
   :cleanup    - If nil, don't cleanup temp dir after BODY (default t)
 
@@ -333,20 +334,27 @@ Examples:
   (let ((temp-dir (make-symbol "temp-dir"))
         (init-beads (plist-get args :init-beads))
         (prefix (plist-get args :prefix))
+        (use-dolt (plist-get args :use-dolt))
         (cleanup (if (plist-member args :cleanup)
                      (plist-get args :cleanup)
                    t))
         (quiet (if (plist-member args :quiet)
                    (plist-get args :quiet)
                  t)))  ; Default quiet to t
-    `(let* (;; Route all bd commands to the isolated suite Dolt server.
-            ;; Dolt is the only storage backend since beads v0.58.0.
+    `(let* (;; By default use JSONL-only storage (BD_NO_DB=1) — fast and
+            ;; needs no Dolt server.  When :use-dolt t is specified AND
+            ;; the suite Dolt server is running, route bd commands to it
+            ;; via BEADS_DOLT_PORT.
             (process-environment
-             (if beads-test--suite-server-port
-                 (cons (format "BEADS_DOLT_PORT=%d"
-                               beads-test--suite-server-port)
-                       process-environment)
-               process-environment))
+             ,(if use-dolt
+                  `(if beads-test--suite-server-port
+                       (cons (format "BEADS_DOLT_PORT=%d"
+                                     beads-test--suite-server-port)
+                             process-environment)
+                     process-environment)
+                '(cons "BD_NO_DB=1"
+                       (cons "BEADS_DOLT_PORT"
+                             process-environment))))
             (beads-test--last-init-prefix nil)
             (,temp-dir (beads-test-create-temp-repo
                         ,@(when init-beads '(:init-beads t))
