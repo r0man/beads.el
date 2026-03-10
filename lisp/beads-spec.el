@@ -34,6 +34,11 @@
 ;;
 ;; - `beads-list--refresh' — fetch issues using a spec and populate buffer
 ;;
+;; ## Filter Menu
+;;
+;; - `beads-list-filter-menu' — transient filter menu for list buffers
+;;   Pre-populates from the buffer's current `beads-list--spec'.
+;;
 ;; ## Usage
 ;;
 ;;   ;; Create a spec for high-priority open bugs
@@ -44,10 +49,14 @@
 ;;
 ;;   ;; Refresh the current list buffer with a custom spec
 ;;   (beads-list--refresh (beads-issue-spec :status "open" :order 'priority))
+;;
+;;   ;; Open filter menu (pre-populated from current buffer spec)
+;;   (beads-list-filter-menu)
 
 ;;; Code:
 
 (require 'eieio)
+(require 'transient)
 (require 'beads-custom)
 (require 'beads-command)
 (require 'beads-command-list)
@@ -229,6 +238,204 @@ stores the spec in `beads-list--spec', and calls
     (let ((issues (oref (beads-command-execute cmd) result)))
       (setq beads-list--spec effective-spec)
       (beads-list--populate-buffer issues 'list cmd))))
+
+;;; Filter Menu
+
+;; The filter menu uses --filter-X= argument prefixes internally to
+;; avoid collisions with the global --X= options used elsewhere.
+
+(defun beads-list-filter--spec-to-args (spec)
+  "Convert SPEC to transient argument strings for `beads-list-filter-menu'.
+
+Returns a list of strings like (\"--filter-status=open\"
+\"--filter-limit=50\") suitable for use as the initial transient
+value.  Only non-nil/non-default fields are included."
+  (let (args)
+    (when-let ((s (oref spec status)))
+      (push (format "--filter-status=%s" s) args))
+    (when-let ((tp (oref spec type)))
+      (push (format "--filter-type=%s" tp) args))
+    (when-let ((p (oref spec priority)))
+      (push (format "--filter-priority=%d" p) args))
+    (when-let ((a (oref spec assignee)))
+      (push (format "--filter-assignee=%s" a) args))
+    (when-let ((l (oref spec label)))
+      (push (format "--filter-label=%s" l) args))
+    (unless (eq (oref spec order) 'newest)
+      (push (format "--filter-order=%s" (oref spec order)) args))
+    (push (format "--filter-limit=%d" (oref spec limit)) args)
+    (when (oref spec ready-only)
+      (push "--filter-ready-only" args))
+    (nreverse args)))
+
+(defun beads-list-filter--args-to-spec (args)
+  "Parse transient ARGS into a `beads-issue-spec'.
+
+ARGS is the list returned by `(transient-args \\='beads-list-filter-menu)'.
+Unspecified fields receive their class defaults."
+  (let ((status nil)
+        (type nil)
+        (priority nil)
+        (assignee nil)
+        (label nil)
+        (order 'newest)
+        (limit 50)
+        (ready-only nil))
+    (dolist (arg args)
+      (cond
+       ((string-prefix-p "--filter-status=" arg)
+        (setq status (substring arg (length "--filter-status="))))
+       ((string-prefix-p "--filter-type=" arg)
+        (setq type (substring arg (length "--filter-type="))))
+       ((string-prefix-p "--filter-priority=" arg)
+        (setq priority
+              (string-to-number (substring arg (length "--filter-priority=")))))
+       ((string-prefix-p "--filter-assignee=" arg)
+        (setq assignee (substring arg (length "--filter-assignee="))))
+       ((string-prefix-p "--filter-label=" arg)
+        (setq label (substring arg (length "--filter-label="))))
+       ((string-prefix-p "--filter-order=" arg)
+        (setq order
+              (intern (substring arg (length "--filter-order=")))))
+       ((string-prefix-p "--filter-limit=" arg)
+        (setq limit
+              (string-to-number (substring arg (length "--filter-limit=")))))
+       ((string= arg "--filter-ready-only")
+        (setq ready-only t))))
+    (beads-issue-spec
+     :status status
+     :type type
+     :priority priority
+     :assignee assignee
+     :label label
+     :order order
+     :limit limit
+     :ready-only ready-only)))
+
+;; Helper functions used by suffix commands to operate on a saved buffer.
+
+(defun beads-list-filter--apply-with-spec (buf spec)
+  "Refresh BUF using SPEC.
+BUF must be a live buffer with `beads-list-mode' active."
+  (when (buffer-live-p buf)
+    (with-current-buffer buf
+      (beads-list--refresh spec))))
+
+(defun beads-list-filter--reset-buffer (buf)
+  "Reset filters in BUF to `beads-list-default-spec'."
+  (when (buffer-live-p buf)
+    (with-current-buffer buf
+      (beads-list--refresh beads-list-default-spec))))
+
+;; Buffer saved before opening the transient so suffixes can refresh it.
+
+(defvar beads-list-filter--buffer nil
+  "The list buffer to refresh when the filter menu is applied or reset.")
+
+;; Custom transient prefix class that initialises from the buffer spec.
+
+(defclass beads-list-filter-prefix (transient-prefix) ()
+  "Transient prefix class for `beads-list-filter-menu'.
+
+Overrides `transient-init-value' to pre-populate the menu from the
+calling buffer's `beads-list--spec'.")
+
+(cl-defmethod transient-init-value ((obj beads-list-filter-prefix))
+  "Initialise OBJ value from the current buffer's spec."
+  (setq beads-list-filter--buffer (current-buffer))
+  (let* ((spec (or (and (boundp 'beads-list--spec) beads-list--spec)
+                   beads-list-default-spec)))
+    (oset obj value (beads-list-filter--spec-to-args spec))))
+
+;;; Infixes
+
+(transient-define-infix beads-list-filter--status ()
+  :class 'transient-option
+  :description "Status"
+  :argument "--filter-status="
+  :choices '("open" "closed" "in_progress" "blocked" "deferred" "hooked"))
+
+(transient-define-infix beads-list-filter--type ()
+  :class 'transient-option
+  :description "Type"
+  :argument "--filter-type="
+  :choices '("bug" "feature" "task" "epic" "chore"))
+
+(transient-define-infix beads-list-filter--priority ()
+  :class 'transient-option
+  :description "Max priority (0-4)"
+  :argument "--filter-priority="
+  :choices '("0" "1" "2" "3" "4"))
+
+(transient-define-infix beads-list-filter--assignee ()
+  :class 'transient-option
+  :description "Assignee"
+  :argument "--filter-assignee=")
+
+(transient-define-infix beads-list-filter--label ()
+  :class 'transient-option
+  :description "Label"
+  :argument "--filter-label=")
+
+(transient-define-infix beads-list-filter--order ()
+  :class 'transient-option
+  :description "Sort order"
+  :argument "--filter-order="
+  :choices '("newest" "oldest" "priority" "updated"))
+
+(transient-define-infix beads-list-filter--limit ()
+  :class 'transient-option
+  :description "Result limit"
+  :argument "--filter-limit="
+  :reader (lambda (prompt _initial-input history)
+            (number-to-string
+             (read-number prompt 50 history))))
+
+(transient-define-infix beads-list-filter--ready-only ()
+  :class 'transient-switch
+  :description "Ready issues only"
+  :argument "--filter-ready-only")
+
+;;; Suffixes
+
+(transient-define-suffix beads-list-filter--apply ()
+  "Apply filters and refresh the list buffer."
+  :description "Apply filters"
+  (interactive)
+  (let* ((args (transient-args 'beads-list-filter-menu))
+         (spec (beads-list-filter--args-to-spec args))
+         (buf beads-list-filter--buffer))
+    (beads-list-filter--apply-with-spec buf spec)))
+
+(transient-define-suffix beads-list-filter--reset ()
+  "Reset filters to `beads-list-default-spec' and refresh."
+  :description "Reset to defaults"
+  (interactive)
+  (beads-list-filter--reset-buffer beads-list-filter--buffer))
+
+;;; Main Transient Menu
+
+;;;###autoload (autoload 'beads-list-filter-menu "beads-spec" nil t)
+(transient-define-prefix beads-list-filter-menu ()
+  "Adjust filters for the current beads list buffer.
+
+Pre-populates from the buffer's `beads-list--spec' (or
+`beads-list-default-spec').  Press RET to apply the new filters
+and refresh the list; press R to reset to defaults."
+  :class beads-list-filter-prefix
+  [["Filter by"
+    ("s" "Status" beads-list-filter--status)
+    ("t" "Type" beads-list-filter--type)
+    ("p" "Priority" beads-list-filter--priority)
+    ("a" "Assignee" beads-list-filter--assignee)
+    ("l" "Label" beads-list-filter--label)]
+   ["Options"
+    ("r" "Ready only" beads-list-filter--ready-only)
+    ("n" "Limit" beads-list-filter--limit)
+    ("o" "Order" beads-list-filter--order)]
+   ["Actions"
+    ("RET" "Apply" beads-list-filter--apply :transient nil)
+    ("R" "Reset to defaults" beads-list-filter--reset :transient nil)]])
 
 (provide 'beads-spec)
 ;;; beads-spec.el ends here

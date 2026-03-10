@@ -45,6 +45,7 @@
 ;; Forward declarations for UI code
 (declare-function beads-update "beads-command-update" (&optional issue-id))
 (declare-function beads-reopen "beads-command-reopen" (&optional issue-id))
+(declare-function beads-list-filter-menu "beads-spec")
 (declare-function beads-agent--get-sessions-for-issue "beads-agent")
 (declare-function beads-agent--get-sessions-focused-on-issue "beads-agent-backend")
 (declare-function beads-agent--get-sessions-touching-issue "beads-agent-backend")
@@ -2179,6 +2180,7 @@ Uses an idle timer to debounce rapid navigation, similar to
     (define-key map (kbd "C-w") #'beads-list-copy-id)      ; copy (override kill-region)
     (define-key map (kbd "S") #'beads-list-sort)           ; sort menu
     (define-key map (kbd "l") #'beads-list-filter)         ; filter (open transient with current filter)
+    (define-key map (kbd "/") #'beads-list-filter-menu)    ; spec filter menu
     (define-key map (kbd "C-c C-f") #'beads-list-follow-mode) ; follow mode (like compilation)
 
     ;; AI Agent type commands
