@@ -40,6 +40,24 @@
 (defvar beads-show--issue-id)
 
 ;;; ============================================================
+;;; Context-Aware Reader — issue at point or prompt
+;;; ============================================================
+
+(defun beads--read-issue-at-point-or-prompt (prompt &optional
+                                                     _initial-input
+                                                     _history)
+  "Return the issue ID at point, or prompt the user with PROMPT.
+
+When point is on an issue (in a beads-list, beads-show, beads-section,
+or plain-text buffer), returns that issue ID immediately without prompting.
+Falls back to `beads-completion-read-issue' when no issue is detected.
+
+Suitable for use as a transient `:reader' on issue-ID infixes."
+  (or (beads-issue-at-point)
+      (beads-completion-read-issue prompt nil t nil
+                                   'beads--issue-id-history)))
+
+;;; ============================================================
 ;;; Common Reader Functions
 ;;; ============================================================
 

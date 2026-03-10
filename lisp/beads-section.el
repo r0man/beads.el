@@ -187,6 +187,16 @@ visit the issue."
       (insert (format "  %-14s %-4s %-10s %-14s %s\n"
                       id prio-str type status title)))))
 
+;;; Context Helpers
+
+(defun beads-section-issue-id-at-point ()
+  "Return the issue ID of the beads-issue-section at point, or nil.
+Intended for use by `beads-issue-at-point' without requiring this file."
+  (when-let* ((section (magit-current-section))
+              (_ (object-of-class-p section 'beads-issue-section))
+              (issue (oref section issue)))
+    (oref issue id)))
+
 ;;; Commands
 
 ;;;###autoload

@@ -29,6 +29,7 @@
 
 ;;; Code:
 
+(require 'beads-buffer)
 (require 'beads-command)
 (require 'beads-completion)
 (require 'beads-custom)
@@ -36,6 +37,15 @@
 (require 'json)
 (require 'project)
 (require 'transient)
+
+;;; Forward Declarations (for context detection without hard deps)
+
+;; beads-command-list.el provides this
+(declare-function beads-list--current-issue-id "beads-command-list")
+;; beads-section.el provides this
+(declare-function beads-section-issue-id-at-point "beads-section")
+;; beads-command-show.el defines this buffer-local var
+(defvar beads-show--issue-id)
 
 ;;; Variables
 
@@ -295,6 +305,76 @@ Returns nil if auto-discovery should be used."
   (or beads-database-path
       (when-let* ((beads-dir (beads--find-beads-dir)))
         (car (directory-files beads-dir t "\\.db\\'")))))
+
+;;; Context Functions — Public API
+
+(defun beads--issue-id-at-text-point ()
+  "Return a beads issue ID at point from button or regexp, or nil.
+Checks for a button with an `issue-id' property first, then
+scans the current line for an issue ID pattern overlapping point."
+  (let ((original-point (point))
+        (case-fold-search nil))
+    (or
+     ;; Button with issue-id property
+     (when-let ((button (button-at original-point)))
+       (button-get button 'issue-id))
+     ;; Issue ID pattern on current line, overlapping point
+     (save-excursion
+       (let ((line-start (line-beginning-position))
+             (line-end   (line-end-position)))
+         (goto-char line-start)
+         (catch 'found
+           (while (re-search-forward
+                   (concat "\\b\\([a-zA-Z][a-zA-Z0-9._-]*"
+                           "-[0-9a-fA-F]+\\(?:\\.[0-9]+\\)*\\)\\b")
+                   line-end t)
+             (when (and (>= original-point (match-beginning 1))
+                        (<= original-point (match-end 1)))
+               (throw 'found (match-string 1))))))))))
+
+;;;###autoload
+(defun beads-issue-at-point ()
+  "Return the beads issue ID at point, or nil.
+
+Checks contexts in order:
+1. `beads-list-mode' — issue ID from current tabulated-list row
+2. `beads-show-mode' — issue ID stored in the show buffer
+3. `beads-section-mode' — issue ID from magit-section at point
+4. Buffer name   — beads-show buffer naming convention
+5. Text at point — button or issue ID regexp match"
+  (or
+   ;; 1. Tabulated-list buffer (beads-list-mode)
+   (when (and (derived-mode-p 'beads-list-mode)
+              (fboundp 'beads-list--current-issue-id))
+     (beads-list--current-issue-id))
+   ;; 2. Show buffer (beads-show-mode)
+   (when (and (derived-mode-p 'beads-show-mode)
+              (boundp 'beads-show--issue-id))
+     beads-show--issue-id)
+   ;; 3. Magit-section buffer — look for beads-issue-section at point
+   (when (and (derived-mode-p 'magit-section-mode)
+              (fboundp 'beads-section-issue-id-at-point))
+     (beads-section-issue-id-at-point))
+   ;; 4. Buffer name parsing (*beads-show[PROJECT]/ISSUE-ID*)
+   (when-let ((parsed (beads-buffer-parse-show (buffer-name))))
+     (plist-get parsed :issue-id))
+   ;; 5. Text at point (button or regexp)
+   (beads--issue-id-at-text-point)))
+
+;;;###autoload
+(defun beads-current-project-root ()
+  "Return the beads project root directory for the current buffer, or nil.
+The project root is the directory that contains the .beads directory.
+Returns nil when not inside a beads project."
+  (when-let ((beads-dir (beads--find-beads-dir)))
+    (file-name-directory (directory-file-name beads-dir))))
+
+;;;###autoload
+(defun beads-current-database-path ()
+  "Return the beads database path for the current project, or nil.
+Locates the .beads/*.db file for the current project.
+Returns nil when no database is found."
+  (beads--get-database-path))
 
 ;;; Process Execution
 

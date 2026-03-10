@@ -72,7 +72,7 @@ Example: '(\"bd-1\" \"bd-2\")"
     :class transient-option
     :argument "--id="
     :prompt "Issue ID(s): "
-    :transient-reader beads-reader-issue-id
+    :transient-reader beads--read-issue-at-point-or-prompt
     :transient-group "Show Issue"
     :level 1
     :order 1
