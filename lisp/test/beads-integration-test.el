@@ -297,6 +297,9 @@ ARGS is a plist with optional keys:
   :prefix     - Custom prefix for beads (requires :init-beads)
   :quiet      - Suppress bd output during init (default t)
   :cleanup    - If nil, don't cleanup temp dir after BODY (default t)
+  :use-dolt   - If non-nil, route bd commands to the isolated suite
+                Dolt server (requires dolt to be installed).  Default
+                nil — bd uses file-backed storage (BD_NO_DAEMON=1).
 
 This macro:
 1. Creates a temporary directory
@@ -313,8 +316,12 @@ Examples:
   (beads-test-with-temp-repo ()
     (should (file-exists-p \".git\")))
 
-  ;; With beads initialized
+  ;; With beads initialized (file-backed storage)
   (beads-test-with-temp-repo (:init-beads t)
+    (should (file-directory-p \".beads\")))
+
+  ;; With Dolt-backed storage (opt-in)
+  (beads-test-with-temp-repo (:init-beads t :use-dolt t)
     (should (file-directory-p \".beads\")))
 
   ;; With custom prefix
@@ -333,24 +340,27 @@ Examples:
   (let ((temp-dir (make-symbol "temp-dir"))
         (init-beads (plist-get args :init-beads))
         (prefix (plist-get args :prefix))
+        (use-dolt (plist-get args :use-dolt))
         (cleanup (if (plist-member args :cleanup)
                      (plist-get args :cleanup)
                    t))
         (quiet (if (plist-member args :quiet)
                    (plist-get args :quiet)
                  t)))  ; Default quiet to t
-    `(let* (;; Route bd commands to the isolated suite Dolt server when
-            ;; available.  BEADS_DOLT_PORT takes priority over BD_NO_DAEMON
-            ;; in bd's config chain, so integration tests use the isolated
-            ;; server even when BD_NO_DAEMON=1 is set globally in Eldev.
-            ;; When dolt is not installed, beads-test--suite-server-port is
-            ;; nil and BD_NO_DAEMON=1 (already global) keeps file-backed mode.
+    `(let* (;; By default use file-backed storage (BD_NO_DAEMON=1).
+            ;; When :use-dolt t is specified AND the suite Dolt server is
+            ;; running, route bd commands to it via BEADS_DOLT_PORT.
+            ;; BEADS_DOLT_PORT takes priority over BD_NO_DAEMON in bd's
+            ;; config chain, so the isolated server is used even when
+            ;; BD_NO_DAEMON=1 is set globally in Eldev.
             (process-environment
-             (if beads-test--suite-server-port
-                 (cons (format "BEADS_DOLT_PORT=%d"
-                               beads-test--suite-server-port)
-                       process-environment)
-               process-environment))
+             ,(if use-dolt
+                  `(if beads-test--suite-server-port
+                       (cons (format "BEADS_DOLT_PORT=%d"
+                                     beads-test--suite-server-port)
+                             process-environment)
+                     process-environment)
+                'process-environment))
             (beads-test--last-init-prefix nil)
             (,temp-dir (beads-test-create-temp-repo
                         ,@(when init-beads '(:init-beads t))
