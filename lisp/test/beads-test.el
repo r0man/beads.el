@@ -2524,6 +2524,102 @@ The log format is compatible with `log-view-mode':
   "Test that beads-emacs-info command is defined."
   (should (fboundp 'beads-emacs-info)))
 
+;;; ========================================
+;;; Context Function Tests
+;;; ========================================
+
+(ert-deftest beads-test-issue-at-point-defined ()
+  "Test that beads-issue-at-point is defined and autoloaded."
+  (should (fboundp 'beads-issue-at-point)))
+
+(ert-deftest beads-test-current-project-root-defined ()
+  "Test that beads-current-project-root is defined and autoloaded."
+  (should (fboundp 'beads-current-project-root)))
+
+(ert-deftest beads-test-current-database-path-defined ()
+  "Test that beads-current-database-path is defined and autoloaded."
+  (should (fboundp 'beads-current-database-path)))
+
+(ert-deftest beads-test-issue-id-at-text-point-returns-nil-on-no-match ()
+  "Test that beads--issue-id-at-text-point returns nil when no issue ID at point."
+  (with-temp-buffer
+    (insert "no issue id here\n")
+    (goto-char (point-min))
+    (should-not (beads--issue-id-at-text-point))))
+
+(ert-deftest beads-test-issue-id-at-text-point-finds-id ()
+  "Test that beads--issue-id-at-text-point returns issue ID when point is on it."
+  (with-temp-buffer
+    (insert "see bd-a1b2 for details\n")
+    ;; Move point onto the issue ID
+    (goto-char (+ (point-min) 4))
+    (should (equal (beads--issue-id-at-text-point) "bd-a1b2"))))
+
+(ert-deftest beads-test-issue-id-at-text-point-nil-when-off-id ()
+  "Test that beads--issue-id-at-text-point returns nil when point is not on an issue."
+  (with-temp-buffer
+    (insert "see bd-a1b2 for details\n")
+    ;; Point is at "for" — not on the issue ID
+    (goto-char (+ (point-min) 12))
+    (should-not (beads--issue-id-at-text-point))))
+
+(ert-deftest beads-test-issue-at-point-from-show-buffer ()
+  "Test beads-issue-at-point detects issue from beads-show-mode buffer."
+  (with-temp-buffer
+    ;; Simulate a beads-show-mode buffer with an issue ID set
+    (let ((beads-show--issue-id "bd-show1")
+          (major-mode 'beads-show-mode))
+      (should (equal (beads-issue-at-point) "bd-show1")))))
+
+(ert-deftest beads-test-issue-at-point-from-buffer-name ()
+  "Test beads-issue-at-point detects issue from beads-show buffer name."
+  ;; Use a real buffer with a beads-show naming convention
+  (let ((buf (get-buffer-create "*beads-show[myproject]/bd-bufname*")))
+    (unwind-protect
+        (with-current-buffer buf
+          ;; major-mode is fundamental — context comes from buffer name
+          (should (equal (beads-issue-at-point) "bd-bufname")))
+      (kill-buffer buf))))
+
+(ert-deftest beads-test-issue-at-point-from-text ()
+  "Test beads-issue-at-point finds issue ID in plain text at point."
+  (with-temp-buffer
+    ;; "bd-abc1" uses only hex characters: a, b, c, 1
+    (insert "Fix bd-abc1 before release\n")
+    (goto-char (+ (point-min) 4))       ; point on "b" of "bd-abc1"
+    (should (equal (beads-issue-at-point) "bd-abc1"))))
+
+(ert-deftest beads-test-issue-at-point-returns-nil-in-empty-buffer ()
+  "Test beads-issue-at-point returns nil in an empty buffer."
+  (with-temp-buffer
+    (should-not (beads-issue-at-point))))
+
+(ert-deftest beads-test-current-project-root-no-beads-dir ()
+  "Test beads-current-project-root returns nil when no .beads dir found."
+  (let ((beads--project-cache (make-hash-table :test 'equal))
+        (default-directory "/tmp/"))
+    (cl-letf (((symbol-function 'locate-dominating-file)
+               (lambda (_dir _file) nil))
+              ((symbol-function 'beads-git-find-main-repo)
+               (lambda () nil)))
+      (should-not (beads-current-project-root)))))
+
+(ert-deftest beads-test-current-project-root-with-beads-dir ()
+  "Test beads-current-project-root returns parent of .beads directory."
+  (let ((beads--project-cache (make-hash-table :test 'equal))
+        (default-directory "/project/sub/"))
+    (cl-letf (((symbol-function 'locate-dominating-file)
+               (lambda (_dir _file) "/project/"))
+              ((symbol-function 'beads-git-find-main-repo)
+               (lambda () nil)))
+      (should (equal (beads-current-project-root) "/project/")))))
+
+(ert-deftest beads-test-current-database-path-delegates ()
+  "Test beads-current-database-path delegates to beads--get-database-path."
+  (cl-letf (((symbol-function 'beads--get-database-path)
+             (lambda () "/some/path/beads.db")))
+    (should (equal (beads-current-database-path) "/some/path/beads.db"))))
+
 
 (provide 'beads-test)
 ;;; beads-test.el ends here

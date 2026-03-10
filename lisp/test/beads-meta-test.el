@@ -1025,7 +1025,7 @@
   (should (equal "Issue ID: " (beads-meta-slot-property
                                'beads-command-close 'issue-ids
                                :transient-prompt)))
-  (should (eq 'beads-reader-close-issue-id (beads-meta-slot-property
+  (should (eq 'beads--read-issue-at-point-or-prompt (beads-meta-slot-property
                                             'beads-command-close 'issue-ids
                                             :transient-reader)))
   (should (equal "Close Issue" (beads-meta-slot-property
@@ -1142,7 +1142,7 @@
   (should (equal "Issue ID(s): " (beads-meta-slot-property
                                   'beads-command-show 'issue-ids
                                   :transient-prompt)))
-  (should (eq 'beads-reader-issue-id (beads-meta-slot-property
+  (should (eq 'beads--read-issue-at-point-or-prompt (beads-meta-slot-property
                                       'beads-command-show 'issue-ids
                                       :transient-reader)))
   (should (equal "Show Issue" (beads-meta-slot-property

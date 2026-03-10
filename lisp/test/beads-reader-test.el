@@ -1223,5 +1223,31 @@
     (let ((result (beads-reader-sync-message nil nil nil)))
       (should (equal result "sync data")))))
 
+;;; beads--read-issue-at-point-or-prompt Tests
+
+(ert-deftest beads-reader-test-read-issue-at-point-or-prompt-defined ()
+  "Test that beads--read-issue-at-point-or-prompt is defined."
+  (should (fboundp 'beads--read-issue-at-point-or-prompt)))
+
+(ert-deftest beads-reader-test-read-issue-at-point-or-prompt-uses-context ()
+  "Test that beads--read-issue-at-point-or-prompt returns context issue ID."
+  (cl-letf (((symbol-function 'beads-issue-at-point)
+             (lambda () "bd-ctx1"))
+            ((symbol-function 'beads-completion-read-issue)
+             (lambda (&rest _args) (error "Should not prompt"))))
+    (let ((result (beads--read-issue-at-point-or-prompt "Issue: ")))
+      (should (equal result "bd-ctx1")))))
+
+(ert-deftest beads-reader-test-read-issue-at-point-or-prompt-falls-back-to-prompt ()
+  "Test that beads--read-issue-at-point-or-prompt prompts when no context."
+  (cl-letf (((symbol-function 'beads-issue-at-point)
+             (lambda () nil))
+            ((symbol-function 'beads-completion-read-issue)
+             (lambda (prompt &rest _args)
+               (should (equal prompt "Issue: "))
+               "bd-prompted")))
+    (let ((result (beads--read-issue-at-point-or-prompt "Issue: ")))
+      (should (equal result "bd-prompted")))))
+
 (provide 'beads-reader-test)
 ;;; beads-reader-test.el ends here
