@@ -135,9 +135,7 @@ Returns cons cell (BACKEND-SESSION . BUFFER)."
   (unless (and (boundp 'agent-shell-agent-configs) agent-shell-agent-configs)
     (error "No agent-shell configs defined.  Configure `agent-shell-agent-configs'"))
   ;; default-directory is set by beads-agent-start (may be worktree)
-  ;; Bind BD_NO_DAEMON=1 to disable bd daemon (not supported in worktrees)
-  (let* ((process-environment (cons "BD_NO_DAEMON=1" process-environment))
-         (config (or beads-agent-agent-shell-config
+  (let* ((config (or beads-agent-agent-shell-config
                      (and (boundp 'agent-shell-preferred-agent-config)
                           agent-shell-preferred-agent-config)
                      (agent-shell-select-config :prompt "Select agent: ")))

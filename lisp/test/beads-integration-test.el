@@ -341,8 +341,8 @@ Examples:
         (quiet (if (plist-member args :quiet)
                    (plist-get args :quiet)
                  t)))  ; Default quiet to t
-    `(let* (;; By default use JSONL-only storage (BD_NO_DB=1) — fast and
-            ;; needs no Dolt server.  When :use-dolt t is specified AND
+    `(let* (;; By default unset BEADS_DOLT_PORT — fast JSONL-only mode,
+            ;; no Dolt server needed.  When :use-dolt t is specified AND
             ;; the suite Dolt server is running, route bd commands to it
             ;; via BEADS_DOLT_PORT.
             (process-environment
@@ -352,9 +352,8 @@ Examples:
                                      beads-test--suite-server-port)
                              process-environment)
                      process-environment)
-                '(cons "BD_NO_DB=1"
-                       (cons "BEADS_DOLT_PORT"
-                             process-environment))))
+                '(cons "BEADS_DOLT_PORT"
+                       process-environment)))
             (beads-test--last-init-prefix nil)
             (,temp-dir (beads-test-create-temp-repo
                         ,@(when init-beads '(:init-beads t))

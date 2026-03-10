@@ -623,11 +623,6 @@ does nothing to avoid renaming an already-renamed buffer."
 ISSUE-ID, BACKEND, PROJECT-DIR, WORKTREE-DIR, PROMPT, ISSUE, AGENT-TYPE
 are passed through from `beads-agent--continue-start'."
   (let* ((working-dir (or worktree-dir project-dir))
-         ;; In worktrees, add BD_NO_DAEMON=1 for worktree safety
-         ;; (prevents daemon from being started in worktree context)
-         (process-environment (if worktree-dir
-                                  (cons "BD_NO_DAEMON=1" process-environment)
-                                process-environment))
          (default-directory working-dir)
          (agent-type-name (when agent-type (oref agent-type name))))
     (condition-case err
@@ -1157,7 +1152,6 @@ AGENT-TYPE-NAME is optional agent type name (defaults to \"Task\")."
 BACKEND is the beads-agent-backend to use.
 PROJECT-DIR is the main project directory."
   (let* ((default-directory worktree-path)
-         (process-environment (cons "BD_NO_DAEMON=1" process-environment))
          (display-buffer-overriding-action
           '((display-buffer-reuse-window
              display-buffer-use-some-window

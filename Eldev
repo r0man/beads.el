@@ -143,7 +143,8 @@ ORIG-FN is the original function, STATS is the test statistics."
                   (load (expand-file-name "beads-meta.el" lisp-dir) nil t)))))
 
 ;; Test isolation:
-;; - Unit tests use BD_NO_DB=1 (JSONL-only, no Dolt server needed).
+;; - Unit tests unset BEADS_DOLT_PORT so bd uses JSONL-only storage
+;;   (no Dolt server needed).
 ;; - Integration tests use an isolated Dolt server on a random free
 ;;   port, started by beads-integration-test.el at load time.
 ;;   BEADS_DOLT_PORT routes bd commands to the isolated server.

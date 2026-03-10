@@ -115,24 +115,6 @@
         (should (equal (car result) mock-session))
         (should (bufferp (cdr result)))))))
 
-(ert-deftest beads-agent-efrit-test-start-sets-bd-no-daemon ()
-  "Test that start sets BD_NO_DAEMON environment variable."
-  (let ((backend (beads-agent-backend-efrit))
-        (mock-session (beads-agent-efrit-test--make-mock-efrit-session))
-        (captured-env nil))
-    (cl-letf (((symbol-function 'featurep) (lambda (_) t))
-              ((symbol-function 'require) (lambda (&rest _) t))
-              ((symbol-function 'efrit-do)
-               (lambda (_prompt)
-                 (setq captured-env process-environment)
-                 mock-session))
-              ((symbol-function 'efrit-session-id)
-               #'beads-agent-efrit-test--session-id)
-              ((symbol-function 'efrit-progress-get-buffer)
-               (lambda (_id) nil)))
-      (beads-agent-backend-start backend nil "Test prompt")
-      (should (member "BD_NO_DAEMON=1" captured-env)))))
-
 (ert-deftest beads-agent-efrit-test-start-error-when-efrit-missing ()
   "Test that start signals error when efrit is not available."
   (let ((backend (beads-agent-backend-efrit)))

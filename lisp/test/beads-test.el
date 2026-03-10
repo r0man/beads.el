@@ -84,8 +84,8 @@ Sets `beads-test--last-created-prefix' as a side effect."
     (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
     (call-process "git" nil nil nil "config" "user.name" "Beads Test")
     ;; Execute bd init.  The caller (beads-test-with-project or
-    ;; beads-test-with-shared-project) binds process-environment with
-    ;; BD_NO_DB=1 for JSONL-only mode (no Dolt server needed).
+    ;; beads-test-with-shared-project) unsets BEADS_DOLT_PORT so
+    ;; bd uses JSONL-only mode (no Dolt server needed).
     (beads-command-execute (apply #'beads-command-init effective-args))
     default-directory))
 
@@ -158,15 +158,14 @@ For a project with default settings, use an empty list:
     )"
   (declare (indent 1))
   (let ((temp-dir (make-symbol "temp-dir")))
-    `(let* (;; Use BD_NO_DB=1 for unit tests — JSONL-only storage is fast
-            ;; and avoids needing a Dolt server.  Unset BEADS_DOLT_PORT
-            ;; (without "=") to remove it from the child process env, so
-            ;; bd doesn't try to connect to the suite-level Dolt server.
-            ;; Only integration tests (beads-test-with-temp-repo) use Dolt.
+    `(let* (;; Unset BEADS_DOLT_PORT to prevent bd from connecting to the
+            ;; suite-level Dolt server.  Without a valid BEADS_DOLT_PORT,
+            ;; bd uses JSONL-only storage — no Dolt server needed for unit
+            ;; tests.  Only integration tests (beads-test-with-temp-repo)
+            ;; use Dolt.
             (process-environment
-             (cons "BD_NO_DB=1"
-                   (cons "BEADS_DOLT_PORT"
-                         process-environment)))
+             (cons "BEADS_DOLT_PORT"
+                   process-environment))
             (,temp-dir (beads-test-create-project ,@init-args))
             (default-directory ,temp-dir)
             (beads--project-cache (make-hash-table :test 'equal)))
@@ -601,15 +600,14 @@ deleted between tests to ensure isolation.
 Tests that need custom init args (e.g., a specific :prefix) should
 continue using `beads-test-with-project' instead."
   (declare (indent 0))
-  `(let* (;; Use BD_NO_DB=1 for unit tests — JSONL-only storage is fast
-          ;; and avoids needing a Dolt server.  Unset BEADS_DOLT_PORT
-          ;; so bd doesn't try to connect to the suite Dolt server.
+  `(let* (;; Unset BEADS_DOLT_PORT to prevent bd from connecting to the
+          ;; suite Dolt server.  Without a valid BEADS_DOLT_PORT, bd uses
+          ;; JSONL-only storage — no Dolt server needed for unit tests.
           (process-environment
-           (cons "BD_NO_DB=1"
-                 (cons "BEADS_DOLT_PORT"
-                       process-environment)))
+           (cons "BEADS_DOLT_PORT"
+                 process-environment))
           ;; Must come after process-environment (let* is sequential) so
-          ;; beads-test-get-shared-project runs with BD_NO_DB=1.
+          ;; beads-test-get-shared-project runs without a Dolt port.
           (default-directory (beads-test-get-shared-project))
           (beads--project-cache (make-hash-table :test 'equal)))
      ;; Clean up issues from previous tests

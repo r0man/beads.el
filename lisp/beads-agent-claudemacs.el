@@ -238,9 +238,7 @@ Returns cons cell (BACKEND-SESSION . BUFFER)."
   ;; Install bell handler advice now that claudemacs is loaded
   (beads-agent-claudemacs--install-bell-handler-advice)
   ;; default-directory is set by beads-agent-start (may be worktree)
-  ;; Bind BD_NO_DAEMON=1 to disable bd daemon (not supported in worktrees)
   (let* ((working-dir default-directory)
-         (process-environment (cons "BD_NO_DAEMON=1" process-environment))
          buffer)
     ;; Start claudemacs session in the working directory
     ;; Pass prompt as CLI argument via the &rest args parameter.

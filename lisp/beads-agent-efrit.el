@@ -89,17 +89,15 @@ Returns cons cell (BACKEND-SESSION . BUFFER)."
   (require 'efrit-do)
   (require 'efrit-session-core)
   (require 'efrit-progress)
-  ;; Bind BD_NO_DAEMON=1 to disable bd daemon (not supported in worktrees)
-  (let ((process-environment (cons "BD_NO_DAEMON=1" process-environment)))
-    ;; Start efrit-do with the prompt
-    (condition-case err
-        (let* ((efrit-session (efrit-do prompt))
-               (buffer (when efrit-session
-                         (efrit-progress-get-buffer (efrit-session-id efrit-session)))))
-          ;; Return (efrit-session . buffer)
-          (cons efrit-session buffer))
-      (error
-       (error "Failed to start efrit: %s" (error-message-string err))))))
+  ;; Start efrit-do with the prompt
+  (condition-case err
+      (let* ((efrit-session (efrit-do prompt))
+             (buffer (when efrit-session
+                       (efrit-progress-get-buffer (efrit-session-id efrit-session)))))
+        ;; Return (efrit-session . buffer)
+        (cons efrit-session buffer))
+    (error
+     (error "Failed to start efrit: %s" (error-message-string err)))))
 
 (cl-defmethod beads-agent-backend-stop
     ((_backend beads-agent-backend-efrit) session)
