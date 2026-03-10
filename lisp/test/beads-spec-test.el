@@ -317,5 +317,189 @@
       ;; The default spec has status=open, so the command should have status=open
       (should (equal (oref used-cmd status) "open")))))
 
+;;; beads-list-filter-menu Tests
+
+(ert-deftest beads-spec-test-spec-to-args-status ()
+  "Verify spec-to-args encodes status as --filter-status=."
+  (let* ((spec (beads-issue-spec :status "open"))
+         (args (beads-list-filter--spec-to-args spec)))
+    (should (member "--filter-status=open" args))))
+
+(ert-deftest beads-spec-test-spec-to-args-no-status ()
+  "Verify spec-to-args omits --filter-status= when nil."
+  (let* ((spec (beads-issue-spec :status nil))
+         (args (beads-list-filter--spec-to-args spec)))
+    (should-not (seq-find (lambda (a)
+                            (string-prefix-p "--filter-status=" a))
+                          args))))
+
+(ert-deftest beads-spec-test-spec-to-args-type ()
+  "Verify spec-to-args encodes type."
+  (let* ((spec (beads-issue-spec :type "bug"))
+         (args (beads-list-filter--spec-to-args spec)))
+    (should (member "--filter-type=bug" args))))
+
+(ert-deftest beads-spec-test-spec-to-args-priority ()
+  "Verify spec-to-args encodes priority."
+  (let* ((spec (beads-issue-spec :priority 2))
+         (args (beads-list-filter--spec-to-args spec)))
+    (should (member "--filter-priority=2" args))))
+
+(ert-deftest beads-spec-test-spec-to-args-assignee ()
+  "Verify spec-to-args encodes assignee."
+  (let* ((spec (beads-issue-spec :assignee "alice"))
+         (args (beads-list-filter--spec-to-args spec)))
+    (should (member "--filter-assignee=alice" args))))
+
+(ert-deftest beads-spec-test-spec-to-args-label ()
+  "Verify spec-to-args encodes label."
+  (let* ((spec (beads-issue-spec :label "urgent"))
+         (args (beads-list-filter--spec-to-args spec)))
+    (should (member "--filter-label=urgent" args))))
+
+(ert-deftest beads-spec-test-spec-to-args-order ()
+  "Verify spec-to-args encodes non-default order."
+  (let* ((spec (beads-issue-spec :order 'priority))
+         (args (beads-list-filter--spec-to-args spec)))
+    (should (member "--filter-order=priority" args))))
+
+(ert-deftest beads-spec-test-spec-to-args-order-newest-omitted ()
+  "Verify spec-to-args omits order when newest (default)."
+  (let* ((spec (beads-issue-spec :order 'newest))
+         (args (beads-list-filter--spec-to-args spec)))
+    (should-not (seq-find (lambda (a)
+                            (string-prefix-p "--filter-order=" a))
+                          args))))
+
+(ert-deftest beads-spec-test-spec-to-args-limit ()
+  "Verify spec-to-args encodes limit."
+  (let* ((spec (beads-issue-spec :limit 25))
+         (args (beads-list-filter--spec-to-args spec)))
+    (should (member "--filter-limit=25" args))))
+
+(ert-deftest beads-spec-test-spec-to-args-ready-only ()
+  "Verify spec-to-args encodes ready-only switch."
+  (let* ((spec (beads-issue-spec :ready-only t))
+         (args (beads-list-filter--spec-to-args spec)))
+    (should (member "--filter-ready-only" args))))
+
+(ert-deftest beads-spec-test-spec-to-args-no-ready-only ()
+  "Verify spec-to-args omits ready-only when nil."
+  (let* ((spec (beads-issue-spec :ready-only nil))
+         (args (beads-list-filter--spec-to-args spec)))
+    (should-not (member "--filter-ready-only" args))))
+
+(ert-deftest beads-spec-test-spec-to-args-returns-strings ()
+  "Verify spec-to-args returns a list of strings."
+  (let* ((spec (beads-issue-spec :status "open" :type "bug" :limit 10))
+         (args (beads-list-filter--spec-to-args spec)))
+    (should (listp args))
+    (should (seq-every-p #'stringp args))))
+
+(ert-deftest beads-spec-test-args-to-spec-defaults ()
+  "Verify args-to-spec returns spec with defaults from empty args."
+  (let ((spec (beads-list-filter--args-to-spec '())))
+    (should (null (oref spec status)))
+    (should (null (oref spec type)))
+    (should (null (oref spec priority)))
+    (should (null (oref spec assignee)))
+    (should (null (oref spec label)))
+    (should (eq (oref spec order) 'newest))
+    (should (= (oref spec limit) 50))
+    (should (null (oref spec ready-only)))))
+
+(ert-deftest beads-spec-test-args-to-spec-status ()
+  "Verify args-to-spec parses --filter-status=."
+  (let ((spec (beads-list-filter--args-to-spec '("--filter-status=closed"))))
+    (should (equal (oref spec status) "closed"))))
+
+(ert-deftest beads-spec-test-args-to-spec-type ()
+  "Verify args-to-spec parses --filter-type=."
+  (let ((spec (beads-list-filter--args-to-spec '("--filter-type=feature"))))
+    (should (equal (oref spec type) "feature"))))
+
+(ert-deftest beads-spec-test-args-to-spec-priority ()
+  "Verify args-to-spec parses --filter-priority=."
+  (let ((spec (beads-list-filter--args-to-spec '("--filter-priority=1"))))
+    (should (= (oref spec priority) 1))))
+
+(ert-deftest beads-spec-test-args-to-spec-assignee ()
+  "Verify args-to-spec parses --filter-assignee=."
+  (let ((spec (beads-list-filter--args-to-spec '("--filter-assignee=bob"))))
+    (should (equal (oref spec assignee) "bob"))))
+
+(ert-deftest beads-spec-test-args-to-spec-label ()
+  "Verify args-to-spec parses --filter-label=."
+  (let ((spec (beads-list-filter--args-to-spec '("--filter-label=bug"))))
+    (should (equal (oref spec label) "bug"))))
+
+(ert-deftest beads-spec-test-args-to-spec-order ()
+  "Verify args-to-spec parses --filter-order= as symbol."
+  (let ((spec (beads-list-filter--args-to-spec '("--filter-order=updated"))))
+    (should (eq (oref spec order) 'updated))))
+
+(ert-deftest beads-spec-test-args-to-spec-limit ()
+  "Verify args-to-spec parses --filter-limit=."
+  (let ((spec (beads-list-filter--args-to-spec '("--filter-limit=20"))))
+    (should (= (oref spec limit) 20))))
+
+(ert-deftest beads-spec-test-args-to-spec-ready-only ()
+  "Verify args-to-spec parses --filter-ready-only switch."
+  (let ((spec (beads-list-filter--args-to-spec '("--filter-ready-only"))))
+    (should (oref spec ready-only))))
+
+(ert-deftest beads-spec-test-round-trip-full-spec ()
+  "Verify spec → args → spec round-trip preserves all fields."
+  (let* ((orig (beads-issue-spec
+                :status "closed"
+                :type "feature"
+                :priority 1
+                :assignee "carol"
+                :label "polish"
+                :order 'priority
+                :limit 30
+                :ready-only t))
+         (args (beads-list-filter--spec-to-args orig))
+         (spec (beads-list-filter--args-to-spec args)))
+    (should (equal (oref spec status) "closed"))
+    (should (equal (oref spec type) "feature"))
+    (should (= (oref spec priority) 1))
+    (should (equal (oref spec assignee) "carol"))
+    (should (equal (oref spec label) "polish"))
+    (should (eq (oref spec order) 'priority))
+    (should (= (oref spec limit) 30))
+    (should (oref spec ready-only))))
+
+(ert-deftest beads-spec-test-filter-menu-is-defined ()
+  "Verify beads-list-filter-menu is defined as a command."
+  (should (commandp 'beads-list-filter-menu)))
+
+(ert-deftest beads-spec-test-filter-apply-calls-refresh ()
+  "Verify beads-list-filter--apply-with-spec calls beads-list--refresh."
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((refreshed-spec nil))
+      (cl-letf (((symbol-function 'beads-list--refresh)
+                 (lambda (spec) (setq refreshed-spec spec)))
+                ((symbol-function 'beads-list--populate-buffer)
+                 (lambda (_issues _command &optional _cmd-obj) nil)))
+        (let ((spec (beads-issue-spec :status "closed")))
+          (beads-list-filter--apply-with-spec (current-buffer) spec)))
+      (should refreshed-spec)
+      (should (equal (oref refreshed-spec status) "closed")))))
+
+(ert-deftest beads-spec-test-filter-reset-calls-refresh-with-default ()
+  "Verify beads-list-filter--reset-buffer calls refresh with default spec."
+  (with-temp-buffer
+    (beads-list-mode)
+    (let ((refreshed-spec nil))
+      (cl-letf (((symbol-function 'beads-list--refresh)
+                 (lambda (spec) (setq refreshed-spec spec)))
+                ((symbol-function 'beads-list--populate-buffer)
+                 (lambda (_issues _command &optional _cmd-obj) nil)))
+        (beads-list-filter--reset-buffer (current-buffer)))
+      (should refreshed-spec)
+      (should (object-of-class-p refreshed-spec 'beads-issue-spec)))))
+
 (provide 'beads-spec-test)
 ;;; beads-spec-test.el ends here
