@@ -52,12 +52,19 @@ Set as a side effect so callers can retrieve the prefix for cleanup.")
 
 (defun beads-test--drop-dolt-database (prefix)
   "Drop the Dolt database PREFIX on the suite test server.
-Silently ignores errors.  No-op if PREFIX is empty or nil."
+Silently ignores errors.  No-op if PREFIX is empty or nil, or if
+the suite Dolt server is not running."
   (when (and prefix (not (string-empty-p prefix))
              beads-test--suite-server-port)
     (ignore-errors
-      (call-process "bd" nil nil nil
-                    "sql" (format "DROP DATABASE IF EXISTS `%s`" prefix)))))
+      (let ((process-environment
+             (cons (format "BEADS_DOLT_PORT=%d"
+                           beads-test--suite-server-port)
+                   process-environment)))
+        (call-process "bd" nil nil nil
+                      "sql"
+                      (format "DROP DATABASE IF EXISTS `%s`"
+                              prefix))))))
 
 (defun beads-test-create-project (&rest init-args)
   "Create a temporary beads project and return its directory.

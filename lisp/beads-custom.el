@@ -36,6 +36,26 @@ If nil, bd will auto-discover the database by searching for a
                  (file :tag "Database path"))
   :group 'beads)
 
+;;; Dolt Server Configuration
+
+(defcustom beads-dolt-port nil
+  "TCP port of the Dolt server for bd commands.
+When set to an integer, beads.el injects BEADS_DOLT_PORT=<port>
+into the process environment for every bd command.  This ensures
+bd connects to the specified Dolt server instead of auto-starting
+its own instance or relying on metadata.json in the .beads
+directory.
+
+Set this to the port of your shared Dolt server, e.g.:
+  (setq beads-dolt-port 3307)
+
+If nil, beads.el does not inject BEADS_DOLT_PORT, and bd uses its
+normal discovery order: BEADS_DOLT_PORT env var, then metadata.json,
+then auto-start."
+  :type '(choice (const :tag "Let bd discover Dolt port" nil)
+                 (integer :tag "Dolt server TCP port"))
+  :group 'beads)
+
 ;;; Actor Configuration
 
 (defcustom beads-actor nil

@@ -1866,5 +1866,32 @@ The default limit behavior is in beads-command-list!, not the class."
       (let ((args (beads-command-line executed-cmd)))
         (should-not (member "--limit" args))))))
 
+;;; beads-command--process-environment tests
+
+(ert-deftest beads-command-test-process-environment-nil-port ()
+  "Test that nil beads-dolt-port returns process-environment unchanged."
+  :tags '(:unit)
+  (let ((beads-dolt-port nil)
+        (process-environment '("FOO=bar")))
+    (should (equal (beads-command--process-environment)
+                   '("FOO=bar")))))
+
+(ert-deftest beads-command-test-process-environment-with-port ()
+  "Test that integer beads-dolt-port prepends BEADS_DOLT_PORT."
+  :tags '(:unit)
+  (let ((beads-dolt-port 3307)
+        (process-environment '("FOO=bar")))
+    (let ((env (beads-command--process-environment)))
+      (should (equal (car env) "BEADS_DOLT_PORT=3307"))
+      (should (member "FOO=bar" env)))))
+
+(ert-deftest beads-command-test-process-environment-port-3308 ()
+  "Test that beads-dolt-port 3308 produces correct env string."
+  :tags '(:unit)
+  (let ((beads-dolt-port 3308)
+        (process-environment nil))
+    (should (equal (beads-command--process-environment)
+                   '("BEADS_DOLT_PORT=3308")))))
+
 (provide 'beads-command-test)
 ;;; beads-command-test.el ends here
