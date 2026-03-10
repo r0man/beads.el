@@ -110,16 +110,8 @@ Returns cons cell (BACKEND-SESSION . BUFFER)."
     (error "Claude command not found in PATH.  Install: npm install -g @anthropic-ai/claude-code"))
   (require 'claude-code)
   ;; default-directory is set by beads-agent-start (may be worktree)
-  ;; Bind BD_NO_DAEMON=1 to disable bd daemon (not supported in worktrees)
-  ;; We bind both process-environment and vterm-environment to ensure the
-  ;; variable is available regardless of terminal backend (vterm or eat):
   ;; Pass prompt as CLI argument by appending to claude-code-program-switches
   (let* ((working-dir default-directory)
-         (process-environment (cons "BD_NO_DAEMON=1" process-environment))
-         ;; vterm-environment expects strings in "VAR=value" format
-         (vterm-environment (if (boundp 'vterm-environment)
-                                (cons "BD_NO_DAEMON=1" vterm-environment)
-                              (list "BD_NO_DAEMON=1")))
          ;; Append prompt as positional argument to CLI switches
          ;; The claude CLI accepts: claude [options] [prompt]
          (claude-code-program-switches

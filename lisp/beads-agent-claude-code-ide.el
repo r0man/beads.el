@@ -108,18 +108,8 @@ Returns cons cell (BACKEND-SESSION . BUFFER)."
              (fboundp 'claude-code-ide-emacs-tools-setup))
     (claude-code-ide-emacs-tools-setup))
   ;; default-directory is set by beads-agent-start (may be worktree)
-  ;; Bind BD_NO_DAEMON=1 to disable bd daemon (not supported in worktrees)
-  ;; We bind both process-environment and vterm-environment to ensure the
-  ;; variable is available regardless of how the terminal is launched:
-  ;; - process-environment: standard Emacs process spawning ("VAR=value")
-  ;; - vterm-environment: vterm terminal emulator (also "VAR=value" strings)
   ;; Pass initial prompt as positional CLI argument via extra-flags
   (let* ((working-dir default-directory)
-         (process-environment (cons "BD_NO_DAEMON=1" process-environment))
-         ;; vterm-environment expects strings in "VAR=value" format
-         (vterm-environment (if (boundp 'vterm-environment)
-                                (cons "BD_NO_DAEMON=1" vterm-environment)
-                              (list "BD_NO_DAEMON=1")))
          ;; Append initial prompt to user's extra flags (preserve user settings)
          (claude-code-ide-cli-extra-flags
           (string-trim
