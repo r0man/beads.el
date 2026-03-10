@@ -828,6 +828,18 @@ Signals `beads-json-parse-error' if JSON parsing fails."
                          :stderr (oref execution stderr)
                          :parse-error err))))))))
 
+;;; Process Environment Helpers
+
+(defun beads-command--process-environment ()
+  "Return a `process-environment' for bd command execution.
+If `beads-dolt-port' is set, prepends BEADS_DOLT_PORT=<port> so
+that bd connects to the specified Dolt server instead of
+auto-starting its own instance."
+  (if (and (boundp 'beads-dolt-port) beads-dolt-port)
+      (cons (format "BEADS_DOLT_PORT=%d" beads-dolt-port)
+            process-environment)
+    process-environment))
+
 ;;; Base Command Execution - Non-JSON Commands
 
 (cl-defmethod beads-command-execute ((command beads-command))
@@ -867,7 +879,8 @@ Signals `beads-json-parse-error' if JSON parsing fails (for JSON commands)."
 
     (unwind-protect
         (with-temp-buffer
-          (let* ((proc-exit-code (apply #'process-file
+          (let* ((process-environment (beads-command--process-environment))
+                 (proc-exit-code (apply #'process-file
                                         (car cmd) nil
                                         (list (current-buffer) stderr-file)
                                         nil (cdr cmd)))
@@ -970,6 +983,7 @@ Returns process object."
            :buffer stdout-buffer
            :stderr stderr-buffer
            :command cmd
+           :environment (beads-command--process-environment)
            :connection-type 'pipe
            :sentinel
            (lambda (proc _event)

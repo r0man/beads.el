@@ -176,6 +176,25 @@ it — doing so would break all subsequent tests.  Returns nil."
   nil)
 
 ;;; ============================================================
+;;; Dolt Database Cleanup
+;;; ============================================================
+
+(defun beads-test--drop-dolt-database (prefix)
+  "Drop the Dolt database PREFIX on the suite test server.
+Silently ignores errors.  No-op if PREFIX is empty or nil, or if
+the suite Dolt server is not running."
+  (when (and prefix (not (string-empty-p prefix))
+             beads-test--suite-server-port)
+    (ignore-errors
+      (let ((process-environment
+             (cons (format "BEADS_DOLT_PORT=%d"
+                           beads-test--suite-server-port)
+                   process-environment)))
+        (call-process "bd" nil nil nil
+                      "sql"
+                      (format "DROP DATABASE IF EXISTS `%s`" prefix))))))
+
+;;; ============================================================
 ;;; CLI Feature Detection
 ;;; ============================================================
 
@@ -273,11 +292,21 @@ Example:
   (beads-test-create-temp-repo :init-beads t :prefix \"mytest\")
 
 The repository is initialized with git and test user config.
+When the suite Dolt server is running, bd commands are routed to
+it via BEADS_DOLT_PORT so that `bd init' does not auto-start its
+own Dolt instance.
 Caller is responsible for cleanup."
   (let* ((temp-dir (make-temp-file "beads-integration-" t))
          (init-beads (plist-get args :init-beads))
          (prefix (plist-get args :prefix))
-         (quiet (plist-get args :quiet)))
+         (quiet (plist-get args :quiet))
+         ;; Route bd to suite Dolt server when available
+         (process-environment
+          (if beads-test--suite-server-port
+              (cons (format "BEADS_DOLT_PORT=%d"
+                            beads-test--suite-server-port)
+                    process-environment)
+            process-environment)))
     ;; Initialize git
     (beads-test--init-git-repo temp-dir)
     ;; Optionally initialize beads
