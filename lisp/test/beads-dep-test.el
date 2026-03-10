@@ -50,28 +50,21 @@
   "Sample dependency for testing.")
 
 (defvar beads-dep-test--sample-tree
-  [((id . "bd-1")
-    (title . "Main issue")
-    (status . "open")
-    (priority . 1)
-    (issue_type . "feature")
-    (depth . 0)
-    (truncated . nil))
-   ((id . "bd-2")
-    (title . "Dependency 1")
-    (status . "open")
-    (priority . 2)
-    (issue_type . "task")
-    (depth . 1)
-    (truncated . nil))
-   ((id . "bd-3")
-    (title . "Dependency 2")
-    (status . "closed")
-    (priority . 2)
-    (issue_type . "bug")
-    (depth . 2)
-    (truncated . nil))]
+  (list
+   (beads-tree-node
+    :id "bd-1" :title "Main issue" :status "open"
+    :priority 1 :issue-type "feature" :depth 0 :truncated nil)
+   (beads-tree-node
+    :id "bd-2" :title "Dependency 1" :status "open"
+    :priority 2 :issue-type "task" :depth 1 :truncated nil)
+   (beads-tree-node
+    :id "bd-3" :title "Dependency 2" :status "closed"
+    :priority 2 :issue-type "bug" :depth 2 :truncated nil))
   "Sample dependency tree for testing.")
+
+(defvar beads-dep-test--sample-tree-json
+  "[{\"id\":\"bd-1\",\"title\":\"Main issue\",\"status\":\"open\",\"priority\":1,\"issue_type\":\"feature\",\"depth\":0,\"truncated\":false},{\"id\":\"bd-2\",\"title\":\"Dependency 1\",\"status\":\"open\",\"priority\":2,\"issue_type\":\"task\",\"depth\":1,\"truncated\":false},{\"id\":\"bd-3\",\"title\":\"Dependency 2\",\"status\":\"closed\",\"priority\":2,\"issue_type\":\"bug\",\"depth\":2,\"truncated\":false}]"
+  "JSON string representation of sample dependency tree for mocking.")
 
 (defvar beads-dep-test--sample-cycles
   [["bd-1" "bd-2" "bd-3"]
@@ -197,7 +190,7 @@
   "Test rendering tree with single issue."
   (with-temp-buffer
     (beads-dep-tree-mode)
-    (beads-dep-tree--render (list (aref beads-dep-test--sample-tree 0))
+    (beads-dep-tree--render (list (car beads-dep-test--sample-tree))
                             "bd-1")
     (let ((content (buffer-string)))
       (should (string-match-p "Dependency Tree for bd-1" content))
@@ -209,7 +202,7 @@
   "Test rendering tree with nested dependencies."
   (with-temp-buffer
     (beads-dep-tree-mode)
-    (beads-dep-tree--render (append beads-dep-test--sample-tree nil)
+    (beads-dep-tree--render beads-dep-test--sample-tree
                             "bd-1")
     (let ((content (buffer-string)))
       (should (string-match-p "bd-1" content))
@@ -230,7 +223,7 @@
   "Test that tree rendering includes command help."
   (with-temp-buffer
     (beads-dep-tree-mode)
-    (beads-dep-tree--render (append beads-dep-test--sample-tree nil)
+    (beads-dep-tree--render beads-dep-test--sample-tree
                             "bd-1")
     (let ((content (buffer-string)))
       (should (string-match-p "Commands:" content))
@@ -318,7 +311,7 @@
   "Test that beads-dep-tree creates a buffer."
   (beads-dep-test--with-mock-project
    (lambda ()
-     (let ((json-output (json-encode beads-dep-test--sample-tree))
+     (let ((json-output beads-dep-test--sample-tree-json)
            (buf-name (beads-dep-test--get-tree-buffer "bd-1")))
        (cl-letf (((symbol-function 'call-process)
                   (beads-dep-test--mock-call-process 0 json-output)))
@@ -330,7 +323,7 @@
   "Test that beads-dep-tree sets the correct mode."
   (beads-dep-test--with-mock-project
    (lambda ()
-     (let ((json-output (json-encode beads-dep-test--sample-tree))
+     (let ((json-output beads-dep-test--sample-tree-json)
            (buf-name (beads-dep-test--get-tree-buffer "bd-1")))
        (cl-letf (((symbol-function 'call-process)
                   (beads-dep-test--mock-call-process 0 json-output)))
@@ -343,7 +336,7 @@
   "Test that beads-dep-tree displays tree content."
   (beads-dep-test--with-mock-project
    (lambda ()
-     (let ((json-output (json-encode beads-dep-test--sample-tree))
+     (let ((json-output beads-dep-test--sample-tree-json)
            (buf-name (beads-dep-test--get-tree-buffer "bd-1")))
        (cl-letf (((symbol-function 'call-process)
                   (beads-dep-test--mock-call-process 0 json-output)))
@@ -421,7 +414,7 @@
   "Test that tree refresh updates the buffer."
   (beads-dep-test--with-mock-project
    (lambda ()
-     (let ((json-output (json-encode beads-dep-test--sample-tree))
+     (let ((json-output beads-dep-test--sample-tree-json)
            (buf-name (beads-dep-test--get-tree-buffer "bd-1")))
        (cl-letf (((symbol-function 'call-process)
                   (beads-dep-test--mock-call-process 0 json-output)))
@@ -491,13 +484,10 @@
 
 (ert-deftest beads-dep-test-edge-case-truncated-tree ()
   "Test rendering tree with truncated flag."
-  (let ((truncated-issue '((id . "bd-1")
-                          (title . "Issue")
-                          (status . "open")
-                          (priority . 1)
-                          (issue_type . "feature")
-                          (depth . 0)
-                          (truncated . t))))
+  (let ((truncated-issue (beads-tree-node
+                          :id "bd-1" :title "Issue" :status "open"
+                          :priority 1 :issue-type "feature"
+                          :depth 0 :truncated t)))
     (with-temp-buffer
       (beads-dep-tree-mode)
       (beads-dep-tree--render (list truncated-issue) "bd-1")
@@ -506,13 +496,10 @@
 
 (ert-deftest beads-dep-test-edge-case-deep-nesting ()
   "Test rendering tree with deep nesting."
-  (let ((deep-issue '((id . "bd-10")
-                     (title . "Deep issue")
-                     (status . "open")
-                     (priority . 1)
-                     (issue_type . "feature")
-                     (depth . 10)
-                     (truncated . nil))))
+  (let ((deep-issue (beads-tree-node
+                     :id "bd-10" :title "Deep issue" :status "open"
+                     :priority 1 :issue-type "feature"
+                     :depth 10 :truncated nil)))
     (with-temp-buffer
       (beads-dep-tree-mode)
       (beads-dep-tree--render (list deep-issue) "bd-1")
@@ -525,20 +512,23 @@
 (ert-deftest beads-dep-test-performance-tree-render ()
   "Test tree rendering performance."
   :tags '(:performance)
-  (let ((large-tree (make-vector 100 nil)))
-    (dotimes (i 100)
-      (aset large-tree i
-           `((id . ,(format "bd-%d" i))
-             (title . "Test issue")
-             (status . "open")
-             (priority . 1)
-             (issue_type . "feature")
-             (depth . ,(/ i 10))
-             (truncated . nil))))
+  (let ((large-tree
+         (let (result)
+           (dotimes (i 100)
+             (push (beads-tree-node
+                    :id (format "bd-%d" i)
+                    :title "Test issue"
+                    :status "open"
+                    :priority 1
+                    :issue-type "feature"
+                    :depth (/ i 10)
+                    :truncated nil)
+                   result))
+           (nreverse result))))
     (let ((start-time (current-time)))
       (with-temp-buffer
         (beads-dep-tree-mode)
-        (beads-dep-tree--render (append large-tree nil) "bd-1"))
+        (beads-dep-tree--render large-tree "bd-1"))
       (let ((elapsed (float-time (time-subtract (current-time) start-time))))
         ;; Should render 100 issues in under 1 second
         (should (< elapsed 1.0))))))
@@ -739,11 +729,9 @@
 
 (ert-deftest beads-dep-test-tree-render-issue-basic ()
   "Test rendering a single issue."
-  (let ((issue '((id . "bd-1")
-                 (title . "Test Issue")
-                 (status . "open")
-                 (depth . 0)
-                 (truncated . nil))))
+  (let ((issue (beads-tree-node
+                :id "bd-1" :title "Test Issue" :status "open"
+                :depth 0 :truncated nil)))
     (with-temp-buffer
       (beads-dep-tree--render-issue issue)
       (let ((content (buffer-string)))
@@ -753,11 +741,9 @@
 
 (ert-deftest beads-dep-test-tree-render-issue-with-depth ()
   "Test rendering an issue with depth indentation."
-  (let ((issue '((id . "bd-2")
-                 (title . "Nested Issue")
-                 (status . "in_progress")
-                 (depth . 2)
-                 (truncated . nil))))
+  (let ((issue (beads-tree-node
+                :id "bd-2" :title "Nested Issue" :status "in_progress"
+                :depth 2 :truncated nil)))
     (with-temp-buffer
       (beads-dep-tree--render-issue issue)
       (let ((content (buffer-string)))
@@ -768,11 +754,9 @@
 (ert-deftest beads-dep-test-tree-render-issue-status-faces ()
   "Test that different statuses get different faces."
   (dolist (status '("open" "in_progress" "blocked" "closed" "unknown"))
-    (let ((issue `((id . "bd-1")
-                   (title . "Test")
-                   (status . ,status)
-                   (depth . 0)
-                   (truncated . nil))))
+    (let ((issue (beads-tree-node
+                  :id "bd-1" :title "Test" :status status
+                  :depth 0 :truncated nil)))
       (with-temp-buffer
         (beads-dep-tree--render-issue issue)
         (should (string-match-p (upcase status) (buffer-string)))))))
@@ -857,11 +841,9 @@
 
 (ert-deftest beads-dep-test-tree-render-zero-depth ()
   "Test rendering tree node with zero depth."
-  (let ((issue '((id . "bd-1")
-                 (title . "Root")
-                 (status . "open")
-                 (depth . 0)
-                 (truncated . nil))))
+  (let ((issue (beads-tree-node
+                :id "bd-1" :title "Root" :status "open"
+                :depth 0 :truncated nil)))
     (with-temp-buffer
       (beads-dep-tree--render-issue issue)
       (let ((content (buffer-string)))
@@ -1104,10 +1086,8 @@
   :tags '(:unit)
   (with-temp-buffer
     (beads-dep-tree--render-issue
-     '((id . "bd-1")
-       (title . "Test Issue")
-       (status . "open")
-       (depth . 0)))
+     (beads-tree-node :id "bd-1" :title "Test Issue" :status "open"
+                      :depth 0 :truncated nil))
     (let ((text (buffer-string)))
       (should (string-match-p "bd-1" text))
       (should (string-match-p "Test Issue" text))
@@ -1118,10 +1098,8 @@
   :tags '(:unit)
   (with-temp-buffer
     (beads-dep-tree--render-issue
-     '((id . "bd-2")
-       (title . "Child Issue")
-       (status . "in_progress")
-       (depth . 2)))
+     (beads-tree-node :id "bd-2" :title "Child Issue" :status "in_progress"
+                      :depth 2 :truncated nil))
     (let ((text (buffer-string)))
       (should (string-match-p "bd-2" text))
       (should (string-match-p "- " text))
@@ -1132,11 +1110,8 @@
   :tags '(:unit)
   (with-temp-buffer
     (beads-dep-tree--render-issue
-     '((id . "bd-3")
-       (title . "Truncated")
-       (status . "open")
-       (depth . 1)
-       (truncated . t)))
+     (beads-tree-node :id "bd-3" :title "Truncated" :status "open"
+                      :depth 1 :truncated t))
     (let ((text (buffer-string)))
       (should (string-match-p "\\[truncated\\]" text)))))
 
@@ -1144,14 +1119,12 @@
   "Test dep tree full render with header."
   :tags '(:unit)
   (with-temp-buffer
-    (let ((issues (list '((id . "bd-1")
-                          (title . "Root")
-                          (status . "open")
-                          (depth . 0))
-                        '((id . "bd-2")
-                          (title . "Child")
-                          (status . "closed")
-                          (depth . 1)))))
+    (let ((issues (list (beads-tree-node
+                         :id "bd-1" :title "Root" :status "open"
+                         :depth 0 :truncated nil)
+                        (beads-tree-node
+                         :id "bd-2" :title "Child" :status "closed"
+                         :depth 1 :truncated nil))))
       (beads-dep-tree--render issues "bd-1")
       (let ((text (buffer-string)))
         (should (string-match-p "Dependency Tree for bd-1" text))
@@ -1171,10 +1144,8 @@
   :tags '(:unit)
   (with-temp-buffer
     (beads-dep-tree--render-issue
-     '((id . "bd-42")
-       (title . "Test")
-       (status . "open")
-       (depth . 0)))
+     (beads-tree-node :id "bd-42" :title "Test" :status "open"
+                      :depth 0 :truncated nil))
     (goto-char (point-min))
     (should (equal (beads-dep-tree--get-issue-at-point) "bd-42"))))
 

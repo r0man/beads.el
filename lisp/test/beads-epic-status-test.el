@@ -313,7 +313,7 @@
                (beads-epic-status-test--mock-process-file 0 json-output)))
       (let ((result (beads-epic-status--fetch-children "beads.el-7bea")))
         (should (= (length result) 2))
-        (should (beads-issue-p (car result)))
+        (should (beads-tree-node-p (car result)))
         (should (equal (oref (car result) id) "beads.el-abc"))))))
 
 ;;; Tests for Mode

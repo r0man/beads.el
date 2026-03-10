@@ -390,17 +390,11 @@ Format: ((epic-id . (expanded-p . children)) ...)")
 (defun beads-epic-status--fetch-children (epic-id)
   "Fetch all child issues for EPIC-ID using dependency tree."
   (let* ((tree-data (beads-command-dep-tree! :issue-id epic-id :direction "up")))
-    ;; Tree nodes are issues with extra fields (depth, parent_id)
     ;; Filter out the epic itself (depth=0) and keep only children
-    (cl-remove-if #'null
-                  (mapcar (lambda (node)
-                            (let ((depth (or (alist-get 'depth node) 0))
-                                  (node-id (alist-get 'id node)))
-                              ;; Skip the epic itself, only return children
-                              (when (and (> depth 0)
-                                         (not (equal node-id epic-id)))
-                                (beads-issue-from-json node))))
-                          (append tree-data nil)))))
+    (seq-filter (lambda (node)
+                  (and (> (oref node depth) 0)
+                       (not (equal (oref node id) epic-id))))
+                tree-data)))
 
 (defun beads-epic-status-show-children ()
   "Show children of epic at point in beads-list buffer."

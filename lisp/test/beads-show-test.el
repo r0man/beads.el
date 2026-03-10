@@ -2308,15 +2308,23 @@ Note: Notes cannot be set at creation time, only via update."
   "Sample epic issue.")
 
 (defvar beads-show-test--sub-issues-data
-  (vector
-   '((id . "bd-epic-1") (title . "Epic: Build feature X") (status . "open")
-     (priority . 1) (issue_type . "epic") (depth . 0) (parent_id . "bd-epic-1"))
-   '((id . "bd-sub-1") (title . "Implement core module") (status . "closed")
-     (priority . 1) (issue_type . "task") (depth . 1) (parent_id . "bd-epic-1"))
-   '((id . "bd-sub-2") (title . "Write tests") (status . "in_progress")
-     (priority . 2) (issue_type . "task") (depth . 1) (parent_id . "bd-epic-1"))
-   '((id . "bd-sub-3") (title . "Update documentation") (status . "open")
-     (priority . 3) (issue_type . "task") (depth . 1) (parent_id . "bd-epic-1")))
+  (list
+   (beads-tree-node
+    :id "bd-epic-1" :title "Epic: Build feature X" :status "open"
+    :priority 1 :issue-type "epic" :depth 0 :parent-id "bd-epic-1"
+    :truncated nil)
+   (beads-tree-node
+    :id "bd-sub-1" :title "Implement core module" :status "closed"
+    :priority 1 :issue-type "task" :depth 1 :parent-id "bd-epic-1"
+    :truncated nil)
+   (beads-tree-node
+    :id "bd-sub-2" :title "Write tests" :status "in_progress"
+    :priority 2 :issue-type "task" :depth 1 :parent-id "bd-epic-1"
+    :truncated nil)
+   (beads-tree-node
+    :id "bd-sub-3" :title "Update documentation" :status "open"
+    :priority 3 :issue-type "task" :depth 1 :parent-id "bd-epic-1"
+    :truncated nil))
   "Mock dep tree response with sub-issues.")
 
 (ert-deftest beads-show-test-get-sub-issues-returns-depth-1-only ()
@@ -2329,7 +2337,7 @@ Note: Notes cannot be set at creation time, only via update."
       (should (= (length sub-issues) 3))
       ;; All should have depth=1
       (dolist (item sub-issues)
-        (should (= (alist-get 'depth item) 1))))))
+        (should (= (oref item depth) 1))))))
 
 (ert-deftest beads-show-test-get-sub-issues-handles-error ()
   "Test that beads-show--get-sub-issues returns nil on error."
@@ -2344,7 +2352,9 @@ Note: Notes cannot be set at creation time, only via update."
   (cl-letf (((symbol-function 'beads-command-dep-tree!)
              (lambda (&rest _args)
                ;; Only root, no children
-               (vector '((id . "bd-epic-1") (depth . 0))))))
+               (list (beads-tree-node
+                      :id "bd-epic-1" :depth 0 :status "open"
+                      :title "" :truncated nil)))))
     (let ((sub-issues (beads-show--get-sub-issues "bd-epic-1")))
       (should (null sub-issues)))))
 
@@ -2386,7 +2396,9 @@ Note: Notes cannot be set at creation time, only via update."
   (beads-show-test-with-temp-buffer
    (cl-letf (((symbol-function 'beads-command-dep-tree!)
               (lambda (&rest _args)
-                (vector '((id . "bd-epic-1") (depth . 0))))))
+                (list (beads-tree-node
+                       :id "bd-epic-1" :depth 0 :status "open"
+                       :title "" :truncated nil)))))
      (let ((inhibit-read-only t)
            (start (point)))
        (beads-show--insert-sub-issues-section "bd-epic-1")
@@ -2433,7 +2445,7 @@ Note: Notes cannot be set at creation time, only via update."
        (cl-letf (((symbol-function 'beads-command-dep-tree!)
                   (lambda (&rest _args)
                     (setq dep-tree-called t)
-                    (vector)))
+                    nil))
                  ((symbol-function 'beads-agent--get-sessions-for-issue)
                   (lambda (_) nil)))
          (beads-show--render-issue parsed-issue)
