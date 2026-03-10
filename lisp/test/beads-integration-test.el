@@ -89,12 +89,13 @@ Returns the port number as an integer."
 
 ;; One Dolt server is started per Emacs process (test suite run) on a
 ;; random free port with a temporary data directory.  All bd commands
-;; in tests are pointed at this server via the BEADS_DOLT_PORT
+;; in tests are routed to this server via the BEADS_DOLT_PORT
 ;; environment variable.  Individual tests create/drop their own
 ;; databases for isolation.
 ;;
-;; If dolt is not found in PATH, BD_NO_DAEMON=1 is set instead so
-;; tests fall back to file-backed storage.
+;; Dolt is the only storage backend since beads v0.58.0 — there is
+;; no file-backed mode.  If dolt is not in PATH, tests that call bd
+;; will fail (they should skip-unless dolt is available).
 
 (defvar beads-test--suite-server-process nil
   "Process object for the suite-level Dolt test server, or nil.")
@@ -124,11 +125,10 @@ Signals an error if the server does not start in time."
 (defun beads-test--suite-start-server ()
   "Start the suite-level Dolt server if not already running.
 Idempotent.  The port is stored in `beads-test--suite-server-port'
-and used by `beads-test-with-temp-repo' via process-environment.
-BEADS_DOLT_PORT is NOT set globally: only integration tests that
-use `beads-test-with-temp-repo' will route to the isolated server.
-All other tests use file-backed storage (BD_NO_DAEMON=1).
-Falls back gracefully if dolt is not installed."
+and used by all test macros via BEADS_DOLT_PORT in process-environment.
+Dolt is the only storage backend — there is no file-backed mode.
+Falls back gracefully if dolt is not installed (tests should
+skip-unless dolt is available)."
   (unless beads-test--suite-server-process
     (when (executable-find "dolt")
       (let* ((port (beads-test--find-free-port))
@@ -297,9 +297,6 @@ ARGS is a plist with optional keys:
   :prefix     - Custom prefix for beads (requires :init-beads)
   :quiet      - Suppress bd output during init (default t)
   :cleanup    - If nil, don't cleanup temp dir after BODY (default t)
-  :use-dolt   - If non-nil, route bd commands to the isolated suite
-                Dolt server (requires dolt to be installed).  Default
-                nil — bd uses file-backed storage (BD_NO_DAEMON=1).
 
 This macro:
 1. Creates a temporary directory
@@ -316,12 +313,8 @@ Examples:
   (beads-test-with-temp-repo ()
     (should (file-exists-p \".git\")))
 
-  ;; With beads initialized (file-backed storage)
+  ;; With beads initialized
   (beads-test-with-temp-repo (:init-beads t)
-    (should (file-directory-p \".beads\")))
-
-  ;; With Dolt-backed storage (opt-in)
-  (beads-test-with-temp-repo (:init-beads t :use-dolt t)
     (should (file-directory-p \".beads\")))
 
   ;; With custom prefix
@@ -340,27 +333,20 @@ Examples:
   (let ((temp-dir (make-symbol "temp-dir"))
         (init-beads (plist-get args :init-beads))
         (prefix (plist-get args :prefix))
-        (use-dolt (plist-get args :use-dolt))
         (cleanup (if (plist-member args :cleanup)
                      (plist-get args :cleanup)
                    t))
         (quiet (if (plist-member args :quiet)
                    (plist-get args :quiet)
                  t)))  ; Default quiet to t
-    `(let* (;; By default use file-backed storage (BD_NO_DAEMON=1).
-            ;; When :use-dolt t is specified AND the suite Dolt server is
-            ;; running, route bd commands to it via BEADS_DOLT_PORT.
-            ;; BEADS_DOLT_PORT takes priority over BD_NO_DAEMON in bd's
-            ;; config chain, so the isolated server is used even when
-            ;; BD_NO_DAEMON=1 is set globally in Eldev.
+    `(let* (;; Route all bd commands to the isolated suite Dolt server.
+            ;; Dolt is the only storage backend since beads v0.58.0.
             (process-environment
-             ,(if use-dolt
-                  `(if beads-test--suite-server-port
-                       (cons (format "BEADS_DOLT_PORT=%d"
-                                     beads-test--suite-server-port)
-                             process-environment)
-                     process-environment)
-                'process-environment))
+             (if beads-test--suite-server-port
+                 (cons (format "BEADS_DOLT_PORT=%d"
+                               beads-test--suite-server-port)
+                       process-environment)
+               process-environment))
             (beads-test--last-init-prefix nil)
             (,temp-dir (beads-test-create-temp-repo
                         ,@(when init-beads '(:init-beads t))

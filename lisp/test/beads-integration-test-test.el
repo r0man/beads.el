@@ -202,8 +202,8 @@
 (ert-deftest beads-integration-test-suite-server-running ()
   "Test that the suite-level Dolt server is running.
 The port is stored in `beads-test--suite-server-port'.
-BEADS_DOLT_PORT is NOT set globally; only `beads-test-with-temp-repo'
-with :use-dolt t adds it to process-environment."
+All test macros route bd commands to this server via BEADS_DOLT_PORT
+in process-environment."
   :tags '(:integration)
   (skip-unless (executable-find "dolt"))
   ;; Ensure suite server is running
