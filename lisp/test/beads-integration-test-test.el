@@ -197,47 +197,48 @@
         (should (beads-test--dolt-server-ready-p port))
       (delete-process server))))
 
-;;; Test: beads-test--start/stop-test-dolt-server
+;;; Test: suite-level Dolt server
 
-(ert-deftest beads-integration-test-dolt-server-start-stop ()
-  "Test that the test Dolt server can be started and stopped."
+(ert-deftest beads-integration-test-suite-server-running ()
+  "Test that the suite-level Dolt server is running.
+The port is stored in `beads-test--suite-server-port'.
+BEADS_DOLT_PORT is NOT set globally; only `beads-test-with-temp-repo'
+with :use-dolt t adds it to process-environment."
   :tags '(:integration)
   (skip-unless (executable-find "dolt"))
-  ;; Ensure clean state before test
-  (let ((beads-test--dolt-server-process nil)
-        (beads-test--dolt-server-port nil)
-        (beads-test--dolt-server-data-dir nil))
-    (unwind-protect
-        (progn
-          ;; Start the server
-          (beads-test--start-test-dolt-server)
-          ;; State variables should be set
-          (should beads-test--dolt-server-process)
-          (should (integerp beads-test--dolt-server-port))
-          (should (> beads-test--dolt-server-port 0))
-          (should beads-test--dolt-server-data-dir)
-          ;; Server should be accepting connections
-          (should (beads-test--dolt-server-ready-p beads-test--dolt-server-port))
-          ;; Idempotent: starting again should not change the port
-          (let ((port-before beads-test--dolt-server-port))
-            (beads-test--start-test-dolt-server)
-            (should (= beads-test--dolt-server-port port-before)))
-          ;; Stop the server
-          (beads-test--stop-test-dolt-server)
-          ;; State should be cleared
-          (should-not beads-test--dolt-server-process)
-          (should-not beads-test--dolt-server-port)
-          (should-not beads-test--dolt-server-data-dir))
-      ;; Cleanup in case of failure
-      (beads-test--stop-test-dolt-server))))
+  ;; Ensure suite server is running
+  (beads-test--start-test-dolt-server)
+  ;; Port must be stored in the variable
+  (should beads-test--suite-server-port)
+  (let ((port beads-test--suite-server-port))
+    (should (integerp port))
+    (should (> port 0))
+    (should (< port 65536))
+    ;; Server must be accepting connections
+    (should (beads-test--dolt-server-ready-p port))))
 
-(ert-deftest beads-integration-test-dolt-server-stop-when-not-running ()
-  "Test that stopping the server when not running is a no-op."
-  (let ((beads-test--dolt-server-process nil)
-        (beads-test--dolt-server-port nil)
-        (beads-test--dolt-server-data-dir nil))
-    ;; Should not signal an error
-    (should (null (beads-test--stop-test-dolt-server)))))
+(ert-deftest beads-integration-test-suite-server-idempotent ()
+  "Test that starting the suite server again is idempotent."
+  :tags '(:integration)
+  (skip-unless (executable-find "dolt"))
+  (beads-test--start-test-dolt-server)
+  (let ((port-before beads-test--suite-server-port))
+    ;; Starting again must not change the port
+    (beads-test--start-test-dolt-server)
+    (should (equal beads-test--suite-server-port port-before))))
+
+(ert-deftest beads-integration-test-suite-server-stop-noop ()
+  "Test that stop-test-dolt-server is a no-op for individual tests.
+The suite server persists for the entire Emacs process; individual
+tests must not stop it."
+  :tags '(:integration)
+  (skip-unless (executable-find "dolt"))
+  (beads-test--start-test-dolt-server)
+  (let ((port-before beads-test--suite-server-port))
+    ;; stop must return nil and leave the server running
+    (should (null (beads-test--stop-test-dolt-server)))
+    (should (equal beads-test--suite-server-port port-before))
+    (should (beads-test--dolt-server-ready-p port-before))))
 
 (provide 'beads-integration-test-test)
 ;;; beads-integration-test-test.el ends here
