@@ -142,28 +142,22 @@ ORIG-FN is the original function, STATS is the test statistics."
                 (when (file-exists-p (expand-file-name "beads-meta.el" lisp-dir))
                   (load (expand-file-name "beads-meta.el" lisp-dir) nil t)))))
 
-;; Isolate tests from production Dolt server.  Set BD_NO_DAEMON=1
-;; unconditionally so ALL bd subprocesses use file-backed storage
-;; and never connect to the live server on port 3307.  This is the
-;; primary safety net — individual test macros also set it, but this
-;; ensures coverage for tests that bypass the macros.
+;; Test isolation: use file-backed storage by default for speed.
+;; The suite-level Dolt server (started by beads-integration-test.el)
+;; is used only by tests that explicitly need Dolt, via
+;; beads-test-with-temp-repo, which adds BEADS_DOLT_PORT to
+;; process-environment.  BEADS_DOLT_PORT takes priority over
+;; BD_NO_DAEMON in bd's config chain, so integration tests still
+;; reach the isolated server.
 (setenv "BD_NO_DAEMON" "1")
 
-;; Clean up shared test project Dolt database on exit.
-;; The shared fixture persists for the test session to avoid
-;; re-running `bd init' per test, but its Dolt database must
-;; be dropped when the Emacs process exits.
+;; Clean up shared test project and suite Dolt server on exit.
 (add-hook 'kill-emacs-hook
           (lambda ()
             (when (fboundp 'beads-test-destroy-shared-project)
               (beads-test-destroy-shared-project))))
 
-;; Stop the test-local Dolt server on exit.
-;; When integration tests run in Dolt mode (BD_NO_DAEMON unset),
-;; a dedicated dolt sql-server is started on a free port.  Killing
-;; it here drops all test databases automatically — no explicit
-;; DROP DATABASE cleanup is needed.
 (add-hook 'kill-emacs-hook
           (lambda ()
-            (when (fboundp 'beads-test--stop-test-dolt-server)
-              (beads-test--stop-test-dolt-server))))
+            (when (fboundp 'beads-test--suite-stop-server)
+              (beads-test--suite-stop-server))))
