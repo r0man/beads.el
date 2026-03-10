@@ -84,8 +84,8 @@ Sets `beads-test--last-created-prefix' as a side effect."
     (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
     (call-process "git" nil nil nil "config" "user.name" "Beads Test")
     ;; Execute bd init.  The caller (beads-test-with-project or
-    ;; beads-test-with-shared-project) binds process-environment to include
-    ;; BEADS_DOLT_PORT pointing to the suite-level isolated Dolt server.
+    ;; beads-test-with-shared-project) binds process-environment with
+    ;; BD_NO_DB=1 for JSONL-only mode (no Dolt server needed).
     (beads-command-execute (apply #'beads-command-init effective-args))
     default-directory))
 
@@ -158,14 +158,15 @@ For a project with default settings, use an empty list:
     )"
   (declare (indent 1))
   (let ((temp-dir (make-symbol "temp-dir")))
-    `(let* (;; Route all bd commands to the isolated suite Dolt server.
-            ;; Dolt is the only storage backend since beads v0.58.0.
+    `(let* (;; Use BD_NO_DB=1 for unit tests — JSONL-only storage is fast
+            ;; and avoids needing a Dolt server.  Unset BEADS_DOLT_PORT
+            ;; (without "=") to remove it from the child process env, so
+            ;; bd doesn't try to connect to the suite-level Dolt server.
+            ;; Only integration tests (beads-test-with-temp-repo) use Dolt.
             (process-environment
-             (if beads-test--suite-server-port
-                 (cons (format "BEADS_DOLT_PORT=%d"
-                               beads-test--suite-server-port)
-                       process-environment)
-               process-environment))
+             (cons "BD_NO_DB=1"
+                   (cons "BEADS_DOLT_PORT"
+                         process-environment)))
             (,temp-dir (beads-test-create-project ,@init-args))
             (default-directory ,temp-dir)
             (beads--project-cache (make-hash-table :test 'equal)))
@@ -181,8 +182,7 @@ For a project with default settings, use an empty list:
                (progn ,@body)
              ;; Clear transient state after test too
              (beads-test--clear-transient-state)
-             ;; Drop Dolt database and clean up temp directory
-             (beads-test--drop-dolt-database beads-test--last-created-prefix)
+             ;; Clean up temp directory (no-db mode, no Dolt db to drop)
              (when (file-directory-p ,temp-dir)
                (delete-directory ,temp-dir t))))))))
 
@@ -601,16 +601,15 @@ deleted between tests to ensure isolation.
 Tests that need custom init args (e.g., a specific :prefix) should
 continue using `beads-test-with-project' instead."
   (declare (indent 0))
-  `(let* (;; Route all bd commands to the isolated suite Dolt server.
-          ;; Dolt is the only storage backend since beads v0.58.0.
+  `(let* (;; Use BD_NO_DB=1 for unit tests — JSONL-only storage is fast
+          ;; and avoids needing a Dolt server.  Unset BEADS_DOLT_PORT
+          ;; so bd doesn't try to connect to the suite Dolt server.
           (process-environment
-           (if beads-test--suite-server-port
-               (cons (format "BEADS_DOLT_PORT=%d"
-                             beads-test--suite-server-port)
-                     process-environment)
-             process-environment))
+           (cons "BD_NO_DB=1"
+                 (cons "BEADS_DOLT_PORT"
+                       process-environment)))
           ;; Must come after process-environment (let* is sequential) so
-          ;; beads-test-get-shared-project runs with BEADS_DOLT_PORT set.
+          ;; beads-test-get-shared-project runs with BD_NO_DB=1.
           (default-directory (beads-test-get-shared-project))
           (beads--project-cache (make-hash-table :test 'equal)))
      ;; Clean up issues from previous tests
