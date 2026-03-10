@@ -597,7 +597,8 @@ into a compact hierarchical structure with sub-dispatches."
   [["Issues"
     ("l" "List" beads-list)
     ("c" "Create" beads-create)
-    ("s" "Show" beads-show)
+    ("s" "Status" beads-status)
+    ("S" "Show" beads-show)
     ("u" "Update" beads-update)
     ("x" "Close" beads-close)]
    ["Workflow"
@@ -696,6 +697,10 @@ or set `beads-executable' to the full path" beads-executable)))
 ;; beads-command-delete
 ;;;###autoload
 (autoload 'beads-delete "beads-command-delete" nil t)
+
+;; beads-status
+;;;###autoload
+(autoload 'beads-status "beads-status" nil t)
 
 ;; beads-command-show
 ;;;###autoload
