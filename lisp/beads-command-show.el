@@ -888,21 +888,15 @@ Section header is uppercase without underline, matching DEPENDS ON style."
 
 (defun beads-show--get-sub-issues (epic-id)
   "Fetch sub-issues for EPIC-ID.
-Returns a list of alists containing sub-issue data, or nil if no sub-issues.
-Each alist contains: id, title, status, priority, issue_type."
+Returns a list of beads-tree-node objects with depth=1, or nil."
   (condition-case nil
-      (let* ((tree-data (beads-command-dep-tree!
-                         :issue-id epic-id
-                         :reverse t
-                         :max-depth 1))
-             ;; tree-data is a vector or list of alists
-             (items (if (vectorp tree-data)
-                        (append tree-data nil)
-                      tree-data)))
+      (let ((items (beads-command-dep-tree!
+                    :issue-id epic-id
+                    :reverse t
+                    :max-depth 1)))
         ;; Filter to only include direct children (depth = 1)
         (seq-filter (lambda (item)
-                      (let ((depth (alist-get 'depth item)))
-                        (and depth (= depth 1))))
+                      (= (oref item depth) 1))
                     items))
     (error nil)))
 
@@ -945,11 +939,11 @@ Shows direct child issues in CLI-style format with progress bar:
   (when-let* ((sub-issues (beads-show--get-sub-issues epic-id)))
     (let* ((total (length sub-issues))
            (closed (seq-count (lambda (item)
-                                (equal (alist-get 'status item) "closed"))
+                                (equal (oref item status) "closed"))
                               sub-issues))
            ;; Group by status for organized display
            (by-status (seq-group-by (lambda (item)
-                                      (alist-get 'status item))
+                                      (oref item status))
                                     sub-issues))
            (status-order '("in_progress" "open" "blocked" "closed")))
       (insert beads-show-section-separator)
@@ -962,11 +956,11 @@ Shows direct child issues in CLI-style format with progress bar:
       (dolist (status status-order)
         (when-let* ((issues (alist-get status by-status nil nil #'equal)))
           (dolist (issue issues)
-            (let* ((id (alist-get 'id issue))
-                   (title (alist-get 'title issue))
-                   (issue-status (alist-get 'status issue))
-                   (priority (or (alist-get 'priority issue) 2))
-                   (issue-type (or (alist-get 'issue_type issue) "task"))
+            (let* ((id (oref issue id))
+                   (title (oref issue title))
+                   (issue-status (oref issue status))
+                   (priority (or (oref issue priority) 2))
+                   (issue-type (or (oref issue issue-type) "task"))
                    (icon (beads-show--status-icon issue-status))
                    (icon-face (pcase issue-status
                                 ("open" 'beads-show-status-open-face)

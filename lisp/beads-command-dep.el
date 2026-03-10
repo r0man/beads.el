@@ -462,6 +462,31 @@ Returns error string or nil if valid."
         "Must provide issue ID"
       nil)))
 
+(cl-defmethod beads-command-parse ((command beads-command-dep-tree) execution)
+  "Parse dep tree COMMAND output from EXECUTION.
+Return list of beads-tree-node objects."
+  (with-slots (json) command
+    (if (not json)
+        (cl-call-next-method)
+      (let ((parsed-json (cl-call-next-method)))
+        (condition-case err
+            (if (eq (type-of parsed-json) 'vector)
+                (mapcar #'beads-tree-node-from-json
+                        (append parsed-json nil))
+              (signal 'beads-json-parse-error
+                      (list "Unexpected JSON structure from dep tree"
+                            :exit-code (oref execution exit-code)
+                            :parsed-json parsed-json
+                            :stderr (oref execution stderr))))
+          (beads-json-parse-error (signal (car err) (cdr err)))
+          (error
+           (signal 'beads-json-parse-error
+                   (list (format "Failed to create beads-tree-node: %s"
+                                 (error-message-string err))
+                         :exit-code (oref execution exit-code)
+                         :parsed-json parsed-json
+                         :stderr (oref execution stderr)))))))))
+
 
 ;;; Dependency Cycles Command
 
@@ -867,11 +892,11 @@ context or prompt the user."
 
 (defun beads-dep-tree--render-issue (issue)
   "Render ISSUE in dependency tree format."
-  (let ((id (alist-get 'id issue))
-        (title (alist-get 'title issue))
-        (status (alist-get 'status issue))
-        (depth (or (alist-get 'depth issue) 0))
-        (truncated (alist-get 'truncated issue)))
+  (let ((id (oref issue id))
+        (title (oref issue title))
+        (status (oref issue status))
+        (depth (or (oref issue depth) 0))
+        (truncated (oref issue truncated)))
     ;; Indentation
     (insert (make-string (* depth 2) ?\s))
     ;; Tree connector
@@ -938,8 +963,7 @@ context or prompt the user."
     (message "Refreshing dependency tree...")
     (let* ((issues (beads-command-dep-tree!
                     :issue-id beads-dep-tree--issue-id)))
-      (beads-dep-tree--render (append issues nil)
-                              beads-dep-tree--issue-id)
+      (beads-dep-tree--render issues beads-dep-tree--issue-id)
       (message "Dependency tree refreshed"))))
 
 ;;;###autoload
@@ -962,7 +986,7 @@ Completion matches on both issue ID and title."
       (setq default-directory caller-dir)
       (beads-dep-tree-mode)
       (setq-local beads-dep-tree--issue-id issue-id)
-      (beads-dep-tree--render (append issues nil) issue-id))
+      (beads-dep-tree--render issues issue-id))
     (pop-to-buffer buffer)))
 
 ;;; Dependency List View
