@@ -99,7 +99,7 @@ For more details, see README.md and docs/QUICKSTART.md.
      - **MUST produce zero compile warnings**
    - Run linter: `guix shell -D -f guix.scm -- eldev -p -dtT lint`
      - **MUST produce zero lint warnings and zero lint errors**
-   - Run tests: `BD_NO_DAEMON=1 guix shell -D -f guix.scm -- eldev -p -dtT test`
+   - Run tests: `guix shell -D -f guix.scm -- eldev -p -dtT test`
      - **MUST show 0 unexpected results** (all tests pass, no failures, no errors)
    - **ALL THREE CHECKS MUST PASS before pushing — no exceptions**
 3. **Update issue status** - Close finished work, update in-progress items
@@ -207,14 +207,14 @@ eldev -p -dtT compile
 
 ### Test
 
-Run tests with BD_NO_DAEMON=1 set, because that is faster.
+Run tests (the Eldev file starts an isolated Dolt server automatically).
 
 ```bash
 # With guix (preferred):
-BD_NO_DAEMON=1 guix shell -D -f guix.scm -- eldev -p -dtT test
+guix shell -D -f guix.scm -- eldev -p -dtT test
 
 # Without guix (assumes eldev installed):
-BD_NO_DAEMON=1 eldev -p -dtT test
+eldev -p -dtT test
 ```
 
 ## Interactive Development Environment
@@ -440,10 +440,10 @@ generates a report.
 
 ```bash
 # With guix (recommended):
-CI=true BD_NO_DAEMON=1 guix shell -D -f guix.scm -- eldev -s -dtT test -U coverage/codecov.json
+CI=true guix shell -D -f guix.scm -- eldev -s -dtT test -U coverage/codecov.json
 
 # Without guix (assumes eldev installed):
-CI=true BD_NO_DAEMON=1 eldev -s -dtT test -U coverage/codecov.json
+CI=true eldev -s -dtT test -U coverage/codecov.json
 
 # The CI=true environment variable is required to enable coverage generation
 # The -U flag specifies the report output path
@@ -523,10 +523,10 @@ When working on an issue:
 For every code change, follow this cycle strictly:
 1. **Write the test first** — add ERT test to the relevant test file
 2. **Run tests — they should FAIL** (red):
-   `BD_NO_DAEMON=1 eldev -p -dtT test`
+   `eldev -p -dtT test`
 3. **Implement the minimum code** to make the test pass
 4. **Run tests — they should PASS** (green):
-   `BD_NO_DAEMON=1 eldev -p -dtT test`
+   `eldev -p -dtT test`
 5. **Refactor** if needed, keeping tests green
 6. **Repeat** for the next change
 
@@ -544,7 +544,7 @@ write, that is a signal the design needs simplification.
    d. Run acceptance test in tmux — open emacsclient in tmux, drive
       full workflow (see "Acceptance Testing in tmux" section above)
    e. Run unit tests:
-      `BD_NO_DAEMON=1 guix shell -D -f guix.scm -- eldev -p -dtT test`
+      `guix shell -D -f guix.scm -- eldev -p -dtT test`
    f. Run linter and byte compiler:
       `guix shell -D -f guix.scm -- eldev -p -dtT lint`
       `guix shell -D -f guix.scm -- eldev -p -dtT compile`
