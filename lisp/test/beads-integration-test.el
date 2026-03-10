@@ -300,13 +300,17 @@ Caller is responsible for cleanup."
          (init-beads (plist-get args :init-beads))
          (prefix (plist-get args :prefix))
          (quiet (plist-get args :quiet))
-         ;; Route bd to suite Dolt server when available
+         ;; Route bd to the isolated suite Dolt server when available.
+         ;; When no suite server is running, explicitly unset
+         ;; BEADS_DOLT_PORT to prevent inheriting a port from the
+         ;; outer environment (e.g., BEADS_DOLT_PORT=3307 set by Gas
+         ;; Town would connect bd to the production server).
          (process-environment
           (if beads-test--suite-server-port
               (cons (format "BEADS_DOLT_PORT=%d"
                             beads-test--suite-server-port)
                     process-environment)
-            process-environment)))
+            (cons "BEADS_DOLT_PORT" process-environment))))
     ;; Initialize git
     (beads-test--init-git-repo temp-dir)
     ;; Optionally initialize beads
@@ -380,7 +384,9 @@ Examples:
                        (cons (format "BEADS_DOLT_PORT=%d"
                                      beads-test--suite-server-port)
                              process-environment)
-                     process-environment)
+                     ;; No suite server: unset to prevent inheriting
+                     ;; production port (e.g., BEADS_DOLT_PORT=3307).
+                     (cons "BEADS_DOLT_PORT" process-environment))
                 '(cons "BEADS_DOLT_PORT"
                        process-environment)))
             (beads-test--last-init-prefix nil)
@@ -402,6 +408,9 @@ Examples:
            ;; Clear state after test
            (beads-test--clear-transient-state)
            (beads-test--clear-caches)
+           ;; Drop the Dolt database created during init (if any) to
+           ;; prevent orphan accumulation on the suite server.
+           (beads-test--drop-dolt-database beads-test--last-init-prefix)
            ;; Optionally cleanup temp dir
            (when ,cleanup
              (delete-directory ,temp-dir t)))))))
