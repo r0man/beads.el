@@ -1196,7 +1196,157 @@ Converts ISO 8601 timestamp to human-readable format."
     (4 "P4 (highest)")
     (_ (format "P%d" priority))))
 
+;;; Dependency Operation Result
+
+(defclass beads-dep-op-result ()
+  ((op-status
+    :initarg :op-status
+    :type (or null string)
+    :initform nil
+    :documentation "Operation status (\"added\" or \"removed\").")
+   (issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue that has/had the dependency.")
+   (depends-on-id
+    :initarg :depends-on-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue that is/was depended upon.")
+   (dep-type
+    :initarg :dep-type
+    :type (or null string)
+    :initform nil
+    :documentation "Dependency type (blocks, related, etc.)."))
+  "Result of a bd dep add or dep remove operation.")
+
+(defun beads-dep-op-result-from-json (json)
+  "Create a beads-dep-op-result from JSON alist.
+JSON should be parsed from bd dep add or bd dep remove --json output."
+  (beads-dep-op-result
+   :op-status (alist-get 'status json)
+   :issue-id (alist-get 'issue_id json)
+   :depends-on-id (alist-get 'depends_on_id json)
+   :dep-type (alist-get 'type json)))
+
+;;; Label Count (for bd label list-all)
+
+(defclass beads-label-count ()
+  ((label
+    :initarg :label
+    :type (or null string)
+    :initform nil
+    :documentation "Label text.")
+   (count
+    :initarg :count
+    :type (or null integer)
+    :initform nil
+    :documentation "Number of issues with this label."))
+  "A label with its usage count from bd label list-all.")
+
+(defun beads-label-count-from-json (json)
+  "Create a beads-label-count from JSON alist.
+JSON should be parsed from a bd label list-all --json array element."
+  (beads-label-count
+   :label (alist-get 'label json)
+   :count (alist-get 'count json)))
+
 ;;; Formula Types (for bd formula commands)
+
+(defclass beads-formula-var ()
+  ((name
+    :initarg :name
+    :type (or null string)
+    :initform nil
+    :documentation "Variable name (key in vars map).")
+   (description
+    :initarg :description
+    :type (or null string)
+    :initform nil
+    :documentation "What this variable is for.")
+   (default
+    :initarg :default
+    :type (or null string)
+    :initform nil
+    :documentation "Default value if not provided.")
+   (required
+    :initarg :required
+    :type boolean
+    :initform nil
+    :documentation "Whether the variable must be provided.")
+   (enum
+    :initarg :enum
+    :type list
+    :initform nil
+    :documentation "List of allowed values (if non-empty).")
+   (pattern
+    :initarg :pattern
+    :type (or null string)
+    :initform nil
+    :documentation "Regex pattern the value must match.")
+   (var-type
+    :initarg :var-type
+    :type (or null string)
+    :initform nil
+    :documentation "Expected value type: string (default), int, bool."))
+  "A formula variable definition (VarDef from formula package).")
+
+(defun beads-formula-var-from-json (name json)
+  "Create a beads-formula-var from NAME and JSON alist.
+NAME is the variable name symbol.  JSON is the VarDef object alist."
+  (beads-formula-var
+   :name (if (symbolp name) (symbol-name name) name)
+   :description (alist-get 'description json)
+   :default (alist-get 'default json)
+   :required (eq (alist-get 'required json) t)
+   :enum (append (alist-get 'enum json) nil)
+   :pattern (alist-get 'pattern json)
+   :var-type (alist-get 'type json)))
+
+(defclass beads-formula-step ()
+  ((id
+    :initarg :id
+    :type (or null string)
+    :initform nil
+    :documentation "Step ID, unique within the formula.")
+   (title
+    :initarg :title
+    :type (or null string)
+    :initform nil
+    :documentation "Step title (issue title template).")
+   (description
+    :initarg :description
+    :type (or null string)
+    :initform nil
+    :documentation "Step description (issue description template).")
+   (notes
+    :initarg :notes
+    :type (or null string)
+    :initform nil
+    :documentation "Additional notes for the step.")
+   (needs
+    :initarg :needs
+    :type list
+    :initform nil
+    :documentation "List of sibling step IDs that must complete first.")
+   (depends-on
+    :initarg :depends-on
+    :type list
+    :initform nil
+    :documentation "List of step IDs this step blocks on (alias for needs)."))
+  "A formula step definition (Step from formula package).")
+
+(defun beads-formula-step-from-json (json)
+  "Create a beads-formula-step from JSON alist.
+JSON should be a Step object from formula show --json output."
+  (beads-formula-step
+   :id (alist-get 'id json)
+   :title (alist-get 'title json)
+   :description (alist-get 'description json)
+   :notes (alist-get 'notes json)
+   :needs (append (alist-get 'needs json) nil)
+   :depends-on (append (alist-get 'depends_on json) nil)))
 
 (defclass beads-formula-summary ()
   ((name
@@ -1267,12 +1417,12 @@ JSON should be parsed from bd formula list --json output."
     :initarg :vars
     :type list
     :initform nil
-    :documentation "Variables as an alist mapping name to var definition.")
+    :documentation "Variables as a list of beads-formula-var objects.")
    (steps
     :initarg :steps
     :type list
     :initform nil
-    :documentation "List of step definitions as alists.")
+    :documentation "List of step definitions as beads-formula-step objects.")
    (source
     :initarg :source
     :type (or null string)
@@ -1283,14 +1433,23 @@ JSON should be parsed from bd formula list --json output."
 (defun beads-formula-from-json (json)
   "Create a beads-formula from JSON alist.
 JSON should be parsed from bd formula show --json output."
-  (beads-formula
-   :name (alist-get 'formula json)
-   :description (alist-get 'description json)
-   :version (alist-get 'version json)
-   :formula-type (alist-get 'type json)
-   :vars (alist-get 'vars json)
-   :steps (alist-get 'steps json)
-   :source (alist-get 'source json)))
+  (let* ((raw-vars (alist-get 'vars json))
+         (raw-steps (alist-get 'steps json))
+         ;; Convert vars alist ((name . def-alist) ...) to beads-formula-var list
+         (vars (mapcar (lambda (entry)
+                         (beads-formula-var-from-json (car entry) (cdr entry)))
+                       raw-vars))
+         ;; Convert steps vector/list to beads-formula-step list
+         (steps (mapcar #'beads-formula-step-from-json
+                        (append raw-steps nil))))
+    (beads-formula
+     :name (alist-get 'formula json)
+     :description (alist-get 'description json)
+     :version (alist-get 'version json)
+     :formula-type (alist-get 'type json)
+     :vars vars
+     :steps steps
+     :source (alist-get 'source json))))
 
 (provide 'beads-types)
 ;;; beads-types.el ends here

@@ -43,11 +43,12 @@
 ;;; Test Fixtures
 
 (defvar beads-dep-test--sample-dependency
-  '((issue_id . "bd-1")
-    (depends_on_id . "bd-2")
-    (type . "blocks")
-    (status . "added"))
-  "Sample dependency for testing.")
+  (beads-dep-op-result
+   :issue-id "bd-1"
+   :depends-on-id "bd-2"
+   :dep-type "blocks"
+   :op-status "added")
+  "Sample dependency op result for testing.")
 
 (defvar beads-dep-test--sample-tree
   (list
@@ -649,7 +650,10 @@
               ((symbol-function 'beads-command-dep-remove!)
                (lambda (&rest _)
                  (setq executed t)
-                 '((status . "removed"))))
+                 (beads-dep-op-result
+                  :op-status "removed"
+                  :issue-id "bd-1"
+                  :depends-on-id "bd-2")))
               ((symbol-function 'beads--invalidate-completion-cache) #'ignore))
       (let ((beads-auto-refresh nil))
         (beads-dep-remove--execute)
@@ -820,22 +824,24 @@
 
 (ert-deftest beads-dep-test-format-dependency-missing-status ()
   "Test formatting dependency with missing status."
-  (let ((dep '((issue_id . "bd-1")
-               (depends_on_id . "bd-2")
-               (type . "blocks"))))
+  (let ((dep (beads-dep-op-result
+              :issue-id "bd-1"
+              :depends-on-id "bd-2"
+              :dep-type "blocks")))
     (let ((formatted (beads-dep--format-dependency dep)))
       (should (stringp formatted))
       (should (string-match-p "unknown" formatted)))))
 
 (ert-deftest beads-dep-test-format-dependency-all-types ()
   "Test formatting dependencies with different types."
-  (dolist (type '("blocks" "required_by" "relates_to"))
-    (let ((dep `((issue_id . "bd-1")
-                 (depends_on_id . "bd-2")
-                 (type . ,type)
-                 (status . "added"))))
+  (dolist (dep-type '("blocks" "required_by" "relates_to"))
+    (let ((dep (beads-dep-op-result
+                :issue-id "bd-1"
+                :depends-on-id "bd-2"
+                :dep-type dep-type
+                :op-status "added")))
       (let ((formatted (beads-dep--format-dependency dep)))
-        (should (string-match-p type formatted))))))
+        (should (string-match-p dep-type formatted))))))
 
 ;;; Tests for Tree Rendering Edge Cases
 

@@ -1006,10 +1006,13 @@
 (ert-deftest beads-coverage-test-formula-show-render-var ()
   "Test render-var inserts variable with description and default."
   (with-temp-buffer
-    (beads-formula-show--render-var "feature"
-                                   '((description . "Feature name")
-                                     (default . "my-feature")
-                                     (required . t)))
+    (beads-formula-show--render-var
+     "feature"
+     (beads-formula-var
+      :name "feature"
+      :description "Feature name"
+      :default "my-feature"
+      :required t))
     (let ((text (buffer-string)))
       (should (string-match-p "feature" text))
       (should (string-match-p "(required)" text))
@@ -1019,7 +1022,9 @@
 (ert-deftest beads-coverage-test-formula-show-render-var-minimal ()
   "Test render-var with minimal variable definition."
   (with-temp-buffer
-    (beads-formula-show--render-var "simple-var" '())
+    (beads-formula-show--render-var
+     "simple-var"
+     (beads-formula-var :name "simple-var"))
     (let ((text (buffer-string)))
       (should (string-match-p "simple-var" text)))))
 
@@ -1027,10 +1032,11 @@
   "Test render-step inserts step with title, description, needs."
   (with-temp-buffer
     (beads-formula-show--render-step
-     '((id . "step-1")
-       (title . "First Step")
-       (description . "Do the first thing")
-       (needs . ("step-0")))
+     (beads-formula-step
+      :id "step-1"
+      :title "First Step"
+      :description "Do the first thing"
+      :needs '("step-0"))
      0)
     (let ((text (buffer-string)))
       (should (string-match-p "1\\. First Step" text))
@@ -1042,8 +1048,9 @@
   "Test render-step with no title uses id."
   (with-temp-buffer
     (beads-formula-show--render-step
-     '((id . "step-x")
-       (description . "Just a step"))
+     (beads-formula-step
+      :id "step-x"
+      :description "Just a step")
      2)
     (let ((text (buffer-string)))
       (should (string-match-p "3\\. step-x" text)))))

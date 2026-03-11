@@ -145,6 +145,28 @@ Returns error string or nil if valid."
       "Must provide depends-on or blocked-by issue ID")
      (t nil))))
 
+(cl-defmethod beads-command-parse ((command beads-command-dep-add) execution)
+  "Parse dep add COMMAND output from EXECUTION.
+Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
+  (with-slots (json) command
+    (if (not json)
+        (cl-call-next-method)
+      (let ((parsed-json (cl-call-next-method)))
+        (condition-case err
+            (if (listp parsed-json)
+                (beads-dep-op-result-from-json parsed-json)
+              (signal 'beads-json-parse-error
+                      (list "Unexpected JSON from bd dep add"
+                            :exit-code (oref execution exit-code)
+                            :parsed-json parsed-json
+                            :stderr (oref execution stderr))))
+          (error
+           (signal 'beads-json-parse-error
+                   (list (format "Failed to parse dep add result: %s"
+                                 (error-message-string err))
+                         :exit-code (oref execution exit-code)
+                         :stderr (oref execution stderr)))))))))
+
 ;;; Dependency Remove Command
 
 (beads-defcommand beads-command-dep-remove (beads-command-global-options)
@@ -201,6 +223,28 @@ Returns error string or nil if valid."
      ((or (null depends-on) (string-empty-p depends-on))
       "Must provide depends-on issue ID")
      (t nil))))
+
+(cl-defmethod beads-command-parse ((command beads-command-dep-remove) execution)
+  "Parse dep remove COMMAND output from EXECUTION.
+Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
+  (with-slots (json) command
+    (if (not json)
+        (cl-call-next-method)
+      (let ((parsed-json (cl-call-next-method)))
+        (condition-case err
+            (if (listp parsed-json)
+                (beads-dep-op-result-from-json parsed-json)
+              (signal 'beads-json-parse-error
+                      (list "Unexpected JSON from bd dep remove"
+                            :exit-code (oref execution exit-code)
+                            :parsed-json parsed-json
+                            :stderr (oref execution stderr))))
+          (error
+           (signal 'beads-json-parse-error
+                   (list (format "Failed to parse dep remove result: %s"
+                                 (error-message-string err))
+                         :exit-code (oref execution exit-code)
+                         :stderr (oref execution stderr)))))))))
 
 ;;; Dependency List Command
 
@@ -649,17 +693,16 @@ Returns issue ID if in beads-list or beads-show buffer, nil otherwise."
    (t nil)))
 
 (defun beads-dep--format-dependency (dep)
-  "Format dependency DEP for display.
-DEP is an alist with keys: issue_id, depends_on_id, type, status."
-  (let ((issue-id (alist-get 'issue_id dep))
-        (depends-on-id (alist-get 'depends_on_id dep))
-        (type (alist-get 'type dep))
-        (status (alist-get 'status dep)))
+  "Format dependency DEP (beads-dep-op-result object) for display."
+  (let ((issue-id (oref dep issue-id))
+        (depends-on-id (oref dep depends-on-id))
+        (dep-type (oref dep dep-type))
+        (op-status (oref dep op-status)))
     (format "%s: %s %s %s"
-            (propertize (or status "unknown") 'face 'success)
-            (propertize issue-id 'face 'font-lock-constant-face)
-            (propertize type 'face 'font-lock-keyword-face)
-            (propertize depends-on-id 'face 'font-lock-constant-face))))
+            (propertize (or op-status "unknown") 'face 'success)
+            (propertize (or issue-id "") 'face 'font-lock-constant-face)
+            (propertize (or dep-type "") 'face 'font-lock-keyword-face)
+            (propertize (or depends-on-id "") 'face 'font-lock-constant-face))))
 
 ;;; Add Dependency
 
@@ -808,9 +851,9 @@ Returns error message string if invalid, nil if valid."
           (let* ((result (beads-command-dep-remove!
                           :issue-id issue-id
                           :depends-on depends-on-id))
-                 (status (alist-get 'status result)))
+                 (op-status (oref result op-status)))
             (message "Dependency %s: %s -> %s"
-                     (propertize status 'face 'success)
+                     (propertize op-status 'face 'success)
                      issue-id depends-on-id)
             (beads--invalidate-completion-cache)
             nil)

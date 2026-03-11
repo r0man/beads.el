@@ -112,16 +112,22 @@
          (formula (beads-formula-from-json json))
          (vars (oref formula vars)))
     (should vars)
+    (should (= (length vars) 3))
+    ;; All items should be beads-formula-var objects
+    (should (cl-every #'beads-formula-var-p vars))
     ;; Check feature var
-    (let ((feature-var (alist-get 'feature vars)))
+    (let ((feature-var (cl-find "feature" vars
+                                :key (lambda (v) (oref v name))
+                                :test #'string=)))
       (should feature-var)
-      (should (string= (alist-get 'description feature-var)
-                       "Feature description"))
-      (should (eq (alist-get 'required feature-var) t)))
+      (should (string= (oref feature-var description) "Feature description"))
+      (should (eq (oref feature-var required) t)))
     ;; Check use_guix var
-    (let ((guix-var (alist-get 'use_guix vars)))
+    (let ((guix-var (cl-find "use_guix" vars
+                             :key (lambda (v) (oref v name))
+                             :test #'string=)))
       (should guix-var)
-      (should (string= (alist-get 'default guix-var) "true")))))
+      (should (string= (oref guix-var default) "true")))))
 
 (ert-deftest beads-command-formula-test-formula-steps ()
   "Test formula steps parsing."
@@ -129,15 +135,17 @@
          (formula (beads-formula-from-json json))
          (steps (oref formula steps)))
     (should (= (length steps) 2))
+    ;; All items should be beads-formula-step objects
+    (should (cl-every #'beads-formula-step-p steps))
     ;; Check first step
     (let ((step1 (car steps)))
-      (should (string= (alist-get 'id step1) "step-1"))
-      (should (string= (alist-get 'title step1) "First step"))
-      (should (null (alist-get 'needs step1))))
+      (should (string= (oref step1 id) "step-1"))
+      (should (string= (oref step1 title) "First step"))
+      (should (null (oref step1 needs))))
     ;; Check second step
     (let ((step2 (cadr steps)))
-      (should (string= (alist-get 'id step2) "step-2"))
-      (should (equal (alist-get 'needs step2) '("step-1"))))))
+      (should (string= (oref step2 id) "step-2"))
+      (should (equal (oref step2 needs) '("step-1"))))))
 
 ;;; ========================================
 ;;; beads-command-formula-list Tests
@@ -327,8 +335,10 @@
   "Test formula show render with variables."
   (let ((formula (beads-formula :name "test"
                                 :formula-type "workflow"
-                                :vars '((feature . ((description . "Feature desc")
-                                                    (required . t)))))))
+                                :vars (list (beads-formula-var
+                                             :name "feature"
+                                             :description "Feature desc"
+                                             :required t)))))
     (with-temp-buffer
       (beads-formula-show-mode)
       (beads-formula-show--render formula)
@@ -340,9 +350,10 @@
   "Test formula show render with steps."
   (let ((formula (beads-formula :name "test"
                                 :formula-type "workflow"
-                                :steps '(((id . "step-1")
-                                          (title . "First step")
-                                          (description . "Do something"))))))
+                                :steps (list (beads-formula-step
+                                              :id "step-1"
+                                              :title "First step"
+                                              :description "Do something")))))
     (with-temp-buffer
       (beads-formula-show-mode)
       (beads-formula-show--render formula)
@@ -480,10 +491,13 @@
 (ert-deftest beads-command-formula-test-show-render-var ()
   "Test render-var produces variable description."
   (with-temp-buffer
-    (beads-formula-show--render-var "project-name"
-                                    '((description . "The project name")
-                                      (default . "my-project")
-                                      (required . t)))
+    (beads-formula-show--render-var
+     "project-name"
+     (beads-formula-var
+      :name "project-name"
+      :description "The project name"
+      :default "my-project"
+      :required t))
     (let ((text (buffer-string)))
       (should (string-match-p "project-name" text))
       (should (string-match-p "required" text))
@@ -493,7 +507,9 @@
 (ert-deftest beads-command-formula-test-show-render-var-minimal ()
   "Test render-var with minimal definition."
   (with-temp-buffer
-    (beads-formula-show--render-var "simple" '((description . nil)))
+    (beads-formula-show--render-var
+     "simple"
+     (beads-formula-var :name "simple"))
     (let ((text (buffer-string)))
       (should (string-match-p "simple" text)))))
 
@@ -501,10 +517,11 @@
   "Test render-step produces step info."
   (with-temp-buffer
     (beads-formula-show--render-step
-     '((id . "step-1")
-       (title . "Setup Environment")
-       (description . "Configure the development environment")
-       (needs . ("step-0")))
+     (beads-formula-step
+      :id "step-1"
+      :title "Setup Environment"
+      :description "Configure the development environment"
+      :needs '("step-0"))
      0)
     (let ((text (buffer-string)))
       (should (string-match-p "1\\. Setup Environment" text))
@@ -516,8 +533,9 @@
   "Test render-step without dependencies."
   (with-temp-buffer
     (beads-formula-show--render-step
-     '((id . "step-2")
-       (title . "Simple Step"))
+     (beads-formula-step
+      :id "step-2"
+      :title "Simple Step")
      1)
     (let ((text (buffer-string)))
       (should (string-match-p "2\\. Simple Step" text))
