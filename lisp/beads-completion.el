@@ -823,7 +823,7 @@ Returns the selected value, or nil if \"(no worktree)\" was selected."
 
 (eval-when-compile (require 'marginalia nil t))
 
-(defvar marginalia-annotator-registry)
+(defvar marginalia-annotators)
 (declare-function marginalia--truncate "marginalia" (str width))
 
 (defun beads-completion--marginalia-annotate-issue (cand)
@@ -841,7 +841,7 @@ CAND is the candidate string with beads-issue text property."
                 (1 'warning)
                 (_ 'shadow))
         :width 3)
-       (type :face 'font-lock-type-face :width 8 :truncate t)
+       (type :face 'font-lock-type-face :width 8 :truncate 8)
        (status
         :face (pcase status
                 ("open" 'success)
@@ -850,7 +850,7 @@ CAND is the candidate string with beads-issue text property."
                 ("closed" 'shadow)
                 (_ 'default))
         :width 12)
-       (title :width 60 :truncate t)))))
+       (title :width 60 :truncate 60)))))
 
 (defun beads-completion--marginalia-annotate-backend (cand)
   "Marginalia annotator for beads agent backend candidates.
@@ -864,7 +864,7 @@ CAND is the candidate string with beads-backend text property."
        ((if available "available" "unavailable")
         :face (if available 'success 'shadow)
         :width 12)
-       (description :width 50 :truncate t)))))
+       (description :width 50 :truncate 50)))))
 
 (defun beads-completion--marginalia-annotate-worktree (cand)
   "Marginalia annotator for beads worktree candidates.
@@ -875,7 +875,7 @@ CAND is the candidate string with beads-worktree text property."
           (is-main (oref worktree is-main))
           (path (or (oref worktree path) "")))
       (marginalia--fields
-       (branch :face 'font-lock-keyword-face :width 20 :truncate t)
+       (branch :face 'font-lock-keyword-face :width 20 :truncate 20)
        (state
         :face (pcase state
                 ("shared" 'success)
@@ -884,7 +884,7 @@ CAND is the candidate string with beads-worktree text property."
                 (_ 'shadow))
         :width 8)
        ((if is-main "main" "") :face 'font-lock-constant-face :width 5)
-       (path :face 'shadow :width 40 :truncate t)))))
+       (path :face 'shadow :width 40 :truncate 40)))))
 
 (defun beads-completion--marginalia-annotate-worktree-name (cand)
   "Marginalia annotator for combined worktree-name candidates.
@@ -898,7 +898,7 @@ issue (issue ID), or no type."
                (state (or (oref wt beads-state) "none")))
            (marginalia--fields
             ((propertize "[EXISTS]" 'face 'warning) :width 8)
-            (branch :face 'font-lock-keyword-face :width 20 :truncate t)
+            (branch :face 'font-lock-keyword-face :width 20 :truncate 20)
             (state :face 'shadow :width 8)))))
       ('issue
        (when-let ((issue (get-text-property 0 'beads-issue cand)))
@@ -915,7 +915,7 @@ issue (issue ID), or no type."
                      ("closed" 'shadow)
                      (_ 'default))
              :width 12)
-            (title :width 50 :truncate t)))))
+            (title :width 50 :truncate 50)))))
       (_ nil))))
 
 (defun beads-completion--marginalia-annotate-agent-worktree (cand)
@@ -932,7 +932,7 @@ CAND may have beads-agent-wt-type of none, worktree, or issue."
                (state (or (oref wt beads-state) "none")))
            (marginalia--fields
             ((propertize "[EXISTS]" 'face 'warning) :width 8)
-            (branch :face 'font-lock-keyword-face :width 20 :truncate t)
+            (branch :face 'font-lock-keyword-face :width 20 :truncate 20)
             (state :face 'shadow :width 8)))))
       ('issue
        (when-let ((issue (get-text-property 0 'beads-issue cand)))
@@ -949,7 +949,7 @@ CAND may have beads-agent-wt-type of none, worktree, or issue."
                      ("closed" 'shadow)
                      (_ 'default))
              :width 12)
-            (title :width 50 :truncate t)))))
+            (title :width 50 :truncate 50)))))
       (_ nil))))
 
 (defun beads-completion-setup-marginalia ()
@@ -959,26 +959,26 @@ in beads completion interfaces.  For example:
 
   (with-eval-after-load \\='marginalia
     (beads-completion-setup-marginalia))"
-  (add-to-list 'marginalia-annotator-registry
+  (add-to-list 'marginalia-annotators
                '(beads-issue
                  beads-completion--marginalia-annotate-issue
-                 marginalia-annotate-nil))
-  (add-to-list 'marginalia-annotator-registry
+                 none))
+  (add-to-list 'marginalia-annotators
                '(beads-agent-backend
                  beads-completion--marginalia-annotate-backend
-                 marginalia-annotate-nil))
-  (add-to-list 'marginalia-annotator-registry
+                 none))
+  (add-to-list 'marginalia-annotators
                '(beads-worktree
                  beads-completion--marginalia-annotate-worktree
-                 marginalia-annotate-nil))
-  (add-to-list 'marginalia-annotator-registry
+                 none))
+  (add-to-list 'marginalia-annotators
                '(beads-worktree-name
                  beads-completion--marginalia-annotate-worktree-name
-                 marginalia-annotate-nil))
-  (add-to-list 'marginalia-annotator-registry
+                 none))
+  (add-to-list 'marginalia-annotators
                '(beads-agent-worktree
                  beads-completion--marginalia-annotate-agent-worktree
-                 marginalia-annotate-nil)))
+                 none)))
 
 ;;; Search-Based Completion
 
