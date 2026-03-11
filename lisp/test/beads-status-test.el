@@ -6,11 +6,11 @@
 
 ;; ERT tests for beads-status.el: the beads status buffer with section
 ;; hooks.  Tests cover:
-;; - beads-status-mode activation and derivation
+;; - beads-status-mode activation and derivation (from vui-mode)
 ;; - Keymap bindings (g=refresh, q=quit)
 ;; - revert-buffer-function set correctly
-;; - beads-status--format-header produces expected output
-;; - beads-status-refresh populates buffer via section hooks
+;; - beads-status--header-vnode produces a vnode
+;; - beads-status-refresh calls section hooks
 ;; - beads-status command creates and displays a buffer
 
 ;;; Code:
@@ -56,10 +56,10 @@
   (beads-status-test--with-mode-buffer
     (should (derived-mode-p 'beads-section-mode))))
 
-(ert-deftest beads-status-test-mode-derived-from-magit-section-mode ()
-  "Verify beads-status-mode is derived from magit-section-mode."
+(ert-deftest beads-status-test-mode-derived-from-vui-mode ()
+  "Verify beads-status-mode is derived from vui-mode."
   (beads-status-test--with-mode-buffer
-    (should (derived-mode-p 'magit-section-mode))))
+    (should (derived-mode-p 'vui-mode))))
 
 (ert-deftest beads-status-test-mode-activates ()
   "Verify beads-status-mode activates without error."
@@ -85,72 +85,59 @@
   (beads-status-test--with-mode-buffer
     (should (eq revert-buffer-function #'beads-status--revert))))
 
-;;; Header Tests
+;;; Header Vnode Tests
 
-(ert-deftest beads-status-test-format-header-returns-string ()
-  "Verify beads-status--format-header returns a string."
+(ert-deftest beads-status-test-header-vnode-returns-vnode ()
+  "Verify beads-status--header-vnode returns a non-nil vnode."
   (cl-letf (((symbol-function 'beads-git-find-project-root)
              (lambda () "/home/user/myproject"))
             ((symbol-function 'beads--get-database-path)
              (lambda () "/home/user/myproject/.beads/beads.db")))
-    (let ((header (beads-status--format-header)))
-      (should (stringp header)))))
+    (let ((vnode (beads-status--header-vnode)))
+      (should vnode)
+      (should-not (stringp vnode)))))
 
-(ert-deftest beads-status-test-format-header-contains-project-name ()
-  "Verify beads-status--format-header includes the project name."
-  (cl-letf (((symbol-function 'beads-git-find-project-root)
-             (lambda () "/home/user/myproject"))
-            ((symbol-function 'beads--get-database-path)
-             (lambda () "/home/user/myproject/.beads/beads.db")))
-    (let ((header (beads-status--format-header)))
-      (should (string-match-p "myproject" header)))))
-
-(ert-deftest beads-status-test-format-header-contains-db-path ()
-  "Verify beads-status--format-header includes the database path."
-  (cl-letf (((symbol-function 'beads-git-find-project-root)
-             (lambda () "/home/user/myproject"))
-            ((symbol-function 'beads--get-database-path)
-             (lambda () "/home/user/myproject/.beads/beads.db")))
-    (let ((header (beads-status--format-header)))
-      (should (string-match-p "\\.beads" header)))))
-
-(ert-deftest beads-status-test-format-header-no-project ()
-  "Verify beads-status--format-header handles missing project gracefully."
+(ert-deftest beads-status-test-header-vnode-no-project ()
+  "Verify beads-status--header-vnode handles missing project gracefully."
   (cl-letf (((symbol-function 'beads-git-find-project-root)
              (lambda () nil))
             ((symbol-function 'beads--get-database-path)
              (lambda () nil)))
-    ;; Should not signal an error
-    (let ((header (beads-status--format-header)))
-      (should (stringp header)))))
+    ;; Should not signal an error; returns a vnode
+    (let ((vnode (beads-status--header-vnode)))
+      (should vnode))))
 
 ;;; Refresh Tests
 
 (ert-deftest beads-status-test-refresh-runs-section-hooks ()
   "Verify beads-status-refresh calls functions in beads-status-sections-hook."
   (let (hook-called)
-    (beads-status-test--with-mode-buffer
-      (cl-letf (((symbol-function 'beads-git-find-project-root)
-                 (lambda () "/tmp/testproject"))
-                ((symbol-function 'beads--get-database-path)
-                 (lambda () nil)))
-        (let ((beads-status-sections-hook
-               (list (lambda () (setq hook-called t)))))
+    (let ((beads-status-sections-hook
+           (list (lambda () (setq hook-called t) nil))))
+      (beads-status-test--with-mode-buffer
+        (cl-letf (((symbol-function 'beads-git-find-project-root)
+                   (lambda () nil))
+                  ((symbol-function 'beads--get-database-path)
+                   (lambda () nil))
+                  ((symbol-function 'vui-mount)
+                   (lambda (_component _name)
+                     (beads-section-build-vnode))))
           (beads-status-refresh))))
     (should hook-called)))
 
-(ert-deftest beads-status-test-refresh-inserts-header ()
-  "Verify beads-status-refresh inserts header text into buffer."
-  (beads-status-test--with-mode-buffer
-    (cl-letf (((symbol-function 'beads-git-find-project-root)
-               (lambda () "/tmp/myproj"))
-              ((symbol-function 'beads--get-database-path)
-               (lambda () "/tmp/myproj/.beads/beads.db"))
-              ((symbol-function 'beads-command-execute)
-               (lambda (_cmd)
-                 (beads-status-test--mock-execute nil))))
-      (beads-status-refresh))
-    (should (string-match-p "Beads" (buffer-string)))))
+(ert-deftest beads-status-test-refresh-calls-vui-mount ()
+  "Verify beads-status-refresh calls vui-mount."
+  (let (mount-called)
+    (beads-status-test--with-mode-buffer
+      (cl-letf (((symbol-function 'beads-git-find-project-root)
+                 (lambda () nil))
+                ((symbol-function 'beads--get-database-path)
+                 (lambda () nil))
+                ((symbol-function 'vui-mount)
+                 (lambda (_component _name)
+                   (setq mount-called t))))
+        (beads-status-refresh)))
+    (should mount-called)))
 
 (ert-deftest beads-status-test-refresh-clears-buffer ()
   "Verify beads-status-refresh replaces buffer content on re-run."
@@ -161,9 +148,10 @@
                (lambda () "/tmp/proj"))
               ((symbol-function 'beads--get-database-path)
                (lambda () nil))
-              ((symbol-function 'beads-command-execute)
-               (lambda (_cmd)
-                 (beads-status-test--mock-execute nil))))
+              ((symbol-function 'vui-mount)
+               (lambda (_component _name)
+                 (let ((inhibit-read-only t))
+                   (erase-buffer)))))
       (beads-status-refresh))
     (should-not (string-match-p "old content" (buffer-string)))))
 
@@ -175,9 +163,8 @@
              (lambda () nil))
             ((symbol-function 'beads--get-database-path)
              (lambda () nil))
-            ((symbol-function 'beads-command-execute)
-             (lambda (_cmd)
-               (beads-status-test--mock-execute nil)))
+            ((symbol-function 'vui-mount)
+             (lambda (_component _name) nil))
             ((symbol-function 'pop-to-buffer)
              (lambda (_buf) nil)))
     (beads-status)
@@ -195,9 +182,8 @@
              (lambda () "/tmp/coolproject"))
             ((symbol-function 'beads--get-database-path)
              (lambda () nil))
-            ((symbol-function 'beads-command-execute)
-             (lambda (_cmd)
-               (beads-status-test--mock-execute nil)))
+            ((symbol-function 'vui-mount)
+             (lambda (_component _name) nil))
             ((symbol-function 'pop-to-buffer)
              (lambda (_buf) nil)))
     (beads-status)

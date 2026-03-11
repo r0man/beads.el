@@ -108,6 +108,8 @@ ORIG-FN is the original function, STATS is the test statistics."
                               '(:package transient :version "0.10.1"))
 (eldev-add-extra-dependencies 'runtime
                               '(:package sesman :version "0.3.2"))
+(eldev-add-extra-dependencies 'runtime
+                              '(:package vui :version "1.0.0" :archive melpa))
 
 ;; Development dependencies using extended dependency format
 (eldev-add-extra-dependencies 'test

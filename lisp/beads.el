@@ -4,7 +4,7 @@
 
 ;; Author: Beads Contributors
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "27.1") (transient "0.10.1") (sesman "0.3.2") (magit-section "3.0.0"))
+;; Package-Requires: ((emacs "29.1") (transient "0.10.1") (sesman "0.3.2") (vui "1.0.0"))
 ;; Keywords: tools, project, issues
 ;; URL: https://github.com/josephburnett/beads
 
@@ -339,7 +339,7 @@ scans the current line for an issue ID pattern overlapping point."
 Checks contexts in order:
 1. `beads-list-mode' — issue ID from current tabulated-list row
 2. `beads-show-mode' — issue ID stored in the show buffer
-3. `beads-section-mode' — issue ID from magit-section at point
+3. `beads-section-mode' — issue ID from vui text property at point
 4. Buffer name   — beads-show buffer naming convention
 5. Text at point — button or issue ID regexp match"
   (or
@@ -351,8 +351,8 @@ Checks contexts in order:
    (when (and (derived-mode-p 'beads-show-mode)
               (boundp 'beads-show--issue-id))
      beads-show--issue-id)
-   ;; 3. Magit-section buffer — look for beads-issue-section at point
-   (when (and (derived-mode-p 'magit-section-mode)
+   ;; 3. vui-mode buffer — look for beads-issue-section at point
+   (when (and (derived-mode-p 'vui-mode)
               (fboundp 'beads-section-issue-id-at-point))
      (beads-section-issue-id-at-point))
    ;; 4. Buffer name parsing (*beads-show[PROJECT]/ISSUE-ID*)
