@@ -34,7 +34,7 @@
       #:lisp-directory "lisp"
       #:exclude #~(cons ".*-test\\.el$" %default-exclude)))
     (propagated-inputs
-     (list emacs-transient emacs-sesman emacs-magit))
+     (list emacs-transient emacs-sesman emacs-vui))
     (native-inputs
      ;; Note: emacs-agent-shell not included due to batch mode bug
      ;; (void-function keymap) - agent-shell-mode doesn't work in batch Emacs

@@ -22,6 +22,10 @@
 (require 'beads-types)
 (require 'beads-agent-backend)
 
+;; Declare marginalia-annotators as a dynamic variable so tests can let-bind it.
+;; marginalia may not be loaded in the test environment, so we declare it here.
+(defvar marginalia-annotators)
+
 ;;; Test Helpers
 
 (defun beads-completion-test--make-issue (id title status &optional priority type)

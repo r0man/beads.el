@@ -1,4 +1,4 @@
-;;; beads-status.el --- Status buffer with section hooks -*- lexical-binding: t; -*-
+;;; beads-status.el --- Status buffer using vui.el -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
@@ -11,7 +11,7 @@
 
 ;; This module provides the main beads status buffer, modelled after
 ;; `magit-status'.  It renders a project overview using collapsible
-;; magit-section groups populated by `beads-status-sections-hook'.
+;; vui.el components populated by `beads-status-sections-hook'.
 ;;
 ;; ## Entry Point
 ;;
@@ -21,17 +21,22 @@
 ;; ## Mode
 ;;
 ;; `beads-status-mode' is derived from `beads-section-mode' and adds:
-;;   g   — `beads-status-refresh' (re-run section hooks)
+;;   g   — `beads-status-refresh' (re-mount with fresh data)
 ;;   q   — `quit-window'
-;;   n/p — inherited navigation from `magit-section-mode'
-;;   RET — inherited visit from `beads-section-mode' / `beads-section-issue-map'
+;;   TAB — move to next widget (inherited from vui-mode)
+;;   RET — visit issue at point (inherited from beads-section-mode)
 ;;
 ;; ## Buffer Layout
 ;;
-;; The buffer always starts with a header line produced by
-;; `beads-status--format-header'.  Below the header the functions in
-;; `beads-status-sections-hook' insert collapsible sections via the
-;; magit-section API.
+;; A header vnode (project name + db path) is rendered above the
+;; section vnodes produced by `beads-status-sections-hook'.
+;;
+;; ## Root Component
+;;
+;; `beads-status--root' is a `vui-defcomponent' that assembles the
+;; header and section tree into one mounted component tree.  Calling
+;; `beads-status--refresh-buffer' remounts this component so vui's
+;; reconciler handles re-rendering efficiently.
 ;;
 ;; ## Auto-Refresh
 ;;
@@ -41,7 +46,7 @@
 ;;
 ;; ## Dependencies
 ;;
-;; Requires `beads-section' (which in turn requires `magit-section').
+;; Requires `beads-section' (which in turn requires `vui').
 
 ;;; Code:
 
@@ -56,38 +61,31 @@ When a project root is known a project-specific name is used instead.")
 
 ;;; Keymap
 
-(defvar beads-status-mode-map
-  (let ((map (make-sparse-keymap)))
-    (set-keymap-parent map beads-section-mode-map)
-    (define-key map (kbd "g") #'beads-status-refresh)
-    (define-key map (kbd "q") #'quit-window)
-    map)
-  "Keymap for `beads-status-mode'.
-Inherits from `beads-section-mode-map'.  Adds:
-  g — `beads-status-refresh'
-  q — `quit-window'")
+(defvar-keymap beads-status-mode-map
+  :parent beads-section-mode-map
+  "g" #'beads-status-refresh
+  "q" #'quit-window)
 
 ;;; Mode
 
 (define-derived-mode beads-status-mode beads-section-mode "Beads Status"
   "Major mode for the beads status buffer.
 
-Displays a project overview as collapsible magit-section groups.
+Displays a project overview as collapsible vui.el sections.
 Sections are populated by running `beads-status-sections-hook'.
 
 Key bindings:
-  g   — Refresh (re-run section hooks)
+  g   — Refresh (remount with fresh data)
   q   — Quit window
-  TAB — Toggle section visibility (inherited)
-  n/p — Move to next / previous section (inherited)
+  TAB — Move to next widget (inherited)
   RET — Visit issue at point (inherited)"
   :interactive nil
   (setq-local revert-buffer-function #'beads-status--revert))
 
-;;; Header
+;;; Header Vnode
 
-(defun beads-status--format-header ()
-  "Return a propertized header string for the beads status buffer.
+(defun beads-status--header-vnode ()
+  "Return a vui vnode for the beads status buffer header.
 
 Shows the project name derived from the git root and the database
 path.  Falls back gracefully when no project or database is found."
@@ -97,22 +95,31 @@ path.  Falls back gracefully when no project or database is found."
           (if root
               (file-name-nondirectory (directory-file-name root))
             "unknown")))
-    (concat
-     (propertize "Beads" 'face 'bold)
-     (propertize " \u2014 " 'face 'shadow)          ; em dash
-     (propertize project-name 'face 'font-lock-constant-face)
-     (propertize " (" 'face 'shadow)
-     (propertize (or db "no database") 'face 'font-lock-string-face)
-     (propertize ")" 'face 'shadow)
-     "\n")))
+    (vui-hstack :spacing 0
+      (vui-text "Beads" :face 'bold)
+      (vui-text " \u2014 " :face 'shadow)
+      (vui-text project-name :face 'font-lock-constant-face)
+      (vui-text " (" :face 'shadow)
+      (vui-text (or db "no database") :face 'font-lock-string-face)
+      (vui-text ")" :face 'shadow))))
+
+;;; Root Component
+
+(vui-defcomponent beads-status--root ()
+  "Root vui component for the beads status buffer.
+Renders the header and all section vnodes from
+`beads-status-sections-hook' into a single component tree."
+  :render
+  (vui-vstack :spacing 1
+    (beads-status--header-vnode)
+    (beads-section-build-vnode)))
 
 ;;; Refresh
 
 (defun beads-status-refresh ()
   "Refresh the current beads status buffer.
 
-Clears the buffer and re-runs `beads-status-sections-hook' to
-re-populate it with up-to-date data."
+Remounts the root component to re-fetch data and re-render."
   (interactive)
   (beads-status--refresh-buffer (current-buffer)))
 
@@ -122,23 +129,14 @@ Called by `revert-buffer'; delegates to `beads-status-refresh'."
   (beads-status-refresh))
 
 (defun beads-status--refresh-buffer (buffer)
-  "Refresh beads status BUFFER by re-running all section hooks.
+  "Refresh beads status BUFFER by remounting the root vui component.
 
-Erases the buffer, inserts the header, then calls each function in
-`beads-status-sections-hook' inside a root magit-section so that
-magit-section navigation and visibility toggling work correctly."
+Calls `vui-mount' with `beads-status--root' which re-fetches data
+from `beads-status-sections-hook' and reconciles the buffer."
   (with-current-buffer buffer
-    (let ((inhibit-read-only t)
-          (pos (point)))
-      (erase-buffer)
-      ;; Header
-      (insert (beads-status--format-header))
-      (insert "\n")
-      ;; Sections
-      (magit-insert-section (magit-section)
-        (run-hooks 'beads-status-sections-hook))
-      ;; Restore point, clamped to valid range
-      (goto-char (min pos (point-max))))))
+    (vui-mount
+     (vui-component 'beads-status--root)
+     (buffer-name))))
 
 ;;; Entry Point
 
