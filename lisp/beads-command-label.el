@@ -366,14 +366,14 @@ Example:
 
 (defun beads-label-list-all ()
   "Fetch all labels from bd label list-all.
-Returns a list of label objects, each with \\='label and \\='count fields."
+Returns a list of beads-label-count objects."
   (let* ((cmd (beads-command-label-list-all :json t))
          ;; Execute command and get result from execution object
          (exec (beads-command-execute cmd))
          (json (oref exec result))
          ;; JSON is array of {\"label\": \"name\", \"count\": N}
          (labels (append json nil)))
-    labels))
+    (mapcar #'beads-label-count-from-json labels)))
 
 (defun beads--get-cached-labels ()
   "Get cached label list, refreshing if stale.
@@ -400,7 +400,7 @@ Returns a simple list of label strings for use with `completing-read'."
   (let ((label-objects (beads--get-cached-labels)))
     ;; Extract label names from objects and remove duplicates
     (delete-dups
-     (mapcar (lambda (entry) (alist-get 'label entry))
+     (mapcar (lambda (entry) (oref entry label))
              label-objects))))
 
 ;;; Context Detection
@@ -754,8 +754,8 @@ Key bindings:
   (let ((labels (beads-label-list-all)))
     (beads-pager-set-entries
      (mapcar (lambda (entry)
-               (let ((label (alist-get 'label entry))
-                     (count (alist-get 'count entry)))
+               (let ((label (oref entry label))
+                     (count (oref entry count)))
                  (list label
                        (vector label
                                (number-to-string count)))))

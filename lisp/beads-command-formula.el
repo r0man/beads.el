@@ -412,11 +412,11 @@ Uses `beads-formula-list--normalize-directory' for path comparison."
           (make-string (length title) ?=)
           "\n\n"))
 
-(defun beads-formula-show--render-var (name def)
-  "Render variable NAME with definition DEF."
-  (let ((desc (alist-get 'description def))
-        (default (alist-get 'default def))
-        (required (alist-get 'required def)))
+(defun beads-formula-show--render-var (name var)
+  "Render variable NAME with VAR (beads-formula-var object)."
+  (let ((desc (oref var description))
+        (default (oref var default))
+        (required (oref var required)))
     (insert (propertize (format "  %s" name) 'face 'font-lock-variable-name-face))
     (when required
       (insert (propertize " (required)" 'face 'font-lock-warning-face)))
@@ -428,11 +428,11 @@ Uses `beads-formula-list--normalize-directory' for path comparison."
     (insert "\n")))
 
 (defun beads-formula-show--render-step (step index)
-  "Render STEP at INDEX."
-  (let ((id (alist-get 'id step))
-        (title (alist-get 'title step))
-        (description (alist-get 'description step))
-        (needs (alist-get 'needs step)))
+  "Render STEP (beads-formula-step object) at INDEX."
+  (let ((id (oref step id))
+        (title (oref step title))
+        (description (oref step description))
+        (needs (oref step needs)))
     (insert (propertize (format "%d. %s" (1+ index) (or title id))
                         'face 'font-lock-function-name-face)
             "\n")
@@ -467,10 +467,8 @@ Uses `beads-formula-list--normalize-directory' for path comparison."
     ;; Variables
     (when-let ((vars (oref formula vars)))
       (beads-formula-show--render-section "Variables")
-      (let ((var-names (mapcar #'car vars)))
-        (dolist (name var-names)
-          (beads-formula-show--render-var (symbol-name name)
-                                          (alist-get name vars)))))
+      (dolist (var vars)
+        (beads-formula-show--render-var (oref var name) var)))
     ;; Steps
     (when-let ((steps (oref formula steps)))
       (beads-formula-show--render-section

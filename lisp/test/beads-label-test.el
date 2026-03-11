@@ -49,12 +49,13 @@
       (let ((result (beads-label-list-all)))
         (should (listp result))
         (should (= (length result) 3))
-        ;; Result should be list of objects with 'label and 'count
-        (should (cl-some (lambda (obj) (equal (alist-get 'label obj) "backend")) result))
-        (should (cl-some (lambda (obj) (equal (alist-get 'label obj) "frontend")) result))
-        (should (cl-some (lambda (obj) (equal (alist-get 'label obj) "bug")) result))
+        ;; Result should be list of beads-label-count objects
+        (should (cl-every #'beads-label-count-p result))
+        (should (cl-some (lambda (obj) (string= (oref obj label) "backend")) result))
+        (should (cl-some (lambda (obj) (string= (oref obj label) "frontend")) result))
+        (should (cl-some (lambda (obj) (string= (oref obj label) "bug")) result))
         ;; Verify count fields exist
-        (should (cl-every (lambda (obj) (numberp (alist-get 'count obj))) result))))))
+        (should (cl-every (lambda (obj) (numberp (oref obj count))) result))))))
 
 (ert-deftest beads-label-test-cache-works ()
   "Test that label cache stores and retrieves labels."
@@ -67,8 +68,8 @@
       ;; First call should populate cache
       (let ((result1 (beads--get-cached-labels)))
         (should (listp result1))
-        ;; Result should be list of objects with 'label field
-        (should (cl-some (lambda (obj) (equal (alist-get 'label obj) "backend")) result1))
+        ;; Result should be list of beads-label-count objects
+        (should (cl-some (lambda (obj) (string= (oref obj label) "backend")) result1))
 
         ;; Cache should be populated
         (should beads--label-cache)
@@ -412,8 +413,8 @@
     (beads-label-list-all-mode)
     (cl-letf (((symbol-function 'beads-label-list-all)
                (lambda ()
-                 '(((label . "backend") (count . 5))
-                   ((label . "frontend") (count . 3))))))
+                 (list (beads-label-count :label "backend" :count 5)
+                       (beads-label-count :label "frontend" :count 3)))))
       (beads-label-list-all-refresh)
       (should (= (length tabulated-list-entries) 2))
       ;; Check entries have correct format
@@ -429,7 +430,7 @@
            (expected-buf-name (beads-buffer-name-utility "labels")))
        (cl-letf (((symbol-function 'beads-label-list-all)
                   (lambda ()
-                    '(((label . "test") (count . 1)))))
+                    (list (beads-label-count :label "test" :count 1))))
                  ((symbol-function 'pop-to-buffer)
                   (lambda (_buf) nil)))
          (beads-label-list-all-view)
