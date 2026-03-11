@@ -328,7 +328,6 @@ Caller is responsible for cleanup."
 ARGS is a plist with optional keys:
   :init-beads - If non-nil, initialize beads in the repo (default nil)
   :prefix     - Custom prefix for beads (requires :init-beads)
-  :use-dolt   - If non-nil, route bd to the suite Dolt server (default nil)
   :quiet      - Suppress bd output during init (default t)
   :cleanup    - If nil, don't cleanup temp dir after BODY (default t)
 
@@ -367,28 +366,23 @@ Examples:
   (let ((temp-dir (make-symbol "temp-dir"))
         (init-beads (plist-get args :init-beads))
         (prefix (plist-get args :prefix))
-        (use-dolt (plist-get args :use-dolt))
         (cleanup (if (plist-member args :cleanup)
                      (plist-get args :cleanup)
                    t))
         (quiet (if (plist-member args :quiet)
                    (plist-get args :quiet)
                  t)))  ; Default quiet to t
-    `(let* (;; By default unset BEADS_DOLT_PORT — fast JSONL-only mode,
-            ;; no Dolt server needed.  When :use-dolt t is specified AND
-            ;; the suite Dolt server is running, route bd commands to it
-            ;; via BEADS_DOLT_PORT.
+    `(let* (;; Always route bd to the suite Dolt server when it is
+            ;; running — bd uses Dolt as the only storage backend.
+            ;; Unset BEADS_DOLT_PORT only when no suite server is
+            ;; running, to prevent inheriting a production port (e.g.
+            ;; BEADS_DOLT_PORT=3307 from Gas Town).
             (process-environment
-             ,(if use-dolt
-                  `(if beads-test--suite-server-port
-                       (cons (format "BEADS_DOLT_PORT=%d"
-                                     beads-test--suite-server-port)
-                             process-environment)
-                     ;; No suite server: unset to prevent inheriting
-                     ;; production port (e.g., BEADS_DOLT_PORT=3307).
-                     (cons "BEADS_DOLT_PORT" process-environment))
-                '(cons "BEADS_DOLT_PORT"
-                       process-environment)))
+             (if beads-test--suite-server-port
+                 (cons (format "BEADS_DOLT_PORT=%d"
+                               beads-test--suite-server-port)
+                       process-environment)
+               (cons "BEADS_DOLT_PORT" process-environment)))
             (beads-test--last-init-prefix nil)
             (,temp-dir (beads-test-create-temp-repo
                         ,@(when init-beads '(:init-beads t))
