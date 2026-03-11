@@ -1443,5 +1443,24 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
       (should (string= "feature-auth"
                        (beads-completion-read-agent-worktree "Test: "))))))
 
+(ert-deftest beads-completion-test-setup-marginalia-registers-categories ()
+  "Test that setup-marginalia registers beads categories in marginalia-annotators."
+  (let ((marginalia-annotators nil))
+    (beads-completion-setup-marginalia)
+    (should (assq 'beads-issue marginalia-annotators))
+    (should (assq 'beads-agent-backend marginalia-annotators))
+    (should (assq 'beads-worktree marginalia-annotators))
+    (should (assq 'beads-worktree-name marginalia-annotators))
+    (should (assq 'beads-agent-worktree marginalia-annotators))))
+
+(ert-deftest beads-completion-test-setup-marginalia-annotator-functions ()
+  "Test that setup-marginalia registers correct annotator functions."
+  (let ((marginalia-annotators nil))
+    (beads-completion-setup-marginalia)
+    (let ((entry (assq 'beads-issue marginalia-annotators)))
+      (should entry)
+      (should (eq 'beads-completion--marginalia-annotate-issue
+                  (cadr entry))))))
+
 (provide 'beads-completion-test)
 ;;; beads-completion-test.el ends here
