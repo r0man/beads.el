@@ -813,5 +813,213 @@ Returns the selected value, or nil if \"(no worktree)\" was selected."
         nil
       result)))
 
+;;; Marginalia Integration
+
+;; When marginalia is available, register richer annotators for beads
+;; completion categories.  The existing `annotation-function' metadata
+;; provides fallback annotations without marginalia.
+;;
+;; Registered via `with-eval-after-load' so marginalia remains optional.
+
+(eval-when-compile (require 'marginalia nil t))
+
+(defvar marginalia-annotator-registry)
+(declare-function marginalia--truncate "marginalia" (str width))
+
+(defun beads-completion--marginalia-annotate-issue (cand)
+  "Marginalia annotator for beads issue candidates.
+CAND is the candidate string with beads-issue text property."
+  (when-let ((issue (get-text-property 0 'beads-issue cand)))
+    (let ((status (oref issue status))
+          (priority (oref issue priority))
+          (type (or (oref issue issue-type) "task"))
+          (title (or (oref issue title) "")))
+      (marginalia--fields
+       ((format "P%s" (or priority "?"))
+        :face (pcase (or priority 9)
+                (0 'error)
+                (1 'warning)
+                (_ 'shadow))
+        :width 3)
+       (type :face 'font-lock-type-face :width 8 :truncate t)
+       (status
+        :face (pcase status
+                ("open" 'success)
+                ("in_progress" 'warning)
+                ("blocked" 'error)
+                ("closed" 'shadow)
+                (_ 'default))
+        :width 12)
+       (title :width 60 :truncate t)))))
+
+(defun beads-completion--marginalia-annotate-backend (cand)
+  "Marginalia annotator for beads agent backend candidates.
+CAND is the candidate string with beads-backend text property."
+  (when-let ((backend (get-text-property 0 'beads-backend cand)))
+    (let ((available (get-text-property 0 'beads-available cand))
+          (priority (oref backend priority))
+          (description (or (oref backend description) "")))
+      (marginalia--fields
+       ((format "P%s" priority) :face 'shadow :width 4)
+       ((if available "available" "unavailable")
+        :face (if available 'success 'shadow)
+        :width 12)
+       (description :width 50 :truncate t)))))
+
+(defun beads-completion--marginalia-annotate-worktree (cand)
+  "Marginalia annotator for beads worktree candidates.
+CAND is the candidate string with beads-worktree text property."
+  (when-let ((worktree (get-text-property 0 'beads-worktree cand)))
+    (let ((branch (or (oref worktree branch) ""))
+          (state (or (oref worktree beads-state) "none"))
+          (is-main (oref worktree is-main))
+          (path (or (oref worktree path) "")))
+      (marginalia--fields
+       (branch :face 'font-lock-keyword-face :width 20 :truncate t)
+       (state
+        :face (pcase state
+                ("shared" 'success)
+                ("redirect" 'font-lock-type-face)
+                ("local" 'warning)
+                (_ 'shadow))
+        :width 8)
+       ((if is-main "main" "") :face 'font-lock-constant-face :width 5)
+       (path :face 'shadow :width 40 :truncate t)))))
+
+(defun beads-completion--marginalia-annotate-worktree-name (cand)
+  "Marginalia annotator for combined worktree-name candidates.
+CAND may have either beads-type of worktree (existing worktree) or
+issue (issue ID), or no type."
+  (let ((type (get-text-property 0 'beads-type cand)))
+    (pcase type
+      ('worktree
+       (when-let ((wt (get-text-property 0 'beads-worktree cand)))
+         (let ((branch (or (oref wt branch) ""))
+               (state (or (oref wt beads-state) "none")))
+           (marginalia--fields
+            ((propertize "[EXISTS]" 'face 'warning) :width 8)
+            (branch :face 'font-lock-keyword-face :width 20 :truncate t)
+            (state :face 'shadow :width 8)))))
+      ('issue
+       (when-let ((issue (get-text-property 0 'beads-issue cand)))
+         (let ((status (oref issue status))
+               (priority (oref issue priority))
+               (title (or (oref issue title) "")))
+           (marginalia--fields
+            ((format "P%s" (or priority "?")) :face 'shadow :width 3)
+            (status
+             :face (pcase status
+                     ("in_progress" 'warning)
+                     ("open" 'success)
+                     ("blocked" 'error)
+                     ("closed" 'shadow)
+                     (_ 'default))
+             :width 12)
+            (title :width 50 :truncate t)))))
+      (_ nil))))
+
+(defun beads-completion--marginalia-annotate-agent-worktree (cand)
+  "Marginalia annotator for combined agent-worktree candidates.
+CAND may have beads-agent-wt-type of none, worktree, or issue."
+  (let ((type (get-text-property 0 'beads-agent-wt-type cand)))
+    (pcase type
+      ('none
+       (marginalia--fields
+        ("(current project)" :face 'font-lock-comment-face :width 20)))
+      ('worktree
+       (when-let ((wt (get-text-property 0 'beads-worktree cand)))
+         (let ((branch (or (oref wt branch) ""))
+               (state (or (oref wt beads-state) "none")))
+           (marginalia--fields
+            ((propertize "[EXISTS]" 'face 'warning) :width 8)
+            (branch :face 'font-lock-keyword-face :width 20 :truncate t)
+            (state :face 'shadow :width 8)))))
+      ('issue
+       (when-let ((issue (get-text-property 0 'beads-issue cand)))
+         (let ((status (oref issue status))
+               (priority (oref issue priority))
+               (title (or (oref issue title) "")))
+           (marginalia--fields
+            ((format "P%s" (or priority "?")) :face 'shadow :width 3)
+            (status
+             :face (pcase status
+                     ("in_progress" 'warning)
+                     ("open" 'success)
+                     ("blocked" 'error)
+                     ("closed" 'shadow)
+                     (_ 'default))
+             :width 12)
+            (title :width 50 :truncate t)))))
+      (_ nil))))
+
+(defun beads-completion-setup-marginalia ()
+  "Register beads completion categories with marginalia.
+Call this after loading marginalia to enable richer annotations
+in beads completion interfaces.  For example:
+
+  (with-eval-after-load \\='marginalia
+    (beads-completion-setup-marginalia))"
+  (add-to-list 'marginalia-annotator-registry
+               '(beads-issue
+                 beads-completion--marginalia-annotate-issue
+                 marginalia-annotate-nil))
+  (add-to-list 'marginalia-annotator-registry
+               '(beads-agent-backend
+                 beads-completion--marginalia-annotate-backend
+                 marginalia-annotate-nil))
+  (add-to-list 'marginalia-annotator-registry
+               '(beads-worktree
+                 beads-completion--marginalia-annotate-worktree
+                 marginalia-annotate-nil))
+  (add-to-list 'marginalia-annotator-registry
+               '(beads-worktree-name
+                 beads-completion--marginalia-annotate-worktree-name
+                 marginalia-annotate-nil))
+  (add-to-list 'marginalia-annotator-registry
+               '(beads-agent-worktree
+                 beads-completion--marginalia-annotate-agent-worktree
+                 marginalia-annotate-nil)))
+
+;;; Search-Based Completion
+
+(declare-function beads-command-search! "beads-command-search" (&rest args))
+
+(defun beads-completion-read-search-issue (prompt &optional require-match)
+  "Read an issue ID using server-side search completion.
+First prompts for a SEARCH-QUERY, then offers matching issues.
+PROMPT is shown during the issue selection step.
+REQUIRE-MATCH controls whether exact match is required."
+  (require 'beads-command-search)
+  (let* ((query (read-string "Search query: "))
+         (issues (condition-case err
+                     (let ((raw (beads-command-search! :query query)))
+                       (if (vectorp raw) (append raw nil) raw))
+                   (error
+                    (user-error "Search failed: %s"
+                                (error-message-string err)))))
+         (table (lambda (string pred action)
+                  (if (eq action 'metadata)
+                      '(metadata
+                        (category . beads-issue)
+                        (annotation-function
+                         . beads-completion--issue-annotate)
+                        (group-function
+                         . beads-completion--issue-group))
+                    (complete-with-action
+                     action
+                     (mapcar (lambda (i)
+                               (propertize (oref i id)
+                                           'beads-title (oref i title)
+                                           'beads-issue i))
+                             issues)
+                     string pred)))))
+    (if (or (null issues) (zerop (length issues)))
+        (user-error "No issues found matching %S" query)
+      (let ((completion-category-overrides
+             (cons '(beads-issue (styles beads-issue-title basic))
+                   completion-category-overrides)))
+        (completing-read prompt table nil require-match nil
+                         'beads--issue-id-history)))))
+
 (provide 'beads-completion)
 ;;; beads-completion.el ends here

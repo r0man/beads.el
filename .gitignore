@@ -71,3 +71,6 @@ eca-support/
 .claude/
 __pycache__/
 dist/
+
+# Gas Town (added by gt)
+state.json
