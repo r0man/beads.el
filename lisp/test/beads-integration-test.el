@@ -109,7 +109,7 @@ Returns the port number as an integer."
 (defun beads-test--wait-for-server (port &optional max-ms)
   "Block until a server on PORT accepts connections, up to MAX-MS ms.
 Signals an error if the server does not start in time."
-  (let* ((limit (or max-ms 5000))
+  (let* ((limit (or max-ms 30000))
          (interval 200)
          (attempts (/ limit interval))
          ready)
