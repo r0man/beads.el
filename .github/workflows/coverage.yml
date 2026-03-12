@@ -56,7 +56,11 @@ jobs:
         # The Eldev file configures codecov format via eldev-undercover-config.
         # EMACS_TEST_JUNIT_REPORT generates JUnit XML for Codecov Test Analytics.
         # Use absolute path for JUnit report since Eldev changes cwd during tests.
-        run: CI=true EMACS_TEST_JUNIT_REPORT=${{ github.workspace }}/coverage/junit.xml eldev -s -dtT test -U coverage/codecov.json
+        # Skip :integration tagged tests: they exercise bd/dolt CLI, not Emacs
+        # Lisp code, so they add no coverage value.  Under undercover's source
+        # loading mode (-s) the Dolt test server can't keep up with the extra
+        # load, causing i/o timeout failures (be-9as).
+        run: CI=true EMACS_TEST_JUNIT_REPORT=${{ github.workspace }}/coverage/junit.xml eldev -s -dtT test -U coverage/codecov.json '(not (tag :integration))'
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
