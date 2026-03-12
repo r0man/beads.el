@@ -438,9 +438,11 @@ Examples:
            ;; Clear state after test
            (beads-test--clear-transient-state)
            (beads-test--clear-caches)
-           ;; Drop the Dolt database created during init (if any) to
-           ;; prevent orphan accumulation on the suite server.
-           (beads-test--drop-dolt-database beads-test--last-init-prefix)
+           ;; NOTE: Per-test DROP DATABASE is intentionally omitted.
+           ;; The suite server's temp data directory is deleted at
+           ;; process exit by beads-test--suite-stop-server, making
+           ;; per-test drops unnecessary. Per-test drops cause Dolt
+           ;; background I/O that blocks subsequent tests (be-iuw).
            ;; Optionally cleanup temp dir
            (when ,cleanup
              (delete-directory ,temp-dir t)))))))
