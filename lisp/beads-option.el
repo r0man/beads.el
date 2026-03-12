@@ -177,7 +177,11 @@ similar to git commit message editing.")
         (local-set-key (kbd "C-c C-k") cancel-func)
         (message "Edit %s. C-c C-c to finish, C-c C-k to cancel."
                  field-name)
-        (recursive-edit)))
+        (unwind-protect
+            (recursive-edit)
+          ;; Ensure buffer is killed on any exit (including C-g)
+          (when (buffer-live-p buffer)
+            (kill-buffer buffer)))))
     result))
 
 

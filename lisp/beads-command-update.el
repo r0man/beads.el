@@ -159,7 +159,7 @@ gate, agent, role, rig, convoy, event, slot."
     :short-option "t"
     :option-type :string
     ;; Transient properties
-    :key "t"
+    :key "y"
     :transient "--type"
     :class transient-option
     :argument "--type="
@@ -525,7 +525,7 @@ Does not modify any slots."
                 (let ((issues (mapcar #'beads-issue-from-json
                                       (append parsed-json nil))))
                   ;; Return single issue if only one ID, list otherwise
-                  (if (and issue-ids (= (length issue-ids) 1))
+                  (if (= (length issue-ids) 1)
                       (car issues)
                     issues))
               ;; Unexpected JSON structure
@@ -639,6 +639,8 @@ from the parsed transient arguments."
          (priority (when priority-str (string-to-number priority-str)))
          (title (beads--sanitize-string
                  (transient-arg-value "--title=" args)))
+         (issue-type (beads--sanitize-string
+                      (transient-arg-value "--type=" args)))
          (description (beads--sanitize-string
                        (transient-arg-value "--description=" args)))
          (acceptance (beads--sanitize-string
@@ -650,7 +652,32 @@ from the parsed transient arguments."
          (assignee (beads--sanitize-string
                     (transient-arg-value "--assignee=" args)))
          (external-ref (beads--sanitize-string
-                        (transient-arg-value "--external-ref=" args))))
+                        (transient-arg-value "--external-ref=" args)))
+         (parent (beads--sanitize-string
+                  (transient-arg-value "--parent=" args)))
+         (body-file (beads--sanitize-string
+                     (transient-arg-value "--body-file=" args)))
+         (add-label-str (beads--sanitize-string
+                         (transient-arg-value "--add-label=" args)))
+         (add-label (when add-label-str (list add-label-str)))
+         (remove-label-str (beads--sanitize-string
+                            (transient-arg-value "--remove-label=" args)))
+         (remove-label (when remove-label-str (list remove-label-str)))
+         (set-labels-str (beads--sanitize-string
+                          (transient-arg-value "--set-labels=" args)))
+         (set-labels (when set-labels-str (list set-labels-str)))
+         (estimate-str (beads--sanitize-string
+                        (transient-arg-value "--estimate=" args)))
+         (estimate (when estimate-str (string-to-number estimate-str)))
+         (due (beads--sanitize-string
+               (transient-arg-value "--due=" args)))
+         (defer (beads--sanitize-string
+                 (transient-arg-value "--defer=" args)))
+         (await-id (beads--sanitize-string
+                    (transient-arg-value "--await-id=" args)))
+         (session (beads--sanitize-string
+                   (transient-arg-value "--session=" args)))
+         (claim (member "--claim" args)))
     (beads-command-update
      :json t
      :issue-ids (when beads-update--issue-id
@@ -658,12 +685,24 @@ from the parsed transient arguments."
      :status status
      :priority priority
      :title title
+     :issue-type issue-type
      :description description
      :acceptance acceptance
      :design design
      :notes notes
      :assignee assignee
-     :external-ref external-ref)))
+     :external-ref external-ref
+     :parent parent
+     :body-file body-file
+     :add-label add-label
+     :remove-label remove-label
+     :set-labels set-labels
+     :estimate estimate
+     :due due
+     :defer defer
+     :await-id await-id
+     :session session
+     :claim (when claim t))))
 
 (defun beads-update--get-changed-fields (cmd)
   "Return alist of fields that have been changed in CMD.
@@ -705,13 +744,11 @@ Only includes fields where current value differs from original."
 
 (defun beads-update--validate-all (cmd)
   "Validate all parameters from CMD command instance.
-Returns list of error messages, or nil if all valid."
-  (let ((error-msg (beads-command-validate cmd))
-        (changes (beads-update--get-changed-fields cmd)))
-    (delq nil
-          (list
-           error-msg
-           (when (null changes) "No fields have been changed")))))
+Returns list of error messages, or nil if all valid.
+Uses beads-command-validate for the authoritative check, which
+covers all fields including claim, add-label, etc."
+  (let ((error-msg (beads-command-validate cmd)))
+    (delq nil (list error-msg))))
 
 ;;; Transient Menu - Suffix Commands
 
@@ -846,6 +883,9 @@ context or prompt the user."
   (beads-check-executable)
   (unless issue-id
     (user-error "No issue ID specified"))
+  ;; Reset stale state from any prior cancelled/errored session
+  (setq beads-update--issue-id nil
+        beads-update--original-data nil)
   (beads-update--load-issue-data issue-id)
   ;; Show the transient menu
   (beads-update--menu))

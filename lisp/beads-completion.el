@@ -30,11 +30,14 @@
 (defvar beads-completion-show-unavailable-backends)
 (declare-function beads-command-list! "beads-command-list" (&rest args))
 (declare-function beads-command-worktree-list! "beads-command-worktree" (&rest args))
+(declare-function beads--get-database-path "beads" ())
 
 ;;; Completion Cache
 
 (defvar beads-completion--cache nil
-  "Cache for issue list.  Format: (TIMESTAMP . ISSUES-LIST).")
+  "Cache for issue list.
+Format: (DB-PATH TIMESTAMP . ISSUES-LIST), keyed by database path
+to avoid stale data when switching between projects.")
 
 (defvar beads-completion--cache-ttl 5
   "Time-to-live for completion cache in seconds.")
@@ -43,21 +46,25 @@
   "Get cached issue list, refreshing if stale.
 Returns all issues including closed ones so that commands like
 `beads-reopen' and `beads-delete' can complete on any issue.
+Cache is keyed by database path to avoid stale data when switching
+between projects.
 On fetch failure, returns previous cached data (if any) with a warning."
-  (let ((now (float-time)))
+  (let ((now (float-time))
+        (db (beads--get-database-path)))
     (when (or (null beads-completion--cache)
-              (> (- now (car beads-completion--cache))
+              (not (equal db (car beads-completion--cache)))
+              (> (- now (cadr beads-completion--cache))
                  beads-completion--cache-ttl))
       (condition-case err
           (setq beads-completion--cache
-                (cons now (beads-command-list! :all t)))
+                (list db now (beads-command-list! :all t)))
         (error
          ;; Keep existing cache data on error (stale data is better than none)
          ;; Only show warning if we have stale data to return
          (when beads-completion--cache
            (message "Warning: Failed to refresh issues: %s (using cached data)"
                     (error-message-string err))))))
-    (cdr beads-completion--cache)))
+    (nth 2 beads-completion--cache)))
 
 (defun beads-completion-invalidate-cache ()
   "Invalidate the completion cache."

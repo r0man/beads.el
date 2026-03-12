@@ -484,7 +484,7 @@ Returns a list of beads-issue EIEIO instances."
   "Cached version string from bd CLI.")
 
 (defvar beads-main--cached-project-info nil
-  "Cached project info (root and db path).")
+  "Cached project info.  Format: (DIRECTORY ROOT . DB-PATH) or nil.")
 
 ;;; Main Menu Utility Functions
 
@@ -494,8 +494,8 @@ Returns cached version if available, otherwise queries bd."
   (or beads-main--cached-version
       (condition-case nil
           (let* ((output (with-temp-buffer
-                           (call-process beads-executable nil t nil
-                                        "version")
+                           (process-file beads-executable nil t nil
+                                         "version")
                            (buffer-string)))
                  (version (if (string-match "bd version \\([^ \n]+\\)" output)
                              (match-string 1 output)
@@ -506,14 +506,19 @@ Returns cached version if available, otherwise queries bd."
 
 (defun beads-main--get-project-info ()
   "Get current project root and database path.
-Returns cons cell (PROJECT-ROOT . DB-PATH) or nil if not in project."
-  (or beads-main--cached-project-info
-      (let ((root (beads-git-find-project-root))
-            (db (beads--get-database-path)))
-        (when root
-          (let ((info (cons root db)))
-            (setq beads-main--cached-project-info info)
-            info)))))
+Returns cons cell (PROJECT-ROOT . DB-PATH) or nil if not in project.
+Cache is keyed by directory to avoid stale data when switching projects."
+  (if (and beads-main--cached-project-info
+           (equal default-directory
+                  (car beads-main--cached-project-info)))
+      (cdr beads-main--cached-project-info)
+    (let ((root (beads-git-find-project-root))
+          (db (beads--get-database-path)))
+      (when root
+        (let ((info (cons root db)))
+          (setq beads-main--cached-project-info
+                (cons default-directory info))
+          info)))))
 
 (defun beads-main--clear-cache ()
   "Clear cached project and version information."

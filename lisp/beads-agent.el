@@ -92,7 +92,6 @@
 (require 'beads-command-worktree)
 (require 'beads-completion)
 (require 'beads-git)
-(require 'beads-command-worktree)
 (require 'beads-agent-backend)
 (require 'beads-agent-prompt-edit)
 (require 'beads-agent-type)
@@ -101,7 +100,6 @@
 
 ;; Forward declarations
 (declare-function beads-list--current-issue-id "beads-list")
-(declare-function beads-show--issue-id "beads-show")
 (declare-function beads-sesman--link-session-buffer "beads-sesman")
 (declare-function beads-command-update "beads-command-update" (&rest args))
 (declare-function beads-command-update! "beads-command-update" (&rest args))
@@ -168,20 +166,8 @@ just that portion.
 
 Returns the JSON substring, or the original OUTPUT if no JSON
 delimiter is found."
-  (if-let ((json-start (or (string-match "^\\[" output)
-                           (string-match "^{" output)
-                           (string-match "\n\\[" output)
-                           (string-match "\n{" output))))
-      ;; Found JSON start - extract from there
-      ;; Skip the newline if we matched on \n[ or \n{
-      (let ((actual-start (if (or (string-match "^\n" (substring output json-start))
-                                  (= json-start 0))
-                              (if (= json-start 0)
-                                  0
-                                (1+ json-start))
-                            json-start)))
-        (substring output actual-start))
-    ;; No JSON found, return original
+  (if-let ((json-start (string-match "[\\[{]" output)))
+      (substring output json-start)
     output))
 
 ;;; Git Worktree Support
@@ -410,7 +396,7 @@ CALLBACK receives no arguments when done."
   (if (not beads-agent-auto-set-in-progress)
       (funcall callback)
     ;; Get issue status first
-    (let ((cmd (beads-command-show :issue-ids (list issue-id))))
+    (let ((cmd (beads-command-show :issue-ids (list issue-id) :json t)))
       (beads-command-execute-async
        cmd
        (lambda (exec)

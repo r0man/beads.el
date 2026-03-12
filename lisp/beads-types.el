@@ -247,7 +247,7 @@
     :initarg :priority
     :type (or null integer)
     :initform nil
-    :documentation "Priority level (0=lowest, 4=highest).")
+    :documentation "Priority level (0=critical/highest, 4=backlog/lowest).")
    (issue-type
     :initarg :issue-type
     :type (or null string)
@@ -389,34 +389,41 @@ When populated from bd show --json, includes full issue details.")
 (defclass beads-label ()
   ((issue-id
     :initarg :issue-id
-    :type string
+    :type (or null string)
+    :initform nil
     :documentation "Issue ID.")
    (label
     :initarg :label
-    :type string
+    :type (or null string)
+    :initform nil
     :documentation "Label text."))
   "Represents a label/tag on an issue.")
 
 (defclass beads-comment ()
   ((id
     :initarg :id
-    :type integer
+    :type (or null integer)
+    :initform nil
     :documentation "Unique comment ID.")
    (issue-id
     :initarg :issue-id
-    :type string
+    :type (or null string)
+    :initform nil
     :documentation "Issue ID.")
    (author
     :initarg :author
-    :type string
+    :type (or null string)
+    :initform nil
     :documentation "Comment author.")
    (text
     :initarg :text
-    :type string
+    :type (or null string)
+    :initform nil
     :documentation "Comment text.")
    (created-at
     :initarg :created-at
-    :type string
+    :type (or null string)
+    :initform nil
     :documentation "Creation timestamp (ISO 8601)."))
   "Represents a comment on an issue.")
 
@@ -776,10 +783,11 @@ When populated from bd show --json, includes full issue details.")
 
 ;;; JSON Conversion Functions
 
-(defun beads-issue-from-json (json)
-  "Create a beads-issue object from JSON alist.
-JSON should be the parsed JSON object from bd --json output."
-  (beads-issue
+(defun beads-issue--base-json-args (json)
+  "Return plist of base beads-issue fields from JSON alist.
+Used by beads-issue-from-json and subclass from-json functions
+to avoid duplicating the shared field mappings."
+  (list
    :id (alist-get 'id json)
    :content-hash (alist-get 'content_hash json)
    :title (alist-get 'title json)
@@ -809,6 +817,11 @@ JSON should be the parsed JSON object from bd --json output."
                  (mapcar #'beads-dependency-from-json (append deps nil)))
    :comments (when-let ((comments (alist-get 'comments json)))
                (mapcar #'beads-comment-from-json (append comments nil)))))
+
+(defun beads-issue-from-json (json)
+  "Create a beads-issue object from JSON alist.
+JSON should be the parsed JSON object from bd --json output."
+  (apply #'beads-issue (beads-issue--base-json-args json)))
 
 (defun beads-dependency-from-json (json)
   "Create a beads-dependency object from JSON alist.
@@ -864,70 +877,22 @@ JSON can be either:
 
 (defun beads-blocked-issue-from-json (json)
   "Create a beads-blocked-issue object from JSON alist."
-  (beads-blocked-issue
-   :id (alist-get 'id json)
-   :content-hash (alist-get 'content_hash json)
-   :title (alist-get 'title json)
-   :description (alist-get 'description json)
-   :design (alist-get 'design json)
-   :acceptance-criteria (alist-get 'acceptance_criteria json)
-   :notes (alist-get 'notes json)
-   :status (alist-get 'status json)
-   :priority (alist-get 'priority json)
-   :issue-type (alist-get 'issue_type json)
-   :assignee (alist-get 'assignee json)
-   :estimated-minutes (alist-get 'estimated_minutes json)
-   :created-at (alist-get 'created_at json)
-   :updated-at (alist-get 'updated_at json)
-   :closed-at (alist-get 'closed_at json)
-   :external-ref (alist-get 'external_ref json)
-   :compaction-level (alist-get 'compaction_level json)
-   :compacted-at (alist-get 'compacted_at json)
-   :compacted-at-commit (alist-get 'compacted_at_commit json)
-   :original-size (alist-get 'original_size json)
-   :source-repo (alist-get 'source_repo json)
-   :created-by (alist-get 'created_by json)
-   :labels (append (alist-get 'labels json) nil)
-   :dependencies (when-let ((deps (alist-get 'dependencies json)))
-                   (mapcar #'beads-dependency-from-json (append deps nil)))
-   :comments (when-let ((comments (alist-get 'comments json)))
-               (mapcar #'beads-comment-from-json (append comments nil)))
-   :blocked-by-count (or (alist-get 'blocked_by_count json) 0)
-   :blocked-by (append (alist-get 'blocked_by json) nil)))
+  (apply #'beads-blocked-issue
+         (append
+          (beads-issue--base-json-args json)
+          (list
+           :blocked-by-count (or (alist-get 'blocked_by_count json) 0)
+           :blocked-by (append (alist-get 'blocked_by json) nil)))))
 
 (defun beads-tree-node-from-json (json)
   "Create a beads-tree-node object from JSON alist."
-  (beads-tree-node
-   :id (alist-get 'id json)
-   :content-hash (alist-get 'content_hash json)
-   :title (alist-get 'title json)
-   :description (alist-get 'description json)
-   :design (alist-get 'design json)
-   :acceptance-criteria (alist-get 'acceptance_criteria json)
-   :notes (alist-get 'notes json)
-   :status (alist-get 'status json)
-   :priority (alist-get 'priority json)
-   :issue-type (alist-get 'issue_type json)
-   :assignee (alist-get 'assignee json)
-   :estimated-minutes (alist-get 'estimated_minutes json)
-   :created-at (alist-get 'created_at json)
-   :updated-at (alist-get 'updated_at json)
-   :closed-at (alist-get 'closed_at json)
-   :external-ref (alist-get 'external_ref json)
-   :compaction-level (alist-get 'compaction_level json)
-   :compacted-at (alist-get 'compacted_at json)
-   :compacted-at-commit (alist-get 'compacted_at_commit json)
-   :original-size (alist-get 'original_size json)
-   :source-repo (alist-get 'source_repo json)
-   :created-by (alist-get 'created_by json)
-   :labels (append (alist-get 'labels json) nil)
-   :dependencies (when-let ((deps (alist-get 'dependencies json)))
-                   (mapcar #'beads-dependency-from-json (append deps nil)))
-   :comments (when-let ((comments (alist-get 'comments json)))
-               (mapcar #'beads-comment-from-json (append comments nil)))
-   :depth (or (alist-get 'depth json) 0)
-   :parent-id (alist-get 'parent_id json)
-   :truncated (eq (alist-get 'truncated json) t)))
+  (apply #'beads-tree-node
+         (append
+          (beads-issue--base-json-args json)
+          (list
+           :depth (or (alist-get 'depth json) 0)
+           :parent-id (alist-get 'parent_id json)
+           :truncated (eq (alist-get 'truncated json) t)))))
 
 (defun beads-statistics-from-json (json)
   "Create a beads-statistics object from JSON alist."
