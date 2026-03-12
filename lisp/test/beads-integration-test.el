@@ -274,15 +274,30 @@ Called from within `beads-test-with-temp-repo', which binds
 process-environment to include BEADS_DOLT_PORT when the suite
 Dolt server is running.  bd uses the isolated server automatically.
 
+Retries up to 3 times with 2-second delays on failure, since Dolt
+on CI runners can transiently refuse connections under load.
+
 Returns DIR for convenience."
   (require 'beads-command)
   (let* ((default-directory dir)
          (effective-prefix (or prefix (beads-test--generate-unique-prefix)))
          (cmd (beads-command-init :prefix effective-prefix
                                   :quiet quiet
-                                  :skip-hooks t)))
+                                  :skip-hooks t))
+         (max-retries 3)
+         (attempt 0)
+         (done nil))
     (setq beads-test--last-init-prefix effective-prefix)
-    (beads-command-execute cmd))
+    (while (not done)
+      (setq attempt (1+ attempt))
+      (condition-case err
+          (progn
+            (beads-command-execute cmd)
+            (setq done t))
+        (beads-command-error
+         (if (>= attempt max-retries)
+             (signal (car err) (cdr err))
+           (sleep-for 2))))))
   dir)
 
 (defun beads-test--clear-caches ()
