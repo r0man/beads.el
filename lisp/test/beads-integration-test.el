@@ -83,6 +83,27 @@ Returns the port number as an integer."
         t)
     (error nil)))
 
+(defun beads-test--dolt-mysql-ready-p (port)
+  "Return non-nil if Dolt MySQL greeting received on PORT within 1 second.
+Dolt may accept TCP connections before its MySQL protocol handler is
+fully initialized.  Connecting and waiting for the greeting packet
+confirms that bd commands can connect without i/o timeout errors."
+  (condition-case nil
+      (let* ((got-data nil)
+             (proc (make-network-process
+                    :name "beads-test-mysql-probe"
+                    :host "127.0.0.1"
+                    :service port
+                    :family 'ipv4
+                    :noquery t
+                    :filter (lambda (_p data)
+                              (when (> (length data) 0)
+                                (setq got-data t))))))
+        (accept-process-output proc 1.0)
+        (ignore-errors (delete-process proc))
+        got-data)
+    (error nil)))
+
 ;;; ============================================================
 ;;; Suite-Level Dolt Server
 ;;; ============================================================
@@ -107,19 +128,34 @@ Returns the port number as an integer."
   "Temporary data directory for the suite-level Dolt test server.")
 
 (defun beads-test--wait-for-server (port &optional max-ms)
-  "Block until a server on PORT accepts connections, up to MAX-MS ms.
+  "Block until Dolt on PORT is ready for MySQL queries, up to MAX-MS ms.
+Uses two-phase readiness detection:
+1. Wait for TCP port to open.
+2. Wait for MySQL greeting packet.  Dolt may accept TCP connections
+   before its MySQL protocol handler is fully initialized, causing
+   i/o timeout errors in bd commands on slow CI runners.
 Signals an error if the server does not start in time."
   (let* ((limit (or max-ms 30000))
          (interval 200)
-         (attempts (/ limit interval))
+         (deadline (+ (float-time) (/ limit 1000.0)))
          ready)
-    (while (and (> attempts 0) (not ready))
+    ;; Phase 1: Wait for TCP connectivity.
+    (while (and (not ready) (< (float-time) deadline))
       (setq ready (beads-test--dolt-server-ready-p port))
       (unless ready
-        (sleep-for 0 interval)
-        (setq attempts (1- attempts))))
+        (sleep-for 0 interval)))
     (unless ready
       (error "Dolt test server did not start on port %d within %dms"
+             port limit))
+    ;; Phase 2: Wait for MySQL protocol readiness.
+    ;; Dolt accepts TCP before the MySQL handler initializes on CI.
+    (setq ready nil)
+    (while (and (not ready) (< (float-time) deadline))
+      (setq ready (beads-test--dolt-mysql-ready-p port))
+      (unless ready
+        (sleep-for 0 interval)))
+    (unless ready
+      (error "Dolt test server MySQL protocol not ready on port %d within %dms"
              port limit))))
 
 (defun beads-test--suite-start-server ()
