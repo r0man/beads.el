@@ -368,9 +368,10 @@
 
 (ert-deftest beads-command-worktree-test-list-integration ()
   "Integration test for beads-command-worktree-list.
-Requires bd to be installed and a git repo."
+Requires bd, dolt, and git to be installed."
   :tags '(:integration)
   (skip-unless (executable-find "bd"))
+  (skip-unless (executable-find "dolt"))
   (skip-unless (executable-find "git"))
   (beads-test-with-temp-repo (:init-beads t)
     ;; List worktrees - should at least have the main worktree
@@ -384,9 +385,10 @@ Requires bd to be installed and a git repo."
 
 (ert-deftest beads-command-worktree-test-info-integration ()
   "Integration test for beads-command-worktree-info.
-Requires bd to be installed and a git repo."
+Requires bd, dolt, and git to be installed."
   :tags '(:integration)
   (skip-unless (executable-find "bd"))
+  (skip-unless (executable-find "dolt"))
   (skip-unless (executable-find "git"))
   (beads-test-with-temp-repo (:init-beads t)
     ;; Get info about current directory
@@ -398,9 +400,10 @@ Requires bd to be installed and a git repo."
 
 (ert-deftest beads-command-worktree-test-create-remove-integration ()
   "Integration test for create and remove worktree.
-Requires bd to be installed and a git repo."
+Requires bd, dolt, and git to be installed."
   :tags '(:integration)
   (skip-unless (executable-find "bd"))
+  (skip-unless (executable-find "dolt"))
   (skip-unless (executable-find "git"))
   (beads-test-with-temp-repo (:init-beads t)
     ;; Create a worktree
