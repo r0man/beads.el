@@ -50,7 +50,7 @@ PRIORITY is the priority (default 2), TYPE is the issue type (default \"task\").
 
 (ert-deftest beads-completion-test-style-match-id ()
   "Test that completion style matches on issue ID."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-issue-table))
            (matches (beads-completion--issue-style-all "bd-abc" table nil nil)))
       (should (= 1 (length matches)))
@@ -58,7 +58,7 @@ PRIORITY is the priority (default 2), TYPE is the issue type (default \"task\").
 
 (ert-deftest beads-completion-test-style-match-title ()
   "Test that completion style matches on issue title."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-issue-table))
            (matches (beads-completion--issue-style-all "authentication" table nil nil)))
       (should (= 1 (length matches)))
@@ -66,7 +66,7 @@ PRIORITY is the priority (default 2), TYPE is the issue type (default \"task\").
 
 (ert-deftest beads-completion-test-style-match-title-partial ()
   "Test that completion style matches partial title."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-issue-table))
            (matches (beads-completion--issue-style-all "dashboard" table nil nil)))
       (should (= 1 (length matches)))
@@ -74,7 +74,7 @@ PRIORITY is the priority (default 2), TYPE is the issue type (default \"task\").
 
 (ert-deftest beads-completion-test-style-case-insensitive ()
   "Test that completion matching is case-insensitive."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-issue-table))
            (matches-lower (beads-completion--issue-style-all "authentication" table nil nil))
            (matches-upper (beads-completion--issue-style-all "AUTHENTICATION" table nil nil))
@@ -88,42 +88,42 @@ PRIORITY is the priority (default 2), TYPE is the issue type (default \"task\").
 
 (ert-deftest beads-completion-test-style-match-multiple ()
   "Test that style returns multiple matches when appropriate."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-issue-table))
            (matches (beads-completion--issue-style-all "bd-" table nil nil)))
       (should (= 4 (length matches))))))
 
 (ert-deftest beads-completion-test-style-no-match ()
   "Test that style returns empty list when no match."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-issue-table))
            (matches (beads-completion--issue-style-all "nonexistent" table nil nil)))
       (should (= 0 (length matches))))))
 
 (ert-deftest beads-completion-test-style-try-single-match ()
   "Test try-completion returns single match when only one."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-issue-table))
            (result (beads-completion--issue-style-try "authentication" table nil nil)))
       (should (string= "bd-abc1" result)))))
 
 (ert-deftest beads-completion-test-style-try-multiple-matches ()
   "Test try-completion returns input string when multiple matches."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-issue-table))
            (result (beads-completion--issue-style-try "bd-" table nil nil)))
       (should (string= "bd-" result)))))
 
 (ert-deftest beads-completion-test-style-try-exact-match ()
   "Test try-completion returns t for exact unique match."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-issue-table))
            (result (beads-completion--issue-style-try "bd-abc1" table nil nil)))
       (should (eq t result)))))
 
 (ert-deftest beads-completion-test-style-try-no-match ()
   "Test try-completion returns nil when no match."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-issue-table))
            (result (beads-completion--issue-style-try "nonexistent" table nil nil)))
       (should (null result)))))
@@ -132,7 +132,7 @@ PRIORITY is the priority (default 2), TYPE is the issue type (default \"task\").
 
 (ert-deftest beads-completion-test-candidates-have-properties ()
   "Test that completion candidates have expected text properties."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-issue-table))
            (candidates (all-completions "" table nil)))
       (should (= 4 (length candidates)))
@@ -142,7 +142,7 @@ PRIORITY is the priority (default 2), TYPE is the issue type (default \"task\").
 
 (ert-deftest beads-completion-test-candidate-title-property ()
   "Test that beads-title property contains the correct title."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-issue-table))
            (candidates (all-completions "" table nil))
            (auth-candidate (seq-find (lambda (c) (string= "bd-abc1" c)) candidates)))
@@ -154,7 +154,7 @@ PRIORITY is the priority (default 2), TYPE is the issue type (default \"task\").
 
 (ert-deftest beads-completion-test-annotation-format ()
   "Test that annotation returns expected format."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-issue-table))
            (candidates (all-completions "" table nil))
            (open-candidate (seq-find (lambda (c) (string= "bd-abc1" c)) candidates))
@@ -169,7 +169,7 @@ PRIORITY is the priority (default 2), TYPE is the issue type (default \"task\").
   "Test that annotation truncates titles longer than 50 characters."
   (let* ((long-title "This is a very long title that exceeds fifty characters significantly")
          (issues (list (beads-completion-test--make-issue "bd-long" long-title "open")))
-         (beads-completion--cache (cons (float-time) issues)))
+         (beads-completion--cache (list (beads--get-database-path) (float-time) issues)))
     (let* ((table (beads-completion-issue-table))
            (candidates (all-completions "" table nil))
            (annotation (beads-completion--issue-annotate (car candidates))))
@@ -189,7 +189,7 @@ Annotation functions may return nil or empty string for missing data."
 
 (ert-deftest beads-completion-test-group-by-status ()
   "Test that grouping function groups by status correctly."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-issue-table))
            (candidates (all-completions "" table nil)))
       ;; Find candidates by status
@@ -204,7 +204,7 @@ Annotation functions may return nil or empty string for missing data."
 
 (ert-deftest beads-completion-test-group-transform ()
   "Test that group function returns candidate when transform is non-nil."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-issue-table))
            (candidates (all-completions "" table nil))
            (candidate (car candidates)))
@@ -286,7 +286,7 @@ Annotation functions may return nil or empty string for missing data."
                   (beads-completion-test--make-issue "bd-1" "Open issue" "open" 2)
                   (beads-completion-test--make-issue "bd-2" "In progress" "in_progress" 2)
                   (beads-completion-test--make-issue "bd-3" "Blocked" "blocked" 2)))
-         (beads-completion--cache (cons (float-time) issues))
+         (beads-completion--cache (list (beads--get-database-path) (float-time) issues))
          (table (beads-completion-issue-table))
          (candidates (all-completions "" table nil)))
     ;; in_progress should be first
@@ -300,7 +300,7 @@ Annotation functions may return nil or empty string for missing data."
 
 (ert-deftest beads-completion-test-cache-invalidation ()
   "Test that cache can be invalidated."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (should beads-completion--cache)
     (beads-completion-invalidate-cache)
     (should (null beads-completion--cache))))
@@ -309,11 +309,13 @@ Annotation functions may return nil or empty string for missing data."
   "Test that stale cache is preserved when refresh fails."
   (let* ((mock-issues (beads-completion-test--make-mock-issues))
          ;; Use an old timestamp so refresh is attempted
-         (beads-completion--cache (cons 0 mock-issues))
+         (beads-completion--cache (list "/test" 0 mock-issues))
          (message-shown nil))
     (cl-letf (((symbol-function 'beads-command-list!)
                (lambda ()
                  (error "Connection failed")))
+              ((symbol-function 'beads--get-database-path)
+               (lambda () "/test"))
               ((symbol-function 'message)
                (lambda (fmt &rest args)
                  (setq message-shown (apply #'format fmt args)))))
@@ -332,6 +334,8 @@ Annotation functions may return nil or empty string for missing data."
     (cl-letf (((symbol-function 'beads-command-list!)
                (lambda ()
                  (error "Connection failed")))
+              ((symbol-function 'beads--get-database-path)
+               (lambda () "/test"))
               ;; Suppress any messages
               ((symbol-function 'message) #'ignore))
       ;; Get issues - should fail to refresh with no stale data
@@ -365,7 +369,7 @@ Annotation functions may return nil or empty string for missing data."
 
 (ert-deftest beads-completion-test-read-issue-uses-title-style ()
   "Test that beads-completion-read-issue enables title-aware completion."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (cl-letf (((symbol-function 'completing-read)
                (lambda (prompt table &rest _args)
                  ;; Verify category override is set
@@ -380,7 +384,7 @@ Annotation functions may return nil or empty string for missing data."
 
 (ert-deftest beads-completion-test-table-metadata ()
   "Test that completion table provides correct metadata."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-issue-table))
            (metadata (funcall table "" nil 'metadata)))
       (should (eq 'metadata (car metadata)))
@@ -396,7 +400,7 @@ Annotation functions may return nil or empty string for missing data."
   "Test that beads--issue-completion-table alias works."
   (should (fboundp 'beads--issue-completion-table))
   ;; Alias should return a working completion table
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let ((table (beads--issue-completion-table)))
       (should (functionp table))
       ;; Should work the same as the original
@@ -407,7 +411,7 @@ Annotation functions may return nil or empty string for missing data."
   "Test that beads--invalidate-completion-cache alias works."
   (should (fboundp 'beads--invalidate-completion-cache))
   ;; Alias should invalidate the cache
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (should beads-completion--cache)
     (beads--invalidate-completion-cache)
     (should (null beads-completion--cache))))
@@ -439,14 +443,14 @@ Annotation functions may return nil or empty string for missing data."
 
 (ert-deftest beads-completion-test-capf-triggers-with-two-chars ()
   "Test CAPF triggers with 2+ characters."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (with-temp-buffer
       (insert "bd")
       (should (beads-completion-at-point)))))
 
 (ert-deftest beads-completion-test-capf-at-partial-id ()
   "Test CAPF returns correct bounds and table at partial issue ID."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (with-temp-buffer
       (insert "bd-ab")
       (let ((result (beads-completion-at-point)))
@@ -458,7 +462,7 @@ Annotation functions may return nil or empty string for missing data."
 
 (ert-deftest beads-completion-test-capf-at-project-prefix ()
   "Test CAPF works with various project prefixes."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     ;; Test with beads.el- prefix
     (with-temp-buffer
       (insert "beads.el-")
@@ -476,7 +480,7 @@ Annotation functions may return nil or empty string for missing data."
 
 (ert-deftest beads-completion-test-capf-mid-word ()
   "Test CAPF detects ID when cursor is in the middle of text."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (with-temp-buffer
       (insert "bd-abc1")
       (goto-char 4)  ; Position after "bd-"
@@ -487,7 +491,7 @@ Annotation functions may return nil or empty string for missing data."
 
 (ert-deftest beads-completion-test-capf-with-surrounding-text ()
   "Test CAPF works when issue ID is surrounded by other text."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (with-temp-buffer
       (insert "See issue bd-abc for details")
       (goto-char 16)  ; Position at "bd-abc"
@@ -498,7 +502,7 @@ Annotation functions may return nil or empty string for missing data."
 
 (ert-deftest beads-completion-test-capf-exclusive-no ()
   "Test CAPF sets :exclusive to no."
-  (let ((beads-completion--cache (cons (float-time) (beads-completion-test--make-mock-issues))))
+  (let ((beads-completion--cache (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (with-temp-buffer
       (insert "bd-")
       (let ((result (beads-completion-at-point)))
@@ -1188,7 +1192,7 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
   (let ((beads-completion--worktree-cache
          (cons (float-time) (beads-completion-test--make-mock-worktrees)))
         (beads-completion--cache
-         (cons (float-time) (beads-completion-test--make-mock-issues))))
+         (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-worktree-name-table))
            (candidates (all-completions "" table nil)))
       ;; Should have 4 worktrees + 4 issues = 8 candidates
@@ -1205,7 +1209,7 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
   (let ((beads-completion--worktree-cache
          (cons (float-time) (beads-completion-test--make-mock-worktrees)))
         (beads-completion--cache
-         (cons (float-time) (beads-completion-test--make-mock-issues))))
+         (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-worktree-name-table))
            (candidates (all-completions "" table nil)))
       ;; First 4 should be worktrees (based on mock data)
@@ -1222,7 +1226,7 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
                   (beads-completion-test--make-issue "bd-2" "In progress" "in_progress" 2)
                   (beads-completion-test--make-issue "bd-3" "Closed" "closed" 2)))
          (beads-completion--worktree-cache (cons (float-time) nil))
-         (beads-completion--cache (cons (float-time) issues))
+         (beads-completion--cache (list (beads--get-database-path) (float-time) issues))
          (table (beads-completion-worktree-name-table))
          (candidates (all-completions "" table nil)))
     ;; With no worktrees, first should be in_progress
@@ -1236,7 +1240,7 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
   "Test annotation for existing worktree in worktree name completion."
   (let ((beads-completion--worktree-cache
          (cons (float-time) (beads-completion-test--make-mock-worktrees)))
-        (beads-completion--cache (cons (float-time) nil)))
+        (beads-completion--cache (list (beads--get-database-path) (float-time) nil)))
     (let* ((table (beads-completion-worktree-name-table))
            (candidates (all-completions "" table nil))
            (beads-wt (seq-find (lambda (c) (string= "beads.el" c)) candidates))
@@ -1249,7 +1253,7 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
   "Test annotation for issue in worktree name completion."
   (let ((beads-completion--worktree-cache (cons (float-time) nil))
         (beads-completion--cache
-         (cons (float-time) (beads-completion-test--make-mock-issues))))
+         (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-worktree-name-table))
            (candidates (all-completions "" table nil))
            (issue-candidate (seq-find (lambda (c) (string= "bd-abc1" c)) candidates))
@@ -1263,7 +1267,7 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
   "Test grouping for existing worktree."
   (let ((beads-completion--worktree-cache
          (cons (float-time) (beads-completion-test--make-mock-worktrees)))
-        (beads-completion--cache (cons (float-time) nil)))
+        (beads-completion--cache (list (beads--get-database-path) (float-time) nil)))
     (let* ((table (beads-completion-worktree-name-table))
            (candidates (all-completions "" table nil))
            (beads-wt (seq-find (lambda (c) (string= "beads.el" c)) candidates)))
@@ -1274,7 +1278,7 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
   "Test grouping for issues by status."
   (let ((beads-completion--worktree-cache (cons (float-time) nil))
         (beads-completion--cache
-         (cons (float-time) (beads-completion-test--make-mock-issues))))
+         (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-worktree-name-table))
            (candidates (all-completions "" table nil))
            (open-issue (seq-find (lambda (c) (string= "bd-abc1" c)) candidates))
@@ -1294,7 +1298,7 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
   "Test that worktree name style matches on issue title."
   (let ((beads-completion--worktree-cache (cons (float-time) nil))
         (beads-completion--cache
-         (cons (float-time) (beads-completion-test--make-mock-issues))))
+         (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-worktree-name-table))
            (matches (beads-completion--worktree-name-style-all "authentication" table nil nil)))
       (should (= 1 (length matches)))
@@ -1304,7 +1308,7 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
   "Test that worktree name style matches on worktree branch."
   (let ((beads-completion--worktree-cache
          (cons (float-time) (beads-completion-test--make-mock-worktrees)))
-        (beads-completion--cache (cons (float-time) nil)))
+        (beads-completion--cache (list (beads--get-database-path) (float-time) nil)))
     (let* ((table (beads-completion-worktree-name-table))
            ;; Match on "feature/auth" branch which belongs to "feature-auth" worktree
            (matches (beads-completion--worktree-name-style-all "feature/auth" table nil nil)))
@@ -1322,7 +1326,7 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
   "Test that agent worktree completion table provides correct metadata."
   (let ((beads-completion--worktree-cache
          (cons (float-time) (beads-completion-test--make-mock-worktrees)))
-        (beads-completion--cache (cons (float-time) nil)))
+        (beads-completion--cache (list (beads--get-database-path) (float-time) nil)))
     (let* ((table (beads-completion-agent-worktree-table))
            (metadata (funcall table "" nil 'metadata)))
       (should (eq 'beads-agent-worktree (cdr (assq 'category metadata))))
@@ -1335,7 +1339,7 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
   "Test that agent worktree table has (no worktree) as first candidate."
   (let ((beads-completion--worktree-cache
          (cons (float-time) (beads-completion-test--make-mock-worktrees)))
-        (beads-completion--cache (cons (float-time) nil)))
+        (beads-completion--cache (list (beads--get-database-path) (float-time) nil)))
     (let* ((table (beads-completion-agent-worktree-table))
            (candidates (funcall table "" nil t)))
       (should (string= "(no worktree)" (car candidates))))))
@@ -1344,7 +1348,7 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
   "Test that agent worktree table includes existing worktrees."
   (let ((beads-completion--worktree-cache
          (cons (float-time) (beads-completion-test--make-mock-worktrees)))
-        (beads-completion--cache (cons (float-time) nil)))
+        (beads-completion--cache (list (beads--get-database-path) (float-time) nil)))
     (let* ((table (beads-completion-agent-worktree-table))
            (candidates (funcall table "" nil t)))
       ;; Should have (no worktree) + 4 worktrees = at least 5
@@ -1356,7 +1360,7 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
   "Test that agent worktree table includes issues."
   (let ((beads-completion--worktree-cache (cons (float-time) nil))
         (beads-completion--cache
-         (cons (float-time) (beads-completion-test--make-mock-issues))))
+         (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
     (let* ((table (beads-completion-agent-worktree-table))
            (candidates (funcall table "" nil t)))
       ;; Should have (no worktree) + 4 issues = 5
@@ -1432,7 +1436,7 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
 (ert-deftest beads-completion-test-read-agent-worktree-returns-nil-for-no-worktree ()
   "Test that read-agent-worktree returns nil when (no worktree) is selected."
   (let ((beads-completion--worktree-cache (cons (float-time) nil))
-        (beads-completion--cache (cons (float-time) nil)))
+        (beads-completion--cache (list (beads--get-database-path) (float-time) nil)))
     (cl-letf (((symbol-function 'completing-read)
                (lambda (&rest _) "(no worktree)")))
       (should (null (beads-completion-read-agent-worktree "Test: "))))))
@@ -1441,7 +1445,7 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
   "Test that read-agent-worktree returns the selected value."
   (let ((beads-completion--worktree-cache
          (cons (float-time) (beads-completion-test--make-mock-worktrees)))
-        (beads-completion--cache (cons (float-time) nil)))
+        (beads-completion--cache (list (beads--get-database-path) (float-time) nil)))
     (cl-letf (((symbol-function 'completing-read)
                (lambda (&rest _) "feature-auth")))
       (should (string= "feature-auth"

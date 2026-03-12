@@ -1038,14 +1038,17 @@ Integration test that retrieves issue database stats."
   (dolist (deps '(("blocks:bd-123")
                   ("depends-on:bd-456")
                   ("blocks:bd-1" "depends-on:bd-2")
-                  ("discovered-from:bd-789")))
+                  ("discovered-from:bd-789")
+                  ;; Plain issue IDs without type prefix are also valid
+                  ("bd-123")
+                  ("invalid")
+                  ("blocks-bd-123")))
     (let ((cmd (beads-command-create
                 :title "Test"
                 :deps deps)))
       (should-not (beads-command-validate cmd))))
   ;; Invalid formats - should fail validation
-  (dolist (deps '(("invalid")
-                  ("blocks-bd-123")
+  (dolist (deps '(("@invalid")
                   ("blocks:")
                   (":bd-123")))
     (let ((cmd (beads-command-create
