@@ -164,8 +164,14 @@ Idempotent.  The port is stored in `beads-test--suite-server-port'
 and used by all test macros via BEADS_DOLT_PORT in process-environment.
 Dolt is the only storage backend — there is no file-backed mode.
 Falls back gracefully if dolt is not installed (tests should
-skip-unless dolt is available)."
-  (unless beads-test--suite-server-process
+skip-unless dolt is available).
+Restarts the server if the process has died or stopped accepting
+connections."
+  (unless (and beads-test--suite-server-process
+               (process-live-p beads-test--suite-server-process)
+               (beads-test--dolt-server-ready-p
+                beads-test--suite-server-port))
+    (beads-test--suite-stop-server)
     (when (executable-find "dolt")
       (let* ((port (beads-test--find-free-port))
              (data-dir (make-temp-file "beads-test-dolt-" t))
