@@ -39,7 +39,7 @@
 (require 'transient)
 
 ;; Forward declaration
-(declare-function beads-show "beads-show")
+(declare-function beads-show "beads-command-show")
 
 ;;; Create Command
 
@@ -79,7 +79,7 @@ gate, agent, role, rig, convoy, event. Default: 'task'."
     :short-option "t"
     :option-type :string
     ;; Transient properties
-    :key "t"
+    :key "y"
     :transient "--type"
     :class transient-option
     :argument "--type="
@@ -770,9 +770,10 @@ Returns error string or nil if valid."
      (and deps
           (not (seq-every-p
                 (lambda (dep)
-                  (string-match-p "^[a-z-]+:[A-Za-z0-9._-]+$" dep))
+                  (string-match-p
+                   "^\\([a-z-]+:\\)?[A-Za-z0-9._-]+$" dep))
                 deps))
-          "Dependencies must be in format: type:issue-id"))))
+          "Dependencies must be in format: type:issue-id or plain issue-id"))))
 
 (cl-defmethod beads-command-parse ((command beads-command-create) execution)
   "Parse create COMMAND output from EXECUTION.
@@ -789,8 +790,8 @@ Does not modify any slots."
       (let ((parsed-json (cl-call-next-method)))
         (condition-case err
             (cond
-             ;; Single issue (JSON object)
-             ((eq (type-of parsed-json) 'cons)
+             ;; Single issue (JSON object, including non-empty alists)
+             ((and (listp parsed-json) (not (null parsed-json)))
               (beads-issue-from-json parsed-json))
              ;; Multiple issues from file (JSON array)
              ((eq (type-of parsed-json) 'vector)

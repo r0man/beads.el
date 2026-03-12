@@ -900,8 +900,17 @@ Signals `beads-json-parse-error' if JSON parsing fails (for JSON commands)."
             (when (fboundp 'beads--log)
               (beads--log 'info "Command completed in %.3fs" elapsed)
               (beads--log 'verbose "Exit code: %d" proc-exit-code)
-              (beads--log 'verbose "Stdout: %s" proc-stdout)
-              (beads--log 'verbose "Stderr: %s" proc-stderr))
+              ;; Truncate output to avoid logging sensitive issue content
+              ;; (verbose mode may expose passwords, PII, or API tokens
+              ;; embedded in issue fields).
+              (beads--log 'verbose "Stdout: %s"
+                          (if (> (length proc-stdout) 500)
+                              (concat (substring proc-stdout 0 500) "...[truncated]")
+                            proc-stdout))
+              (beads--log 'verbose "Stderr: %s"
+                          (if (> (length proc-stderr) 500)
+                              (concat (substring proc-stderr 0 500) "...[truncated]")
+                            proc-stderr)))
 
             (if (zerop proc-exit-code)
                 ;; Success: parse output and set result
@@ -1005,20 +1014,39 @@ Returns process object."
                  (when (fboundp 'beads--log)
                    (beads--log 'info "Async command completed in %.3fs" elapsed)
                    (beads--log 'verbose "Exit code: %d" proc-exit-code)
-                   (beads--log 'verbose "Stdout: %s" proc-stdout)
-                   (beads--log 'verbose "Stderr: %s" proc-stderr))
+                   ;; Truncate output to avoid logging sensitive issue content
+                   (beads--log 'verbose "Stdout: %s"
+                               (if (> (length proc-stdout) 500)
+                                   (concat (substring proc-stdout 0 500)
+                                           "...[truncated]")
+                                 proc-stdout))
+                   (beads--log 'verbose "Stderr: %s"
+                               (if (> (length proc-stderr) 500)
+                                   (concat (substring proc-stderr 0 500)
+                                           "...[truncated]")
+                                 proc-stderr)))
 
                  ;; Clean up buffers (suppress kill queries for these temp buffers)
                  (let ((kill-buffer-query-functions nil))
                    (kill-buffer stdout-buffer)
                    (kill-buffer stderr-buffer))
 
-                 ;; Parse output and set result slot
+                 ;; Parse output and set result slot.
+                 ;; Wrap in condition-case: unhandled errors in
+                 ;; process sentinels are silently suppressed by
+                 ;; Emacs, which would cause callback to never fire.
                  (when (zerop proc-exit-code)
-                   (oset execution result
-                         (beads-command-parse command execution)))
+                   (condition-case parse-err
+                       (oset execution result
+                             (beads-command-parse command execution))
+                     (error
+                      (oset execution exit-code 1)
+                      (oset execution stderr
+                            (format "%s\nParse error: %s"
+                                    proc-stderr
+                                    (error-message-string parse-err))))))
 
-                 ;; Call callback with execution object
+                 ;; Call callback with execution object (always)
                  (when callback
                    (funcall callback execution)))))))
     process))
