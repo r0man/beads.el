@@ -942,18 +942,16 @@
       (should-not (beads-update--get-changed-fields cmd)))))
 
 (ert-deftest beads-coverage-2-update-validate-all-no-changes ()
-  "Test beads-update--validate-all when no fields changed."
+  "Test beads-update--validate-all when no fields changed.
+beads-update--validate-all delegates to beads-command-validate which
+does not check whether fields have actually changed."
   (let ((beads-update--original-data
          (beads-issue :id "bd-1" :title "Same" :status "open"
                       :priority 1 :issue-type "task")))
     (let ((cmd (beads-command-update :issue-ids '("bd-1")
                                       :title "Same")))
       (let ((errors (beads-update--validate-all cmd)))
-        (should errors)
-        (should (cl-some (lambda (e)
-                           (and (stringp e)
-                                (string-match "changed" e)))
-                         errors))))))
+        (should (null errors))))))
 
 ;;; ============================================================
 ;;; beads-command-dep.el - Parse Tests

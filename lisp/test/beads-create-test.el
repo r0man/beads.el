@@ -193,14 +193,19 @@ For testing, we pass the multiline string on a single line with escaped \\n."
                                    :deps '("discovered-from:bd-10"))))
     (should (null (beads-command-validate cmd)))))
 
+(ert-deftest beads-create-test-validate-dependencies-plain-id ()
+  "Test dependencies validation with plain issue ID (no type prefix)."
+  (let ((cmd (beads-command-create :title "Test" :deps '("bd-123"))))
+    (should (null (beads-command-validate cmd)))))
+
 (ert-deftest beads-create-test-validate-dependencies-invalid-format ()
-  "Test dependencies validation with invalid format."
-  (let ((cmd (beads-command-create :title "Test" :deps '("invalid"))))
+  "Test dependencies validation with invalid format (contains special chars)."
+  (let ((cmd (beads-command-create :title "Test" :deps '("@invalid"))))
     (should (beads-command-validate cmd))))
 
 (ert-deftest beads-create-test-validate-dependencies-missing-colon ()
-  "Test dependencies validation without colon separator."
-  (let ((cmd (beads-command-create :title "Test" :deps '("blocksbd-1"))))
+  "Test dependencies validation with invalid characters in type prefix."
+  (let ((cmd (beads-command-create :title "Test" :deps '("blocks:BD@123"))))
     (should (beads-command-validate cmd))))
 
 (ert-deftest beads-create-test-validate-dependencies-invalid-characters ()
@@ -399,9 +404,9 @@ Verifies that beads-create--execute properly rejects invalid input."
     (should-error (call-interactively #'beads-create--execute)
                   :type 'user-error))
 
-  ;; Test with invalid dependencies format
+  ;; Test with invalid dependencies format (@ is not allowed)
   (beads-test-with-transient-args 'beads-create
-      '("--title=Test" "--deps=invalid-format")
+      '("--title=Test" "--deps=@invalid-format")
     (should-error (call-interactively #'beads-create--execute)
                   :type 'user-error)))
 
