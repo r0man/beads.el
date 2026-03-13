@@ -900,5 +900,91 @@ Regression test for bug bde-z65s: 'Not a transient prefix: beads-update'."
     (should-error (beads-command-parse cmd exec)
                   :type 'beads-json-parse-error)))
 
+;;; Tests for beads-update--parse-transient-args additional fields (be-rzf)
+
+(ert-deftest beads-update-test-parse-args-add-label ()
+  "Test parsing --add-label argument."
+  :tags '(:unit)
+  (let ((cmd (beads-update--parse-transient-args '("--add-label=bug"))))
+    (should (beads-command-update-p cmd))
+    (should (equal (oref cmd add-label) '("bug")))))
+
+(ert-deftest beads-update-test-parse-args-remove-label ()
+  "Test parsing --remove-label argument."
+  :tags '(:unit)
+  (let ((cmd (beads-update--parse-transient-args '("--remove-label=wontfix"))))
+    (should (beads-command-update-p cmd))
+    (should (equal (oref cmd remove-label) '("wontfix")))))
+
+(ert-deftest beads-update-test-parse-args-due ()
+  "Test parsing --due argument."
+  :tags '(:unit)
+  (let ((cmd (beads-update--parse-transient-args '("--due=2026-12-31"))))
+    (should (beads-command-update-p cmd))
+    (should (equal (oref cmd due) "2026-12-31"))))
+
+(ert-deftest beads-update-test-parse-args-estimate ()
+  "Test parsing --estimate argument."
+  :tags '(:unit)
+  (let ((cmd (beads-update--parse-transient-args '("--estimate=3"))))
+    (should (beads-command-update-p cmd))
+    (should (equal (oref cmd estimate) 3))))
+
+(ert-deftest beads-update-test-parse-args-claim ()
+  "Test parsing --claim argument."
+  :tags '(:unit)
+  (let ((cmd (beads-update--parse-transient-args '("--claim"))))
+    (should (beads-command-update-p cmd))
+    (should (oref cmd claim))))
+
+(ert-deftest beads-update-test-parse-args-no-claim-when-absent ()
+  "Test --claim is nil when not in args."
+  :tags '(:unit)
+  (let ((cmd (beads-update--parse-transient-args '("--status=open"))))
+    (should (beads-command-update-p cmd))
+    (should (null (oref cmd claim)))))
+
+(ert-deftest beads-update-test-parse-args-parent ()
+  "Test parsing --parent argument."
+  :tags '(:unit)
+  (let ((cmd (beads-update--parse-transient-args '("--parent=bd-10"))))
+    (should (beads-command-update-p cmd))
+    (should (equal (oref cmd parent) "bd-10"))))
+
+(ert-deftest beads-update-test-parse-args-defer ()
+  "Test parsing --defer argument."
+  :tags '(:unit)
+  (let ((cmd (beads-update--parse-transient-args '("--defer=2026-06-01"))))
+    (should (beads-command-update-p cmd))
+    (should (equal (oref cmd defer) "2026-06-01"))))
+
+(ert-deftest beads-update-test-parse-args-set-labels ()
+  "Test parsing --set-labels argument."
+  :tags '(:unit)
+  (let ((cmd (beads-update--parse-transient-args '("--set-labels=urgent"))))
+    (should (beads-command-update-p cmd))
+    (should (equal (oref cmd set-labels) '("urgent")))))
+
+(ert-deftest beads-update-test-parse-args-body-file ()
+  "Test parsing --body-file argument."
+  :tags '(:unit)
+  (let ((cmd (beads-update--parse-transient-args '("--body-file=/tmp/desc.txt"))))
+    (should (beads-command-update-p cmd))
+    (should (equal (oref cmd body-file) "/tmp/desc.txt"))))
+
+(ert-deftest beads-update-test-parse-args-nil-when-absent ()
+  "Test that unspecified fields are nil after parsing empty args."
+  :tags '(:unit)
+  (let ((cmd (beads-update--parse-transient-args nil)))
+    (should (null (oref cmd add-label)))
+    (should (null (oref cmd remove-label)))
+    (should (null (oref cmd due)))
+    (should (null (oref cmd estimate)))
+    (should (null (oref cmd claim)))
+    (should (null (oref cmd parent)))
+    (should (null (oref cmd defer)))
+    (should (null (oref cmd set-labels)))
+    (should (null (oref cmd body-file)))))
+
 (provide 'beads-update-test)
 ;;; beads-update-test.el ends here
