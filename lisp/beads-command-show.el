@@ -177,11 +177,11 @@ Does not modify any slots."
         (condition-case err
             (cond
              ;; Array result - convert to issue objects
-             ((eq (type-of parsed-json) 'vector)
+             ((vectorp parsed-json)
               (let ((issues (mapcar #'beads-issue-from-json
                                     (append parsed-json nil))))
                 ;; Return single issue if only one ID, list otherwise
-                (if (= (length issue-ids) 1)
+                (if (and issue-ids (= (length issue-ids) 1))
                     (car issues)
                   issues)))
              ;; Single object result
