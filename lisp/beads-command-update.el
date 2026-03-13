@@ -520,12 +520,12 @@ Does not modify any slots."
       ;; Call parent to parse JSON, then convert to beads-issue instance(s)
       (let ((parsed-json (cl-call-next-method)))
         (condition-case err
-            (if (eq (type-of parsed-json) 'vector)
+            (if (vectorp parsed-json)
                 ;; bd update returns array - convert to issue objects
                 (let ((issues (mapcar #'beads-issue-from-json
                                       (append parsed-json nil))))
                   ;; Return single issue if only one ID, list otherwise
-                  (if (= (length issue-ids) 1)
+                  (if (and issue-ids (= (length issue-ids) 1))
                       (car issues)
                     issues))
               ;; Unexpected JSON structure
@@ -567,11 +567,15 @@ Overrides default `compilation-mode' behavior."
 
 ;;; Transient Menu - State Management
 
-(defvar beads-update--issue-id nil
-  "Issue ID being updated (detected from context).")
+(defvar-local beads-update--issue-id nil
+  "Issue ID being updated (detected from context).
+Buffer-local to prevent state from leaking between buffers when
+update transient is invoked from different beads buffers.")
 
-(defvar beads-update--original-data nil
-  "Original issue data alist (for showing current values in menu).")
+(defvar-local beads-update--original-data nil
+  "Original issue data alist (for showing current values in menu).
+Buffer-local to prevent state from leaking between buffers when
+update transient is invoked from different beads buffers.")
 
 ;;; Transient Menu - Utility Functions
 
