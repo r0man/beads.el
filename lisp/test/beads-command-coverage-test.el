@@ -294,6 +294,82 @@
       (when (process-live-p proc)
         (delete-process proc)))))
 
+;;; Tests for async error propagation (be-u5j)
+
+(ert-deftest beads-command-coverage-test-execute-async-parse-error-fires-callback ()
+  "Test that parse errors in async sentinel still fire the callback.
+The callback must always be called even when parsing fails, so callers
+never hang waiting for a response that never arrives."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-list :json t))
+         (callback-fired nil)
+         (callback-execution nil))
+    (cl-letf (((symbol-function 'beads-command-validate)
+               (lambda (_cmd) nil))
+              ((symbol-function 'beads-command-line)
+               ;; Output invalid JSON to trigger parse error
+               (lambda (_cmd) '("echo" "not-valid-json"))))
+      (beads-command-execute-async
+       cmd
+       (lambda (exec)
+         (setq callback-fired t)
+         (setq callback-execution exec)))
+      ;; Wait for the async process to complete (up to 5 seconds)
+      (let ((deadline (+ (float-time) 5.0)))
+        (while (and (not callback-fired) (< (float-time) deadline))
+          (sit-for 0.1)))
+      (should callback-fired)
+      ;; The execution should have a non-zero exit code due to parse error
+      (should (cl-typep callback-execution 'beads-command-execution))
+      (should (not (zerop (oref callback-execution exit-code)))))))
+
+(ert-deftest beads-command-coverage-test-execute-async-nonzero-exit-fires-callback ()
+  "Test that non-zero exit codes still fire the callback with the execution."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-list :json nil))
+         (callback-fired nil)
+         (callback-execution nil))
+    (cl-letf (((symbol-function 'beads-command-validate)
+               (lambda (_cmd) nil))
+              ((symbol-function 'beads-command-line)
+               ;; Exit with non-zero code
+               (lambda (_cmd) '("sh" "-c" "exit 1"))))
+      (beads-command-execute-async
+       cmd
+       (lambda (exec)
+         (setq callback-fired t)
+         (setq callback-execution exec)))
+      ;; Wait for the async process to complete (up to 5 seconds)
+      (let ((deadline (+ (float-time) 5.0)))
+        (while (and (not callback-fired) (< (float-time) deadline))
+          (sit-for 0.1)))
+      (should callback-fired)
+      (should (cl-typep callback-execution 'beads-command-execution))
+      (should (= (oref callback-execution exit-code) 1)))))
+
+(ert-deftest beads-command-coverage-test-execute-async-success-fires-callback ()
+  "Test that successful async commands fire callback with zero exit code."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-list :json nil))
+         (callback-fired nil)
+         (callback-execution nil))
+    (cl-letf (((symbol-function 'beads-command-validate)
+               (lambda (_cmd) nil))
+              ((symbol-function 'beads-command-line)
+               (lambda (_cmd) '("echo" "done"))))
+      (beads-command-execute-async
+       cmd
+       (lambda (exec)
+         (setq callback-fired t)
+         (setq callback-execution exec)))
+      ;; Wait for the async process to complete (up to 5 seconds)
+      (let ((deadline (+ (float-time) 5.0)))
+        (while (and (not callback-fired) (< (float-time) deadline))
+          (sit-for 0.1)))
+      (should callback-fired)
+      (should (cl-typep callback-execution 'beads-command-execution))
+      (should (zerop (oref callback-execution exit-code))))))
+
 ;;; ============================================================
 ;;; beads-command parse Tests
 ;;; ============================================================
