@@ -226,22 +226,41 @@ All development, feature work, bug fixing, and UX testing on
 beads.el MUST happen interactively in a live non-graphical Emacs
 server controlled by agents via emacsclient.
 
+**CRITICAL: Use a temporary beads/git repo for all interactive
+development.** Never test against the project's own .beads/
+directory or any production beads repo.
+
+### Setting Up a Temporary Dev Repo
+
+Before starting the dev server, create an isolated environment:
+
+```bash
+# Create temp repo for development testing
+BEADS_DEV_DIR=$(mktemp -d)
+cd "$BEADS_DEV_DIR"
+git init
+bd init
+# Optionally seed with test data:
+bd create "Test issue" --description="For dev testing" -t task -p 2
+```
+
 ### Starting the Emacs Dev Server
 
-Start a dedicated non-graphical Emacs server for development:
+Start a dedicated non-graphical Emacs server for development,
+pointed at the temp repo:
 
 ```bash
 emacs --daemon=beads-dev
 ```
 
-The server loads beads.el from the working tree. Adapt the load-path
-to point at the current worktree's `lisp/` directory (the
-`share/emacs.d/init.el` uses `~/workspace/beads.el/lisp` — adjust
-for your actual worktree location):
+Load beads.el from the working tree and set default-directory to
+the temp repo:
 
 ```bash
-emacsclient -s beads-dev -e '(add-to-list '\''load-path "'"$(pwd)"'/lisp")'
-emacsclient -s beads-dev -e '(require '\''beads)'
+WORKTREE=/home/roman/workspace/beads.el  # adjust for your worktree
+emacsclient -s beads-dev -e "(add-to-list 'load-path \"$WORKTREE/lisp\")"
+emacsclient -s beads-dev -e "(require 'beads)"
+emacsclient -s beads-dev -e "(setq default-directory \"$BEADS_DEV_DIR/\")"
 ```
 
 ### Interactive Testing via emacsclient
@@ -268,53 +287,77 @@ Agents MUST try the features they develop interactively — invoke
 transient menus, trigger commands, verify buffer output, check
 error handling.
 
-### Killing the Server
+### Killing the Server and Cleaning Up
 
-Kill the dev server at session end:
+Kill the dev server and remove the temp repo at session end:
 
 ```bash
 emacsclient -s beads-dev -e '(kill-emacs)'
+rm -rf "$BEADS_DEV_DIR"
 ```
 
 ## Acceptance Testing in tmux
 
 **MANDATORY** — every feature and bug fix MUST have acceptance
-testing done in a tmux session. Use the tmux skill to control
-Emacs non-graphically.
+testing done in a tmux session, using a **temporary beads/git
+repo**. Use the tmux skill to control Emacs non-graphically.
+
+**CRITICAL: Always use a fresh temporary repo.** Never run
+acceptance tests against the project's own .beads/ directory.
 
 ### Workflow
 
-1. **Create a tmux session:**
+1. **Create a temporary beads/git repo:**
+   ```bash
+   BEADS_TEST_DIR=$(mktemp -d)
+   cd "$BEADS_TEST_DIR"
+   git init
+   bd init
+   # Seed with test data as needed:
+   bd create "Test bug" -t bug -p 1
+   bd create "Test feature" -t feature -p 2
+   ```
+
+2. **Create a tmux session:**
    ```bash
    tmux new-session -d -s beads-test
    ```
 
-2. **Start emacsclient in it:**
-   Send keys to the pane:
+3. **Start Emacs in the temp repo:**
    ```bash
-   tmux send-keys -t beads-test 'emacsclient -s beads-dev -nw' Enter
+   WORKTREE=/home/roman/workspace/beads.el
+   tmux send-keys -t beads-test \
+     "cd $BEADS_TEST_DIR && emacs -nw -Q --eval '(progn (add-to-list (quote load-path) \"$WORKTREE/lisp\") (require (quote beads)))'" \
+     Enter
    ```
 
-3. **Drive Emacs via tmux send-keys:**
+4. **Drive Emacs via tmux send-keys:**
    Type commands, invoke keybindings:
    ```bash
+   sleep 2
    tmux send-keys -t beads-test 'M-x beads' Enter
    ```
 
-4. **Capture pane output to verify results:**
+5. **Capture pane output to verify results:**
    ```bash
    tmux capture-pane -t beads-test -p
    ```
 
-5. **Test actual user-facing behavior:**
+6. **Test actual user-facing behavior:**
    Verify that menus appear, buffers show correct data, errors
    display properly.
+
+7. **Clean up:**
+   ```bash
+   tmux kill-session -t beads-test
+   rm -rf "$BEADS_TEST_DIR"
+   ```
 
 This catches UX issues that unit tests cannot: rendering,
 keybindings, interactive flows.
 
 **Do NOT skip this step** — a feature is not complete until it has
-been acceptance-tested in tmux.
+been acceptance-tested in tmux with a temp beads/git repo.
 
 ### Using the tmux skill
 
@@ -328,31 +371,6 @@ programmatically:
 This allows you to send keystrokes and capture pane output. Drive
 the full user workflow: open menus, navigate transients, verify
 output — all without a graphical display.
-
-### Full acceptance test example
-
-```bash
-# 1. Create tmux session
-tmux new-session -d -s beads-accept
-
-# 2. Start non-graphical Emacs with beads loaded
-tmux send-keys -t beads-accept \
-  "emacs -nw -Q --eval '(progn (add-to-list (quote load-path) \"$(pwd)/lisp\") (require (quote beads)))'" \
-  Enter
-
-# 3. Wait for Emacs to start, then invoke the main menu
-sleep 2
-tmux send-keys -t beads-accept "M-x beads" Enter
-
-# 4. Verify the transient menu appeared
-tmux capture-pane -t beads-accept -p | grep -q "Working With Issues"
-
-# 5. Navigate — press l for list
-tmux send-keys -t beads-accept "l" ""
-
-# 6. Capture and inspect the result
-tmux capture-pane -t beads-accept -p
-```
 
 ## Beads Reference Documentation
 
@@ -564,25 +582,33 @@ Branch naming convention: `beads.el-X-short-description` where X is the
 issue number and short-description briefly describes the work (e.g.,
 `beads.el-27-implement-label-commands`).
 
-Unit tests use mocking and do NOT require a real bd database or .beads
-directory.
+Unit tests use mocking and do NOT require a real bd database or
+.beads directory.
+
+**Tests that run real bd commands MUST use a temporary beads/git
+repo.** Create a fresh temp dir with `git init` + `bd init` for
+each test run. Never run real bd commands against the project's
+own .beads/ directory or any production repo.
 
 ### End-to-End Testing (MANDATORY)
 
 **Every code change must be tested end-to-end** in a live Emacs
-running inside tmux, using a temporary git/beads directory:
+running inside tmux, using a **temporary beads/git repo**:
 
 ```bash
 # 1. Create isolated test environment
-TMPDIR=$(mktemp -d)
-cd "$TMPDIR"
+BEADS_E2E_DIR=$(mktemp -d)
+cd "$BEADS_E2E_DIR"
 git init
 bd init
+# Seed test data:
+bd create "E2E test issue" -t task -p 2
 
-# 2. Start Emacs in tmux with beads loaded
+# 2. Start Emacs in tmux pointed at the temp repo
+WORKTREE=/home/roman/workspace/beads.el
 tmux new-session -d -s beads-e2e
 tmux send-keys -t beads-e2e \
-  "emacs -nw -Q --eval '(progn (add-to-list (quote load-path) \"WORKTREE/lisp\") (require (quote beads)))'" \
+  "cd $BEADS_E2E_DIR && emacs -nw -Q --eval '(progn (add-to-list (quote load-path) \"$WORKTREE/lisp\") (require (quote beads)))'" \
   Enter
 
 # 3. Drive the feature under test
@@ -594,14 +620,15 @@ tmux capture-pane -t beads-e2e -p | grep -q "expected output"
 
 # 5. Clean up
 tmux kill-session -t beads-e2e
-rm -rf "$TMPDIR"
+rm -rf "$BEADS_E2E_DIR"
 ```
 
 This catches UX issues that unit tests cannot: real bd CLI
 interactions, buffer rendering, keybindings, transient flows.
 
 **Do NOT skip E2E testing** — a feature is not complete until it
-works end-to-end in a real Emacs with a real .beads directory.
+works end-to-end in a real Emacs with a temporary beads/git repo.
+**NEVER test against the project's own .beads/ directory.**
 
 ## Code Architecture
 
