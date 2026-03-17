@@ -564,8 +564,44 @@ Branch naming convention: `beads.el-X-short-description` where X is the
 issue number and short-description briefly describes the work (e.g.,
 `beads.el-27-implement-label-commands`).
 
-All tests use mocking and do NOT require a real bd database or .beads
+Unit tests use mocking and do NOT require a real bd database or .beads
 directory.
+
+### End-to-End Testing (MANDATORY)
+
+**Every code change must be tested end-to-end** in a live Emacs
+running inside tmux, using a temporary git/beads directory:
+
+```bash
+# 1. Create isolated test environment
+TMPDIR=$(mktemp -d)
+cd "$TMPDIR"
+git init
+bd init
+
+# 2. Start Emacs in tmux with beads loaded
+tmux new-session -d -s beads-e2e
+tmux send-keys -t beads-e2e \
+  "emacs -nw -Q --eval '(progn (add-to-list (quote load-path) \"WORKTREE/lisp\") (require (quote beads)))'" \
+  Enter
+
+# 3. Drive the feature under test
+sleep 2
+tmux send-keys -t beads-e2e "M-x beads" Enter
+
+# 4. Capture and verify output
+tmux capture-pane -t beads-e2e -p | grep -q "expected output"
+
+# 5. Clean up
+tmux kill-session -t beads-e2e
+rm -rf "$TMPDIR"
+```
+
+This catches UX issues that unit tests cannot: real bd CLI
+interactions, buffer rendering, keybindings, transient flows.
+
+**Do NOT skip E2E testing** — a feature is not complete until it
+works end-to-end in a real Emacs with a real .beads directory.
 
 ## Code Architecture
 
@@ -622,13 +658,13 @@ The codebase is organized into focused modules in lisp/:
 - Extract issue ID from buffer-name or current line
 - Fall back to completing-read with annotated issue list
 
-**Transient Menus**
-- Infixes store arguments in module-specific variables
-  (e.g., beads-create--title)
-- Suffixes execute commands using stored arguments
-- Validation before execution (validate-all pattern)
-- Reset commands clear state
-- Preview commands show what will be executed
+**Transient Menus** (being redesigned — see beads.el-7us epic)
+- Pattern 1: One-key context actions in mode-maps (no transient)
+- Pattern 2: Switch-based transients with --option= infixes
+- Pattern 3: Buffer-based editing with C-c C-c / C-c C-k
+- All patterns call EIEIO bang functions as backend
+- Legacy: Auto-generated transients from beads-defcommand for
+  admin commands
 
 **Buffer Management**
 - List buffers preserve project context via default-directory
@@ -655,13 +691,19 @@ The codebase is organized into focused modules in lisp/:
 ### Adding New Commands
 
 When adding a new bd command:
-1. Add command execution to appropriate module or create new one
-2. Add transient menu if interactive (see beads-create.el as template)
-3. Add autoload to beads.el if it's a public entry point
-4. Add comprehensive tests (>80% coverage target)
-5. **Run all checks (test, lint, compile) - ALL MUST PASS**
-6. Update README.md if user-facing
-7. Add keybinding to beads.el (main menu) or relevant mode-map
+1. Add EIEIO command class via `beads-defcommand` if not yet present
+2. Choose the right UX pattern:
+   - State change (close, claim, set-status) → Pattern 1 (one-key)
+   - Filtering/listing → Pattern 2 (switch-based transient)
+   - Content creation/editing → Pattern 3 (buffer-based)
+   - Admin/maintenance → auto-generated transient (beads-defcommand
+     with :global-section) is fine
+3. Add keybinding to relevant mode-map AND context actions transient
+4. Write manual section in docs/beads.org BEFORE implementing
+5. Write ERT tests BEFORE implementing (TDD)
+6. Add comprehensive tests (>80% coverage target)
+7. **Run all checks (test, lint, compile) - ALL MUST PASS**
+8. Run acceptance test in tmux with temp git/beads repo
 
 **Remember**: After implementing, you MUST run and pass all three
 checks (test, lint, compile) before the work is considered complete.
@@ -678,36 +720,59 @@ checks (test, lint, compile) before the work is considered complete.
 - **Tests must pass (921/921) before committing any code**
 - Run: `guix shell -D -f guix.scm -- eldev -p -dtT test`
 
-### Transient Menu Patterns
+### Transient UX Patterns
 
-Follow this pattern for new transient menus (based on
-beads-create.el):
+beads.el uses three interaction patterns, modeled after magit and
+forge. See beads.el-7us epic and docs/beads.org for the full spec.
+
+**Pattern 1: Context-Aware Actions** (like forge topic state commands)
+
+One-key commands bound in mode-maps. Detect issue-at-point, fall
+back to completing-read. Support marks/bulk operations.
 
 ```elisp
-;; State variables (reset after execution)
-(defvar beads-cmd--param nil)
-
-;; Reset function
-(defun beads-cmd--reset-state () ...)
-
-;; Validation functions (return error string or nil)
-(defun beads-cmd--validate-param () ...)
-(defun beads-cmd--validate-all () ...)
-
-;; Build command arguments
-(defun beads-cmd--build-command-args () ...)
-
-;; Infix commands (set state variables)
-(transient-define-infix beads-cmd--infix-param () ...)
-
-;; Suffix commands (execute, preview, reset)
-(transient-define-suffix beads-cmd--execute () ...)
-(transient-define-suffix beads-cmd--preview () :transient t ...)
-(transient-define-suffix beads-cmd--reset () :transient t ...)
-
-;; Main menu
-(transient-define-prefix beads-cmd () ...)
+;; Plain defun, not a transient prefix
+(defun beads-close ()
+  (interactive)
+  (let* ((id (beads-issue-at-point-or-read "Close: "))
+         (reason (read-string "Reason: ")))
+    (beads-command-close! :issue-ids (list id) :reason reason)
+    (beads--refresh-buffers)))
 ```
+
+**Pattern 2: Switch-Based Transients** (like magit-log)
+
+Magit-style --option= infixes for filtering/listing. Suffixes
+call bang functions via `beads--transient-args-to-plist`.
+
+```elisp
+(transient-define-prefix beads-list ()
+  "List issues with filters."
+  ["Filters"
+   ("-s" "Status" "--status=" :reader beads-read-status)
+   ("-t" "Type" "--type=" :reader beads-read-type)]
+  ["List"
+   ("l" "All issues" beads-list-all)
+   ("r" "Ready" beads-list-ready)])
+```
+
+**Pattern 3: Buffer-Based Editing** (like forge-post-mode)
+
+For content creation/editing. Uses `with-editor` for C-c C-c /
+C-c C-k. Metadata via small transient sidebar (C-c C-a).
+
+```elisp
+;; c opens *beads-create[PROJECT]* buffer
+;; First line = title, rest = description (markdown)
+;; C-c C-a → metadata transient (type, priority, labels)
+;; C-c C-c → submit
+;; C-c C-k → cancel
+```
+
+**Backend:** All patterns call EIEIO bang functions
+(beads-command-create!, beads-command-close!, etc.) as the
+execution layer. The EIEIO command classes handle CLI
+serialization, JSON parsing, and validation.
 
 ### Common Gotchas
 
@@ -732,7 +797,9 @@ Required at runtime:
 - bd executable in PATH
 
 Optional:
-- markdown-mode (for better editing experience in description fields)
+- markdown-mode / gfm-mode (for buffer-based editing in Pattern 3)
+- with-editor (for C-c C-c / C-c C-k submission in compose buffers;
+  already a transient dependency)
 
 ## Related Documentation
 
