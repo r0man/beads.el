@@ -735,6 +735,19 @@ When adding a new bd command:
 **Remember**: After implementing, you MUST run and pass all three
 checks (test, lint, compile) before the work is considered complete.
 
+### Manual Updates (MANDATORY)
+
+**All new features, behavior changes, and keybinding changes MUST
+be documented in `docs/beads.org`** before the work is considered
+complete. The manual is the single source of truth for how beads.el
+works — if it is not in the manual, it does not exist.
+
+- New commands → add to the relevant section with `Key:` entries
+- Changed keybindings → update Keystroke Index and relevant section
+- New user options → add `User Option:` entry in Customizing section
+- Changed behavior → update the affected section's description
+- Write the manual section BEFORE implementing (manual-first design)
+
 ### Testing Requirements
 
 **MANDATORY**: Run full test suite after EVERY code change.
