@@ -31,6 +31,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-actions)
 (require 'beads-agent-keys)
 (require 'beads-buffer)
 (require 'beads-command)
@@ -2163,10 +2164,15 @@ Uses an idle timer to debounce rapid navigation, similar to
     (define-key map (kbd "c") #'beads-list-create)         ; create (like many modes)
     (define-key map (kbd "+") #'beads-list-create)         ; alternative
     (define-key map (kbd "e") #'beads-list-update)         ; edit (more intuitive)
-    (define-key map (kbd "d") #'beads-list-close)          ; delete/done (mark for closing)
-    (define-key map (kbd "k") #'beads-list-close)          ; kill (alternative)
-    (define-key map (kbd "o") #'beads-list-reopen)         ; open/reopen closed issue
     (define-key map (kbd "D") #'beads-list-delete)         ; delete permanently (destructive)
+
+    ;; Pattern 1 context-aware actions (mark-aware, prompt inline)
+    (define-key map (kbd "d") #'beads-actions-close)       ; close (prompt for reason)
+    (define-key map (kbd "k") #'beads-actions-close)       ; close (alternative)
+    (define-key map (kbd "o") #'beads-actions-reopen)      ; reopen
+    (define-key map (kbd "C") #'beads-actions-claim)       ; claim
+    (define-key map (kbd "s") #'beads-actions-set-status)  ; set status
+    (define-key map (kbd "#") #'beads-actions-set-priority) ; set priority
 
     ;; Utilities
     (define-key map (kbd "w") #'beads-list-copy-id)        ; copy (like eww, info)

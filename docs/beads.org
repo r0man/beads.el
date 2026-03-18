@@ -221,8 +221,66 @@ following, inline editing, agent section.
 
 * Closing and Reopening
 
-TODO: Document close (with required reason), reopen, bulk
-close/reopen, context-aware actions.
+Beads provides context-aware close and reopen commands that work
+in both =beads-list-mode= and =beads-show-mode=.
+
+** Closing Issues
+#+FINDEX: beads-actions-close
+#+KINDEX: d
+
+Press {{{kbd(d)}}} on an issue to close it.  You will be prompted
+for a close reason (required by the bd CLI).  The command:
+
+1. Detects the issue at point (or prompts with =completing-read=)
+2. Prompts for a close reason
+3. Calls =bd close= with the reason
+4. Refreshes all beads buffers
+
+When marks are active in list-mode, {{{kbd(d)}}} closes all marked
+issues with the same reason.
+
+** Reopening Issues
+#+FINDEX: beads-actions-reopen
+#+KINDEX: o
+
+Press {{{kbd(o)}}} in =beads-list-mode= to reopen a closed issue.
+You will be prompted for an optional reason.  Like close, this
+command supports bulk operations via marks.
+
+In =beads-show-mode=, reopen is available through the actions
+transient ({{{kbd(?)}}}), since {{{kbd(o)}}} is used for
+following references to other windows.
+
+** Claiming Issues
+#+FINDEX: beads-actions-claim
+#+KINDEX: C
+
+Press {{{kbd(C)}}} to claim the issue at point.  This executes
+immediately without prompting --- the current actor is assigned.
+
+** Setting Status
+#+FINDEX: beads-actions-set-status
+#+KINDEX: s
+
+Press {{{kbd(s)}}} to set the status of the issue at point.
+Choose from =open=, =in_progress=, or =blocked= via
+=completing-read=.
+
+** Setting Priority
+#+FINDEX: beads-actions-set-priority
+#+KINDEX: #
+
+Press {{{kbd(#)}}} to set the priority of the issue at point.
+Choose from =0 - Critical= through =4 - Backlog=.
+
+** Quick Actions Transient
+#+FINDEX: beads-show-actions
+#+KINDEX: ?
+
+Press {{{kbd(?)}}} in =beads-show-mode= to open a persistent
+actions transient with all available quick actions.  The transient
+stays open after each action (like =forge-topic-menu=), so you
+can perform multiple actions without re-opening the menu.
 
 * Editing Issues
 

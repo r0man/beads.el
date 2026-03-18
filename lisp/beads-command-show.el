@@ -31,6 +31,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-actions)
 (require 'beads-agent-keys)
 (require 'beads-buffer)
 (require 'beads-command)
@@ -542,8 +543,11 @@ Called from `kill-buffer-hook' to clean up session state."
 
     ;; Quick actions transient
     (define-key map (kbd "?") #'beads-show-actions)
-    (define-key map (kbd "s") #'beads-show-set-status)
+    (define-key map (kbd "s") #'beads-actions-set-status)
     (define-key map (kbd "e") #'beads-show-edit-field)
+    (define-key map (kbd "d") #'beads-actions-close)
+    (define-key map (kbd "C") #'beads-actions-claim)
+    (define-key map (kbd "#") #'beads-actions-set-priority)
     map)
   "Keymap for `beads-show-mode'.")
 
@@ -2169,15 +2173,16 @@ Prompts for field to edit and opens an editing buffer."
   :transient-suffix 'transient--do-stay
   ["Issue Actions"
    ["Status"
-    ("o" "Open" beads-show-set-status-open)
-    ("p" "In Progress" beads-show-set-status-in-progress)
-    ("b" "Blocked" beads-show-set-status-blocked)
-    ("c" "Close" beads-show-set-status-closed)]
+    ("s" "Set status" beads-actions-set-status)
+    ("#" "Set priority" beads-actions-set-priority)
+    ("c" "Close" beads-actions-close)
+    ("C" "Claim" beads-actions-claim)
+    ("o" "Reopen" beads-actions-reopen)]
    ["Navigate"
     ("d" "Dependencies" beads-show-goto-depends)
     ("B" "Blocks" beads-show-goto-blocks)
     ("P" "Parent" beads-show-goto-parent)
-    ("C" "Children" beads-show-goto-children)]
+    ("D" "Children" beads-show-goto-children)]
    ["Edit"
     ("e" "Edit field" beads-show-edit-field)
     ("n" "Add note" beads-show-add-note)
