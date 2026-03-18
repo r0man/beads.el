@@ -709,7 +709,8 @@ into a compact hierarchical structure with sub-dispatches."
    ["Extensions"
     ("G" "Gas Town" gastown :if (lambda () (featurep 'gastown)))]
    ["Actions"
-    ("!" "More..." beads-more-menu)
+    ("!" "Ops..." beads-ops-menu)
+    (">" "Advanced..." beads-advanced-menu)
     ("g" "Refresh" beads-refresh-menu)
     ("q" "Quit" transient-quit-one)]])
 
@@ -773,6 +774,14 @@ or set `beads-executable' to the full path" beads-executable)))
 (autoload 'beads-ready "beads-command-list" nil t)
 ;;;###autoload
 (autoload 'beads-blocked "beads-command-list" nil t)
+
+;; beads-ops-menu
+;;;###autoload
+(autoload 'beads-ops-menu "beads-ops-menu" nil t)
+
+;; beads-advanced-menu
+;;;###autoload
+(autoload 'beads-advanced-menu "beads-advanced-menu" nil t)
 
 ;; beads-compose
 ;;;###autoload
