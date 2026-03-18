@@ -1,0 +1,325 @@
+#+TITLE: Beads.el User Manual
+#+AUTHOR: Beads Contributors
+#+LANGUAGE: en
+#+TEXINFO_DIR_CATEGORY: Emacs
+#+TEXINFO_DIR_TITLE: Beads: (beads).
+#+TEXINFO_DIR_DESC: Magit-like interface for the Beads issue tracker.
+#+OPTIONS: H:4 num:3 toc:2
+#+STARTUP: showall
+#+SETUPFILE: .orgconfig
+
+This manual is for Beads.el version 0.1.0.
+
+#+TEXINFO: @insertcopying
+
+* Introduction
+
+Beads.el is a Magit-like Emacs interface for the Beads issue tracker.
+It provides keyboard-driven, transient-based UI for managing issues,
+dependencies, molecules, and workflows without leaving Emacs.
+
+Beads.el integrates with the {{{cmd(bd)}}} command-line tool and
+exposes all 96+ CLI commands through a carefully organized hierarchy
+of transient menus and context-aware keybindings.
+
+** Features
+
+- Full coverage of the {{{cmd(bd)}}} CLI (96+ commands)
+- Three interaction patterns: context actions, switch-based
+  transients, and buffer-based editing
+- Dependency-aware issue management with graph visualization
+- Agent integration for AI-assisted workflows
+- Molecule and formula management
+- Multi-repo and Dolt database support
+
+** Related Resources
+
+- Beads CLI documentation: https://github.com/steveyegge/beads
+- Magit (inspiration): https://magit.vc
+- Forge (inspiration): https://magit.vc/manual/forge
+
+* Installation
+
+** Requirements
+
+- Emacs 27.1 or later
+- The {{{cmd(bd)}}} executable in your {{{var(PATH)}}}
+- The =transient= library (built-in since Emacs 28)
+
+** Installing from MELPA
+
+#+BEGIN_SRC emacs-lisp
+(use-package beads
+  :ensure t)
+#+END_SRC
+
+** Installing from Source
+
+Clone the repository and add it to your load-path:
+
+#+BEGIN_SRC emacs-lisp
+(add-to-list 'load-path "/path/to/beads.el/lisp")
+(require 'beads)
+#+END_SRC
+
+** Initial Setup
+
+Initialize Beads in a project directory:
+
+#+BEGIN_SRC shell
+cd /path/to/project
+bd init
+#+END_SRC
+
+Then open the main menu in Emacs with {{{kbd(M-x beads)}}}.
+
+* Getting Started
+
+** Your First Issue
+
+1. Open the main menu: {{{kbd(M-x beads)}}}
+2. Press {{{kbd(c)}}} to create an issue
+3. Enter a title and description
+4. Press {{{kbd(C-c C-c)}}} to submit
+
+** Listing Issues
+
+From the main menu, press {{{kbd(l)}}} to open the list transient,
+then {{{kbd(l)}}} again to list all issues.  Use {{{kbd(-s)}}} to
+filter by status, {{{kbd(-t)}}} to filter by type.
+
+** Viewing Issue Details
+
+From the issue list, press {{{kbd(RET)}}} on an issue to open its
+detail view.  Navigate sections with {{{kbd(C-c C-n)}}} /
+{{{kbd(C-c C-p)}}}.
+
+* Interface Concepts
+:PROPERTIES:
+:DESCRIPTION: Core UX patterns and terminology.
+:END:
+
+Beads.el uses three interaction patterns, modeled on Magit and Forge.
+Understanding these patterns helps you navigate the interface
+efficiently and predict where to find commands.
+
+** Modes and Buffers
+
+Beads.el defines two major modes:
+
+- {{{dfn(beads-list-mode)}}} :: A =tabulated-list-mode= derivative
+  for browsing issues.  Supports sorting, filtering, marking, and
+  bulk operations.  Buffer names follow the pattern
+  =*beads-list[PROJECT]*=.
+
+- {{{dfn(beads-show-mode)}}} :: A =special-mode= derivative for
+  viewing a single issue's details.  Read-only, with section
+  navigation, reference following, and inline editing.  Buffer names
+  follow the pattern =*beads-show[PROJECT]*=.
+
+Both modes share a common set of keybindings for agent commands
+(under the {{{kbd(a)}}} prefix) and session management
+({{{kbd(C-c C-s)}}}).
+
+** Transient Commands
+
+Beads.el organizes its commands into a three-level transient
+hierarchy:
+
+1. *Main dispatch* ({{{kbd(M-x beads)}}}) :: The top-level entry
+   point with 15--20 high-frequency commands.  This is the menu you
+   see when you type {{{kbd(M-x beads)}}}.
+
+2. *Ops menu* ({{{kbd(!)}}}) :: Mid-frequency operations like
+   defer, refile, stats, and workflow commands (gates, merge-slots,
+   swarms).
+
+3. *Advanced menu* ({{{kbd(>)}}}) :: Low-frequency maintenance,
+   setup, integrations, and administration commands.
+
+Domain-specific commands are grouped into sub-dispatches accessible
+from these menus: {{{kbd(d)}}} for dependencies, {{{kbd(L)}}} for
+labels, {{{kbd(m)}}} for molecules, {{{kbd(k)}}} for Dolt, and
+{{{kbd(.)}}} for configuration.
+
+** Context-Aware Actions
+
+/Pattern 1/ commands are single-key actions bound directly in
+mode-maps.  They detect the issue at point (or fall back to
+=completing-read=) and act immediately.
+
+Examples:
+- {{{kbd(d)}}} in list-mode :: Close the issue at point (prompts for
+  reason)
+- {{{kbd(C)}}} in list-mode :: Claim the issue at point
+- {{{kbd(s)}}} in show-mode :: Set issue status via =completing-read=
+
+These commands support bulk operations when marks are active: mark
+issues with {{{kbd(m)}}}, then press {{{kbd(d)}}} to close all
+marked issues at once.
+
+** Buffer-Based Editing
+
+/Pattern 3/ commands open a compose buffer for content creation or
+editing.  The buffer uses =gfm-mode= (or =text-mode= as fallback)
+and follows the =with-editor= convention:
+
+- {{{kbd(C-c C-c)}}} :: Submit (create issue, save edit, post
+  comment)
+- {{{kbd(C-c C-k)}}} :: Cancel and restore the previous window
+  configuration
+- {{{kbd(C-c C-a)}}} :: Open the metadata sidebar transient (set
+  type, priority, labels)
+
+The first line of a create buffer is the issue title.  Everything
+below is the description, written in Markdown.
+
+** Marks and Bulk Operations
+
+In =beads-list-mode=, you can mark multiple issues and act on them
+as a batch:
+
+- {{{kbd(m)}}} :: Mark the issue at point
+- {{{kbd(u)}}} :: Unmark the issue at point
+- {{{kbd(U)}}} :: Unmark all issues
+- {{{kbd(* !)}}} :: Mark all issues
+
+When marks are active, context-aware actions ({{{kbd(d)}}},
+{{{kbd(o)}}}, etc.) operate on all marked issues instead of just
+the issue at point.  Bulk-specific operations are also available
+under the {{{kbd(B)}}} prefix:
+
+- {{{kbd(B s)}}} :: Bulk update status
+- {{{kbd(B p)}}} :: Bulk update priority
+- {{{kbd(B c)}}} :: Bulk close
+- {{{kbd(B o)}}} :: Bulk reopen
+
+* Main Menu
+
+The main dispatch transient ({{{kbd(M-x beads)}}}) provides quick
+access to the most common commands.
+
+#+FINDEX: beads
+Key: {{{kbd(M-x beads)}}}
+
+TODO: Document all main menu groups and bindings.
+
+* Listing Issues
+
+TODO: Document beads-list transient, filter infixes, list
+modes (all, ready, blocked), sorting, and pagination.
+
+* Creating Issues
+
+TODO: Document buffer-based create (Pattern 3), metadata
+sidebar, draft persistence.
+
+* Viewing Issues
+
+TODO: Document beads-show-mode, section navigation, reference
+following, inline editing, agent section.
+
+* Closing and Reopening
+
+TODO: Document close (with required reason), reopen, bulk
+close/reopen, context-aware actions.
+
+* Editing Issues
+
+TODO: Document update transient, inline field editing,
+buffer-based description editing.
+
+* Dependencies
+
+TODO: Document dep add/remove/list/tree/cycles, dependency
+graph visualization.
+
+* Labels
+
+TODO: Document label add/remove/list/list-all/propagate.
+
+* Molecules
+
+TODO: Document mol show/pour/wisp/bond/squash/burn/distill,
+current/progress/ready/stale, seed/last-activity.
+
+* Agents
+
+Agent commands are accessible via the {{{kbd(a)}}} prefix in
+both list and show modes:
+
+- {{{kbd(a t)}}} :: Start task agent
+- {{{kbd(a r)}}} :: Start review agent
+- {{{kbd(a p)}}} :: Start plan agent
+- {{{kbd(a q)}}} :: Start QA agent
+- {{{kbd(a c)}}} :: Start custom agent
+- {{{kbd(a x)}}} :: Stop agent at point
+- {{{kbd(a j)}}} :: Jump to agent buffer
+- {{{kbd(a a)}}} :: Start agent at point (generic)
+
+TODO: Document agent backends, session management, worktree
+integration.
+
+* Ops Menu
+
+Accessible via {{{kbd(!)}}} from the main dispatch.
+
+TODO: Document all ops menu commands.
+
+* Advanced Menu
+
+Accessible via {{{kbd(>)}}} from the main dispatch.
+
+TODO: Document all advanced menu commands.
+
+* Dolt Integration
+
+TODO: Document dolt configuration, server management,
+commit/push/pull, remotes, clean-databases.
+
+* Configuration
+
+TODO: Document config get/set/list/unset/validate.
+
+* Administration
+
+TODO: Document admin, audit, slot, compact, doctor, migrate,
+federation, vc commands.
+
+* Integrations
+
+TODO: Document GitHub, GitLab, Jira, Linear, repo, mail
+integrations.
+
+* Customizing
+
+TODO: Document user options (beads-executable, beads-actor,
+etc.), faces, hooks.
+
+* Plumbing
+
+TODO: Document EIEIO command classes, bang functions, process
+execution, JSON parsing, caching.
+
+* FAQ
+
+TODO: Common questions and troubleshooting.
+
+* Keystroke Index
+:PROPERTIES:
+:INDEX: ky
+:END:
+
+* Function Index
+:PROPERTIES:
+:INDEX: fn
+:END:
+
+* Variable Index
+:PROPERTIES:
+:INDEX: vr
+:END:
+
+#+BEGIN_EXPORT texinfo
+@bye
+#+END_EXPORT
