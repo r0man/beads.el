@@ -48,6 +48,8 @@
 (declare-function beads-update "beads-command-update" (&optional issue-id))
 (declare-function beads-reopen "beads-command-reopen" (&optional issue-id))
 (declare-function beads-list-filter-menu "beads-spec")
+(declare-function beads-list--refresh "beads-spec" (&optional spec))
+(declare-function beads--transient-args-to-spec "beads-spec" (args))
 (declare-function beads-agent--get-sessions-for-issue "beads-agent")
 (declare-function beads-agent--get-sessions-focused-on-issue "beads-agent-backend")
 (declare-function beads-agent--get-sessions-touching-issue "beads-agent-backend")
@@ -1877,10 +1879,10 @@ ACTION and SESSION are provided by `beads-agent-state-change-hook'."
       (forward-line 1))))
 
 (defun beads-list-create ()
-  "Create a new issue using the beads-create transient menu."
+  "Create a new issue using the compose buffer."
   (interactive)
-  (require 'beads-command-create)
-  (call-interactively #'beads-create))
+  (require 'beads-compose)
+  (call-interactively #'beads-compose-create))
 
 (defun beads-list-update ()
   "Update the issue at point using the beads-update transient menu."
