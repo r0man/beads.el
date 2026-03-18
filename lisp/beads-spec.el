@@ -239,6 +239,55 @@ stores the spec in `beads-list--spec', and calls
       (setq beads-list--spec effective-spec)
       (beads-list--populate-buffer issues 'list cmd))))
 
+;;; Transient Argument Conversion
+
+(defun beads--transient-args-to-plist (args)
+  "Convert transient ARGS to a property list.
+
+ARGS is a list of strings as returned by `transient-args'.
+Each \"--key=value\" becomes :key \"value\"; each \"--switch\"
+becomes :switch t.  Hyphenated keys are preserved as hyphenated
+keywords (e.g. \"--created-after=X\" → :created-after \"X\").
+
+Returns nil for nil or empty ARGS."
+  (let (plist)
+    (dolist (arg args)
+      (cond
+       ;; --key=value
+       ((string-match "\\`--\\([^=]+\\)=\\(.*\\)\\'" arg)
+        (let ((key (intern (concat ":" (match-string 1 arg))))
+              (val (match-string 2 arg)))
+          (setq plist (plist-put plist key val))))
+       ;; --switch (no =)
+       ((string-match "\\`--\\(.+\\)\\'" arg)
+        (let ((key (intern (concat ":" (match-string 1 arg)))))
+          (setq plist (plist-put plist key t))))))
+    plist))
+
+(defun beads--transient-args-to-spec (args)
+  "Convert transient ARGS to a `beads-issue-spec'.
+
+ARGS is a list of strings as returned by `transient-args'.
+Recognized keys: --status=, --type=, --priority=, --assignee=,
+--label=, --order=, --limit=, --ready.
+Unrecognized keys are ignored.  Unspecified fields receive their
+class defaults."
+  (let ((plist (beads--transient-args-to-plist args)))
+    (beads-issue-spec
+     :status (plist-get plist :status)
+     :type (plist-get plist :type)
+     :priority (when-let ((p (plist-get plist :priority)))
+                 (string-to-number p))
+     :assignee (plist-get plist :assignee)
+     :label (plist-get plist :label)
+     :order (if-let ((o (plist-get plist :order)))
+                (intern o)
+              'newest)
+     :limit (if-let ((l (plist-get plist :limit)))
+                (string-to-number l)
+              50)
+     :ready-only (and (plist-get plist :ready) t))))
+
 ;;; Filter Menu
 
 ;; The filter menu uses --filter-X= argument prefixes internally to

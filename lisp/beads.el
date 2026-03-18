@@ -595,6 +595,7 @@ into logical groups for easy access."
    ("U" "Undefer issue" beads-undefer)
    ("H" "Ship capability" beads-ship)]
   ["Views & Reports"
+   ("l" "List (advanced)" beads-list-advanced)
    ("t" "Stats/Status" beads-stats)
    ("C" "Count issues" beads-count)
    ("S" "Stale issues" beads-stale)
@@ -759,6 +760,8 @@ or set `beads-executable' to the full path" beads-executable)))
 ;; beads-command-list
 ;;;###autoload
 (autoload 'beads-list "beads-command-list" nil t)
+;;;###autoload
+(autoload 'beads-list-advanced "beads-command-list" nil t)
 ;;;###autoload
 (autoload 'beads-ready "beads-command-list" nil t)
 ;;;###autoload

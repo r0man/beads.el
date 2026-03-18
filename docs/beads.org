@@ -205,9 +205,87 @@ Key: {{{kbd(M-x beads)}}}
 TODO: Document all main menu groups and bindings.
 
 * Listing Issues
+:PROPERTIES:
+:DESCRIPTION: Browse, filter, and navigate issues.
+:END:
 
-TODO: Document beads-list transient, filter infixes, list
-modes (all, ready, blocked), sorting, and pagination.
+#+FINDEX: beads-list
+Key: {{{kbd(l)}}} (from main menu)
+
+The list transient uses Pattern 2 (switch-based infixes).  Toggle
+filters with flag keys, then press a suffix key to execute.
+
+** Opening the List Transient
+
+Press {{{kbd(l)}}} from the main menu to open the list transient.
+The transient shows two groups:
+
+- *Filters* :: {{{kbd(-s)}}} status, {{{kbd(-t)}}} type,
+  {{{kbd(-p)}}} priority, {{{kbd(-a)}}} assignee, {{{kbd(-l)}}}
+  label.
+- *Options* :: {{{kbd(-o)}}} sort order, {{{kbd(-n)}}} result
+  limit, {{{kbd(-r)}}} ready-only switch.
+
+** Listing All Issues
+
+#+KINDEX: l l
+Press {{{kbd(l l)}}} to list all issues (no filters).  With
+filters active, e.g. {{{kbd(l -s open l)}}}, only matching issues
+appear.
+
+#+FINDEX: beads-list-all
+The suffix {{{kbd(l)}}} inside the transient calls
+~beads-list-all~, which converts the transient filter state into a
+~beads-issue-spec~ and refreshes the list buffer.
+
+** Listing Ready Issues
+
+#+KINDEX: l r
+#+FINDEX: beads-list-ready-suffix
+Press {{{kbd(l r)}}} (or {{{kbd(r)}}} from the main menu) to show
+only ready (unblocked) issues.
+
+** Listing Blocked Issues
+
+#+KINDEX: l b
+#+FINDEX: beads-list-blocked-suffix
+Press {{{kbd(l b)}}} (or {{{kbd(b)}}} from the main menu) to show
+only blocked issues.
+
+** In-Buffer Filtering
+
+#+KINDEX: /
+#+FINDEX: beads-list-filter-menu
+Once a list buffer is displayed, press {{{kbd(/)}}} to open the
+spec-based filter menu.  This refines the current view without
+returning to the top-level transient.
+
+#+KINDEX: l
+Press {{{kbd(l)}}} inside a list buffer to reopen the list
+transient with the current filter pre-populated.
+
+** Advanced List Transient
+
+#+FINDEX: beads-list-advanced
+For power users who need access to all ~bd list~ flags (date
+ranges, text search, priority ranges, output formats), the
+advanced transient is available via {{{kbd(! l)}}} from the more
+menu, or {{{kbd(M-x beads-list-advanced)}}}.
+
+** Sorting
+
+#+KINDEX: S
+Press {{{kbd(S)}}} in a list buffer to sort by column header.
+
+** Pagination
+
+Large result sets are paginated.  Use {{{kbd(])}}} and
+{{{kbd([)}}} to navigate pages, or {{{kbd(G)}}} to jump to a
+specific page.
+
+** Marking and Bulk Operations
+
+See [[*Marks and Bulk Operations]].
 
 * Creating Issues
 
