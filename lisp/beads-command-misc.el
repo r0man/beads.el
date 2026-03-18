@@ -1096,5 +1096,17 @@ Renames an issue from one ID to another, updating all references.")
   "Rename an issue from one ID to another."
   beads-option-global-section)
 
+;;; Context Command
+
+(beads-defcommand beads-command-context (beads-command-global-options)
+  ()
+  :documentation "Represents bd context command.
+Show effective backend identity and repository context.")
+
+;;;###autoload (autoload 'beads-context "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-context "beads-context"
+  "Show backend identity and repository context."
+  beads-option-global-section)
+
 (provide 'beads-command-misc)
 ;;; beads-command-misc.el ends here

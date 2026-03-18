@@ -618,8 +618,6 @@ into logical groups for easy access."
    ("0" "Preflight check" beads-preflight)
    ("-" "Upgrade bd" beads-upgrade)
    ("P" "Rename prefix" beads-rename-prefix)
-   (":" "Repair database" beads-repair)
-   (";" "Resolve conflicts" beads-resolve-conflicts)
    ("nc" "Compact menu" beads-compact)
    ("nf" "Flatten Dolt" beads-flatten)
    ("ng" "Garbage collect" beads-gc)
@@ -641,11 +639,14 @@ into logical groups for easy access."
   ["Integrations"
    ("j" "Jira" beads-jira)
    ("N" "Linear" beads-linear)
+   ("G" "GitHub" beads-github)
    ("yl" "GitLab" beads-gitlab)
    ("R" "Repo" beads-repo)
    ("*" "Mail delegate" beads-mail)]
   ["Setup & Config"
    ("i" "Init project" beads-init)
+   ("ib" "Bootstrap" beads-bootstrap)
+   ("ic" "Context" beads-context)
    ("?" "Quickstart" beads-quickstart)
    ("h" "Hooks menu" beads-hooks)
    ("!" "Info/Debug" beads-info)

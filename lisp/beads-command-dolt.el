@@ -385,6 +385,50 @@ Reports PID, port, and running status.")
   "Remove a Dolt remote."
   beads-option-global-section)
 
+;;; Clean-Databases Command
+
+(beads-defcommand beads-command-dolt-clean-databases
+    (beads-command-global-options)
+  ((dry-run
+    :initarg :dry-run
+    :type boolean
+    :initform nil
+    :documentation "Show what would be dropped without dropping (--dry-run)."
+    :long-option "dry-run"
+    :option-type :boolean
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
+    :transient-group "Options"
+    :level 1
+    :order 1))
+  :documentation "Represents bd dolt clean-databases command.
+Drop leftover test and polecat databases from the shared Dolt server."
+  :cli-command "dolt clean-databases")
+
+;;;###autoload (autoload 'beads-dolt-clean-databases "beads-command-dolt" nil t)
+(beads-meta-define-transient beads-command-dolt-clean-databases
+  "beads-dolt-clean-databases"
+  "Drop stale test databases from Dolt server."
+  beads-option-global-section)
+
+;;; Killall Command
+
+(beads-defcommand beads-command-dolt-killall
+    (beads-command-global-options)
+  ()
+  :documentation "Represents bd dolt killall command.
+Find and kill orphan dolt sql-server processes not tracked by the
+canonical PID file for the current repo's Dolt data directory."
+  :cli-command "dolt killall")
+
+;;;###autoload (autoload 'beads-dolt-killall "beads-command-dolt" nil t)
+(beads-meta-define-transient beads-command-dolt-killall
+  "beads-dolt-killall"
+  "Kill orphan Dolt server processes."
+  beads-option-global-section)
+
 ;;; Parent Menu
 
 ;;;###autoload (autoload 'beads-dolt "beads-command-dolt" nil t)
@@ -406,7 +450,10 @@ the SQL server, and syncing with Dolt remotes."
     ("0" "Stop server" beads-dolt-stop)
     ("i" "Server status" beads-dolt-status)]
    ["Remotes"
-    ("r" "Remote menu" beads-dolt-remote)
+    ("r" "Remote menu" beads-dolt-remote)]
+   ["Maintenance"
+    ("C" "Clean databases" beads-dolt-clean-databases)
+    ("K" "Kill orphan servers" beads-dolt-killall)
     ("q" "Quit" transient-quit-one)]])
 
 (provide 'beads-command-dolt)
