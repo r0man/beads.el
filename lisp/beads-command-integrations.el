@@ -361,5 +361,88 @@ Lists accessible GitLab projects.")
    ("S" "Status" beads-gitlab-status)
    ("p" "Projects" beads-gitlab-projects)])
 
+;;; GitHub Integration Commands
+
+(beads-defcommand beads-command-github-sync (beads-command-global-options)
+  ((pull
+    :initarg :pull
+    :type boolean
+    :initform nil
+    :documentation "Import issues from GitHub."
+    :long-option "pull"
+    :option-type :boolean
+    :key "p"
+    :transient "--pull"
+    :class transient-switch
+    :argument "--pull"
+    :transient-group "Direction"
+    :level 1
+    :order 1)
+   (push
+    :initarg :push
+    :type boolean
+    :initform nil
+    :documentation "Export issues to GitHub."
+    :long-option "push"
+    :option-type :boolean
+    :key "P"
+    :transient "--push"
+    :class transient-switch
+    :argument "--push"
+    :transient-group "Direction"
+    :level 1
+    :order 2)
+   (dry-run
+    :initarg :dry-run
+    :type boolean
+    :initform nil
+    :documentation "Show what would be synced without syncing."
+    :long-option "dry-run"
+    :option-type :boolean
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
+    :transient-group "Options"
+    :level 1
+    :order 3))
+  :documentation "Represents bd github sync command.
+Sync issues with GitHub.")
+
+(beads-defcommand beads-command-github-status (beads-command-global-options)
+  ()
+  :documentation "Represents bd github status command.
+Shows GitHub sync status.")
+
+(beads-defcommand beads-command-github-repos (beads-command-global-options)
+  ()
+  :documentation "Represents bd github repos command.
+Lists accessible GitHub repositories.")
+
+;;; Autoloads for GitHub sub-commands
+
+;;;###autoload (autoload 'beads-github-sync "beads-command-integrations" nil t)
+(beads-meta-define-transient beads-command-github-sync "beads-github-sync"
+  "Sync issues with GitHub."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-github-status "beads-command-integrations" nil t)
+(beads-meta-define-transient beads-command-github-status "beads-github-status"
+  "Show GitHub sync status."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-github-repos "beads-command-integrations" nil t)
+(beads-meta-define-transient beads-command-github-repos "beads-github-repos"
+  "List accessible GitHub repositories."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-github "beads-command-integrations" nil t)
+(transient-define-prefix beads-github ()
+  "GitHub integration commands."
+  ["GitHub Commands"
+   ("s" "Sync" beads-github-sync)
+   ("S" "Status" beads-github-status)
+   ("r" "Repos" beads-github-repos)])
+
 (provide 'beads-command-integrations)
 ;;; beads-command-integrations.el ends here

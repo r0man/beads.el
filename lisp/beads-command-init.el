@@ -420,5 +420,30 @@ the initialization."
    (beads-init--preview)
    (beads-init--reset)])
 
+;;; Bootstrap Command
+
+(beads-defcommand beads-command-bootstrap (beads-command-global-options)
+  ((dry-run
+    :initarg :dry-run
+    :type boolean
+    :initform nil
+    :documentation "Show what would be done without doing it (--dry-run)."
+    :long-option "dry-run"
+    :option-type :boolean
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
+    :transient-group "Options"
+    :level 1
+    :order 1))
+  :documentation "Represents bd bootstrap command.
+Non-destructive database setup for fresh clones and recovery.")
+
+;;;###autoload (autoload 'beads-bootstrap "beads-command-init" nil t)
+(beads-meta-define-transient beads-command-bootstrap "beads-bootstrap"
+  "Non-destructive database setup."
+  beads-option-global-section)
+
 (provide 'beads-command-init)
 ;;; beads-command-init.el ends here
