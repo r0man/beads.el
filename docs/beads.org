@@ -485,16 +485,130 @@ TODO: Document agent backends, session management, worktree
 integration.
 
 * Ops Menu
+:PROPERTIES:
+:DESCRIPTION: Mid-frequency operations (issue lifecycle, views, workflow).
+:END:
 
-Accessible via {{{kbd(!)}}} from the main dispatch.
+#+FINDEX: beads-ops-menu
+Key: {{{kbd(!)}}} (from main dispatch)
 
-TODO: Document all ops menu commands.
+The ops menu contains mid-frequency commands organized into four
+groups: issue lifecycle, views and reports, issue details, and
+workflow coordination.
+
+** Issue Lifecycle
+
+- {{{kbd(f)}}} :: Defer issue
+- {{{kbd(F)}}} :: Undefer issue
+- {{{kbd(D)}}} :: Delete issue
+- {{{kbd(m)}}} :: Move issue to another project
+- {{{kbd(r)}}} :: Refile issue
+- {{{kbd(p)}}} :: Promote wisp to full issue
+- {{{kbd(R)}}} :: Rename issue
+
+** Views & Reports
+
+- {{{kbd(c)}}} :: Count issues (with optional filters)
+- {{{kbd(t)}}} :: Project statistics (open/closed/blocked counts)
+- {{{kbd(s)}}} :: Show stale issues
+- {{{kbd(T)}}} :: List valid issue types
+- {{{kbd(l)}}} :: Lint issues (check for problems)
+- {{{kbd(O)}}} :: Find duplicate issues (AI-assisted)
+- {{{kbd(o)}}} :: Find orphan issues
+
+** Issue Details
+
+- {{{kbd(a)}}} :: Show children of an issue
+- {{{kbd(=)}}} :: Comments sub-dispatch (list, add)
+- {{{kbd([)}}} :: Todo items (list, add, mark done)
+- {{{kbd(q)}}} :: Query issues with custom filters
+
+** Workflow
+
+- {{{kbd(g)}}} :: Gate sub-dispatch (async coordination)
+- {{{kbd(M)}}} :: Merge-slot sub-dispatch (conflict serialization)
+- {{{kbd(w)}}} :: Swarm sub-dispatch (parallel epic work)
+- {{{kbd(K)}}} :: Cook formula
+- {{{kbd(H)}}} :: Ship capability
+- {{{kbd(z)}}} :: Set issue state label
+- {{{kbd(Z)}}} :: State management sub-dispatch
 
 * Advanced Menu
+:PROPERTIES:
+:DESCRIPTION: Low-frequency maintenance, setup, and integrations.
+:END:
 
-Accessible via {{{kbd(>)}}} from the main dispatch.
+#+FINDEX: beads-advanced-menu
+Key: {{{kbd(>)}}} (from main dispatch)
 
-TODO: Document all advanced menu commands.
+The advanced menu contains low-frequency commands for maintenance,
+data management, integrations, setup, memory, and administration.
+
+** Maintenance
+
+- {{{kbd(d)}}} :: Run doctor (check for problems)
+- {{{kbd(P)}}} :: Preflight check
+- {{{kbd(U)}}} :: Upgrade bd CLI
+- {{{kbd(c)}}} :: Compact database
+- {{{kbd(f)}}} :: Flatten Dolt history
+- {{{kbd(g)}}} :: Garbage collect
+- {{{kbd(p)}}} :: Purge ephemeral data
+- {{{kbd(R)}}} :: Rename issue prefix
+
+** Data & Sync
+
+- {{{kbd(b)}}} :: Backup database
+- {{{kbd(e)}}} :: Export to JSONL
+- {{{kbd(4)}}} :: Restore from backup
+- {{{kbd(B)}}} :: Branch management
+- {{{kbd(V)}}} :: Version control sub-dispatch
+- {{{kbd(F)}}} :: Federation sub-dispatch
+- {{{kbd(J)}}} :: Run SQL query
+
+** Duplicates & Migration
+
+- {{{kbd(1)}}} :: Mark issue as duplicate
+- {{{kbd(2)}}} :: Find duplicate issues
+- {{{kbd(3)}}} :: Supersede issue
+- {{{kbd(m)}}} :: Migrate sub-dispatch
+
+** Integrations
+
+- {{{kbd(j)}}} :: Jira integration
+- {{{kbd(n)}}} :: Linear integration
+- {{{kbd(y)}}} :: GitLab integration
+- {{{kbd(G)}}} :: GitHub integration
+- {{{kbd(o)}}} :: Repository management
+- {{{kbd(M)}}} :: Mail delegation
+
+** Setup
+
+- {{{kbd(i)}}} :: Initialize beads project
+- {{{kbd(I)}}} :: Show bd info/debug
+- {{{kbd(h)}}} :: Hooks sub-dispatch
+- {{{kbd(Q)}}} :: Quickstart guide
+- {{{kbd(w)}}} :: Where (show beads location)
+- {{{kbd(v)}}} :: Show bd version
+- {{{kbd(x)}}} :: Show context
+- {{{kbd(S)}}} :: Setup integrations
+
+** Memory
+
+- {{{kbd(k)}}} :: KV store operations
+- {{{kbd(!)}}} :: Prime context
+- {{{kbd(~)}}} :: List memories
+- {{{kbd(\{)}}} :: Recall memory
+- {{{kbd(\})}}} :: Remember (save memory)
+- {{{kbd(_)}}} :: Forget memory
+
+** Audit & Admin
+
+- {{{kbd(@)}}} :: Audit log
+- {{{kbd($)}}} :: Slot management
+- {{{kbd(a)}}} :: Admin sub-dispatch
+- {{{kbd(W)}}} :: Worktree sub-dispatch
+- {{{kbd(`)}}} :: Diff issues
+- {{{kbd(%)}}} :: Issue history
 
 * Dolt Integration
 
