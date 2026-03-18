@@ -361,6 +361,13 @@ Checks contexts in order:
    ;; 5. Text at point (button or regexp)
    (beads--issue-id-at-text-point)))
 
+(defun beads-issue-at-point-or-read (prompt)
+  "Return the beads issue ID at point, or prompt with PROMPT.
+Try `beads-issue-at-point' first; fall back to `completing-read'
+using `beads-completion-read-issue'."
+  (or (beads-issue-at-point)
+      (beads-completion-read-issue prompt nil t)))
+
 ;;;###autoload
 (defun beads-current-project-root ()
   "Return the beads project root directory for the current buffer, or nil.
@@ -578,7 +585,7 @@ into logical groups for easy access."
    ("o" "Reopen issue" beads-reopen)
    ("D" "Delete issue" beads-delete)
    ("e" "Edit field" beads-edit)
-   ("I" "Create (form)" beads-create-form)
+   ("I" "Create (transient)" beads-create)
    ("Q" "Quick capture (q)" beads-q)
    ("O" "Move issue" beads-move)
    ("B" "Refile issue" beads-refile)
@@ -683,7 +690,7 @@ into a compact hierarchical structure with sub-dispatches."
    ("" "" ignore :if (lambda () nil))]
   [["Issues"
     ("l" "List" beads-list)
-    ("c" "Create" beads-create)
+    ("c" "Create" beads-compose-create)
     ("s" "Status" beads-status)
     ("S" "Show" beads-show)
     ("u" "Update" beads-update)
@@ -766,6 +773,14 @@ or set `beads-executable' to the full path" beads-executable)))
 (autoload 'beads-ready "beads-command-list" nil t)
 ;;;###autoload
 (autoload 'beads-blocked "beads-command-list" nil t)
+
+;; beads-compose
+;;;###autoload
+(autoload 'beads-compose-create "beads-compose" nil t)
+;;;###autoload
+(autoload 'beads-compose-edit "beads-compose" nil t)
+;;;###autoload
+(autoload 'beads-compose-comment "beads-compose" nil t)
 
 ;; beads-command-create
 ;;;###autoload

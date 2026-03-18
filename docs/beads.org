@@ -288,9 +288,67 @@ specific page.
 See [[*Marks and Bulk Operations]].
 
 * Creating Issues
+:PROPERTIES:
+:DESCRIPTION: Buffer-based issue creation (Pattern 3).
+:END:
 
-TODO: Document buffer-based create (Pattern 3), metadata
-sidebar, draft persistence.
+#+FINDEX: beads-compose-create
+Key: {{{kbd(c)}}} (from main menu or list buffer)
+
+Creating an issue uses Pattern 3 (buffer-based editing).  Press
+{{{kbd(c)}}} to open a =*beads-create[PROJECT]*= buffer.
+
+** Compose Buffer Layout
+
+The first line is the issue title (optionally prefixed with
+{{{code(# )}}}).  Everything after the first blank line is the
+description, written in Markdown.
+
+#+BEGIN_EXAMPLE
+# Fix login redirect loop
+
+When users log in with SSO, they get stuck in a redirect
+loop between /auth/callback and /login.
+
+## Steps to Reproduce
+1. Click "Sign in with SSO"
+2. Complete SSO flow
+3. Observe redirect loop
+#+END_EXAMPLE
+
+** Setting Metadata
+
+#+KINDEX: C-c C-a
+#+FINDEX: beads-compose-metadata
+Press {{{kbd(C-c C-a)}}} to open the metadata transient:
+
+- {{{kbd(t)}}} :: Set type (bug, feature, task, epic, chore)
+- {{{kbd(p)}}} :: Set priority (0--4)
+- {{{kbd(a)}}} :: Set assignee
+- {{{kbd(l)}}} :: Set labels (comma-separated)
+- {{{kbd(P)}}} :: Set parent issue
+
+Press {{{kbd(q)}}} to dismiss the metadata transient and return to
+editing.
+
+** Submitting
+
+#+KINDEX: C-c C-c
+Press {{{kbd(C-c C-c)}}} to submit.  The title is required; the
+description is optional.  On success, the buffer is killed and all
+list buffers are refreshed.
+
+** Canceling
+
+#+KINDEX: C-c C-k
+Press {{{kbd(C-c C-k)}}} to cancel.  If the buffer has unsaved
+changes, you will be prompted to confirm.
+
+** Transient-Based Create
+
+#+FINDEX: beads-create
+The original transient-based create is available via {{{kbd(! I)}}}
+from the more menu, or {{{kbd(M-x beads-create)}}}.
 
 * Viewing Issues
 
@@ -361,6 +419,36 @@ stays open after each action (like =forge-topic-menu=), so you
 can perform multiple actions without re-opening the menu.
 
 * Editing Issues
+:PROPERTIES:
+:DESCRIPTION: Buffer-based editing and commenting (Pattern 3).
+:END:
+
+** Editing Descriptions
+
+#+FINDEX: beads-show-compose-edit
+#+KINDEX: E
+From a show buffer, press {{{kbd(E)}}} to open a compose buffer
+pre-populated with the issue's current description.  Edit the text,
+then press {{{kbd(C-c C-c)}}} to save or {{{kbd(C-c C-k)}}} to
+cancel.
+
+** Adding Comments
+
+#+FINDEX: beads-show-compose-comment
+#+KINDEX: N
+From a show buffer, press {{{kbd(N)}}} to open an empty compose
+buffer for a new comment.  Type the comment, then {{{kbd(C-c C-c)}}}
+to submit.
+
+** Inline Field Editing
+
+#+FINDEX: beads-show-edit-field
+#+KINDEX: e
+For quick edits, press {{{kbd(e)}}} in a show buffer to edit a
+field inline (title is single-line, description/notes open a
+temporary buffer).
+
+* Editing Issues (old section)
 
 TODO: Document update transient, inline field editing,
 buffer-based description editing.

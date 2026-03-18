@@ -548,6 +548,10 @@ Called from `kill-buffer-hook' to clean up session state."
     (define-key map (kbd "d") #'beads-actions-close)
     (define-key map (kbd "C") #'beads-actions-claim)
     (define-key map (kbd "#") #'beads-actions-set-priority)
+
+    ;; Pattern 3: Buffer-based editing
+    (define-key map (kbd "E") #'beads-show-compose-edit)
+    (define-key map (kbd "N") #'beads-show-compose-comment)
     map)
   "Keymap for `beads-show-mode'.")
 
@@ -2163,6 +2167,30 @@ Prompts for field to edit and opens an editing buffer."
                       ('design "--design")
                       ('notes "--notes"))))
            (beads-show--update-field field-name flag new-value)))))))
+
+;;; Pattern 3: Compose buffer integration
+
+(defun beads-show-compose-edit ()
+  "Edit the description of the current issue in a compose buffer."
+  (interactive)
+  (unless (derived-mode-p 'beads-show-mode)
+    (user-error "Not in a beads-show buffer"))
+  (unless beads-show--issue-id
+    (user-error "No issue ID associated with this buffer"))
+  (require 'beads-compose)
+  (let ((desc (when beads-show--issue-data
+                (oref beads-show--issue-data description))))
+    (beads-compose-edit beads-show--issue-id desc)))
+
+(defun beads-show-compose-comment ()
+  "Add a comment to the current issue in a compose buffer."
+  (interactive)
+  (unless (derived-mode-p 'beads-show-mode)
+    (user-error "Not in a beads-show buffer"))
+  (unless beads-show--issue-id
+    (user-error "No issue ID associated with this buffer"))
+  (require 'beads-compose)
+  (beads-compose-comment beads-show--issue-id))
 
 ;;; Quick Actions Transient
 
