@@ -31,6 +31,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-agent-keys)
 (require 'beads-buffer)
 (require 'beads-command)
 (require 'beads-command-dep)
@@ -533,15 +534,8 @@ Called from `kill-buffer-hook' to clean up session state."
     (define-key map (kbd "C-c C-o") #'beads-show-follow-reference)  ; markdown-mode alias
     (define-key map (kbd "o") #'beads-show-follow-reference-other-window)
 
-    ;; AI Agent type commands
-    (define-key map (kbd "T") #'beads-agent-start-task)     ; Task agent
-    (define-key map (kbd "R") #'beads-agent-start-review)   ; Review agent
-    (define-key map (kbd "P") #'beads-agent-start-plan)     ; Plan agent
-    (define-key map (kbd "Q") #'beads-agent-start-qa)       ; QA agent
-    (define-key map (kbd "C") #'beads-agent-start-custom)   ; Custom agent
-    (define-key map (kbd "X") #'beads-agent-stop-at-point)  ; Stop agent
-    (define-key map (kbd "J") #'beads-agent-jump-at-point)  ; Jump to agent
-    (define-key map (kbd "A") #'beads-agent-start-at-point) ; Backward compat
+    ;; AI Agent commands (a prefix)
+    (define-key map (kbd "a") beads-agent-prefix-map)
 
     ;; Sesman session management (CIDER/ESS convention)
     (define-key map (kbd "C-c C-s") beads-sesman-map)

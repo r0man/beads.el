@@ -31,6 +31,7 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-agent-keys)
 (require 'beads-buffer)
 (require 'beads-command)
 (require 'beads-command-blocked)
@@ -50,14 +51,6 @@
 (declare-function beads-agent--get-sessions-focused-on-issue "beads-agent-backend")
 (declare-function beads-agent--get-sessions-touching-issue "beads-agent-backend")
 (declare-function beads-agent-session-instance-number "beads-agent-backend")
-(declare-function beads-agent-start-at-point "beads-agent")
-(declare-function beads-agent-start-task "beads-agent" (&optional arg))
-(declare-function beads-agent-start-review "beads-agent" (&optional arg))
-(declare-function beads-agent-start-plan "beads-agent" (&optional arg))
-(declare-function beads-agent-start-qa "beads-agent" (&optional arg))
-(declare-function beads-agent-start-custom "beads-agent" (&optional arg))
-(declare-function beads-agent-stop-at-point "beads-agent")
-(declare-function beads-agent-jump-at-point "beads-agent")
 (declare-function beads-agent--get-issue-outcome "beads-agent-backend")
 (declare-function beads-agent-session-backend-name "beads-agent-backend")
 (declare-function beads-agent-session-type-name "beads-agent-backend")
@@ -2183,15 +2176,8 @@ Uses an idle timer to debounce rapid navigation, similar to
     (define-key map (kbd "/") #'beads-list-filter-menu)    ; spec filter menu
     (define-key map (kbd "C-c C-f") #'beads-list-follow-mode) ; follow mode (like compilation)
 
-    ;; AI Agent type commands
-    (define-key map (kbd "T") #'beads-agent-start-task)     ; Task agent
-    (define-key map (kbd "R") #'beads-agent-start-review)   ; Review agent
-    (define-key map (kbd "P") #'beads-agent-start-plan)     ; Plan agent
-    (define-key map (kbd "Q") #'beads-agent-start-qa)       ; QA agent
-    (define-key map (kbd "C") #'beads-agent-start-custom)   ; Custom agent
-    (define-key map (kbd "X") #'beads-agent-stop-at-point)  ; Stop agent
-    (define-key map (kbd "J") #'beads-agent-jump-at-point)  ; Jump to agent
-    (define-key map (kbd "A") #'beads-agent-start-at-point) ; Backward compat
+    ;; AI Agent commands (a prefix)
+    (define-key map (kbd "a") beads-agent-prefix-map)
 
     ;; Pagination (beads-pager-mode provides these; also here for discoverability)
     (define-key map (kbd "]") #'beads-pager-next-page)

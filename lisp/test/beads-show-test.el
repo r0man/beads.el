@@ -2198,17 +2198,15 @@ Note: Notes cannot be set at creation time, only via update."
 
 ;;; Tests for Agent Integration
 
-(ert-deftest beads-show-test-agent-keybinding-A ()
-  "Test that A keybinding is bound to beads-agent-start-at-point."
+(ert-deftest beads-show-test-agent-prefix-map ()
+  "Test that `a' prefix opens agent commands in show-mode."
   (beads-show-test-with-temp-buffer
-   (should (eq (lookup-key beads-show-mode-map (kbd "A"))
-              #'beads-agent-start-at-point))))
-
-(ert-deftest beads-show-test-agent-keybinding-J ()
-  "Test that J keybinding is bound to beads-agent-jump-at-point."
-  (beads-show-test-with-temp-buffer
-   (should (eq (lookup-key beads-show-mode-map (kbd "J"))
-              #'beads-agent-jump-at-point))))
+   (should (eq (lookup-key beads-show-mode-map (kbd "a"))
+               beads-agent-prefix-map))
+   (should (eq (lookup-key beads-show-mode-map (kbd "a a"))
+               #'beads-agent-start-at-point))
+   (should (eq (lookup-key beads-show-mode-map (kbd "a j"))
+               #'beads-agent-jump-at-point))))
 
 (ert-deftest beads-show-test-insert-agent-section-no-sessions ()
   "Test that agent section is not rendered when no sessions exist."
