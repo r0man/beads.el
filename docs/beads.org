@@ -351,9 +351,25 @@ The original transient-based create is available via {{{kbd(! I)}}}
 from the more menu, or {{{kbd(M-x beads-create)}}}.
 
 * Viewing Issues
+:PROPERTIES:
+:DESCRIPTION: Read-only detail view for individual issues.
+:END:
 
-TODO: Document beads-show-mode, section navigation, reference
-following, inline editing, agent section.
+#+FINDEX: beads-show
+#+KINDEX: RET
+
+Press {{{kbd(RET)}}} on an issue in list mode to open it in a
+show buffer.  The buffer displays all issue fields with
+markdown-like rendering and clickable =bd-N= references.
+
+** Navigation
+
+- {{{kbd(n)}}} / {{{kbd(p)}}} :: Next / previous section
+- {{{kbd(TAB)}}} :: Toggle section visibility
+- {{{kbd(RET)}}} :: Follow reference at point (opens linked issue)
+- {{{kbd(o)}}} :: Follow reference in other window
+- {{{kbd(g)}}} :: Refresh the buffer
+- {{{kbd(q)}}} :: Quit the buffer
 
 * Closing and Reopening
 
@@ -448,24 +464,116 @@ For quick edits, press {{{kbd(e)}}} in a show buffer to edit a
 field inline (title is single-line, description/notes open a
 temporary buffer).
 
-* Editing Issues (old section)
-
-TODO: Document update transient, inline field editing,
-buffer-based description editing.
-
 * Dependencies
+:PROPERTIES:
+:DESCRIPTION: Manage issue dependencies and relationships.
+:END:
 
-TODO: Document dep add/remove/list/tree/cycles, dependency
-graph visualization.
+#+FINDEX: beads-dep
+Key: {{{kbd(d)}}} (from main dispatch)
+
+The dependency menu provides access to all dependency management
+operations.  Press {{{kbd(d)}}} from the main dispatch to open it.
+
+** Adding Dependencies
+
+- {{{kbd(a)}}} :: Add a dependency between two issues.  You will be
+  prompted for the source issue (depends on) and target issue
+  (depended upon), plus the dependency type.
+
+** Removing Dependencies
+
+- {{{kbd(r)}}} :: Remove an existing dependency.
+
+** Viewing Dependencies
+
+- {{{kbd(l)}}} :: List all dependencies for an issue.
+- {{{kbd(t)}}} :: Show the full dependency tree, walking
+  transitive dependencies.
+- {{{kbd(c)}}} :: Check for dependency cycles in the project.
+
+** Relating Issues
+
+- {{{kbd(R)}}} :: Create a bidirectional =relates_to= link between
+  two issues.
+- {{{kbd(U)}}} :: Remove a =relates_to= link.
 
 * Labels
+:PROPERTIES:
+:DESCRIPTION: Add, remove, and manage issue labels.
+:END:
 
-TODO: Document label add/remove/list/list-all/propagate.
+#+FINDEX: beads-label
+Key: {{{kbd(L)}}} (from main dispatch)
+
+The label menu provides commands for managing labels on issues.
+
+- {{{kbd(a)}}} :: Add a label to one or more issues.  Prompts for
+  issue ID(s) and label name.
+- {{{kbd(r)}}} :: Remove a label from one or more issues.
+- {{{kbd(p)}}} :: Propagate a label to all children of an issue.
+- {{{kbd(l)}}} :: List labels for a specific issue.
+- {{{kbd(L)}}} :: List all labels in the database.
 
 * Molecules
+:PROPERTIES:
+:DESCRIPTION: Manage work templates (molecules and protos).
+:END:
 
-TODO: Document mol show/pour/wisp/bond/squash/burn/distill,
-current/progress/ready/stale, seed/last-activity.
+#+FINDEX: beads-mol
+Key: {{{kbd(m)}}} (from main dispatch)
+
+Molecules are instantiated work templates.  A /proto/ is the
+template epic; a /molecule/ is the running instance.
+
+** Instantiate
+
+- {{{kbd(p)}}} :: Pour --- create a persistent molecule from a proto.
+- {{{kbd(w)}}} :: Wisp --- create an ephemeral molecule.
+
+** Combine
+
+- {{{kbd(b)}}} :: Bond --- merge molecules together.
+- {{{kbd(d)}}} :: Distill --- extract a proto from existing issues.
+
+** Lifecycle
+
+- {{{kbd(s)}}} :: Show molecule details.
+- {{{kbd(c)}}} :: Show the current active molecule.
+- {{{kbd(P)}}} :: Show molecule progress.
+
+** Cleanup
+
+- {{{kbd(S)}}} :: Squash --- collapse molecule history.
+- {{{kbd(B)}}} :: Burn --- destroy a molecule.
+
+** Find
+
+- {{{kbd(r)}}} :: Ready --- find molecules ready for work.
+- {{{kbd(t)}}} :: Stale --- find stale molecules.
+
+** Health
+
+- {{{kbd(e)}}} :: Seed --- verify molecule seed data integrity.
+- {{{kbd(l)}}} :: Last activity --- show when each molecule was
+  last touched.
+
+* Epics
+:PROPERTIES:
+:DESCRIPTION: View epic progress and close eligible epics.
+:END:
+
+#+FINDEX: beads-epic-menu
+Key: {{{kbd(E)}}} (from main dispatch)
+
+The epic menu provides commands for managing epics.
+
+- {{{kbd(s)}}} :: Status overview --- opens an interactive buffer
+  showing all epics with progress bars, child counts, and
+  eligibility for closure.  Press {{{kbd(SPC)}}} to expand/collapse
+  children, {{{kbd(RET)}}} to show details.
+- {{{kbd(c)}}} :: Close eligible --- close epics where all children
+  are complete.  Use =--dry-run= to preview.
 
 * Agents
 
@@ -610,38 +718,167 @@ data management, integrations, setup, memory, and administration.
 - {{{kbd(`)}}} :: Diff issues
 - {{{kbd(%)}}} :: Issue history
 
-* Dolt Integration
+* Formulas
+:PROPERTIES:
+:DESCRIPTION: Manage workflow formula definitions.
+:END:
 
-TODO: Document dolt configuration, server management,
-commit/push/pull, remotes, clean-databases.
+#+FINDEX: beads-formula-menu
+Key: {{{kbd(F)}}} (from main dispatch)
+
+Formulas are YAML/TOML definitions that describe workflows.
+They are "cooked" into proto beads which can then be poured
+or wisped.
+
+- {{{kbd(l)}}} :: List available formulas.  Use the =-t= filter
+  to show only =workflow=, =expansion=, or =aspect= types.
+- {{{kbd(s)}}} :: Show formula details including steps, variables,
+  and composition rules.
+- {{{kbd(c)}}} :: Convert a formula from JSON to TOML format.
+
+* Dolt Integration
+:PROPERTIES:
+:DESCRIPTION: Database configuration and server management.
+:END:
+
+#+FINDEX: beads-dolt
+Key: {{{kbd(k)}}} (from main dispatch)
+
+Beads uses Dolt as its version-controlled database backend.
+The Dolt menu provides server management, data sync, and
+configuration.
+
+** Configuration
+
+- {{{kbd(s)}}} :: Show current Dolt configuration.
+- {{{kbd(S)}}} :: Set a Dolt configuration value.
+- {{{kbd(t)}}} :: Test the database connection.
+
+** Data
+
+- {{{kbd(c)}}} :: Commit pending changes to Dolt history.
+- {{{kbd(p)}}} :: Push commits to the Dolt remote.
+- {{{kbd(P)}}} :: Pull commits from the Dolt remote.
+
+** Server
+
+- {{{kbd(1)}}} :: Start the Dolt SQL server.
+- {{{kbd(0)}}} :: Stop the Dolt SQL server.
+- {{{kbd(i)}}} :: Show server status.
+
+** Remotes
+
+- {{{kbd(r)}}} :: Open the remote management sub-menu for
+  adding, removing, and listing Dolt remotes.
+
+** Maintenance
+
+- {{{kbd(C)}}} :: Clean up orphaned databases.
+- {{{kbd(K)}}} :: Kill orphan Dolt server processes.
 
 * Configuration
+:PROPERTIES:
+:DESCRIPTION: Get, set, and validate project configuration.
+:END:
 
-TODO: Document config get/set/list/unset/validate.
+#+FINDEX: beads-config
+Key: {{{kbd(.)}}} (from main dispatch)
+
+Project configuration is stored per-project in the =.beads/=
+directory.  Common namespaces include =jira.*=, =linear.*=,
+=github.*=, and =status.*=.
+
+- {{{kbd(g)}}} :: Get a configuration value.
+- {{{kbd(s)}}} :: Set a configuration value.
+- {{{kbd(l)}}} :: List all configuration values.
+- {{{kbd(u)}}} :: Unset (remove) a configuration value.
+- {{{kbd(v)}}} :: Validate the configuration.
+
+* Agent Commands
+:PROPERTIES:
+:DESCRIPTION: Manage agent bead state.
+:END:
+
+#+FINDEX: beads-agent-menu
+Key: {{{kbd(A)}}} (from main dispatch)
+
+Agent beads (labeled =gt:agent=) can self-report their state.
+
+- {{{kbd(s)}}} :: Set agent state.
+- {{{kbd(h)}}} :: Send heartbeat.
+- {{{kbd(S)}}} :: Show agent details.
+- {{{kbd(b)}}} :: Backfill labels on agent issues.
 
 * Administration
 
-TODO: Document admin, audit, slot, compact, doctor, migrate,
-federation, vc commands.
+Administration, audit, and maintenance commands are accessible
+through the Advanced menu ({{{kbd(>)}}}).  See [[*Advanced Menu]]
+for the full list.
 
 * Integrations
 
-TODO: Document GitHub, GitLab, Jira, Linear, repo, mail
-integrations.
+Integration commands for GitHub, GitLab, Jira, Linear, and
+other services are accessible through the Advanced menu
+({{{kbd(>)}}} then the Integrations group).  See [[*Advanced Menu]]
+for available keys.
 
 * Customizing
+:PROPERTIES:
+:DESCRIPTION: User options, faces, and hooks.
+:END:
 
-TODO: Document user options (beads-executable, beads-actor,
-etc.), faces, hooks.
+** User Options
+
+#+VINDEX: beads-executable
+- {{{var(beads-executable)}}} :: Path to the =bd= executable.
+  Defaults to ="bd"= (found via =PATH=).
+
+#+VINDEX: beads-actor
+- {{{var(beads-actor)}}} :: Actor name for audit trail.  Defaults
+  to the git =user.name= or =$USER=.
+
+** Faces
+
+Beads.el defines faces for issue status, priority, type, and
+other UI elements.  Customize the =beads= and =beads-epic-status=
+face groups to adjust colors.
 
 * Plumbing
+:PROPERTIES:
+:DESCRIPTION: Internal architecture for contributors.
+:END:
 
-TODO: Document EIEIO command classes, bang functions, process
-execution, JSON parsing, caching.
+** EIEIO Command Classes
+
+All =bd= CLI commands are represented as EIEIO classes defined
+via the =beads-defcommand= macro.  Each class has slots for
+command options, with metadata for automatic CLI serialization.
+
+** Bang Functions
+
+Each command class has a corresponding "bang" function
+(e.g., =beads-command-create!=) that constructs, validates,
+executes, and returns the result in one call.
+
+** Process Execution
+
+Commands are executed via =process-file= for Tramp compatibility.
+The =beads-command-execute= method handles CLI argument building,
+JSON parsing, and error reporting.
 
 * FAQ
 
-TODO: Common questions and troubleshooting.
+** Why does beads.el require the bd CLI?
+
+Beads.el is a frontend --- all data operations go through the
+=bd= CLI, which manages the Dolt database.  This ensures
+consistency between the Emacs UI and command-line workflows.
+
+** How do I use beads.el with remote projects?
+
+Beads.el uses =process-file= and =start-file-process= instead
+of =call-process=, so it works transparently over Tramp.  The
+=--db= path is automatically adjusted via =file-local-name=.
 
 * Keystroke Index
 :PROPERTIES:

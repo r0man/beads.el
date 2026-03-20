@@ -690,5 +690,67 @@
     (should (stringp result))
     (should (equal result ""))))
 
+;;; ========================================
+;;; beads-command-formula-convert Tests
+;;; ========================================
+
+(ert-deftest beads-command-formula-test-convert-subcommand ()
+  "Test formula convert subcommand name."
+  (let ((cmd (beads-command-formula-convert)))
+    (should (string= (beads-command-subcommand cmd) "formula convert"))))
+
+(ert-deftest beads-command-formula-test-convert-command-line-basic ()
+  "Test formula convert basic command line with name."
+  (let* ((cmd (beads-command-formula-convert
+               :formula-name "shiny"))
+         (args (beads-command-line cmd)))
+    (should (member "formula" args))
+    (should (member "convert" args))
+    (should (member "shiny" args))))
+
+(ert-deftest beads-command-formula-test-convert-command-line-all ()
+  "Test formula convert with --all flag."
+  (let* ((cmd (beads-command-formula-convert :all t))
+         (args (beads-command-line cmd)))
+    (should (member "formula" args))
+    (should (member "convert" args))
+    (should (member "--all" args))))
+
+(ert-deftest beads-command-formula-test-convert-command-line-delete ()
+  "Test formula convert with --delete flag."
+  (let* ((cmd (beads-command-formula-convert
+               :formula-name "shiny" :delete t))
+         (args (beads-command-line cmd)))
+    (should (member "--delete" args))
+    (should (member "shiny" args))))
+
+(ert-deftest beads-command-formula-test-convert-command-line-stdout ()
+  "Test formula convert with --stdout flag."
+  (let* ((cmd (beads-command-formula-convert
+               :formula-name "shiny" :stdout t))
+         (args (beads-command-line cmd)))
+    (should (member "--stdout" args))
+    (should (member "shiny" args))))
+
+(ert-deftest beads-command-formula-test-convert-validate-requires-name-or-all ()
+  "Test formula convert requires formula name or --all."
+  (let ((cmd (beads-command-formula-convert)))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-formula-test-convert-validate-with-name ()
+  "Test formula convert validates with name."
+  (let ((cmd (beads-command-formula-convert :formula-name "shiny")))
+    (should (null (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-formula-test-convert-validate-with-all ()
+  "Test formula convert validates with --all."
+  (let ((cmd (beads-command-formula-convert :all t)))
+    (should (null (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-formula-test-convert-in-menu ()
+  "Test formula convert is accessible from formula-menu."
+  (require 'beads-command-formula)
+  (should (fboundp 'beads-formula-convert)))
+
 (provide 'beads-command-formula-test)
 ;;; beads-command-formula-test.el ends here

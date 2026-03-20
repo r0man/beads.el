@@ -827,12 +827,12 @@
       (should (eq called #'tabulated-list-sort)))))
 
 (ert-deftest beads-coverage-2-list-create ()
-  "Test beads-list-create calls beads-create."
+  "Test beads-list-create calls beads-compose-create."
   (let ((called nil))
     (cl-letf (((symbol-function 'call-interactively)
                (lambda (fn) (setq called fn))))
       (beads-list-create)
-      (should (eq called #'beads-create)))))
+      (should (eq called #'beads-compose-create)))))
 
 (ert-deftest beads-coverage-2-list-update-no-issue ()
   "Test beads-list-update with no issue at point."

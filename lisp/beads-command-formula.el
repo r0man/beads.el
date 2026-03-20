@@ -179,6 +179,67 @@ Shows detailed information about a formula.")
         (beads-formula-from-json json-data)))))
 
 ;;; ============================================================
+;;; Formula Convert Command Class
+;;; ============================================================
+
+(beads-defcommand beads-command-formula-convert (beads-command-global-options)
+  ((formula-name
+    :initarg :formula-name
+    :type (or null string)
+    :initform nil
+    :documentation "Name or path of the formula to convert (positional)."
+    :positional 1)
+   (all
+    :initarg :all
+    :type boolean
+    :initform nil
+    :documentation "Convert all JSON formulas (--all)."
+    :long-option "all"
+    :option-type :boolean)
+   (delete
+    :initarg :delete
+    :type boolean
+    :initform nil
+    :documentation "Delete JSON file after conversion (--delete)."
+    :long-option "delete"
+    :option-type :boolean)
+   (stdout
+    :initarg :stdout
+    :type boolean
+    :initform nil
+    :documentation "Print TOML to stdout instead of file (--stdout)."
+    :long-option "stdout"
+    :option-type :boolean))
+  :documentation "Represents bd formula convert command.
+Converts formula files from JSON to TOML format."
+  :cli-command "formula convert")
+
+(cl-defmethod beads-command-validate ((command beads-command-formula-convert))
+  "Validate COMMAND.  Requires formula name or --all."
+  (with-slots (formula-name all) command
+    (unless (or all (and formula-name (not (string-empty-p formula-name))))
+      "Formula name or --all is required")))
+
+;;; ============================================================
+;;; Formula Convert Interactive Command
+;;; ============================================================
+
+;;;###autoload
+(defun beads-formula-convert (formula-name)
+  "Convert FORMULA-NAME from JSON to TOML format."
+  (interactive
+   (list (completing-read "Formula to convert: "
+                          (mapcar (lambda (f) (oref f name))
+                                  (beads-command-formula-list! :json t))
+                          nil t)))
+  (beads-check-executable)
+  (let* ((cmd (beads-command-formula-convert :formula-name formula-name))
+         (exec (beads-command-execute cmd)))
+    (if (= (oref exec exit-code) 0)
+        (message "Converted %s to TOML" formula-name)
+      (beads--error "Formula convert failed: %s" (oref exec stderr)))))
+
+;;; ============================================================
 ;;; Formula List Buffer Variables
 ;;; ============================================================
 
@@ -630,7 +691,8 @@ When called interactively with a prefix argument, prompts for TYPE."
     :choices ("workflow" "expansion" "aspect"))]
   ["Actions"
    ("l" beads-formula-menu--list)
-   ("s" "Show formula" beads-formula-show)])
+   ("s" "Show formula" beads-formula-show)
+   ("c" "Convert JSON→TOML" beads-formula-convert)])
 
 (provide 'beads-command-formula)
 ;;; beads-command-formula.el ends here

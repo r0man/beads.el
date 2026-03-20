@@ -612,7 +612,7 @@ into logical groups for easy access."
    ("]" "Issue types" beads-types)
    ("<" "Find duplicates (AI)" beads-find-duplicates)
    ("v" "Graph (visual)" beads-graph-all)
-   ("E" "Epic status" beads-epic)]
+   ("E" "Epic menu" beads-epic-menu)]
   ["Agent, Slots & Audit"
    ("@" "Slot menu" beads-slot)
    ("=" "Comments" beads-comments-menu)
@@ -952,6 +952,8 @@ or set `beads-executable' to the full path" beads-executable)))
 ;; beads-command-epic
 ;;;###autoload
 (autoload 'beads-epic "beads-command-epic" nil t)
+;;;###autoload
+(autoload 'beads-epic-menu "beads-command-epic" nil t)
 
 ;; beads-command-swarm
 ;;;###autoload
