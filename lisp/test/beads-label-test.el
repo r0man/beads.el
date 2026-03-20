@@ -471,8 +471,8 @@
 
 (ert-deftest beads-label-test-transient-defined ()
   "Test that beads-label transient is defined."
-  (should (fboundp 'beads-label))
-  (should (get 'beads-label 'transient--prefix)))
+  (should (fboundp 'beads-label-menu))
+  (should (get 'beads-label-menu 'transient--prefix)))
 
 (ert-deftest beads-label-test-mode-map ()
   "Test that beads-label-list-all-mode-map has expected bindings."
@@ -1037,7 +1037,7 @@
 (ert-deftest beads-label-test-label-menu-has-propagate ()
   "Test that beads-label menu includes propagate command."
   :tags '(:unit)
-  (let* ((layout (get 'beads-label 'transient--layout))
+  (let* ((layout (get 'beads-label-menu 'transient--layout))
          (layout-str (format "%s" layout)))
     (should (string-match-p "beads-label-propagate" layout-str))))
 
