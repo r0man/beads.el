@@ -721,7 +721,7 @@ into a compact hierarchical structure with sub-dispatches."
     ("H" "History" beads-history)
     ("D" "Diff" beads-diff)]
    ["Manage"
-    ("L" "Labels" beads-label)
+    ("L" "Labels" beads-label-menu)
     ("F" "Formula" beads-formula-menu)
     ("m" "Molecule" beads-mol)
     ("k" "Dolt" beads-dolt)
@@ -1021,7 +1021,7 @@ or set `beads-executable' to the full path" beads-executable)))
 
 ;; beads-command-label
 ;;;###autoload
-(autoload 'beads-label "beads-command-label" nil t)
+(autoload 'beads-label-menu "beads-command-label" nil t)
 
 ;; beads-command-misc — miscellaneous commands referenced from main menu
 ;;;###autoload

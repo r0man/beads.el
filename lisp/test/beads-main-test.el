@@ -612,7 +612,7 @@ is loaded. We verify the menu itself is a valid transient prefix."
 
 (ert-deftest beads-main-test-manage-commands-in-main ()
   "Test that manage commands are accessible from main dispatch."
-  (should (fboundp 'beads-label))
+  (should (fboundp 'beads-label-menu))
   (should (fboundp 'beads-agent-menu))
   (should (fboundp 'beads-config))
   (should (fboundp 'beads-dolt)))
@@ -644,7 +644,7 @@ This ensures no functionality was lost during refactoring."
   (should (fboundp 'beads-count))
   (should (fboundp 'beads-graph-all))
   ;; Manage
-  (should (fboundp 'beads-label))
+  (should (fboundp 'beads-label-menu))
   (should (fboundp 'beads-agent-menu))
   (should (fboundp 'beads-config))
   (should (fboundp 'beads-dolt))

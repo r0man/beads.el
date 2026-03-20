@@ -816,9 +816,8 @@ labels from issues using the bd label remove command."
 
 ;;; Parent Transient Menu
 
-;;;###autoload (autoload 'beads-label "beads-command-label" nil t)
-(with-no-warnings
-  (transient-define-prefix beads-label ()
+;;;###autoload (autoload 'beads-label-menu "beads-command-label" nil t)
+(transient-define-prefix beads-label-menu ()
     "Manage labels for issues.
 
 This transient menu provides access to all label management commands:
@@ -832,7 +831,7 @@ This transient menu provides access to all label management commands:
      ("r" "Remove label from issue(s)" beads-label-remove)
      ("p" "Propagate to children" beads-label-propagate)
      ("l" "List labels for issue" beads-label-list-interactive)
-     ("L" "List all labels" beads-label-list-all-view)]))
+     ("L" "List all labels" beads-label-list-all-view)])
 
 (provide 'beads-command-label)
 ;;; beads-command-label.el ends here
