@@ -563,6 +563,17 @@ Returns a propertized string showing project and database info."
       (propertize "No beads project found in current directory"
                  'face 'warning))))
 
+;;; Context Predicates
+
+(defun beads--in-beads-buffer-p ()
+  "Return non-nil when current buffer is a beads buffer.
+Used as :if predicate for context-aware transient groups."
+  (derived-mode-p 'beads-list-mode
+                  'beads-show-mode
+                  'beads-epic-status-mode
+                  'beads-formula-list-mode
+                  'beads-formula-show-mode))
+
 ;;; Menu Refresh
 
 (transient-define-suffix beads-refresh-menu ()
@@ -573,7 +584,9 @@ Returns a propertized string showing project and database info."
   (beads-main--clear-cache)
   (message "Menu refreshed"))
 
-;;; More Commands Sub-dispatch
+;;; Legacy More Commands Sub-dispatch (deprecated)
+;; All commands are now in beads-ops-menu and beads-advanced-menu.
+;; This is kept temporarily for backwards compatibility.
 
 ;;;###autoload
 (transient-define-prefix beads-more-menu ()
@@ -691,7 +704,7 @@ into a compact hierarchical structure with sub-dispatches."
   [["Issues"
     ("l" "List" beads-list)
     ("c" "Create" beads-compose-create)
-    ("s" "Status" beads-status)
+    ("/" "Search" beads-search)
     ("S" "Show" beads-show)
     ("u" "Update" beads-update)
     ("x" "Close" beads-close)]
@@ -699,15 +712,28 @@ into a compact hierarchical structure with sub-dispatches."
     ("r" "Ready" beads-ready)
     ("b" "Blocked" beads-blocked)
     ("d" "Dependencies" beads-dep)
-    ("F" "Formula" beads-formula-menu)
-    ("m" "Molecule" beads-mol)]
+    ("e" "Edit" beads-edit)
+    ("o" "Reopen" beads-reopen)]
+   ["Views"
+    ("s" "Status" beads-status)
+    ("v" "Graph" beads-graph-all)
+    ("E" "Epic" beads-epic-menu)
+    ("H" "History" beads-history)
+    ("D" "Diff" beads-diff)]
    ["Manage"
     ("L" "Labels" beads-label)
-    ("A" "Agents" beads-agent-menu)
-    ("." "Config" beads-config)
-    ("k" "Dolt" beads-dolt)]
+    ("F" "Formula" beads-formula-menu)
+    ("m" "Molecule" beads-mol)
+    ("k" "Dolt" beads-dolt)
+    ("." "Config" beads-config)]]
+  [["Context"
+    :if beads--in-beads-buffer-p
+    ("#" "Set priority" beads-actions-set-priority)
+    ("C" "Claim" beads-actions-claim)
+    ("?" "Actions..." beads-show-actions)]
    ["Extensions"
-    ("G" "Gas Town" gastown :if (lambda () (featurep 'gastown)))]
+    ("G" "Gas Town" gastown :if (lambda () (featurep 'gastown)))
+    ("A" "Agents" beads-agent-menu)]
    ["Actions"
     ("!" "Ops..." beads-ops-menu)
     (">" "Advanced..." beads-advanced-menu)
@@ -818,6 +844,16 @@ or set `beads-executable' to the full path" beads-executable)))
 ;; beads-command-show
 ;;;###autoload
 (autoload 'beads-show "beads-command-show" nil t)
+;;;###autoload
+(autoload 'beads-show-actions "beads-command-show" nil t)
+
+;; beads-actions
+;;;###autoload
+(autoload 'beads-actions-claim "beads-actions" nil t)
+;;;###autoload
+(autoload 'beads-actions-set-status "beads-actions" nil t)
+;;;###autoload
+(autoload 'beads-actions-set-priority "beads-actions" nil t)
 
 ;; beads-command-edit
 ;;;###autoload
