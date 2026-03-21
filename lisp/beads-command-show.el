@@ -31,6 +31,8 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-actions)
+(require 'beads-agent-keys)
 (require 'beads-buffer)
 (require 'beads-command)
 (require 'beads-command-dep)
@@ -533,23 +535,23 @@ Called from `kill-buffer-hook' to clean up session state."
     (define-key map (kbd "C-c C-o") #'beads-show-follow-reference)  ; markdown-mode alias
     (define-key map (kbd "o") #'beads-show-follow-reference-other-window)
 
-    ;; AI Agent type commands
-    (define-key map (kbd "T") #'beads-agent-start-task)     ; Task agent
-    (define-key map (kbd "R") #'beads-agent-start-review)   ; Review agent
-    (define-key map (kbd "P") #'beads-agent-start-plan)     ; Plan agent
-    (define-key map (kbd "Q") #'beads-agent-start-qa)       ; QA agent
-    (define-key map (kbd "C") #'beads-agent-start-custom)   ; Custom agent
-    (define-key map (kbd "X") #'beads-agent-stop-at-point)  ; Stop agent
-    (define-key map (kbd "J") #'beads-agent-jump-at-point)  ; Jump to agent
-    (define-key map (kbd "A") #'beads-agent-start-at-point) ; Backward compat
+    ;; AI Agent commands (a prefix)
+    (define-key map (kbd "a") beads-agent-prefix-map)
 
     ;; Sesman session management (CIDER/ESS convention)
     (define-key map (kbd "C-c C-s") beads-sesman-map)
 
     ;; Quick actions transient
     (define-key map (kbd "?") #'beads-show-actions)
-    (define-key map (kbd "s") #'beads-show-set-status)
+    (define-key map (kbd "s") #'beads-actions-set-status)
     (define-key map (kbd "e") #'beads-show-edit-field)
+    (define-key map (kbd "d") #'beads-actions-close)
+    (define-key map (kbd "C") #'beads-actions-claim)
+    (define-key map (kbd "#") #'beads-actions-set-priority)
+
+    ;; Pattern 3: Buffer-based editing
+    (define-key map (kbd "E") #'beads-show-compose-edit)
+    (define-key map (kbd "N") #'beads-show-compose-comment)
     map)
   "Keymap for `beads-show-mode'.")
 
@@ -2166,6 +2168,30 @@ Prompts for field to edit and opens an editing buffer."
                       ('notes "--notes"))))
            (beads-show--update-field field-name flag new-value)))))))
 
+;;; Pattern 3: Compose buffer integration
+
+(defun beads-show-compose-edit ()
+  "Edit the description of the current issue in a compose buffer."
+  (interactive)
+  (unless (derived-mode-p 'beads-show-mode)
+    (user-error "Not in a beads-show buffer"))
+  (unless beads-show--issue-id
+    (user-error "No issue ID associated with this buffer"))
+  (require 'beads-compose)
+  (let ((desc (when beads-show--issue-data
+                (oref beads-show--issue-data description))))
+    (beads-compose-edit beads-show--issue-id desc)))
+
+(defun beads-show-compose-comment ()
+  "Add a comment to the current issue in a compose buffer."
+  (interactive)
+  (unless (derived-mode-p 'beads-show-mode)
+    (user-error "Not in a beads-show buffer"))
+  (unless beads-show--issue-id
+    (user-error "No issue ID associated with this buffer"))
+  (require 'beads-compose)
+  (beads-compose-comment beads-show--issue-id))
+
 ;;; Quick Actions Transient
 
 (require 'transient)
@@ -2175,15 +2201,16 @@ Prompts for field to edit and opens an editing buffer."
   :transient-suffix 'transient--do-stay
   ["Issue Actions"
    ["Status"
-    ("o" "Open" beads-show-set-status-open)
-    ("p" "In Progress" beads-show-set-status-in-progress)
-    ("b" "Blocked" beads-show-set-status-blocked)
-    ("c" "Close" beads-show-set-status-closed)]
+    ("s" "Set status" beads-actions-set-status)
+    ("#" "Set priority" beads-actions-set-priority)
+    ("c" "Close" beads-actions-close)
+    ("C" "Claim" beads-actions-claim)
+    ("o" "Reopen" beads-actions-reopen)]
    ["Navigate"
     ("d" "Dependencies" beads-show-goto-depends)
     ("B" "Blocks" beads-show-goto-blocks)
     ("P" "Parent" beads-show-goto-parent)
-    ("C" "Children" beads-show-goto-children)]
+    ("D" "Children" beads-show-goto-children)]
    ["Edit"
     ("e" "Edit field" beads-show-edit-field)
     ("n" "Add note" beads-show-add-note)

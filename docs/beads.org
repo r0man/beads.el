@@ -1,0 +1,900 @@
+#+TITLE: Beads.el User Manual
+#+AUTHOR: Beads Contributors
+#+LANGUAGE: en
+#+TEXINFO_DIR_CATEGORY: Emacs
+#+TEXINFO_DIR_TITLE: Beads: (beads).
+#+TEXINFO_DIR_DESC: Magit-like interface for the Beads issue tracker.
+#+OPTIONS: H:4 num:3 toc:2
+#+STARTUP: showall
+#+SETUPFILE: .orgconfig
+
+This manual is for Beads.el version 0.1.0.
+
+#+TEXINFO: @insertcopying
+
+* Introduction
+
+Beads.el is a Magit-like Emacs interface for the Beads issue tracker.
+It provides keyboard-driven, transient-based UI for managing issues,
+dependencies, molecules, and workflows without leaving Emacs.
+
+Beads.el integrates with the {{{cmd(bd)}}} command-line tool and
+exposes all 96+ CLI commands through a carefully organized hierarchy
+of transient menus and context-aware keybindings.
+
+** Features
+
+- Full coverage of the {{{cmd(bd)}}} CLI (96+ commands)
+- Three interaction patterns: context actions, switch-based
+  transients, and buffer-based editing
+- Dependency-aware issue management with graph visualization
+- Agent integration for AI-assisted workflows
+- Molecule and formula management
+- Multi-repo and Dolt database support
+
+** Related Resources
+
+- Beads CLI documentation: https://github.com/steveyegge/beads
+- Magit (inspiration): https://magit.vc
+- Forge (inspiration): https://magit.vc/manual/forge
+
+* Installation
+
+** Requirements
+
+- Emacs 27.1 or later
+- The {{{cmd(bd)}}} executable in your {{{var(PATH)}}}
+- The =transient= library (built-in since Emacs 28)
+
+** Installing from MELPA
+
+#+BEGIN_SRC emacs-lisp
+(use-package beads
+  :ensure t)
+#+END_SRC
+
+** Installing from Source
+
+Clone the repository and add it to your load-path:
+
+#+BEGIN_SRC emacs-lisp
+(add-to-list 'load-path "/path/to/beads.el/lisp")
+(require 'beads)
+#+END_SRC
+
+** Initial Setup
+
+Initialize Beads in a project directory:
+
+#+BEGIN_SRC shell
+cd /path/to/project
+bd init
+#+END_SRC
+
+Then open the main menu in Emacs with {{{kbd(M-x beads)}}}.
+
+* Getting Started
+
+** Your First Issue
+
+1. Open the main menu: {{{kbd(M-x beads)}}}
+2. Press {{{kbd(c)}}} to create an issue
+3. Enter a title and description
+4. Press {{{kbd(C-c C-c)}}} to submit
+
+** Listing Issues
+
+From the main menu, press {{{kbd(l)}}} to open the list transient,
+then {{{kbd(l)}}} again to list all issues.  Use {{{kbd(-s)}}} to
+filter by status, {{{kbd(-t)}}} to filter by type.
+
+** Viewing Issue Details
+
+From the issue list, press {{{kbd(RET)}}} on an issue to open its
+detail view.  Navigate sections with {{{kbd(C-c C-n)}}} /
+{{{kbd(C-c C-p)}}}.
+
+* Interface Concepts
+:PROPERTIES:
+:DESCRIPTION: Core UX patterns and terminology.
+:END:
+
+Beads.el uses three interaction patterns, modeled on Magit and Forge.
+Understanding these patterns helps you navigate the interface
+efficiently and predict where to find commands.
+
+** Modes and Buffers
+
+Beads.el defines two major modes:
+
+- {{{dfn(beads-list-mode)}}} :: A =tabulated-list-mode= derivative
+  for browsing issues.  Supports sorting, filtering, marking, and
+  bulk operations.  Buffer names follow the pattern
+  =*beads-list[PROJECT]*=.
+
+- {{{dfn(beads-show-mode)}}} :: A =special-mode= derivative for
+  viewing a single issue's details.  Read-only, with section
+  navigation, reference following, and inline editing.  Buffer names
+  follow the pattern =*beads-show[PROJECT]*=.
+
+Both modes share a common set of keybindings for agent commands
+(under the {{{kbd(a)}}} prefix) and session management
+({{{kbd(C-c C-s)}}}).
+
+** Transient Commands
+
+Beads.el organizes its commands into a three-level transient
+hierarchy:
+
+1. *Main dispatch* ({{{kbd(M-x beads)}}}) :: The top-level entry
+   point with 15--20 high-frequency commands.  This is the menu you
+   see when you type {{{kbd(M-x beads)}}}.
+
+2. *Ops menu* ({{{kbd(!)}}}) :: Mid-frequency operations like
+   defer, refile, stats, and workflow commands (gates, merge-slots,
+   swarms).
+
+3. *Advanced menu* ({{{kbd(>)}}}) :: Low-frequency maintenance,
+   setup, integrations, and administration commands.
+
+Domain-specific commands are grouped into sub-dispatches accessible
+from these menus: {{{kbd(d)}}} for dependencies, {{{kbd(L)}}} for
+labels, {{{kbd(m)}}} for molecules, {{{kbd(k)}}} for Dolt, and
+{{{kbd(.)}}} for configuration.
+
+** Context-Aware Actions
+
+/Pattern 1/ commands are single-key actions bound directly in
+mode-maps.  They detect the issue at point (or fall back to
+=completing-read=) and act immediately.
+
+Examples:
+- {{{kbd(d)}}} in list-mode :: Close the issue at point (prompts for
+  reason)
+- {{{kbd(C)}}} in list-mode :: Claim the issue at point
+- {{{kbd(s)}}} in show-mode :: Set issue status via =completing-read=
+
+These commands support bulk operations when marks are active: mark
+issues with {{{kbd(m)}}}, then press {{{kbd(d)}}} to close all
+marked issues at once.
+
+** Buffer-Based Editing
+
+/Pattern 3/ commands open a compose buffer for content creation or
+editing.  The buffer uses =gfm-mode= (or =text-mode= as fallback)
+and follows the =with-editor= convention:
+
+- {{{kbd(C-c C-c)}}} :: Submit (create issue, save edit, post
+  comment)
+- {{{kbd(C-c C-k)}}} :: Cancel and restore the previous window
+  configuration
+- {{{kbd(C-c C-a)}}} :: Open the metadata sidebar transient (set
+  type, priority, labels)
+
+The first line of a create buffer is the issue title.  Everything
+below is the description, written in Markdown.
+
+** Marks and Bulk Operations
+
+In =beads-list-mode=, you can mark multiple issues and act on them
+as a batch:
+
+- {{{kbd(m)}}} :: Mark the issue at point
+- {{{kbd(u)}}} :: Unmark the issue at point
+- {{{kbd(U)}}} :: Unmark all issues
+- {{{kbd(* !)}}} :: Mark all issues
+
+When marks are active, context-aware actions ({{{kbd(d)}}},
+{{{kbd(o)}}}, etc.) operate on all marked issues instead of just
+the issue at point.  Bulk-specific operations are also available
+under the {{{kbd(B)}}} prefix:
+
+- {{{kbd(B s)}}} :: Bulk update status
+- {{{kbd(B p)}}} :: Bulk update priority
+- {{{kbd(B c)}}} :: Bulk close
+- {{{kbd(B o)}}} :: Bulk reopen
+
+* Main Menu
+
+The main dispatch transient ({{{kbd(M-x beads)}}}) provides quick
+access to the most common commands.
+
+#+FINDEX: beads
+Key: {{{kbd(M-x beads)}}}
+
+TODO: Document all main menu groups and bindings.
+
+* Listing Issues
+:PROPERTIES:
+:DESCRIPTION: Browse, filter, and navigate issues.
+:END:
+
+#+FINDEX: beads-list
+Key: {{{kbd(l)}}} (from main menu)
+
+The list transient uses Pattern 2 (switch-based infixes).  Toggle
+filters with flag keys, then press a suffix key to execute.
+
+** Opening the List Transient
+
+Press {{{kbd(l)}}} from the main menu to open the list transient.
+The transient shows two groups:
+
+- *Filters* :: {{{kbd(-s)}}} status, {{{kbd(-t)}}} type,
+  {{{kbd(-p)}}} priority, {{{kbd(-a)}}} assignee, {{{kbd(-l)}}}
+  label.
+- *Options* :: {{{kbd(-o)}}} sort order, {{{kbd(-n)}}} result
+  limit, {{{kbd(-r)}}} ready-only switch.
+
+** Listing All Issues
+
+#+KINDEX: l l
+Press {{{kbd(l l)}}} to list all issues (no filters).  With
+filters active, e.g. {{{kbd(l -s open l)}}}, only matching issues
+appear.
+
+#+FINDEX: beads-list-all
+The suffix {{{kbd(l)}}} inside the transient calls
+~beads-list-all~, which converts the transient filter state into a
+~beads-issue-spec~ and refreshes the list buffer.
+
+** Listing Ready Issues
+
+#+KINDEX: l r
+#+FINDEX: beads-list-ready-suffix
+Press {{{kbd(l r)}}} (or {{{kbd(r)}}} from the main menu) to show
+only ready (unblocked) issues.
+
+** Listing Blocked Issues
+
+#+KINDEX: l b
+#+FINDEX: beads-list-blocked-suffix
+Press {{{kbd(l b)}}} (or {{{kbd(b)}}} from the main menu) to show
+only blocked issues.
+
+** In-Buffer Filtering
+
+#+KINDEX: /
+#+FINDEX: beads-list-filter-menu
+Once a list buffer is displayed, press {{{kbd(/)}}} to open the
+spec-based filter menu.  This refines the current view without
+returning to the top-level transient.
+
+#+KINDEX: l
+Press {{{kbd(l)}}} inside a list buffer to reopen the list
+transient with the current filter pre-populated.
+
+** Advanced List Transient
+
+#+FINDEX: beads-list-advanced
+For power users who need access to all ~bd list~ flags (date
+ranges, text search, priority ranges, output formats), the
+advanced transient is available via {{{kbd(! l)}}} from the more
+menu, or {{{kbd(M-x beads-list-advanced)}}}.
+
+** Sorting
+
+#+KINDEX: S
+Press {{{kbd(S)}}} in a list buffer to sort by column header.
+
+** Pagination
+
+Large result sets are paginated.  Use {{{kbd(])}}} and
+{{{kbd([)}}} to navigate pages, or {{{kbd(G)}}} to jump to a
+specific page.
+
+** Marking and Bulk Operations
+
+See [[*Marks and Bulk Operations]].
+
+* Creating Issues
+:PROPERTIES:
+:DESCRIPTION: Buffer-based issue creation (Pattern 3).
+:END:
+
+#+FINDEX: beads-compose-create
+Key: {{{kbd(c)}}} (from main menu or list buffer)
+
+Creating an issue uses Pattern 3 (buffer-based editing).  Press
+{{{kbd(c)}}} to open a =*beads-create[PROJECT]*= buffer.
+
+** Compose Buffer Layout
+
+The first line is the issue title (optionally prefixed with
+{{{code(# )}}}).  Everything after the first blank line is the
+description, written in Markdown.
+
+#+BEGIN_EXAMPLE
+# Fix login redirect loop
+
+When users log in with SSO, they get stuck in a redirect
+loop between /auth/callback and /login.
+
+## Steps to Reproduce
+1. Click "Sign in with SSO"
+2. Complete SSO flow
+3. Observe redirect loop
+#+END_EXAMPLE
+
+** Setting Metadata
+
+#+KINDEX: C-c C-a
+#+FINDEX: beads-compose-metadata
+Press {{{kbd(C-c C-a)}}} to open the metadata transient:
+
+- {{{kbd(t)}}} :: Set type (bug, feature, task, epic, chore)
+- {{{kbd(p)}}} :: Set priority (0--4)
+- {{{kbd(a)}}} :: Set assignee
+- {{{kbd(l)}}} :: Set labels (comma-separated)
+- {{{kbd(P)}}} :: Set parent issue
+
+Press {{{kbd(q)}}} to dismiss the metadata transient and return to
+editing.
+
+** Submitting
+
+#+KINDEX: C-c C-c
+Press {{{kbd(C-c C-c)}}} to submit.  The title is required; the
+description is optional.  On success, the buffer is killed and all
+list buffers are refreshed.
+
+** Canceling
+
+#+KINDEX: C-c C-k
+Press {{{kbd(C-c C-k)}}} to cancel.  If the buffer has unsaved
+changes, you will be prompted to confirm.
+
+** Transient-Based Create
+
+#+FINDEX: beads-create
+The original transient-based create is available via {{{kbd(! I)}}}
+from the more menu, or {{{kbd(M-x beads-create)}}}.
+
+* Viewing Issues
+:PROPERTIES:
+:DESCRIPTION: Read-only detail view for individual issues.
+:END:
+
+#+FINDEX: beads-show
+#+KINDEX: RET
+
+Press {{{kbd(RET)}}} on an issue in list mode to open it in a
+show buffer.  The buffer displays all issue fields with
+markdown-like rendering and clickable =bd-N= references.
+
+** Navigation
+
+- {{{kbd(n)}}} / {{{kbd(p)}}} :: Next / previous section
+- {{{kbd(TAB)}}} :: Toggle section visibility
+- {{{kbd(RET)}}} :: Follow reference at point (opens linked issue)
+- {{{kbd(o)}}} :: Follow reference in other window
+- {{{kbd(g)}}} :: Refresh the buffer
+- {{{kbd(q)}}} :: Quit the buffer
+
+* Closing and Reopening
+
+Beads provides context-aware close and reopen commands that work
+in both =beads-list-mode= and =beads-show-mode=.
+
+** Closing Issues
+#+FINDEX: beads-actions-close
+#+KINDEX: d
+
+Press {{{kbd(d)}}} on an issue to close it.  You will be prompted
+for a close reason (required by the bd CLI).  The command:
+
+1. Detects the issue at point (or prompts with =completing-read=)
+2. Prompts for a close reason
+3. Calls =bd close= with the reason
+4. Refreshes all beads buffers
+
+When marks are active in list-mode, {{{kbd(d)}}} closes all marked
+issues with the same reason.
+
+** Reopening Issues
+#+FINDEX: beads-actions-reopen
+#+KINDEX: o
+
+Press {{{kbd(o)}}} in =beads-list-mode= to reopen a closed issue.
+You will be prompted for an optional reason.  Like close, this
+command supports bulk operations via marks.
+
+In =beads-show-mode=, reopen is available through the actions
+transient ({{{kbd(?)}}}), since {{{kbd(o)}}} is used for
+following references to other windows.
+
+** Claiming Issues
+#+FINDEX: beads-actions-claim
+#+KINDEX: C
+
+Press {{{kbd(C)}}} to claim the issue at point.  This executes
+immediately without prompting --- the current actor is assigned.
+
+** Setting Status
+#+FINDEX: beads-actions-set-status
+#+KINDEX: s
+
+Press {{{kbd(s)}}} to set the status of the issue at point.
+Choose from =open=, =in_progress=, or =blocked= via
+=completing-read=.
+
+** Setting Priority
+#+FINDEX: beads-actions-set-priority
+#+KINDEX: #
+
+Press {{{kbd(#)}}} to set the priority of the issue at point.
+Choose from =0 - Critical= through =4 - Backlog=.
+
+** Quick Actions Transient
+#+FINDEX: beads-show-actions
+#+KINDEX: ?
+
+Press {{{kbd(?)}}} in =beads-show-mode= to open a persistent
+actions transient with all available quick actions.  The transient
+stays open after each action (like =forge-topic-menu=), so you
+can perform multiple actions without re-opening the menu.
+
+* Editing Issues
+:PROPERTIES:
+:DESCRIPTION: Buffer-based editing and commenting (Pattern 3).
+:END:
+
+** Editing Descriptions
+
+#+FINDEX: beads-show-compose-edit
+#+KINDEX: E
+From a show buffer, press {{{kbd(E)}}} to open a compose buffer
+pre-populated with the issue's current description.  Edit the text,
+then press {{{kbd(C-c C-c)}}} to save or {{{kbd(C-c C-k)}}} to
+cancel.
+
+** Adding Comments
+
+#+FINDEX: beads-show-compose-comment
+#+KINDEX: N
+From a show buffer, press {{{kbd(N)}}} to open an empty compose
+buffer for a new comment.  Type the comment, then {{{kbd(C-c C-c)}}}
+to submit.
+
+** Inline Field Editing
+
+#+FINDEX: beads-show-edit-field
+#+KINDEX: e
+For quick edits, press {{{kbd(e)}}} in a show buffer to edit a
+field inline (title is single-line, description/notes open a
+temporary buffer).
+
+* Dependencies
+:PROPERTIES:
+:DESCRIPTION: Manage issue dependencies and relationships.
+:END:
+
+#+FINDEX: beads-dep
+Key: {{{kbd(d)}}} (from main dispatch)
+
+The dependency menu provides access to all dependency management
+operations.  Press {{{kbd(d)}}} from the main dispatch to open it.
+
+** Adding Dependencies
+
+- {{{kbd(a)}}} :: Add a dependency between two issues.  You will be
+  prompted for the source issue (depends on) and target issue
+  (depended upon), plus the dependency type.
+
+** Removing Dependencies
+
+- {{{kbd(r)}}} :: Remove an existing dependency.
+
+** Viewing Dependencies
+
+- {{{kbd(l)}}} :: List all dependencies for an issue.
+- {{{kbd(t)}}} :: Show the full dependency tree, walking
+  transitive dependencies.
+- {{{kbd(c)}}} :: Check for dependency cycles in the project.
+
+** Relating Issues
+
+- {{{kbd(R)}}} :: Create a bidirectional =relates_to= link between
+  two issues.
+- {{{kbd(U)}}} :: Remove a =relates_to= link.
+
+* Labels
+:PROPERTIES:
+:DESCRIPTION: Add, remove, and manage issue labels.
+:END:
+
+#+FINDEX: beads-label
+Key: {{{kbd(L)}}} (from main dispatch)
+
+The label menu provides commands for managing labels on issues.
+
+- {{{kbd(a)}}} :: Add a label to one or more issues.  Prompts for
+  issue ID(s) and label name.
+- {{{kbd(r)}}} :: Remove a label from one or more issues.
+- {{{kbd(p)}}} :: Propagate a label to all children of an issue.
+- {{{kbd(l)}}} :: List labels for a specific issue.
+- {{{kbd(L)}}} :: List all labels in the database.
+
+* Molecules
+:PROPERTIES:
+:DESCRIPTION: Manage work templates (molecules and protos).
+:END:
+
+#+FINDEX: beads-mol
+Key: {{{kbd(m)}}} (from main dispatch)
+
+Molecules are instantiated work templates.  A /proto/ is the
+template epic; a /molecule/ is the running instance.
+
+** Instantiate
+
+- {{{kbd(p)}}} :: Pour --- create a persistent molecule from a proto.
+- {{{kbd(w)}}} :: Wisp --- create an ephemeral molecule.
+
+** Combine
+
+- {{{kbd(b)}}} :: Bond --- merge molecules together.
+- {{{kbd(d)}}} :: Distill --- extract a proto from existing issues.
+
+** Lifecycle
+
+- {{{kbd(s)}}} :: Show molecule details.
+- {{{kbd(c)}}} :: Show the current active molecule.
+- {{{kbd(P)}}} :: Show molecule progress.
+
+** Cleanup
+
+- {{{kbd(S)}}} :: Squash --- collapse molecule history.
+- {{{kbd(B)}}} :: Burn --- destroy a molecule.
+
+** Find
+
+- {{{kbd(r)}}} :: Ready --- find molecules ready for work.
+- {{{kbd(t)}}} :: Stale --- find stale molecules.
+
+** Health
+
+- {{{kbd(e)}}} :: Seed --- verify molecule seed data integrity.
+- {{{kbd(l)}}} :: Last activity --- show when each molecule was
+  last touched.
+
+* Epics
+:PROPERTIES:
+:DESCRIPTION: View epic progress and close eligible epics.
+:END:
+
+#+FINDEX: beads-epic-menu
+Key: {{{kbd(E)}}} (from main dispatch)
+
+The epic menu provides commands for managing epics.
+
+- {{{kbd(s)}}} :: Status overview --- opens an interactive buffer
+  showing all epics with progress bars, child counts, and
+  eligibility for closure.  Press {{{kbd(SPC)}}} to expand/collapse
+  children, {{{kbd(RET)}}} to show details.
+- {{{kbd(c)}}} :: Close eligible --- close epics where all children
+  are complete.  Use =--dry-run= to preview.
+
+* Agents
+
+Agent commands are accessible via the {{{kbd(a)}}} prefix in
+both list and show modes:
+
+- {{{kbd(a t)}}} :: Start task agent
+- {{{kbd(a r)}}} :: Start review agent
+- {{{kbd(a p)}}} :: Start plan agent
+- {{{kbd(a q)}}} :: Start QA agent
+- {{{kbd(a c)}}} :: Start custom agent
+- {{{kbd(a x)}}} :: Stop agent at point
+- {{{kbd(a j)}}} :: Jump to agent buffer
+- {{{kbd(a a)}}} :: Start agent at point (generic)
+
+TODO: Document agent backends, session management, worktree
+integration.
+
+* Ops Menu
+:PROPERTIES:
+:DESCRIPTION: Mid-frequency operations (issue lifecycle, views, workflow).
+:END:
+
+#+FINDEX: beads-ops-menu
+Key: {{{kbd(!)}}} (from main dispatch)
+
+The ops menu contains mid-frequency commands organized into four
+groups: issue lifecycle, views and reports, issue details, and
+workflow coordination.
+
+** Issue Lifecycle
+
+- {{{kbd(f)}}} :: Defer issue
+- {{{kbd(F)}}} :: Undefer issue
+- {{{kbd(D)}}} :: Delete issue
+- {{{kbd(m)}}} :: Move issue to another project
+- {{{kbd(r)}}} :: Refile issue
+- {{{kbd(p)}}} :: Promote wisp to full issue
+- {{{kbd(R)}}} :: Rename issue
+
+** Views & Reports
+
+- {{{kbd(c)}}} :: Count issues (with optional filters)
+- {{{kbd(t)}}} :: Project statistics (open/closed/blocked counts)
+- {{{kbd(s)}}} :: Show stale issues
+- {{{kbd(T)}}} :: List valid issue types
+- {{{kbd(l)}}} :: Lint issues (check for problems)
+- {{{kbd(O)}}} :: Find duplicate issues (AI-assisted)
+- {{{kbd(o)}}} :: Find orphan issues
+
+** Issue Details
+
+- {{{kbd(a)}}} :: Show children of an issue
+- {{{kbd(=)}}} :: Comments sub-dispatch (list, add)
+- {{{kbd([)}}} :: Todo items (list, add, mark done)
+- {{{kbd(q)}}} :: Query issues with custom filters
+
+** Workflow
+
+- {{{kbd(g)}}} :: Gate sub-dispatch (async coordination)
+- {{{kbd(M)}}} :: Merge-slot sub-dispatch (conflict serialization)
+- {{{kbd(w)}}} :: Swarm sub-dispatch (parallel epic work)
+- {{{kbd(K)}}} :: Cook formula
+- {{{kbd(H)}}} :: Ship capability
+- {{{kbd(z)}}} :: Set issue state label
+- {{{kbd(Z)}}} :: State management sub-dispatch
+
+* Advanced Menu
+:PROPERTIES:
+:DESCRIPTION: Low-frequency maintenance, setup, and integrations.
+:END:
+
+#+FINDEX: beads-advanced-menu
+Key: {{{kbd(>)}}} (from main dispatch)
+
+The advanced menu contains low-frequency commands for maintenance,
+data management, integrations, setup, memory, and administration.
+
+** Maintenance
+
+- {{{kbd(d)}}} :: Run doctor (check for problems)
+- {{{kbd(P)}}} :: Preflight check
+- {{{kbd(U)}}} :: Upgrade bd CLI
+- {{{kbd(c)}}} :: Compact database
+- {{{kbd(f)}}} :: Flatten Dolt history
+- {{{kbd(g)}}} :: Garbage collect
+- {{{kbd(p)}}} :: Purge ephemeral data
+- {{{kbd(R)}}} :: Rename issue prefix
+
+** Data & Sync
+
+- {{{kbd(b)}}} :: Backup database
+- {{{kbd(e)}}} :: Export to JSONL
+- {{{kbd(4)}}} :: Restore from backup
+- {{{kbd(B)}}} :: Branch management
+- {{{kbd(V)}}} :: Version control sub-dispatch
+- {{{kbd(F)}}} :: Federation sub-dispatch
+- {{{kbd(J)}}} :: Run SQL query
+
+** Duplicates & Migration
+
+- {{{kbd(1)}}} :: Mark issue as duplicate
+- {{{kbd(2)}}} :: Find duplicate issues
+- {{{kbd(3)}}} :: Supersede issue
+- {{{kbd(m)}}} :: Migrate sub-dispatch
+
+** Integrations
+
+- {{{kbd(j)}}} :: Jira integration
+- {{{kbd(n)}}} :: Linear integration
+- {{{kbd(y)}}} :: GitLab integration
+- {{{kbd(G)}}} :: GitHub integration
+- {{{kbd(o)}}} :: Repository management
+- {{{kbd(M)}}} :: Mail delegation
+
+** Setup
+
+- {{{kbd(i)}}} :: Initialize beads project
+- {{{kbd(I)}}} :: Show bd info/debug
+- {{{kbd(h)}}} :: Hooks sub-dispatch
+- {{{kbd(Q)}}} :: Quickstart guide
+- {{{kbd(w)}}} :: Where (show beads location)
+- {{{kbd(v)}}} :: Show bd version
+- {{{kbd(x)}}} :: Show context
+- {{{kbd(S)}}} :: Setup integrations
+
+** Memory
+
+- {{{kbd(k)}}} :: KV store operations
+- {{{kbd(!)}}} :: Prime context
+- {{{kbd(~)}}} :: List memories
+- {{{kbd(\{)}}} :: Recall memory
+- {{{kbd(\})}}} :: Remember (save memory)
+- {{{kbd(_)}}} :: Forget memory
+
+** Audit & Admin
+
+- {{{kbd(@)}}} :: Audit log
+- {{{kbd($)}}} :: Slot management
+- {{{kbd(a)}}} :: Admin sub-dispatch
+- {{{kbd(W)}}} :: Worktree sub-dispatch
+- {{{kbd(`)}}} :: Diff issues
+- {{{kbd(%)}}} :: Issue history
+
+* Formulas
+:PROPERTIES:
+:DESCRIPTION: Manage workflow formula definitions.
+:END:
+
+#+FINDEX: beads-formula-menu
+Key: {{{kbd(F)}}} (from main dispatch)
+
+Formulas are YAML/TOML definitions that describe workflows.
+They are "cooked" into proto beads which can then be poured
+or wisped.
+
+- {{{kbd(l)}}} :: List available formulas.  Use the =-t= filter
+  to show only =workflow=, =expansion=, or =aspect= types.
+- {{{kbd(s)}}} :: Show formula details including steps, variables,
+  and composition rules.
+- {{{kbd(c)}}} :: Convert a formula from JSON to TOML format.
+
+* Dolt Integration
+:PROPERTIES:
+:DESCRIPTION: Database configuration and server management.
+:END:
+
+#+FINDEX: beads-dolt
+Key: {{{kbd(k)}}} (from main dispatch)
+
+Beads uses Dolt as its version-controlled database backend.
+The Dolt menu provides server management, data sync, and
+configuration.
+
+** Configuration
+
+- {{{kbd(s)}}} :: Show current Dolt configuration.
+- {{{kbd(S)}}} :: Set a Dolt configuration value.
+- {{{kbd(t)}}} :: Test the database connection.
+
+** Data
+
+- {{{kbd(c)}}} :: Commit pending changes to Dolt history.
+- {{{kbd(p)}}} :: Push commits to the Dolt remote.
+- {{{kbd(P)}}} :: Pull commits from the Dolt remote.
+
+** Server
+
+- {{{kbd(1)}}} :: Start the Dolt SQL server.
+- {{{kbd(0)}}} :: Stop the Dolt SQL server.
+- {{{kbd(i)}}} :: Show server status.
+
+** Remotes
+
+- {{{kbd(r)}}} :: Open the remote management sub-menu for
+  adding, removing, and listing Dolt remotes.
+
+** Maintenance
+
+- {{{kbd(C)}}} :: Clean up orphaned databases.
+- {{{kbd(K)}}} :: Kill orphan Dolt server processes.
+
+* Configuration
+:PROPERTIES:
+:DESCRIPTION: Get, set, and validate project configuration.
+:END:
+
+#+FINDEX: beads-config
+Key: {{{kbd(.)}}} (from main dispatch)
+
+Project configuration is stored per-project in the =.beads/=
+directory.  Common namespaces include =jira.*=, =linear.*=,
+=github.*=, and =status.*=.
+
+- {{{kbd(g)}}} :: Get a configuration value.
+- {{{kbd(s)}}} :: Set a configuration value.
+- {{{kbd(l)}}} :: List all configuration values.
+- {{{kbd(u)}}} :: Unset (remove) a configuration value.
+- {{{kbd(v)}}} :: Validate the configuration.
+
+* Agent Commands
+:PROPERTIES:
+:DESCRIPTION: Manage agent bead state.
+:END:
+
+#+FINDEX: beads-agent-menu
+Key: {{{kbd(A)}}} (from main dispatch)
+
+Agent beads (labeled =gt:agent=) can self-report their state.
+
+- {{{kbd(s)}}} :: Set agent state.
+- {{{kbd(h)}}} :: Send heartbeat.
+- {{{kbd(S)}}} :: Show agent details.
+- {{{kbd(b)}}} :: Backfill labels on agent issues.
+
+* Administration
+
+Administration, audit, and maintenance commands are accessible
+through the Advanced menu ({{{kbd(>)}}}).  See [[*Advanced Menu]]
+for the full list.
+
+* Integrations
+
+Integration commands for GitHub, GitLab, Jira, Linear, and
+other services are accessible through the Advanced menu
+({{{kbd(>)}}} then the Integrations group).  See [[*Advanced Menu]]
+for available keys.
+
+* Customizing
+:PROPERTIES:
+:DESCRIPTION: User options, faces, and hooks.
+:END:
+
+** User Options
+
+#+VINDEX: beads-executable
+- {{{var(beads-executable)}}} :: Path to the =bd= executable.
+  Defaults to ="bd"= (found via =PATH=).
+
+#+VINDEX: beads-actor
+- {{{var(beads-actor)}}} :: Actor name for audit trail.  Defaults
+  to the git =user.name= or =$USER=.
+
+** Faces
+
+Beads.el defines faces for issue status, priority, type, and
+other UI elements.  Customize the =beads= and =beads-epic-status=
+face groups to adjust colors.
+
+* Plumbing
+:PROPERTIES:
+:DESCRIPTION: Internal architecture for contributors.
+:END:
+
+** EIEIO Command Classes
+
+All =bd= CLI commands are represented as EIEIO classes defined
+via the =beads-defcommand= macro.  Each class has slots for
+command options, with metadata for automatic CLI serialization.
+
+** Bang Functions
+
+Each command class has a corresponding "bang" function
+(e.g., =beads-command-create!=) that constructs, validates,
+executes, and returns the result in one call.
+
+** Process Execution
+
+Commands are executed via =process-file= for Tramp compatibility.
+The =beads-command-execute= method handles CLI argument building,
+JSON parsing, and error reporting.
+
+* FAQ
+
+** Why does beads.el require the bd CLI?
+
+Beads.el is a frontend --- all data operations go through the
+=bd= CLI, which manages the Dolt database.  This ensures
+consistency between the Emacs UI and command-line workflows.
+
+** How do I use beads.el with remote projects?
+
+Beads.el uses =process-file= and =start-file-process= instead
+of =call-process=, so it works transparently over Tramp.  The
+=--db= path is automatically adjusted via =file-local-name=.
+
+* Keystroke Index
+:PROPERTIES:
+:INDEX: ky
+:END:
+
+* Function Index
+:PROPERTIES:
+:INDEX: fn
+:END:
+
+* Variable Index
+:PROPERTIES:
+:INDEX: vr
+:END:
+
+#+BEGIN_EXPORT texinfo
+@bye
+#+END_EXPORT

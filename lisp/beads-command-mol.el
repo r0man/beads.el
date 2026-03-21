@@ -632,6 +632,59 @@ Detects complete-but-unclosed molecules.")
   "Find complete-but-unclosed molecules."
   beads-option-global-section)
 
+;;; Mol Seed Command
+
+(beads-defcommand beads-command-mol-seed (beads-command-global-options)
+  ((formula-name
+    :initarg :formula-name
+    :type (or null string)
+    :initform nil
+    :documentation "Formula name to verify (positional argument)."
+    :positional t
+    :positional-order 1)
+   (patrol
+    :initarg :patrol
+    :type boolean
+    :initform nil
+    :documentation "Verify all patrol formulas (--patrol)."
+    :long-option "patrol"
+    :option-type :boolean
+    :key "p"
+    :transient "--patrol"
+    :class transient-switch
+    :argument "--patrol"
+    :transient-group "Options"
+    :level 1
+    :order 1))
+  :documentation "Represents bd mol seed command.
+Verify that formulas are accessible and can be cooked."
+  :cli-command "mol seed")
+
+;;;###autoload (autoload 'beads-mol-seed "beads-command-mol" nil t)
+(beads-meta-define-transient beads-command-mol-seed "beads-mol-seed"
+  "Verify formula accessibility."
+  beads-option-global-section)
+
+;;; Mol Last-Activity Command
+
+(beads-defcommand beads-command-mol-last-activity (beads-command-global-options)
+  ((molecule-id
+    :initarg :molecule-id
+    :type (or null string)
+    :initform nil
+    :documentation "Molecule ID (positional argument)."
+    :positional t
+    :positional-order 1))
+  :documentation "Represents bd mol last-activity command.
+Show the most recent activity timestamp for a molecule."
+  :cli-command "mol last-activity")
+
+;;;###autoload (autoload 'beads-mol-last-activity "beads-command-mol" nil t)
+(beads-meta-define-transient beads-command-mol-last-activity
+  "beads-mol-last-activity"
+  "Show most recent molecule activity."
+  beads-option-global-section)
+
 ;;; Parent Transient Menu
 
 ;;;###autoload (autoload 'beads-mol "beads-command-mol" nil t)
@@ -654,7 +707,10 @@ Proto: template epic, Molecule: instantiated work."
    ("B" "Burn" beads-mol-burn)]
   ["Find"
    ("r" "Ready" beads-mol-ready)
-   ("t" "Stale" beads-mol-stale)])
+   ("t" "Stale" beads-mol-stale)]
+  ["Health"
+   ("e" "Seed (verify)" beads-mol-seed)
+   ("l" "Last activity" beads-mol-last-activity)])
 
 (provide 'beads-command-mol)
 ;;; beads-command-mol.el ends here

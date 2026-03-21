@@ -256,6 +256,32 @@
         (should (text-property-not-all 0 (length header) 'face nil
                                       header))))))
 
+;;; Tests for beads--in-beads-buffer-p
+
+(ert-deftest beads-main-test-in-beads-buffer-p-list-mode ()
+  "Test predicate returns t in beads-list-mode."
+  (with-temp-buffer
+    (let ((inhibit-read-only t))
+      (beads-list-mode)
+      (should (beads--in-beads-buffer-p)))))
+
+(ert-deftest beads-main-test-in-beads-buffer-p-show-mode ()
+  "Test predicate returns t in beads-show-mode."
+  (with-temp-buffer
+    (beads-show-mode)
+    (should (beads--in-beads-buffer-p))))
+
+(ert-deftest beads-main-test-in-beads-buffer-p-epic-mode ()
+  "Test predicate returns t in beads-epic-status-mode."
+  (with-temp-buffer
+    (beads-epic-status-mode)
+    (should (beads--in-beads-buffer-p))))
+
+(ert-deftest beads-main-test-in-beads-buffer-p-other-mode ()
+  "Test predicate returns nil in non-beads buffer."
+  (with-temp-buffer
+    (should-not (beads--in-beads-buffer-p))))
+
 ;;; Tests for Transient Definition
 
 (ert-deftest beads-main-test-transient-defined ()
@@ -530,38 +556,28 @@ by checking if the function is available after requiring beads."
 ;;; Hierarchical Dispatch Tests
 ;;; ============================================================
 
-(ert-deftest beads-main-test-more-menu-defined ()
-  "Test that beads-more-menu sub-dispatch is defined."
-  (should (fboundp 'beads-more-menu))
-  (should (get 'beads-more-menu 'transient--prefix)))
+(ert-deftest beads-main-test-ops-menu-defined ()
+  "Test that beads-ops-menu sub-dispatch is defined."
+  (should (fboundp 'beads-ops-menu))
+  (should (get 'beads-ops-menu 'transient--prefix)))
 
-(ert-deftest beads-main-test-more-menu-is-transient-prefix ()
-  "Test that beads-more-menu is a transient prefix command."
-  (should (commandp 'beads-more-menu))
-  (should (get 'beads-more-menu 'transient--prefix)))
+(ert-deftest beads-main-test-advanced-menu-defined ()
+  "Test that beads-advanced-menu sub-dispatch is defined."
+  (should (fboundp 'beads-advanced-menu))
+  (should (get 'beads-advanced-menu 'transient--prefix)))
 
-(ert-deftest beads-main-test-more-menu-has-reopen ()
-  "Test that beads-reopen is accessible (defined and in more-menu scope)."
-  ;; beads-reopen must be defined
-  (should (fboundp 'beads-reopen))
-  ;; beads-more-menu must be a valid transient prefix
-  (should (get 'beads-more-menu 'transient--prefix))
-  ;; Verify reopen is listed in beads-more-menu's layout via
-  ;; the macro-expanded transient definition (stored as function body)
-  (let* ((prefix (get 'beads-more-menu 'transient--prefix))
-         (cmd (oref prefix command)))
-    (should (eq cmd 'beads-more-menu))))
+(ert-deftest beads-main-test-reopen-accessible ()
+  "Test that beads-reopen is accessible."
+  (should (fboundp 'beads-reopen)))
 
-(ert-deftest beads-main-test-more-menu-has-maintenance-commands ()
-  "Test that maintenance commands are in beads-more-menu."
+(ert-deftest beads-main-test-maintenance-commands-accessible ()
+  "Test that maintenance commands are accessible."
   (should (fboundp 'beads-doctor))
   (should (fboundp 'beads-worktree-menu))
-  (should (fboundp 'beads-admin))
-  ;; Verify they are accessible (fboundp is sufficient for accessibility)
-  (should (get 'beads-more-menu 'transient--prefix)))
+  (should (fboundp 'beads-admin)))
 
-(ert-deftest beads-main-test-more-menu-has-view-commands ()
-  "Test that view/report commands are in beads-more-menu."
+(ert-deftest beads-main-test-view-commands-accessible ()
+  "Test that view/report commands are accessible."
   (should (fboundp 'beads-stats))
   (should (fboundp 'beads-search))
   (should (fboundp 'beads-graph-all)))
@@ -596,7 +612,7 @@ is loaded. We verify the menu itself is a valid transient prefix."
 
 (ert-deftest beads-main-test-manage-commands-in-main ()
   "Test that manage commands are accessible from main dispatch."
-  (should (fboundp 'beads-label))
+  (should (fboundp 'beads-label-menu))
   (should (fboundp 'beads-agent-menu))
   (should (fboundp 'beads-config))
   (should (fboundp 'beads-dolt)))
@@ -628,7 +644,7 @@ This ensures no functionality was lost during refactoring."
   (should (fboundp 'beads-count))
   (should (fboundp 'beads-graph-all))
   ;; Manage
-  (should (fboundp 'beads-label))
+  (should (fboundp 'beads-label-menu))
   (should (fboundp 'beads-agent-menu))
   (should (fboundp 'beads-config))
   (should (fboundp 'beads-dolt))

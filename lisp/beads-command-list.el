@@ -31,6 +31,8 @@
 ;;; Code:
 
 (require 'beads)
+(require 'beads-actions)
+(require 'beads-agent-keys)
 (require 'beads-buffer)
 (require 'beads-command)
 (require 'beads-command-blocked)
@@ -46,18 +48,12 @@
 (declare-function beads-update "beads-command-update" (&optional issue-id))
 (declare-function beads-reopen "beads-command-reopen" (&optional issue-id))
 (declare-function beads-list-filter-menu "beads-spec")
+(declare-function beads-list--refresh "beads-spec" (&optional spec))
+(declare-function beads--transient-args-to-spec "beads-spec" (args))
 (declare-function beads-agent--get-sessions-for-issue "beads-agent")
 (declare-function beads-agent--get-sessions-focused-on-issue "beads-agent-backend")
 (declare-function beads-agent--get-sessions-touching-issue "beads-agent-backend")
 (declare-function beads-agent-session-instance-number "beads-agent-backend")
-(declare-function beads-agent-start-at-point "beads-agent")
-(declare-function beads-agent-start-task "beads-agent" (&optional arg))
-(declare-function beads-agent-start-review "beads-agent" (&optional arg))
-(declare-function beads-agent-start-plan "beads-agent" (&optional arg))
-(declare-function beads-agent-start-qa "beads-agent" (&optional arg))
-(declare-function beads-agent-start-custom "beads-agent" (&optional arg))
-(declare-function beads-agent-stop-at-point "beads-agent")
-(declare-function beads-agent-jump-at-point "beads-agent")
 (declare-function beads-agent--get-issue-outcome "beads-agent-backend")
 (declare-function beads-agent-session-backend-name "beads-agent-backend")
 (declare-function beads-agent-session-type-name "beads-agent-backend")
@@ -1609,7 +1605,7 @@ Uses directory-aware buffer identity: same project = same buffer."
   (interactive)
   (let* ((caller-dir default-directory)
          (project-dir (or (beads-git-find-project-root) default-directory))
-         (args (transient-args 'beads-list))
+         (args (transient-args 'beads-list-advanced))
          (command (beads-list--parse-transient-args args)))
     (condition-case err
         (let* ((exec (beads-command-execute command))
@@ -1655,7 +1651,7 @@ Uses directory-aware buffer identity: same project = same buffer."
   :description "Preview command"
   :transient t
   (interactive)
-  (let* ((args (transient-args 'beads-list))
+  (let* ((args (transient-args 'beads-list-advanced))
          (command (beads-list--parse-transient-args args))
          (cmd-line (beads-command-line command))
          (cmd-string (mapconcat #'shell-quote-argument cmd-line " ")))
@@ -1704,18 +1700,45 @@ Uses directory-aware buffer identity: same project = same buffer."
           (beads-option-list-format)
           (beads-option-list-all)])
 
-;;; Main Transient
+;;; Main Transient (Pattern 2: switch-based with curated infixes)
 
 ;;;###autoload (autoload 'beads-list "beads-command-list" nil t)
 (transient-define-prefix beads-list ()
-  "List issues in Beads with filter options.
+  "List issues with filters.
 
-This transient menu provides an interactive interface for setting
-filter parameters for the bd list command.  All filters are
-optional.
+A magit-style switch-based transient for listing issues.
+Type l l to list all issues, or toggle filters first:
+l -s open l  — list only open issues."
+  ["Filters"
+   ("-s" "Status" "--status="
+    :choices ("open" "closed" "in_progress" "blocked" "deferred"))
+   ("-t" "Type" "--type="
+    :choices ("bug" "feature" "task" "epic" "chore"))
+   ("-p" "Priority" "--priority="
+    :choices ("0" "1" "2" "3" "4"))
+   ("-a" "Assignee" "--assignee=")
+   ("-l" "Label" "--label=")]
+  ["Options"
+   ("-o" "Order" "--order="
+    :choices ("newest" "oldest" "priority" "updated"))
+   ("-n" "Limit" "--limit="
+    :reader (lambda (prompt _initial-input history)
+              (number-to-string (read-number prompt 50 history))))
+   ("-r" "Ready only" "--ready")]
+  ["List"
+   ("l" "All issues" beads-list-all)
+   ("r" "Ready" beads-list-ready-suffix)
+   ("b" "Blocked" beads-list-blocked-suffix)])
+
+;;;###autoload (autoload 'beads-list-advanced "beads-command-list" nil t)
+(transient-define-prefix beads-list-advanced ()
+  "List issues with all available filter options.
+
+This is the full-featured list transient with all bd list flags.
+For the curated version, use `beads-list' instead.
 
 Transient levels control which filter groups are visible
-(cycle with C-x l):
+\(cycle with C-x l):
   Level 1: Basic filters (status, priority, type, assignee)
   Level 2: Text search (title, description, notes)
   Level 3: Date filters (created, updated, closed)        [default]
@@ -1856,10 +1879,10 @@ ACTION and SESSION are provided by `beads-agent-state-change-hook'."
       (forward-line 1))))
 
 (defun beads-list-create ()
-  "Create a new issue using the beads-create transient menu."
+  "Create a new issue using the compose buffer."
   (interactive)
-  (require 'beads-command-create)
-  (call-interactively #'beads-create))
+  (require 'beads-compose)
+  (call-interactively #'beads-compose-create))
 
 (defun beads-list-update ()
   "Update the issue at point using the beads-update transient menu."
@@ -1919,22 +1942,69 @@ Uses tabulated-list built-in sorting."
 
 (defun beads-list-filter ()
   "Open beads-list transient menu with current filter pre-selected.
-If in a beads-list buffer, the current filter is used to pre-populate the
-transient menu options."
+If in a beads-list buffer, the current spec is used to pre-populate
+the transient menu options."
   (interactive)
-  (when (and (boundp 'beads-list--command-obj) beads-list--command-obj)
-    ;; Convert current command to transient args
-    (let ((cmd-line (beads-command-line beads-list--command-obj)))
-      ;; Remove "list" from the beginning since transient will add it
-      (when (and cmd-line (string= (car cmd-line) "list"))
-        (setq cmd-line (cdr cmd-line)))
-      ;; Set the transient value with current filter
-      (put 'beads-list 'transient--value cmd-line)
-      ;; Also add to history for persistence
-      (put 'beads-list 'transient--history (list cmd-line))))
+  (when (and (boundp 'beads-list--spec) beads-list--spec)
+    ;; Convert current spec to transient args for the Pattern 2 transient
+    (let ((spec beads-list--spec)
+          (args nil))
+      (when-let ((s (oref spec status)))
+        (push (format "--status=%s" s) args))
+      (when-let ((tp (oref spec type)))
+        (push (format "--type=%s" tp) args))
+      (when-let ((p (oref spec priority)))
+        (push (format "--priority=%d" p) args))
+      (when-let ((a (oref spec assignee)))
+        (push (format "--assignee=%s" a) args))
+      (when-let ((l (oref spec label)))
+        (push (format "--label=%s" l) args))
+      (unless (eq (oref spec order) 'newest)
+        (push (format "--order=%s" (oref spec order)) args))
+      (unless (= (oref spec limit) 50)
+        (push (format "--limit=%d" (oref spec limit)) args))
+      (when (oref spec ready-only)
+        (push "--ready" args))
+      (put 'beads-list 'transient--value (nreverse args))))
   ;; Open the transient menu
   (call-interactively #'beads-list))
 
+;;; Pattern 2 Suffix Commands
+
+(defun beads-list-all ()
+  "List all issues using current transient filter values.
+Converts transient args to a `beads-issue-spec' and refreshes the
+list buffer.  This is the primary suffix for the Pattern 2
+`beads-list' transient."
+  (interactive)
+  (require 'beads-spec)
+  (beads-check-executable)
+  (let* ((caller-dir default-directory)
+         (project-dir (or (beads-git-find-project-root) default-directory))
+         (args (transient-args 'beads-list))
+         (spec (beads--transient-args-to-spec args))
+         (buffer (beads-list--get-or-create-buffer 'list)))
+    (with-current-buffer buffer
+      (unless (derived-mode-p 'beads-list-mode)
+        (beads-list-mode))
+      (setq beads-list--project-dir project-dir)
+      (setq beads-list--branch (beads-git-get-branch))
+      (setq beads-list--proj-name (beads-git-get-project-name))
+      (setq default-directory caller-dir)
+      (beads-list--refresh spec))
+    (beads-list--display-buffer buffer)))
+
+(defun beads-list-ready-suffix ()
+  "List ready (unblocked) issues.
+This is a convenience suffix in the `beads-list' transient."
+  (interactive)
+  (beads-ready))
+
+(defun beads-list-blocked-suffix ()
+  "List blocked issues.
+This is a convenience suffix in the `beads-list' transient."
+  (interactive)
+  (beads-blocked))
 
 ;;; Bulk Operations
 
@@ -2170,10 +2240,15 @@ Uses an idle timer to debounce rapid navigation, similar to
     (define-key map (kbd "c") #'beads-list-create)         ; create (like many modes)
     (define-key map (kbd "+") #'beads-list-create)         ; alternative
     (define-key map (kbd "e") #'beads-list-update)         ; edit (more intuitive)
-    (define-key map (kbd "d") #'beads-list-close)          ; delete/done (mark for closing)
-    (define-key map (kbd "k") #'beads-list-close)          ; kill (alternative)
-    (define-key map (kbd "o") #'beads-list-reopen)         ; open/reopen closed issue
     (define-key map (kbd "D") #'beads-list-delete)         ; delete permanently (destructive)
+
+    ;; Pattern 1 context-aware actions (mark-aware, prompt inline)
+    (define-key map (kbd "d") #'beads-actions-close)       ; close (prompt for reason)
+    (define-key map (kbd "k") #'beads-actions-close)       ; close (alternative)
+    (define-key map (kbd "o") #'beads-actions-reopen)      ; reopen
+    (define-key map (kbd "C") #'beads-actions-claim)       ; claim
+    (define-key map (kbd "s") #'beads-actions-set-status)  ; set status
+    (define-key map (kbd "#") #'beads-actions-set-priority) ; set priority
 
     ;; Utilities
     (define-key map (kbd "w") #'beads-list-copy-id)        ; copy (like eww, info)
@@ -2183,15 +2258,8 @@ Uses an idle timer to debounce rapid navigation, similar to
     (define-key map (kbd "/") #'beads-list-filter-menu)    ; spec filter menu
     (define-key map (kbd "C-c C-f") #'beads-list-follow-mode) ; follow mode (like compilation)
 
-    ;; AI Agent type commands
-    (define-key map (kbd "T") #'beads-agent-start-task)     ; Task agent
-    (define-key map (kbd "R") #'beads-agent-start-review)   ; Review agent
-    (define-key map (kbd "P") #'beads-agent-start-plan)     ; Plan agent
-    (define-key map (kbd "Q") #'beads-agent-start-qa)       ; QA agent
-    (define-key map (kbd "C") #'beads-agent-start-custom)   ; Custom agent
-    (define-key map (kbd "X") #'beads-agent-stop-at-point)  ; Stop agent
-    (define-key map (kbd "J") #'beads-agent-jump-at-point)  ; Jump to agent
-    (define-key map (kbd "A") #'beads-agent-start-at-point) ; Backward compat
+    ;; AI Agent commands (a prefix)
+    (define-key map (kbd "a") beads-agent-prefix-map)
 
     ;; Pagination (beads-pager-mode provides these; also here for discoverability)
     (define-key map (kbd "]") #'beads-pager-next-page)

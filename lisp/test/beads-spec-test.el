@@ -501,5 +501,125 @@
       (should refreshed-spec)
       (should (object-of-class-p refreshed-spec 'beads-issue-spec)))))
 
+;;; beads--transient-args-to-plist Tests
+
+(ert-deftest beads-spec-test-args-to-plist-empty ()
+  "Verify empty args returns empty plist."
+  (should (null (beads--transient-args-to-plist '()))))
+
+(ert-deftest beads-spec-test-args-to-plist-nil ()
+  "Verify nil args returns empty plist."
+  (should (null (beads--transient-args-to-plist nil))))
+
+(ert-deftest beads-spec-test-args-to-plist-single-option ()
+  "Verify single --key=value arg converts to plist."
+  (let ((plist (beads--transient-args-to-plist '("--status=open"))))
+    (should (equal (plist-get plist :status) "open"))))
+
+(ert-deftest beads-spec-test-args-to-plist-multiple-options ()
+  "Verify multiple --key=value args convert to plist."
+  (let ((plist (beads--transient-args-to-plist
+                '("--status=open" "--type=bug" "--priority=1"))))
+    (should (equal (plist-get plist :status) "open"))
+    (should (equal (plist-get plist :type) "bug"))
+    (should (equal (plist-get plist :priority) "1"))))
+
+(ert-deftest beads-spec-test-args-to-plist-switch ()
+  "Verify switch (no =) converts to t."
+  (let ((plist (beads--transient-args-to-plist '("--reverse"))))
+    (should (eq (plist-get plist :reverse) t))))
+
+(ert-deftest beads-spec-test-args-to-plist-mixed ()
+  "Verify mix of options and switches."
+  (let ((plist (beads--transient-args-to-plist
+                '("--status=open" "--reverse" "--type=bug"))))
+    (should (equal (plist-get plist :status) "open"))
+    (should (eq (plist-get plist :reverse) t))
+    (should (equal (plist-get plist :type) "bug"))))
+
+(ert-deftest beads-spec-test-args-to-plist-hyphenated-key ()
+  "Verify hyphenated keys convert to hyphenated keywords."
+  (let ((plist (beads--transient-args-to-plist
+                '("--created-after=2025-01-01"))))
+    (should (equal (plist-get plist :created-after) "2025-01-01"))))
+
+(ert-deftest beads-spec-test-args-to-plist-empty-value ()
+  "Verify --key= with empty value converts to empty string."
+  (let ((plist (beads--transient-args-to-plist '("--status="))))
+    (should (equal (plist-get plist :status) ""))))
+
+(ert-deftest beads-spec-test-args-to-plist-returns-list ()
+  "Verify return value is a proper plist."
+  (let ((plist (beads--transient-args-to-plist
+                '("--status=open" "--type=bug"))))
+    (should (listp plist))
+    (should (= (length plist) 4))))
+
+;;; beads--transient-args-to-spec Tests
+
+(ert-deftest beads-spec-test-transient-args-to-spec-empty ()
+  "Verify empty args returns spec with defaults."
+  (let ((spec (beads--transient-args-to-spec '())))
+    (should (beads-issue-spec-p spec))
+    (should (null (oref spec status)))
+    (should (null (oref spec type)))
+    (should (eq (oref spec order) 'newest))
+    (should (= (oref spec limit) 50))))
+
+(ert-deftest beads-spec-test-transient-args-to-spec-status ()
+  "Verify --status= maps to spec status."
+  (let ((spec (beads--transient-args-to-spec '("--status=open"))))
+    (should (equal (oref spec status) "open"))))
+
+(ert-deftest beads-spec-test-transient-args-to-spec-type ()
+  "Verify --type= maps to spec type."
+  (let ((spec (beads--transient-args-to-spec '("--type=bug"))))
+    (should (equal (oref spec type) "bug"))))
+
+(ert-deftest beads-spec-test-transient-args-to-spec-priority ()
+  "Verify --priority= maps to spec priority as integer."
+  (let ((spec (beads--transient-args-to-spec '("--priority=1"))))
+    (should (= (oref spec priority) 1))))
+
+(ert-deftest beads-spec-test-transient-args-to-spec-assignee ()
+  "Verify --assignee= maps to spec assignee."
+  (let ((spec (beads--transient-args-to-spec '("--assignee=alice"))))
+    (should (equal (oref spec assignee) "alice"))))
+
+(ert-deftest beads-spec-test-transient-args-to-spec-label ()
+  "Verify --label= maps to spec label."
+  (let ((spec (beads--transient-args-to-spec '("--label=urgent"))))
+    (should (equal (oref spec label) "urgent"))))
+
+(ert-deftest beads-spec-test-transient-args-to-spec-order ()
+  "Verify --order= maps to spec order as symbol."
+  (let ((spec (beads--transient-args-to-spec '("--order=priority"))))
+    (should (eq (oref spec order) 'priority))))
+
+(ert-deftest beads-spec-test-transient-args-to-spec-limit ()
+  "Verify --limit= maps to spec limit as integer."
+  (let ((spec (beads--transient-args-to-spec '("--limit=25"))))
+    (should (= (oref spec limit) 25))))
+
+(ert-deftest beads-spec-test-transient-args-to-spec-ready ()
+  "Verify --ready switch maps to spec ready-only."
+  (let ((spec (beads--transient-args-to-spec '("--ready"))))
+    (should (oref spec ready-only))))
+
+(ert-deftest beads-spec-test-transient-args-to-spec-full ()
+  "Verify full set of args maps correctly."
+  (let ((spec (beads--transient-args-to-spec
+               '("--status=closed" "--type=feature" "--priority=0"
+                 "--assignee=bob" "--label=v2" "--order=updated"
+                 "--limit=10" "--ready"))))
+    (should (equal (oref spec status) "closed"))
+    (should (equal (oref spec type) "feature"))
+    (should (= (oref spec priority) 0))
+    (should (equal (oref spec assignee) "bob"))
+    (should (equal (oref spec label) "v2"))
+    (should (eq (oref spec order) 'updated))
+    (should (= (oref spec limit) 10))
+    (should (oref spec ready-only))))
+
 (provide 'beads-spec-test)
 ;;; beads-spec-test.el ends here

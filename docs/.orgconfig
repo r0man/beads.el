@@ -1,0 +1,5 @@
+#+MACRO: kbd @@texinfo:@kbd{$1}@@@@html:<kbd>$1</kbd>@@
+#+MACRO: var @@texinfo:@var{$1}@@@@html:<var>$1</var>@@
+#+MACRO: cmd @@texinfo:@command{$1}@@@@html:<code>$1</code>@@
+#+MACRO: file @@texinfo:@file{$1}@@@@html:<code>$1</code>@@
+#+MACRO: dfn @@texinfo:@dfn{$1}@@@@html:<em>$1</em>@@

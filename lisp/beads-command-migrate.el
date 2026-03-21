@@ -210,6 +210,60 @@ Converts deletions.jsonl to inline tombstones.")
   "Convert deletions.jsonl to inline tombstones."
   beads-option-global-section)
 
+;;; Migrate Hooks Command
+
+(beads-defcommand beads-command-migrate-hooks (beads-command-global-options)
+  ((dry-run
+    :initarg :dry-run
+    :type boolean
+    :initform nil
+    :documentation "Show what would be done without making changes (--dry-run)."
+    :long-option "dry-run"
+    :option-type :boolean
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
+    :transient-group "Options"
+    :level 1
+    :order 1)
+   (apply
+    :initarg :apply
+    :type boolean
+    :initform nil
+    :documentation "Apply planned hook migration changes (--apply)."
+    :long-option "apply"
+    :option-type :boolean
+    :key "a"
+    :transient "--apply"
+    :class transient-switch
+    :argument "--apply"
+    :transient-group "Options"
+    :level 1
+    :order 2)
+   (yes
+    :initarg :yes
+    :type boolean
+    :initform nil
+    :documentation "Skip confirmation prompt for --apply (--yes)."
+    :long-option "yes"
+    :option-type :boolean
+    :key "y"
+    :transient "--yes"
+    :class transient-switch
+    :argument "--yes"
+    :transient-group "Options"
+    :level 1
+    :order 3))
+  :documentation "Represents bd migrate hooks command.
+Analyze git hook files and migrate to marker-managed format."
+  :cli-command "migrate hooks")
+
+;;;###autoload (autoload 'beads-migrate-hooks "beads-command-migrate" nil t)
+(beads-meta-define-transient beads-command-migrate-hooks "beads-migrate-hooks"
+  "Migrate git hooks to marker-managed format."
+  beads-option-global-section)
+
 ;;; Parent Transient Menu
 
 ;;;###autoload (autoload 'beads-migrate-menu "beads-command-migrate" nil t)
@@ -218,6 +272,7 @@ Converts deletions.jsonl to inline tombstones.")
   ["Migrate Commands"
    ("m" "Auto-migrate" beads-migrate)
    ("h" "Hash IDs (legacy)" beads-migrate-hash-ids)
+   ("H" "Hooks" beads-migrate-hooks)
    ("i" "Move issues" beads-migrate-issues)
    ("s" "Sync workflow" beads-migrate-sync)
    ("t" "Tombstones" beads-migrate-tombstones)])
