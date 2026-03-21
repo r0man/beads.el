@@ -62,27 +62,6 @@
 
 (declare-function beads-show "beads-command-show" (&optional issue-id))
 
-;;; Section Data Classes
-
-(defclass beads-issues-section ()
-  nil
-  "Data container for a group of open issues.")
-
-(defclass beads-issue-section ()
-  ((issue
-    :initarg :issue
-    :initform nil
-    :documentation "The `beads-issue' object for this section line."))
-  "Data container for a single beads issue.")
-
-(defclass beads-blocked-section ()
-  nil
-  "Data container for blocked issues.")
-
-(defclass beads-ready-section ()
-  nil
-  "Data container for ready (unblocked) issues.")
-
 ;;; Context Detection
 
 (defun beads-section--propertize (str section)
