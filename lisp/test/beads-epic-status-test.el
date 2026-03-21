@@ -100,44 +100,6 @@
             (insert output)))))
     exit-code))
 
-;;; Tests for Epic Status Parsing
-
-(ert-deftest beads-epic-status-test-parse-single-epic ()
-  "Test parsing single epic status from JSON."
-  (let* ((epics (list beads-epic-status-test--sample-epic-1))
-         (parsed (beads--parse-epic-statuses epics)))
-    (should (= (length parsed) 1))
-    (let ((epic-status (car parsed)))
-      (should (beads-epic-status-p epic-status))
-      (should (equal (oref (oref epic-status epic) id) "beads.el-7bea"))
-      (should (= (oref epic-status total-children) 17))
-      (should (= (oref epic-status closed-children) 3))
-      (should (not (oref epic-status eligible-for-close))))))
-
-(ert-deftest beads-epic-status-test-parse-multiple-epics ()
-  "Test parsing multiple epic statuses."
-  (let* ((epics (list beads-epic-status-test--sample-epic-1
-                      beads-epic-status-test--sample-epic-2))
-         (parsed (beads--parse-epic-statuses epics)))
-    (should (= (length parsed) 2))
-    (should (equal (oref (oref (nth 0 parsed) epic) id) "beads.el-7bea"))
-    (should (equal (oref (oref (nth 1 parsed) epic) id) "beads.el-1"))))
-
-(ert-deftest beads-epic-status-test-parse-eligible-epic ()
-  "Test parsing epic eligible for closure."
-  (let* ((epics (list beads-epic-status-test--eligible-epic))
-         (parsed (beads--parse-epic-statuses epics)))
-    (should (= (length parsed) 1))
-    (let ((epic-status (car parsed)))
-      (should (oref epic-status eligible-for-close))
-      (should (= (oref epic-status total-children) 5))
-      (should (= (oref epic-status closed-children) 5)))))
-
-(ert-deftest beads-epic-status-test-parse-empty-list ()
-  "Test parsing empty epic list."
-  (let ((parsed (beads--parse-epic-statuses '())))
-    (should (listp parsed))
-    (should (= (length parsed) 0))))
 
 ;;; Tests for Rendering
 

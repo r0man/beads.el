@@ -111,17 +111,6 @@ When non-nil, enables verbose/debug output.")
 (defvar beads-update--title nil
   "New title for the issue.")
 
-(defvar beads-update--description nil
-  "New description for the issue.")
-
-(defvar beads-update--acceptance-criteria nil
-  "New acceptance criteria for the issue.")
-
-(defvar beads-update--design nil
-  "New design notes for the issue.")
-
-(defvar beads-update--notes nil
-  "New notes for the issue.")
 
 (defvar beads-update--assignee nil
   "New assignee for the issue.")
@@ -136,8 +125,6 @@ When non-nil, enables verbose/debug output.")
 (defvar beads-close--issue-id nil
   "Issue ID to close.")
 
-(defvar beads-close--reason nil
-  "Reason for closing the issue.")
 
 ;;; ============================================================
 ;;; beads-reopen state variables
@@ -146,8 +133,6 @@ When non-nil, enables verbose/debug output.")
 (defvar beads-reopen--issue-id nil
   "Issue ID to reopen.")
 
-(defvar beads-reopen--reason nil
-  "Reason for reopening the issue.")
 
 ;;; ============================================================
 ;;; beads-dep state variables

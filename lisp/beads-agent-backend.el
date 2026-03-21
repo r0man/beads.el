@@ -625,11 +625,6 @@ Searches all sesman sessions for a beads-agent-session with matching ID."
            when beads-session
            collect beads-session))
 
-(defun beads-agent--current-session ()
-  "Get current session based on buffer context.
-Uses sesman's context-aware session selection."
-  (when-let ((sesman-session (sesman-current-session beads-sesman-system)))
-    (nth 2 sesman-session)))
 
 (defun beads-agent--session-active-p (session)
   "Check if SESSION is still active."

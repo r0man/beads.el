@@ -96,37 +96,6 @@
 
 ;;; Tests for Error Buffer Display
 
-(ert-deftest beads-core-test-display-error-buffer-creates-buffer ()
-  "Test that display-error-buffer creates error buffer."
-  (let ((displayed-buffer nil))
-    (cl-letf (((symbol-function 'display-buffer)
-               (lambda (buf) (setq displayed-buffer buf))))
-      (beads--display-error-buffer "bd list" 1 "stdout" "stderr")
-      (should displayed-buffer)
-      (should (string= (buffer-name displayed-buffer) "*beads-errors*"))
-      (kill-buffer displayed-buffer))))
-
-(ert-deftest beads-core-test-display-error-buffer-content ()
-  "Test that display-error-buffer shows correct content."
-  (cl-letf (((symbol-function 'display-buffer) #'ignore))
-    (beads--display-error-buffer "bd test-cmd" 42 "test stdout" "test stderr")
-    (with-current-buffer "*beads-errors*"
-      (let ((content (buffer-string)))
-        (should (string-match-p "Command Error" content))
-        (should (string-match-p "bd test-cmd" content))
-        (should (string-match-p "42" content))
-        (should (string-match-p "test stdout" content))
-        (should (string-match-p "test stderr" content))))
-    (kill-buffer "*beads-errors*")))
-
-(ert-deftest beads-core-test-display-error-buffer-empty-output ()
-  "Test that display-error-buffer handles empty output."
-  (cl-letf (((symbol-function 'display-buffer) #'ignore))
-    (beads--display-error-buffer "bd cmd" 1 "" "")
-    (with-current-buffer "*beads-errors*"
-      (let ((content (buffer-string)))
-        (should (string-match-p "(empty)" content))))
-    (kill-buffer "*beads-errors*")))
 
 ;;; Tests for Debug Mode
 
