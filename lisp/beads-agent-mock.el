@@ -266,12 +266,6 @@ Clears sessions (killing buffers), call logs, and configuration."
     (unless (= actual times)
       (error "Expected %d start call(s), got %d" times actual))))
 
-(defun beads-agent-mock-assert-stop-called (&optional times)
-  "Assert that stop was called TIMES (default 1) times."
-  (let ((times (or times 1))
-        (actual (length beads-agent-mock--stop-calls)))
-    (unless (= actual times)
-      (error "Expected %d stop call(s), got %d" times actual))))
 
 (defun beads-agent-mock-assert-no-sessions ()
   "Assert that no mock sessions exist."

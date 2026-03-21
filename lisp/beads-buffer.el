@@ -362,14 +362,8 @@ Returns plist with :type, :project, :branch, :suffix, or nil."
 (defalias 'beads-buffer-name-parse-show 'beads-buffer-parse-show)
 (defalias 'beads-buffer-name-parse-agent 'beads-buffer-parse-agent)
 (defalias 'beads-buffer-name-parse-utility 'beads-buffer-parse-utility)
-(defalias 'beads-buffer-name-list-p 'beads-buffer-list-p)
-(defalias 'beads-buffer-name-show-p 'beads-buffer-show-p)
-(defalias 'beads-buffer-name-agent-p 'beads-buffer-agent-p)
-(defalias 'beads-buffer-name-utility-p 'beads-buffer-utility-p)
-(defalias 'beads-buffer-name-beads-p 'beads-buffer-beads-p)
 (defalias 'beads-buffer-name-find-list-buffers 'beads-buffer-find-list-buffers)
 (defalias 'beads-buffer-name-find-show-buffers 'beads-buffer-find-show-buffers)
-(defalias 'beads-buffer-name-find-agent-buffers 'beads-buffer-find-agent-buffers)
 (defalias 'beads-buffer-name-find-utility-buffers 'beads-buffer-find-utility-buffers)
 
 ;;; Display Functions

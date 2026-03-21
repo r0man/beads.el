@@ -987,46 +987,6 @@ in beads completion interfaces.  For example:
                  beads-completion--marginalia-annotate-agent-worktree
                  none)))
 
-;;; Search-Based Completion
-
-(declare-function beads-command-search! "beads-command-search" (&rest args))
-
-(defun beads-completion-read-search-issue (prompt &optional require-match)
-  "Read an issue ID using server-side search completion.
-First prompts for a SEARCH-QUERY, then offers matching issues.
-PROMPT is shown during the issue selection step.
-REQUIRE-MATCH controls whether exact match is required."
-  (require 'beads-command-search)
-  (let* ((query (read-string "Search query: "))
-         (issues (condition-case err
-                     (let ((raw (beads-command-search! :query query)))
-                       (if (vectorp raw) (append raw nil) raw))
-                   (error
-                    (user-error "Search failed: %s"
-                                (error-message-string err)))))
-         (table (lambda (string pred action)
-                  (if (eq action 'metadata)
-                      '(metadata
-                        (category . beads-issue)
-                        (annotation-function
-                         . beads-completion--issue-annotate)
-                        (group-function
-                         . beads-completion--issue-group))
-                    (complete-with-action
-                     action
-                     (mapcar (lambda (i)
-                               (propertize (oref i id)
-                                           'beads-title (oref i title)
-                                           'beads-issue i))
-                             issues)
-                     string pred)))))
-    (if (or (null issues) (zerop (length issues)))
-        (user-error "No issues found matching %S" query)
-      (let ((completion-category-overrides
-             (cons '(beads-issue (styles beads-issue-title basic))
-                   completion-category-overrides)))
-        (completing-read prompt table nil require-match nil
-                         'beads--issue-id-history)))))
 
 (provide 'beads-completion)
 ;;; beads-completion.el ends here

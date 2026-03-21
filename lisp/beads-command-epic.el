@@ -279,9 +279,6 @@ Format: ((epic-id . (expanded-p . children)) ...)")
         (beads-epic-status--render)))
     (pop-to-buffer buffer)))
 
-(defun beads--parse-epic-statuses (result)
-  "Parse RESULT from bd epic status into beads-epic-status objects."
-  (mapcar #'beads-epic-status-from-json (append result nil)))
 
 (defun beads-epic-status--render ()
   "Render the epic status buffer."

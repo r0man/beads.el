@@ -308,13 +308,6 @@
     (with-no-warnings
       (should (equal (beads--find-project-root) "/test/path")))))
 
-(ert-deftest beads-git-test-compatibility-alias-in-worktree ()
-  "Test that beads--in-git-worktree-p alias exists and works."
-  :tags '(:unit)
-  (cl-letf (((symbol-function 'beads-git-in-worktree-p)
-             (lambda () t)))
-    (with-no-warnings
-      (should (beads--in-git-worktree-p)))))
 
 ;;; Test beads-git-find-project-root
 

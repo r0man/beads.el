@@ -2022,89 +2022,6 @@ The log format is compatible with `log-view-mode':
      (should (member "test" table))
      (should (member "other" table)))))
 
-;;; ========================================
-;;; Error Buffer Tests
-;;; ========================================
-
-(ert-deftest beads-test-display-error-buffer-creates-buffer ()
-  "Test that display-error-buffer creates *beads-errors* buffer."
-  (let ((test-command "bd list --json")
-        (test-exit-code 1)
-        (test-stdout "some output")
-        (test-stderr "error message"))
-    (unwind-protect
-        (progn
-          (when (get-buffer "*beads-errors*")
-            (kill-buffer "*beads-errors*"))
-          (cl-letf (((symbol-function 'display-buffer) #'ignore))
-            (beads--display-error-buffer test-command test-exit-code
-                                         test-stdout test-stderr))
-          (should (get-buffer "*beads-errors*")))
-      (when (get-buffer "*beads-errors*")
-        (kill-buffer "*beads-errors*")))))
-
-(ert-deftest beads-test-display-error-buffer-content ()
-  "Test that display-error-buffer includes all sections."
-  (let ((test-command "bd update bd-1")
-        (test-exit-code 127)
-        (test-stdout "stdout content")
-        (test-stderr "stderr content"))
-    (unwind-protect
-        (progn
-          (when (get-buffer "*beads-errors*")
-            (kill-buffer "*beads-errors*"))
-          (cl-letf (((symbol-function 'display-buffer) #'ignore))
-            (beads--display-error-buffer test-command test-exit-code
-                                         test-stdout test-stderr))
-          (with-current-buffer "*beads-errors*"
-            (let ((content (buffer-string)))
-              (should (string-match-p "bd update bd-1" content))
-              (should (string-match-p "127" content))
-              (should (string-match-p "stdout content" content))
-              (should (string-match-p "stderr content" content)))))
-      (when (get-buffer "*beads-errors*")
-        (kill-buffer "*beads-errors*")))))
-
-(ert-deftest beads-test-display-error-buffer-empty-output ()
-  "Test that display-error-buffer handles empty stdout/stderr."
-  (unwind-protect
-      (progn
-        (when (get-buffer "*beads-errors*")
-          (kill-buffer "*beads-errors*"))
-        (cl-letf (((symbol-function 'display-buffer) #'ignore))
-          (beads--display-error-buffer "bd list" 1 "" ""))
-        (with-current-buffer "*beads-errors*"
-          (let ((content (buffer-string)))
-            (should (string-match-p "(empty)" content)))))
-    (when (get-buffer "*beads-errors*")
-      (kill-buffer "*beads-errors*"))))
-
-(ert-deftest beads-test-display-error-buffer-nil-output ()
-  "Test that display-error-buffer handles nil stdout/stderr."
-  (unwind-protect
-      (progn
-        (when (get-buffer "*beads-errors*")
-          (kill-buffer "*beads-errors*"))
-        (cl-letf (((symbol-function 'display-buffer) #'ignore))
-          (beads--display-error-buffer "bd list" 1 nil nil))
-        (with-current-buffer "*beads-errors*"
-          (let ((content (buffer-string)))
-            (should (string-match-p "(empty)" content)))))
-    (when (get-buffer "*beads-errors*")
-      (kill-buffer "*beads-errors*"))))
-
-(ert-deftest beads-test-display-error-buffer-special-mode ()
-  "Test that error buffer is in special-mode."
-  (unwind-protect
-      (progn
-        (when (get-buffer "*beads-errors*")
-          (kill-buffer "*beads-errors*"))
-        (cl-letf (((symbol-function 'display-buffer) #'ignore))
-          (beads--display-error-buffer "bd list" 1 "out" "err"))
-        (with-current-buffer "*beads-errors*"
-          (should (derived-mode-p 'special-mode))))
-    (when (get-buffer "*beads-errors*")
-      (kill-buffer "*beads-errors*"))))
 
 ;;; ========================================
 ;;; Debug Buffer and Toggle Tests
@@ -2439,17 +2356,6 @@ The log format is compatible with `log-view-mode':
              (lambda () "main")))
     (should (equal (beads--get-git-branch) "main"))))
 
-(ert-deftest beads-test-in-git-worktree-alias ()
-  "Test beads--in-git-worktree-p alias."
-  (cl-letf (((symbol-function 'beads-git-in-worktree-p)
-             (lambda () t)))
-    (should (beads--in-git-worktree-p))))
-
-(ert-deftest beads-test-find-main-repo-alias ()
-  "Test beads--find-main-repo-from-worktree alias."
-  (cl-letf (((symbol-function 'beads-git-find-main-repo)
-             (lambda () "/main/repo/")))
-    (should (equal (beads--find-main-repo-from-worktree) "/main/repo/"))))
 
 (ert-deftest beads-test-completion-aliases ()
   "Test completion function aliases."

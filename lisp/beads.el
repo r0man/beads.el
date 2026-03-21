@@ -135,61 +135,6 @@ converted to nil, which is useful for processing transient arguments."
              (not (string-empty-p (string-trim value))))
     value))
 
-(defun beads--display-error-buffer (command exit-code stdout stderr)
-  "Display detailed error information in *beads-errors* buffer.
-COMMAND is the command string that was executed.
-EXIT-CODE is the process exit code.
-STDOUT is the standard output from the process.
-STDERR is the standard error output from the process."
-  (let ((buf (get-buffer-create "*beads-errors*"))
-        (inhibit-read-only t))
-    (with-current-buffer buf
-      (erase-buffer)
-      (special-mode)
-      (setq buffer-read-only nil)
-      (insert (propertize "Beads Command Error\n"
-                          'face '(:weight bold :height 1.2))
-              (propertize (make-string 60 ?=) 'face 'shadow)
-              "\n\n")
-
-      ;; Timestamp
-      (insert (propertize "Time: " 'face 'bold)
-              (format-time-string "%Y-%m-%d %H:%M:%S")
-              "\n\n")
-
-      ;; Command
-      (insert (propertize "Command:\n" 'face 'bold)
-              (propertize command 'face 'font-lock-string-face)
-              "\n\n")
-
-      ;; Exit code
-      (insert (propertize "Exit Code: " 'face 'bold)
-              (propertize (format "%d" exit-code)
-                          'face 'error)
-              "\n\n")
-
-      ;; Stdout
-      (insert (propertize "Standard Output:\n" 'face 'bold)
-              (propertize (make-string beads-separator-line-width ?-)
-                          'face 'shadow)
-              "\n")
-      (if (and stdout (not (string-empty-p (string-trim stdout))))
-          (insert stdout "\n")
-        (insert (propertize "(empty)\n" 'face 'shadow)))
-      (insert "\n")
-
-      ;; Stderr
-      (insert (propertize "Standard Error:\n" 'face 'bold)
-              (propertize (make-string beads-separator-line-width ?-)
-                          'face 'shadow)
-              "\n")
-      (if (and stderr (not (string-empty-p (string-trim stderr))))
-          (insert stderr "\n")
-        (insert (propertize "(empty)\n" 'face 'shadow)))
-
-      (setq buffer-read-only t)
-      (goto-char (point-min)))
-    (display-buffer buf)))
 
 ;;;###autoload
 (defun beads-show-debug-buffer ()
@@ -261,15 +206,6 @@ This is an alias for `beads-git-get-project-name'."
 This is an alias for `beads-git-get-branch'."
   (beads-git-get-branch))
 
-(defun beads--in-git-worktree-p ()
-  "Return non-nil if current directory is in a git worktree.
-This is an alias for `beads-git-in-worktree-p'."
-  (beads-git-in-worktree-p))
-
-(defun beads--find-main-repo-from-worktree ()
-  "Find the main git repository path when in a worktree.
-This is an alias for `beads-git-find-main-repo'."
-  (beads-git-find-main-repo))
 
 ;;; Beads Directory Discovery
 
