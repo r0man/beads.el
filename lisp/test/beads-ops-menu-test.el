@@ -104,10 +104,6 @@
   (should (fboundp 'beads-gate))
   (should (get 'beads-gate 'transient--prefix)))
 
-(ert-deftest beads-ops-menu-test-merge-slot-defined ()
-  "Verify beads-merge-slot is defined as a transient prefix."
-  (should (fboundp 'beads-merge-slot))
-  (should (get 'beads-merge-slot 'transient--prefix)))
 
 (ert-deftest beads-ops-menu-test-swarm-defined ()
   "Verify beads-swarm is defined as a transient prefix."

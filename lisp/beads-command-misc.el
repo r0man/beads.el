@@ -405,6 +405,55 @@ Quick capture: creates issue and outputs only ID.")
     (if (not title) "Title is required" nil)))
 
 ;;; ============================================================
+;;; Command Class: beads-command-note
+;;; ============================================================
+
+(beads-defcommand beads-command-note (beads-command-global-options)
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID to append note to."
+    :positional 1)
+   (stdin
+    :initarg :stdin
+    :type boolean
+    :initform nil
+    :documentation "Read note text from stdin."
+    :long-option "stdin"
+    :option-type :boolean
+    :key "s"
+    :transient "--stdin"
+    :class transient-switch
+    :argument "--stdin"
+    :transient-group "Input"
+    :level 1
+    :order 1)
+   (file
+    :initarg :file
+    :type (or null string)
+    :initform nil
+    :documentation "Read note text from file."
+    :long-option "file"
+    :option-type :string
+    :key "f"
+    :transient "--file"
+    :class transient-option
+    :argument "--file="
+    :prompt "File: "
+    :transient-group "Input"
+    :level 1
+    :order 2))
+  :documentation "Represents bd note command.
+Appends a note to an issue's notes field.")
+
+
+(cl-defmethod beads-command-validate ((command beads-command-note))
+  "Validate note COMMAND."
+  (with-slots (issue-id) command
+    (if (not issue-id) "Issue ID is required" nil)))
+
+;;; ============================================================
 ;;; Command Class: beads-command-version
 ;;; ============================================================
 
@@ -517,26 +566,6 @@ Renames the issue prefix for all issues in the database."
      (t nil))))
 
 ;;; ============================================================
-;;; Command Class: beads-command-repair
-;;; ============================================================
-
-(beads-defcommand beads-command-repair (beads-command-global-options)
-  ()
-  :documentation "Represents bd repair command.
-Repairs corrupted database by cleaning orphaned references.")
-
-
-;;; ============================================================
-;;; Command Class: beads-command-resolve-conflicts
-;;; ============================================================
-
-(beads-defcommand beads-command-resolve-conflicts (beads-command-global-options)
-  ()
-  :documentation "Represents bd resolve-conflicts command.
-Resolves git merge conflicts in JSONL files."
-  :cli-command "resolve-conflicts")
-
-;;; ============================================================
 ;;; Command Class: beads-command-restore
 ;;; ============================================================
 
@@ -555,33 +584,6 @@ Restores full history of a compacted issue from git.")
   "Validate restore COMMAND."
   (with-slots (issue-id) command
     (if (not issue-id) "Issue ID is required" nil)))
-
-;;; ============================================================
-;;; Command Class: beads-command-merge
-;;; ============================================================
-
-(beads-defcommand beads-command-merge (beads-command-global-options)
-  ((ancestor
-    :initarg :ancestor
-    :type (or null string)
-    :initform nil
-    :documentation "Ancestor file path."
-    :positional 1)
-   (current
-    :initarg :current
-    :type (or null string)
-    :initform nil
-    :documentation "Current file path."
-    :positional 2)
-   (other
-    :initarg :other
-    :type (or null string)
-    :initform nil
-    :documentation "Other file path."
-    :positional 3))
-  :documentation "Represents bd merge command.
-Git merge driver for beads JSONL files.")
-
 
 ;;; ============================================================
 ;;; Command Class: beads-command-setup
@@ -706,6 +708,11 @@ Delegates to mail provider.")
   "Quick capture: create issue and output ID."
   beads-option-global-section)
 
+;;;###autoload (autoload 'beads-note "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-note "beads-note"
+  "Append a note to an issue."
+  beads-option-global-section)
+
 ;;;###autoload (autoload 'beads-version "beads-command-misc" nil t)
 (beads-meta-define-transient beads-command-version "beads-version"
   "Print version information."
@@ -744,16 +751,6 @@ Delegates to mail provider.")
 ;;;###autoload (autoload 'beads-rename-prefix "beads-command-misc" nil t)
 (beads-meta-define-transient beads-command-rename-prefix "beads-rename-prefix"
   "Rename issue prefix for all issues."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-repair "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-repair "beads-repair"
-  "Repair corrupted database."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-resolve-conflicts "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-resolve-conflicts "beads-resolve-conflicts"
-  "Resolve git merge conflicts in JSONL files."
   beads-option-global-section)
 
 ;;;###autoload (autoload 'beads-restore "beads-command-misc" nil t)
@@ -923,6 +920,35 @@ Exports issues to JSONL format.")
 ;;;###autoload (autoload 'beads-export "beads-command-misc" nil t)
 (beads-meta-define-transient beads-command-export "beads-export"
   "Export issues to JSONL format."
+  beads-option-global-section)
+
+(beads-defcommand beads-command-import (beads-command-global-options)
+  ((file
+    :initarg :file
+    :type (or null string)
+    :initform nil
+    :documentation "JSONL file to import (default: .beads/issues.jsonl)."
+    :positional 1)
+   (dry-run
+    :initarg :dry-run
+    :type boolean
+    :initform nil
+    :documentation "Show what would be imported without importing."
+    :long-option "dry-run"
+    :option-type :boolean
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
+    :transient-group "Options"
+    :level 1
+    :order 1))
+  :documentation "Represents bd import command.
+Imports issues from a JSONL file into the database.")
+
+;;;###autoload (autoload 'beads-import "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-import "beads-import"
+  "Import issues from a JSONL file."
   beads-option-global-section)
 
 ;;; Maintenance — stubs

@@ -212,5 +212,56 @@
     (should (member "gitlab" args))
     (should (member "projects" args))))
 
+;;; Unit Tests: beads-command-ado-sync command-line
+
+(ert-deftest beads-command-ado-sync-test-command-line-basic ()
+  "Unit test: ado sync builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-ado-sync))
+         (args (beads-command-line cmd)))
+    (should (member "ado" args))
+    (should (member "sync" args))))
+
+(ert-deftest beads-command-ado-sync-test-command-line-dry-run ()
+  "Unit test: ado sync includes --dry-run option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-ado-sync :dry-run t))
+         (args (beads-command-line cmd)))
+    (should (member "--dry-run" args))))
+
+(ert-deftest beads-command-ado-sync-test-command-line-pull-only ()
+  "Unit test: ado sync includes --pull-only option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-ado-sync :pull-only t))
+         (args (beads-command-line cmd)))
+    (should (member "--pull-only" args))))
+
+(ert-deftest beads-command-ado-sync-test-command-line-push-only ()
+  "Unit test: ado sync includes --push-only option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-ado-sync :push-only t))
+         (args (beads-command-line cmd)))
+    (should (member "--push-only" args))))
+
+;;; Unit Tests: beads-command-ado-status command-line
+
+(ert-deftest beads-command-ado-status-test-command-line-basic ()
+  "Unit test: ado status builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-ado-status))
+         (args (beads-command-line cmd)))
+    (should (member "ado" args))
+    (should (member "status" args))))
+
+;;; Unit Tests: beads-command-ado-projects command-line
+
+(ert-deftest beads-command-ado-projects-test-command-line-basic ()
+  "Unit test: ado projects builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-ado-projects))
+         (args (beads-command-line cmd)))
+    (should (member "ado" args))
+    (should (member "projects" args))))
+
 (provide 'beads-command-integrations-test)
 ;;; beads-command-integrations-test.el ends here

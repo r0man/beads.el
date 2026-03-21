@@ -261,24 +261,6 @@
   (let ((cmd (beads-command-rename-prefix :new-prefix "new")))
     (should (beads-command-validate cmd))))
 
-;;; Unit Tests: beads-command-repair command-line
-
-(ert-deftest beads-command-repair-test-command-line-basic ()
-  "Unit test: repair builds correct command line."
-  :tags '(:unit)
-  (let* ((cmd (beads-command-repair))
-         (args (beads-command-line cmd)))
-    (should (member "repair" args))))
-
-;;; Unit Tests: beads-command-resolve-conflicts command-line
-
-(ert-deftest beads-command-resolve-conflicts-test-command-line-basic ()
-  "Unit test: resolve-conflicts builds correct command line."
-  :tags '(:unit)
-  (let* ((cmd (beads-command-resolve-conflicts))
-         (args (beads-command-line cmd)))
-    (should (member "resolve-conflicts" args))))
-
 ;;; Unit Tests: beads-command-restore command-line
 
 (ert-deftest beads-command-restore-test-command-line-basic ()
@@ -294,18 +276,6 @@
   :tags '(:unit)
   (let ((cmd (beads-command-restore)))
     (should (beads-command-validate cmd))))
-
-;;; Unit Tests: beads-command-merge command-line
-
-(ert-deftest beads-command-merge-test-command-line-basic ()
-  "Unit test: merge builds correct command line."
-  :tags '(:unit)
-  (let* ((cmd (beads-command-merge :ancestor "/a" :current "/b" :other "/c"))
-         (args (beads-command-line cmd)))
-    (should (member "merge" args))
-    (should (member "/a" args))
-    (should (member "/b" args))
-    (should (member "/c" args))))
 
 ;;; Unit Tests: beads-command-setup command-line
 
@@ -374,6 +344,66 @@
   :tags '(:unit)
   (let ((cmd (beads-command-rename :old-id "bd-w382l" :new-id "bd-auth")))
     (should-not (beads-command-validate cmd))))
+
+;;; Unit Tests: beads-command-note command-line
+
+(ert-deftest beads-command-note-test-command-line-basic ()
+  "Unit test: note builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-note :issue-id "bd-1"))
+         (args (beads-command-line cmd)))
+    (should (member "note" args))
+    (should (member "bd-1" args))))
+
+(ert-deftest beads-command-note-test-command-line-stdin ()
+  "Unit test: note includes --stdin option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-note :issue-id "bd-1" :stdin t))
+         (args (beads-command-line cmd)))
+    (should (member "--stdin" args))))
+
+(ert-deftest beads-command-note-test-command-line-file ()
+  "Unit test: note includes --file option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-note :issue-id "bd-1" :file "notes.txt"))
+         (args (beads-command-line cmd)))
+    (should (member "--file" args))
+    (should (member "notes.txt" args))))
+
+(ert-deftest beads-command-note-test-validation-missing-issue-id ()
+  "Unit test: note validation fails without issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-note)))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-note-test-validation-valid ()
+  "Unit test: note validation passes with issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-note :issue-id "bd-1")))
+    (should-not (beads-command-validate cmd))))
+
+;;; Unit Tests: beads-command-import command-line
+
+(ert-deftest beads-command-import-test-command-line-basic ()
+  "Unit test: import builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-import))
+         (args (beads-command-line cmd)))
+    (should (member "import" args))))
+
+(ert-deftest beads-command-import-test-command-line-file ()
+  "Unit test: import includes file argument."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-import :file "issues.jsonl"))
+         (args (beads-command-line cmd)))
+    (should (member "issues.jsonl" args))))
+
+(ert-deftest beads-command-import-test-command-line-dry-run ()
+  "Unit test: import includes --dry-run option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-import :dry-run t))
+         (args (beads-command-line cmd)))
+    (should (member "--dry-run" args))))
 
 (provide 'beads-command-misc-test)
 ;;; beads-command-misc-test.el ends here
