@@ -40,7 +40,6 @@
 (declare-function beads-todo "beads-command-misc" nil)
 (declare-function beads-query "beads-command-misc" nil)
 (declare-function beads-gate "beads-command-gate" nil)
-(declare-function beads-merge-slot "beads-command-merge-slot" nil)
 (declare-function beads-swarm "beads-command-swarm" nil)
 (declare-function beads-cook "beads-command-misc" nil)
 (declare-function beads-ship "beads-command-misc" nil)
@@ -77,7 +76,6 @@ workflow coordination."
    ("q" "Query" beads-query)]
   ["Workflow"
    ("g" "Gate" beads-gate)
-   ("M" "Merge-slot" beads-merge-slot)
    ("w" "Swarm" beads-swarm)
    ("K" "Cook" beads-cook)
    ("H" "Ship" beads-ship)

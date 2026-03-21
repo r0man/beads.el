@@ -610,7 +610,6 @@ into logical groups for easy access."
   ["Workflow & Collaboration"
    ("K" "Cook formula" beads-cook)
    ("g" "Gate menu" beads-gate)
-   ("M" "Merge slot" beads-merge-slot)
    ("f" "Defer issue" beads-defer)
    ("U" "Undefer issue" beads-undefer)
    ("H" "Ship capability" beads-ship)]
@@ -626,8 +625,7 @@ into logical groups for easy access."
    ("<" "Find duplicates (AI)" beads-find-duplicates)
    ("v" "Graph (visual)" beads-graph-all)
    ("E" "Epic menu" beads-epic-menu)]
-  ["Agent, Slots & Audit"
-   ("@" "Slot menu" beads-slot)
+  ["Agent & Audit"
    ("=" "Comments" beads-comments-menu)
    ("~" "Audit log" beads-audit)
    ("w" "Swarm menu" beads-swarm)]
@@ -663,6 +661,7 @@ into logical groups for easy access."
    ("G" "GitHub" beads-github)
    ("yl" "GitLab" beads-gitlab)
    ("R" "Repo" beads-repo)
+   ("A" "ADO" beads-ado)
    ("*" "Mail delegate" beads-mail)]
   ["Setup & Config"
    ("i" "Init project" beads-init)
@@ -875,10 +874,6 @@ or set `beads-executable' to the full path" beads-executable)))
 ;;;###autoload
 (autoload 'beads-gate "beads-command-gate" nil t)
 
-;; beads-command-merge-slot
-;;;###autoload
-(autoload 'beads-merge-slot "beads-command-merge-slot" nil t)
-
 ;; beads-command-defer
 ;;;###autoload
 (autoload 'beads-defer "beads-command-defer" nil t)
@@ -924,10 +919,6 @@ or set `beads-executable' to the full path" beads-executable)))
 ;; beads-command-agent
 ;;;###autoload
 (autoload 'beads-agent-menu "beads-command-agent" nil t)
-
-;; beads-command-slot
-;;;###autoload
-(autoload 'beads-slot "beads-command-slot" nil t)
 
 ;; beads-command-comments
 ;;;###autoload
@@ -1012,6 +1003,8 @@ or set `beads-executable' to the full path" beads-executable)))
 (autoload 'beads-gitlab "beads-command-integrations" nil t)
 ;;;###autoload
 (autoload 'beads-repo "beads-command-integrations" nil t)
+;;;###autoload
+(autoload 'beads-ado "beads-command-integrations" nil t)
 
 ;; beads-command-state
 ;;;###autoload
@@ -1087,10 +1080,6 @@ or set `beads-executable' to the full path" beads-executable)))
 ;;;###autoload
 (autoload 'beads-rename-prefix "beads-command-misc" nil t)
 ;;;###autoload
-(autoload 'beads-repair "beads-command-misc" nil t)
-;;;###autoload
-(autoload 'beads-resolve-conflicts "beads-command-misc" nil t)
-;;;###autoload
 (autoload 'beads-purge "beads-command-misc" nil t)
 ;;;###autoload
 (autoload 'beads-duplicate "beads-command-misc" nil t)
@@ -1102,6 +1091,10 @@ or set `beads-executable' to the full path" beads-executable)))
 (autoload 'beads-backup "beads-command-misc" nil t)
 ;;;###autoload
 (autoload 'beads-export "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-import "beads-command-misc" nil t)
+;;;###autoload
+(autoload 'beads-note "beads-command-misc" nil t)
 ;;;###autoload
 (autoload 'beads-version "beads-command-misc" nil t)
 

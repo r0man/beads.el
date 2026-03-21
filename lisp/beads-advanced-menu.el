@@ -64,7 +64,7 @@
 (declare-function beads-remember "beads-command-misc" nil)
 (declare-function beads-forget "beads-command-misc" nil)
 (declare-function beads-audit "beads-command-audit" nil)
-(declare-function beads-slot "beads-command-slot" nil)
+(declare-function beads-ado "beads-command-integrations" nil)
 (declare-function beads-admin "beads-command-admin" nil)
 (declare-function beads-worktree-menu "beads-command-worktree" nil)
 (declare-function beads-diff "beads-command-diff" nil)
@@ -105,6 +105,7 @@ memory, and administration."
    ("y" "GitLab" beads-gitlab)
    ("G" "GitHub" beads-github)
    ("o" "Repo" beads-repo)
+   ("A" "ADO" beads-ado)
    ("M" "Mail" beads-mail)]
   ["Setup"
    ("i" "Init" beads-init)
@@ -124,7 +125,6 @@ memory, and administration."
    ("_" "Forget" beads-forget)]
   ["Audit & Admin"
    ("@" "Audit" beads-audit)
-   ("$" "Slot" beads-slot)
    ("a" "Admin" beads-admin)
    ("W" "Worktree" beads-worktree-menu)
    ("`" "Diff" beads-diff)

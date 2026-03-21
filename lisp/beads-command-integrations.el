@@ -444,5 +444,91 @@ Lists accessible GitHub repositories.")
    ("S" "Status" beads-github-status)
    ("r" "Repos" beads-github-repos)])
 
+;;; Azure DevOps Integration Commands
+
+(beads-defcommand beads-command-ado-sync (beads-command-global-options)
+  ((dry-run
+    :initarg :dry-run
+    :type boolean
+    :initform nil
+    :documentation "Show what would be synced without making changes."
+    :long-option "dry-run"
+    :option-type :boolean
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
+    :transient-group "Options"
+    :level 1
+    :order 1)
+   (pull-only
+    :initarg :pull-only
+    :type boolean
+    :initform nil
+    :documentation "Only pull issues from Azure DevOps."
+    :long-option "pull-only"
+    :option-type :boolean
+    :key "p"
+    :transient "--pull-only"
+    :class transient-switch
+    :argument "--pull-only"
+    :transient-group "Direction"
+    :level 1
+    :order 2)
+   (push-only
+    :initarg :push-only
+    :type boolean
+    :initform nil
+    :documentation "Only push issues to Azure DevOps."
+    :long-option "push-only"
+    :option-type :boolean
+    :key "P"
+    :transient "--push-only"
+    :class transient-switch
+    :argument "--push-only"
+    :transient-group "Direction"
+    :level 1
+    :order 3))
+  :documentation "Represents bd ado sync command.
+Synchronize issues between beads and Azure DevOps."
+  :cli-command "ado sync")
+
+(beads-defcommand beads-command-ado-status (beads-command-global-options)
+  ()
+  :documentation "Represents bd ado status command.
+Show Azure DevOps sync status."
+  :cli-command "ado status")
+
+(beads-defcommand beads-command-ado-projects (beads-command-global-options)
+  ()
+  :documentation "Represents bd ado projects command.
+List accessible Azure DevOps projects."
+  :cli-command "ado projects")
+
+;;; Autoloads for ADO sub-commands
+
+;;;###autoload (autoload 'beads-ado-sync "beads-command-integrations" nil t)
+(beads-meta-define-transient beads-command-ado-sync "beads-ado-sync"
+  "Sync issues with Azure DevOps."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-ado-status "beads-command-integrations" nil t)
+(beads-meta-define-transient beads-command-ado-status "beads-ado-status"
+  "Show Azure DevOps sync status."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-ado-projects "beads-command-integrations" nil t)
+(beads-meta-define-transient beads-command-ado-projects "beads-ado-projects"
+  "List accessible Azure DevOps projects."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-ado "beads-command-integrations" nil t)
+(transient-define-prefix beads-ado ()
+  "Azure DevOps integration commands."
+  ["Azure DevOps Commands"
+   ("s" "Sync" beads-ado-sync)
+   ("S" "Status" beads-ado-status)
+   ("p" "Projects" beads-ado-projects)])
+
 (provide 'beads-command-integrations)
 ;;; beads-command-integrations.el ends here
