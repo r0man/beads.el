@@ -361,6 +361,13 @@ Checks contexts in order:
    ;; 5. Text at point (button or regexp)
    (beads--issue-id-at-text-point)))
 
+(defun beads-issue-at-point-or-read (prompt)
+  "Return the beads issue ID at point, or prompt with PROMPT.
+Try `beads-issue-at-point' first; fall back to `completing-read'
+using `beads-completion-read-issue'."
+  (or (beads-issue-at-point)
+      (beads-completion-read-issue prompt nil t)))
+
 ;;;###autoload
 (defun beads-current-project-root ()
   "Return the beads project root directory for the current buffer, or nil.
@@ -556,6 +563,17 @@ Returns a propertized string showing project and database info."
       (propertize "No beads project found in current directory"
                  'face 'warning))))
 
+;;; Context Predicates
+
+(defun beads--in-beads-buffer-p ()
+  "Return non-nil when current buffer is a beads buffer.
+Used as :if predicate for context-aware transient groups."
+  (derived-mode-p 'beads-list-mode
+                  'beads-show-mode
+                  'beads-epic-status-mode
+                  'beads-formula-list-mode
+                  'beads-formula-show-mode))
+
 ;;; Menu Refresh
 
 (transient-define-suffix beads-refresh-menu ()
@@ -566,7 +584,9 @@ Returns a propertized string showing project and database info."
   (beads-main--clear-cache)
   (message "Menu refreshed"))
 
-;;; More Commands Sub-dispatch
+;;; Legacy More Commands Sub-dispatch (deprecated)
+;; All commands are now in beads-ops-menu and beads-advanced-menu.
+;; This is kept temporarily for backwards compatibility.
 
 ;;;###autoload
 (transient-define-prefix beads-more-menu ()
@@ -578,7 +598,7 @@ into logical groups for easy access."
    ("o" "Reopen issue" beads-reopen)
    ("D" "Delete issue" beads-delete)
    ("e" "Edit field" beads-edit)
-   ("I" "Create (form)" beads-create-form)
+   ("I" "Create (transient)" beads-create)
    ("Q" "Quick capture (q)" beads-q)
    ("O" "Move issue" beads-move)
    ("B" "Refile issue" beads-refile)
@@ -595,6 +615,7 @@ into logical groups for easy access."
    ("U" "Undefer issue" beads-undefer)
    ("H" "Ship capability" beads-ship)]
   ["Views & Reports"
+   ("l" "List (advanced)" beads-list-advanced)
    ("t" "Stats/Status" beads-stats)
    ("C" "Count issues" beads-count)
    ("S" "Stale issues" beads-stale)
@@ -604,7 +625,7 @@ into logical groups for easy access."
    ("]" "Issue types" beads-types)
    ("<" "Find duplicates (AI)" beads-find-duplicates)
    ("v" "Graph (visual)" beads-graph-all)
-   ("E" "Epic status" beads-epic)]
+   ("E" "Epic menu" beads-epic-menu)]
   ["Agent, Slots & Audit"
    ("@" "Slot menu" beads-slot)
    ("=" "Comments" beads-comments-menu)
@@ -618,8 +639,6 @@ into logical groups for easy access."
    ("0" "Preflight check" beads-preflight)
    ("-" "Upgrade bd" beads-upgrade)
    ("P" "Rename prefix" beads-rename-prefix)
-   (":" "Repair database" beads-repair)
-   (";" "Resolve conflicts" beads-resolve-conflicts)
    ("nc" "Compact menu" beads-compact)
    ("nf" "Flatten Dolt" beads-flatten)
    ("ng" "Garbage collect" beads-gc)
@@ -641,11 +660,14 @@ into logical groups for easy access."
   ["Integrations"
    ("j" "Jira" beads-jira)
    ("N" "Linear" beads-linear)
+   ("G" "GitHub" beads-github)
    ("yl" "GitLab" beads-gitlab)
    ("R" "Repo" beads-repo)
    ("*" "Mail delegate" beads-mail)]
   ["Setup & Config"
    ("i" "Init project" beads-init)
+   ("ib" "Bootstrap" beads-bootstrap)
+   ("ic" "Context" beads-context)
    ("?" "Quickstart" beads-quickstart)
    ("h" "Hooks menu" beads-hooks)
    ("!" "Info/Debug" beads-info)
@@ -681,8 +703,8 @@ into a compact hierarchical structure with sub-dispatches."
    ("" "" ignore :if (lambda () nil))]
   [["Issues"
     ("l" "List" beads-list)
-    ("c" "Create" beads-create)
-    ("s" "Status" beads-status)
+    ("c" "Create" beads-compose-create)
+    ("/" "Search" beads-search)
     ("S" "Show" beads-show)
     ("u" "Update" beads-update)
     ("x" "Close" beads-close)]
@@ -690,17 +712,31 @@ into a compact hierarchical structure with sub-dispatches."
     ("r" "Ready" beads-ready)
     ("b" "Blocked" beads-blocked)
     ("d" "Dependencies" beads-dep)
-    ("F" "Formula" beads-formula-menu)
-    ("m" "Molecule" beads-mol)]
+    ("e" "Edit" beads-edit)
+    ("o" "Reopen" beads-reopen)]
+   ["Views"
+    ("s" "Status" beads-status)
+    ("v" "Graph" beads-graph-all)
+    ("E" "Epic" beads-epic-menu)
+    ("H" "History" beads-history)
+    ("D" "Diff" beads-diff)]
    ["Manage"
-    ("L" "Labels" beads-label)
-    ("A" "Agents" beads-agent-menu)
-    ("." "Config" beads-config)
-    ("k" "Dolt" beads-dolt)]
+    ("L" "Labels" beads-label-menu)
+    ("F" "Formula" beads-formula-menu)
+    ("m" "Molecule" beads-mol)
+    ("k" "Dolt" beads-dolt)
+    ("." "Config" beads-config)]]
+  [["Context"
+    :if beads--in-beads-buffer-p
+    ("#" "Set priority" beads-actions-set-priority)
+    ("C" "Claim" beads-actions-claim)
+    ("?" "Actions..." beads-show-actions)]
    ["Extensions"
-    ("G" "Gas Town" gastown :if (lambda () (featurep 'gastown)))]
+    ("G" "Gas Town" gastown :if (lambda () (featurep 'gastown)))
+    ("A" "Agents" beads-agent-menu)]
    ["Actions"
-    ("!" "More..." beads-more-menu)
+    ("!" "Ops..." beads-ops-menu)
+    (">" "Advanced..." beads-advanced-menu)
     ("g" "Refresh" beads-refresh-menu)
     ("q" "Quit" transient-quit-one)]])
 
@@ -759,9 +795,27 @@ or set `beads-executable' to the full path" beads-executable)))
 ;;;###autoload
 (autoload 'beads-list "beads-command-list" nil t)
 ;;;###autoload
+(autoload 'beads-list-advanced "beads-command-list" nil t)
+;;;###autoload
 (autoload 'beads-ready "beads-command-list" nil t)
 ;;;###autoload
 (autoload 'beads-blocked "beads-command-list" nil t)
+
+;; beads-ops-menu
+;;;###autoload
+(autoload 'beads-ops-menu "beads-ops-menu" nil t)
+
+;; beads-advanced-menu
+;;;###autoload
+(autoload 'beads-advanced-menu "beads-advanced-menu" nil t)
+
+;; beads-compose
+;;;###autoload
+(autoload 'beads-compose-create "beads-compose" nil t)
+;;;###autoload
+(autoload 'beads-compose-edit "beads-compose" nil t)
+;;;###autoload
+(autoload 'beads-compose-comment "beads-compose" nil t)
 
 ;; beads-command-create
 ;;;###autoload
@@ -790,6 +844,16 @@ or set `beads-executable' to the full path" beads-executable)))
 ;; beads-command-show
 ;;;###autoload
 (autoload 'beads-show "beads-command-show" nil t)
+;;;###autoload
+(autoload 'beads-show-actions "beads-command-show" nil t)
+
+;; beads-actions
+;;;###autoload
+(autoload 'beads-actions-claim "beads-actions" nil t)
+;;;###autoload
+(autoload 'beads-actions-set-status "beads-actions" nil t)
+;;;###autoload
+(autoload 'beads-actions-set-priority "beads-actions" nil t)
 
 ;; beads-command-edit
 ;;;###autoload
@@ -924,6 +988,8 @@ or set `beads-executable' to the full path" beads-executable)))
 ;; beads-command-epic
 ;;;###autoload
 (autoload 'beads-epic "beads-command-epic" nil t)
+;;;###autoload
+(autoload 'beads-epic-menu "beads-command-epic" nil t)
 
 ;; beads-command-swarm
 ;;;###autoload
@@ -955,7 +1021,7 @@ or set `beads-executable' to the full path" beads-executable)))
 
 ;; beads-command-label
 ;;;###autoload
-(autoload 'beads-label "beads-command-label" nil t)
+(autoload 'beads-label-menu "beads-command-label" nil t)
 
 ;; beads-command-misc — miscellaneous commands referenced from main menu
 ;;;###autoload

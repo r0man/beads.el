@@ -921,5 +921,16 @@
         (should (string-match-p "Eligible for closure" text))
         (should (string-match-p "100%" text))))))
 
+;;; Epic Transient Dispatch Tests
+
+(ert-deftest beads-epic-status-test-epic-menu-defined ()
+  "Test beads-epic-menu transient is defined."
+  (should (fboundp 'beads-epic-menu)))
+
+(ert-deftest beads-epic-status-test-epic-menu-has-status ()
+  "Test beads-epic-menu has status suffix."
+  (let ((obj (get 'beads-epic-menu 'transient--prefix)))
+    (should obj)))
+
 (provide 'beads-epic-status-test)
 ;;; beads-epic-status-test.el ends here

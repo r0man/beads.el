@@ -157,6 +157,19 @@ Use --dry-run to preview what would be closed without making changes."
   beads-option-global-section)
 
 ;;; ============================================================
+;;; Epic Transient Dispatch
+;;; ============================================================
+
+;;;###autoload (autoload 'beads-epic-menu "beads-command-epic" nil t)
+(transient-define-prefix beads-epic-menu ()
+  "Manage epics.
+
+View epic status and close eligible epics."
+  ["Epic Commands"
+   ("s" "Status overview" beads-epic)
+   ("c" "Close eligible" beads-epic-close-eligible-transient)])
+
+;;; ============================================================
 ;;; Epic Status Interactive UI
 ;;; ============================================================
 
