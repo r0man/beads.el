@@ -535,6 +535,32 @@ Shows PR readiness checklist.")
   :documentation "Represents bd upgrade command.
 Check and manage bd version upgrades.")
 
+;;; ============================================================
+;;; Command Class: beads-command-upgrade-status
+;;; ============================================================
+
+(beads-defcommand beads-command-upgrade-status (beads-command-global-options)
+  ()
+  :documentation "Represents bd upgrade status command.
+Check if bd has been upgraded since last use.")
+
+;;; ============================================================
+;;; Command Class: beads-command-upgrade-review
+;;; ============================================================
+
+(beads-defcommand beads-command-upgrade-review (beads-command-global-options)
+  ()
+  :documentation "Represents bd upgrade review command.
+Show what's new in bd since the last version you used.")
+
+;;; ============================================================
+;;; Command Class: beads-command-upgrade-ack
+;;; ============================================================
+
+(beads-defcommand beads-command-upgrade-ack (beads-command-global-options)
+  ()
+  :documentation "Represents bd upgrade ack command.
+Acknowledge the current bd version to suppress upgrade notifications.")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-rename-prefix
@@ -723,10 +749,35 @@ Delegates to mail provider.")
   "Show PR readiness checklist."
   beads-option-global-section)
 
-;;;###autoload (autoload 'beads-upgrade "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-upgrade "beads-upgrade"
-  "Check and manage version upgrades."
+;;;###autoload (autoload 'beads-upgrade-status "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-upgrade-status "beads-upgrade-status"
+  "Check if bd has been upgraded since last use."
   beads-option-global-section)
+
+;;;###autoload (autoload 'beads-upgrade-review "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-upgrade-review "beads-upgrade-review"
+  "Show what's new in bd since the last version you used."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-upgrade-ack "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-upgrade-ack "beads-upgrade-ack"
+  "Acknowledge the current bd version."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-upgrade "beads-command-misc" nil t)
+(transient-define-prefix beads-upgrade ()
+  "Check and manage bd version upgrades.
+
+Version tracking is automatic - bd updates metadata.json on every run.
+  Status: Check if bd version has changed since last use
+  Review: Show all changes since your last version
+  Ack: Acknowledge the current version"
+  ["Upgrade"
+   ("s" "Status (check if upgraded)" beads-upgrade-status)
+   ("r" "Review (show changes since last version)" beads-upgrade-review)
+   ("a" "Ack (acknowledge current version)" beads-upgrade-ack)]
+  ["Quick Actions"
+   ("q" "Quit" transient-quit-one)])
 
 ;;;###autoload (autoload 'beads-rename-prefix "beads-command-misc" nil t)
 (beads-meta-define-transient beads-command-rename-prefix "beads-rename-prefix"

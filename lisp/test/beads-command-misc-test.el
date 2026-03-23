@@ -244,6 +244,69 @@
          (args (beads-command-line cmd)))
     (should (member "upgrade" args))))
 
+;;; Unit Tests: beads-command-upgrade-status command-line
+
+(ert-deftest beads-command-upgrade-status-test-class-exists ()
+  "Unit test: beads-command-upgrade-status class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-upgrade-status)))
+
+(ert-deftest beads-command-upgrade-status-test-subcommand ()
+  "Unit test: upgrade status subcommand is 'upgrade status'."
+  :tags '(:unit)
+  (let ((cmd (beads-command-upgrade-status)))
+    (should (equal (beads-command-subcommand cmd) "upgrade status"))))
+
+(ert-deftest beads-command-upgrade-status-test-command-line ()
+  "Unit test: upgrade status builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-upgrade-status))
+         (args (beads-command-line cmd)))
+    (should (member "upgrade" args))
+    (should (member "status" args))))
+
+;;; Unit Tests: beads-command-upgrade-review command-line
+
+(ert-deftest beads-command-upgrade-review-test-class-exists ()
+  "Unit test: beads-command-upgrade-review class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-upgrade-review)))
+
+(ert-deftest beads-command-upgrade-review-test-subcommand ()
+  "Unit test: upgrade review subcommand is 'upgrade review'."
+  :tags '(:unit)
+  (let ((cmd (beads-command-upgrade-review)))
+    (should (equal (beads-command-subcommand cmd) "upgrade review"))))
+
+(ert-deftest beads-command-upgrade-review-test-command-line ()
+  "Unit test: upgrade review builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-upgrade-review))
+         (args (beads-command-line cmd)))
+    (should (member "upgrade" args))
+    (should (member "review" args))))
+
+;;; Unit Tests: beads-command-upgrade-ack command-line
+
+(ert-deftest beads-command-upgrade-ack-test-class-exists ()
+  "Unit test: beads-command-upgrade-ack class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-upgrade-ack)))
+
+(ert-deftest beads-command-upgrade-ack-test-subcommand ()
+  "Unit test: upgrade ack subcommand is 'upgrade ack'."
+  :tags '(:unit)
+  (let ((cmd (beads-command-upgrade-ack)))
+    (should (equal (beads-command-subcommand cmd) "upgrade ack"))))
+
+(ert-deftest beads-command-upgrade-ack-test-command-line ()
+  "Unit test: upgrade ack builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-upgrade-ack))
+         (args (beads-command-line cmd)))
+    (should (member "upgrade" args))
+    (should (member "ack" args))))
+
 ;;; Unit Tests: beads-command-rename-prefix command-line
 
 (ert-deftest beads-command-rename-prefix-test-command-line-basic ()
