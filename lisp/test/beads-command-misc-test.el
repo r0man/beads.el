@@ -882,5 +882,141 @@
     (should (member "kv" args))
     (should (member "list" args))))
 
+;;; Unit Tests: beads-command-human-list
+
+(ert-deftest beads-command-human-list-test-class-exists ()
+  "Unit test: beads-command-human-list class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-human-list)))
+
+(ert-deftest beads-command-human-list-test-subcommand ()
+  "Unit test: human list subcommand is 'human list'."
+  :tags '(:unit)
+  (let ((cmd (beads-command-human-list)))
+    (should (equal (beads-command-subcommand cmd) "human list"))))
+
+(ert-deftest beads-command-human-list-test-command-line ()
+  "Unit test: human list builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-human-list))
+         (args (beads-command-line cmd)))
+    (should (member "human" args))
+    (should (member "list" args))))
+
+(ert-deftest beads-command-human-list-test-command-line-with-status ()
+  "Unit test: human list builds correct command line with status filter."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-human-list :status "open"))
+         (args (beads-command-line cmd)))
+    (should (member "human" args))
+    (should (member "list" args))
+    (should (member "--status" args))
+    (should (member "open" args))))
+
+;;; Unit Tests: beads-command-human-respond
+
+(ert-deftest beads-command-human-respond-test-class-exists ()
+  "Unit test: beads-command-human-respond class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-human-respond)))
+
+(ert-deftest beads-command-human-respond-test-subcommand ()
+  "Unit test: human respond subcommand is 'human respond'."
+  :tags '(:unit)
+  (let ((cmd (beads-command-human-respond)))
+    (should (equal (beads-command-subcommand cmd) "human respond"))))
+
+(ert-deftest beads-command-human-respond-test-command-line ()
+  "Unit test: human respond builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-human-respond
+               :issue-id "bd-123"
+               :response "Use OAuth2"))
+         (args (beads-command-line cmd)))
+    (should (member "human" args))
+    (should (member "respond" args))))
+
+(ert-deftest beads-command-human-respond-test-validation-missing-issue-id ()
+  "Unit test: human respond validation fails without issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-human-respond :response "Some response")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-human-respond-test-validation-missing-response ()
+  "Unit test: human respond validation fails without response."
+  :tags '(:unit)
+  (let ((cmd (beads-command-human-respond :issue-id "bd-123")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-human-respond-test-validation-with-all-required ()
+  "Unit test: human respond validation passes with issue-id and response."
+  :tags '(:unit)
+  (let ((cmd (beads-command-human-respond
+              :issue-id "bd-123"
+              :response "Use OAuth2")))
+    (should-not (beads-command-validate cmd))))
+
+;;; Unit Tests: beads-command-human-dismiss
+
+(ert-deftest beads-command-human-dismiss-test-class-exists ()
+  "Unit test: beads-command-human-dismiss class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-human-dismiss)))
+
+(ert-deftest beads-command-human-dismiss-test-subcommand ()
+  "Unit test: human dismiss subcommand is 'human dismiss'."
+  :tags '(:unit)
+  (let ((cmd (beads-command-human-dismiss)))
+    (should (equal (beads-command-subcommand cmd) "human dismiss"))))
+
+(ert-deftest beads-command-human-dismiss-test-command-line ()
+  "Unit test: human dismiss builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-human-dismiss :issue-id "bd-123"))
+         (args (beads-command-line cmd)))
+    (should (member "human" args))
+    (should (member "dismiss" args))))
+
+(ert-deftest beads-command-human-dismiss-test-validation-missing-issue-id ()
+  "Unit test: human dismiss validation fails without issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-human-dismiss)))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-human-dismiss-test-validation-with-issue-id ()
+  "Unit test: human dismiss validation passes with issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-human-dismiss :issue-id "bd-123")))
+    (should-not (beads-command-validate cmd))))
+
+(ert-deftest beads-command-human-dismiss-test-validation-with-reason ()
+  "Unit test: human dismiss validation passes with issue-id and reason."
+  :tags '(:unit)
+  (let ((cmd (beads-command-human-dismiss
+              :issue-id "bd-123"
+              :reason "No longer applicable")))
+    (should-not (beads-command-validate cmd))))
+
+;;; Unit Tests: beads-command-human-stats
+
+(ert-deftest beads-command-human-stats-test-class-exists ()
+  "Unit test: beads-command-human-stats class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-human-stats)))
+
+(ert-deftest beads-command-human-stats-test-subcommand ()
+  "Unit test: human stats subcommand is 'human stats'."
+  :tags '(:unit)
+  (let ((cmd (beads-command-human-stats)))
+    (should (equal (beads-command-subcommand cmd) "human stats"))))
+
+(ert-deftest beads-command-human-stats-test-command-line ()
+  "Unit test: human stats builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-human-stats))
+         (args (beads-command-line cmd)))
+    (should (member "human" args))
+    (should (member "stats" args))))
+
 (provide 'beads-command-misc-test)
 ;;; beads-command-misc-test.el ends here

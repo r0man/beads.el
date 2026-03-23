@@ -734,6 +734,149 @@ Delegates to mail provider.")
   "Show essential commands for humans."
   beads-option-global-section)
 
+;;; Command Class: beads-command-human-list
+;;; ============================================================
+
+(beads-defcommand beads-command-human-list (beads-command-global-options)
+  ((status
+    :initarg :status
+    :type (or null string)
+    :initform nil
+    :documentation "Filter by status (open, closed, etc.)."
+    :long-option "status"
+    :option-type :string
+    :key "s"
+    :transient "--status"
+    :class transient-option
+    :argument "--status="
+    :prompt "Status (open/closed): "
+    :transient-group "Options"
+    :level 1
+    :order 1))
+  :documentation "Represents bd human list command.
+Lists all issues labeled with the human tag.")
+
+;;;###autoload (autoload 'beads-human-list "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-human-list "beads-human-list"
+  "List all human-needed beads."
+  beads-option-global-section)
+
+;;; Command Class: beads-command-human-respond
+;;; ============================================================
+
+(beads-defcommand beads-command-human-respond (beads-command-global-options)
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID to respond to (required)."
+    :positional 1
+    :option-type :string
+    :key "i"
+    :transient "Issue ID (required)"
+    :class transient-option
+    :argument "--issue-id="
+    :prompt "Issue ID: "
+    :transient-group "Options"
+    :level 1
+    :order 1
+    :required t)
+   (response
+    :initarg :response
+    :type (or null string)
+    :initform nil
+    :documentation "Response text to add as comment (required)."
+    :option-type :string
+    :key "r"
+    :transient "Response text (required)"
+    :class transient-option
+    :argument "--response="
+    :prompt "Response: "
+    :transient-group "Options"
+    :level 1
+    :order 2
+    :required t))
+  :documentation "Represents bd human respond command.
+Responds to a human-needed bead by adding a comment and closing it.")
+
+(cl-defmethod beads-command-validate ((command beads-command-human-respond))
+  "Validate human respond COMMAND.  Requires issue-id and response."
+  (with-slots (issue-id response) command
+    (cond
+     ((not issue-id) "Issue ID is required")
+     ((string-empty-p issue-id) "Issue ID cannot be empty")
+     ((not response) "Response text is required")
+     ((string-empty-p response) "Response text cannot be empty")
+     (t nil))))
+
+;;;###autoload (autoload 'beads-human-respond "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-human-respond "beads-human-respond"
+  "Respond to a human-needed bead."
+  beads-option-global-section)
+
+;;; Command Class: beads-command-human-dismiss
+;;; ============================================================
+
+(beads-defcommand beads-command-human-dismiss (beads-command-global-options)
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID to dismiss (required)."
+    :positional 1
+    :option-type :string
+    :key "i"
+    :transient "Issue ID (required)"
+    :class transient-option
+    :argument "--issue-id="
+    :prompt "Issue ID: "
+    :transient-group "Options"
+    :level 1
+    :order 1
+    :required t)
+   (reason
+    :initarg :reason
+    :type (or null string)
+    :initform nil
+    :documentation "Reason for dismissal (optional)."
+    :option-type :string
+    :key "r"
+    :transient "Reason (optional)"
+    :class transient-option
+    :argument "--reason="
+    :prompt "Reason: "
+    :transient-group "Options"
+    :level 1
+    :order 2))
+  :documentation "Represents bd human dismiss command.
+Dismisses a human-needed bead permanently without responding.")
+
+(cl-defmethod beads-command-validate ((command beads-command-human-dismiss))
+  "Validate human dismiss COMMAND.  Requires issue-id."
+  (with-slots (issue-id) command
+    (cond
+     ((not issue-id) "Issue ID is required")
+     ((string-empty-p issue-id) "Issue ID cannot be empty")
+     (t nil))))
+
+;;;###autoload (autoload 'beads-human-dismiss "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-human-dismiss "beads-human-dismiss"
+  "Dismiss a human-needed bead permanently."
+  beads-option-global-section)
+
+;;; Command Class: beads-command-human-stats
+;;; ============================================================
+
+(beads-defcommand beads-command-human-stats (beads-command-global-options)
+  ()
+  :documentation "Represents bd human stats command.
+Shows summary statistics for human-needed beads.")
+
+;;;###autoload (autoload 'beads-human-stats "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-human-stats "beads-human-stats"
+  "Show summary statistics for human-needed beads."
+  beads-option-global-section)
+
 ;;;###autoload (autoload 'beads-onboard "beads-command-misc" nil t)
 (beads-meta-define-transient beads-command-onboard "beads-onboard"
   "Display minimal snippet for AGENTS.md."
