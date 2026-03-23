@@ -46,23 +46,6 @@
          (args (beads-command-line cmd)))
     (should (member "--inspect" args))))
 
-;;; Unit Tests: beads-command-migrate-hash-ids command-line
-
-(ert-deftest beads-command-migrate-hash-ids-test-command-line-basic ()
-  "Unit test: migrate hash-ids builds correct command line."
-  :tags '(:unit)
-  (let* ((cmd (beads-command-migrate-hash-ids))
-         (args (beads-command-line cmd)))
-    (should (member "migrate" args))
-    (should (member "hash-ids" args))))
-
-(ert-deftest beads-command-migrate-hash-ids-test-command-line-dry-run ()
-  "Unit test: migrate hash-ids includes --dry-run option."
-  :tags '(:unit)
-  (let* ((cmd (beads-command-migrate-hash-ids :dry-run t))
-         (args (beads-command-line cmd)))
-    (should (member "--dry-run" args))))
-
 ;;; Unit Tests: beads-command-migrate-issues command-line
 
 (ert-deftest beads-command-migrate-issues-test-command-line-basic ()
@@ -84,23 +67,6 @@
          (args (beads-command-line cmd)))
     (should (member "migrate" args))
     (should (member "sync" args))))
-
-;;; Unit Tests: beads-command-migrate-tombstones command-line
-
-(ert-deftest beads-command-migrate-tombstones-test-command-line-basic ()
-  "Unit test: migrate tombstones builds correct command line."
-  :tags '(:unit)
-  (let* ((cmd (beads-command-migrate-tombstones))
-         (args (beads-command-line cmd)))
-    (should (member "migrate" args))
-    (should (member "tombstones" args))))
-
-(ert-deftest beads-command-migrate-tombstones-test-command-line-dry-run ()
-  "Unit test: migrate tombstones includes --dry-run option."
-  :tags '(:unit)
-  (let* ((cmd (beads-command-migrate-tombstones :dry-run t))
-         (args (beads-command-line cmd)))
-    (should (member "--dry-run" args))))
 
 (provide 'beads-command-migrate-test)
 ;;; beads-command-migrate-test.el ends here

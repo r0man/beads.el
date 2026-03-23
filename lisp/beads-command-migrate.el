@@ -100,29 +100,6 @@ Detects and migrates database schema to current version.")
 
 
 ;;; ============================================================
-;;; Command Class: beads-command-migrate-hash-ids
-;;; ============================================================
-
-(beads-defcommand beads-command-migrate-hash-ids (beads-command-global-options)
-  ((dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Show what would be done."
-    :long-option "dry-run"
-    :option-type :boolean
-    :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :transient-group "Options"
-    :level 1
-    :order 1))
-  :documentation "Represents bd migrate hash-ids command.
-Migrates sequential IDs to hash-based IDs (legacy)."
-  :cli-command "migrate hash-ids")
-
-;;; ============================================================
 ;;; Command Class: beads-command-migrate-issues
 ;;; ============================================================
 
@@ -153,29 +130,6 @@ Moves issues between repositories.")
 Migrates to sync.branch workflow for multi-clone setups.")
 
 
-;;; ============================================================
-;;; Command Class: beads-command-migrate-tombstones
-;;; ============================================================
-
-(beads-defcommand beads-command-migrate-tombstones (beads-command-global-options)
-  ((dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Show what would be done."
-    :long-option "dry-run"
-    :option-type :boolean
-    :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :transient-group "Options"
-    :level 1
-    :order 1))
-  :documentation "Represents bd migrate tombstones command.
-Converts deletions.jsonl to inline tombstones.")
-
-
 ;;; Execute Interactive Methods
 
 
@@ -190,11 +144,6 @@ Converts deletions.jsonl to inline tombstones.")
   "Detect and migrate database schema."
   beads-option-global-section)
 
-;;;###autoload (autoload 'beads-migrate-hash-ids "beads-command-migrate" nil t)
-(beads-meta-define-transient beads-command-migrate-hash-ids "beads-migrate-hash-ids"
-  "Migrate sequential IDs to hash-based IDs."
-  beads-option-global-section)
-
 ;;;###autoload (autoload 'beads-migrate-issues "beads-command-migrate" nil t)
 (beads-meta-define-transient beads-command-migrate-issues "beads-migrate-issues"
   "Move issues between repositories."
@@ -203,11 +152,6 @@ Converts deletions.jsonl to inline tombstones.")
 ;;;###autoload (autoload 'beads-migrate-sync "beads-command-migrate" nil t)
 (beads-meta-define-transient beads-command-migrate-sync "beads-migrate-sync"
   "Migrate to sync.branch workflow."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-migrate-tombstones "beads-command-migrate" nil t)
-(beads-meta-define-transient beads-command-migrate-tombstones "beads-migrate-tombstones"
-  "Convert deletions.jsonl to inline tombstones."
   beads-option-global-section)
 
 ;;; Migrate Hooks Command
@@ -271,11 +215,9 @@ Analyze git hook files and migrate to marker-managed format."
   "Database migration commands."
   ["Migrate Commands"
    ("m" "Auto-migrate" beads-migrate)
-   ("h" "Hash IDs (legacy)" beads-migrate-hash-ids)
    ("H" "Hooks" beads-migrate-hooks)
    ("i" "Move issues" beads-migrate-issues)
-   ("s" "Sync workflow" beads-migrate-sync)
-   ("t" "Tombstones" beads-migrate-tombstones)])
+   ("s" "Sync workflow" beads-migrate-sync)])
 
 (provide 'beads-command-migrate)
 ;;; beads-command-migrate.el ends here
