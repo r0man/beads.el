@@ -184,6 +184,197 @@ Creates or manages wisps (ephemeral molecules).")
 
 
 ;;; ============================================================
+;;; Command Class: beads-command-mol-wisp-create
+;;; ============================================================
+
+(beads-defcommand beads-command-mol-wisp-create (beads-command-global-options)
+  ((proto-id
+    :initarg :proto-id
+    :type (or null string)
+    :initform nil
+    :documentation "Proto ID to instantiate as wisp."
+    :positional 1)
+   (dry-run
+    :initarg :dry-run
+    :type boolean
+    :initform nil
+    :documentation "Preview without creating."
+    :long-option "dry-run"
+    :option-type :boolean
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
+    :transient-group "Options"
+    :level 1
+    :order 1)
+   (root-only
+    :initarg :root-only
+    :type boolean
+    :initform nil
+    :documentation "Create only root issue, no child step issues."
+    :long-option "root-only"
+    :option-type :boolean
+    :key "r"
+    :transient "--root-only"
+    :class transient-switch
+    :argument "--root-only"
+    :transient-group "Options"
+    :level 1
+    :order 2)
+   (var
+    :initarg :var
+    :type list
+    :initform nil
+    :documentation "Variable substitutions (key=value)."
+    :long-option "var"
+    :option-type :list
+    :key "v"
+    :transient "--var"
+    :class transient-option
+    :argument "--var="
+    :prompt "Variable (key=value): "
+    :transient-group "Options"
+    :level 1
+    :order 3))
+  :documentation "Represents bd mol wisp create command.
+Instantiates a proto as an ephemeral wisp (solid -> vapor).")
+
+
+;;; ============================================================
+;;; Command Class: beads-command-mol-wisp-list
+;;; ============================================================
+
+(beads-defcommand beads-command-mol-wisp-list (beads-command-global-options)
+  ((show-all
+    :initarg :show-all
+    :type boolean
+    :initform nil
+    :documentation "Include closed wisps."
+    :long-option "all"
+    :option-type :boolean
+    :key "a"
+    :transient "--all"
+    :class transient-switch
+    :argument "--all"
+    :transient-group "Options"
+    :level 1
+    :order 1)
+   (type-filter
+    :initarg :type-filter
+    :type (or null string)
+    :initform nil
+    :documentation "Filter by issue type (e.g., agent, task, patrol)."
+    :long-option "type"
+    :option-type :string
+    :key "t"
+    :transient "--type"
+    :class transient-option
+    :argument "--type="
+    :prompt "Issue type: "
+    :transient-group "Options"
+    :level 1
+    :order 2))
+  :documentation "Represents bd mol wisp list command.
+Lists all wisps (ephemeral molecules) in the current context.")
+
+
+;;; ============================================================
+;;; Command Class: beads-command-mol-wisp-gc
+;;; ============================================================
+
+(beads-defcommand beads-command-mol-wisp-gc (beads-command-global-options)
+  ((dry-run
+    :initarg :dry-run
+    :type boolean
+    :initform nil
+    :documentation "Preview what would be cleaned."
+    :long-option "dry-run"
+    :option-type :boolean
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
+    :transient-group "Options"
+    :level 1
+    :order 1)
+   (age
+    :initarg :age
+    :type (or null string)
+    :initform nil
+    :documentation "Age threshold for abandoned wisp detection (default: 1h)."
+    :long-option "age"
+    :option-type :string
+    :key "A"
+    :transient "--age"
+    :class transient-option
+    :argument "--age="
+    :prompt "Age threshold (e.g., 1h, 30m): "
+    :transient-group "Options"
+    :level 1
+    :order 2)
+   (show-all
+    :initarg :show-all
+    :type boolean
+    :initform nil
+    :documentation "Also clean closed wisps older than threshold."
+    :long-option "all"
+    :option-type :boolean
+    :key "a"
+    :transient "--all"
+    :class transient-switch
+    :argument "--all"
+    :transient-group "Options"
+    :level 1
+    :order 3)
+   (closed
+    :initarg :closed
+    :type boolean
+    :initform nil
+    :documentation "Delete all closed wisps (ignores --age threshold)."
+    :long-option "closed"
+    :option-type :boolean
+    :key "c"
+    :transient "--closed"
+    :class transient-switch
+    :argument "--closed"
+    :transient-group "Options"
+    :level 1
+    :order 4)
+   (force
+    :initarg :force
+    :type boolean
+    :initform nil
+    :documentation "Actually delete (default: preview only)."
+    :long-option "force"
+    :option-type :boolean
+    :key "f"
+    :transient "--force"
+    :class transient-switch
+    :argument "--force"
+    :transient-group "Options"
+    :level 1
+    :order 5)
+   (exclude-type
+    :initarg :exclude-type
+    :type list
+    :initform nil
+    :documentation "Exclude wisps of these types from GC (e.g., agent,rig)."
+    :long-option "exclude-type"
+    :option-type :list
+    :key "e"
+    :transient "--exclude-type"
+    :class transient-option
+    :argument "--exclude-type="
+    :prompt "Exclude type: "
+    :transient-group "Options"
+    :level 1
+    :order 6))
+  :documentation "Represents bd mol wisp gc command.
+Garbage-collects abandoned or closed wisps.")
+
+
+;;; ============================================================
 ;;; Command Class: beads-command-mol-bond
 ;;; ============================================================
 
@@ -590,6 +781,21 @@ Detects complete-but-unclosed molecules.")
 ;;;###autoload (autoload 'beads-mol-wisp "beads-command-mol" nil t)
 (beads-meta-define-transient beads-command-mol-wisp "beads-mol-wisp"
   "Create ephemeral molecule (wisp)."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-mol-wisp-create "beads-command-mol" nil t)
+(beads-meta-define-transient beads-command-mol-wisp-create "beads-mol-wisp-create"
+  "Instantiate a proto as a wisp (solid -> vapor)."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-mol-wisp-list "beads-command-mol" nil t)
+(beads-meta-define-transient beads-command-mol-wisp-list "beads-mol-wisp-list"
+  "List all wisps in current context."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-mol-wisp-gc "beads-command-mol" nil t)
+(beads-meta-define-transient beads-command-mol-wisp-gc "beads-mol-wisp-gc"
+  "Garbage-collect abandoned or closed wisps."
   beads-option-global-section)
 
 ;;;###autoload (autoload 'beads-mol-bond "beads-command-mol" nil t)
