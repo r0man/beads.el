@@ -852,6 +852,162 @@ Manages TODO items (convenience wrapper for task issues).")
   "Manage TODO items."
   beads-option-global-section)
 
+;;; ============================================================
+;;; Command Class: beads-command-todo-add
+;;; ============================================================
+
+(beads-defcommand beads-command-todo-add (beads-command-global-options)
+  ((title
+    :initarg :title
+    :type (or null string)
+    :initform nil
+    :documentation "Title of the TODO item (positional arg)."
+    :positional 1
+    :option-type :string
+    :key "T"
+    :transient "Title (required)"
+    :class transient-option
+    :argument "--title="
+    :prompt "TODO title: "
+    :transient-group "Add TODO"
+    :level 1
+    :order 1
+    :required t)
+   (priority
+    :initarg :priority
+    :type (or null string)
+    :initform nil
+    :documentation "Priority (-p, --priority).
+Values: 0-4. Default: 2."
+    :long-option "priority"
+    :short-option "p"
+    :option-type :string
+    :key "p"
+    :transient "--priority"
+    :class transient-option
+    :argument "--priority="
+    :prompt "Priority (0-4): "
+    :transient-reader beads-reader-issue-priority
+    :transient-group "Add TODO"
+    :level 2
+    :order 2)
+   (description
+    :initarg :description
+    :type (or null string)
+    :initform nil
+    :documentation "Description (-d, --description)."
+    :long-option "description"
+    :short-option "d"
+    :option-type :string
+    :key "D"
+    :transient "--description"
+    :class transient-option
+    :argument "--description="
+    :prompt "Description: "
+    :transient-group "Add TODO"
+    :level 2
+    :order 3))
+  :documentation "Represents bd todo add command.
+Adds a new TODO item (task issue with priority 2).")
+
+
+(cl-defmethod beads-command-validate ((command beads-command-todo-add))
+  "Validate todo add COMMAND.
+Checks that title is provided.
+Returns error string or nil if valid."
+  (with-slots (title) command
+    (if (or (null title) (string-empty-p title))
+        "Must provide a title"
+      nil)))
+
+;;;###autoload (autoload 'beads-todo-add "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-todo-add "beads-todo-add"
+  "Add a new TODO item."
+  beads-option-global-section)
+
+;;; ============================================================
+;;; Command Class: beads-command-todo-list
+;;; ============================================================
+
+(beads-defcommand beads-command-todo-list (beads-command-global-options)
+  ((all
+    :initarg :all
+    :type boolean
+    :initform nil
+    :documentation "Show all TODOs including completed (--all)."
+    :long-option "all"
+    :option-type :boolean
+    :key "a"
+    :transient "--all"
+    :class transient-switch
+    :argument "--all"
+    :transient-group "Options"
+    :level 1
+    :order 1))
+  :documentation "Represents bd todo list command.
+Lists TODO items (open task issues).")
+
+;;;###autoload (autoload 'beads-todo-list "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-todo-list "beads-todo-list"
+  "List TODO items."
+  beads-option-global-section)
+
+;;; ============================================================
+;;; Command Class: beads-command-todo-done
+;;; ============================================================
+
+(beads-defcommand beads-command-todo-done (beads-command-global-options)
+  ((issue-ids
+    :initarg :issue-ids
+    :type (or null list)
+    :initform nil
+    :documentation "One or more TODO issue IDs to mark done (positional)."
+    :positional 1
+    :option-type :list
+    :option-separator " "
+    :key "i"
+    :transient "Issue ID (required)"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID: "
+    :transient-reader beads-reader-issue-id
+    :transient-group "Mark Done"
+    :level 1
+    :order 1
+    :required t)
+   (reason
+    :initarg :reason
+    :type (or null string)
+    :initform nil
+    :documentation "Reason for closing (--reason). Default: Completed."
+    :long-option "reason"
+    :option-type :string
+    :key "r"
+    :transient "--reason"
+    :class transient-option
+    :argument "--reason="
+    :prompt "Reason: "
+    :transient-group "Mark Done"
+    :level 2
+    :order 2))
+  :documentation "Represents bd todo done command.
+Marks one or more TODO items as done.")
+
+
+(cl-defmethod beads-command-validate ((command beads-command-todo-done))
+  "Validate todo done COMMAND.
+Checks that at least one issue ID is provided.
+Returns error string or nil if valid."
+  (with-slots (issue-ids) command
+    (if (or (null issue-ids) (zerop (length issue-ids)))
+        "Must provide at least one issue ID"
+      nil)))
+
+;;;###autoload (autoload 'beads-todo-done "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-todo-done "beads-todo-done"
+  "Mark TODO items as done."
+  beads-option-global-section)
+
 ;;; Views & Reports — stubs
 
 (beads-defcommand beads-command-types (beads-command-global-options)
