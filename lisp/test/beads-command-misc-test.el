@@ -689,5 +689,135 @@
          (args (beads-command-line cmd)))
     (should (member "--dry-run" args))))
 
+;;; Unit Tests: beads-command-kv-get
+
+(ert-deftest beads-command-kv-get-test-class-exists ()
+  "Unit test: beads-command-kv-get class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-kv-get)))
+
+(ert-deftest beads-command-kv-get-test-subcommand ()
+  "Unit test: kv get subcommand is 'kv get'."
+  :tags '(:unit)
+  (let ((cmd (beads-command-kv-get)))
+    (should (equal (beads-command-subcommand cmd) "kv get"))))
+
+(ert-deftest beads-command-kv-get-test-command-line-with-key ()
+  "Unit test: kv get builds correct command line with key."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-kv-get :kv-key "mykey"))
+         (args (beads-command-line cmd)))
+    (should (member "kv" args))
+    (should (member "get" args))
+    (should (member "mykey" args))))
+
+(ert-deftest beads-command-kv-get-test-validation-missing-key ()
+  "Unit test: kv get validation fails without key."
+  :tags '(:unit)
+  (let ((cmd (beads-command-kv-get)))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-kv-get-test-validation-with-key ()
+  "Unit test: kv get validation passes with key."
+  :tags '(:unit)
+  (let ((cmd (beads-command-kv-get :kv-key "mykey")))
+    (should-not (beads-command-validate cmd))))
+
+;;; Unit Tests: beads-command-kv-set
+
+(ert-deftest beads-command-kv-set-test-class-exists ()
+  "Unit test: beads-command-kv-set class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-kv-set)))
+
+(ert-deftest beads-command-kv-set-test-subcommand ()
+  "Unit test: kv set subcommand is 'kv set'."
+  :tags '(:unit)
+  (let ((cmd (beads-command-kv-set)))
+    (should (equal (beads-command-subcommand cmd) "kv set"))))
+
+(ert-deftest beads-command-kv-set-test-command-line-with-key-and-value ()
+  "Unit test: kv set builds correct command line with key and value."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-kv-set :kv-key "mykey" :kv-value "myvalue"))
+         (args (beads-command-line cmd)))
+    (should (member "kv" args))
+    (should (member "set" args))
+    (should (member "mykey" args))
+    (should (member "myvalue" args))))
+
+(ert-deftest beads-command-kv-set-test-validation-missing-key ()
+  "Unit test: kv set validation fails without key."
+  :tags '(:unit)
+  (let ((cmd (beads-command-kv-set :kv-value "myvalue")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-kv-set-test-validation-missing-value ()
+  "Unit test: kv set validation fails without value."
+  :tags '(:unit)
+  (let ((cmd (beads-command-kv-set :kv-key "mykey")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-kv-set-test-validation-with-key-and-value ()
+  "Unit test: kv set validation passes with key and value."
+  :tags '(:unit)
+  (let ((cmd (beads-command-kv-set :kv-key "mykey" :kv-value "myvalue")))
+    (should-not (beads-command-validate cmd))))
+
+;;; Unit Tests: beads-command-kv-clear
+
+(ert-deftest beads-command-kv-clear-test-class-exists ()
+  "Unit test: beads-command-kv-clear class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-kv-clear)))
+
+(ert-deftest beads-command-kv-clear-test-subcommand ()
+  "Unit test: kv clear subcommand is 'kv clear'."
+  :tags '(:unit)
+  (let ((cmd (beads-command-kv-clear)))
+    (should (equal (beads-command-subcommand cmd) "kv clear"))))
+
+(ert-deftest beads-command-kv-clear-test-command-line-with-key ()
+  "Unit test: kv clear builds correct command line with key."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-kv-clear :kv-key "mykey"))
+         (args (beads-command-line cmd)))
+    (should (member "kv" args))
+    (should (member "clear" args))
+    (should (member "mykey" args))))
+
+(ert-deftest beads-command-kv-clear-test-validation-missing-key ()
+  "Unit test: kv clear validation fails without key."
+  :tags '(:unit)
+  (let ((cmd (beads-command-kv-clear)))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-kv-clear-test-validation-with-key ()
+  "Unit test: kv clear validation passes with key."
+  :tags '(:unit)
+  (let ((cmd (beads-command-kv-clear :kv-key "mykey")))
+    (should-not (beads-command-validate cmd))))
+
+;;; Unit Tests: beads-command-kv-list
+
+(ert-deftest beads-command-kv-list-test-class-exists ()
+  "Unit test: beads-command-kv-list class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-kv-list)))
+
+(ert-deftest beads-command-kv-list-test-subcommand ()
+  "Unit test: kv list subcommand is 'kv list'."
+  :tags '(:unit)
+  (let ((cmd (beads-command-kv-list)))
+    (should (equal (beads-command-subcommand cmd) "kv list"))))
+
+(ert-deftest beads-command-kv-list-test-command-line ()
+  "Unit test: kv list builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-kv-list))
+         (args (beads-command-line cmd)))
+    (should (member "kv" args))
+    (should (member "list" args))))
+
 (provide 'beads-command-misc-test)
 ;;; beads-command-misc-test.el ends here

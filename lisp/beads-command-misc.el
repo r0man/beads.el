@@ -1457,6 +1457,144 @@ Key-value store commands.")
   "Key-value store commands."
   beads-option-global-section)
 
+;;; Command Class: beads-command-kv-get
+;;; ============================================================
+
+(beads-defcommand beads-command-kv-get (beads-command-global-options)
+  ((kv-key
+    :initarg :kv-key
+    :type (or null string)
+    :initform nil
+    :documentation "Key to retrieve from the key-value store (required)."
+    :positional 1
+    :option-type :string
+    :key "k"
+    :transient "Key (required)"
+    :class transient-option
+    :argument "--key="
+    :prompt "Key: "
+    :transient-group "Options"
+    :level 1
+    :order 1
+    :required t))
+  :documentation "Represents bd kv get command.
+Retrieves a value by key from the key-value store.")
+
+(cl-defmethod beads-command-validate ((command beads-command-kv-get))
+  "Validate kv get COMMAND.  Requires kv-key."
+  (with-slots (kv-key) command
+    (cond
+     ((not kv-key) "Key is required")
+     ((string-empty-p kv-key) "Key cannot be empty")
+     (t nil))))
+
+;;;###autoload (autoload 'beads-kv-get "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-kv-get "beads-kv-get"
+  "Get a value by key from the key-value store."
+  beads-option-global-section)
+
+;;; Command Class: beads-command-kv-set
+;;; ============================================================
+
+(beads-defcommand beads-command-kv-set (beads-command-global-options)
+  ((kv-key
+    :initarg :kv-key
+    :type (or null string)
+    :initform nil
+    :documentation "Key to set in the key-value store (required)."
+    :positional 1
+    :option-type :string
+    :key "k"
+    :transient "Key (required)"
+    :class transient-option
+    :argument "--key="
+    :prompt "Key: "
+    :transient-group "Options"
+    :level 1
+    :order 1
+    :required t)
+   (kv-value
+    :initarg :kv-value
+    :type (or null string)
+    :initform nil
+    :documentation "Value to associate with the key (required)."
+    :positional 2
+    :option-type :string
+    :key "v"
+    :transient "Value (required)"
+    :class transient-option
+    :argument "--value="
+    :prompt "Value: "
+    :transient-group "Options"
+    :level 1
+    :order 2
+    :required t))
+  :documentation "Represents bd kv set command.
+Sets a key-value pair in the key-value store.")
+
+(cl-defmethod beads-command-validate ((command beads-command-kv-set))
+  "Validate kv set COMMAND.  Requires kv-key and kv-value."
+  (with-slots (kv-key kv-value) command
+    (cond
+     ((not kv-key) "Key is required")
+     ((string-empty-p kv-key) "Key cannot be empty")
+     ((not kv-value) "Value is required")
+     (t nil))))
+
+;;;###autoload (autoload 'beads-kv-set "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-kv-set "beads-kv-set"
+  "Set a key-value pair in the key-value store."
+  beads-option-global-section)
+
+;;; Command Class: beads-command-kv-clear
+;;; ============================================================
+
+(beads-defcommand beads-command-kv-clear (beads-command-global-options)
+  ((kv-key
+    :initarg :kv-key
+    :type (or null string)
+    :initform nil
+    :documentation "Key to delete from the key-value store (required)."
+    :positional 1
+    :option-type :string
+    :key "k"
+    :transient "Key (required)"
+    :class transient-option
+    :argument "--key="
+    :prompt "Key: "
+    :transient-group "Options"
+    :level 1
+    :order 1
+    :required t))
+  :documentation "Represents bd kv clear command.
+Deletes a key-value pair from the key-value store.")
+
+(cl-defmethod beads-command-validate ((command beads-command-kv-clear))
+  "Validate kv clear COMMAND.  Requires kv-key."
+  (with-slots (kv-key) command
+    (cond
+     ((not kv-key) "Key is required")
+     ((string-empty-p kv-key) "Key cannot be empty")
+     (t nil))))
+
+;;;###autoload (autoload 'beads-kv-clear "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-kv-clear "beads-kv-clear"
+  "Delete a key-value pair from the key-value store."
+  beads-option-global-section)
+
+;;; Command Class: beads-command-kv-list
+;;; ============================================================
+
+(beads-defcommand beads-command-kv-list (beads-command-global-options)
+  ()
+  :documentation "Represents bd kv list command.
+Lists all key-value pairs in the key-value store.")
+
+;;;###autoload (autoload 'beads-kv-list "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-kv-list "beads-kv-list"
+  "List all key-value pairs in the key-value store."
+  beads-option-global-section)
+
 (beads-defcommand beads-command-memories (beads-command-global-options)
   ()
   :documentation "Represents bd memories command.
