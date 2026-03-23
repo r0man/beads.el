@@ -405,5 +405,90 @@
          (args (beads-command-line cmd)))
     (should (member "--dry-run" args))))
 
+;;; Unit Tests: beads-command-todo-add command-line
+
+(ert-deftest beads-command-todo-add-test-command-line-basic ()
+  "Unit test: todo-add builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-todo-add :title "Buy milk"))
+         (args (beads-command-line cmd)))
+    (should (member "todo" args))
+    (should (member "add" args))
+    (should (member "Buy milk" args))))
+
+(ert-deftest beads-command-todo-add-test-command-line-priority ()
+  "Unit test: todo-add includes --priority option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-todo-add :title "Fix bug" :priority "1"))
+         (args (beads-command-line cmd)))
+    (should (member "--priority" args))
+    (should (member "1" args))))
+
+(ert-deftest beads-command-todo-add-test-command-line-description ()
+  "Unit test: todo-add includes --description option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-todo-add
+               :title "Fix bug" :description "Details here"))
+         (args (beads-command-line cmd)))
+    (should (member "--description" args))
+    (should (member "Details here" args))))
+
+(ert-deftest beads-command-todo-add-test-validation-missing-title ()
+  "Unit test: todo-add validation fails without title."
+  :tags '(:unit)
+  (let ((cmd (beads-command-todo-add)))
+    (should (beads-command-validate cmd))))
+
+;;; Unit Tests: beads-command-todo-list command-line
+
+(ert-deftest beads-command-todo-list-test-command-line-basic ()
+  "Unit test: todo-list builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-todo-list))
+         (args (beads-command-line cmd)))
+    (should (member "todo" args))
+    (should (member "list" args))))
+
+(ert-deftest beads-command-todo-list-test-command-line-all ()
+  "Unit test: todo-list includes --all option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-todo-list :all t))
+         (args (beads-command-line cmd)))
+    (should (member "--all" args))))
+
+;;; Unit Tests: beads-command-todo-done command-line
+
+(ert-deftest beads-command-todo-done-test-command-line-basic ()
+  "Unit test: todo-done builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-todo-done :issue-ids '("bd-1")))
+         (args (beads-command-line cmd)))
+    (should (member "todo" args))
+    (should (member "done" args))
+    (should (member "bd-1" args))))
+
+(ert-deftest beads-command-todo-done-test-command-line-multiple-ids ()
+  "Unit test: todo-done includes multiple issue IDs."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-todo-done :issue-ids '("bd-1" "bd-2")))
+         (args (beads-command-line cmd)))
+    (should (member "bd-1" args))
+    (should (member "bd-2" args))))
+
+(ert-deftest beads-command-todo-done-test-command-line-reason ()
+  "Unit test: todo-done includes --reason option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-todo-done
+               :issue-ids '("bd-1") :reason "All done"))
+         (args (beads-command-line cmd)))
+    (should (member "--reason" args))
+    (should (member "All done" args))))
+
+(ert-deftest beads-command-todo-done-test-validation-missing-ids ()
+  "Unit test: todo-done validation fails without issue IDs."
+  :tags '(:unit)
+  (let ((cmd (beads-command-todo-done)))
+    (should (beads-command-validate cmd))))
+
 (provide 'beads-command-misc-test)
 ;;; beads-command-misc-test.el ends here
