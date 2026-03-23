@@ -667,8 +667,7 @@ into a compact hierarchical structure with sub-dispatches."
     ("C" "Claim" beads-actions-claim)
     ("?" "Actions..." beads-show-actions)]
    ["Extensions"
-    ("G" "Gas Town" gastown :if (lambda () (featurep 'gastown)))
-    ("A" "Agents" beads-agent-menu)]
+    ("G" "Gas Town" gastown :if (lambda () (featurep 'gastown)))]
    ["Actions"
     ("!" "Ops..." beads-ops-menu)
     (">" "Advanced..." beads-advanced-menu)
@@ -851,10 +850,6 @@ or set `beads-executable' to the full path" beads-executable)))
 ;; beads-command-search
 ;;;###autoload
 (autoload 'beads-search "beads-command-search" nil t)
-
-;; beads-command-agent
-;;;###autoload
-(autoload 'beads-agent-menu "beads-command-agent" nil t)
 
 ;; beads-command-comments
 ;;;###autoload
