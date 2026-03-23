@@ -490,5 +490,204 @@
   (let ((cmd (beads-command-todo-done)))
     (should (beads-command-validate cmd))))
 
+
+;;; Unit Tests: beads-command-backup-init command-line
+
+(ert-deftest beads-command-backup-init-test-class-exists ()
+  "Unit test: beads-command-backup-init class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-backup-init)))
+
+(ert-deftest beads-command-backup-init-test-subcommand ()
+  "Unit test: backup init subcommand is 'backup init'."
+  :tags '(:unit)
+  (let ((cmd (beads-command-backup-init)))
+    (should (equal (beads-command-subcommand cmd) "backup init"))))
+
+(ert-deftest beads-command-backup-init-test-command-line-with-path ()
+  "Unit test: backup init builds correct command line with path."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-backup-init :path "/mnt/usb/backup"))
+         (args (beads-command-line cmd)))
+    (should (member "backup" args))
+    (should (member "init" args))
+    (should (member "/mnt/usb/backup" args))))
+
+(ert-deftest beads-command-backup-init-test-validation-missing-path ()
+  "Unit test: backup init validation fails without path."
+  :tags '(:unit)
+  (let ((cmd (beads-command-backup-init)))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-backup-init-test-validation-with-path ()
+  "Unit test: backup init validation passes with path."
+  :tags '(:unit)
+  (let ((cmd (beads-command-backup-init :path "/mnt/usb/backup")))
+    (should-not (beads-command-validate cmd))))
+
+;;; Unit Tests: beads-command-backup-status command-line
+
+(ert-deftest beads-command-backup-status-test-class-exists ()
+  "Unit test: beads-command-backup-status class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-backup-status)))
+
+(ert-deftest beads-command-backup-status-test-subcommand ()
+  "Unit test: backup status subcommand is 'backup status'."
+  :tags '(:unit)
+  (let ((cmd (beads-command-backup-status)))
+    (should (equal (beads-command-subcommand cmd) "backup status"))))
+
+(ert-deftest beads-command-backup-status-test-command-line ()
+  "Unit test: backup status builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-backup-status))
+         (args (beads-command-line cmd)))
+    (should (member "backup" args))
+    (should (member "status" args))))
+
+;;; Unit Tests: beads-command-backup-sync command-line
+
+(ert-deftest beads-command-backup-sync-test-class-exists ()
+  "Unit test: beads-command-backup-sync class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-backup-sync)))
+
+(ert-deftest beads-command-backup-sync-test-subcommand ()
+  "Unit test: backup sync subcommand is 'backup sync'."
+  :tags '(:unit)
+  (let ((cmd (beads-command-backup-sync)))
+    (should (equal (beads-command-subcommand cmd) "backup sync"))))
+
+(ert-deftest beads-command-backup-sync-test-command-line ()
+  "Unit test: backup sync builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-backup-sync))
+         (args (beads-command-line cmd)))
+    (should (member "backup" args))
+    (should (member "sync" args))))
+
+;;; Unit Tests: beads-command-backup-restore command-line
+
+(ert-deftest beads-command-backup-restore-test-class-exists ()
+  "Unit test: beads-command-backup-restore class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-backup-restore)))
+
+(ert-deftest beads-command-backup-restore-test-subcommand ()
+  "Unit test: backup restore subcommand is 'backup restore'."
+  :tags '(:unit)
+  (let ((cmd (beads-command-backup-restore)))
+    (should (equal (beads-command-subcommand cmd) "backup restore"))))
+
+(ert-deftest beads-command-backup-restore-test-command-line-basic ()
+  "Unit test: backup restore builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-backup-restore))
+         (args (beads-command-line cmd)))
+    (should (member "backup" args))
+    (should (member "restore" args))))
+
+(ert-deftest beads-command-backup-restore-test-command-line-path ()
+  "Unit test: backup restore includes optional path argument."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-backup-restore :path "/tmp/backup"))
+         (args (beads-command-line cmd)))
+    (should (member "/tmp/backup" args))))
+
+(ert-deftest beads-command-backup-restore-test-command-line-dry-run ()
+  "Unit test: backup restore includes --dry-run option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-backup-restore :dry-run t))
+         (args (beads-command-line cmd)))
+    (should (member "--dry-run" args))))
+
+;;; Unit Tests: beads-command-backup-export-git command-line
+
+(ert-deftest beads-command-backup-export-git-test-class-exists ()
+  "Unit test: beads-command-backup-export-git class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-backup-export-git)))
+
+(ert-deftest beads-command-backup-export-git-test-subcommand ()
+  "Unit test: backup export-git subcommand is 'backup export-git'."
+  :tags '(:unit)
+  (let ((cmd (beads-command-backup-export-git)))
+    (should (equal (beads-command-subcommand cmd) "backup export-git"))))
+
+(ert-deftest beads-command-backup-export-git-test-command-line-basic ()
+  "Unit test: backup export-git builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-backup-export-git))
+         (args (beads-command-line cmd)))
+    (should (member "backup" args))
+    (should (member "export-git" args))))
+
+(ert-deftest beads-command-backup-export-git-test-command-line-branch ()
+  "Unit test: backup export-git includes --branch option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-backup-export-git :branch "my-backup"))
+         (args (beads-command-line cmd)))
+    (should (member "--branch" args))
+    (should (member "my-backup" args))))
+
+(ert-deftest beads-command-backup-export-git-test-command-line-dry-run ()
+  "Unit test: backup export-git includes --dry-run option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-backup-export-git :dry-run t))
+         (args (beads-command-line cmd)))
+    (should (member "--dry-run" args))))
+
+(ert-deftest beads-command-backup-export-git-test-command-line-force ()
+  "Unit test: backup export-git includes --force option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-backup-export-git :force t))
+         (args (beads-command-line cmd)))
+    (should (member "--force" args))))
+
+;;; Unit Tests: beads-command-backup-fetch-git command-line
+
+(ert-deftest beads-command-backup-fetch-git-test-class-exists ()
+  "Unit test: beads-command-backup-fetch-git class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-backup-fetch-git)))
+
+(ert-deftest beads-command-backup-fetch-git-test-subcommand ()
+  "Unit test: backup fetch-git subcommand is 'backup fetch-git'."
+  :tags '(:unit)
+  (let ((cmd (beads-command-backup-fetch-git)))
+    (should (equal (beads-command-subcommand cmd) "backup fetch-git"))))
+
+(ert-deftest beads-command-backup-fetch-git-test-command-line-basic ()
+  "Unit test: backup fetch-git builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-backup-fetch-git))
+         (args (beads-command-line cmd)))
+    (should (member "backup" args))
+    (should (member "fetch-git" args))))
+
+(ert-deftest beads-command-backup-fetch-git-test-command-line-branch ()
+  "Unit test: backup fetch-git includes --branch option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-backup-fetch-git :branch "my-backup"))
+         (args (beads-command-line cmd)))
+    (should (member "--branch" args))
+    (should (member "my-backup" args))))
+
+(ert-deftest beads-command-backup-fetch-git-test-command-line-remote ()
+  "Unit test: backup fetch-git includes --remote option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-backup-fetch-git :remote "upstream"))
+         (args (beads-command-line cmd)))
+    (should (member "--remote" args))
+    (should (member "upstream" args))))
+
+(ert-deftest beads-command-backup-fetch-git-test-command-line-dry-run ()
+  "Unit test: backup fetch-git includes --dry-run option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-backup-fetch-git :dry-run t))
+         (args (beads-command-line cmd)))
+    (should (member "--dry-run" args))))
+
 (provide 'beads-command-misc-test)
 ;;; beads-command-misc-test.el ends here

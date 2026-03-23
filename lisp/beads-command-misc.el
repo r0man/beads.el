@@ -1033,15 +1033,323 @@ Finds semantically similar issues using text analysis or AI."
 
 ;;; Sync & Data — stubs
 
+;;; ============================================================
+;;; Command Class: beads-command-backup (root)
+;;; ============================================================
+
 (beads-defcommand beads-command-backup (beads-command-global-options)
-  ()
+  ((force
+    :initarg :force
+    :type boolean
+    :initform nil
+    :documentation "Export even if nothing changed."
+    :long-option "force"
+    :option-type :boolean
+    :key "f"
+    :transient "--force"
+    :class transient-switch
+    :argument "--force"
+    :transient-group "Options"
+    :level 1
+    :order 1))
   :documentation "Represents bd backup command.
-Backs up your beads database.")
+Backs up your beads database by exporting all tables to JSONL.")
+
+;;;###autoload (autoload 'beads-backup-root "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-backup "beads-backup-root"
+  "Back up your beads database (export JSONL snapshot)."
+  beads-option-global-section)
+
+;;; ============================================================
+;;; Command Class: beads-command-backup-init
+;;; ============================================================
+
+(beads-defcommand beads-command-backup-init (beads-command-global-options)
+  ((path
+    :initarg :path
+    :type (or null string)
+    :initform nil
+    :documentation "Backup destination path or URL (required).
+Local path: /mnt/usb/beads-backup or ~/Dropbox/beads-backup.
+DoltHub: https://doltremoteapi.dolthub.com/user/repo"
+    :positional 1
+    :option-type :string
+    :key "p"
+    :transient "Path or URL (required)"
+    :class transient-option
+    :argument "--path="
+    :prompt "Backup destination (path or DoltHub URL): "
+    :transient-group "Options"
+    :level 1
+    :order 1
+    :required t))
+  :documentation "Represents bd backup init command.
+Configures a Dolt backup destination (filesystem path or DoltHub URL).")
+
+(cl-defmethod beads-command-validate ((command beads-command-backup-init))
+  "Validate backup init COMMAND.  Requires path."
+  (with-slots (path) command
+    (cond
+     ((not path) "Backup destination path is required")
+     ((string-empty-p path) "Backup destination path cannot be empty")
+     (t nil))))
+
+;;;###autoload (autoload 'beads-backup-init "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-backup-init "beads-backup-init"
+  "Configure a Dolt backup destination.
+
+Set up a filesystem path or DoltHub URL as the backup destination.
+After initializing, run 'bd backup sync' to push your data."
+  beads-option-global-section)
+
+;;; ============================================================
+;;; Command Class: beads-command-backup-status
+;;; ============================================================
+
+(beads-defcommand beads-command-backup-status (beads-command-global-options)
+  ()
+  :documentation "Represents bd backup status command.
+Shows last JSONL and Dolt backup status.")
+
+;;;###autoload (autoload 'beads-backup-status "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-backup-status "beads-backup-status"
+  "Show last backup status.
+
+Displays JSONL backup timestamp, Dolt backup configuration,
+and database size."
+  beads-option-global-section)
+
+;;; ============================================================
+;;; Command Class: beads-command-backup-sync
+;;; ============================================================
+
+(beads-defcommand beads-command-backup-sync (beads-command-global-options)
+  ()
+  :documentation "Represents bd backup sync command.
+Pushes the database to the configured Dolt backup destination.")
+
+;;;###autoload (autoload 'beads-backup-sync "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-backup-sync "beads-backup-sync"
+  "Push database to configured Dolt backup destination.
+
+Syncs the full database state (all branches, full history) to the
+backup location configured with 'bd backup init'.  Run 'bd backup
+init <path>' first to configure a destination."
+  beads-option-global-section)
+
+;;; ============================================================
+;;; Command Class: beads-command-backup-restore
+;;; ============================================================
+
+(beads-defcommand beads-command-backup-restore (beads-command-global-options)
+  ((path
+    :initarg :path
+    :type (or null string)
+    :initform nil
+    :documentation "Path to directory containing JSONL backup files.
+Defaults to .beads/backup/ if not specified."
+    :positional 1
+    :option-type :string
+    :key "p"
+    :transient "Backup directory path"
+    :class transient-option
+    :argument "--path="
+    :prompt "Backup directory (leave empty for .beads/backup/): "
+    :transient-group "Options"
+    :level 1
+    :order 1)
+   (dry-run
+    :initarg :dry-run
+    :type boolean
+    :initform nil
+    :documentation "Show what would be restored without making changes."
+    :long-option "dry-run"
+    :option-type :boolean
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
+    :transient-group "Options"
+    :level 1
+    :order 2))
+  :documentation "Represents bd backup restore command.
+Restores the database from JSONL backup files.")
+
+;;;###autoload (autoload 'beads-backup-restore "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-backup-restore "beads-backup-restore"
+  "Restore database from JSONL backup files.
+
+Reads from .beads/backup/ by default, or from a specified path.
+Use --dry-run to preview without making changes."
+  beads-option-global-section)
+
+;;; ============================================================
+;;; Command Class: beads-command-backup-export-git
+;;; ============================================================
+
+(beads-defcommand beads-command-backup-export-git (beads-command-global-options)
+  ((branch
+    :initarg :branch
+    :type (or null string)
+    :initform nil
+    :documentation "Target git branch for backup artifacts."
+    :long-option "branch"
+    :option-type :string
+    :key "b"
+    :transient "--branch"
+    :class transient-option
+    :argument "--branch="
+    :prompt "Git branch (default: bd-backup): "
+    :transient-group "Options"
+    :level 1
+    :order 1)
+   (remote
+    :initarg :remote
+    :type (or null string)
+    :initform nil
+    :documentation "Git remote to push."
+    :long-option "remote"
+    :option-type :string
+    :key "r"
+    :transient "--remote"
+    :class transient-option
+    :argument "--remote="
+    :prompt "Git remote (default: origin): "
+    :transient-group "Options"
+    :level 1
+    :order 2)
+   (dry-run
+    :initarg :dry-run
+    :type boolean
+    :initform nil
+    :documentation "Show what would happen without creating a worktree or pushing."
+    :long-option "dry-run"
+    :option-type :boolean
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
+    :transient-group "Options"
+    :level 1
+    :order 3)
+   (force
+    :initarg :force
+    :type boolean
+    :initform nil
+    :documentation "Force a fresh backup export before comparing and copying."
+    :long-option "force"
+    :option-type :boolean
+    :key "f"
+    :transient "--force"
+    :class transient-switch
+    :argument "--force"
+    :transient-group "Options"
+    :level 1
+    :order 4))
+  :documentation "Represents bd backup export-git command.
+Exports the current JSONL backup snapshot to a git branch."
+  :cli-command "backup export-git")
+
+;;;###autoload (autoload 'beads-backup-export-git "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-backup-export-git
+  "beads-backup-export-git"
+  "Export JSONL backup snapshot to a git branch.
+
+Copies the backup snapshot into the specified git branch, commits
+if changed, and pushes.  Use --dry-run to preview."
+  beads-option-global-section)
+
+;;; ============================================================
+;;; Command Class: beads-command-backup-fetch-git
+;;; ============================================================
+
+(beads-defcommand beads-command-backup-fetch-git (beads-command-global-options)
+  ((branch
+    :initarg :branch
+    :type (or null string)
+    :initform nil
+    :documentation "Git branch to fetch backup artifacts from."
+    :long-option "branch"
+    :option-type :string
+    :key "b"
+    :transient "--branch"
+    :class transient-option
+    :argument "--branch="
+    :prompt "Git branch (default: bd-backup): "
+    :transient-group "Options"
+    :level 1
+    :order 1)
+   (remote
+    :initarg :remote
+    :type (or null string)
+    :initform nil
+    :documentation "Git remote to fetch from."
+    :long-option "remote"
+    :option-type :string
+    :key "r"
+    :transient "--remote"
+    :class transient-option
+    :argument "--remote="
+    :prompt "Git remote (default: origin): "
+    :transient-group "Options"
+    :level 1
+    :order 2)
+   (dry-run
+    :initarg :dry-run
+    :type boolean
+    :initform nil
+    :documentation "Show what would happen without fetching or restoring."
+    :long-option "dry-run"
+    :option-type :boolean
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
+    :transient-group "Options"
+    :level 1
+    :order 3))
+  :documentation "Represents bd backup fetch-git command.
+Fetches a JSONL backup snapshot from a git branch and restores it."
+  :cli-command "backup fetch-git")
+
+;;;###autoload (autoload 'beads-backup-fetch-git "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-backup-fetch-git
+  "beads-backup-fetch-git"
+  "Fetch JSONL backup snapshot from a git branch and restore it.
+
+Companion to 'bd backup export-git'.  Fetches from a git branch
+into a temporary worktree and restores.  Use --dry-run to preview."
+  beads-option-global-section)
+
+;;; ============================================================
+;;; Parent Transient Menu: beads-backup
+;;; ============================================================
 
 ;;;###autoload (autoload 'beads-backup "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-backup "beads-backup"
-  "Back up your beads database."
-  beads-option-global-section)
+(transient-define-prefix beads-backup ()
+  "Back up and restore your beads database.
+
+JSONL backup commands (portable snapshot):
+  Backup: Export all tables to .beads/backup/*.jsonl
+  Status: Show last backup status
+  Restore: Import from JSONL files
+  Export-git: Publish snapshot to a git branch
+  Fetch-git: Restore from a git branch snapshot
+
+Dolt-native backup commands (preserve full commit history):
+  Init: Configure a backup destination (filesystem or DoltHub)
+  Sync: Push to configured destination"
+  ["JSONL Backup"
+   ("B" "Backup now (export JSONL)" beads-backup-root)
+   ("s" "Status" beads-backup-status)
+   ("r" "Restore from JSONL" beads-backup-restore)
+   ("e" "Export to git branch" beads-backup-export-git)
+   ("F" "Fetch from git branch" beads-backup-fetch-git)]
+  ["Dolt-native Backup"
+   ("i" "Init destination" beads-backup-init)
+   ("S" "Sync to backup" beads-backup-sync)]
+  ["Quick Actions"
+   ("q" "Quit" transient-quit-one)])
 
 (beads-defcommand beads-command-export (beads-command-global-options)
   ()
