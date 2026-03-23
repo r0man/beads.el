@@ -566,26 +566,6 @@ Renames the issue prefix for all issues in the database."
      (t nil))))
 
 ;;; ============================================================
-;;; Command Class: beads-command-restore
-;;; ============================================================
-
-(beads-defcommand beads-command-restore (beads-command-global-options)
-  ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to restore."
-    :positional 1))
-  :documentation "Represents bd restore command.
-Restores full history of a compacted issue from git.")
-
-
-(cl-defmethod beads-command-validate ((command beads-command-restore))
-  "Validate restore COMMAND."
-  (with-slots (issue-id) command
-    (if (not issue-id) "Issue ID is required" nil)))
-
-;;; ============================================================
 ;;; Command Class: beads-command-setup
 ;;; ============================================================
 
@@ -751,11 +731,6 @@ Delegates to mail provider.")
 ;;;###autoload (autoload 'beads-rename-prefix "beads-command-misc" nil t)
 (beads-meta-define-transient beads-command-rename-prefix "beads-rename-prefix"
   "Rename issue prefix for all issues."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-restore "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-restore "beads-restore"
-  "Restore full history of compacted issue."
   beads-option-global-section)
 
 ;;;###autoload (autoload 'beads-setup "beads-command-misc" nil t)
