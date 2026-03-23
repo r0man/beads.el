@@ -13,7 +13,6 @@
 ;; The compact command manages database compaction for old closed issues.
 ;;
 ;; Compact has multiple modes:
-;; - Prune: Remove expired tombstones from issues.jsonl
 ;; - Analyze: Export candidates for agent review (JSON output)
 ;; - Apply: Accept agent-provided summary
 ;; - Auto: AI-powered compaction (legacy, requires ANTHROPIC_API_KEY)
@@ -52,77 +51,6 @@ Shows compaction statistics including tier 1 and tier 2 candidates."
   "Build command line for stats _COMMAND."
   (append (cl-call-next-method)
           '("--stats")))
-
-;;; ============================================================
-;;; Command Class: beads-command-compact-prune
-;;; ============================================================
-
-(beads-defcommand beads-command-compact-prune (beads-command-global-options)
-  ((older-than
-    :initarg :older-than
-    :type (or null string)
-    :initform nil
-    :documentation "Prune tombstones older than N days (default: 30)."
-    :long-option "older-than"
-    :option-type :integer
-    :key "o"
-    :transient "--older-than"
-    :class transient-option
-    :argument "--older-than="
-    :prompt "Days old (default 30): "
-    :transient-group "Prune Options"
-    :level 1
-    :order 1)
-   (dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Preview without making changes."
-    :long-option "dry-run"
-    :option-type :boolean
-    :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :transient-group "Prune Options"
-    :level 1
-    :order 2))
-  :documentation "Represents bd compact --prune command.
-Removes expired tombstones from issues.jsonl."
-  :cli-command "compact")
-
-(cl-defmethod beads-command-line ((_command beads-command-compact-prune))
-  "Build command line for prune _COMMAND."
-  (append (cl-call-next-method)
-          '("--prune")))
-
-;;; ============================================================
-;;; Command Class: beads-command-compact-purge
-;;; ============================================================
-
-(beads-defcommand beads-command-compact-purge (beads-command-global-options)
-  ((dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Preview without making changes."
-    :long-option "dry-run"
-    :option-type :boolean
-    :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :transient-group "Purge Options"
-    :level 1
-    :order 1))
-  :documentation "Represents bd compact --purge-tombstones command.
-Removes tombstones by dependency analysis (more aggressive than prune)."
-  :cli-command "compact")
-
-(cl-defmethod beads-command-line ((_command beads-command-compact-purge))
-  "Build command line for purge _COMMAND."
-  (append (cl-call-next-method)
-          '("--purge-tombstones")))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-compact-analyze
@@ -382,23 +310,6 @@ Displays counts of tier 1 and tier 2 compaction candidates,
 tombstone information, and other database statistics."
   beads-option-global-section)
 
-;;;###autoload (autoload 'beads-compact-prune "beads-command-compact" nil t)
-(beads-meta-define-transient beads-command-compact-prune "beads-compact-prune"
-  "Prune expired tombstones from issues.jsonl.
-
-Age-based pruning removes tombstones older than N days (default 30).
-Use --dry-run to preview what would be pruned."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-compact-purge "beads-command-compact" nil t)
-(beads-meta-define-transient beads-command-compact-purge "beads-compact-purge"
-  "Purge tombstones by dependency analysis.
-
-More aggressive than prune - removes any tombstone that no open
-issues depend on, regardless of age.  Also cleans stale deps
-from closed issues to tombstones."
-  beads-option-global-section)
-
 ;;;###autoload (autoload 'beads-compact-analyze "beads-command-compact" nil t)
 (beads-meta-define-transient beads-command-compact-analyze "beads-compact-analyze"
   "Analyze and export compaction candidates.
@@ -437,8 +348,6 @@ Compaction reduces database size by summarizing closed issues that
 are no longer actively referenced.  This is permanent graceful decay.
 
 Modes:
-  Prune: Remove expired tombstones (age-based)
-  Purge: Remove tombstones (dependency-based, more aggressive)
   Analyze: Export candidates for agent review
   Apply: Accept agent-provided summary
   Auto: AI-powered compaction (legacy, requires API key)
@@ -448,8 +357,6 @@ Tiers:
   Tier 2: Ultra compression (90 days closed, 95% reduction)"
   ["Compact Commands"
    ("s" "Show statistics" beads-compact-stats)
-   ("p" "Prune tombstones (age-based)" beads-compact-prune)
-   ("P" "Purge tombstones (dependency-based)" beads-compact-purge)
    ("z" "Analyze candidates" beads-compact-analyze)
    ("a" "Apply summary" beads-compact-apply)
    ("A" "Auto compact (legacy)" beads-compact-auto)]
