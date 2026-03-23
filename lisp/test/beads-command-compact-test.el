@@ -8,7 +8,7 @@
 ;;; Commentary:
 
 ;; Unit tests for beads-command-compact command classes.
-;; Tests cover all compact modes: stats, prune, purge, analyze, apply, auto.
+;; Tests cover all compact modes: stats, analyze, apply, auto.
 
 ;;; Code:
 
@@ -45,59 +45,6 @@
          (args (beads-command-line cmd)))
     (should (member "compact" args))
     (should (member "--stats" args))))
-
-;;; Tests for Prune Command
-
-(ert-deftest beads-compact-test-prune-class-exists ()
-  "Test that beads-command-compact-prune class is defined."
-  (should (cl-find-class 'beads-command-compact-prune)))
-
-(ert-deftest beads-compact-test-prune-subcommand ()
-  "Test that subcommand returns 'compact'."
-  (let ((cmd (beads-command-compact-prune)))
-    (should (equal (beads-command-subcommand cmd) "compact"))))
-
-(ert-deftest beads-compact-test-prune-command-line-basic ()
-  "Test that prune command line includes --prune."
-  (let* ((cmd (beads-command-compact-prune))
-         (args (beads-command-line cmd)))
-    (should (member "compact" args))
-    (should (member "--prune" args))))
-
-(ert-deftest beads-compact-test-prune-command-line-older-than ()
-  "Test prune command line with --older-than option."
-  (let* ((cmd (beads-command-compact-prune :older-than "7"))
-         (args (beads-command-line cmd)))
-    (should (member "--prune" args))
-    (should (member "--older-than" args))
-    (should (member "7" args))))
-
-(ert-deftest beads-compact-test-prune-command-line-dry-run ()
-  "Test prune command line with --dry-run option."
-  (let* ((cmd (beads-command-compact-prune :dry-run t))
-         (args (beads-command-line cmd)))
-    (should (member "--prune" args))
-    (should (member "--dry-run" args))))
-
-;;; Tests for Purge Command
-
-(ert-deftest beads-compact-test-purge-class-exists ()
-  "Test that beads-command-compact-purge class is defined."
-  (should (cl-find-class 'beads-command-compact-purge)))
-
-(ert-deftest beads-compact-test-purge-command-line ()
-  "Test that purge command line includes --purge-tombstones."
-  (let* ((cmd (beads-command-compact-purge))
-         (args (beads-command-line cmd)))
-    (should (member "compact" args))
-    (should (member "--purge-tombstones" args))))
-
-(ert-deftest beads-compact-test-purge-command-line-dry-run ()
-  "Test purge command line with --dry-run option."
-  (let* ((cmd (beads-command-compact-purge :dry-run t))
-         (args (beads-command-line cmd)))
-    (should (member "--purge-tombstones" args))
-    (should (member "--dry-run" args))))
 
 ;;; Tests for Analyze Command
 
@@ -225,14 +172,6 @@
   "Test that beads-compact-stats transient is defined."
   (should (fboundp 'beads-compact-stats)))
 
-(ert-deftest beads-compact-test-transient-prune-defined ()
-  "Test that beads-compact-prune transient is defined."
-  (should (fboundp 'beads-compact-prune)))
-
-(ert-deftest beads-compact-test-transient-purge-defined ()
-  "Test that beads-compact-purge transient is defined."
-  (should (fboundp 'beads-compact-purge)))
-
 (ert-deftest beads-compact-test-transient-analyze-defined ()
   "Test that beads-compact-analyze transient is defined."
   (should (fboundp 'beads-compact-analyze)))
@@ -254,8 +193,6 @@
 (ert-deftest beads-compact-test-bang-functions-exist ()
   "Test that convenience functions are defined."
   (should (fboundp 'beads-command-compact-stats!))
-  (should (fboundp 'beads-command-compact-prune!))
-  (should (fboundp 'beads-command-compact-purge!))
   (should (fboundp 'beads-command-compact-analyze!))
   (should (fboundp 'beads-command-compact-apply!))
   (should (fboundp 'beads-command-compact-auto!)))
@@ -266,15 +203,6 @@
   "Test parsing transient args for stats command."
   (let ((cmd (beads-compact-stats--parse-transient-args nil)))
     (should (beads-command-compact-stats-p cmd))))
-
-(ert-deftest beads-compact-test-parse-transient-args-prune ()
-  "Test parsing transient args for prune command."
-  (let ((cmd (beads-compact-prune--parse-transient-args
-              '("--older-than=14" "--dry-run"))))
-    (should (beads-command-compact-prune-p cmd))
-    ;; Transient returns string values for options
-    (should (equal (oref cmd older-than) "14"))
-    (should (oref cmd dry-run))))
 
 (ert-deftest beads-compact-test-parse-transient-args-analyze ()
   "Test parsing transient args for analyze command."

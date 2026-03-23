@@ -134,34 +134,6 @@ Deletes closed issues and prunes expired tombstones.")
     :transient-group "Options"
     :level 1
     :order 1)
-   (prune
-    :initarg :prune
-    :type boolean
-    :initform nil
-    :documentation "Prune mode: remove expired tombstones by age."
-    :long-option "prune"
-    :option-type :boolean
-    :key "p"
-    :transient "--prune"
-    :class transient-switch
-    :argument "--prune"
-    :transient-group "Mode"
-    :level 1
-    :order 1)
-   (purge-tombstones
-    :initarg :purge-tombstones
-    :type boolean
-    :initform nil
-    :documentation "Purge mode: remove tombstones with no open deps."
-    :long-option "purge-tombstones"
-    :option-type :boolean
-    :key "P"
-    :transient "--purge-tombstones"
-    :class transient-switch
-    :argument "--purge-tombstones"
-    :transient-group "Mode"
-    :level 1
-    :order 2)
    (analyze
     :initarg :analyze
     :type boolean
