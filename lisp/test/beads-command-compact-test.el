@@ -35,14 +35,15 @@
   (should (cl-find-class 'beads-command-compact-stats)))
 
 (ert-deftest beads-compact-test-stats-subcommand ()
-  "Test that subcommand returns 'compact'."
+  "Test that subcommand returns 'admin compact'."
   (let ((cmd (beads-command-compact-stats)))
-    (should (equal (beads-command-subcommand cmd) "compact"))))
+    (should (equal (beads-command-subcommand cmd) "admin compact"))))
 
 (ert-deftest beads-compact-test-stats-command-line ()
-  "Test that stats command line includes --stats."
+  "Test that stats command line includes admin compact --stats."
   (let* ((cmd (beads-command-compact-stats))
          (args (beads-command-line cmd)))
+    (should (member "admin" args))
     (should (member "compact" args))
     (should (member "--stats" args))))
 
@@ -53,9 +54,10 @@
   (should (cl-find-class 'beads-command-compact-analyze)))
 
 (ert-deftest beads-compact-test-analyze-command-line-basic ()
-  "Test that analyze command line includes --analyze."
+  "Test that analyze command line includes admin compact --analyze."
   (let* ((cmd (beads-command-compact-analyze))
          (args (beads-command-line cmd)))
+    (should (member "admin" args))
     (should (member "compact" args))
     (should (member "--analyze" args))))
 
@@ -82,9 +84,10 @@
   (should (cl-find-class 'beads-command-compact-apply)))
 
 (ert-deftest beads-compact-test-apply-command-line-basic ()
-  "Test that apply command line includes --apply."
+  "Test that apply command line includes admin compact --apply."
   (let* ((cmd (beads-command-compact-apply :issue-id "bd-1" :summary "sum.txt"))
          (args (beads-command-line cmd)))
+    (should (member "admin" args))
     (should (member "compact" args))
     (should (member "--apply" args))
     (should (member "--id" args))
@@ -124,9 +127,10 @@
   (should (cl-find-class 'beads-command-compact-auto)))
 
 (ert-deftest beads-compact-test-auto-command-line-basic ()
-  "Test that auto command line includes --auto."
+  "Test that auto command line includes admin compact --auto."
   (let* ((cmd (beads-command-compact-auto :issue-id "bd-1"))
          (args (beads-command-line cmd)))
+    (should (member "admin" args))
     (should (member "compact" args))
     (should (member "--auto" args))
     (should (member "--id" args))

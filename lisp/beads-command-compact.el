@@ -43,9 +43,9 @@
 
 (beads-defcommand beads-command-compact-stats (beads-command-global-options)
   ()
-  :documentation "Represents bd compact --stats command.
+  :documentation "Represents bd admin compact --stats command.
 Shows compaction statistics including tier 1 and tier 2 candidates."
-  :cli-command "compact")
+  :cli-command "admin compact")
 
 (cl-defmethod beads-command-line ((_command beads-command-compact-stats))
   "Build command line for stats _COMMAND."
@@ -88,9 +88,9 @@ Shows compaction statistics including tier 1 and tier 2 candidates."
     :transient-group "Analyze Options"
     :level 1
     :order 2))
-  :documentation "Represents bd compact --analyze command.
+  :documentation "Represents bd admin compact --analyze command.
 Exports compaction candidates for agent review."
-  :cli-command "compact")
+  :cli-command "admin compact")
 
 (cl-defmethod beads-command-line ((_command beads-command-compact-analyze))
   "Build command line for analyze _COMMAND."
@@ -135,9 +135,9 @@ Exports compaction candidates for agent review."
     :level 1
     :order 2
     :required t))
-  :documentation "Represents bd compact --apply command.
+  :documentation "Represents bd admin compact --apply command.
 Accepts agent-provided summary for an issue."
-  :cli-command "compact")
+  :cli-command "admin compact")
 
 (cl-defmethod beads-command-line ((_command beads-command-compact-apply))
   "Build command line for apply _COMMAND."
@@ -270,9 +270,9 @@ Accepts agent-provided summary for an issue."
     :transient-group "Auto Options"
     :level 3
     :order 7))
-  :documentation "Represents bd compact --auto command.
+  :documentation "Represents bd admin compact --auto command.
 AI-powered compaction (legacy, requires ANTHROPIC_API_KEY)."
-  :cli-command "compact")
+  :cli-command "admin compact")
 
 (cl-defmethod beads-command-line ((_command beads-command-compact-auto))
   "Build command line for auto _COMMAND."
