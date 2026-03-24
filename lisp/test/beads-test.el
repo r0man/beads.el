@@ -91,8 +91,9 @@ Sets `beads-test--last-created-prefix' as a side effect."
     (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
     (call-process "git" nil nil nil "config" "user.name" "Beads Test")
     ;; Execute bd init.  The caller (beads-test-with-project or
-    ;; beads-test-with-shared-project) unsets BEADS_DOLT_PORT so
-    ;; bd uses JSONL-only mode (no Dolt server needed).
+    ;; beads-test-with-shared-project) sets BEADS_DOLT_PORT to route
+    ;; bd to the suite-level isolated Dolt server, preventing writes to
+    ;; the production server at port 3307.
     (beads-command-execute (apply #'beads-command-init effective-args))
     default-directory))
 
@@ -165,14 +166,22 @@ For a project with default settings, use an empty list:
     )"
   (declare (indent 1))
   (let ((temp-dir (make-symbol "temp-dir")))
-    `(let* (;; Unset BEADS_DOLT_PORT to prevent bd from connecting to the
-            ;; suite-level Dolt server.  Without a valid BEADS_DOLT_PORT,
-            ;; bd uses JSONL-only storage — no Dolt server needed for unit
-            ;; tests.  Only integration tests (beads-test-with-temp-repo)
-            ;; use Dolt.
+    `(let* (;; Route bd to the suite-level isolated Dolt test server.
+            ;; bd v0.58.0+ requires Dolt as the only storage backend —
+            ;; there is no JSONL-only mode.  Without BEADS_DOLT_PORT, bd
+            ;; auto-discovers the default port (3307), which is the
+            ;; production Gas Town server.  Always route to the suite
+            ;; server to prevent pollution of the production database.
             (process-environment
-             (cons "BEADS_DOLT_PORT"
-                   process-environment))
+             (if beads-test--suite-server-port
+                 (cons (format "BEADS_DOLT_PORT=%d"
+                               beads-test--suite-server-port)
+                       process-environment)
+               ;; Fallback: unset so bd can auto-start its own Dolt.
+               ;; This path is taken only when the suite server failed
+               ;; to start (rare).  Tests that call real bd commands
+               ;; will fail gracefully via skip-unless checks.
+               (cons "BEADS_DOLT_PORT" process-environment)))
             (,temp-dir (beads-test-create-project ,@init-args))
             (default-directory ,temp-dir)
             (beads--project-cache (make-hash-table :test 'equal)))
@@ -188,7 +197,11 @@ For a project with default settings, use an empty list:
                (progn ,@body)
              ;; Clear transient state after test too
              (beads-test--clear-transient-state)
-             ;; Clean up temp directory (no-db mode, no Dolt db to drop)
+             ;; Clean up temp directory.
+             ;; NOTE: Per-test DROP DATABASE is intentionally omitted.
+             ;; The suite server's temp data directory is deleted at
+             ;; process exit by beads-test--suite-stop-server, making
+             ;; per-test drops unnecessary.
              (when (file-directory-p ,temp-dir)
                (delete-directory ,temp-dir t))))))))
 
@@ -607,14 +620,21 @@ deleted between tests to ensure isolation.
 Tests that need custom init args (e.g., a specific :prefix) should
 continue using `beads-test-with-project' instead."
   (declare (indent 0))
-  `(let* (;; Unset BEADS_DOLT_PORT to prevent bd from connecting to the
-          ;; suite Dolt server.  Without a valid BEADS_DOLT_PORT, bd uses
-          ;; JSONL-only storage — no Dolt server needed for unit tests.
+  `(let* (;; Route bd to the suite-level isolated Dolt test server.
+          ;; bd v0.58.0+ requires Dolt as the only storage backend —
+          ;; there is no JSONL-only mode.  Without BEADS_DOLT_PORT, bd
+          ;; auto-discovers the default port (3307), which is the
+          ;; production Gas Town server.  Always route to the suite
+          ;; server to prevent pollution of the production database.
           (process-environment
-           (cons "BEADS_DOLT_PORT"
-                 process-environment))
+           (if beads-test--suite-server-port
+               (cons (format "BEADS_DOLT_PORT=%d"
+                             beads-test--suite-server-port)
+                     process-environment)
+             ;; Fallback: unset so bd can auto-start its own Dolt.
+             (cons "BEADS_DOLT_PORT" process-environment)))
           ;; Must come after process-environment (let* is sequential) so
-          ;; beads-test-get-shared-project runs without a Dolt port.
+          ;; beads-test-get-shared-project runs with the suite Dolt port.
           (default-directory (beads-test-get-shared-project))
           (beads--project-cache (make-hash-table :test 'equal)))
      ;; Clean up issues from previous tests
