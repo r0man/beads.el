@@ -235,30 +235,42 @@ Search order:
             (puthash start-dir full-path beads--project-cache)
             full-path))))))
 
+(defun beads--resolve-beads-dir (beads-dir)
+  "Resolve BEADS-DIR, following a redirect file if present.
+If BEADS-DIR contains a `redirect' file, reads its content as a
+path relative to the project root (parent of BEADS-DIR) and
+returns the resolved target directory.  If the target does not
+exist or there is no redirect file, returns BEADS-DIR unchanged."
+  (let ((redirect-file (expand-file-name "redirect" beads-dir)))
+    (if (file-readable-p redirect-file)
+        (let* ((project-root
+                (file-name-directory (directory-file-name beads-dir)))
+               (target (string-trim
+                        (with-temp-buffer
+                          (insert-file-contents redirect-file)
+                          (buffer-string))))
+               (resolved (expand-file-name target project-root)))
+          (if (file-directory-p resolved)
+              resolved
+            beads-dir))
+      beads-dir)))
+
 (defun beads--get-database-path ()
   "Get the database path for bd commands.
 Returns nil if auto-discovery should be used.
-
-When `.beads/redirect' is present (git worktree case), follows
-the redirect to the actual `.beads' directory before searching
-for `.db' files."
+Follows .beads/redirect files to find the actual database
+directory, then looks for a SQLite .db file or a Dolt database
+subdirectory."
   (or beads-database-path
       (when-let* ((beads-dir (beads--find-beads-dir)))
-        (let* ((redirect-file (expand-file-name "redirect" beads-dir))
-               (actual-beads-dir
-                (if (file-exists-p redirect-file)
-                    (let* ((project-root
-                            (file-name-directory
-                             (directory-file-name beads-dir)))
-                           (target
-                            (string-trim
-                             (with-temp-buffer
-                               (insert-file-contents redirect-file)
-                               (buffer-string)))))
-                      (expand-file-name target project-root))
-                  beads-dir)))
-          (when (file-directory-p actual-beads-dir)
-            (car (directory-files actual-beads-dir t "\\.db\\'")))))))
+        (let* ((resolved-dir (beads--resolve-beads-dir beads-dir)))
+          (or
+           ;; Legacy: SQLite .db file
+           (car (directory-files resolved-dir t "\\.db\\'"))
+           ;; Modern: Dolt database directory
+           (let ((dolt-dir (expand-file-name "dolt" resolved-dir)))
+             (when (file-directory-p dolt-dir)
+               dolt-dir)))))))
 
 ;;; Context Functions — Public API
 
