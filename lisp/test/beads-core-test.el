@@ -381,5 +381,49 @@
       (delete-directory main-dir t)
       (delete-directory worktree-dir t))))
 
+;;; Tests for beads--resolve-beads-dir
+
+(ert-deftest beads-core-test-resolve-beads-dir-no-redirect ()
+  "Test resolve-beads-dir returns same dir when no redirect file."
+  (let ((temp-dir (make-temp-file "beads-test-" t)))
+    (unwind-protect
+        (let* ((beads-dir (expand-file-name ".beads" temp-dir)))
+          (make-directory beads-dir)
+          ;; No redirect file: returns beads-dir unchanged
+          (should (equal (beads--resolve-beads-dir beads-dir) beads-dir)))
+      (delete-directory temp-dir t))))
+
+(ert-deftest beads-core-test-resolve-beads-dir-follows-redirect ()
+  "Test resolve-beads-dir follows .beads/redirect to actual dir."
+  (let ((main-dir (make-temp-file "beads-main-" t))
+        (worktree-dir (make-temp-file "beads-wt-" t)))
+    (unwind-protect
+        (let* ((main-beads (expand-file-name ".beads" main-dir))
+               (wt-beads (expand-file-name ".beads" worktree-dir))
+               (redirect-target
+                (file-relative-name main-beads worktree-dir)))
+          (make-directory main-beads)
+          (make-directory wt-beads)
+          (write-region redirect-target nil
+                        (expand-file-name "redirect" wt-beads))
+          ;; Should resolve to the main .beads dir
+          (should (equal (beads--resolve-beads-dir wt-beads) main-beads)))
+      (delete-directory main-dir t)
+      (delete-directory worktree-dir t))))
+
+(ert-deftest beads-core-test-resolve-beads-dir-invalid-redirect ()
+  "Test resolve-beads-dir returns original dir when redirect target missing."
+  (let ((temp-dir (make-temp-file "beads-test-" t)))
+    (unwind-protect
+        (let* ((beads-dir (expand-file-name ".beads" temp-dir)))
+          (make-directory beads-dir)
+          ;; Write redirect pointing to non-existent dir
+          (write-region "../nonexistent/.beads" nil
+                        (expand-file-name "redirect" beads-dir))
+          ;; Should fall back to original beads-dir
+          (should (equal (beads--resolve-beads-dir beads-dir) beads-dir)))
+      (delete-directory temp-dir t))))
+
+
 (provide 'beads-core-test)
 ;;; beads-core-test.el ends here

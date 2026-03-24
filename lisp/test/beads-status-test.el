@@ -107,6 +107,18 @@
     (let ((vnode (beads-status--header-vnode)))
       (should vnode))))
 
+(ert-deftest beads-status-test-header-vnode-dolt-mode ()
+  "Verify header shows dolt dir path when db is a directory."
+  (cl-letf (((symbol-function 'beads-git-find-project-root)
+             (lambda () "/home/user/myproject"))
+            ((symbol-function 'beads--get-database-path)
+             (lambda () "/home/user/myproject/.beads/dolt")))
+    (let ((vnode (beads-status--header-vnode)))
+      (should vnode)
+      ;; Vnode should contain the dolt dir path
+      (should (string-match-p "/home/user/myproject/.beads/dolt"
+                              (format "%s" vnode))))))
+
 ;;; Refresh Tests
 
 (ert-deftest beads-status-test-refresh-runs-section-hooks ()
