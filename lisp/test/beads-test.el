@@ -1697,6 +1697,94 @@ The log format is compatible with `log-view-mode':
      ;; Should return custom path, not discovered path
      (should (equal (beads--get-database-path) custom-path)))))
 
+(ert-deftest beads-test-get-database-path-dolt-dir ()
+  "Test finding dolt subdirectory as database path."
+  (beads-test--with-temp-project
+   (beads-test--create-project-structure
+    '(".beads/" ".beads/dolt/"))
+
+   (let ((default-directory beads-test--temp-dir)
+         (beads-database-path nil))
+     (should (equal (beads--get-database-path)
+                    (expand-file-name ".beads/dolt"
+                                      beads-test--temp-dir))))))
+
+(ert-deftest beads-test-get-database-path-db-file-takes-precedence ()
+  "Test that .db file takes precedence over dolt subdirectory."
+  (beads-test--with-temp-project
+   (beads-test--create-project-structure
+    '(".beads/" ".beads/beads.db" ".beads/dolt/"))
+
+   (let ((default-directory beads-test--temp-dir)
+         (beads-database-path nil))
+     ;; .db file should win
+     (should (string-suffix-p ".db" (beads--get-database-path))))))
+
+(ert-deftest beads-test-resolve-beads-dir-no-redirect ()
+  "Test beads--resolve-beads-dir returns dir unchanged when no redirect."
+  (beads-test--with-temp-project
+   (beads-test--create-project-structure '(".beads/"))
+
+   (let ((beads-dir (expand-file-name ".beads" beads-test--temp-dir)))
+     (should (equal (beads--resolve-beads-dir beads-dir) beads-dir)))))
+
+(ert-deftest beads-test-resolve-beads-dir-with-redirect ()
+  "Test beads--resolve-beads-dir follows redirect file."
+  (beads-test--with-temp-project
+   (beads-test--create-project-structure
+    '(".beads/" "worktree/" "worktree/.beads/"))
+
+   (let* ((main-beads (expand-file-name ".beads" beads-test--temp-dir))
+          (wt-beads (expand-file-name "worktree/.beads" beads-test--temp-dir))
+          ;; Redirect from worktree/.beads → ../../.beads (relative)
+          (redirect-file (expand-file-name "redirect" wt-beads))
+          (relative-target "../../.beads"))
+     (write-region relative-target nil redirect-file)
+     (should (equal (beads--resolve-beads-dir wt-beads) main-beads)))))
+
+(ert-deftest beads-test-resolve-beads-dir-invalid-redirect ()
+  "Test beads--resolve-beads-dir returns original dir for bad redirect."
+  (beads-test--with-temp-project
+   (beads-test--create-project-structure '(".beads/"))
+
+   (let* ((beads-dir (expand-file-name ".beads" beads-test--temp-dir))
+          (redirect-file (expand-file-name "redirect" beads-dir)))
+     (write-region "/nonexistent/path/.beads" nil redirect-file)
+     (should (equal (beads--resolve-beads-dir beads-dir) beads-dir)))))
+
+(ert-deftest beads-test-get-database-path-follows-redirect-to-dolt ()
+  "Test beads--get-database-path follows redirect to find dolt dir."
+  (beads-test--with-temp-project
+   (beads-test--create-project-structure
+    '(".beads/" ".beads/dolt/"
+      "worktree/" "worktree/.beads/"))
+
+   (let* ((wt-beads (expand-file-name "worktree/.beads" beads-test--temp-dir))
+          (redirect-file (expand-file-name "redirect" wt-beads)))
+     ;; worktree/.beads/redirect → ../../.beads (points to main .beads)
+     (write-region "../../.beads" nil redirect-file)
+     (let ((default-directory (expand-file-name "worktree" beads-test--temp-dir))
+           (beads-database-path nil))
+       (should (equal (beads--get-database-path)
+                      (expand-file-name ".beads/dolt"
+                                        beads-test--temp-dir)))))))
+
+(ert-deftest beads-test-get-database-path-follows-redirect-to-db ()
+  "Test beads--get-database-path follows redirect to find .db file."
+  (beads-test--with-temp-project
+   (beads-test--create-project-structure
+    '(".beads/" ".beads/issues.db"
+      "worktree/" "worktree/.beads/"))
+
+   (let* ((wt-beads (expand-file-name "worktree/.beads" beads-test--temp-dir))
+          (redirect-file (expand-file-name "redirect" wt-beads)))
+     (write-region "../../.beads" nil redirect-file)
+     (let ((default-directory (expand-file-name "worktree" beads-test--temp-dir))
+           (beads-database-path nil))
+       (should (equal (beads--get-database-path)
+                      (expand-file-name ".beads/issues.db"
+                                        beads-test--temp-dir)))))))
+
 ;;; Tests for edge cases and integration
 
 (ert-deftest beads-test-find-beads-dir-symlink-handling ()
