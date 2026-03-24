@@ -1832,6 +1832,12 @@ The log format is compatible with `log-view-mode':
         (remote-beads-dir "/ssh:host:/home/user/project/.beads"))
     (cl-letf (((symbol-function 'beads--find-beads-dir)
                (lambda (&optional _dir) remote-beads-dir))
+              ;; No redirect file on the remote side
+              ((symbol-function 'file-exists-p)
+               (lambda (_path) nil))
+              ;; Remote .beads is a directory
+              ((symbol-function 'file-directory-p)
+               (lambda (_path) t))
               ((symbol-function 'directory-files)
                (lambda (directory &optional full match _nosort)
                  (when (and match (string-match-p "\\.db$" "beads.db"))

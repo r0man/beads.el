@@ -308,5 +308,78 @@
   (should (boundp 'beads-executable))
   (should (stringp beads-executable)))
 
+;;; Tests for beads--get-database-path
+
+(ert-deftest beads-core-test-get-database-path-finds-db-file ()
+  "Test that get-database-path returns .db file when present."
+  (let ((temp-dir (make-temp-file "beads-test-" t)))
+    (unwind-protect
+        (let* ((beads-dir (expand-file-name ".beads" temp-dir))
+               (db-file (expand-file-name "beads.db" beads-dir)))
+          (make-directory beads-dir)
+          (write-region "" nil db-file)
+          (clrhash beads--project-cache)
+          (let ((default-directory temp-dir)
+                (beads-database-path nil))
+            (should (equal (beads--get-database-path) db-file))))
+      (delete-directory temp-dir t))))
+
+(ert-deftest beads-core-test-get-database-path-nil-without-db ()
+  "Test that get-database-path returns nil when no .db file."
+  (let ((temp-dir (make-temp-file "beads-test-" t)))
+    (unwind-protect
+        (let* ((beads-dir (expand-file-name ".beads" temp-dir)))
+          (make-directory beads-dir)
+          (clrhash beads--project-cache)
+          (let ((default-directory temp-dir)
+                (beads-database-path nil))
+            (should (null (beads--get-database-path)))))
+      (delete-directory temp-dir t))))
+
+(ert-deftest beads-core-test-get-database-path-follows-redirect ()
+  "Test that get-database-path follows .beads/redirect to find .db file."
+  (let ((main-dir (make-temp-file "beads-main-" t))
+        (worktree-dir (make-temp-file "beads-wt-" t)))
+    (unwind-protect
+        (let* ((main-beads (expand-file-name ".beads" main-dir))
+               (wt-beads (expand-file-name ".beads" worktree-dir))
+               (db-file (expand-file-name "beads.db" main-beads))
+               ;; redirect is relative to the worktree project root
+               (redirect-target
+                (file-relative-name main-beads worktree-dir)))
+          (make-directory main-beads)
+          (make-directory wt-beads)
+          (write-region "" nil db-file)
+          ;; Write redirect file in worktree's .beads dir
+          (write-region redirect-target nil
+                        (expand-file-name "redirect" wt-beads))
+          (clrhash beads--project-cache)
+          (let ((default-directory worktree-dir)
+                (beads-database-path nil))
+            (should (equal (beads--get-database-path) db-file))))
+      (delete-directory main-dir t)
+      (delete-directory worktree-dir t))))
+
+(ert-deftest beads-core-test-get-database-path-redirect-no-db ()
+  "Test that get-database-path returns nil when redirect target has no .db."
+  (let ((main-dir (make-temp-file "beads-main-" t))
+        (worktree-dir (make-temp-file "beads-wt-" t)))
+    (unwind-protect
+        (let* ((main-beads (expand-file-name ".beads" main-dir))
+               (wt-beads (expand-file-name ".beads" worktree-dir))
+               (redirect-target
+                (file-relative-name main-beads worktree-dir)))
+          (make-directory main-beads)
+          (make-directory wt-beads)
+          ;; No .db file in main-beads
+          (write-region redirect-target nil
+                        (expand-file-name "redirect" wt-beads))
+          (clrhash beads--project-cache)
+          (let ((default-directory worktree-dir)
+                (beads-database-path nil))
+            (should (null (beads--get-database-path)))))
+      (delete-directory main-dir t)
+      (delete-directory worktree-dir t))))
+
 (provide 'beads-core-test)
 ;;; beads-core-test.el ends here

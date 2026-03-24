@@ -237,10 +237,28 @@ Search order:
 
 (defun beads--get-database-path ()
   "Get the database path for bd commands.
-Returns nil if auto-discovery should be used."
+Returns nil if auto-discovery should be used.
+
+When `.beads/redirect' is present (git worktree case), follows
+the redirect to the actual `.beads' directory before searching
+for `.db' files."
   (or beads-database-path
       (when-let* ((beads-dir (beads--find-beads-dir)))
-        (car (directory-files beads-dir t "\\.db\\'")))))
+        (let* ((redirect-file (expand-file-name "redirect" beads-dir))
+               (actual-beads-dir
+                (if (file-exists-p redirect-file)
+                    (let* ((project-root
+                            (file-name-directory
+                             (directory-file-name beads-dir)))
+                           (target
+                            (string-trim
+                             (with-temp-buffer
+                               (insert-file-contents redirect-file)
+                               (buffer-string)))))
+                      (expand-file-name target project-root))
+                  beads-dir)))
+          (when (file-directory-p actual-beads-dir)
+            (car (directory-files actual-beads-dir t "\\.db\\'")))))))
 
 ;;; Context Functions — Public API
 
