@@ -923,7 +923,7 @@
               (should our-issue)
               (should (> (oref our-issue blocked-by-count) 0))
               (should (member blocking-id
-                              (oref our-issue blocked-by)))))))))
+                              (oref our-issue blocked-by))))))))))
 
 ;;; ========================================
 ;;; Additional From-JSON Tests
