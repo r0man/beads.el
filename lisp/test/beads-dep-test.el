@@ -1292,5 +1292,64 @@
          (layout-str (format "%s" layout)))
     (should (string-match-p "beads-dep-list" layout-str))))
 
+;;; Tests for beads-dep-list issue ID pre-population
+
+(ert-deftest beads-dep-test-detect-issue-id-from-pending ()
+  "Test that beads-dep--detect-issue-id returns pending issue ID."
+  :tags '(:unit)
+  (let ((beads-dep--pending-issue-id "bd-pending"))
+    (should (equal (beads-dep--detect-issue-id) "bd-pending"))))
+
+(ert-deftest beads-dep-test-detect-issue-id-pending-takes-priority ()
+  "Test that pending issue ID takes priority over buffer context."
+  :tags '(:unit)
+  (require 'beads-command-show)
+  (with-temp-buffer
+    (beads-show-mode)
+    (setq-local beads-show--current-issue-id "bd-context")
+    (let ((beads-dep--pending-issue-id "bd-explicit"))
+      (should (equal (beads-dep--detect-issue-id) "bd-explicit")))))
+
+(ert-deftest beads-dep-test-dep-list-passes-issue-id-via-pending ()
+  "Test that beads-dep-list binds issue-id as pending when calling transient."
+  :tags '(:unit)
+  (let ((captured-pending nil)
+        (transient-called nil))
+    (cl-letf (((symbol-function 'beads-dep-list-transient)
+               (lambda ()
+                 (setq transient-called t)
+                 (setq captured-pending beads-dep--pending-issue-id))))
+      (beads-dep-list "bd-42")
+      (should transient-called)
+      (should (equal captured-pending "bd-42")))))
+
+(ert-deftest beads-dep-test-dep-list-transient-has-default-value ()
+  "Test that beads-dep-list-transient prototype has a default-value function."
+  :tags '(:unit)
+  (let ((proto (get 'beads-dep-list-transient 'transient--prefix)))
+    (should proto)
+    (should (slot-boundp proto 'default-value))
+    (should (functionp (oref proto default-value)))))
+
+(ert-deftest beads-dep-test-dep-list-transient-default-value-uses-pending ()
+  "Test that beads-dep-list-transient default-value reads pending issue ID."
+  :tags '(:unit)
+  (let ((proto (get 'beads-dep-list-transient 'transient--prefix)))
+    (should proto)
+    (let ((beads-dep--pending-issue-id "bd-test"))
+      (let ((value (funcall (oref proto default-value))))
+        (should (equal value (list "--id=bd-test")))))))
+
+(ert-deftest beads-dep-test-dep-list-transient-default-value-nil-when-no-context ()
+  "Test that beads-dep-list-transient default-value returns nil without context."
+  :tags '(:unit)
+  (let ((proto (get 'beads-dep-list-transient 'transient--prefix)))
+    (should proto)
+    (let ((beads-dep--pending-issue-id nil))
+      (with-temp-buffer
+        ;; No list or show mode active
+        (let ((value (funcall (oref proto default-value))))
+          (should (null value)))))))
+
 (provide 'beads-dep-test)
 ;;; beads-dep-test.el ends here

@@ -636,6 +636,16 @@ Use --direction=up to show dependents (what depends on this issue).
 Use --type to filter by dependency type."
   beads-option-global-section)
 
+;; Enable context-aware pre-population of the Issue ID field.
+;; The default-value function is called by transient when initializing
+;; the prefix, allowing beads-dep-list and buffer-context detection
+;; to pre-populate --id= via beads-dep--pending-issue-id.
+(when-let ((proto (get 'beads-dep-list-transient 'transient--prefix)))
+  (oset proto default-value
+        (lambda ()
+          (when-let ((id (beads-dep--detect-issue-id)))
+            (list (concat "--id=" id))))))
+
 ;;;###autoload (autoload 'beads-dep-relate "beads-command-dep" nil t)
 (beads-meta-define-transient beads-command-dep-relate "beads-dep-relate"
   "Create a bidirectional relates_to link between two issues.
@@ -676,21 +686,28 @@ Transient levels control which options are visible (cycle with C-x l):
 (defvar beads-dep-tree--issue-id nil
   "Issue ID for tree display (buffer-local).")
 
+(defvar beads-dep--pending-issue-id nil
+  "Issue ID to pre-populate in dependency transient menus.
+Set as a dynamic binding when invoking dependency transients
+programmatically with an explicit issue ID.")
+
 (defun beads-dep--detect-issue-id ()
   "Detect current issue ID from context.
-Returns issue ID if in beads-list or beads-show buffer, nil otherwise."
-  (cond
-   ;; In beads-list buffer
-   ((and (derived-mode-p 'beads-list-mode)
-         (fboundp 'beads-list--current-issue-id))
-    (beads-list--current-issue-id))
-   ;; In beads-show buffer
-   ((and (derived-mode-p 'beads-show-mode)
-         (boundp 'beads-show--current-issue-id)
-         beads-show--current-issue-id)
-    beads-show--current-issue-id)
-   ;; No context
-   (t nil)))
+Checks `beads-dep--pending-issue-id' first (for programmatic calls),
+then falls back to detecting from beads-list or beads-show buffers."
+  (or beads-dep--pending-issue-id
+      (cond
+       ;; In beads-list buffer
+       ((and (derived-mode-p 'beads-list-mode)
+             (fboundp 'beads-list--current-issue-id))
+        (beads-list--current-issue-id))
+       ;; In beads-show buffer
+       ((and (derived-mode-p 'beads-show-mode)
+             (boundp 'beads-show--current-issue-id)
+             beads-show--current-issue-id)
+        beads-show--current-issue-id)
+       ;; No context
+       (t nil))))
 
 (defun beads-dep--format-dependency (dep)
   "Format dependency DEP (beads-dep-op-result object) for display."
@@ -1037,7 +1054,9 @@ Completion matches on both issue ID and title."
 ;;;###autoload
 (defun beads-dep-list (&optional issue-id)
   "List dependencies of ISSUE-ID using a transient menu.
-If ISSUE-ID is not provided, prompt for it or detect from context."
+If ISSUE-ID is not provided, prompt for it or detect from context.
+When ISSUE-ID is provided, the transient menu pre-populates the
+Issue ID field with that value."
   (interactive
    (list (or (beads-dep--detect-issue-id)
              (beads-completion-read-issue "Issue ID: " nil nil nil
@@ -1045,7 +1064,8 @@ If ISSUE-ID is not provided, prompt for it or detect from context."
   (beads-check-executable)
   (when (or (null issue-id) (string-empty-p issue-id))
     (user-error "Issue ID is required"))
-  (beads-dep-list-transient))
+  (let ((beads-dep--pending-issue-id issue-id))
+    (beads-dep-list-transient)))
 
 ;;; Dependency Cycles View
 
