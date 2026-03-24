@@ -175,9 +175,16 @@ priority (lowest number first)."
 
 (defun beads-insert-blocked-issues ()
   "Return a collapsible vui vnode for blocked issues, or nil when none.
-Fetches issues via `bd blocked --json'."
+Fetches issues via `bd blocked --json'.
+Issues with status \"hooked\" or \"in_progress\" are excluded because
+they represent actively running work, not stalled work."
   (let* ((cmd (beads-command-blocked :json t))
-         (issues (oref (beads-command-execute cmd) result)))
+         (all-issues (oref (beads-command-execute cmd) result))
+         (issues (seq-remove
+                  (lambda (issue)
+                    (member (oref issue status)
+                            '("hooked" "in_progress")))
+                  all-issues)))
     (when issues
       (vui-component 'beads-section--issue-group
         :title "Blocked Issues"
