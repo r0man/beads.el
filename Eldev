@@ -145,12 +145,13 @@ ORIG-FN is the original function, STATS is the test statistics."
                   (load (expand-file-name "beads-meta.el" lisp-dir) nil t)))))
 
 ;; Test isolation:
-;; - Unit tests unset BEADS_DOLT_PORT so bd uses JSONL-only storage
-;;   (no Dolt server needed).
-;; - Integration tests use an isolated Dolt server on a random free
-;;   port, started by beads-integration-test.el at load time.
-;;   BEADS_DOLT_PORT routes bd commands to the isolated server.
-;; Neither mode touches any production Dolt server.
+;; All tests that call real bd commands route to a suite-level isolated
+;; Dolt server started by beads-integration-test.el at load time on a
+;; random free port.  BEADS_DOLT_PORT is set to this port in every test
+;; macro (beads-test-with-project, beads-test-with-shared-project,
+;; beads-test-with-temp-repo) so bd never connects to the production
+;; server at port 3307.  bd v0.58.0+ requires Dolt — there is no
+;; JSONL-only fallback mode.
 
 ;; Clean up shared test project and suite Dolt server on exit.
 (add-hook 'kill-emacs-hook
