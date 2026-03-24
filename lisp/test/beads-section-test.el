@@ -145,6 +145,44 @@
         (should vnode)
         (should-not (stringp vnode))))))
 
+(ert-deftest beads-section-test-insert-blocked-filters-hooked ()
+  "Verify beads-insert-blocked-issues excludes hooked issues."
+  (let ((issues (list (beads-section-test--make-issue
+                       :id "bd-h01" :status "hooked"
+                       :title "Hooked task"))))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_cmd)
+                 (beads-section-test--mock-execute issues))))
+      (should-not (beads-insert-blocked-issues)))))
+
+(ert-deftest beads-section-test-insert-blocked-filters-in-progress ()
+  "Verify beads-insert-blocked-issues excludes in_progress issues."
+  (let ((issues (list (beads-section-test--make-issue
+                       :id "bd-ip1" :status "in_progress"
+                       :title "In-progress task"))))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_cmd)
+                 (beads-section-test--mock-execute issues))))
+      (should-not (beads-insert-blocked-issues)))))
+
+(ert-deftest beads-section-test-insert-blocked-mixed-statuses ()
+  "Verify beads-insert-blocked-issues only shows non-active blocked issues."
+  (let ((issues (list (beads-section-test--make-issue
+                       :id "bd-h01" :status "hooked"
+                       :title "Hooked task")
+                      (beads-section-test--make-issue
+                       :id "bd-ip1" :status "in_progress"
+                       :title "In-progress task")
+                      (beads-section-test--make-issue
+                       :id "bd-003" :status "open"
+                       :title "Open blocked task"))))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (_cmd)
+                 (beads-section-test--mock-execute issues))))
+      ;; Only the open issue should appear — hooked and in_progress filtered out
+      (let ((vnode (beads-insert-blocked-issues)))
+        (should vnode)))))
+
 (ert-deftest beads-section-test-insert-ready-work-empty ()
   "Verify beads-insert-ready-work returns nil when no ready work."
   (cl-letf (((symbol-function 'beads-command-execute)
