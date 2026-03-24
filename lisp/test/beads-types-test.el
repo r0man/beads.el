@@ -25,6 +25,11 @@
 (require 'beads-command-blocked)
 (require 'beads-command-ready)
 (require 'beads-command-list)
+;; beads-integration-test provides suite-level Dolt server management.
+;; Requiring it ensures the isolated server is started before integration
+;; tests run, preventing any bd commands from connecting to production
+;; (port 3307).
+(require 'beads-integration-test)
 
 
 ;;; ========================================
@@ -765,208 +770,160 @@
   "Integration test: read an issue by ID using real bd CLI."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (let* ((project-dir (make-temp-file "beads-test-" t))
-         (default-directory project-dir))
-    (unwind-protect
-        (progn
-          ;; Initialize git and beads project
-          (call-process "git" nil nil nil "init" "-q")
-          (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
-          (call-process "git" nil nil nil "config" "user.name" "Beads Test")
-          (call-process "bd" nil nil nil "init" "--prefix" "test")
+  (beads-test-with-temp-repo (:init-beads t)
+    ;; Create a test issue
+    (with-temp-buffer
+      (call-process "bd" nil t nil "create"
+                    "Integration Test Issue"
+                    "--description" "Test description"
+                    "--priority" "2"
+                    "--type" "task"
+                    "--json")
+      (goto-char (point-min))
+      (let* ((json-object-type 'alist)
+             (json-array-type 'list)
+             (json-key-type 'symbol)
+             (result (json-read))
+             (issue-id (alist-get 'id result)))
 
-          ;; Create a test issue
-          (with-temp-buffer
-            (call-process "bd" nil t nil "create"
-                          "Integration Test Issue"
-                          "--description" "Test description"
-                          "--priority" "2"
-                          "--type" "task"
-                          "--json")
-            (goto-char (point-min))
-            (let* ((json-object-type 'alist)
-                   (json-array-type 'list)
-                   (json-key-type 'symbol)
-                   (result (json-read))
-                   (issue-id (alist-get 'id result)))
-
-              ;; Test: Read the issue using beads-issue-read
-              (let ((issue (beads-issue-read issue-id)))
-                (should (beads-issue-p issue))
-                (should (string= (oref issue id) issue-id))
-                (should (string= (oref issue title) "Integration Test Issue"))
-                (should (string= (oref issue description) "Test description"))
-                (should (= (oref issue priority) 2))
-                (should (string= (oref issue issue-type) "task"))
-                (should (string= (oref issue status) "open"))
-                (should (null (oref issue closed-at)))))))
-      ;; Cleanup
-      (when (file-directory-p project-dir)
-        (delete-directory project-dir t)))))
+        ;; Test: Read the issue using beads-issue-read
+        (let ((issue (beads-issue-read issue-id)))
+          (should (beads-issue-p issue))
+          (should (string= (oref issue id) issue-id))
+          (should (string= (oref issue title) "Integration Test Issue"))
+          (should (string= (oref issue description) "Test description"))
+          (should (= (oref issue priority) 2))
+          (should (string= (oref issue issue-type) "task"))
+          (should (string= (oref issue status) "open"))
+          (should (null (oref issue closed-at))))))))
 
 (ert-deftest beads-types-test-integration-issue-list-by-status ()
   "Integration test: list issues filtered by status using real bd CLI."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (let* ((project-dir (make-temp-file "beads-test-" t))
-         (default-directory project-dir))
-    (unwind-protect
-        (progn
-          ;; Initialize git and beads project
-          (call-process "git" nil nil nil "init" "-q")
-          (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
-          (call-process "git" nil nil nil "config" "user.name" "Beads Test")
-          (call-process "bd" nil nil nil "init" "--prefix" "test")
+  (beads-test-with-temp-repo (:init-beads t)
+    ;; Create issues with different statuses
+    ;; Note: bd v0.26.0+ warns when creating issues without description
+    (with-temp-buffer
+      (call-process "bd" nil t nil "create" "Open Issue"
+                    "--description" "Test issue" "--json")
+      (goto-char (point-min))
+      (let* ((json-object-type 'alist)
+             (json-array-type 'list)
+             (json-key-type 'symbol)
+             (result (json-read))
+             (issue-id (alist-get 'id result)))
+        ;; Update one to in_progress
+        (call-process "bd" nil nil nil "update" issue-id
+                      "--status" "in_progress")))
 
-          ;; Create issues with different statuses
-          ;; Note: bd v0.26.0+ warns when creating issues without description
-          (with-temp-buffer
-            (call-process "bd" nil t nil "create" "Open Issue"
-                          "--description" "Test issue" "--json")
-            (goto-char (point-min))
-            (let* ((json-object-type 'alist)
-                   (json-array-type 'list)
-                   (json-key-type 'symbol)
-                   (result (json-read))
-                   (issue-id (alist-get 'id result)))
-              ;; Update one to in_progress
-              (call-process "bd" nil nil nil "update" issue-id
-                            "--status" "in_progress")))
+    (call-process "bd" nil nil nil "create" "Another Open Issue")
 
-          (call-process "bd" nil nil nil "create" "Another Open Issue")
+    (with-temp-buffer
+      (call-process "bd" nil t nil "create" "To Be Closed"
+                    "--description" "Test issue" "--json")
+      (goto-char (point-min))
+      (let* ((json-object-type 'alist)
+             (json-array-type 'list)
+             (json-key-type 'symbol)
+             (result (json-read))
+             (issue-id (alist-get 'id result)))
+        ;; Close this issue
+        (call-process "bd" nil nil nil "close" issue-id
+                      "--reason" "Done")))
 
-          (with-temp-buffer
-            (call-process "bd" nil t nil "create" "To Be Closed"
-                          "--description" "Test issue" "--json")
-            (goto-char (point-min))
-            (let* ((json-object-type 'alist)
-                   (json-array-type 'list)
-                   (json-key-type 'symbol)
-                   (result (json-read))
-                   (issue-id (alist-get 'id result)))
-              ;; Close this issue
-              (call-process "bd" nil nil nil "close" issue-id
-                            "--reason" "Done")))
+    ;; Test: List only open issues
+    (let ((open-issues (beads-issue-list "open")))
+      (should (>= (length open-issues) 1))
+      (should (cl-every (lambda (i)
+                          (string= (oref i status) "open"))
+                        open-issues)))
 
-          ;; Test: List only open issues
-          (let ((open-issues (beads-issue-list "open")))
-            (should (>= (length open-issues) 1))
-            (should (cl-every (lambda (i)
-                                (string= (oref i status) "open"))
-                              open-issues)))
+    ;; Test: List only in_progress issues
+    (let ((in-progress-issues (beads-issue-list "in_progress")))
+      (should (>= (length in-progress-issues) 1))
+      (should (cl-every (lambda (i)
+                          (string= (oref i status) "in_progress"))
+                        in-progress-issues)))
 
-          ;; Test: List only in_progress issues
-          (let ((in-progress-issues (beads-issue-list "in_progress")))
-            (should (>= (length in-progress-issues) 1))
-            (should (cl-every (lambda (i)
-                                (string= (oref i status) "in_progress"))
-                              in-progress-issues)))
-
-          ;; Test: List only closed issues
-          (let ((closed-issues (beads-issue-list "closed")))
-            (should (>= (length closed-issues) 1))
-            (should (cl-every (lambda (i)
-                                (string= (oref i status) "closed"))
-                              closed-issues))
-            (should (cl-every (lambda (i)
-                                (not (null (oref i closed-at))))
-                              closed-issues))))
-      ;; Cleanup
-      (when (file-directory-p project-dir)
-        (delete-directory project-dir t)))))
+    ;; Test: List only closed issues
+    (let ((closed-issues (beads-issue-list "closed")))
+      (should (>= (length closed-issues) 1))
+      (should (cl-every (lambda (i)
+                          (string= (oref i status) "closed"))
+                        closed-issues))
+      (should (cl-every (lambda (i)
+                          (not (null (oref i closed-at))))
+                        closed-issues)))))
 
 (ert-deftest beads-types-test-integration-issue-ready ()
   "Integration test: get ready work using real bd CLI."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (let* ((project-dir (make-temp-file "beads-test-" t))
-         (default-directory project-dir))
-    (unwind-protect
-        (progn
-          ;; Initialize git and beads project
-          (call-process "git" nil nil nil "init" "-q")
-          (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
-          (call-process "git" nil nil nil "config" "user.name" "Beads Test")
-          (call-process "bd" nil nil nil "init" "--prefix" "test")
+  (beads-test-with-temp-repo (:init-beads t)
+    ;; Create a ready issue (open with no blockers)
+    (call-process "bd" nil nil nil "create" "Ready Issue 1"
+                  "--priority" "3")
+    (call-process "bd" nil nil nil "create" "Ready Issue 2"
+                  "--priority" "2")
 
-          ;; Create a ready issue (open with no blockers)
-          (call-process "bd" nil nil nil "create" "Ready Issue 1"
-                        "--priority" "3")
-          (call-process "bd" nil nil nil "create" "Ready Issue 2"
-                        "--priority" "2")
+    ;; Test: Get ready work
+    (let ((ready-issues (beads-issue-ready)))
+      (should (>= (length ready-issues) 2))
+      (should (cl-every #'beads-issue-p ready-issues))
 
-          ;; Test: Get ready work
-          (let ((ready-issues (beads-issue-ready)))
-            (should (>= (length ready-issues) 2))
-            (should (cl-every #'beads-issue-p ready-issues))
+      ;; Verify all are open
+      (should (cl-every (lambda (i)
+                          (string= (oref i status) "open"))
+                        ready-issues)))
 
-            ;; Verify all are open
-            (should (cl-every (lambda (i)
-                                (string= (oref i status) "open"))
-                              ready-issues)))
-
-          ;; Test: Get ready work with limit
-          (let ((limited-issues (beads-issue-ready 1)))
-            (should (= (length limited-issues) 1))
-            (should (beads-issue-p (car limited-issues)))))
-      ;; Cleanup
-      (when (file-directory-p project-dir)
-        (delete-directory project-dir t)))))
+    ;; Test: Get ready work with limit
+    (let ((limited-issues (beads-issue-ready 1)))
+      (should (= (length limited-issues) 1))
+      (should (beads-issue-p (car limited-issues))))))
 
 (ert-deftest beads-types-test-integration-blocked-issue-list ()
   "Integration test: list blocked issues using real bd CLI."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (let* ((project-dir (make-temp-file "beads-test-" t))
-         (default-directory project-dir))
-    (unwind-protect
-        (progn
-          ;; Initialize git and beads project
-          (call-process "git" nil nil nil "init" "-q")
-          (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
-          (call-process "git" nil nil nil "config" "user.name" "Beads Test")
-          (call-process "bd" nil nil nil "init" "--prefix" "test")
+  (beads-test-with-temp-repo (:init-beads t)
+    ;; Create two issues and make one depend on the other
+    ;; Note: bd v0.26.0+ warns when creating issues without description
+    (with-temp-buffer
+      (call-process "bd" nil t nil "create" "Blocking Issue"
+                    "--description" "Test issue" "--json")
+      (goto-char (point-min))
+      (let* ((json-object-type 'alist)
+             (json-array-type 'list)
+             (json-key-type 'symbol)
+             (result1 (json-read))
+             (blocking-id (alist-get 'id result1)))
 
-          ;; Create two issues and make one depend on the other
-          ;; Note: bd v0.26.0+ warns when creating issues without description
-          (with-temp-buffer
-            (call-process "bd" nil t nil "create" "Blocking Issue"
-                          "--description" "Test issue" "--json")
-            (goto-char (point-min))
-            (let* ((json-object-type 'alist)
-                   (json-array-type 'list)
-                   (json-key-type 'symbol)
-                   (result1 (json-read))
-                   (blocking-id (alist-get 'id result1)))
+        (erase-buffer)
+        (call-process "bd" nil t nil "create" "Blocked Issue"
+                      "--description" "Test issue" "--json")
+        (goto-char (point-min))
+        (let* ((result2 (json-read))
+               (blocked-id (alist-get 'id result2)))
 
-              (erase-buffer)
-              (call-process "bd" nil t nil "create" "Blocked Issue"
-                            "--description" "Test issue" "--json")
-              (goto-char (point-min))
-              (let* ((result2 (json-read))
-                     (blocked-id (alist-get 'id result2)))
+          ;; Add blocking dependency
+          (call-process "bd" nil nil nil "dep" "add"
+                        blocked-id blocking-id "--type" "blocks")
 
-                ;; Add blocking dependency
-                (call-process "bd" nil nil nil "dep" "add"
-                              blocked-id blocking-id "--type" "blocks")
+          ;; Test: List blocked issues
+          (let ((blocked-issues (beads-blocked-issue-list)))
+            (should (>= (length blocked-issues) 1))
+            (should (cl-every #'beads-blocked-issue-p blocked-issues))
 
-                ;; Test: List blocked issues
-                (let ((blocked-issues (beads-blocked-issue-list)))
-                  (should (>= (length blocked-issues) 1))
-                  (should (cl-every #'beads-blocked-issue-p blocked-issues))
-
-                  ;; Find our blocked issue
-                  (let ((our-issue (cl-find-if
-                                    (lambda (i)
-                                      (string= (oref i id) blocked-id))
-                                    blocked-issues)))
-                    (should our-issue)
-                    (should (> (oref our-issue blocked-by-count) 0))
-                    (should (member blocking-id
-                                    (oref our-issue blocked-by)))))))))
-      ;; Cleanup
-      (when (file-directory-p project-dir)
-        (delete-directory project-dir t)))))
+            ;; Find our blocked issue
+            (let ((our-issue (cl-find-if
+                              (lambda (i)
+                                (string= (oref i id) blocked-id))
+                              blocked-issues)))
+              (should our-issue)
+              (should (> (oref our-issue blocked-by-count) 0))
+              (should (member blocking-id
+                              (oref our-issue blocked-by)))))))))
 
 ;;; ========================================
 ;;; Additional From-JSON Tests

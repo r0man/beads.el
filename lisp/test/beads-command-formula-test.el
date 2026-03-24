@@ -19,6 +19,11 @@
 (require 'ert)
 (require 'beads-types)
 (require 'beads-command-formula)
+;; beads-integration-test provides suite-level Dolt server management.
+;; Requiring it ensures the isolated server is started before integration
+;; tests run, preventing any bd commands from connecting to production
+;; (port 3307).
+(require 'beads-integration-test)
 
 ;;; ========================================
 ;;; Test Fixtures
@@ -431,35 +436,16 @@
   "Integration test for formula list command."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  ;; Create a temporary beads directory for testing
-  (let* ((temp-dir (make-temp-file "beads-formula-test-" t))
-         (default-directory temp-dir)
-         (prefix (format "bt%06d" (random 999999))))
-    (unwind-protect
-        (progn
-          ;; Initialize git first - required for bd init
-          (call-process "git" nil nil nil "init" "-q")
-          (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
-          (call-process "git" nil nil nil "config" "user.name" "Beads Test")
-          ;; Initialize beads in the temp directory
-          (let* ((init-cmd (beads-command-init :prefix prefix))
-                 (init-exec (beads-command-execute init-cmd)))
-            (should (= (oref init-exec exit-code) 0)))
-          ;; This test will actually run bd formula list --json
-          (let* ((cmd (beads-command-formula-list :json t))
-                 (exec (beads-command-execute cmd)))
-            ;; Should return execution object
-            (should (cl-typep exec 'beads-command-execution))
-            ;; Exit code should be 0
-            (should (= (oref exec exit-code) 0))
-            ;; Result should be a list (possibly empty)
-            (should (listp (oref exec result)))))
-      ;; Drop the Dolt database to prevent orphan accumulation
-      (ignore-errors
-        (call-process "bd" nil nil nil
-                      "sql" (format "DROP DATABASE IF EXISTS `%s`" prefix)))
-      ;; Cleanup: remove temp directory
-      (delete-directory temp-dir t))))
+  (beads-test-with-temp-repo (:init-beads t)
+    ;; This test will actually run bd formula list --json
+    (let* ((cmd (beads-command-formula-list :json t))
+           (exec (beads-command-execute cmd)))
+      ;; Should return execution object
+      (should (cl-typep exec 'beads-command-execution))
+      ;; Exit code should be 0
+      (should (= (oref exec exit-code) 0))
+      ;; Result should be a list (possibly empty)
+      (should (listp (oref exec result))))))
 
 ;;; ========================================
 ;;; Formula Show Render Tests
