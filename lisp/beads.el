@@ -266,7 +266,7 @@ subdirectory."
         (let* ((resolved-dir (beads--resolve-beads-dir beads-dir)))
           (or
            ;; Legacy: SQLite .db file
-           (car (directory-files resolved-dir t "\.db\'"))
+           (car (directory-files resolved-dir t "\\.db\\'"))
            ;; Modern: Dolt database directory
            (let ((dolt-dir (expand-file-name "dolt" resolved-dir)))
              (when (file-directory-p dolt-dir)
