@@ -235,12 +235,40 @@ Search order:
             (puthash start-dir full-path beads--project-cache)
             full-path))))))
 
+(defun beads--resolve-beads-dir (beads-dir)
+  "Resolve BEADS-DIR, following a redirect file if present.
+If BEADS-DIR contains a `redirect' file, reads its content as a
+relative path and returns the resolved target directory.  If the
+target does not exist or there is no redirect file, returns
+BEADS-DIR unchanged."
+  (let ((redirect-file (expand-file-name "redirect" beads-dir)))
+    (if (file-readable-p redirect-file)
+        (let* ((target (string-trim
+                        (with-temp-buffer
+                          (insert-file-contents redirect-file)
+                          (buffer-string))))
+               (resolved (expand-file-name target beads-dir)))
+          (if (file-directory-p resolved)
+              resolved
+            beads-dir))
+      beads-dir)))
+
 (defun beads--get-database-path ()
   "Get the database path for bd commands.
-Returns nil if auto-discovery should be used."
+Returns nil if auto-discovery should be used.
+Follows .beads/redirect files to find the actual database
+directory, then looks for a SQLite .db file or a Dolt database
+subdirectory."
   (or beads-database-path
       (when-let* ((beads-dir (beads--find-beads-dir)))
-        (car (directory-files beads-dir t "\\.db\\'")))))
+        (let* ((resolved-dir (beads--resolve-beads-dir beads-dir)))
+          (or
+           ;; Legacy: SQLite .db file
+           (car (directory-files resolved-dir t "\\.db\\'"))
+           ;; Modern: Dolt database directory
+           (let ((dolt-dir (expand-file-name "dolt" resolved-dir)))
+             (when (file-directory-p dolt-dir)
+               dolt-dir)))))))
 
 ;;; Context Functions — Public API
 
