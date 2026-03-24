@@ -88,19 +88,21 @@ Key bindings:
   "Return a vui vnode for the beads status buffer header.
 
 Shows the project name derived from the git root and the database
-path.  Falls back gracefully when no project or database is found."
+path.  For Dolt server mode the path points to the dolt directory.
+Falls back gracefully when no project or database is found."
   (let* ((root (beads-git-find-project-root))
          (db   (beads--get-database-path))
          (project-name
           (if root
               (file-name-nondirectory (directory-file-name root))
-            "unknown")))
+            "unknown"))
+         (db-display (or db "not found")))
     (vui-hstack :spacing 0
       (vui-text "Beads" :face 'bold)
       (vui-text " \u2014 " :face 'shadow)
       (vui-text project-name :face 'font-lock-constant-face)
       (vui-text " (" :face 'shadow)
-      (vui-text (or db "no database") :face 'font-lock-string-face)
+      (vui-text db-display :face 'font-lock-string-face)
       (vui-text ")" :face 'shadow))))
 
 ;;; Root Component

@@ -227,8 +227,24 @@
         (should (stringp header))
         (should (string-match-p "No beads project found" header))))))
 
-(ert-deftest beads-main-test-format-project-header-auto-discover ()
-  "Test header formatting with auto-discovered database."
+(ert-deftest beads-main-test-format-project-header-dolt-mode ()
+  "Test header shows dolt dir path when db is a directory (Dolt server mode)."
+  (beads-main-test-with-clean-cache
+    (cl-letf (((symbol-function 'beads-git-find-project-root)
+               (lambda () "/home/user/project"))
+              ((symbol-function 'beads--get-database-path)
+               (lambda () "/home/user/project/.beads/dolt"))
+              ((symbol-function 'call-process)
+               (beads-main-test--mock-call-process-version
+                "bd version 0.9.2\n")))
+      (let ((header (beads-main--format-project-header)))
+        (should (stringp header))
+        ;; Full dolt dir path should appear (not just basename)
+        (should (string-match-p "/home/user/project/.beads/dolt" header))
+        (should-not (string-match-p "auto-discover" header))))))
+
+(ert-deftest beads-main-test-format-project-header-no-db ()
+  "Test header shows not found when no db is found."
   (beads-main-test-with-clean-cache
     (cl-letf (((symbol-function 'beads-git-find-project-root)
                (lambda () "/home/user/project"))
@@ -239,7 +255,8 @@
                 "bd version 0.9.2\n")))
       (let ((header (beads-main--format-project-header)))
         (should (stringp header))
-        (should (string-match-p "auto-discover" header))))))
+        (should (string-match-p "not found" header))
+        (should-not (string-match-p "auto-discover" header))))))
 
 (ert-deftest beads-main-test-format-project-header-has-faces ()
   "Test that header contains face properties."

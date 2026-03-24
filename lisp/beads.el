@@ -507,9 +507,15 @@ Returns a propertized string showing project and database info."
                (db (cdr info))
                (project-name (file-name-nondirectory
                               (directory-file-name root)))
-               (db-display (if db
-                              (file-name-nondirectory db)
-                            "auto-discover")))
+               (db-display
+                (cond
+                 ;; .db file: show just the filename
+                 ((and db (file-regular-p db))
+                  (file-name-nondirectory db))
+                 ;; Dolt directory or any other path: show full path
+                 (db db)
+                 ;; Nothing found
+                 (t "not found"))))
           (concat
            (propertize "Project: " 'face 'bold)
            (propertize project-name 'face 'font-lock-constant-face)
