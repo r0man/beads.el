@@ -266,7 +266,7 @@ subdirectory."
         (let* ((resolved-dir (beads--resolve-beads-dir beads-dir)))
           (or
            ;; Legacy: SQLite .db file
-           (car (directory-files resolved-dir t "\\.db\\'"))
+           (car (directory-files resolved-dir t "\.db\'"))
            ;; Modern: Dolt database directory
            (let ((dolt-dir (expand-file-name "dolt" resolved-dir)))
              (when (file-directory-p dolt-dir)
@@ -507,9 +507,15 @@ Returns a propertized string showing project and database info."
                (db (cdr info))
                (project-name (file-name-nondirectory
                               (directory-file-name root)))
-               (db-display (if db
-                              (file-name-nondirectory db)
-                            "auto-discover")))
+               (db-display
+                (cond
+                 ;; .db file: show just the filename
+                 ((and db (file-regular-p db))
+                  (file-name-nondirectory db))
+                 ;; Dolt directory or any other path: show full path
+                 (db db)
+                 ;; Nothing found
+                 (t "not found"))))
           (concat
            (propertize "Project: " 'face 'bold)
            (propertize project-name 'face 'font-lock-constant-face)
