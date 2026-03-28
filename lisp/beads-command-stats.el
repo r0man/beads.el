@@ -34,6 +34,7 @@
 (require 'beads)
 (require 'beads-buffer)
 (require 'beads-command)
+(require 'beads-command-list)
 (require 'beads-meta)
 (require 'beads-option)
 (require 'beads-types)

@@ -12,6 +12,7 @@
 
 (require 'beads-command)
 (require 'beads-command-list)
+(require 'beads-command-show)
 (require 'beads-test)
 (require 'ert)
 
