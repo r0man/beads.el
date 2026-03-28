@@ -1685,5 +1685,68 @@ should emit only the autoload form."
         (buffer-file-name nil))
     (should (null (beads--current-feature-name)))))
 
+;;; ============================================================
+;;; Tests for beads--extract-first-sentence
+;;; ============================================================
+
+(ert-deftest beads-meta-extract-first-sentence-with-period ()
+  "Test beads--extract-first-sentence extracts up to first period."
+  (should (string= "First sentence."
+                   (beads--extract-first-sentence
+                    "First sentence. Second sentence."))))
+
+(ert-deftest beads-meta-extract-first-sentence-no-period ()
+  "Test beads--extract-first-sentence returns first line when no period."
+  (should (string= "Only one sentence"
+                   (beads--extract-first-sentence "Only one sentence"))))
+
+(ert-deftest beads-meta-extract-first-sentence-multiline-no-period ()
+  "Test beads--extract-first-sentence returns first line for multiline."
+  (should (string= "First line"
+                   (beads--extract-first-sentence "First line\nSecond line"))))
+
+(ert-deftest beads-meta-extract-first-sentence-nil ()
+  "Test beads--extract-first-sentence returns nil for nil input."
+  (should (null (beads--extract-first-sentence nil))))
+
+;;; ============================================================
+;;; Tests for beads-meta--infer-description with :documentation
+;;; ============================================================
+
+;; Test class with a slot that has :documentation but no :transient-description
+(defclass beads-meta-test-doc-class ()
+  ((doc-slot
+    :initarg :doc-slot
+    :type (or null string)
+    :initform nil
+    :documentation "Slot with documentation string"
+    :long-option "doc-slot"
+    :option-type :string
+    :transient-key "d")
+   (doc-slot-multiline
+    :initarg :doc-slot-multiline
+    :type (or null string)
+    :initform nil
+    :documentation "First sentence of multiline doc\nSecond line details"
+    :long-option "doc-slot-multiline"
+    :option-type :string
+    :transient-key "m"))
+  :documentation "Test class for documentation-based inference.")
+
+(ert-deftest beads-meta-infer-description-uses-documentation ()
+  "Test that inferred description uses :documentation first sentence."
+  ;; Slot with :documentation should use first sentence as description
+  (should (equal "Slot with documentation string"
+                 (beads-meta-slot-property
+                  'beads-meta-test-doc-class 'doc-slot
+                  :transient-description))))
+
+(ert-deftest beads-meta-infer-description-uses-first-sentence ()
+  "Test that inferred description uses first sentence of multiline doc."
+  (should (equal "First sentence of multiline doc"
+                 (beads-meta-slot-property
+                  'beads-meta-test-doc-class 'doc-slot-multiline
+                  :transient-description))))
+
 (provide 'beads-meta-test)
 ;;; beads-meta-test.el ends here

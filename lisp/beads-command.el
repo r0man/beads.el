@@ -75,6 +75,7 @@
 
 ;; These helpers are used at macro-expansion time by beads-defcommand,
 ;; so they must be available during compilation.
+;; beads--extract-first-sentence is defined in beads-meta.el (loaded first).
 (eval-and-compile
 (defun beads--derive-transient-name (class-name)
   "Derive transient menu name from CLASS-NAME.
@@ -82,18 +83,6 @@ Strips \"-command-\" from class name to get the transient name.
 Example: beads-command-close -> beads-close"
   (let ((name-str (symbol-name class-name)))
     (intern (replace-regexp-in-string "-command-" "-" name-str))))
-
-(defun beads--extract-first-sentence (docstring)
-  "Extract the first sentence from DOCSTRING.
-Returns the text up to the first period followed by whitespace or end.
-If no sentence ending is found, returns the first line.
-Returns nil if DOCSTRING is nil or empty."
-  (when (and docstring (not (string-empty-p docstring)))
-    (let ((trimmed (string-trim docstring)))
-      (if (string-match "\\([^.]*\\.\\)\\(?:[ \t\n]\\|$\\)" trimmed)
-          (string-trim (match-string 1 trimmed))
-        ;; No sentence ending found, return first line
-        (car (split-string trimmed "\n"))))))
 
 (defun beads--extract-option (keyword options)
   "Extract value for KEYWORD from OPTIONS plist and return (VALUE . REST).
@@ -429,89 +418,89 @@ not stored on the command itself (commands are immutable/reusable).")
     :initarg :actor
     :type (or null string)
     :initform nil
-    :documentation "Actor name for audit trail (--actor).
-Overrides $BD_ACTOR or $USER."
+    :documentation "Actor name for audit trail
+Overrides $BD_ACTOR or $USER"
     :long-option "actor"
     :option-type :string)
    (allow-stale
     :initarg :allow-stale
     :type boolean
     :initform nil
-    :documentation "Allow operations on potentially stale data (--allow-stale).
-Skip staleness check."
+    :documentation "Allow operations on potentially stale data
+Skip staleness check"
     :long-option "allow-stale"
     :option-type :boolean)
    (db
     :initarg :db
     :type (or null string)
     :initform nil
-    :documentation "Database path (--db).
-Overrides auto-discovery of .beads/*.db."
+    :documentation "Database path
+Overrides auto-discovery of .beads/*.db"
     :long-option "db"
     :option-type :string)
    (dolt-auto-commit
     :initarg :dolt-auto-commit
     :type (or null string)
     :initform nil
-    :documentation "Dolt auto-commit policy (--dolt-auto-commit).
+    :documentation "Dolt auto-commit policy
 Values: off, on, batch.  on: commit after each write.
-batch: defer commits to bd dolt commit."
+batch: defer commits to bd dolt commit"
     :long-option "dolt-auto-commit"
     :option-type :string)
    (lock-timeout
     :initarg :lock-timeout
     :type (or null string)
     :initform nil
-    :documentation "SQLite busy timeout (--lock-timeout).
-E.g., \"30s\". 0 means fail immediately if locked."
+    :documentation "SQLite busy timeout
+E.g., \"30s\". 0 means fail immediately if locked"
     :long-option "lock-timeout"
     :option-type :string)
    (no-auto-flush
     :initarg :no-auto-flush
     :type boolean
     :initform nil
-    :documentation "Disable automatic JSONL sync (--no-auto-flush).
-Prevents auto-export after CRUD operations."
+    :documentation "Disable automatic JSONL sync
+Prevents auto-export after CRUD operations"
     :long-option "no-auto-flush"
     :option-type :boolean)
    (no-auto-import
     :initarg :no-auto-import
     :type boolean
     :initform nil
-    :documentation "Disable automatic JSONL import (--no-auto-import).
-Prevents auto-import when JSONL is newer than DB."
+    :documentation "Disable automatic JSONL import
+Prevents auto-import when JSONL is newer than DB"
     :long-option "no-auto-import"
     :option-type :boolean)
    (no-daemon
     :initarg :no-daemon
     :type boolean
     :initform nil
-    :documentation "Force direct storage mode (--no-daemon).
-Bypass daemon if running."
+    :documentation "Force direct storage mode
+Bypass daemon if running"
     :long-option "no-daemon"
     :option-type :boolean)
    (no-db
     :initarg :no-db
     :type boolean
     :initform nil
-    :documentation "Use no-db mode (--no-db).
-Load from JSONL, no SQLite database."
+    :documentation "Use no-db mode
+Load from JSONL, no SQLite database"
     :long-option "no-db"
     :option-type :boolean)
    (profile
     :initarg :profile
     :type boolean
     :initform nil
-    :documentation "Generate CPU profile (--profile).
-For performance analysis."
+    :documentation "Generate CPU profile
+For performance analysis"
     :long-option "profile"
     :option-type :boolean)
    (quiet
     :initarg :quiet
     :type boolean
     :initform nil
-    :documentation "Suppress non-essential output (-q, --quiet).
-Errors only."
+    :documentation "Suppress non-essential output
+Errors only"
     :long-option "quiet"
     :short-option "q"
     :option-type :boolean)
@@ -519,24 +508,24 @@ Errors only."
     :initarg :readonly
     :type boolean
     :initform nil
-    :documentation "Read-only mode (--readonly).
-Block write operations for worker sandboxes."
+    :documentation "Read-only mode
+Block write operations for worker sandboxes"
     :long-option "readonly"
     :option-type :boolean)
    (sandbox
     :initarg :sandbox
     :type boolean
     :initform nil
-    :documentation "Sandbox mode (--sandbox).
-Disables daemon and auto-sync."
+    :documentation "Sandbox mode
+Disables daemon and auto-sync"
     :long-option "sandbox"
     :option-type :boolean)
    (verbose
     :initarg :verbose
     :type boolean
     :initform nil
-    :documentation "Enable verbose output (-v, --verbose).
-Debug output."
+    :documentation "Enable verbose output
+Debug output"
     :long-option "verbose"
     :short-option "v"
     :option-type :boolean)
@@ -544,10 +533,10 @@ Debug output."
     :initarg :json
     :type boolean
     :initform nil
-    :documentation "Output in JSON format (--json).
+    :documentation "Output in JSON format
 Enables machine-readable output.
 Defaults to nil (human-readable terminal output).
-Programmatic callers that need structured data must set this to t."
+Programmatic callers that need structured data must set this to t"
     :long-option "json"
     :option-type :boolean))
   :documentation "Class providing global bd CLI options.

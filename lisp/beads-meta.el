@@ -109,7 +109,19 @@ Returns a string like \"beads-command-close\" suitable for `autoload'."
                   buffer-file-name)))
     (when file
       (file-name-sans-extension
-       (file-name-nondirectory file))))))
+       (file-name-nondirectory file)))))
+
+(defun beads--extract-first-sentence (docstring)
+  "Extract the first sentence from DOCSTRING.
+Returns the text up to the first period followed by whitespace or end.
+If no sentence ending is found, returns the first line.
+Returns nil if DOCSTRING is nil or empty."
+  (when (and docstring (not (string-empty-p docstring)))
+    (let ((trimmed (string-trim docstring)))
+      (if (string-match "\\([^.]*\\.\\)\\(?:[ \t\n]\\|$\\)" trimmed)
+          (string-trim (match-string 1 trimmed))
+        ;; No sentence ending found, return first line
+        (car (split-string trimmed "\n")))))))
 
 ;;; ============================================================
 ;;; Custom Slot Properties List
@@ -265,14 +277,15 @@ Returns nil if :transient-argument or :argument is already set."
         (concat "--" long-opt "=")))))
 
 (defun beads-meta--infer-description (slot-name slot-options)
-  "Infer :transient-description from SLOT-NAME or :long-option in SLOT-OPTIONS.
-Uses the humanized slot name or --option format.
+  "Infer :transient-description from SLOT-NAME or SLOT-OPTIONS.
+Uses the first sentence of :documentation if available, otherwise
+falls back to humanizing the slot name.
 Returns nil if :transient-description or :transient is already set."
   (when (and (not (plist-get slot-options :transient-description))
              (not (plist-get slot-options :transient)))
-    (if-let ((long-opt (plist-get slot-options :long-option)))
-        (concat "--" long-opt)
-      (beads-meta--humanize-slot-name slot-name))))
+    (or (when-let ((doc (plist-get slot-options :documentation)))
+          (beads--extract-first-sentence doc))
+        (beads-meta--humanize-slot-name slot-name))))
 
 (defun beads-meta--infer-class (slot-options)
   "Infer :transient-class from :option-type in SLOT-OPTIONS.
