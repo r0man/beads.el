@@ -21,6 +21,7 @@
 (require 'beads-command-show)
 (require 'beads-command-update)
 (require 'beads-agent-backend)
+(require 'beads-test)
 (require 'button)
 
 ;;; Test Fixtures
