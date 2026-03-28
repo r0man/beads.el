@@ -24,6 +24,7 @@
 (require 'json)
 (require 'beads)
 (require 'beads-command)
+(require 'beads-command-init)
 (require 'beads-command-label)
 ;; beads-integration-test provides suite-level Dolt server management.
 ;; Requiring it here ensures the server is started before any test
@@ -560,7 +561,21 @@ STRUCTURE is a list of paths to create (dirs end with /)."
   "Return the shared test project directory, creating it on first call.
 Lazily initializes a single beads project that all tests can share.
 The project is created with a unique prefix and persists for the
-duration of the test session."
+duration of the test session.
+
+If the suite Dolt server has become unresponsive (hung at MySQL
+level), restarts it and recreates the shared project from scratch,
+since the old database is gone after a server restart."
+  ;; Verify the suite Dolt server is MySQL-ready.  If the server had
+  ;; become unresponsive (accepts TCP but hangs at MySQL), the guard
+  ;; in beads-test--suite-start-server detects this and restarts.
+  ;; Track the process before the check so we can detect a restart.
+  (let ((proc-before beads-test--suite-server-process))
+    (beads-test--suite-start-server)
+    (when (not (eq proc-before beads-test--suite-server-process))
+      ;; Server was restarted; old shared project database is gone.
+      (setq beads-test--shared-project-dir nil
+            beads-test--shared-project-prefix nil)))
   (unless (and beads-test--shared-project-dir
                (file-directory-p beads-test--shared-project-dir))
     (let ((prefix (beads-test--generate-prefix)))
@@ -1941,7 +1956,7 @@ The log format is compatible with `log-view-mode':
     (cl-letf (((symbol-function 'beads--find-beads-dir)
                (lambda (&optional _dir) remote-beads-dir))
               ;; No redirect file on the remote side
-              ((symbol-function 'file-exists-p)
+              ((symbol-function 'file-readable-p)
                (lambda (_path) nil))
               ;; beads--resolve-beads-dir uses file-readable-p to check for
               ;; the redirect file; mock it to avoid Tramp SSH connection

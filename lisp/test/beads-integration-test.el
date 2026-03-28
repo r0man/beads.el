@@ -169,7 +169,7 @@ Restarts the server if the process has died or stopped accepting
 connections."
   (unless (and beads-test--suite-server-process
                (process-live-p beads-test--suite-server-process)
-               (beads-test--dolt-server-ready-p
+               (beads-test--dolt-mysql-ready-p
                 beads-test--suite-server-port))
     (beads-test--suite-stop-server)
     (when (executable-find "dolt")
