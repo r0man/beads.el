@@ -77,3 +77,7 @@ state.json
 
 # Dolt database files (added by bd init)
 .dolt/
+
+# Gas Town (added by gt)
+CLAUDE.md
+CLAUDE.local.md
