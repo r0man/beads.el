@@ -263,5 +263,88 @@
     (should (member "ado" args))
     (should (member "projects" args))))
 
+;;; Unit Tests: beads-command-notion-connect
+
+(ert-deftest beads-command-notion-connect-test-class-exists ()
+  "Unit test: beads-command-notion-connect class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-notion-connect)))
+
+(ert-deftest beads-command-notion-connect-test-command-line-basic ()
+  "Unit test: notion connect builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-notion-connect))
+         (args (beads-command-line cmd)))
+    (should (member "notion" args))
+    (should (member "connect" args))))
+
+(ert-deftest beads-command-notion-connect-test-command-line-with-url ()
+  "Unit test: notion connect includes --url flag."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-notion-connect :url "https://notion.so/db"))
+         (args (beads-command-line cmd)))
+    (should (cl-some (lambda (a) (and (stringp a)
+                                      (string-match "--url=" a)))
+                     args))))
+
+;;; Unit Tests: beads-command-notion-init
+
+(ert-deftest beads-command-notion-init-test-class-exists ()
+  "Unit test: beads-command-notion-init class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-notion-init)))
+
+(ert-deftest beads-command-notion-init-test-command-line-basic ()
+  "Unit test: notion init builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-notion-init))
+         (args (beads-command-line cmd)))
+    (should (member "notion" args))
+    (should (member "init" args))))
+
+;;; Unit Tests: beads-command-notion-status
+
+(ert-deftest beads-command-notion-status-test-class-exists ()
+  "Unit test: beads-command-notion-status class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-notion-status)))
+
+(ert-deftest beads-command-notion-status-test-command-line-basic ()
+  "Unit test: notion status builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-notion-status))
+         (args (beads-command-line cmd)))
+    (should (member "notion" args))
+    (should (member "status" args))))
+
+;;; Unit Tests: beads-command-notion-sync
+
+(ert-deftest beads-command-notion-sync-test-class-exists ()
+  "Unit test: beads-command-notion-sync class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-notion-sync)))
+
+(ert-deftest beads-command-notion-sync-test-command-line-basic ()
+  "Unit test: notion sync builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-notion-sync))
+         (args (beads-command-line cmd)))
+    (should (member "notion" args))
+    (should (member "sync" args))))
+
+(ert-deftest beads-command-notion-sync-test-command-line-pull ()
+  "Unit test: notion sync includes --pull flag."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-notion-sync :pull t))
+         (args (beads-command-line cmd)))
+    (should (member "--pull" args))))
+
+(ert-deftest beads-command-notion-sync-test-command-line-dry-run ()
+  "Unit test: notion sync includes --dry-run flag."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-notion-sync :dry-run t))
+         (args (beads-command-line cmd)))
+    (should (member "--dry-run" args))))
+
 (provide 'beads-command-integrations-test)
 ;;; beads-command-integrations-test.el ends here

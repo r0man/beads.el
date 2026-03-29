@@ -530,5 +530,212 @@ List accessible Azure DevOps projects."
    ("S" "Status" beads-ado-status)
    ("p" "Projects" beads-ado-projects)])
 
+;;; ============================================================
+;;; Notion Integration Commands
+;;; ============================================================
+
+(beads-defcommand beads-command-notion-connect (beads-command-global-options)
+  ((url
+    :initarg :url
+    :type (or null string)
+    :initform nil
+    :documentation "Existing Notion database or data source URL (--url)."
+    :long-option "url"
+    :option-type :string
+    :key "u"
+    :transient "Notion database URL"
+    :class transient-option
+    :argument "--url="
+    :prompt "Notion URL: "
+    :transient-group "Options"
+    :level 1
+    :order 1))
+  :documentation "Represents bd notion connect command.
+Connect bd to an existing Notion database or data source.")
+
+
+(beads-defcommand beads-command-notion-init (beads-command-global-options)
+  ((parent
+    :initarg :parent
+    :type (or null string)
+    :initform nil
+    :documentation "Parent page ID for the new database (--parent)."
+    :long-option "parent"
+    :option-type :string
+    :key "p"
+    :transient "Parent page ID"
+    :class transient-option
+    :argument "--parent="
+    :prompt "Parent page ID: "
+    :transient-group "Options"
+    :level 1
+    :order 1)
+   (title
+    :initarg :title
+    :type (or null string)
+    :initform nil
+    :documentation "Database title (--title).  Default: \"Beads Issues\"."
+    :long-option "title"
+    :option-type :string
+    :key "t"
+    :transient "Database title"
+    :class transient-option
+    :argument "--title="
+    :prompt "Title (default: Beads Issues): "
+    :transient-group "Options"
+    :level 1
+    :order 2))
+  :documentation "Represents bd notion init command.
+Create a dedicated Beads database in Notion.")
+
+
+(beads-defcommand beads-command-notion-status (beads-command-global-options)
+  ()
+  :documentation "Represents bd notion status command.
+Show Notion sync status.")
+
+
+(beads-defcommand beads-command-notion-sync (beads-command-global-options)
+  ((pull
+    :initarg :pull
+    :type boolean
+    :initform nil
+    :documentation "Only pull issues from Notion (--pull)."
+    :long-option "pull"
+    :option-type :boolean
+    :key "P"
+    :transient "--pull"
+    :class transient-switch
+    :argument "--pull"
+    :transient-group "Direction"
+    :level 1
+    :order 1)
+   (push
+    :initarg :push
+    :type boolean
+    :initform nil
+    :documentation "Only push issues to Notion (--push)."
+    :long-option "push"
+    :option-type :boolean
+    :key "p"
+    :transient "--push"
+    :class transient-switch
+    :argument "--push"
+    :transient-group "Direction"
+    :level 1
+    :order 2)
+   (dry-run
+    :initarg :dry-run
+    :type boolean
+    :initform nil
+    :documentation "Preview changes without making mutations (--dry-run)."
+    :long-option "dry-run"
+    :option-type :boolean
+    :key "n"
+    :transient "--dry-run"
+    :class transient-switch
+    :argument "--dry-run"
+    :transient-group "Options"
+    :level 1
+    :order 3)
+   (state
+    :initarg :state
+    :type (or null string)
+    :initform nil
+    :documentation "Issue state to sync: open, closed, or all (--state).
+Default: all."
+    :long-option "state"
+    :option-type :string
+    :key "s"
+    :transient "State filter"
+    :class transient-option
+    :argument "--state="
+    :prompt "State (open/closed/all): "
+    :choices ("open" "closed" "all")
+    :transient-group "Options"
+    :level 2
+    :order 4)
+   (create-only
+    :initarg :create-only
+    :type boolean
+    :initform nil
+    :documentation "Only create missing remote pages, do not update existing
+ones (--create-only)."
+    :long-option "create-only"
+    :option-type :boolean
+    :key "c"
+    :transient "--create-only"
+    :class transient-switch
+    :argument "--create-only"
+    :transient-group "Options"
+    :level 2
+    :order 5)
+   (prefer-local
+    :initarg :prefer-local
+    :type boolean
+    :initform nil
+    :documentation "On conflict, keep the local beads version (--prefer-local)."
+    :long-option "prefer-local"
+    :option-type :boolean
+    :key "l"
+    :transient "--prefer-local"
+    :class transient-switch
+    :argument "--prefer-local"
+    :transient-group "Conflict"
+    :level 2
+    :order 6)
+   (prefer-notion
+    :initarg :prefer-notion
+    :type boolean
+    :initform nil
+    :documentation "On conflict, use the Notion version (--prefer-notion)."
+    :long-option "prefer-notion"
+    :option-type :boolean
+    :key "N"
+    :transient "--prefer-notion"
+    :class transient-switch
+    :argument "--prefer-notion"
+    :transient-group "Conflict"
+    :level 2
+    :order 7))
+  :documentation "Represents bd notion sync command.
+Synchronize issues between beads and Notion.
+By default performs bidirectional sync.")
+
+
+;;; Autoloads for Notion sub-commands
+
+;;;###autoload (autoload 'beads-notion-connect "beads-command-integrations" nil t)
+(beads-meta-define-transient beads-command-notion-connect "beads-notion-connect"
+  "Connect bd to an existing Notion database."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-notion-init "beads-command-integrations" nil t)
+(beads-meta-define-transient beads-command-notion-init "beads-notion-init"
+  "Create a dedicated Beads database in Notion."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-notion-status "beads-command-integrations" nil t)
+(beads-meta-define-transient beads-command-notion-status "beads-notion-status"
+  "Show Notion sync status."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-notion-sync "beads-command-integrations" nil t)
+(beads-meta-define-transient beads-command-notion-sync "beads-notion-sync"
+  "Synchronize issues between beads and Notion.
+
+By default performs bidirectional sync.
+Use --pull or --push to limit direction."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-notion "beads-command-integrations" nil t)
+(transient-define-prefix beads-notion ()
+  "Notion integration commands."
+  ["Notion Commands"
+   ("c" "Connect" beads-notion-connect)
+   ("i" "Init database" beads-notion-init)
+   ("s" "Status" beads-notion-status)
+   ("S" "Sync" beads-notion-sync)])
+
 (provide 'beads-command-integrations)
 ;;; beads-command-integrations.el ends here
