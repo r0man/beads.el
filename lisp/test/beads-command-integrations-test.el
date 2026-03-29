@@ -283,9 +283,8 @@
   :tags '(:unit)
   (let* ((cmd (beads-command-notion-connect :url "https://notion.so/db"))
          (args (beads-command-line cmd)))
-    (should (cl-some (lambda (a) (and (stringp a)
-                                      (string-match "--url=" a)))
-                     args))))
+    (should (member "--url" args))
+    (should (member "https://notion.so/db" args))))
 
 ;;; Unit Tests: beads-command-notion-init
 

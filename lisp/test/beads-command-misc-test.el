@@ -1122,7 +1122,8 @@
          (args (beads-command-line cmd)))
     (should (member "priority" args))
     (should (member "bd-123" args))
-    (should (member 1 args))))
+    ;; Integer positional args are serialized to strings in command line
+    (should (member "1" args))))
 
 (ert-deftest beads-command-priority-test-validation-missing-id ()
   "Unit test: priority validation fails without issue-id."
@@ -1141,6 +1142,18 @@
   :tags '(:unit)
   (let ((cmd (beads-command-priority :issue-id "bd-123" :level 2)))
     (should-not (beads-command-validate cmd))))
+
+(ert-deftest beads-command-priority-test-validation-level-zero ()
+  "Unit test: priority validation succeeds for level 0 (critical)."
+  :tags '(:unit)
+  (let ((cmd (beads-command-priority :issue-id "bd-123" :level 0)))
+    (should-not (beads-command-validate cmd))))
+
+(ert-deftest beads-command-priority-test-validation-level-out-of-range ()
+  "Unit test: priority validation fails for level out of 0-4 range."
+  :tags '(:unit)
+  (let ((cmd (beads-command-priority :issue-id "bd-123" :level 5)))
+    (should (beads-command-validate cmd))))
 
 ;;; Unit Tests: beads-command-tag
 
