@@ -1905,5 +1905,265 @@ Show effective backend identity and repository context.")
   "Show backend identity and repository context."
   beads-option-global-section)
 
+;;; ============================================================
+;;; Command Class: beads-command-assign
+;;; ============================================================
+
+(beads-defcommand beads-command-assign (beads-command-global-options)
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID to assign."
+    :positional 1)
+   (assignee
+    :initarg :assignee
+    :type (or null string)
+    :initform nil
+    :documentation "Name to assign the issue to.  Empty string unassigns."
+    :positional 2))
+  :documentation "Represents bd assign command.
+Shorthand for bd update <id> --assignee <name>.
+Pass an empty string as assignee to unassign.")
+
+
+(cl-defmethod beads-command-validate ((command beads-command-assign))
+  "Validate assign COMMAND."
+  (with-slots (issue-id) command
+    (unless issue-id "Issue ID is required")))
+
+;;;###autoload (autoload 'beads-assign "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-assign "beads-assign"
+  "Assign an issue to someone.
+
+Shorthand for: bd update <id> --assignee <name>
+Pass an empty string as assignee to unassign."
+  beads-option-global-section)
+
+;;; ============================================================
+;;; Command Class: beads-command-comment
+;;; ============================================================
+
+(beads-defcommand beads-command-comment (beads-command-global-options)
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID to comment on."
+    :positional 1)
+   (text
+    :initarg :text
+    :type (or null string)
+    :initform nil
+    :documentation "Comment text (positional)."
+    :positional 2)
+   (stdin
+    :initarg :stdin
+    :type boolean
+    :initform nil
+    :documentation "Read comment from stdin (--stdin)."
+    :long-option "stdin"
+    :option-type :boolean
+    :key "s"
+    :transient "--stdin"
+    :class transient-switch
+    :argument "--stdin"
+    :transient-group "Options"
+    :level 2
+    :order 1)
+   (file
+    :initarg :file
+    :type (or null string)
+    :initform nil
+    :documentation "Read comment text from file (--file)."
+    :long-option "file"
+    :option-type :string
+    :key "f"
+    :transient "Read from file"
+    :class transient-option
+    :argument "--file="
+    :prompt "File path: "
+    :transient-group "Options"
+    :level 2
+    :order 2))
+  :documentation "Represents bd comment command.
+Shorthand for bd comments add <id> \"text\".
+Add a comment to an issue.")
+
+
+(cl-defmethod beads-command-validate ((command beads-command-comment))
+  "Validate comment COMMAND."
+  (with-slots (issue-id) command
+    (unless issue-id "Issue ID is required")))
+
+;;;###autoload (autoload 'beads-comment "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-comment "beads-comment"
+  "Add a comment to an issue.
+
+Shorthand for: bd comments add <id> \"text\""
+  beads-option-global-section)
+
+;;; ============================================================
+;;; Command Class: beads-command-link
+;;; ============================================================
+
+(beads-defcommand beads-command-link (beads-command-global-options)
+  ((id1
+    :initarg :id1
+    :type (or null string)
+    :initform nil
+    :documentation "First issue ID (the dependent issue)."
+    :positional 1)
+   (id2
+    :initarg :id2
+    :type (or null string)
+    :initform nil
+    :documentation "Second issue ID (the blocker/dependency)."
+    :positional 2)
+   (link-type
+    :initarg :link-type
+    :type (or null string)
+    :initform nil
+    :documentation "Dependency type: blocks, tracks, related, parent-child,
+discovered-from.  Default: blocks."
+    :long-option "type"
+    :short-option "t"
+    :option-type :string
+    :key "t"
+    :transient "Link type"
+    :class transient-option
+    :argument "--type="
+    :prompt "Type (blocks/tracks/related/parent-child/discovered-from): "
+    :choices ("blocks" "tracks" "related" "parent-child" "discovered-from")
+    :transient-group "Options"
+    :level 1
+    :order 1))
+  :documentation "Represents bd link command.
+Shorthand for bd dep add <id1> <id2>.
+By default creates a 'blocks' dependency (id2 blocks id1).")
+
+
+(cl-defmethod beads-command-validate ((command beads-command-link))
+  "Validate link COMMAND."
+  (with-slots (id1 id2) command
+    (cond
+     ((not id1) "First issue ID is required")
+     ((not id2) "Second issue ID is required")
+     (t nil))))
+
+;;;###autoload (autoload 'beads-link "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-link "beads-link"
+  "Link two issues with a dependency.
+
+Shorthand for: bd dep add <id1> <id2>
+By default creates a 'blocks' dependency (id2 blocks id1).
+Use --type to specify a different relationship."
+  beads-option-global-section)
+
+;;; ============================================================
+;;; Command Class: beads-command-priority
+;;; ============================================================
+
+(beads-defcommand beads-command-priority (beads-command-global-options)
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID to set priority on."
+    :positional 1)
+   (level
+    :initarg :level
+    :type (or null integer)
+    :initform nil
+    :documentation "Priority level: 0=critical, 1=high, 2=medium,
+3=low, 4=backlog."
+    :positional 2))
+  :documentation "Represents bd priority command.
+Shorthand for bd update <id> --priority <n>.
+Priority levels: 0=critical, 1=high, 2=medium, 3=low, 4=backlog.")
+
+
+(cl-defmethod beads-command-validate ((command beads-command-priority))
+  "Validate priority COMMAND."
+  (with-slots (issue-id level) command
+    (cond
+     ((not issue-id) "Issue ID is required")
+     ((not level) "Priority level is required")
+     (t nil))))
+
+;;;###autoload (autoload 'beads-priority "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-priority "beads-priority"
+  "Set the priority of an issue.
+
+Shorthand for: bd update <id> --priority <n>
+
+Priority levels:
+  0 - Critical (security, data loss, broken builds)
+  1 - High (major features, important bugs)
+  2 - Medium (default)
+  3 - Low (polish, optimization)
+  4 - Backlog (future ideas)"
+  beads-option-global-section)
+
+;;; ============================================================
+;;; Command Class: beads-command-tag
+;;; ============================================================
+
+(beads-defcommand beads-command-tag (beads-command-global-options)
+  ((issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID to tag."
+    :positional 1)
+   (label
+    :initarg :label
+    :type (or null string)
+    :initform nil
+    :documentation "Label to add to the issue."
+    :positional 2))
+  :documentation "Represents bd tag command.
+Shorthand for bd update <id> --add-label <label>.
+Add a label to an issue.")
+
+
+(cl-defmethod beads-command-validate ((command beads-command-tag))
+  "Validate tag COMMAND."
+  (with-slots (issue-id label) command
+    (cond
+     ((not issue-id) "Issue ID is required")
+     ((not label) "Label is required")
+     (t nil))))
+
+;;;###autoload (autoload 'beads-tag "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-tag "beads-tag"
+  "Add a label to an issue.
+
+Shorthand for: bd update <id> --add-label <label>"
+  beads-option-global-section)
+
+;;; ============================================================
+;;; Command Class: beads-command-statuses
+;;; ============================================================
+
+(beads-defcommand beads-command-statuses (beads-command-global-options)
+  ()
+  :documentation "Represents bd statuses command.
+List all valid issue statuses and their categories.
+Built-in and custom statuses from config are shown.")
+
+
+(cl-defmethod beads-command-validate ((_command beads-command-statuses))
+  "Validate statuses COMMAND.  Always valid."
+  nil)
+
+;;;###autoload (autoload 'beads-statuses "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-statuses "beads-statuses"
+  "List all valid issue statuses and their categories.
+
+Shows built-in statuses (open, in_progress, blocked, etc.) and
+any custom statuses configured via status.custom."
+  beads-option-global-section)
+
 (provide 'beads-command-misc)
 ;;; beads-command-misc.el ends here
