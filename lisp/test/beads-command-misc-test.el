@@ -1018,5 +1018,196 @@
     (should (member "human" args))
     (should (member "stats" args))))
 
+;;; Unit Tests: beads-command-assign
+
+(ert-deftest beads-command-assign-test-class-exists ()
+  "Unit test: beads-command-assign class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-assign)))
+
+(ert-deftest beads-command-assign-test-command-line ()
+  "Unit test: assign builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-assign :issue-id "bd-123" :assignee "alice"))
+         (args (beads-command-line cmd)))
+    (should (member "assign" args))
+    (should (member "bd-123" args))
+    (should (member "alice" args))))
+
+(ert-deftest beads-command-assign-test-validation-missing-id ()
+  "Unit test: assign validation fails without issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-assign :assignee "alice")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-assign-test-validation-success ()
+  "Unit test: assign validation succeeds with issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-assign :issue-id "bd-123" :assignee "alice")))
+    (should-not (beads-command-validate cmd))))
+
+;;; Unit Tests: beads-command-comment
+
+(ert-deftest beads-command-comment-test-class-exists ()
+  "Unit test: beads-command-comment class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-comment)))
+
+(ert-deftest beads-command-comment-test-command-line ()
+  "Unit test: comment builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-comment :issue-id "bd-123" :text "hello"))
+         (args (beads-command-line cmd)))
+    (should (member "comment" args))
+    (should (member "bd-123" args))
+    (should (member "hello" args))))
+
+(ert-deftest beads-command-comment-test-validation-missing-id ()
+  "Unit test: comment validation fails without issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-comment :text "hello")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-comment-test-validation-success ()
+  "Unit test: comment validation succeeds with issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-comment :issue-id "bd-123")))
+    (should-not (beads-command-validate cmd))))
+
+;;; Unit Tests: beads-command-link
+
+(ert-deftest beads-command-link-test-class-exists ()
+  "Unit test: beads-command-link class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-link)))
+
+(ert-deftest beads-command-link-test-command-line ()
+  "Unit test: link builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-link :id1 "bd-1" :id2 "bd-2"))
+         (args (beads-command-line cmd)))
+    (should (member "link" args))
+    (should (member "bd-1" args))
+    (should (member "bd-2" args))))
+
+(ert-deftest beads-command-link-test-validation-missing-id1 ()
+  "Unit test: link validation fails without id1."
+  :tags '(:unit)
+  (let ((cmd (beads-command-link :id2 "bd-2")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-link-test-validation-missing-id2 ()
+  "Unit test: link validation fails without id2."
+  :tags '(:unit)
+  (let ((cmd (beads-command-link :id1 "bd-1")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-link-test-validation-success ()
+  "Unit test: link validation succeeds with both ids."
+  :tags '(:unit)
+  (let ((cmd (beads-command-link :id1 "bd-1" :id2 "bd-2")))
+    (should-not (beads-command-validate cmd))))
+
+;;; Unit Tests: beads-command-priority
+
+(ert-deftest beads-command-priority-test-class-exists ()
+  "Unit test: beads-command-priority class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-priority)))
+
+(ert-deftest beads-command-priority-test-command-line ()
+  "Unit test: priority builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-priority :issue-id "bd-123" :level 1))
+         (args (beads-command-line cmd)))
+    (should (member "priority" args))
+    (should (member "bd-123" args))
+    ;; Integer positional args are serialized to strings in command line
+    (should (member "1" args))))
+
+(ert-deftest beads-command-priority-test-validation-missing-id ()
+  "Unit test: priority validation fails without issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-priority :level 2)))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-priority-test-validation-missing-level ()
+  "Unit test: priority validation fails without level."
+  :tags '(:unit)
+  (let ((cmd (beads-command-priority :issue-id "bd-123")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-priority-test-validation-success ()
+  "Unit test: priority validation succeeds with id and level."
+  :tags '(:unit)
+  (let ((cmd (beads-command-priority :issue-id "bd-123" :level 2)))
+    (should-not (beads-command-validate cmd))))
+
+(ert-deftest beads-command-priority-test-validation-level-zero ()
+  "Unit test: priority validation succeeds for level 0 (critical)."
+  :tags '(:unit)
+  (let ((cmd (beads-command-priority :issue-id "bd-123" :level 0)))
+    (should-not (beads-command-validate cmd))))
+
+(ert-deftest beads-command-priority-test-validation-level-out-of-range ()
+  "Unit test: priority validation fails for level out of 0-4 range."
+  :tags '(:unit)
+  (let ((cmd (beads-command-priority :issue-id "bd-123" :level 5)))
+    (should (beads-command-validate cmd))))
+
+;;; Unit Tests: beads-command-tag
+
+(ert-deftest beads-command-tag-test-class-exists ()
+  "Unit test: beads-command-tag class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-tag)))
+
+(ert-deftest beads-command-tag-test-command-line ()
+  "Unit test: tag builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-tag :issue-id "bd-123" :label "bug"))
+         (args (beads-command-line cmd)))
+    (should (member "tag" args))
+    (should (member "bd-123" args))
+    (should (member "bug" args))))
+
+(ert-deftest beads-command-tag-test-validation-missing-id ()
+  "Unit test: tag validation fails without issue-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-tag :label "bug")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-tag-test-validation-missing-label ()
+  "Unit test: tag validation fails without label."
+  :tags '(:unit)
+  (let ((cmd (beads-command-tag :issue-id "bd-123")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-tag-test-validation-success ()
+  "Unit test: tag validation succeeds with id and label."
+  :tags '(:unit)
+  (let ((cmd (beads-command-tag :issue-id "bd-123" :label "bug")))
+    (should-not (beads-command-validate cmd))))
+
+;;; Unit Tests: beads-command-statuses
+
+(ert-deftest beads-command-statuses-test-class-exists ()
+  "Unit test: beads-command-statuses class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-statuses)))
+
+(ert-deftest beads-command-statuses-test-command-line ()
+  "Unit test: statuses builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-statuses))
+         (args (beads-command-line cmd)))
+    (should (member "statuses" args))))
+
+(ert-deftest beads-command-statuses-test-validation ()
+  "Unit test: statuses validation always passes."
+  :tags '(:unit)
+  (let ((cmd (beads-command-statuses)))
+    (should-not (beads-command-validate cmd))))
+
 (provide 'beads-command-misc-test)
 ;;; beads-command-misc-test.el ends here
