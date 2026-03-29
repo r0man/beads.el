@@ -1943,7 +1943,8 @@ The log format is compatible with `log-view-mode':
               ;; No redirect file on the remote side
               ((symbol-function 'file-exists-p)
                (lambda (_path) nil))
-              ;; No redirect file (used by beads--resolve-beads-dir)
+              ;; beads--resolve-beads-dir uses file-readable-p to check for
+              ;; the redirect file; mock it to avoid Tramp SSH connection
               ((symbol-function 'file-readable-p)
                (lambda (_path) nil))
               ;; Remote .beads is a directory
