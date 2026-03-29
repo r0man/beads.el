@@ -73,9 +73,8 @@
          (args (beads-command-line cmd)))
     (should (member "merge-slot" args))
     (should (member "acquire" args))
-    (should (cl-some (lambda (a) (and (stringp a)
-                                      (string-match "--holder=" a)))
-                     args))))
+    (should (member "--holder" args))
+    (should (member "furiosa" args))))
 
 (ert-deftest beads-command-merge-slot-acquire-test-command-line-with-wait ()
   "Unit test: merge-slot acquire includes --wait flag."
@@ -110,9 +109,8 @@
   :tags '(:unit)
   (let* ((cmd (beads-command-merge-slot-release :holder "furiosa"))
          (args (beads-command-line cmd)))
-    (should (cl-some (lambda (a) (and (stringp a)
-                                      (string-match "--holder=" a)))
-                     args))))
+    (should (member "--holder" args))
+    (should (member "furiosa" args))))
 
 (ert-deftest beads-command-merge-slot-release-test-validation ()
   "Unit test: merge-slot release validation always passes."

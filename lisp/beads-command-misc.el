@@ -1996,8 +1996,8 @@ Add a comment to an issue.")
   (with-slots (issue-id) command
     (unless issue-id "Issue ID is required")))
 
-;;;###autoload (autoload 'beads-comment "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-comment "beads-comment"
+;;;###autoload (autoload 'beads-add-comment "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-comment "beads-add-comment"
   "Add a comment to an issue.
 
 Shorthand for: bd comments add <id> \"text\""
@@ -2088,7 +2088,9 @@ Priority levels: 0=critical, 1=high, 2=medium, 3=low, 4=backlog.")
   (with-slots (issue-id level) command
     (cond
      ((not issue-id) "Issue ID is required")
-     ((not level) "Priority level is required")
+     ((null level) "Priority level is required")
+     ((not (and (integerp level) (<= 0 level 4)))
+      "Priority level must be 0 (critical), 1 (high), 2 (medium), 3 (low), or 4 (backlog)")
      (t nil))))
 
 ;;;###autoload (autoload 'beads-priority "beads-command-misc" nil t)
