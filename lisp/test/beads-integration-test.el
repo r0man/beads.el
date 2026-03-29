@@ -165,8 +165,12 @@ and used by all test macros via BEADS_DOLT_PORT in process-environment.
 Dolt is the only storage backend — there is no file-backed mode.
 Falls back gracefully if dolt is not installed (tests should
 skip-unless dolt is available).
-Restarts the server if the process has died or stopped accepting
-connections."
+Restarts the server if the process has died, stopped accepting TCP
+connections, or stopped responding to MySQL protocol queries.
+
+The MySQL-level check (not just TCP) ensures that a hung Dolt server
+that accepts connections but does not process queries triggers a
+restart, preventing per-test connection timeouts on CI."
   (unless (and beads-test--suite-server-process
                (process-live-p beads-test--suite-server-process)
                (beads-test--dolt-mysql-ready-p
