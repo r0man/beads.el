@@ -632,10 +632,32 @@ instead of creating a new project for each test.  This avoids the ~52s
 The shared project is lazily created on first use and all issues are
 deleted between tests to ensure isolation.
 
+Before each use, the suite Dolt server is checked for MySQL-level
+readiness.  If the server has become unresponsive (accepts TCP but
+hangs on MySQL protocol), it is restarted automatically and the
+shared project is recreated on the fresh server.  This prevents
+per-test 20-30 second connection timeouts when Dolt hangs on CI.
+
 Tests that need custom init args (e.g., a specific :prefix) should
 continue using `beads-test-with-project' instead."
   (declare (indent 0))
-  `(let* (;; Route bd to the suite-level isolated Dolt test server.
+  `(let* (;; Snapshot port before health check so we can detect restart.
+          (beads-test--pre-check-port beads-test--suite-server-port)
+          ;; Check server MySQL-level health; restart if unresponsive.
+          ;; beads-test--suite-start-server is idempotent and uses
+          ;; beads-test--dolt-mysql-ready-p as its health condition, so
+          ;; a hung server (accepts TCP but does not respond to MySQL)
+          ;; will trigger a restart here.
+          (_ (beads-test--suite-start-server))
+          ;; If the server was restarted (port changed), the shared project's
+          ;; Dolt database no longer exists on the new server.  Destroy the
+          ;; stale shared project so beads-test-get-shared-project recreates
+          ;; it fresh on the new server below.
+          (_ (when (and beads-test--pre-check-port
+                        (not (equal beads-test--pre-check-port
+                                    beads-test--suite-server-port)))
+               (beads-test-destroy-shared-project)))
+          ;; Route bd to the suite-level isolated Dolt test server.
           ;; bd v0.58.0+ requires Dolt as the only storage backend —
           ;; there is no JSONL-only mode.  Without BEADS_DOLT_PORT, bd
           ;; auto-discovers the default port (3307), which is the
