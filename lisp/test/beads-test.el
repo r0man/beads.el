@@ -1943,6 +1943,9 @@ The log format is compatible with `log-view-mode':
               ;; No redirect file on the remote side
               ((symbol-function 'file-exists-p)
                (lambda (_path) nil))
+              ;; No redirect file (used by beads--resolve-beads-dir)
+              ((symbol-function 'file-readable-p)
+               (lambda (_path) nil))
               ;; Remote .beads is a directory
               ((symbol-function 'file-directory-p)
                (lambda (_path) t))
