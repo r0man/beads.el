@@ -83,37 +83,38 @@ DEFAULT is the initial selection if provided."
   (lambda (_prompt _initial-input _history)
     (completing-read prompt choices nil t default)))
 
+(defconst beads--priority-choices
+  '(("0 - Critical" . 0)
+    ("1 - High" . 1)
+    ("2 - Medium" . 2)
+    ("3 - Low" . 3)
+    ("4 - Backlog" . 4))
+  "Alist mapping priority display strings to numeric levels (0-4).")
+
+(defun beads--read-priority (prompt &optional default)
+  "Read a priority level with PROMPT using named choices.
+DEFAULT is the current numeric priority used as initial input.
+Returns the selected priority as a string (\"0\"-\"4\")."
+  (let* ((selection (completing-read
+                     prompt beads--priority-choices nil t
+                     (when default
+                       (car (rassoc default beads--priority-choices)))))
+         (priority (cdr (assoc selection beads--priority-choices))))
+    (number-to-string priority)))
+
 (defun beads-reader-priority (prompt default-var)
-  "Read a priority level with PROMPT.
-DEFAULT-VAR is the variable holding the current priority value."
+  "Return a transient reader for a priority level, prompting with PROMPT.
+DEFAULT-VAR names a variable holding the current priority value."
   (lambda (_prompt _initial-input _history)
-    (let* ((choices '(("0 - Critical" . 0)
-                      ("1 - High" . 1)
-                      ("2 - Medium" . 2)
-                      ("3 - Low" . 3)
-                      ("4 - Backlog" . 4)))
-           (default-val (symbol-value default-var))
-           (selection (completing-read
-                       prompt choices nil t
-                       (when default-val
-                         (car (rassoc default-val choices)))))
-           (priority (cdr (assoc selection choices))))
-      (number-to-string priority))))
+    (beads--read-priority prompt (symbol-value default-var))))
 
 ;;; ============================================================
 ;;; Standalone Reader Functions
 ;;; ============================================================
 
 (defun beads-reader-priority-level (_prompt _initial-input _history)
-  "Read priority level 0-4 via `completing-read' with named choices."
-  (let* ((choices '(("0 - Critical" . 0)
-                    ("1 - High" . 1)
-                    ("2 - Medium" . 2)
-                    ("3 - Low" . 3)
-                    ("4 - Backlog" . 4)))
-         (selection (completing-read "Priority: " choices nil t))
-         (priority (cdr (assoc selection choices))))
-    (number-to-string priority)))
+  "Read priority level 0-4 via `completing-read'."
+  (beads--read-priority "Priority: "))
 
 ;;; ============================================================
 ;;; beads-create Reader Functions
@@ -131,14 +132,7 @@ DEFAULT-VAR is the variable holding the current priority value."
 
 (defun beads-reader-issue-priority (_prompt _initial-input _history)
   "Read priority for an issue."
-  (let* ((choices '(("0 - Critical" . 0)
-                    ("1 - High" . 1)
-                    ("2 - Medium" . 2)
-                    ("3 - Low" . 3)
-                    ("4 - Backlog" . 4)))
-         (selection (completing-read "Priority: " choices nil t))
-         (priority (cdr (assoc selection choices))))
-    (number-to-string priority)))
+  (beads--read-priority "Priority: "))
 
 (defun beads-reader-create-custom-id (_prompt _initial-input _history)
   "Read custom ID for issue creation."
@@ -196,8 +190,7 @@ Matches on both issue ID and title."
 
 (defun beads-reader-update-priority (_prompt _initial-input _history)
   "Read priority for issue update."
-  (funcall (beads-reader-priority "Priority: " 'beads-update--priority)
-           nil nil nil))
+  (beads--read-priority "Priority: " beads-update--priority))
 
 (defun beads-reader-update-type (_prompt _initial-input _history)
   "Read type for issue update."
@@ -412,36 +405,15 @@ Matches on both issue ID and title."
 
 (defun beads-reader-list-priority (_prompt _initial-input _history)
   "Read priority for list filter."
-  (let* ((choices '(("0 - Critical" . 0)
-                    ("1 - High" . 1)
-                    ("2 - Medium" . 2)
-                    ("3 - Low" . 3)
-                    ("4 - Backlog" . 4)))
-         (selection (completing-read "Priority: " choices nil t))
-         (priority (cdr (assoc selection choices))))
-    (number-to-string priority)))
+  (beads--read-priority "Priority: "))
 
 (defun beads-reader-list-priority-min (_prompt _initial-input _history)
   "Read minimum priority for list filter."
-  (let* ((choices '(("0 - Critical" . 0)
-                    ("1 - High" . 1)
-                    ("2 - Medium" . 2)
-                    ("3 - Low" . 3)
-                    ("4 - Backlog" . 4)))
-         (selection (completing-read "Minimum priority: " choices nil t))
-         (priority (cdr (assoc selection choices))))
-    (number-to-string priority)))
+  (beads--read-priority "Minimum priority: "))
 
 (defun beads-reader-list-priority-max (_prompt _initial-input _history)
   "Read maximum priority for list filter."
-  (let* ((choices '(("0 - Critical" . 0)
-                    ("1 - High" . 1)
-                    ("2 - Medium" . 2)
-                    ("3 - Low" . 3)
-                    ("4 - Backlog" . 4)))
-         (selection (completing-read "Maximum priority: " choices nil t))
-         (priority (cdr (assoc selection choices))))
-    (number-to-string priority)))
+  (beads--read-priority "Maximum priority: "))
 
 (defun beads-reader-list-status (_prompt _initial-input _history)
   "Read status for list filter."
