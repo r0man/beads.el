@@ -1493,5 +1493,49 @@
               (beads-meta-slot-property
                'beads-command-tag 'label :transient-reader))))
 
+;;; Transient UI tests — remaining :choices and :transient-reader parity
+
+(ert-deftest beads-command-lint-issue-type-has-choices ()
+  "Unit test: lint 'issue-type' slot has type choices."
+  :tags '(:unit)
+  (should (equal '("bug" "task" "feature" "epic" "chore")
+                 (beads-meta-slot-property
+                  'beads-command-lint 'issue-type :transient-choices))))
+
+(ert-deftest beads-command-move-issue-id-has-reader ()
+  "Unit test: move 'issue-id' slot has transient-reader."
+  :tags '(:unit)
+  (should (eq 'beads-reader-move-issue-id
+              (beads-meta-slot-property
+               'beads-command-move 'issue-id :transient-reader))))
+
+(ert-deftest beads-command-q-issue-type-has-choices ()
+  "Unit test: q 'issue-type' slot has type choices."
+  :tags '(:unit)
+  (should (equal '("task" "bug" "feature" "epic" "chore")
+                 (beads-meta-slot-property
+                  'beads-command-q 'issue-type :transient-choices))))
+
+(ert-deftest beads-command-todo-add-priority-has-reader ()
+  "Unit test: todo-add 'priority' slot has transient-reader."
+  :tags '(:unit)
+  (should (eq 'beads-reader-issue-priority
+              (beads-meta-slot-property
+               'beads-command-todo-add 'priority :transient-reader))))
+
+(ert-deftest beads-command-todo-done-issue-ids-has-reader ()
+  "Unit test: todo-done 'issue-ids' slot has transient-reader."
+  :tags '(:unit)
+  (should (eq 'beads-reader-issue-id
+              (beads-meta-slot-property
+               'beads-command-todo-done 'issue-ids :transient-reader))))
+
+(ert-deftest beads-command-link-link-type-has-choices ()
+  "Unit test: link 'link-type' slot has dependency type choices."
+  :tags '(:unit)
+  (should (equal '("blocks" "tracks" "related" "parent-child" "discovered-from")
+                 (beads-meta-slot-property
+                  'beads-command-link 'link-type :transient-choices))))
+
 (provide 'beads-command-misc-test)
 ;;; beads-command-misc-test.el ends here
