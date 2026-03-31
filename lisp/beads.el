@@ -542,6 +542,7 @@ Returns a propertized string showing project and database info."
 Used as :if predicate for context-aware transient groups."
   (derived-mode-p 'beads-list-mode
                   'beads-show-mode
+                  'beads-section-mode
                   'beads-epic-status-mode
                   'beads-formula-list-mode
                   'beads-formula-show-mode))
