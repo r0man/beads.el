@@ -111,12 +111,11 @@ confirms that bd commands can connect without i/o timeout errors."
 ;; One Dolt server is started per Emacs process (test suite run) on a
 ;; random free port with a temporary data directory.  All bd commands
 ;; in tests are routed to this server via the BEADS_DOLT_PORT
-;; environment variable.  Individual tests create/drop their own
-;; databases for isolation.
+;; environment variable.  Individual tests create their own databases
+;; for isolation.
 ;;
-;; Dolt is the only storage backend since beads v0.58.0 — there is
-;; no file-backed mode.  If dolt is not in PATH, tests that call bd
-;; will fail (they should skip-unless dolt is available).
+;; If dolt is not in PATH, tests that call bd will fail (they should
+;; skip-unless dolt is available).
 
 (defvar beads-test--suite-server-process nil
   "Process object for the suite-level Dolt test server, or nil.")
@@ -161,16 +160,12 @@ Signals an error if the server does not start in time."
 (defun beads-test--suite-start-server ()
   "Start the suite-level Dolt server if not already running.
 Idempotent.  The port is stored in `beads-test--suite-server-port'
-and used by all test macros via BEADS_DOLT_PORT in process-environment.
-Dolt is the only storage backend — there is no file-backed mode.
+and propagated to all test macros via BEADS_DOLT_PORT.
 Falls back gracefully if dolt is not installed (tests should
 skip-unless dolt is available).
-Restarts the server if the process has died, stopped accepting TCP
-connections, or stopped responding to MySQL protocol queries.
-
-The MySQL-level check (not just TCP) ensures that a hung Dolt server
-that accepts connections but does not process queries triggers a
-restart, preventing per-test connection timeouts on CI."
+Restarts the server if the process has died or is no longer
+responding to MySQL queries (not just TCP — Dolt can accept
+connections before its MySQL handler is ready)."
   (unless (and beads-test--suite-server-process
                (process-live-p beads-test--suite-server-process)
                (beads-test--dolt-mysql-ready-p
@@ -215,10 +210,9 @@ Idempotent — delegates to `beads-test--suite-start-server'."
   (beads-test--suite-start-server))
 
 (defun beads-test--stop-test-dolt-server ()
-  "No-op for individual tests.
-The suite-level Dolt server runs for the entire Emacs process and is
-stopped only via the kill-emacs-hook.  Individual tests must not stop
-it — doing so would break all subsequent tests.  Returns nil."
+  "No-op — the suite Dolt server must not be stopped between tests.
+Use `beads-test--suite-stop-server' at process exit instead.
+Returns nil."
   nil)
 
 ;;; ============================================================
@@ -255,11 +249,10 @@ Uses `bd SUBCOMMAND --help' to test availability."
 ;;; ============================================================
 
 (defun beads-test--generate-unique-prefix ()
-  "Generate a unique test prefix without hyphens.
-Uses a format like `btXXXXXX' where XXXXXX is random alphanumeric.
+  "Generate a unique test prefix like `btXXXXXX' (no hyphens).
 The `bt' prefix identifies test databases for easy cleanup.
-This format works with bd's --rename-on-import flag which parses
-issue IDs by splitting on the first hyphen."
+Hyphens are excluded because bd parses issue IDs by splitting on
+the first hyphen, so the prefix itself must be hyphen-free."
   (let ((chars "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
         (suffix ""))
     (dotimes (_ 6)
@@ -279,14 +272,8 @@ Returns DIR for convenience."
   "Initialize beads in DIR with optional PREFIX.
 If QUIET is non-nil, suppress bd output.
 Sets `beads-test--last-init-prefix' as a side effect.
-
-Called from within `beads-test-with-temp-repo', which binds
-process-environment to include BEADS_DOLT_PORT when the suite
-Dolt server is running.  bd uses the isolated server automatically.
-
 Retries up to 3 times with 2-second delays on failure, since Dolt
 on CI runners can transiently refuse connections under load.
-
 Returns DIR for convenience."
   (require 'beads-command)
   (let* ((default-directory dir)
@@ -364,11 +351,9 @@ Caller is responsible for cleanup."
          (init-beads (plist-get args :init-beads))
          (prefix (plist-get args :prefix))
          (quiet (plist-get args :quiet))
-         ;; Route bd to the isolated suite Dolt server when available.
-         ;; When no suite server is running, explicitly unset
-         ;; BEADS_DOLT_PORT to prevent inheriting a port from the
-         ;; outer environment (e.g., BEADS_DOLT_PORT=3307 set by Gas
-         ;; Town would connect bd to the production server).
+         ;; Route bd to the isolated suite server when running;
+         ;; otherwise unset BEADS_DOLT_PORT to prevent inheriting
+         ;; a production port from the outer environment.
          (process-environment
           (if beads-test--suite-server-port
               (cons (format "BEADS_DOLT_PORT=%d"
@@ -436,11 +421,9 @@ Examples:
         (quiet (if (plist-member args :quiet)
                    (plist-get args :quiet)
                  t)))  ; Default quiet to t
-    `(let* (;; Always route bd to the suite Dolt server when it is
-            ;; running — bd uses Dolt as the only storage backend.
-            ;; Unset BEADS_DOLT_PORT only when no suite server is
-            ;; running, to prevent inheriting a production port (e.g.
-            ;; BEADS_DOLT_PORT=3307 from Gas Town).
+    `(let* (;; Route bd to the isolated suite server when running;
+            ;; otherwise unset BEADS_DOLT_PORT to prevent inheriting
+            ;; a production port from the outer environment.
             (process-environment
              (if beads-test--suite-server-port
                  (cons (format "BEADS_DOLT_PORT=%d"
@@ -468,9 +451,9 @@ Examples:
            (beads-test--clear-caches)
            ;; NOTE: Per-test DROP DATABASE is intentionally omitted.
            ;; The suite server's temp data directory is deleted at
-           ;; process exit by beads-test--suite-stop-server, making
-           ;; per-test drops unnecessary. Per-test drops cause Dolt
-           ;; background I/O that blocks subsequent tests (be-iuw).
+           ;; process exit, making per-test drops unnecessary.
+           ;; Per-test drops cause Dolt background I/O that blocks
+           ;; subsequent tests.
            ;; Optionally cleanup temp dir
            (when ,cleanup
              (delete-directory ,temp-dir t)))))))
@@ -501,8 +484,8 @@ ISSUES is a list of plists, each with at least :title.
 Example:
   (beads-test-with-temp-repo-and-issues
       (:init-beads t)
-      ((:title \"Issue 1\" :type \"bug\")
-       (:title \"Issue 2\" :type \"task\"))
+      ((:title \"Issue 1\" :issue-type \"bug\")
+       (:title \"Issue 2\" :issue-type \"task\"))
     (should (= 2 (length (beads-command-list!)))))"
   (declare (indent 2) (debug (form form body)))
   `(beads-test-with-temp-repo ,args
