@@ -657,33 +657,6 @@ Compiles a formula into a proto (ephemeral by default).")
   :documentation "Represents bd mail command.
 Delegates to mail provider.")
 
-
-;;; Execute Interactive Methods
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ;;; Transient Menus
 
 ;;;###autoload (autoload 'beads-duplicate "beads-command-misc" nil t)
@@ -1904,6 +1877,7 @@ Renames an issue from one ID to another, updating all references.")
     (cond
      ((not old-id) "Old issue ID is required")
      ((not new-id) "New issue ID is required")
+     ((equal old-id new-id) "Old and new issue IDs must be different")
      (t nil))))
 
 ;;;###autoload (autoload 'beads-rename "beads-command-misc" nil t)
