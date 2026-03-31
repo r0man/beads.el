@@ -1249,5 +1249,46 @@
     (let ((result (beads--read-issue-at-point-or-prompt "Issue: ")))
       (should (equal result "bd-prompted")))))
 
+;;; ============================================================
+;;; Tests for beads-reader-priority-level
+;;; ============================================================
+
+(ert-deftest beads-reader-test-priority-level-exists ()
+  "Test that beads-reader-priority-level is defined."
+  (should (fboundp 'beads-reader-priority-level)))
+
+(ert-deftest beads-reader-test-priority-level-returns-string ()
+  "Test that beads-reader-priority-level returns a string."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (_prompt _choices &rest _args) "1 - High")))
+    (let ((result (beads-reader-priority-level nil nil nil)))
+      (should (stringp result))
+      (should (equal result "1")))))
+
+(ert-deftest beads-reader-test-priority-level-all-levels ()
+  "Test that beads-reader-priority-level returns correct strings for all levels."
+  (let ((expected-map '(("0 - Critical" . "0")
+                        ("1 - High" . "1")
+                        ("2 - Medium" . "2")
+                        ("3 - Low" . "3")
+                        ("4 - Backlog" . "4"))))
+    (dolist (pair expected-map)
+      (cl-letf (((symbol-function 'completing-read)
+                 (let ((choice (car pair)))
+                   (lambda (_prompt _choices &rest _args) choice))))
+        (let ((result (beads-reader-priority-level nil nil nil)))
+          (should (equal result (cdr pair))))))))
+
+(ert-deftest beads-reader-test-priority-level-calls-completing-read ()
+  "Test that beads-reader-priority-level calls completing-read with 5 choices."
+  (let (called-with-choices)
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (_prompt choices &rest _args)
+                 (setq called-with-choices choices)
+                 "2 - Medium")))
+      (beads-reader-priority-level nil nil nil)
+      (should called-with-choices)
+      (should (= 5 (length called-with-choices))))))
+
 (provide 'beads-reader-test)
 ;;; beads-reader-test.el ends here

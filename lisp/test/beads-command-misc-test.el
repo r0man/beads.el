@@ -1209,5 +1209,212 @@
   (let ((cmd (beads-command-statuses)))
     (should-not (beads-command-validate cmd))))
 
+;;; Transient reader tests — Category A (readers added to existing slots)
+
+(ert-deftest beads-command-duplicate-of-has-reader ()
+  "Unit test: duplicate 'of' slot has transient-reader."
+  :tags '(:unit)
+  (should (eq 'beads-reader-issue-id
+              (beads-meta-slot-property
+               'beads-command-duplicate 'of :transient-reader))))
+
+(ert-deftest beads-command-supersede-with-id-has-reader ()
+  "Unit test: supersede 'with-id' slot has transient-reader."
+  :tags '(:unit)
+  (should (eq 'beads-reader-issue-id
+              (beads-meta-slot-property
+               'beads-command-supersede 'with-id :transient-reader))))
+
+(ert-deftest beads-command-lint-status-has-choices ()
+  "Unit test: lint 'status' slot has status choices."
+  :tags '(:unit)
+  (should (equal '("open" "in_progress" "blocked" "closed" "all")
+                 (beads-meta-slot-property
+                  'beads-command-lint 'status :transient-choices))))
+
+(ert-deftest beads-command-human-list-status-has-choices ()
+  "Unit test: human-list 'status' slot has status choices."
+  :tags '(:unit)
+  (should (equal '("open" "in_progress" "blocked" "closed" "all")
+                 (beads-meta-slot-property
+                  'beads-command-human-list 'status :transient-choices))))
+
+(ert-deftest beads-command-human-respond-issue-id-has-reader ()
+  "Unit test: human-respond 'issue-id' slot has transient-reader."
+  :tags '(:unit)
+  (should (eq 'beads-reader-issue-id
+              (beads-meta-slot-property
+               'beads-command-human-respond 'issue-id :transient-reader))))
+
+(ert-deftest beads-command-human-dismiss-issue-id-has-reader ()
+  "Unit test: human-dismiss 'issue-id' slot has transient-reader."
+  :tags '(:unit)
+  (should (eq 'beads-reader-issue-id
+              (beads-meta-slot-property
+               'beads-command-human-dismiss 'issue-id :transient-reader))))
+
+(ert-deftest beads-command-children-issue-id-has-reader ()
+  "Unit test: children 'issue-id' slot has transient-reader."
+  :tags '(:unit)
+  (should (eq 'beads--read-issue-at-point-or-prompt
+              (beads-meta-slot-property
+               'beads-command-children 'issue-id :transient-reader))))
+
+(ert-deftest beads-command-promote-issue-id-has-reader ()
+  "Unit test: promote 'issue-id' slot has transient-reader."
+  :tags '(:unit)
+  (should (eq 'beads-reader-issue-id
+              (beads-meta-slot-property
+               'beads-command-promote 'issue-id :transient-reader))))
+
+(ert-deftest beads-command-rename-old-id-has-reader ()
+  "Unit test: rename 'old-id' slot has transient-reader."
+  :tags '(:unit)
+  (should (eq 'beads--read-issue-at-point-or-prompt
+              (beads-meta-slot-property
+               'beads-command-rename 'old-id :transient-reader))))
+
+;;; Transient UI tests — Category B (UI slots added to positional-only slots)
+
+(ert-deftest beads-command-assign-issue-id-has-transient-key ()
+  "Unit test: assign 'issue-id' slot has transient key."
+  :tags '(:unit)
+  (should (equal "i"
+                 (beads-meta-slot-property
+                  'beads-command-assign 'issue-id :transient-key))))
+
+(ert-deftest beads-command-assign-issue-id-has-reader ()
+  "Unit test: assign 'issue-id' slot has transient-reader."
+  :tags '(:unit)
+  (should (eq 'beads--read-issue-at-point-or-prompt
+              (beads-meta-slot-property
+               'beads-command-assign 'issue-id :transient-reader))))
+
+(ert-deftest beads-command-assign-assignee-has-transient-key ()
+  "Unit test: assign 'assignee' slot has transient key."
+  :tags '(:unit)
+  (should (equal "a"
+                 (beads-meta-slot-property
+                  'beads-command-assign 'assignee :transient-key))))
+
+(ert-deftest beads-command-comment-issue-id-has-transient-key ()
+  "Unit test: comment 'issue-id' slot has transient key."
+  :tags '(:unit)
+  (should (equal "i"
+                 (beads-meta-slot-property
+                  'beads-command-comment 'issue-id :transient-key))))
+
+(ert-deftest beads-command-comment-issue-id-has-reader ()
+  "Unit test: comment 'issue-id' slot has transient-reader."
+  :tags '(:unit)
+  (should (eq 'beads--read-issue-at-point-or-prompt
+              (beads-meta-slot-property
+               'beads-command-comment 'issue-id :transient-reader))))
+
+(ert-deftest beads-command-comment-text-has-transient-key ()
+  "Unit test: comment 'text' slot has transient key."
+  :tags '(:unit)
+  (should (equal "t"
+                 (beads-meta-slot-property
+                  'beads-command-comment 'text :transient-key))))
+
+(ert-deftest beads-command-note-issue-id-has-transient-key ()
+  "Unit test: note 'issue-id' slot has transient key."
+  :tags '(:unit)
+  (should (equal "i"
+                 (beads-meta-slot-property
+                  'beads-command-note 'issue-id :transient-key))))
+
+(ert-deftest beads-command-note-issue-id-has-reader ()
+  "Unit test: note 'issue-id' slot has transient-reader."
+  :tags '(:unit)
+  (should (eq 'beads--read-issue-at-point-or-prompt
+              (beads-meta-slot-property
+               'beads-command-note 'issue-id :transient-reader))))
+
+(ert-deftest beads-command-link-id1-has-transient-key ()
+  "Unit test: link 'id1' slot has transient key."
+  :tags '(:unit)
+  (should (equal "1"
+                 (beads-meta-slot-property
+                  'beads-command-link 'id1 :transient-key))))
+
+(ert-deftest beads-command-link-id1-has-reader ()
+  "Unit test: link 'id1' slot has transient-reader."
+  :tags '(:unit)
+  (should (eq 'beads--read-issue-at-point-or-prompt
+              (beads-meta-slot-property
+               'beads-command-link 'id1 :transient-reader))))
+
+(ert-deftest beads-command-link-id2-has-transient-key ()
+  "Unit test: link 'id2' slot has transient key."
+  :tags '(:unit)
+  (should (equal "2"
+                 (beads-meta-slot-property
+                  'beads-command-link 'id2 :transient-key))))
+
+(ert-deftest beads-command-link-id2-has-reader ()
+  "Unit test: link 'id2' slot has transient-reader."
+  :tags '(:unit)
+  (should (eq 'beads-reader-issue-id
+              (beads-meta-slot-property
+               'beads-command-link 'id2 :transient-reader))))
+
+(ert-deftest beads-command-priority-issue-id-has-transient-key ()
+  "Unit test: priority 'issue-id' slot has transient key."
+  :tags '(:unit)
+  (should (equal "i"
+                 (beads-meta-slot-property
+                  'beads-command-priority 'issue-id :transient-key))))
+
+(ert-deftest beads-command-priority-issue-id-has-reader ()
+  "Unit test: priority 'issue-id' slot has transient-reader."
+  :tags '(:unit)
+  (should (eq 'beads--read-issue-at-point-or-prompt
+              (beads-meta-slot-property
+               'beads-command-priority 'issue-id :transient-reader))))
+
+(ert-deftest beads-command-priority-level-has-transient-key ()
+  "Unit test: priority 'level' slot has transient key."
+  :tags '(:unit)
+  (should (equal "p"
+                 (beads-meta-slot-property
+                  'beads-command-priority 'level :transient-key))))
+
+(ert-deftest beads-command-priority-level-has-reader ()
+  "Unit test: priority 'level' slot has transient-reader."
+  :tags '(:unit)
+  (should (eq 'beads-reader-priority-level
+              (beads-meta-slot-property
+               'beads-command-priority 'level :transient-reader))))
+
+(ert-deftest beads-command-tag-issue-id-has-transient-key ()
+  "Unit test: tag 'issue-id' slot has transient key."
+  :tags '(:unit)
+  (should (equal "i"
+                 (beads-meta-slot-property
+                  'beads-command-tag 'issue-id :transient-key))))
+
+(ert-deftest beads-command-tag-issue-id-has-reader ()
+  "Unit test: tag 'issue-id' slot has transient-reader."
+  :tags '(:unit)
+  (should (eq 'beads--read-issue-at-point-or-prompt
+              (beads-meta-slot-property
+               'beads-command-tag 'issue-id :transient-reader))))
+
+(ert-deftest beads-command-tag-label-has-transient-key ()
+  "Unit test: tag 'label' slot has transient key."
+  :tags '(:unit)
+  (should (equal "l"
+                 (beads-meta-slot-property
+                  'beads-command-tag 'label :transient-key))))
+
+(ert-deftest beads-command-tag-label-has-reader ()
+  "Unit test: tag 'label' slot has transient-reader."
+  :tags '(:unit)
+  (should (eq 'beads-reader-label-name
+              (beads-meta-slot-property
+               'beads-command-tag 'label :transient-reader))))
+
 (provide 'beads-command-misc-test)
 ;;; beads-command-misc-test.el ends here

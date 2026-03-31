@@ -43,6 +43,7 @@
     :class transient-option
     :argument "--of="
     :prompt "Canonical issue: "
+    :transient-reader beads-reader-issue-id
     :transient-group "Options"
     :level 1
     :order 1))
@@ -104,6 +105,7 @@ Finds and optionally merges duplicate issues.")
     :class transient-option
     :argument "--with="
     :prompt "Replacement issue: "
+    :transient-reader beads-reader-issue-id
     :transient-group "Options"
     :level 1
     :order 1))
@@ -183,6 +185,7 @@ Identifies orphaned issues referenced in commits but still open.")
     :class transient-option
     :argument "--status="
     :prompt "Status: "
+    :choices ("open" "in_progress" "blocked" "closed" "all")
     :transient-group "Options"
     :level 1
     :order 1)
@@ -414,7 +417,16 @@ Quick capture: creates issue and outputs only ID.")
     :type (or null string)
     :initform nil
     :documentation "Issue ID to append note to."
-    :positional 1)
+    :positional 1
+    :key "i"
+    :transient "Issue ID (required)"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID: "
+    :transient-reader beads--read-issue-at-point-or-prompt
+    :transient-group "Append Note"
+    :level 1
+    :order 0)
    (stdin
     :initarg :stdin
     :type boolean
@@ -750,6 +762,7 @@ Delegates to mail provider.")
     :class transient-option
     :argument "--status="
     :prompt "Status (open/closed): "
+    :choices ("open" "in_progress" "blocked" "closed" "all")
     :transient-group "Options"
     :level 1
     :order 1))
@@ -777,6 +790,7 @@ Lists all issues labeled with the human tag.")
     :class transient-option
     :argument "--issue-id="
     :prompt "Issue ID: "
+    :transient-reader beads-reader-issue-id
     :transient-group "Options"
     :level 1
     :order 1
@@ -830,6 +844,7 @@ Responds to a human-needed bead by adding a comment and closing it.")
     :class transient-option
     :argument "--issue-id="
     :prompt "Issue ID: "
+    :transient-reader beads-reader-issue-id
     :transient-group "Options"
     :level 1
     :order 1
@@ -968,6 +983,7 @@ Version tracking is automatic - bd updates metadata.json on every run.
     :class transient-option
     :argument "--id="
     :prompt "Parent issue ID: "
+    :transient-reader beads--read-issue-at-point-or-prompt
     :transient-group "Options"
     :level 1
     :order 0))
@@ -1002,6 +1018,7 @@ Creates a new issue using an interactive form."
     :class transient-option
     :argument "--id="
     :prompt "Issue ID to promote: "
+    :transient-reader beads-reader-issue-id
     :transient-group "Options"
     :level 1
     :order 0))
@@ -1859,6 +1876,7 @@ Stores a persistent memory.")
     :class transient-option
     :argument "--old-id="
     :prompt "Old issue ID: "
+    :transient-reader beads--read-issue-at-point-or-prompt
     :transient-group "Rename Issue"
     :level 1
     :order 0)
@@ -1915,13 +1933,30 @@ Show effective backend identity and repository context.")
     :type (or null string)
     :initform nil
     :documentation "Issue ID to assign."
-    :positional 1)
+    :positional 1
+    :key "i"
+    :transient "Issue ID (required)"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID: "
+    :transient-reader beads--read-issue-at-point-or-prompt
+    :transient-group "Assign Issue"
+    :level 1
+    :order 0)
    (assignee
     :initarg :assignee
     :type (or null string)
     :initform nil
     :documentation "Name to assign the issue to.  Empty string unassigns."
-    :positional 2))
+    :positional 2
+    :key "a"
+    :transient "Assignee (empty to unassign)"
+    :class transient-option
+    :argument "--assignee="
+    :prompt "Assignee: "
+    :transient-group "Assign Issue"
+    :level 1
+    :order 1))
   :documentation "Represents bd assign command.
 Shorthand for bd update <id> --assignee <name>.
 Pass an empty string as assignee to unassign.")
@@ -1950,13 +1985,30 @@ Pass an empty string as assignee to unassign."
     :type (or null string)
     :initform nil
     :documentation "Issue ID to comment on."
-    :positional 1)
+    :positional 1
+    :key "i"
+    :transient "Issue ID (required)"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID: "
+    :transient-reader beads--read-issue-at-point-or-prompt
+    :transient-group "Add Comment"
+    :level 1
+    :order 0)
    (text
     :initarg :text
     :type (or null string)
     :initform nil
     :documentation "Comment text (positional)."
-    :positional 2)
+    :positional 2
+    :key "t"
+    :transient "Comment text"
+    :class transient-option
+    :argument "--text="
+    :prompt "Comment: "
+    :transient-group "Add Comment"
+    :level 1
+    :order 1)
    (stdin
     :initarg :stdin
     :type boolean
@@ -2013,13 +2065,31 @@ Shorthand for: bd comments add <id> \"text\""
     :type (or null string)
     :initform nil
     :documentation "First issue ID (the dependent issue)."
-    :positional 1)
+    :positional 1
+    :key "1"
+    :transient "Dependent issue (required)"
+    :class transient-option
+    :argument "--id1="
+    :prompt "Dependent issue ID: "
+    :transient-reader beads--read-issue-at-point-or-prompt
+    :transient-group "Link Issues"
+    :level 1
+    :order 0)
    (id2
     :initarg :id2
     :type (or null string)
     :initform nil
     :documentation "Second issue ID (the blocker/dependency)."
-    :positional 2)
+    :positional 2
+    :key "2"
+    :transient "Blocker issue (required)"
+    :class transient-option
+    :argument "--id2="
+    :prompt "Blocker issue ID: "
+    :transient-reader beads-reader-issue-id
+    :transient-group "Link Issues"
+    :level 1
+    :order 1)
    (link-type
     :initarg :link-type
     :type (or null string)
@@ -2070,14 +2140,32 @@ Use --type to specify a different relationship."
     :type (or null string)
     :initform nil
     :documentation "Issue ID to set priority on."
-    :positional 1)
+    :positional 1
+    :key "i"
+    :transient "Issue ID (required)"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID: "
+    :transient-reader beads--read-issue-at-point-or-prompt
+    :transient-group "Set Priority"
+    :level 1
+    :order 0)
    (level
     :initarg :level
     :type (or null integer)
     :initform nil
     :documentation "Priority level: 0=critical, 1=high, 2=medium,
 3=low, 4=backlog."
-    :positional 2))
+    :positional 2
+    :key "p"
+    :transient "Priority level (required)"
+    :class transient-option
+    :argument "--level="
+    :prompt "Priority (0-4): "
+    :transient-reader beads-reader-priority-level
+    :transient-group "Set Priority"
+    :level 1
+    :order 1))
   :documentation "Represents bd priority command.
 Shorthand for bd update <id> --priority <n>.
 Priority levels: 0=critical, 1=high, 2=medium, 3=low, 4=backlog.")
@@ -2117,13 +2205,31 @@ Priority levels:
     :type (or null string)
     :initform nil
     :documentation "Issue ID to tag."
-    :positional 1)
+    :positional 1
+    :key "i"
+    :transient "Issue ID (required)"
+    :class transient-option
+    :argument "--id="
+    :prompt "Issue ID: "
+    :transient-reader beads--read-issue-at-point-or-prompt
+    :transient-group "Add Label"
+    :level 1
+    :order 0)
    (label
     :initarg :label
     :type (or null string)
     :initform nil
     :documentation "Label to add to the issue."
-    :positional 2))
+    :positional 2
+    :key "l"
+    :transient "Label (required)"
+    :class transient-option
+    :argument "--label="
+    :prompt "Label: "
+    :transient-reader beads-reader-label-name
+    :transient-group "Add Label"
+    :level 1
+    :order 1))
   :documentation "Represents bd tag command.
 Shorthand for bd update <id> --add-label <label>.
 Add a label to an issue.")

@@ -101,6 +101,21 @@ DEFAULT-VAR is the variable holding the current priority value."
       (number-to-string priority))))
 
 ;;; ============================================================
+;;; Standalone Reader Functions
+;;; ============================================================
+
+(defun beads-reader-priority-level (_prompt _initial-input _history)
+  "Read priority level 0-4 via `completing-read' with named choices."
+  (let* ((choices '(("0 - Critical" . 0)
+                    ("1 - High" . 1)
+                    ("2 - Medium" . 2)
+                    ("3 - Low" . 3)
+                    ("4 - Backlog" . 4)))
+         (selection (completing-read "Priority: " choices nil t))
+         (priority (cdr (assoc selection choices))))
+    (number-to-string priority)))
+
+;;; ============================================================
 ;;; beads-create Reader Functions
 ;;; ============================================================
 
