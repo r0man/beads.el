@@ -1155,6 +1155,26 @@
   (let ((cmd (beads-command-priority :issue-id "bd-123" :level 5)))
     (should (beads-command-validate cmd))))
 
+(ert-deftest beads-command-priority-test-string-level-accepted ()
+  "Unit test: priority accepts string level from transient reader."
+  :tags '(:unit)
+  (let ((cmd (beads-command-priority :issue-id "bd-123" :level "2")))
+    (should-not (beads-command-validate cmd))))
+
+(ert-deftest beads-command-priority-test-string-level-zero-accepted ()
+  "Unit test: priority accepts string level \"0\" (critical)."
+  :tags '(:unit)
+  (let ((cmd (beads-command-priority :issue-id "bd-123" :level "0")))
+    (should-not (beads-command-validate cmd))))
+
+(ert-deftest beads-command-priority-test-string-level-command-line ()
+  "Unit test: priority builds correct command line with string level."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-priority :issue-id "bd-123" :level "1"))
+         (args (beads-command-line cmd)))
+    (should (member "bd-123" args))
+    (should (member "1" args))))
+
 ;;; Unit Tests: beads-command-tag
 
 (ert-deftest beads-command-tag-test-class-exists ()

@@ -2152,7 +2152,7 @@ Use --type to specify a different relationship."
     :order 0)
    (level
     :initarg :level
-    :type (or null integer)
+    :type (or null string integer)
     :initform nil
     :documentation "Priority level: 0=critical, 1=high, 2=medium,
 3=low, 4=backlog."
@@ -2174,12 +2174,15 @@ Priority levels: 0=critical, 1=high, 2=medium, 3=low, 4=backlog.")
 (cl-defmethod beads-command-validate ((command beads-command-priority))
   "Validate priority COMMAND."
   (with-slots (issue-id level) command
-    (cond
-     ((not issue-id) "Issue ID is required")
-     ((null level) "Priority level is required")
-     ((not (and (integerp level) (<= 0 level 4)))
-      "Priority level must be 0 (critical), 1 (high), 2 (medium), 3 (low), or 4 (backlog)")
-     (t nil))))
+    (let ((level-int (cond ((integerp level) level)
+                           ((stringp level) (string-to-number level))
+                           (t nil))))
+      (cond
+       ((not issue-id) "Issue ID is required")
+       ((null level) "Priority level is required")
+       ((not (and (numberp level-int) (<= 0 level-int 4)))
+        "Priority level must be 0 (critical), 1 (high), 2 (medium), 3 (low), or 4 (backlog)")
+       (t nil)))))
 
 ;;;###autoload (autoload 'beads-priority "beads-command-misc" nil t)
 (beads-meta-define-transient beads-command-priority "beads-priority"
