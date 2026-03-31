@@ -408,6 +408,12 @@
   (let ((cmd (beads-command-rename :old-id "bd-w382l" :new-id "bd-auth")))
     (should-not (beads-command-validate cmd))))
 
+(ert-deftest beads-command-rename-test-validation-self-rename-rejected ()
+  "Unit test: rename validation fails when old-id equals new-id."
+  :tags '(:unit)
+  (let ((cmd (beads-command-rename :old-id "bd-auth" :new-id "bd-auth")))
+    (should (beads-command-validate cmd))))
+
 ;;; Unit Tests: beads-command-note command-line
 
 (ert-deftest beads-command-note-test-command-line-basic ()
