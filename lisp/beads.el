@@ -637,7 +637,7 @@ into logical groups for easy access."
    ("A" "ADO" beads-ado)
    ("*" "Mail delegate" beads-mail)]
   ["Setup & Config"
-   ("i" "Init project" beads-init)
+   ("ii" "Init project" beads-init)
    ("ib" "Bootstrap" beads-bootstrap)
    ("ic" "Context" beads-context)
    ("?" "Quickstart" beads-quickstart)
