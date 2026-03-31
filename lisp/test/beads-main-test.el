@@ -20,6 +20,7 @@
 
 (require 'ert)
 (require 'beads)
+(require 'beads-status)
 
 ;;; Test Utilities
 
@@ -292,6 +293,12 @@
   "Test predicate returns t in beads-epic-status-mode."
   (with-temp-buffer
     (beads-epic-status-mode)
+    (should (beads--in-beads-buffer-p))))
+
+(ert-deftest beads-main-test-in-beads-buffer-p-status-mode ()
+  "Test predicate returns t in beads-status-mode (via beads-section-mode)."
+  (with-temp-buffer
+    (beads-status-mode)
     (should (beads--in-beads-buffer-p))))
 
 (ert-deftest beads-main-test-in-beads-buffer-p-other-mode ()
