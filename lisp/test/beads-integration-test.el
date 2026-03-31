@@ -360,12 +360,19 @@ Caller is responsible for cleanup."
                             beads-test--suite-server-port)
                     process-environment)
             (cons "BEADS_DOLT_PORT" process-environment))))
-    ;; Initialize git
-    (beads-test--init-git-repo temp-dir)
-    ;; Optionally initialize beads
-    (when init-beads
-      (beads-test--init-beads temp-dir prefix quiet))
-    temp-dir))
+    ;; Initialize git and optionally beads; clean up temp dir on failure
+    ;; so that a failed `bd init' (e.g. Dolt unavailable) does not leak
+    ;; temp directories — the macro's unwind-protect has not started yet
+    ;; when beads-test-create-temp-repo is called inside the let*.
+    (condition-case err
+        (progn
+          (beads-test--init-git-repo temp-dir)
+          (when init-beads
+            (beads-test--init-beads temp-dir prefix quiet))
+          temp-dir)
+      (error
+       (ignore-errors (delete-directory temp-dir t))
+       (signal (car err) (cdr err))))))
 
 ;;; ============================================================
 ;;; Main Test Macro

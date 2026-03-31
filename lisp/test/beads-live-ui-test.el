@@ -79,7 +79,11 @@ Signals an error if the transient fails to open."
   (transient-setup prefix-sym)
   (let ((active (beads-live-test--transient-active-p)))
     (when active
-      (transient-quit-all))
+      ;; Use ignore-errors: if quit fails (e.g. transient already exited
+      ;; itself during setup), the test environment must not be left dirty.
+      ;; beads-test--clear-transient-state in the macro cleanup handles any
+      ;; residual state, but we should not propagate a quit error here.
+      (ignore-errors (transient-quit-all)))
     active))
 
 (defun beads-live-test--with-completing-read (choice thunk)
@@ -209,9 +213,13 @@ Signals an error if the transient fails to open."
                      (regexp-quote issue-id) (buffer-name b)))
                   (buffer-list))))
         (should buf)
-        (with-current-buffer buf
-          (should (string-match-p "Show test issue" (buffer-string))))
-        (kill-buffer buf)))))
+        ;; Use unwind-protect so the buffer is killed even if assertions
+        ;; fail — otherwise it leaks and may interfere with subsequent tests.
+        (unwind-protect
+            (with-current-buffer buf
+              (should (string-match-p "Show test issue" (buffer-string))))
+          (when (buffer-live-p buf)
+            (kill-buffer buf)))))))
 
 (ert-deftest beads-live-test-show-actions-transient-renders ()
   "Live: beads-show-actions transient opens without error."
@@ -375,14 +383,18 @@ Signals an error if the transient fails to open."
                            (derived-mode-p 'beads-list-mode)))
                        (buffer-list))))
         (should list-buf)
-        (with-current-buffer list-buf
-          ;; Move to first issue line (past tabulated-list header)
-          (goto-char (point-min))
-          (forward-line 1)
-          ;; At-point detection must return the issue ID on an entry row
-          (let ((detected (beads-issue-at-point)))
-            (should (equal issue-id detected))))
-        (kill-buffer list-buf)))))
+        ;; Use unwind-protect so the buffer is killed even if assertions
+        ;; fail — otherwise it leaks and may interfere with subsequent tests.
+        (unwind-protect
+            (with-current-buffer list-buf
+              ;; Move to first issue line (past tabulated-list header)
+              (goto-char (point-min))
+              (forward-line 1)
+              ;; At-point detection must return the issue ID on an entry row
+              (let ((detected (beads-issue-at-point)))
+                (should (equal issue-id detected))))
+          (when (buffer-live-p list-buf)
+            (kill-buffer list-buf)))))))
 
 ;;; ============================================================
 ;;; Scenario 9: Priority Reader Choices
@@ -619,6 +631,7 @@ Signals an error if the transient fails to open."
   "Live: reopen a closed issue changes status back to open."
   :tags '(:live :integration)
   (skip-unless (executable-find beads-executable))
+  (skip-unless (beads-test-bd-has-subcommand-p "reopen"))
   (beads-test-with-temp-repo-and-issues
       (:init-beads t)
       ((:title "Issue to reopen" :issue-type "task" :priority 2))
