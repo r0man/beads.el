@@ -326,7 +326,11 @@ Returns DIR for convenience."
   (ignore-errors
     (when (fboundp 'transient-quit-all)
       (transient-quit-all)))
-  ;; Reset transient internal state
+  ;; Reset transient internal state.
+  ;; NOTE: Do NOT include transient--buffer-name here — it is a
+  ;; constant (" *transient*") and must never be set to nil or
+  ;; transient-setup will call (get-buffer nil) and signal
+  ;; wrong-type-argument.
   (dolist (var '(transient--prefix
                  transient--suffixes
                  transient-current-prefix
@@ -334,7 +338,6 @@ Returns DIR for convenience."
                  transient-current-command
                  transient--exitp
                  transient--stack
-                 transient--buffer-name
                  transient--window
                  transient--showp
                  overriding-terminal-local-map))
