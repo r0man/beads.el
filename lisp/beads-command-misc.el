@@ -734,7 +734,7 @@ Delegates to mail provider.")
     :transient "--status"
     :class transient-option
     :argument "--status="
-    :prompt "Status (open/closed): "
+    :prompt "Status: "
     :choices ("open" "in_progress" "blocked" "closed" "all")
     :transient-group "Options"
     :level 1
