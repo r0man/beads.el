@@ -83,11 +83,23 @@ Integration test that verifies quiet mode suppresses output."
                  :prefix prefix
                  :quiet t
                  :skip-hooks t))
-           (exec (beads-command-execute cmd)))
+           (max-retries 3)
+           (attempt 0)
+           exec)
+      ;; Retry on transient Dolt connection failures (common on CI).
+      (while (not exec)
+        (setq attempt (1+ attempt))
+        (condition-case err
+            (setq exec (beads-command-execute cmd))
+          (beads-command-error
+           (if (>= attempt max-retries)
+               (signal (car err) (cdr err))
+             (sleep-for 2)))))
       ;; Command should succeed
       (should (= (oref exec exit-code) 0))
       ;; .beads directory should exist
-      (should (file-directory-p (expand-file-name ".beads" default-directory))))))
+      (should (file-directory-p
+               (expand-file-name ".beads" default-directory))))))
 
 ;;; Integration Test: beads-command-quickstart
 
