@@ -1290,5 +1290,50 @@
       (should called-with-choices)
       (should (= 5 (length called-with-choices))))))
 
+;;; ============================================================
+;;; Tests for beads--read-priority edge cases
+;;; ============================================================
+
+(ert-deftest beads-reader-test-read-priority-default-zero ()
+  "Test beads--read-priority with default=0 pre-selects Critical.
+In Emacs Lisp, 0 is truthy, so (when 0 ...) should fire."
+  (let (initial-input-seen)
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (_prompt _choices _pred _require initial &rest _args)
+                 (setq initial-input-seen initial)
+                 "0 - Critical")))
+      (let ((result (beads--read-priority "Priority: " 0)))
+        (should (equal result "0"))
+        (should (equal initial-input-seen "0 - Critical"))))))
+
+(ert-deftest beads-reader-test-read-priority-default-nil ()
+  "Test beads--read-priority with default=nil passes nil initial input."
+  (let (initial-input-seen)
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (_prompt _choices _pred _require initial &rest _args)
+                 (setq initial-input-seen initial)
+                 "2 - Medium")))
+      (let ((result (beads--read-priority "Priority: " nil)))
+        (should (equal result "2"))
+        (should (null initial-input-seen))))))
+
+;;; ============================================================
+;;; Tests for beads-reader-list-limit edge cases
+;;; ============================================================
+
+(ert-deftest beads-reader-test-list-limit-empty-returns-empty ()
+  "Test beads-reader-list-limit: empty input returns empty string (no limit)."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (&rest _args) "")))
+    (let ((result (beads-reader-list-limit nil nil nil)))
+      (should (equal result "")))))
+
+(ert-deftest beads-reader-test-list-limit-numeric-returns-string ()
+  "Test beads-reader-list-limit: numeric input returns number as string."
+  (cl-letf (((symbol-function 'read-string)
+             (lambda (&rest _args) "10")))
+    (let ((result (beads-reader-list-limit nil nil nil)))
+      (should (equal result "10")))))
+
 (provide 'beads-reader-test)
 ;;; beads-reader-test.el ends here

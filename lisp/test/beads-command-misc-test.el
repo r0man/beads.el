@@ -1046,6 +1046,12 @@
   (let ((cmd (beads-command-assign :issue-id "bd-123" :assignee "alice")))
     (should-not (beads-command-validate cmd))))
 
+(ert-deftest beads-command-assign-test-empty-assignee-unassigns ()
+  "Unit test: assign with empty string assignee passes validation (unassign)."
+  :tags '(:unit)
+  (let ((cmd (beads-command-assign :issue-id "bd-123" :assignee "")))
+    (should-not (beads-command-validate cmd))))
+
 ;;; Unit Tests: beads-command-comment
 
 (ert-deftest beads-command-comment-test-class-exists ()
@@ -1073,6 +1079,25 @@
   :tags '(:unit)
   (let ((cmd (beads-command-comment :issue-id "bd-123")))
     (should-not (beads-command-validate cmd))))
+
+(ert-deftest beads-command-comment-test-command-line-stdin ()
+  "Unit test: comment builds correct command line with --stdin."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-comment :issue-id "bd-123" :stdin t))
+         (args (beads-command-line cmd)))
+    (should (member "comment" args))
+    (should (member "bd-123" args))
+    (should (member "--stdin" args))))
+
+(ert-deftest beads-command-comment-test-command-line-file ()
+  "Unit test: comment builds correct command line with --file."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-comment :issue-id "bd-123" :file "note.md"))
+         (args (beads-command-line cmd)))
+    (should (member "comment" args))
+    (should (member "bd-123" args))
+    (should (member "--file" args))
+    (should (member "note.md" args))))
 
 ;;; Unit Tests: beads-command-link
 
@@ -1174,6 +1199,32 @@
          (args (beads-command-line cmd)))
     (should (member "bd-123" args))
     (should (member "1" args))))
+
+(ert-deftest beads-command-priority-test-string-level-empty-rejected ()
+  "Unit test: priority rejects empty string level."
+  :tags '(:unit)
+  (let ((cmd (beads-command-priority :issue-id "bd-123" :level "")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-priority-test-string-level-non-numeric-rejected ()
+  "Unit test: priority rejects non-numeric string level like \"high\"."
+  :tags '(:unit)
+  (let ((cmd (beads-command-priority :issue-id "bd-123" :level "high")))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-priority-test-string-level-float-rejected ()
+  "Unit test: priority rejects float-like string level like \"1.5\"."
+  :tags '(:unit)
+  (let ((cmd (beads-command-priority :issue-id "bd-123" :level "1.5")))
+    (should (beads-command-validate cmd))))
+
+;;; Unit Tests: beads-command-link self-link
+
+(ert-deftest beads-command-link-test-validation-self-link-rejected ()
+  "Unit test: link validation fails when id1 equals id2."
+  :tags '(:unit)
+  (let ((cmd (beads-command-link :id1 "bd-1" :id2 "bd-1")))
+    (should (beads-command-validate cmd))))
 
 ;;; Unit Tests: beads-command-tag
 

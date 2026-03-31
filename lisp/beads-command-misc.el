@@ -2119,6 +2119,7 @@ By default creates a 'blocks' dependency (id2 blocks id1).")
     (cond
      ((not id1) "First issue ID is required")
      ((not id2) "Second issue ID is required")
+     ((equal id1 id2) "Cannot link an issue to itself")
      (t nil))))
 
 ;;;###autoload (autoload 'beads-link "beads-command-misc" nil t)
@@ -2175,7 +2176,9 @@ Priority levels: 0=critical, 1=high, 2=medium, 3=low, 4=backlog.")
   "Validate priority COMMAND."
   (with-slots (issue-id level) command
     (let ((level-int (cond ((integerp level) level)
-                           ((stringp level) (string-to-number level))
+                           ((and (stringp level)
+                                 (string-match-p "\\`-?[0-9]+\\'" level))
+                            (string-to-number level))
                            (t nil))))
       (cond
        ((not issue-id) "Issue ID is required")
