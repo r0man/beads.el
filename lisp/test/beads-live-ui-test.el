@@ -40,9 +40,10 @@
 ;;   :reader      - Tests completing-read readers
 ;;   :integration - Runs real bd CLI commands
 ;;
-;; NOTE: Do NOT include these tests in the default eldev test run.
-;; They are intended for manual invocation and CI workflows that
-;; have an Emacs daemon available.
+;; NOTE: Integration tests (:integration tag) run in the default
+;; `eldev test' batch run via the suite-level Dolt server.  Transient
+;; tests (:transient tag) skip automatically in batch/non-interactive
+;; mode and require a live interactive Emacs session or daemon.
 
 ;;; Code:
 
@@ -273,10 +274,12 @@ Signals an error if the transient fails to open."
        :issue-id blocked-id
        :depends-on blocker-id
        :dep-type "blocks")
-      ;; Verify it appears in dep list
+      ;; Verify blocker-id appears in dep list as a dependency
       (let ((deps (beads-command-dep-list! :issue-id blocked-id)))
         (should (listp deps))
-        (should (>= (length deps) 1)))
+        (should (cl-find blocker-id deps
+                         :key (lambda (d) (oref d depends-on-id))
+                         :test #'equal)))
       ;; Remove it
       (beads-command-dep-remove!
        :issue-id blocked-id
@@ -344,6 +347,14 @@ Signals an error if the transient fails to open."
     (lambda ()
       (let ((result (beads-reader-update-assignee "Assignee: " nil nil)))
         (should (equal "alice" result))))))
+
+(ert-deftest beads-live-test-update-priority-reader ()
+  "Live: beads-reader-update-priority converts priority label to numeric string."
+  :tags '(:live :reader)
+  (beads-live-test--with-completing-read "1 - High"
+    (lambda ()
+      (let ((result (beads-reader-update-priority "Priority: " nil nil)))
+        (should (equal "1" result))))))
 
 (ert-deftest beads-live-test-update-transient-renders ()
   "Live: beads-update--menu transient opens without error."
