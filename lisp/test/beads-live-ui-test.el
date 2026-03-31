@@ -78,7 +78,7 @@ Returns t if the transient was active before quitting.
 Signals an error if the transient fails to open."
   (transient-setup prefix-sym)
   (let ((active (beads-live-test--transient-active-p)))
-    (when (beads-live-test--transient-active-p)
+    (when active
       (transient-quit-all))
     active))
 
@@ -164,10 +164,14 @@ Signals an error if the transient fails to open."
       (:init-beads t)
       ((:title "Open issue"  :issue-type "bug"  :priority 1)
        (:title "Closed issue" :issue-type "task" :priority 2))
-    ;; Close the second issue
-    (let ((issues (beads-command-list!)))
+    ;; Close the "Closed issue" by title to avoid ordering assumptions
+    (let* ((issues (beads-command-list!))
+           (to-close (cl-find "Closed issue" issues
+                              :key (lambda (i) (oref i title))
+                              :test #'equal)))
+      (should to-close)
       (beads-command-close!
-       :issue-ids (list (oref (cadr issues) id))
+       :issue-ids (list (oref to-close id))
        :reason "Completed")
       ;; Now list only open ones
       (let ((open (beads-command-list! :status "open")))
@@ -248,20 +252,30 @@ Signals an error if the transient fails to open."
       ((:title "Blocker issue" :issue-type "bug"  :priority 0)
        (:title "Blocked issue" :issue-type "task" :priority 2))
     (let* ((issues (beads-command-list!))
-           (blocker-id (oref (car issues) id))
-           (blocked-id (oref (cadr issues) id)))
-      ;; Add dependency
+           (blocker-issue (cl-find "Blocker issue" issues
+                                   :key (lambda (i) (oref i title))
+                                   :test #'equal))
+           (blocked-issue (cl-find "Blocked issue" issues
+                                   :key (lambda (i) (oref i title))
+                                   :test #'equal))
+           (blocker-id (oref blocker-issue id))
+           (blocked-id (oref blocked-issue id)))
+      ;; Add dependency: "Blocked issue" depends on "Blocker issue"
       (beads-command-dep-add!
        :issue-id blocked-id
        :depends-on blocker-id
        :dep-type "blocks")
       ;; Verify it appears in dep list
       (let ((deps (beads-command-dep-list! :issue-id blocked-id)))
-        (should (listp deps)))
+        (should (listp deps))
+        (should (>= (length deps) 1)))
       ;; Remove it
       (beads-command-dep-remove!
        :issue-id blocked-id
-       :depends-on blocker-id))))
+       :depends-on blocker-id)
+      ;; Verify the dep was removed
+      (let ((deps-after (beads-command-dep-list! :issue-id blocked-id)))
+        (should (zerop (length deps-after)))))))
 
 (ert-deftest beads-live-test-dep-transient-renders ()
   "Live: beads-dep transient opens without error."
@@ -362,13 +376,12 @@ Signals an error if the transient fails to open."
                        (buffer-list))))
         (should list-buf)
         (with-current-buffer list-buf
-          ;; Move to first issue line
+          ;; Move to first issue line (past tabulated-list header)
           (goto-char (point-min))
-          (forward-line 1)  ; Skip header
-          ;; At-point detection should return the issue ID
+          (forward-line 1)
+          ;; At-point detection must return the issue ID on an entry row
           (let ((detected (beads-issue-at-point)))
-            (should (or (null detected)  ; May be nil if no issue on line
-                        (equal issue-id detected)))))
+            (should (equal issue-id detected))))
         (kill-buffer list-buf)))))
 
 ;;; ============================================================
@@ -584,15 +597,21 @@ Signals an error if the transient fails to open."
       ((:title "Blocker" :issue-type "bug"  :priority 0)
        (:title "Blocked" :issue-type "task" :priority 2))
     (let* ((issues (beads-command-list!))
-           (blocker-id (oref (car issues) id))
-           (blocked-id (oref (cadr issues) id)))
+           (blocker (cl-find "Blocker" issues
+                             :key (lambda (i) (oref i title))
+                             :test #'equal))
+           (blocked (cl-find "Blocked" issues
+                             :key (lambda (i) (oref i title))
+                             :test #'equal))
+           (blocker-id (oref blocker id))
+           (blocked-id (oref blocked id)))
       (beads-command-dep-add!
        :issue-id blocked-id
        :depends-on blocker-id
        :dep-type "blocks")
-      (let ((blocked (beads-command-blocked!)))
-        (should (listp blocked))
-        (should (cl-find blocked-id blocked
+      (let ((blocked-list (beads-command-blocked!)))
+        (should (listp blocked-list))
+        (should (cl-find blocked-id blocked-list
                          :key (lambda (i) (oref i id))
                          :test #'equal))))))
 
