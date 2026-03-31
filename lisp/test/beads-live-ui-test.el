@@ -529,7 +529,7 @@ Signals an error if the transient fails to open."
     (should (beads-live-test--open-transient-and-quit 'beads-ops-menu))))
 
 ;;; ============================================================
-;;; Creation Reader Tests
+;;; Scenario 11: Creation Readers
 ;;; ============================================================
 
 (ert-deftest beads-live-test-reader-issue-title ()
@@ -573,7 +573,7 @@ Signals an error if the transient fails to open."
         (should (equal "blocks" result))))))
 
 ;;; ============================================================
-;;; Workflow Command Tests
+;;; Scenario 12: Workflow Commands
 ;;; ============================================================
 
 (ert-deftest beads-live-test-ready-command ()
