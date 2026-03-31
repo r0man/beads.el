@@ -197,7 +197,13 @@ Signals an error if the transient fails to open."
     (let* ((issues (beads-command-list!))
            (issue-id (oref (car issues) id)))
       (beads-show issue-id)
-      (let ((buf (get-buffer (format "*beads-show[%s]*" issue-id))))
+      ;; Buffer name format is *beads-show[context]/id title*;
+      ;; search all buffers for one showing this issue.
+      (let ((buf (cl-find-if
+                  (lambda (b)
+                    (string-match-p
+                     (regexp-quote issue-id) (buffer-name b)))
+                  (buffer-list))))
         (should buf)
         (with-current-buffer buf
           (should (string-match-p "Show test issue" (buffer-string))))
@@ -339,9 +345,21 @@ Signals an error if the transient fails to open."
       ((:title "Detectable issue" :issue-type "task" :priority 2))
     (let* ((issues (beads-command-list!))
            (issue-id (oref (car issues) id)))
-      ;; Open the list buffer
+      ;; Kill any stale beads-list-mode buffers from prior test runs.
+      ;; They have deleted temp dirs as default-directory; leaving them
+      ;; alive causes beads-list--find-buffer-for-project to fail with
+      ;; file-missing when it calls with-current-buffer on each one.
+      (dolist (b (buffer-list))
+        (when (with-current-buffer b
+                (derived-mode-p 'beads-list-mode))
+          (kill-buffer b)))
+      ;; Open the list buffer (actual name is *beads-list[project]*)
       (beads-list-all)
-      (let ((list-buf (get-buffer "*beads-list*")))
+      (let ((list-buf (cl-find-if
+                       (lambda (b)
+                         (with-current-buffer b
+                           (derived-mode-p 'beads-list-mode)))
+                       (buffer-list))))
         (should list-buf)
         (with-current-buffer list-buf
           ;; Move to first issue line
