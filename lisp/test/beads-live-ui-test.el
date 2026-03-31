@@ -398,9 +398,10 @@ Signals an error if the transient fails to open."
         ;; fail — otherwise it leaks and may interfere with subsequent tests.
         (unwind-protect
             (with-current-buffer list-buf
-              ;; Move to first issue line (past tabulated-list header)
+              ;; When tabulated-list-use-header-line is t (the default),
+              ;; the header is in header-line-format, NOT in buffer text.
+              ;; Point-min is already on the first entry row.
               (goto-char (point-min))
-              (forward-line 1)
               ;; At-point detection must return the issue ID on an entry row
               (let ((detected (beads-issue-at-point)))
                 (should (equal issue-id detected))))

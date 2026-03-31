@@ -43,7 +43,7 @@
 (require 'cl-lib)
 
 ;; Forward declarations to avoid load-time dependencies
-(declare-function beads-command-init "beads-command")
+(declare-function beads-command-init "beads-command-init")
 (declare-function beads-command-execute "beads-command")
 (declare-function transient-quit-all "transient")
 
@@ -276,6 +276,7 @@ Retries up to 3 times with 2-second delays on failure, since Dolt
 on CI runners can transiently refuse connections under load.
 Returns DIR for convenience."
   (require 'beads-command)
+  (require 'beads-command-init)
   (let* ((default-directory dir)
          (effective-prefix (or prefix (beads-test--generate-unique-prefix)))
          (cmd (beads-command-init :prefix effective-prefix
