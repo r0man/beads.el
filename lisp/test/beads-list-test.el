@@ -791,11 +791,11 @@ ISSUES should be a list of alists (test data format)."
    ;; Most recent (bd-2: 2025-10-20T16:36:52Z) should be first
    (should (equal (beads-list--current-issue-id) "bd-2"))))
 
-(ert-deftest beads-list-test-default-sort-is-created ()
-  "Test that default sort key is Created column."
+(ert-deftest beads-list-test-default-sort-is-updated ()
+  "Test that default sort key is Updated column."
   (with-temp-buffer
     (beads-list-mode)
-    (should (equal tabulated-list-sort-key '("Created" . t)))))
+    (should (equal tabulated-list-sort-key '("Updated" . t)))))
 
 ;;; Integration Test: Date Format Customization
 

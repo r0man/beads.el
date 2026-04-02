@@ -2294,7 +2294,7 @@ Uses an idle timer to debounce rapid navigation, similar to
                 (list "Created" beads-list-created-width t)
                 (list "Updated" beads-list-updated-width t)))
   (setq tabulated-list-padding 2)
-  (setq tabulated-list-sort-key (cons "Created" t))
+  (setq tabulated-list-sort-key (cons "Updated" t))
   (tabulated-list-init-header)
   (hl-line-mode 1)
   (beads-pager-mode 1))
