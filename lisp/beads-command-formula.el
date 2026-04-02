@@ -120,7 +120,7 @@
     :option-type :string
     :key "t"
     :choices ("workflow" "expansion" "aspect")
-    :transient-group "Filters"
+    :group "Filters"
     :level 2
     :order 1))
   :documentation "Represents bd formula list command.

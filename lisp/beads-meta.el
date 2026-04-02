@@ -135,11 +135,12 @@ Returns nil if DOCSTRING is nil or empty."
     :positional
     :positional-rest
     :option-separator
-    ;; Transient properties (new concise names where possible)
+    ;; Transient properties (concise names)
     :key                    ; key binding in transient menu
     :transient              ; description shown in transient menu
     :class                  ; transient class (transient-option, etc.)
-    ;; Note: :reader and :group are reserved by EIEIO, use :transient-*
+    :reader                 ; reader function for input
+    :group                  ; group name for organization
     :choices                ; valid choices list
     :prompt                 ; input prompt string
     :argument               ; CLI argument format (e.g., "--title=")
@@ -150,13 +151,13 @@ Returns nil if DOCSTRING is nil or empty."
     :transient-key
     :transient-description
     :transient-class
-    :transient-reader       ; reader function (cannot use :reader - EIEIO reserved)
+    :transient-reader
     :transient-choices
     :transient-prompt
     :transient-argument
     :transient-field-name
     :transient-level
-    :transient-group        ; group name (cannot use :group - EIEIO reserved)
+    :transient-group
     :transient-order
     ;; Validation properties
     :required
@@ -169,6 +170,8 @@ Property name mappings (new -> legacy):
   :key         -> :transient-key
   :transient   -> :transient-description
   :class       -> :transient-class
+  :reader      -> :transient-reader
+  :group       -> :transient-group
   :choices     -> :transient-choices
   :prompt      -> :transient-prompt
   :argument    -> :transient-argument
@@ -176,12 +179,10 @@ Property name mappings (new -> legacy):
   :level       -> :transient-level
   :order       -> :transient-order
 
-Note: :reader and :group CANNOT be aliased because they conflict with
-standard EIEIO slot options.  Use :transient-reader and :transient-group
-for those properties.
-
-The new concise names are preferred where possible.  Legacy names
-are preserved for backwards compatibility.")
+The concise names are preferred.  Legacy names are preserved for
+backwards compatibility.  Note: :reader and :group conflict with EIEIO
+slot options, so they are expanded to legacy names and stripped from
+slot plists before defclass processes them.")
 
 ;;; ============================================================
 ;;; Property Name Mapping (New Concise -> Legacy)
@@ -191,20 +192,35 @@ are preserved for backwards compatibility.")
   '((:key         . :transient-key)
     (:transient   . :transient-description)
     (:class       . :transient-class)
-    ;; Note: :reader and :group are reserved by EIEIO, so we keep
-    ;; :transient-reader and :transient-group as the canonical names
+    (:reader      . :transient-reader)
+    (:group       . :transient-group)
     (:choices     . :transient-choices)
     (:prompt      . :transient-prompt)
     (:argument    . :transient-argument)
     (:field-name  . :transient-field-name)
     (:level       . :transient-level)
     (:order       . :transient-order))
-  "Mapping from new concise property names to legacy names.
+  "Mapping from concise property names to legacy names.
 This allows slot definitions to use either naming convention.
+Note: :reader and :group conflict with EIEIO slot options, so
+`beads-meta--normalize-slot-def' strips them before defclass sees them.")
 
-Note: :reader and :group are NOT aliased because they conflict with
-standard EIEIO slot options.  Use :transient-reader and :transient-group
-for those properties.")
+(defconst beads-meta--eieio-conflicting-aliases
+  '((:reader . :transient-reader)
+    (:group  . :transient-group))
+  "Concise aliases that conflict with EIEIO slot options.
+These are expanded to legacy names and stripped from slot plists
+before defclass processes them.")
+
+(defun beads-meta--plist-remove (plist key)
+  "Return a copy of PLIST with KEY and its value removed."
+  (let ((result nil))
+    (while plist
+      (unless (eq (car plist) key)
+        (push (car plist) result)
+        (push (cadr plist) result))
+      (setq plist (cddr plist)))
+    (nreverse result)))
 
 (defun beads-meta--normalize-property-name (prop)
   "Normalize PROP to the legacy transient-prefixed name if applicable.
@@ -305,6 +321,12 @@ Positional slots skip :long-option inference."
                (not (plist-get result :positional-rest))
                (plist-get result :option-type))
       (setq result (plist-put result :long-option (symbol-name name))))
+    ;; Strip EIEIO-conflicting concise aliases (:reader, :group)
+    ;; by expanding them to legacy names and removing the concise keys
+    (dolist (alias beads-meta--eieio-conflicting-aliases)
+      (when-let ((value (plist-get result (car alias))))
+        (setq result (plist-put result (cdr alias) value))
+        (setq result (beads-meta--plist-remove result (car alias)))))
     (cons name result)))
 
 (defun beads-meta--resolve-long-option (slot-name slot-options)

@@ -39,38 +39,38 @@
     :key "i"
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads-reader-edit-issue-id
-    :transient-group "Edit Issue"
+    :reader beads-reader-edit-issue-id
+    :group "Edit Issue"
     :level 1
     :order 1)
    (title
     :option-type :boolean
     :key "t"
-    :transient-group "Field"
+    :group "Field"
     :level 1
     :order 1)
    (description
     :option-type :boolean
     :key "d"
-    :transient-group "Field"
+    :group "Field"
     :level 1
     :order 2)
    (design
     :option-type :boolean
     :key "D"
-    :transient-group "Field"
+    :group "Field"
     :level 1
     :order 3)
    (notes
     :option-type :boolean
     :key "n"
-    :transient-group "Field"
+    :group "Field"
     :level 1
     :order 4)
    (acceptance
     :option-type :boolean
     :key "a"
-    :transient-group "Field"
+    :group "Field"
     :level 1
     :order 5))
   :documentation "Represents bd edit command.

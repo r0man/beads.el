@@ -36,19 +36,19 @@
   ((schema
     :option-type :boolean
     :key "s"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 1)
    (whats-new
     :option-type :boolean
     :key "w"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 2)
    (thanks
     :option-type :boolean
     :key "t"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 3))
   :documentation "Represents bd info command.

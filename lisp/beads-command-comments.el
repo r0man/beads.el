@@ -44,8 +44,8 @@
     :key "i"
     :argument "--issue-id="
     :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "List Comments"
+    :reader beads-reader-issue-id
+    :group "List Comments"
     :level 1
     :order 1
     :required t))
@@ -73,8 +73,8 @@ Lists all comments on an issue.")
     :key "i"
     :argument "--issue-id="
     :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Add Comment"
+    :reader beads-reader-issue-id
+    :group "Add Comment"
     :level 1
     :order 1
     :required t)
@@ -85,7 +85,7 @@ Lists all comments on an issue.")
     :transient beads-transient-multiline
     :argument "--text="
     :field-name "Comment"
-    :transient-group "Add Comment"
+    :group "Add Comment"
     :level 1
     :order 2)
    (file
@@ -93,14 +93,14 @@ Lists all comments on an issue.")
     :option-type :string
     :key "f"
     :prompt "File path: "
-    :transient-group "Add Comment"
+    :group "Add Comment"
     :level 2
     :order 3)
    (author
     :short-option "a"
     :option-type :string
     :key "a"
-    :transient-group "Add Comment"
+    :group "Add Comment"
     :level 2
     :order 4))
   :documentation "Represents bd comments add command.

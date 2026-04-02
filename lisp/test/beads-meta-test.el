@@ -1903,6 +1903,43 @@ should emit only the autoload form."
       (should (equal "estimate" (plist-get props :long-option))))))
 
 ;;; ============================================================
+;;; Tests for :reader/:group stripping from slot plists
+;;; ============================================================
+
+(ert-deftest beads-meta-normalize-slot-strips-reader-alias ()
+  "Test :reader is expanded to :transient-reader and stripped."
+  (let* ((result (beads-meta--normalize-slot-def
+                  '(title :option-type :string :key "t"
+                          :reader beads-reader-issue-title)))
+         (props (cdr result)))
+    ;; :transient-reader should be set
+    (should (eq 'beads-reader-issue-title
+                (plist-get props :transient-reader)))
+    ;; :reader should be removed (not visible in the plist)
+    (should-not (plist-member props :reader))))
+
+(ert-deftest beads-meta-normalize-slot-strips-group-alias ()
+  "Test :group is expanded to :transient-group and stripped."
+  (let* ((result (beads-meta--normalize-slot-def
+                  '(title :option-type :string :key "t"
+                          :group "Required")))
+         (props (cdr result)))
+    ;; :transient-group should be set
+    (should (equal "Required" (plist-get props :transient-group)))
+    ;; :group should be removed (not visible in the plist)
+    (should-not (plist-member props :group))))
+
+(ert-deftest beads-meta-plist-remove-basic ()
+  "Test plist-remove removes key-value pair."
+  (should (equal '(:a 1 :c 3)
+                 (beads-meta--plist-remove '(:a 1 :b 2 :c 3) :b))))
+
+(ert-deftest beads-meta-plist-remove-missing-key ()
+  "Test plist-remove returns copy when key is absent."
+  (should (equal '(:a 1 :b 2)
+                 (beads-meta--plist-remove '(:a 1 :b 2) :c))))
+
+;;; ============================================================
 ;;; Tests for :transient property repurposing (class symbol)
 ;;; ============================================================
 

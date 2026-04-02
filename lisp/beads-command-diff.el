@@ -33,7 +33,7 @@
     :key "f"
     :argument "--from="
     :prompt "From ref: "
-    :transient-group "Diff"
+    :group "Diff"
     :level 1
     :order 1
     :required t)
@@ -43,7 +43,7 @@
     :key "t"
     :argument "--to="
     :prompt "To ref: "
-    :transient-group "Diff"
+    :group "Diff"
     :level 1
     :order 2
     :required t))

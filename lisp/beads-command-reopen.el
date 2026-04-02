@@ -51,8 +51,8 @@
     :transient transient-option
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads-reader-reopen-issue-id
-    :transient-group "Reopen Issue"
+    :reader beads-reader-reopen-issue-id
+    :group "Reopen Issue"
     :level 1
     :order 1
     :required t)
@@ -62,7 +62,7 @@
     :key "r"
     :transient beads-transient-multiline
     :field-name "Reopen Reason"
-    :transient-group "Reopen Issue"
+    :group "Reopen Issue"
     :level 1
     :order 2))
   :documentation "Represents bd reopen command.

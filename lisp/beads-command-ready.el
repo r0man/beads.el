@@ -44,13 +44,13 @@
     :option-type :string
     :short-option "a"
     :key "a"
-    :transient-group "Filters"
+    :group "Filters"
     :level 1
     :order 1)
    (include-deferred
     :option-type :boolean
     :key "D"
-    :transient-group "Filters"
+    :group "Filters"
     :level 2
     :order 8)
    (issue-type
@@ -58,8 +58,8 @@
     :short-option "t"
     :option-type :string
     :key "T"
-    :transient-reader beads-reader-list-type
-    :transient-group "Filters"
+    :reader beads-reader-list-type
+    :group "Filters"
     :level 1
     :order 4)
    (label
@@ -67,60 +67,60 @@
     :short-option "l"
     :key "l"
     :prompt "Label (AND): "
-    :transient-reader beads-reader-list-label
-    :transient-group "Label Filters"
+    :reader beads-reader-list-label
+    :group "Label Filters"
     :level 2
     :order 1)
    (label-any
     :option-type :list
     :key "L"
     :prompt "Label (OR): "
-    :transient-reader beads-reader-list-label
-    :transient-group "Label Filters"
+    :reader beads-reader-list-label
+    :group "Label Filters"
     :level 2
     :order 2)
    (limit
     :option-type :integer
     :short-option "n"
     :key "n"
-    :transient-group "Display"
+    :group "Display"
     :level 1
     :order 1)
    (mol
     :option-type :string
     :key "m"
     :prompt "Molecule ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Scope"
+    :reader beads-reader-issue-id
+    :group "Scope"
     :level 2
     :order 1)
    (mol-type
     :option-type :string
     :key "M"
     :choices '("swarm" "patrol" "work")
-    :transient-group "Scope"
+    :group "Scope"
     :level 2
     :order 2)
    (parent
     :option-type :string
     :key "P"
     :prompt "Parent ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Scope"
+    :reader beads-reader-issue-id
+    :group "Scope"
     :level 2
     :order 3)
    (pretty
     :option-type :boolean
     :key "y"
-    :transient-group "Display"
+    :group "Display"
     :level 2
     :order 2)
    (priority
     :option-type :integer
     :short-option "p"
     :key "p"
-    :transient-reader beads-reader-list-priority
-    :transient-group "Filters"
+    :reader beads-reader-list-priority
+    :group "Filters"
     :level 1
     :order 2)
    (sort
@@ -128,14 +128,14 @@
     :short-option "s"
     :key "s"
     :choices '("hybrid" "priority" "oldest")
-    :transient-group "Display"
+    :group "Display"
     :level 1
     :order 3)
    (unassigned
     :option-type :boolean
     :short-option "u"
     :key "u"
-    :transient-group "Filters"
+    :group "Filters"
     :level 1
     :order 3))
   :documentation "Represents bd ready command.

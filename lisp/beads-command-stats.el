@@ -55,19 +55,19 @@
   ((all
     :option-type :boolean
     :key "A"
-    :transient-group "Stats Options"
+    :group "Stats Options"
     :level 2
     :order 1)
    (assigned
     :option-type :boolean
     :key "a"
-    :transient-group "Stats Options"
+    :group "Stats Options"
     :level 1
     :order 1)
    (no-activity
     :option-type :boolean
     :key "n"
-    :transient-group "Stats Options"
+    :group "Stats Options"
     :level 1
     :order 2))
   :documentation "Represents bd stats/status command.

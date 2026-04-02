@@ -38,7 +38,7 @@
     :positional 1
     :key "q"
     :prompt "Search query: "
-    :transient-group "Query"
+    :group "Query"
     :level 1
     :order 1)
    (status
@@ -46,7 +46,7 @@
     :option-type :string
     :key "s"
     :choices ("open" "in_progress" "blocked" "deferred" "closed")
-    :transient-group "Filters"
+    :group "Filters"
     :level 2
     :order 1)
    (issue-type
@@ -56,30 +56,30 @@
     :key "t"
     :choices ("bug" "feature" "task" "epic" "chore" "merge-request"
                         "molecule" "gate")
-    :transient-group "Filters"
+    :group "Filters"
     :level 2
     :order 2)
    (assignee
     :short-option "a"
     :option-type :string
     :key "a"
-    :transient-group "Filters"
+    :group "Filters"
     :level 2
     :order 3)
    (label
     :short-option "l"
     :option-type :string
     :key "l"
-    :transient-reader beads-reader-list-label
-    :transient-group "Filters"
+    :reader beads-reader-list-label
+    :group "Filters"
     :level 2
     :order 4)
    (label-any
     :option-type :string
     :key "L"
     :prompt "Label (any): "
-    :transient-reader beads-reader-list-label
-    :transient-group "Filters"
+    :reader beads-reader-list-label
+    :group "Filters"
     :level 3
     :order 1)
    (limit
@@ -87,7 +87,7 @@
     :option-type :integer
     :key "n"
     :prompt "Limit (default 50): "
-    :transient-group "Output"
+    :group "Output"
     :level 2
     :order 1)
    (sort
@@ -96,78 +96,78 @@
     :prompt "Sort by: "
     :choices ("priority" "created" "updated" "closed" "status" "id"
                         "title" "type" "assignee")
-    :transient-group "Output"
+    :group "Output"
     :level 2
     :order 2)
    (reverse
     :short-option "r"
     :option-type :boolean
     :key "r"
-    :transient-group "Output"
+    :group "Output"
     :level 2
     :order 3)
    (long
     :option-type :boolean
     :key "g"
-    :transient-group "Output"
+    :group "Output"
     :level 3
     :order 1)
    (priority-min
     :option-type :string
     :key "pm"
     :prompt "Min priority (0-4): "
-    :transient-reader beads-reader-list-priority
-    :transient-group "Priority"
+    :reader beads-reader-list-priority
+    :group "Priority"
     :level 3
     :order 1)
    (priority-max
     :option-type :string
     :key "pM"
     :prompt "Max priority (0-4): "
-    :transient-reader beads-reader-list-priority
-    :transient-group "Priority"
+    :reader beads-reader-list-priority
+    :group "Priority"
     :level 3
     :order 2)
    (created-after
     :option-type :string
     :key "Ca"
     :prompt "Created after (YYYY-MM-DD): "
-    :transient-group "Date Filters"
+    :group "Date Filters"
     :level 3
     :order 1)
    (created-before
     :option-type :string
     :key "Cb"
     :prompt "Created before (YYYY-MM-DD): "
-    :transient-group "Date Filters"
+    :group "Date Filters"
     :level 3
     :order 2)
    (updated-after
     :option-type :string
     :key "Ua"
     :prompt "Updated after (YYYY-MM-DD): "
-    :transient-group "Date Filters"
+    :group "Date Filters"
     :level 3
     :order 3)
    (updated-before
     :option-type :string
     :key "Ub"
     :prompt "Updated before (YYYY-MM-DD): "
-    :transient-group "Date Filters"
+    :group "Date Filters"
     :level 3
     :order 4)
    (closed-after
     :option-type :string
     :key "ca"
     :prompt "Closed after (YYYY-MM-DD): "
-    :transient-group "Date Filters"
+    :group "Date Filters"
     :level 3
     :order 5)
    (closed-before
     :option-type :string
     :key "cb"
     :prompt "Closed before (YYYY-MM-DD): "
-    :transient-group "Date Filters"
+    :group "Date Filters"
     :level 3
     :order 6))
   :documentation "Represents bd search command.

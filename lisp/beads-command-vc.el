@@ -32,7 +32,7 @@
     :option-type :string
     :key "m"
     :prompt "Commit message: "
-    :transient-group "Commit"
+    :group "Commit"
     :level 1
     :order 1))
   :documentation "Create a Dolt commit from pending changes.
@@ -51,7 +51,7 @@ Requires Dolt backend.")
     :key "b"
     :argument "--branch="
     :prompt "Branch to merge: "
-    :transient-group "Merge"
+    :group "Merge"
     :level 1
     :order 1
     :required t)
@@ -59,7 +59,7 @@ Requires Dolt backend.")
     :option-type :string
     :key "s"
     :prompt "Strategy (ours|theirs): "
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 2))
   :documentation "Merge a Dolt branch into the current branch.

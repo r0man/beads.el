@@ -33,14 +33,14 @@
     :key "q"
     :argument "--query="
     :prompt "SQL query: "
-    :transient-group "SQL"
+    :group "SQL"
     :level 1
     :order 1
     :required t)
    (csv
     :option-type :boolean
     :key "c"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 2))
   :documentation "Execute raw SQL against the beads database.

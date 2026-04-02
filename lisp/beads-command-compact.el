@@ -62,14 +62,14 @@ Shows compaction statistics including tier 1 and tier 2 candidates."
     :key "t"
     :prompt "Tier (1 or 2): "
     :choices '("1" "2")
-    :transient-group "Analyze Options"
+    :group "Analyze Options"
     :level 1
     :order 1)
    (limit
     :option-type :integer
     :key "l"
     :prompt "Limit (0 = no limit): "
-    :transient-group "Analyze Options"
+    :group "Analyze Options"
     :level 1
     :order 2))
   :documentation "Represents bd admin compact --analyze command.
@@ -91,8 +91,8 @@ Exports compaction candidates for agent review."
     :option-type :string
     :key "i"
     :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Apply Options"
+    :reader beads-reader-issue-id
+    :group "Apply Options"
     :level 1
     :order 1
     :required t)
@@ -100,7 +100,7 @@ Exports compaction candidates for agent review."
     :option-type :string
     :key "s"
     :prompt "Summary file path: "
-    :transient-group "Apply Options"
+    :group "Apply Options"
     :level 1
     :order 2
     :required t))
@@ -140,14 +140,14 @@ Accepts agent-provided summary for an issue."
     :option-type :string
     :key "i"
     :prompt "Issue ID (or leave empty for all): "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Auto Options"
+    :reader beads-reader-issue-id
+    :group "Auto Options"
     :level 1
     :order 1)
    (all
     :option-type :boolean
     :key "a"
-    :transient-group "Auto Options"
+    :group "Auto Options"
     :level 1
     :order 2)
    (tier
@@ -155,32 +155,32 @@ Accepts agent-provided summary for an issue."
     :key "t"
     :prompt "Tier (1 or 2): "
     :choices '("1" "2")
-    :transient-group "Auto Options"
+    :group "Auto Options"
     :level 1
     :order 3)
    (batch-size
     :option-type :integer
     :key "b"
     :prompt "Batch size: "
-    :transient-group "Auto Options"
+    :group "Auto Options"
     :level 3
     :order 4)
    (workers
     :option-type :integer
     :key "w"
-    :transient-group "Auto Options"
+    :group "Auto Options"
     :level 3
     :order 5)
    (dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Auto Options"
+    :group "Auto Options"
     :level 1
     :order 6)
    (force
     :option-type :boolean
     :key "f"
-    :transient-group "Auto Options"
+    :group "Auto Options"
     :level 3
     :order 7))
   :documentation "Represents bd admin compact --auto command.

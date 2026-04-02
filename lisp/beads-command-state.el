@@ -33,7 +33,7 @@
     :key "r"
     :transient beads-transient-multiline
     :field-name "State Change Reason"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd set-state command.

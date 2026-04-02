@@ -28,14 +28,14 @@
     :short-option "a"
     :option-type :boolean
     :key "a"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (limit
     :short-option "n"
     :option-type :integer
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2))
   :documentation "Represents bd gate list command.
@@ -52,27 +52,27 @@ Lists gate issues.")
     :option-type :string
     :key "t"
     :prompt "Gate type: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2)
    (escalate
     :short-option "e"
     :option-type :boolean
     :key "e"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 3)
    (limit
     :short-option "l"
     :option-type :integer
     :key "l"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 4))
   :documentation "Represents bd gate check command.
@@ -92,7 +92,7 @@ Evaluates gates and closes resolved ones.")
     :key "r"
     :transient beads-transient-multiline
     :field-name "Resolve Reason"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd gate resolve command.

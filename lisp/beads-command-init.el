@@ -47,84 +47,84 @@
     :short-option "b"
     :option-type :string
     :key "b"
-    :transient-group "Basic Options"
+    :group "Basic Options"
     :level 1
     :order 2)
    (contributor
     :option-type :boolean
     :key "C"
-    :transient-group "Setup Wizards"
+    :group "Setup Wizards"
     :level 2
     :order 1)
    (force
     :option-type :boolean
     :key "f"
-    :transient-group "Advanced"
+    :group "Advanced"
     :level 3
     :order 1)
    (from-jsonl
     :option-type :boolean
     :key "j"
-    :transient-group "Advanced"
+    :group "Advanced"
     :level 3
     :order 2)
    (prefix
     :short-option "p"
     :option-type :string
     :key "p"
-    :transient-group "Basic Options"
+    :group "Basic Options"
     :level 1
     :order 1)
    (quiet
     :short-option "q"
     :option-type :boolean
     :key "q"
-    :transient-group "Other Options"
+    :group "Other Options"
     :level 2
     :order 1)
    (server-host
     :option-type :string
     :key "h"
     :prompt "Server host: "
-    :transient-group "Server Connection"
+    :group "Server Connection"
     :level 3
     :order 1)
    (server-port
     :option-type :integer
     :key "P"
     :prompt "Server port: "
-    :transient-group "Server Connection"
+    :group "Server Connection"
     :level 3
     :order 2)
    (server-user
     :option-type :string
     :key "U"
     :prompt "Server user: "
-    :transient-group "Server Connection"
+    :group "Server Connection"
     :level 3
     :order 3)
    (setup-exclude
     :option-type :boolean
     :key "e"
-    :transient-group "Advanced"
+    :group "Advanced"
     :level 3
     :order 3)
    (skip-hooks
     :option-type :boolean
     :key "H"
-    :transient-group "Other Options"
+    :group "Other Options"
     :level 2
     :order 2)
    (stealth
     :option-type :boolean
     :key "s"
-    :transient-group "Advanced"
+    :group "Advanced"
     :level 3
     :order 4)
    (team
     :option-type :boolean
     :key "T"
-    :transient-group "Setup Wizards"
+    :group "Setup Wizards"
     :level 2
     :order 2))
   :documentation "Represents bd init command.
@@ -290,7 +290,7 @@ the initialization."
   ((dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd bootstrap command.

@@ -28,39 +28,39 @@
   ((dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (force
     :short-option "f"
     :option-type :boolean
     :key "f"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2)
    (cascade
     :option-type :boolean
     :key "C"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 3)
    (ephemeral
     :option-type :boolean
     :key "e"
-    :transient-group "Filters"
+    :group "Filters"
     :level 1
     :order 1)
    (hard
     :option-type :boolean
     :key "H"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 4)
    (older-than
     :option-type :integer
     :key "o"
     :prompt "Days: "
-    :transient-group "Filters"
+    :group "Filters"
     :level 1
     :order 2))
   :documentation "Represents bd admin cleanup command.
@@ -75,91 +75,91 @@ Deletes closed issues and prunes expired tombstones.")
   ((dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (analyze
     :option-type :boolean
     :key "a"
-    :transient-group "Mode"
+    :group "Mode"
     :level 1
     :order 3)
    (apply
     :option-type :boolean
     :key "A"
-    :transient-group "Mode"
+    :group "Mode"
     :level 1
     :order 4)
    (auto
     :option-type :boolean
     :key "u"
-    :transient-group "Mode"
+    :group "Mode"
     :level 2
     :order 5)
    (stats
     :option-type :boolean
     :key "s"
-    :transient-group "Mode"
+    :group "Mode"
     :level 1
     :order 6)
    (id
     :option-type :string
     :key "i"
     :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Options"
+    :reader beads-reader-issue-id
+    :group "Options"
     :level 1
     :order 2)
    (all
     :option-type :boolean
     :key "l"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 3)
    (force
     :option-type :boolean
     :key "f"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 4)
    (older-than
     :option-type :integer
     :key "o"
     :prompt "Days: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 5)
    (limit
     :option-type :integer
     :key "L"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 6)
    (tier
     :option-type :integer
     :key "t"
     :prompt "Tier (1 or 2): "
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 7)
    (summary
     :option-type :string
     :key "S"
     :prompt "Summary file: "
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 8)
    (batch-size
     :option-type :integer
     :key "b"
     :prompt "Batch size: "
-    :transient-group "Options"
+    :group "Options"
     :level 3
     :order 9)
    (workers
     :option-type :integer
     :key "w"
-    :transient-group "Options"
+    :group "Options"
     :level 3
     :order 10))
   :documentation "Represents bd admin compact command.
@@ -174,7 +174,7 @@ Compacts old closed issues to save space.")
   ((force
     :option-type :boolean
     :key "f"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd admin reset command.

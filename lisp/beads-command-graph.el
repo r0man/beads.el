@@ -39,20 +39,20 @@
    (all
     :option-type :boolean
     :key "a"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (box
     :initform t
     :option-type :boolean
     :key "b"
-    :transient-group "Display"
+    :group "Display"
     :level 1
     :order 2)
    (compact
     :option-type :boolean
     :key "c"
-    :transient-group "Display"
+    :group "Display"
     :level 1
     :order 3))
   :documentation "Represents bd graph command.

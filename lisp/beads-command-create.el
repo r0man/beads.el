@@ -48,8 +48,8 @@
     :positional 1
     :key "t"
     :prompt "Issue title: "
-    :transient-reader beads-reader-issue-title
-    :transient-group "Required"
+    :reader beads-reader-issue-title
+    :group "Required"
     :level 1
     :order 1
     :required t)
@@ -64,8 +64,8 @@
     :choices ("bug" "feature" "task" "epic" "chore"
                         "merge-request" "molecule" "gate" "agent"
                         "role" "rig" "convoy" "event")
-    :transient-reader beads-reader-issue-type
-    :transient-group "Issue Attributes"
+    :reader beads-reader-issue-type
+    :group "Issue Attributes"
     :level 2
     :order 1)
    (priority
@@ -74,8 +74,8 @@
     :option-type :string
     :key "p"
     :prompt "Priority: "
-    :transient-reader beads-reader-issue-priority
-    :transient-group "Issue Attributes"
+    :reader beads-reader-issue-priority
+    :group "Issue Attributes"
     :level 2
     :order 2)
    (assignee
@@ -83,8 +83,8 @@
     :option-type :string
     :key "a"
     :prompt "Assignee: "
-    :transient-reader beads-reader-issue-assignee
-    :transient-group "Issue Attributes"
+    :reader beads-reader-issue-assignee
+    :group "Issue Attributes"
     :level 2
     :order 3)
    (labels
@@ -93,8 +93,8 @@
     :option-separator ","
     :key "l"
     :prompt "Labels (comma-separated): "
-    :transient-reader beads-reader-issue-labels
-    :transient-group "Issue Attributes"
+    :reader beads-reader-issue-labels
+    :group "Issue Attributes"
     :level 2
     :order 4)
 
@@ -105,7 +105,7 @@
     :key "d"
     :transient beads-transient-multiline
     :field-name "Description"
-    :transient-group "Content"
+    :group "Content"
     :level 3
     :order 1)
    (acceptance
@@ -113,7 +113,7 @@
     :key "A"
     :transient beads-transient-multiline
     :field-name "Acceptance Criteria"
-    :transient-group "Content"
+    :group "Content"
     :level 3
     :order 2)
    (design
@@ -121,7 +121,7 @@
     :key "G"
     :transient beads-transient-multiline
     :field-name "Design"
-    :transient-group "Content"
+    :group "Content"
     :level 3
     :order 3)
    (notes
@@ -129,15 +129,15 @@
     :key "N"
     :transient beads-transient-multiline
     :field-name "Notes"
-    :transient-group "Content"
+    :group "Content"
     :level 3
     :order 4)
    (body-file
     :option-type :string
     :key "B"
     :prompt "Body file: "
-    :transient-reader transient-read-file
-    :transient-group "Content"
+    :reader transient-read-file
+    :group "Content"
     :level 4
     :order 5)
 
@@ -147,21 +147,21 @@
     :option-type :integer
     :key "e"
     :prompt "Estimate (minutes): "
-    :transient-group "Time"
+    :group "Time"
     :level 3
     :order 1)
    (due
     :option-type :string
     :key "D"
     :prompt "Due date: "
-    :transient-group "Time"
+    :group "Time"
     :level 3
     :order 2)
    (defer
     :option-type :string
     :key "E"
     :prompt "Defer until: "
-    :transient-group "Time"
+    :group "Time"
     :level 3
     :order 3)
 
@@ -170,8 +170,8 @@
     :option-type :string
     :key "P"
     :prompt "Parent issue ID: "
-    :transient-reader beads-reader-create-parent
-    :transient-group "Relationships"
+    :reader beads-reader-create-parent
+    :group "Relationships"
     :level 4
     :order 1)
    (deps
@@ -179,15 +179,15 @@
     :option-separator ","
     :key "R"
     :prompt "Dependencies (type:id,...): "
-    :transient-reader beads-reader-create-dependencies
-    :transient-group "Relationships"
+    :reader beads-reader-create-dependencies
+    :group "Relationships"
     :level 4
     :order 2)
    (waits-for
     :option-type :string
     :key "W"
     :prompt "Waits for issue ID: "
-    :transient-group "Relationships"
+    :group "Relationships"
     :level 5
     :order 3)
    (waits-for-gate
@@ -195,7 +195,7 @@
     :key "g"
     :prompt "Gate type: "
     :choices ("all-children" "any-children")
-    :transient-group "Relationships"
+    :group "Relationships"
     :level 5
     :order 4)
 
@@ -204,16 +204,16 @@
     :option-type :string
     :key "x"
     :prompt "External reference: "
-    :transient-reader beads-reader-issue-external-ref
-    :transient-group "Advanced"
+    :reader beads-reader-issue-external-ref
+    :group "Advanced"
     :level 4
     :order 1)
    (id
     :option-type :string
     :key "i"
     :prompt "Custom ID: "
-    :transient-reader beads-reader-create-custom-id
-    :transient-group "Advanced"
+    :reader beads-reader-create-custom-id
+    :group "Advanced"
     :level 4
     :order 2)
    (prefix-arg
@@ -221,22 +221,22 @@
     :option-type :string
     :key "r"
     :prompt "Prefix: "
-    :transient-group "Advanced"
+    :group "Advanced"
     :level 4
     :order 3)
    (rig
     :option-type :string
     :key "I"
     :prompt "Rig: "
-    :transient-group "Advanced"
+    :group "Advanced"
     :level 4
     :order 4)
    (repo
     :option-type :string
     :key "o"
     :prompt "Target repository: "
-    :transient-reader beads-reader-create-repo
-    :transient-group "Advanced"
+    :reader beads-reader-create-repo
+    :group "Advanced"
     :level 4
     :order 5)
 
@@ -246,16 +246,16 @@
     :option-type :string
     :key "F"
     :prompt "Markdown file: "
-    :transient-reader beads-reader-create-file
-    :transient-group "Batch"
+    :reader beads-reader-create-file
+    :group "Batch"
     :level 5
     :order 1)
    (from-template
     :option-type :string
     :key "T"
     :prompt "Template: "
-    :transient-reader beads-reader-create-from-template
-    :transient-group "Batch"
+    :reader beads-reader-create-from-template
+    :group "Batch"
     :level 5
     :order 2)
 
@@ -263,31 +263,31 @@
    (dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Flags"
+    :group "Flags"
     :level 2
     :order 1)
    (force
     :option-type :boolean
     :key "!"
-    :transient-group "Flags"
+    :group "Flags"
     :level 5
     :order 1)
    (ephemeral
     :option-type :boolean
     :key "@"
-    :transient-group "Flags"
+    :group "Flags"
     :level 5
     :order 2)
    (silent
     :option-type :boolean
     :key "s"
-    :transient-group "Flags"
+    :group "Flags"
     :level 5
     :order 3)
    (validate
     :option-type :boolean
     :key "V"
-    :transient-group "Flags"
+    :group "Flags"
     :level 5
     :order 4)
 
@@ -297,7 +297,7 @@
     :key "mt"
     :prompt "Molecule type: "
     :choices ("swarm" "patrol" "work")
-    :transient-group "Molecule"
+    :group "Molecule"
     :level 6
     :order 1)
 
@@ -306,7 +306,7 @@
     :option-type :string
     :key "ar"
     :prompt "Agent rig: "
-    :transient-group "Agent"
+    :group "Agent"
     :level 6
     :order 1)
    (role-type
@@ -314,7 +314,7 @@
     :key "rt"
     :prompt "Role type: "
     :choices ("polecat" "crew" "witness" "refinery" "mayor" "deacon")
-    :transient-group "Agent"
+    :group "Agent"
     :level 6
     :order 2)
 
@@ -323,28 +323,28 @@
     :option-type :string
     :key "ea"
     :prompt "Event actor: "
-    :transient-group "Event"
+    :group "Event"
     :level 6
     :order 1)
    (event-category
     :option-type :string
     :key "ec"
     :prompt "Event category: "
-    :transient-group "Event"
+    :group "Event"
     :level 6
     :order 2)
    (event-payload
     :option-type :string
     :key "ep"
     :prompt "Event payload (JSON): "
-    :transient-group "Event"
+    :group "Event"
     :level 6
     :order 3)
    (event-target
     :option-type :string
     :key "et"
     :prompt "Event target: "
-    :transient-group "Event"
+    :group "Event"
     :level 6
     :order 4))
   :documentation "Represents bd create command.

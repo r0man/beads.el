@@ -34,7 +34,7 @@
     :short-option "d"
     :key "d"
     :prompt "Days (default 30): "
-    :transient-group "Filters"
+    :group "Filters"
     :level 2
     :order 1)
    (limit
@@ -42,7 +42,7 @@
     :short-option "n"
     :key "n"
     :prompt "Limit (default 50): "
-    :transient-group "Filters"
+    :group "Filters"
     :level 2
     :order 2)
    (status
@@ -50,7 +50,7 @@
     :short-option "s"
     :key "s"
     :choices ("open" "in_progress" "blocked" "deferred")
-    :transient-group "Filters"
+    :group "Filters"
     :level 2
     :order 3))
   :documentation "Represents bd stale command.

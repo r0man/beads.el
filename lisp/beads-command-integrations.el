@@ -29,19 +29,19 @@
   ((pull
     :option-type :boolean
     :key "p"
-    :transient-group "Direction"
+    :group "Direction"
     :level 1
     :order 1)
    (push
     :option-type :boolean
     :key "P"
-    :transient-group "Direction"
+    :group "Direction"
     :level 1
     :order 2)
    (dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd jira sync command.
@@ -62,19 +62,19 @@ Shows Jira sync status.")
   ((pull
     :option-type :boolean
     :key "p"
-    :transient-group "Direction"
+    :group "Direction"
     :level 1
     :order 1)
    (push
     :option-type :boolean
     :key "P"
-    :transient-group "Direction"
+    :group "Direction"
     :level 1
     :order 2)
    (dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd linear sync command.
@@ -199,19 +199,19 @@ Manually triggers multi-repo sync.")
   ((pull
     :option-type :boolean
     :key "p"
-    :transient-group "Direction"
+    :group "Direction"
     :level 1
     :order 1)
    (push
     :option-type :boolean
     :key "P"
-    :transient-group "Direction"
+    :group "Direction"
     :level 1
     :order 2)
    (dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd gitlab sync command.
@@ -287,19 +287,19 @@ Lists accessible GitLab projects.")
   ((pull
     :option-type :boolean
     :key "p"
-    :transient-group "Direction"
+    :group "Direction"
     :level 1
     :order 1)
    (push
     :option-type :boolean
     :key "P"
-    :transient-group "Direction"
+    :group "Direction"
     :level 1
     :order 2)
    (dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 3))
   :documentation "Represents bd github sync command.
@@ -346,19 +346,19 @@ Lists accessible GitHub repositories.")
   ((dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (pull-only
     :option-type :boolean
     :key "p"
-    :transient-group "Direction"
+    :group "Direction"
     :level 1
     :order 2)
    (push-only
     :option-type :boolean
     :key "P"
-    :transient-group "Direction"
+    :group "Direction"
     :level 1
     :order 3))
   :documentation "Represents bd ado sync command.
@@ -411,7 +411,7 @@ List accessible Azure DevOps projects."
     :option-type :string
     :key "u"
     :prompt "Notion URL: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd notion connect command.
@@ -423,14 +423,14 @@ Connect bd to an existing Notion database or data source.")
     :option-type :string
     :key "p"
     :prompt "Parent page ID: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (title
     :option-type :string
     :key "t"
     :prompt "Title (default: Beads Issues): "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2))
   :documentation "Represents bd notion init command.
@@ -447,19 +447,19 @@ Show Notion sync status.")
   ((pull
     :option-type :boolean
     :key "P"
-    :transient-group "Direction"
+    :group "Direction"
     :level 1
     :order 1)
    (push
     :option-type :boolean
     :key "p"
-    :transient-group "Direction"
+    :group "Direction"
     :level 1
     :order 2)
    (dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 3)
    (state
@@ -467,25 +467,25 @@ Show Notion sync status.")
     :key "s"
     :prompt "State (open/closed/all): "
     :choices ("open" "closed" "all")
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 4)
    (create-only
     :option-type :boolean
     :key "c"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 5)
    (prefer-local
     :option-type :boolean
     :key "l"
-    :transient-group "Conflict"
+    :group "Conflict"
     :level 2
     :order 6)
    (prefer-notion
     :option-type :boolean
     :key "N"
-    :transient-group "Conflict"
+    :group "Conflict"
     :level 2
     :order 7))
   :documentation "Represents bd notion sync command.

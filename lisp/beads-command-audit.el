@@ -29,58 +29,58 @@
     :option-type :string
     :key "k"
     :choices ("llm_call" "tool_call" "label")
-    :transient-group "Entry"
+    :group "Entry"
     :level 1
     :order 1)
    (issue-id
     :option-type :string
     :key "i"
     :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Entry"
+    :reader beads-reader-issue-id
+    :group "Entry"
     :level 1
     :order 2)
    (model
     :option-type :string
     :key "m"
-    :transient-group "LLM Call"
+    :group "LLM Call"
     :level 2
     :order 1)
    (prompt
     :option-type :string
     :key "p"
-    :transient-group "LLM Call"
+    :group "LLM Call"
     :level 2
     :order 2)
    (response
     :option-type :string
     :key "r"
-    :transient-group "LLM Call"
+    :group "LLM Call"
     :level 2
     :order 3)
    (tool-name
     :option-type :string
     :key "t"
-    :transient-group "Tool Call"
+    :group "Tool Call"
     :level 2
     :order 1)
    (exit-code
     :option-type :integer
     :key "e"
-    :transient-group "Tool Call"
+    :group "Tool Call"
     :level 2
     :order 2)
    (error-msg
     :long-option "error"
     :option-type :string
     :key "E"
-    :transient-group "Tool Call"
+    :group "Tool Call"
     :level 2
     :order 3)
    (stdin
     :option-type :boolean
     :key "s"
-    :transient-group "Entry"
+    :group "Entry"
     :level 2
     :order 3))
   :documentation "Represents bd audit record command.
@@ -99,7 +99,7 @@ Appends an audit interaction entry.")
     :key "l"
     :prompt "Label (good/bad): "
     :choices ("good" "bad")
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (reason
@@ -107,7 +107,7 @@ Appends an audit interaction entry.")
     :key "r"
     :transient beads-transient-multiline
     :field-name "Label Reason"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2))
   :documentation "Represents bd audit label command.

@@ -65,33 +65,33 @@
     :key "i"
     :argument "--id="
     :prompt "Issue ID(s): "
-    :transient-reader beads--read-issue-at-point-or-prompt
-    :transient-group "Show Issue"
+    :reader beads--read-issue-at-point-or-prompt
+    :group "Show Issue"
     :level 1
     :order 1
     :required t)
    (children
     :option-type :boolean
     :key "c"
-    :transient-group "View Options"
+    :group "View Options"
     :level 1
     :order 1)
    (refs
     :option-type :boolean
     :key "r"
-    :transient-group "View Options"
+    :group "View Options"
     :level 1
     :order 2)
    (short
     :option-type :boolean
     :key "s"
-    :transient-group "View Options"
+    :group "View Options"
     :level 1
     :order 3)
    (thread
     :option-type :boolean
     :key "t"
-    :transient-group "View Options"
+    :group "View Options"
     :level 2
     :order 1))
   :documentation "Represents bd show command.

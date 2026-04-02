@@ -40,8 +40,8 @@
     :option-type :string
     :key "P"
     :prompt "Parent ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Scope"
+    :reader beads-reader-issue-id
+    :group "Scope"
     :level 2
     :order 1))
   :documentation "Represents bd blocked command.
