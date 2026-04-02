@@ -247,6 +247,66 @@ Returns nil if :option-type is already set."
      ((or (eq type-spec 'integer) (eq type-spec 'number)) :integer)
      (t :string))))
 
+(defun beads-meta--infer-initarg (slot-name slot-options)
+  "Infer :initarg from SLOT-NAME if not already set in SLOT-OPTIONS.
+Returns a keyword symbol (e.g., \\='assignee -> :assignee) or nil
+if :initarg is already present."
+  (unless (plist-member slot-options :initarg)
+    (intern (concat ":" (symbol-name slot-name)))))
+
+(defun beads-meta--infer-type (slot-options)
+  "Infer :type from :option-type in SLOT-OPTIONS.
+Returns the appropriate type spec or nil if :type is already set
+or :option-type is absent.
+  :string  -> (or null string)
+  :boolean -> boolean
+  :integer -> (or null string integer)
+  :list    -> (or null list)"
+  (when (and (plist-get slot-options :option-type)
+             (not (plist-member slot-options :type)))
+    (pcase (plist-get slot-options :option-type)
+      (:string '(or null string))
+      (:boolean 'boolean)
+      (:integer '(or null string integer))
+      (:list '(or null list)))))
+
+(defun beads-meta--infer-initform (slot-options)
+  "Infer :initform from SLOT-OPTIONS for command option slots.
+Returns the sentinel :infer-nil when :initform should default to nil,
+or nil when no inference is needed (either :initform is already set
+or the slot is not a command option)."
+  (when (and (beads-meta--slot-is-command-option-p slot-options)
+             (not (plist-member slot-options :initform)))
+    :infer-nil))
+
+(defun beads-meta--normalize-slot-def (slot-def)
+  "Normalize SLOT-DEF by inferring missing EIEIO core properties.
+SLOT-DEF is a slot definition of the form (NAME . PLIST).
+Returns a new slot definition with inferred properties filled in.
+
+This function infers :initarg, :type, :initform, and :long-option
+from :option-type and the slot name.  Explicit values always win.
+Positional slots skip :long-option inference."
+  (let* ((name (car slot-def))
+         (props (cdr slot-def))
+         (result (copy-sequence props)))
+    ;; Infer :initarg
+    (when-let ((initarg (beads-meta--infer-initarg name result)))
+      (setq result (plist-put result :initarg initarg)))
+    ;; Infer :type from :option-type
+    (when-let ((type-spec (beads-meta--infer-type result)))
+      (setq result (plist-put result :type type-spec)))
+    ;; Infer :initform (nil default for command options)
+    (when (eq :infer-nil (beads-meta--infer-initform result))
+      (setq result (plist-put result :initform nil)))
+    ;; Infer :long-option from slot name (skip positional)
+    (when (and (not (plist-get result :long-option))
+               (not (plist-get result :positional))
+               (not (plist-get result :positional-rest))
+               (plist-get result :option-type))
+      (setq result (plist-put result :long-option (symbol-name name))))
+    (cons name result)))
+
 (defun beads-meta--resolve-long-option (slot-name slot-options)
   "Resolve :long-option from SLOT-NAME if not already set in SLOT-OPTIONS.
 Converts slot name to CLI option format (e.g., `issue-type' -> \"type\").
@@ -280,9 +340,11 @@ Returns nil if :transient-argument or :argument is already set."
   "Infer :transient-description from SLOT-NAME or SLOT-OPTIONS.
 Uses the first sentence of :documentation if available, otherwise
 falls back to humanizing the slot name.
-Returns nil if :transient-description or :transient is already set."
+Returns nil if :transient-description is already set, or if :transient
+holds a string (old description format).  When :transient holds a
+symbol (new class format), description inference proceeds."
   (when (and (not (plist-get slot-options :transient-description))
-             (not (plist-get slot-options :transient)))
+             (not (stringp (plist-get slot-options :transient))))
     (or (when-let ((doc (plist-get slot-options :documentation)))
           (beads--extract-first-sentence doc))
         (beads-meta--humanize-slot-name slot-name))))
@@ -315,20 +377,39 @@ Returns nil if :transient-prompt or :prompt is already set."
 (defun beads-meta--expand-concise-properties (slot-options)
   "Expand concise property names in SLOT-OPTIONS to legacy names.
 Also expands both names so lookups work with either.
-Returns a new plist with both concise and legacy names."
+Returns a new plist with both concise and legacy names.
+
+Special handling for :transient which has dual semantics:
+- String value: maps to :transient-description (old label format)
+- Symbol value: maps to :transient-class (new class format)"
   (let ((result (copy-sequence slot-options)))
+    ;; Handle :transient dual semantics first
+    (when-let ((trans-val (plist-get result :transient)))
+      (cond
+       ;; Symbol → class (new form)
+       ((symbolp trans-val)
+        (unless (plist-get result :transient-class)
+          (setq result (plist-put result :transient-class trans-val)))
+        (unless (plist-get result :class)
+          (setq result (plist-put result :class trans-val))))
+       ;; String → description (old form)
+       ((stringp trans-val)
+        (unless (plist-get result :transient-description)
+          (setq result (plist-put result :transient-description trans-val))))))
     ;; For each alias, if concise name is set, also set legacy name
+    ;; Skip :transient since we handled it specially above
     (dolist (alias beads-meta--property-aliases)
       (let ((concise (car alias))
             (legacy (cdr alias)))
-        ;; If concise is set but legacy is not, copy value to legacy
-        (when-let ((value (plist-get result concise)))
-          (unless (plist-get result legacy)
-            (setq result (plist-put result legacy value))))
-        ;; If legacy is set but concise is not, copy value to concise
-        (when-let ((value (plist-get result legacy)))
-          (unless (plist-get result concise)
-            (setq result (plist-put result concise value))))))
+        (unless (eq concise :transient)
+          ;; If concise is set but legacy is not, copy value to legacy
+          (when-let ((value (plist-get result concise)))
+            (unless (plist-get result legacy)
+              (setq result (plist-put result legacy value))))
+          ;; If legacy is set but concise is not, copy value to concise
+          (when-let ((value (plist-get result legacy)))
+            (unless (plist-get result concise)
+              (setq result (plist-put result concise value)))))))
     result))
 
 (defun beads-meta--slot-is-command-option-p (slot-options)

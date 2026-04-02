@@ -704,5 +704,115 @@ never hang waiting for a response that never arrives."
   (let ((cmd (beads-command-dep-add)))
     (should (equal (beads-command-subcommand cmd) "dep add"))))
 
+;;; ============================================================
+;;; beads-defcommand Slot Shorthand Tests
+;;; ============================================================
+
+;; Define a test command using shorthand slot definitions
+(beads-defcommand beads-command-shorthand-test (beads-command-global-options)
+  ((reason
+    :option-type :string
+    :short-option "r"
+    :key "r"
+    :transient-group "Test"
+    :level 1
+    :order 1)
+   (force
+    :option-type :boolean
+    :key "!"
+    :transient-group "Flags"
+    :level 2
+    :order 1)
+   (title
+    :option-type :string
+    :positional 1
+    :key "t"
+    :transient-group "Required"
+    :level 1
+    :order 2)
+   (labels
+    :option-type :list
+    :option-separator ","
+    :key "l"
+    :transient-group "Options"
+    :level 2
+    :order 2)
+   (estimate
+    :option-type :integer
+    :key "e"
+    :transient-group "Options"
+    :level 3
+    :order 1))
+  :documentation "Test command with shorthand slot definitions."
+  :cli-command "shorthand-test")
+
+(ert-deftest beads-defcommand-shorthand-initarg-inferred ()
+  "Test :initarg is inferred from slot name in beads-defcommand."
+  :tags '(:unit)
+  (let ((cmd (beads-command-shorthand-test :reason "done")))
+    (should (equal "done" (oref cmd reason)))))
+
+(ert-deftest beads-defcommand-shorthand-type-inferred ()
+  "Test :type is inferred from :option-type in beads-defcommand."
+  :tags '(:unit)
+  ;; String option should accept string
+  (let ((cmd (beads-command-shorthand-test :reason "test")))
+    (should (equal "test" (oref cmd reason))))
+  ;; Boolean option should accept boolean
+  (let ((cmd (beads-command-shorthand-test :force t)))
+    (should (eq t (oref cmd force))))
+  ;; List option should accept list
+  (let ((cmd (beads-command-shorthand-test :labels '("a" "b"))))
+    (should (equal '("a" "b") (oref cmd labels)))))
+
+(ert-deftest beads-defcommand-shorthand-initform-nil ()
+  "Test :initform defaults to nil for shorthand slots."
+  :tags '(:unit)
+  (let ((cmd (beads-command-shorthand-test)))
+    (should (null (oref cmd reason)))
+    (should (null (oref cmd force)))
+    (should (null (oref cmd title)))
+    (should (null (oref cmd labels)))
+    (should (null (oref cmd estimate)))))
+
+(ert-deftest beads-defcommand-shorthand-long-option-inferred ()
+  "Test :long-option is inferred from slot name for non-positional slots."
+  :tags '(:unit)
+  ;; Non-positional slots should have :long-option inferred
+  (should (equal "reason"
+                 (beads-meta-slot-property 'beads-command-shorthand-test
+                                           'reason :long-option)))
+  (should (equal "force"
+                 (beads-meta-slot-property 'beads-command-shorthand-test
+                                           'force :long-option)))
+  ;; Positional slots should NOT have :long-option
+  (should (null (beads-meta-slot-property 'beads-command-shorthand-test
+                                          'title :long-option))))
+
+(ert-deftest beads-defcommand-shorthand-cli-works ()
+  "Test command line generation works with shorthand-defined slots."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-shorthand-test
+               :reason "done" :force t :title "My issue"
+               :labels '("bug" "p1") :estimate 60))
+         (args (beads-command-line cmd)))
+    ;; Should contain the subcommand
+    (should (member "shorthand-test" args))
+    ;; Should contain positional arg (title)
+    (should (member "My issue" args))
+    ;; Should contain --reason=done
+    (should (seq-some (lambda (a) (string-prefix-p "--reason" a)) args))
+    ;; Should contain --force
+    (should (member "--force" args))
+    ;; Should contain --labels
+    (should (seq-some (lambda (a) (string-prefix-p "--labels" a)) args))
+    ;; Should contain --estimate
+    (should (seq-some (lambda (a) (string-prefix-p "--estimate" a)) args))))
+
+(ert-deftest beads-defcommand-shorthand-bang-fn-exists ()
+  "Test that the bang function is generated for shorthand commands."
+  :tags '(:unit)
+  (should (fboundp 'beads-command-shorthand-test!)))
+
 (provide 'beads-command-coverage-test)
 ;;; beads-command-coverage-test.el ends here
