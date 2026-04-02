@@ -162,14 +162,16 @@ Example (without transient):
          (result-3 (beads--extract-option :parse-as options-3))
          (parse-as (car result-3))
          (defclass-options (cdr result-3))
+         ;; Normalize slots: infer :initarg, :type, :initform, :long-option
+         (normalized-slots (mapcar #'beads-meta--normalize-slot-def slots))
          ;; Add cli-command as a class-allocated slot if specified
          (final-slots (if cli-command
-                         (append slots
+                         (append normalized-slots
                                  `((cli-command
                                     :initform ,cli-command
                                     :allocation :class
                                     :documentation "CLI subcommand name.")))
-                       slots))
+                       normalized-slots))
          ;; Derived names
          (bang-fn (intern (concat (symbol-name name) "!")))
          ;; Transient-related names (only needed when generating a menu)
