@@ -27,32 +27,32 @@
   ((dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (cleanup
     :option-type :boolean
     :key "c"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2)
    (yes
     :short-option "y"
     :option-type :boolean
     :key "y"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 3)
    (inspect
     :option-type :boolean
     :key "i"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 4)
    (update-repo-id
     :option-type :boolean
     :key "u"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 5))
   :documentation "Represents bd migrate command.
@@ -112,19 +112,19 @@ Migrates to sync.branch workflow for multi-clone setups.")
   ((dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (apply
     :option-type :boolean
     :key "a"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2)
    (yes
     :option-type :boolean
     :key "y"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 3))
   :documentation "Represents bd migrate hooks command.

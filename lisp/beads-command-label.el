@@ -95,8 +95,8 @@ Format: (TIMESTAMP . LABELS-LIST)")
     :key "i"
     :argument "--id="
     :prompt "Issue ID(s): "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Add Label"
+    :reader beads-reader-issue-id
+    :group "Add Label"
     :level 1
     :order 1
     :required t)
@@ -105,7 +105,7 @@ Format: (TIMESTAMP . LABELS-LIST)")
     :option-type :string
     :key "l"
     :argument "--label="
-    :transient-group "Add Label"
+    :group "Add Label"
     :level 1
     :order 2
     :required t))
@@ -145,8 +145,8 @@ Returns error string or nil if valid."
     :key "i"
     :argument "--id="
     :prompt "Issue ID(s): "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Remove Label"
+    :reader beads-reader-issue-id
+    :group "Remove Label"
     :level 1
     :order 1
     :required t)
@@ -155,7 +155,7 @@ Returns error string or nil if valid."
     :option-type :string
     :key "l"
     :argument "--label="
-    :transient-group "Remove Label"
+    :group "Remove Label"
     :level 1
     :order 2
     :required t))
@@ -193,8 +193,8 @@ Returns error string or nil if valid."
     :option-type :string
     :key "i"
     :argument "--id="
-    :transient-reader beads-reader-issue-id
-    :transient-group "List Labels"
+    :reader beads-reader-issue-id
+    :group "List Labels"
     :level 1
     :order 1
     :required t))
@@ -234,8 +234,8 @@ Returns nil (always valid)."
     :key "p"
     :argument "--parent-id="
     :prompt "Parent issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Propagate Label"
+    :reader beads-reader-issue-id
+    :group "Propagate Label"
     :level 1
     :order 1
     :required t)
@@ -244,8 +244,8 @@ Returns nil (always valid)."
     :option-type :string
     :key "l"
     :argument "--label="
-    :transient-reader beads-reader-label-name
-    :transient-group "Propagate Label"
+    :reader beads-reader-label-name
+    :group "Propagate Label"
     :level 1
     :order 2
     :required t))

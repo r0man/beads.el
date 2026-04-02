@@ -33,8 +33,8 @@
     :key "i"
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads-reader-close-issue-id
-    :transient-group "History"
+    :reader beads-reader-close-issue-id
+    :group "History"
     :level 1
     :order 1
     :required t)
@@ -42,7 +42,7 @@
     :option-type :integer
     :key "l"
     :prompt "Limit (0=all): "
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 2))
   :documentation "Show version history for an issue.

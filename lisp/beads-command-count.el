@@ -31,72 +31,72 @@
     :short-option "a"
     :option-type :string
     :key "a"
-    :transient-group "Filters"
+    :group "Filters"
     :level 2
     :order 1)
    (status
     :option-type :string
     :key "s"
     :choices ("open" "in_progress" "blocked" "closed")
-    :transient-group "Filters"
+    :group "Filters"
     :level 2
     :order 2)
    (created-after
     :option-type :string
     :key "Ca"
     :prompt "Created after (YYYY-MM-DD): "
-    :transient-group "Date Filters"
+    :group "Date Filters"
     :level 3
     :order 1)
    (created-before
     :option-type :string
     :key "Cb"
     :prompt "Created before (YYYY-MM-DD): "
-    :transient-group "Date Filters"
+    :group "Date Filters"
     :level 3
     :order 2)
    (closed-after
     :option-type :string
     :key "ca"
     :prompt "Closed after (YYYY-MM-DD): "
-    :transient-group "Date Filters"
+    :group "Date Filters"
     :level 3
     :order 3)
    (closed-before
     :option-type :string
     :key "cb"
     :prompt "Closed before (YYYY-MM-DD): "
-    :transient-group "Date Filters"
+    :group "Date Filters"
     :level 3
     :order 4)
    (by-status
     :option-type :boolean
     :key "bs"
-    :transient-group "Grouping"
+    :group "Grouping"
     :level 2
     :order 1)
    (by-priority
     :option-type :boolean
     :key "bp"
-    :transient-group "Grouping"
+    :group "Grouping"
     :level 2
     :order 2)
    (by-type
     :option-type :boolean
     :key "bt"
-    :transient-group "Grouping"
+    :group "Grouping"
     :level 2
     :order 3)
    (by-assignee
     :option-type :boolean
     :key "ba"
-    :transient-group "Grouping"
+    :group "Grouping"
     :level 2
     :order 4)
    (by-label
     :option-type :boolean
     :key "bl"
-    :transient-group "Grouping"
+    :group "Grouping"
     :level 2
     :order 5))
   :documentation "Represents bd count command.

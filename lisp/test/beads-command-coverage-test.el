@@ -714,33 +714,33 @@ never hang waiting for a response that never arrives."
     :option-type :string
     :short-option "r"
     :key "r"
-    :transient-group "Test"
+    :group "Test"
     :level 1
     :order 1)
    (force
     :option-type :boolean
     :key "!"
-    :transient-group "Flags"
+    :group "Flags"
     :level 2
     :order 1)
    (title
     :option-type :string
     :positional 1
     :key "t"
-    :transient-group "Required"
+    :group "Required"
     :level 1
     :order 2)
    (labels
     :option-type :list
     :option-separator ","
     :key "l"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 2)
    (estimate
     :option-type :integer
     :key "e"
-    :transient-group "Options"
+    :group "Options"
     :level 3
     :order 1))
   :documentation "Test command with shorthand slot definitions."

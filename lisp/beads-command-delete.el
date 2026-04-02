@@ -66,42 +66,42 @@
     :key "i"
     :argument "--id="
     :prompt "Issue ID(s): "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Delete Issue"
+    :reader beads-reader-issue-id
+    :group "Delete Issue"
     :level 1
     :order 1
     :required t)
    (cascade
     :option-type :boolean
     :key "c"
-    :transient-group "Dependency Handling"
+    :group "Dependency Handling"
     :level 2
     :order 1)
    (dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2)
    (force
     :short-option "f"
     :option-type :boolean
     :key "f"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 3)
    (from-file
     :option-type :string
     :key "F"
     :prompt "File path: "
-    :transient-reader transient-read-file
-    :transient-group "Batch Delete"
+    :reader transient-read-file
+    :group "Batch Delete"
     :level 3
     :order 1)
    (hard
     :option-type :boolean
     :key "H"
-    :transient-group "Options"
+    :group "Options"
     :level 3
     :order 2)
    (reason
@@ -109,7 +109,7 @@
     :key "r"
     :transient beads-transient-multiline
     :field-name "Delete Reason"
-    :transient-group "Delete Issue"
+    :group "Delete Issue"
     :level 2
     :order 2))
   :documentation "Represents bd delete command.

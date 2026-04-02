@@ -89,13 +89,13 @@ Returns: available, held by <holder>, or not found."
     :option-type :string
     :key "h"
     :prompt "Holder (default: BEADS_ACTOR): "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (wait
     :option-type :boolean
     :key "w"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2))
   :documentation "Represents bd merge-slot acquire command.
@@ -127,7 +127,7 @@ If held, use --wait to join the waiters queue."
     :option-type :string
     :key "h"
     :prompt "Holder (for verification): "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd merge-slot release command.

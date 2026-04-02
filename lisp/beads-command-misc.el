@@ -31,8 +31,8 @@
     :option-type :string
     :key "o"
     :prompt "Canonical issue: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Options"
+    :reader beads-reader-issue-id
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd duplicate command.
@@ -55,7 +55,7 @@ Marks an issue as a duplicate of another.")
   ((merge
     :option-type :boolean
     :key "m"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd duplicates command.
@@ -74,8 +74,8 @@ Finds and optionally merges duplicate issues.")
     :option-type :string
     :key "w"
     :prompt "Replacement issue: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Options"
+    :reader beads-reader-issue-id
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd supersede command.
@@ -98,14 +98,14 @@ Marks an issue as superseded by a newer one.")
   ((details
     :option-type :boolean
     :key "d"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (fix
     :short-option "f"
     :option-type :boolean
     :key "f"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2))
   :documentation "Represents bd orphans command.
@@ -126,7 +126,7 @@ Identifies orphaned issues referenced in commits but still open.")
     :option-type :string
     :key "s"
     :choices ("open" "in_progress" "blocked" "closed" "all")
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (issue-type
@@ -135,7 +135,7 @@ Identifies orphaned issues referenced in commits but still open.")
     :option-type :string
     :key "t"
     :choices ("bug" "task" "feature" "epic" "chore")
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2))
   :documentation "Represents bd lint command.
@@ -151,28 +151,28 @@ Checks issues for missing template sections.")
     :positional 1
     :key "i"
     :argument "--id="
-    :transient-reader beads-reader-move-issue-id
+    :reader beads-reader-move-issue-id
     :prompt "Issue ID: "
-    :transient-group "Move Issue"
+    :group "Move Issue"
     :level 1
     :order 0)
    (to
     :option-type :string
     :key "t"
     :prompt "Target rig: "
-    :transient-group "Move Issue"
+    :group "Move Issue"
     :level 1
     :order 1)
    (keep-open
     :option-type :boolean
     :key "k"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 2)
    (skip-deps
     :option-type :boolean
     :key "d"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 3))
   :documentation "Represents bd move command.
@@ -199,7 +199,7 @@ Moves an issue to a different rig with dependency remapping.")
    (keep-open
     :option-type :boolean
     :key "k"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd refile command.
@@ -223,7 +223,7 @@ Moves an issue to a different rig.")
     :positional 1
     :key "T"
     :argument "--title="
-    :transient-group "Quick Capture"
+    :group "Quick Capture"
     :level 1
     :order 0)
    (issue-type
@@ -232,21 +232,21 @@ Moves an issue to a different rig.")
     :option-type :string
     :key "t"
     :choices ("task" "bug" "feature" "epic" "chore")
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (priority
     :short-option "p"
     :option-type :string
     :key "p"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2)
    (labels
     :short-option "l"
     :option-type :list
     :key "l"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 3))
   :documentation "Represents bd q command.
@@ -267,20 +267,20 @@ Quick capture: creates issue and outputs only ID.")
     :positional 1
     :key "i"
     :argument "--id="
-    :transient-reader beads--read-issue-at-point-or-prompt
-    :transient-group "Append Note"
+    :reader beads--read-issue-at-point-or-prompt
+    :group "Append Note"
     :level 1
     :order 0)
    (stdin
     :option-type :boolean
     :key "s"
-    :transient-group "Input"
+    :group "Input"
     :level 1
     :order 1)
    (file
     :option-type :string
     :key "f"
-    :transient-group "Input"
+    :group "Input"
     :level 1
     :order 2))
   :documentation "Represents bd note command.
@@ -300,7 +300,7 @@ Appends a note to an issue's notes field.")
   ((daemon
     :option-type :boolean
     :key "d"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd version command.
@@ -526,7 +526,7 @@ Delegates to mail provider.")
     :option-type :string
     :key "s"
     :choices ("open" "in_progress" "blocked" "closed" "all")
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd human list command.
@@ -546,8 +546,8 @@ Lists all issues labeled with the human tag.")
     :option-type :string
     :key "i"
     :argument "--issue-id="
-    :transient-reader beads-reader-issue-id
-    :transient-group "Options"
+    :reader beads-reader-issue-id
+    :group "Options"
     :level 1
     :order 1
     :required t)
@@ -555,7 +555,7 @@ Lists all issues labeled with the human tag.")
     :option-type :string
     :key "r"
     :argument "--response="
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2
     :required t))
@@ -586,8 +586,8 @@ Responds to a human-needed bead by adding a comment and closing it.")
     :option-type :string
     :key "i"
     :argument "--issue-id="
-    :transient-reader beads-reader-issue-id
-    :transient-group "Options"
+    :reader beads-reader-issue-id
+    :group "Options"
     :level 1
     :order 1
     :required t)
@@ -595,7 +595,7 @@ Responds to a human-needed bead by adding a comment and closing it.")
     :option-type :string
     :key "r"
     :argument "--reason="
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2))
   :documentation "Represents bd human dismiss command.
@@ -712,8 +712,8 @@ Version tracking is automatic - bd updates metadata.json on every run.
     :key "i"
     :argument "--id="
     :prompt "Parent issue ID: "
-    :transient-reader beads--read-issue-at-point-or-prompt
-    :transient-group "Options"
+    :reader beads--read-issue-at-point-or-prompt
+    :group "Options"
     :level 1
     :order 0))
   :documentation "Represents bd children command.
@@ -741,8 +741,8 @@ Creates a new issue using an interactive form."
     :key "i"
     :argument "--id="
     :prompt "Issue ID to promote: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Options"
+    :reader beads-reader-issue-id
+    :group "Options"
     :level 1
     :order 0))
   :documentation "Represents bd promote command.
@@ -758,7 +758,7 @@ Promotes a wisp to a permanent bead.")
     :positional 1
     :key "q"
     :argument "--query="
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 0))
   :documentation "Represents bd query command.
@@ -790,7 +790,7 @@ Manages TODO items (convenience wrapper for task issues).")
     :key "T"
     :argument "--title="
     :prompt "TODO title: "
-    :transient-group "Add TODO"
+    :group "Add TODO"
     :level 1
     :order 1
     :required t)
@@ -799,15 +799,15 @@ Manages TODO items (convenience wrapper for task issues).")
     :option-type :string
     :key "p"
     :prompt "Priority (0-4): "
-    :transient-reader beads-reader-issue-priority
-    :transient-group "Add TODO"
+    :reader beads-reader-issue-priority
+    :group "Add TODO"
     :level 2
     :order 2)
    (description
     :short-option "d"
     :option-type :string
     :key "D"
-    :transient-group "Add TODO"
+    :group "Add TODO"
     :level 2
     :order 3))
   :documentation "Represents bd todo add command.
@@ -844,7 +844,7 @@ Returns error string or nil if valid."
     :transient "--all"
     :class transient-switch
     :argument "--all"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd todo list command.
@@ -873,8 +873,8 @@ Lists TODO items (open task issues).")
     :class transient-option
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Mark Done"
+    :reader beads-reader-issue-id
+    :group "Mark Done"
     :level 1
     :order 1
     :required t)
@@ -890,7 +890,7 @@ Lists TODO items (open task issues).")
     :class transient-option
     :argument "--reason="
     :prompt "Reason: "
-    :transient-group "Mark Done"
+    :group "Mark Done"
     :level 2
     :order 2))
   :documentation "Represents bd todo done command.
@@ -952,7 +952,7 @@ Finds semantically similar issues using text analysis or AI."
     :transient "--force"
     :class transient-switch
     :argument "--force"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd backup command.
@@ -982,7 +982,7 @@ DoltHub: https://doltremoteapi.dolthub.com/user/repo"
     :class transient-option
     :argument "--path="
     :prompt "Backup destination (path or DoltHub URL): "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1
     :required t))
@@ -1058,7 +1058,7 @@ Defaults to .beads/backup/ if not specified."
     :class transient-option
     :argument "--path="
     :prompt "Backup directory (leave empty for .beads/backup/): "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (dry-run
@@ -1072,7 +1072,7 @@ Defaults to .beads/backup/ if not specified."
     :transient "--dry-run"
     :class transient-switch
     :argument "--dry-run"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2))
   :documentation "Represents bd backup restore command.
@@ -1103,7 +1103,7 @@ Use --dry-run to preview without making changes."
     :class transient-option
     :argument "--branch="
     :prompt "Git branch (default: bd-backup): "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (remote
@@ -1118,7 +1118,7 @@ Use --dry-run to preview without making changes."
     :class transient-option
     :argument "--remote="
     :prompt "Git remote (default: origin): "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2)
    (dry-run
@@ -1132,7 +1132,7 @@ Use --dry-run to preview without making changes."
     :transient "--dry-run"
     :class transient-switch
     :argument "--dry-run"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 3)
    (force
@@ -1146,7 +1146,7 @@ Use --dry-run to preview without making changes."
     :transient "--force"
     :class transient-switch
     :argument "--force"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 4))
   :documentation "Represents bd backup export-git command.
@@ -1179,7 +1179,7 @@ if changed, and pushes.  Use --dry-run to preview."
     :class transient-option
     :argument "--branch="
     :prompt "Git branch (default: bd-backup): "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (remote
@@ -1194,7 +1194,7 @@ if changed, and pushes.  Use --dry-run to preview."
     :class transient-option
     :argument "--remote="
     :prompt "Git remote (default: origin): "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2)
    (dry-run
@@ -1208,7 +1208,7 @@ if changed, and pushes.  Use --dry-run to preview."
     :transient "--dry-run"
     :class transient-switch
     :argument "--dry-run"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 3))
   :documentation "Represents bd backup fetch-git command.
@@ -1282,7 +1282,7 @@ Exports issues to JSONL format.")
     :transient "--dry-run"
     :class transient-switch
     :argument "--dry-run"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd import command.
@@ -1339,7 +1339,7 @@ Deletes closed ephemeral beads to reclaim space.")
     :class transient-option
     :argument "--id="
     :prompt "Memory ID: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 0))
   :documentation "Represents bd forget command.
@@ -1376,7 +1376,7 @@ Key-value store commands.")
     :class transient-option
     :argument "--key="
     :prompt "Key: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1
     :required t))
@@ -1412,7 +1412,7 @@ Retrieves a value by key from the key-value store.")
     :class transient-option
     :argument "--key="
     :prompt "Key: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1
     :required t)
@@ -1428,7 +1428,7 @@ Retrieves a value by key from the key-value store.")
     :class transient-option
     :argument "--value="
     :prompt "Value: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2
     :required t))
@@ -1465,7 +1465,7 @@ Sets a key-value pair in the key-value store.")
     :class transient-option
     :argument "--key="
     :prompt "Key: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1
     :required t))
@@ -1520,7 +1520,7 @@ Lists or searches persistent memories.")
     :class transient-option
     :argument "--id="
     :prompt "Memory ID: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 0))
   :documentation "Represents bd recall command.
@@ -1543,7 +1543,7 @@ Retrieves a specific memory.")
     :class transient-option
     :argument "--content="
     :prompt "Memory content: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 0))
   :documentation "Represents bd remember command.
@@ -1568,8 +1568,8 @@ Stores a persistent memory.")
     :class transient-option
     :argument "--old-id="
     :prompt "Old issue ID: "
-    :transient-reader beads--read-issue-at-point-or-prompt
-    :transient-group "Rename Issue"
+    :reader beads--read-issue-at-point-or-prompt
+    :group "Rename Issue"
     :level 1
     :order 0)
    (new-id
@@ -1583,7 +1583,7 @@ Stores a persistent memory.")
     :class transient-option
     :argument "--new-id="
     :prompt "New issue ID: "
-    :transient-group "Rename Issue"
+    :group "Rename Issue"
     :level 1
     :order 1))
   :documentation "Represents bd rename command.
@@ -1632,8 +1632,8 @@ Show effective backend identity and repository context.")
     :class transient-option
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads--read-issue-at-point-or-prompt
-    :transient-group "Assign Issue"
+    :reader beads--read-issue-at-point-or-prompt
+    :group "Assign Issue"
     :level 1
     :order 0)
    (assignee
@@ -1647,7 +1647,7 @@ Show effective backend identity and repository context.")
     :class transient-option
     :argument "--assignee="
     :prompt "Assignee: "
-    :transient-group "Assign Issue"
+    :group "Assign Issue"
     :level 1
     :order 1))
   :documentation "Represents bd assign command.
@@ -1684,8 +1684,8 @@ Pass an empty string as assignee to unassign."
     :class transient-option
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads--read-issue-at-point-or-prompt
-    :transient-group "Add Comment"
+    :reader beads--read-issue-at-point-or-prompt
+    :group "Add Comment"
     :level 1
     :order 0)
    (text
@@ -1699,7 +1699,7 @@ Pass an empty string as assignee to unassign."
     :class transient-option
     :argument "--text="
     :prompt "Comment: "
-    :transient-group "Add Comment"
+    :group "Add Comment"
     :level 1
     :order 1)
    (stdin
@@ -1713,7 +1713,7 @@ Pass an empty string as assignee to unassign."
     :transient "--stdin"
     :class transient-switch
     :argument "--stdin"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 1)
    (file
@@ -1728,7 +1728,7 @@ Pass an empty string as assignee to unassign."
     :class transient-option
     :argument "--file="
     :prompt "File path: "
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 2))
   :documentation "Represents bd comment command.
@@ -1764,8 +1764,8 @@ Shorthand for: bd comments add <id> \"text\""
     :class transient-option
     :argument "--id1="
     :prompt "Dependent issue ID: "
-    :transient-reader beads--read-issue-at-point-or-prompt
-    :transient-group "Link Issues"
+    :reader beads--read-issue-at-point-or-prompt
+    :group "Link Issues"
     :level 1
     :order 0)
    (id2
@@ -1779,8 +1779,8 @@ Shorthand for: bd comments add <id> \"text\""
     :class transient-option
     :argument "--id2="
     :prompt "Blocker issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Link Issues"
+    :reader beads-reader-issue-id
+    :group "Link Issues"
     :level 1
     :order 1)
    (link-type
@@ -1798,7 +1798,7 @@ discovered-from.  Default: blocks."
     :argument "--type="
     :prompt "Type (blocks/tracks/related/parent-child/discovered-from): "
     :choices ("blocks" "tracks" "related" "parent-child" "discovered-from")
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd link command.
@@ -1840,8 +1840,8 @@ Use --type to specify a different relationship."
     :class transient-option
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads--read-issue-at-point-or-prompt
-    :transient-group "Set Priority"
+    :reader beads--read-issue-at-point-or-prompt
+    :group "Set Priority"
     :level 1
     :order 0)
    (level
@@ -1856,8 +1856,8 @@ Use --type to specify a different relationship."
     :class transient-option
     :argument "--level="
     :prompt "Priority (0-4): "
-    :transient-reader beads-reader-priority-level
-    :transient-group "Set Priority"
+    :reader beads-reader-priority-level
+    :group "Set Priority"
     :level 1
     :order 1))
   :documentation "Represents bd priority command.
@@ -1910,8 +1910,8 @@ Priority levels:
     :class transient-option
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads--read-issue-at-point-or-prompt
-    :transient-group "Add Label"
+    :reader beads--read-issue-at-point-or-prompt
+    :group "Add Label"
     :level 1
     :order 0)
    (label
@@ -1925,8 +1925,8 @@ Priority levels:
     :class transient-option
     :argument "--label="
     :prompt "Label: "
-    :transient-reader beads-reader-label-name
-    :transient-group "Add Label"
+    :reader beads-reader-label-name
+    :group "Add Label"
     :level 1
     :order 1))
   :documentation "Represents bd tag command.

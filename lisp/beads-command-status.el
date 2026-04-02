@@ -35,19 +35,19 @@
     :long-option "all"
     :option-type :boolean
     :key "a"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 1)
    (assigned
     :option-type :boolean
     :key "m"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 2)
    (no-activity
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 3))
   :documentation "Represents bd status command.

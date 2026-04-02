@@ -54,8 +54,8 @@
     :key "i"
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Add Dependency"
+    :reader beads-reader-issue-id
+    :group "Add Dependency"
     :level 1
     :order 1
     :required t)
@@ -65,8 +65,8 @@
     :key "d"
     :argument "--depends-on="
     :prompt "Depends on: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Add Dependency"
+    :reader beads-reader-issue-id
+    :group "Add Dependency"
     :level 1
     :order 2
     :required t)
@@ -74,8 +74,8 @@
     :option-type :string
     :key "b"
     :prompt "Blocked by: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Add Dependency"
+    :reader beads-reader-issue-id
+    :group "Add Dependency"
     :level 2
     :order 1)
    (dep-type
@@ -84,7 +84,7 @@
     :option-type :string
     :key "t"
     :prompt "Dependency type: "
-    :transient-group "Add Dependency"
+    :group "Add Dependency"
     :level 1
     :order 3))
   :documentation "Represents bd dep add command.
@@ -135,8 +135,8 @@ Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
     :key "i"
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Remove Dependency"
+    :reader beads-reader-issue-id
+    :group "Remove Dependency"
     :level 1
     :order 1
     :required t)
@@ -146,8 +146,8 @@ Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
     :key "d"
     :argument "--depends-on="
     :prompt "Remove dependency on: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Remove Dependency"
+    :reader beads-reader-issue-id
+    :group "Remove Dependency"
     :level 1
     :order 2
     :required t))
@@ -198,8 +198,8 @@ Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
     :key "i"
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "List Dependencies"
+    :reader beads-reader-issue-id
+    :group "List Dependencies"
     :level 1
     :order 1
     :required t)
@@ -207,7 +207,7 @@ Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
     :option-type :string
     :key "D"
     :prompt "Direction (down/up): "
-    :transient-group "List Dependencies"
+    :group "List Dependencies"
     :level 1
     :order 2)
    (dep-type
@@ -216,7 +216,7 @@ Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
     :option-type :string
     :key "t"
     :prompt "Dependency type: "
-    :transient-group "List Dependencies"
+    :group "List Dependencies"
     :level 1
     :order 3))
   :documentation "Represents bd dep list command.
@@ -282,8 +282,8 @@ Does not modify any slots."
     :key "i"
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Dependency Tree"
+    :reader beads-reader-issue-id
+    :group "Dependency Tree"
     :level 1
     :order 1
     :required t)
@@ -291,7 +291,7 @@ Does not modify any slots."
     :option-type :string
     :key "D"
     :prompt "Direction (down/up/both): "
-    :transient-group "Dependency Tree"
+    :group "Dependency Tree"
     :level 1
     :order 2)
    (max-depth
@@ -299,15 +299,15 @@ Does not modify any slots."
     :option-type :integer
     :key "d"
     :prompt "Max depth: "
-    :transient-group "Dependency Tree"
+    :group "Dependency Tree"
     :level 2
     :order 1)
    (status
     :option-type :string
     :key "s"
     :prompt "Status filter: "
-    :transient-reader beads-reader-list-status
-    :transient-group "Dependency Tree"
+    :reader beads-reader-list-status
+    :group "Dependency Tree"
     :level 1
     :order 3)
    (dep-type
@@ -316,20 +316,20 @@ Does not modify any slots."
     :option-type :string
     :key "t"
     :prompt "Dependency type: "
-    :transient-group "Dependency Tree"
+    :group "Dependency Tree"
     :level 2
     :order 2)
    (format
     :option-type :string
     :key "F"
     :prompt "Format (mermaid): "
-    :transient-group "Dependency Tree"
+    :group "Dependency Tree"
     :level 2
     :order 3)
    (show-all-paths
     :option-type :boolean
     :key "ap"
-    :transient-group "Dependency Tree"
+    :group "Dependency Tree"
     :level 3
     :order 1))
   :documentation "Represents bd dep tree command.

@@ -38,44 +38,44 @@
     :key "c"
     :prompt "Check (pollution): "
     :choices ("pollution")
-    :transient-group "Checks"
+    :group "Checks"
     :level 2
     :order 1)
    (check-health
     :option-type :boolean
     :key "h"
-    :transient-group "Checks"
+    :group "Checks"
     :level 2
     :order 2)
    (deep
     :option-type :boolean
     :key "d"
-    :transient-group "Checks"
+    :group "Checks"
     :level 2
     :order 3)
    (perf
     :option-type :boolean
     :key "p"
-    :transient-group "Checks"
+    :group "Checks"
     :level 2
     :order 4)
    (fix
     :option-type :boolean
     :key "f"
-    :transient-group "Fix Options"
+    :group "Fix Options"
     :level 3
     :order 1)
    (dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Fix Options"
+    :group "Fix Options"
     :level 3
     :order 2)
    (yes
     :short-option "y"
     :option-type :boolean
     :key "y"
-    :transient-group "Fix Options"
+    :group "Fix Options"
     :level 3
     :order 3)
    (interactive-mode
@@ -83,26 +83,26 @@
     :short-option "i"
     :option-type :boolean
     :key "i"
-    :transient-group "Fix Options"
+    :group "Fix Options"
     :level 3
     :order 4)
    (fix-child-parent
     :option-type :boolean
     :key "C"
-    :transient-group "Fix Options"
+    :group "Fix Options"
     :level 4
     :order 5)
    (force
     :option-type :boolean
     :key "F"
-    :transient-group "Fix Options"
+    :group "Fix Options"
     :level 4
     :order 6)
    (source
     :option-type :string
     :key "s"
     :choices ("auto" "jsonl" "db")
-    :transient-group "Fix Options"
+    :group "Fix Options"
     :level 4
     :order 7)
    (output
@@ -110,20 +110,20 @@
     :option-type :string
     :key "o"
     :prompt "Output file: "
-    :transient-group "Output"
+    :group "Output"
     :level 3
     :order 1)
    (verbose
     :short-option "v"
     :option-type :boolean
     :key "v"
-    :transient-group "Output"
+    :group "Output"
     :level 3
     :order 2)
    (clean
     :option-type :boolean
     :key "D"
-    :transient-group "Checks"
+    :group "Checks"
     :level 4
     :order 5))
   :documentation "Represents bd doctor command.

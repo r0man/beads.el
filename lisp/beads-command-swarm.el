@@ -30,13 +30,13 @@
     :option-type :string
     :key "c"
     :prompt "Coordinator agent: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (force
     :option-type :boolean
     :key "f"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2))
   :documentation "Represents bd swarm create command.

@@ -51,7 +51,7 @@ Displays backend, database, host, port, and connection status.")
     :key "k"
     :argument "--key="
     :prompt "Config key (database|host|port|user|data-dir): "
-    :transient-group "Set Config"
+    :group "Set Config"
     :level 1
     :order 1
     :required t)
@@ -60,14 +60,14 @@ Displays backend, database, host, port, and connection status.")
     :option-type :string
     :key "v"
     :argument "--value="
-    :transient-group "Set Config"
+    :group "Set Config"
     :level 1
     :order 2
     :required t)
    (update-config
     :option-type :boolean
     :key "u"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 3))
   :documentation "Set a Dolt configuration value.
@@ -106,7 +106,7 @@ Reports host, port, and connection status.")
     :option-type :string
     :key "m"
     :prompt "Commit message (empty=auto): "
-    :transient-group "Commit"
+    :group "Commit"
     :level 1
     :order 1))
   :documentation "Create a Dolt commit from pending changes.
@@ -122,7 +122,7 @@ Auto-generates commit message if not provided.")
   ((force
     :option-type :boolean
     :key "f"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 1))
   :documentation "Push commits to Dolt remote.
@@ -158,7 +158,7 @@ Starts server with per-project derived port.")
   ((force
     :option-type :boolean
     :key "f"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 1))
   :documentation "Stop the Dolt SQL server.")
@@ -186,7 +186,7 @@ Reports PID, port, and running status.")
     :key "n"
     :argument "--name="
     :prompt "Remote name: "
-    :transient-group "Add Remote"
+    :group "Add Remote"
     :level 1
     :order 1
     :required t)
@@ -196,7 +196,7 @@ Reports PID, port, and running status.")
     :key "u"
     :argument "--url="
     :prompt "Remote URL: "
-    :transient-group "Add Remote"
+    :group "Add Remote"
     :level 1
     :order 2
     :required t))
@@ -233,7 +233,7 @@ Reports PID, port, and running status.")
     :key "n"
     :argument "--name="
     :prompt "Remote name to remove: "
-    :transient-group "Remove Remote"
+    :group "Remove Remote"
     :level 1
     :order 1
     :required t))
@@ -327,7 +327,7 @@ Reports PID, port, and running status.")
   ((dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd dolt clean-databases command.

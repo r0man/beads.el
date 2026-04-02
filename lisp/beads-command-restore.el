@@ -33,8 +33,8 @@
     :key "i"
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads-reader-close-issue-id
-    :transient-group "Restore"
+    :reader beads-reader-close-issue-id
+    :group "Restore"
     :level 1
     :order 1
     :required t))

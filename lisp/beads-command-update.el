@@ -51,8 +51,8 @@
     :key "i"
     :argument "--id="
     :prompt "Issue ID(s): "
-    :transient-reader beads--read-issue-at-point-or-prompt
-    :transient-group "Issue"
+    :reader beads--read-issue-at-point-or-prompt
+    :group "Issue"
     :level 1
     :order 1)
 
@@ -63,8 +63,8 @@
     :key "s"
     :prompt "Status: "
     :choices ("open" "in_progress" "blocked" "closed")
-    :transient-reader beads-reader-update-status
-    :transient-group "Status & Priority"
+    :reader beads-reader-update-status
+    :group "Status & Priority"
     :level 1
     :order 1)
    (priority
@@ -73,14 +73,14 @@
     :option-type :string
     :key "p"
     :prompt "Priority: "
-    :transient-reader beads-reader-issue-priority
-    :transient-group "Status & Priority"
+    :reader beads-reader-issue-priority
+    :group "Status & Priority"
     :level 1
     :order 2)
    (claim
     :option-type :boolean
     :key "c"
-    :transient-group "Status & Priority"
+    :group "Status & Priority"
     :level 2
     :order 3)
 
@@ -89,8 +89,8 @@
     :option-type :string
     :key "t"
     :prompt "Issue title: "
-    :transient-reader beads-reader-issue-title
-    :transient-group "Basic Info"
+    :reader beads-reader-issue-title
+    :group "Basic Info"
     :level 2
     :order 1)
    (issue-type
@@ -102,8 +102,8 @@
     :choices ("bug" "feature" "task" "epic" "chore"
                         "merge-request" "molecule" "gate" "agent"
                         "role" "rig" "convoy" "event" "slot")
-    :transient-reader beads-reader-issue-type
-    :transient-group "Basic Info"
+    :reader beads-reader-issue-type
+    :group "Basic Info"
     :level 2
     :order 2)
    (assignee
@@ -111,24 +111,24 @@
     :option-type :string
     :key "a"
     :prompt "Assignee: "
-    :transient-reader beads-reader-issue-assignee
-    :transient-group "Basic Info"
+    :reader beads-reader-issue-assignee
+    :group "Basic Info"
     :level 2
     :order 3)
    (external-ref
     :option-type :string
     :key "x"
     :prompt "External reference: "
-    :transient-reader beads-reader-issue-external-ref
-    :transient-group "Basic Info"
+    :reader beads-reader-issue-external-ref
+    :group "Basic Info"
     :level 3
     :order 4)
    (parent
     :option-type :string
     :key "P"
     :prompt "Parent issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Basic Info"
+    :reader beads-reader-issue-id
+    :group "Basic Info"
     :level 3
     :order 5)
 
@@ -139,7 +139,7 @@
     :key "d"
     :transient beads-transient-multiline
     :field-name "Description"
-    :transient-group "Content"
+    :group "Content"
     :level 3
     :order 1)
    (acceptance
@@ -147,7 +147,7 @@
     :key "A"
     :transient beads-transient-multiline
     :field-name "Acceptance Criteria"
-    :transient-group "Content"
+    :group "Content"
     :level 3
     :order 2)
    (design
@@ -155,7 +155,7 @@
     :key "G"
     :transient beads-transient-multiline
     :field-name "Design"
-    :transient-group "Content"
+    :group "Content"
     :level 3
     :order 3)
    (notes
@@ -163,15 +163,15 @@
     :key "N"
     :transient beads-transient-multiline
     :field-name "Notes"
-    :transient-group "Content"
+    :group "Content"
     :level 3
     :order 4)
    (body-file
     :option-type :string
     :key "B"
     :prompt "Body file: "
-    :transient-reader transient-read-file
-    :transient-group "Content"
+    :reader transient-read-file
+    :group "Content"
     :level 4
     :order 5)
 
@@ -181,8 +181,8 @@
     :option-separator nil
     :key "l"
     :prompt "Add label: "
-    :transient-reader beads-reader-issue-labels
-    :transient-group "Labels"
+    :reader beads-reader-issue-labels
+    :group "Labels"
     :level 2
     :order 1)
    (remove-label
@@ -190,8 +190,8 @@
     :option-separator nil
     :key "L"
     :prompt "Remove label: "
-    :transient-reader beads-reader-issue-labels
-    :transient-group "Labels"
+    :reader beads-reader-issue-labels
+    :group "Labels"
     :level 2
     :order 2)
    (set-labels
@@ -199,8 +199,8 @@
     :option-separator nil
     :key "S"
     :prompt "Set labels: "
-    :transient-reader beads-reader-issue-labels
-    :transient-group "Labels"
+    :reader beads-reader-issue-labels
+    :group "Labels"
     :level 3
     :order 3)
 
@@ -210,21 +210,21 @@
     :option-type :integer
     :key "e"
     :prompt "Estimate (minutes): "
-    :transient-group "Time"
+    :group "Time"
     :level 3
     :order 1)
    (due
     :option-type :string
     :key "D"
     :prompt "Due date: "
-    :transient-group "Time"
+    :group "Time"
     :level 3
     :order 2)
    (defer
     :option-type :string
     :key "E"
     :prompt "Defer until: "
-    :transient-group "Time"
+    :group "Time"
     :level 3
     :order 3)
 
@@ -233,14 +233,14 @@
     :option-type :string
     :key "W"
     :prompt "Await ID: "
-    :transient-group "Advanced"
+    :group "Advanced"
     :level 4
     :order 1)
    (session
     :option-type :string
     :key "I"
     :prompt "Session ID: "
-    :transient-group "Advanced"
+    :group "Advanced"
     :level 4
     :order 2))
   :documentation "Represents bd update command.

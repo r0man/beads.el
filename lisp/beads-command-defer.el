@@ -32,15 +32,15 @@
     :key "i"
     :argument "--id="
     :prompt "Issue ID(s): "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Defer"
+    :reader beads-reader-issue-id
+    :group "Defer"
     :level 1
     :order 1)
    (until
     :option-type :string
     :key "u"
     :prompt "Until (e.g., +1h, tomorrow): "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd defer command.
@@ -65,8 +65,8 @@ Defers one or more issues for later.")
     :key "i"
     :argument "--id="
     :prompt "Issue ID(s): "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Undefer"
+    :reader beads-reader-issue-id
+    :group "Undefer"
     :level 1
     :order 1))
   :documentation "Represents bd undefer command.

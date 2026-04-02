@@ -30,7 +30,7 @@
     :short-option "p"
     :option-type :boolean
     :key "p"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd mol show command.
@@ -48,26 +48,26 @@ Shows molecule details.")
     :option-type :list
     :key "v"
     :prompt "Variable (key=value): "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2)
    (assignee
     :option-type :string
     :key "a"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 3)
    (attach
     :option-type :string
     :key "A"
     :prompt "Attach to: "
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 4)
    (attach-type
@@ -75,7 +75,7 @@ Shows molecule details.")
     :key "T"
     :prompt "Attach type (after/child/gate): "
     :choices ("after" "child" "gate")
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 5))
   :documentation "Represents bd mol pour command.
@@ -92,14 +92,14 @@ Instantiates proto as persistent mol (liquid phase).")
    (dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (var
     :option-type :list
     :key "v"
     :prompt "Variable (key=value): "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2))
   :documentation "Represents bd mol wisp command.
@@ -116,20 +116,20 @@ Creates or manages wisps (ephemeral molecules).")
    (dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (root-only
     :option-type :boolean
     :key "r"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2)
    (var
     :option-type :list
     :key "v"
     :prompt "Variable (key=value): "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 3))
   :documentation "Represents bd mol wisp create command.
@@ -145,7 +145,7 @@ Instantiates a proto as an ephemeral wisp (solid -> vapor).")
     :long-option "all"
     :option-type :boolean
     :key "a"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (type-filter
@@ -153,7 +153,7 @@ Instantiates a proto as an ephemeral wisp (solid -> vapor).")
     :option-type :string
     :key "t"
     :prompt "Issue type: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2))
   :documentation "Represents bd mol wisp list command.
@@ -168,40 +168,40 @@ Lists all wisps (ephemeral molecules) in the current context.")
   ((dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (age
     :option-type :string
     :key "A"
     :prompt "Age threshold (e.g., 1h, 30m): "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2)
    (show-all
     :long-option "all"
     :option-type :boolean
     :key "a"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 3)
    (closed
     :option-type :boolean
     :key "c"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 4)
    (force
     :option-type :boolean
     :key "f"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 5)
    (exclude-type
     :option-type :list
     :key "e"
     :prompt "Exclude type: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 6))
   :documentation "Represents bd mol wisp gc command.
@@ -220,7 +220,7 @@ Garbage-collects abandoned or closed wisps.")
    (dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (bond-type
@@ -229,39 +229,39 @@ Garbage-collects abandoned or closed wisps.")
     :key "t"
     :prompt "Bond type (seq/par/gate): "
     :choices ("seq" "par" "gate")
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2)
    (as
     :option-type :string
     :key "a"
     :prompt "Result name: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 3)
    (pour
     :option-type :boolean
     :key "p"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 4)
    (ephemeral
     :option-type :boolean
     :key "e"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 5)
    (ref
     :option-type :boolean
     :key "r"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 6)
    (var
     :option-type :list
     :key "v"
     :prompt "Variable (key=value): "
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 7))
   :documentation "Represents bd mol bond command.
@@ -278,20 +278,20 @@ Bonds two protos or molecules together.")
    (dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (keep-children
     :option-type :boolean
     :key "k"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2)
    (summary
     :option-type :string
     :key "s"
     :prompt "Summary file: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 3))
   :documentation "Represents bd mol squash command.
@@ -308,13 +308,13 @@ Compresses molecule execution into a digest.")
    (dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (force
     :option-type :boolean
     :key "f"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2))
   :documentation "Represents bd mol burn command.
@@ -331,7 +331,7 @@ Deletes a molecule without creating a digest.")
    (dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (output
@@ -339,14 +339,14 @@ Deletes a molecule without creating a digest.")
     :option-type :string
     :key "o"
     :prompt "Output file: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2)
    (var
     :option-type :list
     :key "v"
     :prompt "Variable (key=value): "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 3))
   :documentation "Represents bd mol distill command.
@@ -365,21 +365,21 @@ Extracts a formula from an existing epic.")
     :option-type :string
     :key "f"
     :prompt "Agent ID: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (limit
     :option-type :integer
     :key "l"
     :prompt "Limit: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2)
    (range
     :option-type :string
     :key "r"
     :prompt "Range (e.g., 1-10): "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 3))
   :documentation "Represents bd mol current command.
@@ -511,7 +511,7 @@ Detects complete-but-unclosed molecules.")
    (patrol
     :option-type :boolean
     :key "p"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd mol seed command.

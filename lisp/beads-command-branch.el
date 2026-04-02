@@ -37,7 +37,7 @@
     :key "n"
     :argument "--name="
     :prompt "Branch name (empty=list): "
-    :transient-group "Branch"
+    :group "Branch"
     :level 1
     :order 1))
   :documentation "List or create Dolt branches.

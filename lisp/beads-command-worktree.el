@@ -264,7 +264,7 @@ Returns error message string or nil if valid."
     :option-type :string
     :key "b"
     :prompt "Branch name: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd worktree create command.
@@ -336,7 +336,7 @@ Returns list of beads-worktree instances."
    (force
     :option-type :boolean
     :key "f"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd worktree remove command.

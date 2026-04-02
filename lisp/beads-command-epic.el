@@ -44,7 +44,7 @@
   ((eligible-only
     :option-type :boolean
     :key "e"
-    :transient-group "Epic Status"
+    :group "Epic Status"
     :level 1
     :order 1))
   :documentation "Represents bd epic status command.
@@ -102,7 +102,7 @@ Does not modify any slots."
   ((dry-run
     :option-type :boolean
     :key "n"
-    :transient-group "Close Eligible Epics"
+    :group "Close Eligible Epics"
     :level 1
     :order 1))
   :documentation "Represents bd epic close-eligible command.

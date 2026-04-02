@@ -48,8 +48,8 @@
     :transient transient-option
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads--read-issue-at-point-or-prompt
-    :transient-group "Close Issue"
+    :reader beads--read-issue-at-point-or-prompt
+    :group "Close Issue"
     :level 1
     :order 1
     :required t)
@@ -59,7 +59,7 @@
     :key "r"
     :transient beads-transient-multiline
     :field-name "Close Reason"
-    :transient-group "Close Issue"
+    :group "Close Issue"
     :level 1
     :order 2
     :required t))

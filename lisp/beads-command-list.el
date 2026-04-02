@@ -72,7 +72,7 @@
   ((all
       :option-type :boolean
       :key "A"
-      :transient-group "Basic Filters"
+      :group "Basic Filters"
       :level 1
       :order 1)
      (status
@@ -80,8 +80,8 @@
       :option-type :string
       :key "s"
       :prompt "Status: "
-      :transient-reader beads-reader-list-status
-      :transient-group "Basic Filters"
+      :reader beads-reader-list-status
+      :group "Basic Filters"
       :level 1
       :order 2)
      (issue-type
@@ -90,8 +90,8 @@
       :option-type :string
       :key "t"
       :prompt "Type: "
-      :transient-reader beads-reader-issue-type
-      :transient-group "Basic Filters"
+      :reader beads-reader-issue-type
+      :group "Basic Filters"
       :level 1
       :order 3)
      (assignee
@@ -99,7 +99,7 @@
       :option-type :string
       :key "a"
       :prompt "Assignee: "
-      :transient-group "Basic Filters"
+      :group "Basic Filters"
       :level 1
       :order 4)
      (priority
@@ -107,8 +107,8 @@
       :option-type :string
       :key "p"
       :prompt "Priority (0-4 or P0-P4): "
-      :transient-reader beads-reader-priority
-      :transient-group "Basic Filters"
+      :reader beads-reader-priority
+      :group "Basic Filters"
       :level 1
       :order 5)
      (label
@@ -116,37 +116,37 @@
       :option-type :list
       :key "l"
       :prompt "Labels (AND): "
-      :transient-reader beads-reader-issue-labels
-      :transient-group "Basic Filters"
+      :reader beads-reader-issue-labels
+      :group "Basic Filters"
       :level 1
       :order 6)
      (label-any
       :option-type :list
       :key "L"
       :prompt "Labels (OR): "
-      :transient-reader beads-reader-issue-labels
-      :transient-group "Basic Filters"
+      :reader beads-reader-issue-labels
+      :group "Basic Filters"
       :level 2
       :order 1)
      (id
       :option-type :string
       :key "i"
       :prompt "Issue IDs (comma-separated): "
-      :transient-group "Basic Filters"
+      :group "Basic Filters"
       :level 2
       :order 2)
      (parent
       :option-type :string
       :key "P"
       :prompt "Parent ID: "
-      :transient-reader beads-reader-issue-id
-      :transient-group "Basic Filters"
+      :reader beads-reader-issue-id
+      :group "Basic Filters"
       :level 2
       :order 3)
      (ready
       :option-type :boolean
       :key "R"
-      :transient-group "Basic Filters"
+      :group "Basic Filters"
       :level 1
       :order 7)
 
@@ -154,70 +154,70 @@
       :option-type :string
       :key "ca"
       :prompt "Created after (YYYY-MM-DD): "
-      :transient-group "Date Filters"
+      :group "Date Filters"
       :level 3
       :order 1)
      (created-before
       :option-type :string
       :key "cb"
       :prompt "Created before (YYYY-MM-DD): "
-      :transient-group "Date Filters"
+      :group "Date Filters"
       :level 3
       :order 2)
      (updated-after
       :option-type :string
       :key "ua"
       :prompt "Updated after (YYYY-MM-DD): "
-      :transient-group "Date Filters"
+      :group "Date Filters"
       :level 3
       :order 3)
      (updated-before
       :option-type :string
       :key "ub"
       :prompt "Updated before (YYYY-MM-DD): "
-      :transient-group "Date Filters"
+      :group "Date Filters"
       :level 3
       :order 4)
      (closed-after
       :option-type :string
       :key "xa"
       :prompt "Closed after (YYYY-MM-DD): "
-      :transient-group "Date Filters"
+      :group "Date Filters"
       :level 3
       :order 5)
      (closed-before
       :option-type :string
       :key "xb"
       :prompt "Closed before (YYYY-MM-DD): "
-      :transient-group "Date Filters"
+      :group "Date Filters"
       :level 3
       :order 6)
      (due-after
       :option-type :string
       :key "da"
       :prompt "Due after: "
-      :transient-group "Date Filters"
+      :group "Date Filters"
       :level 3
       :order 7)
      (due-before
       :option-type :string
       :key "db"
       :prompt "Due before: "
-      :transient-group "Date Filters"
+      :group "Date Filters"
       :level 3
       :order 8)
      (defer-after
       :option-type :string
       :key "fa"
       :prompt "Deferred after: "
-      :transient-group "Date Filters"
+      :group "Date Filters"
       :level 3
       :order 9)
      (defer-before
       :option-type :string
       :key "fb"
       :prompt "Deferred before: "
-      :transient-group "Date Filters"
+      :group "Date Filters"
       :level 3
       :order 10)
 
@@ -225,106 +225,106 @@
       :option-type :string
       :key "T"
       :prompt "Title contains: "
-      :transient-group "Content Filters"
+      :group "Content Filters"
       :level 2
       :order 1)
      (title-contains
       :option-type :string
       :key "tc"
       :prompt "Title contains: "
-      :transient-group "Content Filters"
+      :group "Content Filters"
       :level 3
       :order 1)
      (desc-contains
       :option-type :string
       :key "dc"
       :prompt "Description contains: "
-      :transient-group "Content Filters"
+      :group "Content Filters"
       :level 2
       :order 2)
      (notes-contains
       :option-type :string
       :key "nc"
       :prompt "Notes contains: "
-      :transient-group "Content Filters"
+      :group "Content Filters"
       :level 3
       :order 2)
      (empty-description
       :option-type :boolean
       :key "ed"
-      :transient-group "Content Filters"
+      :group "Content Filters"
       :level 3
       :order 3)
 
      (no-assignee
       :option-type :boolean
       :key "na"
-      :transient-group "Special Filters"
+      :group "Special Filters"
       :level 2
       :order 1)
      (no-labels
       :option-type :boolean
       :key "nl"
-      :transient-group "Special Filters"
+      :group "Special Filters"
       :level 2
       :order 2)
      (pinned
       :option-type :boolean
       :key "pi"
-      :transient-group "Special Filters"
+      :group "Special Filters"
       :level 2
       :order 3)
      (no-pinned
       :option-type :boolean
       :key "np"
-      :transient-group "Special Filters"
+      :group "Special Filters"
       :level 3
       :order 1)
      (overdue
       :option-type :boolean
       :key "od"
-      :transient-group "Special Filters"
+      :group "Special Filters"
       :level 2
       :order 4)
      (deferred
       :option-type :boolean
       :key "df"
-      :transient-group "Special Filters"
+      :group "Special Filters"
       :level 2
       :order 5)
      (priority-min
       :option-type :string
       :key "pm"
       :prompt "Min priority (0-4 or P0-P4): "
-      :transient-reader beads-reader-priority
-      :transient-group "Special Filters"
+      :reader beads-reader-priority
+      :group "Special Filters"
       :level 3
       :order 2)
      (priority-max
       :option-type :string
       :key "px"
       :prompt "Max priority (0-4 or P0-P4): "
-      :transient-reader beads-reader-priority
-      :transient-group "Special Filters"
+      :reader beads-reader-priority
+      :group "Special Filters"
       :level 3
       :order 3)
      (mol-type
       :option-type :string
       :key "mt"
       :prompt "Molecule type: "
-      :transient-group "Special Filters"
+      :group "Special Filters"
       :level 3
       :order 4)
      (include-gates
       :option-type :boolean
       :key "ig"
-      :transient-group "Special Filters"
+      :group "Special Filters"
       :level 3
       :order 5)
      (include-templates
       :option-type :boolean
       :key "it"
-      :transient-group "Special Filters"
+      :group "Special Filters"
       :level 3
       :order 6)
 
@@ -333,59 +333,59 @@
       :option-type :integer
       :key "n"
       :prompt "Limit: "
-      :transient-group "Output Options"
+      :group "Output Options"
       :level 1
       :order 1)
      (sort
       :option-type :string
       :key "S"
       :prompt "Sort by: "
-      :transient-group "Output Options"
+      :group "Output Options"
       :level 1
       :order 2)
      (reverse
       :short-option "r"
       :option-type :boolean
       :key "r"
-      :transient-group "Output Options"
+      :group "Output Options"
       :level 1
       :order 3)
      (format
       :option-type :string
       :key "F"
       :prompt "Format: "
-      :transient-group "Output Options"
+      :group "Output Options"
       :level 2
       :order 1)
      (long
       :option-type :boolean
       :key "lo"
-      :transient-group "Output Options"
+      :group "Output Options"
       :level 2
       :order 2)
      (pretty
       :option-type :boolean
       :key "pr"
-      :transient-group "Output Options"
+      :group "Output Options"
       :level 2
       :order 3)
      (tree
       :option-type :boolean
       :key "tr"
-      :transient-group "Output Options"
+      :group "Output Options"
       :level 3
       :order 1)
      (no-pager
       :option-type :boolean
       :key "nP"
-      :transient-group "Output Options"
+      :group "Output Options"
       :level 3
       :order 2)
      (watch
       :short-option "w"
       :option-type :boolean
       :key "w"
-      :transient-group "Output Options"
+      :group "Output Options"
       :level 2
       :order 4))
     :documentation "Represents bd list command.

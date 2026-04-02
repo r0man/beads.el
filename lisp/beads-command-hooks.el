@@ -28,19 +28,19 @@
     :short-option "f"
     :option-type :boolean
     :key "f"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (chain
     :option-type :boolean
     :key "c"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2)
    (shared
     :option-type :boolean
     :key "s"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 3))
   :documentation "Represents bd hooks install command.

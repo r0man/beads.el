@@ -35,7 +35,7 @@
     :key "n"
     :argument "--name="
     :prompt "Peer name: "
-    :transient-group "Add Peer"
+    :group "Add Peer"
     :level 1
     :order 1
     :required t)
@@ -45,7 +45,7 @@
     :key "u"
     :argument "--url="
     :prompt "Peer URL: "
-    :transient-group "Add Peer"
+    :group "Add Peer"
     :level 1
     :order 2
     :required t)
@@ -54,7 +54,7 @@
     :option-type :string
     :key "U"
     :prompt "SQL username: "
-    :transient-group "Auth"
+    :group "Auth"
     :level 2
     :order 3)
    (password
@@ -62,14 +62,14 @@
     :option-type :string
     :key "p"
     :prompt "SQL password: "
-    :transient-group "Auth"
+    :group "Auth"
     :level 2
     :order 4)
    (sovereignty
     :option-type :string
     :key "s"
     :prompt "Sovereignty tier (T1|T2|T3|T4): "
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 5))
   :documentation "Add a federation peer.
@@ -97,7 +97,7 @@ Requires Dolt backend."
     :key "n"
     :argument "--name="
     :prompt "Peer name to remove: "
-    :transient-group "Remove Peer"
+    :group "Remove Peer"
     :level 1
     :order 1
     :required t))
@@ -131,14 +131,14 @@ Requires Dolt backend."
     :option-type :string
     :key "p"
     :prompt "Peer (empty=all): "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (strategy
     :option-type :string
     :key "s"
     :prompt "Strategy (ours|theirs): "
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 2))
   :documentation "Synchronize with federation peers.
@@ -160,7 +160,7 @@ Requires Dolt backend.")
     :option-type :string
     :key "p"
     :prompt "Peer (empty=all): "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Show federation sync status.
