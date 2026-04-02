@@ -24,25 +24,29 @@
      (status . "open")
      (priority . 1)
      (issue-type . "bug")
-     (created-at . "2025-10-20T14:30:00Z"))
+     (created-at . "2025-10-20T14:30:00Z")
+     (updated-at . "2025-10-21T09:00:00Z"))
     ((id . "bd-2")
      (title . "Second issue")
      (status . "in_progress")
      (priority . 0)
      (issue-type . "feature")
-     (created-at . "2025-10-20T16:36:52Z"))
+     (created-at . "2025-10-20T16:36:52Z")
+     (updated-at . "2025-10-22T12:00:00Z"))
     ((id . "bd-3")
      (title . "Third issue")
      (status . "blocked")
      (priority . 2)
      (issue-type . "task")
-     (created-at . "2025-10-19T10:00:00Z"))
+     (created-at . "2025-10-19T10:00:00Z")
+     (updated-at . "2025-10-20T08:00:00Z"))
     ((id . "bd-4")
      (title . "Fourth issue")
      (status . "closed")
      (priority . 3)
      (issue-type . "bug")
-     (created-at . "2025-10-18T08:15:00Z")))
+     (created-at . "2025-10-18T08:15:00Z")
+     (updated-at . "2025-10-23T15:30:00Z")))
   "Sample issue data for testing.")
 
 (defvar beads-list-test--empty-issues '()
@@ -59,7 +63,8 @@ Handles missing fields gracefully with defaults."
    :status (or (alist-get 'status alist) "open")
    :priority (or (alist-get 'priority alist) 2)
    :issue-type (alist-get 'issue-type alist)
-   :created-at (alist-get 'created-at alist)))
+   :created-at (alist-get 'created-at alist)
+   :updated-at (alist-get 'updated-at alist)))
 
 (defmacro beads-list-test--with-temp-buffer (issues command &rest body)
   "Create a temporary beads-list buffer with ISSUES and COMMAND, then run BODY.
@@ -607,19 +612,21 @@ ISSUES should be a list of alists (test data format)."
              (status . "open")
              (priority . 1)
              (issue-type . "bug")
-             (created-at . "2025-10-19T10:00:00Z"))
+             (created-at . "2025-10-19T10:00:00Z")
+             (updated-at . "2025-10-19T10:00:00Z"))
             ((id . "myproject-13")
              (title . "Custom prefix issue")
              (status . "in_progress")
              (priority . 0)
              (issue-type . "feature")
-             (created-at . "2025-10-20T16:00:00Z"))))
+             (created-at . "2025-10-20T16:00:00Z")
+             (updated-at . "2025-10-20T16:00:00Z"))))
          (beads-show-called nil)
          (beads-show-arg nil))
     (beads-list-test--with-temp-buffer
      custom-prefix-issues 'list
      (goto-char (point-min))
-     ;; Default sort is by Created (descending), so myproject-13 comes first
+     ;; Default sort is by Updated (descending), so myproject-13 comes first
      (let ((id (beads-list--current-issue-id)))
        (should (equal id "myproject-13"))
        ;; Mock beads-show to verify correct ID is passed
@@ -781,15 +788,15 @@ ISSUES should be a list of alists (test data format)."
       (should (string-match-p "2025-10-20"
                               (aref (cadr entry) 6))))))
 
-(ert-deftest beads-list-test-sort-by-created ()
-  "Test sorting issues by creation date."
+(ert-deftest beads-list-test-sort-by-updated ()
+  "Test sorting issues by updated date (default)."
   (beads-list-test--with-temp-buffer
    beads-list-test--sample-issues 'list
-   ;; Default sort is now by Created (descending)
+   ;; Default sort is by Updated (descending)
    (goto-char (point-min))
    (forward-line 0)
-   ;; Most recent (bd-2: 2025-10-20T16:36:52Z) should be first
-   (should (equal (beads-list--current-issue-id) "bd-2"))))
+   ;; Most recently updated (bd-4: 2025-10-23T15:30:00Z) should be first
+   (should (equal (beads-list--current-issue-id) "bd-4"))))
 
 (ert-deftest beads-list-test-default-sort-is-updated ()
   "Test that default sort key is Updated column."

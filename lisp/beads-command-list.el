@@ -1728,7 +1728,8 @@ l -s open l  — list only open issues."
   ["List"
    ("l" "All issues" beads-list-all)
    ("r" "Ready" beads-list-ready-suffix)
-   ("b" "Blocked" beads-list-blocked-suffix)])
+   ("b" "Blocked" beads-list-blocked-suffix)
+   ("c" "Closed" beads-list-closed-suffix)])
 
 ;;;###autoload (autoload 'beads-list-advanced "beads-command-list" nil t)
 (transient-define-prefix beads-list-advanced ()
@@ -1999,6 +2000,26 @@ list buffer.  This is the primary suffix for the Pattern 2
 This is a convenience suffix in the `beads-list' transient."
   (interactive)
   (beads-ready))
+
+(defun beads-list-closed-suffix ()
+  "List closed issues.
+This is a convenience suffix in the `beads-list' transient."
+  (interactive)
+  (require 'beads-spec)
+  (beads-check-executable)
+  (let* ((caller-dir default-directory)
+         (project-dir (or (beads-git-find-project-root) default-directory))
+         (spec (beads-issue-spec :status "closed"))
+         (buffer (beads-list--get-or-create-buffer 'list)))
+    (with-current-buffer buffer
+      (unless (derived-mode-p 'beads-list-mode)
+        (beads-list-mode))
+      (setq beads-list--project-dir project-dir)
+      (setq beads-list--branch (beads-git-get-branch))
+      (setq beads-list--proj-name (beads-git-get-project-name))
+      (setq default-directory caller-dir)
+      (beads-list--refresh spec))
+    (beads-list--display-buffer buffer)))
 
 (defun beads-list-blocked-suffix ()
   "List blocked issues.
