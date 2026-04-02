@@ -25,10 +25,6 @@
 
 (beads-defcommand beads-command-config-get (beads-command-global-options)
   ((key
-    :initarg :key
-    :type (or null string)
-    :initform nil
-    :documentation "Configuration key to get."
     :positional 1))
   :documentation "Represents bd config get command.
 Gets a configuration value.")
@@ -48,16 +44,8 @@ Gets a configuration value.")
 
 (beads-defcommand beads-command-config-set (beads-command-global-options)
   ((key
-    :initarg :key
-    :type (or null string)
-    :initform nil
-    :documentation "Configuration key to set."
     :positional 1)
    (value
-    :initarg :value
-    :type (or null string)
-    :initform nil
-    :documentation "Value to set."
     :positional 2))
   :documentation "Represents bd config set command.
 Sets a configuration value.")
@@ -88,10 +76,6 @@ Lists all configuration values.")
 
 (beads-defcommand beads-command-config-unset (beads-command-global-options)
   ((key
-    :initarg :key
-    :type (or null string)
-    :initform nil
-    :documentation "Configuration key to unset."
     :positional 1))
   :documentation "Represents bd config unset command.
 Deletes a configuration value.")

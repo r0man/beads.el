@@ -28,15 +28,8 @@
 
 (beads-defcommand beads-command-defer (beads-command-global-options)
   ((issue-ids
-    :initarg :issue-ids
-    :type list
-    :initform nil
-    :documentation "Issue IDs to defer."
     :positional-rest t
-    ;; Transient properties
     :key "i"
-    :transient "Issue IDs"
-    :class transient-option
     :argument "--id="
     :prompt "Issue ID(s): "
     :transient-reader beads-reader-issue-id
@@ -44,16 +37,8 @@
     :level 1
     :order 1)
    (until
-    :initarg :until
-    :type (or null string)
-    :initform nil
-    :documentation "Defer until specific time (e.g., +1h, tomorrow, next monday)."
-    :long-option "until"
     :option-type :string
     :key "u"
-    :transient "--until"
-    :class transient-option
-    :argument "--until="
     :prompt "Until (e.g., +1h, tomorrow): "
     :transient-group "Options"
     :level 1
@@ -76,15 +61,8 @@ Defers one or more issues for later.")
 
 (beads-defcommand beads-command-undefer (beads-command-global-options)
   ((issue-ids
-    :initarg :issue-ids
-    :type list
-    :initform nil
-    :documentation "Issue IDs to undefer."
     :positional-rest t
-    ;; Transient properties
     :key "i"
-    :transient "Issue IDs"
-    :class transient-option
     :argument "--id="
     :prompt "Issue ID(s): "
     :transient-reader beads-reader-issue-id

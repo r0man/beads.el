@@ -37,18 +37,8 @@
 
 (beads-defcommand beads-command-blocked (beads-command-global-options)
   ((parent
-    :initarg :parent
-    :type (or null string)
-    :initform nil
-    :documentation "Filter to descendants of this bead/epic (--parent)."
-    ;; CLI properties
-    :long-option "parent"
     :option-type :string
-    ;; Transient properties
     :key "P"
-    :transient "--parent"
-    :class transient-option
-    :argument "--parent="
     :prompt "Parent ID: "
     :transient-reader beads-reader-issue-id
     :transient-group "Scope"

@@ -25,28 +25,13 @@
 
 (beads-defcommand beads-command-set-state (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID."
     :positional 1)
    (dimension-value
-    :initarg :dimension-value
-    :type (or null string)
-    :initform nil
-    :documentation "State change as dimension=value."
     :positional 2)
    (reason
-    :initarg :reason
-    :type (or null string)
-    :initform nil
-    :documentation "Reason for the state change."
-    :long-option "reason"
     :option-type :string
     :key "r"
-    :transient "--reason"
-    :class beads-transient-multiline
-    :argument "--reason="
+    :transient beads-transient-multiline
     :field-name "State Change Reason"
     :transient-group "Options"
     :level 1
@@ -71,16 +56,8 @@ Atomically sets operational state on an issue."
 
 (beads-defcommand beads-command-state (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID."
     :positional 1)
    (dimension
-    :initarg :dimension
-    :type (or null string)
-    :initform nil
-    :documentation "State dimension to query."
     :positional 2))
   :documentation "Represents bd state command.
 Queries the current value of a state dimension.")
@@ -100,10 +77,6 @@ Queries the current value of a state dimension.")
 
 (beads-defcommand beads-command-state-list (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID."
     :positional 1))
   :documentation "Represents bd state list command.
 Lists all state dimensions on an issue.")

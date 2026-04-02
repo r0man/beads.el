@@ -44,42 +44,23 @@
 
 (beads-defcommand beads-command-reopen (beads-command-global-options)
   ((issue-ids
-    :initarg :issue-ids
-    :type (or null list)
-    :initform nil
-    :documentation "One or more issue IDs to reopen (positional arguments).
-Example: '(\"bd-1\" \"bd-2\")"
-    ;; CLI properties
     :positional 1
     :option-type :list
     :option-separator " "
-    ;; Transient properties
     :key "i"
-    :transient "Issue ID (required)"
-    :class transient-option
+    :transient transient-option
     :argument "--id="
     :prompt "Issue ID: "
     :transient-reader beads-reader-reopen-issue-id
     :transient-group "Reopen Issue"
     :level 1
     :order 1
-    ;; Validation
     :required t)
    (reason
-    :initarg :reason
-    :type (or null string)
-    :initform nil
-    :documentation "Reason for reopening (-r, --reason).
-Optional, but recommended for documentation."
-    ;; CLI properties
-    :long-option "reason"
-    :short-option "r"
     :option-type :string
-    ;; Transient properties
+    :short-option "r"
     :key "r"
-    :transient "--reason"
-    :class beads-transient-multiline
-    :argument "--reason="
+    :transient beads-transient-multiline
     :field-name "Reopen Reason"
     :transient-group "Reopen Issue"
     :level 1

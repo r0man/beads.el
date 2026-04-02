@@ -667,9 +667,9 @@
   ;; Transient properties
   (should (equal "t" (beads-meta-slot-property
                       'beads-command-create 'title :transient-key)))
-  (should (equal "Title (required)" (beads-meta-slot-property
-                                     'beads-command-create 'title
-                                     :transient-description)))
+  (should (equal "Title" (beads-meta-slot-property
+                          'beads-command-create 'title
+                          :transient-description)))
   (should (equal "Required" (beads-meta-slot-property
                              'beads-command-create 'title :transient-group)))
   (should (eq t (beads-meta-slot-property
@@ -813,8 +813,8 @@
   ;; Transient properties
   (should (equal "s" (beads-meta-slot-property
                        'beads-command-update 'status :transient-key)))
-  (should (equal "--status" (beads-meta-slot-property
-                               'beads-command-update 'status :transient-description)))
+  (should (equal "Status" (beads-meta-slot-property
+                            'beads-command-update 'status :transient-description)))
   (should (eq 'transient-option (beads-meta-slot-property
                                  'beads-command-update 'status :transient-class)))
   (should (equal "--status=" (beads-meta-slot-property
@@ -1218,8 +1218,8 @@
   ;; Transient properties
   (should (equal "s" (beads-meta-slot-property
                        'beads-command-list 'status :transient-key)))
-  (should (equal "--status" (beads-meta-slot-property
-                               'beads-command-list 'status :transient-description)))
+  (should (equal "Status" (beads-meta-slot-property
+                            'beads-command-list 'status :transient-description)))
   (should (eq 'transient-option (beads-meta-slot-property
                                  'beads-command-list 'status :transient-class)))
   (should (equal "--status=" (beads-meta-slot-property

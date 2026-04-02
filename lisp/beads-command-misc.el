@@ -26,22 +26,10 @@
 
 (beads-defcommand beads-command-duplicate (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to mark as duplicate."
     :positional 1)
    (of
-    :initarg :of
-    :type (or null string)
-    :initform nil
-    :documentation "Canonical issue ID."
-    :long-option "of"
     :option-type :string
     :key "o"
-    :transient "--of"
-    :class transient-option
-    :argument "--of="
     :prompt "Canonical issue: "
     :transient-reader beads-reader-issue-id
     :transient-group "Options"
@@ -65,16 +53,8 @@ Marks an issue as a duplicate of another.")
 
 (beads-defcommand beads-command-duplicates (beads-command-global-options)
   ((merge
-    :initarg :merge
-    :type boolean
-    :initform nil
-    :documentation "Merge duplicates with confirmation."
-    :long-option "merge"
     :option-type :boolean
     :key "m"
-    :transient "--merge"
-    :class transient-switch
-    :argument "--merge"
     :transient-group "Options"
     :level 1
     :order 1))
@@ -88,22 +68,11 @@ Finds and optionally merges duplicate issues.")
 
 (beads-defcommand beads-command-supersede (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to mark as superseded."
     :positional 1)
    (with-id
-    :initarg :with-id
-    :type (or null string)
-    :initform nil
-    :documentation "Replacement issue ID."
     :long-option "with"
     :option-type :string
     :key "w"
-    :transient "--with"
-    :class transient-option
-    :argument "--with="
     :prompt "Replacement issue: "
     :transient-reader beads-reader-issue-id
     :transient-group "Options"
@@ -127,31 +96,15 @@ Marks an issue as superseded by a newer one.")
 
 (beads-defcommand beads-command-orphans (beads-command-global-options)
   ((details
-    :initarg :details
-    :type boolean
-    :initform nil
-    :documentation "Show full commit information."
-    :long-option "details"
     :option-type :boolean
     :key "d"
-    :transient "--details"
-    :class transient-switch
-    :argument "--details"
     :transient-group "Options"
     :level 1
     :order 1)
    (fix
-    :initarg :fix
-    :type boolean
-    :initform nil
-    :documentation "Close orphaned issues with confirmation."
-    :long-option "fix"
     :short-option "f"
     :option-type :boolean
     :key "f"
-    :transient "--fix"
-    :class transient-switch
-    :argument "--fix"
     :transient-group "Options"
     :level 1
     :order 2))
@@ -165,43 +118,22 @@ Identifies orphaned issues referenced in commits but still open.")
 
 (beads-defcommand beads-command-lint (beads-command-global-options)
   ((issue-ids
-    :initarg :issue-ids
-    :type list
-    :initform nil
-    :documentation "Issue IDs to lint (optional)."
     :positional 1
     :option-type :list
     :option-separator nil)
    (status
-    :initarg :status
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by status (default: open, 'all' for all)."
-    :long-option "status"
     :short-option "s"
     :option-type :string
     :key "s"
-    :transient "--status"
-    :class transient-option
-    :argument "--status="
-    :prompt "Status: "
     :choices ("open" "in_progress" "blocked" "closed" "all")
     :transient-group "Options"
     :level 1
     :order 1)
    (issue-type
-    :initarg :issue-type
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by issue type."
     :long-option "type"
     :short-option "t"
     :option-type :string
     :key "t"
-    :transient "--type"
-    :class transient-option
-    :argument "--type="
-    :prompt "Type: "
     :choices ("bug" "task" "feature" "epic" "chore")
     :transient-group "Options"
     :level 1
@@ -216,15 +148,8 @@ Checks issues for missing template sections.")
 
 (beads-defcommand beads-command-move (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to move."
     :positional 1
-    ;; Transient properties for UI input
     :key "i"
-    :transient "Issue ID (required)"
-    :class transient-option
     :argument "--id="
     :transient-reader beads-reader-move-issue-id
     :prompt "Issue ID: "
@@ -232,45 +157,21 @@ Checks issues for missing template sections.")
     :level 1
     :order 0)
    (to
-    :initarg :to
-    :type (or null string)
-    :initform nil
-    :documentation "Target rig or prefix."
-    :long-option "to"
     :option-type :string
     :key "t"
-    :transient "--to (required)"
-    :class transient-option
-    :argument "--to="
     :prompt "Target rig: "
     :transient-group "Move Issue"
     :level 1
     :order 1)
    (keep-open
-    :initarg :keep-open
-    :type boolean
-    :initform nil
-    :documentation "Keep source issue open."
-    :long-option "keep-open"
     :option-type :boolean
     :key "k"
-    :transient "--keep-open"
-    :class transient-switch
-    :argument "--keep-open"
     :transient-group "Options"
     :level 2
     :order 2)
    (skip-deps
-    :initarg :skip-deps
-    :type boolean
-    :initform nil
-    :documentation "Skip dependency remapping."
-    :long-option "skip-deps"
     :option-type :boolean
     :key "d"
-    :transient "--skip-deps"
-    :class transient-switch
-    :argument "--skip-deps"
     :transient-group "Options"
     :level 2
     :order 3))
@@ -292,28 +193,12 @@ Moves an issue to a different rig with dependency remapping.")
 
 (beads-defcommand beads-command-refile (beads-command-global-options)
   ((source-id
-    :initarg :source-id
-    :type (or null string)
-    :initform nil
-    :documentation "Source issue ID."
     :positional 1)
    (target-rig
-    :initarg :target-rig
-    :type (or null string)
-    :initform nil
-    :documentation "Target rig name or prefix."
     :positional 2)
    (keep-open
-    :initarg :keep-open
-    :type boolean
-    :initform nil
-    :documentation "Keep source issue open."
-    :long-option "keep-open"
     :option-type :boolean
     :key "k"
-    :transient "--keep-open"
-    :class transient-switch
-    :argument "--keep-open"
     :transient-group "Options"
     :level 1
     :order 1))
@@ -335,66 +220,32 @@ Moves an issue to a different rig.")
 
 (beads-defcommand beads-command-q (beads-command-global-options)
   ((title
-    :initarg :title
-    :type (or null string)
-    :initform nil
-    :documentation "Issue title."
     :positional 1
-    ;; Transient properties for UI input
     :key "T"
-    :transient "Title (required)"
-    :class transient-option
     :argument "--title="
-    :prompt "Title: "
     :transient-group "Quick Capture"
     :level 1
     :order 0)
    (issue-type
-    :initarg :issue-type
-    :type (or null string)
-    :initform nil
-    :documentation "Issue type (default: task)."
     :long-option "type"
     :short-option "t"
     :option-type :string
     :key "t"
-    :transient "--type"
-    :class transient-option
-    :argument "--type="
-    :prompt "Type: "
     :choices ("task" "bug" "feature" "epic" "chore")
     :transient-group "Options"
     :level 1
     :order 1)
    (priority
-    :initarg :priority
-    :type (or null string)
-    :initform nil
-    :documentation "Priority (0-4 or P0-P4)."
-    :long-option "priority"
     :short-option "p"
     :option-type :string
     :key "p"
-    :transient "--priority"
-    :class transient-option
-    :argument "--priority="
-    :prompt "Priority: "
     :transient-group "Options"
     :level 1
     :order 2)
    (labels
-    :initarg :labels
-    :type list
-    :initform nil
-    :documentation "Labels for the issue."
-    :long-option "labels"
     :short-option "l"
     :option-type :list
     :key "l"
-    :transient "--labels"
-    :class transient-option
-    :argument "--labels="
-    :prompt "Labels: "
     :transient-group "Options"
     :level 1
     :order 3))
@@ -413,46 +264,22 @@ Quick capture: creates issue and outputs only ID.")
 
 (beads-defcommand beads-command-note (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to append note to."
     :positional 1
     :key "i"
-    :transient "Issue ID (required)"
-    :class transient-option
     :argument "--id="
-    :prompt "Issue ID: "
     :transient-reader beads--read-issue-at-point-or-prompt
     :transient-group "Append Note"
     :level 1
     :order 0)
    (stdin
-    :initarg :stdin
-    :type boolean
-    :initform nil
-    :documentation "Read note text from stdin."
-    :long-option "stdin"
     :option-type :boolean
     :key "s"
-    :transient "--stdin"
-    :class transient-switch
-    :argument "--stdin"
     :transient-group "Input"
     :level 1
     :order 1)
    (file
-    :initarg :file
-    :type (or null string)
-    :initform nil
-    :documentation "Read note text from file."
-    :long-option "file"
     :option-type :string
     :key "f"
-    :transient "--file"
-    :class transient-option
-    :argument "--file="
-    :prompt "File: "
     :transient-group "Input"
     :level 1
     :order 2))
@@ -471,16 +298,8 @@ Appends a note to an issue's notes field.")
 
 (beads-defcommand beads-command-version (beads-command-global-options)
   ((daemon
-    :initarg :daemon
-    :type boolean
-    :initform nil
-    :documentation "Check daemon version and compatibility."
-    :long-option "daemon"
     :option-type :boolean
     :key "d"
-    :transient "--daemon"
-    :class transient-switch
-    :argument "--daemon"
     :transient-group "Options"
     :level 1
     :order 1))
@@ -580,16 +399,8 @@ Acknowledge the current bd version to suppress upgrade notifications.")
 
 (beads-defcommand beads-command-rename-prefix (beads-command-global-options)
   ((old-prefix
-    :initarg :old-prefix
-    :type (or null string)
-    :initform nil
-    :documentation "Old prefix to replace."
     :positional 1)
    (new-prefix
-    :initarg :new-prefix
-    :type (or null string)
-    :initform nil
-    :documentation "New prefix to use."
     :positional 2))
   :documentation "Represents bd rename-prefix command.
 Renames the issue prefix for all issues in the database."
@@ -609,10 +420,6 @@ Renames the issue prefix for all issues in the database."
 
 (beads-defcommand beads-command-setup (beads-command-global-options)
   ((editor
-    :initarg :editor
-    :type (or null string)
-    :initform nil
-    :documentation "Editor to set up (cursor, vscode, claude, etc.)."
     :positional 1))
   :documentation "Represents bd setup command.
 Setup integration with AI editors.")
@@ -624,10 +431,6 @@ Setup integration with AI editors.")
 
 (beads-defcommand beads-command-ship (beads-command-global-options)
   ((capability
-    :initarg :capability
-    :type (or null string)
-    :initform nil
-    :documentation "Capability to publish."
     :positional 1))
   :documentation "Represents bd ship command.
 Publishes a capability for cross-project dependencies.")
@@ -639,10 +442,6 @@ Publishes a capability for cross-project dependencies.")
 
 (beads-defcommand beads-command-cook (beads-command-global-options)
   ((formula-id
-    :initarg :formula-id
-    :type (or null string)
-    :initform nil
-    :documentation "Formula ID to compile."
     :positional 1))
   :documentation "Represents bd cook command.
 Compiles a formula into a proto (ephemeral by default).")
@@ -724,17 +523,8 @@ Delegates to mail provider.")
 
 (beads-defcommand beads-command-human-list (beads-command-global-options)
   ((status
-    :initarg :status
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by status (open, closed, etc.)."
-    :long-option "status"
     :option-type :string
     :key "s"
-    :transient "--status"
-    :class transient-option
-    :argument "--status="
-    :prompt "Status: "
     :choices ("open" "in_progress" "blocked" "closed" "all")
     :transient-group "Options"
     :level 1
@@ -752,33 +542,19 @@ Lists all issues labeled with the human tag.")
 
 (beads-defcommand beads-command-human-respond (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to respond to (required)."
     :positional 1
     :option-type :string
     :key "i"
-    :transient "Issue ID (required)"
-    :class transient-option
     :argument "--issue-id="
-    :prompt "Issue ID: "
     :transient-reader beads-reader-issue-id
     :transient-group "Options"
     :level 1
     :order 1
     :required t)
    (response
-    :initarg :response
-    :type (or null string)
-    :initform nil
-    :documentation "Response text to add as comment (required)."
     :option-type :string
     :key "r"
-    :transient "Response text (required)"
-    :class transient-option
     :argument "--response="
-    :prompt "Response: "
     :transient-group "Options"
     :level 1
     :order 2
@@ -806,33 +582,19 @@ Responds to a human-needed bead by adding a comment and closing it.")
 
 (beads-defcommand beads-command-human-dismiss (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to dismiss (required)."
     :positional 1
     :option-type :string
     :key "i"
-    :transient "Issue ID (required)"
-    :class transient-option
     :argument "--issue-id="
-    :prompt "Issue ID: "
     :transient-reader beads-reader-issue-id
     :transient-group "Options"
     :level 1
     :order 1
     :required t)
    (reason
-    :initarg :reason
-    :type (or null string)
-    :initform nil
-    :documentation "Reason for dismissal (optional)."
     :option-type :string
     :key "r"
-    :transient "Reason (optional)"
-    :class transient-option
     :argument "--reason="
-    :prompt "Reason: "
     :transient-group "Options"
     :level 1
     :order 2))
@@ -946,14 +708,8 @@ Version tracking is automatic - bd updates metadata.json on every run.
 
 (beads-defcommand beads-command-children (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Parent issue ID."
     :positional 1
     :key "i"
-    :transient "Parent issue ID (required)"
-    :class transient-option
     :argument "--id="
     :prompt "Parent issue ID: "
     :transient-reader beads--read-issue-at-point-or-prompt
@@ -981,14 +737,8 @@ Creates a new issue using an interactive form."
 
 (beads-defcommand beads-command-promote (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID (wisp) to promote."
     :positional 1
     :key "i"
-    :transient "Issue ID (required)"
-    :class transient-option
     :argument "--id="
     :prompt "Issue ID to promote: "
     :transient-reader beads-reader-issue-id
@@ -1005,16 +755,9 @@ Promotes a wisp to a permanent bead.")
 
 (beads-defcommand beads-command-query (beads-command-global-options)
   ((query-string
-    :initarg :query-string
-    :type (or null string)
-    :initform nil
-    :documentation "Query string."
     :positional 1
     :key "q"
-    :transient "Query (required)"
-    :class transient-option
     :argument "--query="
-    :prompt "Query: "
     :transient-group "Options"
     :level 1
     :order 0))
@@ -1042,15 +785,9 @@ Manages TODO items (convenience wrapper for task issues).")
 
 (beads-defcommand beads-command-todo-add (beads-command-global-options)
   ((title
-    :initarg :title
-    :type (or null string)
-    :initform nil
-    :documentation "Title of the TODO item (positional arg)."
     :positional 1
     :option-type :string
     :key "T"
-    :transient "Title (required)"
-    :class transient-option
     :argument "--title="
     :prompt "TODO title: "
     :transient-group "Add TODO"
@@ -1058,36 +795,18 @@ Manages TODO items (convenience wrapper for task issues).")
     :order 1
     :required t)
    (priority
-    :initarg :priority
-    :type (or null string)
-    :initform nil
-    :documentation "Priority (-p, --priority).
-Values: 0-4. Default: 2."
-    :long-option "priority"
     :short-option "p"
     :option-type :string
     :key "p"
-    :transient "--priority"
-    :class transient-option
-    :argument "--priority="
     :prompt "Priority (0-4): "
     :transient-reader beads-reader-issue-priority
     :transient-group "Add TODO"
     :level 2
     :order 2)
    (description
-    :initarg :description
-    :type (or null string)
-    :initform nil
-    :documentation "Description (-d, --description)."
-    :long-option "description"
     :short-option "d"
     :option-type :string
     :key "D"
-    :transient "--description"
-    :class transient-option
-    :argument "--description="
-    :prompt "Description: "
     :transient-group "Add TODO"
     :level 2
     :order 3))

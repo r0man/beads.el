@@ -42,18 +42,8 @@
 
 (beads-defcommand beads-command-epic-status (beads-command-global-options)
   ((eligible-only
-    :initarg :eligible-only
-    :type boolean
-    :initform nil
-    :documentation "Show only epics eligible for closure (--eligible-only)."
-    ;; CLI properties
-    :long-option "eligible-only"
     :option-type :boolean
-    ;; Transient properties
     :key "e"
-    :transient "--eligible-only"
-    :class transient-switch
-    :argument "--eligible-only"
     :transient-group "Epic Status"
     :level 1
     :order 1))
@@ -110,19 +100,8 @@ Does not modify any slots."
 
 (beads-defcommand beads-command-epic-close-eligible (beads-command-global-options)
   ((dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Preview what would be closed without making changes
-(--dry-run)."
-    ;; CLI properties
-    :long-option "dry-run"
     :option-type :boolean
-    ;; Transient properties
     :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
     :transient-group "Close Eligible Epics"
     :level 1
     :order 1))

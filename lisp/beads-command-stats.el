@@ -53,52 +53,20 @@
 
 (beads-defcommand beads-command-stats (beads-command-global-options)
   ((all
-    :initarg :all
-    :type boolean
-    :initform nil
-    :documentation "Show all issues (--all).
-Default behavior."
-    ;; CLI properties
-    :long-option "all"
     :option-type :boolean
-    ;; Transient properties
     :key "A"
-    :transient "--all"
-    :class transient-switch
-    :argument "--all"
     :transient-group "Stats Options"
     :level 2
     :order 1)
    (assigned
-    :initarg :assigned
-    :type boolean
-    :initform nil
-    :documentation "Show issues assigned to current user (--assigned)."
-    ;; CLI properties
-    :long-option "assigned"
     :option-type :boolean
-    ;; Transient properties
     :key "a"
-    :transient "--assigned"
-    :class transient-switch
-    :argument "--assigned"
     :transient-group "Stats Options"
     :level 1
     :order 1)
    (no-activity
-    :initarg :no-activity
-    :type boolean
-    :initform nil
-    :documentation "Skip git activity tracking (--no-activity).
-Faster but omits recent activity section."
-    ;; CLI properties
-    :long-option "no-activity"
     :option-type :boolean
-    ;; Transient properties
     :key "n"
-    :transient "--no-activity"
-    :class transient-switch
-    :argument "--no-activity"
     :transient-group "Stats Options"
     :level 1
     :order 2))

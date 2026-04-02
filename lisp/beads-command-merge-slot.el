@@ -86,32 +86,15 @@ Returns: available, held by <holder>, or not found."
 
 (beads-defcommand beads-command-merge-slot-acquire (beads-command-global-options)
   ((holder
-    :initarg :holder
-    :type (or null string)
-    :initform nil
-    :documentation "Who is acquiring the slot (--holder).
-Defaults to BEADS_ACTOR environment variable."
-    :long-option "holder"
     :option-type :string
     :key "h"
-    :transient "Holder name"
-    :class transient-option
-    :argument "--holder="
     :prompt "Holder (default: BEADS_ACTOR): "
     :transient-group "Options"
     :level 1
     :order 1)
    (wait
-    :initarg :wait
-    :type boolean
-    :initform nil
-    :documentation "Add to waiters list if slot is held (--wait)."
-    :long-option "wait"
     :option-type :boolean
     :key "w"
-    :transient "--wait"
-    :class transient-switch
-    :argument "--wait"
     :transient-group "Options"
     :level 1
     :order 2))
@@ -141,16 +124,8 @@ If held, use --wait to join the waiters queue."
 
 (beads-defcommand beads-command-merge-slot-release (beads-command-global-options)
   ((holder
-    :initarg :holder
-    :type (or null string)
-    :initform nil
-    :documentation "Who is releasing the slot, for verification (--holder)."
-    :long-option "holder"
     :option-type :string
     :key "h"
-    :transient "Holder name (for verification)"
-    :class transient-option
-    :argument "--holder="
     :prompt "Holder (for verification): "
     :transient-group "Options"
     :level 1

@@ -116,17 +116,9 @@
 
 (beads-defcommand beads-command-formula-list (beads-command-global-options)
   ((formula-type
-    :initarg :formula-type
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by formula type (--type).
-Values: workflow, expansion, aspect."
     :long-option "type"
     :option-type :string
     :key "t"
-    :transient "Filter by type"
-    :class transient-option
-    :argument "--type="
     :choices ("workflow" "expansion" "aspect")
     :transient-group "Filters"
     :level 2
@@ -154,10 +146,6 @@ Lists available formulas from all search paths.")
 
 (beads-defcommand beads-command-formula-show (beads-command-global-options)
   ((formula-name
-    :initarg :formula-name
-    :type (or null string)
-    :initform nil
-    :documentation "Name of the formula to show (positional argument)."
     :positional 1))
   :documentation "Represents bd formula show command.
 Shows detailed information about a formula.")
@@ -184,31 +172,12 @@ Shows detailed information about a formula.")
 
 (beads-defcommand beads-command-formula-convert (beads-command-global-options)
   ((formula-name
-    :initarg :formula-name
-    :type (or null string)
-    :initform nil
-    :documentation "Name or path of the formula to convert (positional)."
     :positional 1)
    (all
-    :initarg :all
-    :type boolean
-    :initform nil
-    :documentation "Convert all JSON formulas (--all)."
-    :long-option "all"
     :option-type :boolean)
    (delete
-    :initarg :delete
-    :type boolean
-    :initform nil
-    :documentation "Delete JSON file after conversion (--delete)."
-    :long-option "delete"
     :option-type :boolean)
    (stdout
-    :initarg :stdout
-    :type boolean
-    :initform nil
-    :documentation "Print TOML to stdout instead of file (--stdout)."
-    :long-option "stdout"
     :option-type :boolean))
   :documentation "Represents bd formula convert command.
 Converts formula files from JSON to TOML format."

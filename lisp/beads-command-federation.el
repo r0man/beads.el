@@ -30,15 +30,9 @@
 
 (beads-defcommand beads-command-federation-add-peer (beads-command-global-options)
   ((peer-name
-    :initarg :peer-name
-    :type (or null string)
-    :initform nil
-    :documentation "Peer name (positional argument)."
     :positional 1
     :option-type :string
     :key "n"
-    :transient "Name (required)"
-    :class transient-option
     :argument "--name="
     :prompt "Peer name: "
     :transient-group "Add Peer"
@@ -46,16 +40,9 @@
     :order 1
     :required t)
    (url
-    :initarg :url
-    :type (or null string)
-    :initform nil
-    :documentation "Peer URL (positional argument).
-Formats: dolthub://org/repo, host:port/database, file:///path."
     :positional 2
     :option-type :string
     :key "u"
-    :transient "URL (required)"
-    :class transient-option
     :argument "--url="
     :prompt "Peer URL: "
     :transient-group "Add Peer"
@@ -63,49 +50,24 @@ Formats: dolthub://org/repo, host:port/database, file:///path."
     :order 2
     :required t)
    (user
-    :initarg :user
-    :type (or null string)
-    :initform nil
-    :documentation "SQL username for authentication (-u, --user)."
-    :long-option "user"
     :short-option "u"
     :option-type :string
     :key "U"
-    :transient "--user"
-    :class transient-option
-    :argument "--user="
     :prompt "SQL username: "
     :transient-group "Auth"
     :level 2
     :order 3)
    (password
-    :initarg :password
-    :type (or null string)
-    :initform nil
-    :documentation "SQL password (-p, --password)."
-    :long-option "password"
     :short-option "p"
     :option-type :string
     :key "p"
-    :transient "--password"
-    :class transient-option
-    :argument "--password="
     :prompt "SQL password: "
     :transient-group "Auth"
     :level 2
     :order 4)
    (sovereignty
-    :initarg :sovereignty
-    :type (or null string)
-    :initform nil
-    :documentation "Sovereignty tier (--sovereignty).
-Values: T1, T2, T3, T4."
-    :long-option "sovereignty"
     :option-type :string
     :key "s"
-    :transient "--sovereignty"
-    :class transient-option
-    :argument "--sovereignty="
     :prompt "Sovereignty tier (T1|T2|T3|T4): "
     :transient-group "Options"
     :level 2
@@ -130,15 +92,9 @@ Requires Dolt backend."
 
 (beads-defcommand beads-command-federation-remove-peer (beads-command-global-options)
   ((peer-name
-    :initarg :peer-name
-    :type (or null string)
-    :initform nil
-    :documentation "Peer name to remove (positional argument)."
     :positional 1
     :option-type :string
     :key "n"
-    :transient "Name (required)"
-    :class transient-option
     :argument "--name="
     :prompt "Peer name to remove: "
     :transient-group "Remove Peer"
@@ -172,33 +128,15 @@ Requires Dolt backend."
 
 (beads-defcommand beads-command-federation-sync (beads-command-global-options)
   ((peer
-    :initarg :peer
-    :type (or null string)
-    :initform nil
-    :documentation "Specific peer to sync with (--peer).
-When nil, syncs with all peers."
-    :long-option "peer"
     :option-type :string
     :key "p"
-    :transient "--peer"
-    :class transient-option
-    :argument "--peer="
     :prompt "Peer (empty=all): "
     :transient-group "Options"
     :level 1
     :order 1)
    (strategy
-    :initarg :strategy
-    :type (or null string)
-    :initform nil
-    :documentation "Conflict resolution strategy (--strategy).
-Values: ours, theirs."
-    :long-option "strategy"
     :option-type :string
     :key "s"
-    :transient "--strategy"
-    :class transient-option
-    :argument "--strategy="
     :prompt "Strategy (ours|theirs): "
     :transient-group "Options"
     :level 2
@@ -219,17 +157,8 @@ Requires Dolt backend.")
 
 (beads-defcommand beads-command-federation-status (beads-command-global-options)
   ((peer
-    :initarg :peer
-    :type (or null string)
-    :initform nil
-    :documentation "Specific peer to check (--peer).
-When nil, shows all peers."
-    :long-option "peer"
     :option-type :string
     :key "p"
-    :transient "--peer"
-    :class transient-option
-    :argument "--peer="
     :prompt "Peer (empty=all): "
     :transient-group "Options"
     :level 1

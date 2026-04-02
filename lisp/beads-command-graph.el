@@ -35,50 +35,23 @@
 
 (beads-defcommand beads-command-graph (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to show graph for."
     :positional 1)
    (all
-    :initarg :all
-    :type boolean
-    :initform nil
-    :documentation "Show graph for all open issues."
-    :long-option "all"
     :option-type :boolean
     :key "a"
-    :transient "--all"
-    :class transient-switch
-    :argument "--all"
     :transient-group "Options"
     :level 1
     :order 1)
    (box
-    :initarg :box
-    :type boolean
     :initform t
-    :documentation "ASCII boxes showing layers (default)."
-    :long-option "box"
     :option-type :boolean
     :key "b"
-    :transient "--box"
-    :class transient-switch
-    :argument "--box"
     :transient-group "Display"
     :level 1
     :order 2)
    (compact
-    :initarg :compact
-    :type boolean
-    :initform nil
-    :documentation "Tree format, one line per issue."
-    :long-option "compact"
     :option-type :boolean
     :key "c"
-    :transient "--compact"
-    :class transient-switch
-    :argument "--compact"
     :transient-group "Display"
     :level 1
     :order 3))

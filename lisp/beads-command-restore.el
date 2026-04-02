@@ -28,15 +28,9 @@
 
 (beads-defcommand beads-command-restore (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to restore (positional argument)."
     :positional 1
     :option-type :string
     :key "i"
-    :transient "Issue ID (required)"
-    :class transient-option
     :argument "--id="
     :prompt "Issue ID: "
     :transient-reader beads-reader-close-issue-id
