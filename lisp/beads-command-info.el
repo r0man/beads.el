@@ -34,44 +34,20 @@
 
 (beads-defcommand beads-command-info (beads-command-global-options)
   ((schema
-    :initarg :schema
-    :type boolean
-    :initform nil
-    :documentation "Include schema information in output (--schema)."
-    :long-option "schema"
     :option-type :boolean
     :key "s"
-    :transient "Show schema info"
-    :class transient-switch
-    :argument "--schema"
     :transient-group "Options"
     :level 2
     :order 1)
    (whats-new
-    :initarg :whats-new
-    :type boolean
-    :initform nil
-    :documentation "Show agent-relevant changes from recent versions (--whats-new)."
-    :long-option "whats-new"
     :option-type :boolean
     :key "w"
-    :transient "Show what's new"
-    :class transient-switch
-    :argument "--whats-new"
     :transient-group "Options"
     :level 2
     :order 2)
    (thanks
-    :initarg :thanks
-    :type boolean
-    :initform nil
-    :documentation "Show thank you page for contributors (--thanks)."
-    :long-option "thanks"
     :option-type :boolean
     :key "t"
-    :transient "Show contributors"
-    :class transient-switch
-    :argument "--thanks"
     :transient-group "Options"
     :level 2
     :order 3))

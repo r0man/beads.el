@@ -25,37 +25,17 @@
 
 (beads-defcommand beads-command-swarm-create (beads-command-global-options)
   ((epic-id
-    :initarg :epic-id
-    :type (or null string)
-    :initform nil
-    :documentation "Epic ID to create swarm from."
     :positional 1)
    (coordinator
-    :initarg :coordinator
-    :type (or null string)
-    :initform nil
-    :documentation "Agent to act as swarm coordinator."
-    :long-option "coordinator"
     :option-type :string
     :key "c"
-    :transient "--coordinator"
-    :class transient-option
-    :argument "--coordinator="
     :prompt "Coordinator agent: "
     :transient-group "Options"
     :level 1
     :order 1)
    (force
-    :initarg :force
-    :type boolean
-    :initform nil
-    :documentation "Force creation even with validation warnings."
-    :long-option "force"
     :option-type :boolean
     :key "f"
-    :transient "--force"
-    :class transient-switch
-    :argument "--force"
     :transient-group "Options"
     :level 1
     :order 2))
@@ -84,10 +64,6 @@ Lists all swarm molecules.")
 
 (beads-defcommand beads-command-swarm-status (beads-command-global-options)
   ((swarm-id
-    :initarg :swarm-id
-    :type (or null string)
-    :initform nil
-    :documentation "Swarm ID to show status for."
     :positional 1))
   :documentation "Represents bd swarm status command.
 Shows current swarm status.")
@@ -99,10 +75,6 @@ Shows current swarm status.")
 
 (beads-defcommand beads-command-swarm-validate (beads-command-global-options)
   ((epic-id
-    :initarg :epic-id
-    :type (or null string)
-    :initform nil
-    :documentation "Epic ID to validate."
     :positional 1))
   :documentation "Represents bd swarm validate command.
 Validates epic structure for swarming.")

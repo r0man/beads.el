@@ -32,44 +32,21 @@
 
 (beads-defcommand beads-command-status (beads-command-global-options)
   ((all-issues
-    :initarg :all-issues
-    :type boolean
-    :initform nil
-    :documentation "Show all issues (default behavior) (--all)."
     :long-option "all"
     :option-type :boolean
     :key "a"
-    :transient "Show all issues"
-    :class transient-switch
-    :argument "--all"
     :transient-group "Options"
     :level 2
     :order 1)
    (assigned
-    :initarg :assigned
-    :type boolean
-    :initform nil
-    :documentation "Show issues assigned to current user (--assigned)."
-    :long-option "assigned"
     :option-type :boolean
     :key "m"
-    :transient "Show assigned to me"
-    :class transient-switch
-    :argument "--assigned"
     :transient-group "Options"
     :level 2
     :order 2)
    (no-activity
-    :initarg :no-activity
-    :type boolean
-    :initform nil
-    :documentation "Skip git activity analysis for faster output (--no-activity)."
-    :long-option "no-activity"
     :option-type :boolean
     :key "n"
-    :transient "Skip activity (faster)"
-    :class transient-switch
-    :argument "--no-activity"
     :transient-group "Options"
     :level 2
     :order 3))

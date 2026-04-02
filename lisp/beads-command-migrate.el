@@ -25,73 +25,33 @@
 
 (beads-defcommand beads-command-migrate (beads-command-global-options)
   ((dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Show what would be done."
-    :long-option "dry-run"
     :option-type :boolean
     :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
     :transient-group "Options"
     :level 1
     :order 1)
    (cleanup
-    :initarg :cleanup
-    :type boolean
-    :initform nil
-    :documentation "Remove old database files after migration."
-    :long-option "cleanup"
     :option-type :boolean
     :key "c"
-    :transient "--cleanup"
-    :class transient-switch
-    :argument "--cleanup"
     :transient-group "Options"
     :level 1
     :order 2)
    (yes
-    :initarg :yes
-    :type boolean
-    :initform nil
-    :documentation "Auto-confirm prompts."
-    :long-option "yes"
     :short-option "y"
     :option-type :boolean
     :key "y"
-    :transient "--yes"
-    :class transient-switch
-    :argument "--yes"
     :transient-group "Options"
     :level 1
     :order 3)
    (inspect
-    :initarg :inspect
-    :type boolean
-    :initform nil
-    :documentation "Show migration plan for AI analysis."
-    :long-option "inspect"
     :option-type :boolean
     :key "i"
-    :transient "--inspect"
-    :class transient-switch
-    :argument "--inspect"
     :transient-group "Options"
     :level 2
     :order 4)
    (update-repo-id
-    :initarg :update-repo-id
-    :type boolean
-    :initform nil
-    :documentation "Update repo_id on issues to match repo name."
-    :long-option "update-repo-id"
     :option-type :boolean
     :key "u"
-    :transient "--update-repo-id"
-    :class transient-switch
-    :argument "--update-repo-id"
     :transient-group "Options"
     :level 2
     :order 5))
@@ -105,16 +65,8 @@ Detects and migrates database schema to current version.")
 
 (beads-defcommand beads-command-migrate-issues (beads-command-global-options)
   ((source
-    :initarg :source
-    :type (or null string)
-    :initform nil
-    :documentation "Source repository path."
     :positional 1)
    (target
-    :initarg :target
-    :type (or null string)
-    :initform nil
-    :documentation "Target repository path."
     :positional 2))
   :documentation "Represents bd migrate issues command.
 Moves issues between repositories.")
@@ -158,44 +110,20 @@ Migrates to sync.branch workflow for multi-clone setups.")
 
 (beads-defcommand beads-command-migrate-hooks (beads-command-global-options)
   ((dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Show what would be done without making changes (--dry-run)."
-    :long-option "dry-run"
     :option-type :boolean
     :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
     :transient-group "Options"
     :level 1
     :order 1)
    (apply
-    :initarg :apply
-    :type boolean
-    :initform nil
-    :documentation "Apply planned hook migration changes (--apply)."
-    :long-option "apply"
     :option-type :boolean
     :key "a"
-    :transient "--apply"
-    :class transient-switch
-    :argument "--apply"
     :transient-group "Options"
     :level 1
     :order 2)
    (yes
-    :initarg :yes
-    :type boolean
-    :initform nil
-    :documentation "Skip confirmation prompt for --apply (--yes)."
-    :long-option "yes"
     :option-type :boolean
     :key "y"
-    :transient "--yes"
-    :class transient-switch
-    :argument "--yes"
     :transient-group "Options"
     :level 1
     :order 3))

@@ -49,17 +49,9 @@
 
 (beads-defcommand beads-command-dep-add (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue that will depend on another (positional arg 1)."
-    ;; CLI properties
     :positional 1
     :option-type :string
-    ;; Transient properties
     :key "i"
-    :transient "Issue ID"
-    :class transient-option
     :argument "--id="
     :prompt "Issue ID: "
     :transient-reader beads-reader-issue-id
@@ -68,19 +60,9 @@
     :order 1
     :required t)
    (depends-on
-    :initarg :depends-on
-    :type (or null string)
-    :initform nil
-    :documentation "Issue that blocks the first issue (positional arg 2).
-Can also use --blocked-by or --depends-on flags.
-Can be a local issue ID or external:project:capability."
-    ;; CLI properties
     :positional 2
     :option-type :string
-    ;; Transient properties
     :key "d"
-    :transient "Depends on"
-    :class transient-option
     :argument "--depends-on="
     :prompt "Depends on: "
     :transient-reader beads-reader-issue-id
@@ -89,41 +71,18 @@ Can be a local issue ID or external:project:capability."
     :order 2
     :required t)
    (blocked-by
-    :initarg :blocked-by
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID that blocks the first issue (--blocked-by).
-Alternative to positional arg.  Alias for --depends-on."
-    ;; CLI properties
-    :long-option "blocked-by"
     :option-type :string
-    ;; Transient properties
     :key "b"
-    :transient "--blocked-by"
-    :class transient-option
-    :argument "--blocked-by="
     :prompt "Blocked by: "
     :transient-reader beads-reader-issue-id
     :transient-group "Add Dependency"
     :level 2
     :order 1)
    (dep-type
-    :initarg :dep-type
-    :type (or null string)
-    :initform nil
-    :documentation "Dependency type (-t, --type).
-Values: blocks, tracks, related, parent-child, discovered-from,
-until, caused-by, validates, relates-to, supersedes.
-Default: blocks."
-    ;; CLI properties
     :long-option "type"
     :short-option "t"
     :option-type :string
-    ;; Transient properties
     :key "t"
-    :transient "--type"
-    :class transient-option
-    :argument "--type="
     :prompt "Dependency type: "
     :transient-group "Add Dependency"
     :level 1
@@ -171,17 +130,9 @@ Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
 
 (beads-defcommand beads-command-dep-remove (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue with the dependency (positional arg 1)."
-    ;; CLI properties
     :positional 1
     :option-type :string
-    ;; Transient properties
     :key "i"
-    :transient "Issue ID"
-    :class transient-option
     :argument "--id="
     :prompt "Issue ID: "
     :transient-reader beads-reader-issue-id
@@ -190,17 +141,9 @@ Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
     :order 1
     :required t)
    (depends-on
-    :initarg :depends-on
-    :type (or null string)
-    :initform nil
-    :documentation "Issue to remove from dependencies (positional arg 2)."
-    ;; CLI properties
     :positional 2
     :option-type :string
-    ;; Transient properties
     :key "d"
-    :transient "Depends on"
-    :class transient-option
     :argument "--depends-on="
     :prompt "Remove dependency on: "
     :transient-reader beads-reader-issue-id
@@ -250,17 +193,9 @@ Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
 
 (beads-defcommand beads-command-dep-list (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue to list dependencies for (positional arg)."
-    ;; CLI properties
     :positional 1
     :option-type :string
-    ;; Transient properties
     :key "i"
-    :transient "Issue ID"
-    :class transient-option
     :argument "--id="
     :prompt "Issue ID: "
     :transient-reader beads-reader-issue-id
@@ -269,39 +204,17 @@ Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
     :order 1
     :required t)
    (direction
-    :initarg :direction
-    :type (or null string)
-    :initform nil
-    :documentation "Direction to list (--direction).
-Values: down (dependencies), up (dependents).
-Default: down."
-    ;; CLI properties
-    :long-option "direction"
     :option-type :string
-    ;; Transient properties
     :key "D"
-    :transient "--direction"
-    :class transient-option
-    :argument "--direction="
     :prompt "Direction (down/up): "
     :transient-group "List Dependencies"
     :level 1
     :order 2)
    (dep-type
-    :initarg :dep-type
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by dependency type (-t, --type).
-Values: tracks, blocks, parent-child, etc."
-    ;; CLI properties
     :long-option "type"
     :short-option "t"
     :option-type :string
-    ;; Transient properties
     :key "t"
-    :transient "--type"
-    :class transient-option
-    :argument "--type="
     :prompt "Dependency type: "
     :transient-group "List Dependencies"
     :level 1
@@ -364,17 +277,9 @@ Does not modify any slots."
 
 (beads-defcommand beads-command-dep-tree (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Root issue for the tree (positional arg)."
-    ;; CLI properties
     :positional 1
     :option-type :string
-    ;; Transient properties
     :key "i"
-    :transient "Issue ID"
-    :class transient-option
     :argument "--id="
     :prompt "Issue ID: "
     :transient-reader beads-reader-issue-id
@@ -383,113 +288,47 @@ Does not modify any slots."
     :order 1
     :required t)
    (direction
-    :initarg :direction
-    :type (or null string)
-    :initform nil
-    :documentation "Tree direction (--direction).
-Values: down (dependencies), up (dependents), both.
-Default: down."
-    ;; CLI properties
-    :long-option "direction"
     :option-type :string
-    ;; Transient properties
     :key "D"
-    :transient "--direction"
-    :class transient-option
-    :argument "--direction="
     :prompt "Direction (down/up/both): "
     :transient-group "Dependency Tree"
     :level 1
     :order 2)
    (max-depth
-    :initarg :max-depth
-    :type (or null integer)
-    :initform nil
-    :documentation "Maximum tree depth (-d, --max-depth).
-Safety limit, default: 50."
-    ;; CLI properties
-    :long-option "max-depth"
     :short-option "d"
     :option-type :integer
-    ;; Transient properties
     :key "d"
-    :transient "--max-depth"
-    :class transient-option
-    :argument "--max-depth="
     :prompt "Max depth: "
     :transient-group "Dependency Tree"
     :level 2
     :order 1)
    (status
-    :initarg :status
-    :type (or null string)
-    :initform nil
-    :documentation "Filter to only show issues with this status (--status).
-Values: open, in_progress, blocked, deferred, closed."
-    ;; CLI properties
-    :long-option "status"
     :option-type :string
-    ;; Transient properties
     :key "s"
-    :transient "--status"
-    :class transient-option
-    :argument "--status="
     :prompt "Status filter: "
     :transient-reader beads-reader-list-status
     :transient-group "Dependency Tree"
     :level 1
     :order 3)
    (dep-type
-    :initarg :dep-type
-    :type (or null string)
-    :initform nil
-    :documentation "Filter to only show dependencies of this type (-t, --type).
-Values: tracks, blocks, parent-child, etc."
-    ;; CLI properties
     :long-option "type"
     :short-option "t"
     :option-type :string
-    ;; Transient properties
     :key "t"
-    :transient "--type"
-    :class transient-option
-    :argument "--type="
     :prompt "Dependency type: "
     :transient-group "Dependency Tree"
     :level 2
     :order 2)
    (format
-    :initarg :format
-    :type (or null string)
-    :initform nil
-    :documentation "Output format (--format).
-Values: 'mermaid' for Mermaid.js flowchart."
-    ;; CLI properties
-    :long-option "format"
     :option-type :string
-    ;; Transient properties
     :key "F"
-    :transient "--format"
-    :class transient-option
-    :argument "--format="
     :prompt "Format (mermaid): "
     :transient-group "Dependency Tree"
     :level 2
     :order 3)
    (show-all-paths
-    :initarg :show-all-paths
-    :type boolean
-    :initform nil
-    :documentation "Show all paths to nodes (--show-all-paths).
-No deduplication for diamond dependencies."
-    ;; CLI properties
-    :long-option "show-all-paths"
     :option-type :boolean
-    ;; Transient properties
     :key "ap"
-    :transient "--show-all-paths"
-    :class transient-switch
-    :argument "--show-all-paths"
     :transient-group "Dependency Tree"
     :level 3
     :order 1))
@@ -550,17 +389,9 @@ Returns nil (always valid)."
 
 (beads-defcommand beads-command-dep-relate (beads-command-global-options)
   ((id1
-    :initarg :id1
-    :type (or null string)
-    :initform nil
-    :documentation "First issue ID."
     :positional 1
     :required t)
    (id2
-    :initarg :id2
-    :type (or null string)
-    :initform nil
-    :documentation "Second issue ID."
     :positional 2
     :required t))
   :documentation "Represents bd dep relate command.
@@ -582,17 +413,9 @@ Creates a bidirectional relates_to link between two issues.")
 
 (beads-defcommand beads-command-dep-unrelate (beads-command-global-options)
   ((id1
-    :initarg :id1
-    :type (or null string)
-    :initform nil
-    :documentation "First issue ID."
     :positional 1
     :required t)
    (id2
-    :initarg :id2
-    :type (or null string)
-    :initform nil
-    :documentation "Second issue ID."
     :positional 2
     :required t))
   :documentation "Represents bd dep unrelate command.

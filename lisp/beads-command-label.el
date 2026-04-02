@@ -89,18 +89,10 @@ Format: (TIMESTAMP . LABELS-LIST)")
 
 (beads-defcommand beads-command-label-add (beads-command-global-options)
   ((issue-ids
-    :initarg :issue-ids
-    :type (or null list)
-    :initform nil
-    :documentation "One or more issue IDs to add the label to (positional)."
-    ;; CLI properties
     :positional 1
     :option-type :list
     :option-separator " "
-    ;; Transient properties
     :key "i"
-    :transient "Issue IDs"
-    :class transient-option
     :argument "--id="
     :prompt "Issue ID(s): "
     :transient-reader beads-reader-issue-id
@@ -109,19 +101,10 @@ Format: (TIMESTAMP . LABELS-LIST)")
     :order 1
     :required t)
    (label
-    :initarg :label
-    :type (or null string)
-    :initform nil
-    :documentation "Label to add (positional, last argument)."
-    ;; CLI properties
     :positional 2
     :option-type :string
-    ;; Transient properties
     :key "l"
-    :transient "Label"
-    :class transient-option
     :argument "--label="
-    :prompt "Label: "
     :transient-group "Add Label"
     :level 1
     :order 2
@@ -156,18 +139,10 @@ Returns error string or nil if valid."
 
 (beads-defcommand beads-command-label-remove (beads-command-global-options)
   ((issue-ids
-    :initarg :issue-ids
-    :type (or null list)
-    :initform nil
-    :documentation "One or more issue IDs to remove the label from (positional)."
-    ;; CLI properties
     :positional 1
     :option-type :list
     :option-separator " "
-    ;; Transient properties
     :key "i"
-    :transient "Issue IDs"
-    :class transient-option
     :argument "--id="
     :prompt "Issue ID(s): "
     :transient-reader beads-reader-issue-id
@@ -176,19 +151,10 @@ Returns error string or nil if valid."
     :order 1
     :required t)
    (label
-    :initarg :label
-    :type (or null string)
-    :initform nil
-    :documentation "Label to remove (positional, last argument)."
-    ;; CLI properties
     :positional 2
     :option-type :string
-    ;; Transient properties
     :key "l"
-    :transient "Label"
-    :class transient-option
     :argument "--label="
-    :prompt "Label: "
     :transient-group "Remove Label"
     :level 1
     :order 2
@@ -223,19 +189,10 @@ Returns error string or nil if valid."
 
 (beads-defcommand beads-command-label-list (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to list labels for (positional)."
-    ;; CLI properties
     :positional 1
     :option-type :string
-    ;; Transient properties
     :key "i"
-    :transient "Issue ID"
-    :class transient-option
     :argument "--id="
-    :prompt "Issue ID: "
     :transient-reader beads-reader-issue-id
     :transient-group "List Labels"
     :level 1
@@ -272,15 +229,9 @@ Returns nil (always valid)."
 
 (beads-defcommand beads-command-label-propagate (beads-command-global-options)
   ((parent-id
-    :initarg :parent-id
-    :type (or null string)
-    :initform nil
-    :documentation "Parent issue ID to propagate label from (positional)."
     :positional 1
     :option-type :string
     :key "p"
-    :transient "Parent issue ID"
-    :class transient-option
     :argument "--parent-id="
     :prompt "Parent issue ID: "
     :transient-reader beads-reader-issue-id
@@ -289,17 +240,10 @@ Returns nil (always valid)."
     :order 1
     :required t)
    (label
-    :initarg :label
-    :type (or null string)
-    :initform nil
-    :documentation "Label to propagate to children (positional)."
     :positional 2
     :option-type :string
     :key "l"
-    :transient "Label"
-    :class transient-option
     :argument "--label="
-    :prompt "Label: "
     :transient-reader beads-reader-label-name
     :transient-group "Propagate Label"
     :level 1

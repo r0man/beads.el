@@ -259,23 +259,10 @@ Returns error message string or nil if valid."
 
 (beads-defcommand beads-command-worktree-create (beads-command-global-options)
   ((name
-    :initarg :name
-    :type (or null string)
-    :initform nil
-    :documentation "Worktree name (also used as directory name)."
     :positional 1)
    (branch
-    :initarg :branch
-    :type (or null string)
-    :initform nil
-    :documentation "Branch name for the worktree (--branch).
-Default: same as worktree name."
-    :long-option "branch"
     :option-type :string
     :key "b"
-    :transient "--branch"
-    :class transient-option
-    :argument "--branch="
     :prompt "Branch name: "
     :transient-group "Options"
     :level 1
@@ -345,24 +332,10 @@ Returns list of beads-worktree instances."
 
 (beads-defcommand beads-command-worktree-remove (beads-command-global-options)
   ((name
-    :initarg :name
-    :type (or null string)
-    :initform nil
-    :documentation "Worktree name to remove."
     :positional 1)
    (force
-    :initarg :force
-    :type boolean
-    :initform nil
-    :documentation "Skip safety checks (--force).
-By default, removal checks for uncommitted changes, unpushed commits,
-and stashes."
-    :long-option "force"
     :option-type :boolean
     :key "f"
-    :transient "--force"
-    :class transient-switch
-    :argument "--force"
     :transient-group "Options"
     :level 1
     :order 1))

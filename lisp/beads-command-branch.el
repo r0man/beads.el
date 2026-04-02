@@ -32,16 +32,9 @@
 
 (beads-defcommand beads-command-branch (beads-command-global-options)
   ((name
-    :initarg :name
-    :type (or null string)
-    :initform nil
-    :documentation "Branch name to create (positional, optional).
-When nil, lists all branches."
     :positional 1
     :option-type :string
     :key "n"
-    :transient "Branch name"
-    :class transient-option
     :argument "--name="
     :prompt "Branch name (empty=list): "
     :transient-group "Branch"

@@ -30,53 +30,25 @@
 
 (beads-defcommand beads-command-stale (beads-command-global-options)
   ((days
-    :initarg :days
-    :type (or null integer)
-    :initform nil
-    :documentation "Issues not updated in this many days (--days).
-Default is 30 days."
-    :long-option "days"
-    :short-option "d"
     :option-type :integer
+    :short-option "d"
     :key "d"
-    :transient "Days threshold"
-    :class transient-option
-    :argument "--days="
     :prompt "Days (default 30): "
     :transient-group "Filters"
     :level 2
     :order 1)
    (limit
-    :initarg :limit
-    :type (or null integer)
-    :initform nil
-    :documentation "Maximum issues to show (--limit).
-Default is 50."
-    :long-option "limit"
-    :short-option "n"
     :option-type :integer
+    :short-option "n"
     :key "n"
-    :transient "Result limit"
-    :class transient-option
-    :argument "--limit="
     :prompt "Limit (default 50): "
     :transient-group "Filters"
     :level 2
     :order 2)
    (status
-    :initarg :status
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by status (--status).
-Valid values: open, in_progress, blocked, deferred."
-    :long-option "status"
-    :short-option "s"
     :option-type :string
+    :short-option "s"
     :key "s"
-    :transient "Filter by status"
-    :class transient-option
-    :argument "--status="
-    :prompt "Status: "
     :choices ("open" "in_progress" "blocked" "deferred")
     :transient-group "Filters"
     :level 2

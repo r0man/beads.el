@@ -28,15 +28,9 @@
 
 (beads-defcommand beads-command-sql (beads-command-global-options)
   ((query
-    :initarg :query
-    :type (or null string)
-    :initform nil
-    :documentation "SQL query to execute (positional argument)."
     :positional 1
     :option-type :string
     :key "q"
-    :transient "SQL query (required)"
-    :class transient-option
     :argument "--query="
     :prompt "SQL query: "
     :transient-group "SQL"
@@ -44,17 +38,8 @@
     :order 1
     :required t)
    (csv
-    :initarg :csv
-    :type boolean
-    :initform nil
-    :documentation "Output results in CSV format (--csv).
-For SELECT queries only."
-    :long-option "csv"
     :option-type :boolean
     :key "c"
-    :transient "--csv"
-    :class transient-switch
-    :argument "--csv"
     :transient-group "Options"
     :level 2
     :order 2))
