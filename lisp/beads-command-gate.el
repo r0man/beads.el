@@ -27,14 +27,12 @@
   ((all
     :short-option "a"
     :option-type :boolean
-    :key "a"
     :group "Options"
     :level 1
     :order 1)
    (limit
     :short-option "n"
     :option-type :integer
-    :key "n"
     :group "Options"
     :level 1
     :order 2))
@@ -50,28 +48,25 @@ Lists gate issues.")
   ((type
     :short-option "t"
     :option-type :string
-    :key "t"
     :prompt "Gate type: "
     :group "Options"
     :level 1
     :order 1)
    (dry-run
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :group "Options"
     :level 1
     :order 2)
    (escalate
     :short-option "e"
     :option-type :boolean
-    :key "e"
     :group "Options"
     :level 1
     :order 3)
    (limit
     :short-option "l"
     :option-type :integer
-    :key "l"
     :group "Options"
     :level 1
     :order 4))
@@ -89,9 +84,8 @@ Evaluates gates and closes resolved ones.")
    (reason
     :short-option "r"
     :option-type :string
-    :key "r"
     :transient beads-transient-multiline
-    :field-name "Resolve Reason"
+    :documentation "Resolve Reason"
     :group "Options"
     :level 1
     :order 1))

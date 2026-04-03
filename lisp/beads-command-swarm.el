@@ -28,14 +28,14 @@
     :positional 1)
    (coordinator
     :option-type :string
-    :key "c"
+    :short-option "c"
     :prompt "Coordinator agent: "
     :group "Options"
     :level 1
     :order 1)
    (force
     :option-type :boolean
-    :key "f"
+    :short-option "f"
     :group "Options"
     :level 1
     :order 2))

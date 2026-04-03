@@ -36,7 +36,7 @@
 (beads-defcommand beads-command-edit (beads-command-global-options)
   ((issue-id
     :positional 1
-    :key "i"
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID: "
     :reader beads-reader-edit-issue-id
@@ -45,31 +45,31 @@
     :order 1)
    (title
     :option-type :boolean
-    :key "t"
+    :short-option "t"
     :group "Field"
     :level 1
     :order 1)
    (description
     :option-type :boolean
-    :key "d"
+    :short-option "d"
     :group "Field"
     :level 1
     :order 2)
    (design
     :option-type :boolean
-    :key "D"
+    :short-option "D"
     :group "Field"
     :level 1
     :order 3)
    (notes
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :group "Field"
     :level 1
     :order 4)
    (acceptance
     :option-type :boolean
-    :key "a"
+    :short-option "a"
     :group "Field"
     :level 1
     :order 5))

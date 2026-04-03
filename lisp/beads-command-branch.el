@@ -34,7 +34,7 @@
   ((name
     :positional 1
     :option-type :string
-    :key "n"
+    :short-option "n"
     :argument "--name="
     :prompt "Branch name (empty=list): "
     :group "Branch"

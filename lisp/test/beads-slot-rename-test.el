@@ -7,7 +7,7 @@
 ;; ERT tests for the slot property rename infrastructure (bde-vta5):
 ;; - :separator alias for :option-separator
 ;; - :json-key support with hyphen → underscore default
-;; - :short-option → :transient-key inference
+;; - :short-option → :transient-key inference (always, no guard condition)
 ;; - beads-meta--slot-json-key helper
 ;; - beads-meta-slot-initarg and beads-meta-slot-type accessors
 
@@ -26,10 +26,10 @@
   ((labels
     :option-type :list
     :separator ","
-    :key "l"
+    :short-option "l"
+    :group "Options"
     :required t)
-   ;; Slot with :short-option but no :key — should infer :key
-   ;; (only when transient metadata like :group is present)
+   ;; Slot with :short-option — always infers :transient-key
    (status
     :option-type :string
     :short-option "s"
@@ -37,12 +37,12 @@
    ;; Slot with custom :json-key
    (issue-type
     :option-type :string
-    :key "t"
+    :short-option "t"
     :json-key dep_type)
    ;; Slot with default json-key (hyphen → underscore)
    (created-at
     :option-type :string
-    :key "c"))
+    :short-option "c"))
   :documentation "Test command for rename infrastructure."
   :transient nil)
 
@@ -94,9 +94,9 @@
                  (beads-meta-slot-property
                   'beads-command-test-rename 'status :transient-key))))
 
-(ert-deftest beads-slot-rename-test-explicit-key-not-overridden ()
-  "Explicit :key is not overridden by :short-option."
-  ;; labels has :key "l" explicitly set
+(ert-deftest beads-slot-rename-test-short-option-infers-transient-key-with-group ()
+  ":short-option infers :transient-key when transient metadata present."
+  ;; labels has :short-option "l" and :group "Options"
   (should (equal "l"
                  (beads-meta-slot-property
                   'beads-command-test-rename 'labels :transient-key))))

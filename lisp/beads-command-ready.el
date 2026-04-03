@@ -43,13 +43,12 @@
   ((assignee
     :option-type :string
     :short-option "a"
-    :key "a"
     :group "Filters"
     :level 1
     :order 1)
    (include-deferred
     :option-type :boolean
-    :key "D"
+    :short-option "D"
     :group "Filters"
     :level 2
     :order 8)
@@ -57,7 +56,7 @@
     :long-option "type"
     :short-option "t"
     :option-type :string
-    :key "T"
+    :transient-key "T"
     :reader beads-reader-list-type
     :group "Filters"
     :level 1
@@ -65,7 +64,6 @@
    (label
     :option-type :list
     :short-option "l"
-    :key "l"
     :prompt "Label (AND): "
     :reader beads-reader-list-label
     :group "Label Filters"
@@ -73,7 +71,7 @@
     :order 1)
    (label-any
     :option-type :list
-    :key "L"
+    :short-option "L"
     :prompt "Label (OR): "
     :reader beads-reader-list-label
     :group "Label Filters"
@@ -82,13 +80,12 @@
    (limit
     :option-type :integer
     :short-option "n"
-    :key "n"
     :group "Display"
     :level 1
     :order 1)
    (mol
     :option-type :string
-    :key "m"
+    :short-option "m"
     :prompt "Molecule ID: "
     :reader beads-reader-issue-id
     :group "Scope"
@@ -96,14 +93,14 @@
     :order 1)
    (mol-type
     :option-type :string
-    :key "M"
+    :short-option "M"
     :choices '("swarm" "patrol" "work")
     :group "Scope"
     :level 2
     :order 2)
    (parent
     :option-type :string
-    :key "P"
+    :short-option "P"
     :prompt "Parent ID: "
     :reader beads-reader-issue-id
     :group "Scope"
@@ -111,14 +108,13 @@
     :order 3)
    (pretty
     :option-type :boolean
-    :key "y"
+    :short-option "y"
     :group "Display"
     :level 2
     :order 2)
    (priority
     :option-type :integer
     :short-option "p"
-    :key "p"
     :reader beads-reader-list-priority
     :group "Filters"
     :level 1
@@ -126,7 +122,6 @@
    (sort
     :option-type :string
     :short-option "s"
-    :key "s"
     :choices '("hybrid" "priority" "oldest")
     :group "Display"
     :level 1
@@ -134,7 +129,6 @@
    (unassigned
     :option-type :boolean
     :short-option "u"
-    :key "u"
     :group "Filters"
     :level 1
     :order 3))

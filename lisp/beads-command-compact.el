@@ -59,7 +59,7 @@ Shows compaction statistics including tier 1 and tier 2 candidates."
 (beads-defcommand beads-command-compact-analyze (beads-command-global-options)
   ((tier
     :option-type :integer
-    :key "t"
+    :short-option "t"
     :prompt "Tier (1 or 2): "
     :choices '("1" "2")
     :group "Analyze Options"
@@ -67,7 +67,7 @@ Shows compaction statistics including tier 1 and tier 2 candidates."
     :order 1)
    (limit
     :option-type :integer
-    :key "l"
+    :short-option "l"
     :prompt "Limit (0 = no limit): "
     :group "Analyze Options"
     :level 1
@@ -89,7 +89,7 @@ Exports compaction candidates for agent review."
   ((issue-id
     :long-option "id"
     :option-type :string
-    :key "i"
+    :short-option "i"
     :prompt "Issue ID: "
     :reader beads-reader-issue-id
     :group "Apply Options"
@@ -98,7 +98,7 @@ Exports compaction candidates for agent review."
     :required t)
    (summary
     :option-type :string
-    :key "s"
+    :short-option "s"
     :prompt "Summary file path: "
     :group "Apply Options"
     :level 1
@@ -138,7 +138,7 @@ Accepts agent-provided summary for an issue."
   ((issue-id
     :long-option "id"
     :option-type :string
-    :key "i"
+    :short-option "i"
     :prompt "Issue ID (or leave empty for all): "
     :reader beads-reader-issue-id
     :group "Auto Options"
@@ -146,13 +146,13 @@ Accepts agent-provided summary for an issue."
     :order 1)
    (all
     :option-type :boolean
-    :key "a"
+    :short-option "a"
     :group "Auto Options"
     :level 1
     :order 2)
    (tier
     :option-type :integer
-    :key "t"
+    :short-option "t"
     :prompt "Tier (1 or 2): "
     :choices '("1" "2")
     :group "Auto Options"
@@ -160,26 +160,26 @@ Accepts agent-provided summary for an issue."
     :order 3)
    (batch-size
     :option-type :integer
-    :key "b"
+    :short-option "b"
     :prompt "Batch size: "
     :group "Auto Options"
     :level 3
     :order 4)
    (workers
     :option-type :integer
-    :key "w"
+    :short-option "w"
     :group "Auto Options"
     :level 3
     :order 5)
    (dry-run
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :group "Auto Options"
     :level 1
     :order 6)
    (force
     :option-type :boolean
-    :key "f"
+    :short-option "f"
     :group "Auto Options"
     :level 3
     :order 7))

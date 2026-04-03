@@ -35,19 +35,19 @@
 (beads-defcommand beads-command-info (beads-command-global-options)
   ((schema
     :option-type :boolean
-    :key "s"
+    :short-option "s"
     :group "Options"
     :level 2
     :order 1)
    (whats-new
     :option-type :boolean
-    :key "w"
+    :short-option "w"
     :group "Options"
     :level 2
     :order 2)
    (thanks
     :option-type :boolean
-    :key "t"
+    :short-option "t"
     :group "Options"
     :level 2
     :order 3))

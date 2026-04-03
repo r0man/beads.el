@@ -27,14 +27,14 @@
 (beads-defcommand beads-command-audit-record (beads-command-global-options)
   ((kind
     :option-type :string
-    :key "k"
+    :short-option "k"
     :choices ("llm_call" "tool_call" "label")
     :group "Entry"
     :level 1
     :order 1)
    (issue-id
     :option-type :string
-    :key "i"
+    :short-option "i"
     :prompt "Issue ID: "
     :reader beads-reader-issue-id
     :group "Entry"
@@ -42,44 +42,44 @@
     :order 2)
    (model
     :option-type :string
-    :key "m"
+    :short-option "m"
     :group "LLM Call"
     :level 2
     :order 1)
    (prompt
     :option-type :string
-    :key "p"
+    :short-option "p"
     :group "LLM Call"
     :level 2
     :order 2)
    (response
     :option-type :string
-    :key "r"
+    :short-option "r"
     :group "LLM Call"
     :level 2
     :order 3)
    (tool-name
     :option-type :string
-    :key "t"
+    :short-option "t"
     :group "Tool Call"
     :level 2
     :order 1)
    (exit-code
     :option-type :integer
-    :key "e"
+    :short-option "e"
     :group "Tool Call"
     :level 2
     :order 2)
    (error-msg
     :long-option "error"
     :option-type :string
-    :key "E"
+    :short-option "E"
     :group "Tool Call"
     :level 2
     :order 3)
    (stdin
     :option-type :boolean
-    :key "s"
+    :short-option "s"
     :group "Entry"
     :level 2
     :order 3))
@@ -96,7 +96,7 @@ Appends an audit interaction entry.")
     :positional 1)
    (label
     :option-type :string
-    :key "l"
+    :short-option "l"
     :prompt "Label (good/bad): "
     :choices ("good" "bad")
     :group "Options"
@@ -104,9 +104,9 @@ Appends an audit interaction entry.")
     :order 1)
    (reason
     :option-type :string
-    :key "r"
+    :short-option "r"
     :transient beads-transient-multiline
-    :field-name "Label Reason"
+    :documentation "Label Reason"
     :group "Options"
     :level 1
     :order 2))

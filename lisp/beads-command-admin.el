@@ -27,38 +27,37 @@
 (beads-defcommand beads-command-admin-cleanup (beads-command-global-options)
   ((dry-run
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :group "Options"
     :level 1
     :order 1)
    (force
     :short-option "f"
     :option-type :boolean
-    :key "f"
     :group "Options"
     :level 1
     :order 2)
    (cascade
     :option-type :boolean
-    :key "C"
+    :short-option "C"
     :group "Options"
     :level 1
     :order 3)
    (ephemeral
     :option-type :boolean
-    :key "e"
+    :short-option "e"
     :group "Filters"
     :level 1
     :order 1)
    (hard
     :option-type :boolean
-    :key "H"
+    :short-option "H"
     :group "Options"
     :level 2
     :order 4)
    (older-than
     :option-type :integer
-    :key "o"
+    :short-option "o"
     :prompt "Days: "
     :group "Filters"
     :level 1
@@ -74,37 +73,37 @@ Deletes closed issues and prunes expired tombstones.")
 (beads-defcommand beads-command-admin-compact (beads-command-global-options)
   ((dry-run
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :group "Options"
     :level 1
     :order 1)
    (analyze
     :option-type :boolean
-    :key "a"
+    :short-option "a"
     :group "Mode"
     :level 1
     :order 3)
    (apply
     :option-type :boolean
-    :key "A"
+    :short-option "A"
     :group "Mode"
     :level 1
     :order 4)
    (auto
     :option-type :boolean
-    :key "u"
+    :short-option "u"
     :group "Mode"
     :level 2
     :order 5)
    (stats
     :option-type :boolean
-    :key "s"
+    :short-option "s"
     :group "Mode"
     :level 1
     :order 6)
    (id
     :option-type :string
-    :key "i"
+    :short-option "i"
     :prompt "Issue ID: "
     :reader beads-reader-issue-id
     :group "Options"
@@ -112,53 +111,53 @@ Deletes closed issues and prunes expired tombstones.")
     :order 2)
    (all
     :option-type :boolean
-    :key "l"
+    :short-option "l"
     :group "Options"
     :level 1
     :order 3)
    (force
     :option-type :boolean
-    :key "f"
+    :short-option "f"
     :group "Options"
     :level 2
     :order 4)
    (older-than
     :option-type :integer
-    :key "o"
+    :short-option "o"
     :prompt "Days: "
     :group "Options"
     :level 1
     :order 5)
    (limit
     :option-type :integer
-    :key "L"
+    :short-option "L"
     :group "Options"
     :level 2
     :order 6)
    (tier
     :option-type :integer
-    :key "t"
+    :short-option "t"
     :prompt "Tier (1 or 2): "
     :group "Options"
     :level 2
     :order 7)
    (summary
     :option-type :string
-    :key "S"
+    :short-option "S"
     :prompt "Summary file: "
     :group "Options"
     :level 2
     :order 8)
    (batch-size
     :option-type :integer
-    :key "b"
+    :short-option "b"
     :prompt "Batch size: "
     :group "Options"
     :level 3
     :order 9)
    (workers
     :option-type :integer
-    :key "w"
+    :short-option "w"
     :group "Options"
     :level 3
     :order 10))
@@ -173,7 +172,7 @@ Compacts old closed issues to save space.")
 (beads-defcommand beads-command-admin-reset (beads-command-global-options)
   ((force
     :option-type :boolean
-    :key "f"
+    :short-option "f"
     :group "Options"
     :level 1
     :order 1))

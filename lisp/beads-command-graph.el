@@ -36,20 +36,20 @@
     :positional 1)
    (all
     :option-type :boolean
-    :key "a"
+    :short-option "a"
     :group "Options"
     :level 1
     :order 1)
    (box
     :initform t
     :option-type :boolean
-    :key "b"
+    :short-option "b"
     :group "Display"
     :level 1
     :order 2)
    (compact
     :option-type :boolean
-    :key "c"
+    :short-option "c"
     :group "Display"
     :level 1
     :order 3))

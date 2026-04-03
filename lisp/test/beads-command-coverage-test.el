@@ -651,33 +651,32 @@ never hang waiting for a response that never arrives."
   ((reason
     :option-type :string
     :short-option "r"
-    :key "r"
     :group "Test"
     :level 1
     :order 1)
    (force
     :option-type :boolean
-    :key "!"
+    :short-option "!"
     :group "Flags"
     :level 2
     :order 1)
    (title
     :option-type :string
     :positional 1
-    :key "t"
+    :short-option "t"
     :group "Required"
     :level 1
     :order 2)
    (labels
     :option-type :list
-    :option-separator ","
-    :key "l"
+    :separator ","
+    :short-option "l"
     :group "Options"
     :level 2
     :order 2)
    (estimate
     :option-type :integer
-    :key "e"
+    :short-option "e"
     :group "Options"
     :level 3
     :order 1))

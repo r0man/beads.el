@@ -36,7 +36,7 @@
 (beads-defcommand beads-command-search (beads-command-global-options)
   ((query
     :positional 1
-    :key "q"
+    :short-option "q"
     :prompt "Search query: "
     :group "Query"
     :level 1
@@ -44,7 +44,6 @@
    (status
     :short-option "s"
     :option-type :string
-    :key "s"
     :choices ("open" "in_progress" "blocked" "deferred" "closed")
     :group "Filters"
     :level 2
@@ -53,7 +52,6 @@
     :long-option "type"
     :short-option "t"
     :option-type :string
-    :key "t"
     :choices ("bug" "feature" "task" "epic" "chore" "merge-request"
                         "molecule" "gate")
     :group "Filters"
@@ -62,21 +60,19 @@
    (assignee
     :short-option "a"
     :option-type :string
-    :key "a"
     :group "Filters"
     :level 2
     :order 3)
    (label
     :short-option "l"
     :option-type :string
-    :key "l"
     :reader beads-reader-list-label
     :group "Filters"
     :level 2
     :order 4)
    (label-any
     :option-type :string
-    :key "L"
+    :short-option "L"
     :prompt "Label (any): "
     :reader beads-reader-list-label
     :group "Filters"
@@ -85,14 +81,13 @@
    (limit
     :short-option "n"
     :option-type :integer
-    :key "n"
     :prompt "Limit (default 50): "
     :group "Output"
     :level 2
     :order 1)
    (sort
     :option-type :string
-    :key "o"
+    :short-option "o"
     :prompt "Sort by: "
     :choices ("priority" "created" "updated" "closed" "status" "id"
                         "title" "type" "assignee")
@@ -102,19 +97,18 @@
    (reverse
     :short-option "r"
     :option-type :boolean
-    :key "r"
     :group "Output"
     :level 2
     :order 3)
    (long
     :option-type :boolean
-    :key "g"
+    :short-option "g"
     :group "Output"
     :level 3
     :order 1)
    (priority-min
     :option-type :string
-    :key "pm"
+    :short-option "pm"
     :prompt "Min priority (0-4): "
     :reader beads-reader-list-priority
     :group "Priority"
@@ -122,7 +116,7 @@
     :order 1)
    (priority-max
     :option-type :string
-    :key "pM"
+    :short-option "pM"
     :prompt "Max priority (0-4): "
     :reader beads-reader-list-priority
     :group "Priority"
@@ -130,42 +124,42 @@
     :order 2)
    (created-after
     :option-type :string
-    :key "Ca"
+    :short-option "Ca"
     :prompt "Created after (YYYY-MM-DD): "
     :group "Date Filters"
     :level 3
     :order 1)
    (created-before
     :option-type :string
-    :key "Cb"
+    :short-option "Cb"
     :prompt "Created before (YYYY-MM-DD): "
     :group "Date Filters"
     :level 3
     :order 2)
    (updated-after
     :option-type :string
-    :key "Ua"
+    :short-option "Ua"
     :prompt "Updated after (YYYY-MM-DD): "
     :group "Date Filters"
     :level 3
     :order 3)
    (updated-before
     :option-type :string
-    :key "Ub"
+    :short-option "Ub"
     :prompt "Updated before (YYYY-MM-DD): "
     :group "Date Filters"
     :level 3
     :order 4)
    (closed-after
     :option-type :string
-    :key "ca"
+    :short-option "ca"
     :prompt "Closed after (YYYY-MM-DD): "
     :group "Date Filters"
     :level 3
     :order 5)
    (closed-before
     :option-type :string
-    :key "cb"
+    :short-option "cb"
     :prompt "Closed before (YYYY-MM-DD): "
     :group "Date Filters"
     :level 3

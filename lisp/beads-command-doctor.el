@@ -35,7 +35,7 @@
     :positional 1)
    (check
     :option-type :string
-    :key "c"
+    :short-option "c"
     :prompt "Check (pollution): "
     :choices ("pollution")
     :group "Checks"
@@ -43,38 +43,37 @@
     :order 1)
    (check-health
     :option-type :boolean
-    :key "h"
+    :short-option "h"
     :group "Checks"
     :level 2
     :order 2)
    (deep
     :option-type :boolean
-    :key "d"
+    :short-option "d"
     :group "Checks"
     :level 2
     :order 3)
    (perf
     :option-type :boolean
-    :key "p"
+    :short-option "p"
     :group "Checks"
     :level 2
     :order 4)
    (fix
     :option-type :boolean
-    :key "f"
+    :short-option "f"
     :group "Fix Options"
     :level 3
     :order 1)
    (dry-run
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :group "Fix Options"
     :level 3
     :order 2)
    (yes
     :short-option "y"
     :option-type :boolean
-    :key "y"
     :group "Fix Options"
     :level 3
     :order 3)
@@ -82,25 +81,24 @@
     :long-option "interactive"
     :short-option "i"
     :option-type :boolean
-    :key "i"
     :group "Fix Options"
     :level 3
     :order 4)
    (fix-child-parent
     :option-type :boolean
-    :key "C"
+    :short-option "C"
     :group "Fix Options"
     :level 4
     :order 5)
    (force
     :option-type :boolean
-    :key "F"
+    :short-option "F"
     :group "Fix Options"
     :level 4
     :order 6)
    (source
     :option-type :string
-    :key "s"
+    :short-option "s"
     :choices ("auto" "jsonl" "db")
     :group "Fix Options"
     :level 4
@@ -108,7 +106,6 @@
    (output
     :short-option "o"
     :option-type :string
-    :key "o"
     :prompt "Output file: "
     :group "Output"
     :level 3
@@ -116,13 +113,12 @@
    (verbose
     :short-option "v"
     :option-type :boolean
-    :key "v"
     :group "Output"
     :level 3
     :order 2)
    (clean
     :option-type :boolean
-    :key "D"
+    :short-option "D"
     :group "Checks"
     :level 4
     :order 5))

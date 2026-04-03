@@ -30,7 +30,7 @@
   ((issue-id
     :positional 1
     :option-type :string
-    :key "i"
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID: "
     :reader beads-reader-close-issue-id

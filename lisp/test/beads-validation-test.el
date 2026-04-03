@@ -24,11 +24,11 @@
 (beads-defcommand beads-command-test-validate (beads-command-global-options)
   ((title
     :option-type :string
-    :key "t"
+    :short-option "t"
     :required t)
    (priority
     :option-type :integer
-    :key "p"
+    :short-option "p"
     :choices ("0" "1" "2" "3" "4"))
    (status
     :option-type :string
@@ -45,10 +45,10 @@
 (beads-defcommand beads-command-test-optional (beads-command-global-options)
   ((filter
     :option-type :string
-    :key "f")
+    :short-option "f")
    (limit
     :option-type :integer
-    :key "l"))
+    :short-option "l"))
   :documentation "Test command with only optional slots."
   :transient nil)
 

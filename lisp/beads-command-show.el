@@ -61,8 +61,8 @@
   ((issue-ids
     :positional 1
     :option-type :list
-    :option-separator " "
-    :key "i"
+    :separator " "
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID(s): "
     :reader beads--read-issue-at-point-or-prompt
@@ -72,25 +72,25 @@
     :required t)
    (children
     :option-type :boolean
-    :key "c"
+    :short-option "c"
     :group "View Options"
     :level 1
     :order 1)
    (refs
     :option-type :boolean
-    :key "r"
+    :short-option "r"
     :group "View Options"
     :level 1
     :order 2)
    (short
     :option-type :boolean
-    :key "s"
+    :short-option "s"
     :group "View Options"
     :level 1
     :order 3)
    (thread
     :option-type :boolean
-    :key "t"
+    :short-option "t"
     :group "View Options"
     :level 2
     :order 1))

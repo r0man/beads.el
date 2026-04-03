@@ -38,7 +38,7 @@
 (beads-defcommand beads-command-blocked (beads-command-global-options)
   ((parent
     :option-type :string
-    :key "P"
+    :short-option "P"
     :prompt "Parent ID: "
     :reader beads-reader-issue-id
     :group "Scope"

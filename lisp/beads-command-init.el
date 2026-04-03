@@ -46,84 +46,81 @@
   ((branch
     :short-option "b"
     :option-type :string
-    :key "b"
     :group "Basic Options"
     :level 1
     :order 2)
    (contributor
     :option-type :boolean
-    :key "C"
+    :short-option "C"
     :group "Setup Wizards"
     :level 2
     :order 1)
    (force
     :option-type :boolean
-    :key "f"
+    :short-option "f"
     :group "Advanced"
     :level 3
     :order 1)
    (from-jsonl
     :option-type :boolean
-    :key "j"
+    :short-option "j"
     :group "Advanced"
     :level 3
     :order 2)
    (prefix
     :short-option "p"
     :option-type :string
-    :key "p"
     :group "Basic Options"
     :level 1
     :order 1)
    (quiet
     :short-option "q"
     :option-type :boolean
-    :key "q"
     :group "Other Options"
     :level 2
     :order 1)
    (server-host
     :option-type :string
-    :key "h"
+    :short-option "h"
     :prompt "Server host: "
     :group "Server Connection"
     :level 3
     :order 1)
    (server-port
     :option-type :integer
-    :key "P"
+    :short-option "P"
     :prompt "Server port: "
     :group "Server Connection"
     :level 3
     :order 2)
    (server-user
     :option-type :string
-    :key "U"
+    :short-option "U"
     :prompt "Server user: "
     :group "Server Connection"
     :level 3
     :order 3)
    (setup-exclude
     :option-type :boolean
-    :key "e"
+    :short-option "e"
     :group "Advanced"
     :level 3
     :order 3)
    (skip-hooks
     :option-type :boolean
-    :key "H"
+    :short-option "H"
     :group "Other Options"
     :level 2
     :order 2)
    (stealth
     :option-type :boolean
-    :key "s"
+    :short-option "s"
     :group "Advanced"
     :level 3
     :order 4)
    (team
     :option-type :boolean
-    :key "T"
+    :short-option "T"
     :group "Setup Wizards"
     :level 2
     :order 2))
@@ -289,7 +286,7 @@ the initialization."
 (beads-defcommand beads-command-bootstrap (beads-command-global-options)
   ((dry-run
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :group "Options"
     :level 1
     :order 1))

@@ -46,7 +46,7 @@
 (beads-defcommand beads-command-create (beads-command-global-options)
   ((title
     :positional 1
-    :key "t"
+    :short-option "t"
     :prompt "Issue title: "
     :reader beads-reader-issue-title
     :group "Required"
@@ -59,7 +59,7 @@
     :long-option "type"
     :short-option "t"
     :option-type :string
-    :key "y"
+    :transient-key "y"
     :prompt "Type: "
     :choices ("bug" "feature" "task" "epic" "chore"
                         "merge-request" "molecule" "gate" "agent"
@@ -72,7 +72,6 @@
     :type (or null string integer)
     :short-option "p"
     :option-type :string
-    :key "p"
     :prompt "Priority: "
     :reader beads-reader-issue-priority
     :group "Issue Attributes"
@@ -81,7 +80,6 @@
    (assignee
     :short-option "a"
     :option-type :string
-    :key "a"
     :prompt "Assignee: "
     :reader beads-reader-issue-assignee
     :group "Issue Attributes"
@@ -90,8 +88,7 @@
    (labels
     :short-option "l"
     :option-type :list
-    :option-separator ","
-    :key "l"
+    :separator ","
     :prompt "Labels (comma-separated): "
     :reader beads-reader-issue-labels
     :group "Issue Attributes"
@@ -102,39 +99,38 @@
    (description
     :short-option "d"
     :option-type :string
-    :key "d"
     :transient beads-transient-multiline
-    :field-name "Description"
+    :documentation "Description"
     :group "Content"
     :level 3
     :order 1)
    (acceptance
     :option-type :string
-    :key "A"
+    :short-option "A"
     :transient beads-transient-multiline
-    :field-name "Acceptance Criteria"
+    :documentation "Acceptance Criteria"
     :group "Content"
     :level 3
     :order 2)
    (design
     :option-type :string
-    :key "G"
+    :short-option "G"
     :transient beads-transient-multiline
-    :field-name "Design"
+    :documentation "Design"
     :group "Content"
     :level 3
     :order 3)
    (notes
     :option-type :string
-    :key "N"
+    :short-option "N"
     :transient beads-transient-multiline
-    :field-name "Notes"
+    :documentation "Notes"
     :group "Content"
     :level 3
     :order 4)
    (body-file
     :option-type :string
-    :key "B"
+    :short-option "B"
     :prompt "Body file: "
     :reader transient-read-file
     :group "Content"
@@ -145,21 +141,20 @@
    (estimate
     :short-option "e"
     :option-type :integer
-    :key "e"
     :prompt "Estimate (minutes): "
     :group "Time"
     :level 3
     :order 1)
    (due
     :option-type :string
-    :key "D"
+    :short-option "D"
     :prompt "Due date: "
     :group "Time"
     :level 3
     :order 2)
    (defer
     :option-type :string
-    :key "E"
+    :short-option "E"
     :prompt "Defer until: "
     :group "Time"
     :level 3
@@ -168,7 +163,7 @@
    ;; Relationships
    (parent
     :option-type :string
-    :key "P"
+    :short-option "P"
     :prompt "Parent issue ID: "
     :reader beads-reader-create-parent
     :group "Relationships"
@@ -176,8 +171,8 @@
     :order 1)
    (deps
     :option-type :list
-    :option-separator ","
-    :key "R"
+    :separator ","
+    :short-option "R"
     :prompt "Dependencies (type:id,...): "
     :reader beads-reader-create-dependencies
     :group "Relationships"
@@ -185,14 +180,14 @@
     :order 2)
    (waits-for
     :option-type :string
-    :key "W"
+    :short-option "W"
     :prompt "Waits for issue ID: "
     :group "Relationships"
     :level 5
     :order 3)
    (waits-for-gate
     :option-type :string
-    :key "g"
+    :short-option "g"
     :prompt "Gate type: "
     :choices ("all-children" "any-children")
     :group "Relationships"
@@ -202,7 +197,7 @@
    ;; Advanced Options
    (external-ref
     :option-type :string
-    :key "x"
+    :short-option "x"
     :prompt "External reference: "
     :reader beads-reader-issue-external-ref
     :group "Advanced"
@@ -210,7 +205,7 @@
     :order 1)
    (id
     :option-type :string
-    :key "i"
+    :short-option "i"
     :prompt "Custom ID: "
     :reader beads-reader-create-custom-id
     :group "Advanced"
@@ -219,21 +214,21 @@
    (prefix-arg
     :long-option "prefix"
     :option-type :string
-    :key "r"
+    :short-option "r"
     :prompt "Prefix: "
     :group "Advanced"
     :level 4
     :order 3)
    (rig
     :option-type :string
-    :key "I"
+    :short-option "I"
     :prompt "Rig: "
     :group "Advanced"
     :level 4
     :order 4)
    (repo
     :option-type :string
-    :key "o"
+    :short-option "o"
     :prompt "Target repository: "
     :reader beads-reader-create-repo
     :group "Advanced"
@@ -244,7 +239,7 @@
    (file
     :short-option "f"
     :option-type :string
-    :key "F"
+    :transient-key "F"
     :prompt "Markdown file: "
     :reader beads-reader-create-file
     :group "Batch"
@@ -252,7 +247,7 @@
     :order 1)
    (from-template
     :option-type :string
-    :key "T"
+    :short-option "T"
     :prompt "Template: "
     :reader beads-reader-create-from-template
     :group "Batch"
@@ -262,31 +257,31 @@
    ;; Flags
    (dry-run
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :group "Flags"
     :level 2
     :order 1)
    (force
     :option-type :boolean
-    :key "!"
+    :short-option "!"
     :group "Flags"
     :level 5
     :order 1)
    (ephemeral
     :option-type :boolean
-    :key "@"
+    :short-option "@"
     :group "Flags"
     :level 5
     :order 2)
    (silent
     :option-type :boolean
-    :key "s"
+    :short-option "s"
     :group "Flags"
     :level 5
     :order 3)
    (validate
     :option-type :boolean
-    :key "V"
+    :short-option "V"
     :group "Flags"
     :level 5
     :order 4)
@@ -294,7 +289,7 @@
    ;; Molecule-specific
    (mol-type
     :option-type :string
-    :key "mt"
+    :short-option "mt"
     :prompt "Molecule type: "
     :choices ("swarm" "patrol" "work")
     :group "Molecule"
@@ -304,14 +299,14 @@
    ;; Agent-specific
    (agent-rig
     :option-type :string
-    :key "ar"
+    :short-option "ar"
     :prompt "Agent rig: "
     :group "Agent"
     :level 6
     :order 1)
    (role-type
     :option-type :string
-    :key "rt"
+    :short-option "rt"
     :prompt "Role type: "
     :choices ("polecat" "crew" "witness" "refinery" "mayor" "deacon")
     :group "Agent"
@@ -321,28 +316,28 @@
    ;; Event-specific
    (event-actor
     :option-type :string
-    :key "ea"
+    :short-option "ea"
     :prompt "Event actor: "
     :group "Event"
     :level 6
     :order 1)
    (event-category
     :option-type :string
-    :key "ec"
+    :short-option "ec"
     :prompt "Event category: "
     :group "Event"
     :level 6
     :order 2)
    (event-payload
     :option-type :string
-    :key "ep"
+    :short-option "ep"
     :prompt "Event payload (JSON): "
     :group "Event"
     :level 6
     :order 3)
    (event-target
     :option-type :string
-    :key "et"
+    :short-option "et"
     :prompt "Event target: "
     :group "Event"
     :level 6

@@ -41,7 +41,7 @@
   ((issue-id
     :positional 1
     :option-type :string
-    :key "i"
+    :short-option "i"
     :argument "--issue-id="
     :prompt "Issue ID: "
     :reader beads-reader-issue-id
@@ -70,7 +70,7 @@ Lists all comments on an issue.")
   ((issue-id
     :positional 1
     :option-type :string
-    :key "i"
+    :short-option "i"
     :argument "--issue-id="
     :prompt "Issue ID: "
     :reader beads-reader-issue-id
@@ -81,17 +81,16 @@ Lists all comments on an issue.")
    (text
     :positional 2
     :option-type :string
-    :key "t"
+    :short-option "t"
     :transient beads-transient-multiline
     :argument "--text="
-    :field-name "Comment"
+    :documentation "Comment"
     :group "Add Comment"
     :level 1
     :order 2)
    (file
     :short-option "f"
     :option-type :string
-    :key "f"
     :prompt "File path: "
     :group "Add Comment"
     :level 2
@@ -99,7 +98,6 @@ Lists all comments on an issue.")
    (author
     :short-option "a"
     :option-type :string
-    :key "a"
     :group "Add Comment"
     :level 2
     :order 4))

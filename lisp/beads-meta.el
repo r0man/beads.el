@@ -26,17 +26,17 @@
 ;;   :short-option    - Short CLI option letter without dash (e.g., "t")
 ;;   :option-type     - Serialization type (:string, :boolean, :integer, :list)
 ;;   :positional      - Position for positional args (integer 1, 2, 3... or nil)
-;;   :option-separator - Separator for :list type (default ",")
+;;   :separator       - Separator for :list type (default ",")
 ;;
 ;; Transient Properties (preferred concise names):
-;;   :key        - Key binding in transient menu (e.g., "t")
+;;   :short-option - Short option AND transient key (e.g., "t")
 ;;   :transient  - Description shown in transient menu
 ;;   :class      - Transient class (transient-option, transient-switch, etc.)
 ;;   :reader     - Reader function for input
 ;;   :choices    - Valid choices list
 ;;   :prompt     - Input prompt string
 ;;   :argument   - CLI argument format (e.g., "--title=")
-;;   :field-name - Field name for multiline editors
+;;   :documentation - Display label for multiline editors
 ;;   :level      - Menu visibility level (1-7)
 ;;   :group      - Group name for organization
 ;;   :order      - Order within group (lower = first)
@@ -64,7 +64,7 @@
 ;;       :short-option "t"
 ;;       :positional 1
 ;;       ;; Transient properties (using new concise names)
-;;       :key "t"
+;;       :short-option "t"
 ;;       :transient "Title (required)"
 ;;       :class transient-option
 ;;       :reader beads-reader-issue-title
@@ -74,7 +74,7 @@
 ;;       :required t)))
 ;;
 ;;   ;; Get a property for a slot (works with both new and legacy names)
-;;   (beads-meta-slot-property 'my-command 'title :key)
+;;   (beads-meta-slot-property 'my-command 'title :short-option)
 ;;   ;; => "t"
 ;;
 ;;   ;; Get all custom properties for a slot
@@ -134,12 +134,11 @@ Returns nil if DOCSTRING is nil or empty."
     :option-type
     :positional
     :positional-rest
-    :option-separator
-    :separator              ; shorthand for :option-separator
+    :separator              ; separator for :list type (default ",")
+    :option-separator       ; legacy name for :separator
     ;; JSON mapping
     :json-key               ; override JSON key (default: slot → underscore)
     ;; Transient properties (concise names)
-    :key                    ; key binding in transient menu
     :transient              ; description shown in transient menu
     :class                  ; transient class (transient-option, etc.)
     :reader                 ; reader function for input
@@ -147,7 +146,6 @@ Returns nil if DOCSTRING is nil or empty."
     :choices                ; valid choices list
     :prompt                 ; input prompt string
     :argument               ; CLI argument format (e.g., "--title=")
-    :field-name             ; field name for multiline editors
     :level                  ; menu visibility level (1-7)
     :order                  ; order within group (lower = first)
     ;; Transient properties (legacy/canonical names)
@@ -169,8 +167,7 @@ Returns nil if DOCSTRING is nil or empty."
 These properties are preserved in slot descriptors via advice on
 `eieio-defclass-internal' and `eieio--slot-override'.
 
-Property name mappings (new -> legacy):
-  :key         -> :transient-key
+Property name mappings (concise -> legacy):
   :transient   -> :transient-description
   :class       -> :transient-class
   :reader      -> :transient-reader
@@ -178,10 +175,13 @@ Property name mappings (new -> legacy):
   :choices     -> :transient-choices
   :prompt      -> :transient-prompt
   :argument    -> :transient-argument
-  :field-name  -> :transient-field-name
   :level       -> :transient-level
   :order       -> :transient-order
   :separator   -> :option-separator
+
+Removed properties (bde-vta5):
+  :key         -> removed, use :short-option instead
+  :field-name  -> removed, use :documentation instead
 
 The concise names are preferred.  Legacy names are preserved for
 backwards compatibility.  Note: :reader and :group conflict with EIEIO
@@ -193,22 +193,24 @@ slot plists before defclass processes them.")
 ;;; ============================================================
 
 (defconst beads-meta--property-aliases
-  '((:key         . :transient-key)
-    (:transient   . :transient-description)
+  '((:transient   . :transient-description)
     (:class       . :transient-class)
     (:reader      . :transient-reader)
     (:group       . :transient-group)
     (:choices     . :transient-choices)
     (:prompt      . :transient-prompt)
     (:argument    . :transient-argument)
-    (:field-name  . :transient-field-name)
     (:level       . :transient-level)
     (:order       . :transient-order)
     (:separator   . :option-separator))
   "Mapping from concise property names to legacy names.
 This allows slot definitions to use either naming convention.
 Note: :reader and :group conflict with EIEIO slot options, so
-`beads-meta--normalize-slot-def' strips them before defclass sees them.")
+`beads-meta--normalize-slot-def' strips them before defclass sees them.
+
+Removed in bde-vta5:
+  :key        -> use :short-option (infers :transient-key)
+  :field-name -> use :documentation (standard EIEIO slot property)")
 
 (defconst beads-meta--eieio-conflicting-aliases
   '((:reader . :transient-reader)
@@ -358,11 +360,9 @@ Returns nil if :long-option is already set or slot has :positional."
   (when (and (not (plist-get slot-options :long-option))
              (not (plist-get slot-options :positional))
              (not (plist-get slot-options :positional-rest)))
-    ;; Only generate long-option if there's a transient key or the slot
-    ;; otherwise appears to be a CLI option
-    (when (or (plist-get slot-options :transient-key)
-              (plist-get slot-options :key)
-              (plist-get slot-options :short-option))
+    ;; Only generate long-option if there's a short-option or transient-key
+    (when (or (plist-get slot-options :short-option)
+              (plist-get slot-options :transient-key))
       (symbol-name slot-name))))
 
 (defun beads-meta--infer-argument (slot-options)
@@ -454,35 +454,38 @@ Special handling for :transient which has dual semantics:
           (when-let ((value (plist-get result legacy)))
             (unless (plist-get result concise)
               (setq result (plist-put result concise value)))))))
-    ;; Infer :transient-key from :short-option when :key is absent
-    ;; (D14: :short-option serves as both CLI flag and transient key)
-    ;; Only when the slot already has transient metadata (group, class, etc.)
+    ;; Infer :transient-key from :short-option (bde-vta5: :short-option
+    ;; serves as both CLI flag and transient key).
+    ;; Only when the slot has transient UI metadata (group, class, etc.)
+    ;; to avoid promoting pure CLI options to transient visibility.
     (when (and (plist-get result :short-option)
-               (not (plist-get result :key))
                (not (plist-get result :transient-key))
                (or (plist-get result :transient-group)
                    (plist-get result :group)
                    (plist-get result :transient-class)
                    (plist-get result :class)
                    (plist-get result :transient-description)
-                   (plist-get result :transient)))
+                   (plist-get result :transient)
+                   (plist-get result :transient-argument)
+                   (plist-get result :argument)
+                   (plist-get result :transient-reader)
+                   (plist-get result :reader)
+                   (plist-get result :transient-prompt)
+                   (plist-get result :prompt)))
       (setq result (plist-put result :transient-key
-                              (plist-get result :short-option)))
-      (setq result (plist-put result :key
                               (plist-get result :short-option))))
     result))
 
 (defun beads-meta--slot-is-command-option-p (slot-options)
   "Return non-nil if SLOT-OPTIONS indicate a CLI or transient option.
 A slot is considered a command option if it has any of:
-- :long-option or :short-option (CLI option)
-- :transient-key or :key (transient menu item)
+- :long-option or :short-option (CLI option / transient key)
+- :transient-key (explicit transient menu item)
 - :positional or :positional-rest (positional argument)
 - :option-type (explicit CLI type)"
   (or (plist-get slot-options :long-option)
       (plist-get slot-options :short-option)
       (plist-get slot-options :transient-key)
-      (plist-get slot-options :key)
       (plist-get slot-options :positional)
       (plist-get slot-options :positional-rest)
       (plist-get slot-options :option-type)))

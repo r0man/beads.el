@@ -29,7 +29,7 @@
 (beads-defcommand beads-command-defer (beads-command-global-options)
   ((issue-ids
     :positional-rest t
-    :key "i"
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID(s): "
     :reader beads-reader-issue-id
@@ -38,7 +38,7 @@
     :order 1)
    (until
     :option-type :string
-    :key "u"
+    :short-option "u"
     :prompt "Until (e.g., +1h, tomorrow): "
     :group "Options"
     :level 1
@@ -62,7 +62,7 @@ Defers one or more issues for later.")
 (beads-defcommand beads-command-undefer (beads-command-global-options)
   ((issue-ids
     :positional-rest t
-    :key "i"
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID(s): "
     :reader beads-reader-issue-id

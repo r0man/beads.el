@@ -43,8 +43,8 @@
   ((issue-ids
     :positional 1
     :option-type :list
-    :option-separator " "
-    :key "i"
+    :separator " "
+    :short-option "i"
     :transient transient-option
     :argument "--id="
     :prompt "Issue ID: "
@@ -56,9 +56,8 @@
    (reason
     :option-type :string
     :short-option "r"
-    :key "r"
     :transient beads-transient-multiline
-    :field-name "Close Reason"
+    :documentation "Close Reason"
     :group "Close Issue"
     :level 1
     :order 2

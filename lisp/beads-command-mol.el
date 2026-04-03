@@ -29,7 +29,6 @@
    (parallel
     :short-option "p"
     :option-type :boolean
-    :key "p"
     :group "Options"
     :level 1
     :order 1))
@@ -46,33 +45,33 @@ Shows molecule details.")
     :positional 1)
    (var
     :option-type :list
-    :key "v"
+    :short-option "v"
     :prompt "Variable (key=value): "
     :group "Options"
     :level 1
     :order 1)
    (dry-run
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :group "Options"
     :level 1
     :order 2)
    (assignee
     :option-type :string
-    :key "a"
+    :short-option "a"
     :group "Options"
     :level 1
     :order 3)
    (attach
     :option-type :string
-    :key "A"
+    :short-option "A"
     :prompt "Attach to: "
     :group "Options"
     :level 2
     :order 4)
    (attach-type
     :option-type :string
-    :key "T"
+    :short-option "T"
     :prompt "Attach type (after/child/gate): "
     :choices ("after" "child" "gate")
     :group "Options"
@@ -91,13 +90,13 @@ Instantiates proto as persistent mol (liquid phase).")
     :positional 1)
    (dry-run
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :group "Options"
     :level 1
     :order 1)
    (var
     :option-type :list
-    :key "v"
+    :short-option "v"
     :prompt "Variable (key=value): "
     :group "Options"
     :level 1
@@ -115,19 +114,19 @@ Creates or manages wisps (ephemeral molecules).")
     :positional 1)
    (dry-run
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :group "Options"
     :level 1
     :order 1)
    (root-only
     :option-type :boolean
-    :key "r"
+    :short-option "r"
     :group "Options"
     :level 1
     :order 2)
    (var
     :option-type :list
-    :key "v"
+    :short-option "v"
     :prompt "Variable (key=value): "
     :group "Options"
     :level 1
@@ -144,14 +143,14 @@ Instantiates a proto as an ephemeral wisp (solid -> vapor).")
   ((show-all
     :long-option "all"
     :option-type :boolean
-    :key "a"
+    :short-option "a"
     :group "Options"
     :level 1
     :order 1)
    (type-filter
     :long-option "type"
     :option-type :string
-    :key "t"
+    :short-option "t"
     :prompt "Issue type: "
     :group "Options"
     :level 1
@@ -167,13 +166,13 @@ Lists all wisps (ephemeral molecules) in the current context.")
 (beads-defcommand beads-command-mol-wisp-gc (beads-command-global-options)
   ((dry-run
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :group "Options"
     :level 1
     :order 1)
    (age
     :option-type :string
-    :key "A"
+    :short-option "A"
     :prompt "Age threshold (e.g., 1h, 30m): "
     :group "Options"
     :level 1
@@ -181,25 +180,25 @@ Lists all wisps (ephemeral molecules) in the current context.")
    (show-all
     :long-option "all"
     :option-type :boolean
-    :key "a"
+    :short-option "a"
     :group "Options"
     :level 1
     :order 3)
    (closed
     :option-type :boolean
-    :key "c"
+    :short-option "c"
     :group "Options"
     :level 1
     :order 4)
    (force
     :option-type :boolean
-    :key "f"
+    :short-option "f"
     :group "Options"
     :level 1
     :order 5)
    (exclude-type
     :option-type :list
-    :key "e"
+    :short-option "e"
     :prompt "Exclude type: "
     :group "Options"
     :level 1
@@ -219,14 +218,14 @@ Garbage-collects abandoned or closed wisps.")
     :positional 2)
    (dry-run
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :group "Options"
     :level 1
     :order 1)
    (bond-type
     :long-option "type"
     :option-type :string
-    :key "t"
+    :short-option "t"
     :prompt "Bond type (seq/par/gate): "
     :choices ("seq" "par" "gate")
     :group "Options"
@@ -234,32 +233,32 @@ Garbage-collects abandoned or closed wisps.")
     :order 2)
    (as
     :option-type :string
-    :key "a"
+    :short-option "a"
     :prompt "Result name: "
     :group "Options"
     :level 1
     :order 3)
    (pour
     :option-type :boolean
-    :key "p"
+    :short-option "p"
     :group "Options"
     :level 1
     :order 4)
    (ephemeral
     :option-type :boolean
-    :key "e"
+    :short-option "e"
     :group "Options"
     :level 2
     :order 5)
    (ref
     :option-type :boolean
-    :key "r"
+    :short-option "r"
     :group "Options"
     :level 2
     :order 6)
    (var
     :option-type :list
-    :key "v"
+    :short-option "v"
     :prompt "Variable (key=value): "
     :group "Options"
     :level 2
@@ -277,19 +276,19 @@ Bonds two protos or molecules together.")
     :positional 1)
    (dry-run
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :group "Options"
     :level 1
     :order 1)
    (keep-children
     :option-type :boolean
-    :key "k"
+    :short-option "k"
     :group "Options"
     :level 1
     :order 2)
    (summary
     :option-type :string
-    :key "s"
+    :short-option "s"
     :prompt "Summary file: "
     :group "Options"
     :level 1
@@ -307,13 +306,13 @@ Compresses molecule execution into a digest.")
     :positional 1)
    (dry-run
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :group "Options"
     :level 1
     :order 1)
    (force
     :option-type :boolean
-    :key "f"
+    :short-option "f"
     :group "Options"
     :level 1
     :order 2))
@@ -330,21 +329,20 @@ Deletes a molecule without creating a digest.")
     :positional 1)
    (dry-run
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :group "Options"
     :level 1
     :order 1)
    (output
     :short-option "o"
     :option-type :string
-    :key "o"
     :prompt "Output file: "
     :group "Options"
     :level 1
     :order 2)
    (var
     :option-type :list
-    :key "v"
+    :short-option "v"
     :prompt "Variable (key=value): "
     :group "Options"
     :level 1
@@ -363,21 +361,21 @@ Extracts a formula from an existing epic.")
    (for-agent
     :long-option "for"
     :option-type :string
-    :key "f"
+    :short-option "f"
     :prompt "Agent ID: "
     :group "Options"
     :level 1
     :order 1)
    (limit
     :option-type :integer
-    :key "l"
+    :short-option "l"
     :prompt "Limit: "
     :group "Options"
     :level 1
     :order 2)
    (range
     :option-type :string
-    :key "r"
+    :short-option "r"
     :prompt "Range (e.g., 1-10): "
     :group "Options"
     :level 1
@@ -510,7 +508,7 @@ Detects complete-but-unclosed molecules.")
     :positional-order 1)
    (patrol
     :option-type :boolean
-    :key "p"
+    :short-option "p"
     :group "Options"
     :level 1
     :order 1))

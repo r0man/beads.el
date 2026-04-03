@@ -69,14 +69,13 @@
 (beads-defcommand beads-command-list (beads-command-global-options)
   ((all
       :option-type :boolean
-      :key "A"
+      :short-option "A"
       :group "Basic Filters"
       :level 1
       :order 1)
      (status
       :short-option "s"
       :option-type :string
-      :key "s"
       :prompt "Status: "
       :reader beads-reader-list-status
       :group "Basic Filters"
@@ -86,7 +85,6 @@
       :long-option "type"
       :short-option "t"
       :option-type :string
-      :key "t"
       :prompt "Type: "
       :reader beads-reader-issue-type
       :group "Basic Filters"
@@ -95,7 +93,6 @@
      (assignee
       :short-option "a"
       :option-type :string
-      :key "a"
       :prompt "Assignee: "
       :group "Basic Filters"
       :level 1
@@ -103,7 +100,6 @@
      (priority
       :short-option "p"
       :option-type :string
-      :key "p"
       :prompt "Priority (0-4 or P0-P4): "
       :reader beads-reader-priority
       :group "Basic Filters"
@@ -112,7 +108,6 @@
      (label
       :short-option "l"
       :option-type :list
-      :key "l"
       :prompt "Labels (AND): "
       :reader beads-reader-issue-labels
       :group "Basic Filters"
@@ -120,7 +115,7 @@
       :order 6)
      (label-any
       :option-type :list
-      :key "L"
+      :short-option "L"
       :prompt "Labels (OR): "
       :reader beads-reader-issue-labels
       :group "Basic Filters"
@@ -128,14 +123,14 @@
       :order 1)
      (id
       :option-type :string
-      :key "i"
+      :short-option "i"
       :prompt "Issue IDs (comma-separated): "
       :group "Basic Filters"
       :level 2
       :order 2)
      (parent
       :option-type :string
-      :key "P"
+      :short-option "P"
       :prompt "Parent ID: "
       :reader beads-reader-issue-id
       :group "Basic Filters"
@@ -143,77 +138,77 @@
       :order 3)
      (ready
       :option-type :boolean
-      :key "R"
+      :short-option "R"
       :group "Basic Filters"
       :level 1
       :order 7)
 
      (created-after
       :option-type :string
-      :key "ca"
+      :short-option "ca"
       :prompt "Created after (YYYY-MM-DD): "
       :group "Date Filters"
       :level 3
       :order 1)
      (created-before
       :option-type :string
-      :key "cb"
+      :short-option "cb"
       :prompt "Created before (YYYY-MM-DD): "
       :group "Date Filters"
       :level 3
       :order 2)
      (updated-after
       :option-type :string
-      :key "ua"
+      :short-option "ua"
       :prompt "Updated after (YYYY-MM-DD): "
       :group "Date Filters"
       :level 3
       :order 3)
      (updated-before
       :option-type :string
-      :key "ub"
+      :short-option "ub"
       :prompt "Updated before (YYYY-MM-DD): "
       :group "Date Filters"
       :level 3
       :order 4)
      (closed-after
       :option-type :string
-      :key "xa"
+      :short-option "xa"
       :prompt "Closed after (YYYY-MM-DD): "
       :group "Date Filters"
       :level 3
       :order 5)
      (closed-before
       :option-type :string
-      :key "xb"
+      :short-option "xb"
       :prompt "Closed before (YYYY-MM-DD): "
       :group "Date Filters"
       :level 3
       :order 6)
      (due-after
       :option-type :string
-      :key "da"
+      :short-option "da"
       :prompt "Due after: "
       :group "Date Filters"
       :level 3
       :order 7)
      (due-before
       :option-type :string
-      :key "db"
+      :short-option "db"
       :prompt "Due before: "
       :group "Date Filters"
       :level 3
       :order 8)
      (defer-after
       :option-type :string
-      :key "fa"
+      :short-option "fa"
       :prompt "Deferred after: "
       :group "Date Filters"
       :level 3
       :order 9)
      (defer-before
       :option-type :string
-      :key "fb"
+      :short-option "fb"
       :prompt "Deferred before: "
       :group "Date Filters"
       :level 3
@@ -221,78 +216,78 @@
 
      (title
       :option-type :string
-      :key "T"
+      :short-option "T"
       :prompt "Title contains: "
       :group "Content Filters"
       :level 2
       :order 1)
      (title-contains
       :option-type :string
-      :key "tc"
+      :short-option "tc"
       :prompt "Title contains: "
       :group "Content Filters"
       :level 3
       :order 1)
      (desc-contains
       :option-type :string
-      :key "dc"
+      :short-option "dc"
       :prompt "Description contains: "
       :group "Content Filters"
       :level 2
       :order 2)
      (notes-contains
       :option-type :string
-      :key "nc"
+      :short-option "nc"
       :prompt "Notes contains: "
       :group "Content Filters"
       :level 3
       :order 2)
      (empty-description
       :option-type :boolean
-      :key "ed"
+      :short-option "ed"
       :group "Content Filters"
       :level 3
       :order 3)
 
      (no-assignee
       :option-type :boolean
-      :key "na"
+      :short-option "na"
       :group "Special Filters"
       :level 2
       :order 1)
      (no-labels
       :option-type :boolean
-      :key "nl"
+      :short-option "nl"
       :group "Special Filters"
       :level 2
       :order 2)
      (pinned
       :option-type :boolean
-      :key "pi"
+      :short-option "pi"
       :group "Special Filters"
       :level 2
       :order 3)
      (no-pinned
       :option-type :boolean
-      :key "np"
+      :short-option "np"
       :group "Special Filters"
       :level 3
       :order 1)
      (overdue
       :option-type :boolean
-      :key "od"
+      :short-option "od"
       :group "Special Filters"
       :level 2
       :order 4)
      (deferred
       :option-type :boolean
-      :key "df"
+      :short-option "df"
       :group "Special Filters"
       :level 2
       :order 5)
      (priority-min
       :option-type :string
-      :key "pm"
+      :short-option "pm"
       :prompt "Min priority (0-4 or P0-P4): "
       :reader beads-reader-priority
       :group "Special Filters"
@@ -300,7 +295,7 @@
       :order 2)
      (priority-max
       :option-type :string
-      :key "px"
+      :short-option "px"
       :prompt "Max priority (0-4 or P0-P4): "
       :reader beads-reader-priority
       :group "Special Filters"
@@ -308,20 +303,20 @@
       :order 3)
      (mol-type
       :option-type :string
-      :key "mt"
+      :short-option "mt"
       :prompt "Molecule type: "
       :group "Special Filters"
       :level 3
       :order 4)
      (include-gates
       :option-type :boolean
-      :key "ig"
+      :short-option "ig"
       :group "Special Filters"
       :level 3
       :order 5)
      (include-templates
       :option-type :boolean
-      :key "it"
+      :short-option "it"
       :group "Special Filters"
       :level 3
       :order 6)
@@ -329,14 +324,13 @@
      (limit
       :short-option "n"
       :option-type :integer
-      :key "n"
       :prompt "Limit: "
       :group "Output Options"
       :level 1
       :order 1)
      (sort
       :option-type :string
-      :key "S"
+      :short-option "S"
       :prompt "Sort by: "
       :group "Output Options"
       :level 1
@@ -344,45 +338,43 @@
      (reverse
       :short-option "r"
       :option-type :boolean
-      :key "r"
       :group "Output Options"
       :level 1
       :order 3)
      (format
       :option-type :string
-      :key "F"
+      :short-option "F"
       :prompt "Format: "
       :group "Output Options"
       :level 2
       :order 1)
      (long
       :option-type :boolean
-      :key "lo"
+      :short-option "lo"
       :group "Output Options"
       :level 2
       :order 2)
      (pretty
       :option-type :boolean
-      :key "pr"
+      :short-option "pr"
       :group "Output Options"
       :level 2
       :order 3)
      (tree
       :option-type :boolean
-      :key "tr"
+      :short-option "tr"
       :group "Output Options"
       :level 3
       :order 1)
      (no-pager
       :option-type :boolean
-      :key "nP"
+      :short-option "nP"
       :group "Output Options"
       :level 3
       :order 2)
      (watch
       :short-option "w"
       :option-type :boolean
-      :key "w"
       :group "Output Options"
       :level 2
       :order 4))

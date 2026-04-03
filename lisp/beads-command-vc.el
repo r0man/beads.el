@@ -30,7 +30,6 @@
   ((message
     :short-option "m"
     :option-type :string
-    :key "m"
     :prompt "Commit message: "
     :group "Commit"
     :level 1
@@ -48,7 +47,7 @@ Requires Dolt backend.")
   ((branch
     :positional 1
     :option-type :string
-    :key "b"
+    :short-option "b"
     :argument "--branch="
     :prompt "Branch to merge: "
     :group "Merge"
@@ -57,7 +56,7 @@ Requires Dolt backend.")
     :required t)
    (strategy
     :option-type :string
-    :key "s"
+    :short-option "s"
     :prompt "Strategy (ours|theirs): "
     :group "Options"
     :level 2

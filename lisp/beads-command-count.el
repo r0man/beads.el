@@ -30,72 +30,71 @@
   ((assignee
     :short-option "a"
     :option-type :string
-    :key "a"
     :group "Filters"
     :level 2
     :order 1)
    (status
     :option-type :string
-    :key "s"
+    :short-option "s"
     :choices ("open" "in_progress" "blocked" "closed")
     :group "Filters"
     :level 2
     :order 2)
    (created-after
     :option-type :string
-    :key "Ca"
+    :short-option "Ca"
     :prompt "Created after (YYYY-MM-DD): "
     :group "Date Filters"
     :level 3
     :order 1)
    (created-before
     :option-type :string
-    :key "Cb"
+    :short-option "Cb"
     :prompt "Created before (YYYY-MM-DD): "
     :group "Date Filters"
     :level 3
     :order 2)
    (closed-after
     :option-type :string
-    :key "ca"
+    :short-option "ca"
     :prompt "Closed after (YYYY-MM-DD): "
     :group "Date Filters"
     :level 3
     :order 3)
    (closed-before
     :option-type :string
-    :key "cb"
+    :short-option "cb"
     :prompt "Closed before (YYYY-MM-DD): "
     :group "Date Filters"
     :level 3
     :order 4)
    (by-status
     :option-type :boolean
-    :key "bs"
+    :short-option "bs"
     :group "Grouping"
     :level 2
     :order 1)
    (by-priority
     :option-type :boolean
-    :key "bp"
+    :short-option "bp"
     :group "Grouping"
     :level 2
     :order 2)
    (by-type
     :option-type :boolean
-    :key "bt"
+    :short-option "bt"
     :group "Grouping"
     :level 2
     :order 3)
    (by-assignee
     :option-type :boolean
-    :key "ba"
+    :short-option "ba"
     :group "Grouping"
     :level 2
     :order 4)
    (by-label
     :option-type :boolean
-    :key "bl"
+    :short-option "bl"
     :group "Grouping"
     :level 2
     :order 5))

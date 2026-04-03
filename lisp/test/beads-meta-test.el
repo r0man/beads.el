@@ -897,7 +897,7 @@
                'beads-command-update 'description :transient-class)))
   (should (equal "Description" (beads-meta-slot-property
                                 'beads-command-update 'description
-                                :transient-field-name)))
+                                :transient-description)))
   (should (equal "Content" (beads-meta-slot-property
                             'beads-command-update 'description
                             :transient-group))))
@@ -916,7 +916,7 @@
                'beads-command-update 'acceptance :transient-class)))
   (should (equal "Acceptance Criteria" (beads-meta-slot-property
                                         'beads-command-update 'acceptance
-                                        :transient-field-name))))
+                                        :transient-description))))
 
 (ert-deftest beads-meta-update-slot-property-design ()
   "Test that design slot has correct metadata."
@@ -930,7 +930,7 @@
               (beads-meta-slot-property
                'beads-command-update 'design :transient-class)))
   (should (equal "Design" (beads-meta-slot-property
-                           'beads-command-update 'design :transient-field-name))))
+                           'beads-command-update 'design :transient-description))))
 
 (ert-deftest beads-meta-update-slot-property-notes ()
   "Test that notes slot has correct metadata."
@@ -944,7 +944,7 @@
               (beads-meta-slot-property
                'beads-command-update 'notes :transient-class)))
   (should (equal "Notes" (beads-meta-slot-property
-                          'beads-command-update 'notes :transient-field-name))))
+                          'beads-command-update 'notes :transient-description))))
 
 (ert-deftest beads-meta-update-transient-slots ()
   "Test that all expected slots have transient keys."
@@ -1051,17 +1051,14 @@
   ;; Transient properties
   (should (equal "r" (beads-meta-slot-property
                       'beads-command-close 'reason :transient-key)))
-  (should (equal "Reason" (beads-meta-slot-property
-                            'beads-command-close 'reason
-                            :transient-description)))
+  (should (equal "Close Reason" (beads-meta-slot-property
+                                  'beads-command-close 'reason
+                                  :transient-description)))
   (should (eq 'beads-transient-multiline (beads-meta-slot-property
                                                  'beads-command-close 'reason
                                                  :transient-class)))
   (should (equal "--reason=" (beads-meta-slot-property
                                 'beads-command-close 'reason :transient-argument)))
-  (should (equal "Close Reason" (beads-meta-slot-property
-                                 'beads-command-close 'reason
-                                 :transient-field-name)))
   (should (equal "Close Issue" (beads-meta-slot-property
                                 'beads-command-close 'reason :transient-group)))
   (should (equal 1 (beads-meta-slot-property
