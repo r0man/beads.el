@@ -236,32 +236,49 @@ Returns the concise name if PROP is a legacy name, otherwise PROP."
 ;;; Inference Functions
 ;;; ============================================================
 
-(defun beads-meta--infer-option-type (slot-options)
-  "Infer :option-type from SLOT-OPTIONS.
-Uses the :type slot property to determine the option type:
-- `boolean' type -> :boolean
-- `list' type -> :list
-- `integer' type -> :integer
-- Otherwise -> :string
+(defun beads-meta--most-specific-type (types)
+  "Return the most specific type from TYPES list.
+Priority: list-of > integer/number > string > other."
+  (or (cl-find-if (lambda (ty) (and (listp ty) (eq (car ty) 'list-of))) types)
+      (cl-find-if (lambda (ty) (memq ty '(integer number))) types)
+      (cl-find-if (lambda (ty) (eq ty 'string)) types)
+      (car types)))
 
-Returns nil if :option-type is already set."
+(defun beads-meta--unwrap-nullable (type)
+  "Extract core type from (or ...) forms containing null.
+Strips null, returns the remaining type.  If multiple non-null
+types remain, returns the most specific per priority:
+list-of > integer > string.
+For non-or types, returns TYPE unchanged."
+  (pcase type
+    (`(or . ,members)
+     (let ((non-null (remq 'null members)))
+       (pcase non-null
+         ('() nil)
+         (`(,single) single)
+         (_ (beads-meta--most-specific-type non-null)))))
+    (_ type)))
+
+(defun beads-meta--infer-option-type (slot-options)
+  "Infer :option-type from SLOT-OPTIONS using standard EIEIO :type.
+Uses `beads-meta--unwrap-nullable' to normalize (or ...) types,
+then maps the core type to a serialization keyword:
+  boolean           -> :boolean
+  integer / number  -> :integer
+  list              -> :list
+  (list-of T)       -> :list
+  string / t / other -> :string
+Returns nil if :option-type is already set or :type is absent."
   (when-let* ((type-spec (plist-get slot-options :type))
               ;; Only infer if not already set
               (not-set (not (plist-get slot-options :option-type))))
-    (cond
-     ;; Handle (or null X) type specs
-     ((and (listp type-spec) (eq (car type-spec) 'or))
-      (let ((types (cdr type-spec)))
-        (cond
-         ((memq 'boolean types) :boolean)
-         ((memq 'list types) :list)
-         ((or (memq 'integer types) (memq 'number types)) :integer)
-         (t :string))))
-     ;; Direct type
-     ((eq type-spec 'boolean) :boolean)
-     ((eq type-spec 'list) :list)
-     ((or (eq type-spec 'integer) (eq type-spec 'number)) :integer)
-     (t :string))))
+    (let ((core (beads-meta--unwrap-nullable type-spec)))
+      (cond
+       ((eq core 'boolean) :boolean)
+       ((eq core 'list) :list)
+       ((and (listp core) (eq (car core) 'list-of)) :list)
+       ((memq core '(integer number)) :integer)
+       (t :string)))))
 
 (defun beads-meta--infer-initarg (slot-name slot-options)
   "Infer :initarg from SLOT-NAME if not already set in SLOT-OPTIONS.
