@@ -1184,9 +1184,9 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
 ;; Load reader functions now that state variables are defined
 (require 'beads-reader)
 
-;; Note: beads-defcommand-with-transient has been merged into
-;; beads-defcommand (in beads-command.el).  Use :global-section to
-;; specify the global options section for the transient menu.
+;; Note: beads-defcommand (in beads-command.el) auto-generates
+;; transient menus by default.  Use :transient nil to opt out or
+;; :transient :manual to provide a hand-written transient.
 
 (provide 'beads-option)
 ;;; beads-option.el ends here

@@ -173,8 +173,33 @@
   :documentation "Represents bd search command.
 Full-text search across issues.
 When executed with :json t, returns matching issues as JSON."
-  :parse-as :issues)
+  :result (list-of beads-issue)
+  :transient :manual)
 
+
+(cl-defmethod beads-command-parse ((command beads-command-search) stdout)
+  "Parse search COMMAND output from STDOUT.
+Return list of beads-issue objects."
+  (with-slots (json) command
+    (if (not json)
+        (cl-call-next-method)
+      (let ((parsed-json (cl-call-next-method)))
+        (condition-case err
+            (if (eq (type-of parsed-json) 'vector)
+                (mapcar #'beads-issue-from-json
+                        (append parsed-json nil))
+              (signal 'beads-json-parse-error
+                      (list "Unexpected JSON structure from bd search"
+                            :stdout stdout
+                            :parsed-json parsed-json)))
+          (beads-json-parse-error (signal (car err) (cdr err)))
+          (error
+           (signal 'beads-json-parse-error
+                   (list (format "Failed to create beads-issue: %s"
+                                 (error-message-string err))
+                         :stdout stdout
+                         :parsed-json parsed-json
+                         :parse-error err))))))))
 
 (cl-defmethod beads-command-validate ((_command beads-command-search))
   "Validate search COMMAND.
@@ -198,8 +223,7 @@ then displays them in a tabulated list buffer."
       (let* ((caller-dir default-directory)
              (project-dir (or (beads-git-find-project-root)
                               default-directory))
-             (exec (beads-command-execute cmd))
-             (issue-objects (oref exec result))
+             (issue-objects (beads-command-execute cmd))
              (buffer (beads-list--get-or-create-buffer 'search)))
         (with-current-buffer buffer
           (unless (derived-mode-p 'beads-list-mode)
