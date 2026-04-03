@@ -135,6 +135,9 @@ Returns nil if DOCSTRING is nil or empty."
     :positional
     :positional-rest
     :option-separator
+    :separator              ; shorthand for :option-separator
+    ;; JSON mapping
+    :json-key               ; override JSON key (default: slot → underscore)
     ;; Transient properties (concise names)
     :key                    ; key binding in transient menu
     :transient              ; description shown in transient menu
@@ -178,6 +181,7 @@ Property name mappings (new -> legacy):
   :field-name  -> :transient-field-name
   :level       -> :transient-level
   :order       -> :transient-order
+  :separator   -> :option-separator
 
 The concise names are preferred.  Legacy names are preserved for
 backwards compatibility.  Note: :reader and :group conflict with EIEIO
@@ -199,7 +203,8 @@ slot plists before defclass processes them.")
     (:argument    . :transient-argument)
     (:field-name  . :transient-field-name)
     (:level       . :transient-level)
-    (:order       . :transient-order))
+    (:order       . :transient-order)
+    (:separator   . :option-separator))
   "Mapping from concise property names to legacy names.
 This allows slot definitions to use either naming convention.
 Note: :reader and :group conflict with EIEIO slot options, so
@@ -449,6 +454,22 @@ Special handling for :transient which has dual semantics:
           (when-let ((value (plist-get result legacy)))
             (unless (plist-get result concise)
               (setq result (plist-put result concise value)))))))
+    ;; Infer :transient-key from :short-option when :key is absent
+    ;; (D14: :short-option serves as both CLI flag and transient key)
+    ;; Only when the slot already has transient metadata (group, class, etc.)
+    (when (and (plist-get result :short-option)
+               (not (plist-get result :key))
+               (not (plist-get result :transient-key))
+               (or (plist-get result :transient-group)
+                   (plist-get result :group)
+                   (plist-get result :transient-class)
+                   (plist-get result :class)
+                   (plist-get result :transient-description)
+                   (plist-get result :transient)))
+      (setq result (plist-put result :transient-key
+                              (plist-get result :short-option)))
+      (setq result (plist-put result :key
+                              (plist-get result :short-option))))
     result))
 
 (defun beads-meta--slot-is-command-option-p (slot-options)
@@ -668,6 +689,32 @@ Returns nil if slot not found."
                         (lambda (pair)
                           (memq (car pair) beads-meta--slot-properties))
                         (cl--slot-descriptor-props slot-desc)))))))
+
+(defun beads-meta--slot-json-key (class slot-name)
+  "Return the JSON key symbol for SLOT-NAME in CLASS.
+Uses the :json-key custom property if set, otherwise converts
+the slot name by replacing hyphens with underscores.
+Returns a symbol (e.g., slot `issue-type' -> `issue_type')."
+  (or (beads-meta-slot-property class slot-name :json-key)
+      (intern (replace-regexp-in-string
+               "-" "_" (symbol-name slot-name)))))
+
+(defun beads-meta-slot-initarg (class slot-name)
+  "Get the initarg keyword for SLOT-NAME in CLASS.
+CLASS is a class name symbol.  Returns a keyword (e.g., :title)."
+  (let ((class-obj (cl--find-class class)))
+    (when class-obj
+      (beads-meta--slot-initarg class-obj slot-name))))
+
+(defun beads-meta-slot-type (class slot-name)
+  "Get the EIEIO :type for SLOT-NAME in CLASS.
+CLASS is a class name symbol."
+  (let* ((class-obj (cl--find-class class))
+         (slots-vec (and class-obj (eieio--class-slots class-obj))))
+    (when slots-vec
+      (cl-loop for slot-desc across slots-vec
+               when (eq (cl--slot-descriptor-name slot-desc) slot-name)
+               return (cl--slot-descriptor-type slot-desc)))))
 
 (defun beads-meta-positional-slots (class)
   "Get all positional slots for CLASS, sorted by position.
