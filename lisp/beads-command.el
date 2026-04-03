@@ -211,21 +211,29 @@ Example (hand-written transient):
         (lwarn 'beads :warning
                "beads-defcommand %s: superclass %s is not defined"
                name super)))
-    `(progn
-       (eval-and-compile
-         (defclass ,name ,superclasses ,final-slots ,@defclass-options))
-       ,@(when cli-command
-           `((cl-defmethod beads-command-subcommand ((_command ,name))
-               ,(format "Return %S as the CLI subcommand name." cli-command)
-               ,cli-command)))
-       ,@(when result-type
-           `((put ',name 'beads-result ',result-type)))
-       ,@(when (and json-specified (not json-val))
-           `((put ',name 'beads-json nil)))
-       ,@(when generate-transient
-           `((beads-meta-define-transient ,name ,transient-prefix
-               ,short-doc
-               beads-option-global-section))))))
+    (let ((primary-parent (car superclasses)))
+      `(progn
+         (eval-and-compile
+           (defclass ,name ,superclasses ,final-slots ,@defclass-options))
+         ;; Register class hierarchy for subcommand derivation (D13)
+         ;; and transient menu generation (D14)
+         ,@(when (and primary-parent
+                      (not (eq primary-parent 'beads-command)))
+             `((put ',name 'beads-parent ',primary-parent)
+               (cl-pushnew ',name (get ',primary-parent 'beads-children))))
+         ,@(when cli-command
+             `((cl-defmethod beads-command-subcommand ((_command ,name))
+                 ,(format "Return %S as the CLI subcommand name."
+                          cli-command)
+                 ,cli-command)))
+         ,@(when result-type
+             `((put ',name 'beads-result ',result-type)))
+         ,@(when (and json-specified (not json-val))
+             `((put ',name 'beads-json nil)))
+         ,@(when generate-transient
+             `((beads-meta-define-transient ,name ,transient-prefix
+                 ,short-doc
+                 beads-option-global-section)))))))
 
 ;;; Terminal Backend Customization
 
@@ -659,28 +667,77 @@ Subclasses may override for cross-field validation rules."
 
 (cl-defgeneric beads-command-subcommand (command)
   "Return the CLI subcommand name for COMMAND.
-For example, \"create\", \"update\", \"doctor\", etc.
+For example, \"close\", \"admin compact\", \"federation add-peer\".
 
-The default implementation auto-derives the subcommand from the class
-name by stripping the \"beads-command-\" prefix and converting hyphens
-in multi-word commands to spaces:
-  beads-command-close     -> \"close\"
-  beads-command-dep-add   -> \"dep add\"
+Priority:
+1. :cli-command class-allocated slot (explicit override)
+2. Hierarchy-based derivation via `beads--collect-subcommand-segments'
 
-Override this method only for non-standard subcommand names.
-Returns nil for the abstract base class `beads-command'.")
+The hierarchy-based approach walks from the concrete class up to
+`beads-command-global-options', collecting name segments.  Each class
+contributes its own suffix relative to its parent:
+  beads-command-close               -> \"close\"
+  beads-command-admin-compact
+    inheriting beads-command-admin   -> \"admin compact\"
+  beads-command-federation-add-peer
+    inheriting beads-command-federation -> \"federation add-peer\"
+
+Returns nil for `beads-command' and `beads-command-global-options'.")
+
+(defun beads--collect-subcommand-segments (class)
+  "Collect subcommand name segments by walking CLASS hierarchy.
+Returns a list of strings from root to leaf, or nil for base classes.
+Each class contributes a segment derived from its name relative to
+its parent (strips the parent name prefix + hyphen).
+Classes `beads-command' and `beads-command-global-options' are excluded."
+  (when (and class
+             (not (memq class '(beads-command beads-command-global-options))))
+    (let* ((parent (get class 'beads-parent))
+           (parent-segments (when parent
+                              (beads--collect-subcommand-segments parent)))
+           (class-name (symbol-name class)))
+      (if (and parent
+               (not (memq parent '(beads-command
+                                   beads-command-global-options))))
+          ;; Has a command parent — derive segment relative to parent
+          (let* ((parent-name (symbol-name parent))
+                 (prefix (concat parent-name "-"))
+                 (segment (if (string-prefix-p prefix class-name)
+                              (substring class-name (length prefix))
+                            ;; Fallback: strip beads-command- prefix
+                            (when (string-match
+                                   "\\`beads-command-\\(.+\\)\\'" class-name)
+                              (match-string 1 class-name)))))
+            (when segment
+              (append parent-segments (list segment))))
+        ;; Direct child of global-options or beads-command
+        (when (string-match "\\`beads-command-\\(.+\\)\\'" class-name)
+          (list (match-string 1 class-name)))))))
 
 (cl-defmethod beads-command-subcommand ((command beads-command))
-  "Auto-derive subcommand name from COMMAND class name.
-Strips \"beads-command-\" prefix and replaces hyphens with spaces.
-For the abstract `beads-command' class itself, returns nil.
-Checks for :cli-command class-allocated slot first."
-  (let ((class-name (symbol-name (eieio-object-class command))))
-    (unless (equal class-name "beads-command")
+  "Derive subcommand name from COMMAND class hierarchy.
+Priority:
+1. :cli-command class-allocated slot (explicit override)
+2. Hierarchy-based derivation (when beads-parent is registered)
+3. Legacy fallback: strip beads-command- prefix, hyphens to spaces
+Returns nil for abstract base classes."
+  (let* ((class (eieio-object-class command))
+         (class-name (symbol-name class)))
+    (unless (memq class '(beads-command beads-command-global-options))
       (let ((cli-cmd (and (slot-exists-p command 'cli-command)
                           (slot-boundp command 'cli-command)
                           (with-no-warnings (oref command cli-command)))))
         (or cli-cmd
+            ;; Hierarchy-based: use when parent is a real command class
+            ;; (not global-options, which is infrastructure)
+            (let ((parent (get class 'beads-parent)))
+              (when (and parent
+                         (not (memq parent '(beads-command
+                                             beads-command-global-options))))
+                (let ((segments (beads--collect-subcommand-segments class)))
+                  (when segments
+                    (string-join segments " ")))))
+            ;; Legacy fallback: strip prefix, hyphens to spaces
             (when (string-match "\\`beads-command-\\(.+\\)\\'" class-name)
               (replace-regexp-in-string
                "-" " " (match-string 1 class-name))))))))
