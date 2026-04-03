@@ -517,6 +517,18 @@ All concrete command classes should inherit from this class.")
 
 ;;; Helper Functions
 
+(defun beads-command--format-validation-errors (errors)
+  "Format ERRORS into a single string for display.
+ERRORS may be a string, a list of strings, or nil."
+  (cond
+   ((null errors) nil)
+   ((stringp errors) errors)
+   ((and (listp errors) (= (length errors) 1))
+    (car errors))
+   ((listp errors)
+    (mapconcat #'identity errors "; "))
+   (t (format "%s" errors))))
+
 (defun beads-command--validate-string-list (value field-name)
   "Validate that VALUE is nil or a list of strings.
 FIELD-NAME is used in error messages.
@@ -556,8 +568,22 @@ followed by command name and all flags.
 Example: (\"bd\" \"list\" \"--json\" \"--status\" \"open\")")
 
 (cl-defgeneric beads-command-validate (command)
-  "Validate COMMAND and return error string or nil if valid.
-Subclasses should override to add command-specific validation.")
+  "Validate COMMAND and return errors or nil if valid.
+Returns a list of error strings, a single error string, or nil.
+The base method delegates to `beads-command-validate-slots'.
+Override for cross-field validation rules.")
+
+(cl-defgeneric beads-command-validate-slot (command slot-name value)
+  "Validate VALUE for SLOT-NAME on COMMAND using slot metadata.
+Returns an error string if validation fails, nil if valid.
+The base method checks :required and :choices via metadata.
+Override with (eql SLOT-NAME) specializer for custom per-slot rules.")
+
+(cl-defgeneric beads-command-validate-slots (command)
+  "Validate all slots on COMMAND using metadata.
+Loops over command-option slots, calls `beads-command-validate-slot'
+for each, and collects errors.  Returns a list of error strings,
+or nil if all slots are valid.")
 
 ;;; Base Implementation - Global Flags
 
@@ -586,11 +612,50 @@ via `beads-meta-build-global-options'."
       ;; No subcommand - just return global flags
       global-args)))
 
+(cl-defmethod beads-command-validate-slot ((cmd beads-command)
+                                            slot-name value)
+  "Validate VALUE for SLOT-NAME on CMD using slot metadata.
+Checks :required and :choices via `beads-meta-slot-property'.
+Returns an error string if validation fails, nil if valid."
+  (let ((class (eieio-object-class cmd)))
+    (let ((required (beads-meta-slot-property class slot-name :required))
+          (choices (beads-meta-slot-property class slot-name
+                                             :transient-choices)))
+      (cond
+       ((and required
+             (or (null value)
+                 (and (stringp value) (string-empty-p value))
+                 (and (listp value) (null value))))
+        (format "%s is required" slot-name))
+       ((and choices value (not (member value choices)))
+        (format "%s must be one of: %s" slot-name
+                (mapconcat (lambda (c) (format "%s" c))
+                           choices ", ")))))))
+
+(cl-defmethod beads-command-validate-slots ((cmd beads-command))
+  "Validate all command-option slots on CMD using metadata.
+Calls `beads-command-validate-slot' for each slot that has any
+command-option metadata (:required, :choices, :long-option, etc.).
+Returns a list of error strings, or nil if all slots are valid."
+  (let ((class (eieio-object-class cmd))
+        errors)
+    (dolist (slot-name (beads-meta-command-slots class))
+      (let ((props (beads-meta-slot-properties class slot-name)))
+        ;; Only validate slots that have custom metadata
+        (when props
+          (let ((value (and (slot-boundp cmd slot-name)
+                            (slot-value cmd slot-name))))
+            (when-let ((err (beads-command-validate-slot
+                             cmd slot-name value)))
+              (push err errors))))))
+    (nreverse errors)))
+
 (cl-defmethod beads-command-validate ((_command beads-command))
   "Validate base COMMAND.
-Default implementation returns nil (valid).
-Subclasses override to add validation."
-  nil)
+Default implementation delegates to `beads-command-validate-slots'.
+Returns a list of error strings, or nil if valid.
+Subclasses may override for cross-field validation rules."
+  (beads-command-validate-slots _command))
 
 (cl-defgeneric beads-command-subcommand (command)
   "Return the CLI subcommand name for COMMAND.
@@ -751,11 +816,12 @@ Signals `beads-validation-error' if command validation fails.
 Signals `beads-command-error' if process exits with non-zero code.
 Signals `beads-json-parse-error' if JSON parsing fails (for JSON commands)."
   ;; Validate first
-  (when-let ((error (beads-command-validate command)))
-    (signal 'beads-validation-error
-            (list (format "Command validation failed: %s" error)
-                  :command command
-                  :error error)))
+  (when-let ((errors (beads-command-validate command)))
+    (let ((error-msg (beads-command--format-validation-errors errors)))
+      (signal 'beads-validation-error
+              (list (format "Command validation failed: %s" error-msg)
+                    :command command
+                    :error errors))))
 
   ;; Build full command line
   (let* ((cmd (beads-command-line command))
@@ -843,11 +909,12 @@ ON-ERROR receives the error condition; nil means display via `beads--error'.
 Signals `beads-validation-error' immediately if validation fails.
 Returns process object."
   ;; Validate first - raise error immediately
-  (when-let ((validation-error (beads-command-validate command)))
-    (signal 'beads-validation-error
-            (list (format "Command validation failed: %s" validation-error)
-                  :command command
-                  :error validation-error)))
+  (when-let ((errors (beads-command-validate command)))
+    (let ((error-msg (beads-command--format-validation-errors errors)))
+      (signal 'beads-validation-error
+              (list (format "Command validation failed: %s" error-msg)
+                    :command command
+                    :error errors))))
 
   ;; Validation passed - build command line and execute
   (let* ((cmd (beads-command-line command))
