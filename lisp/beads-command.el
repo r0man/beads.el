@@ -20,22 +20,19 @@
 ;;
 ;; Each command class:
 ;; - Has slots for all applicable flags
-;; - Implements beads-command-execute method
+;; - Implements beads-command-execute method (returns parsed result directly)
 ;; - Provides beads-command-line for building full command line
 ;; - Supports validation via beads-command-validate
 ;;
 ;; Usage:
 ;;
-;;   ;; Create and execute an init command (no JSON support)
-;;   (let ((cmd (beads-command-init
-;;               :prefix "myproject"
-;;               :branch "main"
-;;               :quiet t)))
-;;     (beads-command-execute cmd))
+;;   ;; Create and execute a command — returns parsed result directly
+;;   (let ((cmd (beads-command-list :status "open" :json t)))
+;;     (beads-command-execute cmd))  ;; => list of beads-issue objects
 ;;
 ;;   ;; Build full command line without execution
 ;;   (beads-command-line cmd)
-;;   ;; => ("bd" "init" "--prefix" "myproject" "--branch" "main" "--quiet")
+;;   ;; => ("bd" "list" "--status" "open" "--json")
 
 ;;; Code:
 
@@ -107,61 +104,77 @@ OPTIONS are additional class options like :documentation.
 
 This macro generates:
 1. Class definition wrapped in `eval-and-compile'
-2. NAME! convenience function that executes the command
-3. Transient menu (when :global-section is specified)
-4. CLI subcommand method (when :cli-command is specified)
-5. Parse method (when :parse-as is specified)
+2. CLI subcommand method (when :cli-command is specified)
+3. Symbol properties for :result, :json
+4. Transient menu (controlled by :transient keyword)
 
 Custom keyword options (stripped before passing to defclass):
-  :global-section SYM   - Generate a transient menu and include SYM
-                          as a global options section.  The transient
-                          name is derived by stripping \"-command-\"
-                          from NAME (e.g., beads-command-close ->
-                          beads-close).  The docstring uses the first
-                          sentence of :documentation.
   :cli-command STR      - Explicit CLI subcommand string.  When not
                           specified, the subcommand is auto-derived
                           from the class name by the default method
                           on `beads-command'.
-  :parse-as KEYWORD     - Auto-generate a `beads-command-parse' method.
-                          :issue  - Parse JSON as single beads-issue
-                                    (or list when multiple IDs).
-                          :issues - Parse JSON as list of beads-issue.
+  :result TYPE          - Declare the command's result type.  Stored
+                          as symbol property `beads-result'.
+                          Examples: `beads-issue', `(list-of beads-issue)'.
+                          Used by Phase 3 auto-parsing infrastructure.
+  :json BOOL            - Whether the command supports --json.
+                          Stored as symbol property `beads-json'.
+                          Default is t (most commands support --json).
+                          Set to nil for commands like doctor, init.
+  :transient VAL        - Control transient menu generation.
+                          t or omitted: auto-generate transient menu
+                            with `beads-option-global-section'.
+                          nil: no transient at all.
+                          :manual: skip auto-generation; a hand-written
+                            `transient-define-prefix' follows in the
+                            same file.
 
-When :global-section is specified, the macro generates the transient
-menu automatically from slot metadata via `beads-meta-define-transient'.
-Without it, only the class and bang function are generated.
+The transient name is derived by stripping \"-command-\" from NAME
+\(e.g., beads-command-close -> beads-close).  The docstring uses
+the first sentence of :documentation.
 
-When :global-section is specified, the macro also generates an
-`autoload' form for the transient command, so that manual autoload
-cookies are no longer needed.  The file name is derived from
-`load-file-name' at macroexpansion time.
-
-Example (with transient):
+Example (with auto-generated transient):
   ;;;###autoload
   (beads-defcommand beads-command-close (beads-command-global-options)
     ((issue-ids :initarg :issue-ids :key \"i\" :transient \"Issue ID\")
      (reason :initarg :reason :key \"r\" :transient \"Reason\"))
     :documentation \"Close issue.\"
-    :cli-command \"close\"
-    :parse-as :issue
-    :global-section beads-option-global-section)
+    :result (list-of beads-issue))
 
-Example (without transient):
-  (beads-defcommand beads-command-foo (beads-command-global-options)
-    ((name :initarg :name))
-    :documentation \"Foo command.\")"
+Example (no transient):
+  (beads-defcommand beads-command-doctor (beads-command-global-options)
+    ()
+    :documentation \"Run bd doctor.\"
+    :json nil
+    :transient nil)
+
+Example (hand-written transient):
+  (beads-defcommand beads-command-list (beads-command-global-options)
+    ((status ...))
+    :documentation \"List issues.\"
+    :result (list-of beads-issue)
+    :transient :manual)"
   (declare (indent 2))
   ;; Extract custom keywords from options before passing to defclass
-  (let* ((result-1 (beads--extract-option :global-section options))
-         (global-section (car result-1))
+  (let* ((result-1 (beads--extract-option :cli-command options))
+         (cli-command (car result-1))
          (options-2 (cdr result-1))
-         (result-2 (beads--extract-option :cli-command options-2))
-         (cli-command (car result-2))
+         (result-2 (beads--extract-option :result options-2))
+         (result-type (car result-2))
          (options-3 (cdr result-2))
-         (result-3 (beads--extract-option :parse-as options-3))
-         (parse-as (car result-3))
-         (defclass-options (cdr result-3))
+         (result-3 (beads--extract-option :json options-3))
+         (json-val (car result-3))
+         (json-specified (cl-position :json options-2))
+         (options-4 (cdr result-3))
+         (result-4 (beads--extract-option :transient options-4))
+         (transient-val (car result-4))
+         (transient-specified (cl-position :transient options-3))
+         (defclass-options (cdr result-4))
+         ;; Also strip legacy keywords for backward compatibility
+         (result-5 (beads--extract-option :global-section defclass-options))
+         (defclass-options (cdr result-5))
+         (result-6 (beads--extract-option :parse-as defclass-options))
+         (defclass-options (cdr result-6))
          ;; Normalize slots: infer :initarg, :type, :initform, :long-option
          (normalized-slots (mapcar #'beads-meta--normalize-slot-def slots))
          ;; Add cli-command as a class-allocated slot if specified
@@ -172,105 +185,47 @@ Example (without transient):
                                     :allocation :class
                                     :documentation "CLI subcommand name.")))
                        normalized-slots))
-         ;; Derived names
-         (bang-fn (intern (concat (symbol-name name) "!")))
+         ;; Determine transient mode:
+         ;; - not specified → auto-generate (t)
+         ;; - t → auto-generate
+         ;; - nil → no transient
+         ;; - :manual → skip auto-generation
+         (generate-transient (if transient-specified
+                                 (eq transient-val t)
+                               t))
          ;; Transient-related names (only needed when generating a menu)
-         (transient-name (when global-section
+         (transient-name (when generate-transient
                            (beads--derive-transient-name name)))
          (transient-prefix (when transient-name
                              (symbol-name transient-name)))
          ;; Extract docstring for transient
          (doc-pos (cl-position :documentation defclass-options))
          (docstring (when doc-pos (nth (1+ doc-pos) defclass-options)))
-         (short-doc (when global-section
+         (short-doc (when generate-transient
                       (beads--extract-first-sentence docstring))))
+    ;; Defensive superclass check at macro-expansion time
+    (dolist (super superclasses)
+      (unless (or (find-class super nil)
+                  ;; Allow forward references during compilation
+                  (bound-and-true-p byte-compile-current-file))
+        (lwarn 'beads :warning
+               "beads-defcommand %s: superclass %s is not defined"
+               name super)))
     `(progn
        (eval-and-compile
          (defclass ,name ,superclasses ,final-slots ,@defclass-options))
-       (defun ,bang-fn (&rest args)
-         ,(format "Execute %s and return result.\n\nARGS are passed to the constructor.\nJSON output is enabled by default for data access.\nPass :json nil to disable." name)
-         (let ((cmd (apply #',name args)))
-           (unless (plist-member args :json)
-             (oset cmd json t))
-           (oref (beads-command-execute cmd) result)))
        ,@(when cli-command
            `((cl-defmethod beads-command-subcommand ((_command ,name))
                ,(format "Return %S as the CLI subcommand name." cli-command)
                ,cli-command)))
-       ,@(when parse-as
-           (beads--generate-parse-method name parse-as))
-       ,@(when global-section
+       ,@(when result-type
+           `((put ',name 'beads-result ',result-type)))
+       ,@(when (and json-specified (not json-val))
+           `((put ',name 'beads-json nil)))
+       ,@(when generate-transient
            `((beads-meta-define-transient ,name ,transient-prefix
                ,short-doc
-               ,global-section))))))
-
-(defun beads--generate-parse-method (class-name parse-as)
-  "Generate a `beads-command-parse' method for CLASS-NAME.
-PARSE-AS is :issue (single/multi depending on issue-ids count)
-or :issues (always list)."
-  (pcase parse-as
-    (:issue
-     `((cl-defmethod beads-command-parse ((command ,class-name) execution)
-         ,(format "Parse %s output from EXECUTION into beads-issue objects." class-name)
-         (with-slots (json) command
-           (if (not json)
-               (cl-call-next-method)
-             (let ((parsed-json (cl-call-next-method)))
-               (condition-case err
-                   (if (eq (type-of parsed-json) 'vector)
-                       (let ((issues (mapcar #'beads-issue-from-json
-                                             (append parsed-json nil))))
-                         (if (and (slot-exists-p command 'issue-ids)
-                                  (slot-boundp command 'issue-ids)
-                                  (oref command issue-ids)
-                                  (= (length (oref command issue-ids)) 1))
-                             (car issues)
-                           issues))
-                     ;; Single object response
-                     (if (consp parsed-json)
-                         (beads-issue-from-json parsed-json)
-                       (signal 'beads-json-parse-error
-                               (list ,(format "Unexpected JSON structure from %s"
-                                              class-name)
-                                     :exit-code (oref execution exit-code)
-                                     :parsed-json parsed-json
-                                     :stderr (oref execution stderr)))))
-                 (beads-json-parse-error (signal (car err) (cdr err)))
-                 (error
-                  (signal 'beads-json-parse-error
-                          (list (format "Failed to create beads-issue: %s"
-                                        (error-message-string err))
-                                :exit-code (oref execution exit-code)
-                                :parsed-json parsed-json
-                                :stderr (oref execution stderr)
-                                :parse-error err))))))))))
-    (:issues
-     `((cl-defmethod beads-command-parse ((command ,class-name) execution)
-         ,(format "Parse %s output from EXECUTION.\nReturn list of beads-issue objects." class-name)
-         (with-slots (json) command
-           (if (not json)
-               (cl-call-next-method)
-             (let ((parsed-json (cl-call-next-method)))
-               (condition-case err
-                   (if (eq (type-of parsed-json) 'vector)
-                       (mapcar #'beads-issue-from-json
-                               (append parsed-json nil))
-                     (signal 'beads-json-parse-error
-                             (list ,(format "Unexpected JSON structure from %s"
-                                            class-name)
-                                   :exit-code (oref execution exit-code)
-                                   :parsed-json parsed-json
-                                   :stderr (oref execution stderr))))
-                 (beads-json-parse-error (signal (car err) (cdr err)))
-                 (error
-                  (signal 'beads-json-parse-error
-                          (list (format "Failed to create beads-issue: %s"
-                                        (error-message-string err))
-                                :exit-code (oref execution exit-code)
-                                :parsed-json parsed-json
-                                :stderr (oref execution stderr)
-                                :parse-error err))))))))))
-    (_ (error "Invalid :parse-as value: %S (must be :issue or :issues)" parse-as))))
+               beads-option-global-section))))))
 
 ;;; Terminal Backend Customization
 
@@ -410,8 +365,8 @@ When nil, auto-detects best available backend."
   :documentation "Minimal abstract base class for all bd commands.
 Provides execution machinery and generic method definitions only.
 Global CLI options are provided by `beads-command-global-options'.
-Execution results are returned in `beads-command-execution' objects,
-not stored on the command itself (commands are immutable/reusable).")
+Execution returns parsed results directly (domain objects, raw JSON,
+or raw stdout).  Commands are immutable/reusable.")
 
 ;;; Global Options Class
 
@@ -546,41 +501,19 @@ Inherits `beads-command' base and adds all global flag slots.
 These flags apply to all bd commands and are built using slot metadata.
 All concrete command classes should inherit from this class.")
 
-;;; Command Execution Result
+;;; Condition Accessor Functions
 
-(defclass beads-command-execution ()
-  ((command
-    :initarg :command
-    :type beads-command
-    :documentation "The command that was executed.")
-   (exit-code
-    :initarg :exit-code
-    :type (or null integer)
-    :initform nil
-    :documentation "Exit code from command execution.
-0 indicates success, non-zero indicates failure.")
-   (stdout
-    :initarg :stdout
-    :type (or null string)
-    :initform nil
-    :documentation "Standard output from command execution.")
-   (stderr
-    :initarg :stderr
-    :type (or null string)
-    :initform nil
-    :documentation "Standard error from command execution.")
-   (result
-    :initarg :result
-    :initform nil
-    :documentation "Parsed/processed result data after command execution.
-For non-JSON commands: raw stdout string.
-For JSON commands: parsed JSON data.
-For subclass commands: domain objects (e.g., beads-issue instances).
-Set by `beads-command-parse' after execution."))
-  :documentation "Result of executing a beads-command.
-Separates execution results (mutable, per-execution) from command
-definition (immutable, reusable). Created by `beads-command-execute'
-and `beads-command-execute-async'.")
+(defun beads-command-error-exit-code (err)
+  "Extract exit code from a beads-command-error condition ERR."
+  (plist-get (cddr err) :exit-code))
+
+(defun beads-command-error-stdout (err)
+  "Extract stdout string from a beads-command-error condition ERR."
+  (plist-get (cddr err) :stdout))
+
+(defun beads-command-error-stderr (err)
+  "Extract stderr string from a beads-command-error condition ERR."
+  (plist-get (cddr err) :stderr))
 
 ;;; Helper Functions
 
@@ -601,29 +534,12 @@ Returns error string or nil if valid."
 (cl-defgeneric beads-command-execute (command)
   "Execute COMMAND by building arguments and running bd CLI.
 
-Returns a `beads-command-execution' object with slots:
-  - `command': The command that was executed
-  - `exit-code': Process exit code (0 = success)
-  - `stdout': Standard output string
-  - `stderr': Standard error string
-  - `result': Parsed result (see below)
+Returns the parsed result directly:
+  - With :json t: domain objects (beads-issue, etc.) or raw JSON alist
+  - With :json nil: raw stdout string
+  - Nil return is valid (e.g., empty list results)
 
-The `result' slot contents depend on command type:
-
-DEFAULT BEHAVIOR (:json t, the default):
-    `result' contains domain objects:
-    - beads-command-list: list of beads-issue instances
-    - beads-command-create: beads-issue instance (or list)
-    - beads-command-show: beads-issue instance (or list)
-    - beads-command-update: beads-issue instance (or list)
-    - beads-command-close: beads-issue instance (or list)
-    - beads-command-ready: list of beads-issue instances
-    - beads-command-blocked: list of beads-blocked-issue instances
-    - beads-command-stats: parsed JSON alist
-    - beads-command-epic-*: parsed JSON
-
-  With :json nil:
-    `result' contains raw stdout string
+If this function returns without signaling, the command succeeded.
 
 Signals errors:
   - beads-validation-error: Command validation failed
@@ -773,51 +689,41 @@ such as showing which fields are set or validation warnings.")
     (message "Command: %s" cmd-string)
     cmd-string))
 
-(cl-defgeneric beads-command-parse (command execution)
-  "Parse EXECUTION output and return the parsed result.
+(cl-defgeneric beads-command-parse (command stdout)
+  "Parse STDOUT and return the parsed result.
 COMMAND is the command object (used for method dispatch and configuration).
-EXECUTION is the `beads-command-execution' object containing stdout/stderr.
+STDOUT is the standard output string from the process.
 
-This method is called by `beads-command-execute' after process execution.
-It should:
-1. Read from EXECUTION's stdout/stderr slots
-2. Parse/transform the data as appropriate for COMMAND type
-3. Return the parsed result (EIEIO objects, lists, etc.)
-
-IMPORTANT: This method must NOT modify any slots.  The caller
-\(`beads-command-execute' or `beads-command-execute-async') is responsible
-for setting the EXECUTION's `result' slot to the returned value.
+This method is called by `beads-command-execute' after successful process
+execution (exit code 0).  Errors are signaled before parse runs, so
+STDOUT is always from a successful execution.
 
 Dispatches based on json slot:
-- When :json is t: Parses JSON from stdout, returns alist/vector
-- When :json is nil (default): Returns raw stdout string
+- When :json is t: Parses JSON from STDOUT, returns alist/vector
+- When :json is nil (default): Returns raw STDOUT string
 - Subclasses may override to transform parsed JSON into domain objects
 
 Signals `beads-json-parse-error' if JSON parsing fails.")
 
-(cl-defmethod beads-command-parse ((command beads-command) execution)
-  "Parse COMMAND output from EXECUTION.
-When json slot is t, parses JSON from stdout and returns it.
-When json slot is nil, returns raw stdout string.
-Does not modify any slots.
+(cl-defmethod beads-command-parse ((command beads-command) stdout)
+  "Parse COMMAND output from STDOUT string.
+When json slot is t, parses JSON from STDOUT and returns it.
+When json slot is nil, returns raw STDOUT string.
 Signals `beads-json-parse-error' if JSON parsing fails."
   (with-slots (json) command
     (if (not json)
-        (oref execution stdout)
-      (let ((stdout (oref execution stdout)))
-        (condition-case err
-            (let* ((json-object-type 'alist)
-                   (json-array-type 'vector)
-                   (json-key-type 'symbol))
-              (json-read-from-string stdout))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to parse JSON: %s"
-                                 (error-message-string err))
-                         :exit-code (oref execution exit-code)
-                         :stdout stdout
-                         :stderr (oref execution stderr)
-                         :parse-error err))))))))
+        stdout
+      (condition-case err
+          (let* ((json-object-type 'alist)
+                 (json-array-type 'vector)
+                 (json-key-type 'symbol))
+            (json-read-from-string stdout))
+        (error
+         (signal 'beads-json-parse-error
+                 (list (format "Failed to parse JSON: %s"
+                               (error-message-string err))
+                       :stdout stdout
+                       :parse-error err)))))))
 
 ;;; Process Environment Helpers
 
@@ -834,19 +740,12 @@ auto-starting its own instance."
 ;;; Base Command Execution - Non-JSON Commands
 
 (cl-defmethod beads-command-execute ((command beads-command))
-  "Execute COMMAND and return a `beads-command-execution' object.
-Runs the bd CLI command, creates an execution object with results,
-calls `beads-command-parse' to process output, and returns the execution.
+  "Execute COMMAND and return the parsed result directly.
+Runs the bd CLI command, parses output via `beads-command-parse',
+and returns the parsed result (domain objects, raw JSON, or raw stdout).
 
-The returned `beads-command-execution' object contains:
-- `command': The command object that was executed
-- `exit-code': Process exit code (0 = success)
-- `stdout': Standard output string
-- `stderr': Standard error string
-- `result': Parsed result (raw stdout, parsed JSON, or domain objects)
-
-For backward compatibility, command slots are also populated:
-- `exit-code', `stdout', `stderr', `data' (deprecated, use execution object)
+If `beads-command-execute' returns without signaling, the command
+succeeded.  Nil return is valid (e.g., empty list results).
 
 Signals `beads-validation-error' if command validation fails.
 Signals `beads-command-error' if process exits with non-zero code.
@@ -880,13 +779,7 @@ Signals `beads-json-parse-error' if JSON parsing fails (for JSON commands)."
                  (proc-stdout (buffer-string))
                  (proc-stderr (with-temp-buffer
                                 (insert-file-contents stderr-file)
-                                (buffer-string)))
-                 ;; Create execution object
-                 (execution (beads-command-execution
-                             :command command
-                             :exit-code proc-exit-code
-                             :stdout proc-stdout
-                             :stderr proc-stderr)))
+                                (buffer-string))))
 
             (when (fboundp 'beads--log)
               (beads--log 'info "Command completed in %.3fs" elapsed)
@@ -904,10 +797,8 @@ Signals `beads-json-parse-error' if JSON parsing fails (for JSON commands)."
                             proc-stderr)))
 
             (if (zerop proc-exit-code)
-                ;; Success: parse output and set result
-                (let ((parsed (beads-command-parse command execution)))
-                  (oset execution result parsed)
-                  execution)
+                ;; Success: parse output and return result directly
+                (beads-command-parse command proc-stdout)
               ;; Signal error with complete information
               (signal 'beads-command-error
                       (list (format "Command failed with exit code %d"
@@ -923,39 +814,32 @@ Signals `beads-json-parse-error' if JSON parsing fails (for JSON commands)."
 
 ;;; Async Command Execution
 
-(cl-defgeneric beads-command-execute-async (command &optional callback)
+(cl-defgeneric beads-command-execute-async (command on-success
+                                                    &optional on-error)
   "Execute COMMAND asynchronously without blocking Emacs.
 
-CALLBACK is called with a `beads-command-execution' object when done.
-The execution object contains the result data in its slots.
+ON-SUCCESS receives the parsed result (same as sync return value).
+ON-ERROR receives the error condition; nil means display via `beads--error'.
 
 Signals `beads-validation-error' immediately if validation fails.
 
 Return value: process object (use `delete-process' to cancel).
 
-The `beads-command-execution' object passed to CALLBACK contains:
-  - `command': The command that was executed
-  - `exit-code': Process exit code (0 = success)
-  - `stdout': Standard output as string
-  - `stderr': Standard error as string
-  - `result': Parsed result on success (nil on failure)
-
-For backward compatibility, COMMAND slots are also populated:
-  - `exit-code', `stdout', `stderr', `data' (deprecated)
-
 Example usage:
 
   (beads-command-execute-async
    (beads-command-list :status \"open\")
-   (lambda (exec)
-     (if (oref exec result)
-         (message \"Got %d issues\" (length (oref exec result)))
-       (message \"Failed: %s\" (oref exec stderr)))))")
+   (lambda (result)
+     (message \"Got %d issues\" (length result)))
+   (lambda (err)
+     (message \"Failed: %s\" (cadr err))))")
 
 (cl-defmethod beads-command-execute-async ((command beads-command)
-                                           &optional callback)
-  "Execute non-JSON COMMAND asynchronously.
-CALLBACK receives a `beads-command-execution' object when complete.
+                                           on-success
+                                           &optional on-error)
+  "Execute COMMAND asynchronously.
+ON-SUCCESS receives the parsed result on success.
+ON-ERROR receives the error condition; nil means display via `beads--error'.
 Signals `beads-validation-error' immediately if validation fails.
 Returns process object."
   ;; Validate first - raise error immediately
@@ -994,13 +878,7 @@ Returns process object."
                       (proc-stdout (with-current-buffer stdout-buffer
                                      (buffer-string)))
                       (proc-stderr (with-current-buffer stderr-buffer
-                                     (buffer-string)))
-                      ;; Create execution object
-                      (execution (beads-command-execution
-                                  :command command
-                                  :exit-code proc-exit-code
-                                  :stdout proc-stdout
-                                  :stderr proc-stderr)))
+                                     (buffer-string))))
 
                  (when (fboundp 'beads--log)
                    (beads--log 'info "Async command completed in %.3fs" elapsed)
@@ -1022,26 +900,71 @@ Returns process object."
                    (kill-buffer stdout-buffer)
                    (kill-buffer stderr-buffer))
 
-                 ;; Parse output and set result slot.
-                 ;; Wrap in condition-case: unhandled errors in
-                 ;; process sentinels are silently suppressed by
-                 ;; Emacs, which would cause callback to never fire.
-                 (when (zerop proc-exit-code)
-                   (condition-case parse-err
-                       (oset execution result
-                             (beads-command-parse command execution))
-                     (error
-                      (oset execution exit-code 1)
-                      (oset execution stderr
-                            (format "%s\nParse error: %s"
-                                    proc-stderr
-                                    (error-message-string parse-err))))))
-
-                 ;; Call callback with execution object (always)
-                 (when callback
-                   (funcall callback execution)))))))
+                 (if (zerop proc-exit-code)
+                     ;; Success: parse and call on-success
+                     (condition-case parse-err
+                         (let ((result (beads-command-parse
+                                        command proc-stdout)))
+                           (funcall on-success result))
+                       (error
+                        (let ((err (list (format "Parse error: %s"
+                                                 (error-message-string
+                                                  parse-err))
+                                         :stdout proc-stdout
+                                         :parse-error parse-err)))
+                          (if on-error
+                              (funcall on-error err)
+                            (when (fboundp 'beads--error)
+                              (beads--error "%s" (car err)))))))
+                   ;; Failure: call on-error or display
+                   (let ((err (list (format "Command failed with exit code %d"
+                                            proc-exit-code)
+                                    :command cmd-string
+                                    :exit-code proc-exit-code
+                                    :stdout proc-stdout
+                                    :stderr proc-stderr)))
+                     (if on-error
+                         (funcall on-error err)
+                       (when (fboundp 'beads--error)
+                         (beads--error "%s" (car err)))))))))))
     process))
 
+
+;;; Convenience Functions
+
+(defun beads-execute (class &rest args)
+  "Construct CLASS with ARGS and execute it.
+Returns parsed result (domain objects, JSON, or raw stdout).
+JSON output is enabled by default unless :json nil is passed.
+
+Example:
+  (beads-execute \\='beads-command-close
+    :issue-ids \\='(\"bd-1\") :reason \"done\")
+  ;; => beads-issue object"
+  (unless (find-class class nil)
+    (error "Not a beads command class: %S" class))
+  (let ((cmd (apply #'make-instance class args)))
+    (unless (plist-member args :json)
+      (oset cmd json t))
+    (beads-command-execute cmd)))
+
+(defun beads-execute-async (class on-success &optional on-error
+                                  &rest args)
+  "Construct CLASS with ARGS and execute asynchronously.
+ON-SUCCESS receives the parsed result.
+ON-ERROR receives the condition; nil means display via `beads--error'.
+
+Example:
+  (beads-execute-async \\='beads-command-list
+    (lambda (issues) (message \"Got %d\" (length issues)))
+    nil
+    :status \"open\")"
+  (unless (find-class class nil)
+    (error "Not a beads command class: %S" class))
+  (let ((cmd (apply #'make-instance class args)))
+    (unless (plist-member args :json)
+      (oset cmd json t))
+    (beads-command-execute-async cmd on-success on-error)))
 
 (provide 'beads-command)
 ;;; beads-command.el ends here
