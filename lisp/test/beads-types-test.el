@@ -113,24 +113,30 @@
   "Sample statistics JSON for testing.")
 
 (defmacro beads-types-test--with-mock-command (output &rest body)
-  "Execute BODY with mocked command helper functions returning OUTPUT."
-  `(cl-letf (((symbol-function 'beads-command-show!)
-              (lambda (&rest _args)
-                ;; beads-command-show! returns a list, extract first element
-                (let ((result (if (vectorp ,output) (aref ,output 0) ,output)))
-                  (list (beads-issue-from-json result)))))
-             ((symbol-function 'beads-command-list!)
-              (lambda (&rest _args)
-                (when (vectorp ,output)
-                  (mapcar #'beads-issue-from-json (append ,output nil)))))
-             ((symbol-function 'beads-command-blocked!)
-              (lambda (&rest _args)
-                (when (vectorp ,output)
-                  (mapcar #'beads-blocked-issue-from-json (append ,output nil)))))
-             ((symbol-function 'beads-command-ready!)
-              (lambda (&rest _args)
-                (when (vectorp ,output)
-                  (mapcar #'beads-issue-from-json (append ,output nil))))))
+  "Execute BODY with mocked `beads-command-execute' returning OUTPUT.
+OUTPUT is raw JSON (alist or vector of alists).  The mock inspects the
+command object class to decide how to parse the result, mirroring what
+the real `beads-command-execute' pipeline would return."
+  `(cl-letf (((symbol-function 'beads-command-execute)
+              (lambda (cmd)
+                (cond
+                 ((object-of-class-p cmd 'beads-command-show)
+                  ;; show returns a list of issues
+                  (let ((result (if (vectorp ,output)
+                                    (aref ,output 0)
+                                  ,output)))
+                    (list (beads-issue-from-json result))))
+                 ((object-of-class-p cmd 'beads-command-blocked)
+                  (when (vectorp ,output)
+                    (mapcar #'beads-blocked-issue-from-json
+                            (append ,output nil))))
+                 ((or (object-of-class-p cmd 'beads-command-list)
+                      (object-of-class-p cmd 'beads-command-ready))
+                  (when (vectorp ,output)
+                    (mapcar #'beads-issue-from-json
+                            (append ,output nil))))
+                 (t (error "Unmocked command class: %S"
+                           (eieio-object-class cmd)))))))
      ,@body))
 
 

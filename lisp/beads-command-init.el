@@ -26,7 +26,7 @@
 ;;
 ;; Usage:
 ;;   (beads-command-execute (beads-command-init :prefix "myproject"))
-;;   (beads-command-init!)  ; convenience function
+;;   (beads-execute 'beads-command-init)  ; convenience function
 
 ;;; Code:
 
@@ -144,10 +144,10 @@ Returns error string or nil if valid."
      ;; Otherwise valid
      (t nil))))
 
-(cl-defmethod beads-command-parse ((_command beads-command-init) execution)
-  "Parse bd init output from EXECUTION.
+(cl-defmethod beads-command-parse ((_command beads-command-init) stdout)
+  "Parse bd init output from STDOUT.
 Returns raw stdout string.  bd init does not produce JSON output."
-  (oref execution stdout))
+  stdout)
 
 ;;; Transient Menu
 

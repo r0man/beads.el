@@ -369,63 +369,45 @@
 
 (ert-deftest beads-coverage-4-show-parse-no-json ()
   "Test show parse without JSON returns raw stdout."
-  (let* ((cmd (beads-command-show :issue-ids '("bd-1") :json nil))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "plain text output" :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-show :issue-ids '("bd-1") :json nil)))
+    (let ((result (beads-command-parse cmd "plain text output")))
       (should (equal "plain text output" result)))))
 
 (ert-deftest beads-coverage-4-show-parse-json-single ()
   "Test show parse with JSON single object."
   (let* ((json-str "{\"id\":\"bd-1\",\"title\":\"Test\",\"status\":\"open\",\"priority\":2,\"type\":\"task\"}")
-         (cmd (beads-command-show :issue-ids '("bd-1") :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout json-str :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+         (cmd (beads-command-show :issue-ids '("bd-1") :json t)))
+    (let ((result (beads-command-parse cmd json-str)))
       (should (cl-typep result 'beads-issue))
       (should (equal "bd-1" (oref result id))))))
 
 (ert-deftest beads-coverage-4-show-parse-json-null ()
   "Test show parse with null/empty JSON."
-  (let* ((cmd (beads-command-show :issue-ids '("bd-1") :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "null" :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-show :issue-ids '("bd-1") :json t)))
+    (let ((result (beads-command-parse cmd "null")))
       (should-not result))))
 
 (ert-deftest beads-coverage-4-show-parse-json-object ()
   "Test show parse with JSON object that has no id/title."
-  (let* ((cmd (beads-command-show :issue-ids '("bd-1") :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "{\"bad\":true}" :stderr "" :result nil)))
+  (let* ((cmd (beads-command-show :issue-ids '("bd-1") :json t)))
     ;; This exercises the single-object code path in parse
-    (let ((result (beads-command-parse cmd exec)))
+    (let ((result (beads-command-parse cmd "{\"bad\":true}")))
       ;; Returns a beads-issue (with nil fields) from the alist
       (should (cl-typep result 'beads-issue)))))
 
 (ert-deftest beads-coverage-4-show-parse-json-vector ()
   "Test show parse with JSON array and single issue-id."
   (let* ((json-str "[{\"id\":\"bd-1\",\"title\":\"Test\",\"status\":\"open\",\"priority\":2,\"type\":\"task\"}]")
-         (cmd (beads-command-show :issue-ids '("bd-1") :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout json-str :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+         (cmd (beads-command-show :issue-ids '("bd-1") :json t)))
+    (let ((result (beads-command-parse cmd json-str)))
       ;; Single issue-id with array result should return single issue
       (should (cl-typep result 'beads-issue)))))
 
 (ert-deftest beads-coverage-4-show-parse-json-vector-multi ()
   "Test show parse with JSON array and multiple issue-ids."
   (let* ((json-str "[{\"id\":\"bd-1\",\"title\":\"A\",\"status\":\"open\",\"priority\":1,\"type\":\"task\"},{\"id\":\"bd-2\",\"title\":\"B\",\"status\":\"open\",\"priority\":2,\"type\":\"bug\"}]")
-         (cmd (beads-command-show :issue-ids '("bd-1" "bd-2") :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout json-str :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+         (cmd (beads-command-show :issue-ids '("bd-1" "bd-2") :json t)))
+    (let ((result (beads-command-parse cmd json-str)))
       (should (listp result))
       (should (= 2 (length result))))))
 
@@ -608,10 +590,7 @@
       (let ((executed nil)
             (refreshed nil))
         (cl-letf (((symbol-function 'beads-command-execute)
-                   (lambda (_cmd) (setq executed t)
-                     (beads-command-execution
-                      :command (beads-command-update :issue-ids '("bd-1"))
-                      :exit-code 0 :stdout "" :stderr "" :result nil)))
+                   (lambda (_cmd) (setq executed t) nil))
                   ((symbol-function 'beads-completion-invalidate-cache)
                    (lambda () nil))
                   ((symbol-function 'beads-refresh-show)
@@ -661,39 +640,27 @@
 (ert-deftest beads-coverage-4-list-parse-json-vector ()
   "Test list parse with JSON array."
   (let* ((json-str "[{\"id\":\"bd-1\",\"title\":\"A\",\"status\":\"open\",\"priority\":1,\"type\":\"task\"},{\"id\":\"bd-2\",\"title\":\"B\",\"status\":\"open\",\"priority\":2,\"type\":\"bug\"}]")
-         (cmd (beads-command-list :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout json-str :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+         (cmd (beads-command-list :json t)))
+    (let ((result (beads-command-parse cmd json-str)))
       (should (listp result))
       (should (= 2 (length result)))
       (should (cl-typep (car result) 'beads-issue)))))
 
 (ert-deftest beads-coverage-4-list-parse-json-null ()
   "Test list parse with null JSON."
-  (let* ((cmd (beads-command-list :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "null" :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-list :json t)))
+    (let ((result (beads-command-parse cmd "null")))
       (should (null result)))))
 
 (ert-deftest beads-coverage-4-list-parse-json-unexpected ()
   "Test list parse with unexpected JSON structure."
-  (let* ((cmd (beads-command-list :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "{\"bad\":true}" :stderr "" :result nil)))
-    (should-error (beads-command-parse cmd exec))))
+  (let* ((cmd (beads-command-list :json t)))
+    (should-error (beads-command-parse cmd "{\"bad\":true}"))))
 
 (ert-deftest beads-coverage-4-list-parse-no-json ()
   "Test list parse without JSON returns raw stdout."
-  (let* ((cmd (beads-command-list :json nil))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "raw output" :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-list :json nil)))
+    (let ((result (beads-command-parse cmd "raw output")))
       (should (equal "raw output" result)))))
 
 ;;; ============================================================

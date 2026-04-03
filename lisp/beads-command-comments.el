@@ -16,8 +16,8 @@
 ;; bd comments add - Add a comment to an issue
 ;;
 ;; Usage:
-;;   (beads-command-comments! :issue-id "bd-1")           ; List comments
-;;   (beads-command-comments-add! :issue-id "bd-1"
+;;   (beads-execute 'beads-command-comments :issue-id "bd-1")           ; List comments
+;;   (beads-execute 'beads-command-comments-add :issue-id "bd-1"
 ;;                                :text "Comment text")  ; Add comment
 
 ;;; Code:

@@ -28,7 +28,7 @@
 ;; Usage:
 ;;   (beads-command-execute (beads-command-update :issue-ids '("bd-1")
 ;;                                                 :status "closed"))
-;;   (beads-command-update!)  ; convenience function
+;;   (beads-execute 'beads-command-update)  ; convenience function
 
 ;;; Code:
 
@@ -274,8 +274,8 @@ Returns error string or nil if valid."
      (beads-command--validate-string-list remove-label "remove-label")
      (beads-command--validate-string-list set-labels "set-labels"))))
 
-(cl-defmethod beads-command-parse ((command beads-command-update) execution)
-  "Parse update COMMAND output from EXECUTION.
+(cl-defmethod beads-command-parse ((command beads-command-update) stdout)
+  "Parse update COMMAND output from STDOUT.
 Returns updated issue(s).
 When :json is nil, falls back to parent (returns raw stdout).
 When :json is t, returns beads-issue instance (or list when multiple IDs).
@@ -298,23 +298,21 @@ Does not modify any slots."
               ;; Unexpected JSON structure
               (signal 'beads-json-parse-error
                       (list "Unexpected JSON structure from bd update"
-                            :exit-code (oref execution exit-code)
-                            :parsed-json parsed-json
-                            :stderr (oref execution stderr))))
+                            :stdout stdout
+                            :parsed-json parsed-json)))
           (error
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-issue instance: %s"
                                  (error-message-string err))
-                         :exit-code (oref execution exit-code)
+                         :stdout stdout
                          :parsed-json parsed-json
-                         :stderr (oref execution stderr)
                          :parse-error err))))))))
 
 (cl-defmethod beads-command-execute-interactive ((cmd beads-command-update))
   "Execute CMD to update issue and show result.
 Overrides default `compilation-mode' behavior."
   (oset cmd json t)
-  (let* ((result (oref (beads-command-execute cmd) result))
+  (let* ((result (beads-command-execute cmd))
          (issues (cond
                   ((null result) nil)
                   ((cl-typep result 'beads-issue) (list result))
@@ -352,7 +350,6 @@ update transient is invoked from different beads buffers.")
 (declare-function beads-completion-read-issue "beads-completion")
 (declare-function beads-check-executable "beads")
 (declare-function beads-refresh-show "beads-show")
-(declare-function beads-command-show! "beads-command-misc")
 (defvar beads-show--issue-id)
 (defvar beads-auto-refresh)
 
@@ -374,7 +371,7 @@ Returns issue ID string or nil if not found."
   "Fetch issue data for ISSUE-ID from bd.
 Returns parsed issue alist or signals error."
   (condition-case err
-      (beads-command-show! :json t :issue-ids (list issue-id))
+      (beads-execute 'beads-command-show :json t :issue-ids (list issue-id))
     (error
      (beads--error "Failed to fetch issue %s: %s"
                    issue-id

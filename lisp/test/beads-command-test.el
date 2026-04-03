@@ -44,16 +44,9 @@ Integration test that runs real bd init command."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-temp-repo ()
     (let* ((prefix (beads-test--generate-unique-prefix))
-           (cmd (beads-command-init :prefix prefix))
-           (exec (beads-command-execute cmd)))
-      ;; Should return an execution object
-      (should (cl-typep exec 'beads-command-execution))
-      ;; Exit code should be 0
-      (should (= (oref exec exit-code) 0))
-      ;; Stdout should be a string
-      (should (stringp (oref exec stdout)))
-      ;; Stderr should be a string
-      (should (stringp (oref exec stderr)))
+           (cmd (beads-command-init :prefix prefix)))
+      ;; Should execute without error
+      (beads-command-execute cmd)
       ;; Should create .beads directory
       (should (file-directory-p (expand-file-name ".beads" default-directory))))))
 
@@ -68,7 +61,7 @@ Integration test that verifies --prefix flag works correctly."
       (should (file-directory-p (expand-file-name ".beads" default-directory)))
       ;; Verify prefix is set correctly by creating an issue
       ;; and checking its ID starts with the prefix
-      (let* ((issue (beads-command-create! :title "Test issue")))
+      (let* ((issue (beads-execute 'beads-command-create :title "Test issue")))
         (should (beads-issue-p issue))
         (should (string-prefix-p (concat prefix "-") (oref issue id)))))))
 
@@ -95,8 +88,6 @@ Integration test that verifies quiet mode suppresses output."
            (if (>= attempt max-retries)
                (signal (car err) (cdr err))
              (sleep-for 2)))))
-      ;; Command should succeed
-      (should (= (oref exec exit-code) 0))
       ;; .beads directory should exist
       (should (file-directory-p
                (expand-file-name ".beads" default-directory))))))
@@ -109,25 +100,21 @@ Integration test that runs real bd quickstart command."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (let* ((cmd (beads-command-quickstart))
-         (exec (beads-command-execute cmd))
-         (exit-code (oref exec exit-code))
-         (stdout (oref exec stdout)))
-    ;; Command should succeed
-    (should (= exit-code 0))
-    ;; Output should contain quickstart content
-    (should (stringp stdout))
-    (should (> (length stdout) 0))
+         (result (beads-command-execute cmd)))
+    ;; Result should be a string (quickstart guide text)
+    (should (stringp result))
+    (should (> (length result) 0))
     ;; Should contain common quickstart keywords
-    (should (or (string-match-p "quick" (downcase stdout))
-                (string-match-p "start" (downcase stdout))
-                (string-match-p "bd" stdout)))))
+    (should (or (string-match-p "quick" (downcase result))
+                (string-match-p "start" (downcase result))
+                (string-match-p "bd" result)))))
 
 (ert-deftest beads-command-test-quickstart-helper ()
   "Test beads-command-quickstart! helper function.
 Integration test that verifies the convenience function works."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
-  (let ((result (beads-command-quickstart!)))
+  (let ((result (beads-execute 'beads-command-quickstart)))
     ;; Should return a string (quickstart guide text)
     (should (stringp result))
     (should (> (length result) 0))))
@@ -140,7 +127,7 @@ Integration test that runs real bd create command."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    (let ((issue (beads-command-create! :title "Test issue")))
+    (let ((issue (beads-execute 'beads-command-create :title "Test issue")))
       ;; Should return a beads-issue instance
       (should (beads-issue-p issue))
       ;; Should have an ID
@@ -156,7 +143,7 @@ Integration test that verifies type and priority options work."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    (let ((issue (beads-command-create!
+    (let ((issue (beads-execute 'beads-command-create
                   :title "Bug fix"
                   :issue-type "bug"
                   :priority "1")))
@@ -175,7 +162,7 @@ Integration test that verifies description is set correctly."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    (let ((issue (beads-command-create!
+    (let ((issue (beads-execute 'beads-command-create
                   :title "Feature request"
                   :description "Add new feature to improve UX")))
       ;; Should return a beads-issue instance
@@ -190,7 +177,7 @@ Integration test that verifies assignee is set correctly."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    (let ((issue (beads-command-create!
+    (let ((issue (beads-execute 'beads-command-create
                   :title "Assigned task"
                   :assignee "alice")))
       ;; Should return a beads-issue instance
@@ -204,7 +191,7 @@ Integration test that verifies labels are set correctly."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    (let ((issue (beads-command-create!
+    (let ((issue (beads-execute 'beads-command-create
                   :title "Labeled issue"
                   :labels '("urgent" "backend"))))
       ;; Should return a beads-issue instance
@@ -219,10 +206,10 @@ Integration test that verifies dependencies are set correctly."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; First create a parent issue
-    (let* ((parent-issue (beads-command-create! :title "Parent issue"))
+    (let* ((parent-issue (beads-execute 'beads-command-create :title "Parent issue"))
            (parent-id (oref parent-issue id))
            ;; Create child with dependency
-           (issue (beads-command-create!
+           (issue (beads-execute 'beads-command-create
                    :title "Child issue"
                    :deps (list (format "discovered-from:%s" parent-id)))))
       ;; Should return a beads-issue instance
@@ -236,7 +223,7 @@ Integration test with comprehensive option set."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    (let ((issue (beads-command-create!
+    (let ((issue (beads-execute 'beads-command-create
                   :title "Complex issue"
                   :issue-type "feature"
                   :priority "0"
@@ -261,14 +248,14 @@ Integration test that lists all issues in a project."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create some test issues
-    (let* ((issue1 (beads-command-create! :title "Issue 1"))
+    (let* ((issue1 (beads-execute 'beads-command-create :title "Issue 1"))
            (id1 (oref issue1 id))
-           (issue2 (beads-command-create! :title "Issue 2"))
+           (issue2 (beads-execute 'beads-command-create :title "Issue 2"))
            (id2 (oref issue2 id))
-           (issue3 (beads-command-create! :title "Issue 3"))
+           (issue3 (beads-execute 'beads-command-create :title "Issue 3"))
            (id3 (oref issue3 id))
            ;; List all issues
-           (issues (beads-command-list!)))
+           (issues (beads-list-execute)))
       ;; Should return a list of beads-issue instances
       (should (listp issues))
       ;; Should have at least 3 issues
@@ -288,9 +275,9 @@ Integration test that filters issues by status."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create test issues (all open by default)
-    (beads-command-create! :title "Open issue")
+    (beads-execute 'beads-command-create :title "Open issue")
     ;; List only open issues
-    (let ((issues (beads-command-list! :status "open")))
+    (let ((issues (beads-list-execute :status "open")))
       ;; Should return a list
       (should (listp issues))
       ;; All issues should have open status
@@ -305,14 +292,14 @@ Integration test that filters issues by priority."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create issues with different priorities
-    (let* ((issue1 (beads-command-create!
+    (let* ((issue1 (beads-execute 'beads-command-create
                     :title "High priority"
                     :priority "1"))
-           (_issue2 (beads-command-create!
+           (_issue2 (beads-execute 'beads-command-create
                      :title "Low priority"
                      :priority "3"))
            ;; List only priority 1 issues
-           (issues (beads-command-list! :priority "1")))
+           (issues (beads-list-execute :priority "1")))
       ;; Should return a list
       (should (listp issues))
       ;; All issues should have priority 1
@@ -330,14 +317,14 @@ Integration test that filters issues by type."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create issues with different types
-    (let* ((bug-issue (beads-command-create!
+    (let* ((bug-issue (beads-execute 'beads-command-create
                        :title "Bug issue"
                        :issue-type "bug"))
-           (_feature-issue (beads-command-create!
+           (_feature-issue (beads-execute 'beads-command-create
                             :title "Feature issue"
                             :issue-type "feature"))
            ;; List only bug issues
-           (issues (beads-command-list! :issue-type "bug")))
+           (issues (beads-list-execute :issue-type "bug")))
       ;; Should return a list
       (should (listp issues))
       ;; All issues should be of type bug
@@ -355,20 +342,20 @@ Integration test that applies multiple filters together."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create issues with various attributes
-    (let* ((target-issue (beads-command-create!
+    (let* ((target-issue (beads-execute 'beads-command-create
                           :title "Critical bug"
                           :issue-type "bug"
                           :priority "0"))
-           (_other-bug (beads-command-create!
+           (_other-bug (beads-execute 'beads-command-create
                         :title "Low priority bug"
                         :issue-type "bug"
                         :priority "3"))
-           (_feature (beads-command-create!
+           (_feature (beads-execute 'beads-command-create
                       :title "Critical feature"
                       :issue-type "feature"
                       :priority "0"))
            ;; List with combined filters: bug AND priority 0
-           (issues (beads-command-list!
+           (issues (beads-list-execute
                     :issue-type "bug"
                     :priority "0")))
       ;; Should return a list
@@ -389,13 +376,13 @@ Integration test that verifies result limiting works."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create several issues
-    (beads-command-create! :title "Issue 1")
-    (beads-command-create! :title "Issue 2")
-    (beads-command-create! :title "Issue 3")
-    (beads-command-create! :title "Issue 4")
-    (beads-command-create! :title "Issue 5")
+    (beads-execute 'beads-command-create :title "Issue 1")
+    (beads-execute 'beads-command-create :title "Issue 2")
+    (beads-execute 'beads-command-create :title "Issue 3")
+    (beads-execute 'beads-command-create :title "Issue 4")
+    (beads-execute 'beads-command-create :title "Issue 5")
     ;; List with limit 2
-    (let ((issues (beads-command-list! :limit 2)))
+    (let ((issues (beads-list-execute :limit 2)))
       ;; Should return a list
       (should (listp issues))
       ;; Should have exactly 2 issues (or fewer if database has less)
@@ -408,14 +395,14 @@ Integration test that filters issues by assignee."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create issues with different assignees
-    (let* ((alice-issue (beads-command-create!
+    (let* ((alice-issue (beads-execute 'beads-command-create
                          :title "Alice's task"
                          :assignee "alice"))
-           (_bob-issue (beads-command-create!
+           (_bob-issue (beads-execute 'beads-command-create
                         :title "Bob's task"
                         :assignee "bob"))
            ;; List only Alice's issues
-           (issues (beads-command-list! :assignee "alice")))
+           (issues (beads-list-execute :assignee "alice")))
       ;; Should return a list
       (should (listp issues))
       ;; All issues should be assigned to alice
@@ -432,7 +419,7 @@ Integration test that verifies empty list is returned correctly."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    (let ((issues (beads-command-list! :issue-type "epic")))
+    (let ((issues (beads-list-execute :issue-type "epic")))
       (should (listp issues))
       (should (zerop (length issues))))))
 
@@ -445,19 +432,19 @@ Integration test that runs real bd epic status command."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create an epic with some children
-    (let* ((epic (beads-command-create!
+    (let* ((epic (beads-execute 'beads-command-create
                   :title "Test Epic"
                   :issue-type "epic"))
-           (_child1 (beads-command-create!
+           (_child1 (beads-execute 'beads-command-create
                      :title "Child 1"
                      :deps (list (concat "parent-child:"
                                         (oref epic id)))))
-           (_child2 (beads-command-create!
+           (_child2 (beads-execute 'beads-command-create
                      :title "Child 2"
                      :deps (list (concat "parent-child:"
                                         (oref epic id)))))
            ;; Get epic status
-           (result (beads-command-epic-status!)))
+           (result (beads-execute 'beads-command-epic-status)))
       ;; Should return parsed JSON
       (should result)
       ;; For now, just verify it doesn't error
@@ -473,14 +460,14 @@ all children leaves no eligible epics (they are already closed)."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create an epic with some children, only close one
-    (let* ((epic (beads-command-create!
+    (let* ((epic (beads-execute 'beads-command-create
                   :title "Partial Epic"
                   :issue-type "epic"))
-           (child1 (beads-command-create!
+           (child1 (beads-execute 'beads-command-create
                     :title "Child 1"
                     :deps (list (concat "parent-child:"
                                        (oref epic id)))))
-           (_child2 (beads-command-create!
+           (_child2 (beads-execute 'beads-command-create
                      :title "Child 2"
                      :deps (list (concat "parent-child:"
                                         (oref epic id))))))
@@ -488,7 +475,7 @@ all children leaves no eligible epics (they are already closed)."
       (shell-command (format "bd close %s --reason 'Done'"
                             (oref child1 id)))
       ;; Get epic status (with partial children still open)
-      (let ((result (beads-command-epic-status!)))
+      (let ((result (beads-execute 'beads-command-epic-status)))
         ;; Should return parsed JSON
         (should result)))))
 
@@ -502,14 +489,14 @@ of an epic are closed, bd auto-closes the epic."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create an epic with all children closed
-    (let* ((epic (beads-command-create!
+    (let* ((epic (beads-execute 'beads-command-create
                   :title "Ready Epic"
                   :issue-type "epic"))
-           (child1 (beads-command-create!
+           (child1 (beads-execute 'beads-command-create
                     :title "Child 1"
                     :deps (list (concat "parent-child:"
                                        (oref epic id)))))
-           (child2 (beads-command-create!
+           (child2 (beads-execute 'beads-command-create
                     :title "Child 2"
                     :deps (list (concat "parent-child:"
                                        (oref epic id))))))
@@ -518,7 +505,7 @@ of an epic are closed, bd auto-closes the epic."
                             (oref child1 id)
                             (oref child2 id)))
       ;; Epic should be auto-closed now
-      (let ((epic-check (beads-command-list!
+      (let ((epic-check (beads-list-execute
                         :id (oref epic id)
                         :status "all")))
         (should (= (length epic-check) 1))
@@ -531,14 +518,14 @@ Integration test that closes epics where all children are complete."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create an epic with all children closed
-    (let* ((epic (beads-command-create!
+    (let* ((epic (beads-execute 'beads-command-create
                   :title "Closeable Epic"
                   :issue-type "epic"))
-           (child1 (beads-command-create!
+           (child1 (beads-execute 'beads-command-create
                     :title "Child 1"
                     :deps (list (concat "parent-child:"
                                        (oref epic id)))))
-           (child2 (beads-command-create!
+           (child2 (beads-execute 'beads-command-create
                     :title "Child 2"
                     :deps (list (concat "parent-child:"
                                        (oref epic id))))))
@@ -547,12 +534,12 @@ Integration test that closes epics where all children are complete."
                             (oref child1 id)
                             (oref child2 id)))
       ;; Close eligible epics
-      (let ((result (beads-command-epic-close-eligible!)))
+      (let ((result (beads-execute 'beads-command-epic-close-eligible)))
         ;; Should return parsed JSON
         (should result)
         ;; Epic should now be closed
         ;; Use beads-command-show! since closed issues don't appear in list
-        (let ((epic-check (beads-command-show!
+        (let ((epic-check (beads-execute 'beads-command-show
                            :issue-ids (list (oref epic id)))))
           (should (beads-issue-p epic-check))
           (should (string= (oref epic-check status) "closed")))))))
@@ -566,10 +553,10 @@ Integration test that shows details for one issue."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create a test issue
-    (let* ((created (beads-command-create! :title "Test Issue"))
+    (let* ((created (beads-execute 'beads-command-create :title "Test Issue"))
            (issue-id (oref created id))
            ;; Show the issue
-           (issue (beads-command-show! :issue-ids (list issue-id))))
+           (issue (beads-execute 'beads-command-show :issue-ids (list issue-id))))
       ;; Should return a beads-issue instance
       (should (beads-issue-p issue))
       ;; ID should match
@@ -584,12 +571,12 @@ Integration test that shows details for multiple issues."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create test issues
-    (let* ((issue1 (beads-command-create! :title "Issue 1"))
+    (let* ((issue1 (beads-execute 'beads-command-create :title "Issue 1"))
            (id1 (oref issue1 id))
-           (issue2 (beads-command-create! :title "Issue 2"))
+           (issue2 (beads-execute 'beads-command-create :title "Issue 2"))
            (id2 (oref issue2 id))
            ;; Show both issues
-           (issues (beads-command-show! :issue-ids (list id1 id2))))
+           (issues (beads-execute 'beads-command-show :issue-ids (list id1 id2))))
       ;; Should return a list of beads-issue instances
       (should (listp issues))
       (should (= (length issues) 2))
@@ -609,10 +596,10 @@ Integration test that updates issue title."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create a test issue
-    (let* ((created (beads-command-create! :title "Original Title"))
+    (let* ((created (beads-execute 'beads-command-create :title "Original Title"))
            (issue-id (oref created id))
            ;; Update the title
-           (updated (beads-command-update!
+           (updated (beads-execute 'beads-command-update
                      :issue-ids (list issue-id)
                      :title "Updated Title")))
       ;; Should return a beads-issue instance
@@ -629,10 +616,10 @@ Integration test that updates title, status, and priority."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create a test issue
-    (let* ((created (beads-command-create! :title "Original"))
+    (let* ((created (beads-execute 'beads-command-create :title "Original"))
            (issue-id (oref created id))
            ;; Update multiple fields
-           (updated (beads-command-update!
+           (updated (beads-execute 'beads-command-update
                      :issue-ids (list issue-id)
                      :title "Updated"
                      :status "in_progress"
@@ -651,10 +638,10 @@ Integration test that sets/updates description field."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create a test issue
-    (let* ((created (beads-command-create! :title "Test"))
+    (let* ((created (beads-execute 'beads-command-create :title "Test"))
            (issue-id (oref created id))
            ;; Update the description
-           (updated (beads-command-update!
+           (updated (beads-execute 'beads-command-update
                      :issue-ids (list issue-id)
                      :description "New description text")))
       ;; Should return a beads-issue instance
@@ -671,10 +658,10 @@ Integration test that closes one issue with a reason."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create a test issue
-    (let* ((created (beads-command-create! :title "To Close"))
+    (let* ((created (beads-execute 'beads-command-create :title "To Close"))
            (issue-id (oref created id))
            ;; Close the issue
-           (closed (beads-command-close!
+           (closed (beads-execute 'beads-command-close
                     :issue-ids (list issue-id)
                     :reason "Completed")))
       ;; Should return a beads-issue instance
@@ -691,12 +678,12 @@ Integration test that closes several issues at once."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create test issues
-    (let* ((issue1 (beads-command-create! :title "Issue 1"))
+    (let* ((issue1 (beads-execute 'beads-command-create :title "Issue 1"))
            (id1 (oref issue1 id))
-           (issue2 (beads-command-create! :title "Issue 2"))
+           (issue2 (beads-execute 'beads-command-create :title "Issue 2"))
            (id2 (oref issue2 id))
            ;; Close both issues
-           (closed (beads-command-close!
+           (closed (beads-execute 'beads-command-close
                     :issue-ids (list id1 id2)
                     :reason "All done")))
       ;; Should return a list of beads-issue instances
@@ -720,10 +707,10 @@ Integration test that lists unblocked open/in-progress issues."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create some test issues (all should be ready by default)
-    (let* ((issue1 (beads-command-create! :title "Ready 1"))
-           (_issue2 (beads-command-create! :title "Ready 2"))
+    (let* ((issue1 (beads-execute 'beads-command-create :title "Ready 1"))
+           (_issue2 (beads-execute 'beads-command-create :title "Ready 2"))
            ;; Get ready issues
-           (issues (beads-command-ready!)))
+           (issues (beads-execute 'beads-command-ready)))
       ;; Should return a list
       (should (listp issues))
       ;; Should have at least our created issues
@@ -741,14 +728,14 @@ Integration test that filters ready issues by priority."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create issues with different priorities
-    (let* ((high (beads-command-create!
+    (let* ((high (beads-execute 'beads-command-create
                   :title "High priority"
                   :priority "1"))
-           (_low (beads-command-create!
+           (_low (beads-execute 'beads-command-create
                   :title "Low priority"
                   :priority "3"))
            ;; Get ready issues with priority 1
-           (issues (beads-command-ready! :priority 1)))
+           (issues (beads-execute 'beads-command-ready :priority 1)))
       ;; Should return a list
       (should (listp issues))
       ;; All should have priority 1
@@ -766,11 +753,11 @@ Integration test that verifies result limiting works."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create several issues
-    (beads-command-create! :title "Issue 1")
-    (beads-command-create! :title "Issue 2")
-    (beads-command-create! :title "Issue 3")
+    (beads-execute 'beads-command-create :title "Issue 1")
+    (beads-execute 'beads-command-create :title "Issue 2")
+    (beads-execute 'beads-command-create :title "Issue 3")
     ;; Get ready issues with limit 2
-    (let ((issues (beads-command-ready! :limit 2)))
+    (let ((issues (beads-execute 'beads-command-ready :limit 2)))
       ;; Should return a list
       (should (listp issues))
       ;; Should have at most 2 issues
@@ -786,12 +773,12 @@ Integration test that lists issues with unresolved blockers."
   (beads-test-with-shared-project
     ;; Create two issues: blocker blocks blocked-issue
     ;; deps "blocks:X" on issue A means "A blocks X", so X is blocked
-    (let* ((blocked-issue (beads-command-create! :title "Blocked"))
-           (_blocker (beads-command-create!
+    (let* ((blocked-issue (beads-execute 'beads-command-create :title "Blocked"))
+           (_blocker (beads-execute 'beads-command-create
                       :title "Blocker"
                       :deps (list (concat "blocks:" (oref blocked-issue id)))))
            ;; Get blocked issues
-           (issues (beads-command-blocked!)))
+           (issues (beads-execute 'beads-command-blocked)))
       ;; Should return a list
       (should (listp issues))
       ;; Should include our blocked issue (not the blocker)
@@ -807,10 +794,10 @@ Integration test that verifies empty list when no blockers exist."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create issues without blockers
-    (beads-command-create! :title "Issue 1")
-    (beads-command-create! :title "Issue 2")
+    (beads-execute 'beads-command-create :title "Issue 1")
+    (beads-execute 'beads-command-create :title "Issue 2")
     ;; Get blocked issues (should be none)
-    (let ((issues (beads-command-blocked!)))
+    (let ((issues (beads-execute 'beads-command-blocked)))
       (should (listp issues))
       (should (zerop (length issues))))))
 
@@ -823,10 +810,10 @@ Integration test that retrieves issue database stats."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create some test issues
-    (beads-command-create! :title "Issue 1")
-    (beads-command-create! :title "Issue 2")
+    (beads-execute 'beads-command-create :title "Issue 1")
+    (beads-execute 'beads-command-create :title "Issue 2")
     ;; Get stats
-    (let ((stats (beads-command-stats!)))
+    (let ((stats (beads-execute 'beads-command-stats)))
       ;; Should return parsed JSON (alist or similar)
       (should stats)
       ;; Stats should have some structure (implementation-dependent)
@@ -1358,12 +1345,12 @@ Integration test that adds a blocks dependency between two issues."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create two test issues
-    (let* ((issue1 (beads-command-create! :title "Issue 1"))
-           (issue2 (beads-command-create! :title "Issue 2"))
+    (let* ((issue1 (beads-execute 'beads-command-create :title "Issue 1"))
+           (issue2 (beads-execute 'beads-command-create :title "Issue 2"))
            (id1 (oref issue1 id))
            (id2 (oref issue2 id)))
       ;; Add dependency: issue2 blocks issue1
-      (let ((result (beads-command-dep-add!
+      (let ((result (beads-execute 'beads-command-dep-add
                      :issue-id id1
                      :depends-on id2)))
         (should result)))))
@@ -1374,11 +1361,11 @@ Integration test that adds a related dependency."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    (let* ((issue1 (beads-command-create! :title "Issue 1"))
-           (issue2 (beads-command-create! :title "Issue 2"))
+    (let* ((issue1 (beads-execute 'beads-command-create :title "Issue 1"))
+           (issue2 (beads-execute 'beads-command-create :title "Issue 2"))
            (id1 (oref issue1 id))
            (id2 (oref issue2 id)))
-      (let ((result (beads-command-dep-add!
+      (let ((result (beads-execute 'beads-command-dep-add
                      :issue-id id1
                      :depends-on id2
                      :dep-type "related")))
@@ -1392,14 +1379,14 @@ Integration test that removes a dependency between two issues."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    (let* ((issue1 (beads-command-create! :title "Issue 1"))
-           (issue2 (beads-command-create! :title "Issue 2"))
+    (let* ((issue1 (beads-execute 'beads-command-create :title "Issue 1"))
+           (issue2 (beads-execute 'beads-command-create :title "Issue 2"))
            (id1 (oref issue1 id))
            (id2 (oref issue2 id)))
       ;; Add dependency first
-      (beads-command-dep-add! :issue-id id1 :depends-on id2)
+      (beads-execute 'beads-command-dep-add :issue-id id1 :depends-on id2)
       ;; Then remove it
-      (let ((result (beads-command-dep-remove!
+      (let ((result (beads-execute 'beads-command-dep-remove
                      :issue-id id1
                      :depends-on id2)))
         (should result)))))
@@ -1412,9 +1399,9 @@ Integration test that retrieves the dependency tree for an issue."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    (let* ((issue1 (beads-command-create! :title "Issue 1"))
+    (let* ((issue1 (beads-execute 'beads-command-create :title "Issue 1"))
            (id1 (oref issue1 id)))
-      (let ((tree (beads-command-dep-tree! :issue-id id1)))
+      (let ((tree (beads-execute 'beads-command-dep-tree :issue-id id1)))
         (should tree)))))
 
 (ert-deftest beads-command-test-dep-tree-with-max-depth ()
@@ -1423,9 +1410,9 @@ Integration test that retrieves dependency tree with depth limit."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    (let* ((issue1 (beads-command-create! :title "Issue 1"))
+    (let* ((issue1 (beads-execute 'beads-command-create :title "Issue 1"))
            (id1 (oref issue1 id)))
-      (let ((tree (beads-command-dep-tree!
+      (let ((tree (beads-execute 'beads-command-dep-tree
                    :issue-id id1
                    :max-depth 5)))
         (should tree)))))
@@ -1436,9 +1423,9 @@ Integration test that shows what depends on this issue."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    (let* ((issue1 (beads-command-create! :title "Issue 1"))
+    (let* ((issue1 (beads-execute 'beads-command-create :title "Issue 1"))
            (id1 (oref issue1 id)))
-      (let ((tree (beads-command-dep-tree!
+      (let ((tree (beads-execute 'beads-command-dep-tree
                    :issue-id id1
                    :direction "up")))
         (should tree)))))
@@ -1451,7 +1438,7 @@ Integration test that checks for dependency cycles."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    (let ((result (beads-command-dep-cycles!)))
+    (let ((result (beads-execute 'beads-command-dep-cycles)))
       (should (not (null result))))))
 
 ;;; Unit Tests: beads-command-dep-* command-line building
@@ -1791,7 +1778,7 @@ text (not JSON) when --force is not passed."
   (let ((preview-text "Issue: bd-42 - Test Issue\n\nThis will delete 1 issue.\n"))
     (cl-letf (((symbol-function 'process-file)
                (beads-test--mock-call-process 0 preview-text)))
-      (let ((result (beads-command-delete! :issue-ids '("bd-42"))))
+      (let ((result (beads-execute 'beads-command-delete :issue-ids '("bd-42"))))
         ;; Should return raw preview string, not signal JSON parse error
         (should (stringp result))
         (should (string-match-p "bd-42" result))))))
@@ -1804,7 +1791,7 @@ text (not JSON) when --force is not passed."
                                      (references_updated . 0)))))
     (cl-letf (((symbol-function 'process-file)
                (beads-test--mock-call-process 0 json-output)))
-      (let ((result (beads-command-delete! :issue-ids '("bd-42") :force t)))
+      (let ((result (beads-execute 'beads-command-delete :issue-ids '("bd-42") :force t)))
         ;; Should return parsed alist
         (should (consp result))
         (should (equal "bd-42" (alist-get 'deleted result)))))))
@@ -1829,9 +1816,8 @@ The default limit behavior is in beads-command-list!, not the class."
     (cl-letf (((symbol-function 'beads-command-execute)
                (lambda (cmd)
                  (setq executed-cmd cmd)
-                 ;; Return execution object
-                 (beads-command-execution :command cmd :exit-code 0 :result nil))))
-      (beads-command-list!)
+                 nil)))
+      (beads-list-execute)
       (should (eql (oref executed-cmd limit) 0)))))
 
 (ert-deftest beads-command-test-list-bang-custom-default-limit ()
@@ -1842,9 +1828,8 @@ The default limit behavior is in beads-command-list!, not the class."
     (cl-letf (((symbol-function 'beads-command-execute)
                (lambda (cmd)
                  (setq executed-cmd cmd)
-                 ;; Return execution object
-                 (beads-command-execution :command cmd :exit-code 0 :result nil))))
-      (beads-command-list!)
+                 nil)))
+      (beads-list-execute)
       (should (eql (oref executed-cmd limit) 25))
       (let ((args (beads-command-line executed-cmd)))
         (should (member "--limit" args))
@@ -1858,9 +1843,8 @@ The default limit behavior is in beads-command-list!, not the class."
     (cl-letf (((symbol-function 'beads-command-execute)
                (lambda (cmd)
                  (setq executed-cmd cmd)
-                 ;; Return execution object
-                 (beads-command-execution :command cmd :exit-code 0 :result nil))))
-      (beads-command-list! :limit 5)
+                 nil)))
+      (beads-list-execute :limit 5)
       (should (eql (oref executed-cmd limit) 5))
       (let ((args (beads-command-line executed-cmd)))
         (should (member "--limit" args))
@@ -1874,9 +1858,8 @@ The default limit behavior is in beads-command-list!, not the class."
     (cl-letf (((symbol-function 'beads-command-execute)
                (lambda (cmd)
                  (setq executed-cmd cmd)
-                 ;; Return execution object
-                 (beads-command-execution :command cmd :exit-code 0 :result nil))))
-      (beads-command-list! :limit nil)
+                 nil)))
+      (beads-list-execute :limit nil)
       (should (null (oref executed-cmd limit)))
       (let ((args (beads-command-line executed-cmd)))
         (should-not (member "--limit" args))))))

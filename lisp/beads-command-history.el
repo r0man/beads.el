@@ -14,7 +14,7 @@
 ;; Dolt-backed beads database.
 ;;
 ;; Usage:
-;;   (beads-command-history! :issue-id "bd-42")
+;;   (beads-execute 'beads-command-history :issue-id "bd-42")
 ;;   (beads-history)  ; invoke transient menu
 
 ;;; Code:

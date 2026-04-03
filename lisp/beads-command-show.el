@@ -26,7 +26,7 @@
 ;;
 ;; Usage:
 ;;   (beads-command-execute (beads-command-show :issue-ids '("bd-1")))
-;;   (beads-command-show!)  ; convenience function
+;;   (beads-execute 'beads-command-show)  ; convenience function
 
 ;;; Code:
 
@@ -112,8 +112,8 @@ Returns error string or nil if valid."
      ;; Validate list content types
      (beads-command--validate-string-list issue-ids "issue-ids"))))
 
-(cl-defmethod beads-command-parse ((command beads-command-show) execution)
-  "Parse show COMMAND output from EXECUTION.
+(cl-defmethod beads-command-parse ((command beads-command-show) stdout)
+  "Parse show COMMAND output from STDOUT.
 Returns beads-issue instance (or list when multiple IDs).
 When :json is nil, falls back to parent (returns raw stdout).
 When :json is t, returns beads-issue instance (or list when multiple IDs).
@@ -144,9 +144,8 @@ Does not modify any slots."
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-issue instance: %s"
                                  (error-message-string err))
-                         :exit-code (oref execution exit-code)
+                         :stdout stdout
                          :parsed-json parsed-json
-                         :stderr (oref execution stderr)
                          :parse-error err))))))))
 
 
@@ -392,7 +391,7 @@ navigating in beads-list.  Returns BUFFER."
       (beads-show-mode))
     (setq beads-show--issue-id issue-id)
     (condition-case err
-        (let ((issue (beads-command-show! :issue-ids (list issue-id))))
+        (let ((issue (beads-execute 'beads-command-show :issue-ids (list issue-id))))
           (setq beads-show--issue-data issue)
           ;; Rename buffer to include title
           (let* ((title (oref issue title))
@@ -581,7 +580,7 @@ Returns alist of (NAME . POSITION) for sections."
 CALLBACK is called with the documentation string."
   (when-let* ((issue-id (beads-show--extract-issue-at-point)))
     (condition-case nil
-        (let* ((issue (beads-command-show! :issue-ids (list issue-id)))
+        (let* ((issue (beads-execute 'beads-command-show :issue-ids (list issue-id)))
                (title (oref issue title))
                (status (oref issue status))
                (priority (oref issue priority))
@@ -840,7 +839,7 @@ Section header is uppercase without underline, matching DEPENDS ON style."
   "Fetch sub-issues for EPIC-ID.
 Returns a list of beads-tree-node objects with depth=1, or nil."
   (condition-case nil
-      (let ((items (beads-command-dep-tree!
+      (let ((items (beads-execute 'beads-command-dep-tree
                     :issue-id epic-id
                     :reverse t
                     :max-depth 1)))
@@ -1540,7 +1539,7 @@ correct project detection (important for git worktrees)."
       (condition-case err
           ;; Execute command in caller's directory context
           (let ((default-directory caller-dir)
-                (issue (beads-command-show! :issue-ids (list issue-id))))
+                (issue (beads-execute 'beads-command-show :issue-ids (list issue-id))))
             (setq beads-show--issue-data issue)
             ;; Rename buffer to include title now that we have it
             (let* ((title (oref issue title))
@@ -1591,7 +1590,7 @@ Uses the stored project directory for command execution."
         (project-dir (or beads-show--project-dir default-directory)))
     (condition-case err
         (let* ((default-directory project-dir)
-               (issue (beads-command-show! :issue-ids (list beads-show--issue-id))))
+               (issue (beads-execute 'beads-command-show :issue-ids (list beads-show--issue-id))))
           (setq beads-show--issue-data issue)
           (beads-show--render-issue beads-show--issue-data)
           (goto-char (min pos (point-max)))
@@ -2199,7 +2198,7 @@ Prompts for field to edit and opens an editing buffer."
     (let ((reason (read-string "Close reason: ")))
       (condition-case err
           (progn
-            (beads-command-close! :issue-ids (list beads-show--issue-id)
+            (beads-execute 'beads-command-close :issue-ids (list beads-show--issue-id)
                                   :reason reason)
             (beads-completion-invalidate-cache)
             (beads-refresh-show)
@@ -2226,7 +2225,7 @@ Prompts for field to edit and opens an editing buffer."
     (let ((label (read-string "Label: ")))
       (condition-case err
           (progn
-            (beads-command-label-add! :issue-ids (list beads-show--issue-id)
+            (beads-execute 'beads-command-label-add :issue-ids (list beads-show--issue-id)
                                       :label label)
             (beads-refresh-show)
             (message "Label added: %s" label))

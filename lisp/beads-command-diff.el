@@ -14,7 +14,7 @@
 ;; in the Dolt-backed beads database.
 ;;
 ;; Usage:
-;;   (beads-command-diff! :from-ref "HEAD~1" :to-ref "HEAD")
+;;   (beads-execute 'beads-command-diff :from-ref "HEAD~1" :to-ref "HEAD")
 ;;   (beads-diff)  ; invoke transient menu
 
 ;;; Code:

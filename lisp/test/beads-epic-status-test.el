@@ -590,13 +590,8 @@
                          (closed_children . 2)
                          (in_progress_children . 1)
                          (completion_pct . 40))))
-         (json-string (json-encode sample-json))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout json-string
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+         (json-string (json-encode sample-json)))
+    (let ((result (beads-command-parse cmd json-string)))
       (should (listp result))
       (should (= (length result) 1))
       (should (beads-epic-status-p (car result))))))
@@ -612,49 +607,29 @@
                         (closed_children . 2)
                         (in_progress_children . 1)
                         (completion_pct . 40)))
-         (json-string (json-encode sample-json))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout json-string
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+         (json-string (json-encode sample-json)))
+    (let ((result (beads-command-parse cmd json-string)))
       (should (listp result))
       (should (= (length result) 1))
       (should (beads-epic-status-p (car result))))))
 
 (ert-deftest beads-epic-status-test-parse-json-null ()
   "Test parse method with null JSON."
-  (let* ((cmd (beads-command-epic-status :json t))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "null"
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-epic-status :json t)))
+    (let ((result (beads-command-parse cmd "null")))
       (should (null result)))))
 
 (ert-deftest beads-epic-status-test-parse-json-disabled ()
   "Test parse method with :json nil."
-  (let* ((cmd (beads-command-epic-status :json nil))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "Epic status text"
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-epic-status :json nil)))
+    (let ((result (beads-command-parse cmd "Epic status text")))
       (should (stringp result)))))
 
 (ert-deftest beads-epic-status-test-parse-json-unexpected ()
   "Test parse method signals error on unexpected JSON structure."
   (let* ((cmd (beads-command-epic-status :json t))
-         (json-string (json-encode 42))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout json-string
-                :stderr "")))
-    (should-error (beads-command-parse cmd exec)
+         (json-string (json-encode 42)))
+    (should-error (beads-command-parse cmd json-string)
                   :type 'beads-json-parse-error)))
 
 ;;; Tests for beads-command-epic-status execute-interactive

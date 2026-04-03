@@ -19,9 +19,9 @@
 ;; - Stats: Show compaction statistics
 ;;
 ;; Usage:
-;;   (beads-command-compact-stats!)                    ; Show stats
-;;   (beads-command-compact-analyze! :tier 1 :json t) ; Get candidates
-;;   (beads-command-compact-apply! :id "bd-1" :summary "Summary text")
+;;   (beads-execute 'beads-command-compact-stats)                    ; Show stats
+;;   (beads-execute 'beads-command-compact-analyze :tier 1 :json t) ; Get candidates
+;;   (beads-execute 'beads-command-compact-apply :id "bd-1" :summary "Summary text")
 
 ;;; Code:
 

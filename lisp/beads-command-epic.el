@@ -57,8 +57,8 @@ No required fields.
 Returns nil (always valid)."
   nil)
 
-(cl-defmethod beads-command-parse ((command beads-command-epic-status) execution)
-  "Parse epic status COMMAND output from EXECUTION.
+(cl-defmethod beads-command-parse ((command beads-command-epic-status) stdout)
+  "Parse epic status COMMAND output from STDOUT.
 Returns list of beads-epic-status instances.
 When :json is nil, falls back to parent (returns raw stdout).
 When :json is t, returns list of beads-epic-status instances.
@@ -79,16 +79,14 @@ Does not modify any slots."
              (t
               (signal 'beads-json-parse-error
                       (list "Unexpected JSON structure from bd epic status"
-                            :exit-code (oref execution exit-code)
-                            :parsed-json parsed-json
-                            :stderr (oref execution stderr)))))
+                            :stdout stdout
+                            :parsed-json parsed-json))))
           (error
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-epic-status: %s"
                                  (error-message-string err))
-                         :exit-code (oref execution exit-code)
+                         :stdout stdout
                          :parsed-json parsed-json
-                         :stderr (oref execution stderr)
                          :parse-error err))))))))
 
 (cl-defmethod beads-command-execute-interactive ((_cmd beads-command-epic-status))
@@ -239,7 +237,7 @@ Format: ((epic-id . (expanded-p . children)) ...)")
   (interactive)
   (beads-check-executable)
   (let* ((caller-dir default-directory)
-         (epics (beads-command-epic-status!))
+         (epics (beads-execute 'beads-command-epic-status))
          (buf-name (beads-buffer-name-utility "epic-status"))
          (buffer (get-buffer-create buf-name)))
     (with-current-buffer buffer
@@ -378,7 +376,7 @@ Format: ((epic-id . (expanded-p . children)) ...)")
 
 (defun beads-epic-status--fetch-children (epic-id)
   "Fetch all child issues for EPIC-ID using dependency tree."
-  (let* ((tree-data (beads-command-dep-tree! :issue-id epic-id :direction "up")))
+  (let* ((tree-data (beads-execute 'beads-command-dep-tree :issue-id epic-id :direction "up")))
     ;; Filter out the epic itself (depth=0) and keep only children
     (seq-filter (lambda (node)
                   (and (> (oref node depth) 0)

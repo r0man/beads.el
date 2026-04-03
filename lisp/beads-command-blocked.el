@@ -22,7 +22,7 @@
 ;;
 ;; Usage:
 ;;   (beads-command-execute (beads-command-blocked))
-;;   (beads-command-blocked!)  ; convenience function
+;;   (beads-execute 'beads-command-blocked)  ; convenience function
 
 ;;; Code:
 
@@ -49,8 +49,8 @@ Shows blocked issues (issues with unresolved blockers).
 When executed with :json t, returns list of beads-blocked-issue instances.")
 
 
-(cl-defmethod beads-command-parse ((command beads-command-blocked) execution)
-  "Parse blocked COMMAND output from EXECUTION.
+(cl-defmethod beads-command-parse ((command beads-command-blocked) stdout)
+  "Parse blocked COMMAND output from STDOUT.
 Returns list of beads-blocked-issue instances.
 When :json is nil, falls back to parent (returns raw stdout).
 When :json is t, converts parsed JSON to beads-blocked-issue instances.
@@ -67,9 +67,8 @@ Does not modify any slots."
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-blocked-issue instances: %s"
                                  (error-message-string err))
-                         :exit-code (oref execution exit-code)
+                         :stdout stdout
                          :parsed-json parsed-json
-                         :stderr (oref execution stderr)
                          :parse-error err))))))))
 
 

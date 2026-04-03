@@ -28,18 +28,18 @@
 ;;
 ;; Usage:
 ;;   ;; Create a worktree
-;;   (beads-command-worktree-create! :name "feature-auth")
-;;   (beads-command-worktree-create! :name "bugfix" :branch "fix-login")
+;;   (beads-execute 'beads-command-worktree-create :name "feature-auth")
+;;   (beads-execute 'beads-command-worktree-create :name "bugfix" :branch "fix-login")
 ;;
 ;;   ;; List all worktrees
-;;   (beads-command-worktree-list!)
+;;   (beads-execute 'beads-command-worktree-list)
 ;;
 ;;   ;; Remove a worktree
-;;   (beads-command-worktree-remove! :name "feature-auth")
-;;   (beads-command-worktree-remove! :name "stale-work" :force t)
+;;   (beads-execute 'beads-command-worktree-remove :name "feature-auth")
+;;   (beads-execute 'beads-command-worktree-remove :name "stale-work" :force t)
 ;;
 ;;   ;; Get info about current worktree
-;;   (beads-command-worktree-info!)
+;;   (beads-execute 'beads-command-worktree-info)
 
 ;;; Code:
 
@@ -169,7 +169,7 @@ Returns error message string or nil if valid."
     (if error-msg
         (user-error "Validation failed: %s" error-msg)
       (condition-case err
-          (let* ((result (beads-command-worktree-create!
+          (let* ((result (beads-execute 'beads-command-worktree-create
                           :name beads-worktree--name
                           :branch beads-worktree--branch))
                  (path (oref result path))
@@ -190,7 +190,7 @@ Returns error message string or nil if valid."
   :description "List worktrees"
   (interactive)
   (condition-case err
-      (let ((worktrees (beads-command-worktree-list!)))
+      (let ((worktrees (beads-execute 'beads-command-worktree-list)))
         (if (null worktrees)
             (message "No worktrees found")
           (beads-worktree--display-list worktrees)))
@@ -214,7 +214,7 @@ Returns error message string or nil if valid."
                                   beads-worktree--target)))
         (condition-case err
             (progn
-              (beads-command-worktree-remove!
+              (beads-execute 'beads-command-worktree-remove
                :name beads-worktree--target
                :force beads-worktree--force)
               (message "Removed worktree: %s" beads-worktree--target)
@@ -230,7 +230,7 @@ Returns error message string or nil if valid."
   :description "Info (current)"
   (interactive)
   (condition-case err
-      (let ((info (beads-command-worktree-info!)))
+      (let ((info (beads-execute 'beads-command-worktree-info)))
         (if (not (oref info is-worktree))
             (message "Not in a worktree (main repository)")
           (message "Worktree: %s\nBranch: %s\nPath: %s\nMain: %s\nBeads state: %s"
@@ -280,8 +280,8 @@ Requires name to be set."
      ((string-empty-p name) "Worktree name cannot be empty")
      (t nil))))
 
-(cl-defmethod beads-command-parse ((command beads-command-worktree-create) execution)
-  "Parse worktree create COMMAND output from EXECUTION.
+(cl-defmethod beads-command-parse ((command beads-command-worktree-create) stdout)
+  "Parse worktree create COMMAND output from STDOUT.
 Returns beads-worktree instance on success."
   (with-slots (json) command
     (if (not json)
@@ -293,9 +293,8 @@ Returns beads-worktree instance on success."
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-worktree: %s"
                                  (error-message-string err))
-                         :exit-code (oref execution exit-code)
+                         :stdout stdout
                          :parsed-json parsed-json
-                         :stderr (oref execution stderr)
                          :parse-error err))))))))
 
 ;;; ============================================================
@@ -308,8 +307,8 @@ Returns beads-worktree instance on success."
 Lists all git worktrees with their beads configuration state.")
 
 
-(cl-defmethod beads-command-parse ((command beads-command-worktree-list) execution)
-  "Parse worktree list COMMAND output from EXECUTION.
+(cl-defmethod beads-command-parse ((command beads-command-worktree-list) stdout)
+  "Parse worktree list COMMAND output from STDOUT.
 Returns list of beads-worktree instances."
   (with-slots (json) command
     (if (not json)
@@ -321,9 +320,8 @@ Returns list of beads-worktree instances."
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-worktree list: %s"
                                  (error-message-string err))
-                         :exit-code (oref execution exit-code)
+                         :stdout stdout
                          :parsed-json parsed-json
-                         :stderr (oref execution stderr)
                          :parse-error err))))))))
 
 ;;; ============================================================
@@ -362,8 +360,8 @@ Requires name to be set."
 Shows information about the current worktree context.")
 
 
-(cl-defmethod beads-command-parse ((command beads-command-worktree-info) execution)
-  "Parse worktree info COMMAND output from EXECUTION.
+(cl-defmethod beads-command-parse ((command beads-command-worktree-info) stdout)
+  "Parse worktree info COMMAND output from STDOUT.
 Returns beads-worktree-info instance."
   (with-slots (json) command
     (if (not json)
@@ -375,9 +373,8 @@ Returns beads-worktree-info instance."
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-worktree-info: %s"
                                  (error-message-string err))
-                         :exit-code (oref execution exit-code)
+                         :stdout stdout
                          :parsed-json parsed-json
-                         :stderr (oref execution stderr)
                          :parse-error err))))))))
 
 ;;; ============================================================
@@ -390,21 +387,21 @@ Returns beads-worktree instance or nil if not found."
   (ignore-errors
     (seq-find (lambda (wt)
                 (string= (oref wt name) name))
-              (beads-command-worktree-list!))))
+              (beads-execute 'beads-command-worktree-list))))
 
 (defun beads-worktree-find-by-branch (branch)
   "Find a worktree by BRANCH name from the list of worktrees.
 Returns beads-worktree instance or nil if not found."
   (seq-find (lambda (wt)
               (string= (oref wt branch) branch))
-            (beads-command-worktree-list!)))
+            (beads-execute 'beads-command-worktree-list)))
 
 (defun beads-worktree-main ()
   "Return the main worktree (the one with is-main = t).
 Returns beads-worktree instance or nil if not found."
   (seq-find (lambda (wt)
               (oref wt is-main))
-            (beads-command-worktree-list!)))
+            (beads-execute 'beads-command-worktree-list)))
 
 ;;; ============================================================
 ;;; Interactive Execute Methods
@@ -563,7 +560,7 @@ share the same .beads database."
         (when (y-or-n-p (format "Remove worktree '%s'? " name))
           (condition-case err
               (progn
-                (beads-command-worktree-remove! :name name)
+                (beads-execute 'beads-command-worktree-remove :name name)
                 (message "Removed worktree: %s" name)
                 (beads-completion-invalidate-worktree-cache)
                 (beads-worktree-list-refresh))
@@ -577,7 +574,7 @@ share the same .beads database."
   (interactive)
   (beads-completion-invalidate-worktree-cache)
   (condition-case err
-      (let ((worktrees (beads-command-worktree-list!)))
+      (let ((worktrees (beads-execute 'beads-command-worktree-list)))
         (beads-pager-set-entries (mapcar #'beads-worktree--format-entry worktrees))
         (message "Worktree list refreshed"))
     (error
@@ -595,7 +592,7 @@ share the same .beads database."
   (interactive)
   (beads-check-executable)
   (condition-case err
-      (let ((worktrees (beads-command-worktree-list!)))
+      (let ((worktrees (beads-execute 'beads-command-worktree-list)))
         (beads-worktree--display-list worktrees))
     (error
      (user-error "Failed to list worktrees: %s"

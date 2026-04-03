@@ -2891,13 +2891,9 @@ When worktrees are disabled, uses beads-agent-start directly."
                                   :status "open"
                                   :priority 2)))
     (cl-letf (((symbol-function 'beads-command-execute-async)
-               (lambda (cmd callback)
-                 ;; Create mock execution object with exit-code 0 and parsed data
-                 (let ((exec (beads-command-execution
-                              :command cmd
-                              :exit-code 0
-                              :result (vector mock-issue))))
-                   (funcall callback exec)))))
+               (lambda (_cmd on-success &optional _on-error)
+                 ;; Simulate successful async: on-success receives parsed data
+                 (funcall on-success (vector mock-issue)))))
       (beads-agent--fetch-issue-async
        "bd-1"
        (lambda (issue) (setq callback-result issue)))
@@ -2911,14 +2907,10 @@ When worktrees are disabled, uses beads-agent-start directly."
   (let* ((callback-called nil)
          (callback-result 'not-set))
     (cl-letf (((symbol-function 'beads-command-execute-async)
-               (lambda (cmd callback)
-                 ;; Create mock execution object with non-zero exit code
-                 (let ((exec (beads-command-execution
-                              :command cmd
-                              :exit-code 1
-                              :stderr "Error: issue not found"
-                              :result nil)))
-                   (funcall callback exec)))))
+               (lambda (_cmd _on-success &optional on-error)
+                 ;; Simulate failed async: on-error receives error condition
+                 (when on-error
+                   (funcall on-error '(error "Error: issue not found"))))))
       (beads-agent--fetch-issue-async
        "bd-nonexistent"
        (lambda (issue)
@@ -2933,14 +2925,9 @@ When worktrees are disabled, uses beads-agent-start directly."
   (let* ((callback-called nil)
          (callback-result 'not-set))
     (cl-letf (((symbol-function 'beads-command-execute-async)
-               (lambda (cmd callback)
-                 ;; Create mock execution object with exit-code 0 but data that
-                 ;; causes an error when accessed (empty vector with aref attempt)
-                 (let ((exec (beads-command-execution
-                              :command cmd
-                              :exit-code 0
-                              :result [])))  ; Empty vector causes (aref [] 0) error
-                   (funcall callback exec)))))
+               (lambda (_cmd on-success &optional _on-error)
+                 ;; Simulate success with empty vector - causes (aref [] 0) error
+                 (funcall on-success []))))  ; Empty vector causes (aref [] 0) error
       (beads-agent--fetch-issue-async
        "bd-1"
        (lambda (issue)
@@ -2955,14 +2942,9 @@ When worktrees are disabled, uses beads-agent-start directly."
   (let* ((callback-called nil)
          (callback-result 'not-set))
     (cl-letf (((symbol-function 'beads-command-execute-async)
-               (lambda (cmd callback)
-                 ;; Create mock execution object with exit-code 0 but nil result
-                 ;; (happens when parse returns nil due to empty result)
-                 (let ((exec (beads-command-execution
-                              :command cmd
-                              :exit-code 0
-                              :result nil)))
-                   (funcall callback exec)))))
+               (lambda (_cmd on-success &optional _on-error)
+                 ;; Simulate success with nil result (empty parse result)
+                 (funcall on-success nil))))
       (beads-agent--fetch-issue-async
        "bd-1"
        (lambda (issue)
@@ -3704,8 +3686,8 @@ When worktrees are disabled, uses beads-agent-start directly."
   (unwind-protect
       (let ((beads-agent-auto-set-in-progress nil)
             (called nil))
-        (cl-letf (((symbol-function 'beads-command-show!)
-                   (lambda (&rest _) (setq called t))))
+        (cl-letf (((symbol-function 'beads-execute)
+                   (lambda (_class &rest _args) (setq called t))))
           (beads-agent--maybe-update-status "bd-1")
           ;; Should not call show! when disabled
           (should-not called)))
@@ -3717,17 +3699,18 @@ When worktrees are disabled, uses beads-agent-start directly."
   (unwind-protect
       (let ((beads-agent-auto-set-in-progress t)
             (updated nil))
-        (cl-letf (((symbol-function 'beads-command-show!)
-                   (lambda (&rest _)
-                     (beads-issue :id "bd-1" :title "Test"
-                                  :status "open"
-                                  :priority 2 :issue-type "task"
-                                  :created-at "2025-01-01"
-                                  :updated-at "2025-01-01")))
-                  ((symbol-function 'beads-command-update!)
-                   (lambda (&rest _) (setq updated t))))
+        (cl-letf (((symbol-function 'beads-command-execute)
+                   (lambda (cmd)
+                     (if (cl-typep cmd 'beads-command-show)
+                         (beads-issue :id "bd-1" :title "Test"
+                                      :status "open"
+                                      :priority 2 :issue-type "task"
+                                      :created-at "2025-01-01"
+                                      :updated-at "2025-01-01")
+                       (setq updated t)
+                       nil))))
           (beads-agent--maybe-update-status "bd-1")
-          ;; Should call update! for open issues
+          ;; Should call update for open issues
           (should updated)))
     (beads-agent-test--teardown)))
 
@@ -3737,17 +3720,18 @@ When worktrees are disabled, uses beads-agent-start directly."
   (unwind-protect
       (let ((beads-agent-auto-set-in-progress t)
             (updated nil))
-        (cl-letf (((symbol-function 'beads-command-show!)
-                   (lambda (&rest _)
-                     (beads-issue :id "bd-1" :title "Test"
-                                  :status "in_progress"
-                                  :priority 2 :issue-type "task"
-                                  :created-at "2025-01-01"
-                                  :updated-at "2025-01-01")))
-                  ((symbol-function 'beads-command-update!)
-                   (lambda (&rest _) (setq updated t))))
+        (cl-letf (((symbol-function 'beads-command-execute)
+                   (lambda (cmd)
+                     (if (cl-typep cmd 'beads-command-show)
+                         (beads-issue :id "bd-1" :title "Test"
+                                      :status "in_progress"
+                                      :priority 2 :issue-type "task"
+                                      :created-at "2025-01-01"
+                                      :updated-at "2025-01-01")
+                       (setq updated t)
+                       nil))))
           (beads-agent--maybe-update-status "bd-1")
-          ;; Should NOT call update! for in_progress issues
+          ;; Should NOT call update for in_progress issues
           (should-not updated)))
     (beads-agent-test--teardown)))
 
@@ -4013,7 +3997,7 @@ When worktrees are disabled, uses beads-agent-start directly."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    (let ((issue (beads-command-create! :title "Test Agent Issue"
+    (let ((issue (beads-execute 'beads-command-create :title "Test Agent Issue"
                                          :description "Agent should do X"
                                          :acceptance "Must pass tests"
                                          :priority 2
@@ -4029,7 +4013,7 @@ When worktrees are disabled, uses beads-agent-start directly."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    (let ((issue (beads-command-create! :title "Detect Test"
+    (let ((issue (beads-execute 'beads-command-create :title "Detect Test"
                                          :priority 2
                                          :issue-type "bug")))
       (let ((issue-id (oref issue id)))
@@ -4045,7 +4029,7 @@ When worktrees are disabled, uses beads-agent-start directly."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    (let ((issue (beads-command-create! :title "Status Update Test"
+    (let ((issue (beads-execute 'beads-command-create :title "Status Update Test"
                                          :priority 2
                                          :issue-type "task")))
       (let ((issue-id (oref issue id))
@@ -4053,7 +4037,7 @@ When worktrees are disabled, uses beads-agent-start directly."
         ;; Should update the issue status
         (beads-agent--maybe-update-status issue-id)
         ;; Verify status was updated
-        (let ((updated (beads-command-show! :issue-ids (list issue-id))))
+        (let ((updated (beads-execute 'beads-command-show :issue-ids (list issue-id))))
           (should (equal "in_progress" (oref updated status))))))))
 
 (ert-deftest beads-agent-test-integration-select-backend ()
@@ -4088,7 +4072,7 @@ When worktrees are disabled, uses beads-agent-start directly."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    (let ((issue (beads-command-create! :title "Read ID Test"
+    (let ((issue (beads-execute 'beads-command-create :title "Read ID Test"
                                          :priority 2
                                          :issue-type "task")))
       (let ((issue-id (oref issue id)))
@@ -4187,16 +4171,12 @@ When worktrees are disabled, uses beads-agent-start directly."
               ((symbol-function 'beads-worktree-find-by-name)
                (lambda (_) nil))  ; No existing worktree
               ((symbol-function 'beads-command-execute-async)
-               (lambda (cmd callback)
+               (lambda (_cmd on-success &optional _on-error)
                  (setq async-called t)
-                 ;; Simulate successful async completion with execution object
-                 (let ((exec (beads-command-execution
-                              :command cmd
-                              :exit-code 0
-                              :result (beads-worktree :name "bd-42"
-                                                      :path "/home/user/bd-42"
-                                                      :branch "feature/bd-42"))))
-                   (funcall callback exec))))
+                 ;; Simulate successful async: on-success receives parsed result
+                 (funcall on-success (beads-worktree :name "bd-42"
+                                                     :path "/home/user/bd-42"
+                                                     :branch "feature/bd-42"))))
               ((symbol-function 'beads-completion-invalidate-worktree-cache)
                #'ignore))
       (beads-agent--setup-worktree-interactive
@@ -4218,13 +4198,10 @@ When worktrees are disabled, uses beads-agent-start directly."
               ((symbol-function 'beads-worktree-find-by-name)
                (lambda (_) nil))
               ((symbol-function 'beads-command-execute-async)
-               (lambda (cmd callback)
-                 ;; Simulate failed async completion with execution object
-                 (let ((exec (beads-command-execution
-                              :command cmd
-                              :exit-code 1
-                              :stderr "Branch already exists")))
-                   (funcall callback exec)))))
+               (lambda (_cmd _on-success &optional on-error)
+                 ;; Simulate failed async: on-error receives error condition
+                 (when on-error
+                   (funcall on-error '(error "Branch already exists"))))))
       (beads-agent--setup-worktree-interactive
        "bd-42"
        (lambda (success path-or-error)

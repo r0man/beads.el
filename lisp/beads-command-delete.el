@@ -30,7 +30,7 @@
 ;; Usage:
 ;;   (beads-command-execute (beads-command-delete :issue-ids '("bd-1")
 ;;                                                 :force t))
-;;   (beads-command-delete!)  ; convenience function
+;;   (beads-execute 'beads-command-delete)  ; convenience function
 
 ;;; Code:
 
@@ -133,8 +133,8 @@ Returns error string or nil if valid."
      ;; Otherwise valid
      (t nil))))
 
-(cl-defmethod beads-command-parse ((command beads-command-delete) execution)
-  "Parse delete COMMAND output from EXECUTION.
+(cl-defmethod beads-command-parse ((command beads-command-delete) stdout)
+  "Parse delete COMMAND output from STDOUT.
 Returns deleted issue info.
 When :json is nil, falls back to parent (returns raw stdout).
 When :force is nil, returns raw stdout (preview text, not JSON).
@@ -161,7 +161,7 @@ Returns the parsed alist, nil, or raw stdout string (preview mode)."
       ;; Without --force, bd delete returns human-readable preview text
       ;; even when --json is passed.  Return raw stdout in this case.
       (if (not force)
-          (oref execution stdout)
+          stdout
         ;; Force mode: parse JSON response
         (let ((parsed-json (cl-call-next-method)))
           (cond
@@ -183,9 +183,8 @@ Returns the parsed alist, nil, or raw stdout string (preview mode)."
            (t
             (signal 'beads-json-parse-error
                     (list "Unexpected JSON structure from bd delete"
-                          :exit-code (oref execution exit-code)
-                          :parsed-json parsed-json
-                          :stderr (oref execution stderr))))))))))
+                          :stdout stdout
+                          :parsed-json parsed-json)))))))))
 
 
 
@@ -270,7 +269,7 @@ Returns the preview buffer."
 
 (defun beads-delete--execute-deletion (issue-id)
   "Execute the deletion of ISSUE-ID with --force flag."
-  (let ((result (beads-command-delete! :issue-ids (list issue-id) :force t)))
+  (let ((result (beads-execute 'beads-command-delete :issue-ids (list issue-id) :force t)))
     (message "Deleted issue %s" issue-id)
     ;; Invalidate completion cache
     (beads--invalidate-completion-cache)

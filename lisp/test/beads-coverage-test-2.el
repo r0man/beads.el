@@ -341,8 +341,8 @@
 (ert-deftest beads-coverage-2-agent-maybe-update-status-non-open ()
   "Test beads-agent--maybe-update-status when issue is not open."
   (let ((beads-agent-auto-set-in-progress t))
-    (cl-letf (((symbol-function 'beads-command-show!)
-               (lambda (&rest _)
+    (cl-letf (((symbol-function 'beads-execute)
+               (lambda (_class &rest _args)
                  (beads-issue :id "bd-1" :title "Test" :status "in_progress"
                               :priority 1 :issue-type "task"))))
       ;; Issue is already in_progress, so no update should happen
@@ -355,32 +355,23 @@
 (ert-deftest beads-coverage-2-worktree-create-parse-success ()
   "Test beads-command-parse for worktree-create with valid JSON."
   (let* ((json-str "{\"name\":\"test-wt\",\"path\":\"/tmp/wt\",\"branch\":\"feature/test\",\"is_main\":false,\"beads_state\":\"redirect\"}")
-         (cmd (beads-command-worktree-create :name "test-wt" :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout json-str :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+         (cmd (beads-command-worktree-create :name "test-wt" :json t)))
+    (let ((result (beads-command-parse cmd json-str)))
       (should (beads-worktree-p result))
       (should (equal "test-wt" (oref result name)))
       (should (equal "/tmp/wt" (oref result path))))))
 
 (ert-deftest beads-coverage-2-worktree-create-parse-no-json ()
   "Test beads-command-parse for worktree-create without JSON."
-  (let* ((cmd (beads-command-worktree-create :name "test-wt" :json nil))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "raw output" :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-worktree-create :name "test-wt" :json nil)))
+    (let ((result (beads-command-parse cmd "raw output")))
       (should (equal "raw output" result)))))
 
 (ert-deftest beads-coverage-2-worktree-list-parse-success ()
   "Test beads-command-parse for worktree-list with JSON array."
   (let* ((json-str "[{\"name\":\"main\",\"path\":\"/repo\",\"branch\":\"main\",\"is_main\":true,\"beads_state\":\"shared\"},{\"name\":\"feat\",\"path\":\"/repo-feat\",\"branch\":\"feat\",\"is_main\":false,\"beads_state\":\"redirect\"}]")
-         (cmd (beads-command-worktree-list :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout json-str :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+         (cmd (beads-command-worktree-list :json t)))
+    (let ((result (beads-command-parse cmd json-str)))
       (should (listp result))
       (should (= 2 (length result)))
       (should (beads-worktree-p (car result))))))
@@ -388,11 +379,8 @@
 (ert-deftest beads-coverage-2-worktree-info-parse-success ()
   "Test beads-command-parse for worktree-info."
   (let* ((json-str "{\"is_worktree\":true,\"name\":\"feat-wt\",\"branch\":\"feature/auth\",\"path\":\"/repo-feat\",\"main_path\":\"/repo\",\"beads_state\":\"redirect\"}")
-         (cmd (beads-command-worktree-info :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout json-str :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+         (cmd (beads-command-worktree-info :json t)))
+    (let ((result (beads-command-parse cmd json-str)))
       (should (beads-worktree-info-p result))
       (should (equal "feat-wt" (oref result name))))))
 
@@ -476,32 +464,23 @@
 (ert-deftest beads-coverage-2-epic-status-parse-vector ()
   "Test beads-command-parse for epic-status with vector."
   (let* ((json-str "[{\"epic\":{\"id\":\"bd-1\",\"title\":\"Epic1\",\"status\":\"open\",\"priority\":0,\"issue_type\":\"epic\"},\"total_children\":5,\"closed_children\":2,\"eligible_for_close\":false}]")
-         (cmd (beads-command-epic-status :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout json-str :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+         (cmd (beads-command-epic-status :json t)))
+    (let ((result (beads-command-parse cmd json-str)))
       (should (listp result))
       (should (= 1 (length result))))))
 
 (ert-deftest beads-coverage-2-epic-status-parse-single ()
   "Test beads-command-parse for epic-status with single object."
   (let* ((json-str "{\"epic\":{\"id\":\"bd-1\",\"title\":\"Epic1\",\"status\":\"open\",\"priority\":0,\"issue_type\":\"epic\"},\"total_children\":3,\"closed_children\":1,\"eligible_for_close\":false}")
-         (cmd (beads-command-epic-status :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout json-str :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+         (cmd (beads-command-epic-status :json t)))
+    (let ((result (beads-command-parse cmd json-str)))
       (should (listp result))
       (should (= 1 (length result))))))
 
 (ert-deftest beads-coverage-2-epic-status-parse-null ()
   "Test beads-command-parse for epic-status with null."
-  (let* ((cmd (beads-command-epic-status :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "null" :stderr "" :result nil)))
-    (should-not (beads-command-parse cmd exec))))
+  (let* ((cmd (beads-command-epic-status :json t)))
+    (should-not (beads-command-parse cmd "null"))))
 
 ;;; ============================================================
 ;;; beads-command-epic.el - Render and Navigation Tests
@@ -775,30 +754,21 @@
 (ert-deftest beads-coverage-2-list-parse-vector ()
   "Test beads-command-parse for list with vector JSON."
   (let* ((json-str "[{\"id\":\"bd-1\",\"title\":\"Issue 1\",\"status\":\"open\",\"priority\":1,\"issue_type\":\"task\"},{\"id\":\"bd-2\",\"title\":\"Issue 2\",\"status\":\"closed\",\"priority\":2,\"issue_type\":\"bug\"}]")
-         (cmd (beads-command-list :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout json-str :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+         (cmd (beads-command-list :json t)))
+    (let ((result (beads-command-parse cmd json-str)))
       (should (listp result))
       (should (= 2 (length result)))
       (should (beads-issue-p (car result))))))
 
 (ert-deftest beads-coverage-2-list-parse-null ()
   "Test beads-command-parse for list with null JSON."
-  (let* ((cmd (beads-command-list :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "null" :stderr "" :result nil)))
-    (should-not (beads-command-parse cmd exec))))
+  (let* ((cmd (beads-command-list :json t)))
+    (should-not (beads-command-parse cmd "null"))))
 
 (ert-deftest beads-coverage-2-list-parse-no-json ()
   "Test beads-command-parse for list without JSON mode."
-  (let* ((cmd (beads-command-list :json nil))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "raw" :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-list :json nil)))
+    (let ((result (beads-command-parse cmd "raw")))
       (should (equal "raw" result)))))
 
 ;;; ============================================================
@@ -866,11 +836,8 @@
   "Test beads-command-parse for update with vector JSON."
   (let* ((json-str "[{\"id\":\"bd-1\",\"title\":\"Issue 1\",\"status\":\"in_progress\",\"priority\":1,\"issue_type\":\"task\"}]")
          (cmd (beads-command-update :issue-ids '("bd-1") :json t
-                                     :status "in_progress"))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout json-str :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+                                     :status "in_progress")))
+    (let ((result (beads-command-parse cmd json-str)))
       ;; Single issue-id returns a single issue, not a list
       (should (beads-issue-p result))
       (should (equal "bd-1" (oref result id))))))
@@ -879,11 +846,8 @@
   "Test beads-command-parse for update with multiple IDs."
   (let* ((json-str "[{\"id\":\"bd-1\",\"title\":\"I1\",\"status\":\"closed\",\"priority\":1,\"issue_type\":\"task\"},{\"id\":\"bd-2\",\"title\":\"I2\",\"status\":\"closed\",\"priority\":2,\"issue_type\":\"bug\"}]")
          (cmd (beads-command-update :issue-ids '("bd-1" "bd-2")
-                                     :json t :status "closed"))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout json-str :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+                                     :json t :status "closed")))
+    (let ((result (beads-command-parse cmd json-str)))
       ;; Multiple IDs returns a list
       (should (listp result))
       (should (= 2 (length result))))))
@@ -891,11 +855,8 @@
 (ert-deftest beads-coverage-2-update-parse-no-json ()
   "Test beads-command-parse for update without JSON."
   (let* ((cmd (beads-command-update :issue-ids '("bd-1") :json nil
-                                     :status "open"))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "raw" :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+                                     :status "open")))
+    (let ((result (beads-command-parse cmd "raw")))
       (should (equal "raw" result)))))
 
 ;;; ============================================================
@@ -960,29 +921,20 @@ does not check whether fields have actually changed."
 (ert-deftest beads-coverage-2-dep-list-parse-vector ()
   "Test beads-command-parse for dep list with vector."
   (let* ((json-str "[{\"id\":\"bd-2\",\"title\":\"Dep issue\",\"status\":\"open\",\"priority\":1,\"issue_type\":\"task\",\"dependency_type\":\"depends_on\"}]")
-         (cmd (beads-command-dep-list :issue-id "bd-1" :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout json-str :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+         (cmd (beads-command-dep-list :issue-id "bd-1" :json t)))
+    (let ((result (beads-command-parse cmd json-str)))
       (should (listp result))
       (should (= 1 (length result))))))
 
 (ert-deftest beads-coverage-2-dep-list-parse-null ()
   "Test beads-command-parse for dep list with null."
-  (let* ((cmd (beads-command-dep-list :issue-id "bd-1" :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "null" :stderr "" :result nil)))
-    (should-not (beads-command-parse cmd exec))))
+  (let* ((cmd (beads-command-dep-list :issue-id "bd-1" :json t)))
+    (should-not (beads-command-parse cmd "null"))))
 
 (ert-deftest beads-coverage-2-dep-list-parse-no-json ()
   "Test beads-command-parse for dep list without JSON."
-  (let* ((cmd (beads-command-dep-list :issue-id "bd-1" :json nil))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "raw" :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-dep-list :issue-id "bd-1" :json nil)))
+    (let ((result (beads-command-parse cmd "raw")))
       (should (equal "raw" result)))))
 
 ;;; ============================================================
@@ -1232,12 +1184,9 @@ does not check whether fields have actually changed."
                               :status "in_progress" :priority 1
                               :issue-type "task"))
          (cmd (beads-command-update :issue-ids '("bd-1")
-                                     :json t :status "in_progress"))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "" :stderr "" :result issue)))
+                                     :json t :status "in_progress")))
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd) exec))
+               (lambda (_cmd) issue))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda () nil)))
       (beads-command-execute-interactive cmd))))
@@ -1245,12 +1194,9 @@ does not check whether fields have actually changed."
 (ert-deftest beads-coverage-2-update-execute-interactive-nil-result ()
   "Test beads-command-execute-interactive for update with nil result."
   (let* ((cmd (beads-command-update :issue-ids '("bd-1")
-                                     :json t :status "closed"))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "" :stderr "" :result nil)))
+                                     :json t :status "closed")))
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd) exec))
+               (lambda (_cmd) nil))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda () nil)))
       (beads-command-execute-interactive cmd))))

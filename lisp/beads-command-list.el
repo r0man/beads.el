@@ -26,7 +26,7 @@
 ;;
 ;; Usage:
 ;;   (beads-command-execute (beads-command-list :status "open"))
-;;   (beads-command-list!)  ; convenience function
+;;   (beads-list-execute)  ; convenience function
 
 ;;; Code:
 
@@ -61,9 +61,7 @@
                   (&optional project-dir))
 (declare-function beads-show-update-buffer "beads-command-show"
                   (issue-id buffer))
-(declare-function beads-command-reopen! "beads-command-reopen" (&rest args))
 (declare-function beads-command-update "beads-command-update" (&rest args))
-(declare-function beads-command-show! "beads-command-show" (&rest args))
 (defvar beads-show--issue-id)
 
 ;;; List Command
@@ -425,8 +423,8 @@ P can be a number or string representation."
        (beads-command--validate-string-list label "label")
        (beads-command--validate-string-list label-any "label-any")))))
 
-(cl-defmethod beads-command-parse ((command beads-command-list) execution)
-  "Parse list COMMAND output from EXECUTION.
+(cl-defmethod beads-command-parse ((command beads-command-list) stdout)
+  "Parse list COMMAND output from STDOUT.
 Returns list of beads-issue instances.
 When :json is nil, falls back to parent (returns raw stdout).
 When :json is t, returns list of beads-issue instances.
@@ -449,38 +447,25 @@ Does not modify any slots."
              (t
               (signal 'beads-json-parse-error
                       (list "Unexpected JSON structure from bd list"
-                            :exit-code (oref execution exit-code)
-                            :parsed-json parsed-json
-                            :stderr (oref execution stderr)))))
+                            :stdout stdout
+                            :parsed-json parsed-json))))
           (error
            (signal 'beads-json-parse-error
                    (list (format "Failed to parse list result: %s"
                                  (error-message-string err))
-                         :exit-code (oref execution exit-code)
+                         :stdout stdout
                          :parsed-json parsed-json
-                         :stderr (oref execution stderr)
                          :parse-error err))))))))
 
-;; Override auto-generated beads-command-list! to apply default limit.
-;; Note: Using initialize-instance doesn't work well because:
-;; 1. EIEIO validates :initform types at class definition time (symbol fails)
-;; 2. :around/:after methods have complex slot argument handling
-;; The function override is the cleanest solution that reliably works.
-(with-no-warnings
-(defun beads-command-list! (&rest args)
+(defun beads-list-execute (&rest args)
   "Execute `beads-command-list' and return result data.
 
 ARGS are passed to the constructor.  When :limit is not specified,
 uses `beads-list-default-limit' as the default value.  Pass `:limit nil'
-explicitly to disable the limit.
-
-This function overrides the auto-generated version to support
-the `beads-list-default-limit' customization variable."
+explicitly to disable the limit."
   (unless (plist-member args :limit)
     (setq args (plist-put args :limit beads-list-default-limit)))
-  (unless (plist-member args :json)
-    (setq args (plist-put args :json t)))
-  (oref (beads-command-execute (apply #'beads-command-list args)) result)))
+  (apply #'beads-execute 'beads-command-list args))
 
 ;;; Transient Menu
 
@@ -981,8 +966,8 @@ Uses the bd show command with --json flag to fetch the issue.
 Runs in the directory specified by `default-directory'.
 Returns a beads-issue object or signals an error if not found."
   (interactive "sIssue ID: ")
-  (let ((result (beads-command-show! :issue-ids (list issue-id))))
-    ;; beads-command-show! returns a list, so unwrap single result
+  (let ((result (beads-execute 'beads-command-show :issue-ids (list issue-id))))
+    ;; beads-command-show returns a list, so unwrap single result
     (if (listp result)
         (car result)
       result)))
@@ -995,8 +980,8 @@ Runs in the directory specified by `default-directory'.
 Returns a list of beads-issue objects."
   (interactive)
   (if status
-      (beads-command-list! :status status)
-    (beads-command-list!)))
+      (beads-list-execute :status status)
+    (beads-list-execute)))
 
 (defun beads-blocked-issue-list ()
   "List blocked beads issues from the CLI.
@@ -1004,7 +989,7 @@ Uses the bd blocked command with --json flag.
 Runs in the directory specified by `default-directory'.
 Returns a list of beads-blocked-issue objects."
   (interactive)
-  (beads-command-blocked!))
+  (beads-execute 'beads-command-blocked))
 
 (defun beads-issue-ready (&optional limit)
   "Get ready work from the CLI.
@@ -1014,8 +999,8 @@ Runs in the directory specified by `default-directory'.
 Returns a list of beads-issue objects."
   (interactive)
   (if limit
-      (beads-command-ready! :limit limit)
-    (beads-command-ready!)))
+      (beads-execute 'beads-command-ready :limit limit)
+    (beads-execute 'beads-command-ready)))
 
 ;;; Transient Menu Integration
 
@@ -1113,8 +1098,7 @@ Uses directory-aware buffer identity: same project = same buffer."
          (args (transient-args 'beads-list-advanced))
          (command (beads-list--parse-transient-args args)))
     (condition-case err
-        (let* ((exec (beads-command-execute command))
-               (issue-objects (oref exec result))
+        (let* ((issue-objects (beads-command-execute command))
                (buffer (beads-list--get-or-create-buffer 'list)))
           (with-current-buffer buffer
             (unless (derived-mode-p 'beads-list-mode)
@@ -1273,8 +1257,8 @@ When SILENT is non-nil, suppress messages (for hook-triggered refreshes)."
   (let* ((issues (pcase beads-list--command
                    ('list
                     (if beads-list--command-obj
-                        (oref (beads-command-execute beads-list--command-obj) result)
-                      (beads-command-list!)))
+                        (beads-command-execute beads-list--command-obj)
+                      (beads-list-execute)))
                    ('ready
                     (beads-issue-ready))
                    ('blocked
@@ -1283,7 +1267,7 @@ When SILENT is non-nil, suppress messages (for hook-triggered refreshes)."
                     (when-let ((cmd (and (boundp 'beads-search--command-obj)
                                         beads-search--command-obj)))
                       (oset cmd json t)
-                      (oref (beads-command-execute cmd) result)))
+                      (beads-command-execute cmd)))
                    (_ (error "Unknown command: %s" beads-list--command))))
          ;; Save window point if buffer is displayed, otherwise buffer point.
          ;; This ensures we preserve point correctly when called via
@@ -1650,8 +1634,8 @@ This is a convenience suffix in the `beads-list' transient."
             (condition-case err
                 (progn
                   (if (and reason (not (string-empty-p (string-trim reason))))
-                      (beads-command-reopen! :issue-ids (list id) :reason reason)
-                    (beads-command-reopen! :issue-ids (list id)))
+                      (beads-execute 'beads-command-reopen :issue-ids (list id) :reason reason)
+                    (beads-execute 'beads-command-reopen :issue-ids (list id)))
                   (setq success-count (1+ success-count)))
               (error
                (message "Failed to reopen %s: %s" id
