@@ -402,9 +402,9 @@ When populated from bd show --json, includes full issue details.")
 (defclass beads-comment ()
   ((id
     :initarg :id
-    :type (or null integer)
+    :type (or null string)
     :initform nil
-    :documentation "Unique comment ID.")
+    :documentation "Unique comment ID (UUID string).")
    (issue-id
     :initarg :issue-id
     :type (or null string)
@@ -908,7 +908,7 @@ JSON can be either:
    :pinned-issues (or (alist-get 'pinned_issues json) 0)
    :epics-eligible-for-closure
    (or (alist-get 'epics_eligible_for_closure json) 0)
-   :average-lead-time (or (alist-get 'average_lead_time_hours json) 0.0)))
+   :average-lead-time (float (or (alist-get 'average_lead_time_hours json) 0))))
 
 (defun beads-recent-activity-from-json (json)
   "Create a beads-recent-activity object from JSON alist."
