@@ -25,7 +25,7 @@
 ;; Usage:
 ;;   (beads-command-execute (beads-command-reopen :issue-ids '("bd-1")
 ;;                                                 :reason "Needs more work"))
-;;   (beads-command-reopen!)  ; convenience function
+;;   (beads-execute 'beads-command-reopen)  ; convenience function
 
 ;;; Code:
 
@@ -83,8 +83,8 @@ Returns error string or nil if valid."
      ;; Validate list content types
      (beads-command--validate-string-list issue-ids "issue-ids"))))
 
-(cl-defmethod beads-command-parse ((command beads-command-reopen) execution)
-  "Parse reopen COMMAND output from EXECUTION.
+(cl-defmethod beads-command-parse ((command beads-command-reopen) stdout)
+  "Parse reopen COMMAND output from STDOUT.
 Returns reopened issue(s).
 When :json is nil, falls back to parent (returns raw stdout).
 When :json is t, returns beads-issue instance (or list when multiple IDs).
@@ -107,23 +107,21 @@ Does not modify any slots."
               ;; Unexpected JSON structure
               (signal 'beads-json-parse-error
                       (list "Unexpected JSON structure from bd reopen"
-                            :exit-code (oref execution exit-code)
-                            :parsed-json parsed-json
-                            :stderr (oref execution stderr))))
+                            :stdout stdout
+                            :parsed-json parsed-json)))
           (error
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-issue instance: %s"
                                  (error-message-string err))
-                         :exit-code (oref execution exit-code)
+                         :stdout stdout
                          :parsed-json parsed-json
-                         :stderr (oref execution stderr)
                          :parse-error err))))))))
 
 (cl-defmethod beads-command-execute-interactive ((cmd beads-command-reopen))
   "Execute CMD to reopen issue and show result.
 Overrides default `compilation-mode' behavior."
   (oset cmd json t)
-  (let* ((result (oref (beads-command-execute cmd) result))
+  (let* ((result (beads-command-execute cmd))
          (issues (cond
                   ((null result) nil)
                   ((cl-typep result 'beads-issue) (list result))

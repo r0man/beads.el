@@ -612,8 +612,8 @@
                (lambda (_) '("--issue-id=bd-1"
                             "--depends-on=bd-2"
                             "--type=blocks")))
-              ((symbol-function 'beads-command-dep-add!)
-               (lambda (&rest _)
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd)
                  (setq executed t)
                  beads-dep-test--sample-dependency))
               ((symbol-function 'beads--invalidate-completion-cache) #'ignore))
@@ -627,8 +627,8 @@
              (lambda (_) '("--issue-id=bd-1"
                           "--depends-on=bd-2"
                           "--type=blocks")))
-            ((symbol-function 'beads-command-dep-add!)
-             (lambda (&rest _) (error "Test error"))))
+            ((symbol-function 'beads-command-execute)
+             (lambda (_cmd) (error "Test error"))))
     ;; Should not throw, just message the error
     (should-not (condition-case nil
                     (progn (beads-dep-add--execute) nil)
@@ -647,8 +647,8 @@
     (cl-letf (((symbol-function 'transient-args)
                (lambda (_) '("--issue-id=bd-1"
                             "--depends-on=bd-2")))
-              ((symbol-function 'beads-command-dep-remove!)
-               (lambda (&rest _)
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd)
                  (setq executed t)
                  (beads-dep-op-result
                   :op-status "removed"
@@ -664,8 +664,8 @@
   (cl-letf (((symbol-function 'transient-args)
              (lambda (_) '("--issue-id=bd-1"
                           "--depends-on=bd-2")))
-            ((symbol-function 'beads-command-dep-remove!)
-             (lambda (&rest _) (error "Test error"))))
+            ((symbol-function 'beads-command-execute)
+             (lambda (_cmd) (error "Test error"))))
     ;; Should not throw, just message the error
     (should-not (condition-case nil
                     (progn (beads-dep-remove--execute) nil)
@@ -987,13 +987,8 @@
                               (dependency_type . "blocks")
                               (created_at . "2025-01-01T00:00:00Z")
                               (updated_at . "2025-01-01T00:00:00Z"))))
-         (json-string (json-encode json-data))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout json-string
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+         (json-string (json-encode json-data)))
+    (let ((result (beads-command-parse cmd json-string)))
       (should (listp result))
       (should (= (length result) 1))
       (should (cl-typep (car result) 'beads-dependency)))))
@@ -1001,50 +996,30 @@
 (ert-deftest beads-dep-test-dep-list-parse-json-empty ()
   "Test dep list parse method with empty array."
   :tags '(:unit)
-  (let* ((cmd (beads-command-dep-list :json t :issue-id "bd-1"))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "[]"
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-dep-list :json t :issue-id "bd-1")))
+    (let ((result (beads-command-parse cmd "[]")))
       (should (listp result))
       (should (= (length result) 0)))))
 
 (ert-deftest beads-dep-test-dep-list-parse-json-null ()
   "Test dep list parse method with null result."
   :tags '(:unit)
-  (let* ((cmd (beads-command-dep-list :json t :issue-id "bd-1"))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "null"
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-dep-list :json t :issue-id "bd-1")))
+    (let ((result (beads-command-parse cmd "null")))
       (should (null result)))))
 
 (ert-deftest beads-dep-test-dep-list-parse-unexpected-json ()
   "Test dep list parse signals error on unexpected structure."
   :tags '(:unit)
-  (let* ((cmd (beads-command-dep-list :json t :issue-id "bd-1"))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "\"just a string\""
-                :stderr "")))
-    (should-error (beads-command-parse cmd exec)
+  (let* ((cmd (beads-command-dep-list :json t :issue-id "bd-1")))
+    (should-error (beads-command-parse cmd "\"just a string\"")
                   :type 'beads-json-parse-error)))
 
 (ert-deftest beads-dep-test-dep-list-parse-no-json ()
   "Test dep list parse with json=nil returns raw output."
   :tags '(:unit)
-  (let* ((cmd (beads-command-dep-list :json nil :issue-id "bd-1"))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "Some text output"
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-dep-list :json nil :issue-id "bd-1")))
+    (let ((result (beads-command-parse cmd "Some text output")))
       (should (stringp result)))))
 
 ;;; Dep Remove Validate Tests

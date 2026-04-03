@@ -14,7 +14,7 @@
 ;; database.
 ;;
 ;; Usage:
-;;   (beads-command-sql! :query "SELECT * FROM issues")
+;;   (beads-execute 'beads-command-sql :query "SELECT * FROM issues")
 ;;   (beads-sql)  ; invoke transient menu
 
 ;;; Code:

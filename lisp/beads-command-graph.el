@@ -25,9 +25,7 @@
 (require 'transient)
 
 ;; Forward declarations
-(declare-function beads-command-reopen! "beads-command-reopen" (&rest args))
 (declare-function beads-command-update "beads-command-update" (&rest args))
-(declare-function beads-command-show! "beads-command-show" (&rest args))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-graph
@@ -187,14 +185,14 @@ ISSUE is a beads-issue EIEIO object."
 (defun beads-graph--get-dependencies ()
   "Get all dependencies from all issues.
 Returns a list of plists with :from, :to, and :type keys."
-  (let ((issues (beads-command-list!))
+  (let ((issues (beads-list-execute))
         (deps nil))
     (dolist (issue issues)
       (let ((issue-id (oref issue id)))
         ;; Get dependencies for this issue using EIEIO command class
         ;; JSON mode returns beads-dependency objects
         (condition-case nil
-            (let ((dep-list (beads-command-dep-list! :issue-id issue-id)))
+            (let ((dep-list (beads-execute 'beads-command-dep-list :issue-id issue-id)))
               (dolist (dep dep-list)
                 (push (list :from (oref dep issue-id)
                             :to (oref dep depends-on-id)
@@ -305,7 +303,7 @@ Returns the path to the generated image file."
          (default-name (format "beads-graph.%s" format))
          (file (read-file-name "Export to: " nil nil nil default-name)))
     (beads-graph--check-dot)
-    (let* ((issues (beads-command-list!))
+    (let* ((issues (beads-list-execute))
            (deps (beads-graph--get-dependencies))
            (dot (beads-graph--generate-dot issues deps)))
       (if (string= format "dot")
@@ -367,7 +365,7 @@ Returns the path to the generated image file."
   (beads-check-executable)
   (beads-graph--check-dot)
   (message "Generating graph...")
-  (let* ((issues (beads-command-list!))
+  (let* ((issues (beads-list-execute))
          (deps (beads-graph--get-dependencies))
          (dot (beads-graph--generate-dot issues deps))
          (image-file (beads-graph--render-dot dot beads-graph-default-format)))
@@ -385,7 +383,7 @@ Returns the path to the generated image file."
   (beads-check-executable)
   (beads-graph--check-dot)
   (message "Generating graph for %s..." issue-id)
-  (let* ((all-issues (beads-command-list!))
+  (let* ((all-issues (beads-list-execute))
          (all-deps (beads-graph--get-dependencies))
          ;; Find connected issues (simplified - includes all for now)
          (issues all-issues)

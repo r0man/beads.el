@@ -36,7 +36,6 @@
 (declare-function beads-git-get-project-name "beads-git")
 (declare-function beads--invalidate-completion-cache "beads")
 (declare-function beads-list-refresh-all "beads-command-list")
-(declare-function beads-command-create! "beads-command-create")
 (declare-function beads-command-execute "beads-command")
 (declare-function beads-refresh-show "beads-command-show")
 (declare-function beads-issue-at-point-or-read "beads")
@@ -206,7 +205,7 @@ Returns the buffer."
 
 (defun beads-compose-submit ()
   "Submit the compose buffer contents.
-For create: calls `beads-command-create!' with title + description + metadata.
+For create: calls `beads-execute' with title + description + metadata.
 For edit: calls `beads-command-update' to update the description.
 For comment: calls `beads-command-comments-add' to add a comment."
   (interactive)
@@ -236,7 +235,7 @@ For comment: calls `beads-command-comments-add' to add a comment."
            (args (if beads-compose--parent
                      (append args (list :parent beads-compose--parent))
                    args))
-           (issue (apply #'beads-command-create! args))
+           (issue (apply #'beads-execute 'beads-command-create args))
            (win-config beads-compose--window-config))
       (kill-buffer)
       (when win-config

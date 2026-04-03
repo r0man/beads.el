@@ -21,10 +21,10 @@
 ;;   - metadata.waiters:   priority-ordered queue of waiters
 ;;
 ;; Usage:
-;;   (beads-command-merge-slot-create!)    ; create the slot bead
-;;   (beads-command-merge-slot-check!)     ; check availability
-;;   (beads-command-merge-slot-acquire! :holder "furiosa" :wait t)
-;;   (beads-command-merge-slot-release! :holder "furiosa")
+;;   (beads-execute 'beads-command-merge-slot-create)    ; create the slot bead
+;;   (beads-execute 'beads-command-merge-slot-check)     ; check availability
+;;   (beads-execute 'beads-command-merge-slot-acquire :holder "furiosa" :wait t)
+;;   (beads-execute 'beads-command-merge-slot-release :holder "furiosa")
 
 ;;; Code:
 

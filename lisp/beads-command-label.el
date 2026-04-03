@@ -312,9 +312,7 @@ Example:
   "Fetch all labels from bd label list-all.
 Returns a list of beads-label-count objects."
   (let* ((cmd (beads-command-label-list-all :json t))
-         ;; Execute command and get result from execution object
-         (exec (beads-command-execute cmd))
-         (json (oref exec result))
+         (json (beads-command-execute cmd))
          ;; JSON is array of {\"label\": \"name\", \"count\": N}
          (labels (append json nil)))
     (mapcar #'beads-label-count-from-json labels)))

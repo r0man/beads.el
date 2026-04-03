@@ -389,25 +389,15 @@
 
 (ert-deftest beads-cov6-delete-parse-preview-mode ()
   "Test delete parse returns raw stdout without force."
-  (let* ((cmd (beads-command-delete :json t :force nil))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "Would delete bd-1" :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-delete :json t :force nil)))
+    (let ((result (beads-command-parse cmd "Would delete bd-1")))
       (should (equal "Would delete bd-1" result)))))
 
 (ert-deftest beads-cov6-delete-parse-force-single ()
   "Test delete parse with force returns alist."
   (let* ((cmd (beads-command-delete :json t :force t :issue-ids '("bd-1")))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "{\"deleted\":\"bd-1\",\"dependencies_removed\":0}"
-                :stderr "")))
-    (cl-letf (((symbol-function 'cl-call-next-method)
-               (lambda ()
-                 '((deleted . "bd-1") (dependencies_removed . 0)))))
-      (let ((result (beads-command-parse cmd exec)))
-        (should (alist-get 'deleted result))))))
+         (result (beads-command-parse cmd "{\"deleted\":\"bd-1\",\"dependencies_removed\":0}")))
+    (should (alist-get 'deleted result))))
 
 ;;; ============================================================
 ;;; beads-command-show.el - Render helpers (additional coverage)

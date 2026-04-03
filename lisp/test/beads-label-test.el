@@ -730,10 +730,9 @@
   (let ((cmd (beads-command-label-add :issue-ids '("bd-1") :label "bug"))
         (exec-called nil))
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (c)
+               (lambda (_c)
                  (setq exec-called t)
-                 (beads-command-execution :command c :exit-code 0
-                                          :stdout "" :stderr "")))
+                 nil))
               ((symbol-function 'beads--invalidate-completion-cache)
                #'ignore))
       (beads-command-execute-interactive cmd)
@@ -747,10 +746,9 @@
   (let ((cmd (beads-command-label-remove :issue-ids '("bd-1") :label "bug"))
         (exec-called nil))
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (c)
+               (lambda (_c)
                  (setq exec-called t)
-                 (beads-command-execution :command c :exit-code 0
-                                          :stdout "" :stderr "")))
+                 nil))
               ((symbol-function 'beads--invalidate-completion-cache)
                #'ignore))
       (beads-command-execute-interactive cmd)
@@ -926,9 +924,7 @@
     (cl-letf (((symbol-function 'beads-command-execute)
                (lambda (cmd)
                  (setq exec-cmd cmd)
-                 (beads-command-execution
-                  :command cmd :exit-code 0
-                  :stdout "" :stderr ""))))
+                 nil)))
       (beads-label-list "bd-42")
       (should exec-cmd)
       (should (beads-command-label-list-p exec-cmd))

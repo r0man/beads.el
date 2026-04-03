@@ -27,7 +27,7 @@
 ;;
 ;; Usage:
 ;;   (beads-command-execute (beads-command-stats))
-;;   (beads-command-stats!)  ; convenience function
+;;   (beads-execute 'beads-command-stats)  ; convenience function
 
 ;;; Code:
 
@@ -188,7 +188,7 @@ or ready."
 Opens a beads-list buffer with all issues, bypassing the transient menu."
   (beads-check-executable)
   (let* ((cmd (beads-command-list :json t))
-         (issues (oref (beads-command-execute cmd) result))
+         (issues (beads-command-execute cmd))
          (buffer (get-buffer-create (beads-buffer-name-list))))
     (with-current-buffer buffer
       (beads-list-mode)
@@ -226,7 +226,7 @@ STATUS should be one of: open, in-progress, closed, or deferred."
                        ('deferred "deferred")
                        (_ (error "Invalid status: %s" status))))
          (cmd (beads-command-list :json t :status status-str))
-         (issues (oref (beads-command-execute cmd) result))
+         (issues (beads-command-execute cmd))
          (buffer (get-buffer-create (beads-buffer-name-list nil status-str))))
     (with-current-buffer buffer
       (beads-list-mode)
@@ -415,7 +415,7 @@ interactive clickable numbers."
 (defun beads-stats--fetch-and-display ()
   "Fetch statistics and display them in the current buffer."
   (condition-case err
-      (let* ((json (beads-command-stats!))
+      (let* ((json (beads-execute 'beads-command-stats))
              (stats (beads-stats--parse-stats json)))
         (beads-stats--render stats))
     (error

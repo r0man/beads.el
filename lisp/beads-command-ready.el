@@ -26,7 +26,7 @@
 ;;
 ;; Usage:
 ;;   (beads-command-execute (beads-command-ready))
-;;   (beads-command-ready!)  ; convenience function
+;;   (beads-execute 'beads-command-ready)  ; convenience function
 
 ;;; Code:
 
@@ -162,8 +162,8 @@ Returns error string or nil if valid."
      (beads-command--validate-string-list label "label")
      (beads-command--validate-string-list label-any "label-any"))))
 
-(cl-defmethod beads-command-parse ((command beads-command-ready) execution)
-  "Parse ready COMMAND output from EXECUTION.
+(cl-defmethod beads-command-parse ((command beads-command-ready) stdout)
+  "Parse ready COMMAND output from STDOUT.
 Returns list of beads-issue instances.
 When :json is nil, falls back to parent (returns raw stdout).
 When :json is t, converts parsed JSON to beads-issue instances.
@@ -180,9 +180,8 @@ Does not modify any slots."
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-issue instances: %s"
                                  (error-message-string err))
-                         :exit-code (oref execution exit-code)
+                         :stdout stdout
                          :parsed-json parsed-json
-                         :stderr (oref execution stderr)
                          :parse-error err))))))))
 
 

@@ -28,8 +28,7 @@
 
 ;; Forward declarations
 (defvar beads-completion-show-unavailable-backends)
-(declare-function beads-command-list! "beads-command-list" (&rest args))
-(declare-function beads-command-worktree-list! "beads-command-worktree" (&rest args))
+(declare-function beads-list-execute "beads-command-list" (&rest args))
 (declare-function beads--get-database-path "beads" ())
 
 ;;; Completion Cache
@@ -57,7 +56,7 @@ On fetch failure, returns previous cached data (if any) with a warning."
                  beads-completion--cache-ttl))
       (condition-case err
           (setq beads-completion--cache
-                (list db now (beads-command-list! :all t)))
+                (list db now (beads-list-execute :all t)))
         (error
          ;; Keep existing cache data on error (stale data is better than none)
          ;; Only show warning if we have stale data to return
@@ -419,7 +418,7 @@ On fetch failure, returns previous cached data (if any) with a warning."
           (progn
             (require 'beads-command-worktree)
             (setq beads-completion--worktree-cache
-                  (cons now (beads-command-worktree-list!))))
+                  (cons now (beads-execute 'beads-command-worktree-list))))
         (error
          ;; Keep existing cache data on error (stale data is better than none)
          ;; Only show warning if we have stale data to return

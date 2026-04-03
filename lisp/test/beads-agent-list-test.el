@@ -185,8 +185,8 @@ WORKTREE-DIR is optional worktree directory."
     (beads-agent-list-mode)
     (cl-letf (((symbol-function 'beads-agent--get-all-sessions)
                (lambda () nil))
-              ((symbol-function 'beads-command-show!)
-               (lambda (&rest _args) nil)))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd) nil)))
       (beads-agent-list--populate-buffer)
       (should (null tabulated-list-entries)))))
 
@@ -201,8 +201,8 @@ WORKTREE-DIR is optional worktree directory."
                       "sess-2" "beads.el-43" "efrit"))))
       (cl-letf (((symbol-function 'beads-agent--get-all-sessions)
                  (lambda () sessions))
-                ((symbol-function 'beads-command-show!)
-                 (lambda (&rest _args)
+                ((symbol-function 'beads-command-execute)
+                 (lambda (_cmd)
                    (list (beads-issue :id "beads.el-42" :title "Issue 42")
                          (beads-issue :id "beads.el-43" :title "Issue 43"))))
                 ((symbol-function 'beads-agent--session-active-p)
@@ -274,8 +274,8 @@ WORKTREE-DIR is optional worktree directory."
 
 (ert-deftest beads-agent-list-test-fetch-titles-success ()
   "Test fetching titles successfully."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (lambda (&rest _args)
+  (cl-letf (((symbol-function 'beads-command-execute)
+             (lambda (_cmd)
                (list (beads-issue :id "beads.el-42" :title "Test Issue")))))
     (let ((cache (beads-agent-list--fetch-titles '("beads.el-42"))))
       (should (hash-table-p cache))
@@ -283,8 +283,8 @@ WORKTREE-DIR is optional worktree directory."
 
 (ert-deftest beads-agent-list-test-fetch-titles-error ()
   "Test fetching titles handles errors gracefully."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (lambda (&rest _args)
+  (cl-letf (((symbol-function 'beads-command-execute)
+             (lambda (_cmd)
                (error "Command failed"))))
     (let ((cache (beads-agent-list--fetch-titles '("beads.el-42"))))
       (should (hash-table-p cache))

@@ -17,8 +17,8 @@
 ;; With a name argument: creates a new branch.
 ;;
 ;; Usage:
-;;   (beads-command-branch!)           ; list branches
-;;   (beads-command-branch! :name "feature")  ; create branch
+;;   (beads-execute 'beads-command-branch)           ; list branches
+;;   (beads-execute 'beads-command-branch :name "feature")  ; create branch
 ;;   (beads-branch)  ; invoke transient menu
 
 ;;; Code:

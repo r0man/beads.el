@@ -131,14 +131,13 @@ Lists available formulas from all search paths.")
   "Validate formula list command.  No required fields."
   nil)
 
-(cl-defmethod beads-command-parse ((_command beads-command-formula-list) execution)
-  "Parse EXECUTION output into beads-formula-summary objects."
-  (let ((stdout (oref execution stdout)))
-    (when (and stdout (not (string-empty-p stdout)))
-      (let* ((json-array-type 'list)
-             (json-object-type 'alist)
-             (json-data (json-read-from-string stdout)))
-        (mapcar #'beads-formula-summary-from-json json-data)))))
+(cl-defmethod beads-command-parse ((_command beads-command-formula-list) stdout)
+  "Parse STDOUT into beads-formula-summary objects."
+  (when (and stdout (not (string-empty-p stdout)))
+    (let* ((json-array-type 'list)
+           (json-object-type 'alist)
+           (json-data (json-read-from-string stdout)))
+      (mapcar #'beads-formula-summary-from-json json-data))))
 
 ;;; ============================================================
 ;;; Formula Show Command Class
@@ -157,14 +156,13 @@ Shows detailed information about a formula.")
     (unless (and formula-name (not (string-empty-p formula-name)))
       "Formula name is required")))
 
-(cl-defmethod beads-command-parse ((_command beads-command-formula-show) execution)
-  "Parse EXECUTION output into beads-formula object."
-  (let ((stdout (oref execution stdout)))
-    (when (and stdout (not (string-empty-p stdout)))
-      (let* ((json-object-type 'alist)
-             (json-array-type 'list)
-             (json-data (json-read-from-string stdout)))
-        (beads-formula-from-json json-data)))))
+(cl-defmethod beads-command-parse ((_command beads-command-formula-show) stdout)
+  "Parse STDOUT into beads-formula object."
+  (when (and stdout (not (string-empty-p stdout)))
+    (let* ((json-object-type 'alist)
+           (json-array-type 'list)
+           (json-data (json-read-from-string stdout)))
+      (beads-formula-from-json json-data))))
 
 ;;; ============================================================
 ;;; Formula Convert Command Class
@@ -199,14 +197,12 @@ Converts formula files from JSON to TOML format."
   (interactive
    (list (completing-read "Formula to convert: "
                           (mapcar (lambda (f) (oref f name))
-                                  (beads-command-formula-list! :json t))
+                                  (beads-execute 'beads-command-formula-list :json t))
                           nil t)))
   (beads-check-executable)
-  (let* ((cmd (beads-command-formula-convert :formula-name formula-name))
-         (exec (beads-command-execute cmd)))
-    (if (= (oref exec exit-code) 0)
-        (message "Converted %s to TOML" formula-name)
-      (beads--error "Formula convert failed: %s" (oref exec stderr)))))
+  (let ((cmd (beads-command-formula-convert :formula-name formula-name)))
+    (beads-command-execute cmd)
+    (message "Converted %s to TOML" formula-name)))
 
 ;;; ============================================================
 ;;; Formula List Buffer Variables
@@ -310,8 +306,7 @@ Optional COMMAND-OBJ is stored for refresh."
   (interactive)
   (let* ((command (or beads-formula-list--command-obj
                       (beads-command-formula-list :json t)))
-         (exec (beads-command-execute command))
-         (formulas (oref exec result)))
+         (formulas (beads-command-execute command)))
     (beads-formula-list--populate-buffer formulas command)
     (message "Found %d formula%s"
              (length formulas)
@@ -520,8 +515,7 @@ Uses `beads-formula-list--normalize-directory' for path comparison."
   (let* ((command (beads-command-formula-show
                    :formula-name beads-formula-show--formula-name
                    :json t))
-         (exec (beads-command-execute command))
-         (formula (oref exec result)))
+         (formula (beads-command-execute command)))
     (setq beads-formula-show--formula-data formula)
     (beads-formula-show--render formula)
     (message "Refreshed formula: %s" beads-formula-show--formula-name)))
@@ -589,8 +583,7 @@ When called interactively with a prefix argument, prompts for TYPE."
          (command (beads-command-formula-list
                    :json t
                    :formula-type type))
-         (exec (beads-command-execute command))
-         (formulas (oref exec result)))
+         (formulas (beads-command-execute command)))
     (with-current-buffer buffer
       (unless (derived-mode-p 'beads-formula-list-mode)
         (beads-formula-list-mode))
@@ -617,14 +610,13 @@ When called interactively with a prefix argument, prompts for TYPE."
      (list (completing-read "Formula: "
                             (with-temp-message "Loading formulas..."
                               (mapcar (lambda (f) (oref f name))
-                                      (beads-command-formula-list! :json t)))
+                                      (beads-execute 'beads-command-formula-list :json t)))
                             nil t))))
   (let* ((project-dir (or (beads-git-find-project-root) default-directory))
          (command (beads-command-formula-show
                    :formula-name formula-name
                    :json t))
-         (exec (beads-command-execute command))
-         (formula (oref exec result))
+         (formula (beads-command-execute command))
          (buf-name (format "*beads-formula[%s]/%s*"
                            (beads-git-get-project-name)
                            formula-name))

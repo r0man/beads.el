@@ -333,13 +333,8 @@ Regression test for bug bde-65df."
 (ert-deftest beads-close-test-parse-json-single-issue ()
   "Test beads-command-parse with JSON array for single issue."
   (let* ((cmd (beads-command-close :issue-ids '("bd-42") :reason "Fixed" :json t))
-         (json-string (json-encode (vector beads-close-test--sample-close-response)))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout json-string
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+         (json-string (json-encode (vector beads-close-test--sample-close-response))))
+    (let ((result (beads-command-parse cmd json-string)))
       ;; Single issue-id should return a single issue, not a list
       (should (beads-issue-p result))
       (should (string= (oref result id) "bd-42"))
@@ -357,13 +352,8 @@ Regression test for bug bde-65df."
          (cmd (beads-command-close :issue-ids '("bd-42" "bd-43")
                                     :reason "Batch close" :json t))
          (json-string (json-encode (vector beads-close-test--sample-close-response
-                                           issue2)))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout json-string
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+                                           issue2))))
+    (let ((result (beads-command-parse cmd json-string)))
       ;; Multiple issue-ids should return a list
       (should (listp result))
       (should (= (length result) 2))
@@ -372,13 +362,8 @@ Regression test for bug bde-65df."
 
 (ert-deftest beads-close-test-parse-json-disabled ()
   "Test beads-command-parse with :json nil falls back to raw stdout."
-  (let* ((cmd (beads-command-close :issue-ids '("bd-42") :reason "Fixed" :json nil))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "Closed bd-42"
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-close :issue-ids '("bd-42") :reason "Fixed" :json nil)))
+    (let ((result (beads-command-parse cmd "Closed bd-42")))
       ;; With json nil, should return raw stdout
       (should (stringp result))
       (should (string= result "Closed bd-42")))))
@@ -386,13 +371,8 @@ Regression test for bug bde-65df."
 (ert-deftest beads-close-test-parse-json-unexpected-structure ()
   "Test beads-command-parse signals error on unexpected JSON."
   (let* ((cmd (beads-command-close :issue-ids '("bd-42") :reason "Fixed" :json t))
-         (json-string (json-encode "just-a-string"))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout json-string
-                :stderr "")))
-    (should-error (beads-command-parse cmd exec)
+         (json-string (json-encode "just-a-string")))
+    (should-error (beads-command-parse cmd json-string)
                   :type 'beads-json-parse-error)))
 
 ;;; Tests for Execute-Interactive Method
@@ -401,12 +381,9 @@ Regression test for bug bde-65df."
   "Test execute-interactive with single issue result."
   (let* ((cmd (beads-command-close :issue-ids '("bd-42") :reason "Fixed" :json t))
          (issue (beads-issue :id "bd-42" :title "Test" :status "closed"))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0 :stdout "" :stderr ""
-                :result issue))
          (message-output nil))
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd) exec))
+               (lambda (_cmd) issue))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda ()))
               ((symbol-function 'message)
@@ -420,12 +397,9 @@ Regression test for bug bde-65df."
 (ert-deftest beads-close-test-execute-interactive-nil-result ()
   "Test execute-interactive with nil result."
   (let* ((cmd (beads-command-close :issue-ids '("bd-42") :reason "Fixed" :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0 :stdout "" :stderr ""
-                :result nil))
          (message-output nil))
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd) exec))
+               (lambda (_cmd) nil))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda ()))
               ((symbol-function 'message)

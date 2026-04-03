@@ -104,8 +104,8 @@ Returns error string or nil if valid."
       "Must provide depends-on or blocked-by issue ID")
      (t nil))))
 
-(cl-defmethod beads-command-parse ((command beads-command-dep-add) execution)
-  "Parse dep add COMMAND output from EXECUTION.
+(cl-defmethod beads-command-parse ((command beads-command-dep-add) stdout)
+  "Parse dep add COMMAND output from STDOUT.
 Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
   (with-slots (json) command
     (if (not json)
@@ -116,15 +116,13 @@ Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
                 (beads-dep-op-result-from-json parsed-json)
               (signal 'beads-json-parse-error
                       (list "Unexpected JSON from bd dep add"
-                            :exit-code (oref execution exit-code)
-                            :parsed-json parsed-json
-                            :stderr (oref execution stderr))))
+                            :stdout stdout
+                            :parsed-json parsed-json)))
           (error
            (signal 'beads-json-parse-error
                    (list (format "Failed to parse dep add result: %s"
                                  (error-message-string err))
-                         :exit-code (oref execution exit-code)
-                         :stderr (oref execution stderr)))))))))
+                         :stdout stdout))))))))
 
 ;;; Dependency Remove Command
 
@@ -167,8 +165,8 @@ Returns error string or nil if valid."
       "Must provide depends-on issue ID")
      (t nil))))
 
-(cl-defmethod beads-command-parse ((command beads-command-dep-remove) execution)
-  "Parse dep remove COMMAND output from EXECUTION.
+(cl-defmethod beads-command-parse ((command beads-command-dep-remove) stdout)
+  "Parse dep remove COMMAND output from STDOUT.
 Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
   (with-slots (json) command
     (if (not json)
@@ -179,15 +177,13 @@ Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
                 (beads-dep-op-result-from-json parsed-json)
               (signal 'beads-json-parse-error
                       (list "Unexpected JSON from bd dep remove"
-                            :exit-code (oref execution exit-code)
-                            :parsed-json parsed-json
-                            :stderr (oref execution stderr))))
+                            :stdout stdout
+                            :parsed-json parsed-json)))
           (error
            (signal 'beads-json-parse-error
                    (list (format "Failed to parse dep remove result: %s"
                                  (error-message-string err))
-                         :exit-code (oref execution exit-code)
-                         :stderr (oref execution stderr)))))))))
+                         :stdout stdout))))))))
 
 ;;; Dependency List Command
 
@@ -232,8 +228,8 @@ Returns error string or nil if valid."
         "Must provide issue ID"
       nil)))
 
-(cl-defmethod beads-command-parse ((command beads-command-dep-list) execution)
-  "Parse dep list COMMAND output from EXECUTION.
+(cl-defmethod beads-command-parse ((command beads-command-dep-list) stdout)
+  "Parse dep list COMMAND output from STDOUT.
 Returns list of beads-dependency instances.
 When :json is nil, falls back to parent (returns raw stdout).
 When :json is t, returns list of beads-dependency instances which
@@ -261,16 +257,14 @@ Does not modify any slots."
              (t
               (signal 'beads-json-parse-error
                       (list "Unexpected JSON structure from bd dep list"
-                            :exit-code (oref execution exit-code)
-                            :parsed-json parsed-json
-                            :stderr (oref execution stderr)))))
+                            :stdout stdout
+                            :parsed-json parsed-json))))
           (error
            (signal 'beads-json-parse-error
                    (list (format "Failed to parse dep list result: %s"
                                  (error-message-string err))
-                         :exit-code (oref execution exit-code)
+                         :stdout stdout
                          :parsed-json parsed-json
-                         :stderr (oref execution stderr)
                          :parse-error err))))))))
 
 ;;; Dependency Tree Command
@@ -345,8 +339,8 @@ Returns error string or nil if valid."
         "Must provide issue ID"
       nil)))
 
-(cl-defmethod beads-command-parse ((command beads-command-dep-tree) execution)
-  "Parse dep tree COMMAND output from EXECUTION.
+(cl-defmethod beads-command-parse ((command beads-command-dep-tree) stdout)
+  "Parse dep tree COMMAND output from STDOUT.
 Return list of beads-tree-node objects."
   (with-slots (json) command
     (if (not json)
@@ -358,17 +352,15 @@ Return list of beads-tree-node objects."
                         (append parsed-json nil))
               (signal 'beads-json-parse-error
                       (list "Unexpected JSON structure from dep tree"
-                            :exit-code (oref execution exit-code)
-                            :parsed-json parsed-json
-                            :stderr (oref execution stderr))))
+                            :stdout stdout
+                            :parsed-json parsed-json)))
           (beads-json-parse-error (signal (car err) (cdr err)))
           (error
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-tree-node: %s"
                                  (error-message-string err))
-                         :exit-code (oref execution exit-code)
-                         :parsed-json parsed-json
-                         :stderr (oref execution stderr)))))))))
+                         :stdout stdout
+                         :parsed-json parsed-json))))))))
 
 
 ;;; Dependency Cycles Command
@@ -585,7 +577,7 @@ Returns error message string if invalid, nil if valid."
     (if error-msg
         (user-error "Cannot add dependency: %s" error-msg)
       (condition-case err
-          (let* ((result (beads-command-dep-add!
+          (let* ((result (beads-execute 'beads-command-dep-add
                           :issue-id issue-id
                           :depends-on depends-on-id
                           :dep-type type))
@@ -688,7 +680,7 @@ Returns error message string if invalid, nil if valid."
     (if error-msg
         (user-error "Cannot remove dependency: %s" error-msg)
       (condition-case err
-          (let* ((result (beads-command-dep-remove!
+          (let* ((result (beads-execute 'beads-command-dep-remove
                           :issue-id issue-id
                           :depends-on depends-on-id))
                  (op-status (oref result op-status)))
@@ -844,7 +836,7 @@ context or prompt the user."
   (when (and (derived-mode-p 'beads-dep-tree-mode)
              beads-dep-tree--issue-id)
     (message "Refreshing dependency tree...")
-    (let* ((issues (beads-command-dep-tree!
+    (let* ((issues (beads-execute 'beads-command-dep-tree
                     :issue-id beads-dep-tree--issue-id)))
       (beads-dep-tree--render issues beads-dep-tree--issue-id)
       (message "Dependency tree refreshed"))))
@@ -862,7 +854,7 @@ Completion matches on both issue ID and title."
   (when (or (null issue-id) (string-empty-p issue-id))
     (user-error "Issue ID is required"))
   (let* ((caller-dir default-directory)
-         (issues (beads-command-dep-tree! :issue-id issue-id))
+         (issues (beads-execute 'beads-command-dep-tree :issue-id issue-id))
          (buf-name (beads-buffer-name-utility "dep-tree" issue-id))
          (buffer (get-buffer-create buf-name)))
     (with-current-buffer buffer
@@ -947,7 +939,7 @@ Issue ID field with that value."
   (interactive)
   (when (derived-mode-p 'beads-dep-cycles-mode)
     (message "Checking for dependency cycles...")
-    (let ((cycles (beads-command-dep-cycles!)))
+    (let ((cycles (beads-execute 'beads-command-dep-cycles)))
       (beads-dep-cycles--render cycles)
       (message "Dependency cycles check complete"))))
 
@@ -957,7 +949,7 @@ Issue ID field with that value."
   (interactive)
   (beads-check-executable)
   (let* ((caller-dir default-directory)
-         (cycles (beads-command-dep-cycles!))
+         (cycles (beads-execute 'beads-command-dep-cycles))
          (buf-name (beads-buffer-name-utility "dep-cycles"))
          (buffer (get-buffer-create buf-name)))
     (with-current-buffer buffer

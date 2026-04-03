@@ -31,13 +31,8 @@
 (ert-deftest beads-command-blocked-test-parse-json-issues ()
   "Test parse method converts JSON to beads-blocked-issue instances."
   (let* ((cmd (beads-command-blocked :json t))
-         (json-string (json-encode beads-command-blocked-test--sample-json))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout json-string
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+         (json-string (json-encode beads-command-blocked-test--sample-json)))
+    (let ((result (beads-command-parse cmd json-string)))
       (should (listp result))
       (should (= (length result) 1))
       (should (beads-blocked-issue-p (car result)))
@@ -45,38 +40,21 @@
 
 (ert-deftest beads-command-blocked-test-parse-json-empty ()
   "Test parse method with empty JSON array."
-  (let* ((cmd (beads-command-blocked :json t))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "[]"
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-blocked :json t)))
+    (let ((result (beads-command-parse cmd "[]")))
       (should (listp result))
       (should (= (length result) 0)))))
 
 (ert-deftest beads-command-blocked-test-parse-json-disabled ()
   "Test parse method with :json nil falls back to raw stdout."
-  (let* ((cmd (beads-command-blocked :json nil))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "Blocked issues listed"
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-blocked :json nil)))
+    (let ((result (beads-command-parse cmd "Blocked issues listed")))
       (should (stringp result)))))
 
 (ert-deftest beads-command-blocked-test-parse-json-error ()
   "Test parse method signals error on invalid data."
-  (let* ((cmd (beads-command-blocked :json t))
-         ;; Provide data with non-alist elements that cause errors
-         (json-string "[42]")
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout json-string
-                :stderr "")))
-    (should-error (beads-command-parse cmd exec)
+  (let* ((cmd (beads-command-blocked :json t)))
+    (should-error (beads-command-parse cmd "[42]")
                   :type 'beads-json-parse-error)))
 
 ;;; Command Line Tests

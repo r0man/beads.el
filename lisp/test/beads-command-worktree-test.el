@@ -313,30 +313,20 @@
 (ert-deftest beads-command-worktree-test-create-parse ()
   "Test beads-command-worktree-create parse method."
   (let* ((cmd (beads-command-worktree-create :json t :name "test"))
-         ;; Create execution object with simulated results
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout (json-encode
-                         beads-command-worktree-test--sample-worktree-json)
-                :stderr "")))
+         (json-string (json-encode
+                       beads-command-worktree-test--sample-worktree-json)))
     ;; Parse the result
-    (let ((result (beads-command-parse cmd exec)))
+    (let ((result (beads-command-parse cmd json-string)))
       (should (beads-worktree-p result))
       (should (string= (oref result name) "feature-auth")))))
 
 (ert-deftest beads-command-worktree-test-list-parse ()
   "Test beads-command-worktree-list parse method."
   (let* ((cmd (beads-command-worktree-list :json t))
-         ;; Create execution object with simulated results
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout (json-encode
-                         beads-command-worktree-test--sample-worktree-list-json)
-                :stderr "")))
+         (json-string (json-encode
+                       beads-command-worktree-test--sample-worktree-list-json)))
     ;; Parse the result
-    (let ((result (beads-command-parse cmd exec)))
+    (let ((result (beads-command-parse cmd json-string)))
       (should (listp result))
       (should (= (length result) 2))
       (should (beads-worktree-p (car result)))
@@ -349,15 +339,10 @@
 (ert-deftest beads-command-worktree-test-info-parse ()
   "Test beads-command-worktree-info parse method."
   (let* ((cmd (beads-command-worktree-info :json t))
-         ;; Create execution object with simulated results
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout (json-encode
-                         beads-command-worktree-test--sample-info-worktree-json)
-                :stderr "")))
+         (json-string (json-encode
+                       beads-command-worktree-test--sample-info-worktree-json)))
     ;; Parse the result
-    (let ((result (beads-command-parse cmd exec)))
+    (let ((result (beads-command-parse cmd json-string)))
       (should (beads-worktree-info-p result))
       (should (oref result is-worktree))
       (should (string= (oref result name) "feature-auth")))))
@@ -375,7 +360,7 @@ Requires bd, dolt, and git to be installed."
   (skip-unless (executable-find "git"))
   (beads-test-with-temp-repo (:init-beads t)
     ;; List worktrees - should at least have the main worktree
-    (let ((worktrees (beads-command-worktree-list!)))
+    (let ((worktrees (beads-execute 'beads-command-worktree-list)))
       (should (listp worktrees))
       (should (>= (length worktrees) 1))
       ;; First/main worktree should exist
@@ -392,7 +377,7 @@ Requires bd, dolt, and git to be installed."
   (skip-unless (executable-find "git"))
   (beads-test-with-temp-repo (:init-beads t)
     ;; Get info about current directory
-    (let ((info (beads-command-worktree-info!)))
+    (let ((info (beads-execute 'beads-command-worktree-info)))
       (should (beads-worktree-info-p info))
       ;; In a fresh git repo, we should not be in a linked worktree
       ;; but is_worktree might be false or we might be in main
@@ -407,18 +392,18 @@ Requires bd, dolt, and git to be installed."
   (skip-unless (executable-find "git"))
   (beads-test-with-temp-repo (:init-beads t)
     ;; Create a worktree
-    (let ((wt (beads-command-worktree-create! :name "test-worktree")))
+    (let ((wt (beads-execute 'beads-command-worktree-create :name "test-worktree")))
       (should (beads-worktree-p wt))
       (should (string= (oref wt name) "test-worktree"))
       ;; Verify it appears in the list
-      (let ((worktrees (beads-command-worktree-list!)))
+      (let ((worktrees (beads-execute 'beads-command-worktree-list)))
         (should (seq-find (lambda (w)
                             (string= (oref w name) "test-worktree"))
                           worktrees)))
       ;; Remove it
-      (beads-command-worktree-remove! :name "test-worktree" :force t)
+      (beads-execute 'beads-command-worktree-remove :name "test-worktree" :force t)
       ;; Verify it's gone
-      (let ((worktrees (beads-command-worktree-list!)))
+      (let ((worktrees (beads-execute 'beads-command-worktree-list)))
         (should-not (seq-find (lambda (w)
                                 (string= (oref w name) "test-worktree"))
                               worktrees))))))

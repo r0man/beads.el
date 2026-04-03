@@ -14,7 +14,7 @@
 ;; history.
 ;;
 ;; Usage:
-;;   (beads-command-restore! :issue-id "bd-42")
+;;   (beads-execute 'beads-command-restore :issue-id "bd-42")
 ;;   (beads-restore)  ; invoke transient menu
 
 ;;; Code:

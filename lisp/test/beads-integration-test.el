@@ -30,7 +30,7 @@
 ;;
 ;;   ;; With custom beads prefix
 ;;   (beads-test-with-temp-repo (:init-beads t :prefix "mytest")
-;;     (let ((issue (beads-command-create! :title "Test")))
+;;     (let ((issue (beads-execute 'beads-command-create :title "Test")))
 ;;       (should (string-prefix-p "mytest-" (oref issue id)))))
 ;;
 ;; All integration tests should use `:tags '(:integration)' and
@@ -409,7 +409,7 @@ Examples:
 
   ;; With custom prefix
   (beads-test-with-temp-repo (:init-beads t :prefix \"test\")
-    (let ((issue (beads-command-create! :title \"Test\")))
+    (let ((issue (beads-execute 'beads-command-create :title \"Test\")))
       (should (string-prefix-p \"test-\" (oref issue id)))))
 
   ;; Integration test pattern
@@ -494,13 +494,13 @@ Example:
       (:init-beads t)
       ((:title \"Issue 1\" :issue-type \"bug\")
        (:title \"Issue 2\" :issue-type \"task\"))
-    (should (= 2 (length (beads-command-list!)))))"
+    (should (= 2 (length (beads-list-execute)))))"
   (declare (indent 2) (debug (form form body)))
   `(beads-test-with-temp-repo ,args
      (require 'beads-command)
      ;; Create each issue
      (dolist (issue-args ',issues)
-       (apply #'beads-command-create! issue-args))
+       (apply #'beads-execute 'beads-command-create issue-args))
      ,@body))
 
 (provide 'beads-integration-test)
