@@ -70,7 +70,7 @@
   "Sample dependency JSON for testing.")
 
 (defvar beads-types-test--sample-comment-json
-  '((id . 42)
+  '((id . "42")
     (issue_id . "bd-123")
     (author . "bob")
     (text . "This is a comment")
@@ -262,13 +262,13 @@
 (ert-deftest beads-types-test-comment-creation ()
   "Test creating a beads-comment object."
   (let ((comment (beads-comment
-                  :id 42
+                  :id "42"
                   :issue-id "bd-1"
                   :author "bob"
                   :text "Comment text"
                   :created-at "2025-01-15T10:00:00Z")))
     (should (beads-comment-p comment))
-    (should (= (oref comment id) 42))
+    (should (equal (oref comment id) "42"))
     (should (string= (oref comment author) "bob"))
     (should (string= (oref comment text) "Comment text"))))
 
@@ -375,7 +375,7 @@
   (let ((comment (beads-comment-from-json
                   beads-types-test--sample-comment-json)))
     (should (beads-comment-p comment))
-    (should (= (oref comment id) 42))
+    (should (equal (oref comment id) "42"))
     (should (string= (oref comment issue-id) "bd-123"))
     (should (string= (oref comment author) "bob"))
     (should (string= (oref comment text) "This is a comment"))))
@@ -983,7 +983,7 @@
                                    (type . "blocks")
                                    (created_at . "2025-01-15T10:00:00Z")
                                    (created_by . "user"))])
-                 (comments . [((id . 1)
+                 (comments . [((id . "1")
                                (issue_id . "bd-10")
                                (author . "alice")
                                (text . "Comment")

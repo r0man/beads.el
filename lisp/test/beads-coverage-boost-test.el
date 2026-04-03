@@ -560,7 +560,7 @@
                   (status . "open")
                   (issue_type . "task")
                   (priority . 2)
-                  (comments . [((id . 1)
+                  (comments . [((id . "1")
                                 (issue_id . "test-1")
                                 (author . "user")
                                 (text . "comment text")
