@@ -48,7 +48,7 @@ Displays backend, database, host, port, and connection status.")
   ((config-key
     :positional 1
     :option-type :string
-    :key "k"
+    :short-option "k"
     :argument "--key="
     :prompt "Config key (database|host|port|user|data-dir): "
     :group "Set Config"
@@ -58,7 +58,7 @@ Displays backend, database, host, port, and connection status.")
    (config-value
     :positional 2
     :option-type :string
-    :key "v"
+    :short-option "v"
     :argument "--value="
     :group "Set Config"
     :level 1
@@ -66,7 +66,7 @@ Displays backend, database, host, port, and connection status.")
     :required t)
    (update-config
     :option-type :boolean
-    :key "u"
+    :short-option "u"
     :group "Options"
     :level 2
     :order 3))
@@ -104,7 +104,6 @@ Reports host, port, and connection status.")
   ((message
     :short-option "m"
     :option-type :string
-    :key "m"
     :prompt "Commit message (empty=auto): "
     :group "Commit"
     :level 1
@@ -121,7 +120,7 @@ Auto-generates commit message if not provided.")
 (beads-defcommand beads-command-dolt-push (beads-command-global-options)
   ((force
     :option-type :boolean
-    :key "f"
+    :short-option "f"
     :group "Options"
     :level 2
     :order 1))
@@ -157,7 +156,7 @@ Starts server with per-project derived port.")
 (beads-defcommand beads-command-dolt-stop (beads-command-global-options)
   ((force
     :option-type :boolean
-    :key "f"
+    :short-option "f"
     :group "Options"
     :level 2
     :order 1))
@@ -183,7 +182,7 @@ Reports PID, port, and running status.")
   ((remote-name
     :positional 1
     :option-type :string
-    :key "n"
+    :short-option "n"
     :argument "--name="
     :prompt "Remote name: "
     :group "Add Remote"
@@ -193,7 +192,7 @@ Reports PID, port, and running status.")
    (url
     :positional 2
     :option-type :string
-    :key "u"
+    :short-option "u"
     :argument "--url="
     :prompt "Remote URL: "
     :group "Add Remote"
@@ -230,7 +229,7 @@ Reports PID, port, and running status.")
   ((remote-name
     :positional 1
     :option-type :string
-    :key "n"
+    :short-option "n"
     :argument "--name="
     :prompt "Remote name to remove: "
     :group "Remove Remote"
@@ -326,7 +325,7 @@ Reports PID, port, and running status.")
     (beads-command-global-options)
   ((dry-run
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :group "Options"
     :level 1
     :order 1))

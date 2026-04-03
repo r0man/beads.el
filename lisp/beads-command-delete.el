@@ -62,8 +62,8 @@
   ((issue-ids
     :positional 1
     :option-type :list
-    :option-separator " "
-    :key "i"
+    :separator " "
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID(s): "
     :reader beads-reader-issue-id
@@ -73,26 +73,25 @@
     :required t)
    (cascade
     :option-type :boolean
-    :key "c"
+    :short-option "c"
     :group "Dependency Handling"
     :level 2
     :order 1)
    (dry-run
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :group "Options"
     :level 1
     :order 2)
    (force
     :short-option "f"
     :option-type :boolean
-    :key "f"
     :group "Options"
     :level 1
     :order 3)
    (from-file
     :option-type :string
-    :key "F"
+    :short-option "F"
     :prompt "File path: "
     :reader transient-read-file
     :group "Batch Delete"
@@ -100,15 +99,15 @@
     :order 1)
    (hard
     :option-type :boolean
-    :key "H"
+    :short-option "H"
     :group "Options"
     :level 3
     :order 2)
    (reason
     :option-type :string
-    :key "r"
+    :short-option "r"
     :transient beads-transient-multiline
-    :field-name "Delete Reason"
+    :documentation "Delete Reason"
     :group "Delete Issue"
     :level 2
     :order 2))

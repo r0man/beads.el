@@ -32,7 +32,7 @@
   ((peer-name
     :positional 1
     :option-type :string
-    :key "n"
+    :short-option "n"
     :argument "--name="
     :prompt "Peer name: "
     :group "Add Peer"
@@ -42,7 +42,7 @@
    (url
     :positional 2
     :option-type :string
-    :key "u"
+    :short-option "u"
     :argument "--url="
     :prompt "Peer URL: "
     :group "Add Peer"
@@ -52,7 +52,7 @@
    (user
     :short-option "u"
     :option-type :string
-    :key "U"
+    :transient-key "U"
     :prompt "SQL username: "
     :group "Auth"
     :level 2
@@ -60,14 +60,13 @@
    (password
     :short-option "p"
     :option-type :string
-    :key "p"
     :prompt "SQL password: "
     :group "Auth"
     :level 2
     :order 4)
    (sovereignty
     :option-type :string
-    :key "s"
+    :short-option "s"
     :prompt "Sovereignty tier (T1|T2|T3|T4): "
     :group "Options"
     :level 2
@@ -94,7 +93,7 @@ Requires Dolt backend."
   ((peer-name
     :positional 1
     :option-type :string
-    :key "n"
+    :short-option "n"
     :argument "--name="
     :prompt "Peer name to remove: "
     :group "Remove Peer"
@@ -129,14 +128,14 @@ Requires Dolt backend."
 (beads-defcommand beads-command-federation-sync (beads-command-global-options)
   ((peer
     :option-type :string
-    :key "p"
+    :short-option "p"
     :prompt "Peer (empty=all): "
     :group "Options"
     :level 1
     :order 1)
    (strategy
     :option-type :string
-    :key "s"
+    :short-option "s"
     :prompt "Strategy (ours|theirs): "
     :group "Options"
     :level 2
@@ -158,7 +157,7 @@ Requires Dolt backend.")
 (beads-defcommand beads-command-federation-status (beads-command-global-options)
   ((peer
     :option-type :string
-    :key "p"
+    :short-option "p"
     :prompt "Peer (empty=all): "
     :group "Options"
     :level 1

@@ -91,8 +91,8 @@ Format: (TIMESTAMP . LABELS-LIST)")
   ((issue-ids
     :positional 1
     :option-type :list
-    :option-separator " "
-    :key "i"
+    :separator " "
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID(s): "
     :reader beads-reader-issue-id
@@ -103,7 +103,7 @@ Format: (TIMESTAMP . LABELS-LIST)")
    (label
     :positional 2
     :option-type :string
-    :key "l"
+    :short-option "l"
     :argument "--label="
     :group "Add Label"
     :level 1
@@ -141,8 +141,8 @@ Returns error string or nil if valid."
   ((issue-ids
     :positional 1
     :option-type :list
-    :option-separator " "
-    :key "i"
+    :separator " "
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID(s): "
     :reader beads-reader-issue-id
@@ -153,7 +153,7 @@ Returns error string or nil if valid."
    (label
     :positional 2
     :option-type :string
-    :key "l"
+    :short-option "l"
     :argument "--label="
     :group "Remove Label"
     :level 1
@@ -191,7 +191,7 @@ Returns error string or nil if valid."
   ((issue-id
     :positional 1
     :option-type :string
-    :key "i"
+    :short-option "i"
     :argument "--id="
     :reader beads-reader-issue-id
     :group "List Labels"
@@ -231,7 +231,7 @@ Returns nil (always valid)."
   ((parent-id
     :positional 1
     :option-type :string
-    :key "p"
+    :short-option "p"
     :argument "--parent-id="
     :prompt "Parent issue ID: "
     :reader beads-reader-issue-id
@@ -242,7 +242,7 @@ Returns nil (always valid)."
    (label
     :positional 2
     :option-type :string
-    :key "l"
+    :short-option "l"
     :argument "--label="
     :reader beads-reader-label-name
     :group "Propagate Label"

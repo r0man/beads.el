@@ -54,19 +54,19 @@
 (beads-defcommand beads-command-stats (beads-command-global-options)
   ((all
     :option-type :boolean
-    :key "A"
+    :short-option "A"
     :group "Stats Options"
     :level 2
     :order 1)
    (assigned
     :option-type :boolean
-    :key "a"
+    :short-option "a"
     :group "Stats Options"
     :level 1
     :order 1)
    (no-activity
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :group "Stats Options"
     :level 1
     :order 2))

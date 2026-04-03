@@ -118,7 +118,7 @@
   ((formula-type
     :long-option "type"
     :option-type :string
-    :key "t"
+    :short-option "t"
     :choices ("workflow" "expansion" "aspect")
     :group "Filters"
     :level 2

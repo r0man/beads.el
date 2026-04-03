@@ -30,7 +30,7 @@
   ((query
     :positional 1
     :option-type :string
-    :key "q"
+    :short-option "q"
     :argument "--query="
     :prompt "SQL query: "
     :group "SQL"
@@ -39,7 +39,7 @@
     :required t)
    (csv
     :option-type :boolean
-    :key "c"
+    :short-option "c"
     :group "Options"
     :level 2
     :order 2))

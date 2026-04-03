@@ -30,7 +30,7 @@
   ((from-ref
     :positional 1
     :option-type :string
-    :key "f"
+    :short-option "f"
     :argument "--from="
     :prompt "From ref: "
     :group "Diff"
@@ -40,7 +40,7 @@
    (to-ref
     :positional 2
     :option-type :string
-    :key "t"
+    :short-option "t"
     :argument "--to="
     :prompt "To ref: "
     :group "Diff"

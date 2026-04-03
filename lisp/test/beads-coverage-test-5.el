@@ -214,11 +214,11 @@
 ;;; beads-meta.el - Resolve/Infer Tests
 ;;; ============================================================
 
-(ert-deftest beads-coverage-5-meta-resolve-long-option-with-key ()
-  "Test resolve-long-option auto-generates from slot name when key present."
+(ert-deftest beads-coverage-5-meta-resolve-long-option-with-short-option ()
+  "Test resolve-long-option auto-generates from slot name when short-option present."
   (let ((result (beads-meta--resolve-long-option
                  'issue-type
-                 '(:key "t"))))
+                 '(:short-option "t"))))
     (should (equal "issue-type" result))))
 
 (ert-deftest beads-coverage-5-meta-resolve-long-option-already-set ()

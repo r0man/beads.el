@@ -29,7 +29,7 @@
     :positional 1)
    (of
     :option-type :string
-    :key "o"
+    :short-option "o"
     :prompt "Canonical issue: "
     :reader beads-reader-issue-id
     :group "Options"
@@ -54,7 +54,7 @@ Marks an issue as a duplicate of another.")
 (beads-defcommand beads-command-duplicates (beads-command-global-options)
   ((merge
     :option-type :boolean
-    :key "m"
+    :short-option "m"
     :group "Options"
     :level 1
     :order 1))
@@ -72,7 +72,7 @@ Finds and optionally merges duplicate issues.")
    (with-id
     :long-option "with"
     :option-type :string
-    :key "w"
+    :short-option "w"
     :prompt "Replacement issue: "
     :reader beads-reader-issue-id
     :group "Options"
@@ -97,14 +97,13 @@ Marks an issue as superseded by a newer one.")
 (beads-defcommand beads-command-orphans (beads-command-global-options)
   ((details
     :option-type :boolean
-    :key "d"
+    :short-option "d"
     :group "Options"
     :level 1
     :order 1)
    (fix
     :short-option "f"
     :option-type :boolean
-    :key "f"
     :group "Options"
     :level 1
     :order 2))
@@ -120,11 +119,10 @@ Identifies orphaned issues referenced in commits but still open.")
   ((issue-ids
     :positional 1
     :option-type :list
-    :option-separator nil)
+    :separator nil)
    (status
     :short-option "s"
     :option-type :string
-    :key "s"
     :choices ("open" "in_progress" "blocked" "closed" "all")
     :group "Options"
     :level 1
@@ -133,7 +131,6 @@ Identifies orphaned issues referenced in commits but still open.")
     :long-option "type"
     :short-option "t"
     :option-type :string
-    :key "t"
     :choices ("bug" "task" "feature" "epic" "chore")
     :group "Options"
     :level 1
@@ -149,7 +146,7 @@ Checks issues for missing template sections.")
 (beads-defcommand beads-command-move (beads-command-global-options)
   ((issue-id
     :positional 1
-    :key "i"
+    :short-option "i"
     :argument "--id="
     :reader beads-reader-move-issue-id
     :prompt "Issue ID: "
@@ -158,20 +155,20 @@ Checks issues for missing template sections.")
     :order 0)
    (to
     :option-type :string
-    :key "t"
+    :short-option "t"
     :prompt "Target rig: "
     :group "Move Issue"
     :level 1
     :order 1)
    (keep-open
     :option-type :boolean
-    :key "k"
+    :short-option "k"
     :group "Options"
     :level 2
     :order 2)
    (skip-deps
     :option-type :boolean
-    :key "d"
+    :short-option "d"
     :group "Options"
     :level 2
     :order 3))
@@ -198,7 +195,7 @@ Moves an issue to a different rig with dependency remapping.")
     :positional 2)
    (keep-open
     :option-type :boolean
-    :key "k"
+    :short-option "k"
     :group "Options"
     :level 1
     :order 1))
@@ -221,7 +218,7 @@ Moves an issue to a different rig.")
 (beads-defcommand beads-command-q (beads-command-global-options)
   ((title
     :positional 1
-    :key "T"
+    :short-option "T"
     :argument "--title="
     :group "Quick Capture"
     :level 1
@@ -230,7 +227,6 @@ Moves an issue to a different rig.")
     :long-option "type"
     :short-option "t"
     :option-type :string
-    :key "t"
     :choices ("task" "bug" "feature" "epic" "chore")
     :group "Options"
     :level 1
@@ -238,14 +234,12 @@ Moves an issue to a different rig.")
    (priority
     :short-option "p"
     :option-type :string
-    :key "p"
     :group "Options"
     :level 1
     :order 2)
    (labels
     :short-option "l"
     :option-type :list
-    :key "l"
     :group "Options"
     :level 1
     :order 3))
@@ -265,7 +259,7 @@ Quick capture: creates issue and outputs only ID.")
 (beads-defcommand beads-command-note (beads-command-global-options)
   ((issue-id
     :positional 1
-    :key "i"
+    :short-option "i"
     :argument "--id="
     :reader beads--read-issue-at-point-or-prompt
     :group "Append Note"
@@ -273,13 +267,13 @@ Quick capture: creates issue and outputs only ID.")
     :order 0)
    (stdin
     :option-type :boolean
-    :key "s"
+    :short-option "s"
     :group "Input"
     :level 1
     :order 1)
    (file
     :option-type :string
-    :key "f"
+    :short-option "f"
     :group "Input"
     :level 1
     :order 2))
@@ -299,7 +293,7 @@ Appends a note to an issue's notes field.")
 (beads-defcommand beads-command-version (beads-command-global-options)
   ((daemon
     :option-type :boolean
-    :key "d"
+    :short-option "d"
     :group "Options"
     :level 1
     :order 1))
@@ -524,7 +518,7 @@ Delegates to mail provider.")
 (beads-defcommand beads-command-human-list (beads-command-global-options)
   ((status
     :option-type :string
-    :key "s"
+    :short-option "s"
     :choices ("open" "in_progress" "blocked" "closed" "all")
     :group "Options"
     :level 1
@@ -544,7 +538,7 @@ Lists all issues labeled with the human tag.")
   ((issue-id
     :positional 1
     :option-type :string
-    :key "i"
+    :short-option "i"
     :argument "--issue-id="
     :reader beads-reader-issue-id
     :group "Options"
@@ -553,7 +547,7 @@ Lists all issues labeled with the human tag.")
     :required t)
    (response
     :option-type :string
-    :key "r"
+    :short-option "r"
     :argument "--response="
     :group "Options"
     :level 1
@@ -584,7 +578,7 @@ Responds to a human-needed bead by adding a comment and closing it.")
   ((issue-id
     :positional 1
     :option-type :string
-    :key "i"
+    :short-option "i"
     :argument "--issue-id="
     :reader beads-reader-issue-id
     :group "Options"
@@ -593,7 +587,7 @@ Responds to a human-needed bead by adding a comment and closing it.")
     :required t)
    (reason
     :option-type :string
-    :key "r"
+    :short-option "r"
     :argument "--reason="
     :group "Options"
     :level 1
@@ -709,7 +703,7 @@ Version tracking is automatic - bd updates metadata.json on every run.
 (beads-defcommand beads-command-children (beads-command-global-options)
   ((issue-id
     :positional 1
-    :key "i"
+    :short-option "i"
     :argument "--id="
     :prompt "Parent issue ID: "
     :reader beads--read-issue-at-point-or-prompt
@@ -738,7 +732,7 @@ Creates a new issue using an interactive form."
 (beads-defcommand beads-command-promote (beads-command-global-options)
   ((issue-id
     :positional 1
-    :key "i"
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID to promote: "
     :reader beads-reader-issue-id
@@ -756,7 +750,7 @@ Promotes a wisp to a permanent bead.")
 (beads-defcommand beads-command-query (beads-command-global-options)
   ((query-string
     :positional 1
-    :key "q"
+    :short-option "q"
     :argument "--query="
     :group "Options"
     :level 1
@@ -787,7 +781,7 @@ Manages TODO items (convenience wrapper for task issues).")
   ((title
     :positional 1
     :option-type :string
-    :key "T"
+    :short-option "T"
     :argument "--title="
     :prompt "TODO title: "
     :group "Add TODO"
@@ -797,7 +791,6 @@ Manages TODO items (convenience wrapper for task issues).")
    (priority
     :short-option "p"
     :option-type :string
-    :key "p"
     :prompt "Priority (0-4): "
     :reader beads-reader-issue-priority
     :group "Add TODO"
@@ -806,7 +799,7 @@ Manages TODO items (convenience wrapper for task issues).")
    (description
     :short-option "d"
     :option-type :string
-    :key "D"
+    :transient-key "D"
     :group "Add TODO"
     :level 2
     :order 3))
@@ -840,7 +833,7 @@ Returns error string or nil if valid."
     :documentation "Show all TODOs including completed (--all)."
     :long-option "all"
     :option-type :boolean
-    :key "a"
+    :short-option "a"
     :transient "--all"
     :class transient-switch
     :argument "--all"
@@ -867,8 +860,8 @@ Lists TODO items (open task issues).")
     :documentation "One or more TODO issue IDs to mark done (positional)."
     :positional 1
     :option-type :list
-    :option-separator " "
-    :key "i"
+    :separator " "
+    :short-option "i"
     :transient "Issue ID (required)"
     :class transient-option
     :argument "--id="
@@ -885,7 +878,7 @@ Lists TODO items (open task issues).")
     :documentation "Reason for closing (--reason). Default: Completed."
     :long-option "reason"
     :option-type :string
-    :key "r"
+    :short-option "r"
     :transient "--reason"
     :class transient-option
     :argument "--reason="
@@ -948,7 +941,7 @@ Finds semantically similar issues using text analysis or AI."
     :documentation "Export even if nothing changed."
     :long-option "force"
     :option-type :boolean
-    :key "f"
+    :short-option "f"
     :transient "--force"
     :class transient-switch
     :argument "--force"
@@ -977,7 +970,7 @@ Local path: /mnt/usb/beads-backup or ~/Dropbox/beads-backup.
 DoltHub: https://doltremoteapi.dolthub.com/user/repo"
     :positional 1
     :option-type :string
-    :key "p"
+    :short-option "p"
     :transient "Path or URL (required)"
     :class transient-option
     :argument "--path="
@@ -1053,7 +1046,7 @@ init <path>' first to configure a destination."
 Defaults to .beads/backup/ if not specified."
     :positional 1
     :option-type :string
-    :key "p"
+    :short-option "p"
     :transient "Backup directory path"
     :class transient-option
     :argument "--path="
@@ -1068,7 +1061,7 @@ Defaults to .beads/backup/ if not specified."
     :documentation "Show what would be restored without making changes."
     :long-option "dry-run"
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :transient "--dry-run"
     :class transient-switch
     :argument "--dry-run"
@@ -1098,7 +1091,7 @@ Use --dry-run to preview without making changes."
     :documentation "Target git branch for backup artifacts."
     :long-option "branch"
     :option-type :string
-    :key "b"
+    :short-option "b"
     :transient "--branch"
     :class transient-option
     :argument "--branch="
@@ -1113,7 +1106,7 @@ Use --dry-run to preview without making changes."
     :documentation "Git remote to push."
     :long-option "remote"
     :option-type :string
-    :key "r"
+    :short-option "r"
     :transient "--remote"
     :class transient-option
     :argument "--remote="
@@ -1128,7 +1121,7 @@ Use --dry-run to preview without making changes."
     :documentation "Show what would happen without creating a worktree or pushing."
     :long-option "dry-run"
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :transient "--dry-run"
     :class transient-switch
     :argument "--dry-run"
@@ -1142,7 +1135,7 @@ Use --dry-run to preview without making changes."
     :documentation "Force a fresh backup export before comparing and copying."
     :long-option "force"
     :option-type :boolean
-    :key "f"
+    :short-option "f"
     :transient "--force"
     :class transient-switch
     :argument "--force"
@@ -1174,7 +1167,7 @@ if changed, and pushes.  Use --dry-run to preview."
     :documentation "Git branch to fetch backup artifacts from."
     :long-option "branch"
     :option-type :string
-    :key "b"
+    :short-option "b"
     :transient "--branch"
     :class transient-option
     :argument "--branch="
@@ -1189,7 +1182,7 @@ if changed, and pushes.  Use --dry-run to preview."
     :documentation "Git remote to fetch from."
     :long-option "remote"
     :option-type :string
-    :key "r"
+    :short-option "r"
     :transient "--remote"
     :class transient-option
     :argument "--remote="
@@ -1204,7 +1197,7 @@ if changed, and pushes.  Use --dry-run to preview."
     :documentation "Show what would happen without fetching or restoring."
     :long-option "dry-run"
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :transient "--dry-run"
     :class transient-switch
     :argument "--dry-run"
@@ -1278,7 +1271,7 @@ Exports issues to JSONL format.")
     :documentation "Show what would be imported without importing."
     :long-option "dry-run"
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :transient "--dry-run"
     :class transient-switch
     :argument "--dry-run"
@@ -1334,7 +1327,7 @@ Deletes closed ephemeral beads to reclaim space.")
     :initform nil
     :documentation "Memory ID to remove."
     :positional 1
-    :key "m"
+    :short-option "m"
     :transient "Memory ID (required)"
     :class transient-option
     :argument "--id="
@@ -1371,7 +1364,7 @@ Key-value store commands.")
     :documentation "Key to retrieve from the key-value store (required)."
     :positional 1
     :option-type :string
-    :key "k"
+    :short-option "k"
     :transient "Key (required)"
     :class transient-option
     :argument "--key="
@@ -1407,7 +1400,7 @@ Retrieves a value by key from the key-value store.")
     :documentation "Key to set in the key-value store (required)."
     :positional 1
     :option-type :string
-    :key "k"
+    :short-option "k"
     :transient "Key (required)"
     :class transient-option
     :argument "--key="
@@ -1423,7 +1416,7 @@ Retrieves a value by key from the key-value store.")
     :documentation "Value to associate with the key (required)."
     :positional 2
     :option-type :string
-    :key "v"
+    :short-option "v"
     :transient "Value (required)"
     :class transient-option
     :argument "--value="
@@ -1460,7 +1453,7 @@ Sets a key-value pair in the key-value store.")
     :documentation "Key to delete from the key-value store (required)."
     :positional 1
     :option-type :string
-    :key "k"
+    :short-option "k"
     :transient "Key (required)"
     :class transient-option
     :argument "--key="
@@ -1515,7 +1508,7 @@ Lists or searches persistent memories.")
     :initform nil
     :documentation "Memory ID to retrieve."
     :positional 1
-    :key "m"
+    :short-option "m"
     :transient "Memory ID (required)"
     :class transient-option
     :argument "--id="
@@ -1538,7 +1531,7 @@ Retrieves a specific memory.")
     :initform nil
     :documentation "Memory content to store."
     :positional 1
-    :key "c"
+    :short-option "c"
     :transient "Content (required)"
     :class transient-option
     :argument "--content="
@@ -1563,7 +1556,7 @@ Stores a persistent memory.")
     :initform nil
     :documentation "Current issue ID to rename."
     :positional 1
-    :key "o"
+    :short-option "o"
     :transient "Old issue ID (required)"
     :class transient-option
     :argument "--old-id="
@@ -1578,7 +1571,7 @@ Stores a persistent memory.")
     :initform nil
     :documentation "New issue ID to assign."
     :positional 2
-    :key "n"
+    :short-option "n"
     :transient "New issue ID (required)"
     :class transient-option
     :argument "--new-id="
@@ -1627,7 +1620,7 @@ Show effective backend identity and repository context.")
     :initform nil
     :documentation "Issue ID to assign."
     :positional 1
-    :key "i"
+    :short-option "i"
     :transient "Issue ID (required)"
     :class transient-option
     :argument "--id="
@@ -1642,7 +1635,7 @@ Show effective backend identity and repository context.")
     :initform nil
     :documentation "Name to assign the issue to.  Empty string unassigns."
     :positional 2
-    :key "a"
+    :short-option "a"
     :transient "Assignee (empty to unassign)"
     :class transient-option
     :argument "--assignee="
@@ -1679,7 +1672,7 @@ Pass an empty string as assignee to unassign."
     :initform nil
     :documentation "Issue ID to comment on."
     :positional 1
-    :key "i"
+    :short-option "i"
     :transient "Issue ID (required)"
     :class transient-option
     :argument "--id="
@@ -1694,7 +1687,7 @@ Pass an empty string as assignee to unassign."
     :initform nil
     :documentation "Comment text (positional)."
     :positional 2
-    :key "t"
+    :short-option "t"
     :transient "Comment text"
     :class transient-option
     :argument "--text="
@@ -1709,7 +1702,7 @@ Pass an empty string as assignee to unassign."
     :documentation "Read comment from stdin (--stdin)."
     :long-option "stdin"
     :option-type :boolean
-    :key "s"
+    :short-option "s"
     :transient "--stdin"
     :class transient-switch
     :argument "--stdin"
@@ -1723,7 +1716,7 @@ Pass an empty string as assignee to unassign."
     :documentation "Read comment text from file (--file)."
     :long-option "file"
     :option-type :string
-    :key "f"
+    :short-option "f"
     :transient "Read from file"
     :class transient-option
     :argument "--file="
@@ -1759,7 +1752,7 @@ Shorthand for: bd comments add <id> \"text\""
     :initform nil
     :documentation "First issue ID (the dependent issue)."
     :positional 1
-    :key "1"
+    :short-option "1"
     :transient "Dependent issue (required)"
     :class transient-option
     :argument "--id1="
@@ -1774,7 +1767,7 @@ Shorthand for: bd comments add <id> \"text\""
     :initform nil
     :documentation "Second issue ID (the blocker/dependency)."
     :positional 2
-    :key "2"
+    :short-option "2"
     :transient "Blocker issue (required)"
     :class transient-option
     :argument "--id2="
@@ -1792,7 +1785,6 @@ discovered-from.  Default: blocks."
     :long-option "type"
     :short-option "t"
     :option-type :string
-    :key "t"
     :transient "Link type"
     :class transient-option
     :argument "--type="
@@ -1835,7 +1827,7 @@ Use --type to specify a different relationship."
     :initform nil
     :documentation "Issue ID to set priority on."
     :positional 1
-    :key "i"
+    :short-option "i"
     :transient "Issue ID (required)"
     :class transient-option
     :argument "--id="
@@ -1851,7 +1843,7 @@ Use --type to specify a different relationship."
     :documentation "Priority level: 0=critical, 1=high, 2=medium,
 3=low, 4=backlog."
     :positional 2
-    :key "p"
+    :short-option "p"
     :transient "Priority level (required)"
     :class transient-option
     :argument "--level="
@@ -1905,7 +1897,7 @@ Priority levels:
     :initform nil
     :documentation "Issue ID to tag."
     :positional 1
-    :key "i"
+    :short-option "i"
     :transient "Issue ID (required)"
     :class transient-option
     :argument "--id="
@@ -1920,7 +1912,7 @@ Priority levels:
     :initform nil
     :documentation "Label to add to the issue."
     :positional 2
-    :key "l"
+    :short-option "l"
     :transient "Label (required)"
     :class transient-option
     :argument "--label="

@@ -31,7 +31,7 @@
     (beads-command-test-admin)
   ((database
     :option-type :string
-    :key "d"))
+    :short-option "d"))
   :documentation "Compact database (test)."
   :transient nil)
 
@@ -65,7 +65,7 @@
     (beads-command-test-federation)
   ((url
     :option-type :string
-    :key "u"))
+    :short-option "u"))
   :documentation "Add federation peer (test)."
   :transient nil)
 

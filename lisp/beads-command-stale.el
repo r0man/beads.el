@@ -32,7 +32,6 @@
   ((days
     :option-type :integer
     :short-option "d"
-    :key "d"
     :prompt "Days (default 30): "
     :group "Filters"
     :level 2
@@ -40,7 +39,6 @@
    (limit
     :option-type :integer
     :short-option "n"
-    :key "n"
     :prompt "Limit (default 50): "
     :group "Filters"
     :level 2
@@ -48,7 +46,6 @@
    (status
     :option-type :string
     :short-option "s"
-    :key "s"
     :choices ("open" "in_progress" "blocked" "deferred")
     :group "Filters"
     :level 2

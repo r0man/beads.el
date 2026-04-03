@@ -51,7 +51,7 @@
   ((issue-id
     :positional 1
     :option-type :string
-    :key "i"
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID: "
     :reader beads-reader-issue-id
@@ -62,7 +62,7 @@
    (depends-on
     :positional 2
     :option-type :string
-    :key "d"
+    :short-option "d"
     :argument "--depends-on="
     :prompt "Depends on: "
     :reader beads-reader-issue-id
@@ -72,7 +72,7 @@
     :required t)
    (blocked-by
     :option-type :string
-    :key "b"
+    :short-option "b"
     :prompt "Blocked by: "
     :reader beads-reader-issue-id
     :group "Add Dependency"
@@ -82,7 +82,6 @@
     :long-option "type"
     :short-option "t"
     :option-type :string
-    :key "t"
     :prompt "Dependency type: "
     :group "Add Dependency"
     :level 1
@@ -130,7 +129,7 @@ Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
   ((issue-id
     :positional 1
     :option-type :string
-    :key "i"
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID: "
     :reader beads-reader-issue-id
@@ -141,7 +140,7 @@ Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
    (depends-on
     :positional 2
     :option-type :string
-    :key "d"
+    :short-option "d"
     :argument "--depends-on="
     :prompt "Remove dependency on: "
     :reader beads-reader-issue-id
@@ -191,7 +190,7 @@ Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
   ((issue-id
     :positional 1
     :option-type :string
-    :key "i"
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID: "
     :reader beads-reader-issue-id
@@ -201,7 +200,7 @@ Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
     :required t)
    (direction
     :option-type :string
-    :key "D"
+    :short-option "D"
     :prompt "Direction (down/up): "
     :group "List Dependencies"
     :level 1
@@ -210,7 +209,6 @@ Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
     :long-option "type"
     :short-option "t"
     :option-type :string
-    :key "t"
     :prompt "Dependency type: "
     :group "List Dependencies"
     :level 1
@@ -273,7 +271,7 @@ Does not modify any slots."
   ((issue-id
     :positional 1
     :option-type :string
-    :key "i"
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID: "
     :reader beads-reader-issue-id
@@ -283,7 +281,7 @@ Does not modify any slots."
     :required t)
    (direction
     :option-type :string
-    :key "D"
+    :short-option "D"
     :prompt "Direction (down/up/both): "
     :group "Dependency Tree"
     :level 1
@@ -291,14 +289,13 @@ Does not modify any slots."
    (max-depth
     :short-option "d"
     :option-type :integer
-    :key "d"
     :prompt "Max depth: "
     :group "Dependency Tree"
     :level 2
     :order 1)
    (status
     :option-type :string
-    :key "s"
+    :short-option "s"
     :prompt "Status filter: "
     :reader beads-reader-list-status
     :group "Dependency Tree"
@@ -308,21 +305,20 @@ Does not modify any slots."
     :long-option "type"
     :short-option "t"
     :option-type :string
-    :key "t"
     :prompt "Dependency type: "
     :group "Dependency Tree"
     :level 2
     :order 2)
    (format
     :option-type :string
-    :key "F"
+    :short-option "F"
     :prompt "Format (mermaid): "
     :group "Dependency Tree"
     :level 2
     :order 3)
    (show-all-paths
     :option-type :boolean
-    :key "ap"
+    :short-option "ap"
     :group "Dependency Tree"
     :level 3
     :order 1))

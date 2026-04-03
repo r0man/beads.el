@@ -262,7 +262,7 @@ Returns error message string or nil if valid."
     :positional 1)
    (branch
     :option-type :string
-    :key "b"
+    :short-option "b"
     :prompt "Branch name: "
     :group "Options"
     :level 1
@@ -333,7 +333,7 @@ Returns list of beads-worktree instances."
     :positional 1)
    (force
     :option-type :boolean
-    :key "f"
+    :short-option "f"
     :group "Options"
     :level 1
     :order 1))

@@ -87,14 +87,14 @@ Returns: available, held by <holder>, or not found."
 (beads-defcommand beads-command-merge-slot-acquire (beads-command-global-options)
   ((holder
     :option-type :string
-    :key "h"
+    :short-option "h"
     :prompt "Holder (default: BEADS_ACTOR): "
     :group "Options"
     :level 1
     :order 1)
    (wait
     :option-type :boolean
-    :key "w"
+    :short-option "w"
     :group "Options"
     :level 1
     :order 2))
@@ -125,7 +125,7 @@ If held, use --wait to join the waiters queue."
 (beads-defcommand beads-command-merge-slot-release (beads-command-global-options)
   ((holder
     :option-type :string
-    :key "h"
+    :short-option "h"
     :prompt "Holder (for verification): "
     :group "Options"
     :level 1

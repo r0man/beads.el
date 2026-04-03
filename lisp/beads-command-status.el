@@ -34,19 +34,19 @@
   ((all-issues
     :long-option "all"
     :option-type :boolean
-    :key "a"
+    :short-option "a"
     :group "Options"
     :level 2
     :order 1)
    (assigned
     :option-type :boolean
-    :key "m"
+    :short-option "m"
     :group "Options"
     :level 2
     :order 2)
    (no-activity
     :option-type :boolean
-    :key "n"
+    :short-option "n"
     :group "Options"
     :level 2
     :order 3))

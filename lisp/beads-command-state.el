@@ -30,9 +30,9 @@
     :positional 2)
    (reason
     :option-type :string
-    :key "r"
+    :short-option "r"
     :transient beads-transient-multiline
-    :field-name "State Change Reason"
+    :documentation "State Change Reason"
     :group "Options"
     :level 1
     :order 1))

@@ -27,19 +27,18 @@
   ((force
     :short-option "f"
     :option-type :boolean
-    :key "f"
     :group "Options"
     :level 1
     :order 1)
    (chain
     :option-type :boolean
-    :key "c"
+    :short-option "c"
     :group "Options"
     :level 1
     :order 2)
    (shared
     :option-type :boolean
-    :key "s"
+    :short-option "s"
     :group "Options"
     :level 1
     :order 3))

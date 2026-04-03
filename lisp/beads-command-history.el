@@ -30,7 +30,7 @@
   ((issue-id
     :positional 1
     :option-type :string
-    :key "i"
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID: "
     :reader beads-reader-close-issue-id
@@ -40,7 +40,7 @@
     :required t)
    (limit
     :option-type :integer
-    :key "l"
+    :short-option "l"
     :prompt "Limit (0=all): "
     :group "Options"
     :level 2
