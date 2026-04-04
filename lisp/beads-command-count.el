@@ -97,7 +97,67 @@
     :short-option "bl"
     :group "Grouping"
     :level 2
-    :order 5))
+    :order 5)
+   (desc-contains
+    :type (or null string)
+    :long-option "desc-contains"
+    :group "Filter"
+    :level 3)
+   (empty-description
+    :type boolean
+    :long-option "empty-description"
+    :group "Filter"
+    :level 3)
+   (id
+    :type (or null string)
+    :long-option "id"
+    :group "Filter"
+    :level 3)
+   (label
+    :type (or null string)
+    :long-option "label"
+    :group "Filter"
+    :level 3)
+   (label-any
+    :type (or null string)
+    :long-option "label-any"
+    :group "Filter"
+    :level 3)
+   (no-assignee
+    :type boolean
+    :long-option "no-assignee"
+    :group "Filter"
+    :level 3)
+   (no-labels
+    :type boolean
+    :long-option "no-labels"
+    :group "Filter"
+    :level 3)
+   (notes-contains
+    :type (or null string)
+    :long-option "notes-contains"
+    :group "Filter"
+    :level 3)
+   (priority-min
+    :type (or null integer)
+    :long-option "priority-min"
+    :group "Filter"
+    :level 3)
+   (priority-max
+    :type (or null integer)
+    :long-option "priority-max"
+    :group "Filter"
+    :level 3)
+   (title
+    :type (or null string)
+    :long-option "title"
+    :group "Filter"
+    :level 3)
+   (title-contains
+    :type (or null string)
+    :long-option "title-contains"
+    :group "Filter"
+    :level 3))
   :documentation "Represents bd count command.
 Counts issues matching the specified filters.
 When executed with :json t, returns count data as JSON.")

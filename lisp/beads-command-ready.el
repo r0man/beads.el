@@ -131,7 +131,39 @@
     :short-option "u"
     :group "Filters"
     :level 1
-    :order 3))
+    :order 3)
+   (exclude-type
+    :type (or null string)
+    :long-option "exclude-type"
+    :group "Filter"
+    :level 3)
+   (explain
+    :type boolean
+    :group "Options"
+    :level 2)
+   (gated
+    :type boolean
+    :group "Filter"
+    :level 3)
+   (has-metadata-key
+    :type (or null string)
+    :long-option "has-metadata-key"
+    :group "Filter"
+    :level 4)
+   (include-ephemeral
+    :type boolean
+    :long-option "include-ephemeral"
+    :group "Filter"
+    :level 3)
+   (metadata-field
+    :type (or null string)
+    :long-option "metadata-field"
+    :group "Filter"
+    :level 4)
+   (plain
+    :type boolean
+    :group "Display"
+    :level 3))
   :documentation "Represents bd ready command.
 Shows ready work (no blockers, open or in-progress).
 When executed with :json t, returns list of beads-issue instances.")

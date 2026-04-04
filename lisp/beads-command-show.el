@@ -93,7 +93,29 @@
     :short-option "t"
     :group "View Options"
     :level 2
-    :order 1))
+    :order 1)
+   (as-of
+    :type (or null string)
+    :long-option "as-of"
+    :group "Options"
+    :level 3)
+   (current
+    :type boolean
+    :group "Options"
+    :level 3)
+   (local-time
+    :type boolean
+    :group "Options"
+    :level 3)
+   (long
+    :type boolean
+    :group "Options"
+    :level 2)
+   (watch
+    :type boolean
+    :short-option "w"
+    :group "Options"
+    :level 3))
   :documentation "Represents bd show command.
 Shows detailed information about one or more issues.
 When executed with :json t, returns beads-issue instance (or list

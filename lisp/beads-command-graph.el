@@ -52,7 +52,15 @@
     :short-option "c"
     :group "Display"
     :level 1
-    :order 3))
+    :order 3)
+   (dot
+    :type boolean
+    :group "Options"
+    :level 2)
+   (html
+    :type boolean
+    :group "Options"
+    :level 2))
   :documentation "Represents bd graph command.
 Displays issue dependency graph visualization.")
 

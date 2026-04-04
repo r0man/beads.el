@@ -237,7 +237,91 @@
     :prompt "Session ID: "
     :group "Advanced"
     :level 4
-    :order 2))
+    :order 2)
+
+   ;; Additional flags from CLI
+   (allow-empty-description
+    :type boolean
+    :long-option "allow-empty-description"
+    :group "Flags"
+    :level 4
+    :order 1)
+   (append-notes
+    :type (or null string)
+    :long-option "append-notes"
+    :transient beads-transient-multiline
+    :documentation "Append Notes"
+    :group "Content"
+    :level 3
+    :order 5)
+   (design-file
+    :type (or null string)
+    :long-option "design-file"
+    :prompt "Design file: "
+    :reader transient-read-file
+    :group "Content"
+    :level 4
+    :order 6)
+   (ephemeral
+    :type boolean
+    :long-option "ephemeral"
+    :group "Flags"
+    :level 4
+    :order 2)
+   (history
+    :type boolean
+    :long-option "history"
+    :group "Flags"
+    :level 4
+    :order 3)
+   (metadata
+    :type (or null string)
+    :long-option "metadata"
+    :prompt "Metadata (JSON or @file.json): "
+    :group "Advanced"
+    :level 4
+    :order 3)
+   (no-history
+    :type boolean
+    :long-option "no-history"
+    :group "Flags"
+    :level 4
+    :order 4)
+   (persistent
+    :type boolean
+    :long-option "persistent"
+    :group "Flags"
+    :level 4
+    :order 5)
+   (set-metadata
+    :type (list-of string)
+    :separator nil
+    :long-option "set-metadata"
+    :prompt "Set metadata (key=value): "
+    :group "Advanced"
+    :level 4
+    :order 4)
+   (unset-metadata
+    :type (list-of string)
+    :separator nil
+    :long-option "unset-metadata"
+    :prompt "Unset metadata key: "
+    :group "Advanced"
+    :level 4
+    :order 5)
+   (spec-id
+    :type (or null string)
+    :long-option "spec-id"
+    :prompt "Spec ID: "
+    :group "Advanced"
+    :level 4
+    :order 6)
+   (stdin
+    :type boolean
+    :long-option "stdin"
+    :group "Content"
+    :level 5
+    :order 7))
   :documentation "Represents bd update command.
 Updates one or more issues with new field values.
 When executed with :json t, returns beads-issue instance (or list

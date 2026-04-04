@@ -377,7 +377,62 @@
       :type boolean
       :group "Output Options"
       :level 2
-      :order 4))
+      :order 4)
+
+     (exclude-type
+      :type (or null string)
+      :long-option "exclude-type"
+      :group "Filter"
+      :level 3)
+     (flat
+      :type boolean
+      :group "Display"
+      :level 3)
+     (has-metadata-key
+      :type (or null string)
+      :long-option "has-metadata-key"
+      :group "Filter"
+      :level 4)
+     (include-infra
+      :type boolean
+      :long-option "include-infra"
+      :group "Filter"
+      :level 3)
+     (label-pattern
+      :type (or null string)
+      :long-option "label-pattern"
+      :group "Filter"
+      :level 3)
+     (label-regex
+      :type (or null string)
+      :long-option "label-regex"
+      :group "Filter"
+      :level 3)
+     (metadata-field
+      :type (or null string)
+      :long-option "metadata-field"
+      :group "Filter"
+      :level 4)
+     (no-parent
+      :type boolean
+      :long-option "no-parent"
+      :group "Filter"
+      :level 3)
+     (spec
+      :type (or null string)
+      :long-option "spec"
+      :group "Filter"
+      :level 3)
+     (wisp-type
+      :type (or null string)
+      :long-option "wisp-type"
+      :group "Filter"
+      :level 3)
+     (format-str
+      :type (or null string)
+      :long-option "format"
+      :group "Display"
+      :level 3))
     :documentation "Represents bd list command.
   Lists issues with extensive filtering and output formatting options.
   When executed with :json t, returns list of beads-issue instances."
