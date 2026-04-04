@@ -18,12 +18,12 @@
 ;;; Test Fixtures
 
 (defvar beads-command-blocked-test--sample-json
-  (vector '((id . "bd-1")
+  (vector `((id . "bd-1")
             (title . "Blocked Issue 1")
             (status . "open")
             (priority . 1)
             (issue_type . "bug")
-            (blocked_by . (((id . "bd-10") (title . "Blocker"))))))
+            (blocked_by . ,(vector "bd-10"))))
   "Sample blocked issues JSON for testing.")
 
 ;;; Parse Method Tests

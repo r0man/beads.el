@@ -21,6 +21,7 @@
 (require 'ert)
 (require 'json)
 (require 'beads-types)
+(require 'beads-meta)
 (require 'beads)
 (require 'beads-command-blocked)
 (require 'beads-command-ready)
@@ -1198,6 +1199,189 @@ the real `beads-command-execute' pipeline would return."
   "Test filter is-empty returns nil when all flag is set."
   (let ((filter (beads-issue-filter :all t)))
     (should-not (beads-issue-filter-is-empty filter))))
+
+;;; ========================================
+;;; Audit Types
+;;; ========================================
+
+(ert-deftest beads-types-test-audit-entry-from-json ()
+  "Test beads-audit-entry-from-json creates correct object."
+  (let ((entry (beads-audit-entry-from-json
+                '((id . "audit-abc123")
+                  (kind . "llm_call")))))
+    (should (beads-audit-entry-p entry))
+    (should (string= (oref entry id) "audit-abc123"))
+    (should (string= (oref entry kind) "llm_call"))))
+
+(ert-deftest beads-types-test-audit-label-result-from-json ()
+  "Test beads-audit-label-result-from-json creates correct object."
+  (let ((result (beads-audit-label-result-from-json
+                 '((id . "audit-def456")
+                   (parent_id . "audit-abc123")
+                   (label . "good")))))
+    (should (beads-audit-label-result-p result))
+    (should (string= (oref result id) "audit-def456"))
+    (should (string= (oref result parent-id) "audit-abc123"))
+    (should (string= (oref result label) "good"))))
+
+;;; ========================================
+;;; Config Types
+;;; ========================================
+
+(ert-deftest beads-types-test-config-entry-from-json ()
+  "Test beads-config-entry-from-json creates correct object."
+  (let ((entry (beads-config-entry-from-json
+                '((key . "jira.url")
+                  (value . "https://company.atlassian.net")
+                  (location . "config.yaml")))))
+    (should (beads-config-entry-p entry))
+    (should (string= (oref entry key) "jira.url"))
+    (should (string= (oref entry value) "https://company.atlassian.net"))
+    (should (string= (oref entry location) "config.yaml"))))
+
+(ert-deftest beads-types-test-config-entry-from-json-nil-location ()
+  "Test config entry with nil location."
+  (let ((entry (beads-config-entry-from-json
+                '((key . "some.key")
+                  (value . "val")))))
+    (should (null (oref entry location)))))
+
+;;; ========================================
+;;; Count Types
+;;; ========================================
+
+(ert-deftest beads-types-test-count-result-from-json ()
+  "Test beads-count-result-from-json creates correct object."
+  (let ((result (beads-count-result-from-json '((count . 42)))))
+    (should (beads-count-result-p result))
+    (should (= (oref result count) 42))))
+
+(ert-deftest beads-types-test-count-grouped-result-from-json ()
+  "Test beads-count-grouped-result-from-json creates correct object."
+  (let ((result (beads-count-grouped-result-from-json
+                 `((total . 42)
+                   (groups . ,(vector '((group . "open") (count . 10))
+                                      '((group . "closed") (count . 32))))))))
+    (should (beads-count-grouped-result-p result))
+    (should (= (oref result total) 42))
+    (should (= (length (oref result groups)) 2))
+    (should (beads-count-group-p (car (oref result groups))))
+    (should (string= (oref (car (oref result groups)) group) "open"))
+    (should (= (oref (car (oref result groups)) count) 10))))
+
+;;; ========================================
+;;; Compact Types
+;;; ========================================
+
+(ert-deftest beads-types-test-compact-tier-stats-from-json ()
+  "Test beads-compact-tier-stats-from-json creates correct object."
+  (let ((stats (beads-compact-tier-stats-from-json
+                '((candidates . 15)
+                  (total_size . 245680)))))
+    (should (beads-compact-tier-stats-p stats))
+    (should (= (oref stats candidates) 15))
+    (should (= (oref stats total-size) 245680))))
+
+(ert-deftest beads-types-test-compact-stats-from-json ()
+  "Test beads-compact-stats-from-json creates correct object."
+  (let ((stats (beads-compact-stats-from-json
+                '((tier1 . ((candidates . 15) (total_size . 245680)))
+                  (tier2 . ((candidates . 3) (total_size . 48920)))))))
+    (should (beads-compact-stats-p stats))
+    (should (= (oref (oref stats tier1) candidates) 15))
+    (should (= (oref (oref stats tier2) total-size) 48920))))
+
+(ert-deftest beads-types-test-compact-candidate-from-json ()
+  "Test beads-compact-candidate-from-json creates correct object."
+  (let ((cand (beads-compact-candidate-from-json
+               '((id . "bd-42")
+                 (title . "Fix auth bug")
+                 (size_bytes . 2847)
+                 (age_days . 35)
+                 (tier . 1)
+                 (compacted . :false)))))
+    (should (beads-compact-candidate-p cand))
+    (should (string= (oref cand id) "bd-42"))
+    (should (= (oref cand size-bytes) 2847))
+    (should (= (oref cand age-days) 35))
+    (should (= (oref cand tier) 1))
+    (should-not (oref cand compacted))))
+
+(ert-deftest beads-types-test-compact-result-from-json ()
+  "Test beads-compact-result-from-json creates correct object."
+  (let ((result (beads-compact-result-from-json
+                 '((success . t)
+                   (tier . 1)
+                   (issue_id . "bd-42")
+                   (original_size . 2847)
+                   (compacted_size . 256)
+                   (saved_bytes . 2591)
+                   (reduction_pct . 91.0)
+                   (elapsed_ms . 1234)))))
+    (should (beads-compact-result-p result))
+    (should (oref result success))
+    (should (string= (oref result issue-id) "bd-42"))
+    (should (= (oref result saved-bytes) 2591))
+    (should (= (oref result reduction-pct) 91.0))))
+
+(ert-deftest beads-types-test-compact-result-batch-from-json ()
+  "Test beads-compact-result-from-json with batch mode fields."
+  (let ((result (beads-compact-result-from-json
+                 '((success . t)
+                   (tier . 1)
+                   (total . 15)
+                   (succeeded . 14)
+                   (failed . 1)
+                   (saved_bytes . 186420)
+                   (original_size . 245680)
+                   (elapsed_ms . 12345)))))
+    (should (= (oref result total) 15))
+    (should (= (oref result succeeded) 14))
+    (should (= (oref result failed) 1))))
+
+;;; ========================================
+;;; list-of Type Verification
+;;; ========================================
+
+(ert-deftest beads-types-test-issue-labels-list-of-string ()
+  "Test that issue labels slot accepts list of strings."
+  (let ((issue (beads-issue :labels '("bug" "urgent"))))
+    (should (equal (oref issue labels) '("bug" "urgent")))))
+
+(ert-deftest beads-types-test-issue-dependencies-list-of-dep ()
+  "Test that issue dependencies slot accepts list of beads-dependency."
+  (let* ((dep (beads-dependency :issue-id "bd-1" :depends-on-id "bd-2"))
+         (issue (beads-issue :dependencies (list dep))))
+    (should (= (length (oref issue dependencies)) 1))
+    (should (beads-dependency-p (car (oref issue dependencies))))))
+
+;;; ========================================
+;;; json-key Property Verification
+;;; ========================================
+
+(ert-deftest beads-types-test-dep-op-result-json-key-op-status ()
+  "Test that op-status has :json-key of status."
+  (should (eq (beads-meta-slot-property
+               'beads-dep-op-result 'op-status :json-key)
+              'status)))
+
+(ert-deftest beads-types-test-dep-op-result-json-key-dep-type ()
+  "Test that dep-type has :json-key of type."
+  (should (eq (beads-meta-slot-property
+               'beads-dep-op-result 'dep-type :json-key)
+              'type)))
+
+(ert-deftest beads-types-test-formula-summary-json-key ()
+  "Test that formula-type has :json-key of type."
+  (should (eq (beads-meta-slot-property
+               'beads-formula-summary 'formula-type :json-key)
+              'type)))
+
+(ert-deftest beads-types-test-formula-var-json-key ()
+  "Test that var-type has :json-key of type."
+  (should (eq (beads-meta-slot-property
+               'beads-formula-var 'var-type :json-key)
+              'type)))
 
 (provide 'beads-types-test)
 ;;; beads-types-test.el ends here
