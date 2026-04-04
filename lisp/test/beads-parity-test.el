@@ -28,6 +28,7 @@
 
 (require 'ert)
 (require 'json)
+(require 'beads-meta)
 (require 'beads-types)
 
 ;;; ========================================
@@ -885,6 +886,267 @@ This is the format returned by bd dep list and bd show dependents."
 ;; beads-command-worktree-create beads-worktree-from-json      worktree-list-json
 ;; beads-command-label-list-all beads-label-count-from-json    label-list-all-json
 ;; beads-command-stats          beads-stats-data-from-json     stats-json
+
+;;; ========================================
+;;; Parity Test Helper
+;;; ========================================
+;;
+;; Compare generic beads-from-json output against hand-written
+;; parser output.  Every slot in CLASS is checked: if both objects
+;; have it bound, values must be equal; if only one has it bound,
+;; the other must get the same value from its initform default.
+
+(defun beads-parity--assert-equal (reference candidate class-sym)
+  "Assert that REFERENCE and CANDIDATE have equal slot values.
+CLASS-SYM names the EIEIO class.  Signals a test failure with
+a detailed diff when slots differ."
+  (let ((slots (eieio-class-slots (cl--find-class class-sym)))
+        diffs)
+    (dolist (slot slots)
+      (let* ((name (eieio-slot-descriptor-name slot))
+             (ref-val (condition-case nil
+                          (slot-value reference name)
+                        (unbound-slot :beads-parity-unbound)))
+             (cand-val (condition-case nil
+                           (slot-value candidate name)
+                         (unbound-slot :beads-parity-unbound))))
+        (unless (equal ref-val cand-val)
+          (push (list name ref-val cand-val) diffs))))
+    (when diffs
+      (ert-fail (format "Parity mismatch for %s:\n%s"
+                        class-sym
+                        (mapconcat
+                         (lambda (d)
+                           (format "  slot %s: hand-written=%S  generic=%S"
+                                   (car d) (cadr d) (caddr d)))
+                         diffs "\n"))))))
+
+(defun beads-parity--compare-lists (ref-list cand-list class-sym)
+  "Assert pairwise slot-equality of REF-LIST and CAND-LIST.
+Both must be lists of CLASS-SYM instances with equal length."
+  (should (= (length ref-list) (length cand-list)))
+  (cl-loop for ref in ref-list
+           for cand in cand-list
+           do (beads-parity--assert-equal ref cand class-sym)))
+
+;;; ========================================
+;;; Parity Tests: Standard Types (should PASS)
+;;; ========================================
+
+(ert-deftest beads-parity-test-comment-parity ()
+  "Generic beads-from-json matches beads-comment-from-json."
+  (let* ((json (aref (alist-get 'comments beads-parity--show-json) 0))
+         (ref (beads-comment-from-json json))
+         (cand (beads-from-json 'beads-comment json)))
+    (beads-parity--assert-equal ref cand 'beads-comment)))
+
+(ert-deftest beads-parity-test-label-count-parity ()
+  "Generic beads-from-json matches beads-label-count-from-json."
+  (let* ((json (aref beads-parity--label-list-all-json 0))
+         (ref (beads-label-count-from-json json))
+         (cand (beads-from-json 'beads-label-count json)))
+    (beads-parity--assert-equal ref cand 'beads-label-count)))
+
+(ert-deftest beads-parity-test-dep-op-result-parity-add ()
+  "Generic beads-from-json matches beads-dep-op-result-from-json (add)."
+  (let* ((ref (beads-dep-op-result-from-json beads-parity--dep-add-json))
+         (cand (beads-from-json 'beads-dep-op-result
+                                beads-parity--dep-add-json)))
+    (beads-parity--assert-equal ref cand 'beads-dep-op-result)))
+
+(ert-deftest beads-parity-test-dep-op-result-parity-remove ()
+  "Generic beads-from-json matches beads-dep-op-result-from-json (remove)."
+  (let* ((ref (beads-dep-op-result-from-json beads-parity--dep-remove-json))
+         (cand (beads-from-json 'beads-dep-op-result
+                                beads-parity--dep-remove-json)))
+    (beads-parity--assert-equal ref cand 'beads-dep-op-result)))
+
+(ert-deftest beads-parity-test-worktree-info-parity-not-worktree ()
+  "Generic beads-from-json matches beads-worktree-info-from-json (not wt)."
+  (let* ((ref (beads-worktree-info-from-json
+               beads-parity--worktree-info-json))
+         (cand (beads-from-json 'beads-worktree-info
+                                beads-parity--worktree-info-json)))
+    (beads-parity--assert-equal ref cand 'beads-worktree-info)))
+
+(ert-deftest beads-parity-test-worktree-info-parity-linked ()
+  "Generic beads-from-json matches beads-worktree-info-from-json (linked)."
+  (let* ((ref (beads-worktree-info-from-json
+               beads-parity--worktree-info-linked-json))
+         (cand (beads-from-json 'beads-worktree-info
+                                beads-parity--worktree-info-linked-json)))
+    (beads-parity--assert-equal ref cand 'beads-worktree-info)))
+
+(ert-deftest beads-parity-test-formula-summary-parity ()
+  "Generic beads-from-json matches beads-formula-summary-from-json."
+  (let* ((json (aref beads-parity--formula-list-json 0))
+         (ref (beads-formula-summary-from-json json))
+         (cand (beads-from-json 'beads-formula-summary json)))
+    (beads-parity--assert-equal ref cand 'beads-formula-summary)))
+
+(ert-deftest beads-parity-test-formula-step-parity ()
+  "Generic beads-from-json matches beads-formula-step-from-json."
+  (let* ((steps (alist-get 'steps beads-parity--formula-show-json))
+         (json (aref steps 1))  ; step with needs
+         (ref (beads-formula-step-from-json json))
+         (cand (beads-from-json 'beads-formula-step json)))
+    (beads-parity--assert-equal ref cand 'beads-formula-step)))
+
+(ert-deftest beads-parity-test-worktree-parity ()
+  "Generic beads-from-json matches beads-worktree-from-json.
+Fixture has explicit name key, so no conditional derivation."
+  (let* ((json (aref beads-parity--worktree-list-json 0))
+         (ref (beads-worktree-from-json json))
+         (cand (beads-from-json 'beads-worktree json)))
+    (beads-parity--assert-equal ref cand 'beads-worktree)))
+
+(ert-deftest beads-parity-test-recent-activity-parity ()
+  "Generic beads-from-json matches beads-recent-activity-from-json."
+  (let* ((json (alist-get 'recent_activity
+                           beads-parity--stats-with-activity-json))
+         (ref (beads-recent-activity-from-json json))
+         (cand (beads-from-json 'beads-recent-activity json)))
+    (beads-parity--assert-equal ref cand 'beads-recent-activity)))
+
+;;; ========================================
+;;; Parity Tests: beads-issue (simple fixtures, should PASS)
+;;; ========================================
+
+(ert-deftest beads-parity-test-issue-parity-create ()
+  "Generic beads-from-json matches beads-issue-from-json (create).
+Simple issue with no nested objects."
+  (let* ((ref (beads-issue-from-json beads-parity--create-json))
+         (cand (beads-from-json 'beads-issue beads-parity--create-json)))
+    (beads-parity--assert-equal ref cand 'beads-issue)))
+
+(ert-deftest beads-parity-test-issue-parity-list ()
+  "Generic beads-from-json matches beads-issue-from-json (list).
+List output has labels but no nested deps/comments."
+  (let* ((ref-list (mapcar #'beads-issue-from-json
+                           (append beads-parity--list-json nil)))
+         (cand-list (mapcar (lambda (j) (beads-from-json 'beads-issue j))
+                            (append beads-parity--list-json nil))))
+    (beads-parity--compare-lists ref-list cand-list 'beads-issue)))
+
+(ert-deftest beads-parity-test-issue-parity-close ()
+  "Generic beads-from-json matches beads-issue-from-json (close)."
+  (let* ((json (aref beads-parity--close-json 0))
+         (ref (beads-issue-from-json json))
+         (cand (beads-from-json 'beads-issue json)))
+    (beads-parity--assert-equal ref cand 'beads-issue)))
+
+(ert-deftest beads-parity-test-issue-parity-update ()
+  "Generic beads-from-json matches beads-issue-from-json (update)."
+  (let* ((json (aref beads-parity--update-json 0))
+         (ref (beads-issue-from-json json))
+         (cand (beads-from-json 'beads-issue json)))
+    (beads-parity--assert-equal ref cand 'beads-issue)))
+
+(ert-deftest beads-parity-test-issue-parity-ready ()
+  "Generic beads-from-json matches beads-issue-from-json (ready)."
+  (let* ((json (aref beads-parity--ready-json 0))
+         (ref (beads-issue-from-json json))
+         (cand (beads-from-json 'beads-issue json)))
+    (beads-parity--assert-equal ref cand 'beads-issue)))
+
+(ert-deftest beads-parity-test-issue-parity-reopen ()
+  "Generic beads-from-json matches beads-issue-from-json (reopen)."
+  (let* ((json (aref beads-parity--reopen-json 0))
+         (ref (beads-issue-from-json json))
+         (cand (beads-from-json 'beads-issue json)))
+    (beads-parity--assert-equal ref cand 'beads-issue)))
+
+;;; ========================================
+;;; Parity Tests: Inherited Types (should PASS)
+;;; ========================================
+
+(ert-deftest beads-parity-test-blocked-issue-parity ()
+  "Generic beads-from-json matches beads-blocked-issue-from-json."
+  (let* ((json (aref beads-parity--blocked-json 0))
+         (ref (beads-blocked-issue-from-json json))
+         (cand (beads-from-json 'beads-blocked-issue json)))
+    (beads-parity--assert-equal ref cand 'beads-blocked-issue)))
+
+(ert-deftest beads-parity-test-tree-node-parity ()
+  "Generic beads-from-json matches beads-tree-node-from-json."
+  (let* ((json (aref beads-parity--dep-tree-json 0))
+         (ref (beads-tree-node-from-json json))
+         (cand (beads-from-json 'beads-tree-node json)))
+    (beads-parity--assert-equal ref cand 'beads-tree-node)))
+
+(ert-deftest beads-parity-test-epic-status-parity ()
+  "Generic beads-from-json matches beads-epic-status-from-json.
+Nested epic is a simple issue (no deps/comments)."
+  (let* ((json (aref beads-parity--epic-status-json 0))
+         (ref (beads-epic-status-from-json json))
+         (cand (beads-from-json 'beads-epic-status json)))
+    ;; Compare top-level integer and boolean slots
+    (should (= (oref ref total-children) (oref cand total-children)))
+    (should (= (oref ref closed-children) (oref cand closed-children)))
+    (should (eq (oref ref eligible-for-close)
+                (oref cand eligible-for-close)))
+    ;; Compare nested epic issue
+    (beads-parity--assert-equal (oref ref epic) (oref cand epic)
+                                'beads-issue)))
+
+;;; ========================================
+;;; Parity Tests: Non-Standard Types (expected to FAIL)
+;;; ========================================
+;;
+;; These tests document known divergences between the hand-written
+;; parsers and the generic beads-from-json.  They are marked
+;; :expected-result :failed so they don't break CI.  After bde-wbuu
+;; (Phase 3: Add beads-from-json overrides for non-standard domain
+;; classes), flip them to :expected-result :passed.
+
+(ert-deftest beads-parity-test-issue-parity-show ()
+  "Generic beads-from-json vs beads-issue-from-json (show).
+Expected to fail: nested dependents use polymorphic
+beads-dependency keys (dependency_type vs type, id vs depends_on_id)."
+  :expected-result :failed
+  (let* ((ref (beads-issue-from-json beads-parity--show-json))
+         (cand (beads-from-json 'beads-issue beads-parity--show-json)))
+    (beads-parity--assert-equal ref cand 'beads-issue)))
+
+(ert-deftest beads-parity-test-dependency-parity ()
+  "Generic beads-from-json vs beads-dependency-from-json.
+Expected to fail: hand-written uses (or dependency_type type)
+and (or depends_on_id id) fallback logic."
+  :expected-result :failed
+  (let* ((json (aref beads-parity--dep-list-json 0))
+         (ref (beads-dependency-from-json json))
+         (cand (beads-from-json 'beads-dependency json)))
+    (beads-parity--assert-equal ref cand 'beads-dependency)))
+
+(ert-deftest beads-parity-test-statistics-parity ()
+  "Generic beads-from-json vs beads-statistics-from-json.
+Expected to fail: average_lead_time_hours key doesn't match
+slot name average-lead-time (no :json-key override yet)."
+  :expected-result :failed
+  (let* ((json (alist-get 'summary beads-parity--stats-json))
+         (ref (beads-statistics-from-json json))
+         (cand (beads-from-json 'beads-statistics json)))
+    (beads-parity--assert-equal ref cand 'beads-statistics)))
+
+(ert-deftest beads-parity-test-stats-data-parity ()
+  "Generic beads-from-json vs beads-stats-data-from-json.
+Expected to fail: wraps nested summary/activity sub-objects
+with custom parsing logic."
+  :expected-result :failed
+  (let* ((ref (beads-stats-data-from-json beads-parity--stats-json))
+         (cand (beads-from-json 'beads-stats-data
+                                beads-parity--stats-json)))
+    (beads-parity--assert-equal ref cand 'beads-stats-data)))
+
+(ert-deftest beads-parity-test-formula-parity ()
+  "Generic beads-from-json vs beads-formula-from-json.
+Expected to fail: formula->name key mapping, vars is a
+map (not array) requiring custom unpacking."
+  :expected-result :failed
+  (let* ((ref (beads-formula-from-json beads-parity--formula-show-json))
+         (cand (beads-from-json 'beads-formula
+                                beads-parity--formula-show-json)))
+    (beads-parity--assert-equal ref cand 'beads-formula)))
 
 (provide 'beads-parity-test)
 ;;; beads-parity-test.el ends here
