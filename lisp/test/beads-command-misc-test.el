@@ -1409,5 +1409,82 @@
                  (beads-meta-slot-property
                   'beads-command-link 'link-type :transient-choices))))
 
+;;; Unit Tests: beads-command-rules-audit command-line
+
+(ert-deftest beads-command-rules-audit-test-class-exists ()
+  "Unit test: beads-command-rules-audit class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-rules-audit)))
+
+(ert-deftest beads-command-rules-audit-test-subcommand ()
+  "Unit test: rules audit subcommand is 'rules audit'."
+  :tags '(:unit)
+  (let ((cmd (beads-command-rules-audit)))
+    (should (equal (beads-command-subcommand cmd) "rules audit"))))
+
+(ert-deftest beads-command-rules-audit-test-command-line-basic ()
+  "Unit test: rules audit builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-rules-audit))
+         (args (beads-command-line cmd)))
+    (should (member "rules" args))
+    (should (member "audit" args))))
+
+(ert-deftest beads-command-rules-audit-test-command-line-path ()
+  "Unit test: rules audit includes --path option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-rules-audit :path "/tmp/rules"))
+         (args (beads-command-line cmd)))
+    (should (member "--path" args))
+    (should (member "/tmp/rules" args))))
+
+;;; Unit Tests: beads-command-rules-compact command-line
+
+(ert-deftest beads-command-rules-compact-test-class-exists ()
+  "Unit test: beads-command-rules-compact class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-rules-compact)))
+
+(ert-deftest beads-command-rules-compact-test-subcommand ()
+  "Unit test: rules compact subcommand is 'rules compact'."
+  :tags '(:unit)
+  (let ((cmd (beads-command-rules-compact)))
+    (should (equal (beads-command-subcommand cmd) "rules compact"))))
+
+(ert-deftest beads-command-rules-compact-test-command-line-dry-run ()
+  "Unit test: rules compact includes --dry-run option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-rules-compact :dry-run t))
+         (args (beads-command-line cmd)))
+    (should (member "--dry-run" args))))
+
+(ert-deftest beads-command-rules-compact-test-command-line-auto ()
+  "Unit test: rules compact includes --auto option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-rules-compact :auto t))
+         (args (beads-command-line cmd)))
+    (should (member "--auto" args))))
+
+;;; Unit Tests: beads-command-backup-remove command-line
+
+(ert-deftest beads-command-backup-remove-test-class-exists ()
+  "Unit test: beads-command-backup-remove class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-backup-remove)))
+
+(ert-deftest beads-command-backup-remove-test-subcommand ()
+  "Unit test: backup remove subcommand is 'backup remove'."
+  :tags '(:unit)
+  (let ((cmd (beads-command-backup-remove)))
+    (should (equal (beads-command-subcommand cmd) "backup remove"))))
+
+(ert-deftest beads-command-backup-remove-test-command-line-basic ()
+  "Unit test: backup remove builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-backup-remove))
+         (args (beads-command-line cmd)))
+    (should (member "backup" args))
+    (should (member "remove" args))))
+
 (provide 'beads-command-misc-test)
 ;;; beads-command-misc-test.el ends here

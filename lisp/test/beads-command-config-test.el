@@ -133,5 +133,41 @@
          (layout-str (format "%s" layout)))
     (should (string-match-p "beads-config-validate" layout-str))))
 
+;;; Unit Tests: beads-command-config-set-many command-line
+
+(ert-deftest beads-command-config-set-many-test-class-exists ()
+  "Unit test: beads-command-config-set-many class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-config-set-many)))
+
+(ert-deftest beads-command-config-set-many-test-subcommand ()
+  "Unit test: config set-many subcommand is 'config set-many'."
+  :tags '(:unit)
+  (let ((cmd (beads-command-config-set-many)))
+    (should (equal (beads-command-subcommand cmd) "config set-many"))))
+
+(ert-deftest beads-command-config-set-many-test-command-line-basic ()
+  "Unit test: config set-many builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-config-set-many
+               :pairs '("key1=val1" "key2=val2")))
+         (args (beads-command-line cmd)))
+    (should (member "config" args))
+    (should (member "set-many" args))
+    (should (member "key1=val1" args))
+    (should (member "key2=val2" args))))
+
+(ert-deftest beads-command-config-set-many-test-validation-missing-pairs ()
+  "Unit test: config set-many validation fails without pairs."
+  :tags '(:unit)
+  (let ((cmd (beads-command-config-set-many)))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-config-set-many-test-validation-success ()
+  "Unit test: config set-many validation succeeds with pairs."
+  :tags '(:unit)
+  (let ((cmd (beads-command-config-set-many :pairs '("k=v"))))
+    (should (null (beads-command-validate cmd)))))
+
 (provide 'beads-command-config-test)
 ;;; beads-command-config-test.el ends here

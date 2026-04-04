@@ -414,5 +414,39 @@ Regression test for bug bde-65df."
       (beads-command-execute-interactive cmd)
       (should (string-match-p "No issues closed" message-output)))))
 
+;;; Unit Tests: New close command slots
+
+(ert-deftest beads-close-test-force-flag ()
+  "Unit test: close includes --force flag."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-close :issue-ids '("bd-1") :reason "done"
+                                   :force t))
+         (args (beads-command-line cmd)))
+    (should (member "--force" args))))
+
+(ert-deftest beads-close-test-suggest-next-flag ()
+  "Unit test: close includes --suggest-next flag."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-close :issue-ids '("bd-1") :reason "done"
+                                   :suggest-next t))
+         (args (beads-command-line cmd)))
+    (should (member "--suggest-next" args))))
+
+(ert-deftest beads-close-test-claim-next-flag ()
+  "Unit test: close includes --claim-next flag."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-close :issue-ids '("bd-1") :reason "done"
+                                   :claim-next t))
+         (args (beads-command-line cmd)))
+    (should (member "--claim-next" args))))
+
+(ert-deftest beads-close-test-continue-flag ()
+  "Unit test: close includes --continue flag."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-close :issue-ids '("bd-1") :reason "done"
+                                   :continue-mol t))
+         (args (beads-command-line cmd)))
+    (should (member "--continue" args))))
+
 (provide 'beads-close-test)
 ;;; beads-close-test.el ends here
