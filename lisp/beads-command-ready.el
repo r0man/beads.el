@@ -169,7 +169,7 @@ Does not modify any slots."
       ;; Call parent to parse JSON, then convert to beads-issue instances
       (let ((parsed-json (cl-call-next-method)))
         (condition-case err
-            (mapcar #'beads-issue-from-json (append parsed-json nil))
+            (mapcar (lambda (j) (beads-from-json 'beads-issue j)) (append parsed-json nil))
           (error
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-issue instances: %s"

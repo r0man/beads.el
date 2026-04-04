@@ -97,7 +97,7 @@ Does not modify any slots."
         (condition-case err
             (if (eq (type-of parsed-json) 'vector)
                 ;; bd reopen returns array - convert to issue objects
-                (let ((issues (mapcar #'beads-issue-from-json
+                (let ((issues (mapcar (lambda (j) (beads-from-json 'beads-issue j))
                                       (append parsed-json nil))))
                   ;; Return single issue if only one ID, list otherwise
                   (if (= (length issue-ids) 1)

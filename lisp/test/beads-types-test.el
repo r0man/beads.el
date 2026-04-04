@@ -1299,7 +1299,7 @@ the real `beads-command-execute' pipeline would return."
                  (size_bytes . 2847)
                  (age_days . 35)
                  (tier . 1)
-                 (compacted . :false)))))
+                 (compacted . :json-false)))))
     (should (beads-compact-candidate-p cand))
     (should (string= (oref cand id) "bd-42"))
     (should (= (oref cand size-bytes) 2847))

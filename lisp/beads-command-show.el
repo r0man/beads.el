@@ -128,7 +128,7 @@ Does not modify any slots."
             (cond
              ;; Array result - convert to issue objects
              ((vectorp parsed-json)
-              (let ((issues (mapcar #'beads-issue-from-json
+              (let ((issues (mapcar (lambda (j) (beads-from-json 'beads-issue j))
                                     (append parsed-json nil))))
                 ;; Return single issue if only one ID, list otherwise
                 (if (and issue-ids (= (length issue-ids) 1))
@@ -137,7 +137,7 @@ Does not modify any slots."
              ;; Single object result
              ((and parsed-json (listp parsed-json)
                    (not (null parsed-json)))
-              (beads-issue-from-json parsed-json))
+              (beads-from-json 'beads-issue parsed-json))
              ;; Empty or null
              (t nil))
           (error

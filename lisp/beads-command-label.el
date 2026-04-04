@@ -315,7 +315,7 @@ Returns a list of beads-label-count objects."
          (json (beads-command-execute cmd))
          ;; JSON is array of {\"label\": \"name\", \"count\": N}
          (labels (append json nil)))
-    (mapcar #'beads-label-count-from-json labels)))
+    (mapcar (lambda (j) (beads-from-json 'beads-label-count j)) labels)))
 
 (defun beads--get-cached-labels ()
   "Get cached label list, refreshing if stale.

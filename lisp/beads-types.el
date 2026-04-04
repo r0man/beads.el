@@ -785,70 +785,16 @@ When populated from bd show --json, includes full issue details.")
 
 ;;; JSON Conversion Functions
 
-(defun beads-issue--base-json-args (json)
-  "Return plist of base beads-issue fields from JSON alist.
-Used by beads-issue-from-json and subclass from-json functions
-to avoid duplicating the shared field mappings."
-  (list
-   :id (alist-get 'id json)
-   :content-hash (alist-get 'content_hash json)
-   :title (alist-get 'title json)
-   :description (alist-get 'description json)
-   :design (alist-get 'design json)
-   :acceptance-criteria (alist-get 'acceptance_criteria json)
-   :notes (alist-get 'notes json)
-   :status (alist-get 'status json)
-   :priority (alist-get 'priority json)
-   :issue-type (alist-get 'issue_type json)
-   :assignee (alist-get 'assignee json)
-   :estimated-minutes (alist-get 'estimated_minutes json)
-   :created-at (alist-get 'created_at json)
-   :updated-at (alist-get 'updated_at json)
-   :closed-at (alist-get 'closed_at json)
-   :external-ref (alist-get 'external_ref json)
-   :compaction-level (alist-get 'compaction_level json)
-   :compacted-at (alist-get 'compacted_at json)
-   :compacted-at-commit (alist-get 'compacted_at_commit json)
-   :original-size (alist-get 'original_size json)
-   :source-repo (alist-get 'source_repo json)
-   :created-by (alist-get 'created_by json)
-   :labels (append (alist-get 'labels json) nil)
-   :dependencies (when-let ((deps (alist-get 'dependencies json)))
-                   (mapcar #'beads-dependency-from-json (append deps nil)))
-   :dependents (when-let ((deps (alist-get 'dependents json)))
-                 (mapcar #'beads-dependency-from-json (append deps nil)))
-   :comments (when-let ((comments (alist-get 'comments json)))
-               (mapcar #'beads-comment-from-json (append comments nil)))))
-
 (defun beads-issue-from-json (json)
   "Create a beads-issue object from JSON alist.
-JSON should be the parsed JSON object from bd --json output."
-  (apply #'beads-issue (beads-issue--base-json-args json)))
+JSON should be the parsed JSON object from bd --json output.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-issue json))
 
 (defun beads-dependency-from-json (json)
   "Create a beads-dependency object from JSON alist.
-JSON can be either:
-- Simple dependency format (from bd dep): issue_id, depends_on_id, type
-- IssueWithDependencyMetadata format (from bd show --json):
-  Full issue fields + dependency_type"
-  ;; bd show --json returns IssueWithDependencyMetadata which has:
-  ;; - All Issue fields (id, title, status, priority, etc.)
-  ;; - dependency_type field
-  ;; The 'id' is the depends_on_id (the issue being depended on)
-  (let ((dep-type (or (alist-get 'dependency_type json)
-                      (alist-get 'type json))))
-    (beads-dependency
-     :issue-id (alist-get 'issue_id json)
-     :depends-on-id (or (alist-get 'depends_on_id json)
-                        (alist-get 'id json))  ; bd show uses 'id'
-     :type dep-type
-     :created-at (alist-get 'created_at json)
-     :created-by (alist-get 'created_by json)
-     ;; Additional fields from IssueWithDependencyMetadata
-     :title (alist-get 'title json)
-     :status (alist-get 'status json)
-     :priority (alist-get 'priority json)
-     :issue-type (alist-get 'issue_type json))))
+Delegates to `beads-from-json' which handles polymorphic keys."
+  (beads-from-json 'beads-dependency json))
 
 (cl-defmethod beads-from-json ((_class (eql 'beads-dependency)) json)
   "Construct beads-dependency from polymorphic JSON.
@@ -869,106 +815,62 @@ issue fields).  Handles both key variants."
    :issue-type (alist-get 'issue_type json)))
 
 (defun beads-label-from-json (json)
-  "Create a beads-label object from JSON alist."
-  (beads-label
-   :issue-id (alist-get 'issue_id json)
-   :label (alist-get 'label json)))
+  "Create a beads-label object from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-label json))
 
 (defun beads-comment-from-json (json)
-  "Create a beads-comment object from JSON alist."
-  (beads-comment
-   :id (alist-get 'id json)
-   :issue-id (alist-get 'issue_id json)
-   :author (alist-get 'author json)
-   :text (alist-get 'text json)
-   :created-at (alist-get 'created_at json)))
+  "Create a beads-comment object from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-comment json))
 
 (defun beads-event-from-json (json)
-  "Create a beads-event object from JSON alist."
-  (beads-event
-   :id (alist-get 'id json)
-   :issue-id (alist-get 'issue_id json)
-   :event-type (alist-get 'event_type json)
-   :actor (alist-get 'actor json)
-   :old-value (alist-get 'old_value json)
-   :new-value (alist-get 'new_value json)
-   :comment (alist-get 'comment json)
-   :created-at (alist-get 'created_at json)))
+  "Create a beads-event object from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-event json))
 
 (defun beads-blocked-issue-from-json (json)
-  "Create a beads-blocked-issue object from JSON alist."
-  (apply #'beads-blocked-issue
-         (append
-          (beads-issue--base-json-args json)
-          (list
-           :blocked-by-count (or (alist-get 'blocked_by_count json) 0)
-           :blocked-by (append (alist-get 'blocked_by json) nil)))))
+  "Create a beads-blocked-issue object from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-blocked-issue json))
 
 (defun beads-tree-node-from-json (json)
-  "Create a beads-tree-node object from JSON alist."
-  (apply #'beads-tree-node
-         (append
-          (beads-issue--base-json-args json)
-          (list
-           :depth (or (alist-get 'depth json) 0)
-           :parent-id (alist-get 'parent_id json)
-           :truncated (eq (alist-get 'truncated json) t)))))
+  "Create a beads-tree-node object from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-tree-node json))
 
 (defun beads-statistics-from-json (json)
-  "Create a beads-statistics object from JSON alist."
-  (beads-statistics
-   :total-issues (or (alist-get 'total_issues json) 0)
-   :open-issues (or (alist-get 'open_issues json) 0)
-   :in-progress-issues (or (alist-get 'in_progress_issues json) 0)
-   :closed-issues (or (alist-get 'closed_issues json) 0)
-   :blocked-issues (or (alist-get 'blocked_issues json) 0)
-   :deferred-issues (or (alist-get 'deferred_issues json) 0)
-   :ready-issues (or (alist-get 'ready_issues json) 0)
-   :tombstone-issues (or (alist-get 'tombstone_issues json) 0)
-   :pinned-issues (or (alist-get 'pinned_issues json) 0)
-   :epics-eligible-for-closure
-   (or (alist-get 'epics_eligible_for_closure json) 0)
-   :average-lead-time (float (or (alist-get 'average_lead_time_hours json) 0))))
+  "Create a beads-statistics object from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-statistics json))
 
 (defun beads-recent-activity-from-json (json)
-  "Create a beads-recent-activity object from JSON alist."
-  (beads-recent-activity
-   :hours-tracked (or (alist-get 'hours_tracked json) 24)
-   :commit-count (or (alist-get 'commit_count json) 0)
-   :issues-created (or (alist-get 'issues_created json) 0)
-   :issues-closed (or (alist-get 'issues_closed json) 0)
-   :issues-updated (or (alist-get 'issues_updated json) 0)
-   :issues-reopened (or (alist-get 'issues_reopened json) 0)
-   :total-changes (or (alist-get 'total_changes json) 0)))
+  "Create a beads-recent-activity object from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-recent-activity json))
+
+(cl-defmethod beads-from-json ((_class (eql 'beads-stats-data)) json)
+  "Construct beads-stats-data from nested or flat JSON.
+Falls back to treating the entire JSON as a statistics object
+if the `summary' key is absent (backwards compatibility)."
+  (let ((summary-json (alist-get 'summary json))
+        (activity-json (alist-get 'recent_activity json)))
+    (beads-stats-data
+     :summary (beads-from-json 'beads-statistics
+                               (or summary-json json))
+     :recent-activity (when activity-json
+                        (beads-from-json 'beads-recent-activity
+                                         activity-json)))))
 
 (defun beads-stats-data-from-json (json)
   "Create a beads-stats-data object from JSON alist.
-JSON should be the top-level stats response with summary and
-recent_activity keys."
-  (let ((summary-json (alist-get 'summary json))
-        (activity-json (alist-get 'recent_activity json)))
-    ;; Ensure average_lead_time_hours is a float
-    (when summary-json
-      (let ((lead-time (alist-get 'average_lead_time_hours summary-json)))
-        (when (and lead-time (integerp lead-time))
-          (setf (alist-get 'average_lead_time_hours summary-json)
-                (float lead-time)))))
-    (beads-stats-data
-     :summary (if summary-json
-                  (beads-statistics-from-json summary-json)
-                ;; Fallback for flat structure (backwards compat)
-                (beads-statistics-from-json json))
-     :recent-activity (when activity-json
-                        (beads-recent-activity-from-json activity-json)))))
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-stats-data json))
 
 (defun beads-epic-status-from-json (json)
-  "Create a beads-epic-status object from JSON alist."
-  (beads-epic-status
-   :epic (when-let ((epic-json (alist-get 'epic json)))
-           (beads-issue-from-json epic-json))
-   :total-children (or (alist-get 'total_children json) 0)
-   :closed-children (or (alist-get 'closed_children json) 0)
-   :eligible-for-close (eq (alist-get 'eligible_for_close json) t)))
+  "Create a beads-epic-status object from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-epic-status json))
 
 ;;; beads-issue-filter Methods
 
@@ -1210,12 +1112,8 @@ Converts ISO 8601 timestamp to human-readable format."
 
 (defun beads-dep-op-result-from-json (json)
   "Create a beads-dep-op-result from JSON alist.
-JSON should be parsed from bd dep add or bd dep remove --json output."
-  (beads-dep-op-result
-   :op-status (alist-get 'status json)
-   :issue-id (alist-get 'issue_id json)
-   :depends-on-id (alist-get 'depends_on_id json)
-   :dep-type (alist-get 'type json)))
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-dep-op-result json))
 
 ;;; Label Count (for bd label list-all)
 
@@ -1234,10 +1132,8 @@ JSON should be parsed from bd dep add or bd dep remove --json output."
 
 (defun beads-label-count-from-json (json)
   "Create a beads-label-count from JSON alist.
-JSON should be parsed from a bd label list-all --json array element."
-  (beads-label-count
-   :label (alist-get 'label json)
-   :count (alist-get 'count json)))
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-label-count json))
 
 ;;; Formula Types (for bd formula commands)
 
@@ -1282,15 +1178,9 @@ JSON should be parsed from a bd label list-all --json array element."
 
 (defun beads-formula-var-from-json (name json)
   "Create a beads-formula-var from NAME and JSON alist.
-NAME is the variable name symbol.  JSON is the VarDef object alist."
-  (beads-formula-var
-   :name (if (symbolp name) (symbol-name name) name)
-   :description (alist-get 'description json)
-   :default (alist-get 'default json)
-   :required (eq (alist-get 'required json) t)
-   :enum (append (alist-get 'enum json) nil)
-   :pattern (alist-get 'pattern json)
-   :var-type (alist-get 'type json)))
+Delegates to `beads-from-json' after injecting name into JSON."
+  (let ((json-with-name (cons (cons 'name (if (symbolp name) (symbol-name name) name)) json)))
+    (beads-from-json 'beads-formula-var json-with-name)))
 
 (defclass beads-formula-step ()
   ((id
@@ -1327,14 +1217,8 @@ NAME is the variable name symbol.  JSON is the VarDef object alist."
 
 (defun beads-formula-step-from-json (json)
   "Create a beads-formula-step from JSON alist.
-JSON should be a Step object from formula show --json output."
-  (beads-formula-step
-   :id (alist-get 'id json)
-   :title (alist-get 'title json)
-   :description (alist-get 'description json)
-   :notes (alist-get 'notes json)
-   :needs (append (alist-get 'needs json) nil)
-   :depends-on (append (alist-get 'depends_on json) nil)))
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-formula-step json))
 
 (defclass beads-formula-summary ()
   ((name
@@ -1372,14 +1256,8 @@ JSON should be a Step object from formula show --json output."
 
 (defun beads-formula-summary-from-json (json)
   "Create a beads-formula-summary from JSON alist.
-JSON should be parsed from bd formula list --json output."
-  (beads-formula-summary
-   :name (alist-get 'name json)
-   :formula-type (alist-get 'type json)
-   :description (alist-get 'description json)
-   :source (alist-get 'source json)
-   :steps (alist-get 'steps json)
-   :vars (alist-get 'vars json)))
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-formula-summary json))
 
 (defclass beads-formula ()
   ((name
@@ -1422,24 +1300,8 @@ JSON should be parsed from bd formula list --json output."
 
 (defun beads-formula-from-json (json)
   "Create a beads-formula from JSON alist.
-JSON should be parsed from bd formula show --json output."
-  (let* ((raw-vars (alist-get 'vars json))
-         (raw-steps (alist-get 'steps json))
-         ;; Convert vars alist ((name . def-alist) ...) to beads-formula-var list
-         (vars (mapcar (lambda (entry)
-                         (beads-formula-var-from-json (car entry) (cdr entry)))
-                       raw-vars))
-         ;; Convert steps vector/list to beads-formula-step list
-         (steps (mapcar #'beads-formula-step-from-json
-                        (append raw-steps nil))))
-    (beads-formula
-     :name (alist-get 'formula json)
-     :description (alist-get 'description json)
-     :version (alist-get 'version json)
-     :formula-type (alist-get 'type json)
-     :vars vars
-     :steps steps
-     :source (alist-get 'source json))))
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-formula json))
 
 (cl-defmethod beads-from-json ((_class (eql 'beads-formula)) json)
   "Construct beads-formula from non-standard JSON.
@@ -1447,11 +1309,16 @@ The formula name is in the `formula' key (not `name'), and `vars'
 is a map {name: def-alist, ...} rather than an array."
   (let* ((raw-vars (alist-get 'vars json))
          (vars (mapcar (lambda (entry)
-                         (beads-formula-var-from-json
-                          (car entry) (cdr entry)))
+                         (let ((var-json (cdr entry)))
+                           (push (cons 'name (if (symbolp (car entry))
+                                                 (symbol-name (car entry))
+                                               (car entry)))
+                                 var-json)
+                           (beads-from-json 'beads-formula-var var-json)))
                        raw-vars))
          (raw-steps (alist-get 'steps json))
-         (steps (mapcar #'beads-formula-step-from-json
+         (steps (mapcar (lambda (j)
+                          (beads-from-json 'beads-formula-step j))
                         (append raw-steps nil))))
     (beads-formula
      :name (alist-get 'formula json)
@@ -1501,18 +1368,21 @@ Possible values:
 
 (defun beads-worktree-from-json (json)
   "Create a beads-worktree instance from JSON alist.
-JSON is an alist with keys: name, path, branch, is_main, beads_state.
-For create command output which lacks `name', derives it from `path'."
-  (let* ((path (alist-get 'path json))
-         (name (or (alist-get 'name json)
-                   (and path (file-name-nondirectory
-                              (directory-file-name path))))))
-    (beads-worktree
-     :name name
-     :path path
-     :branch (alist-get 'branch json)
-     :is-main (eq t (alist-get 'is_main json))
-     :beads-state (alist-get 'beads_state json))))
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-worktree json))
+
+(cl-defmethod beads-from-json ((_class (eql 'beads-worktree)) json)
+  "Construct beads-worktree from JSON.
+Derives `name' from `path' when the name key is absent (e.g. in
+bd worktree create output)."
+  (let* ((wt (cl-call-next-method))
+         (name (oref wt name))
+         (path (oref wt path)))
+    (unless name
+      (when path
+        (oset wt name (file-name-nondirectory
+                       (directory-file-name path)))))
+    wt))
 
 (defclass beads-worktree-info ()
   ((is-worktree
@@ -1548,15 +1418,9 @@ For create command output which lacks `name', derives it from `path'."
   :documentation "Information about the current worktree context.")
 
 (defun beads-worktree-info-from-json (json)
-  "Create a beads-worktree-info instance from JSON alist.
-JSON is an alist from `bd worktree info --json'."
-  (beads-worktree-info
-   :is-worktree (eq t (alist-get 'is_worktree json))
-   :name (alist-get 'name json)
-   :path (alist-get 'path json)
-   :branch (alist-get 'branch json)
-   :main-path (alist-get 'main_path json)
-   :beads-state (alist-get 'beads_state json)))
+  "Create a beads-worktree-info from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-worktree-info json))
 
 ;;; ============================================================
 ;;; Audit Types
@@ -1576,10 +1440,9 @@ JSON is an alist from `bd worktree info --json'."
   "Result of a bd audit record command.")
 
 (defun beads-audit-entry-from-json (json)
-  "Create a beads-audit-entry from JSON alist."
-  (beads-audit-entry
-   :id (alist-get 'id json)
-   :kind (alist-get 'kind json)))
+  "Create a beads-audit-entry from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-audit-entry json))
 
 (defclass beads-audit-label-result ()
   ((id
@@ -1600,11 +1463,9 @@ JSON is an alist from `bd worktree info --json'."
   "Result of a bd audit label command.")
 
 (defun beads-audit-label-result-from-json (json)
-  "Create a beads-audit-label-result from JSON alist."
-  (beads-audit-label-result
-   :id (alist-get 'id json)
-   :parent-id (alist-get 'parent_id json)
-   :label (alist-get 'label json)))
+  "Create a beads-audit-label-result from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-audit-label-result json))
 
 ;;; ============================================================
 ;;; Config Types
@@ -1629,11 +1490,9 @@ JSON is an alist from `bd worktree info --json'."
   "A single configuration entry from bd config get/set.")
 
 (defun beads-config-entry-from-json (json)
-  "Create a beads-config-entry from JSON alist."
-  (beads-config-entry
-   :key (alist-get 'key json)
-   :value (alist-get 'value json)
-   :location (alist-get 'location json)))
+  "Create a beads-config-entry from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-config-entry json))
 
 ;;; ============================================================
 ;;; Count Types
@@ -1648,9 +1507,9 @@ JSON is an alist from `bd worktree info --json'."
   "Result of a bd count command (ungrouped).")
 
 (defun beads-count-result-from-json (json)
-  "Create a beads-count-result from JSON alist."
-  (beads-count-result
-   :count (or (alist-get 'count json) 0)))
+  "Create a beads-count-result from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-count-result json))
 
 (defclass beads-count-group ()
   ((group
@@ -1666,10 +1525,9 @@ JSON is an alist from `bd worktree info --json'."
   "A single group in a bd count --by-* result.")
 
 (defun beads-count-group-from-json (json)
-  "Create a beads-count-group from JSON alist."
-  (beads-count-group
-   :group (alist-get 'group json)
-   :count (or (alist-get 'count json) 0)))
+  "Create a beads-count-group from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-count-group json))
 
 (defclass beads-count-grouped-result ()
   ((total
@@ -1685,11 +1543,9 @@ JSON is an alist from `bd worktree info --json'."
   "Result of a bd count --by-* command (grouped).")
 
 (defun beads-count-grouped-result-from-json (json)
-  "Create a beads-count-grouped-result from JSON alist."
-  (beads-count-grouped-result
-   :total (or (alist-get 'total json) 0)
-   :groups (mapcar #'beads-count-group-from-json
-                   (append (alist-get 'groups json) nil))))
+  "Create a beads-count-grouped-result from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-count-grouped-result json))
 
 ;;; ============================================================
 ;;; Compact Types
@@ -1709,10 +1565,9 @@ JSON is an alist from `bd worktree info --json'."
   "Stats for a single compaction tier.")
 
 (defun beads-compact-tier-stats-from-json (json)
-  "Create a beads-compact-tier-stats from JSON alist."
-  (beads-compact-tier-stats
-   :candidates (or (alist-get 'candidates json) 0)
-   :total-size (or (alist-get 'total_size json) 0)))
+  "Create a beads-compact-tier-stats from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-compact-tier-stats json))
 
 (defclass beads-compact-stats ()
   ((tier1
@@ -1726,12 +1581,9 @@ JSON is an alist from `bd worktree info --json'."
   "Result of bd admin compact --stats.")
 
 (defun beads-compact-stats-from-json (json)
-  "Create a beads-compact-stats from JSON alist."
-  (beads-compact-stats
-   :tier1 (beads-compact-tier-stats-from-json
-           (or (alist-get 'tier1 json) '()))
-   :tier2 (beads-compact-tier-stats-from-json
-           (or (alist-get 'tier2 json) '()))))
+  "Create a beads-compact-stats from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-compact-stats json))
 
 (defclass beads-compact-candidate ()
   ((id
@@ -1767,14 +1619,9 @@ JSON is an alist from `bd worktree info --json'."
   "A compaction candidate from bd admin compact --analyze.")
 
 (defun beads-compact-candidate-from-json (json)
-  "Create a beads-compact-candidate from JSON alist."
-  (beads-compact-candidate
-   :id (alist-get 'id json)
-   :title (alist-get 'title json)
-   :size-bytes (or (alist-get 'size_bytes json) 0)
-   :age-days (or (alist-get 'age_days json) 0)
-   :tier (or (alist-get 'tier json) 1)
-   :compacted (eq (alist-get 'compacted json) t)))
+  "Create a beads-compact-candidate from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-compact-candidate json))
 
 (defclass beads-compact-result ()
   ((success
@@ -1835,19 +1682,9 @@ JSON is an alist from `bd worktree info --json'."
   "Result of bd admin compact --apply or --auto.")
 
 (defun beads-compact-result-from-json (json)
-  "Create a beads-compact-result from JSON alist."
-  (beads-compact-result
-   :success (eq (alist-get 'success json) t)
-   :tier (or (alist-get 'tier json) 1)
-   :issue-id (alist-get 'issue_id json)
-   :original-size (or (alist-get 'original_size json) 0)
-   :compacted-size (or (alist-get 'compacted_size json) 0)
-   :saved-bytes (or (alist-get 'saved_bytes json) 0)
-   :reduction-pct (float (or (alist-get 'reduction_pct json) 0))
-   :elapsed-ms (or (alist-get 'elapsed_ms json) 0)
-   :total (alist-get 'total json)
-   :succeeded (alist-get 'succeeded json)
-   :failed (alist-get 'failed json)))
+  "Create a beads-compact-result from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-compact-result json))
 
 ;;; ============================================================
 ;;; Section Data Classes

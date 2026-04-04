@@ -112,7 +112,7 @@ Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
       (let ((parsed-json (cl-call-next-method)))
         (condition-case err
             (if (listp parsed-json)
-                (beads-dep-op-result-from-json parsed-json)
+                (beads-from-json 'beads-dep-op-result parsed-json)
               (signal 'beads-json-parse-error
                       (list "Unexpected JSON from bd dep add"
                             :stdout stdout
@@ -173,7 +173,7 @@ Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
       (let ((parsed-json (cl-call-next-method)))
         (condition-case err
             (if (listp parsed-json)
-                (beads-dep-op-result-from-json parsed-json)
+                (beads-from-json 'beads-dep-op-result parsed-json)
               (signal 'beads-json-parse-error
                       (list "Unexpected JSON from bd dep remove"
                             :stdout stdout
@@ -242,11 +242,11 @@ Does not modify any slots."
              ((eq (type-of parsed-json) 'vector)
               ;; bd dep list returns IssueWithDependencyMetadata objects
               ;; which have full issue fields + dependency_type.
-              ;; Use beads-dependency-from-json which handles this format.
+              ;; Use beads-from-json which handles this format.
               ;; Also set issue-id slot since bd dep list doesn't include it
               ;; (it's implicit from the command argument).
               (mapcar (lambda (item)
-                        (let ((dep (beads-dependency-from-json item)))
+                        (let ((dep (beads-from-json 'beads-dependency item)))
                           (oset dep issue-id issue-id)
                           dep))
                       (append parsed-json nil)))
@@ -344,7 +344,7 @@ Return list of beads-tree-node objects."
       (let ((parsed-json (cl-call-next-method)))
         (condition-case err
             (if (eq (type-of parsed-json) 'vector)
-                (mapcar #'beads-tree-node-from-json
+                (mapcar (lambda (j) (beads-from-json 'beads-tree-node j))
                         (append parsed-json nil))
               (signal 'beads-json-parse-error
                       (list "Unexpected JSON structure from dep tree"

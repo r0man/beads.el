@@ -284,7 +284,7 @@ Does not modify any slots."
         (condition-case err
             (if (vectorp parsed-json)
                 ;; bd update returns array - convert to issue objects
-                (let ((issues (mapcar #'beads-issue-from-json
+                (let ((issues (mapcar (lambda (j) (beads-from-json 'beads-issue j))
                                       (append parsed-json nil))))
                   ;; Return single issue if only one ID, list otherwise
                   (if (and issue-ids (= (length issue-ids) 1))

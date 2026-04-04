@@ -137,7 +137,7 @@ Lists available formulas from all search paths.")
     (let* ((json-array-type 'list)
            (json-object-type 'alist)
            (json-data (json-read-from-string stdout)))
-      (mapcar #'beads-formula-summary-from-json json-data))))
+      (mapcar (lambda (j) (beads-from-json 'beads-formula-summary j)) json-data))))
 
 ;;; ============================================================
 ;;; Formula Show Command Class
@@ -162,7 +162,7 @@ Shows detailed information about a formula.")
     (let* ((json-object-type 'alist)
            (json-array-type 'list)
            (json-data (json-read-from-string stdout)))
-      (beads-formula-from-json json-data))))
+      (beads-from-json 'beads-formula json-data))))
 
 ;;; ============================================================
 ;;; Formula Convert Command Class

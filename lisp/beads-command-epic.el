@@ -73,10 +73,10 @@ Does not modify any slots."
              ((null parsed-json)
               nil)
              ((eq (type-of parsed-json) 'vector)
-              (mapcar #'beads-epic-status-from-json
+              (mapcar (lambda (j) (beads-from-json 'beads-epic-status j))
                       (append parsed-json nil)))
              ((eq (type-of parsed-json) 'cons)
-              (list (beads-epic-status-from-json parsed-json)))
+              (list (beads-from-json 'beads-epic-status parsed-json)))
              (t
               (signal 'beads-json-parse-error
                       (list "Unexpected JSON structure from bd epic status"

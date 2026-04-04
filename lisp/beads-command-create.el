@@ -402,10 +402,10 @@ Does not modify any slots."
             (cond
              ;; Single issue (JSON object, including non-empty alists)
              ((and (listp parsed-json) (not (null parsed-json)))
-              (beads-issue-from-json parsed-json))
+              (beads-from-json 'beads-issue parsed-json))
              ;; Multiple issues from file (JSON array)
              ((eq (type-of parsed-json) 'vector)
-              (mapcar #'beads-issue-from-json
+              (mapcar (lambda (j) (beads-from-json 'beads-issue j))
                       (append parsed-json nil)))
              ;; Unexpected JSON structure
              (t

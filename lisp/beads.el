@@ -443,13 +443,13 @@ take precedence over defcustom settings."
   "Parse issue from JSON object.
 Returns a beads-issue EIEIO instance."
   (let ((issue (if (vectorp json) (aref json 0) json)))
-    (beads-issue-from-json issue)))
+    (beads-from-json 'beads-issue issue)))
 
 (defun beads--parse-issues (json)
   "Parse list of issues from JSON array.
 Returns a list of beads-issue EIEIO instances."
   (when (and json (vectorp json))
-    (mapcar #'beads-issue-from-json (append json nil))))
+    (mapcar (lambda (j) (beads-from-json 'beads-issue j)) (append json nil))))
 
 ;;; Main Menu Variables (formerly beads-main.el)
 
