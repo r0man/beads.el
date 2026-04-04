@@ -47,6 +47,7 @@
     :group "Epic Status"
     :level 1
     :order 1))
+  :transient :manual
   :documentation "Represents bd epic status command.
 Shows epic completion status.")
 

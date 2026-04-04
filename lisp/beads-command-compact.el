@@ -43,6 +43,7 @@
 
 (beads-defcommand beads-command-compact-stats (beads-command-global-options)
   ()
+  :transient :manual
   :documentation "Represents bd admin compact --stats command.
 Shows compaction statistics including tier 1 and tier 2 candidates."
   :cli-command "admin compact")
@@ -215,8 +216,8 @@ AI-powered compaction (legacy, requires ANTHROPIC_API_KEY)."
 ;;; Transient Menus
 ;;; ============================================================
 
-;;;###autoload (autoload 'beads-compact-stats "beads-command-compact" nil t)
-(beads-meta-define-transient beads-command-compact-stats "beads-compact-stats"
+;;;###autoload (autoload 'beads-compact-show-stats "beads-command-compact" nil t)
+(beads-meta-define-transient beads-command-compact-stats "beads-compact-show-stats"
   "Show compaction statistics.
 
 Displays counts of tier 1 and tier 2 compaction candidates,
@@ -269,7 +270,7 @@ Tiers:
   Tier 1: Semantic compression (30 days closed, 70% reduction)
   Tier 2: Ultra compression (90 days closed, 95% reduction)"
   ["Compact Commands"
-   ("s" "Show statistics" beads-compact-stats)
+   ("s" "Show statistics" beads-compact-show-stats)
    ("z" "Analyze candidates" beads-compact-analyze)
    ("a" "Apply summary" beads-compact-apply)
    ("A" "Auto compact (legacy)" beads-compact-auto)]

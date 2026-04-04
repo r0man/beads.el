@@ -1726,7 +1726,8 @@ Pass an empty string as assignee to unassign."
     :order 2))
   :documentation "Represents bd comment command.
 Shorthand for bd comments add <id> \"text\".
-Add a comment to an issue.")
+Add a comment to an issue."
+  :transient :manual)
 
 
 (cl-defmethod beads-command-validate ((command beads-command-comment))
