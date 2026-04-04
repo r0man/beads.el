@@ -171,29 +171,8 @@ When executed with :json t, returns matching issues as JSON."
   :transient :manual)
 
 
-(cl-defmethod beads-command-parse ((command beads-command-search) stdout)
-  "Parse search COMMAND output from STDOUT.
-Return list of beads-issue objects."
-  (with-slots (json) command
-    (if (not json)
-        (cl-call-next-method)
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (if (eq (type-of parsed-json) 'vector)
-                (mapcar #'beads-issue-from-json
-                        (append parsed-json nil))
-              (signal 'beads-json-parse-error
-                      (list "Unexpected JSON structure from bd search"
-                            :stdout stdout
-                            :parsed-json parsed-json)))
-          (beads-json-parse-error (signal (car err) (cdr err)))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to create beads-issue: %s"
-                                 (error-message-string err))
-                         :stdout stdout
-                         :parsed-json parsed-json
-                         :parse-error err))))))))
+;; beads-command-parse override removed: the base method now handles
+;; JSON-to-domain parsing automatically via :result (list-of beads-issue).
 
 (cl-defmethod beads-command-validate ((_command beads-command-search))
   "Validate search COMMAND.

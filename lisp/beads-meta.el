@@ -266,6 +266,71 @@ For non-or types, returns TYPE unchanged."
          (_ (beads-meta--most-specific-type non-null)))))
     (_ type)))
 
+;;; ========================================
+;;; Generic JSON-to-domain-object parsing
+;;; ========================================
+
+(cl-defgeneric beads-coerce-json-value (value type)
+  "Coerce JSON VALUE to match EIEIO TYPE spec.
+Extensible — add methods for custom types.")
+
+(cl-defmethod beads-coerce-json-value (value (_type (eql boolean)))
+  "Coerce VALUE to boolean.  :json-false becomes nil."
+  (not (eq value :json-false)))
+
+(cl-defmethod beads-coerce-json-value (value (_type (eql integer)))
+  "Coerce VALUE to integer.  Strings are converted."
+  (if (stringp value) (string-to-number value) value))
+
+(cl-defmethod beads-coerce-json-value (value (_type (eql string)))
+  "Coerce VALUE as string (pass-through)."
+  value)
+
+(cl-defmethod beads-coerce-json-value (value type)
+  "Coerce VALUE to match TYPE: nullable, (list-of X), or EIEIO class."
+  (let ((core (beads-meta--unwrap-nullable type)))
+    (if (not (eq core type))
+        ;; Was nullable — nil passes through, non-nil recurses
+        (when value (beads-coerce-json-value value core))
+      (pcase type
+        (`(list-of ,elem)
+         (when value
+           (mapcar (lambda (v) (beads-coerce-json-value v elem))
+                   (append value nil))))
+        ;; If type is an EIEIO class, recurse
+        (_ (if (and (symbolp type) (find-class type nil))
+               (beads-from-json type value)
+             value))))))
+
+(cl-defgeneric beads-from-json (class json-alist)
+  "Construct an instance of CLASS from JSON-ALIST.
+Walks CLASS slots via EIEIO introspection (through beads-meta
+abstraction layer), maps JSON keys to slot initargs, and
+recursively coerces values based on :type.
+
+Override this method for classes with non-standard JSON shapes.
+Unknown JSON fields are silently dropped.")
+
+(cl-defmethod beads-from-json (class json-alist)
+  "Construct CLASS instance from JSON-ALIST via EIEIO introspection.
+Only passes initargs for keys actually present in JSON-ALIST,
+so absent fields use the slot's :initform default while explicit
+nulls get nil."
+  (let (initargs)
+    (dolist (slot-name (beads-meta-command-slots class))
+      (let* ((json-key (beads-meta--slot-json-key class slot-name))
+             (pair (assq json-key json-alist)))
+        (when pair  ;; key exists in JSON, even if value is nil
+          (let ((initarg (beads-meta-slot-initarg class slot-name))
+                (slot-type (beads-meta-slot-type class slot-name)))
+            (when initarg
+              (push initarg initargs)
+              (push (if slot-type
+                        (beads-coerce-json-value (cdr pair) slot-type)
+                      (cdr pair))
+                    initargs))))))
+    (apply #'make-instance class (nreverse initargs))))
+
 (defun beads-meta--infer-option-type (slot-options)
   "Infer :option-type from SLOT-OPTIONS using standard EIEIO :type.
 Uses `beads-meta--unwrap-nullable' to normalize (or ...) types,

@@ -87,35 +87,17 @@ Returns error string or nil if valid."
   "Parse close COMMAND output from STDOUT.
 Returns closed issue(s).
 When :json is nil, falls back to parent (returns raw stdout).
-When :json is t, returns beads-issue instance (or list when multiple IDs).
-Does not modify any slots."
+When :json is t, the base method auto-parses via :result into
+a list of beads-issue objects.  This override unwraps single-element
+results when only one issue-id was provided."
   (with-slots (json issue-ids) command
     (if (not json)
-        ;; If json is not enabled, use parent implementation
         (cl-call-next-method)
-      ;; Call parent to parse JSON, then convert to beads-issue instance(s)
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (if (eq (type-of parsed-json) 'vector)
-                ;; bd close returns array - convert to issue objects
-                (let ((issues (mapcar #'beads-issue-from-json
-                                      (append parsed-json nil))))
-                  ;; Return single issue if only one ID, list otherwise
-                  (if (= (length issue-ids) 1)
-                      (car issues)
-                    issues))
-              ;; Unexpected JSON structure
-              (signal 'beads-json-parse-error
-                      (list "Unexpected JSON structure from bd close"
-                            :stdout stdout
-                            :parsed-json parsed-json)))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to create beads-issue instance: %s"
-                                 (error-message-string err))
-                         :stdout stdout
-                         :parsed-json parsed-json
-                         :parse-error err))))))))
+      ;; Base method returns (list-of beads-issue) via :result
+      (let ((issues (cl-call-next-method)))
+        (if (and (listp issues) (= (length issue-ids) 1))
+            (car issues)
+          issues)))))
 
 (cl-defmethod beads-command-execute-interactive ((cmd beads-command-close))
   "Execute CMD to close issue and show result.

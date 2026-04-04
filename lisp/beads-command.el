@@ -830,16 +830,25 @@ Signals `beads-json-parse-error' if JSON parsing fails.")
 (cl-defmethod beads-command-parse ((command beads-command) stdout)
   "Parse COMMAND output from STDOUT string.
 When json slot is t, parses JSON from STDOUT and returns it.
+When the command class has a `beads-result' symbol property,
+delegates to `beads-coerce-json-value' for automatic domain
+object construction.
 When json slot is nil, returns raw STDOUT string.
 Signals `beads-json-parse-error' if JSON parsing fails."
   (with-slots (json) command
     (if (not json)
         stdout
       (condition-case err
-          (let* ((json-object-type 'alist)
+          (let* ((json-null nil)
+                 (json-object-type 'alist)
                  (json-array-type 'vector)
-                 (json-key-type 'symbol))
-            (json-read-from-string stdout))
+                 (json-key-type 'symbol)
+                 (parsed (json-read-from-string stdout))
+                 (result-type (get (eieio-object-class command)
+                                   'beads-result)))
+            (if (null result-type)
+                parsed
+              (beads-coerce-json-value parsed result-type)))
         (error
          (signal 'beads-json-parse-error
                  (list (format "Failed to parse JSON: %s"
