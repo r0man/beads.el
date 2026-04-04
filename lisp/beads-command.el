@@ -989,6 +989,7 @@ Returns process object."
          (cmd-string (mapconcat #'shell-quote-argument cmd " "))
          (stdout-buffer (generate-new-buffer " *beads-async-stdout*"))
          (stderr-buffer (generate-new-buffer " *beads-async-stderr*"))
+         (process-environment (beads-command--process-environment))
          (start-time (current-time))
          process)
 
@@ -1002,7 +1003,6 @@ Returns process object."
            :buffer stdout-buffer
            :stderr stderr-buffer
            :command cmd
-           :environment (beads-command--process-environment)
            :connection-type 'pipe
            :sentinel
            (lambda (proc _event)
