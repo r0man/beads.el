@@ -85,3 +85,6 @@ CLAUDE.local.md
 beads-123/
 # bd worktree
 test-worktree/
+
+# Beads / Dolt files (added by bd init)
+.beads-credential-key
