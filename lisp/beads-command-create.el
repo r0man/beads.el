@@ -344,7 +344,8 @@
     :order 4))
   :documentation "Represents bd create command.
 Creates a new issue (or multiple issues from markdown file).
-When executed with :json t, returns the created beads-issue instance(s).")
+When executed with :json t, returns the created beads-issue instance(s)."
+  :transient :manual)
 
 
 (cl-defmethod beads-command-validate ((command beads-command-create))

@@ -380,7 +380,8 @@
       :order 4))
     :documentation "Represents bd list command.
   Lists issues with extensive filtering and output formatting options.
-  When executed with :json t, returns list of beads-issue instances.")
+  When executed with :json t, returns list of beads-issue instances."
+    :transient :manual)
 
 (cl-defmethod beads-command-validate ((command beads-command-list))
   "Validate list COMMAND.

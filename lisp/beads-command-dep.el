@@ -87,7 +87,8 @@
     :level 1
     :order 3))
   :documentation "Represents bd dep add command.
-Adds a dependency between two issues.")
+Adds a dependency between two issues."
+  :transient :manual)
 
 
 (cl-defmethod beads-command-validate ((command beads-command-dep-add))
@@ -149,7 +150,8 @@ Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
     :order 2
     :required t))
   :documentation "Represents bd dep remove command.
-Removes a dependency between two issues.")
+Removes a dependency between two issues."
+  :transient :manual)
 
 
 (cl-defmethod beads-command-validate ((command beads-command-dep-remove))

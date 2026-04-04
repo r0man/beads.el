@@ -50,7 +50,9 @@
     :order 1
     :required t))
   :documentation "Represents bd comments command.
-Lists all comments on an issue.")
+Lists all comments on an issue."
+  :result (list-of beads-comment)
+  :transient :manual)
 
 
 (cl-defmethod beads-command-validate ((command beads-command-comments))

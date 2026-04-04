@@ -126,7 +126,9 @@
     :order 2))
   :documentation "Represents bd init command.
 Initializes bd in the current directory by creating .beads/ directory
-and database file.")
+and database file."
+  :json nil
+  :transient :manual)
 
 
 (cl-defmethod beads-command-validate ((command beads-command-init))

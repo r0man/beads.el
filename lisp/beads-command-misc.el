@@ -358,7 +358,8 @@ Shows PR readiness checklist.")
 (beads-defcommand beads-command-upgrade (beads-command-global-options)
   ()
   :documentation "Represents bd upgrade command.
-Check and manage bd version upgrades.")
+Check and manage bd version upgrades."
+  :transient :manual)
 
 ;;; ============================================================
 ;;; Command Class: beads-command-upgrade-status

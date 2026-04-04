@@ -52,7 +52,8 @@
     :order 3))
   :documentation "Represents bd stale command.
 Shows issues that haven't been updated recently.
-When executed with :json t, returns issue list as JSON.")
+When executed with :json t, returns issue list as JSON."
+  :result (list-of beads-issue))
 
 
 (cl-defmethod beads-command-validate ((_command beads-command-stale))

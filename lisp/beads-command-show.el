@@ -97,7 +97,8 @@
   :documentation "Represents bd show command.
 Shows detailed information about one or more issues.
 When executed with :json t, returns beads-issue instance (or list
-of instances when multiple IDs provided).")
+of instances when multiple IDs provided)."
+  :transient :manual)
 
 
 (cl-defmethod beads-command-validate ((command beads-command-show))
