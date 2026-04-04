@@ -140,78 +140,6 @@ Checks issues for missing template sections.")
 
 
 ;;; ============================================================
-;;; Command Class: beads-command-move
-;;; ============================================================
-
-(beads-defcommand beads-command-move (beads-command-global-options)
-  ((issue-id
-    :positional 1
-    :short-option "i"
-    :argument "--id="
-    :reader beads-reader-move-issue-id
-    :prompt "Issue ID: "
-    :group "Move Issue"
-    :level 1
-    :order 0)
-   (to
-    :type (or null string)
-    :short-option "t"
-    :prompt "Target rig: "
-    :group "Move Issue"
-    :level 1
-    :order 1)
-   (keep-open
-    :type boolean
-    :short-option "k"
-    :group "Options"
-    :level 2
-    :order 2)
-   (skip-deps
-    :type boolean
-    :short-option "d"
-    :group "Options"
-    :level 2
-    :order 3))
-  :documentation "Represents bd move command.
-Moves an issue to a different rig with dependency remapping.")
-
-
-(cl-defmethod beads-command-validate ((command beads-command-move))
-  "Validate move COMMAND."
-  (with-slots (issue-id to) command
-    (cond
-     ((not issue-id) "Issue ID is required")
-     ((not to) "Target rig (--to) is required")
-     (t nil))))
-
-;;; ============================================================
-;;; Command Class: beads-command-refile
-;;; ============================================================
-
-(beads-defcommand beads-command-refile (beads-command-global-options)
-  ((source-id
-    :positional 1)
-   (target-rig
-    :positional 2)
-   (keep-open
-    :type boolean
-    :short-option "k"
-    :group "Options"
-    :level 1
-    :order 1))
-  :documentation "Represents bd refile command.
-Moves an issue to a different rig.")
-
-
-(cl-defmethod beads-command-validate ((command beads-command-refile))
-  "Validate refile COMMAND."
-  (with-slots (source-id target-rig) command
-    (cond
-     ((not source-id) "Source issue ID is required")
-     ((not target-rig) "Target rig is required")
-     (t nil))))
-
-;;; ============================================================
 ;;; Command Class: beads-command-q (quick capture)
 ;;; ============================================================
 
@@ -478,15 +406,6 @@ Delegates to mail provider.")
   "Check issues for missing template sections."
   beads-option-global-section)
 
-;;;###autoload (autoload 'beads-move "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-move "beads-move"
-  "Move an issue to a different rig."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-refile "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-refile "beads-refile"
-  "Move an issue to a different rig (simple)."
-  beads-option-global-section)
 
 ;;;###autoload (autoload 'beads-q "beads-command-misc" nil t)
 (beads-meta-define-transient beads-command-q "beads-q"
@@ -1080,143 +999,6 @@ Reads from .beads/backup/ by default, or from a specified path.
 Use --dry-run to preview without making changes."
   beads-option-global-section)
 
-;;; ============================================================
-;;; Command Class: beads-command-backup-export-git
-;;; ============================================================
-
-(beads-defcommand beads-command-backup-export-git (beads-command-global-options)
-  ((branch
-    :initarg :branch
-    :type (or null string)
-    :initform nil
-    :documentation "Target git branch for backup artifacts."
-    :long-option "branch"
-    :type (or null string)
-    :short-option "b"
-    :transient "--branch"
-    :class transient-option
-    :argument "--branch="
-    :prompt "Git branch (default: bd-backup): "
-    :group "Options"
-    :level 1
-    :order 1)
-   (remote
-    :initarg :remote
-    :type (or null string)
-    :initform nil
-    :documentation "Git remote to push."
-    :long-option "remote"
-    :type (or null string)
-    :short-option "r"
-    :transient "--remote"
-    :class transient-option
-    :argument "--remote="
-    :prompt "Git remote (default: origin): "
-    :group "Options"
-    :level 1
-    :order 2)
-   (dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Show what would happen without creating a worktree or pushing."
-    :long-option "dry-run"
-    :type boolean
-    :short-option "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :group "Options"
-    :level 1
-    :order 3)
-   (force
-    :initarg :force
-    :type boolean
-    :initform nil
-    :documentation "Force a fresh backup export before comparing and copying."
-    :long-option "force"
-    :type boolean
-    :short-option "f"
-    :transient "--force"
-    :class transient-switch
-    :argument "--force"
-    :group "Options"
-    :level 1
-    :order 4))
-  :documentation "Represents bd backup export-git command.
-Exports the current JSONL backup snapshot to a git branch."
-  :cli-command "backup export-git")
-
-;;;###autoload (autoload 'beads-backup-export-git "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-backup-export-git
-  "beads-backup-export-git"
-  "Export JSONL backup snapshot to a git branch.
-
-Copies the backup snapshot into the specified git branch, commits
-if changed, and pushes.  Use --dry-run to preview."
-  beads-option-global-section)
-
-;;; ============================================================
-;;; Command Class: beads-command-backup-fetch-git
-;;; ============================================================
-
-(beads-defcommand beads-command-backup-fetch-git (beads-command-global-options)
-  ((branch
-    :initarg :branch
-    :type (or null string)
-    :initform nil
-    :documentation "Git branch to fetch backup artifacts from."
-    :long-option "branch"
-    :type (or null string)
-    :short-option "b"
-    :transient "--branch"
-    :class transient-option
-    :argument "--branch="
-    :prompt "Git branch (default: bd-backup): "
-    :group "Options"
-    :level 1
-    :order 1)
-   (remote
-    :initarg :remote
-    :type (or null string)
-    :initform nil
-    :documentation "Git remote to fetch from."
-    :long-option "remote"
-    :type (or null string)
-    :short-option "r"
-    :transient "--remote"
-    :class transient-option
-    :argument "--remote="
-    :prompt "Git remote (default: origin): "
-    :group "Options"
-    :level 1
-    :order 2)
-   (dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Show what would happen without fetching or restoring."
-    :long-option "dry-run"
-    :type boolean
-    :short-option "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :group "Options"
-    :level 1
-    :order 3))
-  :documentation "Represents bd backup fetch-git command.
-Fetches a JSONL backup snapshot from a git branch and restores it."
-  :cli-command "backup fetch-git")
-
-;;;###autoload (autoload 'beads-backup-fetch-git "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-backup-fetch-git
-  "beads-backup-fetch-git"
-  "Fetch JSONL backup snapshot from a git branch and restore it.
-
-Companion to 'bd backup export-git'.  Fetches from a git branch
-into a temporary worktree and restores.  Use --dry-run to preview."
-  beads-option-global-section)
 
 ;;; ============================================================
 ;;; Parent Transient Menu: beads-backup
@@ -1230,8 +1012,6 @@ JSONL backup commands (portable snapshot):
   Backup: Export all tables to .beads/backup/*.jsonl
   Status: Show last backup status
   Restore: Import from JSONL files
-  Export-git: Publish snapshot to a git branch
-  Fetch-git: Restore from a git branch snapshot
 
 Dolt-native backup commands (preserve full commit history):
   Init: Configure a backup destination (filesystem or DoltHub)
@@ -1239,9 +1019,7 @@ Dolt-native backup commands (preserve full commit history):
   ["JSONL Backup"
    ("B" "Backup now (export JSONL)" beads-backup-root)
    ("s" "Status" beads-backup-status)
-   ("r" "Restore from JSONL" beads-backup-restore)
-   ("e" "Export to git branch" beads-backup-export-git)
-   ("F" "Fetch from git branch" beads-backup-fetch-git)]
+   ("r" "Restore from JSONL" beads-backup-restore)]
   ["Dolt-native Backup"
    ("i" "Init destination" beads-backup-init)
    ("S" "Sync to backup" beads-backup-sync)]

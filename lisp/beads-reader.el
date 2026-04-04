@@ -242,44 +242,6 @@ Matches on both issue ID and title."
                                beads-edit--issue-id 'beads--issue-id-history))
 
 ;;; ============================================================
-;;; beads-move Reader Functions
-;;; ============================================================
-
-(defun beads-reader-move--detect-issue-id ()
-  "Detect issue ID from current context for move operations.
-Returns issue ID string if detected, nil otherwise."
-  (or
-   ;; From beads-list buffer
-   (when (derived-mode-p 'beads-list-mode)
-     (beads-list--current-issue-id))
-   ;; From beads-show buffer
-   (when (derived-mode-p 'beads-show-mode)
-     beads-show--issue-id)
-   ;; From buffer name (*beads-show[PROJECT]/ISSUE-ID*)
-   (when-let ((parsed (beads-buffer-parse-show (buffer-name))))
-     (plist-get parsed :issue-id))))
-
-(defun beads-reader-move-issue-id (_prompt _initial-input _history)
-  "Read issue ID to move, with context detection.
-First attempts to detect issue ID from current buffer (beads-list or
-beads-show mode), then falls back to `completing-read' with issue completion.
-Matches on both issue ID and title."
-  (let ((detected-id (beads-reader-move--detect-issue-id)))
-    (if detected-id
-        detected-id
-      (beads-completion-read-issue "Issue ID to move: " nil t
-                                   beads-move--issue-id
-                                   'beads--issue-id-history))))
-
-;;; ============================================================
-;;; beads-sync Reader Functions
-;;; ============================================================
-
-(defun beads-reader-sync-message (_prompt _initial-input _history)
-  "Read commit message for sync operation."
-  (read-string "Commit message: "))
-
-;;; ============================================================
 ;;; beads-dep Reader Functions
 ;;; ============================================================
 

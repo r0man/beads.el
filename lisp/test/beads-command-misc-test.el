@@ -115,41 +115,6 @@
     (should (member "--type" args))
     (should (member "bug" args))))
 
-;;; Unit Tests: beads-command-move command-line
-
-(ert-deftest beads-command-move-test-command-line-basic ()
-  "Unit test: move builds correct command line."
-  :tags '(:unit)
-  (let* ((cmd (beads-command-move :issue-id "bd-1" :to "other"))
-         (args (beads-command-line cmd)))
-    (should (member "move" args))
-    (should (member "bd-1" args))
-    (should (member "--to" args))
-    (should (member "other" args))))
-
-(ert-deftest beads-command-move-test-validation-missing-issue-id ()
-  "Unit test: move validation fails without issue-id."
-  :tags '(:unit)
-  (let ((cmd (beads-command-move :to "other")))
-    (should (beads-command-validate cmd))))
-
-;;; Unit Tests: beads-command-refile command-line
-
-(ert-deftest beads-command-refile-test-command-line-basic ()
-  "Unit test: refile builds correct command line."
-  :tags '(:unit)
-  (let* ((cmd (beads-command-refile :source-id "bd-1" :target-rig "other"))
-         (args (beads-command-line cmd)))
-    (should (member "refile" args))
-    (should (member "bd-1" args))
-    (should (member "other" args))))
-
-(ert-deftest beads-command-refile-test-validation-missing-source-id ()
-  "Unit test: refile validation fails without source-id."
-  :tags '(:unit)
-  (let ((cmd (beads-command-refile :target-rig "other")))
-    (should (beads-command-validate cmd))))
-
 ;;; Unit Tests: beads-command-q command-line
 
 (ert-deftest beads-command-q-test-command-line-basic ()
@@ -668,93 +633,6 @@
   "Unit test: backup restore includes --dry-run option."
   :tags '(:unit)
   (let* ((cmd (beads-command-backup-restore :dry-run t))
-         (args (beads-command-line cmd)))
-    (should (member "--dry-run" args))))
-
-;;; Unit Tests: beads-command-backup-export-git command-line
-
-(ert-deftest beads-command-backup-export-git-test-class-exists ()
-  "Unit test: beads-command-backup-export-git class is defined."
-  :tags '(:unit)
-  (should (cl-find-class 'beads-command-backup-export-git)))
-
-(ert-deftest beads-command-backup-export-git-test-subcommand ()
-  "Unit test: backup export-git subcommand is 'backup export-git'."
-  :tags '(:unit)
-  (let ((cmd (beads-command-backup-export-git)))
-    (should (equal (beads-command-subcommand cmd) "backup export-git"))))
-
-(ert-deftest beads-command-backup-export-git-test-command-line-basic ()
-  "Unit test: backup export-git builds correct command line."
-  :tags '(:unit)
-  (let* ((cmd (beads-command-backup-export-git))
-         (args (beads-command-line cmd)))
-    (should (member "backup" args))
-    (should (member "export-git" args))))
-
-(ert-deftest beads-command-backup-export-git-test-command-line-branch ()
-  "Unit test: backup export-git includes --branch option."
-  :tags '(:unit)
-  (let* ((cmd (beads-command-backup-export-git :branch "my-backup"))
-         (args (beads-command-line cmd)))
-    (should (member "--branch" args))
-    (should (member "my-backup" args))))
-
-(ert-deftest beads-command-backup-export-git-test-command-line-dry-run ()
-  "Unit test: backup export-git includes --dry-run option."
-  :tags '(:unit)
-  (let* ((cmd (beads-command-backup-export-git :dry-run t))
-         (args (beads-command-line cmd)))
-    (should (member "--dry-run" args))))
-
-(ert-deftest beads-command-backup-export-git-test-command-line-force ()
-  "Unit test: backup export-git includes --force option."
-  :tags '(:unit)
-  (let* ((cmd (beads-command-backup-export-git :force t))
-         (args (beads-command-line cmd)))
-    (should (member "--force" args))))
-
-;;; Unit Tests: beads-command-backup-fetch-git command-line
-
-(ert-deftest beads-command-backup-fetch-git-test-class-exists ()
-  "Unit test: beads-command-backup-fetch-git class is defined."
-  :tags '(:unit)
-  (should (cl-find-class 'beads-command-backup-fetch-git)))
-
-(ert-deftest beads-command-backup-fetch-git-test-subcommand ()
-  "Unit test: backup fetch-git subcommand is 'backup fetch-git'."
-  :tags '(:unit)
-  (let ((cmd (beads-command-backup-fetch-git)))
-    (should (equal (beads-command-subcommand cmd) "backup fetch-git"))))
-
-(ert-deftest beads-command-backup-fetch-git-test-command-line-basic ()
-  "Unit test: backup fetch-git builds correct command line."
-  :tags '(:unit)
-  (let* ((cmd (beads-command-backup-fetch-git))
-         (args (beads-command-line cmd)))
-    (should (member "backup" args))
-    (should (member "fetch-git" args))))
-
-(ert-deftest beads-command-backup-fetch-git-test-command-line-branch ()
-  "Unit test: backup fetch-git includes --branch option."
-  :tags '(:unit)
-  (let* ((cmd (beads-command-backup-fetch-git :branch "my-backup"))
-         (args (beads-command-line cmd)))
-    (should (member "--branch" args))
-    (should (member "my-backup" args))))
-
-(ert-deftest beads-command-backup-fetch-git-test-command-line-remote ()
-  "Unit test: backup fetch-git includes --remote option."
-  :tags '(:unit)
-  (let* ((cmd (beads-command-backup-fetch-git :remote "upstream"))
-         (args (beads-command-line cmd)))
-    (should (member "--remote" args))
-    (should (member "upstream" args))))
-
-(ert-deftest beads-command-backup-fetch-git-test-command-line-dry-run ()
-  "Unit test: backup fetch-git includes --dry-run option."
-  :tags '(:unit)
-  (let* ((cmd (beads-command-backup-fetch-git :dry-run t))
          (args (beads-command-line cmd)))
     (should (member "--dry-run" args))))
 
@@ -1502,12 +1380,6 @@
                  (beads-meta-slot-property
                   'beads-command-lint 'issue-type :transient-choices))))
 
-(ert-deftest beads-command-move-issue-id-has-reader ()
-  "Unit test: move 'issue-id' slot has transient-reader."
-  :tags '(:unit)
-  (should (eq 'beads-reader-move-issue-id
-              (beads-meta-slot-property
-               'beads-command-move 'issue-id :transient-reader))))
 
 (ert-deftest beads-command-q-issue-type-has-choices ()
   "Unit test: q 'issue-type' slot has type choices."

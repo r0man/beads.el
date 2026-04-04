@@ -263,21 +263,6 @@
         (should (equal result "bd-3"))))))
 
 ;;; ============================================================
-;;; Tests for beads-sync Reader Functions
-;;; ============================================================
-
-(ert-deftest beads-reader-test-sync-message-exists ()
-  "Test that beads-reader-sync-message is defined."
-  (should (fboundp 'beads-reader-sync-message)))
-
-(ert-deftest beads-reader-test-sync-message ()
-  "Test reading commit message for sync operation."
-  (cl-letf (((symbol-function 'read-string)
-             (lambda (&rest _args) "Sync changes")))
-    (let ((result (beads-reader-sync-message nil nil nil)))
-      (should (equal result "Sync changes")))))
-
-;;; ============================================================
 ;;; Tests for beads-dep Reader Functions
 ;;; ============================================================
 
@@ -1173,32 +1158,6 @@
       (let ((result (beads-reader-edit-issue-id nil nil nil)))
         (should (equal result "bd-7"))))))
 
-;;; Move Reader Tests
-
-(ert-deftest beads-reader-test-move-detect-issue-id-none ()
-  "Test move detect returns nil in non-beads buffer."
-  (with-temp-buffer
-    (fundamental-mode)
-    (should (null (beads-reader-move--detect-issue-id)))))
-
-(ert-deftest beads-reader-test-move-issue-id-with-detection ()
-  "Test move issue ID reader uses detected ID."
-  (let ((beads-move--issue-id nil))
-    (cl-letf (((symbol-function 'beads-reader-move--detect-issue-id)
-               (lambda () "bd-99")))
-      (let ((result (beads-reader-move-issue-id nil nil nil)))
-        (should (equal result "bd-99"))))))
-
-(ert-deftest beads-reader-test-move-issue-id-without-detection ()
-  "Test move issue ID reader falls back to completion."
-  (let ((beads-move--issue-id nil))
-    (cl-letf (((symbol-function 'beads-reader-move--detect-issue-id)
-               (lambda () nil))
-              ((symbol-function 'beads-completion-read-issue)
-               (lambda (_prompt &rest _args) "bd-50")))
-      (let ((result (beads-reader-move-issue-id nil nil nil)))
-        (should (equal result "bd-50"))))))
-
 ;;; Dep Reader Tests
 
 (ert-deftest beads-reader-test-dep-add-type-choices ()
@@ -1211,17 +1170,6 @@
                "blocks")))
     (let ((result (beads-reader-dep-add-type "Type: " nil nil)))
       (should (equal result "blocks")))))
-
-;;; Sync Reader Tests
-
-(ert-deftest beads-reader-test-sync-message-prompt ()
-  "Test reading sync commit message."
-  (cl-letf (((symbol-function 'read-string)
-             (lambda (prompt &rest _args)
-               (should (string-match-p "Commit" prompt))
-               "sync data")))
-    (let ((result (beads-reader-sync-message nil nil nil)))
-      (should (equal result "sync data")))))
 
 ;;; beads--read-issue-at-point-or-prompt Tests
 
