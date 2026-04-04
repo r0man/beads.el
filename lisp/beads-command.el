@@ -170,11 +170,6 @@ Example (hand-written transient):
          (transient-val (car result-4))
          (transient-specified (cl-position :transient options-3))
          (defclass-options (cdr result-4))
-         ;; Also strip legacy keywords for backward compatibility
-         (result-5 (beads--extract-option :global-section defclass-options))
-         (defclass-options (cdr result-5))
-         (result-6 (beads--extract-option :parse-as defclass-options))
-         (defclass-options (cdr result-6))
          ;; Normalize slots: infer :initarg, :type, :initform, :long-option
          (normalized-slots (mapcar #'beads-meta--normalize-slot-def slots))
          ;; Add cli-command as a class-allocated slot if specified
