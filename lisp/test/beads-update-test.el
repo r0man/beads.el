@@ -746,10 +746,10 @@ Regression test for bug bde-z65s: 'Not a transient prefix: beads-update'."
     (should (beads-command-validate cmd))))
 
 (ert-deftest beads-update-test-validate-invalid-labels ()
-  "Test validation fails with non-string label list."
-  (let ((cmd (beads-command-update :issue-ids '("bd-42")
-                                    :add-label '("valid" 42))))
-    (should (beads-command-validate cmd))))
+  "Test non-string label list is rejected.
+EIEIO enforces (list-of string) at construction time."
+  (should-error (beads-command-update :issue-ids '("bd-42")
+                                      :add-label '("valid" 42))))
 
 ;;; Tests for beads-update--get-changed-fields (acceptance, design, notes,
 ;;; assignee, external-ref fields — lines 687-702)

@@ -142,14 +142,14 @@
       (should (null (beads-command-validate cmd))))))
 
 (ert-deftest beads-command-ready-test-validate-non-string-labels ()
-  "Test validation fails with non-string label list."
-  (let ((cmd (beads-command-ready :label '("valid" 42))))
-    (should (beads-command-validate cmd))))
+  "Test non-string label list is rejected.
+EIEIO enforces (list-of string) at construction time."
+  (should-error (beads-command-ready :label '("valid" 42))))
 
 (ert-deftest beads-command-ready-test-validate-non-string-label-any ()
-  "Test validation fails with non-string label-any list."
-  (let ((cmd (beads-command-ready :label-any '("valid" 42))))
-    (should (beads-command-validate cmd))))
+  "Test non-string label-any list is rejected.
+EIEIO enforces (list-of string) at construction time."
+  (should-error (beads-command-ready :label-any '("valid" 42))))
 
 ;;; Parse Method Tests
 

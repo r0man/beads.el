@@ -29,7 +29,7 @@
 (beads-defcommand beads-command-restore (beads-command-global-options)
   ((issue-id
     :positional 1
-    :option-type :string
+    :type (or null string)
     :short-option "i"
     :argument "--id="
     :prompt "Issue ID: "

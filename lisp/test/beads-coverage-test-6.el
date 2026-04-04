@@ -383,9 +383,9 @@
 ;;; ============================================================
 
 (ert-deftest beads-cov6-delete-validate-invalid-ids ()
-  "Test delete validation catches non-string issue IDs."
-  (let ((cmd (beads-command-delete :issue-ids '(123))))
-    (should (beads-command-validate cmd))))
+  "Test non-string issue IDs are rejected.
+EIEIO enforces (list-of string) at construction time."
+  (should-error (beads-command-delete :issue-ids '(123))))
 
 (ert-deftest beads-cov6-delete-parse-preview-mode ()
   "Test delete parse returns raw stdout without force."

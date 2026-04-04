@@ -33,7 +33,7 @@
 (beads-defcommand beads-command-branch (beads-command-global-options)
   ((name
     :positional 1
-    :option-type :string
+    :type (or null string)
     :short-option "n"
     :argument "--name="
     :prompt "Branch name (empty=list): "

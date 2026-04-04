@@ -649,33 +649,33 @@ never hang waiting for a response that never arrives."
 ;; Define a test command using shorthand slot definitions
 (beads-defcommand beads-command-shorthand-test (beads-command-global-options)
   ((reason
-    :option-type :string
+    :type (or null string)
     :short-option "r"
     :group "Test"
     :level 1
     :order 1)
    (force
-    :option-type :boolean
+    :type boolean
     :short-option "!"
     :group "Flags"
     :level 2
     :order 1)
    (title
-    :option-type :string
+    :type (or null string)
     :positional 1
     :short-option "t"
     :group "Required"
     :level 1
     :order 2)
    (labels
-    :option-type :list
+    :type (list-of string)
     :separator ","
     :short-option "l"
     :group "Options"
     :level 2
     :order 2)
    (estimate
-    :option-type :integer
+    :type (or null string integer)
     :short-option "e"
     :group "Options"
     :level 3

@@ -29,7 +29,7 @@
 (beads-defcommand beads-command-sql (beads-command-global-options)
   ((query
     :positional 1
-    :option-type :string
+    :type (or null string)
     :short-option "q"
     :argument "--query="
     :prompt "SQL query: "
@@ -38,7 +38,7 @@
     :order 1
     :required t)
    (csv
-    :option-type :boolean
+    :type boolean
     :short-option "c"
     :group "Options"
     :level 2

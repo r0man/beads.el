@@ -59,7 +59,7 @@ Shows compaction statistics including tier 1 and tier 2 candidates."
 
 (beads-defcommand beads-command-compact-analyze (beads-command-global-options)
   ((tier
-    :option-type :integer
+    :type (or null string integer)
     :short-option "t"
     :prompt "Tier (1 or 2): "
     :choices '("1" "2")
@@ -67,7 +67,7 @@ Shows compaction statistics including tier 1 and tier 2 candidates."
     :level 1
     :order 1)
    (limit
-    :option-type :integer
+    :type (or null string integer)
     :short-option "l"
     :prompt "Limit (0 = no limit): "
     :group "Analyze Options"
@@ -89,7 +89,7 @@ Exports compaction candidates for agent review."
 (beads-defcommand beads-command-compact-apply (beads-command-global-options)
   ((issue-id
     :long-option "id"
-    :option-type :string
+    :type (or null string)
     :short-option "i"
     :prompt "Issue ID: "
     :reader beads-reader-issue-id
@@ -98,7 +98,7 @@ Exports compaction candidates for agent review."
     :order 1
     :required t)
    (summary
-    :option-type :string
+    :type (or null string)
     :short-option "s"
     :prompt "Summary file path: "
     :group "Apply Options"
@@ -138,7 +138,7 @@ Accepts agent-provided summary for an issue."
 (beads-defcommand beads-command-compact-auto (beads-command-global-options)
   ((issue-id
     :long-option "id"
-    :option-type :string
+    :type (or null string)
     :short-option "i"
     :prompt "Issue ID (or leave empty for all): "
     :reader beads-reader-issue-id
@@ -146,13 +146,13 @@ Accepts agent-provided summary for an issue."
     :level 1
     :order 1)
    (all
-    :option-type :boolean
+    :type boolean
     :short-option "a"
     :group "Auto Options"
     :level 1
     :order 2)
    (tier
-    :option-type :integer
+    :type (or null string integer)
     :short-option "t"
     :prompt "Tier (1 or 2): "
     :choices '("1" "2")
@@ -160,26 +160,26 @@ Accepts agent-provided summary for an issue."
     :level 1
     :order 3)
    (batch-size
-    :option-type :integer
+    :type (or null string integer)
     :short-option "b"
     :prompt "Batch size: "
     :group "Auto Options"
     :level 3
     :order 4)
    (workers
-    :option-type :integer
+    :type (or null string integer)
     :short-option "w"
     :group "Auto Options"
     :level 3
     :order 5)
    (dry-run
-    :option-type :boolean
+    :type boolean
     :short-option "n"
     :group "Auto Options"
     :level 1
     :order 6)
    (force
-    :option-type :boolean
+    :type boolean
     :short-option "f"
     :group "Auto Options"
     :level 3

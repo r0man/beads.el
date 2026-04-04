@@ -29,71 +29,71 @@
 (beads-defcommand beads-command-count (beads-command-global-options)
   ((assignee
     :short-option "a"
-    :option-type :string
+    :type (or null string)
     :group "Filters"
     :level 2
     :order 1)
    (status
-    :option-type :string
+    :type (or null string)
     :short-option "s"
     :choices ("open" "in_progress" "blocked" "closed")
     :group "Filters"
     :level 2
     :order 2)
    (created-after
-    :option-type :string
+    :type (or null string)
     :short-option "Ca"
     :prompt "Created after (YYYY-MM-DD): "
     :group "Date Filters"
     :level 3
     :order 1)
    (created-before
-    :option-type :string
+    :type (or null string)
     :short-option "Cb"
     :prompt "Created before (YYYY-MM-DD): "
     :group "Date Filters"
     :level 3
     :order 2)
    (closed-after
-    :option-type :string
+    :type (or null string)
     :short-option "ca"
     :prompt "Closed after (YYYY-MM-DD): "
     :group "Date Filters"
     :level 3
     :order 3)
    (closed-before
-    :option-type :string
+    :type (or null string)
     :short-option "cb"
     :prompt "Closed before (YYYY-MM-DD): "
     :group "Date Filters"
     :level 3
     :order 4)
    (by-status
-    :option-type :boolean
+    :type boolean
     :short-option "bs"
     :group "Grouping"
     :level 2
     :order 1)
    (by-priority
-    :option-type :boolean
+    :type boolean
     :short-option "bp"
     :group "Grouping"
     :level 2
     :order 2)
    (by-type
-    :option-type :boolean
+    :type boolean
     :short-option "bt"
     :group "Grouping"
     :level 2
     :order 3)
    (by-assignee
-    :option-type :boolean
+    :type boolean
     :short-option "ba"
     :group "Grouping"
     :level 2
     :order 4)
    (by-label
-    :option-type :boolean
+    :type boolean
     :short-option "bl"
     :group "Grouping"
     :level 2

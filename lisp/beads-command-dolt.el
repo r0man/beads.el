@@ -47,7 +47,7 @@ Displays backend, database, host, port, and connection status.")
 (beads-defcommand beads-command-dolt-set (beads-command-global-options)
   ((config-key
     :positional 1
-    :option-type :string
+    :type (or null string)
     :short-option "k"
     :argument "--key="
     :prompt "Config key (database|host|port|user|data-dir): "
@@ -57,7 +57,7 @@ Displays backend, database, host, port, and connection status.")
     :required t)
    (config-value
     :positional 2
-    :option-type :string
+    :type (or null string)
     :short-option "v"
     :argument "--value="
     :group "Set Config"
@@ -65,7 +65,7 @@ Displays backend, database, host, port, and connection status.")
     :order 2
     :required t)
    (update-config
-    :option-type :boolean
+    :type boolean
     :short-option "u"
     :group "Options"
     :level 2
@@ -103,7 +103,7 @@ Reports host, port, and connection status.")
 (beads-defcommand beads-command-dolt-commit (beads-command-global-options)
   ((message
     :short-option "m"
-    :option-type :string
+    :type (or null string)
     :prompt "Commit message (empty=auto): "
     :group "Commit"
     :level 1
@@ -119,7 +119,7 @@ Auto-generates commit message if not provided.")
 
 (beads-defcommand beads-command-dolt-push (beads-command-global-options)
   ((force
-    :option-type :boolean
+    :type boolean
     :short-option "f"
     :group "Options"
     :level 2
@@ -155,7 +155,7 @@ Starts server with per-project derived port.")
 
 (beads-defcommand beads-command-dolt-stop (beads-command-global-options)
   ((force
-    :option-type :boolean
+    :type boolean
     :short-option "f"
     :group "Options"
     :level 2
@@ -181,7 +181,7 @@ Reports PID, port, and running status.")
 (beads-defcommand beads-command-dolt-remote-add (beads-command-global-options)
   ((remote-name
     :positional 1
-    :option-type :string
+    :type (or null string)
     :short-option "n"
     :argument "--name="
     :prompt "Remote name: "
@@ -191,7 +191,7 @@ Reports PID, port, and running status.")
     :required t)
    (url
     :positional 2
-    :option-type :string
+    :type (or null string)
     :short-option "u"
     :argument "--url="
     :prompt "Remote URL: "
@@ -228,7 +228,7 @@ Reports PID, port, and running status.")
 (beads-defcommand beads-command-dolt-remote-remove (beads-command-global-options)
   ((remote-name
     :positional 1
-    :option-type :string
+    :type (or null string)
     :short-option "n"
     :argument "--name="
     :prompt "Remote name to remove: "
@@ -324,7 +324,7 @@ Reports PID, port, and running status.")
 (beads-defcommand beads-command-dolt-clean-databases
     (beads-command-global-options)
   ((dry-run
-    :option-type :boolean
+    :type boolean
     :short-option "n"
     :group "Options"
     :level 1

@@ -29,7 +29,7 @@
    (dimension-value
     :positional 2)
    (reason
-    :option-type :string
+    :type (or null string)
     :short-option "r"
     :transient beads-transient-multiline
     :documentation "State Change Reason"

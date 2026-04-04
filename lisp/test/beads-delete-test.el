@@ -919,9 +919,9 @@ Tests handling when beads is not initialized."
     (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-delete-test-validate-non-string-list ()
-  "Test validation fails with non-string elements in issue-ids."
-  (let ((cmd (beads-command-delete :issue-ids '("bd-42" 123))))
-    (should (beads-command-validate cmd))))
+  "Test non-string elements in issue-ids are rejected.
+EIEIO enforces (list-of string) at construction time."
+  (should-error (beads-command-delete :issue-ids '("bd-42" 123))))
 
 ;;; Tests for beads-delete--show-preview
 

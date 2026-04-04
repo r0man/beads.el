@@ -42,7 +42,7 @@
 
 (beads-defcommand beads-command-epic-status (beads-command-global-options)
   ((eligible-only
-    :option-type :boolean
+    :type boolean
     :short-option "e"
     :group "Epic Status"
     :level 1
@@ -94,7 +94,7 @@ Does not modify any slots."
 
 (beads-defcommand beads-command-epic-close-eligible (beads-command-global-options)
   ((dry-run
-    :option-type :boolean
+    :type boolean
     :short-option "n"
     :group "Close Eligible Epics"
     :level 1

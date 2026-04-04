@@ -26,13 +26,13 @@
 (beads-defcommand beads-command-gate-list (beads-command-global-options)
   ((all
     :short-option "a"
-    :option-type :boolean
+    :type boolean
     :group "Options"
     :level 1
     :order 1)
    (limit
     :short-option "n"
-    :option-type :integer
+    :type (or null string integer)
     :group "Options"
     :level 1
     :order 2))
@@ -47,26 +47,26 @@ Lists gate issues.")
 (beads-defcommand beads-command-gate-check (beads-command-global-options)
   ((type
     :short-option "t"
-    :option-type :string
+    :type (or null string)
     :prompt "Gate type: "
     :group "Options"
     :level 1
     :order 1)
    (dry-run
-    :option-type :boolean
+    :type boolean
     :short-option "n"
     :group "Options"
     :level 1
     :order 2)
    (escalate
     :short-option "e"
-    :option-type :boolean
+    :type boolean
     :group "Options"
     :level 1
     :order 3)
    (limit
     :short-option "l"
-    :option-type :integer
+    :type (or null string integer)
     :group "Options"
     :level 1
     :order 4))
@@ -83,7 +83,7 @@ Evaluates gates and closes resolved ones.")
     :positional 1)
    (reason
     :short-option "r"
-    :option-type :string
+    :type (or null string)
     :transient beads-transient-multiline
     :documentation "Resolve Reason"
     :group "Options"

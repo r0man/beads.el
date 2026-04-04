@@ -30,7 +30,7 @@
 (beads-defcommand beads-command-test-admin-compact
     (beads-command-test-admin)
   ((database
-    :option-type :string
+    :type (or null string)
     :short-option "d"))
   :documentation "Compact database (test)."
   :transient nil)
@@ -64,7 +64,7 @@
 (beads-defcommand beads-command-test-federation-add-peer
     (beads-command-test-federation)
   ((url
-    :option-type :string
+    :type (or null string)
     :short-option "u"))
   :documentation "Add federation peer (test)."
   :transient nil)

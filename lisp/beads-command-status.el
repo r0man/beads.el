@@ -33,19 +33,19 @@
 (beads-defcommand beads-command-status (beads-command-global-options)
   ((all-issues
     :long-option "all"
-    :option-type :boolean
+    :type boolean
     :short-option "a"
     :group "Options"
     :level 2
     :order 1)
    (assigned
-    :option-type :boolean
+    :type boolean
     :short-option "m"
     :group "Options"
     :level 2
     :order 2)
    (no-activity
-    :option-type :boolean
+    :type boolean
     :short-option "n"
     :group "Options"
     :level 2

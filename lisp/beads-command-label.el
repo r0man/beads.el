@@ -90,7 +90,7 @@ Format: (TIMESTAMP . LABELS-LIST)")
 (beads-defcommand beads-command-label-add (beads-command-global-options)
   ((issue-ids
     :positional 1
-    :option-type :list
+    :type (list-of string)
     :separator " "
     :short-option "i"
     :argument "--id="
@@ -102,7 +102,7 @@ Format: (TIMESTAMP . LABELS-LIST)")
     :required t)
    (label
     :positional 2
-    :option-type :string
+    :type (or null string)
     :short-option "l"
     :argument "--label="
     :group "Add Label"
@@ -142,7 +142,7 @@ Returns error string or nil if valid."
 (beads-defcommand beads-command-label-remove (beads-command-global-options)
   ((issue-ids
     :positional 1
-    :option-type :list
+    :type (list-of string)
     :separator " "
     :short-option "i"
     :argument "--id="
@@ -154,7 +154,7 @@ Returns error string or nil if valid."
     :required t)
    (label
     :positional 2
-    :option-type :string
+    :type (or null string)
     :short-option "l"
     :argument "--label="
     :group "Remove Label"
@@ -194,7 +194,7 @@ Returns error string or nil if valid."
 (beads-defcommand beads-command-label-list (beads-command-global-options)
   ((issue-id
     :positional 1
-    :option-type :string
+    :type (or null string)
     :short-option "i"
     :argument "--id="
     :reader beads-reader-issue-id
@@ -234,7 +234,7 @@ Returns nil (always valid)."
 (beads-defcommand beads-command-label-propagate (beads-command-global-options)
   ((parent-id
     :positional 1
-    :option-type :string
+    :type (or null string)
     :short-option "p"
     :argument "--parent-id="
     :prompt "Parent issue ID: "
@@ -245,7 +245,7 @@ Returns nil (always valid)."
     :required t)
    (label
     :positional 2
-    :option-type :string
+    :type (or null string)
     :short-option "l"
     :argument "--label="
     :reader beads-reader-label-name

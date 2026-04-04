@@ -29,7 +29,7 @@
 (beads-defcommand beads-command-diff (beads-command-global-options)
   ((from-ref
     :positional 1
-    :option-type :string
+    :type (or null string)
     :short-option "f"
     :argument "--from="
     :prompt "From ref: "
@@ -39,7 +39,7 @@
     :required t)
    (to-ref
     :positional 2
-    :option-type :string
+    :type (or null string)
     :short-option "t"
     :argument "--to="
     :prompt "To ref: "

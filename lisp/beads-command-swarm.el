@@ -27,14 +27,14 @@
   ((epic-id
     :positional 1)
    (coordinator
-    :option-type :string
+    :type (or null string)
     :short-option "c"
     :prompt "Coordinator agent: "
     :group "Options"
     :level 1
     :order 1)
    (force
-    :option-type :boolean
+    :type boolean
     :short-option "f"
     :group "Options"
     :level 1

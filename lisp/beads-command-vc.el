@@ -29,7 +29,7 @@
 (beads-defcommand beads-command-vc-commit (beads-command-global-options)
   ((message
     :short-option "m"
-    :option-type :string
+    :type (or null string)
     :prompt "Commit message: "
     :group "Commit"
     :level 1
@@ -46,7 +46,7 @@ Requires Dolt backend.")
 (beads-defcommand beads-command-vc-merge (beads-command-global-options)
   ((branch
     :positional 1
-    :option-type :string
+    :type (or null string)
     :short-option "b"
     :argument "--branch="
     :prompt "Branch to merge: "
@@ -55,7 +55,7 @@ Requires Dolt backend.")
     :order 1
     :required t)
    (strategy
-    :option-type :string
+    :type (or null string)
     :short-option "s"
     :prompt "Strategy (ours|theirs): "
     :group "Options"

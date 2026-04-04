@@ -150,7 +150,7 @@
 (ert-deftest beads-type-inference-test-already-set ()
   "Returns nil when :option-type already set."
   (should-not (beads-meta--infer-option-type
-               '(:type string :option-type :boolean))))
+               '(:option-type :boolean :type boolean))))
 
 ;; Multi-type (or ...) priority
 (ert-deftest beads-type-inference-test-multi-type-priority ()

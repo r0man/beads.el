@@ -27,19 +27,19 @@
 
 (beads-defcommand beads-command-jira-sync (beads-command-global-options)
   ((pull
-    :option-type :boolean
+    :type boolean
     :short-option "p"
     :group "Direction"
     :level 1
     :order 1)
    (push
-    :option-type :boolean
+    :type boolean
     :short-option "P"
     :group "Direction"
     :level 1
     :order 2)
    (dry-run
-    :option-type :boolean
+    :type boolean
     :short-option "n"
     :group "Options"
     :level 1
@@ -60,19 +60,19 @@ Shows Jira sync status.")
 
 (beads-defcommand beads-command-linear-sync (beads-command-global-options)
   ((pull
-    :option-type :boolean
+    :type boolean
     :short-option "p"
     :group "Direction"
     :level 1
     :order 1)
    (push
-    :option-type :boolean
+    :type boolean
     :short-option "P"
     :group "Direction"
     :level 1
     :order 2)
    (dry-run
-    :option-type :boolean
+    :type boolean
     :short-option "n"
     :group "Options"
     :level 1
@@ -197,19 +197,19 @@ Manually triggers multi-repo sync.")
 
 (beads-defcommand beads-command-gitlab-sync (beads-command-global-options)
   ((pull
-    :option-type :boolean
+    :type boolean
     :short-option "p"
     :group "Direction"
     :level 1
     :order 1)
    (push
-    :option-type :boolean
+    :type boolean
     :short-option "P"
     :group "Direction"
     :level 1
     :order 2)
    (dry-run
-    :option-type :boolean
+    :type boolean
     :short-option "n"
     :group "Options"
     :level 1
@@ -285,19 +285,19 @@ Lists accessible GitLab projects.")
 
 (beads-defcommand beads-command-github-sync (beads-command-global-options)
   ((pull
-    :option-type :boolean
+    :type boolean
     :short-option "p"
     :group "Direction"
     :level 1
     :order 1)
    (push
-    :option-type :boolean
+    :type boolean
     :short-option "P"
     :group "Direction"
     :level 1
     :order 2)
    (dry-run
-    :option-type :boolean
+    :type boolean
     :short-option "n"
     :group "Options"
     :level 1
@@ -344,19 +344,19 @@ Lists accessible GitHub repositories.")
 
 (beads-defcommand beads-command-ado-sync (beads-command-global-options)
   ((dry-run
-    :option-type :boolean
+    :type boolean
     :short-option "n"
     :group "Options"
     :level 1
     :order 1)
    (pull-only
-    :option-type :boolean
+    :type boolean
     :short-option "p"
     :group "Direction"
     :level 1
     :order 2)
    (push-only
-    :option-type :boolean
+    :type boolean
     :short-option "P"
     :group "Direction"
     :level 1
@@ -408,7 +408,7 @@ List accessible Azure DevOps projects."
 
 (beads-defcommand beads-command-notion-connect (beads-command-global-options)
   ((url
-    :option-type :string
+    :type (or null string)
     :short-option "u"
     :prompt "Notion URL: "
     :group "Options"
@@ -420,14 +420,14 @@ Connect bd to an existing Notion database or data source.")
 
 (beads-defcommand beads-command-notion-init (beads-command-global-options)
   ((parent
-    :option-type :string
+    :type (or null string)
     :short-option "p"
     :prompt "Parent page ID: "
     :group "Options"
     :level 1
     :order 1)
    (title
-    :option-type :string
+    :type (or null string)
     :short-option "t"
     :prompt "Title (default: Beads Issues): "
     :group "Options"
@@ -445,25 +445,25 @@ Show Notion sync status.")
 
 (beads-defcommand beads-command-notion-sync (beads-command-global-options)
   ((pull
-    :option-type :boolean
+    :type boolean
     :short-option "P"
     :group "Direction"
     :level 1
     :order 1)
    (push
-    :option-type :boolean
+    :type boolean
     :short-option "p"
     :group "Direction"
     :level 1
     :order 2)
    (dry-run
-    :option-type :boolean
+    :type boolean
     :short-option "n"
     :group "Options"
     :level 1
     :order 3)
    (state
-    :option-type :string
+    :type (or null string)
     :short-option "s"
     :prompt "State (open/closed/all): "
     :choices ("open" "closed" "all")
@@ -471,19 +471,19 @@ Show Notion sync status.")
     :level 2
     :order 4)
    (create-only
-    :option-type :boolean
+    :type boolean
     :short-option "c"
     :group "Options"
     :level 2
     :order 5)
    (prefer-local
-    :option-type :boolean
+    :type boolean
     :short-option "l"
     :group "Conflict"
     :level 2
     :order 6)
    (prefer-notion
-    :option-type :boolean
+    :type boolean
     :short-option "N"
     :group "Conflict"
     :level 2

@@ -28,7 +28,7 @@
   ((issue-id
     :positional 1)
    (of
-    :option-type :string
+    :type (or null string)
     :short-option "o"
     :prompt "Canonical issue: "
     :reader beads-reader-issue-id
@@ -53,7 +53,7 @@ Marks an issue as a duplicate of another.")
 
 (beads-defcommand beads-command-duplicates (beads-command-global-options)
   ((merge
-    :option-type :boolean
+    :type boolean
     :short-option "m"
     :group "Options"
     :level 1
@@ -71,7 +71,7 @@ Finds and optionally merges duplicate issues.")
     :positional 1)
    (with-id
     :long-option "with"
-    :option-type :string
+    :type (or null string)
     :short-option "w"
     :prompt "Replacement issue: "
     :reader beads-reader-issue-id
@@ -96,14 +96,14 @@ Marks an issue as superseded by a newer one.")
 
 (beads-defcommand beads-command-orphans (beads-command-global-options)
   ((details
-    :option-type :boolean
+    :type boolean
     :short-option "d"
     :group "Options"
     :level 1
     :order 1)
    (fix
     :short-option "f"
-    :option-type :boolean
+    :type boolean
     :group "Options"
     :level 1
     :order 2))
@@ -118,11 +118,11 @@ Identifies orphaned issues referenced in commits but still open.")
 (beads-defcommand beads-command-lint (beads-command-global-options)
   ((issue-ids
     :positional 1
-    :option-type :list
+    :type (list-of string)
     :separator nil)
    (status
     :short-option "s"
-    :option-type :string
+    :type (or null string)
     :choices ("open" "in_progress" "blocked" "closed" "all")
     :group "Options"
     :level 1
@@ -130,7 +130,7 @@ Identifies orphaned issues referenced in commits but still open.")
    (issue-type
     :long-option "type"
     :short-option "t"
-    :option-type :string
+    :type (or null string)
     :choices ("bug" "task" "feature" "epic" "chore")
     :group "Options"
     :level 1
@@ -154,20 +154,20 @@ Checks issues for missing template sections.")
     :level 1
     :order 0)
    (to
-    :option-type :string
+    :type (or null string)
     :short-option "t"
     :prompt "Target rig: "
     :group "Move Issue"
     :level 1
     :order 1)
    (keep-open
-    :option-type :boolean
+    :type boolean
     :short-option "k"
     :group "Options"
     :level 2
     :order 2)
    (skip-deps
-    :option-type :boolean
+    :type boolean
     :short-option "d"
     :group "Options"
     :level 2
@@ -194,7 +194,7 @@ Moves an issue to a different rig with dependency remapping.")
    (target-rig
     :positional 2)
    (keep-open
-    :option-type :boolean
+    :type boolean
     :short-option "k"
     :group "Options"
     :level 1
@@ -226,20 +226,20 @@ Moves an issue to a different rig.")
    (issue-type
     :long-option "type"
     :short-option "t"
-    :option-type :string
+    :type (or null string)
     :choices ("task" "bug" "feature" "epic" "chore")
     :group "Options"
     :level 1
     :order 1)
    (priority
     :short-option "p"
-    :option-type :string
+    :type (or null string)
     :group "Options"
     :level 1
     :order 2)
    (labels
     :short-option "l"
-    :option-type :list
+    :type (list-of string)
     :group "Options"
     :level 1
     :order 3))
@@ -266,13 +266,13 @@ Quick capture: creates issue and outputs only ID.")
     :level 1
     :order 0)
    (stdin
-    :option-type :boolean
+    :type boolean
     :short-option "s"
     :group "Input"
     :level 1
     :order 1)
    (file
-    :option-type :string
+    :type (or null string)
     :short-option "f"
     :group "Input"
     :level 1
@@ -292,7 +292,7 @@ Appends a note to an issue's notes field.")
 
 (beads-defcommand beads-command-version (beads-command-global-options)
   ((daemon
-    :option-type :boolean
+    :type boolean
     :short-option "d"
     :group "Options"
     :level 1
@@ -518,7 +518,7 @@ Delegates to mail provider.")
 
 (beads-defcommand beads-command-human-list (beads-command-global-options)
   ((status
-    :option-type :string
+    :type (or null string)
     :short-option "s"
     :choices ("open" "in_progress" "blocked" "closed" "all")
     :group "Options"
@@ -538,7 +538,7 @@ Lists all issues labeled with the human tag.")
 (beads-defcommand beads-command-human-respond (beads-command-global-options)
   ((issue-id
     :positional 1
-    :option-type :string
+    :type (or null string)
     :short-option "i"
     :argument "--issue-id="
     :reader beads-reader-issue-id
@@ -547,7 +547,7 @@ Lists all issues labeled with the human tag.")
     :order 1
     :required t)
    (response
-    :option-type :string
+    :type (or null string)
     :short-option "r"
     :argument "--response="
     :group "Options"
@@ -578,7 +578,7 @@ Responds to a human-needed bead by adding a comment and closing it.")
 (beads-defcommand beads-command-human-dismiss (beads-command-global-options)
   ((issue-id
     :positional 1
-    :option-type :string
+    :type (or null string)
     :short-option "i"
     :argument "--issue-id="
     :reader beads-reader-issue-id
@@ -587,7 +587,7 @@ Responds to a human-needed bead by adding a comment and closing it.")
     :order 1
     :required t)
    (reason
-    :option-type :string
+    :type (or null string)
     :short-option "r"
     :argument "--reason="
     :group "Options"
@@ -781,7 +781,7 @@ Manages TODO items (convenience wrapper for task issues).")
 (beads-defcommand beads-command-todo-add (beads-command-global-options)
   ((title
     :positional 1
-    :option-type :string
+    :type (or null string)
     :short-option "T"
     :argument "--title="
     :prompt "TODO title: "
@@ -791,7 +791,7 @@ Manages TODO items (convenience wrapper for task issues).")
     :required t)
    (priority
     :short-option "p"
-    :option-type :string
+    :type (or null string)
     :prompt "Priority (0-4): "
     :reader beads-reader-issue-priority
     :group "Add TODO"
@@ -799,7 +799,7 @@ Manages TODO items (convenience wrapper for task issues).")
     :order 2)
    (description
     :short-option "d"
-    :option-type :string
+    :type (or null string)
     :transient-key "D"
     :group "Add TODO"
     :level 2
@@ -833,7 +833,7 @@ Returns error string or nil if valid."
     :initform nil
     :documentation "Show all TODOs including completed (--all)."
     :long-option "all"
-    :option-type :boolean
+    :type boolean
     :short-option "a"
     :transient "--all"
     :class transient-switch
@@ -860,7 +860,7 @@ Lists TODO items (open task issues).")
     :initform nil
     :documentation "One or more TODO issue IDs to mark done (positional)."
     :positional 1
-    :option-type :list
+    :type (list-of string)
     :separator " "
     :short-option "i"
     :transient "Issue ID (required)"
@@ -878,7 +878,7 @@ Lists TODO items (open task issues).")
     :initform nil
     :documentation "Reason for closing (--reason). Default: Completed."
     :long-option "reason"
-    :option-type :string
+    :type (or null string)
     :short-option "r"
     :transient "--reason"
     :class transient-option
@@ -941,7 +941,7 @@ Finds semantically similar issues using text analysis or AI."
     :initform nil
     :documentation "Export even if nothing changed."
     :long-option "force"
-    :option-type :boolean
+    :type boolean
     :short-option "f"
     :transient "--force"
     :class transient-switch
@@ -970,7 +970,7 @@ Backs up your beads database by exporting all tables to JSONL.")
 Local path: /mnt/usb/beads-backup or ~/Dropbox/beads-backup.
 DoltHub: https://doltremoteapi.dolthub.com/user/repo"
     :positional 1
-    :option-type :string
+    :type (or null string)
     :short-option "p"
     :transient "Path or URL (required)"
     :class transient-option
@@ -1046,7 +1046,7 @@ init <path>' first to configure a destination."
     :documentation "Path to directory containing JSONL backup files.
 Defaults to .beads/backup/ if not specified."
     :positional 1
-    :option-type :string
+    :type (or null string)
     :short-option "p"
     :transient "Backup directory path"
     :class transient-option
@@ -1061,7 +1061,7 @@ Defaults to .beads/backup/ if not specified."
     :initform nil
     :documentation "Show what would be restored without making changes."
     :long-option "dry-run"
-    :option-type :boolean
+    :type boolean
     :short-option "n"
     :transient "--dry-run"
     :class transient-switch
@@ -1091,7 +1091,7 @@ Use --dry-run to preview without making changes."
     :initform nil
     :documentation "Target git branch for backup artifacts."
     :long-option "branch"
-    :option-type :string
+    :type (or null string)
     :short-option "b"
     :transient "--branch"
     :class transient-option
@@ -1106,7 +1106,7 @@ Use --dry-run to preview without making changes."
     :initform nil
     :documentation "Git remote to push."
     :long-option "remote"
-    :option-type :string
+    :type (or null string)
     :short-option "r"
     :transient "--remote"
     :class transient-option
@@ -1121,7 +1121,7 @@ Use --dry-run to preview without making changes."
     :initform nil
     :documentation "Show what would happen without creating a worktree or pushing."
     :long-option "dry-run"
-    :option-type :boolean
+    :type boolean
     :short-option "n"
     :transient "--dry-run"
     :class transient-switch
@@ -1135,7 +1135,7 @@ Use --dry-run to preview without making changes."
     :initform nil
     :documentation "Force a fresh backup export before comparing and copying."
     :long-option "force"
-    :option-type :boolean
+    :type boolean
     :short-option "f"
     :transient "--force"
     :class transient-switch
@@ -1167,7 +1167,7 @@ if changed, and pushes.  Use --dry-run to preview."
     :initform nil
     :documentation "Git branch to fetch backup artifacts from."
     :long-option "branch"
-    :option-type :string
+    :type (or null string)
     :short-option "b"
     :transient "--branch"
     :class transient-option
@@ -1182,7 +1182,7 @@ if changed, and pushes.  Use --dry-run to preview."
     :initform nil
     :documentation "Git remote to fetch from."
     :long-option "remote"
-    :option-type :string
+    :type (or null string)
     :short-option "r"
     :transient "--remote"
     :class transient-option
@@ -1197,7 +1197,7 @@ if changed, and pushes.  Use --dry-run to preview."
     :initform nil
     :documentation "Show what would happen without fetching or restoring."
     :long-option "dry-run"
-    :option-type :boolean
+    :type boolean
     :short-option "n"
     :transient "--dry-run"
     :class transient-switch
@@ -1271,7 +1271,7 @@ Exports issues to JSONL format.")
     :initform nil
     :documentation "Show what would be imported without importing."
     :long-option "dry-run"
-    :option-type :boolean
+    :type boolean
     :short-option "n"
     :transient "--dry-run"
     :class transient-switch
@@ -1364,7 +1364,7 @@ Key-value store commands.")
     :initform nil
     :documentation "Key to retrieve from the key-value store (required)."
     :positional 1
-    :option-type :string
+    :type (or null string)
     :short-option "k"
     :transient "Key (required)"
     :class transient-option
@@ -1400,7 +1400,7 @@ Retrieves a value by key from the key-value store.")
     :initform nil
     :documentation "Key to set in the key-value store (required)."
     :positional 1
-    :option-type :string
+    :type (or null string)
     :short-option "k"
     :transient "Key (required)"
     :class transient-option
@@ -1416,7 +1416,7 @@ Retrieves a value by key from the key-value store.")
     :initform nil
     :documentation "Value to associate with the key (required)."
     :positional 2
-    :option-type :string
+    :type (or null string)
     :short-option "v"
     :transient "Value (required)"
     :class transient-option
@@ -1453,7 +1453,7 @@ Sets a key-value pair in the key-value store.")
     :initform nil
     :documentation "Key to delete from the key-value store (required)."
     :positional 1
-    :option-type :string
+    :type (or null string)
     :short-option "k"
     :transient "Key (required)"
     :class transient-option
@@ -1702,7 +1702,7 @@ Pass an empty string as assignee to unassign."
     :initform nil
     :documentation "Read comment from stdin (--stdin)."
     :long-option "stdin"
-    :option-type :boolean
+    :type boolean
     :short-option "s"
     :transient "--stdin"
     :class transient-switch
@@ -1716,7 +1716,7 @@ Pass an empty string as assignee to unassign."
     :initform nil
     :documentation "Read comment text from file (--file)."
     :long-option "file"
-    :option-type :string
+    :type (or null string)
     :short-option "f"
     :transient "Read from file"
     :class transient-option
@@ -1786,7 +1786,7 @@ Shorthand for: bd comments add <id> \"text\""
 discovered-from.  Default: blocks."
     :long-option "type"
     :short-option "t"
-    :option-type :string
+    :type (or null string)
     :transient "Link type"
     :class transient-option
     :argument "--type="
