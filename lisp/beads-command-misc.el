@@ -1022,7 +1022,8 @@ Dolt-native backup commands (preserve full commit history):
    ("r" "Restore from JSONL" beads-backup-restore)]
   ["Dolt-native Backup"
    ("i" "Init destination" beads-backup-init)
-   ("S" "Sync to backup" beads-backup-sync)]
+   ("S" "Sync to backup" beads-backup-sync)
+   ("x" "Remove destination" beads-backup-remove)]
   ["Quick Actions"
    ("q" "Quit" transient-quit-one)])
 
@@ -1742,6 +1743,105 @@ Built-in and custom statuses from config are shown.")
 
 Shows built-in statuses (open, in_progress, blocked, etc.) and
 any custom statuses configured via status.custom."
+  beads-option-global-section)
+
+;;; ============================================================
+;;; Command Class: beads-command-rules-audit
+;;; ============================================================
+
+(beads-defcommand beads-command-rules-audit (beads-command-global-options)
+  ((path
+    :type (or null string)
+    :long-option "path"
+    :prompt "Rules directory: "
+    :group "Options"
+    :level 2
+    :order 1)
+   (threshold
+    :type (or null number)
+    :long-option "threshold"
+    :prompt "Similarity threshold: "
+    :group "Options"
+    :level 2
+    :order 2))
+  :documentation "Represents bd rules audit command.
+Scans rules for contradictions and merge opportunities."
+  :cli-command "rules audit")
+
+;;; ============================================================
+;;; Command Class: beads-command-rules-compact
+;;; ============================================================
+
+(beads-defcommand beads-command-rules-compact (beads-command-global-options)
+  ((path
+    :type (or null string)
+    :long-option "path"
+    :prompt "Rules directory: "
+    :group "Options"
+    :level 2
+    :order 1)
+   (auto
+    :type boolean
+    :long-option "auto"
+    :group "Options"
+    :level 1
+    :order 2)
+   (dry-run
+    :type boolean
+    :long-option "dry-run"
+    :group "Options"
+    :level 1
+    :order 3)
+   (group
+    :type (or null string)
+    :long-option "group"
+    :prompt "Rule names to merge: "
+    :group "Options"
+    :level 2
+    :order 4))
+  :documentation "Represents bd rules compact command.
+Merges related rules into composites."
+  :cli-command "rules compact")
+
+;;; Transient Menus for rules
+
+;;;###autoload (autoload 'beads-rules-audit "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-rules-audit "beads-rules-audit"
+  "Scan rules for contradictions and merge opportunities."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-rules-compact "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-rules-compact "beads-rules-compact"
+  "Merge related rules into composites.
+Use --dry-run to preview without applying."
+  beads-option-global-section)
+
+;;; Parent Transient Menu: beads-rules
+
+;;;###autoload (autoload 'beads-rules "beads-command-misc" nil t)
+(transient-define-prefix beads-rules ()
+  "Audit and compact Claude rules."
+  ["Rules Commands"
+   ("a" "Audit rules" beads-rules-audit)
+   ("c" "Compact rules" beads-rules-compact)])
+
+;;; ============================================================
+;;; Command Class: beads-command-backup-remove
+;;; ============================================================
+
+(beads-defcommand beads-command-backup-remove (beads-command-global-options)
+  ()
+  :documentation "Represents bd backup remove command.
+Removes the configured backup destination."
+  :cli-command "backup remove")
+
+;;;###autoload (autoload 'beads-backup-remove "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-backup-remove "beads-backup-remove"
+  "Remove the configured backup destination.
+
+Unregisters the backup remote from Dolt and removes the local
+backup configuration.  The backup data at the destination is
+not deleted."
   beads-option-global-section)
 
 (provide 'beads-command-misc)
