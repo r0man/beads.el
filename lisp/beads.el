@@ -870,9 +870,9 @@ or set `beads-executable' to the full path" beads-executable)))
 ;;;###autoload
 (autoload 'beads-info "beads-command-info" nil t)
 
-;; beads-command-stats
+;; beads-command-status
 ;;;###autoload
-(autoload 'beads-stats "beads-command-stats" nil t)
+(autoload 'beads-stats "beads-command-status" nil t)
 
 ;; beads-command-count
 ;;;###autoload

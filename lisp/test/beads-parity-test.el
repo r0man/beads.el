@@ -885,7 +885,7 @@ This is the format returned by bd dep list and bd show dependents."
 ;; beads-command-worktree-info  beads-worktree-info-from-json  worktree-info-json
 ;; beads-command-worktree-create beads-worktree-from-json      worktree-list-json
 ;; beads-command-label-list-all beads-label-count-from-json    label-list-all-json
-;; beads-command-stats          beads-stats-data-from-json     stats-json
+;; beads-command-status         beads-stats-data-from-json     stats-json
 
 ;;; ========================================
 ;;; Parity Test Helper

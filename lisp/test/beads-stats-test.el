@@ -17,7 +17,7 @@
 (require 'beads)
 (require 'beads-buffer)
 (require 'beads-types)
-(require 'beads-command-stats)
+(require 'beads-command-status)
 (require 'beads-test)
 
 ;;; Test Fixtures

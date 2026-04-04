@@ -25,7 +25,7 @@
 (require 'beads-command-ready)
 (require 'beads-command-quickstart)
 (require 'beads-command-show)
-(require 'beads-command-stats)
+(require 'beads-command-status)
 (require 'beads-command-update)
 (require 'beads-types)
 (require 'beads-test)
@@ -801,10 +801,10 @@ Integration test that verifies empty list when no blockers exist."
       (should (listp issues))
       (should (zerop (length issues))))))
 
-;;; Integration Test: beads-command-stats
+;;; Integration Test: beads-command-status
 
 (ert-deftest beads-command-test-stats-basic ()
-  "Test beads-command-stats returns statistics.
+  "Test beads-command-status returns statistics.
 Integration test that retrieves issue database stats."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
@@ -813,7 +813,7 @@ Integration test that retrieves issue database stats."
     (beads-execute 'beads-command-create :title "Issue 1")
     (beads-execute 'beads-command-create :title "Issue 2")
     ;; Get stats
-    (let ((stats (beads-execute 'beads-command-stats)))
+    (let ((stats (beads-execute 'beads-command-status)))
       ;; Should return parsed JSON (alist or similar)
       (should stats)
       ;; Stats should have some structure (implementation-dependent)
