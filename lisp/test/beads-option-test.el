@@ -188,21 +188,6 @@
   "Test that dep-type infix is defined."
   (should (commandp 'beads-option-dep-type)))
 
-(ert-deftest beads-option-test-sync-dry-run-infix-exists ()
-  "Test that sync dry-run infix is defined."
-  (should (commandp 'beads-option-sync-dry-run)))
-
-(ert-deftest beads-option-test-sync-message-infix-exists ()
-  "Test that sync message infix is defined."
-  (should (commandp 'beads-option-sync-message)))
-
-(ert-deftest beads-option-test-sync-no-pull-infix-exists ()
-  "Test that sync no-pull infix is defined."
-  (should (commandp 'beads-option-sync-no-pull)))
-
-(ert-deftest beads-option-test-sync-no-push-infix-exists ()
-  "Test that sync no-push infix is defined."
-  (should (commandp 'beads-option-sync-no-push)))
 
 (ert-deftest beads-option-test-init-prefix-infix-exists ()
   "Test that init prefix infix is defined."

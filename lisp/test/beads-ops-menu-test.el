@@ -41,13 +41,6 @@
   "Verify beads-delete is defined."
   (should (fboundp 'beads-delete)))
 
-(ert-deftest beads-ops-menu-test-move-defined ()
-  "Verify beads-move is defined."
-  (should (fboundp 'beads-move)))
-
-(ert-deftest beads-ops-menu-test-refile-defined ()
-  "Verify beads-refile is defined."
-  (should (fboundp 'beads-refile)))
 
 (ert-deftest beads-ops-menu-test-rename-defined ()
   "Verify beads-rename is defined."

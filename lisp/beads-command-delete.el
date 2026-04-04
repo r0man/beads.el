@@ -24,8 +24,6 @@
 ;; - Delete single or multiple issues at once
 ;; - Cascade mode to delete all dependents
 ;; - Dry-run preview before deletion
-;; - Hard delete bypasses tombstones
-;; - Reason field for audit trail
 ;;
 ;; Usage:
 ;;   (beads-command-execute (beads-command-delete :issue-ids '("bd-1")
@@ -97,20 +95,7 @@
     :group "Batch Delete"
     :level 3
     :order 1)
-   (hard
-    :type boolean
-    :short-option "H"
-    :group "Options"
-    :level 3
-    :order 2)
-   (reason
-    :type (or null string)
-    :short-option "r"
-    :transient beads-transient-multiline
-    :documentation "Delete Reason"
-    :group "Delete Issue"
-    :level 2
-    :order 2))
+)
   :documentation "Represents bd delete command.
 Deletes one or more issues and cleans up all references to them.
 When executed with :json t, returns deleted issue(s) data.")
@@ -202,12 +187,11 @@ This is a DESTRUCTIVE operation that:
 Use --dry-run to preview what would be deleted.
 Use --force to actually delete (without preview).
 Use --cascade to recursively delete all dependents.
-Use --hard for permanent deletion (bypasses tombstones).
 
 Transient levels control which options are visible (cycle with C-x l):
   Level 1: Issue IDs, dry-run, force
-  Level 2: Cascade, reason
-  Level 3: From-file, hard"
+  Level 2: Cascade
+  Level 3: From-file"
   beads-option-global-section)
 
 ;;; Interactive Deletion Workflow

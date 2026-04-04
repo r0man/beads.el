@@ -573,9 +573,7 @@ into logical groups for easy access."
    ("e" "Edit field" beads-edit)
    ("I" "Create (transient)" beads-create)
    ("Q" "Quick capture (q)" beads-q)
-   ("O" "Move issue" beads-move)
-   ("B" "Refile issue" beads-refile)
-   ("a" "Children" beads-children)
+("a" "Children" beads-children)
    (">" "Promote wisp" beads-promote)
    ("X" "Query issues" beads-query)
    ("[" "Todo items" beads-todo)
@@ -989,10 +987,7 @@ or set `beads-executable' to the full path" beads-executable)))
 (autoload 'beads-create-form "beads-command-misc" nil t)
 ;;;###autoload
 (autoload 'beads-q "beads-command-misc" nil t)
-;;;###autoload
-(autoload 'beads-move "beads-command-misc" nil t)
-;;;###autoload
-(autoload 'beads-refile "beads-command-misc" nil t)
+
 ;;;###autoload
 (autoload 'beads-children "beads-command-misc" nil t)
 ;;;###autoload

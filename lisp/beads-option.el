@@ -54,7 +54,7 @@
 (declare-function beads-reader-update-external-ref "beads-reader")
 (declare-function beads-reader-close-issue-id "beads-reader")
 (declare-function beads-reader-reopen-issue-id "beads-reader")
-(declare-function beads-reader-sync-message "beads-reader")
+
 (declare-function beads-reader-dep-add-issue-id "beads-reader")
 (declare-function beads-reader-dep-add-depends-on-id "beads-reader")
 (declare-function beads-reader-dep-add-type "beads-reader")
@@ -498,40 +498,6 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :description "--reason"
   :key "-r"
   :argument "--reason=")
-
-;;; ============================================================
-;;; Transient Infix Definitions - beads-sync
-;;; ============================================================
-
-(transient-define-infix beads-option-sync-dry-run ()
-  "Toggle dry-run mode."
-  :class 'transient-switch
-  :description "--dry-run"
-  :key "-d"
-  :argument "--dry-run")
-
-(transient-define-infix beads-option-sync-message ()
-  "Set custom commit message."
-  :class 'transient-option
-  :description "--message"
-  :key "-m"
-  :argument "--message="
-  :prompt "Commit message: "
-  :reader #'beads-reader-sync-message)
-
-(transient-define-infix beads-option-sync-no-pull ()
-  "Toggle skip pull flag."
-  :class 'transient-switch
-  :description "--no-pull"
-  :key "-P"
-  :argument "--no-pull")
-
-(transient-define-infix beads-option-sync-no-push ()
-  "Toggle skip push flag."
-  :class 'transient-switch
-  :description "--no-push"
-  :key "-p"
-  :argument "--no-push")
 
 ;;; ============================================================
 ;;; Transient Infix Definitions - beads-dep

@@ -576,47 +576,7 @@
       (should (equal "bd-7"
                      (beads-reader-edit-issue-id nil nil nil))))))
 
-(ert-deftest beads-coverage-3-reader-move-detect-list-mode ()
-  "Test move issue ID detection from list mode."
-  (cl-letf (((symbol-function 'derived-mode-p)
-             (lambda (mode &rest _) (eq mode 'beads-list-mode)))
-            ((symbol-function 'beads-list--current-issue-id)
-             (lambda () "bd-42")))
-    (should (equal "bd-42"
-                   (beads-reader-move--detect-issue-id)))))
 
-(ert-deftest beads-coverage-3-reader-move-detect-show-mode ()
-  "Test move issue ID detection from show mode."
-  (defvar beads-show--issue-id)
-  (let ((beads-show--issue-id "bd-33"))
-    (cl-letf (((symbol-function 'derived-mode-p)
-               (lambda (mode &rest _) (eq mode 'beads-show-mode))))
-      (should (equal "bd-33"
-                     (beads-reader-move--detect-issue-id))))))
-
-(ert-deftest beads-coverage-3-reader-move-issue-id-detected ()
-  "Test move issue ID reader with detected ID."
-  (cl-letf (((symbol-function 'beads-reader-move--detect-issue-id)
-             (lambda () "bd-42")))
-    (should (equal "bd-42"
-                   (beads-reader-move-issue-id nil nil nil)))))
-
-(ert-deftest beads-coverage-3-reader-move-issue-id-prompted ()
-  "Test move issue ID reader when detection fails."
-  (let ((beads-move--issue-id nil))
-    (cl-letf (((symbol-function 'beads-reader-move--detect-issue-id)
-               (lambda () nil))
-              ((symbol-function 'beads-completion-read-issue)
-               (lambda (_prompt &rest _) "bd-99")))
-      (should (equal "bd-99"
-                     (beads-reader-move-issue-id nil nil nil))))))
-
-(ert-deftest beads-coverage-3-reader-sync-message ()
-  "Test beads-reader-sync-message reads a string."
-  (cl-letf (((symbol-function 'read-string)
-             (lambda (_prompt &rest _) "sync commit")))
-    (should (equal "sync commit"
-                   (beads-reader-sync-message nil nil nil)))))
 
 (ert-deftest beads-coverage-3-reader-dep-add-issue-id ()
   "Test dep add issue ID reader."
