@@ -127,10 +127,7 @@ Sanity checks the beads installation.
 When executed with :json t, returns diagnostic results.")
 
 
-(cl-defmethod beads-command-validate ((_command beads-command-doctor))
-  "Validate doctor COMMAND.
-No required fields, returns nil (valid)."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 (cl-defmethod beads-command-line ((command beads-command-doctor))
   "Build command arguments for doctor COMMAND (without executable).

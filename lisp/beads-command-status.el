@@ -68,10 +68,7 @@ Shows a quick snapshot of the issue database state and statistics.
 When executed with :json t, returns status data as JSON.")
 
 
-(cl-defmethod beads-command-validate ((_command beads-command-status))
-  "Validate status COMMAND.
-No required fields, returns nil (valid)."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 
 ;;; Transient Menu

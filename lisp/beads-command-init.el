@@ -143,10 +143,7 @@ Returns error string or nil if valid."
      ;; Otherwise valid
      (t nil))))
 
-(cl-defmethod beads-command-parse ((_command beads-command-init) stdout)
-  "Parse bd init output from STDOUT.
-Returns raw stdout string.  bd init does not produce JSON output."
-  stdout)
+;; Parse override removed: base method returns raw stdout when :json nil.
 
 ;;; Transient Menu
 

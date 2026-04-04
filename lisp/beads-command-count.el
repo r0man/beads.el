@@ -163,10 +163,7 @@ Counts issues matching the specified filters.
 When executed with :json t, returns count data as JSON.")
 
 
-(cl-defmethod beads-command-validate ((_command beads-command-count))
-  "Validate count COMMAND.
-No required fields, returns nil (valid)."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 
 ;;; Transient Menu

@@ -166,7 +166,8 @@
     :level 3))
   :documentation "Represents bd ready command.
 Shows ready work (no blockers, open or in-progress).
-When executed with :json t, returns list of beads-issue instances.")
+When executed with :json t, returns list of beads-issue instances."
+  :result (list-of beads-issue))
 
 
 (cl-defmethod beads-command-validate ((command beads-command-ready))
@@ -188,27 +189,8 @@ Returns error string or nil if valid."
      (beads-command--validate-string-list label "label")
      (beads-command--validate-string-list label-any "label-any"))))
 
-(cl-defmethod beads-command-parse ((command beads-command-ready) stdout)
-  "Parse ready COMMAND output from STDOUT.
-Returns list of beads-issue instances.
-When :json is nil, falls back to parent (returns raw stdout).
-When :json is t, converts parsed JSON to beads-issue instances.
-Does not modify any slots."
-  (with-slots (json) command
-    (if (not json)
-        ;; If json is not enabled, use parent implementation
-        (cl-call-next-method)
-      ;; Call parent to parse JSON, then convert to beads-issue instances
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (mapcar (lambda (j) (beads-from-json 'beads-issue j)) (append parsed-json nil))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to create beads-issue instances: %s"
-                                 (error-message-string err))
-                         :stdout stdout
-                         :parsed-json parsed-json
-                         :parse-error err))))))))
+;; Parse override removed: the base method handles JSON-to-domain
+;; parsing automatically via :result (list-of beads-issue).
 
 
 ;;; Transient Menu

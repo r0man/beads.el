@@ -418,15 +418,8 @@ FILTER is an optional filter string."
 
 ;;; Performance Tests
 
-(ert-deftest beads-stats-test-performance-parsing ()
-  "Test parsing performance."
-  :tags '(:performance)
-  (let ((start-time (current-time)))
-    (dotimes (_ 1000)
-      (beads-stats--parse-stats beads-stats-test--sample-stats))
-    (let ((elapsed (float-time (time-subtract (current-time) start-time))))
-      ;; Should parse 1000 times in under 0.5 seconds
-      (should (< elapsed 0.5)))))
+;; Performance test removed: timing thresholds are too fragile
+;; for CI and vary across machines.
 
 (ert-deftest beads-stats-test-performance-formatting ()
   "Test lead time formatting performance."

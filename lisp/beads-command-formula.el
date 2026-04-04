@@ -127,9 +127,7 @@
 Lists available formulas from all search paths.")
 
 
-(cl-defmethod beads-command-validate ((_command beads-command-formula-list))
-  "Validate formula list command.  No required fields."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 (cl-defmethod beads-command-parse ((_command beads-command-formula-list) stdout)
   "Parse STDOUT into beads-formula-summary objects."

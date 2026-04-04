@@ -215,10 +215,7 @@ When executed with :json t, returns matching issues as JSON."
 ;; beads-command-parse override removed: the base method now handles
 ;; JSON-to-domain parsing automatically via :result (list-of beads-issue).
 
-(cl-defmethod beads-command-validate ((_command beads-command-search))
-  "Validate search COMMAND.
-No required fields, returns nil (valid)."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 ;;; Interactive Execution — display results in tabulated-list-mode
 

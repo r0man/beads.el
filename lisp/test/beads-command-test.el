@@ -599,9 +599,9 @@ Integration test that updates issue title."
     (let* ((created (beads-execute 'beads-command-create :title "Original Title"))
            (issue-id (oref created id))
            ;; Update the title
-           (updated (beads-execute 'beads-command-update
-                     :issue-ids (list issue-id)
-                     :title "Updated Title")))
+           (updated (car (beads-execute 'beads-command-update
+                          :issue-ids (list issue-id)
+                          :title "Updated Title"))))
       ;; Should return a beads-issue instance
       (should (beads-issue-p updated))
       ;; Title should be updated
@@ -619,11 +619,11 @@ Integration test that updates title, status, and priority."
     (let* ((created (beads-execute 'beads-command-create :title "Original"))
            (issue-id (oref created id))
            ;; Update multiple fields
-           (updated (beads-execute 'beads-command-update
-                     :issue-ids (list issue-id)
-                     :title "Updated"
-                     :status "in_progress"
-                     :priority "1")))
+           (updated (car (beads-execute 'beads-command-update
+                          :issue-ids (list issue-id)
+                          :title "Updated"
+                          :status "in_progress"
+                          :priority "1"))))
       ;; Should return a beads-issue instance
       (should (beads-issue-p updated))
       ;; All fields should be updated
@@ -641,9 +641,9 @@ Integration test that sets/updates description field."
     (let* ((created (beads-execute 'beads-command-create :title "Test"))
            (issue-id (oref created id))
            ;; Update the description
-           (updated (beads-execute 'beads-command-update
-                     :issue-ids (list issue-id)
-                     :description "New description text")))
+           (updated (car (beads-execute 'beads-command-update
+                          :issue-ids (list issue-id)
+                          :description "New description text"))))
       ;; Should return a beads-issue instance
       (should (beads-issue-p updated))
       ;; Description should be set
@@ -661,9 +661,9 @@ Integration test that closes one issue with a reason."
     (let* ((created (beads-execute 'beads-command-create :title "To Close"))
            (issue-id (oref created id))
            ;; Close the issue
-           (closed (beads-execute 'beads-command-close
-                    :issue-ids (list issue-id)
-                    :reason "Completed")))
+           (closed (car (beads-execute 'beads-command-close
+                         :issue-ids (list issue-id)
+                         :reason "Completed"))))
       ;; Should return a beads-issue instance
       (should (beads-issue-p closed))
       ;; Status should be closed

@@ -120,6 +120,7 @@
 Shows detailed information about one or more issues.
 When executed with :json t, returns beads-issue instance (or list
 of instances when multiple IDs provided)."
+  :result (list-of beads-issue)
   :transient :manual)
 
 
@@ -137,39 +138,16 @@ Returns error string or nil if valid."
 
 (cl-defmethod beads-command-parse ((command beads-command-show) stdout)
   "Parse show COMMAND output from STDOUT.
-Returns beads-issue instance (or list when multiple IDs).
-When :json is nil, falls back to parent (returns raw stdout).
-When :json is t, returns beads-issue instance (or list when multiple IDs).
-Does not modify any slots."
+Delegates JSON→domain parsing to the base method via :result,
+then unwraps single-element results for caller convenience.
+Many callers expect a single beads-issue, not a list."
   (with-slots (json issue-ids) command
     (if (not json)
-        ;; If json is not enabled, use parent implementation
         (cl-call-next-method)
-      ;; Call parent to parse JSON, then convert to beads-issue instance(s)
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (cond
-             ;; Array result - convert to issue objects
-             ((vectorp parsed-json)
-              (let ((issues (mapcar (lambda (j) (beads-from-json 'beads-issue j))
-                                    (append parsed-json nil))))
-                ;; Return single issue if only one ID, list otherwise
-                (if (and issue-ids (= (length issue-ids) 1))
-                    (car issues)
-                  issues)))
-             ;; Single object result
-             ((and parsed-json (listp parsed-json)
-                   (not (null parsed-json)))
-              (beads-from-json 'beads-issue parsed-json))
-             ;; Empty or null
-             (t nil))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to create beads-issue instance: %s"
-                                 (error-message-string err))
-                         :stdout stdout
-                         :parsed-json parsed-json
-                         :parse-error err))))))))
+      (let ((issues (cl-call-next-method)))
+        (if (and (listp issues) issue-ids (= (length issue-ids) 1))
+            (car issues)
+          issues)))))
 
 
 ;;; Transient Menu

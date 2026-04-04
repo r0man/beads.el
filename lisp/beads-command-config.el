@@ -121,11 +121,7 @@ At least one key=value pair is required."
   :documentation "Represents bd config validate command.
 Validates sync-related configuration settings.")
 
-(cl-defmethod beads-command-validate ((_command beads-command-config-validate))
-  "Validate config validate COMMAND.
-No required fields.
-Returns nil (always valid)."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 ;;; Execute Interactive Methods
 

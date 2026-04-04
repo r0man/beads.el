@@ -46,30 +46,12 @@
     :order 1))
   :documentation "Represents bd blocked command.
 Shows blocked issues (issues with unresolved blockers).
-When executed with :json t, returns list of beads-blocked-issue instances.")
+When executed with :json t, returns list of beads-blocked-issue instances."
+  :result (list-of beads-blocked-issue))
 
 
-(cl-defmethod beads-command-parse ((command beads-command-blocked) stdout)
-  "Parse blocked COMMAND output from STDOUT.
-Returns list of beads-blocked-issue instances.
-When :json is nil, falls back to parent (returns raw stdout).
-When :json is t, converts parsed JSON to beads-blocked-issue instances.
-Does not modify any slots."
-  (with-slots (json) command
-    (if (not json)
-        ;; If json is not enabled, use parent implementation
-        (cl-call-next-method)
-      ;; Call parent to parse JSON, then convert to beads-blocked-issue instances
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (mapcar (lambda (j) (beads-from-json 'beads-blocked-issue j)) (append parsed-json nil))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to create beads-blocked-issue instances: %s"
-                                 (error-message-string err))
-                         :stdout stdout
-                         :parsed-json parsed-json
-                         :parse-error err))))))))
+;; Parse override removed: the base method handles JSON-to-domain
+;; parsing automatically via :result (list-of beads-blocked-issue).
 
 
 ;;; Transient Menu

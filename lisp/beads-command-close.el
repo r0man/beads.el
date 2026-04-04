@@ -105,36 +105,15 @@ Returns error string or nil if valid."
      ;; Validate list content types
      (beads-command--validate-string-list issue-ids "issue-ids"))))
 
-(cl-defmethod beads-command-parse ((command beads-command-close) stdout)
-  "Parse close COMMAND output from STDOUT.
-Returns closed issue(s).
-When :json is nil, falls back to parent (returns raw stdout).
-When :json is t, the base method auto-parses via :result into
-a list of beads-issue objects.  This override unwraps single-element
-results when only one issue-id was provided."
-  (with-slots (json issue-ids) command
-    (if (not json)
-        (cl-call-next-method)
-      ;; Base method returns (list-of beads-issue) via :result
-      (let ((issues (cl-call-next-method)))
-        (if (and (listp issues) (= (length issue-ids) 1))
-            (car issues)
-          issues)))))
+;; Parse override removed: the base method handles JSON-to-domain
+;; parsing automatically via :result (list-of beads-issue).
+;; The execute-interactive method normalizes results to a list.
 
 (cl-defmethod beads-command-execute-interactive ((cmd beads-command-close))
-  "Execute CMD to close issue and show result.
-Overrides default `compilation-mode' behavior."
+  "Execute CMD to close issue and show result."
   (oset cmd json t)
   (let* ((result (beads-command-execute cmd))
-         (issues (cond
-                  ((null result) nil)
-                  ((cl-typep result 'beads-issue) (list result))
-                  ((and (listp result)
-                        (not (null result))
-                        (cl-typep (car result) 'beads-issue))
-                   result)
-                  (t nil))))
-    ;; Invalidate completion cache after closing
+         (issues (if (listp result) result (list result))))
     (beads--invalidate-completion-cache)
     (if issues
         (message "Closed %d issue%s: %s"

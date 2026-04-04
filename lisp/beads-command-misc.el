@@ -1741,9 +1741,7 @@ List all valid issue statuses and their categories.
 Built-in and custom statuses from config are shown.")
 
 
-(cl-defmethod beads-command-validate ((_command beads-command-statuses))
-  "Validate statuses COMMAND.  Always valid."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 ;;;###autoload (autoload 'beads-statuses "beads-command-misc" nil t)
 (beads-meta-define-transient beads-command-statuses "beads-statuses"
