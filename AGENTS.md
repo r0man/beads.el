@@ -1,8 +1,93 @@
-# Agent Instructions
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+beads.el is an Emacs package providing a Magit-like transient-based UI for the [Beads](https://github.com/steveyegge/beads) issue tracker (`bd` CLI). It uses EIEIO classes, transient menus, and tabulated-list-mode to expose all `bd` commands from within Emacs.
+
+## Build & Test Commands
+
+```bash
+# Run all tests
+eldev test
+
+# Run a single test file
+eldev test test/beads-list-test.el
+
+# Run tests matching a pattern
+eldev test -p "beads-command-close"
+
+# Verbose test output
+eldev -p -dtT test
+
+# Tests with coverage (uses undercover.el + codecov)
+eldev -s test --coverage
+
+# Byte-compile
+eldev compile
+
+# Lint
+eldev lint
+```
+
+Tests live in `lisp/test/` and are named `<module>-test.el`. Tests use a suite-level isolated Dolt server on a random port (via `beads-integration-test.el`) so they never hit production. `bd` v0.58.0+ requires Dolt -- there is no JSONL-only fallback.
+
+## Architecture
+
+### EIEIO Command System (core pattern)
+
+The central abstraction is `beads-defcommand` (in `beads-command.el`), a macro that generates from a single class definition:
+1. An EIEIO class with typed slots
+2. CLI argument serialization (`beads-command-line`)
+3. A transient menu with infixes auto-derived from slot metadata
+4. Result type declarations for auto-parsing
+
+Class hierarchy: `beads-command` (abstract base) -> `beads-command-global-options` (adds `--actor`, `--db`, `--json` flags) -> concrete commands (`beads-command-list`, `beads-command-create`, `beads-command-close`, etc.).
+
+Each `beads-command-<foo>.el` file in `lisp/` defines one bd subcommand as an EIEIO class.
+
+### Slot Metadata (`beads-meta.el`)
+
+Custom EIEIO slot properties drive code generation. A single slot definition carries CLI properties (`:long-option`, `:short-option`, `:option-type`, `:positional`), transient properties (`:transient`, `:class`, `:reader`, `:choices`, `:group`, `:level`), and validation (`:required`, `:validator`). This avoids duplication between CLI serialization and UI.
+
+### Data Types (`beads-types.el`)
+
+EIEIO classes mirroring the Go structs from `beads/internal/types`: `beads-issue`, `beads-dependency`, `beads-label`, `beads-comment`, `beads-event`, `beads-statistics`, etc. All JSON parsing from `bd --json` output goes through these types.
+
+### UI Layers
+
+- **`beads-command-list.el`** / **`beads-spec.el`**: Tabulated list mode with `beads-issue-spec` filter objects (status/type/priority/sort/limit) that convert to CLI args.
+- **`beads-command-show.el`** / **`beads-section.el`**: Issue detail view using magit-section-style rendering.
+- **`beads-eldoc.el`**: Hover-to-preview issue references anywhere, with caching.
+- **`beads-agent.el`** + backends: AI agent integration with sesman session management and git worktree isolation.
+
+### Key Files
+
+| File | Role |
+|------|------|
+| `beads.el` | Entry point, main transient menu, core utilities |
+| `beads-command.el` | `beads-defcommand` macro, base classes, execution |
+| `beads-meta.el` | EIEIO slot property infrastructure (preserves custom props) |
+| `beads-types.el` | Data model classes (issue, dependency, etc.) |
+| `beads-option.el` | Global option variables and transient groups |
+| `beads-spec.el` | Filter spec objects for list views |
+| `beads-completion.el` | Completion tables (issue IDs, statuses, etc.) |
+| `beads-reader.el` | Reader functions for transient infixes |
+
+## Conventions
+
+- Public API: `beads-` prefix. Internal: `beads--` prefix.
+- Each `bd` subcommand gets its own `beads-command-<name>.el` file.
+- All bd commands use `--json` for structured output; UI never parses human-readable text.
+- Transient menus are auto-generated from slot metadata where possible; use `:transient :manual` only when custom layout is needed.
+- Dependencies: Emacs 29.1+, transient 0.10.1+, sesman 0.3.2+, vui 1.0.0+ (from MELPA).
+
+## Agent Instructions
 
 This project uses **bd** (beads) for issue tracking. Run `bd prime` for full workflow context.
 
-## Quick Reference
+### Quick Reference
 
 ```bash
 bd ready              # Find available work
@@ -16,27 +101,15 @@ bd dolt push          # Push beads data to remote
 
 **ALWAYS use non-interactive flags** with file operations to avoid hanging on confirmation prompts.
 
-Shell commands like `cp`, `mv`, and `rm` may be aliased to include `-i` (interactive) mode on some systems, causing the agent to hang indefinitely waiting for y/n input.
-
-**Use these forms instead:**
 ```bash
-# Force overwrite without prompting
 cp -f source dest           # NOT: cp source dest
 mv -f source dest           # NOT: mv source dest
 rm -f file                  # NOT: rm file
-
-# For recursive operations
 rm -rf directory            # NOT: rm -r directory
-cp -rf source dest          # NOT: cp -r source dest
 ```
 
-**Other commands that may prompt:**
-- `scp` - use `-o BatchMode=yes` for non-interactive
-- `ssh` - use `-o BatchMode=yes` to fail instead of prompting
-- `apt-get` - use `-y` flag
-- `brew` - use `HOMEBREW_NO_AUTO_UPDATE=1` env var
+Other commands that may prompt: `scp` (`-o BatchMode=yes`), `ssh` (`-o BatchMode=yes`), `apt-get` (`-y`).
 
-<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:ca08a54f -->
 ## Beads Issue Tracker
 
 This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
@@ -81,4 +154,3 @@ bd close <id>         # Complete work
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
-<!-- END BEADS INTEGRATION -->
