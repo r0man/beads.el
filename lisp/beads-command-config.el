@@ -90,6 +90,29 @@ Deletes a configuration value.")
      (t nil))))
 
 ;;; ============================================================
+;;; Command Class: beads-command-config-set-many
+;;; ============================================================
+
+(beads-defcommand beads-command-config-set-many (beads-command-global-options)
+  ((pairs
+    :positional 1
+    :type (list-of string)
+    :separator " "
+    :required t))
+  :documentation "Represents bd config set-many command.
+Sets multiple configuration values at once with a single auto-commit.
+Each argument must be in key=value format."
+  :cli-command "config set-many")
+
+(cl-defmethod beads-command-validate ((command beads-command-config-set-many))
+  "Validate config set-many COMMAND.
+At least one key=value pair is required."
+  (with-slots (pairs) command
+    (if (or (null pairs) (zerop (length pairs)))
+        "At least one key=value pair is required"
+      nil)))
+
+;;; ============================================================
 ;;; Command Class: beads-command-config-validate
 ;;; ============================================================
 
@@ -132,6 +155,12 @@ Returns nil (always valid)."
   "Delete a configuration value."
   beads-option-global-section)
 
+;;;###autoload (autoload 'beads-config-set-many "beads-command-config" nil t)
+(beads-meta-define-transient beads-command-config-set-many "beads-config-set-many"
+  "Set multiple configuration values at once.
+Each argument must be in key=value format."
+  beads-option-global-section)
+
 ;;;###autoload (autoload 'beads-config-validate "beads-command-config" nil t)
 (beads-meta-define-transient beads-command-config-validate "beads-config-validate"
   "Validate sync-related configuration settings.
@@ -160,6 +189,7 @@ Common namespaces:
   ["Config Commands"
    ("g" "Get value" beads-config-get)
    ("s" "Set value" beads-config-set)
+   ("S" "Set many" beads-config-set-many)
    ("l" "List all" beads-config-list)
    ("u" "Unset value" beads-config-unset)
    ("v" "Validate config" beads-config-validate)])
