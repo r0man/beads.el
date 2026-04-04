@@ -110,7 +110,9 @@ Format: (TIMESTAMP . LABELS-LIST)")
     :order 2
     :required t))
   :documentation "Represents bd label add command.
-Adds a label to one or more issues.")
+Adds a label to one or more issues."
+  :result (list-of beads-issue)
+  :transient :manual)
 
 
 (cl-defmethod beads-command-validate ((command beads-command-label-add))
@@ -160,7 +162,9 @@ Returns error string or nil if valid."
     :order 2
     :required t))
   :documentation "Represents bd label remove command.
-Removes a label from one or more issues.")
+Removes a label from one or more issues."
+  :result (list-of beads-issue)
+  :transient :manual)
 
 
 (cl-defmethod beads-command-validate ((command beads-command-label-remove))

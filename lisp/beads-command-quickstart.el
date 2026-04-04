@@ -35,7 +35,8 @@
 (beads-defcommand beads-command-quickstart (beads-command-global-options)
   ()
   :documentation "Represents bd quickstart command.
-Displays a quick start guide showing common bd workflows and patterns.")
+Displays a quick start guide showing common bd workflows and patterns."
+  :json nil)
 
 
 (cl-defmethod beads-command-validate ((_command beads-command-quickstart))

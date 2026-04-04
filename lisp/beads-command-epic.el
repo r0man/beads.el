@@ -90,11 +90,6 @@ Does not modify any slots."
                          :parsed-json parsed-json
                          :parse-error err))))))))
 
-(cl-defmethod beads-command-execute-interactive ((_cmd beads-command-epic-status))
-  "Execute in terminal buffer with human-readable output."
-  (cl-call-next-method))
-
-
 ;;; Epic Close-Eligible Command
 
 (beads-defcommand beads-command-epic-close-eligible (beads-command-global-options)
