@@ -356,6 +356,7 @@ Requires name to be set."
 
 (beads-defcommand beads-command-worktree-info (beads-command-global-options)
   ()
+  :transient :manual
   :documentation "Represents bd worktree info command.
 Shows information about the current worktree context.")
 

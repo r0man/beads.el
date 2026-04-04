@@ -173,8 +173,8 @@
 ;;; Tests for Transient Definitions
 
 (ert-deftest beads-compact-test-transient-stats-defined ()
-  "Test that beads-compact-stats transient is defined."
-  (should (fboundp 'beads-compact-stats)))
+  "Test that beads-compact-show-stats transient is defined."
+  (should (fboundp 'beads-compact-show-stats)))
 
 (ert-deftest beads-compact-test-transient-analyze-defined ()
   "Test that beads-compact-analyze transient is defined."
@@ -205,7 +205,7 @@
 
 (ert-deftest beads-compact-test-parse-transient-args-stats ()
   "Test parsing transient args for stats command."
-  (let ((cmd (beads-compact-stats--parse-transient-args nil)))
+  (let ((cmd (beads-compact-show-stats--parse-transient-args nil)))
     (should (beads-command-compact-stats-p cmd))))
 
 (ert-deftest beads-compact-test-parse-transient-args-analyze ()
