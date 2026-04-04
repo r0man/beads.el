@@ -431,7 +431,7 @@ Does not modify any slots."
             (cond
              ;; Array result - convert to issue objects
              ((eq (type-of parsed-json) 'vector)
-              (mapcar #'beads-issue-from-json (append parsed-json nil)))
+              (mapcar (lambda (j) (beads-from-json 'beads-issue j)) (append parsed-json nil)))
              ;; Empty or null
              ((or (null parsed-json) (eq parsed-json :null))
               nil)

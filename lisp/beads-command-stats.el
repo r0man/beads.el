@@ -285,7 +285,7 @@ Returns a beads-stats-data object containing summary and recent-activity.
 
 This function uses `beads-stats-data-from-json' from beads-types.el
 to create proper beads-stats-data objects with nested structure."
-  (beads-stats-data-from-json json))
+  (beads-from-json 'beads-stats-data json))
 
 (defun beads-stats--format-lead-time (hours)
   "Format HOURS as human-readable lead time."

@@ -288,7 +288,7 @@ Returns beads-worktree instance on success."
         (cl-call-next-method)
       (let ((parsed-json (cl-call-next-method)))
         (condition-case err
-            (beads-worktree-from-json parsed-json)
+            (beads-from-json 'beads-worktree parsed-json)
           (error
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-worktree: %s"
@@ -315,7 +315,7 @@ Returns list of beads-worktree instances."
         (cl-call-next-method)
       (let ((parsed-json (cl-call-next-method)))
         (condition-case err
-            (mapcar #'beads-worktree-from-json (append parsed-json nil))
+            (mapcar (lambda (j) (beads-from-json 'beads-worktree j)) (append parsed-json nil))
           (error
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-worktree list: %s"
@@ -369,7 +369,7 @@ Returns beads-worktree-info instance."
         (cl-call-next-method)
       (let ((parsed-json (cl-call-next-method)))
         (condition-case err
-            (beads-worktree-info-from-json parsed-json)
+            (beads-from-json 'beads-worktree-info parsed-json)
           (error
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-worktree-info: %s"
