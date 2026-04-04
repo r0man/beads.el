@@ -315,22 +315,22 @@
     :documentation "User who created the issue (owner).")
    (labels
     :initarg :labels
-    :type list
+    :type (list-of string)
     :initform nil
     :documentation "List of label strings.")
    (dependencies
     :initarg :dependencies
-    :type list
+    :type (list-of beads-dependency)
     :initform nil
     :documentation "List of beads-dependency objects.")
    (dependents
     :initarg :dependents
-    :type list
+    :type (list-of beads-dependency)
     :initform nil
     :documentation "List of beads-dependency objects for issues blocked by this one.")
    (comments
     :initarg :comments
-    :type list
+    :type (list-of beads-comment)
     :initform nil
     :documentation "List of beads-comment objects."))
   "Represents a Beads issue (trackable work item).")
@@ -472,7 +472,7 @@ When populated from bd show --json, includes full issue details.")
     :documentation "Number of blocking issues.")
    (blocked-by
     :initarg :blocked-by
-    :type list
+    :type (list-of string)
     :documentation "List of blocking issue IDs."))
   "Represents an issue with blocking information.")
 
@@ -634,12 +634,12 @@ When populated from bd show --json, includes full issue details.")
     :documentation "Filter by assignee.")
    (labels
     :initarg :labels
-    :type list
+    :type (list-of string)
     :initform nil
     :documentation "Filter by labels (AND semantics).")
    (labels-any
     :initarg :labels-any
-    :type list
+    :type (list-of string)
     :initform nil
     :documentation "Filter by labels (OR semantics).")
    (title-search
@@ -649,7 +649,7 @@ When populated from bd show --json, includes full issue details.")
     :documentation "Search in title.")
    (ids
     :initarg :ids
-    :type list
+    :type (list-of string)
     :initform nil
     :documentation "Filter by specific issue IDs (comma-separated string).")
    (limit
@@ -761,12 +761,12 @@ When populated from bd show --json, includes full issue details.")
     :documentation "Filter by assignee.")
    (labels
     :initarg :labels
-    :type list
+    :type (list-of string)
     :initform nil
     :documentation "Filter by labels (AND semantics).")
    (labels-any
     :initarg :labels-any
-    :type list
+    :type (list-of string)
     :initform nil
     :documentation "Filter by labels (OR semantics).")
    (limit
@@ -1168,6 +1168,7 @@ Converts ISO 8601 timestamp to human-readable format."
     :initarg :op-status
     :type (or null string)
     :initform nil
+    :json-key status
     :documentation "Operation status (\"added\" or \"removed\").")
    (issue-id
     :initarg :issue-id
@@ -1183,6 +1184,7 @@ Converts ISO 8601 timestamp to human-readable format."
     :initarg :dep-type
     :type (or null string)
     :initform nil
+    :json-key type
     :documentation "Dependency type (blocks, related, etc.)."))
   "Result of a bd dep add or dep remove operation.")
 
@@ -1242,7 +1244,7 @@ JSON should be parsed from a bd label list-all --json array element."
     :documentation "Whether the variable must be provided.")
    (enum
     :initarg :enum
-    :type list
+    :type (list-of string)
     :initform nil
     :documentation "List of allowed values (if non-empty).")
    (pattern
@@ -1254,6 +1256,7 @@ JSON should be parsed from a bd label list-all --json array element."
     :initarg :var-type
     :type (or null string)
     :initform nil
+    :json-key type
     :documentation "Expected value type: string (default), int, bool."))
   "A formula variable definition (VarDef from formula package).")
 
@@ -1292,12 +1295,12 @@ NAME is the variable name symbol.  JSON is the VarDef object alist."
     :documentation "Additional notes for the step.")
    (needs
     :initarg :needs
-    :type list
+    :type (list-of string)
     :initform nil
     :documentation "List of sibling step IDs that must complete first.")
    (depends-on
     :initarg :depends-on
-    :type list
+    :type (list-of string)
     :initform nil
     :documentation "List of step IDs this step blocks on (alias for needs)."))
   "A formula step definition (Step from formula package).")
@@ -1323,6 +1326,7 @@ JSON should be a Step object from formula show --json output."
     :initarg :formula-type
     :type (or null string)
     :initform nil
+    :json-key type
     :documentation "Formula type (workflow, expansion, aspect).")
    (description
     :initarg :description
@@ -1377,15 +1381,16 @@ JSON should be parsed from bd formula list --json output."
     :initarg :formula-type
     :type (or null string)
     :initform nil
+    :json-key type
     :documentation "Formula type (workflow, expansion, aspect).")
    (vars
     :initarg :vars
-    :type list
+    :type (list-of beads-formula-var)
     :initform nil
     :documentation "Variables as a list of beads-formula-var objects.")
    (steps
     :initarg :steps
-    :type list
+    :type (list-of beads-formula-step)
     :initform nil
     :documentation "List of step definitions as beads-formula-step objects.")
    (source
@@ -1511,6 +1516,297 @@ JSON is an alist from `bd worktree info --json'."
    :branch (alist-get 'branch json)
    :main-path (alist-get 'main_path json)
    :beads-state (alist-get 'beads_state json)))
+
+;;; ============================================================
+;;; Audit Types
+;;; ============================================================
+
+(defclass beads-audit-entry ()
+  ((id
+    :initarg :id
+    :type (or null string)
+    :initform nil
+    :documentation "Unique audit entry ID.")
+   (kind
+    :initarg :kind
+    :type (or null string)
+    :initform nil
+    :documentation "Entry type (llm_call, tool_call, label)."))
+  "Result of a bd audit record command.")
+
+(defun beads-audit-entry-from-json (json)
+  "Create a beads-audit-entry from JSON alist."
+  (beads-audit-entry
+   :id (alist-get 'id json)
+   :kind (alist-get 'kind json)))
+
+(defclass beads-audit-label-result ()
+  ((id
+    :initarg :id
+    :type (or null string)
+    :initform nil
+    :documentation "New label entry ID.")
+   (parent-id
+    :initarg :parent-id
+    :type (or null string)
+    :initform nil
+    :documentation "ID of the interaction being labeled.")
+   (label
+    :initarg :label
+    :type (or null string)
+    :initform nil
+    :documentation "Label value (good or bad)."))
+  "Result of a bd audit label command.")
+
+(defun beads-audit-label-result-from-json (json)
+  "Create a beads-audit-label-result from JSON alist."
+  (beads-audit-label-result
+   :id (alist-get 'id json)
+   :parent-id (alist-get 'parent_id json)
+   :label (alist-get 'label json)))
+
+;;; ============================================================
+;;; Config Types
+;;; ============================================================
+
+(defclass beads-config-entry ()
+  ((key
+    :initarg :key
+    :type (or null string)
+    :initform nil
+    :documentation "Configuration key.")
+   (value
+    :initarg :value
+    :type (or null string)
+    :initform nil
+    :documentation "Configuration value.")
+   (location
+    :initarg :location
+    :type (or null string)
+    :initform nil
+    :documentation "Storage location (config.yaml, git config, etc)."))
+  "A single configuration entry from bd config get/set.")
+
+(defun beads-config-entry-from-json (json)
+  "Create a beads-config-entry from JSON alist."
+  (beads-config-entry
+   :key (alist-get 'key json)
+   :value (alist-get 'value json)
+   :location (alist-get 'location json)))
+
+;;; ============================================================
+;;; Count Types
+;;; ============================================================
+
+(defclass beads-count-result ()
+  ((count
+    :initarg :count
+    :type integer
+    :initform 0
+    :documentation "Total count of matching issues."))
+  "Result of a bd count command (ungrouped).")
+
+(defun beads-count-result-from-json (json)
+  "Create a beads-count-result from JSON alist."
+  (beads-count-result
+   :count (or (alist-get 'count json) 0)))
+
+(defclass beads-count-group ()
+  ((group
+    :initarg :group
+    :type (or null string)
+    :initform nil
+    :documentation "Group key (status, priority, type, assignee, or label).")
+   (count
+    :initarg :count
+    :type integer
+    :initform 0
+    :documentation "Count for this group."))
+  "A single group in a bd count --by-* result.")
+
+(defun beads-count-group-from-json (json)
+  "Create a beads-count-group from JSON alist."
+  (beads-count-group
+   :group (alist-get 'group json)
+   :count (or (alist-get 'count json) 0)))
+
+(defclass beads-count-grouped-result ()
+  ((total
+    :initarg :total
+    :type integer
+    :initform 0
+    :documentation "Sum of all group counts.")
+   (groups
+    :initarg :groups
+    :type (list-of beads-count-group)
+    :initform nil
+    :documentation "List of group/count pairs."))
+  "Result of a bd count --by-* command (grouped).")
+
+(defun beads-count-grouped-result-from-json (json)
+  "Create a beads-count-grouped-result from JSON alist."
+  (beads-count-grouped-result
+   :total (or (alist-get 'total json) 0)
+   :groups (mapcar #'beads-count-group-from-json
+                   (append (alist-get 'groups json) nil))))
+
+;;; ============================================================
+;;; Compact Types
+;;; ============================================================
+
+(defclass beads-compact-tier-stats ()
+  ((candidates
+    :initarg :candidates
+    :type integer
+    :initform 0
+    :documentation "Number of compaction candidates.")
+   (total-size
+    :initarg :total-size
+    :type integer
+    :initform 0
+    :documentation "Total size in bytes."))
+  "Stats for a single compaction tier.")
+
+(defun beads-compact-tier-stats-from-json (json)
+  "Create a beads-compact-tier-stats from JSON alist."
+  (beads-compact-tier-stats
+   :candidates (or (alist-get 'candidates json) 0)
+   :total-size (or (alist-get 'total_size json) 0)))
+
+(defclass beads-compact-stats ()
+  ((tier1
+    :initarg :tier1
+    :type beads-compact-tier-stats
+    :documentation "Tier 1 compaction stats.")
+   (tier2
+    :initarg :tier2
+    :type beads-compact-tier-stats
+    :documentation "Tier 2 compaction stats."))
+  "Result of bd admin compact --stats.")
+
+(defun beads-compact-stats-from-json (json)
+  "Create a beads-compact-stats from JSON alist."
+  (beads-compact-stats
+   :tier1 (beads-compact-tier-stats-from-json
+           (or (alist-get 'tier1 json) '()))
+   :tier2 (beads-compact-tier-stats-from-json
+           (or (alist-get 'tier2 json) '()))))
+
+(defclass beads-compact-candidate ()
+  ((id
+    :initarg :id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID.")
+   (title
+    :initarg :title
+    :type (or null string)
+    :initform nil
+    :documentation "Issue title.")
+   (size-bytes
+    :initarg :size-bytes
+    :type integer
+    :initform 0
+    :documentation "Total size of compactable fields in bytes.")
+   (age-days
+    :initarg :age-days
+    :type integer
+    :initform 0
+    :documentation "Days since issue was closed.")
+   (tier
+    :initarg :tier
+    :type integer
+    :initform 1
+    :documentation "Compaction tier (1 or 2).")
+   (compacted
+    :initarg :compacted
+    :type boolean
+    :initform nil
+    :documentation "Whether already compacted."))
+  "A compaction candidate from bd admin compact --analyze.")
+
+(defun beads-compact-candidate-from-json (json)
+  "Create a beads-compact-candidate from JSON alist."
+  (beads-compact-candidate
+   :id (alist-get 'id json)
+   :title (alist-get 'title json)
+   :size-bytes (or (alist-get 'size_bytes json) 0)
+   :age-days (or (alist-get 'age_days json) 0)
+   :tier (or (alist-get 'tier json) 1)
+   :compacted (eq (alist-get 'compacted json) t)))
+
+(defclass beads-compact-result ()
+  ((success
+    :initarg :success
+    :type boolean
+    :initform nil
+    :documentation "Whether compaction succeeded.")
+   (tier
+    :initarg :tier
+    :type integer
+    :initform 1
+    :documentation "Compaction tier (1 or 2).")
+   (issue-id
+    :initarg :issue-id
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID (for single-issue apply).")
+   (original-size
+    :initarg :original-size
+    :type integer
+    :initform 0
+    :documentation "Original size in bytes.")
+   (compacted-size
+    :initarg :compacted-size
+    :type integer
+    :initform 0
+    :documentation "Size after compaction in bytes.")
+   (saved-bytes
+    :initarg :saved-bytes
+    :type integer
+    :initform 0
+    :documentation "Bytes saved.")
+   (reduction-pct
+    :initarg :reduction-pct
+    :type float
+    :initform 0.0
+    :documentation "Reduction percentage (0-100).")
+   (elapsed-ms
+    :initarg :elapsed-ms
+    :type integer
+    :initform 0
+    :documentation "Milliseconds elapsed.")
+   (total
+    :initarg :total
+    :type (or null integer)
+    :initform nil
+    :documentation "Total candidates (for batch/auto mode).")
+   (succeeded
+    :initarg :succeeded
+    :type (or null integer)
+    :initform nil
+    :documentation "Successful compactions (for batch/auto mode).")
+   (failed
+    :initarg :failed
+    :type (or null integer)
+    :initform nil
+    :documentation "Failed compactions (for batch/auto mode)."))
+  "Result of bd admin compact --apply or --auto.")
+
+(defun beads-compact-result-from-json (json)
+  "Create a beads-compact-result from JSON alist."
+  (beads-compact-result
+   :success (eq (alist-get 'success json) t)
+   :tier (or (alist-get 'tier json) 1)
+   :issue-id (alist-get 'issue_id json)
+   :original-size (or (alist-get 'original_size json) 0)
+   :compacted-size (or (alist-get 'compacted_size json) 0)
+   :saved-bytes (or (alist-get 'saved_bytes json) 0)
+   :reduction-pct (float (or (alist-get 'reduction_pct json) 0))
+   :elapsed-ms (or (alist-get 'elapsed_ms json) 0)
+   :total (alist-get 'total json)
+   :succeeded (alist-get 'succeeded json)
+   :failed (alist-get 'failed json)))
 
 ;;; ============================================================
 ;;; Section Data Classes
