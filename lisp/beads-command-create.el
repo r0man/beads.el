@@ -341,7 +341,89 @@
     :prompt "Event target: "
     :group "Event"
     :level 6
-    :order 4))
+    :order 4)
+
+   ;; Additional flags from CLI
+   (append-notes
+    :type (or null string)
+    :long-option "append-notes"
+    :transient beads-transient-multiline
+    :documentation "Append Notes"
+    :group "Content"
+    :level 4
+    :order 6)
+   (context
+    :type (or null string)
+    :long-option "context"
+    :transient beads-transient-multiline
+    :documentation "Context"
+    :group "Content"
+    :level 4
+    :order 7)
+   (design-file
+    :type (or null string)
+    :long-option "design-file"
+    :prompt "Design file: "
+    :reader transient-read-file
+    :group "Content"
+    :level 4
+    :order 8)
+   (graph
+    :type (or null string)
+    :long-option "graph"
+    :prompt "Graph JSON file: "
+    :reader transient-read-file
+    :group "Batch"
+    :level 5
+    :order 3)
+   (metadata
+    :type (or null string)
+    :long-option "metadata"
+    :prompt "Metadata (JSON or @file.json): "
+    :group "Advanced"
+    :level 4
+    :order 6)
+   (no-history
+    :type boolean
+    :long-option "no-history"
+    :group "Flags"
+    :level 5
+    :order 5)
+   (no-inherit-labels
+    :type boolean
+    :long-option "no-inherit-labels"
+    :group "Flags"
+    :level 4
+    :order 6)
+   (skills
+    :type (or null string)
+    :long-option "skills"
+    :prompt "Required skills: "
+    :group "Advanced"
+    :level 4
+    :order 7)
+   (spec-id
+    :type (or null string)
+    :long-option "spec-id"
+    :prompt "Spec ID: "
+    :group "Advanced"
+    :level 4
+    :order 8)
+   (stdin
+    :type boolean
+    :long-option "stdin"
+    :group "Content"
+    :level 5
+    :order 9)
+   (wisp-type
+    :type (or null string)
+    :long-option "wisp-type"
+    :prompt "Wisp type: "
+    :choices ("heartbeat" "ping" "patrol" "gc_report"
+              "recovery" "error" "escalation")
+    :group "Advanced"
+    :level 5
+    :order 9))
   :documentation "Represents bd create command.
 Creates a new issue (or multiple issues from markdown file).
 When executed with :json t, returns the created beads-issue instance(s)."

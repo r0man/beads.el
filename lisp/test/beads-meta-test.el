@@ -1075,8 +1075,9 @@
     ;; Should have both transient-enabled slots
     (should (memq 'issue-ids slots))
     (should (memq 'reason slots))
-    ;; Should have exactly 2 slots with transient keys
-    (should (= 2 (length slots)))))
+    (should (memq 'force slots))
+    ;; Should have exactly 3 slots with transient keys
+    (should (= 3 (length slots)))))
 
 (ert-deftest beads-meta-close-option-slots ()
   "Test that option slots are identified correctly."
@@ -1090,8 +1091,8 @@
   "Test that infix specs can be generated from beads-command-close."
   (let ((specs (beads-meta-generate-infix-specs
                 'beads-command-close "beads-close")))
-    ;; Should have specs for both transient-enabled slots
-    (should (= 2 (length specs)))
+    ;; Should have specs for all transient-enabled slots
+    (should (= 3 (length specs)))
     ;; Check for specific infixes
     (let ((issue-ids-spec (cl-find-if
                            (lambda (s)
@@ -1110,8 +1111,8 @@
   "Test that group specs can be generated from beads-command-close."
   (let ((groups (beads-meta-generate-group-specs
                  'beads-command-close "beads-close")))
-    ;; Should have exactly one group (Close Issue)
-    (should (= 1 (length groups)))
+    ;; Should have 2 groups (Close Issue, Options)
+    (should (= 2 (length groups)))
     ;; Check for expected group
     (let ((group-names (mapcar (lambda (g) (plist-get g :description)) groups)))
       (should (member "Close Issue" group-names)))))
@@ -1158,8 +1159,8 @@
   (let ((slots (beads-meta-transient-slots 'beads-command-show)))
     ;; Should have issue-ids slot with transient key
     (should (memq 'issue-ids slots))
-    ;; Should have 5 slots with transient keys
-    (should (= 5 (length slots)))))
+    ;; Should have 6 slots with transient keys
+    (should (= 6 (length slots)))))
 
 (ert-deftest beads-meta-show-option-slots ()
   "Test that option slots are identified correctly."
@@ -1169,15 +1170,15 @@
     ;; Should include global options inherited from beads-command-global-options
     (should (memq 'actor options))
     (should (memq 'verbose options))
-    ;; Should have 5 command-show + 14 global option slots = 19
-    (should (= 19 (length options)))))
+    ;; Should have 10 command-show + 14 global option slots = 24
+    (should (= 24 (length options)))))
 
 (ert-deftest beads-meta-show-generate-infix-specs ()
   "Test that infix specs can be generated from beads-command-show."
   (let ((specs (beads-meta-generate-infix-specs
                 'beads-command-show "beads-show")))
-    ;; Should have 5 infix specs
-    (should (= 5 (length specs)))
+    ;; Should have 6 infix specs
+    (should (= 6 (length specs)))
     ;; Check for specific infix
     (let ((issue-ids-spec (cl-find-if
                            (lambda (s)
@@ -1190,8 +1191,8 @@
   "Test that group specs can be generated from beads-command-show."
   (let ((groups (beads-meta-generate-group-specs
                  'beads-command-show "beads-show")))
-    ;; Should have 2 groups
-    (should (= 2 (length groups)))
+    ;; Should have 3 groups
+    (should (= 3 (length groups)))
     ;; Check for expected group
     (let ((group-names (mapcar (lambda (g) (plist-get g :description)) groups)))
       (should (member "Show Issue" group-names)))))
@@ -1441,8 +1442,8 @@
     ;; Should include global options inherited from beads-command-global-options
     (should (memq 'actor options))
     (should (memq 'verbose options))
-    ;; All slots have :long-option: 45 command-list + 1 json + 14 global options
-    (should (= 60 (length options)))))
+    ;; All slots have :long-option: 56 command-list + 1 json + 14 global options
+    (should (= 71 (length options)))))
 
 (ert-deftest beads-meta-list-generate-infix-specs ()
   "Test that infix specs can be generated from beads-command-list."

@@ -193,17 +193,25 @@ Quick capture: creates issue and outputs only ID.")
     :group "Append Note"
     :level 1
     :order 0)
+   (text
+    :positional 2
+    :type (list-of string)
+    :separator " "
+    :prompt "Note text: "
+    :group "Append Note"
+    :level 1
+    :order 1)
    (stdin
     :type boolean
     :short-option "s"
     :group "Input"
-    :level 1
+    :level 2
     :order 1)
    (file
     :type (or null string)
     :short-option "f"
     :group "Input"
-    :level 1
+    :level 2
     :order 2))
   :documentation "Represents bd note command.
 Appends a note to an issue's notes field.")

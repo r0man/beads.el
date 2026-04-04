@@ -61,7 +61,29 @@
     :group "Close Issue"
     :level 1
     :order 2
-    :required t))
+    :required t)
+   (claim-next
+    :type boolean
+    :group "Options"
+    :level 3)
+   (continue-mol
+    :long-option "continue"
+    :type boolean
+    :group "Options"
+    :level 3)
+   (force
+    :short-option "f"
+    :type boolean
+    :group "Options"
+    :level 2)
+   (session
+    :type (or null string)
+    :group "Options"
+    :level 4)
+   (suggest-next
+    :type boolean
+    :group "Options"
+    :level 3))
   :documentation "Close one or more issues with a required reason.
   When executed with :json t, returns beads-issue instance (or list
   of instances when multiple IDs provided)."

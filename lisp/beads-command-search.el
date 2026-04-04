@@ -163,7 +163,48 @@
     :prompt "Closed before (YYYY-MM-DD): "
     :group "Date Filters"
     :level 3
-    :order 6))
+    :order 6)
+
+   (desc-contains
+    :type (or null string)
+    :long-option "desc-contains"
+    :group "Filter"
+    :level 3)
+   (empty-description
+    :type boolean
+    :long-option "empty-description"
+    :group "Filter"
+    :level 3)
+   (external-contains
+    :type (or null string)
+    :long-option "external-contains"
+    :group "Filter"
+    :level 3)
+   (has-metadata-key
+    :type (or null string)
+    :long-option "has-metadata-key"
+    :group "Filter"
+    :level 4)
+   (metadata-field
+    :type (or null string)
+    :long-option "metadata-field"
+    :group "Filter"
+    :level 4)
+   (no-assignee
+    :type boolean
+    :long-option "no-assignee"
+    :group "Filter"
+    :level 3)
+   (no-labels
+    :type boolean
+    :long-option "no-labels"
+    :group "Filter"
+    :level 3)
+   (notes-contains
+    :type (or null string)
+    :long-option "notes-contains"
+    :group "Filter"
+    :level 3))
   :documentation "Represents bd search command.
 Full-text search across issues.
 When executed with :json t, returns matching issues as JSON."
