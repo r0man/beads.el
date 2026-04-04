@@ -65,6 +65,7 @@
 (require 'eieio)
 (require 'cl-lib)
 (require 'json)
+(require 'beads-meta)
 
 ;; Forward declarations to avoid circular dependencies
 (declare-function beads--parse-issue "beads")
@@ -539,6 +540,7 @@ When populated from bd show --json, includes full issue details.")
    (average-lead-time
     :initarg :average-lead-time
     :type float
+    :json-key average_lead_time_hours
     :documentation "Average lead time in hours."))
   "Represents aggregate statistics.")
 
@@ -847,6 +849,24 @@ JSON can be either:
      :status (alist-get 'status json)
      :priority (alist-get 'priority json)
      :issue-type (alist-get 'issue_type json))))
+
+(cl-defmethod beads-from-json ((_class (eql 'beads-dependency)) json)
+  "Construct beads-dependency from polymorphic JSON.
+JSON can be either simple dependency format (issue_id, depends_on_id,
+type) or IssueWithDependencyMetadata (id, dependency_type, plus full
+issue fields).  Handles both key variants."
+  (beads-dependency
+   :issue-id (alist-get 'issue_id json)
+   :depends-on-id (or (alist-get 'depends_on_id json)
+                      (alist-get 'id json))
+   :type (or (alist-get 'dependency_type json)
+             (alist-get 'type json))
+   :created-at (alist-get 'created_at json)
+   :created-by (alist-get 'created_by json)
+   :title (alist-get 'title json)
+   :status (alist-get 'status json)
+   :priority (alist-get 'priority json)
+   :issue-type (alist-get 'issue_type json)))
 
 (defun beads-label-from-json (json)
   "Create a beads-label object from JSON alist."
@@ -1410,6 +1430,27 @@ JSON should be parsed from bd formula show --json output."
                          (beads-formula-var-from-json (car entry) (cdr entry)))
                        raw-vars))
          ;; Convert steps vector/list to beads-formula-step list
+         (steps (mapcar #'beads-formula-step-from-json
+                        (append raw-steps nil))))
+    (beads-formula
+     :name (alist-get 'formula json)
+     :description (alist-get 'description json)
+     :version (alist-get 'version json)
+     :formula-type (alist-get 'type json)
+     :vars vars
+     :steps steps
+     :source (alist-get 'source json))))
+
+(cl-defmethod beads-from-json ((_class (eql 'beads-formula)) json)
+  "Construct beads-formula from non-standard JSON.
+The formula name is in the `formula' key (not `name'), and `vars'
+is a map {name: def-alist, ...} rather than an array."
+  (let* ((raw-vars (alist-get 'vars json))
+         (vars (mapcar (lambda (entry)
+                         (beads-formula-var-from-json
+                          (car entry) (cdr entry)))
+                       raw-vars))
+         (raw-steps (alist-get 'steps json))
          (steps (mapcar #'beads-formula-step-from-json
                         (append raw-steps nil))))
     (beads-formula

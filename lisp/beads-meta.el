@@ -282,6 +282,13 @@ Extensible — add methods for custom types.")
   "Coerce VALUE to integer.  Strings are converted."
   (if (stringp value) (string-to-number value) value))
 
+(cl-defmethod beads-coerce-json-value (value (_type (eql float)))
+  "Coerce VALUE to float.  Integers and strings are converted."
+  (cond ((floatp value) value)
+        ((integerp value) (float value))
+        ((stringp value) (string-to-number value))
+        (t (float (or value 0)))))
+
 (cl-defmethod beads-coerce-json-value (value (_type (eql string)))
   "Coerce VALUE as string (pass-through)."
   value)
