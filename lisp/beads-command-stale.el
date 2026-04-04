@@ -30,21 +30,21 @@
 
 (beads-defcommand beads-command-stale (beads-command-global-options)
   ((days
-    :option-type :integer
+    :type (or null string integer)
     :short-option "d"
     :prompt "Days (default 30): "
     :group "Filters"
     :level 2
     :order 1)
    (limit
-    :option-type :integer
+    :type (or null string integer)
     :short-option "n"
     :prompt "Limit (default 50): "
     :group "Filters"
     :level 2
     :order 2)
    (status
-    :option-type :string
+    :type (or null string)
     :short-option "s"
     :choices ("open" "in_progress" "blocked" "deferred")
     :group "Filters"

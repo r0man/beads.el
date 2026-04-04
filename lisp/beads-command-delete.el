@@ -61,7 +61,7 @@
 (beads-defcommand beads-command-delete (beads-command-global-options)
   ((issue-ids
     :positional 1
-    :option-type :list
+    :type (list-of string)
     :separator " "
     :short-option "i"
     :argument "--id="
@@ -72,25 +72,25 @@
     :order 1
     :required t)
    (cascade
-    :option-type :boolean
+    :type boolean
     :short-option "c"
     :group "Dependency Handling"
     :level 2
     :order 1)
    (dry-run
-    :option-type :boolean
+    :type boolean
     :short-option "n"
     :group "Options"
     :level 1
     :order 2)
    (force
     :short-option "f"
-    :option-type :boolean
+    :type boolean
     :group "Options"
     :level 1
     :order 3)
    (from-file
-    :option-type :string
+    :type (or null string)
     :short-option "F"
     :prompt "File path: "
     :reader transient-read-file
@@ -98,13 +98,13 @@
     :level 3
     :order 1)
    (hard
-    :option-type :boolean
+    :type boolean
     :short-option "H"
     :group "Options"
     :level 3
     :order 2)
    (reason
-    :option-type :string
+    :type (or null string)
     :short-option "r"
     :transient beads-transient-multiline
     :documentation "Delete Reason"

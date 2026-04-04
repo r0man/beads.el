@@ -117,7 +117,7 @@
 (beads-defcommand beads-command-formula-list (beads-command-global-options)
   ((formula-type
     :long-option "type"
-    :option-type :string
+    :type (or null string)
     :short-option "t"
     :choices ("workflow" "expansion" "aspect")
     :group "Filters"
@@ -172,11 +172,11 @@ Shows detailed information about a formula.")
   ((formula-name
     :positional 1)
    (all
-    :option-type :boolean)
+    :type boolean)
    (delete
-    :option-type :boolean)
+    :type boolean)
    (stdout
-    :option-type :boolean))
+    :type boolean))
   :documentation "Represents bd formula convert command.
 Converts formula files from JSON to TOML format."
   :cli-command "formula convert")

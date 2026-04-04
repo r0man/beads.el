@@ -40,7 +40,7 @@
 (beads-defcommand beads-command-comments (beads-command-global-options)
   ((issue-id
     :positional 1
-    :option-type :string
+    :type (or null string)
     :short-option "i"
     :argument "--issue-id="
     :prompt "Issue ID: "
@@ -71,7 +71,7 @@ Lists all comments on an issue."
 (beads-defcommand beads-command-comments-add (beads-command-global-options)
   ((issue-id
     :positional 1
-    :option-type :string
+    :type (or null string)
     :short-option "i"
     :argument "--issue-id="
     :prompt "Issue ID: "
@@ -82,7 +82,7 @@ Lists all comments on an issue."
     :required t)
    (text
     :positional 2
-    :option-type :string
+    :type (or null string)
     :short-option "t"
     :transient beads-transient-multiline
     :argument "--text="
@@ -92,14 +92,14 @@ Lists all comments on an issue."
     :order 2)
    (file
     :short-option "f"
-    :option-type :string
+    :type (or null string)
     :prompt "File path: "
     :group "Add Comment"
     :level 2
     :order 3)
    (author
     :short-option "a"
-    :option-type :string
+    :type (or null string)
     :group "Add Comment"
     :level 2
     :order 4))

@@ -44,31 +44,31 @@
     :level 1
     :order 1)
    (title
-    :option-type :boolean
+    :type boolean
     :short-option "t"
     :group "Field"
     :level 1
     :order 1)
    (description
-    :option-type :boolean
+    :type boolean
     :short-option "d"
     :group "Field"
     :level 1
     :order 2)
    (design
-    :option-type :boolean
+    :type boolean
     :short-option "D"
     :group "Field"
     :level 1
     :order 3)
    (notes
-    :option-type :boolean
+    :type boolean
     :short-option "n"
     :group "Field"
     :level 1
     :order 4)
    (acceptance
-    :option-type :boolean
+    :type boolean
     :short-option "a"
     :group "Field"
     :level 1

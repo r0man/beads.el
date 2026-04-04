@@ -409,6 +409,11 @@ Positional slots skip :long-option inference."
     ;; Infer :type from :option-type
     (when-let ((type-spec (beads-meta--infer-type result)))
       (setq result (plist-put result :type type-spec)))
+    ;; Infer :option-type from :type (for CLI serialization).
+    ;; All beads-defcommand slots are CLI options, so :option-type is
+    ;; always needed for beads-meta-build-command-line.
+    (when-let ((opt-type (beads-meta--infer-option-type result)))
+      (setq result (plist-put result :option-type opt-type)))
     ;; Infer :initform (nil default for command options)
     (when (eq :infer-nil (beads-meta--infer-initform result))
       (setq result (plist-put result :initform nil)))
@@ -416,7 +421,12 @@ Positional slots skip :long-option inference."
     (when (and (not (plist-get result :long-option))
                (not (plist-get result :positional))
                (not (plist-get result :positional-rest))
-               (plist-get result :option-type))
+               (or (plist-get result :option-type)
+                   ;; Also infer when :type is present and slot looks
+                   ;; like a CLI option (has :short-option or :transient-key)
+                   (and (plist-get result :type)
+                        (or (plist-get result :short-option)
+                            (plist-get result :transient-key)))))
       (setq result (plist-put result :long-option (symbol-name name))))
     ;; Strip EIEIO-conflicting concise aliases (:reader, :group)
     ;; by expanding them to legacy names and removing the concise keys
@@ -555,7 +565,7 @@ A slot is considered a command option if it has any of:
 - :long-option or :short-option (CLI option / transient key)
 - :transient-key (explicit transient menu item)
 - :positional or :positional-rest (positional argument)
-- :option-type (explicit CLI type)"
+- :option-type (explicit CLI type, legacy)"
   (or (plist-get slot-options :long-option)
       (plist-get slot-options :short-option)
       (plist-get slot-options :transient-key)

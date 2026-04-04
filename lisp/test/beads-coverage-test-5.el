@@ -441,13 +441,13 @@
 (ert-deftest beads-coverage-5-meta-infer-argument-boolean ()
   "Test infer-argument for boolean type."
   (let ((result (beads-meta--infer-argument
-                 '(:long-option "verbose" :option-type :boolean))))
+                 '(:long-option "verbose" :type boolean))))
     (should (equal "--verbose" result))))
 
 (ert-deftest beads-coverage-5-meta-infer-argument-string ()
   "Test infer-argument for string type."
   (let ((result (beads-meta--infer-argument
-                 '(:long-option "title" :option-type :string))))
+                 '(:long-option "title" :type (or null string)))))
     (should (equal "--title=" result))))
 
 (ert-deftest beads-coverage-5-meta-infer-argument-already-set ()

@@ -29,7 +29,7 @@
 (beads-defcommand beads-command-history (beads-command-global-options)
   ((issue-id
     :positional 1
-    :option-type :string
+    :type (or null string)
     :short-option "i"
     :argument "--id="
     :prompt "Issue ID: "
@@ -39,7 +39,7 @@
     :order 1
     :required t)
    (limit
-    :option-type :integer
+    :type (or null string integer)
     :short-option "l"
     :prompt "Limit (0=all): "
     :group "Options"

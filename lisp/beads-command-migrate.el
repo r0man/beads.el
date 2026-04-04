@@ -25,31 +25,31 @@
 
 (beads-defcommand beads-command-migrate (beads-command-global-options)
   ((dry-run
-    :option-type :boolean
+    :type boolean
     :short-option "n"
     :group "Options"
     :level 1
     :order 1)
    (cleanup
-    :option-type :boolean
+    :type boolean
     :short-option "c"
     :group "Options"
     :level 1
     :order 2)
    (yes
     :short-option "y"
-    :option-type :boolean
+    :type boolean
     :group "Options"
     :level 1
     :order 3)
    (inspect
-    :option-type :boolean
+    :type boolean
     :short-option "i"
     :group "Options"
     :level 2
     :order 4)
    (update-repo-id
-    :option-type :boolean
+    :type boolean
     :short-option "u"
     :group "Options"
     :level 2
@@ -109,19 +109,19 @@ Migrates to sync.branch workflow for multi-clone setups.")
 
 (beads-defcommand beads-command-migrate-hooks (beads-command-global-options)
   ((dry-run
-    :option-type :boolean
+    :type boolean
     :short-option "n"
     :group "Options"
     :level 1
     :order 1)
    (apply
-    :option-type :boolean
+    :type boolean
     :short-option "a"
     :group "Options"
     :level 1
     :order 2)
    (yes
-    :option-type :boolean
+    :type boolean
     :short-option "y"
     :group "Options"
     :level 1

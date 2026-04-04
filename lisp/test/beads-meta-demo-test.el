@@ -57,7 +57,7 @@
     :documentation "Issue type"
     :long-option "type"
     :short-option "t"
-    :option-type :string
+    :type (or null string)
     :transient-key "T"
     :transient-description "Type"
     :transient-class transient-option
@@ -69,12 +69,12 @@
 
    (priority
     :initarg :priority
-    :type (or null integer)
+    :type (or null string integer)
     :initform nil
     :documentation "Issue priority (0-4)"
     :long-option "priority"
     :short-option "p"
-    :option-type :integer
+    :type (or null string integer)
     :transient-key "p"
     :transient-description "Priority (0-4)"
     :transient-class transient-option
@@ -91,7 +91,7 @@
     :documentation "Issue assignee"
     :long-option "assignee"
     :short-option "a"
-    :option-type :string
+    :type (or null string)
     :transient-key "a"
     :transient-description "Assignee"
     :transient-class transient-option
@@ -107,8 +107,8 @@
     :documentation "Issue labels"
     :long-option "labels"
     :short-option "l"
-    :option-type :list
-    :option-separator ","
+    :type (list-of string)
+    :separator ","
     :transient-key "l"
     :transient-description "Labels"
     :transient-class transient-option
@@ -124,7 +124,7 @@
     :documentation "Issue description"
     :long-option "description"
     :short-option "d"
-    :option-type :string
+    :type (or null string)
     :transient-key "d"
     :transient-description "Description"
     :transient-class transient-option
@@ -138,8 +138,8 @@
     :initform nil
     :documentation "Dependencies"
     :long-option "deps"
-    :option-type :list
-    :option-separator ","
+    :type (list-of string)
+    :separator ","
     :transient-key "D"
     :transient-description "Dependencies"
     :transient-class transient-option
@@ -154,7 +154,7 @@
     :initform nil
     :documentation "Force creation"
     :long-option "force"
-    :option-type :boolean
+    :type boolean
     :transient-key "!"
     :transient-description "Force"
     :transient-class transient-switch

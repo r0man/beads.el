@@ -37,7 +37,7 @@
     :level 1
     :order 1)
    (until
-    :option-type :string
+    :type (or null string)
     :short-option "u"
     :prompt "Until (e.g., +1h, tomorrow): "
     :group "Options"

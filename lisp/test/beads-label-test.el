@@ -697,10 +697,10 @@
     (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-label-test-add-validate-non-string-ids ()
-  "Test label-add validation fails with non-string issue IDs."
+  "Test non-string issue IDs are rejected.
+EIEIO enforces (list-of string) at construction time."
   :tags '(:unit)
-  (let ((cmd (beads-command-label-add :issue-ids '("bd-1" 42) :label "bug")))
-    (should (beads-command-validate cmd))))
+  (should-error (beads-command-label-add :issue-ids '("bd-1" 42) :label "bug")))
 
 ;;; Tests for label-remove validation
 

@@ -46,7 +46,7 @@
 (beads-defcommand beads-command-update (beads-command-global-options)
   ((issue-ids
     :positional 1
-    :option-type :list
+    :type (list-of string)
     :separator " "
     :short-option "i"
     :argument "--id="
@@ -59,7 +59,7 @@
    ;; Status & Priority
    (status
     :short-option "s"
-    :option-type :string
+    :type (or null string)
     :prompt "Status: "
     :choices ("open" "in_progress" "blocked" "closed")
     :reader beads-reader-update-status
@@ -69,14 +69,14 @@
    (priority
     :type (or null string integer)
     :short-option "p"
-    :option-type :string
+    :type (or null string)
     :prompt "Priority: "
     :reader beads-reader-issue-priority
     :group "Status & Priority"
     :level 1
     :order 2)
    (claim
-    :option-type :boolean
+    :type boolean
     :short-option "c"
     :group "Status & Priority"
     :level 2
@@ -84,7 +84,7 @@
 
    ;; Basic Info
    (title
-    :option-type :string
+    :type (or null string)
     :short-option "t"
     :prompt "Issue title: "
     :reader beads-reader-issue-title
@@ -94,7 +94,7 @@
    (issue-type
     :long-option "type"
     :short-option "t"
-    :option-type :string
+    :type (or null string)
     :transient-key "y"
     :prompt "Type: "
     :choices ("bug" "feature" "task" "epic" "chore"
@@ -106,14 +106,14 @@
     :order 2)
    (assignee
     :short-option "a"
-    :option-type :string
+    :type (or null string)
     :prompt "Assignee: "
     :reader beads-reader-issue-assignee
     :group "Basic Info"
     :level 2
     :order 3)
    (external-ref
-    :option-type :string
+    :type (or null string)
     :short-option "x"
     :prompt "External reference: "
     :reader beads-reader-issue-external-ref
@@ -121,7 +121,7 @@
     :level 3
     :order 4)
    (parent
-    :option-type :string
+    :type (or null string)
     :short-option "P"
     :prompt "Parent issue ID: "
     :reader beads-reader-issue-id
@@ -132,14 +132,14 @@
    ;; Content
    (description
     :short-option "d"
-    :option-type :string
+    :type (or null string)
     :transient beads-transient-multiline
     :documentation "Description"
     :group "Content"
     :level 3
     :order 1)
    (acceptance
-    :option-type :string
+    :type (or null string)
     :short-option "A"
     :transient beads-transient-multiline
     :documentation "Acceptance Criteria"
@@ -147,7 +147,7 @@
     :level 3
     :order 2)
    (design
-    :option-type :string
+    :type (or null string)
     :short-option "G"
     :transient beads-transient-multiline
     :documentation "Design"
@@ -155,7 +155,7 @@
     :level 3
     :order 3)
    (notes
-    :option-type :string
+    :type (or null string)
     :short-option "N"
     :transient beads-transient-multiline
     :documentation "Notes"
@@ -163,7 +163,7 @@
     :level 3
     :order 4)
    (body-file
-    :option-type :string
+    :type (or null string)
     :short-option "B"
     :prompt "Body file: "
     :reader transient-read-file
@@ -173,7 +173,7 @@
 
    ;; Labels
    (add-label
-    :option-type :list
+    :type (list-of string)
     :separator nil
     :short-option "l"
     :prompt "Add label: "
@@ -182,7 +182,7 @@
     :level 2
     :order 1)
    (remove-label
-    :option-type :list
+    :type (list-of string)
     :separator nil
     :short-option "L"
     :prompt "Remove label: "
@@ -191,7 +191,7 @@
     :level 2
     :order 2)
    (set-labels
-    :option-type :list
+    :type (list-of string)
     :separator nil
     :short-option "S"
     :prompt "Set labels: "
@@ -203,20 +203,20 @@
    ;; Time Management
    (estimate
     :short-option "e"
-    :option-type :integer
+    :type (or null string integer)
     :prompt "Estimate (minutes): "
     :group "Time"
     :level 3
     :order 1)
    (due
-    :option-type :string
+    :type (or null string)
     :short-option "D"
     :prompt "Due date: "
     :group "Time"
     :level 3
     :order 2)
    (defer
-    :option-type :string
+    :type (or null string)
     :short-option "E"
     :prompt "Defer until: "
     :group "Time"
@@ -225,14 +225,14 @@
 
    ;; Advanced
    (await-id
-    :option-type :string
+    :type (or null string)
     :short-option "W"
     :prompt "Await ID: "
     :group "Advanced"
     :level 4
     :order 1)
    (session
-    :option-type :string
+    :type (or null string)
     :short-option "I"
     :prompt "Session ID: "
     :group "Advanced"

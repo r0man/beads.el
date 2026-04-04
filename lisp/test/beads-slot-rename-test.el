@@ -5,7 +5,7 @@
 ;;; Commentary:
 
 ;; ERT tests for the slot property rename infrastructure (bde-vta5):
-;; - :separator alias for :option-separator
+;; - :separator alias for :separator
 ;; - :json-key support with hyphen → underscore default
 ;; - :short-option → :transient-key inference (always, no guard condition)
 ;; - beads-meta--slot-json-key helper
@@ -24,24 +24,24 @@
 ;; Test command using :separator shorthand
 (beads-defcommand beads-command-test-rename (beads-command-global-options)
   ((labels
-    :option-type :list
+    :type (list-of string)
     :separator ","
     :short-option "l"
     :group "Options"
     :required t)
    ;; Slot with :short-option — always infers :transient-key
    (status
-    :option-type :string
+    :type (or null string)
     :short-option "s"
     :group "Filters")
    ;; Slot with custom :json-key
    (issue-type
-    :option-type :string
+    :type (or null string)
     :short-option "t"
     :json-key dep_type)
    ;; Slot with default json-key (hyphen → underscore)
    (created-at
-    :option-type :string
+    :type (or null string)
     :short-option "c"))
   :documentation "Test command for rename infrastructure."
   :transient nil)
@@ -51,10 +51,10 @@
 ;;; ============================================================
 
 (ert-deftest beads-slot-rename-test-separator-alias ()
-  ":separator expands to :option-separator."
+  ":separator expands to :separator."
   (should (equal ","
                  (beads-meta-slot-property
-                  'beads-command-test-rename 'labels :option-separator))))
+                  'beads-command-test-rename 'labels :separator))))
 
 (ert-deftest beads-slot-rename-test-separator-concise ()
   ":separator is also accessible by concise name."

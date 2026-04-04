@@ -45,81 +45,81 @@
 (beads-defcommand beads-command-init (beads-command-global-options)
   ((branch
     :short-option "b"
-    :option-type :string
+    :type (or null string)
     :group "Basic Options"
     :level 1
     :order 2)
    (contributor
-    :option-type :boolean
+    :type boolean
     :short-option "C"
     :group "Setup Wizards"
     :level 2
     :order 1)
    (force
-    :option-type :boolean
+    :type boolean
     :short-option "f"
     :group "Advanced"
     :level 3
     :order 1)
    (from-jsonl
-    :option-type :boolean
+    :type boolean
     :short-option "j"
     :group "Advanced"
     :level 3
     :order 2)
    (prefix
     :short-option "p"
-    :option-type :string
+    :type (or null string)
     :group "Basic Options"
     :level 1
     :order 1)
    (quiet
     :short-option "q"
-    :option-type :boolean
+    :type boolean
     :group "Other Options"
     :level 2
     :order 1)
    (server-host
-    :option-type :string
+    :type (or null string)
     :short-option "h"
     :prompt "Server host: "
     :group "Server Connection"
     :level 3
     :order 1)
    (server-port
-    :option-type :integer
+    :type (or null string integer)
     :short-option "P"
     :prompt "Server port: "
     :group "Server Connection"
     :level 3
     :order 2)
    (server-user
-    :option-type :string
+    :type (or null string)
     :short-option "U"
     :prompt "Server user: "
     :group "Server Connection"
     :level 3
     :order 3)
    (setup-exclude
-    :option-type :boolean
+    :type boolean
     :short-option "e"
     :group "Advanced"
     :level 3
     :order 3)
    (skip-hooks
-    :option-type :boolean
+    :type boolean
     :short-option "H"
     :group "Other Options"
     :level 2
     :order 2)
    (stealth
-    :option-type :boolean
+    :type boolean
     :short-option "s"
     :group "Advanced"
     :level 3
     :order 4)
    (team
-    :option-type :boolean
+    :type boolean
     :short-option "T"
     :group "Setup Wizards"
     :level 2
@@ -287,7 +287,7 @@ the initialization."
 
 (beads-defcommand beads-command-bootstrap (beads-command-global-options)
   ((dry-run
-    :option-type :boolean
+    :type boolean
     :short-option "n"
     :group "Options"
     :level 1

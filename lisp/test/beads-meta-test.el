@@ -24,7 +24,7 @@
     :initform nil
     :documentation "A base slot"
     :long-option "base"
-    :option-type :string
+    :type (or null string)
     :transient-key "b"
     :transient-description "Base option"
     :transient-level 1
@@ -50,12 +50,12 @@
     :required t)
    (priority
     :initarg :priority
-    :type (or null integer)
+    :type (or null string integer)
     :initform nil
     :documentation "Issue priority"
     :long-option "priority"
     :short-option "p"
-    :option-type :integer
+    :type (or null string integer)
     :transient-key "p"
     :transient-description "Priority"
     :transient-choices (0 1 2 3 4)
@@ -69,8 +69,8 @@
     :initform nil
     :documentation "Issue labels"
     :long-option "labels"
-    :option-type :list
-    :option-separator ","
+    :type (list-of string)
+    :separator ","
     :transient-key "l"
     :transient-description "Labels"
     :transient-group "Options"
@@ -82,7 +82,7 @@
     :initform nil
     :documentation "Force flag"
     :long-option "force"
-    :option-type :boolean
+    :type boolean
     :transient-key "f"
     :transient-description "Force"
     :transient-class transient-switch
@@ -334,7 +334,7 @@
   (should (memq :short-option beads-meta--slot-properties))
   (should (memq :option-type beads-meta--slot-properties))
   (should (memq :positional beads-meta--slot-properties))
-  (should (memq :option-separator beads-meta--slot-properties))
+  (should (memq :separator beads-meta--slot-properties))
   ;; Transient properties
   (should (memq :transient-key beads-meta--slot-properties))
   (should (memq :transient-description beads-meta--slot-properties))
@@ -392,23 +392,23 @@
     :positional 1)
    (priority
     :initarg :priority
-    :type (or null integer)
+    :type (or null string integer)
     :initform nil
     :long-option "priority"
-    :option-type :integer)
+    :type (or null string integer))
    (force
     :initarg :force
     :type boolean
     :initform nil
     :long-option "force"
-    :option-type :boolean)
+    :type boolean)
    (labels
     :initarg :labels
     :type (or null list)
     :initform nil
     :long-option "labels"
-    :option-type :list
-    :option-separator ","))
+    :type (list-of string)
+    :separator ","))
   :documentation "Test command class for command-line building tests.")
 
 (ert-deftest beads-meta-build-command-line-positional ()
@@ -721,7 +721,7 @@
   (should (eq :list (beads-meta-slot-property
                      'beads-command-create 'labels :option-type)))
   (should (equal "," (beads-meta-slot-property
-                      'beads-command-create 'labels :option-separator))))
+                      'beads-command-create 'labels :separator))))
 
 (ert-deftest beads-meta-create-slot-property-deps ()
   "Test that deps slot (list) has correct metadata."
@@ -731,7 +731,7 @@
   (should (eq :list (beads-meta-slot-property
                      'beads-command-create 'deps :option-type)))
   (should (equal "," (beads-meta-slot-property
-                      'beads-command-create 'deps :option-separator))))
+                      'beads-command-create 'deps :separator))))
 
 (ert-deftest beads-meta-create-transient-slots ()
   "Test that all expected slots have transient keys."
@@ -1718,7 +1718,7 @@ should emit only the autoload form."
     :initform nil
     :documentation "Slot with documentation string"
     :long-option "doc-slot"
-    :option-type :string
+    :type (or null string)
     :transient-key "d")
    (doc-slot-multiline
     :initarg :doc-slot-multiline
@@ -1726,7 +1726,7 @@ should emit only the autoload form."
     :initform nil
     :documentation "First sentence of multiline doc\nSecond line details"
     :long-option "doc-slot-multiline"
-    :option-type :string
+    :type (or null string)
     :transient-key "m"))
   :documentation "Test class for documentation-based inference.")
 
@@ -1752,12 +1752,12 @@ should emit only the autoload form."
 (ert-deftest beads-meta-infer-initarg-from-slot-name ()
   "Test :initarg is inferred from slot name when absent."
   (should (eq :assignee
-              (beads-meta--infer-initarg 'assignee '(:option-type :string)))))
+              (beads-meta--infer-initarg 'assignee '(:type (or null string))))))
 
 (ert-deftest beads-meta-infer-initarg-explicit-wins ()
   "Test explicit :initarg is not overridden."
   (should (null (beads-meta--infer-initarg
-                 'assignee '(:initarg :my-arg :option-type :string)))))
+                 'assignee '(:initarg :my-arg :type (or null string))))))
 
 (ert-deftest beads-meta-infer-initarg-no-option-type ()
   "Test :initarg inference works even without :option-type."
@@ -1791,7 +1791,7 @@ should emit only the autoload form."
 (ert-deftest beads-meta-infer-type-explicit-wins ()
   "Test explicit :type is not overridden."
   (should (null (beads-meta--infer-type
-                 '(:option-type :string :type string)))))
+                 '(:type (or null string) :type string)))))
 
 (ert-deftest beads-meta-infer-type-no-option-type ()
   "Test nil returned when no :option-type."
@@ -1809,7 +1809,7 @@ should emit only the autoload form."
 (ert-deftest beads-meta-infer-initform-explicit-wins ()
   "Test explicit :initform is not overridden."
   (should (null (beads-meta--infer-initform
-                 '(:option-type :string :initform "default")))))
+                 '(:type (or null string) :initform "default")))))
 
 (ert-deftest beads-meta-infer-initform-no-option-type ()
   "Test nil returned when slot is not a command option."
@@ -1845,7 +1845,7 @@ should emit only the autoload form."
 (ert-deftest beads-meta-normalize-slot-positional-skips-long-option ()
   "Test positional slots do not get :long-option inferred."
   (let ((result (beads-meta--normalize-slot-def
-                 '(title :option-type :string :positional 1 :key "t"))))
+                 '(title :type (or null string) :positional 1 :key "t"))))
     (let ((props (cdr result)))
       (should (eq :title (plist-get props :initarg)))
       (should (equal '(or null string) (plist-get props :type)))
@@ -1860,7 +1860,7 @@ should emit only the autoload form."
                    :type string
                    :initform "default"
                    :long-option "user"
-                   :option-type :string
+                   :type (or null string)
                    :key "a"))))
     (let ((props (cdr result)))
       (should (eq :my-arg (plist-get props :initarg)))
@@ -1883,7 +1883,7 @@ should emit only the autoload form."
   "Test normalization of a list option slot."
   (let ((result (beads-meta--normalize-slot-def
                  '(labels :option-type :list :key "l"
-                          :option-separator ","))))
+                          :separator ","))))
     (let ((props (cdr result)))
       (should (eq :labels (plist-get props :initarg)))
       (should (equal '(or null list) (plist-get props :type)))
@@ -1906,7 +1906,7 @@ should emit only the autoload form."
 (ert-deftest beads-meta-normalize-slot-strips-reader-alias ()
   "Test :reader is expanded to :transient-reader and stripped."
   (let* ((result (beads-meta--normalize-slot-def
-                  '(title :option-type :string :key "t"
+                  '(title :type (or null string) :key "t"
                           :reader beads-reader-issue-title)))
          (props (cdr result)))
     ;; :transient-reader should be set
@@ -1918,7 +1918,7 @@ should emit only the autoload form."
 (ert-deftest beads-meta-normalize-slot-strips-group-alias ()
   "Test :group is expanded to :transient-group and stripped."
   (let* ((result (beads-meta--normalize-slot-def
-                  '(title :option-type :string :key "t"
+                  '(title :type (or null string) :key "t"
                           :group "Required")))
          (props (cdr result)))
     ;; :transient-group should be set
@@ -1957,7 +1957,7 @@ should emit only the autoload form."
   (let ((result (beads-meta--run-inference
                  'reason '(:transient transient-option
                            :long-option "reason"
-                           :option-type :string
+                           :type (or null string)
                            :key "r"))))
     ;; Should infer description since :transient is a symbol, not string
     (should (assq :transient-description result))))

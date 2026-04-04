@@ -60,7 +60,7 @@
 (beads-defcommand beads-command-show (beads-command-global-options)
   ((issue-ids
     :positional 1
-    :option-type :list
+    :type (list-of string)
     :separator " "
     :short-option "i"
     :argument "--id="
@@ -71,25 +71,25 @@
     :order 1
     :required t)
    (children
-    :option-type :boolean
+    :type boolean
     :short-option "c"
     :group "View Options"
     :level 1
     :order 1)
    (refs
-    :option-type :boolean
+    :type boolean
     :short-option "r"
     :group "View Options"
     :level 1
     :order 2)
    (short
-    :option-type :boolean
+    :type boolean
     :short-option "s"
     :group "View Options"
     :level 1
     :order 3)
    (thread
-    :option-type :boolean
+    :type boolean
     :short-option "t"
     :group "View Options"
     :level 2

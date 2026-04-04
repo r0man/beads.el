@@ -41,13 +41,13 @@
 
 (beads-defcommand beads-command-ready (beads-command-global-options)
   ((assignee
-    :option-type :string
+    :type (or null string)
     :short-option "a"
     :group "Filters"
     :level 1
     :order 1)
    (include-deferred
-    :option-type :boolean
+    :type boolean
     :short-option "D"
     :group "Filters"
     :level 2
@@ -55,14 +55,14 @@
    (issue-type
     :long-option "type"
     :short-option "t"
-    :option-type :string
+    :type (or null string)
     :transient-key "T"
     :reader beads-reader-list-type
     :group "Filters"
     :level 1
     :order 4)
    (label
-    :option-type :list
+    :type (list-of string)
     :short-option "l"
     :prompt "Label (AND): "
     :reader beads-reader-list-label
@@ -70,7 +70,7 @@
     :level 2
     :order 1)
    (label-any
-    :option-type :list
+    :type (list-of string)
     :short-option "L"
     :prompt "Label (OR): "
     :reader beads-reader-list-label
@@ -78,13 +78,13 @@
     :level 2
     :order 2)
    (limit
-    :option-type :integer
+    :type (or null string integer)
     :short-option "n"
     :group "Display"
     :level 1
     :order 1)
    (mol
-    :option-type :string
+    :type (or null string)
     :short-option "m"
     :prompt "Molecule ID: "
     :reader beads-reader-issue-id
@@ -92,14 +92,14 @@
     :level 2
     :order 1)
    (mol-type
-    :option-type :string
+    :type (or null string)
     :short-option "M"
     :choices '("swarm" "patrol" "work")
     :group "Scope"
     :level 2
     :order 2)
    (parent
-    :option-type :string
+    :type (or null string)
     :short-option "P"
     :prompt "Parent ID: "
     :reader beads-reader-issue-id
@@ -107,27 +107,27 @@
     :level 2
     :order 3)
    (pretty
-    :option-type :boolean
+    :type boolean
     :short-option "y"
     :group "Display"
     :level 2
     :order 2)
    (priority
-    :option-type :integer
+    :type (or null string integer)
     :short-option "p"
     :reader beads-reader-list-priority
     :group "Filters"
     :level 1
     :order 2)
    (sort
-    :option-type :string
+    :type (or null string)
     :short-option "s"
     :choices '("hybrid" "priority" "oldest")
     :group "Display"
     :level 1
     :order 3)
    (unassigned
-    :option-type :boolean
+    :type boolean
     :short-option "u"
     :group "Filters"
     :level 1

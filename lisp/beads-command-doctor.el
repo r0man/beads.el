@@ -34,7 +34,7 @@
   ((path
     :positional 1)
    (check
-    :option-type :string
+    :type (or null string)
     :short-option "c"
     :prompt "Check (pollution): "
     :choices ("pollution")
@@ -42,62 +42,62 @@
     :level 2
     :order 1)
    (check-health
-    :option-type :boolean
+    :type boolean
     :short-option "h"
     :group "Checks"
     :level 2
     :order 2)
    (deep
-    :option-type :boolean
+    :type boolean
     :short-option "d"
     :group "Checks"
     :level 2
     :order 3)
    (perf
-    :option-type :boolean
+    :type boolean
     :short-option "p"
     :group "Checks"
     :level 2
     :order 4)
    (fix
-    :option-type :boolean
+    :type boolean
     :short-option "f"
     :group "Fix Options"
     :level 3
     :order 1)
    (dry-run
-    :option-type :boolean
+    :type boolean
     :short-option "n"
     :group "Fix Options"
     :level 3
     :order 2)
    (yes
     :short-option "y"
-    :option-type :boolean
+    :type boolean
     :group "Fix Options"
     :level 3
     :order 3)
    (interactive-mode
     :long-option "interactive"
     :short-option "i"
-    :option-type :boolean
+    :type boolean
     :group "Fix Options"
     :level 3
     :order 4)
    (fix-child-parent
-    :option-type :boolean
+    :type boolean
     :short-option "C"
     :group "Fix Options"
     :level 4
     :order 5)
    (force
-    :option-type :boolean
+    :type boolean
     :short-option "F"
     :group "Fix Options"
     :level 4
     :order 6)
    (source
-    :option-type :string
+    :type (or null string)
     :short-option "s"
     :choices ("auto" "jsonl" "db")
     :group "Fix Options"
@@ -105,19 +105,19 @@
     :order 7)
    (output
     :short-option "o"
-    :option-type :string
+    :type (or null string)
     :prompt "Output file: "
     :group "Output"
     :level 3
     :order 1)
    (verbose
     :short-option "v"
-    :option-type :boolean
+    :type boolean
     :group "Output"
     :level 3
     :order 2)
    (clean
-    :option-type :boolean
+    :type boolean
     :short-option "D"
     :group "Checks"
     :level 4

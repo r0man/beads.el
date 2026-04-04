@@ -26,18 +26,18 @@
 (beads-defcommand beads-command-hooks-install (beads-command-global-options)
   ((force
     :short-option "f"
-    :option-type :boolean
+    :type boolean
     :group "Options"
     :level 1
     :order 1)
    (chain
-    :option-type :boolean
+    :type boolean
     :short-option "c"
     :group "Options"
     :level 1
     :order 2)
    (shared
-    :option-type :boolean
+    :type boolean
     :short-option "s"
     :group "Options"
     :level 1

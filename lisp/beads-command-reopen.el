@@ -45,7 +45,7 @@
 (beads-defcommand beads-command-reopen (beads-command-global-options)
   ((issue-ids
     :positional 1
-    :option-type :list
+    :type (list-of string)
     :separator " "
     :short-option "i"
     :transient transient-option
@@ -57,7 +57,7 @@
     :order 1
     :required t)
    (reason
-    :option-type :string
+    :type (or null string)
     :short-option "r"
     :transient beads-transient-multiline
     :documentation "Reopen Reason"

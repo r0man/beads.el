@@ -35,20 +35,20 @@
   ((issue-id
     :positional 1)
    (all
-    :option-type :boolean
+    :type boolean
     :short-option "a"
     :group "Options"
     :level 1
     :order 1)
    (box
     :initform t
-    :option-type :boolean
+    :type boolean
     :short-option "b"
     :group "Display"
     :level 1
     :order 2)
    (compact
-    :option-type :boolean
+    :type boolean
     :short-option "c"
     :group "Display"
     :level 1

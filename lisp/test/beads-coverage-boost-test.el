@@ -396,7 +396,7 @@
 (ert-deftest beads-coverage-boost-meta-infer-option-type-already-set ()
   "Test option type inference skips when already set."
   (should (null (beads-meta--infer-option-type
-                 '(:type boolean :option-type :boolean)))))
+                 '(:option-type :boolean :type boolean)))))
 
 (ert-deftest beads-coverage-boost-meta-resolve-long-option ()
   "Test long option resolution from slot name."
@@ -727,11 +727,9 @@
     (should (stringp (beads-command-validate cmd)))))
 
 (ert-deftest beads-coverage-boost-list-validate-string-list-error ()
-  "Test list validate catches non-string items in label list."
-  (let ((cmd (beads-command-list :label '(123))))
-    ;; Should detect invalid list item
-    (let ((result (beads-command-validate cmd)))
-      (should (or (null result) (stringp result))))))
+  "Test non-string items in label list are rejected.
+EIEIO enforces (list-of string) at construction time."
+  (should-error (beads-command-list :label '(123))))
 
 ;;; ============================================================
 ;;; beads-sesman.el: user-facing commands

@@ -23,20 +23,20 @@
 ;; A minimal test command with :required and :choices metadata
 (beads-defcommand beads-command-test-validate (beads-command-global-options)
   ((title
-    :option-type :string
+    :type (or null string)
     :short-option "t"
     :required t)
    (priority
-    :option-type :integer
+    :type (or null string integer)
     :short-option "p"
     :choices ("0" "1" "2" "3" "4"))
    (status
-    :option-type :string
+    :type (or null string)
     :key "s"
     :required t
     :choices ("open" "closed" "in_progress"))
    (labels
-    :option-type :list
+    :type (list-of string)
     :key "l"))
   :documentation "Test command for validation."
   :transient nil)
@@ -44,10 +44,10 @@
 ;; A command with no required slots
 (beads-defcommand beads-command-test-optional (beads-command-global-options)
   ((filter
-    :option-type :string
+    :type (or null string)
     :short-option "f")
    (limit
-    :option-type :integer
+    :type (or null string integer)
     :short-option "l"))
   :documentation "Test command with only optional slots."
   :transient nil)
