@@ -1090,29 +1090,25 @@ Nested epic is a simple issue (no deps/comments)."
                                 'beads-issue)))
 
 ;;; ========================================
-;;; Parity Tests: Non-Standard Types (expected to FAIL)
+;;; Parity Tests: Non-Standard Types (overrides added in bde-wbuu)
 ;;; ========================================
 ;;
-;; These tests document known divergences between the hand-written
-;; parsers and the generic beads-from-json.  They are marked
-;; :expected-result :failed so they don't break CI.  After bde-wbuu
-;; (Phase 3: Add beads-from-json overrides for non-standard domain
-;; classes), flip them to :expected-result :passed.
+;; These types have non-standard JSON shapes requiring beads-from-json
+;; overrides (beads-dependency, beads-formula) or :json-key metadata
+;; fixes (beads-statistics, beads-stats-data).  The beads-issue show
+;; test depends on the beads-dependency override for nested dependents.
 
 (ert-deftest beads-parity-test-issue-parity-show ()
   "Generic beads-from-json vs beads-issue-from-json (show).
-Expected to fail: nested dependents use polymorphic
-beads-dependency keys (dependency_type vs type, id vs depends_on_id)."
-  :expected-result :failed
+Nested dependents use polymorphic beads-dependency keys —
+handled by beads-from-json override for beads-dependency."
   (let* ((ref (beads-issue-from-json beads-parity--show-json))
          (cand (beads-from-json 'beads-issue beads-parity--show-json)))
     (beads-parity--assert-equal ref cand 'beads-issue)))
 
 (ert-deftest beads-parity-test-dependency-parity ()
   "Generic beads-from-json vs beads-dependency-from-json.
-Expected to fail: hand-written uses (or dependency_type type)
-and (or depends_on_id id) fallback logic."
-  :expected-result :failed
+Polymorphic keys handled by beads-from-json override."
   (let* ((json (aref beads-parity--dep-list-json 0))
          (ref (beads-dependency-from-json json))
          (cand (beads-from-json 'beads-dependency json)))
@@ -1120,9 +1116,7 @@ and (or depends_on_id id) fallback logic."
 
 (ert-deftest beads-parity-test-statistics-parity ()
   "Generic beads-from-json vs beads-statistics-from-json.
-Expected to fail: average_lead_time_hours key doesn't match
-slot name average-lead-time (no :json-key override yet)."
-  :expected-result :failed
+The :json-key average_lead_time_hours on the slot handles the mapping."
   (let* ((json (alist-get 'summary beads-parity--stats-json))
          (ref (beads-statistics-from-json json))
          (cand (beads-from-json 'beads-statistics json)))
@@ -1130,9 +1124,7 @@ slot name average-lead-time (no :json-key override yet)."
 
 (ert-deftest beads-parity-test-stats-data-parity ()
   "Generic beads-from-json vs beads-stats-data-from-json.
-Expected to fail: wraps nested summary/activity sub-objects
-with custom parsing logic."
-  :expected-result :failed
+Nested summary/activity sub-objects handled by typed slots."
   (let* ((ref (beads-stats-data-from-json beads-parity--stats-json))
          (cand (beads-from-json 'beads-stats-data
                                 beads-parity--stats-json)))
@@ -1140,9 +1132,7 @@ with custom parsing logic."
 
 (ert-deftest beads-parity-test-formula-parity ()
   "Generic beads-from-json vs beads-formula-from-json.
-Expected to fail: formula->name key mapping, vars is a
-map (not array) requiring custom unpacking."
-  :expected-result :failed
+Non-standard name key and vars map handled by override."
   (let* ((ref (beads-formula-from-json beads-parity--formula-show-json))
          (cand (beads-from-json 'beads-formula
                                 beads-parity--formula-show-json)))
