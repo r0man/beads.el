@@ -341,10 +341,13 @@ Regression test for bug bde-65df."
   (let* ((cmd (beads-command-close :issue-ids '("bd-42") :reason "Fixed" :json t))
          (json-string (json-encode (vector beads-close-test--sample-close-response))))
     (let ((result (beads-command-parse cmd json-string)))
-      ;; Single issue-id should return a single issue, not a list
-      (should (beads-issue-p result))
-      (should (string= (oref result id) "bd-42"))
-      (should (string= (oref result status) "closed")))))
+      ;; :result (list-of beads-issue) always returns a list
+      (should (listp result))
+      (should (= (length result) 1))
+      (let ((issue (car result)))
+        (should (beads-issue-p issue))
+        (should (string= (oref issue id) "bd-42"))
+        (should (string= (oref issue status) "closed"))))))
 
 (ert-deftest beads-close-test-parse-json-multiple-issues ()
   "Test beads-command-parse with JSON array for multiple issues."

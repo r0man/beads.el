@@ -45,9 +45,7 @@ The slot ID is generated automatically from the beads prefix."
   :cli-command "merge-slot create")
 
 
-(cl-defmethod beads-command-validate ((_command beads-command-merge-slot-create))
-  "Validate merge-slot create COMMAND.  Always valid."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 ;;;###autoload (autoload 'beads-merge-slot-create "beads-command-merge-slot" nil t)
 (beads-meta-define-transient beads-command-merge-slot-create
@@ -70,9 +68,7 @@ Returns: available, held by <holder>, or not found."
   :cli-command "merge-slot check")
 
 
-(cl-defmethod beads-command-validate ((_command beads-command-merge-slot-check))
-  "Validate merge-slot check COMMAND.  Always valid."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 ;;;###autoload (autoload 'beads-merge-slot-check "beads-command-merge-slot" nil t)
 (beads-meta-define-transient beads-command-merge-slot-check
@@ -105,9 +101,7 @@ adds to the waiters queue."
   :cli-command "merge-slot acquire")
 
 
-(cl-defmethod beads-command-validate ((_command beads-command-merge-slot-acquire))
-  "Validate merge-slot acquire COMMAND.  Always valid."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 ;;;###autoload (autoload 'beads-merge-slot-acquire "beads-command-merge-slot" nil t)
 (beads-meta-define-transient beads-command-merge-slot-acquire
@@ -136,9 +130,7 @@ Sets status back to open and clears the holder field."
   :cli-command "merge-slot release")
 
 
-(cl-defmethod beads-command-validate ((_command beads-command-merge-slot-release))
-  "Validate merge-slot release COMMAND.  Always valid."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 ;;;###autoload (autoload 'beads-merge-slot-release "beads-command-merge-slot" nil t)
 (beads-meta-define-transient beads-command-merge-slot-release

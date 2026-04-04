@@ -39,16 +39,9 @@ Displays a quick start guide showing common bd workflows and patterns."
   :json nil)
 
 
-(cl-defmethod beads-command-validate ((_command beads-command-quickstart))
-  "Validate quickstart COMMAND.
-No required fields.
-Returns nil (always valid)."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
-(cl-defmethod beads-command-parse ((_command beads-command-quickstart) stdout)
-  "Parse bd quickstart output from STDOUT.
-Returns raw stdout string.  bd quickstart does not produce JSON output."
-  stdout)
+;; Parse override removed: base method returns raw stdout when :json nil.
 
 ;;; Transient Menu
 

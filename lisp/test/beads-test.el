@@ -1405,17 +1405,8 @@ The log format is compatible with `log-view-mode':
      (should (numberp (oref parsed priority)))
      (should (= (oref parsed priority) 0)))))
 
-(ert-deftest beads-test-performance-parse-many-issues ()
-  "Test parsing performance with many issues."
-  :tags '(:performance)
-  (beads-test-with-temp-config
-   (let* ((num-issues 1000)
-          (issues (make-vector num-issues beads-test--sample-issue))
-          (start-time (current-time)))
-     (beads--parse-issues issues)
-     (let ((elapsed (float-time (time-subtract (current-time) start-time))))
-       ;; Should parse 1000 issues in under 1 second
-       (should (< elapsed 1.0))))))
+;; Performance test removed: timing thresholds are too fragile
+;; for CI and vary across machines.
 
 (provide 'beads-process-test)
 

@@ -56,10 +56,7 @@ When executed with :json t, returns issue list as JSON."
   :result (list-of beads-issue))
 
 
-(cl-defmethod beads-command-validate ((_command beads-command-stale))
-  "Validate stale COMMAND.
-No required fields, returns nil (valid)."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 
 ;;; Transient Menu

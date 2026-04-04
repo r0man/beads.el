@@ -374,10 +374,11 @@
       (should (equal "plain text output" result)))))
 
 (ert-deftest beads-coverage-4-show-parse-json-single ()
-  "Test show parse with JSON single object."
-  (let* ((json-str "{\"id\":\"bd-1\",\"title\":\"Test\",\"status\":\"open\",\"priority\":2,\"type\":\"task\"}")
+  "Test show parse with JSON array containing single issue."
+  (let* ((json-str "[{\"id\":\"bd-1\",\"title\":\"Test\",\"status\":\"open\",\"priority\":2,\"type\":\"task\"}]")
          (cmd (beads-command-show :issue-ids '("bd-1") :json t)))
     (let ((result (beads-command-parse cmd json-str)))
+      ;; Show override unwraps single-element list for single issue-id
       (should (cl-typep result 'beads-issue))
       (should (equal "bd-1" (oref result id))))))
 
@@ -388,11 +389,11 @@
       (should-not result))))
 
 (ert-deftest beads-coverage-4-show-parse-json-object ()
-  "Test show parse with JSON object that has no id/title."
+  "Test show parse with JSON array containing object with no id/title."
   (let* ((cmd (beads-command-show :issue-ids '("bd-1") :json t)))
-    ;; This exercises the single-object code path in parse
-    (let ((result (beads-command-parse cmd "{\"bad\":true}")))
-      ;; Returns a beads-issue (with nil fields) from the alist
+    ;; Base parses via :result (list-of beads-issue), show unwraps for single id
+    (let ((result (beads-command-parse cmd "[{\"bad\":true}]")))
+      ;; Returns a beads-issue (with nil fields) unwrapped by show override
       (should (cl-typep result 'beads-issue)))))
 
 (ert-deftest beads-coverage-4-show-parse-json-vector ()

@@ -436,6 +436,7 @@
     :documentation "Represents bd list command.
   Lists issues with extensive filtering and output formatting options.
   When executed with :json t, returns list of beads-issue instances."
+    :result (list-of beads-issue)
     :transient :manual)
 
 (cl-defmethod beads-command-validate ((command beads-command-list))
@@ -471,39 +472,8 @@ P can be a number or string representation."
        (beads-command--validate-string-list label "label")
        (beads-command--validate-string-list label-any "label-any")))))
 
-(cl-defmethod beads-command-parse ((command beads-command-list) stdout)
-  "Parse list COMMAND output from STDOUT.
-Returns list of beads-issue instances.
-When :json is nil, falls back to parent (returns raw stdout).
-When :json is t, returns list of beads-issue instances.
-Does not modify any slots."
-  (with-slots (json) command
-    (if (not json)
-        ;; If json is not enabled, use parent implementation
-        (cl-call-next-method)
-      ;; Call parent to parse JSON, then convert to beads-issue instances
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (cond
-             ;; Array result - convert to issue objects
-             ((eq (type-of parsed-json) 'vector)
-              (mapcar (lambda (j) (beads-from-json 'beads-issue j)) (append parsed-json nil)))
-             ;; Empty or null
-             ((or (null parsed-json) (eq parsed-json :null))
-              nil)
-             ;; Unexpected structure
-             (t
-              (signal 'beads-json-parse-error
-                      (list "Unexpected JSON structure from bd list"
-                            :stdout stdout
-                            :parsed-json parsed-json))))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to parse list result: %s"
-                                 (error-message-string err))
-                         :stdout stdout
-                         :parsed-json parsed-json
-                         :parse-error err))))))))
+;; Parse override removed: the base method handles JSON-to-domain
+;; parsing automatically via :result (list-of beads-issue).
 
 (defun beads-list-execute (&rest args)
   "Execute `beads-command-list' and return result data.

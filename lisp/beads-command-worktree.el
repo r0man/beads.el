@@ -268,7 +268,8 @@ Returns error message string or nil if valid."
     :level 1
     :order 1))
   :documentation "Represents bd worktree create command.
-Creates a git worktree with beads redirect configuration.")
+Creates a git worktree with beads redirect configuration."
+  :result beads-worktree)
 
 
 (cl-defmethod beads-command-validate ((command beads-command-worktree-create))
@@ -280,22 +281,8 @@ Requires name to be set."
      ((string-empty-p name) "Worktree name cannot be empty")
      (t nil))))
 
-(cl-defmethod beads-command-parse ((command beads-command-worktree-create) stdout)
-  "Parse worktree create COMMAND output from STDOUT.
-Returns beads-worktree instance on success."
-  (with-slots (json) command
-    (if (not json)
-        (cl-call-next-method)
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (beads-from-json 'beads-worktree parsed-json)
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to create beads-worktree: %s"
-                                 (error-message-string err))
-                         :stdout stdout
-                         :parsed-json parsed-json
-                         :parse-error err))))))))
+;; Parse override removed: the base method handles JSON-to-domain
+;; parsing automatically via :result beads-worktree.
 
 ;;; ============================================================
 ;;; Command Class: beads-command-worktree-list
@@ -304,25 +291,12 @@ Returns beads-worktree instance on success."
 (beads-defcommand beads-command-worktree-list (beads-command-global-options)
   ()
   :documentation "Represents bd worktree list command.
-Lists all git worktrees with their beads configuration state.")
+Lists all git worktrees with their beads configuration state."
+  :result (list-of beads-worktree))
 
 
-(cl-defmethod beads-command-parse ((command beads-command-worktree-list) stdout)
-  "Parse worktree list COMMAND output from STDOUT.
-Returns list of beads-worktree instances."
-  (with-slots (json) command
-    (if (not json)
-        (cl-call-next-method)
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (mapcar (lambda (j) (beads-from-json 'beads-worktree j)) (append parsed-json nil))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to create beads-worktree list: %s"
-                                 (error-message-string err))
-                         :stdout stdout
-                         :parsed-json parsed-json
-                         :parse-error err))))))))
+;; Parse override removed: the base method handles JSON-to-domain
+;; parsing automatically via :result (list-of beads-worktree).
 
 ;;; ============================================================
 ;;; Command Class: beads-command-worktree-remove
@@ -358,25 +332,12 @@ Requires name to be set."
   ()
   :transient :manual
   :documentation "Represents bd worktree info command.
-Shows information about the current worktree context.")
+Shows information about the current worktree context."
+  :result beads-worktree-info)
 
 
-(cl-defmethod beads-command-parse ((command beads-command-worktree-info) stdout)
-  "Parse worktree info COMMAND output from STDOUT.
-Returns beads-worktree-info instance."
-  (with-slots (json) command
-    (if (not json)
-        (cl-call-next-method)
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (beads-from-json 'beads-worktree-info parsed-json)
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to create beads-worktree-info: %s"
-                                 (error-message-string err))
-                         :stdout stdout
-                         :parsed-json parsed-json
-                         :parse-error err))))))))
+;; Parse override removed: the base method handles JSON-to-domain
+;; parsing automatically via :result beads-worktree-info.
 
 ;;; ============================================================
 ;;; Utility Functions

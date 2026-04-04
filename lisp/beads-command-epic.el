@@ -49,46 +49,36 @@
     :order 1))
   :transient :manual
   :documentation "Represents bd epic status command.
-Shows epic completion status.")
+Shows epic completion status."
+  :result (list-of beads-epic-status))
 
 
-(cl-defmethod beads-command-validate ((_command beads-command-epic-status))
-  "Validate epic status COMMAND.
-No required fields.
-Returns nil (always valid)."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 (cl-defmethod beads-command-parse ((command beads-command-epic-status) stdout)
   "Parse epic status COMMAND output from STDOUT.
 Returns list of beads-epic-status instances.
 When :json is nil, falls back to parent (returns raw stdout).
 When :json is t, returns list of beads-epic-status instances.
-Does not modify any slots."
+Handles bare JSON object (not array) as a single-element list,
+since the base method's (list-of ...) coercion only handles arrays."
   (with-slots (json) command
     (if (not json)
         (cl-call-next-method)
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (cond
-             ((null parsed-json)
-              nil)
-             ((eq (type-of parsed-json) 'vector)
-              (mapcar (lambda (j) (beads-from-json 'beads-epic-status j))
-                      (append parsed-json nil)))
-             ((eq (type-of parsed-json) 'cons)
-              (list (beads-from-json 'beads-epic-status parsed-json)))
-             (t
-              (signal 'beads-json-parse-error
-                      (list "Unexpected JSON structure from bd epic status"
-                            :stdout stdout
-                            :parsed-json parsed-json))))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to create beads-epic-status: %s"
-                                 (error-message-string err))
-                         :stdout stdout
-                         :parsed-json parsed-json
-                         :parse-error err))))))))
+      ;; Check if stdout contains a bare object (not an array).
+      ;; The base method with (list-of T) can't handle bare objects.
+      (let* ((trimmed (string-trim stdout)))
+        (if (and (> (length trimmed) 0)
+                 (eq (aref trimmed 0) ?\{))
+            ;; Single object — parse and wrap in a list
+            (let* ((json-null nil)
+                   (json-object-type 'alist)
+                   (json-array-type 'vector)
+                   (json-key-type 'symbol)
+                   (raw (json-read-from-string trimmed)))
+              (list (beads-from-json 'beads-epic-status raw)))
+          ;; Array or null — delegate to base method
+          (cl-call-next-method))))))
 
 ;;; Epic Close-Eligible Command
 
@@ -103,11 +93,7 @@ Does not modify any slots."
 Closes epics where all children are complete."
   :cli-command "epic close-eligible")
 
-(cl-defmethod beads-command-validate ((_command beads-command-epic-close-eligible))
-  "Validate epic close-eligible COMMAND.
-No required fields.
-Returns nil (always valid)."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 
 ;;; Transient Menus

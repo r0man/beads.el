@@ -223,11 +223,7 @@ Returns error string or nil if valid."
 Lists all unique labels in the database."
   :cli-command "label list-all")
 
-(cl-defmethod beads-command-validate ((_command beads-command-label-list-all))
-  "Validate label list-all COMMAND.
-No required fields.
-Returns nil (always valid)."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 ;;; Label Propagate Command
 

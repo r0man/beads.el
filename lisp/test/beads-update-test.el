@@ -522,14 +522,14 @@ Tests the complete flow: create issue, update multiple fields, verify changes."
       (should (string-match-p "^bt[A-Za-z0-9]+-" issue-id))
 
       ;; Update the issue using beads-command-update
-      (let ((updated-issue (beads-execute 'beads-command-update
-                            :json t
-                            :issue-ids (list issue-id)
-                            :title "Updated Test Issue"
-                            :description "Updated description"
-                            :status "in_progress"
-                            :priority 1
-                            :notes "Added some notes")))
+      (let ((updated-issue (car (beads-execute 'beads-command-update
+                                 :json t
+                                 :issue-ids (list issue-id)
+                                 :title "Updated Test Issue"
+                                 :description "Updated description"
+                                 :status "in_progress"
+                                 :priority 1
+                                 :notes "Added some notes"))))
 
         ;; Verify the update returned an issue
         (should (beads-issue-p updated-issue))
@@ -653,8 +653,11 @@ Regression test for bug bde-z65s: 'Not a transient prefix: beads-update'."
   (let* ((cmd (beads-command-update :json t :issue-ids '("bd-42")
                                      :status "open")))
     (let ((result (beads-command-parse cmd "[{\"id\":\"bd-42\",\"title\":\"Test\"}]")))
-      (should (beads-issue-p result))
-      (should (string= (oref result id) "bd-42")))))
+      ;; :result (list-of beads-issue) always returns a list
+      (should (listp result))
+      (should (= (length result) 1))
+      (should (beads-issue-p (car result)))
+      (should (string= (oref (car result) id) "bd-42")))))
 
 (ert-deftest beads-update-test-parse-json-multiple-issues ()
   "Test parse method returns list for multiple IDs."

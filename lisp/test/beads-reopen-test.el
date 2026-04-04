@@ -318,10 +318,13 @@ May signal error (EIEIO type check) or show validation message."
                                  (updated_at . "2025-01-15T10:00:00Z")))))
 )
     (let ((result (beads-command-parse cmd json-string)))
-      ;; Single issue-id should return a single issue
-      (should (beads-issue-p result))
-      (should (string= (oref result id) "bd-42"))
-      (should (string= (oref result status) "open")))))
+      ;; :result (list-of beads-issue) always returns a list
+      (should (listp result))
+      (should (= (length result) 1))
+      (let ((issue (car result)))
+        (should (beads-issue-p issue))
+        (should (string= (oref issue id) "bd-42"))
+        (should (string= (oref issue status) "open"))))))
 
 (ert-deftest beads-reopen-test-parse-json-multiple-issues ()
   "Test beads-command-parse with JSON array for multiple issues."

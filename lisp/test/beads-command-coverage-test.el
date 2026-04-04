@@ -469,8 +469,10 @@ never hang waiting for a response that never arrives."
   (let* ((cmd (beads-command-close :json t :issue-ids '("bd-1") :reason "Done"))
          (stdout "[{\"id\":\"bd-1\",\"title\":\"Test\",\"status\":\"closed\"}]"))
     (let ((result (beads-command-parse cmd stdout)))
-      ;; Single issue-id should return single issue (not list)
-      (should (beads-issue-p result)))))
+      ;; :result (list-of beads-issue) always returns a list
+      (should (listp result))
+      (should (= (length result) 1))
+      (should (beads-issue-p (car result))))))
 
 ;;; ============================================================
 ;;; beads-command-subcommand auto-derive Tests

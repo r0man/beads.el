@@ -46,10 +46,7 @@ With a name, creates a new branch.
 Requires Dolt backend.")
 
 
-(cl-defmethod beads-command-validate ((_command beads-command-branch))
-  "Validate branch COMMAND.
-No required fields, returns nil (valid)."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 
 ;;; Transient Menu

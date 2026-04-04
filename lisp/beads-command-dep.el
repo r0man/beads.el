@@ -88,6 +88,7 @@
     :order 3))
   :documentation "Represents bd dep add command.
 Adds a dependency between two issues."
+  :result beads-dep-op-result
   :transient :manual)
 
 
@@ -104,25 +105,8 @@ Returns error string or nil if valid."
       "Must provide depends-on or blocked-by issue ID")
      (t nil))))
 
-(cl-defmethod beads-command-parse ((command beads-command-dep-add) stdout)
-  "Parse dep add COMMAND output from STDOUT.
-Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
-  (with-slots (json) command
-    (if (not json)
-        (cl-call-next-method)
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (if (listp parsed-json)
-                (beads-from-json 'beads-dep-op-result parsed-json)
-              (signal 'beads-json-parse-error
-                      (list "Unexpected JSON from bd dep add"
-                            :stdout stdout
-                            :parsed-json parsed-json)))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to parse dep add result: %s"
-                                 (error-message-string err))
-                         :stdout stdout))))))))
+;; Parse override removed: the base method handles JSON-to-domain
+;; parsing automatically via :result beads-dep-op-result.
 
 ;;; Dependency Remove Command
 
@@ -151,6 +135,7 @@ Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
     :required t))
   :documentation "Represents bd dep remove command.
 Removes a dependency between two issues."
+  :result beads-dep-op-result
   :transient :manual)
 
 
@@ -166,25 +151,8 @@ Returns error string or nil if valid."
       "Must provide depends-on issue ID")
      (t nil))))
 
-(cl-defmethod beads-command-parse ((command beads-command-dep-remove) stdout)
-  "Parse dep remove COMMAND output from STDOUT.
-Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
-  (with-slots (json) command
-    (if (not json)
-        (cl-call-next-method)
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (if (listp parsed-json)
-                (beads-from-json 'beads-dep-op-result parsed-json)
-              (signal 'beads-json-parse-error
-                      (list "Unexpected JSON from bd dep remove"
-                            :stdout stdout
-                            :parsed-json parsed-json)))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to parse dep remove result: %s"
-                                 (error-message-string err))
-                         :stdout stdout))))))))
+;; Parse override removed: the base method handles JSON-to-domain
+;; parsing automatically via :result beads-dep-op-result.
 
 ;;; Dependency List Command
 
@@ -216,7 +184,8 @@ Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
     :level 1
     :order 3))
   :documentation "Represents bd dep list command.
-Lists dependencies or dependents of an issue.")
+Lists dependencies or dependents of an issue."
+  :result (list-of beads-dependency))
 
 
 (cl-defmethod beads-command-validate ((command beads-command-dep-list))
@@ -238,34 +207,13 @@ Does not modify any slots."
   (with-slots (json issue-id) command
     (if (not json)
         (cl-call-next-method)
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (cond
-             ((eq (type-of parsed-json) 'vector)
-              ;; bd dep list returns IssueWithDependencyMetadata objects
-              ;; which have full issue fields + dependency_type.
-              ;; Use beads-from-json which handles this format.
-              ;; Also set issue-id slot since bd dep list doesn't include it
-              ;; (it's implicit from the command argument).
-              (mapcar (lambda (item)
-                        (let ((dep (beads-from-json 'beads-dependency item)))
-                          (oset dep issue-id issue-id)
-                          dep))
-                      (append parsed-json nil)))
-             ((or (null parsed-json) (eq parsed-json :null))
-              nil)
-             (t
-              (signal 'beads-json-parse-error
-                      (list "Unexpected JSON structure from bd dep list"
-                            :stdout stdout
-                            :parsed-json parsed-json))))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to parse dep list result: %s"
-                                 (error-message-string err))
-                         :stdout stdout
-                         :parsed-json parsed-json
-                         :parse-error err))))))))
+      ;; Base method parses JSON and coerces via :result (list-of beads-dependency).
+      ;; We just need to set issue-id on each dependency since bd dep list
+      ;; doesn't include it (it's implicit from the command argument).
+      (let ((deps (cl-call-next-method)))
+        (dolist (dep deps)
+          (oset dep issue-id issue-id))
+        deps))))
 
 ;;; Dependency Tree Command
 
@@ -369,11 +317,7 @@ Return list of beads-tree-node objects."
 Detects dependency cycles in the issue graph.")
 
 
-(cl-defmethod beads-command-validate ((_command beads-command-dep-cycles))
-  "Validate dep cycles COMMAND.
-No required fields.
-Returns nil (always valid)."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 ;;; Dep Relate Command
 

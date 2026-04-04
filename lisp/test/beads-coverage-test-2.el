@@ -838,9 +838,11 @@
          (cmd (beads-command-update :issue-ids '("bd-1") :json t
                                      :status "in_progress")))
     (let ((result (beads-command-parse cmd json-str)))
-      ;; Single issue-id returns a single issue, not a list
-      (should (beads-issue-p result))
-      (should (equal "bd-1" (oref result id))))))
+      ;; :result (list-of beads-issue) always returns a list
+      (should (listp result))
+      (should (= (length result) 1))
+      (should (beads-issue-p (car result)))
+      (should (equal "bd-1" (oref (car result) id))))))
 
 (ert-deftest beads-coverage-2-update-parse-multiple ()
   "Test beads-command-parse for update with multiple IDs."

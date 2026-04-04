@@ -1074,7 +1074,13 @@ Example:
   (unless (find-class class nil)
     (error "Not a beads command class: %S" class))
   (let ((cmd (apply #'make-instance class args)))
-    (unless (plist-member args :json)
+    (unless (or (plist-member args :json)
+                ;; Respect :json nil from beads-defcommand — don't force
+                ;; JSON on commands that don't support it.  Check the
+                ;; symbol plist directly since (get class 'beads-json)
+                ;; returns nil both for "explicitly nil" and "not set".
+                (and (plist-member (symbol-plist class) 'beads-json)
+                     (not (get class 'beads-json))))
       (oset cmd json t))
     (beads-command-execute cmd)))
 
@@ -1092,7 +1098,9 @@ Example:
   (unless (find-class class nil)
     (error "Not a beads command class: %S" class))
   (let ((cmd (apply #'make-instance class args)))
-    (unless (plist-member args :json)
+    (unless (or (plist-member args :json)
+                (and (plist-member (symbol-plist class) 'beads-json)
+                     (not (get class 'beads-json))))
       (oset cmd json t))
     (beads-command-execute-async cmd on-success on-error)))
 
