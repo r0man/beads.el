@@ -230,6 +230,8 @@ Example (hand-written transient):
              `((put ',name 'beads-result ',result-type)))
          ,@(when (and json-specified (not json-val))
              `((put ',name 'beads-json nil)))
+         ,@(when (and transient-specified (eq transient-val :manual))
+             `((put ',name 'beads-transient :manual)))
          ,@(when generate-transient
              `((beads-meta-define-transient ,name ,transient-prefix
                  ,short-doc

@@ -96,6 +96,7 @@
 (declare-function beads-command-validate "beads-command")
 (declare-function beads-command-execute-interactive "beads-command")
 (declare-function beads-command-preview "beads-command")
+(declare-function beads--derive-transient-name "beads-command")
 
 ;; Used at macroexpansion time by beads-meta-define-transient and
 ;; beads-defcommand to derive the feature name for autoload forms.
@@ -1511,6 +1512,182 @@ with a single macro call."
       ;; extract it without needing the full class definition.
       (when autoload-file
         `(autoload ',prefix-sym ,autoload-file nil t)))))
+
+;;; ============================================================
+;;; Auto-generated transient menu hierarchy (D14)
+;;; ============================================================
+
+(defun beads-meta--walk-hierarchy (root fn)
+  "Walk the class hierarchy from ROOT, calling FN for nodes with children.
+FN is called with (CLASS CHILDREN) for each class that has registered
+`beads-children'.  Walks depth-first: children are visited before parents."
+  (let ((children (get root 'beads-children)))
+    (when children
+      ;; Visit children first (depth-first)
+      (dolist (child children)
+        (beads-meta--walk-hierarchy child fn))
+      ;; Then visit this node
+      (funcall fn root children))))
+
+(defun beads-meta--derive-suffix-key (class parent)
+  "Derive a transient key for CLASS as a suffix of PARENT.
+Priority:
+1. Explicit `beads-transient-key' symbol property on CLASS.
+2. First letter of the leaf name segment (relative to PARENT).
+
+Returns a single-character string."
+  (or
+   ;; 1. Explicit :transient-key property
+   (get class 'beads-transient-key)
+   ;; 2. First letter of leaf name segment
+   (let* ((class-name (symbol-name class))
+          (parent-name (symbol-name parent))
+          (prefix (concat parent-name "-"))
+          (segment (if (string-prefix-p prefix class-name)
+                       (substring class-name (length prefix))
+                     ;; Fallback: strip beads-command- prefix
+                     (when (string-match "\\`beads-command-\\(.+\\)\\'"
+                                         class-name)
+                       (match-string 1 class-name)))))
+     (when (and segment (> (length segment) 0))
+       (substring segment 0 1)))))
+
+(defun beads-meta--check-key-collisions (suffixes parent)
+  "Check SUFFIXES for duplicate keys and warn about collisions.
+SUFFIXES is a list of (KEY DESCRIPTION TRANSIENT-NAME) lists.
+PARENT is the parent class symbol (used in warning message).
+Returns SUFFIXES unchanged."
+  (let ((seen (make-hash-table :test 'equal)))
+    (dolist (suffix suffixes)
+      (let ((key (car suffix)))
+        (when key
+          (let ((existing (gethash key seen)))
+            (when existing
+              (display-warning
+               'beads
+               (format "Key collision in %s: %S is bound to both %s and %s.
+Resolve with explicit :transient-key on one of the classes."
+                       parent key (nth 2 existing) (nth 2 suffix))
+               :warning))
+            (puthash key suffix seen))))))
+  suffixes)
+
+(defun beads-meta--build-suffix-specs (parent children)
+  "Build transient suffix specs for CHILDREN of PARENT.
+Returns a list of (KEY DESCRIPTION TRANSIENT-NAME) lists."
+  (let ((specs nil))
+    (dolist (child children)
+      (let* ((key (beads-meta--derive-suffix-key child parent))
+             (doc-pos (cl-position :documentation
+                                   (eieio--class-options (find-class child))))
+             (docstring (or (when doc-pos
+                              (nth (1+ doc-pos)
+                                   (eieio--class-options (find-class child))))
+                            (documentation child)))
+             ;; Try to get docstring from the class
+             (desc (or (when (and docstring (stringp docstring))
+                         (beads--extract-first-sentence docstring))
+                       (symbol-name child)))
+             (transient-name (beads--derive-transient-name child)))
+        (push (list key desc transient-name) specs)))
+    (beads-meta--check-key-collisions
+     (nreverse specs) parent)))
+
+(cl-defgeneric beads-meta-transient-suffixes (parent)
+  "Return transient suffix specs for children of PARENT class.
+Override this method for full manual control of a parent's child list.
+Returns a list of (KEY DESCRIPTION TRANSIENT-NAME) lists.")
+
+(cl-defmethod beads-meta-transient-suffixes ((parent symbol))
+  "Default: build suffix specs for PARENT from registered beads-children."
+  (let ((children (get parent 'beads-children)))
+    (when children
+      (beads-meta--build-suffix-specs parent children))))
+
+(defun beads-meta--define-prefix-transient (class children)
+  "Define a transient prefix for CLASS with CHILDREN as suffixes.
+CLASS is an abstract parent; CHILDREN are its direct sub-commands.
+Generates a `transient-define-prefix' form and evaluates it."
+  (let* ((transient-name (beads--derive-transient-name class))
+         (suffixes (beads-meta-transient-suffixes class))
+         (docstring (or (condition-case nil
+                            (documentation class)
+                          (error nil))
+                        (format "Transient menu for %s." transient-name)))
+         ;; Group suffixes by :transient-group property on the child classes
+         (groups (make-hash-table :test 'equal))
+         (default-group (let ((name (symbol-name class)))
+                          (if (string-match "\\`beads-command-\\(.+\\)\\'" name)
+                              (capitalize (match-string 1 name))
+                            "Commands"))))
+    ;; Group children by their beads-transient-group property
+    (dolist (child children)
+      (let ((group (or (get child 'beads-transient-group) default-group)))
+        (puthash group (cons child (gethash group groups)) groups)))
+    ;; Build grouped suffix vectors
+    (let ((group-vectors nil))
+      (maphash
+       (lambda (group-name _group-children)
+         (let ((group-suffixes
+                (seq-filter
+                 (lambda (s)
+                   (let ((tname (nth 2 s)))
+                     (memq (intern (concat "beads-command-"
+                                           (replace-regexp-in-string
+                                            "^beads-" ""
+                                            (symbol-name tname))))
+                           (gethash group-name groups))))
+                 suffixes)))
+           (when group-suffixes
+             (push (apply #'vector group-name group-suffixes)
+                   group-vectors))))
+       groups)
+      ;; If only one group, use a simpler layout
+      (let ((body (if (= (length group-vectors) 1)
+                      group-vectors
+                    (nreverse group-vectors))))
+        (eval `(transient-define-prefix ,transient-name ()
+                 ,docstring
+                 ,@body
+                 ["Actions"
+                  ("q" "Quit" transient-quit-one)])
+              t)))))
+
+(defun beads-meta-rebuild-transients (&optional root)
+  "Rebuild all auto-generated transient menus from the class hierarchy.
+Walks from ROOT (default: `beads-command-global-options') and generates
+transient prefixes for every parent class that has children and whose
+`:transient' property is not `:manual'.
+
+Called once at startup after all command files are required."
+  (let ((start (or root 'beads-command-global-options)))
+    (beads-meta--walk-hierarchy
+     start
+     (lambda (class children)
+       (when (and children
+                  (not (eq (get class 'beads-transient) :manual)))
+         (beads-meta--define-prefix-transient class children))))))
+
+(defun beads-meta-infix-group (class group-name)
+  "Return a transient group vector for CLASS's slots, labeled GROUP-NAME.
+This is for composing auto-generated infixes into hand-written transients.
+
+Example:
+  (transient-define-prefix beads-list ()
+    \"List issues.\"
+    (beads-meta-infix-group \\='beads-command-list \"Filters\")
+    [\"List\"
+     (\"l\" \"All issues\" beads-list-all)])"
+  (let* ((prefix (symbol-name (beads--derive-transient-name class)))
+         (infix-specs (beads-meta-generate-infix-specs class prefix))
+         (entries nil))
+    (dolist (spec infix-specs)
+      (let ((key (plist-get spec :key))
+            (desc (or (plist-get spec :description) ""))
+            (sym (plist-get spec :symbol)))
+        (when (and key sym)
+          (push (list key desc sym) entries))))
+    (apply #'vector group-name (nreverse entries))))
 
 (provide 'beads-meta)
 ;;; beads-meta.el ends here
