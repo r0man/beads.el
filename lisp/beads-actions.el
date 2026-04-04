@@ -81,7 +81,7 @@ Prompts for a close reason, then executes immediately."
                     (format "Close %d issue(s) reason: " count)))))
     (dolist (id ids)
       (condition-case err
-          (beads-command-close! :issue-ids (list id) :reason reason)
+          (beads-execute 'beads-command-close :issue-ids (list id) :reason reason)
         (error (message "Failed to close %s: %s" id
                         (error-message-string err)))))
     (beads-actions--after-mutation)
@@ -96,7 +96,7 @@ Executes immediately without prompting."
          (count (length ids)))
     (dolist (id ids)
       (condition-case err
-          (beads-command-update! :issue-ids (list id) :claim t)
+          (beads-execute 'beads-command-update :issue-ids (list id) :claim t)
         (error (message "Failed to claim %s: %s" id
                         (error-message-string err)))))
     (beads-actions--after-mutation)
@@ -116,8 +116,8 @@ Prompts for an optional reason."
     (dolist (id ids)
       (condition-case err
           (if (string-empty-p (string-trim reason))
-              (beads-command-reopen! :issue-ids (list id))
-            (beads-command-reopen! :issue-ids (list id) :reason reason))
+              (beads-execute 'beads-command-reopen :issue-ids (list id))
+            (beads-execute 'beads-command-reopen :issue-ids (list id) :reason reason))
         (error (message "Failed to reopen %s: %s" id
                         (error-message-string err)))))
     (beads-actions--after-mutation)
@@ -138,7 +138,7 @@ Prompts with `completing-read' for a valid status value."
                   nil t)))
     (dolist (id ids)
       (condition-case err
-          (beads-command-update! :issue-ids (list id) :status status)
+          (beads-execute 'beads-command-update :issue-ids (list id) :status status)
         (error (message "Failed to update %s: %s" id
                         (error-message-string err)))))
     (beads-actions--after-mutation)
@@ -164,7 +164,7 @@ Prompts with `completing-read' for a priority value (0-4)."
          (priority (cdr (assoc selection choices))))
     (dolist (id ids)
       (condition-case err
-          (beads-command-update! :issue-ids (list id) :priority priority)
+          (beads-execute 'beads-command-update :issue-ids (list id) :priority priority)
         (error (message "Failed to update %s: %s" id
                         (error-message-string err)))))
     (beads-actions--after-mutation)

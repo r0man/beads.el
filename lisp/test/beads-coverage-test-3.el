@@ -88,12 +88,9 @@
 (ert-deftest beads-coverage-3-label-add-execute-interactive ()
   "Test label add execute-interactive."
   (let* ((cmd (beads-command-label-add :issue-ids '("bd-1")
-                                        :label "bug" :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "" :stderr "" :result nil)))
+                                        :label "bug" :json t)))
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd) exec))
+               (lambda (_cmd) nil))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda () nil)))
       (beads-command-execute-interactive cmd))))
@@ -101,12 +98,9 @@
 (ert-deftest beads-coverage-3-label-add-execute-interactive-multi ()
   "Test label add execute-interactive with multiple issues."
   (let* ((cmd (beads-command-label-add :issue-ids '("bd-1" "bd-2")
-                                        :label "urgent" :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "" :stderr "" :result nil)))
+                                        :label "urgent" :json t)))
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd) exec))
+               (lambda (_cmd) nil))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda () nil)))
       (beads-command-execute-interactive cmd))))
@@ -114,12 +108,9 @@
 (ert-deftest beads-coverage-3-label-remove-execute-interactive ()
   "Test label remove execute-interactive."
   (let* ((cmd (beads-command-label-remove :issue-ids '("bd-1")
-                                           :label "bug" :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "" :stderr "" :result nil)))
+                                           :label "bug" :json t)))
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd) exec))
+               (lambda (_cmd) nil))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda () nil)))
       (beads-command-execute-interactive cmd))))
@@ -143,22 +134,16 @@
 (ert-deftest beads-coverage-3-create-parse-single-issue ()
   "Test create parse with single issue JSON."
   (let* ((json-str "{\"id\":\"bd-99\",\"title\":\"New\",\"status\":\"open\",\"priority\":2,\"type\":\"task\"}")
-         (cmd (beads-command-create :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout json-str :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+         (cmd (beads-command-create :json t)))
+    (let ((result (beads-command-parse cmd json-str)))
       (should (cl-typep result 'beads-issue))
       (should (equal "bd-99" (oref result id))))))
 
 (ert-deftest beads-coverage-3-create-parse-vector ()
   "Test create parse with array of issues."
   (let* ((json-str "[{\"id\":\"bd-1\",\"title\":\"A\",\"status\":\"open\",\"priority\":1,\"type\":\"task\"},{\"id\":\"bd-2\",\"title\":\"B\",\"status\":\"open\",\"priority\":2,\"type\":\"bug\"}]")
-         (cmd (beads-command-create :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout json-str :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+         (cmd (beads-command-create :json t)))
+    (let ((result (beads-command-parse cmd json-str)))
       (should (listp result))
       (should (= 2 (length result)))
       (should (cl-typep (car result) 'beads-issue)))))
@@ -168,12 +153,9 @@
   (let* ((issue (beads-issue :id "bd-99" :title "New Issue"
                               :status "open" :priority 2
                               :issue-type "task"))
-         (cmd (beads-command-create :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "" :stderr "" :result issue)))
+         (cmd (beads-command-create :json t)))
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd) exec))
+               (lambda (_cmd) issue))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda () nil))
               ((symbol-function 'y-or-n-p)
@@ -182,12 +164,9 @@
 
 (ert-deftest beads-coverage-3-create-execute-interactive-nil ()
   "Test create execute-interactive with nil result."
-  (let* ((cmd (beads-command-create :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "" :stderr "" :result nil)))
+  (let* ((cmd (beads-command-create :json t)))
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd) exec))
+               (lambda (_cmd) nil))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda () nil)))
       (beads-command-execute-interactive cmd))))
@@ -200,12 +179,9 @@
                        (beads-issue :id "bd-2" :title "B"
                                      :status "open" :priority 2
                                      :issue-type "bug")))
-         (cmd (beads-command-create :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "" :stderr "" :result issues)))
+         (cmd (beads-command-create :json t)))
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd) exec))
+               (lambda (_cmd) issues))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda () nil)))
       (beads-command-execute-interactive cmd))))
@@ -216,33 +192,23 @@
 
 (ert-deftest beads-coverage-3-delete-parse-no-json ()
   "Test delete parse without json flag."
-  (let* ((cmd (beads-command-delete :issue-ids '("bd-1") :json nil))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "preview text" :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-delete :issue-ids '("bd-1") :json nil)))
+    (let ((result (beads-command-parse cmd "preview text")))
       (should (equal "preview text" result)))))
 
 (ert-deftest beads-coverage-3-delete-parse-preview-mode ()
   "Test delete parse without force (preview mode)."
   (let* ((cmd (beads-command-delete :issue-ids '("bd-1")
-                                     :json t :force nil))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "Would delete bd-1" :stderr ""
-                :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+                                     :json t :force nil)))
+    (let ((result (beads-command-parse cmd "Would delete bd-1")))
       (should (equal "Would delete bd-1" result)))))
 
 (ert-deftest beads-coverage-3-delete-parse-force-single ()
   "Test delete parse with force and single deletion JSON."
   (let* ((json-str "{\"deleted\":\"bd-1\",\"dependencies_removed\":2}")
          (cmd (beads-command-delete :issue-ids '("bd-1")
-                                     :json t :force t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout json-str :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+                                     :json t :force t)))
+    (let ((result (beads-command-parse cmd json-str)))
       (should (consp result))
       (should (equal "bd-1" (alist-get 'deleted result))))))
 
@@ -250,11 +216,8 @@
   "Test delete parse with daemon RPC format."
   (let* ((json-str "{\"deleted_count\":3,\"total_count\":3}")
          (cmd (beads-command-delete :issue-ids '("bd-1")
-                                     :json t :force t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout json-str :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+                                     :json t :force t)))
+    (let ((result (beads-command-parse cmd json-str)))
       (should (consp result))
       (should (equal 3 (alist-get 'deleted_count result))))))
 
@@ -262,34 +225,24 @@
   "Test delete parse with force and vector result."
   (let* ((json-str "[{\"id\":\"bd-1\"},{\"id\":\"bd-2\"}]")
          (cmd (beads-command-delete :issue-ids '("bd-1" "bd-2")
-                                     :json t :force t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout json-str :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+                                     :json t :force t)))
+    (let ((result (beads-command-parse cmd json-str)))
       (should (listp result))
       (should (= 2 (length result))))))
 
 (ert-deftest beads-coverage-3-delete-parse-force-null-json ()
   "Test delete parse with force and null JSON."
-  (let* ((json-str "null")
-         (cmd (beads-command-delete :issue-ids '("bd-1")
-                                     :json t :force t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout json-str :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-delete :issue-ids '("bd-1")
+                                     :json t :force t)))
+    (let ((result (beads-command-parse cmd "null")))
       (should-not result))))
 
 (ert-deftest beads-coverage-3-delete-parse-force-legacy ()
   "Test delete parse with legacy format (id field)."
   (let* ((json-str "{\"id\":\"bd-1\",\"status\":\"deleted\"}")
          (cmd (beads-command-delete :issue-ids '("bd-1")
-                                     :json t :force t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout json-str :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+                                     :json t :force t)))
+    (let ((result (beads-command-parse cmd json-str)))
       (should (consp result))
       (should (equal "bd-1" (alist-get 'id result))))))
 
@@ -323,12 +276,9 @@
   (let* ((issue (beads-issue :id "bd-1" :title "Reopened"
                               :status "open" :priority 1
                               :issue-type "task"))
-         (cmd (beads-command-reopen :issue-ids '("bd-1") :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "" :stderr "" :result issue)))
+         (cmd (beads-command-reopen :issue-ids '("bd-1") :json t)))
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd) exec))
+               (lambda (_cmd) issue))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda () nil)))
       (beads-command-execute-interactive cmd))))
@@ -341,24 +291,18 @@
                        (beads-issue :id "bd-2" :title "B"
                                      :status "open" :priority 2
                                      :issue-type "bug")))
-         (cmd (beads-command-reopen :issue-ids '("bd-1" "bd-2") :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "" :stderr "" :result issues)))
+         (cmd (beads-command-reopen :issue-ids '("bd-1" "bd-2") :json t)))
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd) exec))
+               (lambda (_cmd) issues))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda () nil)))
       (beads-command-execute-interactive cmd))))
 
 (ert-deftest beads-coverage-3-reopen-execute-interactive-nil ()
   "Test reopen execute-interactive with nil result."
-  (let* ((cmd (beads-command-reopen :issue-ids '("bd-1") :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "" :stderr "" :result nil)))
+  (let* ((cmd (beads-command-reopen :issue-ids '("bd-1") :json t)))
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd) exec))
+               (lambda (_cmd) nil))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda () nil)))
       (beads-command-execute-interactive cmd))))
@@ -454,11 +398,8 @@
 (ert-deftest beads-coverage-3-ready-parse-success ()
   "Test ready parse with JSON array."
   (let* ((json-str "[{\"id\":\"bd-1\",\"title\":\"Ready\",\"status\":\"open\",\"priority\":1,\"type\":\"task\"}]")
-         (cmd (beads-command-ready :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout json-str :stderr "" :result nil)))
-    (let ((result (beads-command-parse cmd exec)))
+         (cmd (beads-command-ready :json t)))
+    (let ((result (beads-command-parse cmd json-str)))
       (should (listp result))
       (should (= 1 (length result)))
       (should (cl-typep (car result) 'beads-issue)))))
@@ -635,47 +576,7 @@
       (should (equal "bd-7"
                      (beads-reader-edit-issue-id nil nil nil))))))
 
-(ert-deftest beads-coverage-3-reader-move-detect-list-mode ()
-  "Test move issue ID detection from list mode."
-  (cl-letf (((symbol-function 'derived-mode-p)
-             (lambda (mode &rest _) (eq mode 'beads-list-mode)))
-            ((symbol-function 'beads-list--current-issue-id)
-             (lambda () "bd-42")))
-    (should (equal "bd-42"
-                   (beads-reader-move--detect-issue-id)))))
 
-(ert-deftest beads-coverage-3-reader-move-detect-show-mode ()
-  "Test move issue ID detection from show mode."
-  (defvar beads-show--issue-id)
-  (let ((beads-show--issue-id "bd-33"))
-    (cl-letf (((symbol-function 'derived-mode-p)
-               (lambda (mode &rest _) (eq mode 'beads-show-mode))))
-      (should (equal "bd-33"
-                     (beads-reader-move--detect-issue-id))))))
-
-(ert-deftest beads-coverage-3-reader-move-issue-id-detected ()
-  "Test move issue ID reader with detected ID."
-  (cl-letf (((symbol-function 'beads-reader-move--detect-issue-id)
-             (lambda () "bd-42")))
-    (should (equal "bd-42"
-                   (beads-reader-move-issue-id nil nil nil)))))
-
-(ert-deftest beads-coverage-3-reader-move-issue-id-prompted ()
-  "Test move issue ID reader when detection fails."
-  (let ((beads-move--issue-id nil))
-    (cl-letf (((symbol-function 'beads-reader-move--detect-issue-id)
-               (lambda () nil))
-              ((symbol-function 'beads-completion-read-issue)
-               (lambda (_prompt &rest _) "bd-99")))
-      (should (equal "bd-99"
-                     (beads-reader-move-issue-id nil nil nil))))))
-
-(ert-deftest beads-coverage-3-reader-sync-message ()
-  "Test beads-reader-sync-message reads a string."
-  (cl-letf (((symbol-function 'read-string)
-             (lambda (_prompt &rest _) "sync commit")))
-    (should (equal "sync commit"
-                   (beads-reader-sync-message nil nil nil)))))
 
 (ert-deftest beads-coverage-3-reader-dep-add-issue-id ()
   "Test dep add issue ID reader."
@@ -732,8 +633,8 @@
 
 (ert-deftest beads-coverage-3-graph-get-deps-empty ()
   "Test get-dependencies with no issues."
-  (cl-letf (((symbol-function 'beads-command-list!)
-             (lambda (&rest _) nil)))
+  (cl-letf (((symbol-function 'beads-command-execute)
+             (lambda (_cmd) nil)))
     (should (null (beads-graph--get-dependencies)))))
 
 (ert-deftest beads-coverage-3-graph-get-deps-with-issues ()
@@ -744,10 +645,11 @@
          (dep1 (beads-dependency :issue-id "bd-1"
                                   :depends-on-id "bd-2"
                                   :type "blocks")))
-    (cl-letf (((symbol-function 'beads-command-list!)
-               (lambda (&rest _) (list issue1)))
-              ((symbol-function 'beads-command-dep-list!)
-               (lambda (&rest _) (list dep1))))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (cmd)
+                 (if (cl-typep cmd 'beads-command-list)
+                     (list issue1)
+                   (list dep1)))))
       (let ((deps (beads-graph--get-dependencies)))
         (should (= 1 (length deps)))
         (should (equal "bd-1" (plist-get (car deps) :from)))

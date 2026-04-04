@@ -24,7 +24,7 @@
     :initform nil
     :documentation "A base slot"
     :long-option "base"
-    :option-type :string
+    :type (or null string)
     :transient-key "b"
     :transient-description "Base option"
     :transient-level 1
@@ -50,12 +50,12 @@
     :required t)
    (priority
     :initarg :priority
-    :type (or null integer)
+    :type (or null string integer)
     :initform nil
     :documentation "Issue priority"
     :long-option "priority"
     :short-option "p"
-    :option-type :integer
+    :type (or null string integer)
     :transient-key "p"
     :transient-description "Priority"
     :transient-choices (0 1 2 3 4)
@@ -69,8 +69,8 @@
     :initform nil
     :documentation "Issue labels"
     :long-option "labels"
-    :option-type :list
-    :option-separator ","
+    :type (list-of string)
+    :separator ","
     :transient-key "l"
     :transient-description "Labels"
     :transient-group "Options"
@@ -82,7 +82,7 @@
     :initform nil
     :documentation "Force flag"
     :long-option "force"
-    :option-type :boolean
+    :type boolean
     :transient-key "f"
     :transient-description "Force"
     :transient-class transient-switch
@@ -334,7 +334,7 @@
   (should (memq :short-option beads-meta--slot-properties))
   (should (memq :option-type beads-meta--slot-properties))
   (should (memq :positional beads-meta--slot-properties))
-  (should (memq :option-separator beads-meta--slot-properties))
+  (should (memq :separator beads-meta--slot-properties))
   ;; Transient properties
   (should (memq :transient-key beads-meta--slot-properties))
   (should (memq :transient-description beads-meta--slot-properties))
@@ -392,23 +392,23 @@
     :positional 1)
    (priority
     :initarg :priority
-    :type (or null integer)
+    :type (or null string integer)
     :initform nil
     :long-option "priority"
-    :option-type :integer)
+    :type (or null string integer))
    (force
     :initarg :force
     :type boolean
     :initform nil
     :long-option "force"
-    :option-type :boolean)
+    :type boolean)
    (labels
     :initarg :labels
     :type (or null list)
     :initform nil
     :long-option "labels"
-    :option-type :list
-    :option-separator ","))
+    :type (list-of string)
+    :separator ","))
   :documentation "Test command class for command-line building tests.")
 
 (ert-deftest beads-meta-build-command-line-positional ()
@@ -667,9 +667,9 @@
   ;; Transient properties
   (should (equal "t" (beads-meta-slot-property
                       'beads-command-create 'title :transient-key)))
-  (should (equal "Title (required)" (beads-meta-slot-property
-                                     'beads-command-create 'title
-                                     :transient-description)))
+  (should (equal "Title" (beads-meta-slot-property
+                          'beads-command-create 'title
+                          :transient-description)))
   (should (equal "Required" (beads-meta-slot-property
                              'beads-command-create 'title :transient-group)))
   (should (eq t (beads-meta-slot-property
@@ -721,7 +721,7 @@
   (should (eq :list (beads-meta-slot-property
                      'beads-command-create 'labels :option-type)))
   (should (equal "," (beads-meta-slot-property
-                      'beads-command-create 'labels :option-separator))))
+                      'beads-command-create 'labels :separator))))
 
 (ert-deftest beads-meta-create-slot-property-deps ()
   "Test that deps slot (list) has correct metadata."
@@ -731,7 +731,7 @@
   (should (eq :list (beads-meta-slot-property
                      'beads-command-create 'deps :option-type)))
   (should (equal "," (beads-meta-slot-property
-                      'beads-command-create 'deps :option-separator))))
+                      'beads-command-create 'deps :separator))))
 
 (ert-deftest beads-meta-create-transient-slots ()
   "Test that all expected slots have transient keys."
@@ -813,8 +813,8 @@
   ;; Transient properties
   (should (equal "s" (beads-meta-slot-property
                        'beads-command-update 'status :transient-key)))
-  (should (equal "--status" (beads-meta-slot-property
-                               'beads-command-update 'status :transient-description)))
+  (should (equal "Status" (beads-meta-slot-property
+                            'beads-command-update 'status :transient-description)))
   (should (eq 'transient-option (beads-meta-slot-property
                                  'beads-command-update 'status :transient-class)))
   (should (equal "--status=" (beads-meta-slot-property
@@ -897,7 +897,7 @@
                'beads-command-update 'description :transient-class)))
   (should (equal "Description" (beads-meta-slot-property
                                 'beads-command-update 'description
-                                :transient-field-name)))
+                                :transient-description)))
   (should (equal "Content" (beads-meta-slot-property
                             'beads-command-update 'description
                             :transient-group))))
@@ -916,7 +916,7 @@
                'beads-command-update 'acceptance :transient-class)))
   (should (equal "Acceptance Criteria" (beads-meta-slot-property
                                         'beads-command-update 'acceptance
-                                        :transient-field-name))))
+                                        :transient-description))))
 
 (ert-deftest beads-meta-update-slot-property-design ()
   "Test that design slot has correct metadata."
@@ -930,7 +930,7 @@
               (beads-meta-slot-property
                'beads-command-update 'design :transient-class)))
   (should (equal "Design" (beads-meta-slot-property
-                           'beads-command-update 'design :transient-field-name))))
+                           'beads-command-update 'design :transient-description))))
 
 (ert-deftest beads-meta-update-slot-property-notes ()
   "Test that notes slot has correct metadata."
@@ -944,7 +944,7 @@
               (beads-meta-slot-property
                'beads-command-update 'notes :transient-class)))
   (should (equal "Notes" (beads-meta-slot-property
-                          'beads-command-update 'notes :transient-field-name))))
+                          'beads-command-update 'notes :transient-description))))
 
 (ert-deftest beads-meta-update-transient-slots ()
   "Test that all expected slots have transient keys."
@@ -1014,9 +1014,9 @@
   ;; Transient properties
   (should (equal "i" (beads-meta-slot-property
                       'beads-command-close 'issue-ids :transient-key)))
-  (should (equal "Issue ID (required)" (beads-meta-slot-property
-                                        'beads-command-close 'issue-ids
-                                        :transient-description)))
+  (should (equal "Issue IDs" (beads-meta-slot-property
+                              'beads-command-close 'issue-ids
+                              :transient-description)))
   (should (eq 'transient-option (beads-meta-slot-property
                                  'beads-command-close 'issue-ids
                                  :transient-class)))
@@ -1051,17 +1051,14 @@
   ;; Transient properties
   (should (equal "r" (beads-meta-slot-property
                       'beads-command-close 'reason :transient-key)))
-  (should (equal "--reason" (beads-meta-slot-property
-                               'beads-command-close 'reason
-                               :transient-description)))
+  (should (equal "Close Reason" (beads-meta-slot-property
+                                  'beads-command-close 'reason
+                                  :transient-description)))
   (should (eq 'beads-transient-multiline (beads-meta-slot-property
                                                  'beads-command-close 'reason
                                                  :transient-class)))
   (should (equal "--reason=" (beads-meta-slot-property
                                 'beads-command-close 'reason :transient-argument)))
-  (should (equal "Close Reason" (beads-meta-slot-property
-                                 'beads-command-close 'reason
-                                 :transient-field-name)))
   (should (equal "Close Issue" (beads-meta-slot-property
                                 'beads-command-close 'reason :transient-group)))
   (should (equal 1 (beads-meta-slot-property
@@ -1078,8 +1075,9 @@
     ;; Should have both transient-enabled slots
     (should (memq 'issue-ids slots))
     (should (memq 'reason slots))
-    ;; Should have exactly 2 slots with transient keys
-    (should (= 2 (length slots)))))
+    (should (memq 'force slots))
+    ;; Should have exactly 3 slots with transient keys
+    (should (= 3 (length slots)))))
 
 (ert-deftest beads-meta-close-option-slots ()
   "Test that option slots are identified correctly."
@@ -1093,8 +1091,8 @@
   "Test that infix specs can be generated from beads-command-close."
   (let ((specs (beads-meta-generate-infix-specs
                 'beads-command-close "beads-close")))
-    ;; Should have specs for both transient-enabled slots
-    (should (= 2 (length specs)))
+    ;; Should have specs for all transient-enabled slots
+    (should (= 3 (length specs)))
     ;; Check for specific infixes
     (let ((issue-ids-spec (cl-find-if
                            (lambda (s)
@@ -1113,8 +1111,8 @@
   "Test that group specs can be generated from beads-command-close."
   (let ((groups (beads-meta-generate-group-specs
                  'beads-command-close "beads-close")))
-    ;; Should have exactly one group (Close Issue)
-    (should (= 1 (length groups)))
+    ;; Should have 2 groups (Close Issue, Options)
+    (should (= 2 (length groups)))
     ;; Check for expected group
     (let ((group-names (mapcar (lambda (g) (plist-get g :description)) groups)))
       (should (member "Close Issue" group-names)))))
@@ -1161,8 +1159,8 @@
   (let ((slots (beads-meta-transient-slots 'beads-command-show)))
     ;; Should have issue-ids slot with transient key
     (should (memq 'issue-ids slots))
-    ;; Should have 5 slots with transient keys
-    (should (= 5 (length slots)))))
+    ;; Should have 6 slots with transient keys
+    (should (= 6 (length slots)))))
 
 (ert-deftest beads-meta-show-option-slots ()
   "Test that option slots are identified correctly."
@@ -1172,15 +1170,15 @@
     ;; Should include global options inherited from beads-command-global-options
     (should (memq 'actor options))
     (should (memq 'verbose options))
-    ;; Should have 5 command-show + 14 global option slots = 19
-    (should (= 19 (length options)))))
+    ;; Should have 10 command-show + 14 global option slots = 24
+    (should (= 24 (length options)))))
 
 (ert-deftest beads-meta-show-generate-infix-specs ()
   "Test that infix specs can be generated from beads-command-show."
   (let ((specs (beads-meta-generate-infix-specs
                 'beads-command-show "beads-show")))
-    ;; Should have 5 infix specs
-    (should (= 5 (length specs)))
+    ;; Should have 6 infix specs
+    (should (= 6 (length specs)))
     ;; Check for specific infix
     (let ((issue-ids-spec (cl-find-if
                            (lambda (s)
@@ -1193,8 +1191,8 @@
   "Test that group specs can be generated from beads-command-show."
   (let ((groups (beads-meta-generate-group-specs
                  'beads-command-show "beads-show")))
-    ;; Should have 2 groups
-    (should (= 2 (length groups)))
+    ;; Should have 3 groups
+    (should (= 3 (length groups)))
     ;; Check for expected group
     (let ((group-names (mapcar (lambda (g) (plist-get g :description)) groups)))
       (should (member "Show Issue" group-names)))))
@@ -1218,8 +1216,8 @@
   ;; Transient properties
   (should (equal "s" (beads-meta-slot-property
                        'beads-command-list 'status :transient-key)))
-  (should (equal "--status" (beads-meta-slot-property
-                               'beads-command-list 'status :transient-description)))
+  (should (equal "Status" (beads-meta-slot-property
+                            'beads-command-list 'status :transient-description)))
   (should (eq 'transient-option (beads-meta-slot-property
                                  'beads-command-list 'status :transient-class)))
   (should (equal "--status=" (beads-meta-slot-property
@@ -1444,8 +1442,8 @@
     ;; Should include global options inherited from beads-command-global-options
     (should (memq 'actor options))
     (should (memq 'verbose options))
-    ;; All slots have :long-option: 45 command-list + 1 json + 14 global options
-    (should (= 60 (length options)))))
+    ;; All slots have :long-option: 56 command-list + 1 json + 14 global options
+    (should (= 71 (length options)))))
 
 (ert-deftest beads-meta-list-generate-infix-specs ()
   "Test that infix specs can be generated from beads-command-list."
@@ -1721,7 +1719,7 @@ should emit only the autoload form."
     :initform nil
     :documentation "Slot with documentation string"
     :long-option "doc-slot"
-    :option-type :string
+    :type (or null string)
     :transient-key "d")
    (doc-slot-multiline
     :initarg :doc-slot-multiline
@@ -1729,7 +1727,7 @@ should emit only the autoload form."
     :initform nil
     :documentation "First sentence of multiline doc\nSecond line details"
     :long-option "doc-slot-multiline"
-    :option-type :string
+    :type (or null string)
     :transient-key "m"))
   :documentation "Test class for documentation-based inference.")
 
@@ -1747,6 +1745,229 @@ should emit only the autoload form."
                  (beads-meta-slot-property
                   'beads-meta-test-doc-class 'doc-slot-multiline
                   :transient-description))))
+
+;;; ============================================================
+;;; Tests for beads-meta--infer-initarg
+;;; ============================================================
+
+(ert-deftest beads-meta-infer-initarg-from-slot-name ()
+  "Test :initarg is inferred from slot name when absent."
+  (should (eq :assignee
+              (beads-meta--infer-initarg 'assignee '(:type (or null string))))))
+
+(ert-deftest beads-meta-infer-initarg-explicit-wins ()
+  "Test explicit :initarg is not overridden."
+  (should (null (beads-meta--infer-initarg
+                 'assignee '(:initarg :my-arg :type (or null string))))))
+
+(ert-deftest beads-meta-infer-initarg-no-option-type ()
+  "Test :initarg inference works even without :option-type."
+  (should (eq :foo
+              (beads-meta--infer-initarg 'foo '(:key "f")))))
+
+;;; ============================================================
+;;; Tests for beads-meta--infer-type
+;;; ============================================================
+
+(ert-deftest beads-meta-infer-type-string ()
+  "Test :type inferred as (or null string) for :string option-type."
+  (should (equal '(or null string)
+                 (beads-meta--infer-type '(:option-type :string)))))
+
+(ert-deftest beads-meta-infer-type-boolean ()
+  "Test :type inferred as boolean for :boolean option-type."
+  (should (eq 'boolean
+              (beads-meta--infer-type '(:option-type :boolean)))))
+
+(ert-deftest beads-meta-infer-type-integer ()
+  "Test :type inferred as (or null string integer) for :integer option-type."
+  (should (equal '(or null string integer)
+                 (beads-meta--infer-type '(:option-type :integer)))))
+
+(ert-deftest beads-meta-infer-type-list ()
+  "Test :type inferred as (or null list) for :list option-type."
+  (should (equal '(or null list)
+                 (beads-meta--infer-type '(:option-type :list)))))
+
+(ert-deftest beads-meta-infer-type-explicit-wins ()
+  "Test explicit :type is not overridden."
+  (should (null (beads-meta--infer-type
+                 '(:type (or null string) :type string)))))
+
+(ert-deftest beads-meta-infer-type-no-option-type ()
+  "Test nil returned when no :option-type."
+  (should (null (beads-meta--infer-type '(:key "f")))))
+
+;;; ============================================================
+;;; Tests for beads-meta--infer-initform
+;;; ============================================================
+
+(ert-deftest beads-meta-infer-initform-default-nil ()
+  "Test :initform defaults to nil for command option slots."
+  (should (eq :infer-nil
+              (beads-meta--infer-initform '(:option-type :string)))))
+
+(ert-deftest beads-meta-infer-initform-explicit-wins ()
+  "Test explicit :initform is not overridden."
+  (should (null (beads-meta--infer-initform
+                 '(:type (or null string) :initform "default")))))
+
+(ert-deftest beads-meta-infer-initform-no-option-type ()
+  "Test nil returned when slot is not a command option."
+  (should (null (beads-meta--infer-initform '()))))
+
+;;; ============================================================
+;;; Tests for beads-meta--normalize-slot-def (macro-time)
+;;; ============================================================
+
+(ert-deftest beads-meta-normalize-slot-string-option ()
+  "Test full normalization of a string option slot."
+  (let ((result (beads-meta--normalize-slot-def
+                 '(assignee :option-type :string :key "a"
+                            :transient-group "Attrs" :level 2))))
+    ;; Should be (assignee :initarg :assignee :type (or null string) ...)
+    (should (eq 'assignee (car result)))
+    (let ((props (cdr result)))
+      (should (eq :assignee (plist-get props :initarg)))
+      (should (equal '(or null string) (plist-get props :type)))
+      (should (null (plist-get props :initform)))
+      (should (equal "assignee" (plist-get props :long-option))))))
+
+(ert-deftest beads-meta-normalize-slot-boolean-option ()
+  "Test full normalization of a boolean option slot."
+  (let ((result (beads-meta--normalize-slot-def
+                 '(force :option-type :boolean :key "!"))))
+    (let ((props (cdr result)))
+      (should (eq :force (plist-get props :initarg)))
+      (should (eq 'boolean (plist-get props :type)))
+      (should (null (plist-get props :initform)))
+      (should (equal "force" (plist-get props :long-option))))))
+
+(ert-deftest beads-meta-normalize-slot-positional-skips-long-option ()
+  "Test positional slots do not get :long-option inferred."
+  (let ((result (beads-meta--normalize-slot-def
+                 '(title :type (or null string) :positional 1 :key "t"))))
+    (let ((props (cdr result)))
+      (should (eq :title (plist-get props :initarg)))
+      (should (equal '(or null string) (plist-get props :type)))
+      ;; Positional slots should NOT get :long-option
+      (should (null (plist-get props :long-option))))))
+
+(ert-deftest beads-meta-normalize-slot-explicit-values-win ()
+  "Test that explicit values are never overridden by inference."
+  (let ((result (beads-meta--normalize-slot-def
+                 '(assignee
+                   :initarg :my-arg
+                   :type string
+                   :initform "default"
+                   :long-option "user"
+                   :type (or null string)
+                   :key "a"))))
+    (let ((props (cdr result)))
+      (should (eq :my-arg (plist-get props :initarg)))
+      (should (eq 'string (plist-get props :type)))
+      (should (equal "default" (plist-get props :initform)))
+      (should (equal "user" (plist-get props :long-option))))))
+
+(ert-deftest beads-meta-normalize-slot-no-option-type-unchanged ()
+  "Test slots without :option-type pass through with only :initarg added."
+  (let ((result (beads-meta--normalize-slot-def
+                 '(no-meta :documentation "Just a plain slot"))))
+    (let ((props (cdr result)))
+      ;; :initarg should still be inferred even for non-option slots
+      (should (eq :no-meta (plist-get props :initarg)))
+      ;; But :type, :long-option should NOT be added
+      (should-not (plist-member props :type))
+      (should-not (plist-member props :long-option)))))
+
+(ert-deftest beads-meta-normalize-slot-list-option ()
+  "Test normalization of a list option slot."
+  (let ((result (beads-meta--normalize-slot-def
+                 '(labels :option-type :list :key "l"
+                          :separator ","))))
+    (let ((props (cdr result)))
+      (should (eq :labels (plist-get props :initarg)))
+      (should (equal '(or null list) (plist-get props :type)))
+      (should (equal "labels" (plist-get props :long-option))))))
+
+(ert-deftest beads-meta-normalize-slot-integer-option ()
+  "Test normalization of an integer option slot."
+  (let ((result (beads-meta--normalize-slot-def
+                 '(estimate :option-type :integer :key "e"))))
+    (let ((props (cdr result)))
+      (should (eq :estimate (plist-get props :initarg)))
+      (should (equal '(or null string integer)
+                     (plist-get props :type)))
+      (should (equal "estimate" (plist-get props :long-option))))))
+
+;;; ============================================================
+;;; Tests for :reader/:group stripping from slot plists
+;;; ============================================================
+
+(ert-deftest beads-meta-normalize-slot-strips-reader-alias ()
+  "Test :reader is expanded to :transient-reader and stripped."
+  (let* ((result (beads-meta--normalize-slot-def
+                  '(title :type (or null string) :key "t"
+                          :reader beads-reader-issue-title)))
+         (props (cdr result)))
+    ;; :transient-reader should be set
+    (should (eq 'beads-reader-issue-title
+                (plist-get props :transient-reader)))
+    ;; :reader should be removed (not visible in the plist)
+    (should-not (plist-member props :reader))))
+
+(ert-deftest beads-meta-normalize-slot-strips-group-alias ()
+  "Test :group is expanded to :transient-group and stripped."
+  (let* ((result (beads-meta--normalize-slot-def
+                  '(title :type (or null string) :key "t"
+                          :group "Required")))
+         (props (cdr result)))
+    ;; :transient-group should be set
+    (should (equal "Required" (plist-get props :transient-group)))
+    ;; :group should be removed (not visible in the plist)
+    (should-not (plist-member props :group))))
+
+(ert-deftest beads-meta-plist-remove-basic ()
+  "Test plist-remove removes key-value pair."
+  (should (equal '(:a 1 :c 3)
+                 (beads-meta--plist-remove '(:a 1 :b 2 :c 3) :b))))
+
+(ert-deftest beads-meta-plist-remove-missing-key ()
+  "Test plist-remove returns copy when key is absent."
+  (should (equal '(:a 1 :b 2)
+                 (beads-meta--plist-remove '(:a 1 :b 2) :c))))
+
+;;; ============================================================
+;;; Tests for :transient property repurposing (class symbol)
+;;; ============================================================
+
+(ert-deftest beads-meta-transient-symbol-expands-to-class ()
+  "Test :transient with symbol value expands to :transient-class."
+  (let ((result (beads-meta--expand-concise-properties
+                 '(:transient transient-option :key "a"))))
+    (should (eq 'transient-option (plist-get result :transient-class)))))
+
+(ert-deftest beads-meta-transient-string-expands-to-description ()
+  "Test :transient with string value expands to :transient-description."
+  (let ((result (beads-meta--expand-concise-properties
+                 '(:transient "--assignee" :key "a"))))
+    (should (equal "--assignee" (plist-get result :transient-description)))))
+
+(ert-deftest beads-meta-transient-symbol-does-not-block-description-infer ()
+  "Test description is inferred when :transient holds a class symbol."
+  (let ((result (beads-meta--run-inference
+                 'reason '(:transient transient-option
+                           :long-option "reason"
+                           :type (or null string)
+                           :key "r"))))
+    ;; Should infer description since :transient is a symbol, not string
+    (should (assq :transient-description result))))
+
+(ert-deftest beads-meta-class-property-still-works ()
+  "Test :class property still works for backwards compatibility."
+  (let ((result (beads-meta--expand-concise-properties
+                 '(:class transient-switch :key "f"))))
+    (should (eq 'transient-switch (plist-get result :transient-class)))))
 
 (provide 'beads-meta-test)
 ;;; beads-meta-test.el ends here

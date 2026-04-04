@@ -26,7 +26,7 @@
 ;;
 ;; Usage:
 ;;   (beads-command-execute (beads-command-init :prefix "myproject"))
-;;   (beads-command-init!)  ; convenience function
+;;   (beads-execute 'beads-command-init)  ; convenience function
 
 ;;; Code:
 
@@ -44,228 +44,91 @@
 
 (beads-defcommand beads-command-init (beads-command-global-options)
   ((branch
-    :initarg :branch
-    :type (or null string)
-    :initform nil
-    :documentation "Git branch for beads commits (-b, --branch).
-Default: current branch."
-    ;; CLI properties
-    :long-option "branch"
     :short-option "b"
-    :option-type :string
-    ;; Transient properties
-    :key "b"
-    :transient "--branch"
-    :class transient-option
-    :argument "--branch="
-    :prompt "Branch: "
-    :transient-group "Basic Options"
+    :type (or null string)
+    :group "Basic Options"
     :level 1
     :order 2)
    (contributor
-    :initarg :contributor
     :type boolean
-    :initform nil
-    :documentation "Run OSS contributor setup wizard (--contributor)."
-    ;; CLI properties
-    :long-option "contributor"
-    :option-type :boolean
-    ;; Transient properties
-    :key "C"
-    :transient "--contributor"
-    :class transient-switch
-    :argument "--contributor"
-    :transient-group "Setup Wizards"
+    :short-option "C"
+    :group "Setup Wizards"
     :level 2
     :order 1)
    (force
-    :initarg :force
     :type boolean
-    :initform nil
-    :documentation "Force re-initialization even if JSONL already has issues
-(--force).  May cause data loss."
-    ;; CLI properties
-    :long-option "force"
-    :option-type :boolean
-    ;; Transient properties
-    :key "f"
-    :transient "--force (may lose data)"
-    :class transient-switch
-    :argument "--force"
-    :transient-group "Advanced"
+    :short-option "f"
+    :group "Advanced"
     :level 3
     :order 1)
    (from-jsonl
-    :initarg :from-jsonl
     :type boolean
-    :initform nil
-    :documentation "Import from current .beads/issues.jsonl file instead
-of git history (--from-jsonl).  Preserves manual cleanups."
-    ;; CLI properties
-    :long-option "from-jsonl"
-    :option-type :boolean
-    ;; Transient properties
-    :key "j"
-    :transient "--from-jsonl"
-    :class transient-switch
-    :argument "--from-jsonl"
-    :transient-group "Advanced"
+    :short-option "j"
+    :group "Advanced"
     :level 3
     :order 2)
    (prefix
-    :initarg :prefix
-    :type (or null string)
-    :initform nil
-    :documentation "Issue prefix (-p, --prefix).
-Default: current directory name."
-    ;; CLI properties
-    :long-option "prefix"
     :short-option "p"
-    :option-type :string
-    ;; Transient properties
-    :key "p"
-    :transient "--prefix"
-    :class transient-option
-    :argument "--prefix="
-    :prompt "Prefix: "
-    :transient-group "Basic Options"
+    :type (or null string)
+    :group "Basic Options"
     :level 1
     :order 1)
    (quiet
-    :initarg :quiet
-    :type boolean
-    :initform nil
-    :documentation "Suppress output (-q, --quiet)."
-    ;; CLI properties
-    :long-option "quiet"
     :short-option "q"
-    :option-type :boolean
-    ;; Transient properties
-    :key "q"
-    :transient "--quiet"
-    :class transient-switch
-    :argument "--quiet"
-    :transient-group "Other Options"
+    :type boolean
+    :group "Other Options"
     :level 2
     :order 1)
    (server-host
-    :initarg :server-host
     :type (or null string)
-    :initform nil
-    :documentation "Dolt server host (--server-host).
-Default: 127.0.0.1."
-    :long-option "server-host"
-    :option-type :string
-    :key "h"
-    :transient "--server-host"
-    :class transient-option
-    :argument "--server-host="
+    :short-option "h"
     :prompt "Server host: "
-    :transient-group "Server Connection"
+    :group "Server Connection"
     :level 3
     :order 1)
    (server-port
-    :initarg :server-port
-    :type (or null integer)
-    :initform nil
-    :documentation "Dolt server port (--server-port).
-Default: 3307."
-    :long-option "server-port"
-    :option-type :integer
-    :key "P"
-    :transient "--server-port"
-    :class transient-option
-    :argument "--server-port="
+    :type (or null string integer)
+    :short-option "P"
     :prompt "Server port: "
-    :transient-group "Server Connection"
+    :group "Server Connection"
     :level 3
     :order 2)
    (server-user
-    :initarg :server-user
     :type (or null string)
-    :initform nil
-    :documentation "Dolt server MySQL user (--server-user).
-Default: root."
-    :long-option "server-user"
-    :option-type :string
-    :key "U"
-    :transient "--server-user"
-    :class transient-option
-    :argument "--server-user="
+    :short-option "U"
     :prompt "Server user: "
-    :transient-group "Server Connection"
+    :group "Server Connection"
     :level 3
     :order 3)
    (setup-exclude
-    :initarg :setup-exclude
     :type boolean
-    :initform nil
-    :documentation "Configure .git/info/exclude to keep beads files local
-(--setup-exclude).  For forks."
-    ;; CLI properties
-    :long-option "setup-exclude"
-    :option-type :boolean
-    ;; Transient properties
-    :key "e"
-    :transient "--setup-exclude"
-    :class transient-switch
-    :argument "--setup-exclude"
-    :transient-group "Advanced"
+    :short-option "e"
+    :group "Advanced"
     :level 3
     :order 3)
    (skip-hooks
-    :initarg :skip-hooks
     :type boolean
-    :initform nil
-    :documentation "Skip git hooks installation (--skip-hooks)."
-    ;; CLI properties
-    :long-option "skip-hooks"
-    :option-type :boolean
-    ;; Transient properties
-    :key "H"
-    :transient "--skip-hooks"
-    :class transient-switch
-    :argument "--skip-hooks"
-    :transient-group "Other Options"
+    :short-option "H"
+    :group "Other Options"
     :level 2
     :order 2)
    (stealth
-    :initarg :stealth
     :type boolean
-    :initform nil
-    :documentation "Enable stealth mode (--stealth).
-Global gitattributes and gitignore, no local repo tracking.
-Perfect for personal use without affecting repo collaborators."
-    ;; CLI properties
-    :long-option "stealth"
-    :option-type :boolean
-    ;; Transient properties
-    :key "s"
-    :transient "--stealth"
-    :class transient-switch
-    :argument "--stealth"
-    :transient-group "Advanced"
+    :short-option "s"
+    :group "Advanced"
     :level 3
     :order 4)
    (team
-    :initarg :team
     :type boolean
-    :initform nil
-    :documentation "Run team workflow setup wizard (--team)."
-    ;; CLI properties
-    :long-option "team"
-    :option-type :boolean
-    ;; Transient properties
-    :key "T"
-    :transient "--team"
-    :class transient-switch
-    :argument "--team"
-    :transient-group "Setup Wizards"
+    :short-option "T"
+    :group "Setup Wizards"
     :level 2
     :order 2))
   :documentation "Represents bd init command.
 Initializes bd in the current directory by creating .beads/ directory
-and database file.")
+and database file."
+  :json nil
+  :transient :manual)
 
 
 (cl-defmethod beads-command-validate ((command beads-command-init))
@@ -280,10 +143,7 @@ Returns error string or nil if valid."
      ;; Otherwise valid
      (t nil))))
 
-(cl-defmethod beads-command-parse ((_command beads-command-init) execution)
-  "Parse bd init output from EXECUTION.
-Returns raw stdout string.  bd init does not produce JSON output."
-  (oref execution stdout))
+;; Parse override removed: base method returns raw stdout when :json nil.
 
 ;;; Transient Menu
 
@@ -424,17 +284,9 @@ the initialization."
 
 (beads-defcommand beads-command-bootstrap (beads-command-global-options)
   ((dry-run
-    :initarg :dry-run
     :type boolean
-    :initform nil
-    :documentation "Show what would be done without doing it (--dry-run)."
-    :long-option "dry-run"
-    :option-type :boolean
-    :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :transient-group "Options"
+    :short-option "n"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd bootstrap command.

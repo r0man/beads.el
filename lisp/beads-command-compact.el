@@ -19,9 +19,9 @@
 ;; - Stats: Show compaction statistics
 ;;
 ;; Usage:
-;;   (beads-command-compact-stats!)                    ; Show stats
-;;   (beads-command-compact-analyze! :tier 1 :json t) ; Get candidates
-;;   (beads-command-compact-apply! :id "bd-1" :summary "Summary text")
+;;   (beads-execute 'beads-command-compact-stats)                    ; Show stats
+;;   (beads-execute 'beads-command-compact-analyze :tier 1 :json t) ; Get candidates
+;;   (beads-execute 'beads-command-compact-apply :id "bd-1" :summary "Summary text")
 
 ;;; Code:
 
@@ -43,6 +43,7 @@
 
 (beads-defcommand beads-command-compact-stats (beads-command-global-options)
   ()
+  :transient :manual
   :documentation "Represents bd admin compact --stats command.
 Shows compaction statistics including tier 1 and tier 2 candidates."
   :cli-command "admin compact")
@@ -58,34 +59,18 @@ Shows compaction statistics including tier 1 and tier 2 candidates."
 
 (beads-defcommand beads-command-compact-analyze (beads-command-global-options)
   ((tier
-    :initarg :tier
-    :type (or null string)
-    :initform nil
-    :documentation "Compaction tier (1 or 2, default: 1)."
-    :long-option "tier"
-    :option-type :integer
-    :key "t"
-    :transient "--tier"
-    :class transient-option
-    :argument "--tier="
+    :type (or null string integer)
+    :short-option "t"
     :prompt "Tier (1 or 2): "
     :choices '("1" "2")
-    :transient-group "Analyze Options"
+    :group "Analyze Options"
     :level 1
     :order 1)
    (limit
-    :initarg :limit
-    :type (or null string)
-    :initform nil
-    :documentation "Limit number of candidates (0 = no limit)."
-    :long-option "limit"
-    :option-type :integer
-    :key "l"
-    :transient "--limit"
-    :class transient-option
-    :argument "--limit="
+    :type (or null string integer)
+    :short-option "l"
     :prompt "Limit (0 = no limit): "
-    :transient-group "Analyze Options"
+    :group "Analyze Options"
     :level 1
     :order 2))
   :documentation "Represents bd admin compact --analyze command.
@@ -103,35 +88,20 @@ Exports compaction candidates for agent review."
 
 (beads-defcommand beads-command-compact-apply (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to compact."
     :long-option "id"
-    :option-type :string
-    :key "i"
-    :transient "--id (required)"
-    :class transient-option
-    :argument "--id="
+    :type (or null string)
+    :short-option "i"
     :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Apply Options"
+    :reader beads-reader-issue-id
+    :group "Apply Options"
     :level 1
     :order 1
     :required t)
    (summary
-    :initarg :summary
     :type (or null string)
-    :initform nil
-    :documentation "Path to summary file (use '-' for stdin)."
-    :long-option "summary"
-    :option-type :string
-    :key "s"
-    :transient "--summary (required)"
-    :class transient-option
-    :argument "--summary="
+    :short-option "s"
     :prompt "Summary file path: "
-    :transient-group "Apply Options"
+    :group "Apply Options"
     :level 1
     :order 2
     :required t))
@@ -167,107 +137,51 @@ Accepts agent-provided summary for an issue."
 
 (beads-defcommand beads-command-compact-auto (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Compact specific issue."
     :long-option "id"
-    :option-type :string
-    :key "i"
-    :transient "--id"
-    :class transient-option
-    :argument "--id="
+    :type (or null string)
+    :short-option "i"
     :prompt "Issue ID (or leave empty for all): "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Auto Options"
+    :reader beads-reader-issue-id
+    :group "Auto Options"
     :level 1
     :order 1)
    (all
-    :initarg :all
     :type boolean
-    :initform nil
-    :documentation "Process all candidates."
-    :long-option "all"
-    :option-type :boolean
-    :key "a"
-    :transient "--all"
-    :class transient-switch
-    :argument "--all"
-    :transient-group "Auto Options"
+    :short-option "a"
+    :group "Auto Options"
     :level 1
     :order 2)
    (tier
-    :initarg :tier
-    :type (or null string)
-    :initform nil
-    :documentation "Compaction tier (1 or 2, default: 1)."
-    :long-option "tier"
-    :option-type :integer
-    :key "t"
-    :transient "--tier"
-    :class transient-option
-    :argument "--tier="
+    :type (or null string integer)
+    :short-option "t"
     :prompt "Tier (1 or 2): "
     :choices '("1" "2")
-    :transient-group "Auto Options"
+    :group "Auto Options"
     :level 1
     :order 3)
    (batch-size
-    :initarg :batch-size
-    :type (or null string)
-    :initform nil
-    :documentation "Issues per batch (default: 10)."
-    :long-option "batch-size"
-    :option-type :integer
-    :key "b"
-    :transient "--batch-size"
-    :class transient-option
-    :argument "--batch-size="
+    :type (or null string integer)
+    :short-option "b"
     :prompt "Batch size: "
-    :transient-group "Auto Options"
+    :group "Auto Options"
     :level 3
     :order 4)
    (workers
-    :initarg :workers
-    :type (or null string)
-    :initform nil
-    :documentation "Parallel workers (default: 5)."
-    :long-option "workers"
-    :option-type :integer
-    :key "w"
-    :transient "--workers"
-    :class transient-option
-    :argument "--workers="
-    :prompt "Workers: "
-    :transient-group "Auto Options"
+    :type (or null string integer)
+    :short-option "w"
+    :group "Auto Options"
     :level 3
     :order 5)
    (dry-run
-    :initarg :dry-run
     :type boolean
-    :initform nil
-    :documentation "Preview without compacting."
-    :long-option "dry-run"
-    :option-type :boolean
-    :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :transient-group "Auto Options"
+    :short-option "n"
+    :group "Auto Options"
     :level 1
     :order 6)
    (force
-    :initarg :force
     :type boolean
-    :initform nil
-    :documentation "Force compact (bypass checks, requires --id)."
-    :long-option "force"
-    :option-type :boolean
-    :key "f"
-    :transient "--force"
-    :class transient-switch
-    :argument "--force"
-    :transient-group "Auto Options"
+    :short-option "f"
+    :group "Auto Options"
     :level 3
     :order 7))
   :documentation "Represents bd admin compact --auto command.
@@ -302,8 +216,8 @@ AI-powered compaction (legacy, requires ANTHROPIC_API_KEY)."
 ;;; Transient Menus
 ;;; ============================================================
 
-;;;###autoload (autoload 'beads-compact-stats "beads-command-compact" nil t)
-(beads-meta-define-transient beads-command-compact-stats "beads-compact-stats"
+;;;###autoload (autoload 'beads-compact-show-stats "beads-command-compact" nil t)
+(beads-meta-define-transient beads-command-compact-stats "beads-compact-show-stats"
   "Show compaction statistics.
 
 Displays counts of tier 1 and tier 2 compaction candidates,
@@ -356,7 +270,7 @@ Tiers:
   Tier 1: Semantic compression (30 days closed, 70% reduction)
   Tier 2: Ultra compression (90 days closed, 95% reduction)"
   ["Compact Commands"
-   ("s" "Show statistics" beads-compact-stats)
+   ("s" "Show statistics" beads-compact-show-stats)
    ("z" "Analyze candidates" beads-compact-analyze)
    ("a" "Apply summary" beads-compact-apply)
    ("A" "Auto compact (legacy)" beads-compact-auto)]

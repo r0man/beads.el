@@ -128,7 +128,7 @@ Signals an error if the transient fails to open."
   :tags '(:live :integration)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-temp-repo (:init-beads t)
-    (let ((issue (beads-command-create!
+    (let ((issue (beads-execute 'beads-command-create
                   :title "Test bug from live test"
                   :issue-type "bug"
                   :priority 1)))
@@ -157,7 +157,7 @@ Signals an error if the transient fails to open."
       (:init-beads t)
       ((:title "Open issue"     :issue-type "bug"  :priority 1)
        (:title "Another issue"  :issue-type "task" :priority 2))
-    (let ((issues (beads-command-list!)))
+    (let ((issues (beads-list-execute)))
       (should (listp issues))
       (should (= 2 (length issues))))))
 
@@ -170,16 +170,16 @@ Signals an error if the transient fails to open."
       ((:title "Open issue"  :issue-type "bug"  :priority 1)
        (:title "Closed issue" :issue-type "task" :priority 2))
     ;; Close the "Closed issue" by title to avoid ordering assumptions
-    (let* ((issues (beads-command-list!))
+    (let* ((issues (beads-list-execute))
            (to-close (cl-find "Closed issue" issues
                               :key (lambda (i) (oref i title))
                               :test #'equal)))
       (should to-close)
-      (beads-command-close!
+      (beads-execute 'beads-command-close
        :issue-ids (list (oref to-close id))
        :reason "Completed")
       ;; Now list only open ones
-      (let ((open (beads-command-list! :status "open")))
+      (let ((open (beads-list-execute :status "open")))
         (should (= 1 (length open)))
         (should (equal "Open issue" (oref (car open) title)))))))
 
@@ -203,7 +203,7 @@ Signals an error if the transient fails to open."
   (beads-test-with-temp-repo-and-issues
       (:init-beads t)
       ((:title "Show test issue" :issue-type "feature" :priority 2))
-    (let* ((issues (beads-command-list!))
+    (let* ((issues (beads-list-execute))
            (issue-id (oref (car issues) id)))
       (beads-show issue-id)
       ;; Buffer name format is *beads-show[context]/id title*;
@@ -241,10 +241,10 @@ Signals an error if the transient fails to open."
   (beads-test-with-temp-repo-and-issues
       (:init-beads t)
       ((:title "Issue to close" :issue-type "task" :priority 3))
-    (let* ((issues (beads-command-list!))
+    (let* ((issues (beads-list-execute))
            (issue-id (oref (car issues) id)))
-      (beads-command-close! :issue-ids (list issue-id) :reason "Done")
-      (let ((refreshed (beads-command-show! :issue-ids (list issue-id))))
+      (beads-execute 'beads-command-close :issue-ids (list issue-id) :reason "Done")
+      (let ((refreshed (beads-execute 'beads-command-show :issue-ids (list issue-id))))
         (should (equal "closed" (oref refreshed status)))))))
 
 ;;; ============================================================
@@ -260,7 +260,7 @@ Signals an error if the transient fails to open."
       (:init-beads t)
       ((:title "Blocker issue" :issue-type "bug"  :priority 0)
        (:title "Blocked issue" :issue-type "task" :priority 2))
-    (let* ((issues (beads-command-list!))
+    (let* ((issues (beads-list-execute))
            (blocker-issue (cl-find "Blocker issue" issues
                                    :key (lambda (i) (oref i title))
                                    :test #'equal))
@@ -270,22 +270,22 @@ Signals an error if the transient fails to open."
            (blocker-id (oref blocker-issue id))
            (blocked-id (oref blocked-issue id)))
       ;; Add dependency: "Blocked issue" depends on "Blocker issue"
-      (beads-command-dep-add!
+      (beads-execute 'beads-command-dep-add
        :issue-id blocked-id
        :depends-on blocker-id
        :dep-type "blocks")
       ;; Verify blocker-id appears in dep list as a dependency
-      (let ((deps (beads-command-dep-list! :issue-id blocked-id)))
+      (let ((deps (beads-execute 'beads-command-dep-list :issue-id blocked-id)))
         (should (listp deps))
         (should (cl-find blocker-id deps
                          :key (lambda (d) (oref d depends-on-id))
                          :test #'equal)))
       ;; Remove it
-      (beads-command-dep-remove!
+      (beads-execute 'beads-command-dep-remove
        :issue-id blocked-id
        :depends-on blocker-id)
       ;; Verify the dep was removed
-      (let ((deps-after (beads-command-dep-list! :issue-id blocked-id)))
+      (let ((deps-after (beads-execute 'beads-command-dep-list :issue-id blocked-id)))
         (should (zerop (length deps-after)))))))
 
 (ert-deftest beads-live-test-dep-transient-renders ()
@@ -376,7 +376,7 @@ Signals an error if the transient fails to open."
   (beads-test-with-temp-repo-and-issues
       (:init-beads t)
       ((:title "Detectable issue" :issue-type "task" :priority 2))
-    (let* ((issues (beads-command-list!))
+    (let* ((issues (beads-list-execute))
            (issue-id (oref (car issues) id)))
       ;; Kill any stale beads-list-mode buffers from prior test runs.
       ;; They have deleted temp dirs as default-directory; leaving them
@@ -607,7 +607,7 @@ Signals an error if the transient fails to open."
   (beads-test-with-temp-repo-and-issues
       (:init-beads t)
       ((:title "Ready task" :issue-type "task" :priority 2))
-    (let ((ready (beads-command-ready!)))
+    (let ((ready (beads-execute 'beads-command-ready)))
       (should (listp ready))
       (should (>= (length ready) 1)))))
 
@@ -620,7 +620,7 @@ Signals an error if the transient fails to open."
       (:init-beads t)
       ((:title "Blocker" :issue-type "bug"  :priority 0)
        (:title "Blocked" :issue-type "task" :priority 2))
-    (let* ((issues (beads-command-list!))
+    (let* ((issues (beads-list-execute))
            (blocker (cl-find "Blocker" issues
                              :key (lambda (i) (oref i title))
                              :test #'equal))
@@ -629,11 +629,11 @@ Signals an error if the transient fails to open."
                              :test #'equal))
            (blocker-id (oref blocker id))
            (blocked-id (oref blocked id)))
-      (beads-command-dep-add!
+      (beads-execute 'beads-command-dep-add
        :issue-id blocked-id
        :depends-on blocker-id
        :dep-type "blocks")
-      (let ((blocked-list (beads-command-blocked!)))
+      (let ((blocked-list (beads-execute 'beads-command-blocked)))
         (should (listp blocked-list))
         (should (cl-find blocked-id blocked-list
                          :key (lambda (i) (oref i id))
@@ -647,11 +647,11 @@ Signals an error if the transient fails to open."
   (beads-test-with-temp-repo-and-issues
       (:init-beads t)
       ((:title "Issue to reopen" :issue-type "task" :priority 2))
-    (let* ((issues (beads-command-list!))
+    (let* ((issues (beads-list-execute))
            (issue-id (oref (car issues) id)))
-      (beads-command-close! :issue-ids (list issue-id) :reason "Done")
-      (beads-command-reopen! :issue-ids (list issue-id))
-      (let ((refreshed (beads-command-show! :issue-ids (list issue-id))))
+      (beads-execute 'beads-command-close :issue-ids (list issue-id) :reason "Done")
+      (beads-execute 'beads-command-reopen :issue-ids (list issue-id))
+      (let ((refreshed (beads-execute 'beads-command-show :issue-ids (list issue-id))))
         (should (equal "open" (oref refreshed status)))))))
 
 ;;; ============================================================

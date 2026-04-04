@@ -14,7 +14,7 @@
 ;; Dolt-backed beads database.
 ;;
 ;; Usage:
-;;   (beads-command-history! :issue-id "bd-42")
+;;   (beads-execute 'beads-command-history :issue-id "bd-42")
 ;;   (beads-history)  ; invoke transient menu
 
 ;;; Code:
@@ -28,36 +28,21 @@
 
 (beads-defcommand beads-command-history (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to show history for (positional argument)."
     :positional 1
-    :option-type :string
-    :key "i"
-    :transient "Issue ID (required)"
-    :class transient-option
+    :type (or null string)
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads-reader-close-issue-id
-    :transient-group "History"
+    :reader beads-reader-close-issue-id
+    :group "History"
     :level 1
     :order 1
     :required t)
    (limit
-    :initarg :limit
-    :type (or null integer)
-    :initform nil
-    :documentation "Limit number of history entries (--limit).
-0 means show all entries."
-    :long-option "limit"
-    :option-type :integer
-    :key "l"
-    :transient "--limit"
-    :class transient-option
-    :argument "--limit="
+    :type (or null string integer)
+    :short-option "l"
     :prompt "Limit (0=all): "
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 2))
   :documentation "Show version history for an issue.

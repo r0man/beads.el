@@ -26,7 +26,7 @@
 ;;
 ;; Usage:
 ;;   (beads-command-execute (beads-command-show :issue-ids '("bd-1")))
-;;   (beads-command-show!)  ; convenience function
+;;   (beads-execute 'beads-command-show)  ; convenience function
 
 ;;; Code:
 
@@ -59,97 +59,69 @@
 
 (beads-defcommand beads-command-show (beads-command-global-options)
   ((issue-ids
-    :initarg :issue-ids
-    :type (or null list)
-    :initform nil
-    :documentation "One or more issue IDs to show (positional arguments).
-Example: '(\"bd-1\" \"bd-2\")"
-    ;; CLI properties
     :positional 1
-    :option-type :list
-    :option-separator " "
-    ;; Transient properties
-    :key "i"
-    :transient "Issue IDs"
-    :class transient-option
+    :type (list-of string)
+    :separator " "
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID(s): "
-    :transient-reader beads--read-issue-at-point-or-prompt
-    :transient-group "Show Issue"
+    :reader beads--read-issue-at-point-or-prompt
+    :group "Show Issue"
     :level 1
     :order 1
-    ;; Validation
     :required t)
    (children
-    :initarg :children
     :type boolean
-    :initform nil
-    :documentation "Show only the children of this issue (--children)."
-    ;; CLI properties
-    :long-option "children"
-    :option-type :boolean
-    ;; Transient properties
-    :key "c"
-    :transient "--children"
-    :class transient-switch
-    :argument "--children"
-    :transient-group "View Options"
+    :short-option "c"
+    :group "View Options"
     :level 1
     :order 1)
    (refs
-    :initarg :refs
     :type boolean
-    :initform nil
-    :documentation "Show issues that reference this issue (--refs).
-Reverse lookup of references."
-    ;; CLI properties
-    :long-option "refs"
-    :option-type :boolean
-    ;; Transient properties
-    :key "r"
-    :transient "--refs"
-    :class transient-switch
-    :argument "--refs"
-    :transient-group "View Options"
+    :short-option "r"
+    :group "View Options"
     :level 1
     :order 2)
    (short
-    :initarg :short
     :type boolean
-    :initform nil
-    :documentation "Show compact one-line output per issue (--short)."
-    ;; CLI properties
-    :long-option "short"
-    :option-type :boolean
-    ;; Transient properties
-    :key "s"
-    :transient "--short"
-    :class transient-switch
-    :argument "--short"
-    :transient-group "View Options"
+    :short-option "s"
+    :group "View Options"
     :level 1
     :order 3)
    (thread
-    :initarg :thread
     :type boolean
-    :initform nil
-    :documentation "Show full conversation thread (--thread).
-For message type issues."
-    ;; CLI properties
-    :long-option "thread"
-    :option-type :boolean
-    ;; Transient properties
-    :key "t"
-    :transient "--thread"
-    :class transient-switch
-    :argument "--thread"
-    :transient-group "View Options"
+    :short-option "t"
+    :group "View Options"
     :level 2
-    :order 1))
+    :order 1)
+   (as-of
+    :type (or null string)
+    :long-option "as-of"
+    :group "Options"
+    :level 3)
+   (current
+    :type boolean
+    :group "Options"
+    :level 3)
+   (local-time
+    :type boolean
+    :group "Options"
+    :level 3)
+   (long
+    :type boolean
+    :group "Options"
+    :level 2)
+   (watch
+    :type boolean
+    :short-option "w"
+    :group "Options"
+    :level 3))
   :documentation "Represents bd show command.
 Shows detailed information about one or more issues.
 When executed with :json t, returns beads-issue instance (or list
-of instances when multiple IDs provided).")
+of instances when multiple IDs provided)."
+  :result (list-of beads-issue)
+  :transient :manual)
 
 
 (cl-defmethod beads-command-validate ((command beads-command-show))
@@ -164,42 +136,18 @@ Returns error string or nil if valid."
      ;; Validate list content types
      (beads-command--validate-string-list issue-ids "issue-ids"))))
 
-(cl-defmethod beads-command-parse ((command beads-command-show) execution)
-  "Parse show COMMAND output from EXECUTION.
-Returns beads-issue instance (or list when multiple IDs).
-When :json is nil, falls back to parent (returns raw stdout).
-When :json is t, returns beads-issue instance (or list when multiple IDs).
-Does not modify any slots."
+(cl-defmethod beads-command-parse ((command beads-command-show) stdout)
+  "Parse show COMMAND output from STDOUT.
+Delegates JSON→domain parsing to the base method via :result,
+then unwraps single-element results for caller convenience.
+Many callers expect a single beads-issue, not a list."
   (with-slots (json issue-ids) command
     (if (not json)
-        ;; If json is not enabled, use parent implementation
         (cl-call-next-method)
-      ;; Call parent to parse JSON, then convert to beads-issue instance(s)
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (cond
-             ;; Array result - convert to issue objects
-             ((vectorp parsed-json)
-              (let ((issues (mapcar #'beads-issue-from-json
-                                    (append parsed-json nil))))
-                ;; Return single issue if only one ID, list otherwise
-                (if (and issue-ids (= (length issue-ids) 1))
-                    (car issues)
-                  issues)))
-             ;; Single object result
-             ((and parsed-json (listp parsed-json)
-                   (not (null parsed-json)))
-              (beads-issue-from-json parsed-json))
-             ;; Empty or null
-             (t nil))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to create beads-issue instance: %s"
-                                 (error-message-string err))
-                         :exit-code (oref execution exit-code)
-                         :parsed-json parsed-json
-                         :stderr (oref execution stderr)
-                         :parse-error err))))))))
+      (let ((issues (cl-call-next-method)))
+        (if (and (listp issues) issue-ids (= (length issue-ids) 1))
+            (car issues)
+          issues)))))
 
 
 ;;; Transient Menu
@@ -444,7 +392,7 @@ navigating in beads-list.  Returns BUFFER."
       (beads-show-mode))
     (setq beads-show--issue-id issue-id)
     (condition-case err
-        (let ((issue (beads-command-show! :issue-ids (list issue-id))))
+        (let ((issue (beads-execute 'beads-command-show :issue-ids (list issue-id))))
           (setq beads-show--issue-data issue)
           ;; Rename buffer to include title
           (let* ((title (oref issue title))
@@ -633,7 +581,7 @@ Returns alist of (NAME . POSITION) for sections."
 CALLBACK is called with the documentation string."
   (when-let* ((issue-id (beads-show--extract-issue-at-point)))
     (condition-case nil
-        (let* ((issue (beads-command-show! :issue-ids (list issue-id)))
+        (let* ((issue (beads-execute 'beads-command-show :issue-ids (list issue-id)))
                (title (oref issue title))
                (status (oref issue status))
                (priority (oref issue priority))
@@ -892,7 +840,7 @@ Section header is uppercase without underline, matching DEPENDS ON style."
   "Fetch sub-issues for EPIC-ID.
 Returns a list of beads-tree-node objects with depth=1, or nil."
   (condition-case nil
-      (let ((items (beads-command-dep-tree!
+      (let ((items (beads-execute 'beads-command-dep-tree
                     :issue-id epic-id
                     :reverse t
                     :max-depth 1)))
@@ -1592,7 +1540,7 @@ correct project detection (important for git worktrees)."
       (condition-case err
           ;; Execute command in caller's directory context
           (let ((default-directory caller-dir)
-                (issue (beads-command-show! :issue-ids (list issue-id))))
+                (issue (beads-execute 'beads-command-show :issue-ids (list issue-id))))
             (setq beads-show--issue-data issue)
             ;; Rename buffer to include title now that we have it
             (let* ((title (oref issue title))
@@ -1643,7 +1591,7 @@ Uses the stored project directory for command execution."
         (project-dir (or beads-show--project-dir default-directory)))
     (condition-case err
         (let* ((default-directory project-dir)
-               (issue (beads-command-show! :issue-ids (list beads-show--issue-id))))
+               (issue (beads-execute 'beads-command-show :issue-ids (list beads-show--issue-id))))
           (setq beads-show--issue-data issue)
           (beads-show--render-issue beads-show--issue-data)
           (goto-char (min pos (point-max)))
@@ -2251,7 +2199,7 @@ Prompts for field to edit and opens an editing buffer."
     (let ((reason (read-string "Close reason: ")))
       (condition-case err
           (progn
-            (beads-command-close! :issue-ids (list beads-show--issue-id)
+            (beads-execute 'beads-command-close :issue-ids (list beads-show--issue-id)
                                   :reason reason)
             (beads-completion-invalidate-cache)
             (beads-refresh-show)
@@ -2278,7 +2226,7 @@ Prompts for field to edit and opens an editing buffer."
     (let ((label (read-string "Label: ")))
       (condition-case err
           (progn
-            (beads-command-label-add! :issue-ids (list beads-show--issue-id)
+            (beads-execute 'beads-command-label-add :issue-ids (list beads-show--issue-id)
                                       :label label)
             (beads-refresh-show)
             (message "Label added: %s" label))

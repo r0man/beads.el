@@ -89,45 +89,30 @@ Format: (TIMESTAMP . LABELS-LIST)")
 
 (beads-defcommand beads-command-label-add (beads-command-global-options)
   ((issue-ids
-    :initarg :issue-ids
-    :type (or null list)
-    :initform nil
-    :documentation "One or more issue IDs to add the label to (positional)."
-    ;; CLI properties
     :positional 1
-    :option-type :list
-    :option-separator " "
-    ;; Transient properties
-    :key "i"
-    :transient "Issue IDs"
-    :class transient-option
+    :type (list-of string)
+    :separator " "
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID(s): "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Add Label"
+    :reader beads-reader-issue-id
+    :group "Add Label"
     :level 1
     :order 1
     :required t)
    (label
-    :initarg :label
-    :type (or null string)
-    :initform nil
-    :documentation "Label to add (positional, last argument)."
-    ;; CLI properties
     :positional 2
-    :option-type :string
-    ;; Transient properties
-    :key "l"
-    :transient "Label"
-    :class transient-option
+    :type (or null string)
+    :short-option "l"
     :argument "--label="
-    :prompt "Label: "
-    :transient-group "Add Label"
+    :group "Add Label"
     :level 1
     :order 2
     :required t))
   :documentation "Represents bd label add command.
-Adds a label to one or more issues.")
+Adds a label to one or more issues."
+  :result (list-of beads-issue)
+  :transient :manual)
 
 
 (cl-defmethod beads-command-validate ((command beads-command-label-add))
@@ -156,45 +141,30 @@ Returns error string or nil if valid."
 
 (beads-defcommand beads-command-label-remove (beads-command-global-options)
   ((issue-ids
-    :initarg :issue-ids
-    :type (or null list)
-    :initform nil
-    :documentation "One or more issue IDs to remove the label from (positional)."
-    ;; CLI properties
     :positional 1
-    :option-type :list
-    :option-separator " "
-    ;; Transient properties
-    :key "i"
-    :transient "Issue IDs"
-    :class transient-option
+    :type (list-of string)
+    :separator " "
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID(s): "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Remove Label"
+    :reader beads-reader-issue-id
+    :group "Remove Label"
     :level 1
     :order 1
     :required t)
    (label
-    :initarg :label
-    :type (or null string)
-    :initform nil
-    :documentation "Label to remove (positional, last argument)."
-    ;; CLI properties
     :positional 2
-    :option-type :string
-    ;; Transient properties
-    :key "l"
-    :transient "Label"
-    :class transient-option
+    :type (or null string)
+    :short-option "l"
     :argument "--label="
-    :prompt "Label: "
-    :transient-group "Remove Label"
+    :group "Remove Label"
     :level 1
     :order 2
     :required t))
   :documentation "Represents bd label remove command.
-Removes a label from one or more issues.")
+Removes a label from one or more issues."
+  :result (list-of beads-issue)
+  :transient :manual)
 
 
 (cl-defmethod beads-command-validate ((command beads-command-label-remove))
@@ -223,21 +193,12 @@ Returns error string or nil if valid."
 
 (beads-defcommand beads-command-label-list (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to list labels for (positional)."
-    ;; CLI properties
     :positional 1
-    :option-type :string
-    ;; Transient properties
-    :key "i"
-    :transient "Issue ID"
-    :class transient-option
+    :type (or null string)
+    :short-option "i"
     :argument "--id="
-    :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "List Labels"
+    :reader beads-reader-issue-id
+    :group "List Labels"
     :level 1
     :order 1
     :required t))
@@ -262,46 +223,29 @@ Returns error string or nil if valid."
 Lists all unique labels in the database."
   :cli-command "label list-all")
 
-(cl-defmethod beads-command-validate ((_command beads-command-label-list-all))
-  "Validate label list-all COMMAND.
-No required fields.
-Returns nil (always valid)."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 ;;; Label Propagate Command
 
 (beads-defcommand beads-command-label-propagate (beads-command-global-options)
   ((parent-id
-    :initarg :parent-id
-    :type (or null string)
-    :initform nil
-    :documentation "Parent issue ID to propagate label from (positional)."
     :positional 1
-    :option-type :string
-    :key "p"
-    :transient "Parent issue ID"
-    :class transient-option
+    :type (or null string)
+    :short-option "p"
     :argument "--parent-id="
     :prompt "Parent issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Propagate Label"
+    :reader beads-reader-issue-id
+    :group "Propagate Label"
     :level 1
     :order 1
     :required t)
    (label
-    :initarg :label
-    :type (or null string)
-    :initform nil
-    :documentation "Label to propagate to children (positional)."
     :positional 2
-    :option-type :string
-    :key "l"
-    :transient "Label"
-    :class transient-option
+    :type (or null string)
+    :short-option "l"
     :argument "--label="
-    :prompt "Label: "
-    :transient-reader beads-reader-label-name
-    :transient-group "Propagate Label"
+    :reader beads-reader-label-name
+    :group "Propagate Label"
     :level 1
     :order 2
     :required t))
@@ -368,12 +312,10 @@ Example:
   "Fetch all labels from bd label list-all.
 Returns a list of beads-label-count objects."
   (let* ((cmd (beads-command-label-list-all :json t))
-         ;; Execute command and get result from execution object
-         (exec (beads-command-execute cmd))
-         (json (oref exec result))
+         (json (beads-command-execute cmd))
          ;; JSON is array of {\"label\": \"name\", \"count\": N}
          (labels (append json nil)))
-    (mapcar #'beads-label-count-from-json labels)))
+    (mapcar (lambda (j) (beads-from-json 'beads-label-count j)) labels)))
 
 (defun beads--get-cached-labels ()
   "Get cached label list, refreshing if stale.

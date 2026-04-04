@@ -26,25 +26,13 @@
 
 (beads-defcommand beads-command-duplicate (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to mark as duplicate."
     :positional 1)
    (of
-    :initarg :of
     :type (or null string)
-    :initform nil
-    :documentation "Canonical issue ID."
-    :long-option "of"
-    :option-type :string
-    :key "o"
-    :transient "--of"
-    :class transient-option
-    :argument "--of="
+    :short-option "o"
     :prompt "Canonical issue: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Options"
+    :reader beads-reader-issue-id
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd duplicate command.
@@ -65,17 +53,9 @@ Marks an issue as a duplicate of another.")
 
 (beads-defcommand beads-command-duplicates (beads-command-global-options)
   ((merge
-    :initarg :merge
     :type boolean
-    :initform nil
-    :documentation "Merge duplicates with confirmation."
-    :long-option "merge"
-    :option-type :boolean
-    :key "m"
-    :transient "--merge"
-    :class transient-switch
-    :argument "--merge"
-    :transient-group "Options"
+    :short-option "m"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd duplicates command.
@@ -88,25 +68,14 @@ Finds and optionally merges duplicate issues.")
 
 (beads-defcommand beads-command-supersede (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to mark as superseded."
     :positional 1)
    (with-id
-    :initarg :with-id
-    :type (or null string)
-    :initform nil
-    :documentation "Replacement issue ID."
     :long-option "with"
-    :option-type :string
-    :key "w"
-    :transient "--with"
-    :class transient-option
-    :argument "--with="
+    :type (or null string)
+    :short-option "w"
     :prompt "Replacement issue: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Options"
+    :reader beads-reader-issue-id
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd supersede command.
@@ -127,32 +96,15 @@ Marks an issue as superseded by a newer one.")
 
 (beads-defcommand beads-command-orphans (beads-command-global-options)
   ((details
-    :initarg :details
     :type boolean
-    :initform nil
-    :documentation "Show full commit information."
-    :long-option "details"
-    :option-type :boolean
-    :key "d"
-    :transient "--details"
-    :class transient-switch
-    :argument "--details"
-    :transient-group "Options"
+    :short-option "d"
+    :group "Options"
     :level 1
     :order 1)
    (fix
-    :initarg :fix
-    :type boolean
-    :initform nil
-    :documentation "Close orphaned issues with confirmation."
-    :long-option "fix"
     :short-option "f"
-    :option-type :boolean
-    :key "f"
-    :transient "--fix"
-    :class transient-switch
-    :argument "--fix"
-    :transient-group "Options"
+    :type boolean
+    :group "Options"
     :level 1
     :order 2))
   :documentation "Represents bd orphans command.
@@ -165,45 +117,22 @@ Identifies orphaned issues referenced in commits but still open.")
 
 (beads-defcommand beads-command-lint (beads-command-global-options)
   ((issue-ids
-    :initarg :issue-ids
-    :type list
-    :initform nil
-    :documentation "Issue IDs to lint (optional)."
     :positional 1
-    :option-type :list
-    :option-separator nil)
+    :type (list-of string)
+    :separator nil)
    (status
-    :initarg :status
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by status (default: open, 'all' for all)."
-    :long-option "status"
     :short-option "s"
-    :option-type :string
-    :key "s"
-    :transient "--status"
-    :class transient-option
-    :argument "--status="
-    :prompt "Status: "
+    :type (or null string)
     :choices ("open" "in_progress" "blocked" "closed" "all")
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (issue-type
-    :initarg :issue-type
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by issue type."
     :long-option "type"
     :short-option "t"
-    :option-type :string
-    :key "t"
-    :transient "--type"
-    :class transient-option
-    :argument "--type="
-    :prompt "Type: "
+    :type (or null string)
     :choices ("bug" "task" "feature" "epic" "chore")
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2))
   :documentation "Represents bd lint command.
@@ -211,191 +140,35 @@ Checks issues for missing template sections.")
 
 
 ;;; ============================================================
-;;; Command Class: beads-command-move
-;;; ============================================================
-
-(beads-defcommand beads-command-move (beads-command-global-options)
-  ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to move."
-    :positional 1
-    ;; Transient properties for UI input
-    :key "i"
-    :transient "Issue ID (required)"
-    :class transient-option
-    :argument "--id="
-    :transient-reader beads-reader-move-issue-id
-    :prompt "Issue ID: "
-    :transient-group "Move Issue"
-    :level 1
-    :order 0)
-   (to
-    :initarg :to
-    :type (or null string)
-    :initform nil
-    :documentation "Target rig or prefix."
-    :long-option "to"
-    :option-type :string
-    :key "t"
-    :transient "--to (required)"
-    :class transient-option
-    :argument "--to="
-    :prompt "Target rig: "
-    :transient-group "Move Issue"
-    :level 1
-    :order 1)
-   (keep-open
-    :initarg :keep-open
-    :type boolean
-    :initform nil
-    :documentation "Keep source issue open."
-    :long-option "keep-open"
-    :option-type :boolean
-    :key "k"
-    :transient "--keep-open"
-    :class transient-switch
-    :argument "--keep-open"
-    :transient-group "Options"
-    :level 2
-    :order 2)
-   (skip-deps
-    :initarg :skip-deps
-    :type boolean
-    :initform nil
-    :documentation "Skip dependency remapping."
-    :long-option "skip-deps"
-    :option-type :boolean
-    :key "d"
-    :transient "--skip-deps"
-    :class transient-switch
-    :argument "--skip-deps"
-    :transient-group "Options"
-    :level 2
-    :order 3))
-  :documentation "Represents bd move command.
-Moves an issue to a different rig with dependency remapping.")
-
-
-(cl-defmethod beads-command-validate ((command beads-command-move))
-  "Validate move COMMAND."
-  (with-slots (issue-id to) command
-    (cond
-     ((not issue-id) "Issue ID is required")
-     ((not to) "Target rig (--to) is required")
-     (t nil))))
-
-;;; ============================================================
-;;; Command Class: beads-command-refile
-;;; ============================================================
-
-(beads-defcommand beads-command-refile (beads-command-global-options)
-  ((source-id
-    :initarg :source-id
-    :type (or null string)
-    :initform nil
-    :documentation "Source issue ID."
-    :positional 1)
-   (target-rig
-    :initarg :target-rig
-    :type (or null string)
-    :initform nil
-    :documentation "Target rig name or prefix."
-    :positional 2)
-   (keep-open
-    :initarg :keep-open
-    :type boolean
-    :initform nil
-    :documentation "Keep source issue open."
-    :long-option "keep-open"
-    :option-type :boolean
-    :key "k"
-    :transient "--keep-open"
-    :class transient-switch
-    :argument "--keep-open"
-    :transient-group "Options"
-    :level 1
-    :order 1))
-  :documentation "Represents bd refile command.
-Moves an issue to a different rig.")
-
-
-(cl-defmethod beads-command-validate ((command beads-command-refile))
-  "Validate refile COMMAND."
-  (with-slots (source-id target-rig) command
-    (cond
-     ((not source-id) "Source issue ID is required")
-     ((not target-rig) "Target rig is required")
-     (t nil))))
-
-;;; ============================================================
 ;;; Command Class: beads-command-q (quick capture)
 ;;; ============================================================
 
 (beads-defcommand beads-command-q (beads-command-global-options)
   ((title
-    :initarg :title
-    :type (or null string)
-    :initform nil
-    :documentation "Issue title."
     :positional 1
-    ;; Transient properties for UI input
-    :key "T"
-    :transient "Title (required)"
-    :class transient-option
+    :short-option "T"
     :argument "--title="
-    :prompt "Title: "
-    :transient-group "Quick Capture"
+    :group "Quick Capture"
     :level 1
     :order 0)
    (issue-type
-    :initarg :issue-type
-    :type (or null string)
-    :initform nil
-    :documentation "Issue type (default: task)."
     :long-option "type"
     :short-option "t"
-    :option-type :string
-    :key "t"
-    :transient "--type"
-    :class transient-option
-    :argument "--type="
-    :prompt "Type: "
+    :type (or null string)
     :choices ("task" "bug" "feature" "epic" "chore")
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (priority
-    :initarg :priority
-    :type (or null string)
-    :initform nil
-    :documentation "Priority (0-4 or P0-P4)."
-    :long-option "priority"
     :short-option "p"
-    :option-type :string
-    :key "p"
-    :transient "--priority"
-    :class transient-option
-    :argument "--priority="
-    :prompt "Priority: "
-    :transient-group "Options"
+    :type (or null string)
+    :group "Options"
     :level 1
     :order 2)
    (labels
-    :initarg :labels
-    :type list
-    :initform nil
-    :documentation "Labels for the issue."
-    :long-option "labels"
     :short-option "l"
-    :option-type :list
-    :key "l"
-    :transient "--labels"
-    :class transient-option
-    :argument "--labels="
-    :prompt "Labels: "
-    :transient-group "Options"
+    :type (list-of string)
+    :group "Options"
     :level 1
     :order 3))
   :documentation "Represents bd q command.
@@ -413,48 +186,32 @@ Quick capture: creates issue and outputs only ID.")
 
 (beads-defcommand beads-command-note (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to append note to."
     :positional 1
-    :key "i"
-    :transient "Issue ID (required)"
-    :class transient-option
+    :short-option "i"
     :argument "--id="
-    :prompt "Issue ID: "
-    :transient-reader beads--read-issue-at-point-or-prompt
-    :transient-group "Append Note"
+    :reader beads--read-issue-at-point-or-prompt
+    :group "Append Note"
     :level 1
     :order 0)
-   (stdin
-    :initarg :stdin
-    :type boolean
-    :initform nil
-    :documentation "Read note text from stdin."
-    :long-option "stdin"
-    :option-type :boolean
-    :key "s"
-    :transient "--stdin"
-    :class transient-switch
-    :argument "--stdin"
-    :transient-group "Input"
+   (text
+    :positional 2
+    :type (list-of string)
+    :separator " "
+    :prompt "Note text: "
+    :group "Append Note"
     :level 1
     :order 1)
+   (stdin
+    :type boolean
+    :short-option "s"
+    :group "Input"
+    :level 2
+    :order 1)
    (file
-    :initarg :file
     :type (or null string)
-    :initform nil
-    :documentation "Read note text from file."
-    :long-option "file"
-    :option-type :string
-    :key "f"
-    :transient "--file"
-    :class transient-option
-    :argument "--file="
-    :prompt "File: "
-    :transient-group "Input"
-    :level 1
+    :short-option "f"
+    :group "Input"
+    :level 2
     :order 2))
   :documentation "Represents bd note command.
 Appends a note to an issue's notes field.")
@@ -471,17 +228,9 @@ Appends a note to an issue's notes field.")
 
 (beads-defcommand beads-command-version (beads-command-global-options)
   ((daemon
-    :initarg :daemon
     :type boolean
-    :initform nil
-    :documentation "Check daemon version and compatibility."
-    :long-option "daemon"
-    :option-type :boolean
-    :key "d"
-    :transient "--daemon"
-    :class transient-switch
-    :argument "--daemon"
-    :transient-group "Options"
+    :short-option "d"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd version command.
@@ -545,7 +294,8 @@ Shows PR readiness checklist.")
 (beads-defcommand beads-command-upgrade (beads-command-global-options)
   ()
   :documentation "Represents bd upgrade command.
-Check and manage bd version upgrades.")
+Check and manage bd version upgrades."
+  :transient :manual)
 
 ;;; ============================================================
 ;;; Command Class: beads-command-upgrade-status
@@ -580,16 +330,8 @@ Acknowledge the current bd version to suppress upgrade notifications.")
 
 (beads-defcommand beads-command-rename-prefix (beads-command-global-options)
   ((old-prefix
-    :initarg :old-prefix
-    :type (or null string)
-    :initform nil
-    :documentation "Old prefix to replace."
     :positional 1)
    (new-prefix
-    :initarg :new-prefix
-    :type (or null string)
-    :initform nil
-    :documentation "New prefix to use."
     :positional 2))
   :documentation "Represents bd rename-prefix command.
 Renames the issue prefix for all issues in the database."
@@ -609,10 +351,6 @@ Renames the issue prefix for all issues in the database."
 
 (beads-defcommand beads-command-setup (beads-command-global-options)
   ((editor
-    :initarg :editor
-    :type (or null string)
-    :initform nil
-    :documentation "Editor to set up (cursor, vscode, claude, etc.)."
     :positional 1))
   :documentation "Represents bd setup command.
 Setup integration with AI editors.")
@@ -624,10 +362,6 @@ Setup integration with AI editors.")
 
 (beads-defcommand beads-command-ship (beads-command-global-options)
   ((capability
-    :initarg :capability
-    :type (or null string)
-    :initform nil
-    :documentation "Capability to publish."
     :positional 1))
   :documentation "Represents bd ship command.
 Publishes a capability for cross-project dependencies.")
@@ -639,10 +373,6 @@ Publishes a capability for cross-project dependencies.")
 
 (beads-defcommand beads-command-cook (beads-command-global-options)
   ((formula-id
-    :initarg :formula-id
-    :type (or null string)
-    :initform nil
-    :documentation "Formula ID to compile."
     :positional 1))
   :documentation "Represents bd cook command.
 Compiles a formula into a proto (ephemeral by default).")
@@ -684,15 +414,6 @@ Delegates to mail provider.")
   "Check issues for missing template sections."
   beads-option-global-section)
 
-;;;###autoload (autoload 'beads-move "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-move "beads-move"
-  "Move an issue to a different rig."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-refile "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-refile "beads-refile"
-  "Move an issue to a different rig (simple)."
-  beads-option-global-section)
 
 ;;;###autoload (autoload 'beads-q "beads-command-misc" nil t)
 (beads-meta-define-transient beads-command-q "beads-q"
@@ -724,19 +445,10 @@ Delegates to mail provider.")
 
 (beads-defcommand beads-command-human-list (beads-command-global-options)
   ((status
-    :initarg :status
     :type (or null string)
-    :initform nil
-    :documentation "Filter by status (open, closed, etc.)."
-    :long-option "status"
-    :option-type :string
-    :key "s"
-    :transient "--status"
-    :class transient-option
-    :argument "--status="
-    :prompt "Status: "
+    :short-option "s"
     :choices ("open" "in_progress" "blocked" "closed" "all")
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd human list command.
@@ -752,34 +464,20 @@ Lists all issues labeled with the human tag.")
 
 (beads-defcommand beads-command-human-respond (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to respond to (required)."
     :positional 1
-    :option-type :string
-    :key "i"
-    :transient "Issue ID (required)"
-    :class transient-option
+    :type (or null string)
+    :short-option "i"
     :argument "--issue-id="
-    :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Options"
+    :reader beads-reader-issue-id
+    :group "Options"
     :level 1
     :order 1
     :required t)
    (response
-    :initarg :response
     :type (or null string)
-    :initform nil
-    :documentation "Response text to add as comment (required)."
-    :option-type :string
-    :key "r"
-    :transient "Response text (required)"
-    :class transient-option
+    :short-option "r"
     :argument "--response="
-    :prompt "Response: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2
     :required t))
@@ -806,34 +504,20 @@ Responds to a human-needed bead by adding a comment and closing it.")
 
 (beads-defcommand beads-command-human-dismiss (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to dismiss (required)."
     :positional 1
-    :option-type :string
-    :key "i"
-    :transient "Issue ID (required)"
-    :class transient-option
+    :type (or null string)
+    :short-option "i"
     :argument "--issue-id="
-    :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Options"
+    :reader beads-reader-issue-id
+    :group "Options"
     :level 1
     :order 1
     :required t)
    (reason
-    :initarg :reason
     :type (or null string)
-    :initform nil
-    :documentation "Reason for dismissal (optional)."
-    :option-type :string
-    :key "r"
-    :transient "Reason (optional)"
-    :class transient-option
+    :short-option "r"
     :argument "--reason="
-    :prompt "Reason: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2))
   :documentation "Represents bd human dismiss command.
@@ -946,18 +630,12 @@ Version tracking is automatic - bd updates metadata.json on every run.
 
 (beads-defcommand beads-command-children (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Parent issue ID."
     :positional 1
-    :key "i"
-    :transient "Parent issue ID (required)"
-    :class transient-option
+    :short-option "i"
     :argument "--id="
     :prompt "Parent issue ID: "
-    :transient-reader beads--read-issue-at-point-or-prompt
-    :transient-group "Options"
+    :reader beads--read-issue-at-point-or-prompt
+    :group "Options"
     :level 1
     :order 0))
   :documentation "Represents bd children command.
@@ -981,18 +659,12 @@ Creates a new issue using an interactive form."
 
 (beads-defcommand beads-command-promote (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID (wisp) to promote."
     :positional 1
-    :key "i"
-    :transient "Issue ID (required)"
-    :class transient-option
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID to promote: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Options"
+    :reader beads-reader-issue-id
+    :group "Options"
     :level 1
     :order 0))
   :documentation "Represents bd promote command.
@@ -1005,17 +677,10 @@ Promotes a wisp to a permanent bead.")
 
 (beads-defcommand beads-command-query (beads-command-global-options)
   ((query-string
-    :initarg :query-string
-    :type (or null string)
-    :initform nil
-    :documentation "Query string."
     :positional 1
-    :key "q"
-    :transient "Query (required)"
-    :class transient-option
+    :short-option "q"
     :argument "--query="
-    :prompt "Query: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 0))
   :documentation "Represents bd query command.
@@ -1042,53 +707,28 @@ Manages TODO items (convenience wrapper for task issues).")
 
 (beads-defcommand beads-command-todo-add (beads-command-global-options)
   ((title
-    :initarg :title
-    :type (or null string)
-    :initform nil
-    :documentation "Title of the TODO item (positional arg)."
     :positional 1
-    :option-type :string
-    :key "T"
-    :transient "Title (required)"
-    :class transient-option
+    :type (or null string)
+    :short-option "T"
     :argument "--title="
     :prompt "TODO title: "
-    :transient-group "Add TODO"
+    :group "Add TODO"
     :level 1
     :order 1
     :required t)
    (priority
-    :initarg :priority
-    :type (or null string)
-    :initform nil
-    :documentation "Priority (-p, --priority).
-Values: 0-4. Default: 2."
-    :long-option "priority"
     :short-option "p"
-    :option-type :string
-    :key "p"
-    :transient "--priority"
-    :class transient-option
-    :argument "--priority="
+    :type (or null string)
     :prompt "Priority (0-4): "
-    :transient-reader beads-reader-issue-priority
-    :transient-group "Add TODO"
+    :reader beads-reader-issue-priority
+    :group "Add TODO"
     :level 2
     :order 2)
    (description
-    :initarg :description
-    :type (or null string)
-    :initform nil
-    :documentation "Description (-d, --description)."
-    :long-option "description"
     :short-option "d"
-    :option-type :string
-    :key "D"
-    :transient "--description"
-    :class transient-option
-    :argument "--description="
-    :prompt "Description: "
-    :transient-group "Add TODO"
+    :type (or null string)
+    :transient-key "D"
+    :group "Add TODO"
     :level 2
     :order 3))
   :documentation "Represents bd todo add command.
@@ -1120,12 +760,12 @@ Returns error string or nil if valid."
     :initform nil
     :documentation "Show all TODOs including completed (--all)."
     :long-option "all"
-    :option-type :boolean
-    :key "a"
+    :type boolean
+    :short-option "a"
     :transient "--all"
     :class transient-switch
     :argument "--all"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd todo list command.
@@ -1147,15 +787,15 @@ Lists TODO items (open task issues).")
     :initform nil
     :documentation "One or more TODO issue IDs to mark done (positional)."
     :positional 1
-    :option-type :list
-    :option-separator " "
-    :key "i"
+    :type (list-of string)
+    :separator " "
+    :short-option "i"
     :transient "Issue ID (required)"
     :class transient-option
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Mark Done"
+    :reader beads-reader-issue-id
+    :group "Mark Done"
     :level 1
     :order 1
     :required t)
@@ -1165,13 +805,13 @@ Lists TODO items (open task issues).")
     :initform nil
     :documentation "Reason for closing (--reason). Default: Completed."
     :long-option "reason"
-    :option-type :string
-    :key "r"
+    :type (or null string)
+    :short-option "r"
     :transient "--reason"
     :class transient-option
     :argument "--reason="
     :prompt "Reason: "
-    :transient-group "Mark Done"
+    :group "Mark Done"
     :level 2
     :order 2))
   :documentation "Represents bd todo done command.
@@ -1228,12 +868,12 @@ Finds semantically similar issues using text analysis or AI."
     :initform nil
     :documentation "Export even if nothing changed."
     :long-option "force"
-    :option-type :boolean
-    :key "f"
+    :type boolean
+    :short-option "f"
     :transient "--force"
     :class transient-switch
     :argument "--force"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd backup command.
@@ -1257,13 +897,13 @@ Backs up your beads database by exporting all tables to JSONL.")
 Local path: /mnt/usb/beads-backup or ~/Dropbox/beads-backup.
 DoltHub: https://doltremoteapi.dolthub.com/user/repo"
     :positional 1
-    :option-type :string
-    :key "p"
+    :type (or null string)
+    :short-option "p"
     :transient "Path or URL (required)"
     :class transient-option
     :argument "--path="
     :prompt "Backup destination (path or DoltHub URL): "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1
     :required t))
@@ -1333,13 +973,13 @@ init <path>' first to configure a destination."
     :documentation "Path to directory containing JSONL backup files.
 Defaults to .beads/backup/ if not specified."
     :positional 1
-    :option-type :string
-    :key "p"
+    :type (or null string)
+    :short-option "p"
     :transient "Backup directory path"
     :class transient-option
     :argument "--path="
     :prompt "Backup directory (leave empty for .beads/backup/): "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (dry-run
@@ -1348,12 +988,12 @@ Defaults to .beads/backup/ if not specified."
     :initform nil
     :documentation "Show what would be restored without making changes."
     :long-option "dry-run"
-    :option-type :boolean
-    :key "n"
+    :type boolean
+    :short-option "n"
     :transient "--dry-run"
     :class transient-switch
     :argument "--dry-run"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2))
   :documentation "Represents bd backup restore command.
@@ -1367,143 +1007,6 @@ Reads from .beads/backup/ by default, or from a specified path.
 Use --dry-run to preview without making changes."
   beads-option-global-section)
 
-;;; ============================================================
-;;; Command Class: beads-command-backup-export-git
-;;; ============================================================
-
-(beads-defcommand beads-command-backup-export-git (beads-command-global-options)
-  ((branch
-    :initarg :branch
-    :type (or null string)
-    :initform nil
-    :documentation "Target git branch for backup artifacts."
-    :long-option "branch"
-    :option-type :string
-    :key "b"
-    :transient "--branch"
-    :class transient-option
-    :argument "--branch="
-    :prompt "Git branch (default: bd-backup): "
-    :transient-group "Options"
-    :level 1
-    :order 1)
-   (remote
-    :initarg :remote
-    :type (or null string)
-    :initform nil
-    :documentation "Git remote to push."
-    :long-option "remote"
-    :option-type :string
-    :key "r"
-    :transient "--remote"
-    :class transient-option
-    :argument "--remote="
-    :prompt "Git remote (default: origin): "
-    :transient-group "Options"
-    :level 1
-    :order 2)
-   (dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Show what would happen without creating a worktree or pushing."
-    :long-option "dry-run"
-    :option-type :boolean
-    :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :transient-group "Options"
-    :level 1
-    :order 3)
-   (force
-    :initarg :force
-    :type boolean
-    :initform nil
-    :documentation "Force a fresh backup export before comparing and copying."
-    :long-option "force"
-    :option-type :boolean
-    :key "f"
-    :transient "--force"
-    :class transient-switch
-    :argument "--force"
-    :transient-group "Options"
-    :level 1
-    :order 4))
-  :documentation "Represents bd backup export-git command.
-Exports the current JSONL backup snapshot to a git branch."
-  :cli-command "backup export-git")
-
-;;;###autoload (autoload 'beads-backup-export-git "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-backup-export-git
-  "beads-backup-export-git"
-  "Export JSONL backup snapshot to a git branch.
-
-Copies the backup snapshot into the specified git branch, commits
-if changed, and pushes.  Use --dry-run to preview."
-  beads-option-global-section)
-
-;;; ============================================================
-;;; Command Class: beads-command-backup-fetch-git
-;;; ============================================================
-
-(beads-defcommand beads-command-backup-fetch-git (beads-command-global-options)
-  ((branch
-    :initarg :branch
-    :type (or null string)
-    :initform nil
-    :documentation "Git branch to fetch backup artifacts from."
-    :long-option "branch"
-    :option-type :string
-    :key "b"
-    :transient "--branch"
-    :class transient-option
-    :argument "--branch="
-    :prompt "Git branch (default: bd-backup): "
-    :transient-group "Options"
-    :level 1
-    :order 1)
-   (remote
-    :initarg :remote
-    :type (or null string)
-    :initform nil
-    :documentation "Git remote to fetch from."
-    :long-option "remote"
-    :option-type :string
-    :key "r"
-    :transient "--remote"
-    :class transient-option
-    :argument "--remote="
-    :prompt "Git remote (default: origin): "
-    :transient-group "Options"
-    :level 1
-    :order 2)
-   (dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Show what would happen without fetching or restoring."
-    :long-option "dry-run"
-    :option-type :boolean
-    :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :transient-group "Options"
-    :level 1
-    :order 3))
-  :documentation "Represents bd backup fetch-git command.
-Fetches a JSONL backup snapshot from a git branch and restores it."
-  :cli-command "backup fetch-git")
-
-;;;###autoload (autoload 'beads-backup-fetch-git "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-backup-fetch-git
-  "beads-backup-fetch-git"
-  "Fetch JSONL backup snapshot from a git branch and restore it.
-
-Companion to 'bd backup export-git'.  Fetches from a git branch
-into a temporary worktree and restores.  Use --dry-run to preview."
-  beads-option-global-section)
 
 ;;; ============================================================
 ;;; Parent Transient Menu: beads-backup
@@ -1517,8 +1020,6 @@ JSONL backup commands (portable snapshot):
   Backup: Export all tables to .beads/backup/*.jsonl
   Status: Show last backup status
   Restore: Import from JSONL files
-  Export-git: Publish snapshot to a git branch
-  Fetch-git: Restore from a git branch snapshot
 
 Dolt-native backup commands (preserve full commit history):
   Init: Configure a backup destination (filesystem or DoltHub)
@@ -1526,12 +1027,11 @@ Dolt-native backup commands (preserve full commit history):
   ["JSONL Backup"
    ("B" "Backup now (export JSONL)" beads-backup-root)
    ("s" "Status" beads-backup-status)
-   ("r" "Restore from JSONL" beads-backup-restore)
-   ("e" "Export to git branch" beads-backup-export-git)
-   ("F" "Fetch from git branch" beads-backup-fetch-git)]
+   ("r" "Restore from JSONL" beads-backup-restore)]
   ["Dolt-native Backup"
    ("i" "Init destination" beads-backup-init)
-   ("S" "Sync to backup" beads-backup-sync)]
+   ("S" "Sync to backup" beads-backup-sync)
+   ("x" "Remove destination" beads-backup-remove)]
   ["Quick Actions"
    ("q" "Quit" transient-quit-one)])
 
@@ -1558,12 +1058,12 @@ Exports issues to JSONL format.")
     :initform nil
     :documentation "Show what would be imported without importing."
     :long-option "dry-run"
-    :option-type :boolean
-    :key "n"
+    :type boolean
+    :short-option "n"
     :transient "--dry-run"
     :class transient-switch
     :argument "--dry-run"
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd import command.
@@ -1615,12 +1115,12 @@ Deletes closed ephemeral beads to reclaim space.")
     :initform nil
     :documentation "Memory ID to remove."
     :positional 1
-    :key "m"
+    :short-option "m"
     :transient "Memory ID (required)"
     :class transient-option
     :argument "--id="
     :prompt "Memory ID: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 0))
   :documentation "Represents bd forget command.
@@ -1651,13 +1151,13 @@ Key-value store commands.")
     :initform nil
     :documentation "Key to retrieve from the key-value store (required)."
     :positional 1
-    :option-type :string
-    :key "k"
+    :type (or null string)
+    :short-option "k"
     :transient "Key (required)"
     :class transient-option
     :argument "--key="
     :prompt "Key: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1
     :required t))
@@ -1687,13 +1187,13 @@ Retrieves a value by key from the key-value store.")
     :initform nil
     :documentation "Key to set in the key-value store (required)."
     :positional 1
-    :option-type :string
-    :key "k"
+    :type (or null string)
+    :short-option "k"
     :transient "Key (required)"
     :class transient-option
     :argument "--key="
     :prompt "Key: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1
     :required t)
@@ -1703,13 +1203,13 @@ Retrieves a value by key from the key-value store.")
     :initform nil
     :documentation "Value to associate with the key (required)."
     :positional 2
-    :option-type :string
-    :key "v"
+    :type (or null string)
+    :short-option "v"
     :transient "Value (required)"
     :class transient-option
     :argument "--value="
     :prompt "Value: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 2
     :required t))
@@ -1740,13 +1240,13 @@ Sets a key-value pair in the key-value store.")
     :initform nil
     :documentation "Key to delete from the key-value store (required)."
     :positional 1
-    :option-type :string
-    :key "k"
+    :type (or null string)
+    :short-option "k"
     :transient "Key (required)"
     :class transient-option
     :argument "--key="
     :prompt "Key: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1
     :required t))
@@ -1796,12 +1296,12 @@ Lists or searches persistent memories.")
     :initform nil
     :documentation "Memory ID to retrieve."
     :positional 1
-    :key "m"
+    :short-option "m"
     :transient "Memory ID (required)"
     :class transient-option
     :argument "--id="
     :prompt "Memory ID: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 0))
   :documentation "Represents bd recall command.
@@ -1819,12 +1319,12 @@ Retrieves a specific memory.")
     :initform nil
     :documentation "Memory content to store."
     :positional 1
-    :key "c"
+    :short-option "c"
     :transient "Content (required)"
     :class transient-option
     :argument "--content="
     :prompt "Memory content: "
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 0))
   :documentation "Represents bd remember command.
@@ -1844,13 +1344,13 @@ Stores a persistent memory.")
     :initform nil
     :documentation "Current issue ID to rename."
     :positional 1
-    :key "o"
+    :short-option "o"
     :transient "Old issue ID (required)"
     :class transient-option
     :argument "--old-id="
     :prompt "Old issue ID: "
-    :transient-reader beads--read-issue-at-point-or-prompt
-    :transient-group "Rename Issue"
+    :reader beads--read-issue-at-point-or-prompt
+    :group "Rename Issue"
     :level 1
     :order 0)
    (new-id
@@ -1859,12 +1359,12 @@ Stores a persistent memory.")
     :initform nil
     :documentation "New issue ID to assign."
     :positional 2
-    :key "n"
+    :short-option "n"
     :transient "New issue ID (required)"
     :class transient-option
     :argument "--new-id="
     :prompt "New issue ID: "
-    :transient-group "Rename Issue"
+    :group "Rename Issue"
     :level 1
     :order 1))
   :documentation "Represents bd rename command.
@@ -1908,13 +1408,13 @@ Show effective backend identity and repository context.")
     :initform nil
     :documentation "Issue ID to assign."
     :positional 1
-    :key "i"
+    :short-option "i"
     :transient "Issue ID (required)"
     :class transient-option
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads--read-issue-at-point-or-prompt
-    :transient-group "Assign Issue"
+    :reader beads--read-issue-at-point-or-prompt
+    :group "Assign Issue"
     :level 1
     :order 0)
    (assignee
@@ -1923,12 +1423,12 @@ Show effective backend identity and repository context.")
     :initform nil
     :documentation "Name to assign the issue to.  Empty string unassigns."
     :positional 2
-    :key "a"
+    :short-option "a"
     :transient "Assignee (empty to unassign)"
     :class transient-option
     :argument "--assignee="
     :prompt "Assignee: "
-    :transient-group "Assign Issue"
+    :group "Assign Issue"
     :level 1
     :order 1))
   :documentation "Represents bd assign command.
@@ -1960,13 +1460,13 @@ Pass an empty string as assignee to unassign."
     :initform nil
     :documentation "Issue ID to comment on."
     :positional 1
-    :key "i"
+    :short-option "i"
     :transient "Issue ID (required)"
     :class transient-option
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads--read-issue-at-point-or-prompt
-    :transient-group "Add Comment"
+    :reader beads--read-issue-at-point-or-prompt
+    :group "Add Comment"
     :level 1
     :order 0)
    (text
@@ -1975,12 +1475,12 @@ Pass an empty string as assignee to unassign."
     :initform nil
     :documentation "Comment text (positional)."
     :positional 2
-    :key "t"
+    :short-option "t"
     :transient "Comment text"
     :class transient-option
     :argument "--text="
     :prompt "Comment: "
-    :transient-group "Add Comment"
+    :group "Add Comment"
     :level 1
     :order 1)
    (stdin
@@ -1989,12 +1489,12 @@ Pass an empty string as assignee to unassign."
     :initform nil
     :documentation "Read comment from stdin (--stdin)."
     :long-option "stdin"
-    :option-type :boolean
-    :key "s"
+    :type boolean
+    :short-option "s"
     :transient "--stdin"
     :class transient-switch
     :argument "--stdin"
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 1)
    (file
@@ -2003,18 +1503,19 @@ Pass an empty string as assignee to unassign."
     :initform nil
     :documentation "Read comment text from file (--file)."
     :long-option "file"
-    :option-type :string
-    :key "f"
+    :type (or null string)
+    :short-option "f"
     :transient "Read from file"
     :class transient-option
     :argument "--file="
     :prompt "File path: "
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 2))
   :documentation "Represents bd comment command.
 Shorthand for bd comments add <id> \"text\".
-Add a comment to an issue.")
+Add a comment to an issue."
+  :transient :manual)
 
 
 (cl-defmethod beads-command-validate ((command beads-command-comment))
@@ -2040,13 +1541,13 @@ Shorthand for: bd comments add <id> \"text\""
     :initform nil
     :documentation "First issue ID (the dependent issue)."
     :positional 1
-    :key "1"
+    :short-option "1"
     :transient "Dependent issue (required)"
     :class transient-option
     :argument "--id1="
     :prompt "Dependent issue ID: "
-    :transient-reader beads--read-issue-at-point-or-prompt
-    :transient-group "Link Issues"
+    :reader beads--read-issue-at-point-or-prompt
+    :group "Link Issues"
     :level 1
     :order 0)
    (id2
@@ -2055,13 +1556,13 @@ Shorthand for: bd comments add <id> \"text\""
     :initform nil
     :documentation "Second issue ID (the blocker/dependency)."
     :positional 2
-    :key "2"
+    :short-option "2"
     :transient "Blocker issue (required)"
     :class transient-option
     :argument "--id2="
     :prompt "Blocker issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Link Issues"
+    :reader beads-reader-issue-id
+    :group "Link Issues"
     :level 1
     :order 1)
    (link-type
@@ -2072,14 +1573,13 @@ Shorthand for: bd comments add <id> \"text\""
 discovered-from.  Default: blocks."
     :long-option "type"
     :short-option "t"
-    :option-type :string
-    :key "t"
+    :type (or null string)
     :transient "Link type"
     :class transient-option
     :argument "--type="
     :prompt "Type (blocks/tracks/related/parent-child/discovered-from): "
     :choices ("blocks" "tracks" "related" "parent-child" "discovered-from")
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd link command.
@@ -2116,13 +1616,13 @@ Use --type to specify a different relationship."
     :initform nil
     :documentation "Issue ID to set priority on."
     :positional 1
-    :key "i"
+    :short-option "i"
     :transient "Issue ID (required)"
     :class transient-option
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads--read-issue-at-point-or-prompt
-    :transient-group "Set Priority"
+    :reader beads--read-issue-at-point-or-prompt
+    :group "Set Priority"
     :level 1
     :order 0)
    (level
@@ -2132,13 +1632,13 @@ Use --type to specify a different relationship."
     :documentation "Priority level: 0=critical, 1=high, 2=medium,
 3=low, 4=backlog."
     :positional 2
-    :key "p"
+    :short-option "p"
     :transient "Priority level (required)"
     :class transient-option
     :argument "--level="
     :prompt "Priority (0-4): "
-    :transient-reader beads-reader-priority-level
-    :transient-group "Set Priority"
+    :reader beads-reader-priority-level
+    :group "Set Priority"
     :level 1
     :order 1))
   :documentation "Represents bd priority command.
@@ -2186,13 +1686,13 @@ Priority levels:
     :initform nil
     :documentation "Issue ID to tag."
     :positional 1
-    :key "i"
+    :short-option "i"
     :transient "Issue ID (required)"
     :class transient-option
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads--read-issue-at-point-or-prompt
-    :transient-group "Add Label"
+    :reader beads--read-issue-at-point-or-prompt
+    :group "Add Label"
     :level 1
     :order 0)
    (label
@@ -2201,13 +1701,13 @@ Priority levels:
     :initform nil
     :documentation "Label to add to the issue."
     :positional 2
-    :key "l"
+    :short-option "l"
     :transient "Label (required)"
     :class transient-option
     :argument "--label="
     :prompt "Label: "
-    :transient-reader beads-reader-label-name
-    :transient-group "Add Label"
+    :reader beads-reader-label-name
+    :group "Add Label"
     :level 1
     :order 1))
   :documentation "Represents bd tag command.
@@ -2241,9 +1741,7 @@ List all valid issue statuses and their categories.
 Built-in and custom statuses from config are shown.")
 
 
-(cl-defmethod beads-command-validate ((_command beads-command-statuses))
-  "Validate statuses COMMAND.  Always valid."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 ;;;###autoload (autoload 'beads-statuses "beads-command-misc" nil t)
 (beads-meta-define-transient beads-command-statuses "beads-statuses"
@@ -2251,6 +1749,105 @@ Built-in and custom statuses from config are shown.")
 
 Shows built-in statuses (open, in_progress, blocked, etc.) and
 any custom statuses configured via status.custom."
+  beads-option-global-section)
+
+;;; ============================================================
+;;; Command Class: beads-command-rules-audit
+;;; ============================================================
+
+(beads-defcommand beads-command-rules-audit (beads-command-global-options)
+  ((path
+    :type (or null string)
+    :long-option "path"
+    :prompt "Rules directory: "
+    :group "Options"
+    :level 2
+    :order 1)
+   (threshold
+    :type (or null number)
+    :long-option "threshold"
+    :prompt "Similarity threshold: "
+    :group "Options"
+    :level 2
+    :order 2))
+  :documentation "Represents bd rules audit command.
+Scans rules for contradictions and merge opportunities."
+  :cli-command "rules audit")
+
+;;; ============================================================
+;;; Command Class: beads-command-rules-compact
+;;; ============================================================
+
+(beads-defcommand beads-command-rules-compact (beads-command-global-options)
+  ((path
+    :type (or null string)
+    :long-option "path"
+    :prompt "Rules directory: "
+    :group "Options"
+    :level 2
+    :order 1)
+   (auto
+    :type boolean
+    :long-option "auto"
+    :group "Options"
+    :level 1
+    :order 2)
+   (dry-run
+    :type boolean
+    :long-option "dry-run"
+    :group "Options"
+    :level 1
+    :order 3)
+   (group
+    :type (or null string)
+    :long-option "group"
+    :prompt "Rule names to merge: "
+    :group "Options"
+    :level 2
+    :order 4))
+  :documentation "Represents bd rules compact command.
+Merges related rules into composites."
+  :cli-command "rules compact")
+
+;;; Transient Menus for rules
+
+;;;###autoload (autoload 'beads-rules-audit "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-rules-audit "beads-rules-audit"
+  "Scan rules for contradictions and merge opportunities."
+  beads-option-global-section)
+
+;;;###autoload (autoload 'beads-rules-compact "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-rules-compact "beads-rules-compact"
+  "Merge related rules into composites.
+Use --dry-run to preview without applying."
+  beads-option-global-section)
+
+;;; Parent Transient Menu: beads-rules
+
+;;;###autoload (autoload 'beads-rules "beads-command-misc" nil t)
+(transient-define-prefix beads-rules ()
+  "Audit and compact Claude rules."
+  ["Rules Commands"
+   ("a" "Audit rules" beads-rules-audit)
+   ("c" "Compact rules" beads-rules-compact)])
+
+;;; ============================================================
+;;; Command Class: beads-command-backup-remove
+;;; ============================================================
+
+(beads-defcommand beads-command-backup-remove (beads-command-global-options)
+  ()
+  :documentation "Represents bd backup remove command.
+Removes the configured backup destination."
+  :cli-command "backup remove")
+
+;;;###autoload (autoload 'beads-backup-remove "beads-command-misc" nil t)
+(beads-meta-define-transient beads-command-backup-remove "beads-backup-remove"
+  "Remove the configured backup destination.
+
+Unregisters the backup remote from Dolt and removes the local
+backup configuration.  The backup data at the destination is
+not deleted."
   beads-option-global-section)
 
 (provide 'beads-command-misc)

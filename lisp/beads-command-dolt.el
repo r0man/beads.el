@@ -46,50 +46,28 @@ Displays backend, database, host, port, and connection status.")
 
 (beads-defcommand beads-command-dolt-set (beads-command-global-options)
   ((config-key
-    :initarg :config-key
-    :type (or null string)
-    :initform nil
-    :documentation "Configuration key to set (positional).
-Valid keys: database, host, port, user, data-dir."
     :positional 1
-    :option-type :string
-    :key "k"
-    :transient "Config key (required)"
-    :class transient-option
+    :type (or null string)
+    :short-option "k"
     :argument "--key="
     :prompt "Config key (database|host|port|user|data-dir): "
-    :transient-group "Set Config"
+    :group "Set Config"
     :level 1
     :order 1
     :required t)
    (config-value
-    :initarg :config-value
-    :type (or null string)
-    :initform nil
-    :documentation "Value to set (positional)."
     :positional 2
-    :option-type :string
-    :key "v"
-    :transient "Value (required)"
-    :class transient-option
+    :type (or null string)
+    :short-option "v"
     :argument "--value="
-    :prompt "Value: "
-    :transient-group "Set Config"
+    :group "Set Config"
     :level 1
     :order 2
     :required t)
    (update-config
-    :initarg :update-config
     :type boolean
-    :initform nil
-    :documentation "Also write to config.yaml for team-wide defaults (--update-config)."
-    :long-option "update-config"
-    :option-type :boolean
-    :key "u"
-    :transient "--update-config"
-    :class transient-switch
-    :argument "--update-config"
-    :transient-group "Options"
+    :short-option "u"
+    :group "Options"
     :level 2
     :order 3))
   :documentation "Set a Dolt configuration value.
@@ -124,20 +102,10 @@ Reports host, port, and connection status.")
 
 (beads-defcommand beads-command-dolt-commit (beads-command-global-options)
   ((message
-    :initarg :message
-    :type (or null string)
-    :initform nil
-    :documentation "Commit message (-m, --message).
-Auto-generates if not provided."
-    :long-option "message"
     :short-option "m"
-    :option-type :string
-    :key "m"
-    :transient "--message"
-    :class transient-option
-    :argument "--message="
+    :type (or null string)
     :prompt "Commit message (empty=auto): "
-    :transient-group "Commit"
+    :group "Commit"
     :level 1
     :order 1))
   :documentation "Create a Dolt commit from pending changes.
@@ -151,17 +119,9 @@ Auto-generates commit message if not provided.")
 
 (beads-defcommand beads-command-dolt-push (beads-command-global-options)
   ((force
-    :initarg :force
     :type boolean
-    :initform nil
-    :documentation "Force push, overwrite remote changes (--force)."
-    :long-option "force"
-    :option-type :boolean
-    :key "f"
-    :transient "--force"
-    :class transient-switch
-    :argument "--force"
-    :transient-group "Options"
+    :short-option "f"
+    :group "Options"
     :level 2
     :order 1))
   :documentation "Push commits to Dolt remote.
@@ -195,17 +155,9 @@ Starts server with per-project derived port.")
 
 (beads-defcommand beads-command-dolt-stop (beads-command-global-options)
   ((force
-    :initarg :force
     :type boolean
-    :initform nil
-    :documentation "Force stop even when managed by daemon (--force)."
-    :long-option "force"
-    :option-type :boolean
-    :key "f"
-    :transient "--force"
-    :class transient-switch
-    :argument "--force"
-    :transient-group "Options"
+    :short-option "f"
+    :group "Options"
     :level 2
     :order 1))
   :documentation "Stop the Dolt SQL server.")
@@ -228,34 +180,22 @@ Reports PID, port, and running status.")
 
 (beads-defcommand beads-command-dolt-remote-add (beads-command-global-options)
   ((remote-name
-    :initarg :remote-name
-    :type (or null string)
-    :initform nil
-    :documentation "Remote name (positional argument)."
     :positional 1
-    :option-type :string
-    :key "n"
-    :transient "Name (required)"
-    :class transient-option
+    :type (or null string)
+    :short-option "n"
     :argument "--name="
     :prompt "Remote name: "
-    :transient-group "Add Remote"
+    :group "Add Remote"
     :level 1
     :order 1
     :required t)
    (url
-    :initarg :url
-    :type (or null string)
-    :initform nil
-    :documentation "Remote URL (positional argument)."
     :positional 2
-    :option-type :string
-    :key "u"
-    :transient "URL (required)"
-    :class transient-option
+    :type (or null string)
+    :short-option "u"
     :argument "--url="
     :prompt "Remote URL: "
-    :transient-group "Add Remote"
+    :group "Add Remote"
     :level 1
     :order 2
     :required t))
@@ -287,18 +227,12 @@ Reports PID, port, and running status.")
 
 (beads-defcommand beads-command-dolt-remote-remove (beads-command-global-options)
   ((remote-name
-    :initarg :remote-name
-    :type (or null string)
-    :initform nil
-    :documentation "Remote name to remove (positional argument)."
     :positional 1
-    :option-type :string
-    :key "n"
-    :transient "Name (required)"
-    :class transient-option
+    :type (or null string)
+    :short-option "n"
     :argument "--name="
     :prompt "Remote name to remove: "
-    :transient-group "Remove Remote"
+    :group "Remove Remote"
     :level 1
     :order 1
     :required t))
@@ -390,17 +324,9 @@ Reports PID, port, and running status.")
 (beads-defcommand beads-command-dolt-clean-databases
     (beads-command-global-options)
   ((dry-run
-    :initarg :dry-run
     :type boolean
-    :initform nil
-    :documentation "Show what would be dropped without dropping (--dry-run)."
-    :long-option "dry-run"
-    :option-type :boolean
-    :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :transient-group "Options"
+    :short-option "n"
+    :group "Options"
     :level 1
     :order 1))
   :documentation "Represents bd dolt clean-databases command.
