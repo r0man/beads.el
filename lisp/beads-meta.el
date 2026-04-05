@@ -30,8 +30,7 @@
 ;;
 ;; Transient Properties (preferred concise names):
 ;;   :short-option - Short option AND transient key (e.g., "t")
-;;   :transient  - Description shown in transient menu
-;;   :class      - Transient class (transient-option, transient-switch, etc.)
+;;   :transient  - Transient class (transient-option, transient-switch, etc.)
 ;;   :reader     - Reader function for input
 ;;   :choices    - Valid choices list
 ;;   :prompt     - Input prompt string
@@ -65,8 +64,7 @@
 ;;       :positional 1
 ;;       ;; Transient properties (using new concise names)
 ;;       :short-option "t"
-;;       :transient "Title (required)"
-;;       :class transient-option
+;;       :transient transient-option
 ;;       :reader beads-reader-issue-title
 ;;       :group "Required"
 ;;       :level 1
@@ -140,8 +138,7 @@ Returns nil if DOCSTRING is nil or empty."
     ;; JSON mapping
     :json-key               ; override JSON key (default: slot → underscore)
     ;; Transient properties (concise names)
-    :transient              ; description shown in transient menu
-    :class                  ; transient class (transient-option, etc.)
+    :transient              ; transient class (transient-option, etc.)
     :reader                 ; reader function for input
     :group                  ; group name for organization
     :choices                ; valid choices list
@@ -169,8 +166,7 @@ These properties are preserved in slot descriptors via advice on
 `eieio-defclass-internal' and `eieio--slot-override'.
 
 Property name mappings (concise -> legacy):
-  :transient   -> :transient-description
-  :class       -> :transient-class
+  :transient   -> :transient-class
   :reader      -> :transient-reader
   :group       -> :transient-group
   :choices     -> :transient-choices
@@ -184,6 +180,9 @@ Removed properties (bde-vta5):
   :key         -> removed, use :short-option instead
   :field-name  -> removed, use :documentation instead
 
+Removed properties (bde-9dve):
+  :class       -> removed, use :transient instead
+
 The concise names are preferred.  Legacy names are preserved for
 backwards compatibility.  Note: :reader and :group conflict with EIEIO
 slot options, so they are expanded to legacy names and stripped from
@@ -194,8 +193,7 @@ slot plists before defclass processes them.")
 ;;; ============================================================
 
 (defconst beads-meta--property-aliases
-  '((:transient   . :transient-description)
-    (:class       . :transient-class)
+  '((:transient   . :transient-class)
     (:reader      . :transient-reader)
     (:group       . :transient-group)
     (:choices     . :transient-choices)
@@ -492,8 +490,7 @@ This function is available at macro-expansion time."
           (setq result (plist-put result :transient-argument argument))))
       ;; Infer :transient-class
       (when-let ((class (beads-meta--infer-class result)))
-        (unless (or (plist-get result :transient-class)
-                    (plist-get result :class))
+        (unless (plist-get result :transient-class)
           (setq result (plist-put result :transient-class class))))
       ;; Infer :transient-prompt
       (when-let ((prompt (beads-meta--infer-prompt name result)))
@@ -548,11 +545,8 @@ Returns nil if :transient-argument or :argument is already set."
   "Infer :transient-description from SLOT-NAME or SLOT-OPTIONS.
 Uses the first sentence of :documentation if available, otherwise
 falls back to humanizing the slot name.
-Returns nil if :transient-description is already set, or if :transient
-holds a string (old description format).  When :transient holds a
-symbol (new class format), description inference proceeds."
-  (when (and (not (plist-get slot-options :transient-description))
-             (not (stringp (plist-get slot-options :transient))))
+Returns nil if :transient-description is already set."
+  (when (not (plist-get slot-options :transient-description))
     (or (when-let ((doc (plist-get slot-options :documentation)))
           (beads--extract-first-sentence doc))
         (beads-meta--humanize-slot-name slot-name))))
@@ -560,9 +554,8 @@ symbol (new class format), description inference proceeds."
 (defun beads-meta--infer-class (slot-options)
   "Infer :transient-class from :option-type in SLOT-OPTIONS.
 Boolean options use `transient-switch', others use `transient-option'.
-Returns nil if :transient-class or :class is already set."
-  (when (and (not (plist-get slot-options :transient-class))
-             (not (plist-get slot-options :class)))
+Returns nil if :transient-class is already set."
+  (when (not (plist-get slot-options :transient-class))
     (let ((option-type (or (plist-get slot-options :option-type)
                            (beads-meta--infer-option-type slot-options)
                            :string)))
@@ -587,37 +580,20 @@ Returns nil if :transient-prompt or :prompt is already set."
 Also expands both names so lookups work with either.
 Returns a new plist with both concise and legacy names.
 
-Special handling for :transient which has dual semantics:
-- String value: maps to :transient-description (old label format)
-- Symbol value: maps to :transient-class (new class format)"
+:transient holds a symbol mapping to :transient-class."
   (let ((result (copy-sequence slot-options)))
-    ;; Handle :transient dual semantics first
-    (when-let ((trans-val (plist-get result :transient)))
-      (cond
-       ;; Symbol → class (new form)
-       ((symbolp trans-val)
-        (unless (plist-get result :transient-class)
-          (setq result (plist-put result :transient-class trans-val)))
-        (unless (plist-get result :class)
-          (setq result (plist-put result :class trans-val))))
-       ;; String → description (old form)
-       ((stringp trans-val)
-        (unless (plist-get result :transient-description)
-          (setq result (plist-put result :transient-description trans-val))))))
-    ;; For each alias, if concise name is set, also set legacy name
-    ;; Skip :transient since we handled it specially above
+    ;; For each alias, expand concise <-> legacy bidirectionally
     (dolist (alias beads-meta--property-aliases)
       (let ((concise (car alias))
             (legacy (cdr alias)))
-        (unless (eq concise :transient)
-          ;; If concise is set but legacy is not, copy value to legacy
-          (when-let ((value (plist-get result concise)))
-            (unless (plist-get result legacy)
-              (setq result (plist-put result legacy value))))
-          ;; If legacy is set but concise is not, copy value to concise
-          (when-let ((value (plist-get result legacy)))
-            (unless (plist-get result concise)
-              (setq result (plist-put result concise value)))))))
+        ;; If concise is set but legacy is not, copy value to legacy
+        (when-let ((value (plist-get result concise)))
+          (unless (plist-get result legacy)
+            (setq result (plist-put result legacy value))))
+        ;; If legacy is set but concise is not, copy value to concise
+        (when-let ((value (plist-get result legacy)))
+          (unless (plist-get result concise)
+            (setq result (plist-put result concise value))))))
     ;; Infer :transient-key from :short-option (bde-vta5: :short-option
     ;; serves as both CLI flag and transient key).
     ;; Only when the slot has transient UI metadata (group, class, etc.)
@@ -627,9 +603,8 @@ Special handling for :transient which has dual semantics:
                (or (plist-get result :transient-group)
                    (plist-get result :group)
                    (plist-get result :transient-class)
-                   (plist-get result :class)
-                   (plist-get result :transient-description)
                    (plist-get result :transient)
+                   (plist-get result :transient-description)
                    (plist-get result :transient-argument)
                    (plist-get result :argument)
                    (plist-get result :transient-reader)
@@ -673,12 +648,10 @@ or transient menu items (have :long-option, :transient-key, etc.)."
         (push (cons :argument argument) inferred))
       ;; Infer description
       (when-let ((desc (beads-meta--infer-description slot-name slot-options)))
-        (push (cons :transient-description desc) inferred)
-        (push (cons :transient desc) inferred))
+        (push (cons :transient-description desc) inferred))
       ;; Infer class
       (when-let ((class (beads-meta--infer-class slot-options)))
-        (push (cons :transient-class class) inferred)
-        (push (cons :class class) inferred))
+        (push (cons :transient-class class) inferred))
       ;; Infer prompt
       (when-let ((prompt (beads-meta--infer-prompt slot-name slot-options)))
         (push (cons :transient-prompt prompt) inferred)
