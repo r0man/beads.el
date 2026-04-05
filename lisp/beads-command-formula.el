@@ -122,7 +122,8 @@
     :group "Filters"
     :level 2
     :order 1))
-  :documentation "List available formulas from all search paths.")
+  :documentation "List available formulas from all search paths."
+  :transient nil)
 
 (cl-defmethod beads-command-parse ((_command beads-command-formula-list) stdout)
   "Parse STDOUT into beads-formula-summary objects."
@@ -140,7 +141,8 @@
   ((formula-name
     :positional 1
     :required t))
-  :documentation "Show detailed information about a formula.")
+  :documentation "Show detailed information about a formula."
+  :transient nil)
 
 (cl-defmethod beads-command-parse ((_command beads-command-formula-show) stdout)
   "Parse STDOUT into beads-formula object."
@@ -164,7 +166,8 @@
    (stdout
     :type boolean))
   :documentation "Convert formula files from JSON to TOML format."
-  :cli-command "formula convert")
+  :cli-command "formula convert"
+  :transient nil)
 
 (cl-defmethod beads-command-validate ((command beads-command-formula-convert))
   "Validate COMMAND.  Requires formula name or --all."
