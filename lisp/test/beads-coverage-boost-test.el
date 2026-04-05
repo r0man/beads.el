@@ -81,43 +81,28 @@
 (ert-deftest beads-coverage-boost-list-parse-with-json ()
   "Test list parse with JSON output returns issues."
   (let* ((cmd (beads-command-list :json t))
-         (exec (beads-command-execution)))
-    (oset exec exit-code 0)
-    (oset exec stdout "[{\"id\":\"test-1\",\"title\":\"Test\",\"status\":\"open\",\"type\":\"task\",\"priority\":2}]")
-    (oset exec stderr "")
-    (let ((result (beads-command-parse cmd exec)))
+         (stdout "[{\"id\":\"test-1\",\"title\":\"Test\",\"status\":\"open\",\"type\":\"task\",\"priority\":2}]"))
+    (let ((result (beads-command-parse cmd stdout)))
       (should (listp result))
       (should (= (length result) 1))
       (should (cl-typep (car result) 'beads-issue)))))
 
 (ert-deftest beads-coverage-boost-list-parse-empty-array ()
   "Test list parse with empty JSON array."
-  (let* ((cmd (beads-command-list :json t))
-         (exec (beads-command-execution)))
-    (oset exec exit-code 0)
-    (oset exec stdout "[]")
-    (oset exec stderr "")
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-list :json t)))
+    (let ((result (beads-command-parse cmd "[]")))
       (should (null result)))))
 
 (ert-deftest beads-coverage-boost-list-parse-null-json ()
   "Test list parse with null JSON."
-  (let* ((cmd (beads-command-list :json t))
-         (exec (beads-command-execution)))
-    (oset exec exit-code 0)
-    (oset exec stdout "null")
-    (oset exec stderr "")
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-list :json t)))
+    (let ((result (beads-command-parse cmd "null")))
       (should (null result)))))
 
 (ert-deftest beads-coverage-boost-list-parse-no-json ()
   "Test list parse without json flag delegates to parent."
-  (let* ((cmd (beads-command-list :json nil))
-         (exec (beads-command-execution)))
-    (oset exec exit-code 0)
-    (oset exec stdout "some text output")
-    (oset exec stderr "")
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-list :json nil)))
+    (let ((result (beads-command-parse cmd "some text output")))
       ;; Without json, should return raw stdout
       (should (stringp result)))))
 
@@ -128,11 +113,9 @@
 (ert-deftest beads-coverage-boost-create-execute-interactive-single ()
   "Test create execute-interactive with single issue result."
   (let* ((mock-issue (beads-issue :id "test-1" :title "Test Issue"))
-         (mock-exec (beads-command-execution))
          (cmd (beads-command-create :title "Test Issue")))
-    (oset mock-exec result mock-issue)
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd) mock-exec))
+               (lambda (_cmd) mock-issue))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda ()))
               ((symbol-function 'y-or-n-p)
@@ -141,11 +124,9 @@
 
 (ert-deftest beads-coverage-boost-create-execute-interactive-nil ()
   "Test create execute-interactive with nil result."
-  (let* ((mock-exec (beads-command-execution))
-         (cmd (beads-command-create :title "Test")))
-    (oset mock-exec result nil)
+  (let* ((cmd (beads-command-create :title "Test")))
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd) mock-exec))
+               (lambda (_cmd) nil))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda ())))
       (beads-command-execute-interactive cmd))))
@@ -154,11 +135,9 @@
   "Test create execute-interactive with multiple issues."
   (let* ((mock-issues (list (beads-issue :id "test-1" :title "First")
                             (beads-issue :id "test-2" :title "Second")))
-         (mock-exec (beads-command-execution))
          (cmd (beads-command-create :title "Test")))
-    (oset mock-exec result mock-issues)
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd) mock-exec))
+               (lambda (_cmd) mock-issues))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda ())))
       (beads-command-execute-interactive cmd))))
@@ -226,10 +205,11 @@
   "Test beads-delete--execute-deletion calls command and cleans up."
   (let ((executed nil)
         (cache-invalidated nil))
-    (cl-letf (((symbol-function 'beads-command-delete!)
-               (lambda (&rest _args)
-                 (setq executed t)
-                 "deleted"))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (cmd)
+                 (when (cl-typep cmd 'beads-command-delete)
+                   (setq executed t))
+                 nil))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda () (setq cache-invalidated t)))
               ((symbol-function 'beads-buffer-name-find-show-buffers)
@@ -416,7 +396,7 @@
 (ert-deftest beads-coverage-boost-meta-infer-option-type-already-set ()
   "Test option type inference skips when already set."
   (should (null (beads-meta--infer-option-type
-                 '(:type boolean :option-type :boolean)))))
+                 '(:option-type :boolean :type boolean)))))
 
 (ert-deftest beads-coverage-boost-meta-resolve-long-option ()
   "Test long option resolution from slot name."
@@ -560,7 +540,7 @@
                   (status . "open")
                   (issue_type . "task")
                   (priority . 2)
-                  (comments . [((id . 1)
+                  (comments . [((id . "1")
                                 (issue_id . "test-1")
                                 (author . "user")
                                 (text . "comment text")
@@ -747,11 +727,9 @@
     (should (stringp (beads-command-validate cmd)))))
 
 (ert-deftest beads-coverage-boost-list-validate-string-list-error ()
-  "Test list validate catches non-string items in label list."
-  (let ((cmd (beads-command-list :label '(123))))
-    ;; Should detect invalid list item
-    (let ((result (beads-command-validate cmd)))
-      (should (or (null result) (stringp result))))))
+  "Test non-string items in label list are rejected.
+EIEIO enforces (list-of string) at construction time."
+  (should-error (beads-command-list :label '(123))))
 
 ;;; ============================================================
 ;;; beads-sesman.el: user-facing commands

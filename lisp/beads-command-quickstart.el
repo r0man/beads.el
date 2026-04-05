@@ -19,7 +19,7 @@
 ;;
 ;; Usage:
 ;;   (beads-command-execute (beads-command-quickstart))
-;;   (beads-command-quickstart!)  ; convenience function
+;;   (beads-execute 'beads-command-quickstart)  ; convenience function
 
 ;;; Code:
 
@@ -35,19 +35,13 @@
 (beads-defcommand beads-command-quickstart (beads-command-global-options)
   ()
   :documentation "Represents bd quickstart command.
-Displays a quick start guide showing common bd workflows and patterns.")
+Displays a quick start guide showing common bd workflows and patterns."
+  :json nil)
 
 
-(cl-defmethod beads-command-validate ((_command beads-command-quickstart))
-  "Validate quickstart COMMAND.
-No required fields.
-Returns nil (always valid)."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
-(cl-defmethod beads-command-parse ((_command beads-command-quickstart) execution)
-  "Parse bd quickstart output from EXECUTION.
-Returns raw stdout string.  bd quickstart does not produce JSON output."
-  (oref execution stdout))
+;; Parse override removed: base method returns raw stdout when :json nil.
 
 ;;; Transient Menu
 
@@ -64,8 +58,7 @@ Shows common bd workflows and patterns to help you get started."
   "Execute bd quickstart and display in buffer."
   (condition-case err
       (let* ((cmd (beads-command-quickstart))
-             (exec (beads-command-execute cmd))
-             (output (oref exec result))
+             (output (beads-command-execute cmd))
              (buf-name (beads-buffer-name-utility "quickstart"))
              (buf (get-buffer-create buf-name)))
         (with-current-buffer buf

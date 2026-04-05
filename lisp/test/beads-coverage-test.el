@@ -182,28 +182,28 @@
     ;; beads-command-show with no issue-ids should fail validation
     (cl-letf (((symbol-function 'beads-command-validate)
                (lambda (_cmd) "Missing issue-ids")))
-      (should-error (beads-command-execute-async cmd)
+      (should-error (beads-command-execute-async cmd #'ignore)
                     :type 'beads-validation-error))))
 
 (ert-deftest beads-coverage-test-execute-async-with-callback ()
-  "Test async execution calls callback on completion."
+  "Test async execution calls on-success with parsed result."
   (let* ((callback-result nil)
          (cmd (beads-command-show :issue-ids '("test") :json nil))
          (process nil))
     (cl-letf (((symbol-function 'beads-command-validate) (lambda (_cmd) nil))
               ((symbol-function 'beads-command-line) (lambda (_cmd) '("echo" "test")))
               ((symbol-function 'beads-command-parse)
-               (lambda (_cmd _exec) "parsed-result")))
+               (lambda (_cmd _stdout) "parsed-result")))
       (setq process (beads-command-execute-async
                      cmd
-                     (lambda (exec) (setq callback-result exec))))
+                     (lambda (result) (setq callback-result result))))
       ;; Wait for process to finish
       (while (process-live-p process)
         (accept-process-output process 1))
       ;; Give sentinel time to run
       (accept-process-output nil 0.5)
       (should callback-result)
-      (should (cl-typep callback-result 'beads-command-execution)))))
+      (should (equal callback-result "parsed-result")))))
 
 ;;; ============================================================
 ;;; beads-command.el - Execute Interactive Tests
@@ -554,8 +554,11 @@
     (beads-coverage-test-with-show-buffer "test"
       (setq beads-show--issue-id "bd-42")
       (cl-letf (((symbol-function 'read-string) (lambda (&rest _) "Done"))
-                ((symbol-function 'beads-command-close!)
-                 (lambda (&rest args) (setq close-called args)))
+                ((symbol-function 'beads-command-execute)
+                 (lambda (cmd)
+                   (when (cl-typep cmd 'beads-command-close)
+                     (setq close-called t))
+                   nil))
                 ((symbol-function 'beads-completion-invalidate-cache) #'ignore)
                 ((symbol-function 'beads-refresh-show) #'ignore))
         (beads-show-set-status-closed)
@@ -566,8 +569,8 @@
   (beads-coverage-test-with-show-buffer "test"
     (setq beads-show--issue-id "bd-42")
     (cl-letf (((symbol-function 'read-string) (lambda (&rest _) "Done"))
-              ((symbol-function 'beads-command-close!)
-               (lambda (&rest _) (error "Command failed"))))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd) (error "Command failed"))))
       ;; Should not signal error
       (beads-show-set-status-closed))))
 
@@ -622,8 +625,11 @@
     (beads-coverage-test-with-show-buffer "test"
       (setq beads-show--issue-id "bd-42")
       (cl-letf (((symbol-function 'read-string) (lambda (&rest _) "bugfix"))
-                ((symbol-function 'beads-command-label-add!)
-                 (lambda (&rest args) (setq label-called args)))
+                ((symbol-function 'beads-command-execute)
+                 (lambda (cmd)
+                   (when (cl-typep cmd 'beads-command-label-add)
+                     (setq label-called t))
+                   nil))
                 ((symbol-function 'beads-refresh-show) #'ignore))
         (beads-show-add-label)
         (should label-called)))))
@@ -633,8 +639,8 @@
   (beads-coverage-test-with-show-buffer "test"
     (setq beads-show--issue-id "bd-42")
     (cl-letf (((symbol-function 'read-string) (lambda (&rest _) "bugfix"))
-              ((symbol-function 'beads-command-label-add!)
-               (lambda (&rest _) (error "Label error"))))
+              ((symbol-function 'beads-command-execute)
+               (lambda (_cmd) (error "Label error"))))
       ;; Should not signal error
       (beads-show-add-label))))
 
@@ -708,7 +714,7 @@
     (beads-coverage-test-with-show-buffer "test"
       (setq beads-show--issue-id "bd-42")
       (cl-letf (((symbol-function 'beads-command-execute)
-                 (lambda (cmd) (setq exec-called t) (beads-command-execution)))
+                 (lambda (cmd) (setq exec-called t) nil))
                 ((symbol-function 'beads-completion-invalidate-cache) #'ignore)
                 ((symbol-function 'beads-refresh-show)
                  (lambda () (setq refresh-called t))))
@@ -732,7 +738,7 @@
     (beads-coverage-test-with-show-buffer "test"
       (setq beads-show--issue-id "bd-42")
       (cl-letf (((symbol-function 'beads-command-execute)
-                 (lambda (cmd) (setq exec-args cmd) (beads-command-execution)))
+                 (lambda (cmd) (setq exec-args cmd) nil))
                 ((symbol-function 'beads-completion-invalidate-cache) #'ignore)
                 ((symbol-function 'beads-refresh-show) #'ignore))
         ;; Test each flag mapping
@@ -900,8 +906,8 @@
   (beads-coverage-test-with-show-buffer "test"
     (setq beads-show--issue-id "bd-42")
     (setq beads-show--project-dir "/tmp")
-    (cl-letf (((symbol-function 'beads-command-show!)
-               (lambda (&rest _) (error "Command failed"))))
+    (cl-letf (((symbol-function 'beads-execute)
+               (lambda (_class &rest _args) (error "Command failed"))))
       ;; Should not propagate error
       (beads-refresh-show))))
 

@@ -110,9 +110,8 @@ This is needed because show buffers are now named by project, not issue."
   "Expected buffer name when using git mocks with bd-1 minimal issue.")
 
 (defun beads-show-test--mock-show-command (issue-data)
-  "Create a mock for beads-command-show! returning ISSUE-DATA as EIEIO object."
-  (lambda (&rest args)
-    ;; beads-command-show! returns a single issue object from the list
+  "Create a mock for beads-command-execute returning ISSUE-DATA."
+  (lambda (_cmd)
     (beads-issue-from-json issue-data)))
 
 (defun beads-show-test--mock-list-command (issues-list)
@@ -435,7 +434,7 @@ This is needed because show buffers are now named by project, not issue."
                        :depends-on-id "bd-blocker"
                        :type "blocks"))))
       ;; Mock the show command to return dependency info
-      (cl-letf (((symbol-function 'beads-command-show!)
+      (cl-letf (((symbol-function 'beads-command-execute)
                  (lambda (&rest _args)
                    (beads-issue
                     :id "bd-blocker"
@@ -475,7 +474,7 @@ This is needed because show buffers are now named by project, not issue."
                        :depends-on-id "bd-missing"
                        :type "blocks"))))
       ;; Mock show command to throw an error
-      (cl-letf (((symbol-function 'beads-command-show!)
+      (cl-letf (((symbol-function 'beads-command-execute)
                  (lambda (&rest _args)
                    (error "Issue not found"))))
         (beads-show--insert-dependencies-section deps)
@@ -772,7 +771,7 @@ This is needed because show buffers are now named by project, not issue."
 (ert-deftest beads-show-test-show-command-creates-buffer ()
   "Test that beads-show creates a buffer with correct name."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command beads-show-test--full-issue)))
      (beads-show "bd-42")
      (should (get-buffer beads-show-test--buffer-name))
@@ -784,7 +783,7 @@ This is needed because show buffers are now named by project, not issue."
 (ert-deftest beads-show-test-show-command-renders-content ()
   "Test that beads-show renders issue content."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command beads-show-test--full-issue)))
      (beads-show "bd-42")
      (with-current-buffer beads-show-test--buffer-name
@@ -797,7 +796,7 @@ This is needed because show buffers are now named by project, not issue."
   "Test that beads-show handles errors gracefully."
   (let ((error-buffer-name "*beads-show[test-project]/bd-999*"))
     (beads-show-test-with-git-mocks
-     (cl-letf (((symbol-function 'beads-command-show!)
+     (cl-letf (((symbol-function 'beads-command-execute)
                 (lambda (&rest args) (error "Database not found"))))
        (beads-show "bd-999")
        ;; Buffer name won't have title since fetch failed
@@ -815,7 +814,7 @@ This is needed because show buffers are now named by project, not issue."
      (goto-char (point-min))
      (search-forward "bd-42")
      (goto-char (match-beginning 0))
-     (cl-letf (((symbol-function 'beads-command-show!)
+     (cl-letf (((symbol-function 'beads-command-execute)
                 (beads-show-test--mock-show-command beads-show-test--full-issue)))
        (beads-show-at-point)
        (should (get-buffer beads-show-test--buffer-name))
@@ -831,7 +830,7 @@ This is needed because show buffers are now named by project, not issue."
 (ert-deftest beads-show-test-refresh-command ()
   "Test beads-refresh-show command."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command beads-show-test--full-issue)))
      (beads-show "bd-42")
      (with-current-buffer beads-show-test--buffer-name
@@ -857,7 +856,7 @@ This is needed because show buffers are now named by project, not issue."
 (ert-deftest beads-show-test-next-section ()
   "Test navigation to next section."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command beads-show-test--full-issue)))
      (beads-show "bd-42")
      (with-current-buffer beads-show-test--buffer-name
@@ -870,7 +869,7 @@ This is needed because show buffers are now named by project, not issue."
 (ert-deftest beads-show-test-previous-section ()
   "Test navigation to previous section."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command beads-show-test--full-issue)))
      (beads-show "bd-42")
      (with-current-buffer beads-show-test--buffer-name
@@ -882,7 +881,7 @@ This is needed because show buffers are now named by project, not issue."
 (ert-deftest beads-show-test-follow-reference ()
   "Test following a reference with RET."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command beads-show-test--full-issue)))
      (beads-show "bd-42")
      (with-current-buffer beads-show-test--buffer-name
@@ -1019,7 +1018,7 @@ This is needed because show buffers are now named by project, not issue."
 (ert-deftest beads-show-test-full-workflow ()
   "Test full workflow: show issue, navigate, refresh."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command beads-show-test--full-issue)))
      ;; Show issue
      (beads-show "bd-42")
@@ -1050,10 +1049,9 @@ This is needed because show buffers are now named by project, not issue."
 With per-issue naming, each issue in a project gets its own buffer."
   (let ((bd1-buffer-name "*beads-show[test-project]/bd-1 Minimal issue*"))
     (beads-show-test-with-git-mocks
-     (cl-letf (((symbol-function 'beads-command-show!)
-                (lambda (&rest args)
-                  (let* ((issue-ids (plist-get args :issue-ids))
-                         (id (car issue-ids)))
+     (cl-letf (((symbol-function 'beads-execute)
+                (lambda (_class &rest args)
+                  (let ((id (car (plist-get args :issue-ids))))
                     (cond
                      ((string= id "bd-1") (beads-issue-from-json beads-show-test--minimal-issue))
                      ((string= id "bd-42") (beads-issue-from-json beads-show-test--full-issue))
@@ -1106,7 +1104,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-section-level-title ()
   "Test section level detection for title (level 0)."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
@@ -1121,7 +1119,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-section-level-major-section ()
   "Test section level detection for major sections (level 1)."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
@@ -1136,7 +1134,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-section-level-markdown-heading-2 ()
   "Test section level detection for markdown ## heading (level 2)."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
@@ -1151,7 +1149,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-section-level-markdown-heading-3 ()
   "Test section level detection for markdown ### heading (level 3)."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
@@ -1166,7 +1164,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-section-level-not-heading ()
   "Test section level returns nil for non-heading lines."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
@@ -1181,7 +1179,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-outline-next-basic ()
   "Test moving to next heading at any level."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
@@ -1202,7 +1200,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-outline-previous-basic ()
   "Test moving to previous heading at any level."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
@@ -1219,7 +1217,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-outline-next-at-end ()
   "Test outline-next at end of buffer shows message."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--minimal-issue)))
      (beads-show "bd-1")
@@ -1235,7 +1233,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-outline-previous-at-start ()
   "Test outline-previous at start of buffer shows message."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--minimal-issue)))
      (beads-show "bd-1")
@@ -1250,7 +1248,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-outline-next-same-level ()
   "Test moving to next heading at same level."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
@@ -1270,7 +1268,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-outline-previous-same-level ()
   "Test moving to previous heading at same level."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
@@ -1291,7 +1289,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-outline-same-level-not-at-heading ()
   "Test outline-next-same-level errors when not at heading."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
@@ -1305,7 +1303,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-outline-up-from-level-3 ()
   "Test moving up from level 3 heading to parent."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
@@ -1327,7 +1325,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-outline-up-from-level-2 ()
   "Test moving up from level 2 heading to level 1."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
@@ -1347,7 +1345,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-outline-up-at-level-0-errors ()
   "Test outline-up at level 0 (title) gives error."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
@@ -1363,7 +1361,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-outline-up-not-at-heading ()
   "Test outline-up errors when not at heading."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
@@ -1391,7 +1389,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-outline-navigation-sequence ()
   "Test a sequence of outline navigation commands."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
@@ -1432,7 +1430,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-forward-paragraph-basic ()
   "Test moving forward by paragraph."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--markdown-rich-issue)))
      (beads-show "bd-100")
@@ -1446,7 +1444,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-backward-paragraph-basic ()
   "Test moving backward by paragraph."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--markdown-rich-issue)))
      (beads-show "bd-100")
@@ -1472,7 +1470,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-mark-paragraph-basic ()
   "Test marking a paragraph."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--markdown-rich-issue)))
      (beads-show "bd-100")
@@ -1550,7 +1548,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-forward-block-from-text ()
   "Test forward-block navigation from regular text."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--block-rich-issue)))
      (beads-show "bd-300")
@@ -1568,7 +1566,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-forward-block-skip-fenced-code ()
   "Test forward-block skips entire fenced code block."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--block-rich-issue)))
      (beads-show "bd-300")
@@ -1590,7 +1588,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-forward-block-skip-list ()
   "Test forward-block skips entire list."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--block-rich-issue)))
      (beads-show "bd-300")
@@ -1608,7 +1606,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-forward-block-skip-blockquote ()
   "Test forward-block skips entire blockquote."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--block-rich-issue)))
      (beads-show "bd-300")
@@ -1626,7 +1624,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-forward-block-skip-indented-code ()
   "Test forward-block skips indented code block."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--block-rich-issue)))
      (beads-show "bd-300")
@@ -1644,7 +1642,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-backward-block-from-text ()
   "Test backward-block navigation from regular text."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--block-rich-issue)))
      (beads-show "bd-300")
@@ -1662,7 +1660,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-backward-block-to-list-start ()
   "Test backward-block moves backward from end of list."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--block-rich-issue)))
      (beads-show "bd-300")
@@ -1681,7 +1679,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-backward-block-to-fenced-code-start ()
   "Test backward-block finds start of fenced code block."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--block-rich-issue)))
      (beads-show "bd-300")
@@ -1701,7 +1699,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-forward-block-at-end ()
   "Test forward-block at end of buffer shows message."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--minimal-issue)))
      (beads-show "bd-1")
@@ -1716,7 +1714,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-backward-block-at-start ()
   "Test backward-block at start of buffer shows message."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--minimal-issue)))
      (beads-show "bd-1")
@@ -1732,7 +1730,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-block-navigation-sequence ()
   "Test sequence of forward and backward block navigation."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--block-rich-issue)))
      (beads-show "bd-300")
@@ -1796,7 +1794,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-beginning-of-section-at-heading ()
   "Test moving to beginning of section when at heading."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
@@ -1814,7 +1812,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-beginning-of-section-in-content ()
   "Test moving to beginning of section from content."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
@@ -1830,7 +1828,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-end-of-section-basic ()
   "Test moving to end of section."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
@@ -1848,7 +1846,7 @@ With per-issue naming, each issue in a project gets its own buffer."
 (ert-deftest beads-show-test-mark-section-basic ()
   "Test marking a section."
   (beads-show-test-with-git-mocks
-   (cl-letf (((symbol-function 'beads-command-show!)
+   (cl-letf (((symbol-function 'beads-command-execute)
               (beads-show-test--mock-show-command
                beads-show-test--outline-issue)))
      (beads-show "bd-200")
@@ -1908,7 +1906,7 @@ With per-issue naming, each issue in a project gets its own buffer."
                    (setq captured-cmd cmd))
                  ;; Return nil for updates
                  nil))
-              ((symbol-function 'beads-command-show!)
+              ((symbol-function 'beads-command-execute)
                (lambda (&rest args)
                  ;; Return updated issue data for refresh
                  (beads-issue-from-json beads-show-test--full-issue))))
@@ -1926,7 +1924,7 @@ With per-issue naming, each issue in a project gets its own buffer."
   (let ((cache-invalidated nil))
     (cl-letf (((symbol-function 'beads-command-execute)
                (lambda (_cmd) nil))
-              ((symbol-function 'beads-command-show!)
+              ((symbol-function 'beads-command-execute)
                (lambda (&rest _args)
                  (beads-issue-from-json beads-show-test--full-issue)))
               ((symbol-function 'beads-completion-invalidate-cache)
@@ -2070,7 +2068,7 @@ Tests the full workflow: create issue -> update description -> verify update."
     ;; Create an issue with initial description
     (let* ((initial-desc "Initial description text")
            (issue-title "Test Issue for Field Editing")
-           (issue (beads-command-create!
+           (issue (beads-execute 'beads-command-create
                    :title issue-title
                    :description initial-desc
                    :issue-type "task"
@@ -2096,7 +2094,7 @@ Tests the full workflow: create issue -> update description -> verify update."
             (beads-show--update-field "Description" "--description" updated-desc)
 
             ;; Fetch the issue again to verify it was updated
-            (let ((fetched-issue (beads-command-show! :issue-ids (list issue-id))))
+            (let ((fetched-issue (beads-execute 'beads-command-show :issue-ids (list issue-id))))
               (should fetched-issue)
               (should (equal (oref fetched-issue description) updated-desc))))
 
@@ -2114,7 +2112,7 @@ Tests editing a different multiline field to ensure all fields work."
     ;; Create an issue with initial acceptance criteria
     (let* ((initial-ac "- [ ] Must do X\n- [ ] Must do Y")
            (issue-title "Test Issue for AC Editing")
-           (issue (beads-command-create!
+           (issue (beads-execute 'beads-command-create
                    :title issue-title
                    :acceptance initial-ac
                    :issue-type "feature"
@@ -2139,7 +2137,7 @@ Tests editing a different multiline field to ensure all fields work."
             (beads-show--update-field "Acceptance Criteria" "--acceptance" updated-ac)
 
             ;; Fetch the issue again to verify it was updated
-            (let ((fetched-issue (beads-command-show! :issue-ids (list issue-id))))
+            (let ((fetched-issue (beads-execute 'beads-command-show :issue-ids (list issue-id))))
               (should fetched-issue)
               (should (equal (oref fetched-issue acceptance-criteria) updated-ac))))
 
@@ -2157,7 +2155,7 @@ Note: Notes cannot be set at creation time, only via update."
   (beads-test-with-shared-project
     ;; Create an issue without notes (notes not supported in create command)
     (let* ((issue-title "Test Issue for Notes Editing")
-           (issue (beads-command-create!
+           (issue (beads-execute 'beads-command-create
                    :title issue-title
                    :description "Test issue for notes editing"
                    :issue-type "bug"
@@ -2189,7 +2187,7 @@ Note: Notes cannot be set at creation time, only via update."
             (beads-show--update-field "Notes" "--notes" updated-notes)
 
             ;; Verify update
-            (let ((fetched-issue (beads-command-show! :issue-ids (list issue-id))))
+            (let ((fetched-issue (beads-execute 'beads-command-show :issue-ids (list issue-id))))
               (should (equal (oref fetched-issue notes) updated-notes))))
 
         ;; Cleanup
@@ -2328,8 +2326,8 @@ Note: Notes cannot be set at creation time, only via update."
 
 (ert-deftest beads-show-test-get-sub-issues-returns-depth-1-only ()
   "Test that beads-show--get-sub-issues filters to depth=1 only."
-  (cl-letf (((symbol-function 'beads-command-dep-tree!)
-             (lambda (&rest _args)
+  (cl-letf (((symbol-function 'beads-execute)
+             (lambda (_class &rest _args)
                beads-show-test--sub-issues-data)))
     (let ((sub-issues (beads-show--get-sub-issues "bd-epic-1")))
       ;; Should return 3 sub-issues (depth=1), not the root (depth=0)
@@ -2340,16 +2338,16 @@ Note: Notes cannot be set at creation time, only via update."
 
 (ert-deftest beads-show-test-get-sub-issues-handles-error ()
   "Test that beads-show--get-sub-issues returns nil on error."
-  (cl-letf (((symbol-function 'beads-command-dep-tree!)
-             (lambda (&rest _args)
+  (cl-letf (((symbol-function 'beads-execute)
+             (lambda (_class &rest _args)
                (error "Command failed"))))
     (let ((sub-issues (beads-show--get-sub-issues "bd-epic-1")))
       (should (null sub-issues)))))
 
 (ert-deftest beads-show-test-get-sub-issues-empty-tree ()
   "Test that beads-show--get-sub-issues handles epic with no children."
-  (cl-letf (((symbol-function 'beads-command-dep-tree!)
-             (lambda (&rest _args)
+  (cl-letf (((symbol-function 'beads-execute)
+             (lambda (_class &rest _args)
                ;; Only root, no children
                (list (beads-tree-node
                       :id "bd-epic-1" :depth 0 :status "open"
@@ -2367,8 +2365,8 @@ Note: Notes cannot be set at creation time, only via update."
 (ert-deftest beads-show-test-insert-sub-issues-section-renders ()
   "Test that sub-issues section renders correctly in CLI-style format."
   (beads-show-test-with-temp-buffer
-   (cl-letf (((symbol-function 'beads-command-dep-tree!)
-              (lambda (&rest _args)
+   (cl-letf (((symbol-function 'beads-execute)
+              (lambda (_class &rest _args)
                 beads-show-test--sub-issues-data)))
      (let ((inhibit-read-only t))
        (beads-show--insert-sub-issues-section "bd-epic-1")
@@ -2393,8 +2391,8 @@ Note: Notes cannot be set at creation time, only via update."
 (ert-deftest beads-show-test-insert-sub-issues-section-no-children ()
   "Test that sub-issues section is not rendered when no children."
   (beads-show-test-with-temp-buffer
-   (cl-letf (((symbol-function 'beads-command-dep-tree!)
-              (lambda (&rest _args)
+   (cl-letf (((symbol-function 'beads-execute)
+              (lambda (_class &rest _args)
                 (list (beads-tree-node
                        :id "bd-epic-1" :depth 0 :status "open"
                        :title "" :truncated nil)))))
@@ -2407,8 +2405,8 @@ Note: Notes cannot be set at creation time, only via update."
 (ert-deftest beads-show-test-insert-sub-issues-clickable-ids ()
   "Test that sub-issue IDs are clickable buttons."
   (beads-show-test-with-temp-buffer
-   (cl-letf (((symbol-function 'beads-command-dep-tree!)
-              (lambda (&rest _args)
+   (cl-letf (((symbol-function 'beads-execute)
+              (lambda (_class &rest _args)
                 beads-show-test--sub-issues-data)))
      (let ((inhibit-read-only t))
        (beads-show--insert-sub-issues-section "bd-epic-1")
@@ -2423,8 +2421,8 @@ Note: Notes cannot be set at creation time, only via update."
   "Test that render-issue includes sub-issues section for epics."
   (beads-show-test-with-temp-buffer
    (let ((parsed-issue (beads--parse-issue beads-show-test--epic-issue)))
-     (cl-letf (((symbol-function 'beads-command-dep-tree!)
-                (lambda (&rest _args)
+     (cl-letf (((symbol-function 'beads-execute)
+                (lambda (_class &rest _args)
                   beads-show-test--sub-issues-data))
                ((symbol-function 'beads-agent--get-sessions-for-issue)
                 (lambda (_) nil)))
@@ -2441,8 +2439,8 @@ Note: Notes cannot be set at creation time, only via update."
    (let ((parsed-issue (beads--parse-issue beads-show-test--full-issue)))
      ;; This should NOT be called for non-epics
      (let ((dep-tree-called nil))
-       (cl-letf (((symbol-function 'beads-command-dep-tree!)
-                  (lambda (&rest _args)
+       (cl-letf (((symbol-function 'beads-execute)
+                  (lambda (_class &rest _args)
                     (setq dep-tree-called t)
                     nil))
                  ((symbol-function 'beads-agent--get-sessions-for-issue)
@@ -2454,8 +2452,8 @@ Note: Notes cannot be set at creation time, only via update."
 (ert-deftest beads-show-test-sub-issues-grouped-by-status ()
   "Test that sub-issues are grouped by status (in_progress first)."
   (beads-show-test-with-temp-buffer
-   (cl-letf (((symbol-function 'beads-command-dep-tree!)
-              (lambda (&rest _args)
+   (cl-letf (((symbol-function 'beads-execute)
+              (lambda (_class &rest _args)
                 beads-show-test--sub-issues-data)))
      (let ((inhibit-read-only t))
        (beads-show--insert-sub-issues-section "bd-epic-1")
@@ -3199,7 +3197,7 @@ Empty sessions are automatically cleaned up."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; Create a real issue
-    (let ((issue (beads-command-create! :title "Test Issue for Show"
+    (let ((issue (beads-execute 'beads-command-create :title "Test Issue for Show"
                                          :description "Test description"
                                          :priority 2
                                          :issue-type "task")))
@@ -3234,7 +3232,7 @@ Empty sessions are automatically cleaned up."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    (let ((issue (beads-command-create! :title "Status Test"
+    (let ((issue (beads-execute 'beads-command-create :title "Status Test"
                                          :priority 2
                                          :issue-type "task")))
       ;; Newly created issue should be open
@@ -3247,7 +3245,7 @@ Empty sessions are automatically cleaned up."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    (let ((issue (beads-command-create! :title "Priority Test"
+    (let ((issue (beads-execute 'beads-command-create :title "Priority Test"
                                          :priority 1
                                          :issue-type "task")))
       ;; Priority 1 should be displayed as "1 (High)"
@@ -3260,8 +3258,8 @@ Empty sessions are automatically cleaned up."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    (let* ((issue1 (beads-command-create! :title "First Issue" :priority 2 :issue-type "task"))
-           (issue2 (beads-command-create! :title "Second Issue" :priority 2 :issue-type "task"))
+    (let* ((issue1 (beads-execute 'beads-command-create :title "First Issue" :priority 2 :issue-type "task"))
+           (issue2 (beads-execute 'beads-command-create :title "Second Issue" :priority 2 :issue-type "task"))
            (id1 (oref issue1 id))
            (id2 (oref issue2 id)))
       ;; Verify we created issues with IDs
@@ -3340,7 +3338,7 @@ Empty sessions are automatically cleaned up."
          (progn
            (with-current-buffer buf
              (beads-show-mode))
-           (cl-letf (((symbol-function 'beads-command-show!)
+           (cl-letf (((symbol-function 'beads-command-execute)
                       (lambda (&rest _)
                         (beads-issue :id "bd-42" :title "Test"
                                      :status "open" :priority 2
@@ -3360,7 +3358,7 @@ Empty sessions are automatically cleaned up."
          (progn
            (with-current-buffer buf
              (beads-show-mode))
-           (cl-letf (((symbol-function 'beads-command-show!)
+           (cl-letf (((symbol-function 'beads-command-execute)
                       (lambda (&rest _)
                         (beads-issue :id "bd-42" :title "Test"
                                      :status "open" :priority 2
@@ -3378,7 +3376,7 @@ Empty sessions are automatically cleaned up."
          (progn
            (with-current-buffer buf
              (beads-show-mode))
-           (cl-letf (((symbol-function 'beads-command-show!)
+           (cl-letf (((symbol-function 'beads-command-execute)
                       (lambda (&rest _)
                         (error "Network error"))))
              (beads-show-update-buffer "bd-42" buf)
@@ -3421,7 +3419,7 @@ Empty sessions are automatically cleaned up."
   (beads-show-test-with-git-mocks
    (cl-letf (((symbol-function 'beads-completion-read-issue)
               (lambda (&rest _) "bd-42"))
-             ((symbol-function 'beads-command-show!)
+             ((symbol-function 'beads-command-execute)
               (lambda (&rest _)
                 (beads-issue-from-json beads-show-test--full-issue)))
              ((symbol-function 'beads-buffer-display-detail)
@@ -3442,7 +3440,7 @@ Empty sessions are automatically cleaned up."
   (beads-show-test-with-git-mocks
    (cl-letf (((symbol-function 'beads-completion-read-issue)
               (lambda (&rest _) "bd-999"))
-             ((symbol-function 'beads-command-show!)
+             ((symbol-function 'beads-command-execute)
               (lambda (&rest _)
                 (error "Issue not found")))
              ((symbol-function 'beads-buffer-display-detail)
@@ -3492,7 +3490,7 @@ Empty sessions are automatically cleaned up."
     (goto-char (point-min))
     (search-forward "bd-42")
     (backward-char 2)
-    (cl-letf (((symbol-function 'beads-command-show!)
+    (cl-letf (((symbol-function 'beads-command-execute)
                (lambda (&rest _)
                  (beads-issue-from-json beads-show-test--full-issue))))
       (let ((result nil))
@@ -3724,16 +3722,18 @@ Empty sessions are automatically cleaned up."
      (let ((close-called nil))
        (cl-letf (((symbol-function 'read-string)
                   (lambda (_prompt) "Fixed the bug"))
-                 ((symbol-function 'beads-command-close!)
-                  (lambda (&rest args)
-                    (setq close-called args)))
+                 ((symbol-function 'beads-command-execute)
+                  (lambda (cmd)
+                    (when (cl-typep cmd 'beads-command-close)
+                      (setq close-called cmd))
+                    nil))
                  ((symbol-function 'beads-completion-invalidate-cache)
                   #'ignore)
                  ((symbol-function 'beads-refresh-show)
                   #'ignore))
          (beads-show-set-status-closed)
          (should close-called)
-         (should (equal (plist-get close-called :reason) "Fixed the bug")))))))
+         (should (equal (oref close-called reason) "Fixed the bug")))))))
 
 (ert-deftest beads-show-test-set-status-closed-error ()
   "Test close handles errors gracefully."
@@ -3743,8 +3743,8 @@ Empty sessions are automatically cleaned up."
      (setq-local beads-show--issue-id "bd-42")
      (cl-letf (((symbol-function 'read-string)
                 (lambda (_prompt) "reason"))
-               ((symbol-function 'beads-command-close!)
-                (lambda (&rest _args)
+               ((symbol-function 'beads-execute)
+                (lambda (_class &rest _args)
                   (error "Network error"))))
        ;; Should not signal, just message
        (beads-show-set-status-closed)
@@ -3799,9 +3799,11 @@ Empty sessions are automatically cleaned up."
      (let ((label-called nil))
        (cl-letf (((symbol-function 'read-string)
                   (lambda (_prompt) "bug"))
-                 ((symbol-function 'beads-command-label-add!)
-                  (lambda (&rest args)
-                    (setq label-called args)))
+                 ((symbol-function 'beads-command-execute)
+                  (lambda (cmd)
+                    (when (cl-typep cmd 'beads-command-label-add)
+                      (setq label-called t))
+                    nil))
                  ((symbol-function 'beads-refresh-show)
                   #'ignore))
          (beads-show-add-label)
@@ -3815,8 +3817,8 @@ Empty sessions are automatically cleaned up."
      (setq-local beads-show--issue-id "bd-42")
      (cl-letf (((symbol-function 'read-string)
                 (lambda (_prompt) "bug"))
-               ((symbol-function 'beads-command-label-add!)
-                (lambda (&rest _args)
+               ((symbol-function 'beads-execute)
+                (lambda (_class &rest _args)
                   (error "Label error"))))
        (beads-show-add-label)
        (should t)))))

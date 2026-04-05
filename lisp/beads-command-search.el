@@ -35,311 +35,187 @@
 
 (beads-defcommand beads-command-search (beads-command-global-options)
   ((query
-    :initarg :query
-    :type (or null string)
-    :initform nil
-    :documentation "Search query text (positional or --query).
-Searches across title, description, and ID."
     :positional 1
-    :key "q"
-    :transient "Search query"
-    :class transient-option
-    :argument "--query="
+    :short-option "q"
     :prompt "Search query: "
-    :transient-group "Query"
+    :group "Query"
     :level 1
     :order 1)
    (status
-    :initarg :status
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by status (--status).
-Valid values: open, in_progress, blocked, deferred, closed."
-    :long-option "status"
     :short-option "s"
-    :option-type :string
-    :key "s"
-    :transient "Filter by status"
-    :class transient-option
-    :argument "--status="
-    :prompt "Status: "
+    :type (or null string)
     :choices ("open" "in_progress" "blocked" "deferred" "closed")
-    :transient-group "Filters"
+    :group "Filters"
     :level 2
     :order 1)
    (issue-type
-    :initarg :issue-type
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by issue type (--type).
-Valid values: bug, feature, task, epic, chore, merge-request, molecule, gate."
     :long-option "type"
     :short-option "t"
-    :option-type :string
-    :key "t"
-    :transient "Filter by type"
-    :class transient-option
-    :argument "--type="
-    :prompt "Type: "
+    :type (or null string)
     :choices ("bug" "feature" "task" "epic" "chore" "merge-request"
                         "molecule" "gate")
-    :transient-group "Filters"
+    :group "Filters"
     :level 2
     :order 2)
    (assignee
-    :initarg :assignee
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by assignee (--assignee)."
-    :long-option "assignee"
     :short-option "a"
-    :option-type :string
-    :key "a"
-    :transient "Filter by assignee"
-    :class transient-option
-    :argument "--assignee="
-    :prompt "Assignee: "
-    :transient-group "Filters"
+    :type (or null string)
+    :group "Filters"
     :level 2
     :order 3)
    (label
-    :initarg :label
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by labels (AND: must have ALL) (--label)."
-    :long-option "label"
     :short-option "l"
-    :option-type :string
-    :key "l"
-    :transient "Filter by label (AND)"
-    :class transient-option
-    :argument "--label="
-    :prompt "Label: "
-    :transient-reader beads-reader-list-label
-    :transient-group "Filters"
+    :type (or null string)
+    :reader beads-reader-list-label
+    :group "Filters"
     :level 2
     :order 4)
    (label-any
-    :initarg :label-any
     :type (or null string)
-    :initform nil
-    :documentation "Filter by labels (OR: must have ANY) (--label-any)."
-    :long-option "label-any"
-    :option-type :string
-    :key "L"
-    :transient "Filter by label (OR)"
-    :class transient-option
-    :argument "--label-any="
+    :short-option "L"
     :prompt "Label (any): "
-    :transient-reader beads-reader-list-label
-    :transient-group "Filters"
+    :reader beads-reader-list-label
+    :group "Filters"
     :level 3
     :order 1)
    (limit
-    :initarg :limit
-    :type (or null integer)
-    :initform nil
-    :documentation "Limit number of results (--limit).
-Default is 50."
-    :long-option "limit"
     :short-option "n"
-    :option-type :integer
-    :key "n"
-    :transient "Result limit"
-    :class transient-option
-    :argument "--limit="
+    :type (or null string integer)
     :prompt "Limit (default 50): "
-    :transient-group "Output"
+    :group "Output"
     :level 2
     :order 1)
    (sort
-    :initarg :sort
     :type (or null string)
-    :initform nil
-    :documentation "Sort field (--sort).
-Valid values: priority, created, updated, closed, status,
-id, title, type, assignee."
-    :long-option "sort"
-    :option-type :string
-    :key "o"
-    :transient "Sort by field"
-    :class transient-option
-    :argument "--sort="
+    :short-option "o"
     :prompt "Sort by: "
     :choices ("priority" "created" "updated" "closed" "status" "id"
                         "title" "type" "assignee")
-    :transient-group "Output"
+    :group "Output"
     :level 2
     :order 2)
    (reverse
-    :initarg :reverse
-    :type boolean
-    :initform nil
-    :documentation "Reverse sort order (--reverse)."
-    :long-option "reverse"
     :short-option "r"
-    :option-type :boolean
-    :key "r"
-    :transient "Reverse sort"
-    :class transient-switch
-    :argument "--reverse"
-    :transient-group "Output"
+    :type boolean
+    :group "Output"
     :level 2
     :order 3)
    (long
-    :initarg :long
     :type boolean
-    :initform nil
-    :documentation "Show detailed multi-line output (--long)."
-    :long-option "long"
-    :option-type :boolean
-    :key "g"
-    :transient "Long output"
-    :class transient-switch
-    :argument "--long"
-    :transient-group "Output"
+    :short-option "g"
+    :group "Output"
     :level 3
     :order 1)
    (priority-min
-    :initarg :priority-min
     :type (or null string)
-    :initform nil
-    :documentation "Filter by minimum priority (--priority-min).
-Values: 0-4 or P0-P4."
-    :long-option "priority-min"
-    :option-type :string
-    :key "pm"
-    :transient "Min priority"
-    :class transient-option
-    :argument "--priority-min="
+    :short-option "pm"
     :prompt "Min priority (0-4): "
-    :transient-reader beads-reader-list-priority
-    :transient-group "Priority"
+    :reader beads-reader-list-priority
+    :group "Priority"
     :level 3
     :order 1)
    (priority-max
-    :initarg :priority-max
     :type (or null string)
-    :initform nil
-    :documentation "Filter by maximum priority (--priority-max).
-Values: 0-4 or P0-P4."
-    :long-option "priority-max"
-    :option-type :string
-    :key "pM"
-    :transient "Max priority"
-    :class transient-option
-    :argument "--priority-max="
+    :short-option "pM"
     :prompt "Max priority (0-4): "
-    :transient-reader beads-reader-list-priority
-    :transient-group "Priority"
+    :reader beads-reader-list-priority
+    :group "Priority"
     :level 3
     :order 2)
    (created-after
-    :initarg :created-after
     :type (or null string)
-    :initform nil
-    :documentation "Filter issues created after date (--created-after).
-Format: YYYY-MM-DD or RFC3339."
-    :long-option "created-after"
-    :option-type :string
-    :key "Ca"
-    :transient "Created after"
-    :class transient-option
-    :argument "--created-after="
+    :short-option "Ca"
     :prompt "Created after (YYYY-MM-DD): "
-    :transient-group "Date Filters"
+    :group "Date Filters"
     :level 3
     :order 1)
    (created-before
-    :initarg :created-before
     :type (or null string)
-    :initform nil
-    :documentation "Filter issues created before date (--created-before).
-Format: YYYY-MM-DD or RFC3339."
-    :long-option "created-before"
-    :option-type :string
-    :key "Cb"
-    :transient "Created before"
-    :class transient-option
-    :argument "--created-before="
+    :short-option "Cb"
     :prompt "Created before (YYYY-MM-DD): "
-    :transient-group "Date Filters"
+    :group "Date Filters"
     :level 3
     :order 2)
    (updated-after
-    :initarg :updated-after
     :type (or null string)
-    :initform nil
-    :documentation "Filter issues updated after date (--updated-after).
-Format: YYYY-MM-DD or RFC3339."
-    :long-option "updated-after"
-    :option-type :string
-    :key "Ua"
-    :transient "Updated after"
-    :class transient-option
-    :argument "--updated-after="
+    :short-option "Ua"
     :prompt "Updated after (YYYY-MM-DD): "
-    :transient-group "Date Filters"
+    :group "Date Filters"
     :level 3
     :order 3)
    (updated-before
-    :initarg :updated-before
     :type (or null string)
-    :initform nil
-    :documentation "Filter issues updated before date (--updated-before).
-Format: YYYY-MM-DD or RFC3339."
-    :long-option "updated-before"
-    :option-type :string
-    :key "Ub"
-    :transient "Updated before"
-    :class transient-option
-    :argument "--updated-before="
+    :short-option "Ub"
     :prompt "Updated before (YYYY-MM-DD): "
-    :transient-group "Date Filters"
+    :group "Date Filters"
     :level 3
     :order 4)
    (closed-after
-    :initarg :closed-after
     :type (or null string)
-    :initform nil
-    :documentation "Filter issues closed after date (--closed-after).
-Format: YYYY-MM-DD or RFC3339."
-    :long-option "closed-after"
-    :option-type :string
-    :key "ca"
-    :transient "Closed after"
-    :class transient-option
-    :argument "--closed-after="
+    :short-option "ca"
     :prompt "Closed after (YYYY-MM-DD): "
-    :transient-group "Date Filters"
+    :group "Date Filters"
     :level 3
     :order 5)
    (closed-before
-    :initarg :closed-before
     :type (or null string)
-    :initform nil
-    :documentation "Filter issues closed before date (--closed-before).
-Format: YYYY-MM-DD or RFC3339."
-    :long-option "closed-before"
-    :option-type :string
-    :key "cb"
-    :transient "Closed before"
-    :class transient-option
-    :argument "--closed-before="
+    :short-option "cb"
     :prompt "Closed before (YYYY-MM-DD): "
-    :transient-group "Date Filters"
+    :group "Date Filters"
     :level 3
-    :order 6))
+    :order 6)
+
+   (desc-contains
+    :type (or null string)
+    :long-option "desc-contains"
+    :group "Filter"
+    :level 3)
+   (empty-description
+    :type boolean
+    :long-option "empty-description"
+    :group "Filter"
+    :level 3)
+   (external-contains
+    :type (or null string)
+    :long-option "external-contains"
+    :group "Filter"
+    :level 3)
+   (has-metadata-key
+    :type (or null string)
+    :long-option "has-metadata-key"
+    :group "Filter"
+    :level 4)
+   (metadata-field
+    :type (or null string)
+    :long-option "metadata-field"
+    :group "Filter"
+    :level 4)
+   (no-assignee
+    :type boolean
+    :long-option "no-assignee"
+    :group "Filter"
+    :level 3)
+   (no-labels
+    :type boolean
+    :long-option "no-labels"
+    :group "Filter"
+    :level 3)
+   (notes-contains
+    :type (or null string)
+    :long-option "notes-contains"
+    :group "Filter"
+    :level 3))
   :documentation "Represents bd search command.
 Full-text search across issues.
 When executed with :json t, returns matching issues as JSON."
-  :parse-as :issues)
+  :result (list-of beads-issue)
+  :transient :manual)
 
 
-(cl-defmethod beads-command-validate ((_command beads-command-search))
-  "Validate search COMMAND.
-No required fields, returns nil (valid)."
-  nil)
+;; beads-command-parse override removed: the base method now handles
+;; JSON-to-domain parsing automatically via :result (list-of beads-issue).
+
+;; Validate override removed: base handles slot-level validation.
 
 ;;; Interactive Execution — display results in tabulated-list-mode
 
@@ -358,8 +234,7 @@ then displays them in a tabulated list buffer."
       (let* ((caller-dir default-directory)
              (project-dir (or (beads-git-find-project-root)
                               default-directory))
-             (exec (beads-command-execute cmd))
-             (issue-objects (oref exec result))
+             (issue-objects (beads-command-execute cmd))
              (buffer (beads-list--get-or-create-buffer 'search)))
         (with-current-buffer buffer
           (unless (derived-mode-p 'beads-list-mode)

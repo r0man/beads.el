@@ -443,13 +443,13 @@ take precedence over defcustom settings."
   "Parse issue from JSON object.
 Returns a beads-issue EIEIO instance."
   (let ((issue (if (vectorp json) (aref json 0) json)))
-    (beads-issue-from-json issue)))
+    (beads-from-json 'beads-issue issue)))
 
 (defun beads--parse-issues (json)
   "Parse list of issues from JSON array.
 Returns a list of beads-issue EIEIO instances."
   (when (and json (vectorp json))
-    (mapcar #'beads-issue-from-json (append json nil))))
+    (mapcar (lambda (j) (beads-from-json 'beads-issue j)) (append json nil))))
 
 ;;; Main Menu Variables (formerly beads-main.el)
 
@@ -573,9 +573,7 @@ into logical groups for easy access."
    ("e" "Edit field" beads-edit)
    ("I" "Create (transient)" beads-create)
    ("Q" "Quick capture (q)" beads-q)
-   ("O" "Move issue" beads-move)
-   ("B" "Refile issue" beads-refile)
-   ("a" "Children" beads-children)
+("a" "Children" beads-children)
    (">" "Promote wisp" beads-promote)
    ("X" "Query issues" beads-query)
    ("[" "Todo items" beads-todo)
@@ -872,9 +870,9 @@ or set `beads-executable' to the full path" beads-executable)))
 ;;;###autoload
 (autoload 'beads-info "beads-command-info" nil t)
 
-;; beads-command-stats
+;; beads-command-status
 ;;;###autoload
-(autoload 'beads-stats "beads-command-stats" nil t)
+(autoload 'beads-stats "beads-command-status" nil t)
 
 ;; beads-command-count
 ;;;###autoload
@@ -989,10 +987,7 @@ or set `beads-executable' to the full path" beads-executable)))
 (autoload 'beads-create-form "beads-command-misc" nil t)
 ;;;###autoload
 (autoload 'beads-q "beads-command-misc" nil t)
-;;;###autoload
-(autoload 'beads-move "beads-command-misc" nil t)
-;;;###autoload
-(autoload 'beads-refile "beads-command-misc" nil t)
+
 ;;;###autoload
 (autoload 'beads-children "beads-command-misc" nil t)
 ;;;###autoload

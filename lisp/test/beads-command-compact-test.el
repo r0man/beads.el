@@ -173,8 +173,8 @@
 ;;; Tests for Transient Definitions
 
 (ert-deftest beads-compact-test-transient-stats-defined ()
-  "Test that beads-compact-stats transient is defined."
-  (should (fboundp 'beads-compact-stats)))
+  "Test that beads-compact-show-stats transient is defined."
+  (should (fboundp 'beads-compact-show-stats)))
 
 (ert-deftest beads-compact-test-transient-analyze-defined ()
   "Test that beads-compact-analyze transient is defined."
@@ -192,20 +192,20 @@
   "Test that beads-compact parent menu is defined."
   (should (fboundp 'beads-compact)))
 
-;;; Tests for Convenience Functions
+;;; Tests for Command Classes
 
-(ert-deftest beads-compact-test-bang-functions-exist ()
-  "Test that convenience functions are defined."
-  (should (fboundp 'beads-command-compact-stats!))
-  (should (fboundp 'beads-command-compact-analyze!))
-  (should (fboundp 'beads-command-compact-apply!))
-  (should (fboundp 'beads-command-compact-auto!)))
+(ert-deftest beads-compact-test-classes-defined ()
+  "Test that command classes are defined."
+  (should (find-class 'beads-command-compact-stats nil))
+  (should (find-class 'beads-command-compact-analyze nil))
+  (should (find-class 'beads-command-compact-apply nil))
+  (should (find-class 'beads-command-compact-auto nil)))
 
 ;;; Integration Tests
 
 (ert-deftest beads-compact-test-parse-transient-args-stats ()
   "Test parsing transient args for stats command."
-  (let ((cmd (beads-compact-stats--parse-transient-args nil)))
+  (let ((cmd (beads-compact-show-stats--parse-transient-args nil)))
     (should (beads-command-compact-stats-p cmd))))
 
 (ert-deftest beads-compact-test-parse-transient-args-analyze ()

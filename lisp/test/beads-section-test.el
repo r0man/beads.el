@@ -98,13 +98,8 @@
 ;;; Insert Function Tests (vui vnode return values)
 
 (defun beads-section-test--mock-execute (issues)
-  "Return a mock execution result containing ISSUES."
-  (let ((exec (beads-command-execution)))
-    (oset exec result issues)
-    (oset exec exit-code 0)
-    (oset exec stdout "")
-    (oset exec stderr "")
-    exec))
+  "Return ISSUES as a mock result for `beads-command-execute'."
+  issues)
 
 (ert-deftest beads-section-test-insert-open-issues-empty ()
   "Verify beads-insert-open-issues returns nil when no issues."

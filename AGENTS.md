@@ -1,107 +1,142 @@
-# Agent Instructions
+# CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when
-working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Issue Tracking with bd (beads)
+## Project Overview
 
-**IMPORTANT**: This project uses **bd (beads)** for ALL issue tracking. Do NOT use markdown TODOs, task lists, or other tracking methods.
+beads.el is an Emacs package providing a Magit-like transient-based UI for the [Beads](https://github.com/steveyegge/beads) issue tracker (`bd` CLI). It uses EIEIO classes, transient menus, and tabulated-list-mode to expose all `bd` commands from within Emacs.
 
-### Why bd?
-
-- Dependency-aware: Track blockers and relationships between issues
-- Git-friendly: Dolt-powered version control with native sync
-- Agent-optimized: JSON output, ready work detection, discovered-from links
-- Prevents duplicate tracking systems and confusion
-
-### Quick Start
-
-**Check for ready work:**
+## Build & Test Commands
 
 ```bash
-bd ready --json
+# Run all tests
+eldev test
+
+# Run a single test file
+eldev test test/beads-list-test.el
+
+# Run tests matching a pattern
+eldev test -p "beads-command-close"
+
+# Verbose test output
+eldev -p -dtT test
+
+# Tests with coverage (uses undercover.el + codecov)
+eldev -s test --coverage
+
+# Byte-compile
+eldev compile
+
+# Lint
+eldev lint
 ```
 
-**Create new issues:**
+Tests live in `lisp/test/` and are named `<module>-test.el`. Tests use a suite-level isolated Dolt server on a random port (via `beads-integration-test.el`) so they never hit production. `bd` v0.58.0+ requires Dolt -- there is no JSONL-only fallback.
+
+## Architecture
+
+### EIEIO Command System (core pattern)
+
+The central abstraction is `beads-defcommand` (in `beads-command.el`), a macro that generates from a single class definition:
+1. An EIEIO class with typed slots
+2. CLI argument serialization (`beads-command-line`)
+3. A transient menu with infixes auto-derived from slot metadata
+4. Result type declarations for auto-parsing
+
+Class hierarchy: `beads-command` (abstract base) -> `beads-command-global-options` (adds `--actor`, `--db`, `--json` flags) -> concrete commands (`beads-command-list`, `beads-command-create`, `beads-command-close`, etc.).
+
+Each `beads-command-<foo>.el` file in `lisp/` defines one bd subcommand as an EIEIO class.
+
+### Slot Metadata (`beads-meta.el`)
+
+Custom EIEIO slot properties drive code generation. A single slot definition carries CLI properties (`:long-option`, `:short-option`, `:option-type`, `:positional`), transient properties (`:transient`, `:class`, `:reader`, `:choices`, `:group`, `:level`), and validation (`:required`, `:validator`). This avoids duplication between CLI serialization and UI.
+
+### Data Types (`beads-types.el`)
+
+EIEIO classes mirroring the Go structs from `beads/internal/types`: `beads-issue`, `beads-dependency`, `beads-label`, `beads-comment`, `beads-event`, `beads-statistics`, etc. All JSON parsing from `bd --json` output goes through these types.
+
+### UI Layers
+
+- **`beads-command-list.el`** / **`beads-spec.el`**: Tabulated list mode with `beads-issue-spec` filter objects (status/type/priority/sort/limit) that convert to CLI args.
+- **`beads-command-show.el`** / **`beads-section.el`**: Issue detail view using magit-section-style rendering.
+- **`beads-eldoc.el`**: Hover-to-preview issue references anywhere, with caching.
+- **`beads-agent.el`** + backends: AI agent integration with sesman session management and git worktree isolation.
+
+### Key Files
+
+| File | Role |
+|------|------|
+| `beads.el` | Entry point, main transient menu, core utilities |
+| `beads-command.el` | `beads-defcommand` macro, base classes, execution |
+| `beads-meta.el` | EIEIO slot property infrastructure (preserves custom props) |
+| `beads-types.el` | Data model classes (issue, dependency, etc.) |
+| `beads-option.el` | Global option variables and transient groups |
+| `beads-spec.el` | Filter spec objects for list views |
+| `beads-completion.el` | Completion tables (issue IDs, statuses, etc.) |
+| `beads-reader.el` | Reader functions for transient infixes |
+
+## Conventions
+
+- Public API: `beads-` prefix. Internal: `beads--` prefix.
+- Each `bd` subcommand gets its own `beads-command-<name>.el` file.
+- All bd commands use `--json` for structured output; UI never parses human-readable text.
+- Transient menus are auto-generated from slot metadata where possible; use `:transient :manual` only when custom layout is needed.
+- Dependencies: Emacs 29.1+, transient 0.10.1+, sesman 0.3.2+, vui 1.0.0+ (from MELPA).
+
+## Agent Instructions
+
+This project uses **bd** (beads) for issue tracking. Run `bd prime` for full workflow context.
+
+### Quick Reference
 
 ```bash
-bd create "Issue title" --description="Detailed context" -t bug|feature|task -p 0-4 --json
-bd create "Issue title" --description="What this issue is about" -p 1 --deps discovered-from:bd-123 --json
+bd ready              # Find available work
+bd show <id>          # View issue details
+bd update <id> --claim  # Claim work atomically
+bd close <id>         # Complete work
+bd dolt push          # Push beads data to remote
 ```
 
-**Claim and update:**
+## Non-Interactive Shell Commands
+
+**ALWAYS use non-interactive flags** with file operations to avoid hanging on confirmation prompts.
 
 ```bash
-bd update <id> --claim --json
-bd update bd-42 --priority 1 --json
+cp -f source dest           # NOT: cp source dest
+mv -f source dest           # NOT: mv source dest
+rm -f file                  # NOT: rm file
+rm -rf directory            # NOT: rm -r directory
 ```
 
-**Complete work:**
+Other commands that may prompt: `scp` (`-o BatchMode=yes`), `ssh` (`-o BatchMode=yes`), `apt-get` (`-y`).
+
+## Beads Issue Tracker
+
+This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
+
+### Quick Reference
 
 ```bash
-bd close bd-42 --reason "Completed" --json
+bd ready              # Find available work
+bd show <id>          # View issue details
+bd update <id> --claim  # Claim work
+bd close <id>         # Complete work
 ```
 
-### Issue Types
+### Rules
 
-- `bug` - Something broken
-- `feature` - New functionality
-- `task` - Work item (tests, docs, refactoring)
-- `epic` - Large feature with subtasks
-- `chore` - Maintenance (dependencies, tooling)
+- Use `bd` for ALL task tracking — do NOT use TodoWrite, TaskCreate, or markdown TODO lists
+- Run `bd prime` for detailed command reference and session close protocol
+- Use `bd remember` for persistent knowledge — do NOT use MEMORY.md files
 
-### Priorities
-
-- `0` - Critical (security, data loss, broken builds)
-- `1` - High (major features, important bugs)
-- `2` - Medium (default, nice-to-have)
-- `3` - Low (polish, optimization)
-- `4` - Backlog (future ideas)
-
-### Workflow for AI Agents
-
-1. **Check ready work**: `bd ready` shows unblocked issues
-2. **Claim your task atomically**: `bd update <id> --claim`
-3. **Work on it**: Implement, test, document
-4. **Discover new work?** Create linked issue:
-   - `bd create "Found bug" --description="Details about what was found" -p 1 --deps discovered-from:<parent-id>`
-5. **Complete**: `bd close <id> --reason "Done"`
-
-### Auto-Sync
-
-bd automatically syncs via Dolt:
-
-- Each write auto-commits to Dolt history
-- Use `bd dolt push`/`bd dolt pull` for remote sync
-- No manual export/import needed!
-
-### Important Rules
-
-- Use bd for ALL task tracking
-- Always use `--json` flag for programmatic use
-- Link discovered work with `discovered-from` dependencies
-- Check `bd ready` before asking "what should I work on?"
-- Do NOT create markdown TODO lists
-- Do NOT use external issue trackers
-- Do NOT duplicate tracking systems
-
-For more details, see README.md and docs/QUICKSTART.md.
-
-## Landing the Plane (Session Completion)
+## Session Completion
 
 **When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
 
 **MANDATORY WORKFLOW:**
 
 1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed):
-   - Run byte compilation: `guix shell -D -f guix.scm -- eldev -p -dtT compile`
-     - **MUST produce zero compile warnings**
-   - Run linter: `guix shell -D -f guix.scm -- eldev -p -dtT lint`
-     - **MUST produce zero lint warnings and zero lint errors**
-   - Run tests: `guix shell -D -f guix.scm -- eldev -p -dtT test`
-     - **MUST show 0 unexpected results** (all tests pass, no failures, no errors)
-   - **ALL THREE CHECKS MUST PASS before pushing — no exceptions**
+2. **Run quality gates** (if code changed) - Tests, linters, builds
 3. **Update issue status** - Close finished work, update in-progress items
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
@@ -119,1042 +154,3 @@ For more details, see README.md and docs/QUICKSTART.md.
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
-- **Any compile warning = STOP, fix it, recompile before proceeding**
-- **Any lint warning or error = STOP, fix it, re-lint before proceeding**
-- **Any test failure or unexpected result = STOP, fix it, re-test before proceeding**
-
-## Code Quality Requirements
-
-**CRITICAL - MANDATORY FOR ALL CODE CHANGES**
-
-During development, you MUST:
-
-1. **Test in live Emacs first** - Load changes and verify interactively
-2. **Run unit tests** - All tests must pass
-3. **Do a code review** - Review changes and address critical issues
-
-Before committing (Landing the Plane), also run:
-- Byte compilation (must compile without warnings)
-- Linter (must pass with zero warnings)
-
-If any check fails:
-- Fix the issue immediately
-- Re-run the failing check
-- Only proceed when all checks pass
-
-This is a non-negotiable requirement for code quality.
-
-## Development Dolt Server
-
-beads.el development and testing uses a **dedicated Dolt server on port 3308**,
-completely isolated from the Gas Town production server (port 3307).
-
-### Start the dev Dolt server
-
-Before running integration tests or bd commands in dev, start the dedicated server:
-
-```bash
-# Start Dolt on port 3308 (beads.el dev port)
-dolt sql-server --port 3308 --data-dir ~/.dolt-beads-dev &
-DOLT_PID=$!
-
-# Or use bd dolt start after configuring port in your test repo:
-# bd dolt set port 3308
-```
-
-Configure your test/dev beads repos to use port 3308:
-
-```bash
-cd /path/to/your/test-repo
-bd dolt set port 3308
-```
-
-### NEVER touch port 3307
-
-Port 3307 is the live Gas Town production Dolt server. Tests and development
-work MUST NEVER connect to it. Always verify you are on port 3308 before
-running bd commands that touch Dolt.
-
-### Stop the dev server
-
-```bash
-kill $DOLT_PID
-# Or: bd dolt stop  (in a repo configured for port 3308)
-```
-
-## Build and Test Commands
-
-**MANDATORY**: Run these commands after EVERY code change.
-
-**IMPORTANT**: All build, test, and lint commands MUST be run within
-the proper development environment:
-
-- If the `guix` command is available, wrap ALL commands with:
-  `guix shell -D -f guix.scm -- <command>`
-- Otherwise, assume eldev and dependencies are already installed
-
-The guix.scm file provides emacs-eldev and all required dependencies.
-
-### Build
-
-```bash
-# With guix (preferred):
-guix shell -D -f guix.scm -- eldev -p -dtT compile
-
-# Without guix (assumes eldev installed):
-eldev -p -dtT compile
-```
-
-### Test
-
-Run tests (the Eldev file starts an isolated Dolt server automatically).
-
-```bash
-# With guix (preferred):
-guix shell -D -f guix.scm -- eldev -p -dtT test
-
-# Without guix (assumes eldev installed):
-eldev -p -dtT test
-```
-
-## Interactive Development Environment
-
-**MANDATORY FOR ALL AGENT WORK** — polecats, crew, any agent
-touching the codebase.
-
-All development, feature work, bug fixing, and UX testing on
-beads.el MUST happen interactively in a live non-graphical Emacs
-server controlled by agents via emacsclient.
-
-**CRITICAL: Use a temporary beads/git repo for all interactive
-development.** Never test against the project's own .beads/
-directory or any production beads repo.
-
-### Setting Up a Temporary Dev Repo
-
-Before starting the dev server, create an isolated environment:
-
-```bash
-# Create temp repo for development testing
-BEADS_DEV_DIR=$(mktemp -d)
-cd "$BEADS_DEV_DIR"
-git init
-bd init
-# Optionally seed with test data:
-bd create "Test issue" --description="For dev testing" -t task -p 2
-```
-
-### Starting the Emacs Dev Server
-
-Start a dedicated non-graphical Emacs server for development,
-pointed at the temp repo:
-
-```bash
-emacs --daemon=beads-dev
-```
-
-Load beads.el from the working tree and set default-directory to
-the temp repo:
-
-```bash
-WORKTREE=/home/roman/workspace/beads.el  # adjust for your worktree
-emacsclient -s beads-dev -e "(add-to-list 'load-path \"$WORKTREE/lisp\")"
-emacsclient -s beads-dev -e "(require 'beads)"
-emacsclient -s beads-dev -e "(setq default-directory \"$BEADS_DEV_DIR/\")"
-```
-
-### Interactive Testing via emacsclient
-
-Use emacsclient against the dev server for all interactive testing:
-
-```bash
-# Evaluate elisp expressions
-emacsclient -s beads-dev -e '(elisp-expression)'
-
-# Open a terminal UI (in tmux)
-emacsclient -s beads-dev -nw
-```
-
-### Reloading After Code Changes
-
-After modifying source files, reload them into the running server:
-
-```bash
-emacsclient -s beads-dev -e '(load-file "lisp/beads-foo.el")'
-```
-
-Agents MUST try the features they develop interactively — invoke
-transient menus, trigger commands, verify buffer output, check
-error handling.
-
-### Killing the Server and Cleaning Up
-
-Kill the dev server and remove the temp repo at session end:
-
-```bash
-emacsclient -s beads-dev -e '(kill-emacs)'
-rm -rf "$BEADS_DEV_DIR"
-```
-
-## Acceptance Testing in tmux
-
-**MANDATORY** — every feature and bug fix MUST have acceptance
-testing done in a tmux session, using a **temporary beads/git
-repo**. Use the tmux skill to control Emacs non-graphically.
-
-**CRITICAL: Always use a fresh temporary repo.** Never run
-acceptance tests against the project's own .beads/ directory.
-
-### Workflow
-
-1. **Create a temporary beads/git repo:**
-   ```bash
-   BEADS_TEST_DIR=$(mktemp -d)
-   cd "$BEADS_TEST_DIR"
-   git init
-   bd init
-   # Seed with test data as needed:
-   bd create "Test bug" -t bug -p 1
-   bd create "Test feature" -t feature -p 2
-   ```
-
-2. **Create a tmux session:**
-   ```bash
-   tmux new-session -d -s beads-test
-   ```
-
-3. **Start Emacs in the temp repo:**
-   ```bash
-   WORKTREE=/home/roman/workspace/beads.el
-   tmux send-keys -t beads-test \
-     "cd $BEADS_TEST_DIR && emacs -nw -Q --eval '(progn (add-to-list (quote load-path) \"$WORKTREE/lisp\") (require (quote beads)))'" \
-     Enter
-   ```
-
-4. **Drive Emacs via tmux send-keys:**
-   Type commands, invoke keybindings:
-   ```bash
-   sleep 2
-   tmux send-keys -t beads-test 'M-x beads' Enter
-   ```
-
-5. **Capture pane output to verify results:**
-   ```bash
-   tmux capture-pane -t beads-test -p
-   ```
-
-6. **Test actual user-facing behavior:**
-   Verify that menus appear, buffers show correct data, errors
-   display properly.
-
-7. **Clean up:**
-   ```bash
-   tmux kill-session -t beads-test
-   rm -rf "$BEADS_TEST_DIR"
-   ```
-
-This catches UX issues that unit tests cannot: rendering,
-keybindings, interactive flows.
-
-**Do NOT skip this step** — a feature is not complete until it has
-been acceptance-tested in tmux with a temp beads/git repo.
-
-### Using the tmux skill
-
-In Claude Code, use the tmux skill to drive the Emacs session
-programmatically:
-
-```
-/tmux
-```
-
-This allows you to send keystrokes and capture pane output. Drive
-the full user workflow: open menus, navigate transients, verify
-output — all without a graphical display.
-
-## Beads Reference Documentation
-
-**CRITICAL - REQUIRED BEFORE IMPLEMENTING ANY BD COMMANDS**
-
-Before implementing or modifying ANY transient command for bd/beads,
-you MUST have a fresh, up-to-date checkout of the upstream Beads
-repository:
-
-```bash
-# Clone beads reference repository (if not already present)
-if [ ! -d "beads-reference" ]; then
-  git clone https://github.com/steveyegge/beads.git beads-reference
-fi
-
-# ALWAYS pull latest changes before implementing commands
-cd beads-reference && git pull && cd ..
-```
-
-The `beads-reference/` directory is in `.gitignore` and should NOT be
-committed.
-
-### Required Reading Before Implementation
-
-**MANDATORY**: Before designing or implementing any bd command, you
-MUST read and understand:
-
-1. **README.md** - Understand command options, flags, and usage patterns
-   - Read: `beads-reference/README.md`
-   - Understand all command options and their behavior
-   - Note command-line flag syntax and output formats
-
-2. **Workflow Documentation** - Understand how beads is actually used
-   - Read workflow files in `beads-reference/`
-   - Understand the user workflows and common patterns
-   - Design Emacs commands that fit naturally into these workflows
-   - Make commands feel "Emacs-native" while preserving beads semantics
-
-3. **CLI Documentation** - Check command structure and JSON output
-   - Review how bd CLI handles similar operations
-   - Understand the relationship between bd commands and JSON output
-   - Reference official docs for accurate behavior and edge cases
-
-### Implementation Checklist
-
-When implementing new bd/beads commands:
-1. **Ensure beads-reference/ is fresh** (clone or pull latest)
-2. **Read README.md** to understand the command you're implementing
-3. **Review workflow documentation** to understand usage patterns
-4. **Design Emacs-ish interface** that fits the beads workflow
-5. Implement the transient menu following patterns in beads-create.el
-6. Test with actual bd commands (if available)
-7. Run all quality checks (test, lint, compile)
-
-**Never implement bd commands without consulting beads-reference first.**
-
-## Common Commands
-
-```bash
-# Finding work
-bd ready                    # Ready issues
-bd list --status open       # All open issues
-bd show beads.el-X          # Issue details with dependencies
-
-## Working on issues
-bd update beads.el-X --status in_progress
-bd update beads.el-X --notes "Progress update"
-bd close beads.el-X --reason "Completed"
-```
-
-## Project Overview
-
-beads.el is a Magit-like Emacs interface for the Beads issue tracker,
-providing keyboard-driven, transient-based UI for managing issues
-without leaving Emacs. The codebase integrates with the `bd` CLI tool
-and provides comprehensive Emacs Lisp interfaces for all bd commands.
-
-### Code Coverage
-
-The project uses undercover.el for code coverage tracking via the Eldev
-plugin. The `-U` (or `--undercover-report`) flag enables coverage and
-generates a report.
-
-**Running tests with coverage:**
-
-```bash
-# With guix (recommended):
-CI=true guix shell -D -f guix.scm -- eldev -s -dtT test -U coverage/codecov.json
-
-# Without guix (assumes eldev installed):
-CI=true eldev -s -dtT test -U coverage/codecov.json
-
-# The CI=true environment variable is required to enable coverage generation
-# The -U flag specifies the report output path
-# The -s flag enables source loading mode (required for coverage)
-```
-
-**Report formats:**
-The report format is configured in the Eldev file via `eldev-undercover-config`:
-- `codecov` - Codecov-compatible JSON format (configured for CI)
-- `coveralls` - Coveralls format
-- `simplecov` - SimpleCov JSON format (not compatible with Codecov's parser)
-- `text` - Human-readable text format
-
-**Important notes:**
-- `CI=true` environment variable is required (undercover only generates reports in CI mode)
-- You MUST use `-s` (source loading mode), NOT `-p` (packaged mode) for coverage
-- Undercover cannot instrument byte-compiled files (packaged mode byte-compiles)
-- Coverage is configured to track all `lisp/*.el` files except `lisp/test/*`
-
-**Configuration:**
-- Coverage fileset: Defined in Eldev via `eldev-undercover-fileset`
-- Report format: Defined in Eldev via `eldev-undercover-config` (set to `codecov`)
-- Currently tracks: `lisp/*.el` excluding `lisp/test/*.el`
-- Plugin enabled via: `(eldev-use-plugin 'undercover)` in Eldev file
-
-### GitHub Actions Workflows
-
-The project uses two GitHub Actions workflows:
-
-**Test Workflow** (`.github/workflows/test.yml`):
-- Runs tests across multiple Emacs versions (28.2, 29.4, 30.2, snapshot)
-- Triggered on push/PR to main branch
-- Uses matrix strategy for parallel testing
-
-**Coverage Workflow** (`.github/workflows/coverage.yml`):
-- Runs tests with coverage instrumentation (single Emacs version)
-- Uploads coverage reports to Codecov
-- Triggered on push/PR to main branch
-- Uses `fail_ci_if_error: false` to avoid blocking PRs on Codecov outages
-
-**Codecov Configuration** (`codecov.yml`):
-- Target coverage threshold: 80%
-- Threshold tolerance: 2%
-- Comments on PRs with coverage diff
-
-### Lint
-
-```bash
-# With guix (preferred):
-guix shell -D -f guix.scm -- eldev -p -dtT lint
-
-# Without guix (assumes eldev installed):
-eldev -p -dtT lint
-```
-
-### Checking for Guix
-
-To determine which command format to use, check if guix is available:
-
-```bash
-if command -v guix >/dev/null 2>&1; then
-  # Use: guix shell -D -f guix.scm -- eldev ...
-else
-  # Use: eldev ...
-fi
-```
-
-### Development Workflow
-
-When working on an issue:
-1. Create a branch for the issue: `git checkout -b beads.el-X-short-description`
-2. Update issue status: `bd update beads.el-X --status in_progress`
-3. Edit source files in lisp/*.el
-
-### TDD Loop (MANDATORY)
-
-For every code change, follow this cycle strictly:
-1. **Write the test first** — add ERT test to the relevant test file
-2. **Run tests — they should FAIL** (red):
-   `eldev -p -dtT test`
-3. **Implement the minimum code** to make the test pass
-4. **Run tests — they should PASS** (green):
-   `eldev -p -dtT test`
-5. **Refactor** if needed, keeping tests green
-6. **Repeat** for the next change
-
-Never write implementation before writing the test. If a test is hard to
-write, that is a signal the design needs simplification.
-
-4. **MANDATORY: Interactive testing in live Emacs** (catches issues
-   early):
-   a. Start the Emacs dev server if not running:
-      `emacs --daemon=beads-dev`
-   b. Load modified code into server via emacsclient:
-      `emacsclient -s beads-dev -e '(load-file "lisp/beads-foo.el")'`
-   c. Try the feature interactively — invoke commands, check buffers:
-      `emacsclient -s beads-dev -e '(beads)'`
-   d. Run acceptance test in tmux — open emacsclient in tmux, drive
-      full workflow (see "Acceptance Testing in tmux" section above)
-   e. Run unit tests:
-      `guix shell -D -f guix.scm -- eldev -p -dtT test`
-   f. Run linter and byte compiler:
-      `guix shell -D -f guix.scm -- eldev -p -dtT lint`
-      `guix shell -D -f guix.scm -- eldev -p -dtT compile`
-5. **ALL TESTS MUST PASS** - Fix any failures immediately
-6. Repeat steps 3-5 until feature is complete
-7. Commit changes with descriptive message (only after tests pass)
-8. Push branch to GitHub: `git push -u origin beads.el-X-short-description`
-9. Verify tests pass on GitHub Actions CI
-10. Create pull request or merge to main after CI passes
-11. Close issue: `bd close beads.el-X --reason "Completed"`
-
-**CRITICAL**: Never commit code that fails tests. The live testing
-followed by unit/integration tests catches issues early, before they
-become harder to debug.
-
-Branch naming convention: `beads.el-X-short-description` where X is the
-issue number and short-description briefly describes the work (e.g.,
-`beads.el-27-implement-label-commands`).
-
-Unit tests use mocking and do NOT require a real bd database or
-.beads directory.
-
-**Tests that run real bd commands MUST use a temporary beads/git
-repo.** Create a fresh temp dir with `git init` + `bd init` for
-each test run. Never run real bd commands against the project's
-own .beads/ directory or any production repo.
-
-### End-to-End Testing (MANDATORY)
-
-**Every code change must be tested end-to-end** in a live Emacs
-running inside tmux, using a **temporary beads/git repo**:
-
-```bash
-# 1. Create isolated test environment
-BEADS_E2E_DIR=$(mktemp -d)
-cd "$BEADS_E2E_DIR"
-git init
-bd init
-# Seed test data:
-bd create "E2E test issue" -t task -p 2
-
-# 2. Start Emacs in tmux pointed at the temp repo
-WORKTREE=/home/roman/workspace/beads.el
-tmux new-session -d -s beads-e2e
-tmux send-keys -t beads-e2e \
-  "cd $BEADS_E2E_DIR && emacs -nw -Q --eval '(progn (add-to-list (quote load-path) \"$WORKTREE/lisp\") (require (quote beads)))'" \
-  Enter
-
-# 3. Drive the feature under test
-sleep 2
-tmux send-keys -t beads-e2e "M-x beads" Enter
-
-# 4. Capture and verify output
-tmux capture-pane -t beads-e2e -p | grep -q "expected output"
-
-# 5. Clean up
-tmux kill-session -t beads-e2e
-rm -rf "$BEADS_E2E_DIR"
-```
-
-This catches UX issues that unit tests cannot: real bd CLI
-interactions, buffer rendering, keybindings, transient flows.
-
-**Do NOT skip E2E testing** — a feature is not complete until it
-works end-to-end in a real Emacs with a temporary beads/git repo.
-**NEVER test against the project's own .beads/ directory.**
-
-## Code Architecture
-
-### Module Structure
-
-The codebase is organized into focused modules in lisp/:
-
-**Core Infrastructure (beads.el)**
-- Process execution via EIEIO command classes
-- JSON parsing with `beads--parse-issue` and `beads--parse-issues`
-- Project.el integration with .beads directory discovery
-- Completion system with caching for issue IDs
-- Global configuration (beads-executable, beads-actor, etc.)
-- All bd commands use --json flag for structured output
-
-**UI Modules**
-- beads-list.el: Tabulated-list-mode for browsing issues (list,
-  ready, blocked)
-- beads-show.el: Read-only detail view with markdown-like rendering
-  and clickable bd-N references
-- beads.el: Core module AND root transient menu (main transient merged here)
-
-**Transient Command Modules**
-- beads-create.el: Create new issues with validation
-- beads-update.el: Update existing issues (context-aware)
-- beads-close.el: Close issues with required reason field
-- beads-misc.el: Stats, dependencies, import/export commands
-- beads-graph.el: Dependency graph visualization
-
-**Test Structure**
-- test/beads-*-test.el: One test file per module
-- Tests use ERT (Emacs Lisp Regression Testing)
-- Extensive mocking to avoid requiring bd CLI
-
-### Key Design Patterns
-
-**Process Execution**
-- EIEIO command classes (`beads-command`, `beads-command-list`, etc.)
-- All commands use `beads-command-execute` method
-- Supports both synchronous and asynchronous execution
-- All commands automatically add --json, --db, --actor flags
-- Uses process-file for Tramp compatibility (remote bd execution)
-- Error handling with user-friendly messages via beads--error
-
-**Caching Strategy**
-- Project root cached per-directory in beads--project-cache
-- Issue completion cached with 5s TTL in beads--completion-cache
-- Database path cached per-project (found via .beads discovery)
-- Call beads--invalidate-completion-cache after mutations
-
-**Context Detection**
-- Check major-mode to determine context (beads-list-mode,
-  beads-show-mode)
-- Extract issue ID from buffer-name or current line
-- Fall back to completing-read with annotated issue list
-
-**Transient Menus** (being redesigned — see beads.el-7us epic)
-- Pattern 1: One-key context actions in mode-maps (no transient)
-- Pattern 2: Switch-based transients with --option= infixes
-- Pattern 3: Buffer-based editing with C-c C-c / C-c C-k
-- All patterns call EIEIO bang functions as backend
-- Legacy: Auto-generated transients from beads-defcommand for
-  admin commands
-
-**Buffer Management**
-- List buffers preserve project context via default-directory
-- Show buffers are read-only with special-mode
-- Refresh commands (g key) re-run original bd command
-- All buffers follow Emacs naming conventions (*beads-list*, etc.)
-
-## Development Guidelines
-
-### Naming Conventions
-- Public functions: `beads-command-name`
-- Internal functions: `beads--internal-function` (double dash)
-- Module-specific state: `beads-module--state-var` (e.g.,
-  beads-create--title)
-- Autoload public entry points with ;;;###autoload
-
-### Code Style
-- Use lexical-binding: t in all files
-- 80-column width (per user's CLAUDE.md preference)
-- Comprehensive docstrings for all public functions
-- Use pcase for pattern matching (cleaner than cond)
-- Prefer seq-* functions over cl-* for sequence operations
-
-### Adding New Commands
-
-When adding a new bd command:
-1. Add EIEIO command class via `beads-defcommand` if not yet present
-2. Choose the right UX pattern:
-   - State change (close, claim, set-status) → Pattern 1 (one-key)
-   - Filtering/listing → Pattern 2 (switch-based transient)
-   - Content creation/editing → Pattern 3 (buffer-based)
-   - Admin/maintenance → auto-generated transient (beads-defcommand
-     with :global-section) is fine
-3. Add keybinding to relevant mode-map AND context actions transient
-4. Write manual section in docs/beads.org BEFORE implementing
-5. Write ERT tests BEFORE implementing (TDD)
-6. Add comprehensive tests (>80% coverage target)
-7. **Run all checks (test, lint, compile) - ALL MUST PASS**
-8. Run acceptance test in tmux with temp git/beads repo
-
-**Remember**: After implementing, you MUST run and pass all three
-checks (test, lint, compile) before the work is considered complete.
-
-### Manual Updates (MANDATORY)
-
-**All new features, behavior changes, and keybinding changes MUST
-be documented in `docs/beads.org`** before the work is considered
-complete. The manual is the single source of truth for how beads.el
-works — if it is not in the manual, it does not exist.
-
-- New commands → add to the relevant section with `Key:` entries
-- Changed keybindings → update Keystroke Index and relevant section
-- New user options → add `User Option:` entry in Customizing section
-- Changed behavior → update the affected section's description
-- Write the manual section BEFORE implementing (manual-first design)
-
-### Testing Requirements
-
-**MANDATORY**: Run full test suite after EVERY code change.
-
-- All new functions need ERT tests
-- Mock bd command output using let-binding over beads-command-execute
-- Test both success and error paths
-- Target >80% code coverage for core modules
-- Use descriptive test names: beads-<module>-<function>-<scenario>
-- **Tests must pass (921/921) before committing any code**
-- Run: `guix shell -D -f guix.scm -- eldev -p -dtT test`
-
-### Transient UX Patterns
-
-beads.el uses three interaction patterns, modeled after magit and
-forge. See beads.el-7us epic and docs/beads.org for the full spec.
-
-**Pattern 1: Context-Aware Actions** (like forge topic state commands)
-
-One-key commands bound in mode-maps. Detect issue-at-point, fall
-back to completing-read. Support marks/bulk operations.
-
-```elisp
-;; Plain defun, not a transient prefix
-(defun beads-close ()
-  (interactive)
-  (let* ((id (beads-issue-at-point-or-read "Close: "))
-         (reason (read-string "Reason: ")))
-    (beads-command-close! :issue-ids (list id) :reason reason)
-    (beads--refresh-buffers)))
-```
-
-**Pattern 2: Switch-Based Transients** (like magit-log)
-
-Magit-style --option= infixes for filtering/listing. Suffixes
-call bang functions via `beads--transient-args-to-plist`.
-
-```elisp
-(transient-define-prefix beads-list ()
-  "List issues with filters."
-  ["Filters"
-   ("-s" "Status" "--status=" :reader beads-read-status)
-   ("-t" "Type" "--type=" :reader beads-read-type)]
-  ["List"
-   ("l" "All issues" beads-list-all)
-   ("r" "Ready" beads-list-ready)])
-```
-
-**Pattern 3: Buffer-Based Editing** (like forge-post-mode)
-
-For content creation/editing. Uses `with-editor` for C-c C-c /
-C-c C-k. Metadata via small transient sidebar (C-c C-a).
-
-```elisp
-;; c opens *beads-create[PROJECT]* buffer
-;; First line = title, rest = description (markdown)
-;; C-c C-a → metadata transient (type, priority, labels)
-;; C-c C-c → submit
-;; C-c C-k → cancel
-```
-
-**Backend:** All patterns call EIEIO bang functions
-(beads-command-create!, beads-command-close!, etc.) as the
-execution layer. The EIEIO command classes handle CLI
-serialization, JSON parsing, and validation.
-
-### Common Gotchas
-
-- **JSON parsing**: bd --json returns array for list commands, object
-  for single items. Use beads--parse-issue vs beads--parse-issues.
-- **Issue IDs**: Always validate format (e.g., bd-123, worker-1).
-  Use beads--issue-completion-table for user input.
-- **Project context**: Preserve default-directory when switching
-  buffers. List/show buffers should maintain project root for bd
-  commands.
-- **Tramp compatibility**: Always use process-file and
-  start-file-process, never call-process. Strip Tramp prefix with
-  file-local-name for --db paths.
-- **Completion cache**: Remember to invalidate after create/update/
-  close operations.
-
-## External Dependencies
-
-Required at runtime:
-- Emacs 27.1+ (for project.el)
-- transient library (built-in Emacs 28+, or from MELPA)
-- bd executable in PATH
-
-Optional:
-- markdown-mode / gfm-mode (for buffer-based editing in Pattern 3)
-- with-editor (for C-c C-c / C-c C-k submission in compose buffers;
-  already a transient dependency)
-
-## Related Documentation
-
-- README.md: User-facing documentation, installation, usage guide
-- lisp/beads-pkg.el: Package metadata for MELPA
-- Each module has comprehensive Commentary section
-
-## Beads CLI Integration
-
-The bd CLI is the source of truth. All operations go through:
-1. Build command with beads--build-command (adds --json, --db,
-   --actor)
-2. Execute using EIEIO command classes via beads-command-execute
-3. Parse JSON response with beads--parse-issue(s)
-4. Display in appropriate UI (list, show, or message)
-
-The .beads directory is auto-discovered via locate-dominating-file,
-starting from project root or current directory. Database path
-extracted from .beads/*.db files.
-
----
-
-# Polecat Context
-
-> **Recovery**: Run `gt prime` after compaction, clear, or new session
-
-## 🚨 THE IDLE POLECAT HERESY 🚨
-
-**After completing work, you MUST run `gt done`. No exceptions.**
-
-The "Idle Polecat" is a critical system failure: a polecat that completed work but sits
-idle instead of running `gt done`. **There is no approval step.**
-
-**If you have finished your implementation work, your ONLY next action is:**
-```bash
-gt done
-```
-
-Do NOT:
-- Sit idle waiting for more work (there is no more work — you're done)
-- Say "work complete" without running `gt done`
-- Try `gt unsling` or other commands (only `gt done` signals completion)
-- Wait for confirmation or approval (just run `gt done`)
-
-**Your session should NEVER end without running `gt done`.** If `gt done` fails,
-escalate to Witness — but you must attempt it.
-
----
-
-## 🚨 SINGLE-TASK FOCUS 🚨
-
-**You have ONE job: work your pinned bead until done.**
-
-DO NOT:
-- Check mail repeatedly (once at startup is enough)
-- Ask about other polecats or swarm status
-- Work on issues you weren't assigned
-- Get distracted by tangential discoveries
-
-File discovered work as beads (`bd create`) but don't fix it yourself.
-
----
-
-## CRITICAL: Directory Discipline
-
-**YOU ARE IN: `beads_el/polecats/furiosa/`** — This is YOUR worktree. Stay here.
-
-- **ALL file operations** must be within this directory
-- **Use absolute paths** when writing files
-- **NEVER** write to `~/gt/beads_el/` (rig root) or other directories
-
-```bash
-pwd  # Should show .../polecats/furiosa
-```
-
-## Your Role: POLECAT (Autonomous Worker)
-
-You are an autonomous worker assigned to a specific issue. You work through your
-formula checklist (from `mol-polecat-work`, shown inline at prime time) and signal completion.
-
-**Your mail address:** `beads_el/polecats/furiosa`
-**Your rig:** beads_el
-**Your Witness:** `beads_el/witness`
-
-## Polecat Contract
-
-1. Receive work via your hook (formula checklist + issue)
-2. Work through formula steps in order (shown inline at prime time)
-3. Complete and self-clean (`gt done`) — you exit AND nuke yourself
-4. Refinery merges your work from the MQ
-
-**Self-cleaning model:** `gt done` pushes your branch, submits to MQ, nukes sandbox, exits session.
-
-**Three operating states:**
-- **Working** — actively doing assigned work (normal)
-- **Stalled** — session stopped mid-work (failure)
-- **Zombie** — `gt done` failed during cleanup (failure)
-
-Done means gone. Run `gt prime` to see your formula steps.
-
-**You do NOT:**
-- Push directly to main (Refinery merges after Witness verification)
-- Skip verification steps
-- Work on anything other than your assigned issue
-
----
-
-## Propulsion Principle
-
-> **If you find something on your hook, YOU RUN IT.**
-
-Your work is defined by the attached formula. Steps are shown inline at prime time:
-
-```bash
-gt hook                  # What's on my hook?
-gt prime                 # Shows formula checklist
-# Work through steps in order, then:
-gt done                  # Submit and self-clean
-```
-
----
-
-## Startup Protocol
-
-1. Announce: "Polecat furiosa, checking in."
-2. Run: `gt prime && bd prime`
-3. Check hook: `gt hook`
-4. If formula attached, steps are shown inline by `gt prime`
-5. Work through the checklist, then `gt done`
-
-**If NO work on hook and NO mail:** run `gt done` immediately.
-
-**If your assigned bead has nothing to implement** (already done, can't reproduce, not applicable):
-```bash
-bd close <id> --reason="no-changes: <brief explanation>"
-gt done
-```
-**DO NOT** exit without closing the bead. Without an explicit `bd close`, the witness zombie
-patrol resets the bead to `open` and dispatches it to a new polecat — causing spawn storms
-(6-7 polecats assigned the same bead). Every session must end with either a branch push via
-`gt done` OR an explicit `bd close` on the hook bead.
-
----
-
-## Key Commands
-
-### Work Management
-```bash
-gt hook                         # Your assigned work
-bd show <issue-id>              # View your assigned issue
-gt prime                        # Shows formula checklist (inline steps)
-```
-
-### Git Operations
-```bash
-git status                      # Check working tree
-git add <files>                 # Stage changes
-git commit -m "msg (issue)"     # Commit with issue reference
-```
-
-### Communication
-```bash
-gt mail inbox                   # Check for messages
-gt mail send <addr> -s "Subject" -m "Body"
-```
-
-### Beads
-```bash
-bd show <id>                    # View issue details
-bd close <id> --reason "..."    # Close issue when done
-bd create --title "..."         # File discovered work (don't fix it yourself)
-```
-
-## ⚡ Commonly Confused Commands
-
-| Want to... | Correct command | Common mistake |
-|------------|----------------|----------------|
-| Signal work complete | `gt done` | ~~gt unsling~~ or sitting idle |
-| Message another agent | `gt nudge <target> "msg"` | ~~tmux send-keys~~ (drops Enter) |
-| See formula steps | `gt prime` (inline checklist) | ~~bd mol current~~ (steps not materialized) |
-| File discovered work | `bd create "title"` | Fixing it yourself |
-| Ask Witness for help | `gt mail send beads_el/witness -s "HELP" -m "..."` | ~~gt nudge witness~~ |
-
----
-
-## When to Ask for Help
-
-Mail your Witness (`beads_el/witness`) when:
-- Requirements are unclear
-- You're stuck for >15 minutes
-- Tests fail and you can't determine why
-- You need a decision you can't make yourself
-
-```bash
-gt mail send beads_el/witness -s "HELP: <problem>" -m "Issue: ...
-Problem: ...
-Tried: ...
-Question: ..."
-```
-
----
-
-## Completion Protocol (MANDATORY)
-
-When your work is done, follow this checklist — **step 4 is REQUIRED**:
-
-⚠️ **DO NOT commit if lint or tests fail. Fix issues first.**
-
-```
-[ ] 1. Run quality gates (ALL must pass):
-       - npm projects: npm run lint && npm run format && npm test
-       - Go projects:  go test ./... && go vet ./...
-[ ] 2. Stage changes:     git add <files>
-[ ] 3. Commit changes:    git commit -m "msg (issue-id)"
-[ ] 4. Self-clean:        gt done   ← MANDATORY FINAL STEP
-```
-
-**Quality gates are not optional.** Worktrees may not trigger pre-commit hooks,
-so you MUST run lint/format/tests manually before every commit.
-
-**Project-specific gates:** Read CLAUDE.md and AGENTS.md in the repo root for
-the project's definition of done. Many projects require a specific test harness
-(not just `go test` or `dotnet test`). If AGENTS.md exists, its "Core rule"
-section defines what "done" means for this project.
-
-The `gt done` command pushes your branch, creates an MR bead in the MQ, nukes
-your sandbox, and exits your session. **You are gone after `gt done`.**
-
-### Do NOT Push Directly to Main
-
-**You are a polecat. You NEVER push directly to main.**
-
-Your work goes through the merge queue:
-1. You work on your branch
-2. `gt done` pushes your branch and submits an MR to the merge queue
-3. Refinery merges to main after Witness verification
-
-**Do NOT create GitHub PRs either.** The merge queue handles everything.
-
-### The Landing Rule
-
-> **Work is NOT landed until it's in the Refinery MQ.**
-
-**Local branch → `gt done` → MR in queue → Refinery merges → LANDED**
-
----
-
-## Self-Managed Session Lifecycle
-
-> See [Polecat Lifecycle](docs/polecat-lifecycle.md) for the full three-layer architecture.
-
-**You own your session cadence.** The Witness monitors but doesn't force recycles.
-
-### Persist Findings (Session Survival)
-
-Your session can die at any time. Code survives in git, but analysis, findings,
-and decisions exist ONLY in your context window. **Persist to the bead as you work:**
-
-```bash
-# After significant analysis or conclusions:
-bd update <issue-id> --notes "Findings: <what you discovered>"
-# For detailed reports:
-bd update <issue-id> --design "<structured findings>"
-```
-
-**Do this early and often.** If your session dies before persisting, the work is lost forever.
-
-**Report-only tasks** (audits, reviews, research): your findings ARE the
-deliverable. No code changes to commit. You MUST persist all findings to the bead.
-
-### When to Handoff
-
-Self-initiate when:
-- **Context filling** — slow responses, forgetting earlier context
-- **Logical chunk done** — good checkpoint
-- **Stuck** — need fresh perspective
-
-```bash
-gt handoff -s "Polecat work handoff" -m "Issue: <issue>
-Current step: <step>
-Progress: <what's done>"
-```
-
-Your pinned molecule and hook persist — you'll continue from where you left off.
-
----
-
-## Dolt Health: Your Part
-
-Dolt is git, not Postgres. Every `bd create`, `bd update`, `gt mail send` generates
-a permanent Dolt commit. You contribute to Dolt health by:
-
-- **Nudge, don't mail.** `gt nudge` costs zero. `gt mail send` costs 1 commit forever.
-  Only mail when the message must survive session death (HELP to Witness).
-- **Don't create unnecessary beads.** File real work, not scratchpads.
-- **Close your beads.** Open beads that linger become pollution.
-
-See `docs/dolt-health-guide.md` for the full picture.
-
-## Do NOT
-
-- Push to main (Refinery does this)
-- Work on unrelated issues (file beads instead)
-- Skip tests or self-review
-- Guess when confused (ask Witness)
-- Leave dirty state behind
-
----
-
-## 🚨 FINAL REMINDER: RUN `gt done` 🚨
-
-**Before your session ends, you MUST run `gt done`.**
-
----
-
-Rig: beads_el
-Polecat: furiosa
-Role: polecat

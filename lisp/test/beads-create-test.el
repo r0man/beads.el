@@ -310,7 +310,7 @@ Tests successful creation with only title set."
       (should-not show-called)
 
       ;; Verify the issue was created by listing all issues
-      (let ((issues (beads-command-list!)))
+      (let ((issues (beads-list-execute)))
         (should (seq-find
                  (lambda (issue)
                    (equal (oref issue title) "Minimal Test Issue"))
@@ -323,7 +323,7 @@ Tests successful creation with ALL field types including deps, parent, force."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; First create a parent issue for --parent and --deps flags
-    (let* ((parent (beads-command-create! :title "Parent Issue" :issue-type "epic"))
+    (let* ((parent (beads-execute 'beads-command-create :title "Parent Issue" :issue-type "epic"))
            (parent-id (oref parent id))
            (ext-ref (format "gh-%d" (random 99999)))
            (result
@@ -350,7 +350,7 @@ Tests successful creation with ALL field types including deps, parent, force."
       (should (plist-get result :completion-cache-invalidated))
 
       ;; Verify all fields by fetching the created issue
-      (let* ((issues (beads-command-list!))
+      (let* ((issues (beads-list-execute))
              (created (seq-find
                        (lambda (issue)
                          (equal (oref issue title) "Complete Test Issue"))
@@ -370,7 +370,7 @@ Tests successful creation with ALL field types including deps, parent, force."
         (should (equal (oref created design) "Design notes"))
         ;; Use beads-command-show! to get the issue with dependencies
         ;; (list command doesn't include dependencies)
-        (let* ((detailed (beads-command-show! :issue-ids (list (oref created id))))
+        (let* ((detailed (beads-execute 'beads-command-show :issue-ids (list (oref created id))))
                (deps (oref detailed dependencies)))
           ;; Verify at least one dependency was created from --deps flag.
           ;; bd may create additional implicit dependencies from --parent,
@@ -461,15 +461,11 @@ Tests the multi-issue code path (e.g., from --file flag)."
   :tags '(:unit)
   (beads-test-with-transient-args 'beads-create
       '("--file=/tmp/test.md")
-    ;; Mock beads-command-execute to return execution object with multiple issues
-    (let* ((mock-cmd (beads-command-create :title "mock"))
-           (mock-exec (beads-command-execution
-                       :command mock-cmd
-                       :exit-code 0
-                       :result (list (beads-issue :id "test-1" :title "Issue One")
-                                     (beads-issue :id "test-2" :title "Issue Two")))))
+    ;; Mock beads-command-execute to return parsed result directly
+    (let* ((mock-result (list (beads-issue :id "test-1" :title "Issue One")
+                              (beads-issue :id "test-2" :title "Issue Two"))))
       (cl-letf (((symbol-function 'beads-command-execute)
-                 (lambda (_) mock-exec))
+                 (lambda (_) mock-result))
                 ((symbol-function 'y-or-n-p)
                  (lambda (_) nil))
                 ((symbol-function 'beads--invalidate-completion-cache)
@@ -531,7 +527,7 @@ Tests creating an issue with dependency links."
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
     ;; First create a parent issue
-    (let* ((parent (beads-command-create!
+    (let* ((parent (beads-execute 'beads-command-create
                     :title "Parent Issue"
                     :issue-type "epic"))
            (parent-id (oref parent id)))
@@ -544,7 +540,7 @@ Tests creating an issue with dependency links."
                   (format "--deps=blocks:%s" parent-id))
           (call-interactively #'beads-create--execute))
         ;; Verify the child issue was created
-        (let* ((issues (beads-command-list!))
+        (let* ((issues (beads-list-execute))
                (child (seq-find
                        (lambda (issue)
                          (equal (oref issue title) "Child Issue"))
@@ -561,7 +557,7 @@ Tests the --file flag which is mutually exclusive with --title."
       (unwind-protect
           (progn
             ;; Count issues before creation (should be 0 in fresh project)
-            (let ((before-count (length (beads-command-list!))))
+            (let ((before-count (length (beads-list-execute))))
               (with-temp-file issue-file
                 (insert "## Issue Created From File\n\n")
                 (insert "This is the description of the issue.\n")
@@ -577,7 +573,7 @@ Tests the --file flag which is mutually exclusive with --title."
                 ;; Verify cache was invalidated
                 (should (plist-get result :completion-cache-invalidated))
                 ;; Verify exactly one new issue was created
-                (let* ((after-issues (beads-command-list!))
+                (let* ((after-issues (beads-list-execute))
                        (after-count (length after-issues)))
                   (should (= after-count (1+ before-count)))
                   ;; Find and verify the created issue
@@ -733,11 +729,11 @@ Tests that preview is read-only and doesn't mutate state."
     (beads-test-with-transient-args 'beads-create
         '("--title=Should Not Be Created")
       ;; Get initial issue count
-      (let ((initial-count (length (beads-command-list!))))
+      (let ((initial-count (length (beads-list-execute))))
         ;; Run preview
         (call-interactively #'beads-create--preview)
         ;; Verify issue count unchanged
-        (should (= (length (beads-command-list!)) initial-count))))))
+        (should (= (length (beads-list-execute)) initial-count))))))
 
 (ert-deftest beads-create-test-preview-does-not-invalidate-cache ()
   "Integration test: Verify preview doesn't invalidate caches.
@@ -938,7 +934,7 @@ Tests that titles with various Unicode characters are handled correctly."
             (call-interactively #'beads-create--execute)
 
             ;; Verify issue was created with correct title
-            (let* ((issues (beads-command-list!))
+            (let* ((issues (beads-list-execute))
                    (created (seq-find
                              (lambda (issue)
                                (equal (oref issue title) title))
@@ -965,7 +961,7 @@ Note: Using 300 chars instead of 1500 to stay within shell/bd limits."
           (call-interactively #'beads-create--execute)
 
           ;; Verify issue was created with full title
-          (let* ((issues (beads-command-list!))
+          (let* ((issues (beads-list-execute))
                  (created (seq-find
                            (lambda (issue)
                              (equal (oref issue title) long-title))
@@ -996,7 +992,7 @@ Note: Some characters like newlines/tabs may be normalized by bd."
             (call-interactively #'beads-create--execute)
 
             ;; Verify issue was created with exact title
-            (let* ((issues (beads-command-list!))
+            (let* ((issues (beads-list-execute))
                    (created (seq-find
                              (lambda (issue)
                                (equal (oref issue title) title))
@@ -1016,7 +1012,7 @@ Tests distinction between empty string and nil value."
       (cl-letf (((symbol-function 'y-or-n-p)
                  (lambda (_) nil)))
         (call-interactively #'beads-create--execute)
-        (let* ((issues (beads-command-list!))
+        (let* ((issues (beads-list-execute))
                (created (seq-find
                          (lambda (issue)
                            (equal (oref issue title) "Nil Description Test"))
@@ -1033,7 +1029,7 @@ Tests distinction between empty string and nil value."
       (cl-letf (((symbol-function 'y-or-n-p)
                  (lambda (_) nil)))
         (call-interactively #'beads-create--execute)
-        (let* ((issues (beads-command-list!))
+        (let* ((issues (beads-list-execute))
                (created (seq-find
                          (lambda (issue)
                            (equal (oref issue title)
@@ -1061,7 +1057,7 @@ Tests all valid priority values including boundaries."
             (call-interactively #'beads-create--execute)
 
             ;; Verify issue was created with correct priority
-            (let* ((issues (beads-command-list!))
+            (let* ((issues (beads-list-execute))
                    (created (seq-find
                              (lambda (issue)
                                (equal (oref issue title) title))
@@ -1087,7 +1083,7 @@ Tests that omitting priority uses bd default behavior."
         (call-interactively #'beads-create--execute)
 
         ;; Verify issue was created (bd will assign default priority)
-        (let* ((issues (beads-command-list!))
+        (let* ((issues (beads-list-execute))
                (created (seq-find
                          (lambda (issue)
                            (equal (oref issue title) "Default Priority Test"))
@@ -1113,7 +1109,7 @@ Tests that all supported issue types work correctly."
             (call-interactively #'beads-create--execute)
 
             ;; Verify issue was created with correct type
-            (let* ((issues (beads-command-list!))
+            (let* ((issues (beads-list-execute))
                    (created (seq-find
                              (lambda (issue)
                                (equal (oref issue title) title))
@@ -1159,7 +1155,7 @@ Tests handling of multiple labels in comma-separated format."
           (call-interactively #'beads-create--execute)
 
           ;; Verify all labels were set (bd returns them sorted)
-          (let* ((issues (beads-command-list!))
+          (let* ((issues (beads-list-execute))
                  (created (seq-find
                            (lambda (issue)
                              (equal (oref issue title) "Many Labels Test"))
@@ -1184,7 +1180,7 @@ Tests that labels with hyphens, underscores, and numbers work."
           (call-interactively #'beads-create--execute)
 
           ;; Verify labels were set
-          (let* ((issues (beads-command-list!))
+          (let* ((issues (beads-list-execute))
                  (created (seq-find
                            (lambda (issue)
                              (equal (oref issue title) "Special Labels Test"))

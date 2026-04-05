@@ -70,9 +70,9 @@
   "Test that beads-history is a transient prefix."
   (should (get 'beads-history 'transient--prefix)))
 
-(ert-deftest beads-history-test-bang-function-exists ()
-  "Test that convenience function exists."
-  (should (fboundp 'beads-command-history!)))
+(ert-deftest beads-history-test-class-defined ()
+  "Test that command class is defined."
+  (should (find-class 'beads-command-history nil)))
 
 (provide 'beads-command-history-test)
 ;;; beads-command-history-test.el ends here

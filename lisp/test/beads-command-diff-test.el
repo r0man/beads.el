@@ -80,9 +80,9 @@
   "Test that beads-diff is a transient prefix."
   (should (get 'beads-diff 'transient--prefix)))
 
-(ert-deftest beads-diff-test-bang-function-exists ()
-  "Test that convenience function exists."
-  (should (fboundp 'beads-command-diff!)))
+(ert-deftest beads-diff-test-class-defined ()
+  "Test that command class is defined."
+  (should (find-class 'beads-command-diff nil)))
 
 (provide 'beads-command-diff-test)
 ;;; beads-command-diff-test.el ends here

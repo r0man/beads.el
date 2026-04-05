@@ -118,7 +118,7 @@ Returns `beads-issue' object or nil on error.
 Results are cached for performance."
   (or (beads-eldoc--get-cached-issue issue-id)
       (condition-case err
-          (let ((issue (beads-command-show! :issue-ids (list issue-id))))
+          (let ((issue (beads-execute 'beads-command-show :issue-ids (list issue-id))))
             (beads-eldoc--cache-issue issue-id issue)
             issue)
         (error
