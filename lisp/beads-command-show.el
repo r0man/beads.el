@@ -105,10 +105,12 @@
     :level 3)
    (local-time
     :type boolean
+    :short-option "l"
     :group "Options"
     :level 3)
    (long
     :type boolean
+    :short-option "L"
     :group "Options"
     :level 2)
    (watch

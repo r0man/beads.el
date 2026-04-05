@@ -64,11 +64,13 @@
     :required t)
    (claim-next
     :type boolean
+    :short-option "c"
     :group "Options"
     :level 3)
    (continue-mol
     :long-option "continue"
     :type boolean
+    :short-option "C"
     :group "Options"
     :level 3)
    (force
@@ -78,10 +80,12 @@
     :level 2)
    (session
     :type (or null string)
+    :short-option "I"
     :group "Options"
     :level 4)
    (suggest-next
     :type boolean
+    :short-option "S"
     :group "Options"
     :level 3))
   :documentation "Close one or more issues with a required reason.

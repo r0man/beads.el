@@ -386,12 +386,14 @@
    (no-history
     :type boolean
     :long-option "no-history"
+    :short-option "H"
     :group "Flags"
     :level 5
     :order 5)
    (no-inherit-labels
     :type boolean
     :long-option "no-inherit-labels"
+    :short-option "N"
     :group "Flags"
     :level 4
     :order 6)
