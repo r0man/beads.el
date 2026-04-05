@@ -52,12 +52,12 @@
 (ert-deftest beads-coverage-3-label-remove-validate-no-issue ()
   "Test label remove validation with no issue IDs."
   (let ((cmd (beads-command-label-remove :issue-ids nil :label "bug")))
-    (should (stringp (beads-command-validate cmd)))))
+    (should (beads-command-validate cmd))))
 
 (ert-deftest beads-coverage-3-label-remove-validate-no-label ()
   "Test label remove validation with no label."
   (let ((cmd (beads-command-label-remove :issue-ids '("bd-1") :label "")))
-    (should (stringp (beads-command-validate cmd)))))
+    (should (beads-command-validate cmd))))
 
 (ert-deftest beads-coverage-3-label-remove-validate-valid ()
   "Test label remove validation with valid args."

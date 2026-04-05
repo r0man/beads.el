@@ -951,12 +951,12 @@ does not check whether fields have actually changed."
 (ert-deftest beads-coverage-2-label-add-validate-no-issue ()
   "Test label add validation with no issue IDs."
   (let ((cmd (beads-command-label-add :issue-ids nil :label "bug")))
-    (should (stringp (beads-command-validate cmd)))))
+    (should (beads-command-validate cmd))))
 
 (ert-deftest beads-coverage-2-label-add-validate-no-label ()
   "Test label add validation with no label."
   (let ((cmd (beads-command-label-add :issue-ids '("bd-1") :label "")))
-    (should (stringp (beads-command-validate cmd)))))
+    (should (beads-command-validate cmd))))
 
 (ert-deftest beads-coverage-2-option-multiline-class-exists ()
   "Test that beads-transient-multiline class exists."

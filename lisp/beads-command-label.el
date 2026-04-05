@@ -117,15 +117,11 @@ Adds a label to one or more issues."
 
 (cl-defmethod beads-command-validate ((command beads-command-label-add))
   "Validate label add COMMAND.
-Checks that issue ID(s) and label are provided.
-Returns error string or nil if valid."
-  (with-slots (issue-ids label) command
-    (cond
-     ((or (null issue-ids) (zerop (length issue-ids)))
-      "Must provide at least one issue ID")
-     ((or (null label) (string-empty-p label))
-      "Must provide a label")
-     (t (beads-command--validate-string-list issue-ids "issue-ids")))))
+Delegates :required slot checks to base class, then validates
+that all issue IDs are strings."
+  (or (cl-call-next-method)
+      (beads-command--validate-string-list
+       (oref command issue-ids) "issue-ids")))
 
 (cl-defmethod beads-command-execute-interactive ((cmd beads-command-label-add))
   "Execute CMD to add label and show result."
@@ -169,15 +165,11 @@ Removes a label from one or more issues."
 
 (cl-defmethod beads-command-validate ((command beads-command-label-remove))
   "Validate label remove COMMAND.
-Checks that issue ID(s) and label are provided.
-Returns error string or nil if valid."
-  (with-slots (issue-ids label) command
-    (cond
-     ((or (null issue-ids) (zerop (length issue-ids)))
-      "Must provide at least one issue ID")
-     ((or (null label) (string-empty-p label))
-      "Must provide a label")
-     (t (beads-command--validate-string-list issue-ids "issue-ids")))))
+Delegates :required slot checks to base class, then validates
+that all issue IDs are strings."
+  (or (cl-call-next-method)
+      (beads-command--validate-string-list
+       (oref command issue-ids) "issue-ids")))
 
 (cl-defmethod beads-command-execute-interactive ((cmd beads-command-label-remove))
   "Execute CMD to remove label and show result."

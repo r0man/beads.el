@@ -673,16 +673,18 @@
 (ert-deftest beads-label-test-add-validate-no-issue ()
   "Test label-add validation fails without issue IDs."
   :tags '(:unit)
-  (let ((cmd (beads-command-label-add :label "bug")))
-    (should (beads-command-validate cmd))
-    (should (string-match-p "issue" (beads-command-validate cmd)))))
+  (let* ((cmd (beads-command-label-add :label "bug"))
+         (errors (beads-command-validate cmd)))
+    (should errors)
+    (should (seq-some (lambda (e) (string-match-p "issue" e)) errors))))
 
 (ert-deftest beads-label-test-add-validate-no-label ()
   "Test label-add validation fails without label."
   :tags '(:unit)
-  (let ((cmd (beads-command-label-add :issue-ids '("bd-1"))))
-    (should (beads-command-validate cmd))
-    (should (string-match-p "label" (beads-command-validate cmd)))))
+  (let* ((cmd (beads-command-label-add :issue-ids '("bd-1")))
+         (errors (beads-command-validate cmd)))
+    (should errors)
+    (should (seq-some (lambda (e) (string-match-p "label" e)) errors))))
 
 (ert-deftest beads-label-test-add-validate-empty-label ()
   "Test label-add validation fails with empty label."

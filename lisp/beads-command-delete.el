@@ -94,8 +94,7 @@
     :reader transient-read-file
     :group "Batch Delete"
     :level 3
-    :order 1)
-)
+    :order 1))
   :documentation "Represents bd delete command.
 Deletes one or more issues and cleans up all references to them.
 When executed with :json t, returns deleted issue(s) data."
