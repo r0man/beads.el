@@ -25,6 +25,7 @@
 ;;; Jira Commands
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-jira-sync "beads-command-integrations" nil t)
 (beads-defcommand beads-command-jira-sync (beads-command-global-options)
   ((pull
     :type boolean
@@ -48,6 +49,7 @@
 Synchronizes issues with Jira.")
 
 
+;;;###autoload (autoload 'beads-jira-status "beads-command-integrations" nil t)
 (beads-defcommand beads-command-jira-status (beads-command-global-options)
   ()
   :documentation "Represents bd jira status command.
@@ -58,6 +60,7 @@ Shows Jira sync status.")
 ;;; Linear Commands
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-linear-sync "beads-command-integrations" nil t)
 (beads-defcommand beads-command-linear-sync (beads-command-global-options)
   ((pull
     :type boolean
@@ -81,12 +84,14 @@ Shows Jira sync status.")
 Synchronizes issues with Linear.")
 
 
+;;;###autoload (autoload 'beads-linear-status "beads-command-integrations" nil t)
 (beads-defcommand beads-command-linear-status (beads-command-global-options)
   ()
   :documentation "Represents bd linear status command.
 Shows Linear sync status.")
 
 
+;;;###autoload (autoload 'beads-linear-teams "beads-command-integrations" nil t)
 (beads-defcommand beads-command-linear-teams (beads-command-global-options)
   ()
   :documentation "Represents bd linear teams command.
@@ -97,36 +102,32 @@ Lists available Linear teams.")
 ;;; Repo Commands
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-repo-add "beads-command-integrations" nil t)
 (beads-defcommand beads-command-repo-add (beads-command-global-options)
   ((repo-path
-    :positional 1))
+    :positional 1
+    :required t))
   :documentation "Represents bd repo add command.
 Adds an additional repository to sync.")
 
 
-(cl-defmethod beads-command-validate ((command beads-command-repo-add))
-  "Validate repo add COMMAND."
-  (with-slots (repo-path) command
-    (if (not repo-path) "Repository path is required" nil)))
-
+;;;###autoload (autoload 'beads-repo-list "beads-command-integrations" nil t)
 (beads-defcommand beads-command-repo-list (beads-command-global-options)
   ()
   :documentation "Represents bd repo list command.
 Lists all configured repositories.")
 
 
+;;;###autoload (autoload 'beads-repo-remove "beads-command-integrations" nil t)
 (beads-defcommand beads-command-repo-remove (beads-command-global-options)
   ((repo-path
-    :positional 1))
+    :positional 1
+    :required t))
   :documentation "Represents bd repo remove command.
 Removes a repository from sync configuration.")
 
 
-(cl-defmethod beads-command-validate ((command beads-command-repo-remove))
-  "Validate repo remove COMMAND."
-  (with-slots (repo-path) command
-    (if (not repo-path) "Repository path is required" nil)))
-
+;;;###autoload (autoload 'beads-repo-sync "beads-command-integrations" nil t)
 (beads-defcommand beads-command-repo-sync (beads-command-global-options)
   ()
   :documentation "Represents bd repo sync command.
@@ -136,65 +137,11 @@ Manually triggers multi-repo sync.")
 ;;; Execute Interactive Methods
 
 
-
-
-
-
-
-
-
-
-;;; Transient Menus
-
-;;;###autoload (autoload 'beads-jira-sync "beads-command-integrations" nil t)
-(beads-meta-define-transient beads-command-jira-sync "beads-jira-sync"
-  "Synchronize issues with Jira."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-jira-status "beads-command-integrations" nil t)
-(beads-meta-define-transient beads-command-jira-status "beads-jira-status"
-  "Show Jira sync status."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-linear-sync "beads-command-integrations" nil t)
-(beads-meta-define-transient beads-command-linear-sync "beads-linear-sync"
-  "Synchronize issues with Linear."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-linear-status "beads-command-integrations" nil t)
-(beads-meta-define-transient beads-command-linear-status "beads-linear-status"
-  "Show Linear sync status."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-linear-teams "beads-command-integrations" nil t)
-(beads-meta-define-transient beads-command-linear-teams "beads-linear-teams"
-  "List available Linear teams."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-repo-add "beads-command-integrations" nil t)
-(beads-meta-define-transient beads-command-repo-add "beads-repo-add"
-  "Add repository to sync configuration."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-repo-list "beads-command-integrations" nil t)
-(beads-meta-define-transient beads-command-repo-list "beads-repo-list"
-  "List configured repositories."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-repo-remove "beads-command-integrations" nil t)
-(beads-meta-define-transient beads-command-repo-remove "beads-repo-remove"
-  "Remove repository from sync configuration."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-repo-sync "beads-command-integrations" nil t)
-(beads-meta-define-transient beads-command-repo-sync "beads-repo-sync"
-  "Trigger multi-repo sync."
-  beads-option-global-section)
-
 ;;; ============================================================
 ;;; GitLab Commands
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-gitlab-sync "beads-command-integrations" nil t)
 (beads-defcommand beads-command-gitlab-sync (beads-command-global-options)
   ((pull
     :type boolean
@@ -218,34 +165,19 @@ Manually triggers multi-repo sync.")
 Synchronizes issues with GitLab.")
 
 
+;;;###autoload (autoload 'beads-gitlab-status "beads-command-integrations" nil t)
 (beads-defcommand beads-command-gitlab-status (beads-command-global-options)
   ()
   :documentation "Represents bd gitlab status command.
 Shows GitLab sync status.")
 
 
+;;;###autoload (autoload 'beads-gitlab-projects "beads-command-integrations" nil t)
 (beads-defcommand beads-command-gitlab-projects (beads-command-global-options)
   ()
   :documentation "Represents bd gitlab projects command.
 Lists accessible GitLab projects.")
 
-
-;;; Autoloads for GitLab sub-commands
-
-;;;###autoload (autoload 'beads-gitlab-sync "beads-command-integrations" nil t)
-(beads-meta-define-transient beads-command-gitlab-sync "beads-gitlab-sync"
-  "Sync issues with GitLab."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-gitlab-status "beads-command-integrations" nil t)
-(beads-meta-define-transient beads-command-gitlab-status "beads-gitlab-status"
-  "Show GitLab sync status."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-gitlab-projects "beads-command-integrations" nil t)
-(beads-meta-define-transient beads-command-gitlab-projects "beads-gitlab-projects"
-  "List accessible GitLab projects."
-  beads-option-global-section)
 
 ;;; Parent Transient Menus
 
@@ -283,6 +215,7 @@ Lists accessible GitLab projects.")
 
 ;;; GitHub Integration Commands
 
+;;;###autoload (autoload 'beads-github-sync "beads-command-integrations" nil t)
 (beads-defcommand beads-command-github-sync (beads-command-global-options)
   ((pull
     :type boolean
@@ -305,32 +238,17 @@ Lists accessible GitLab projects.")
   :documentation "Represents bd github sync command.
 Sync issues with GitHub.")
 
+;;;###autoload (autoload 'beads-github-status "beads-command-integrations" nil t)
 (beads-defcommand beads-command-github-status (beads-command-global-options)
   ()
   :documentation "Represents bd github status command.
 Shows GitHub sync status.")
 
+;;;###autoload (autoload 'beads-github-repos "beads-command-integrations" nil t)
 (beads-defcommand beads-command-github-repos (beads-command-global-options)
   ()
   :documentation "Represents bd github repos command.
 Lists accessible GitHub repositories.")
-
-;;; Autoloads for GitHub sub-commands
-
-;;;###autoload (autoload 'beads-github-sync "beads-command-integrations" nil t)
-(beads-meta-define-transient beads-command-github-sync "beads-github-sync"
-  "Sync issues with GitHub."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-github-status "beads-command-integrations" nil t)
-(beads-meta-define-transient beads-command-github-status "beads-github-status"
-  "Show GitHub sync status."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-github-repos "beads-command-integrations" nil t)
-(beads-meta-define-transient beads-command-github-repos "beads-github-repos"
-  "List accessible GitHub repositories."
-  beads-option-global-section)
 
 ;;;###autoload (autoload 'beads-github "beads-command-integrations" nil t)
 (transient-define-prefix beads-github ()
@@ -342,6 +260,7 @@ Lists accessible GitHub repositories.")
 
 ;;; Azure DevOps Integration Commands
 
+;;;###autoload (autoload 'beads-ado-sync "beads-command-integrations" nil t)
 (beads-defcommand beads-command-ado-sync (beads-command-global-options)
   ((dry-run
     :type boolean
@@ -365,34 +284,19 @@ Lists accessible GitHub repositories.")
 Synchronize issues between beads and Azure DevOps."
   :cli-command "ado sync")
 
+;;;###autoload (autoload 'beads-ado-status "beads-command-integrations" nil t)
 (beads-defcommand beads-command-ado-status (beads-command-global-options)
   ()
   :documentation "Represents bd ado status command.
 Show Azure DevOps sync status."
   :cli-command "ado status")
 
+;;;###autoload (autoload 'beads-ado-projects "beads-command-integrations" nil t)
 (beads-defcommand beads-command-ado-projects (beads-command-global-options)
   ()
   :documentation "Represents bd ado projects command.
 List accessible Azure DevOps projects."
   :cli-command "ado projects")
-
-;;; Autoloads for ADO sub-commands
-
-;;;###autoload (autoload 'beads-ado-sync "beads-command-integrations" nil t)
-(beads-meta-define-transient beads-command-ado-sync "beads-ado-sync"
-  "Sync issues with Azure DevOps."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-ado-status "beads-command-integrations" nil t)
-(beads-meta-define-transient beads-command-ado-status "beads-ado-status"
-  "Show Azure DevOps sync status."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-ado-projects "beads-command-integrations" nil t)
-(beads-meta-define-transient beads-command-ado-projects "beads-ado-projects"
-  "List accessible Azure DevOps projects."
-  beads-option-global-section)
 
 ;;;###autoload (autoload 'beads-ado "beads-command-integrations" nil t)
 (transient-define-prefix beads-ado ()
@@ -406,6 +310,7 @@ List accessible Azure DevOps projects."
 ;;; Notion Integration Commands
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-notion-connect "beads-command-integrations" nil t)
 (beads-defcommand beads-command-notion-connect (beads-command-global-options)
   ((url
     :type (or null string)
@@ -418,6 +323,7 @@ List accessible Azure DevOps projects."
 Connect bd to an existing Notion database or data source.")
 
 
+;;;###autoload (autoload 'beads-notion-init "beads-command-integrations" nil t)
 (beads-defcommand beads-command-notion-init (beads-command-global-options)
   ((parent
     :type (or null string)
@@ -437,12 +343,14 @@ Connect bd to an existing Notion database or data source.")
 Create a dedicated Beads database in Notion.")
 
 
+;;;###autoload (autoload 'beads-notion-status "beads-command-integrations" nil t)
 (beads-defcommand beads-command-notion-status (beads-command-global-options)
   ()
   :documentation "Represents bd notion status command.
 Show Notion sync status.")
 
 
+;;;###autoload (autoload 'beads-notion-sync "beads-command-integrations" nil t)
 (beads-defcommand beads-command-notion-sync (beads-command-global-options)
   ((pull
     :type boolean
@@ -492,31 +400,6 @@ Show Notion sync status.")
 Synchronize issues between beads and Notion.
 By default performs bidirectional sync.")
 
-
-;;; Autoloads for Notion sub-commands
-
-;;;###autoload (autoload 'beads-notion-connect "beads-command-integrations" nil t)
-(beads-meta-define-transient beads-command-notion-connect "beads-notion-connect"
-  "Connect bd to an existing Notion database."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-notion-init "beads-command-integrations" nil t)
-(beads-meta-define-transient beads-command-notion-init "beads-notion-init"
-  "Create a dedicated Beads database in Notion."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-notion-status "beads-command-integrations" nil t)
-(beads-meta-define-transient beads-command-notion-status "beads-notion-status"
-  "Show Notion sync status."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-notion-sync "beads-command-integrations" nil t)
-(beads-meta-define-transient beads-command-notion-sync "beads-notion-sync"
-  "Synchronize issues between beads and Notion.
-
-By default performs bidirectional sync.
-Use --pull or --push to limit direction."
-  beads-option-global-section)
 
 ;;;###autoload (autoload 'beads-notion "beads-command-integrations" nil t)
 (transient-define-prefix beads-notion ()

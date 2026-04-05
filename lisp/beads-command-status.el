@@ -11,7 +11,7 @@
 
 ;; This module defines the `beads-command-status' EIEIO class for the
 ;; `bd status' command.  The class includes full slot metadata for
-;; automatic transient menu generation via `beads-meta-define-transient'.
+;; automatic transient menu generation via `beads-defcommand'.
 ;;
 ;; The bd status command shows a quick snapshot of the issue database
 ;; state and statistics, similar to how 'git status' shows working tree
@@ -43,6 +43,7 @@
 
 ;;; Status Command
 
+;;;###autoload (autoload 'beads-status "beads-command-status" nil t)
 (beads-defcommand beads-command-status (beads-command-global-options)
   ((all-issues
     :long-option "all"
@@ -66,31 +67,6 @@
   :documentation "Represents bd status command.
 Shows a quick snapshot of the issue database state and statistics.
 When executed with :json t, returns status data as JSON.")
-
-
-;; Validate override removed: base handles slot-level validation.
-
-
-;;; Transient Menu
-
-;; Generate the complete transient menu from slot metadata
-;;;###autoload (autoload 'beads-status "beads-command-status" nil t)
-(beads-meta-define-transient beads-command-status "beads-status"
-  "Show issue database overview and statistics.
-
-Similar to 'git status' for working tree state:
-- Summary of issue counts by state
-- Ready work and blockers
-- Recent activity from git history
-
-Use cases:
-- Quick project health check
-- Onboarding for new contributors
-- Daily standup reference
-
-Transient levels control which options are visible (cycle with C-x l):
-  Level 2: All options"
-  beads-option-global-section)
 
 ;;; ============================================================
 ;;; Stats Interactive UI

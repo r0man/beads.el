@@ -11,7 +11,7 @@
 
 ;; This module defines the `beads-command-show' EIEIO class for the
 ;; `bd show' command.  The class includes full slot metadata for
-;; automatic transient menu generation via `beads-meta-define-transient'.
+;; automatic transient menu generation via `beads-defcommand'.
 ;;
 ;; The bd show command displays detailed information about one or more
 ;; issues, including their metadata, description, relationships, and
@@ -126,17 +126,8 @@ of instances when multiple IDs provided)."
   :transient :manual)
 
 
-(cl-defmethod beads-command-validate ((command beads-command-show))
-  "Validate show COMMAND.
-Checks that at least one issue ID is provided.
-Returns error string or nil if valid."
-  (with-slots (issue-ids) command
-    (or
-     ;; Must have at least one issue ID
-     (and (or (null issue-ids) (zerop (length issue-ids)))
-          "Must provide at least one issue ID")
-     ;; Validate list content types
-     (beads-command--validate-string-list issue-ids "issue-ids"))))
+;; Validate override removed: `:required t' on issue-ids handles
+;; the "must provide at least one issue ID" check automatically.
 
 (cl-defmethod beads-command-parse ((command beads-command-show) stdout)
   "Parse show COMMAND output from STDOUT.

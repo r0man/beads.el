@@ -42,7 +42,8 @@
     :reader beads-reader-edit-issue-id
     :group "Edit Issue"
     :level 1
-    :order 1)
+    :order 1
+    :required t)
    (title
     :type boolean
     :short-option "t"
@@ -74,17 +75,12 @@
     :level 1
     :order 5))
   :documentation "Represents bd edit command.
-Opens an issue field in $EDITOR for modification.")
+Opens an issue field in $EDITOR for modification."
+  :transient :manual)
 
 
-(cl-defmethod beads-command-validate ((command beads-command-edit))
-  "Validate edit COMMAND.  Requires issue-id."
-  (with-slots (issue-id) command
-    (cond
-     ((not issue-id) "Issue ID is required")
-     ((string-empty-p issue-id) "Issue ID cannot be empty")
-     (t nil))))
-
+;; Validate override removed: the base method checks :required slots
+;; automatically via beads-command-validate-slots.
 
 ;;; Interactive Edit Workflow
 

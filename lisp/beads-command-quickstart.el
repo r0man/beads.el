@@ -12,7 +12,7 @@
 ;; This module defines the `beads-command-quickstart' EIEIO class for
 ;; the `bd quickstart' command.  The class includes full slot metadata
 ;; for automatic transient menu generation via
-;; `beads-meta-define-transient'.
+;; `beads-defcommand'.
 ;;
 ;; The bd quickstart command displays a quick start guide showing
 ;; common bd workflows and patterns.  It has no options.
@@ -36,12 +36,8 @@
   ()
   :documentation "Represents bd quickstart command.
 Displays a quick start guide showing common bd workflows and patterns."
-  :json nil)
-
-
-;; Validate override removed: base handles slot-level validation.
-
-;; Parse override removed: base method returns raw stdout when :json nil.
+  :json nil
+  :transient :manual)
 
 ;;; Transient Menu
 

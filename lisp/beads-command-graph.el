@@ -62,8 +62,8 @@
     :group "Options"
     :level 2))
   :documentation "Represents bd graph command.
-Displays issue dependency graph visualization.")
-
+Displays issue dependency graph visualization."
+  :transient :manual)
 
 
 ;;; Transient Menu

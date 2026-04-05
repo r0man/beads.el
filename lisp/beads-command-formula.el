@@ -31,7 +31,6 @@
 (require 'beads)
 (require 'beads-buffer)
 (require 'beads-command)
-(require 'beads-meta)
 (require 'beads-option)
 (require 'beads-pager)
 (require 'beads-types)
@@ -123,11 +122,7 @@
     :group "Filters"
     :level 2
     :order 1))
-  :documentation "Represents bd formula list command.
-Lists available formulas from all search paths.")
-
-
-;; Validate override removed: base handles slot-level validation.
+  :documentation "List available formulas from all search paths.")
 
 (cl-defmethod beads-command-parse ((_command beads-command-formula-list) stdout)
   "Parse STDOUT into beads-formula-summary objects."
@@ -143,16 +138,9 @@ Lists available formulas from all search paths.")
 
 (beads-defcommand beads-command-formula-show (beads-command-global-options)
   ((formula-name
-    :positional 1))
-  :documentation "Represents bd formula show command.
-Shows detailed information about a formula.")
-
-
-(cl-defmethod beads-command-validate ((command beads-command-formula-show))
-  "Validate COMMAND.  Requires formula name."
-  (with-slots (formula-name) command
-    (unless (and formula-name (not (string-empty-p formula-name)))
-      "Formula name is required")))
+    :positional 1
+    :required t))
+  :documentation "Show detailed information about a formula.")
 
 (cl-defmethod beads-command-parse ((_command beads-command-formula-show) stdout)
   "Parse STDOUT into beads-formula object."
@@ -175,8 +163,7 @@ Shows detailed information about a formula.")
     :type boolean)
    (stdout
     :type boolean))
-  :documentation "Represents bd formula convert command.
-Converts formula files from JSON to TOML format."
+  :documentation "Convert formula files from JSON to TOML format."
   :cli-command "formula convert")
 
 (cl-defmethod beads-command-validate ((command beads-command-formula-convert))

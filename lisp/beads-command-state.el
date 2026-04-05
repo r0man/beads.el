@@ -11,6 +11,8 @@
 
 ;; This module defines EIEIO command classes for `bd state' and `bd set-state'
 ;; operations.  State manages operational state dimensions on issues.
+;; The class includes full slot metadata for automatic transient menu
+;; generation via `beads-defcommand'.
 
 ;;; Code:
 
@@ -23,11 +25,14 @@
 ;;; Command Class: beads-command-set-state
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-set-state "beads-command-state" nil t)
 (beads-defcommand beads-command-set-state (beads-command-global-options)
   ((issue-id
-    :positional 1)
+    :positional 1
+    :required t)
    (dimension-value
-    :positional 2)
+    :positional 2
+    :required t)
    (reason
     :type (or null string)
     :short-option "r"
@@ -41,14 +46,13 @@ Atomically sets operational state on an issue."
   :cli-command "set-state")
 
 (cl-defmethod beads-command-validate ((command beads-command-set-state))
-  "Validate set-state COMMAND."
-  (with-slots (issue-id dimension-value) command
-    (cond
-     ((not issue-id) "Issue ID is required")
-     ((not dimension-value) "State (dimension=value) is required")
-     ((not (string-match-p "=" dimension-value))
-      "State must be in dimension=value format")
-     (t nil))))
+  "Validate set-state COMMAND.
+Checks :required slots via base method, plus format validation."
+  (let ((errors (cl-call-next-method)))
+    (with-slots (dimension-value) command
+      (when (and dimension-value (not (string-match-p "=" dimension-value)))
+        (push "State must be in dimension=value format" errors)))
+    errors))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-state
@@ -56,57 +60,33 @@ Atomically sets operational state on an issue."
 
 (beads-defcommand beads-command-state (beads-command-global-options)
   ((issue-id
-    :positional 1)
+    :positional 1
+    :required t)
    (dimension
-    :positional 2))
+    :positional 2
+    :required t))
   :documentation "Represents bd state command.
-Queries the current value of a state dimension.")
-
-
-(cl-defmethod beads-command-validate ((command beads-command-state))
-  "Validate state COMMAND."
-  (with-slots (issue-id dimension) command
-    (cond
-     ((not issue-id) "Issue ID is required")
-     ((not dimension) "Dimension is required")
-     (t nil))))
+Queries the current value of a state dimension."
+  :transient :manual)
 
 ;;; ============================================================
 ;;; Command Class: beads-command-state-list
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-state-list "beads-command-state" nil t)
 (beads-defcommand beads-command-state-list (beads-command-global-options)
   ((issue-id
-    :positional 1))
+    :positional 1
+    :required t))
   :documentation "Represents bd state list command.
 Lists all state dimensions on an issue.")
 
 
-(cl-defmethod beads-command-validate ((command beads-command-state-list))
-  "Validate state list COMMAND."
-  (with-slots (issue-id) command
-    (if (not issue-id) "Issue ID is required" nil)))
-
-;;; Execute Interactive Methods
-
-
-
-
 ;;; Transient Menus
-
-;;;###autoload (autoload 'beads-set-state "beads-command-state" nil t)
-(beads-meta-define-transient beads-command-set-state "beads-set-state"
-  "Set operational state on an issue."
-  beads-option-global-section)
 
 ;;;###autoload (autoload 'beads-state-query "beads-command-state" nil t)
 (beads-meta-define-transient beads-command-state "beads-state-query"
   "Query state dimension value."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-state-list "beads-command-state" nil t)
-(beads-meta-define-transient beads-command-state-list "beads-state-list"
-  "List all state dimensions on issue."
   beads-option-global-section)
 
 ;;; Parent Transient Menu

@@ -1265,9 +1265,10 @@ Integration test that retrieves issue database stats."
 (ert-deftest beads-command-test-show-validate-issue-ids ()
   "Show validation requires issue IDs."
   :tags '(:unit)
-  (let ((cmd (beads-command-show)))
-    (should (stringp (beads-command-validate cmd)))
-    (should (string-match-p "issue" (beads-command-validate cmd)))))
+  (let* ((cmd (beads-command-show))
+         (errors (beads-command-validate cmd)))
+    (should errors)
+    (should (cl-some (lambda (e) (string-match-p "issue" e)) errors))))
 
 ;; Additional argument building tests
 

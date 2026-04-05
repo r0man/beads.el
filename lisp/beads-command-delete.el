@@ -11,7 +11,7 @@
 
 ;; This module defines the `beads-command-delete' EIEIO class for the
 ;; `bd delete' command.  The class includes full slot metadata for
-;; automatic transient menu generation via `beads-meta-define-transient'.
+;; automatic transient menu generation via `beads-defcommand'.
 ;;
 ;; The bd delete command permanently deletes one or more issues and
 ;; cleans up all references to them.  This is a destructive operation
@@ -98,7 +98,8 @@
 )
   :documentation "Represents bd delete command.
 Deletes one or more issues and cleans up all references to them.
-When executed with :json t, returns deleted issue(s) data.")
+When executed with :json t, returns deleted issue(s) data."
+  :transient :manual)
 
 
 (cl-defmethod beads-command-validate ((command beads-command-delete))

@@ -11,6 +11,8 @@
 
 ;; This module defines EIEIO command classes for `bd compact' operations.
 ;; The compact command manages database compaction for old closed issues.
+;; The class includes full slot metadata for automatic transient menu
+;; generation via `beads-defcommand'.
 ;;
 ;; Compact has multiple modes:
 ;; - Analyze: Export candidates for agent review (JSON output)
@@ -57,6 +59,7 @@ Shows compaction statistics including tier 1 and tier 2 candidates."
 ;;; Command Class: beads-command-compact-analyze
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-compact-analyze "beads-command-compact" nil t)
 (beads-defcommand beads-command-compact-analyze (beads-command-global-options)
   ((tier
     :type (or null string integer)
@@ -73,8 +76,11 @@ Shows compaction statistics including tier 1 and tier 2 candidates."
     :group "Analyze Options"
     :level 1
     :order 2))
-  :documentation "Represents bd admin compact --analyze command.
-Exports compaction candidates for agent review."
+  :documentation "Analyze and export compaction candidates.
+
+Exports candidates for agent review in JSON format.  Use with
+--json flag for structured output.  Specify --tier for tier 1
+or tier 2 candidates."
   :cli-command "admin compact")
 
 (cl-defmethod beads-command-line ((_command beads-command-compact-analyze))
@@ -86,6 +92,7 @@ Exports compaction candidates for agent review."
 ;;; Command Class: beads-command-compact-apply
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-compact-apply "beads-command-compact" nil t)
 (beads-defcommand beads-command-compact-apply (beads-command-global-options)
   ((issue-id
     :long-option "id"
@@ -105,8 +112,10 @@ Exports compaction candidates for agent review."
     :level 1
     :order 2
     :required t))
-  :documentation "Represents bd admin compact --apply command.
-Accepts agent-provided summary for an issue."
+  :documentation "Apply agent-provided summary to compact an issue.
+
+Accepts a summary file for the specified issue.  Use '-' as the
+summary path to read from stdin."
   :cli-command "admin compact")
 
 (cl-defmethod beads-command-line ((_command beads-command-compact-apply))
@@ -114,15 +123,8 @@ Accepts agent-provided summary for an issue."
   (append (cl-call-next-method)
           '("--apply")))
 
-(cl-defmethod beads-command-validate ((command beads-command-compact-apply))
-  "Validate apply COMMAND.  Requires issue-id and summary."
-  (with-slots (issue-id summary) command
-    (cond
-     ((not issue-id) "Issue ID is required")
-     ((string-empty-p issue-id) "Issue ID cannot be empty")
-     ((not summary) "Summary file path is required")
-     ((string-empty-p summary) "Summary file path cannot be empty")
-     (t nil))))
+;; Validate override removed: the base method checks :required slots
+;; automatically via beads-command-validate-slots.
 
 (cl-defmethod beads-command-execute-interactive
     ((cmd beads-command-compact-apply))
@@ -135,6 +137,7 @@ Accepts agent-provided summary for an issue."
 ;;; Command Class: beads-command-compact-auto
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-compact-auto "beads-command-compact" nil t)
 (beads-defcommand beads-command-compact-auto (beads-command-global-options)
   ((issue-id
     :long-option "id"
@@ -184,8 +187,11 @@ Accepts agent-provided summary for an issue."
     :group "Auto Options"
     :level 3
     :order 7))
-  :documentation "Represents bd admin compact --auto command.
-AI-powered compaction (legacy, requires ANTHROPIC_API_KEY)."
+  :documentation "AI-powered automatic compaction (legacy).
+
+Requires ANTHROPIC_API_KEY environment variable.  Use --dry-run
+to preview candidates before compacting.  Specify --id for a
+single issue or --all for all eligible candidates."
   :cli-command "admin compact")
 
 (cl-defmethod beads-command-line ((_command beads-command-compact-auto))
@@ -224,31 +230,9 @@ Displays counts of tier 1 and tier 2 compaction candidates,
 tombstone information, and other database statistics."
   beads-option-global-section)
 
-;;;###autoload (autoload 'beads-compact-analyze "beads-command-compact" nil t)
-(beads-meta-define-transient beads-command-compact-analyze "beads-compact-analyze"
-  "Analyze and export compaction candidates.
-
-Exports candidates for agent review in JSON format.  Use with
---json flag for structured output.  Specify --tier for tier 1
-or tier 2 candidates."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-compact-apply "beads-command-compact" nil t)
-(beads-meta-define-transient beads-command-compact-apply "beads-compact-apply"
-  "Apply agent-provided summary to compact an issue.
-
-Accepts a summary file for the specified issue.  Use '-' as the
-summary path to read from stdin."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-compact-auto "beads-command-compact" nil t)
-(beads-meta-define-transient beads-command-compact-auto "beads-compact-auto"
-  "AI-powered automatic compaction (legacy).
-
-Requires ANTHROPIC_API_KEY environment variable.  Use --dry-run
-to preview candidates before compacting.  Specify --id for a
-single issue or --all for all eligible candidates."
-  beads-option-global-section)
+;; Note: Transient menus `beads-compact-analyze', `beads-compact-apply',
+;; and `beads-compact-auto' are auto-generated by their respective
+;; `beads-defcommand' above (default :transient t behavior).
 
 ;;; ============================================================
 ;;; Parent Transient Menu

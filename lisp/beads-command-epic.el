@@ -11,7 +11,7 @@
 
 ;; This module defines EIEIO classes for all `bd epic' subcommands.
 ;; Classes include full slot metadata for automatic transient menu
-;; generation via `beads-meta-define-transient'.
+;; generation via `beads-defcommand'.
 ;;
 ;; Commands included:
 ;; - beads-command-epic-status: Show epic completion status
@@ -52,9 +52,6 @@
 Shows epic completion status."
   :result (list-of beads-epic-status))
 
-
-;; Validate override removed: base handles slot-level validation.
-
 (cl-defmethod beads-command-parse ((command beads-command-epic-status) stdout)
   "Parse epic status COMMAND output from STDOUT.
 Returns list of beads-epic-status instances.
@@ -89,11 +86,10 @@ since the base method's (list-of ...) coercion only handles arrays."
     :group "Close Eligible Epics"
     :level 1
     :order 1))
+  :transient :manual
   :documentation "Represents bd epic close-eligible command.
 Closes epics where all children are complete."
   :cli-command "epic close-eligible")
-
-;; Validate override removed: base handles slot-level validation.
 
 
 ;;; Transient Menus

@@ -24,9 +24,11 @@
 ;;; Command Class: beads-command-duplicate
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-duplicate "beads-command-misc" nil t)
 (beads-defcommand beads-command-duplicate (beads-command-global-options)
   ((issue-id
-    :positional 1)
+    :positional 1
+    :required t)
    (of
     :type (or null string)
     :short-option "o"
@@ -34,23 +36,17 @@
     :reader beads-reader-issue-id
     :group "Options"
     :level 1
-    :order 1))
+    :order 1
+    :required t))
   :documentation "Represents bd duplicate command.
 Marks an issue as a duplicate of another.")
 
-
-(cl-defmethod beads-command-validate ((command beads-command-duplicate))
-  "Validate duplicate COMMAND."
-  (with-slots (issue-id of) command
-    (cond
-     ((not issue-id) "Issue ID is required")
-     ((not of) "Canonical issue ID (--of) is required")
-     (t nil))))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-duplicates
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-duplicates "beads-command-misc" nil t)
 (beads-defcommand beads-command-duplicates (beads-command-global-options)
   ((merge
     :type boolean
@@ -66,9 +62,11 @@ Finds and optionally merges duplicate issues.")
 ;;; Command Class: beads-command-supersede
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-supersede "beads-command-misc" nil t)
 (beads-defcommand beads-command-supersede (beads-command-global-options)
   ((issue-id
-    :positional 1)
+    :positional 1
+    :required t)
    (with-id
     :long-option "with"
     :type (or null string)
@@ -77,23 +75,17 @@ Finds and optionally merges duplicate issues.")
     :reader beads-reader-issue-id
     :group "Options"
     :level 1
-    :order 1))
+    :order 1
+    :required t))
   :documentation "Represents bd supersede command.
 Marks an issue as superseded by a newer one.")
 
-
-(cl-defmethod beads-command-validate ((command beads-command-supersede))
-  "Validate supersede COMMAND."
-  (with-slots (issue-id with-id) command
-    (cond
-     ((not issue-id) "Issue ID is required")
-     ((not with-id) "Replacement issue ID (--with) is required")
-     (t nil))))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-orphans
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-orphans "beads-command-misc" nil t)
 (beads-defcommand beads-command-orphans (beads-command-global-options)
   ((details
     :type boolean
@@ -115,6 +107,7 @@ Identifies orphaned issues referenced in commits but still open.")
 ;;; Command Class: beads-command-lint
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-lint "beads-command-misc" nil t)
 (beads-defcommand beads-command-lint (beads-command-global-options)
   ((issue-ids
     :positional 1
@@ -143,6 +136,7 @@ Checks issues for missing template sections.")
 ;;; Command Class: beads-command-q (quick capture)
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-q "beads-command-misc" nil t)
 (beads-defcommand beads-command-q (beads-command-global-options)
   ((title
     :positional 1
@@ -150,7 +144,8 @@ Checks issues for missing template sections.")
     :argument "--title="
     :group "Quick Capture"
     :level 1
-    :order 0)
+    :order 0
+    :required t)
    (issue-type
     :long-option "type"
     :short-option "t"
@@ -175,15 +170,11 @@ Checks issues for missing template sections.")
 Quick capture: creates issue and outputs only ID.")
 
 
-(cl-defmethod beads-command-validate ((command beads-command-q))
-  "Validate q COMMAND."
-  (with-slots (title) command
-    (if (not title) "Title is required" nil)))
-
 ;;; ============================================================
 ;;; Command Class: beads-command-note
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-note "beads-command-misc" nil t)
 (beads-defcommand beads-command-note (beads-command-global-options)
   ((issue-id
     :positional 1
@@ -192,7 +183,8 @@ Quick capture: creates issue and outputs only ID.")
     :reader beads--read-issue-at-point-or-prompt
     :group "Append Note"
     :level 1
-    :order 0)
+    :order 0
+    :required t)
    (text
     :positional 2
     :type (list-of string)
@@ -217,15 +209,11 @@ Quick capture: creates issue and outputs only ID.")
 Appends a note to an issue's notes field.")
 
 
-(cl-defmethod beads-command-validate ((command beads-command-note))
-  "Validate note COMMAND."
-  (with-slots (issue-id) command
-    (if (not issue-id) "Issue ID is required" nil)))
-
 ;;; ============================================================
 ;;; Command Class: beads-command-version
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-version "beads-command-misc" nil t)
 (beads-defcommand beads-command-version (beads-command-global-options)
   ((daemon
     :type boolean
@@ -241,6 +229,7 @@ Prints version information.")
 ;;; Command Class: beads-command-where
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-where "beads-command-misc" nil t)
 (beads-defcommand beads-command-where (beads-command-global-options)
   ()
   :documentation "Represents bd where command.
@@ -251,6 +240,7 @@ Shows active beads location.")
 ;;; Command Class: beads-command-human
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-human "beads-command-misc" nil t)
 (beads-defcommand beads-command-human (beads-command-global-options)
   ()
   :documentation "Represents bd human command.
@@ -261,6 +251,7 @@ Shows essential commands for human users.")
 ;;; Command Class: beads-command-onboard
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-onboard "beads-command-misc" nil t)
 (beads-defcommand beads-command-onboard (beads-command-global-options)
   ()
   :documentation "Represents bd onboard command.
@@ -271,6 +262,7 @@ Displays minimal snippet for AGENTS.md.")
 ;;; Command Class: beads-command-prime
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-prime "beads-command-misc" nil t)
 (beads-defcommand beads-command-prime (beads-command-global-options)
   ()
   :documentation "Represents bd prime command.
@@ -281,6 +273,7 @@ Outputs AI-optimized workflow context.")
 ;;; Command Class: beads-command-preflight
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-preflight "beads-command-misc" nil t)
 (beads-defcommand beads-command-preflight (beads-command-global-options)
   ()
   :documentation "Represents bd preflight command.
@@ -301,6 +294,7 @@ Check and manage bd version upgrades."
 ;;; Command Class: beads-command-upgrade-status
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-upgrade-status "beads-command-misc" nil t)
 (beads-defcommand beads-command-upgrade-status (beads-command-global-options)
   ()
   :documentation "Represents bd upgrade status command.
@@ -310,6 +304,7 @@ Check if bd has been upgraded since last use.")
 ;;; Command Class: beads-command-upgrade-review
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-upgrade-review "beads-command-misc" nil t)
 (beads-defcommand beads-command-upgrade-review (beads-command-global-options)
   ()
   :documentation "Represents bd upgrade review command.
@@ -319,6 +314,7 @@ Show what's new in bd since the last version you used.")
 ;;; Command Class: beads-command-upgrade-ack
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-upgrade-ack "beads-command-misc" nil t)
 (beads-defcommand beads-command-upgrade-ack (beads-command-global-options)
   ()
   :documentation "Represents bd upgrade ack command.
@@ -328,27 +324,23 @@ Acknowledge the current bd version to suppress upgrade notifications.")
 ;;; Command Class: beads-command-rename-prefix
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-rename-prefix "beads-command-misc" nil t)
 (beads-defcommand beads-command-rename-prefix (beads-command-global-options)
   ((old-prefix
-    :positional 1)
+    :positional 1
+    :required t)
    (new-prefix
-    :positional 2))
+    :positional 2
+    :required t))
   :documentation "Represents bd rename-prefix command.
 Renames the issue prefix for all issues in the database."
   :cli-command "rename-prefix")
-
-(cl-defmethod beads-command-validate ((command beads-command-rename-prefix))
-  "Validate rename-prefix COMMAND."
-  (with-slots (old-prefix new-prefix) command
-    (cond
-     ((not old-prefix) "Old prefix is required")
-     ((not new-prefix) "New prefix is required")
-     (t nil))))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-setup
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-setup "beads-command-misc" nil t)
 (beads-defcommand beads-command-setup (beads-command-global-options)
   ((editor
     :positional 1))
@@ -360,6 +352,7 @@ Setup integration with AI editors.")
 ;;; Command Class: beads-command-ship
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-ship "beads-command-misc" nil t)
 (beads-defcommand beads-command-ship (beads-command-global-options)
   ((capability
     :positional 1))
@@ -371,6 +364,7 @@ Publishes a capability for cross-project dependencies.")
 ;;; Command Class: beads-command-cook
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-cook "beads-command-misc" nil t)
 (beads-defcommand beads-command-cook (beads-command-global-options)
   ((formula-id
     :positional 1))
@@ -382,202 +376,13 @@ Compiles a formula into a proto (ephemeral by default).")
 ;;; Command Class: beads-command-mail
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-mail "beads-command-misc" nil t)
 (beads-defcommand beads-command-mail (beads-command-global-options)
   ()
   :documentation "Represents bd mail command.
 Delegates to mail provider.")
 
 ;;; Transient Menus
-
-;;;###autoload (autoload 'beads-duplicate "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-duplicate "beads-duplicate"
-  "Mark an issue as duplicate of another."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-duplicates "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-duplicates "beads-duplicates"
-  "Find and optionally merge duplicate issues."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-supersede "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-supersede "beads-supersede"
-  "Mark an issue as superseded by another."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-orphans "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-orphans "beads-orphans"
-  "Identify orphaned issues."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-lint "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-lint "beads-lint"
-  "Check issues for missing template sections."
-  beads-option-global-section)
-
-
-;;;###autoload (autoload 'beads-q "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-q "beads-q"
-  "Quick capture: create issue and output ID."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-note "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-note "beads-note"
-  "Append a note to an issue."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-version "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-version "beads-version"
-  "Print version information."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-where "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-where "beads-where"
-  "Show active beads location."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-human "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-human "beads-human"
-  "Show essential commands for humans."
-  beads-option-global-section)
-
-;;; Command Class: beads-command-human-list
-;;; ============================================================
-
-(beads-defcommand beads-command-human-list (beads-command-global-options)
-  ((status
-    :type (or null string)
-    :short-option "s"
-    :choices ("open" "in_progress" "blocked" "closed" "all")
-    :group "Options"
-    :level 1
-    :order 1))
-  :documentation "Represents bd human list command.
-Lists all issues labeled with the human tag.")
-
-;;;###autoload (autoload 'beads-human-list "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-human-list "beads-human-list"
-  "List all human-needed beads."
-  beads-option-global-section)
-
-;;; Command Class: beads-command-human-respond
-;;; ============================================================
-
-(beads-defcommand beads-command-human-respond (beads-command-global-options)
-  ((issue-id
-    :positional 1
-    :type (or null string)
-    :short-option "i"
-    :argument "--issue-id="
-    :reader beads-reader-issue-id
-    :group "Options"
-    :level 1
-    :order 1
-    :required t)
-   (response
-    :type (or null string)
-    :short-option "r"
-    :argument "--response="
-    :group "Options"
-    :level 1
-    :order 2
-    :required t))
-  :documentation "Represents bd human respond command.
-Responds to a human-needed bead by adding a comment and closing it.")
-
-(cl-defmethod beads-command-validate ((command beads-command-human-respond))
-  "Validate human respond COMMAND.  Requires issue-id and response."
-  (with-slots (issue-id response) command
-    (cond
-     ((not issue-id) "Issue ID is required")
-     ((string-empty-p issue-id) "Issue ID cannot be empty")
-     ((not response) "Response text is required")
-     ((string-empty-p response) "Response text cannot be empty")
-     (t nil))))
-
-;;;###autoload (autoload 'beads-human-respond "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-human-respond "beads-human-respond"
-  "Respond to a human-needed bead."
-  beads-option-global-section)
-
-;;; Command Class: beads-command-human-dismiss
-;;; ============================================================
-
-(beads-defcommand beads-command-human-dismiss (beads-command-global-options)
-  ((issue-id
-    :positional 1
-    :type (or null string)
-    :short-option "i"
-    :argument "--issue-id="
-    :reader beads-reader-issue-id
-    :group "Options"
-    :level 1
-    :order 1
-    :required t)
-   (reason
-    :type (or null string)
-    :short-option "r"
-    :argument "--reason="
-    :group "Options"
-    :level 1
-    :order 2))
-  :documentation "Represents bd human dismiss command.
-Dismisses a human-needed bead permanently without responding.")
-
-(cl-defmethod beads-command-validate ((command beads-command-human-dismiss))
-  "Validate human dismiss COMMAND.  Requires issue-id."
-  (with-slots (issue-id) command
-    (cond
-     ((not issue-id) "Issue ID is required")
-     ((string-empty-p issue-id) "Issue ID cannot be empty")
-     (t nil))))
-
-;;;###autoload (autoload 'beads-human-dismiss "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-human-dismiss "beads-human-dismiss"
-  "Dismiss a human-needed bead permanently."
-  beads-option-global-section)
-
-;;; Command Class: beads-command-human-stats
-;;; ============================================================
-
-(beads-defcommand beads-command-human-stats (beads-command-global-options)
-  ()
-  :documentation "Represents bd human stats command.
-Shows summary statistics for human-needed beads.")
-
-;;;###autoload (autoload 'beads-human-stats "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-human-stats "beads-human-stats"
-  "Show summary statistics for human-needed beads."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-onboard "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-onboard "beads-onboard"
-  "Display minimal snippet for AGENTS.md."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-prime "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-prime "beads-prime"
-  "Output AI-optimized workflow context."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-preflight "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-preflight "beads-preflight"
-  "Show PR readiness checklist."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-upgrade-status "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-upgrade-status "beads-upgrade-status"
-  "Check if bd has been upgraded since last use."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-upgrade-review "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-upgrade-review "beads-upgrade-review"
-  "Show what's new in bd since the last version you used."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-upgrade-ack "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-upgrade-ack "beads-upgrade-ack"
-  "Acknowledge the current bd version."
-  beads-option-global-section)
 
 ;;;###autoload (autoload 'beads-upgrade "beads-command-misc" nil t)
 (transient-define-prefix beads-upgrade ()
@@ -594,40 +399,9 @@ Version tracking is automatic - bd updates metadata.json on every run.
   ["Quick Actions"
    ("q" "Quit" transient-quit-one)])
 
-;;;###autoload (autoload 'beads-rename-prefix "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-rename-prefix "beads-rename-prefix"
-  "Rename issue prefix for all issues."
-  beads-option-global-section)
+;;; Working With Issues -- stubs
 
-;;;###autoload (autoload 'beads-setup "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-setup "beads-setup"
-  "Setup integration with AI editors."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-ship "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-ship "beads-ship"
-  "Publish capability for cross-project deps."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-cook "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-cook "beads-cook"
-  "Compile formula into proto."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-mail "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-mail "beads-mail"
-  "Delegate to mail provider."
-  beads-option-global-section)
-
-;;; Stub commands for bd --help coverage
-;;
-;; These commands wrap bd subcommands that don't yet have full
-;; transient implementations.  They use beads-defcommand to define
-;; minimal command classes and beads-meta-define-transient to create
-;; a simple transient UI for each.
-
-;;; Working With Issues — stubs
-
+;;;###autoload (autoload 'beads-children "beads-command-misc" nil t)
 (beads-defcommand beads-command-children (beads-command-global-options)
   ((issue-id
     :positional 1
@@ -641,22 +415,14 @@ Version tracking is automatic - bd updates metadata.json on every run.
   :documentation "Represents bd children command.
 Lists child beads of a parent issue.")
 
-;;;###autoload (autoload 'beads-children "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-children "beads-children"
-  "List child beads of a parent issue."
-  beads-option-global-section)
-
+;;;###autoload (autoload 'beads-create-form "beads-command-misc" nil t)
 (beads-defcommand beads-command-create-form (beads-command-global-options)
   ()
   :documentation "Represents bd create-form command.
 Creates a new issue using an interactive form."
   :cli-command "create-form")
 
-;;;###autoload (autoload 'beads-create-form "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-create-form "beads-create-form"
-  "Create a new issue using an interactive form."
-  beads-option-global-section)
-
+;;;###autoload (autoload 'beads-promote "beads-command-misc" nil t)
 (beads-defcommand beads-command-promote (beads-command-global-options)
   ((issue-id
     :positional 1
@@ -670,11 +436,7 @@ Creates a new issue using an interactive form."
   :documentation "Represents bd promote command.
 Promotes a wisp to a permanent bead.")
 
-;;;###autoload (autoload 'beads-promote "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-promote "beads-promote"
-  "Promote a wisp to a permanent bead."
-  beads-option-global-section)
-
+;;;###autoload (autoload 'beads-query "beads-command-misc" nil t)
 (beads-defcommand beads-command-query (beads-command-global-options)
   ((query-string
     :positional 1
@@ -686,25 +448,17 @@ Promotes a wisp to a permanent bead.")
   :documentation "Represents bd query command.
 Queries issues using a simple query language.")
 
-;;;###autoload (autoload 'beads-query "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-query "beads-query"
-  "Query issues using a simple query language."
-  beads-option-global-section)
-
+;;;###autoload (autoload 'beads-todo "beads-command-misc" nil t)
 (beads-defcommand beads-command-todo (beads-command-global-options)
   ()
   :documentation "Represents bd todo command.
 Manages TODO items (convenience wrapper for task issues).")
 
-;;;###autoload (autoload 'beads-todo "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-todo "beads-todo"
-  "Manage TODO items."
-  beads-option-global-section)
-
 ;;; ============================================================
 ;;; Command Class: beads-command-todo-add
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-todo-add "beads-command-misc" nil t)
 (beads-defcommand beads-command-todo-add (beads-command-global-options)
   ((title
     :positional 1
@@ -735,24 +489,11 @@ Manages TODO items (convenience wrapper for task issues).")
 Adds a new TODO item (task issue with priority 2).")
 
 
-(cl-defmethod beads-command-validate ((command beads-command-todo-add))
-  "Validate todo add COMMAND.
-Checks that title is provided.
-Returns error string or nil if valid."
-  (with-slots (title) command
-    (if (or (null title) (string-empty-p title))
-        "Must provide a title"
-      nil)))
-
-;;;###autoload (autoload 'beads-todo-add "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-todo-add "beads-todo-add"
-  "Add a new TODO item."
-  beads-option-global-section)
-
 ;;; ============================================================
 ;;; Command Class: beads-command-todo-list
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-todo-list "beads-command-misc" nil t)
 (beads-defcommand beads-command-todo-list (beads-command-global-options)
   ((all
     :type boolean
@@ -763,15 +504,11 @@ Returns error string or nil if valid."
   :documentation "Represents bd todo list command.
 Lists TODO items (open task issues).")
 
-;;;###autoload (autoload 'beads-todo-list "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-todo-list "beads-todo-list"
-  "List TODO items."
-  beads-option-global-section)
-
 ;;; ============================================================
 ;;; Command Class: beads-command-todo-done
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-todo-done "beads-command-misc" nil t)
 (beads-defcommand beads-command-todo-done (beads-command-global-options)
   ((issue-ids
     :positional 1
@@ -797,44 +534,101 @@ Lists TODO items (open task issues).")
 Marks one or more TODO items as done.")
 
 
-(cl-defmethod beads-command-validate ((command beads-command-todo-done))
-  "Validate todo done COMMAND.
-Checks that at least one issue ID is provided.
-Returns error string or nil if valid."
-  (with-slots (issue-ids) command
-    (if (or (null issue-ids) (zerop (length issue-ids)))
-        "Must provide at least one issue ID"
-      nil)))
+;;; ============================================================
+;;; Command Class: beads-command-human-list
+;;; ============================================================
 
-;;;###autoload (autoload 'beads-todo-done "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-todo-done "beads-todo-done"
-  "Mark TODO items as done."
-  beads-option-global-section)
+;;;###autoload (autoload 'beads-human-list "beads-command-misc" nil t)
+(beads-defcommand beads-command-human-list (beads-command-global-options)
+  ((status
+    :type (or null string)
+    :short-option "s"
+    :choices ("open" "in_progress" "blocked" "closed" "all")
+    :group "Options"
+    :level 1
+    :order 1))
+  :documentation "Represents bd human list command.
+Lists all issues labeled with the human tag.")
 
-;;; Views & Reports — stubs
+;;; ============================================================
+;;; Command Class: beads-command-human-respond
+;;; ============================================================
 
+;;;###autoload (autoload 'beads-human-respond "beads-command-misc" nil t)
+(beads-defcommand beads-command-human-respond (beads-command-global-options)
+  ((issue-id
+    :positional 1
+    :type (or null string)
+    :short-option "i"
+    :argument "--issue-id="
+    :reader beads-reader-issue-id
+    :group "Options"
+    :level 1
+    :order 1
+    :required t)
+   (response
+    :type (or null string)
+    :short-option "r"
+    :argument "--response="
+    :group "Options"
+    :level 1
+    :order 2
+    :required t))
+  :documentation "Represents bd human respond command.
+Responds to a human-needed bead by adding a comment and closing it.")
+
+;;; ============================================================
+;;; Command Class: beads-command-human-dismiss
+;;; ============================================================
+
+;;;###autoload (autoload 'beads-human-dismiss "beads-command-misc" nil t)
+(beads-defcommand beads-command-human-dismiss (beads-command-global-options)
+  ((issue-id
+    :positional 1
+    :type (or null string)
+    :short-option "i"
+    :argument "--issue-id="
+    :reader beads-reader-issue-id
+    :group "Options"
+    :level 1
+    :order 1
+    :required t)
+   (reason
+    :type (or null string)
+    :short-option "r"
+    :argument "--reason="
+    :group "Options"
+    :level 1
+    :order 2))
+  :documentation "Represents bd human dismiss command.
+Dismisses a human-needed bead permanently without responding.")
+
+;;; ============================================================
+;;; Command Class: beads-command-human-stats
+;;; ============================================================
+
+;;;###autoload (autoload 'beads-human-stats "beads-command-misc" nil t)
+(beads-defcommand beads-command-human-stats (beads-command-global-options)
+  ()
+  :documentation "Represents bd human stats command.
+Shows summary statistics for human-needed beads.")
+
+;;; Views & Reports -- stubs
+
+;;;###autoload (autoload 'beads-types "beads-command-misc" nil t)
 (beads-defcommand beads-command-types (beads-command-global-options)
   ()
   :documentation "Represents bd types command.
 Lists valid issue types.")
 
-;;;###autoload (autoload 'beads-types "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-types "beads-types"
-  "List valid issue types."
-  beads-option-global-section)
-
+;;;###autoload (autoload 'beads-find-duplicates "beads-command-misc" nil t)
 (beads-defcommand beads-command-find-duplicates (beads-command-global-options)
   ()
   :documentation "Represents bd find-duplicates command.
 Finds semantically similar issues using text analysis or AI."
   :cli-command "find-duplicates")
 
-;;;###autoload (autoload 'beads-find-duplicates "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-find-duplicates "beads-find-duplicates"
-  "Find semantically similar issues using AI."
-  beads-option-global-section)
-
-;;; Sync & Data — stubs
+;;; Sync & Data -- stubs
 
 ;;; ============================================================
 ;;; Command Class: beads-command-backup (root)
@@ -848,7 +642,8 @@ Finds semantically similar issues using text analysis or AI."
     :level 1
     :order 1))
   :documentation "Represents bd backup command.
-Backs up your beads database by exporting all tables to JSONL.")
+Backs up your beads database by exporting all tables to JSONL."
+  :transient :manual)
 
 ;;;###autoload (autoload 'beads-backup-root "beads-command-misc" nil t)
 (beads-meta-define-transient beads-command-backup "beads-backup-root"
@@ -859,6 +654,7 @@ Backs up your beads database by exporting all tables to JSONL.")
 ;;; Command Class: beads-command-backup-init
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-backup-init "beads-command-misc" nil t)
 (beads-defcommand beads-command-backup-init (beads-command-global-options)
   ((path
     :positional 1
@@ -874,61 +670,31 @@ Backs up your beads database by exporting all tables to JSONL.")
   :documentation "Represents bd backup init command.
 Configures a Dolt backup destination (filesystem path or DoltHub URL).")
 
-(cl-defmethod beads-command-validate ((command beads-command-backup-init))
-  "Validate backup init COMMAND.  Requires path."
-  (with-slots (path) command
-    (cond
-     ((not path) "Backup destination path is required")
-     ((string-empty-p path) "Backup destination path cannot be empty")
-     (t nil))))
-
-;;;###autoload (autoload 'beads-backup-init "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-backup-init "beads-backup-init"
-  "Configure a Dolt backup destination.
-
-Set up a filesystem path or DoltHub URL as the backup destination.
-After initializing, run 'bd backup sync' to push your data."
-  beads-option-global-section)
-
 ;;; ============================================================
 ;;; Command Class: beads-command-backup-status
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-backup-status "beads-command-misc" nil t)
 (beads-defcommand beads-command-backup-status (beads-command-global-options)
   ()
   :documentation "Represents bd backup status command.
 Shows last JSONL and Dolt backup status.")
 
-;;;###autoload (autoload 'beads-backup-status "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-backup-status "beads-backup-status"
-  "Show last backup status.
-
-Displays JSONL backup timestamp, Dolt backup configuration,
-and database size."
-  beads-option-global-section)
-
 ;;; ============================================================
 ;;; Command Class: beads-command-backup-sync
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-backup-sync "beads-command-misc" nil t)
 (beads-defcommand beads-command-backup-sync (beads-command-global-options)
   ()
   :documentation "Represents bd backup sync command.
 Pushes the database to the configured Dolt backup destination.")
 
-;;;###autoload (autoload 'beads-backup-sync "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-backup-sync "beads-backup-sync"
-  "Push database to configured Dolt backup destination.
-
-Syncs the full database state (all branches, full history) to the
-backup location configured with 'bd backup init'.  Run 'bd backup
-init <path>' first to configure a destination."
-  beads-option-global-section)
-
 ;;; ============================================================
 ;;; Command Class: beads-command-backup-restore
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-backup-restore "beads-command-misc" nil t)
 (beads-defcommand beads-command-backup-restore (beads-command-global-options)
   ((path
     :positional 1
@@ -948,14 +714,6 @@ init <path>' first to configure a destination."
     :order 2))
   :documentation "Represents bd backup restore command.
 Restores the database from JSONL backup files.")
-
-;;;###autoload (autoload 'beads-backup-restore "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-backup-restore "beads-backup-restore"
-  "Restore database from JSONL backup files.
-
-Reads from .beads/backup/ by default, or from a specified path.
-Use --dry-run to preview without making changes."
-  beads-option-global-section)
 
 
 ;;; ============================================================
@@ -985,16 +743,13 @@ Dolt-native backup commands (preserve full commit history):
   ["Quick Actions"
    ("q" "Quit" transient-quit-one)])
 
+;;;###autoload (autoload 'beads-export "beads-command-misc" nil t)
 (beads-defcommand beads-command-export (beads-command-global-options)
   ()
   :documentation "Represents bd export command.
 Exports issues to JSONL format.")
 
-;;;###autoload (autoload 'beads-export "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-export "beads-export"
-  "Export issues to JSONL format."
-  beads-option-global-section)
-
+;;;###autoload (autoload 'beads-import "beads-command-misc" nil t)
 (beads-defcommand beads-command-import (beads-command-global-options)
   ((file
     :positional 1
@@ -1008,45 +763,29 @@ Exports issues to JSONL format.")
   :documentation "Represents bd import command.
 Imports issues from a JSONL file into the database.")
 
-;;;###autoload (autoload 'beads-import "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-import "beads-import"
-  "Import issues from a JSONL file."
-  beads-option-global-section)
+;;; Maintenance -- stubs
 
-;;; Maintenance — stubs
-
+;;;###autoload (autoload 'beads-flatten "beads-command-misc" nil t)
 (beads-defcommand beads-command-flatten (beads-command-global-options)
   ()
   :documentation "Represents bd flatten command.
 Squashes all Dolt history into a single commit.")
 
-;;;###autoload (autoload 'beads-flatten "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-flatten "beads-flatten"
-  "Squash all Dolt history into a single commit."
-  beads-option-global-section)
-
+;;;###autoload (autoload 'beads-gc "beads-command-misc" nil t)
 (beads-defcommand beads-command-gc (beads-command-global-options)
   ()
   :documentation "Represents bd gc command.
 Garbage collects: decays old issues, compacts Dolt, runs GC.")
 
-;;;###autoload (autoload 'beads-gc "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-gc "beads-gc"
-  "Garbage collect: decay issues, compact Dolt, run GC."
-  beads-option-global-section)
-
+;;;###autoload (autoload 'beads-purge "beads-command-misc" nil t)
 (beads-defcommand beads-command-purge (beads-command-global-options)
   ()
   :documentation "Represents bd purge command.
 Deletes closed ephemeral beads to reclaim space.")
 
-;;;###autoload (autoload 'beads-purge "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-purge "beads-purge"
-  "Delete closed ephemeral beads to reclaim space."
-  beads-option-global-section)
+;;; Setup & Configuration -- memory stubs
 
-;;; Setup & Configuration — memory stubs
-
+;;;###autoload (autoload 'beads-forget "beads-command-misc" nil t)
 (beads-defcommand beads-command-forget (beads-command-global-options)
   ((memory-id
     :positional 1
@@ -1061,24 +800,16 @@ Deletes closed ephemeral beads to reclaim space.")
   :documentation "Represents bd forget command.
 Removes a persistent memory.")
 
-;;;###autoload (autoload 'beads-forget "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-forget "beads-forget"
-  "Remove a persistent memory."
-  beads-option-global-section)
-
+;;;###autoload (autoload 'beads-kv "beads-command-misc" nil t)
 (beads-defcommand beads-command-kv (beads-command-global-options)
   ()
   :documentation "Represents bd kv command.
 Key-value store commands.")
 
-;;;###autoload (autoload 'beads-kv "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-kv "beads-kv"
-  "Key-value store commands."
-  beads-option-global-section)
-
 ;;; Command Class: beads-command-kv-get
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-kv-get "beads-command-misc" nil t)
 (beads-defcommand beads-command-kv-get (beads-command-global-options)
   ((kv-key
     :positional 1
@@ -1094,22 +825,10 @@ Key-value store commands.")
   :documentation "Represents bd kv get command.
 Retrieves a value by key from the key-value store.")
 
-(cl-defmethod beads-command-validate ((command beads-command-kv-get))
-  "Validate kv get COMMAND.  Requires kv-key."
-  (with-slots (kv-key) command
-    (cond
-     ((not kv-key) "Key is required")
-     ((string-empty-p kv-key) "Key cannot be empty")
-     (t nil))))
-
-;;;###autoload (autoload 'beads-kv-get "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-kv-get "beads-kv-get"
-  "Get a value by key from the key-value store."
-  beads-option-global-section)
-
 ;;; Command Class: beads-command-kv-set
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-kv-set "beads-command-misc" nil t)
 (beads-defcommand beads-command-kv-set (beads-command-global-options)
   ((kv-key
     :positional 1
@@ -1136,23 +855,10 @@ Retrieves a value by key from the key-value store.")
   :documentation "Represents bd kv set command.
 Sets a key-value pair in the key-value store.")
 
-(cl-defmethod beads-command-validate ((command beads-command-kv-set))
-  "Validate kv set COMMAND.  Requires kv-key and kv-value."
-  (with-slots (kv-key kv-value) command
-    (cond
-     ((not kv-key) "Key is required")
-     ((string-empty-p kv-key) "Key cannot be empty")
-     ((not kv-value) "Value is required")
-     (t nil))))
-
-;;;###autoload (autoload 'beads-kv-set "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-kv-set "beads-kv-set"
-  "Set a key-value pair in the key-value store."
-  beads-option-global-section)
-
 ;;; Command Class: beads-command-kv-clear
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-kv-clear "beads-command-misc" nil t)
 (beads-defcommand beads-command-kv-clear (beads-command-global-options)
   ((kv-key
     :positional 1
@@ -1168,42 +874,22 @@ Sets a key-value pair in the key-value store.")
   :documentation "Represents bd kv clear command.
 Deletes a key-value pair from the key-value store.")
 
-(cl-defmethod beads-command-validate ((command beads-command-kv-clear))
-  "Validate kv clear COMMAND.  Requires kv-key."
-  (with-slots (kv-key) command
-    (cond
-     ((not kv-key) "Key is required")
-     ((string-empty-p kv-key) "Key cannot be empty")
-     (t nil))))
-
-;;;###autoload (autoload 'beads-kv-clear "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-kv-clear "beads-kv-clear"
-  "Delete a key-value pair from the key-value store."
-  beads-option-global-section)
-
 ;;; Command Class: beads-command-kv-list
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-kv-list "beads-command-misc" nil t)
 (beads-defcommand beads-command-kv-list (beads-command-global-options)
   ()
   :documentation "Represents bd kv list command.
 Lists all key-value pairs in the key-value store.")
 
-;;;###autoload (autoload 'beads-kv-list "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-kv-list "beads-kv-list"
-  "List all key-value pairs in the key-value store."
-  beads-option-global-section)
-
+;;;###autoload (autoload 'beads-memories "beads-command-misc" nil t)
 (beads-defcommand beads-command-memories (beads-command-global-options)
   ()
   :documentation "Represents bd memories command.
 Lists or searches persistent memories.")
 
-;;;###autoload (autoload 'beads-memories "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-memories "beads-memories"
-  "List or search persistent memories."
-  beads-option-global-section)
-
+;;;###autoload (autoload 'beads-recall "beads-command-misc" nil t)
 (beads-defcommand beads-command-recall (beads-command-global-options)
   ((memory-id
     :positional 1
@@ -1218,11 +904,7 @@ Lists or searches persistent memories.")
   :documentation "Represents bd recall command.
 Retrieves a specific memory.")
 
-;;;###autoload (autoload 'beads-recall "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-recall "beads-recall"
-  "Retrieve a specific memory."
-  beads-option-global-section)
-
+;;;###autoload (autoload 'beads-remember "beads-command-misc" nil t)
 (beads-defcommand beads-command-remember (beads-command-global-options)
   ((content
     :positional 1
@@ -1237,13 +919,9 @@ Retrieves a specific memory.")
   :documentation "Represents bd remember command.
 Stores a persistent memory.")
 
-;;;###autoload (autoload 'beads-remember "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-remember "beads-remember"
-  "Store a persistent memory."
-  beads-option-global-section)
+;;; Additional Commands -- rename stub
 
-;;; Additional Commands — rename stub
-
+;;;###autoload (autoload 'beads-rename "beads-command-misc" nil t)
 (beads-defcommand beads-command-rename (beads-command-global-options)
   ((old-id
     :positional 1
@@ -1255,7 +933,8 @@ Stores a persistent memory.")
     :reader beads--read-issue-at-point-or-prompt
     :group "Rename Issue"
     :level 1
-    :order 0)
+    :order 0
+    :required t)
    (new-id
     :positional 2
     :type (or null string)
@@ -1265,41 +944,32 @@ Stores a persistent memory.")
     :prompt "New issue ID: "
     :group "Rename Issue"
     :level 1
-    :order 1))
+    :order 1
+    :required t))
   :documentation "Represents bd rename command.
 Renames an issue from one ID to another, updating all references.")
 
 
 (cl-defmethod beads-command-validate ((command beads-command-rename))
   "Validate rename COMMAND."
-  (with-slots (old-id new-id) command
-    (cond
-     ((not old-id) "Old issue ID is required")
-     ((not new-id) "New issue ID is required")
-     ((equal old-id new-id) "Old and new issue IDs must be different")
-     (t nil))))
-
-;;;###autoload (autoload 'beads-rename "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-rename "beads-rename"
-  "Rename an issue from one ID to another."
-  beads-option-global-section)
+  (or (cl-call-next-method)
+      (with-slots (old-id new-id) command
+        (when (equal old-id new-id)
+          "Old and new issue IDs must be different"))))
 
 ;;; Context Command
 
+;;;###autoload (autoload 'beads-context "beads-command-misc" nil t)
 (beads-defcommand beads-command-context (beads-command-global-options)
   ()
   :documentation "Represents bd context command.
 Show effective backend identity and repository context.")
 
-;;;###autoload (autoload 'beads-context "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-context "beads-context"
-  "Show backend identity and repository context."
-  beads-option-global-section)
-
 ;;; ============================================================
 ;;; Command Class: beads-command-assign
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-assign "beads-command-misc" nil t)
 (beads-defcommand beads-command-assign (beads-command-global-options)
   ((issue-id
     :positional 1
@@ -1311,7 +981,8 @@ Show effective backend identity and repository context.")
     :reader beads--read-issue-at-point-or-prompt
     :group "Assign Issue"
     :level 1
-    :order 0)
+    :order 0
+    :required t)
    (assignee
     :positional 2
     :type (or null string)
@@ -1326,19 +997,6 @@ Show effective backend identity and repository context.")
 Shorthand for bd update <id> --assignee <name>.
 Pass an empty string as assignee to unassign.")
 
-
-(cl-defmethod beads-command-validate ((command beads-command-assign))
-  "Validate assign COMMAND."
-  (with-slots (issue-id) command
-    (unless issue-id "Issue ID is required")))
-
-;;;###autoload (autoload 'beads-assign "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-assign "beads-assign"
-  "Assign an issue to someone.
-
-Shorthand for: bd update <id> --assignee <name>
-Pass an empty string as assignee to unassign."
-  beads-option-global-section)
 
 ;;; ============================================================
 ;;; Command Class: beads-command-comment
@@ -1355,7 +1013,8 @@ Pass an empty string as assignee to unassign."
     :reader beads--read-issue-at-point-or-prompt
     :group "Add Comment"
     :level 1
-    :order 0)
+    :order 0
+    :required t)
    (text
     :positional 2
     :type (or null string)
@@ -1385,11 +1044,6 @@ Add a comment to an issue."
   :transient :manual)
 
 
-(cl-defmethod beads-command-validate ((command beads-command-comment))
-  "Validate comment COMMAND."
-  (with-slots (issue-id) command
-    (unless issue-id "Issue ID is required")))
-
 ;;;###autoload (autoload 'beads-add-comment "beads-command-misc" nil t)
 (beads-meta-define-transient beads-command-comment "beads-add-comment"
   "Add a comment to an issue.
@@ -1401,6 +1055,7 @@ Shorthand for: bd comments add <id> \"text\""
 ;;; Command Class: beads-command-link
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-link "beads-command-misc" nil t)
 (beads-defcommand beads-command-link (beads-command-global-options)
   ((id1
     :positional 1
@@ -1412,7 +1067,8 @@ Shorthand for: bd comments add <id> \"text\""
     :reader beads--read-issue-at-point-or-prompt
     :group "Link Issues"
     :level 1
-    :order 0)
+    :order 0
+    :required t)
    (id2
     :positional 2
     :type (or null string)
@@ -1423,7 +1079,8 @@ Shorthand for: bd comments add <id> \"text\""
     :reader beads-reader-issue-id
     :group "Link Issues"
     :level 1
-    :order 1)
+    :order 1
+    :required t)
    (link-type
     :long-option "type"
     :type (or null string)
@@ -1440,26 +1097,16 @@ By default creates a 'blocks' dependency (id2 blocks id1).")
 
 (cl-defmethod beads-command-validate ((command beads-command-link))
   "Validate link COMMAND."
-  (with-slots (id1 id2) command
-    (cond
-     ((not id1) "First issue ID is required")
-     ((not id2) "Second issue ID is required")
-     ((equal id1 id2) "Cannot link an issue to itself")
-     (t nil))))
-
-;;;###autoload (autoload 'beads-link "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-link "beads-link"
-  "Link two issues with a dependency.
-
-Shorthand for: bd dep add <id1> <id2>
-By default creates a 'blocks' dependency (id2 blocks id1).
-Use --type to specify a different relationship."
-  beads-option-global-section)
+  (or (cl-call-next-method)
+      (with-slots (id1 id2) command
+        (when (equal id1 id2)
+          "Cannot link an issue to itself"))))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-priority
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-priority "beads-command-misc" nil t)
 (beads-defcommand beads-command-priority (beads-command-global-options)
   ((issue-id
     :positional 1
@@ -1471,7 +1118,8 @@ Use --type to specify a different relationship."
     :reader beads--read-issue-at-point-or-prompt
     :group "Set Priority"
     :level 1
-    :order 0)
+    :order 0
+    :required t)
    (level
     :positional 2
     :type (or null string integer)
@@ -1482,7 +1130,8 @@ Use --type to specify a different relationship."
     :reader beads-reader-priority-level
     :group "Set Priority"
     :level 1
-    :order 1))
+    :order 1
+    :required t))
   :documentation "Represents bd priority command.
 Shorthand for bd update <id> --priority <n>.
 Priority levels: 0=critical, 1=high, 2=medium, 3=low, 4=backlog.")
@@ -1490,37 +1139,21 @@ Priority levels: 0=critical, 1=high, 2=medium, 3=low, 4=backlog.")
 
 (cl-defmethod beads-command-validate ((command beads-command-priority))
   "Validate priority COMMAND."
-  (with-slots (issue-id level) command
-    (let ((level-int (cond ((integerp level) level)
-                           ((and (stringp level)
-                                 (string-match-p "\\`-?[0-9]+\\'" level))
-                            (string-to-number level))
-                           (t nil))))
-      (cond
-       ((not issue-id) "Issue ID is required")
-       ((null level) "Priority level is required")
-       ((not (and (numberp level-int) (<= 0 level-int 4)))
-        "Priority level must be 0 (critical), 1 (high), 2 (medium), 3 (low), or 4 (backlog)")
-       (t nil)))))
-
-;;;###autoload (autoload 'beads-priority "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-priority "beads-priority"
-  "Set the priority of an issue.
-
-Shorthand for: bd update <id> --priority <n>
-
-Priority levels:
-  0 - Critical (security, data loss, broken builds)
-  1 - High (major features, important bugs)
-  2 - Medium (default)
-  3 - Low (polish, optimization)
-  4 - Backlog (future ideas)"
-  beads-option-global-section)
+  (or (cl-call-next-method)
+      (with-slots (level) command
+        (let ((level-int (cond ((integerp level) level)
+                               ((and (stringp level)
+                                     (string-match-p "\\`-?[0-9]+\\'" level))
+                                (string-to-number level))
+                               (t nil))))
+          (when (not (and (numberp level-int) (<= 0 level-int 4)))
+            "Priority level must be 0 (critical), 1 (high), 2 (medium), 3 (low), or 4 (backlog)")))))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-tag
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-tag "beads-command-misc" nil t)
 (beads-defcommand beads-command-tag (beads-command-global-options)
   ((issue-id
     :positional 1
@@ -1532,7 +1165,8 @@ Priority levels:
     :reader beads--read-issue-at-point-or-prompt
     :group "Add Label"
     :level 1
-    :order 0)
+    :order 0
+    :required t)
    (label
     :positional 2
     :type (or null string)
@@ -1543,31 +1177,18 @@ Priority levels:
     :reader beads-reader-label-name
     :group "Add Label"
     :level 1
-    :order 1))
+    :order 1
+    :required t))
   :documentation "Represents bd tag command.
 Shorthand for bd update <id> --add-label <label>.
 Add a label to an issue.")
 
 
-(cl-defmethod beads-command-validate ((command beads-command-tag))
-  "Validate tag COMMAND."
-  (with-slots (issue-id label) command
-    (cond
-     ((not issue-id) "Issue ID is required")
-     ((not label) "Label is required")
-     (t nil))))
-
-;;;###autoload (autoload 'beads-tag "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-tag "beads-tag"
-  "Add a label to an issue.
-
-Shorthand for: bd update <id> --add-label <label>"
-  beads-option-global-section)
-
 ;;; ============================================================
 ;;; Command Class: beads-command-statuses
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-statuses "beads-command-misc" nil t)
 (beads-defcommand beads-command-statuses (beads-command-global-options)
   ()
   :documentation "Represents bd statuses command.
@@ -1575,20 +1196,11 @@ List all valid issue statuses and their categories.
 Built-in and custom statuses from config are shown.")
 
 
-;; Validate override removed: base handles slot-level validation.
-
-;;;###autoload (autoload 'beads-statuses "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-statuses "beads-statuses"
-  "List all valid issue statuses and their categories.
-
-Shows built-in statuses (open, in_progress, blocked, etc.) and
-any custom statuses configured via status.custom."
-  beads-option-global-section)
-
 ;;; ============================================================
 ;;; Command Class: beads-command-rules-audit
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-rules-audit "beads-command-misc" nil t)
 (beads-defcommand beads-command-rules-audit (beads-command-global-options)
   ((path
     :type (or null string)
@@ -1610,6 +1222,7 @@ Scans rules for contradictions and merge opportunities."
 ;;; Command Class: beads-command-rules-compact
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-rules-compact "beads-command-misc" nil t)
 (beads-defcommand beads-command-rules-compact (beads-command-global-options)
   ((path
     :type (or null string)
@@ -1637,19 +1250,6 @@ Scans rules for contradictions and merge opportunities."
 Merges related rules into composites."
   :cli-command "rules compact")
 
-;;; Transient Menus for rules
-
-;;;###autoload (autoload 'beads-rules-audit "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-rules-audit "beads-rules-audit"
-  "Scan rules for contradictions and merge opportunities."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-rules-compact "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-rules-compact "beads-rules-compact"
-  "Merge related rules into composites.
-Use --dry-run to preview without applying."
-  beads-option-global-section)
-
 ;;; Parent Transient Menu: beads-rules
 
 ;;;###autoload (autoload 'beads-rules "beads-command-misc" nil t)
@@ -1663,20 +1263,12 @@ Use --dry-run to preview without applying."
 ;;; Command Class: beads-command-backup-remove
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-backup-remove "beads-command-misc" nil t)
 (beads-defcommand beads-command-backup-remove (beads-command-global-options)
   ()
   :documentation "Represents bd backup remove command.
 Removes the configured backup destination."
   :cli-command "backup remove")
-
-;;;###autoload (autoload 'beads-backup-remove "beads-command-misc" nil t)
-(beads-meta-define-transient beads-command-backup-remove "beads-backup-remove"
-  "Remove the configured backup destination.
-
-Unregisters the backup remote from Dolt and removes the local
-backup configuration.  The backup data at the destination is
-not deleted."
-  beads-option-global-section)
 
 (provide 'beads-command-misc)
 ;;; beads-command-misc.el ends here

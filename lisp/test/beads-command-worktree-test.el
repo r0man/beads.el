@@ -182,16 +182,16 @@
 (ert-deftest beads-command-worktree-test-create-validate-missing-name ()
   "Test validation fails when name is missing."
   (let* ((cmd (beads-command-worktree-create))
-         (error (beads-command-validate cmd)))
-    (should error)
-    (should (string-match-p "name" error))))
+         (errors (beads-command-validate cmd)))
+    (should errors)
+    (should (cl-some (lambda (e) (string-match-p "name" e)) errors))))
 
 (ert-deftest beads-command-worktree-test-create-validate-empty-name ()
   "Test validation fails when name is empty."
   (let* ((cmd (beads-command-worktree-create :name ""))
-         (error (beads-command-validate cmd)))
-    (should error)
-    (should (string-match-p "empty" error))))
+         (errors (beads-command-validate cmd)))
+    (should errors)
+    (should (cl-some (lambda (e) (string-match-p "name" e)) errors))))
 
 (ert-deftest beads-command-worktree-test-create-validate-success ()
   "Test validation succeeds with valid name."
@@ -252,9 +252,9 @@
 (ert-deftest beads-command-worktree-test-remove-validate-missing-name ()
   "Test validation fails when name is missing."
   (let* ((cmd (beads-command-worktree-remove))
-         (error (beads-command-validate cmd)))
-    (should error)
-    (should (string-match-p "name" error))))
+         (errors (beads-command-validate cmd)))
+    (should errors)
+    (should (cl-some (lambda (e) (string-match-p "name" e)) errors))))
 
 (ert-deftest beads-command-worktree-test-remove-validate-success ()
   "Test validation succeeds with valid name."

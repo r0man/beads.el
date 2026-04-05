@@ -34,14 +34,18 @@
 (ert-deftest beads-command-set-state-test-validation-missing-issue-id ()
   "Unit test: set-state validation fails without issue-id."
   :tags '(:unit)
-  (let ((cmd (beads-command-set-state :dimension-value "patrol=active")))
-    (should (beads-command-validate cmd))))
+  (let* ((cmd (beads-command-set-state :dimension-value "patrol=active"))
+         (errors (beads-command-validate cmd)))
+    (should errors)
+    (should (cl-some (lambda (e) (string-match-p "issue-id" e)) errors))))
 
 (ert-deftest beads-command-set-state-test-validation-missing-dimension-value ()
   "Unit test: set-state validation fails without dimension-value."
   :tags '(:unit)
-  (let ((cmd (beads-command-set-state :issue-id "bd-1")))
-    (should (beads-command-validate cmd))))
+  (let* ((cmd (beads-command-set-state :issue-id "bd-1"))
+         (errors (beads-command-validate cmd)))
+    (should errors)
+    (should (cl-some (lambda (e) (string-match-p "dimension-value" e)) errors))))
 
 (ert-deftest beads-command-set-state-test-validation-invalid-format ()
   "Unit test: set-state validation fails with invalid format."

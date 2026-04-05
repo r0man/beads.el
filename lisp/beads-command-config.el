@@ -11,6 +11,10 @@
 
 ;; This module defines EIEIO command classes for `bd config' operations.
 ;; Config manages configuration settings for integrations and preferences.
+;;
+;; Each `beads-defcommand' form auto-generates a transient menu from
+;; slot metadata -- no separate `beads-meta-define-transient' calls
+;; are needed.
 
 ;;; Code:
 
@@ -19,80 +23,59 @@
 (require 'beads-option)
 (require 'transient)
 
-;;; ============================================================
-;;; Command Class: beads-command-config-get
-;;; ============================================================
+;;; Config Get
 
+;;;###autoload (autoload 'beads-config-get "beads-command-config" nil t)
 (beads-defcommand beads-command-config-get (beads-command-global-options)
   ((key
-    :positional 1))
+    :positional 1
+    :required t))
   :documentation "Represents bd config get command.
 Gets a configuration value.")
 
+;; Validate override removed: the base method checks :required slots
+;; automatically via beads-command-validate-slots.
 
-(cl-defmethod beads-command-validate ((command beads-command-config-get))
-  "Validate config get COMMAND.  Requires key."
-  (with-slots (key) command
-    (cond
-     ((not key) "Configuration key is required")
-     ((string-empty-p key) "Configuration key cannot be empty")
-     (t nil))))
+;;; Config Set
 
-;;; ============================================================
-;;; Command Class: beads-command-config-set
-;;; ============================================================
-
+;;;###autoload (autoload 'beads-config-set "beads-command-config" nil t)
 (beads-defcommand beads-command-config-set (beads-command-global-options)
   ((key
-    :positional 1)
+    :positional 1
+    :required t)
    (value
-    :positional 2))
+    :positional 2
+    :required t))
   :documentation "Represents bd config set command.
 Sets a configuration value.")
 
+;; Validate override removed: the base method checks :required slots
+;; automatically via beads-command-validate-slots.
 
-(cl-defmethod beads-command-validate ((command beads-command-config-set))
-  "Validate config set COMMAND.  Requires key and value."
-  (with-slots (key value) command
-    (cond
-     ((not key) "Configuration key is required")
-     ((string-empty-p key) "Configuration key cannot be empty")
-     ((not value) "Value is required")
-     (t nil))))
+;;; Config List
 
-;;; ============================================================
-;;; Command Class: beads-command-config-list
-;;; ============================================================
-
+;;;###autoload (autoload 'beads-config-list "beads-command-config" nil t)
 (beads-defcommand beads-command-config-list (beads-command-global-options)
   ()
   :documentation "Represents bd config list command.
 Lists all configuration values.")
 
+;;; Config Unset
 
-;;; ============================================================
-;;; Command Class: beads-command-config-unset
-;;; ============================================================
-
+;;;###autoload (autoload 'beads-config-unset "beads-command-config" nil t)
 (beads-defcommand beads-command-config-unset (beads-command-global-options)
   ((key
-    :positional 1))
+    :positional 1
+    :required t))
   :documentation "Represents bd config unset command.
 Deletes a configuration value.")
 
+;; Validate override removed: the base method checks :required slots
+;; automatically via beads-command-validate-slots.
 
-(cl-defmethod beads-command-validate ((command beads-command-config-unset))
-  "Validate config unset COMMAND.  Requires key."
-  (with-slots (key) command
-    (cond
-     ((not key) "Configuration key is required")
-     ((string-empty-p key) "Configuration key cannot be empty")
-     (t nil))))
+;;; Config Set-Many
 
-;;; ============================================================
-;;; Command Class: beads-command-config-set-many
-;;; ============================================================
-
+;;;###autoload (autoload 'beads-config-set-many "beads-command-config" nil t)
 (beads-defcommand beads-command-config-set-many (beads-command-global-options)
   ((pairs
     :positional 1
@@ -104,70 +87,16 @@ Sets multiple configuration values at once with a single auto-commit.
 Each argument must be in key=value format."
   :cli-command "config set-many")
 
-(cl-defmethod beads-command-validate ((command beads-command-config-set-many))
-  "Validate config set-many COMMAND.
-At least one key=value pair is required."
-  (with-slots (pairs) command
-    (if (or (null pairs) (zerop (length pairs)))
-        "At least one key=value pair is required"
-      nil)))
+;; Validate override removed: the base method checks :required slots
+;; automatically via beads-command-validate-slots.
 
-;;; ============================================================
-;;; Command Class: beads-command-config-validate
-;;; ============================================================
+;;; Config Validate
 
+;;;###autoload (autoload 'beads-config-validate "beads-command-config" nil t)
 (beads-defcommand beads-command-config-validate (beads-command-global-options)
   ()
   :documentation "Represents bd config validate command.
 Validates sync-related configuration settings.")
-
-;; Validate override removed: base handles slot-level validation.
-
-;;; Execute Interactive Methods
-
-
-
-
-
-;;; Transient Menus
-
-;;;###autoload (autoload 'beads-config-get "beads-command-config" nil t)
-(beads-meta-define-transient beads-command-config-get "beads-config-get"
-  "Get a configuration value."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-config-set "beads-command-config" nil t)
-(beads-meta-define-transient beads-command-config-set "beads-config-set"
-  "Set a configuration value."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-config-list "beads-command-config" nil t)
-(beads-meta-define-transient beads-command-config-list "beads-config-list"
-  "List all configuration values."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-config-unset "beads-command-config" nil t)
-(beads-meta-define-transient beads-command-config-unset "beads-config-unset"
-  "Delete a configuration value."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-config-set-many "beads-command-config" nil t)
-(beads-meta-define-transient beads-command-config-set-many "beads-config-set-many"
-  "Set multiple configuration values at once.
-Each argument must be in key=value format."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-config-validate "beads-command-config" nil t)
-(beads-meta-define-transient beads-command-config-validate "beads-config-validate"
-  "Validate sync-related configuration settings.
-
-Checks:
-  - sync.mode is a valid value (dolt-native)
-  - conflict.strategy is valid (newest, ours, theirs, manual)
-  - federation.sovereignty is valid
-  - Remote URL format is valid
-  - routing.mode is valid"
-  beads-option-global-section)
 
 ;;; Parent Transient Menu
 
