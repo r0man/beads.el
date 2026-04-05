@@ -1956,12 +1956,6 @@ should emit only the autoload form."
                  '(:transient transient-option :key "a"))))
     (should (eq 'transient-option (plist-get result :transient-class)))))
 
-(ert-deftest beads-meta-transient-string-expands-to-description ()
-  "Test :transient with string value expands to :transient-description."
-  (let ((result (beads-meta--expand-concise-properties
-                 '(:transient "--assignee" :key "a"))))
-    (should (equal "--assignee" (plist-get result :transient-description)))))
-
 (ert-deftest beads-meta-transient-symbol-does-not-block-description-infer ()
   "Test description is inferred when :transient holds a class symbol."
   (let ((result (beads-meta--run-inference
@@ -1972,11 +1966,11 @@ should emit only the autoload form."
     ;; Should infer description since :transient is a symbol, not string
     (should (assq :transient-description result))))
 
-(ert-deftest beads-meta-class-property-still-works ()
-  "Test :class property still works for backwards compatibility."
+(ert-deftest beads-meta-transient-does-not-override-explicit-class ()
+  "Test :transient-class takes precedence over :transient."
   (let ((result (beads-meta--expand-concise-properties
-                 '(:class transient-switch :key "f"))))
-    (should (eq 'transient-switch (plist-get result :transient-class)))))
+                 '(:transient transient-switch :transient-class transient-option))))
+    (should (eq 'transient-option (plist-get result :transient-class)))))
 
 ;;; ============================================================
 ;;; Tests for beads--normalize-slot (unified macro-time normalization)
@@ -1985,8 +1979,7 @@ should emit only the autoload form."
 (ert-deftest beads-normalize-slot-string-option ()
   "String option infers transient-option, (or null string), --foo= argument."
   (let* ((result (beads--normalize-slot
-                  '(assignee :option-type :string :short-option "a"
-                             :transient "Assignee")))
+                  '(assignee :option-type :string :short-option "a")))
          (props (cdr result)))
     (should (eq 'assignee (car result)))
     ;; EIEIO basics
@@ -2006,8 +1999,7 @@ should emit only the autoload form."
 (ert-deftest beads-normalize-slot-boolean-option ()
   "Boolean option infers transient-switch, boolean type, --foo argument (no =)."
   (let* ((result (beads--normalize-slot
-                  '(force :option-type :boolean :short-option "!"
-                          :transient "Force")))
+                  '(force :option-type :boolean :short-option "!")))
          (props (cdr result)))
     (should (eq :force (plist-get props :initarg)))
     (should (eq 'boolean (plist-get props :type)))
@@ -2022,8 +2014,7 @@ should emit only the autoload form."
 (ert-deftest beads-normalize-slot-integer-option ()
   "Integer option infers transient-option, (or null integer)."
   (let* ((result (beads--normalize-slot
-                  '(estimate :option-type :integer :short-option "e"
-                             :transient "Estimate")))
+                  '(estimate :option-type :integer :short-option "e")))
          (props (cdr result)))
     (should (eq :estimate (plist-get props :initarg)))
     (should (equal '(or null string integer) (plist-get props :type)))
@@ -2035,7 +2026,7 @@ should emit only the autoload form."
   "List option infers transient-option, (or null list)."
   (let* ((result (beads--normalize-slot
                   '(labels :option-type :list :short-option "l"
-                           :transient "Labels" :separator ",")))
+                           :separator ",")))
          (props (cdr result)))
     (should (eq :labels (plist-get props :initarg)))
     (should (equal '(or null list) (plist-get props :type)))
@@ -2046,47 +2037,42 @@ should emit only the autoload form."
 (ert-deftest beads-normalize-slot-initarg-from-name ()
   ":initarg always derived from slot name."
   (let* ((result (beads--normalize-slot
-                  '(issue-id :option-type :string :short-option "i"
-                             :transient "Issue")))
+                  '(issue-id :option-type :string :short-option "i")))
          (props (cdr result)))
     (should (eq :issue-id (plist-get props :initarg)))))
 
 (ert-deftest beads-normalize-slot-long-option-preserves-hyphens ()
   ":long-option derived from slot name with hyphens preserved."
   (let* ((result (beads--normalize-slot
-                  '(issue-type :option-type :string :short-option "t"
-                               :transient "Type")))
+                  '(issue-type :option-type :string :short-option "t")))
          (props (cdr result)))
     (should (equal "issue-type" (plist-get props :long-option)))))
 
 (ert-deftest beads-normalize-slot-key-from-short-option ()
   ":transient-key from :short-option."
   (let* ((result (beads--normalize-slot
-                  '(title :option-type :string :short-option "t"
-                          :transient "Title")))
+                  '(title :option-type :string :short-option "t")))
          (props (cdr result)))
     (should (equal "t" (plist-get props :transient-key)))))
 
 (ert-deftest beads-normalize-slot-key-from-first-char ()
   ":transient-key falls back to first char of slot name."
   (let* ((result (beads--normalize-slot
-                  '(title :option-type :string :transient "Title")))
+                  '(title :option-type :string)))
          (props (cdr result)))
     (should (equal "t" (plist-get props :transient-key)))))
 
 (ert-deftest beads-normalize-slot-prompt-from-name ()
   ":prompt from capitalized slot name + \": \"."
   (let* ((result (beads--normalize-slot
-                  '(issue-type :option-type :string :short-option "t"
-                               :transient "Type")))
+                  '(issue-type :option-type :string :short-option "t")))
          (props (cdr result)))
     (should (equal "Issue Type: " (plist-get props :transient-prompt)))))
 
 (ert-deftest beads-normalize-slot-level-defaults-to-1 ()
   ":level defaults to 1."
   (let* ((result (beads--normalize-slot
-                  '(title :option-type :string :short-option "t"
-                          :transient "Title")))
+                  '(title :option-type :string :short-option "t")))
          (props (cdr result)))
     (should (= 1 (plist-get props :transient-level)))))
 
@@ -2094,7 +2080,7 @@ should emit only the autoload form."
   "Positional slots skip CLI-option inference (no :long-option, :argument, etc.)."
   (let* ((result (beads--normalize-slot
                   '(title :type (or null string) :positional 1
-                          :short-option "t" :transient "Title")))
+                          :short-option "t")))
          (props (cdr result)))
     (should (eq :title (plist-get props :initarg)))
     (should (equal '(or null string) (plist-get props :type)))
@@ -2112,9 +2098,8 @@ should emit only the autoload form."
                     :long-option "user"
                     :option-type :string
                     :short-option "a"
-                    :transient "Assignee"
+                    :transient transient-switch
                     :argument "--custom-arg="
-                    :class transient-switch
                     :prompt "Custom: "
                     :level 3)))
          (props (cdr result)))
