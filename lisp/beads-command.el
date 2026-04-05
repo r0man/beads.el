@@ -630,7 +630,12 @@ Returns an error string if validation fails, nil if valid."
        ((and required
              (or (null value)
                  (and (stringp value) (string-empty-p value))
-                 (and (listp value) (null value))))
+                 (and (listp value)
+                      (seq-every-p (lambda (v)
+                                     (or (null v)
+                                         (and (stringp v)
+                                              (string-empty-p v))))
+                                   value))))
         (format "%s is required" slot-name))
        ((and choices value (not (member value choices)))
         (format "%s must be one of: %s" slot-name

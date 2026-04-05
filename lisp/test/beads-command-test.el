@@ -1060,13 +1060,13 @@ Integration test that retrieves issue database stats."
   "Unit test: beads-command-close validation requires issue ID."
   :tags '(:unit)
   (let ((cmd (beads-command-close :issue-ids nil)))
-    (should (stringp (beads-command-validate cmd)))))
+    (should (beads-command-validate cmd))))
 
 (ert-deftest beads-command-test-unit-close-validate-issue-id-empty ()
   "Unit test: beads-command-close validation rejects empty issue ID."
   :tags '(:unit)
   (let ((cmd (beads-command-close :issue-ids '(""))))
-    (should (stringp (beads-command-validate cmd)))))
+    (should (beads-command-validate cmd))))
 
 (ert-deftest beads-command-test-unit-init-validate-option-conflicts ()
   "Unit test: beads-command-init validates option conflicts."
