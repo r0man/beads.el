@@ -170,8 +170,8 @@ Example (hand-written transient):
          (transient-val (car result-4))
          (transient-specified (cl-position :transient options-3))
          (defclass-options (cdr result-4))
-         ;; Normalize slots: infer :initarg, :type, :initform, :long-option
-         (normalized-slots (mapcar #'beads-meta--normalize-slot-def slots))
+         ;; Normalize slots: unified normalization (EIEIO core + transient + aliases)
+         (normalized-slots (mapcar #'beads--normalize-slot slots))
          ;; Add cli-command as a class-allocated slot if specified
          (final-slots (if cli-command
                          (append normalized-slots
