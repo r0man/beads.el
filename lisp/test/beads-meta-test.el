@@ -1969,5 +1969,164 @@ should emit only the autoload form."
                  '(:class transient-switch :key "f"))))
     (should (eq 'transient-switch (plist-get result :transient-class)))))
 
+;;; ============================================================
+;;; Tests for beads--normalize-slot (unified macro-time normalization)
+;;; ============================================================
+
+(ert-deftest beads-normalize-slot-string-option ()
+  "String option infers transient-option, (or null string), --foo= argument."
+  (let* ((result (beads--normalize-slot
+                  '(assignee :option-type :string :short-option "a"
+                             :transient "Assignee")))
+         (props (cdr result)))
+    (should (eq 'assignee (car result)))
+    ;; EIEIO basics
+    (should (eq :assignee (plist-get props :initarg)))
+    (should (equal '(or null string) (plist-get props :type)))
+    (should (null (plist-get props :initform)))
+    (should (equal "assignee" (plist-get props :long-option)))
+    ;; Transient inference
+    (should (equal "--assignee=" (plist-get props :transient-argument)))
+    (should (eq 'transient-option (plist-get props :transient-class)))
+    (should (equal "Assignee: " (plist-get props :transient-prompt)))
+    ;; Key from :short-option
+    (should (equal "a" (plist-get props :transient-key)))
+    ;; Level defaults to 1
+    (should (= 1 (plist-get props :transient-level)))))
+
+(ert-deftest beads-normalize-slot-boolean-option ()
+  "Boolean option infers transient-switch, boolean type, --foo argument (no =)."
+  (let* ((result (beads--normalize-slot
+                  '(force :option-type :boolean :short-option "!"
+                          :transient "Force")))
+         (props (cdr result)))
+    (should (eq :force (plist-get props :initarg)))
+    (should (eq 'boolean (plist-get props :type)))
+    (should (null (plist-get props :initform)))
+    (should (equal "force" (plist-get props :long-option)))
+    ;; Boolean: --foo (no =), transient-switch
+    (should (equal "--force" (plist-get props :transient-argument)))
+    (should (eq 'transient-switch (plist-get props :transient-class)))
+    ;; Boolean should NOT get a prompt
+    (should-not (plist-get props :transient-prompt))))
+
+(ert-deftest beads-normalize-slot-integer-option ()
+  "Integer option infers transient-option, (or null integer)."
+  (let* ((result (beads--normalize-slot
+                  '(estimate :option-type :integer :short-option "e"
+                             :transient "Estimate")))
+         (props (cdr result)))
+    (should (eq :estimate (plist-get props :initarg)))
+    (should (equal '(or null string integer) (plist-get props :type)))
+    (should (equal "estimate" (plist-get props :long-option)))
+    (should (equal "--estimate=" (plist-get props :transient-argument)))
+    (should (eq 'transient-option (plist-get props :transient-class)))))
+
+(ert-deftest beads-normalize-slot-list-option ()
+  "List option infers transient-option, (or null list)."
+  (let* ((result (beads--normalize-slot
+                  '(labels :option-type :list :short-option "l"
+                           :transient "Labels" :separator ",")))
+         (props (cdr result)))
+    (should (eq :labels (plist-get props :initarg)))
+    (should (equal '(or null list) (plist-get props :type)))
+    (should (equal "labels" (plist-get props :long-option)))
+    (should (equal "--labels=" (plist-get props :transient-argument)))
+    (should (eq 'transient-option (plist-get props :transient-class)))))
+
+(ert-deftest beads-normalize-slot-initarg-from-name ()
+  ":initarg always derived from slot name."
+  (let* ((result (beads--normalize-slot
+                  '(issue-id :option-type :string :short-option "i"
+                             :transient "Issue")))
+         (props (cdr result)))
+    (should (eq :issue-id (plist-get props :initarg)))))
+
+(ert-deftest beads-normalize-slot-long-option-preserves-hyphens ()
+  ":long-option derived from slot name with hyphens preserved."
+  (let* ((result (beads--normalize-slot
+                  '(issue-type :option-type :string :short-option "t"
+                               :transient "Type")))
+         (props (cdr result)))
+    (should (equal "issue-type" (plist-get props :long-option)))))
+
+(ert-deftest beads-normalize-slot-key-from-short-option ()
+  ":transient-key from :short-option."
+  (let* ((result (beads--normalize-slot
+                  '(title :option-type :string :short-option "t"
+                          :transient "Title")))
+         (props (cdr result)))
+    (should (equal "t" (plist-get props :transient-key)))))
+
+(ert-deftest beads-normalize-slot-key-from-first-char ()
+  ":transient-key falls back to first char of slot name."
+  (let* ((result (beads--normalize-slot
+                  '(title :option-type :string :transient "Title")))
+         (props (cdr result)))
+    (should (equal "t" (plist-get props :transient-key)))))
+
+(ert-deftest beads-normalize-slot-prompt-from-name ()
+  ":prompt from capitalized slot name + \": \"."
+  (let* ((result (beads--normalize-slot
+                  '(issue-type :option-type :string :short-option "t"
+                               :transient "Type")))
+         (props (cdr result)))
+    (should (equal "Issue Type: " (plist-get props :transient-prompt)))))
+
+(ert-deftest beads-normalize-slot-level-defaults-to-1 ()
+  ":level defaults to 1."
+  (let* ((result (beads--normalize-slot
+                  '(title :option-type :string :short-option "t"
+                          :transient "Title")))
+         (props (cdr result)))
+    (should (= 1 (plist-get props :transient-level)))))
+
+(ert-deftest beads-normalize-slot-positional-skips-cli-inference ()
+  "Positional slots skip CLI-option inference (no :long-option, :argument, etc.)."
+  (let* ((result (beads--normalize-slot
+                  '(title :type (or null string) :positional 1
+                          :short-option "t" :transient "Title")))
+         (props (cdr result)))
+    (should (eq :title (plist-get props :initarg)))
+    (should (equal '(or null string) (plist-get props :type)))
+    ;; Positional: no :long-option or :argument
+    (should-not (plist-get props :long-option))
+    (should-not (plist-get props :transient-argument))))
+
+(ert-deftest beads-normalize-slot-explicit-values-override ()
+  "Explicit values override all inference."
+  (let* ((result (beads--normalize-slot
+                  '(assignee
+                    :initarg :my-arg
+                    :type string
+                    :initform "default"
+                    :long-option "user"
+                    :option-type :string
+                    :short-option "a"
+                    :transient "Assignee"
+                    :argument "--custom-arg="
+                    :class transient-switch
+                    :prompt "Custom: "
+                    :level 3)))
+         (props (cdr result)))
+    (should (eq :my-arg (plist-get props :initarg)))
+    (should (eq 'string (plist-get props :type)))
+    (should (equal "default" (plist-get props :initform)))
+    (should (equal "user" (plist-get props :long-option)))
+    ;; Explicit transient values preserved
+    (should (equal "--custom-arg=" (plist-get props :transient-argument)))
+    (should (eq 'transient-switch (plist-get props :transient-class)))
+    (should (equal "Custom: " (plist-get props :transient-prompt)))
+    (should (= 3 (plist-get props :transient-level)))))
+
+(ert-deftest beads-normalize-slot-transient-symbol-overrides-class ()
+  ":transient symbol overrides default class from :option-type."
+  (let* ((result (beads--normalize-slot
+                  '(reason :option-type :string :short-option "r"
+                           :transient transient-switch)))
+         (props (cdr result)))
+    ;; :transient as symbol -> :transient-class
+    (should (eq 'transient-switch (plist-get props :transient-class)))))
+
 (provide 'beads-meta-test)
 ;;; beads-meta-test.el ends here
