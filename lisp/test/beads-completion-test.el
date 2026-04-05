@@ -311,8 +311,8 @@ Annotation functions may return nil or empty string for missing data."
          ;; Use an old timestamp so refresh is attempted
          (beads-completion--cache (list "/test" 0 mock-issues))
          (message-shown nil))
-    (cl-letf (((symbol-function 'beads-command-list!)
-               (lambda ()
+    (cl-letf (((symbol-function 'beads-list-execute)
+               (lambda (&rest _)
                  (error "Connection failed")))
               ((symbol-function 'beads--get-database-path)
                (lambda () "/test"))
@@ -331,8 +331,8 @@ Annotation functions may return nil or empty string for missing data."
 (ert-deftest beads-completion-test-nil-returned-when-no-cache-and-error ()
   "Test that nil is returned when refresh fails with no cache."
   (let ((beads-completion--cache nil))
-    (cl-letf (((symbol-function 'beads-command-list!)
-               (lambda ()
+    (cl-letf (((symbol-function 'beads-list-execute)
+               (lambda (&rest _)
                  (error "Connection failed")))
               ((symbol-function 'beads--get-database-path)
                (lambda () "/test"))
@@ -1157,8 +1157,8 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
          ;; Use an old timestamp so refresh is attempted
          (beads-completion--worktree-cache (cons 0 mock-worktrees))
          (message-shown nil))
-    (cl-letf (((symbol-function 'beads-command-worktree-list!)
-               (lambda ()
+    (cl-letf (((symbol-function 'beads-execute)
+               (lambda (_class &rest _args)
                  (error "Connection failed")))
               ((symbol-function 'message)
                (lambda (fmt &rest args)
@@ -1175,8 +1175,8 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
 (ert-deftest beads-completion-test-worktree-nil-returned-when-no-cache-and-error ()
   "Test that nil is returned when worktree refresh fails with no cache."
   (let ((beads-completion--worktree-cache nil))
-    (cl-letf (((symbol-function 'beads-command-worktree-list!)
-               (lambda ()
+    (cl-letf (((symbol-function 'beads-execute)
+               (lambda (_class &rest _args)
                  (error "Connection failed")))
               ;; Suppress any messages
               ((symbol-function 'message) #'ignore))

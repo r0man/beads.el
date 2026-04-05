@@ -697,10 +697,10 @@
     (should (null (beads-command-validate cmd)))))
 
 (ert-deftest beads-label-test-add-validate-non-string-ids ()
-  "Test label-add validation fails with non-string issue IDs."
+  "Test non-string issue IDs are rejected.
+EIEIO enforces (list-of string) at construction time."
   :tags '(:unit)
-  (let ((cmd (beads-command-label-add :issue-ids '("bd-1" 42) :label "bug")))
-    (should (beads-command-validate cmd))))
+  (should-error (beads-command-label-add :issue-ids '("bd-1" 42) :label "bug")))
 
 ;;; Tests for label-remove validation
 
@@ -730,10 +730,9 @@
   (let ((cmd (beads-command-label-add :issue-ids '("bd-1") :label "bug"))
         (exec-called nil))
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (c)
+               (lambda (_c)
                  (setq exec-called t)
-                 (beads-command-execution :command c :exit-code 0
-                                          :stdout "" :stderr "")))
+                 nil))
               ((symbol-function 'beads--invalidate-completion-cache)
                #'ignore))
       (beads-command-execute-interactive cmd)
@@ -747,10 +746,9 @@
   (let ((cmd (beads-command-label-remove :issue-ids '("bd-1") :label "bug"))
         (exec-called nil))
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (c)
+               (lambda (_c)
                  (setq exec-called t)
-                 (beads-command-execution :command c :exit-code 0
-                                          :stdout "" :stderr "")))
+                 nil))
               ((symbol-function 'beads--invalidate-completion-cache)
                #'ignore))
       (beads-command-execute-interactive cmd)
@@ -926,9 +924,7 @@
     (cl-letf (((symbol-function 'beads-command-execute)
                (lambda (cmd)
                  (setq exec-cmd cmd)
-                 (beads-command-execution
-                  :command cmd :exit-code 0
-                  :stdout "" :stderr ""))))
+                 nil)))
       (beads-label-list "bd-42")
       (should exec-cmd)
       (should (beads-command-label-list-p exec-cmd))

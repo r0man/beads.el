@@ -24,12 +24,11 @@
 (declare-function beads-defer "beads-command-defer" nil)
 (declare-function beads-undefer "beads-command-defer" nil)
 (declare-function beads-delete "beads-command-delete" (&optional issue-id))
-(declare-function beads-move "beads-command-misc" nil)
-(declare-function beads-refile "beads-command-misc" nil)
+
 (declare-function beads-promote "beads-command-misc" nil)
 (declare-function beads-rename "beads-command-misc" nil)
 (declare-function beads-count "beads-command-count" nil)
-(declare-function beads-stats "beads-command-stats" nil)
+(declare-function beads-stats "beads-command-status" nil)
 (declare-function beads-stale "beads-command-stale" nil)
 (declare-function beads-types "beads-command-misc" nil)
 (declare-function beads-lint "beads-command-misc" nil)
@@ -57,9 +56,7 @@ workflow coordination."
    ("f" "Defer" beads-defer)
    ("F" "Undefer" beads-undefer)
    ("D" "Delete" beads-delete)
-   ("m" "Move" beads-move)
-   ("r" "Refile" beads-refile)
-   ("p" "Promote wisp" beads-promote)
+("p" "Promote wisp" beads-promote)
    ("R" "Rename" beads-rename)]
   ["Views & Reports"
    ("c" "Count" beads-count)

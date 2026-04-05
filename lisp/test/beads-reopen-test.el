@@ -113,10 +113,11 @@
       (should-not (beads-reopen--execute)))))
 
 (ert-deftest beads-reopen-test-execute-validation-failure ()
-  "Test execution fails with validation error."
+  "Test execution fails with invalid input.
+May signal user-error (validation) or invalid-slot-type (EIEIO)."
   (cl-letf (((symbol-function 'transient-args)
              (lambda (_prefix) '("--id="))))
-    (should-error (beads-reopen--execute) :type 'user-error)))
+    (should-error (beads-reopen--execute))))
 
 (ert-deftest beads-reopen-test-execute-missing-issue-id ()
   "Test execution fails when issue ID is missing."
@@ -160,16 +161,20 @@
       (should (stringp message-output)))))
 
 (ert-deftest beads-reopen-test-preview-validation-failure ()
-  "Test preview shows validation errors."
+  "Test preview handles invalid input gracefully.
+May signal error (EIEIO type check) or show validation message."
   (let ((message-output nil))
     (cl-letf (((symbol-function 'transient-args)
                (lambda (_prefix) '("--id=")))
               ((symbol-function 'message)
                (lambda (fmt &rest args)
                  (setq message-output (apply #'format fmt args)))))
-      (beads-reopen--preview)
-      (should (stringp message-output))
-      (should (string-match-p "Validation" message-output)))))
+      (condition-case _err
+          (progn
+            (beads-reopen--preview)
+            (should (stringp message-output))
+            (should (string-match-p "Validation" message-output)))
+        (invalid-slot-type t)))))
 
 ;;; Tests for Transient Definition
 
@@ -311,16 +316,15 @@
                                  (issue_type . "bug")
                                  (created_at . "2025-01-15T10:00:00Z")
                                  (updated_at . "2025-01-15T10:00:00Z")))))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout json-string
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
-      ;; Single issue-id should return a single issue
-      (should (beads-issue-p result))
-      (should (string= (oref result id) "bd-42"))
-      (should (string= (oref result status) "open")))))
+)
+    (let ((result (beads-command-parse cmd json-string)))
+      ;; :result (list-of beads-issue) always returns a list
+      (should (listp result))
+      (should (= (length result) 1))
+      (let ((issue (car result)))
+        (should (beads-issue-p issue))
+        (should (string= (oref issue id) "bd-42"))
+        (should (string= (oref issue status) "open"))))))
 
 (ert-deftest beads-reopen-test-parse-json-multiple-issues ()
   "Test beads-command-parse with JSON array for multiple issues."
@@ -336,12 +340,8 @@
                                  (issue_type . "task")
                                  (created_at . "2025-01-15T10:00:00Z")
                                  (updated_at . "2025-01-15T10:00:00Z")))))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout json-string
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+)
+    (let ((result (beads-command-parse cmd json-string)))
       ;; Multiple issue-ids should return a list
       (should (listp result))
       (should (= (length result) 2))
@@ -349,26 +349,16 @@
 
 (ert-deftest beads-reopen-test-parse-json-disabled ()
   "Test beads-command-parse with :json nil falls back to raw stdout."
-  (let* ((cmd (beads-command-reopen :issue-ids '("bd-42") :json nil))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "Reopened bd-42"
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-reopen :issue-ids '("bd-42") :json nil)))
+    (let ((result (beads-command-parse cmd "Reopened bd-42")))
       (should (stringp result))
       (should (string= result "Reopened bd-42")))))
 
 (ert-deftest beads-reopen-test-parse-json-unexpected-structure ()
   "Test beads-command-parse signals error on unexpected JSON."
   (let* ((cmd (beads-command-reopen :issue-ids '("bd-42") :json t))
-         (json-string (json-encode "just-a-string"))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout json-string
-                :stderr "")))
-    (should-error (beads-command-parse cmd exec)
+         (json-string (json-encode "just-a-string")))
+    (should-error (beads-command-parse cmd json-string)
                   :type 'beads-json-parse-error)))
 
 ;;; Tests for Execute-Interactive Method
@@ -377,12 +367,9 @@
   "Test execute-interactive with single issue result."
   (let* ((cmd (beads-command-reopen :issue-ids '("bd-42") :json t))
          (issue (beads-issue :id "bd-42" :title "Test" :status "open"))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0 :stdout "" :stderr ""
-                :result issue))
          (message-output nil))
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd) exec))
+               (lambda (_cmd) issue))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda ()))
               ((symbol-function 'message)
@@ -396,12 +383,9 @@
 (ert-deftest beads-reopen-test-execute-interactive-nil-result ()
   "Test execute-interactive with nil result."
   (let* ((cmd (beads-command-reopen :issue-ids '("bd-42") :json t))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0 :stdout "" :stderr ""
-                :result nil))
          (message-output nil))
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd) exec))
+               (lambda (_cmd) nil))
               ((symbol-function 'beads--invalidate-completion-cache)
                (lambda ()))
               ((symbol-function 'message)

@@ -40,8 +40,6 @@
 
 ;; Soft dependency on beads-command-worktree for bd worktree integration
 (declare-function beads-command-worktree-create "beads-command-worktree")
-(declare-function beads-command-worktree-create! "beads-command-worktree")
-(declare-function beads-command-worktree-list! "beads-command-worktree")
 
 ;;; Forward Declarations
 
@@ -200,7 +198,7 @@ Resolves the value of `beads-agent-use-worktrees':
 Returns the worktree path or nil if not found.
 Uses `bd worktree list' for worktree discovery."
   (require 'beads-command-worktree)
-  (let ((worktrees (beads-command-worktree-list!)))
+  (let ((worktrees (beads-execute 'beads-command-worktree-list)))
     (cl-loop for wt in worktrees
              for name = (oref wt name)
              for path = (oref wt path)
@@ -224,7 +222,7 @@ Creates a new branch based on the current HEAD.
 Returns the worktree path on success, signals error on failure.
 Uses `bd worktree create' which automatically sets up beads database redirect."
   (require 'beads-command-worktree)
-  (let* ((result (beads-command-worktree-create! :name issue-id :branch issue-id))
+  (let* ((result (beads-execute 'beads-command-worktree-create :name issue-id :branch issue-id))
          (path (oref result path)))
     (message "Created worktree for %s at %s (with beads redirect)"
              issue-id path)
@@ -254,16 +252,15 @@ Uses `bd worktree create' which automatically sets up beads database redirect."
   (let ((cmd (beads-command-worktree-create :name issue-id :branch issue-id)))
     (beads-command-execute-async
      cmd
-     (lambda (exec)
-       (if (zerop (oref exec exit-code))
-           (let ((path (oref (oref exec result) path)))
-             (message "Created worktree for %s at %s (with beads redirect)"
-                      issue-id path)
-             (funcall callback t path))
-         (funcall callback nil
-                  (or (oref exec stderr)
-                      (format "Command failed with exit code %d"
-                              (oref exec exit-code)))))))))
+     (lambda (result)
+       (let ((path (oref result path)))
+         (message "Created worktree for %s at %s (with beads redirect)"
+                  issue-id path)
+         (funcall callback t path)))
+     (lambda (err)
+       (funcall callback nil
+                (or (error-message-string err)
+                    "Worktree creation failed"))))))
 
 (provide 'beads-git)
 

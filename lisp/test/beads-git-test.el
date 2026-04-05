@@ -195,34 +195,37 @@
 (ert-deftest beads-git-test-find-worktree-by-path ()
   "Test finding worktree by issue ID in path suffix."
   :tags '(:unit)
-  (cl-letf (((symbol-function 'beads-command-worktree-list!)
-             (lambda ()
-               (list (beads-worktree :name "main" :path "/path/to/main"
-                                     :branch "main" :is-main t)
-                     (beads-worktree :name "beads-123" :path "/path/to/beads-123"
-                                     :branch "beads-123" :is-main nil)))))
+  (cl-letf (((symbol-function 'beads-command-execute)
+             (lambda (cmd)
+               (when (cl-typep cmd 'beads-command-worktree-list)
+                 (list (beads-worktree :name "main" :path "/path/to/main"
+                                       :branch "main" :is-main t)
+                       (beads-worktree :name "beads-123" :path "/path/to/beads-123"
+                                       :branch "beads-123" :is-main nil))))))
     (should (equal (beads-git-find-worktree-for-issue "beads-123")
                    "/path/to/beads-123"))))
 
 (ert-deftest beads-git-test-find-worktree-by-branch ()
   "Test finding worktree by branch name matching issue ID."
   :tags '(:unit)
-  (cl-letf (((symbol-function 'beads-command-worktree-list!)
-             (lambda ()
-               (list (beads-worktree :name "main" :path "/path/to/main"
-                                     :branch "main" :is-main t)
-                     (beads-worktree :name "foo" :path "/custom/path/foo"
-                                     :branch "beads-456" :is-main nil)))))
+  (cl-letf (((symbol-function 'beads-command-execute)
+             (lambda (cmd)
+               (when (cl-typep cmd 'beads-command-worktree-list)
+                 (list (beads-worktree :name "main" :path "/path/to/main"
+                                       :branch "main" :is-main t)
+                       (beads-worktree :name "foo" :path "/custom/path/foo"
+                                       :branch "beads-456" :is-main nil))))))
     (should (equal (beads-git-find-worktree-for-issue "beads-456")
                    "/custom/path/foo"))))
 
 (ert-deftest beads-git-test-find-worktree-not-found ()
   "Test beads-git-find-worktree-for-issue returns nil when not found."
   :tags '(:unit)
-  (cl-letf (((symbol-function 'beads-command-worktree-list!)
-             (lambda ()
-               (list (beads-worktree :name "main" :path "/path/to/main"
-                                     :branch "main" :is-main t)))))
+  (cl-letf (((symbol-function 'beads-command-execute)
+             (lambda (cmd)
+               (when (cl-typep cmd 'beads-command-worktree-list)
+                 (list (beads-worktree :name "main" :path "/path/to/main"
+                                       :branch "main" :is-main t))))))
     (should-not (beads-git-find-worktree-for-issue "beads-999"))))
 
 ;;; Test beads-git-worktree-path-for-issue
@@ -536,10 +539,11 @@
 (ert-deftest beads-git-test-create-worktree-success ()
   "Test beads-git-create-worktree returns path on success."
   :tags '(:unit)
-  (cl-letf (((symbol-function 'beads-command-worktree-create!)
-             (lambda (&rest args)
-               (let ((name (plist-get args :name)))
-                 (beads-worktree :name name :path "/path/to/beads-123"
+  (cl-letf (((symbol-function 'beads-command-execute)
+             (lambda (cmd)
+               (when (cl-typep cmd 'beads-command-worktree-create)
+                 (beads-worktree :name (oref cmd name)
+                                 :path "/path/to/beads-123"
                                  :branch "beads-123" :is-main nil)))))
     (should (equal (beads-git-create-worktree "beads-123")
                    "/path/to/beads-123"))))
@@ -547,8 +551,8 @@
 (ert-deftest beads-git-test-create-worktree-error ()
   "Test beads-git-create-worktree propagates errors."
   :tags '(:unit)
-  (cl-letf (((symbol-function 'beads-command-worktree-create!)
-             (lambda (&rest _args)
+  (cl-letf (((symbol-function 'beads-command-execute)
+             (lambda (_cmd)
                (error "Failed to create worktree"))))
     (should-error (beads-git-create-worktree "beads-123")
                   :type 'error)))
@@ -595,16 +599,17 @@
 (ert-deftest beads-git-test-integration-find-worktree-path-suffix ()
   "Integration test: finding worktree by path suffix."
   :tags '(:integration)
-  (cl-letf (((symbol-function 'beads-command-worktree-list!)
-             (lambda ()
-               (list (beads-worktree :name "main" :path "/home/user/projects/main"
-                                     :branch "main" :is-main t)
-                     (beads-worktree :name "beads.el-42"
-                                     :path "/home/user/worktrees/beads.el-42"
-                                     :branch "beads.el-42" :is-main nil)
-                     (beads-worktree :name "beads.el-99"
-                                     :path "/home/user/worktrees/beads.el-99"
-                                     :branch "feature" :is-main nil)))))
+  (cl-letf (((symbol-function 'beads-command-execute)
+             (lambda (cmd)
+               (when (cl-typep cmd 'beads-command-worktree-list)
+                 (list (beads-worktree :name "main" :path "/home/user/projects/main"
+                                       :branch "main" :is-main t)
+                       (beads-worktree :name "beads.el-42"
+                                       :path "/home/user/worktrees/beads.el-42"
+                                       :branch "beads.el-42" :is-main nil)
+                       (beads-worktree :name "beads.el-99"
+                                       :path "/home/user/worktrees/beads.el-99"
+                                       :branch "feature" :is-main nil))))))
     ;; Find by path suffix
     (should (equal (beads-git-find-worktree-for-issue "beads.el-42")
                    "/home/user/worktrees/beads.el-42"))
@@ -657,15 +662,11 @@
         (callback-success nil)
         (callback-path nil))
     (cl-letf (((symbol-function 'beads-command-execute-async)
-               (lambda (cmd callback)
-                 ;; Simulate successful command execution with execution object
-                 (let ((exec (beads-command-execution
-                              :command cmd
-                              :exit-code 0
-                              :result (beads-worktree :name (oref cmd name)
-                                                      :path "/path/to/test-branch"
-                                                      :branch "test-branch" :is-main nil))))
-                   (funcall callback exec)))))
+               (lambda (cmd on-success &optional _on-error)
+                 ;; Simulate successful async: on-success receives parsed result
+                 (funcall on-success (beads-worktree :name (oref cmd name)
+                                                     :path "/path/to/test-branch"
+                                                     :branch "test-branch" :is-main nil)))))
       (beads-git-create-worktree-async
        "test-branch"
        (lambda (success path)
@@ -683,13 +684,10 @@
         (callback-success nil)
         (callback-error nil))
     (cl-letf (((symbol-function 'beads-command-execute-async)
-               (lambda (cmd callback)
-                 ;; Simulate failed command execution with execution object
-                 (let ((exec (beads-command-execution
-                              :command cmd
-                              :exit-code 1
-                              :stderr "Worktree already exists")))
-                   (funcall callback exec)))))
+               (lambda (_cmd _on-success &optional on-error)
+                 ;; Simulate failed async: on-error receives error condition
+                 (when on-error
+                   (funcall on-error '(error "Worktree already exists"))))))
       (beads-git-create-worktree-async
        "test-branch"
        (lambda (success error)

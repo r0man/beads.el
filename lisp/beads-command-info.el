@@ -34,45 +34,21 @@
 
 (beads-defcommand beads-command-info (beads-command-global-options)
   ((schema
-    :initarg :schema
     :type boolean
-    :initform nil
-    :documentation "Include schema information in output (--schema)."
-    :long-option "schema"
-    :option-type :boolean
-    :key "s"
-    :transient "Show schema info"
-    :class transient-switch
-    :argument "--schema"
-    :transient-group "Options"
+    :short-option "s"
+    :group "Options"
     :level 2
     :order 1)
    (whats-new
-    :initarg :whats-new
     :type boolean
-    :initform nil
-    :documentation "Show agent-relevant changes from recent versions (--whats-new)."
-    :long-option "whats-new"
-    :option-type :boolean
-    :key "w"
-    :transient "Show what's new"
-    :class transient-switch
-    :argument "--whats-new"
-    :transient-group "Options"
+    :short-option "w"
+    :group "Options"
     :level 2
     :order 2)
    (thanks
-    :initarg :thanks
     :type boolean
-    :initform nil
-    :documentation "Show thank you page for contributors (--thanks)."
-    :long-option "thanks"
-    :option-type :boolean
-    :key "t"
-    :transient "Show contributors"
-    :class transient-switch
-    :argument "--thanks"
-    :transient-group "Options"
+    :short-option "t"
+    :group "Options"
     :level 2
     :order 3))
   :documentation "Represents bd info command.
@@ -80,10 +56,7 @@ Shows database and daemon information for debugging.
 When executed with :json t, returns info data as JSON.")
 
 
-(cl-defmethod beads-command-validate ((_command beads-command-info))
-  "Validate info COMMAND.
-No required fields, returns nil (valid)."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 
 ;;; Transient Menu

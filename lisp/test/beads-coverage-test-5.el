@@ -176,11 +176,7 @@
           (populated nil))
       (beads-formula-list-mode)
       (cl-letf (((symbol-function 'beads-command-execute)
-                 (lambda (_cmd)
-                   (beads-command-execution
-                    :command (beads-command-formula-list :json t)
-                    :exit-code 0 :stdout "[]" :stderr ""
-                    :result '())))
+                 (lambda (_cmd) '()))
                 ((symbol-function 'beads-formula-list--populate-buffer)
                  (lambda (formulas _cmd) (setq populated formulas))))
         (beads-formula-list-refresh)
@@ -200,13 +196,10 @@
       (setq beads-search--command-obj (beads-command-list :json t))
       (let ((populated nil))
         (cl-letf (((symbol-function 'beads-command-execute)
-                   (lambda (cmd)
-                     (beads-command-execution
-                      :command cmd :exit-code 0
-                      :stdout "[{\"id\":\"bd-1\",\"title\":\"A\",\"status\":\"open\",\"priority\":1,\"issue_type\":\"task\"}]"
-                      :stderr "" :result (list (beads-issue :id "bd-1" :title "A"
-                                                            :status "open" :priority 1
-                                                            :issue-type "task")))))
+                   (lambda (_cmd)
+                     (list (beads-issue :id "bd-1" :title "A"
+                                        :status "open" :priority 1
+                                        :issue-type "task"))))
                   ((symbol-function 'beads-list--populate-buffer)
                    (lambda (issues _type &optional _cmd)
                      (setq populated issues)))
@@ -221,11 +214,11 @@
 ;;; beads-meta.el - Resolve/Infer Tests
 ;;; ============================================================
 
-(ert-deftest beads-coverage-5-meta-resolve-long-option-with-key ()
-  "Test resolve-long-option auto-generates from slot name when key present."
+(ert-deftest beads-coverage-5-meta-resolve-long-option-with-short-option ()
+  "Test resolve-long-option auto-generates from slot name when short-option present."
   (let ((result (beads-meta--resolve-long-option
                  'issue-type
-                 '(:key "t"))))
+                 '(:short-option "t"))))
     (should (equal "issue-type" result))))
 
 (ert-deftest beads-coverage-5-meta-resolve-long-option-already-set ()
@@ -306,8 +299,8 @@
                (lambda (_id) (setq buf (generate-new-buffer " *beads-test*"))))
               ((symbol-function 'beads-show--register-with-session)
                (lambda () nil))
-              ((symbol-function 'beads-command-show!)
-               (lambda (&rest _) (error "Connection failed")))
+              ((symbol-function 'beads-execute)
+               (lambda (_class &rest _args) (error "Connection failed")))
               ((symbol-function 'beads-buffer-display-detail)
                (lambda (_buf _mode) nil))
               ((symbol-function 'completing-read)
@@ -448,13 +441,13 @@
 (ert-deftest beads-coverage-5-meta-infer-argument-boolean ()
   "Test infer-argument for boolean type."
   (let ((result (beads-meta--infer-argument
-                 '(:long-option "verbose" :option-type :boolean))))
+                 '(:long-option "verbose" :type boolean))))
     (should (equal "--verbose" result))))
 
 (ert-deftest beads-coverage-5-meta-infer-argument-string ()
   "Test infer-argument for string type."
   (let ((result (beads-meta--infer-argument
-                 '(:long-option "title" :option-type :string))))
+                 '(:long-option "title" :type (or null string)))))
     (should (equal "--title=" result))))
 
 (ert-deftest beads-coverage-5-meta-infer-argument-already-set ()

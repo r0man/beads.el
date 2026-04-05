@@ -148,13 +148,6 @@ When non-nil, enables verbose/debug output.")
   "Dependency type (blocks, related, parent-child, discovered-from).")
 
 ;;; ============================================================
-;;; beads-move state variables
-;;; ============================================================
-
-(defvar beads-move--issue-id nil
-  "Issue ID to move.")
-
-;;; ============================================================
 ;;; beads-edit state variables
 ;;; ============================================================
 

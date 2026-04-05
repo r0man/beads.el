@@ -14,7 +14,7 @@
 ;; history.
 ;;
 ;; Usage:
-;;   (beads-command-restore! :issue-id "bd-42")
+;;   (beads-execute 'beads-command-restore :issue-id "bd-42")
 ;;   (beads-restore)  ; invoke transient menu
 
 ;;; Code:
@@ -28,19 +28,13 @@
 
 (beads-defcommand beads-command-restore (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to restore (positional argument)."
     :positional 1
-    :option-type :string
-    :key "i"
-    :transient "Issue ID (required)"
-    :class transient-option
+    :type (or null string)
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads-reader-close-issue-id
-    :transient-group "Restore"
+    :reader beads-reader-close-issue-id
+    :group "Restore"
     :level 1
     :order 1
     :required t))

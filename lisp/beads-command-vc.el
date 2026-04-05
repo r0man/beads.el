@@ -28,19 +28,10 @@
 
 (beads-defcommand beads-command-vc-commit (beads-command-global-options)
   ((message
-    :initarg :message
-    :type (or null string)
-    :initform nil
-    :documentation "Commit message (-m, --message)."
-    :long-option "message"
     :short-option "m"
-    :option-type :string
-    :key "m"
-    :transient "--message"
-    :class transient-option
-    :argument "--message="
+    :type (or null string)
     :prompt "Commit message: "
-    :transient-group "Commit"
+    :group "Commit"
     :level 1
     :order 1))
   :documentation "Create a Dolt commit from pending changes.
@@ -54,35 +45,20 @@ Requires Dolt backend.")
 
 (beads-defcommand beads-command-vc-merge (beads-command-global-options)
   ((branch
-    :initarg :branch
-    :type (or null string)
-    :initform nil
-    :documentation "Branch name to merge (positional argument)."
     :positional 1
-    :option-type :string
-    :key "b"
-    :transient "Branch (required)"
-    :class transient-option
+    :type (or null string)
+    :short-option "b"
     :argument "--branch="
     :prompt "Branch to merge: "
-    :transient-group "Merge"
+    :group "Merge"
     :level 1
     :order 1
     :required t)
    (strategy
-    :initarg :strategy
     :type (or null string)
-    :initform nil
-    :documentation "Conflict resolution strategy (--strategy).
-Values: ours, theirs."
-    :long-option "strategy"
-    :option-type :string
-    :key "s"
-    :transient "--strategy"
-    :class transient-option
-    :argument "--strategy="
+    :short-option "s"
     :prompt "Strategy (ours|theirs): "
-    :transient-group "Options"
+    :group "Options"
     :level 2
     :order 2))
   :documentation "Merge a Dolt branch into the current branch.

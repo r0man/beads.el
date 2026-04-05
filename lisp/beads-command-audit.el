@@ -26,139 +26,61 @@
 
 (beads-defcommand beads-command-audit-record (beads-command-global-options)
   ((kind
-    :initarg :kind
     :type (or null string)
-    :initform nil
-    :documentation "Entry kind (e.g. llm_call, tool_call, label)."
-    :long-option "kind"
-    :option-type :string
-    :key "k"
-    :transient "--kind"
-    :class transient-option
-    :argument "--kind="
-    :prompt "Kind: "
+    :short-option "k"
     :choices ("llm_call" "tool_call" "label")
-    :transient-group "Entry"
+    :group "Entry"
     :level 1
     :order 1)
    (issue-id
-    :initarg :issue-id
     :type (or null string)
-    :initform nil
-    :documentation "Related issue ID."
-    :long-option "issue-id"
-    :option-type :string
-    :key "i"
-    :transient "--issue-id"
-    :class transient-option
-    :argument "--issue-id="
+    :short-option "i"
     :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Entry"
+    :reader beads-reader-issue-id
+    :group "Entry"
     :level 1
     :order 2)
    (model
-    :initarg :model
     :type (or null string)
-    :initform nil
-    :documentation "Model name (llm_call)."
-    :long-option "model"
-    :option-type :string
-    :key "m"
-    :transient "--model"
-    :class transient-option
-    :argument "--model="
-    :prompt "Model: "
-    :transient-group "LLM Call"
+    :short-option "m"
+    :group "LLM Call"
     :level 2
     :order 1)
    (prompt
-    :initarg :prompt
     :type (or null string)
-    :initform nil
-    :documentation "Prompt text (llm_call)."
-    :long-option "prompt"
-    :option-type :string
-    :key "p"
-    :transient "--prompt"
-    :class transient-option
-    :argument "--prompt="
-    :prompt "Prompt: "
-    :transient-group "LLM Call"
+    :short-option "p"
+    :group "LLM Call"
     :level 2
     :order 2)
    (response
-    :initarg :response
     :type (or null string)
-    :initform nil
-    :documentation "Response text (llm_call)."
-    :long-option "response"
-    :option-type :string
-    :key "r"
-    :transient "--response"
-    :class transient-option
-    :argument "--response="
-    :prompt "Response: "
-    :transient-group "LLM Call"
+    :short-option "r"
+    :group "LLM Call"
     :level 2
     :order 3)
    (tool-name
-    :initarg :tool-name
     :type (or null string)
-    :initform nil
-    :documentation "Tool name (tool_call)."
-    :long-option "tool-name"
-    :option-type :string
-    :key "t"
-    :transient "--tool-name"
-    :class transient-option
-    :argument "--tool-name="
-    :prompt "Tool name: "
-    :transient-group "Tool Call"
+    :short-option "t"
+    :group "Tool Call"
     :level 2
     :order 1)
    (exit-code
-    :initarg :exit-code
-    :type (or null integer)
-    :initform nil
-    :documentation "Exit code (tool_call)."
-    :long-option "exit-code"
-    :option-type :integer
-    :key "e"
-    :transient "--exit-code"
-    :class transient-option
-    :argument "--exit-code="
-    :prompt "Exit code: "
-    :transient-group "Tool Call"
+    :type (or null string integer)
+    :short-option "e"
+    :group "Tool Call"
     :level 2
     :order 2)
    (error-msg
-    :initarg :error-msg
-    :type (or null string)
-    :initform nil
-    :documentation "Error string."
     :long-option "error"
-    :option-type :string
-    :key "E"
-    :transient "--error"
-    :class transient-option
-    :argument "--error="
-    :prompt "Error: "
-    :transient-group "Tool Call"
+    :type (or null string)
+    :short-option "E"
+    :group "Tool Call"
     :level 2
     :order 3)
    (stdin
-    :initarg :stdin
     :type boolean
-    :initform nil
-    :documentation "Read JSON object from stdin."
-    :long-option "stdin"
-    :option-type :boolean
-    :key "s"
-    :transient "--stdin"
-    :class transient-switch
-    :argument "--stdin"
-    :transient-group "Entry"
+    :short-option "s"
+    :group "Entry"
     :level 2
     :order 3))
   :documentation "Represents bd audit record command.
@@ -171,40 +93,21 @@ Appends an audit interaction entry.")
 
 (beads-defcommand beads-command-audit-label (beads-command-global-options)
   ((entry-id
-    :initarg :entry-id
-    :type (or null string)
-    :initform nil
-    :documentation "Entry ID to label."
     :positional 1)
    (label
-    :initarg :label
     :type (or null string)
-    :initform nil
-    :documentation "Label value (e.g., good or bad)."
-    :long-option "label"
-    :option-type :string
-    :key "l"
-    :transient "--label"
-    :class transient-option
-    :argument "--label="
+    :short-option "l"
     :prompt "Label (good/bad): "
     :choices ("good" "bad")
-    :transient-group "Options"
+    :group "Options"
     :level 1
     :order 1)
    (reason
-    :initarg :reason
     :type (or null string)
-    :initform nil
-    :documentation "Reason for label."
-    :long-option "reason"
-    :option-type :string
-    :key "r"
-    :transient "--reason"
-    :class beads-transient-multiline
-    :argument "--reason="
-    :field-name "Label Reason"
-    :transient-group "Options"
+    :short-option "r"
+    :transient beads-transient-multiline
+    :documentation "Label Reason"
+    :group "Options"
     :level 1
     :order 2))
   :documentation "Represents bd audit label command.

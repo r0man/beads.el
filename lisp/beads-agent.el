@@ -102,9 +102,7 @@
 (declare-function beads-list--current-issue-id "beads-list")
 (declare-function beads-sesman--link-session-buffer "beads-sesman")
 (declare-function beads-command-update "beads-command-update" (&rest args))
-(declare-function beads-command-update! "beads-command-update" (&rest args))
 (declare-function beads-command-show "beads-command-show" (&rest args))
-(declare-function beads-command-show! "beads-command-show" (&rest args))
 (defvar beads-show--issue-id)
 (defvar beads-sesman--buffer-session-id)
 
@@ -223,15 +221,14 @@ CALLBACK receives (success worktree-path-or-error) where:
              (cmd (beads-command-worktree-create :name wt-name :branch branch)))
         (beads-command-execute-async
          cmd
-         (lambda (exec)
-           (if (zerop (oref exec exit-code))
-               (let ((path (oref (oref exec result) path)))
-                 (beads-completion-invalidate-worktree-cache)
-                 (funcall callback t path))
-             (funcall callback nil
-                      (or (oref exec stderr)
-                          (format "Command failed with exit code %d"
-                                  (oref exec exit-code))))))))))))
+         (lambda (result)
+           (let ((path (oref result path)))
+             (beads-completion-invalidate-worktree-cache)
+             (funcall callback t path)))
+         (lambda (err)
+           (funcall callback nil
+                    (or (error-message-string err)
+                        "Worktree creation failed")))))))))
 
 ;;; Backend Selection
 
@@ -380,9 +377,9 @@ with PROMPT unchanged."
   "Update ISSUE-ID to in_progress if configured and currently open."
   (when beads-agent-auto-set-in-progress
     (condition-case nil
-        (let ((issue (beads-command-show! :issue-ids (list issue-id))))
+        (let ((issue (beads-execute 'beads-command-show :issue-ids (list issue-id))))
           (when (equal (oref issue status) "open")
-            (beads-command-update!
+            (beads-execute 'beads-command-update
              :issue-ids (list issue-id)
              :status "in_progress")
             (beads--invalidate-completion-cache)
@@ -399,20 +396,18 @@ CALLBACK receives no arguments when done."
     (let ((cmd (beads-command-show :issue-ids (list issue-id) :json t)))
       (beads-command-execute-async
        cmd
-       (lambda (exec)
-         (if (not (zerop (oref exec exit-code)))
-             (funcall callback)  ; Skip on error
-           ;; Parse and check status - result slot contains parsed issue(s)
-           (condition-case nil
-               (let* ((data (oref exec result))
-                      ;; data may be a single issue or vector of issues
-                      (issue (if (vectorp data) (aref data 0) data))
-                      (status (oref issue status)))
-                 (if (equal status "open")
-                     ;; Update to in_progress
-                     (beads-agent--update-status-async issue-id callback)
-                   (funcall callback)))
-             (error (funcall callback)))))))))
+       (lambda (data)
+         ;; Parse and check status - data is the parsed issue(s)
+         (condition-case nil
+             (let* ((issue (if (vectorp data) (aref data 0) data))
+                    (status (oref issue status)))
+               (if (equal status "open")
+                   ;; Update to in_progress
+                   (beads-agent--update-status-async issue-id callback)
+                 (funcall callback)))
+           (error (funcall callback))))
+       (lambda (_err)
+         (funcall callback))))))  ; Skip on error
 
 (defun beads-agent--update-status-async (issue-id callback)
   "Set ISSUE-ID status to in_progress asynchronously.
@@ -422,10 +417,11 @@ CALLBACK receives no arguments when done."
               :status "in_progress")))
     (beads-command-execute-async
      cmd
-     (lambda (result)
-       (when (zerop (oref result exit-code))
-         (beads--invalidate-completion-cache)
-         (message "Set %s to in_progress" issue-id))
+     (lambda (_result)
+       (beads--invalidate-completion-cache)
+       (message "Set %s to in_progress" issue-id)
+       (funcall callback))
+     (lambda (_err)
        (funcall callback)))))
 
 ;;; Context Detection
@@ -557,22 +553,18 @@ CALLBACK receives a beads-issue object, or nil on error."
   (let ((cmd (beads-command-show :issue-ids (list issue-id))))
     (beads-command-execute-async
      cmd
-     (lambda (exec)
-       (if (not (zerop (oref exec exit-code)))
-           (progn
-             (message "Failed to fetch issue %s (exit %d): %s"
-                      issue-id (oref exec exit-code)
-                      (string-trim (oref exec stderr)))
-             (funcall callback nil))
-         ;; result slot contains parsed issue(s) - a vector from bd show
-         (condition-case err
-             (let* ((data (oref exec result))
-                    ;; bd show returns a vector, extract first element
-                    (issue (if (vectorp data) (aref data 0) data)))
-               (funcall callback issue))
-           (error
-            (message "Failed to parse issue: %s" (error-message-string err))
-            (funcall callback nil))))))))
+     (lambda (data)
+       ;; data is the parsed issue(s) - a vector from bd show
+       (condition-case err
+           (let ((issue (if (vectorp data) (aref data 0) data)))
+             (funcall callback issue))
+         (error
+          (message "Failed to parse issue: %s" (error-message-string err))
+          (funcall callback nil))))
+     (lambda (err)
+       (message "Failed to fetch issue %s: %s"
+                issue-id (error-message-string err))
+       (funcall callback nil)))))
 
 (defun beads-agent--rename-and-store-buffer (session buffer)
   "Rename BUFFER to beads format and store in SESSION.

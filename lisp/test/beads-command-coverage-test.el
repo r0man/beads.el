@@ -5,8 +5,7 @@
 ;;; Commentary:
 
 ;; Tests targeting uncovered code paths in beads-command.el including:
-;; - beads-defcommand macro expansion (:cli-command, :parse-as, :global-section)
-;; - beads--generate-parse-method for :issue and :issues
+;; - beads-defcommand macro expansion (:cli-command, :result, :json, :transient)
 ;; - Terminal backend detection and dispatch
 ;; - beads-command-subcommand auto-derivation with cli-command slot
 ;; - beads-command--ansi-color-filter
@@ -21,30 +20,20 @@
 (require 'beads-command)
 
 ;;; ============================================================
-;;; beads--generate-parse-method Tests
+;;; beads-defcommand :result and :json Tests
 ;;; ============================================================
 
-(ert-deftest beads-command-coverage-test-generate-parse-method-issue ()
-  "Test beads--generate-parse-method generates :issue parse method code."
-  (let ((result (beads--generate-parse-method 'beads-command-test-cmd :issue)))
-    ;; Should generate a list with one cl-defmethod form
-    (should (listp result))
-    (should (= (length result) 1))
-    (should (eq (caar result) 'cl-defmethod))
-    (should (eq (cadar result) 'beads-command-parse))))
+(ert-deftest beads-command-coverage-test-result-symbol-property ()
+  "Test that :result stores symbol property on command class."
+  ;; beads-command-close uses :result (list-of beads-issue)
+  (should (equal '(list-of beads-issue)
+                 (get 'beads-command-close 'beads-result))))
 
-(ert-deftest beads-command-coverage-test-generate-parse-method-issues ()
-  "Test beads--generate-parse-method generates :issues parse method code."
-  (let ((result (beads--generate-parse-method 'beads-command-test-cmd :issues)))
-    (should (listp result))
-    (should (= (length result) 1))
-    (should (eq (caar result) 'cl-defmethod))
-    (should (eq (cadar result) 'beads-command-parse))))
-
-(ert-deftest beads-command-coverage-test-generate-parse-method-invalid ()
-  "Test beads--generate-parse-method errors on invalid parse-as."
-  (should-error (beads--generate-parse-method 'beads-command-test-cmd :bogus)
-                :type 'error))
+(ert-deftest beads-command-coverage-test-json-default-not-set ()
+  "Test that commands without :json nil have no beads-json property."
+  ;; beads-command-close does not set :json nil
+  (should-not (plist-member (symbol-plist 'beads-command-close)
+                            'beads-json)))
 
 ;;; ============================================================
 ;;; beads--extract-option Tests
@@ -276,7 +265,7 @@
   "Test beads-command-execute-async signals validation error immediately."
   (let ((cmd (beads-command-close :reason "Fixed")))
     ;; Close without issue-ids should fail validation
-    (should-error (beads-command-execute-async cmd)
+    (should-error (beads-command-execute-async cmd #'ignore)
                   :type 'beads-validation-error)))
 
 (ert-deftest beads-command-coverage-test-execute-async-returns-process ()
@@ -288,7 +277,7 @@
                (lambda (_cmd) nil))
               ((symbol-function 'beads-command-line)
                (lambda (_cmd) '("echo" "test"))))
-      (setq proc (beads-command-execute-async cmd))
+      (setq proc (beads-command-execute-async cmd #'ignore #'ignore))
       (should (processp proc))
       ;; Clean up
       (when (process-live-p proc)
@@ -297,13 +286,12 @@
 ;;; Tests for async error propagation (be-u5j)
 
 (ert-deftest beads-command-coverage-test-execute-async-parse-error-fires-callback ()
-  "Test that parse errors in async sentinel still fire the callback.
-The callback must always be called even when parsing fails, so callers
+  "Test that parse errors in async sentinel fire the on-error callback.
+The on-error callback must be called when parsing fails, so callers
 never hang waiting for a response that never arrives."
   :tags '(:unit)
   (let* ((cmd (beads-command-list :json t))
-         (callback-fired nil)
-         (callback-execution nil))
+         (error-fired nil))
     (cl-letf (((symbol-function 'beads-command-validate)
                (lambda (_cmd) nil))
               ((symbol-function 'beads-command-line)
@@ -311,24 +299,19 @@ never hang waiting for a response that never arrives."
                (lambda (_cmd) '("echo" "not-valid-json"))))
       (beads-command-execute-async
        cmd
-       (lambda (exec)
-         (setq callback-fired t)
-         (setq callback-execution exec)))
+       (lambda (_result) nil)  ;; on-success (should not fire for parse error)
+       (lambda (_err) (setq error-fired t)))  ;; on-error
       ;; Wait for the async process to complete (up to 5 seconds)
       (let ((deadline (+ (float-time) 5.0)))
-        (while (and (not callback-fired) (< (float-time) deadline))
+        (while (and (not error-fired) (< (float-time) deadline))
           (sit-for 0.1)))
-      (should callback-fired)
-      ;; The execution should have a non-zero exit code due to parse error
-      (should (cl-typep callback-execution 'beads-command-execution))
-      (should (not (zerop (oref callback-execution exit-code)))))))
+      (should error-fired))))
 
 (ert-deftest beads-command-coverage-test-execute-async-nonzero-exit-fires-callback ()
-  "Test that non-zero exit codes still fire the callback with the execution."
+  "Test that non-zero exit codes fire the on-error callback."
   :tags '(:unit)
   (let* ((cmd (beads-command-list :json nil))
-         (callback-fired nil)
-         (callback-execution nil))
+         (error-fired nil))
     (cl-letf (((symbol-function 'beads-command-validate)
                (lambda (_cmd) nil))
               ((symbol-function 'beads-command-line)
@@ -336,39 +319,34 @@ never hang waiting for a response that never arrives."
                (lambda (_cmd) '("sh" "-c" "exit 1"))))
       (beads-command-execute-async
        cmd
-       (lambda (exec)
-         (setq callback-fired t)
-         (setq callback-execution exec)))
+       (lambda (_result) nil)  ;; on-success (should not fire)
+       (lambda (_err) (setq error-fired t)))  ;; on-error
       ;; Wait for the async process to complete (up to 5 seconds)
       (let ((deadline (+ (float-time) 5.0)))
-        (while (and (not callback-fired) (< (float-time) deadline))
+        (while (and (not error-fired) (< (float-time) deadline))
           (sit-for 0.1)))
-      (should callback-fired)
-      (should (cl-typep callback-execution 'beads-command-execution))
-      (should (= (oref callback-execution exit-code) 1)))))
+      (should error-fired))))
 
 (ert-deftest beads-command-coverage-test-execute-async-success-fires-callback ()
-  "Test that successful async commands fire callback with zero exit code."
+  "Test that successful async commands fire on-success callback."
   :tags '(:unit)
   (let* ((cmd (beads-command-list :json nil))
          (callback-fired nil)
-         (callback-execution nil))
+         (callback-result nil))
     (cl-letf (((symbol-function 'beads-command-validate)
                (lambda (_cmd) nil))
               ((symbol-function 'beads-command-line)
                (lambda (_cmd) '("echo" "done"))))
       (beads-command-execute-async
        cmd
-       (lambda (exec)
+       (lambda (result)
          (setq callback-fired t)
-         (setq callback-execution exec)))
+         (setq callback-result result)))
       ;; Wait for the async process to complete (up to 5 seconds)
       (let ((deadline (+ (float-time) 5.0)))
         (while (and (not callback-fired) (< (float-time) deadline))
           (sit-for 0.1)))
-      (should callback-fired)
-      (should (cl-typep callback-execution 'beads-command-execution))
-      (should (zerop (oref callback-execution exit-code))))))
+      (should callback-fired))))
 
 ;;; ============================================================
 ;;; beads-command parse Tests
@@ -377,36 +355,24 @@ never hang waiting for a response that never arrives."
 (ert-deftest beads-command-coverage-test-json-parse-with-json ()
   "Test beads-command parse method with valid JSON."
   (let* ((cmd (beads-command-list :json t))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "[{\"id\":\"bd-1\",\"title\":\"Test\"}]"
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+         (stdout "[{\"id\":\"bd-1\",\"title\":\"Test\"}]"))
+    (let ((result (beads-command-parse cmd stdout)))
       (should (listp result))
       (should (= (length result) 1)))))
 
 (ert-deftest beads-command-coverage-test-json-parse-with-json-nil ()
   "Test beads-command parse method with :json nil."
   (let* ((cmd (beads-command-list :json nil))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "raw text output"
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+         (stdout "raw text output"))
+    (let ((result (beads-command-parse cmd stdout)))
       (should (stringp result))
       (should (string= result "raw text output")))))
 
 (ert-deftest beads-command-coverage-test-json-parse-invalid-json ()
   "Test beads-command parse signals error on invalid JSON."
   (let* ((cmd (beads-command-list :json t))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "this is not json"
-                :stderr "")))
-    (should-error (beads-command-parse cmd exec)
+         (stdout "this is not json"))
+    (should-error (beads-command-parse cmd stdout)
                   :type 'beads-json-parse-error)))
 
 ;;; ============================================================
@@ -492,22 +458,21 @@ never hang waiting for a response that never arrives."
     (let ((args (beads-command-line cmd)))
       (should (member "close" args)))))
 
-(ert-deftest beads-command-coverage-test-defcommand-bang-function ()
-  "Test defcommand generates bang convenience function."
-  ;; beads-command-close! should be defined
-  (should (fboundp 'beads-command-close!)))
+(ert-deftest beads-command-coverage-test-defcommand-class-defined ()
+  "Test defcommand generates command class."
+  ;; beads-command-close class should be defined
+  (should (find-class 'beads-command-close nil)))
 
-(ert-deftest beads-command-coverage-test-defcommand-parse-as-issue ()
-  "Test defcommand with :parse-as :issue generates parse method."
-  ;; beads-command-close uses :parse-as :issue
+(ert-deftest beads-command-coverage-test-defcommand-close-parse ()
+  "Test close command's hand-written parse method."
+  ;; beads-command-close has a hand-written beads-command-parse method
   (let* ((cmd (beads-command-close :json t :issue-ids '("bd-1") :reason "Done"))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "[{\"id\":\"bd-1\",\"title\":\"Test\",\"status\":\"closed\"}]"
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
-      ;; Single issue-id should return single issue (not list)
-      (should (beads-issue-p result)))))
+         (stdout "[{\"id\":\"bd-1\",\"title\":\"Test\",\"status\":\"closed\"}]"))
+    (let ((result (beads-command-parse cmd stdout)))
+      ;; :result (list-of beads-issue) always returns a list
+      (should (listp result))
+      (should (= (length result) 1))
+      (should (beads-issue-p (car result))))))
 
 ;;; ============================================================
 ;;; beads-command-subcommand auto-derive Tests
@@ -619,13 +584,8 @@ never hang waiting for a response that never arrives."
                                      (priority . 1)
                                      (issue_type . "task")
                                      (created_at . "2025-01-01T00:00:00Z")
-                                     (updated_at . "2025-01-01T00:00:00Z"))))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout json-string
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+                                     (updated_at . "2025-01-01T00:00:00Z")))))
+    (let ((result (beads-command-parse cmd json-string)))
       (should (cl-typep result 'beads-issue))
       (should (equal (oref result id) "bd-99")))))
 
@@ -642,48 +602,28 @@ never hang waiting for a response that never arrives."
                                  (status . "open") (priority . 2)
                                  (issue_type . "bug")
                                  (created_at . "2025-01-01T00:00:00Z")
-                                 (updated_at . "2025-01-01T00:00:00Z")))))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout json-string
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+                                 (updated_at . "2025-01-01T00:00:00Z"))))))
+    (let ((result (beads-command-parse cmd json-string)))
       (should (listp result))
       (should (= (length result) 2))
       (should (cl-typep (car result) 'beads-issue)))))
 
 (ert-deftest beads-command-coverage-test-create-parse-unexpected ()
   "Test create parse signals error on unexpected JSON."
-  (let* ((cmd (beads-command-create :json t :title "Test"))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "42"
-                :stderr "")))
-    (should-error (beads-command-parse cmd exec)
+  (let* ((cmd (beads-command-create :json t :title "Test")))
+    (should-error (beads-command-parse cmd "42")
                   :type 'beads-json-parse-error)))
 
 (ert-deftest beads-command-coverage-test-create-parse-no-json ()
   "Test create parse with json=nil returns raw output."
-  (let* ((cmd (beads-command-create :json nil :title "Test"))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "Created issue bd-99"
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-create :json nil :title "Test")))
+    (let ((result (beads-command-parse cmd "Created issue bd-99")))
       (should (stringp result)))))
 
 (ert-deftest beads-command-coverage-test-create-parse-error ()
   "Test create parse signals error on invalid JSON."
-  (let* ((cmd (beads-command-create :json t :title "Test"))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "not json"
-                :stderr "")))
-    (should-error (beads-command-parse cmd exec)
+  (let* ((cmd (beads-command-create :json t :title "Test")))
+    (should-error (beads-command-parse cmd "not json")
                   :type 'beads-json-parse-error)))
 
 ;;; Base class command-line (no subcommand) Tests
@@ -703,6 +643,180 @@ never hang waiting for a response that never arrives."
   ;; beads-command-dep-add has :cli-command "dep add"
   (let ((cmd (beads-command-dep-add)))
     (should (equal (beads-command-subcommand cmd) "dep add"))))
+
+;;; ============================================================
+;;; beads-defcommand Slot Shorthand Tests
+;;; ============================================================
+
+;; Define a test command using shorthand slot definitions
+(beads-defcommand beads-command-shorthand-test (beads-command-global-options)
+  ((reason
+    :type (or null string)
+    :short-option "r"
+    :group "Test"
+    :level 1
+    :order 1)
+   (force
+    :type boolean
+    :short-option "!"
+    :group "Flags"
+    :level 2
+    :order 1)
+   (title
+    :type (or null string)
+    :positional 1
+    :short-option "t"
+    :group "Required"
+    :level 1
+    :order 2)
+   (labels
+    :type (list-of string)
+    :separator ","
+    :short-option "l"
+    :group "Options"
+    :level 2
+    :order 2)
+   (estimate
+    :type (or null string integer)
+    :short-option "e"
+    :group "Options"
+    :level 3
+    :order 1))
+  :documentation "Test command with shorthand slot definitions."
+  :cli-command "shorthand-test")
+
+(ert-deftest beads-defcommand-shorthand-initarg-inferred ()
+  "Test :initarg is inferred from slot name in beads-defcommand."
+  :tags '(:unit)
+  (let ((cmd (beads-command-shorthand-test :reason "done")))
+    (should (equal "done" (oref cmd reason)))))
+
+(ert-deftest beads-defcommand-shorthand-type-inferred ()
+  "Test :type is inferred from :option-type in beads-defcommand."
+  :tags '(:unit)
+  ;; String option should accept string
+  (let ((cmd (beads-command-shorthand-test :reason "test")))
+    (should (equal "test" (oref cmd reason))))
+  ;; Boolean option should accept boolean
+  (let ((cmd (beads-command-shorthand-test :force t)))
+    (should (eq t (oref cmd force))))
+  ;; List option should accept list
+  (let ((cmd (beads-command-shorthand-test :labels '("a" "b"))))
+    (should (equal '("a" "b") (oref cmd labels)))))
+
+(ert-deftest beads-defcommand-shorthand-initform-nil ()
+  "Test :initform defaults to nil for shorthand slots."
+  :tags '(:unit)
+  (let ((cmd (beads-command-shorthand-test)))
+    (should (null (oref cmd reason)))
+    (should (null (oref cmd force)))
+    (should (null (oref cmd title)))
+    (should (null (oref cmd labels)))
+    (should (null (oref cmd estimate)))))
+
+(ert-deftest beads-defcommand-shorthand-long-option-inferred ()
+  "Test :long-option is inferred from slot name for non-positional slots."
+  :tags '(:unit)
+  ;; Non-positional slots should have :long-option inferred
+  (should (equal "reason"
+                 (beads-meta-slot-property 'beads-command-shorthand-test
+                                           'reason :long-option)))
+  (should (equal "force"
+                 (beads-meta-slot-property 'beads-command-shorthand-test
+                                           'force :long-option)))
+  ;; Positional slots should NOT have :long-option
+  (should (null (beads-meta-slot-property 'beads-command-shorthand-test
+                                          'title :long-option))))
+
+(ert-deftest beads-defcommand-shorthand-cli-works ()
+  "Test command line generation works with shorthand-defined slots."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-shorthand-test
+               :reason "done" :force t :title "My issue"
+               :labels '("bug" "p1") :estimate 60))
+         (args (beads-command-line cmd)))
+    ;; Should contain the subcommand
+    (should (member "shorthand-test" args))
+    ;; Should contain positional arg (title)
+    (should (member "My issue" args))
+    ;; Should contain --reason=done
+    (should (seq-some (lambda (a) (string-prefix-p "--reason" a)) args))
+    ;; Should contain --force
+    (should (member "--force" args))
+    ;; Should contain --labels
+    (should (seq-some (lambda (a) (string-prefix-p "--labels" a)) args))
+    ;; Should contain --estimate
+    (should (seq-some (lambda (a) (string-prefix-p "--estimate" a)) args))))
+
+(ert-deftest beads-defcommand-shorthand-class-defined ()
+  "Test that the command class is defined for shorthand commands."
+  :tags '(:unit)
+  (should (find-class 'beads-command-shorthand-test nil)))
+
+;;; ============================================================
+;;; beads-execute / beads-execute-async Tests
+;;; ============================================================
+
+(ert-deftest beads-execute-test-basic ()
+  "Test beads-execute constructs and executes a command."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-command-validate) (lambda (_cmd) nil))
+            ((symbol-function 'beads-command-line)
+             (lambda (_cmd) '("echo" "{}")))
+            ((symbol-function 'beads-command-parse)
+             (lambda (_cmd _stdout) '((id . "bd-1")))))
+    (let ((result (beads-execute 'beads-command-list :status "open")))
+      (should (equal result '((id . "bd-1")))))))
+
+(ert-deftest beads-execute-test-enables-json-by-default ()
+  "Test beads-execute enables json by default."
+  :tags '(:unit)
+  (let (captured-cmd)
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (cmd) (setq captured-cmd cmd) nil)))
+      (beads-execute 'beads-command-list :status "open")
+      (should (oref captured-cmd json)))))
+
+(ert-deftest beads-execute-test-respects-json-nil ()
+  "Test beads-execute respects explicit :json nil."
+  :tags '(:unit)
+  (let (captured-cmd)
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (cmd) (setq captured-cmd cmd) nil)))
+      (beads-execute 'beads-command-list :json nil)
+      (should-not (oref captured-cmd json)))))
+
+(ert-deftest beads-execute-test-invalid-class ()
+  "Test beads-execute errors on invalid class."
+  :tags '(:unit)
+  (should-error (beads-execute 'not-a-real-class) :type 'error))
+
+(ert-deftest beads-execute-async-test-basic ()
+  "Test beads-execute-async constructs and runs async."
+  :tags '(:unit)
+  (let ((result nil)
+        (proc nil))
+    (cl-letf (((symbol-function 'beads-command-validate) (lambda (_cmd) nil))
+              ((symbol-function 'beads-command-line)
+               (lambda (_cmd) '("echo" "test")))
+              ((symbol-function 'beads-command-parse)
+               (lambda (_cmd _stdout) "parsed")))
+      (setq proc (beads-execute-async 'beads-command-list
+                   (lambda (r) (setq result r))
+                   #'ignore
+                   :status "open"))
+      (should (processp proc))
+      ;; Wait for process
+      (while (process-live-p proc)
+        (accept-process-output proc 1))
+      (accept-process-output nil 0.5)
+      (should (equal result "parsed")))))
+
+(ert-deftest beads-execute-async-test-invalid-class ()
+  "Test beads-execute-async errors on invalid class."
+  :tags '(:unit)
+  (should-error (beads-execute-async 'not-a-real-class #'ignore)
+                :type 'error))
 
 (provide 'beads-command-coverage-test)
 ;;; beads-command-coverage-test.el ends here

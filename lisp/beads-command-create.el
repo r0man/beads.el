@@ -27,7 +27,7 @@
 ;;
 ;; Usage:
 ;;   (beads-command-execute (beads-command-create :title "My task"))
-;;   (beads-command-create!)  ; convenience function
+;;   (beads-execute 'beads-command-create)  ; convenience function
 
 ;;; Code:
 
@@ -44,697 +44,390 @@
 ;;; Create Command
 
 (beads-defcommand beads-command-create (beads-command-global-options)
-  (;; Required - Title
-   (title
-    :initarg :title
-    :type (or null string)
-    :initform nil
-    :documentation "Issue title (positional or --title).
-First positional argument or explicit --title flag."
-    ;; CLI properties - title is a positional argument
+  ((title
     :positional 1
-    ;; Transient properties
-    :key "t"
-    :transient "Title (required)"
-    :class transient-option
-    :argument "--title="
+    :short-option "t"
     :prompt "Issue title: "
-    :transient-reader beads-reader-issue-title
-    :transient-group "Required"
+    :reader beads-reader-issue-title
+    :group "Required"
     :level 1
     :order 1
-    ;; Validation
     :required t)
 
    ;; Issue Attributes
    (issue-type
-    :initarg :issue-type
-    :type (or null string)
-    :initform nil
-    :documentation "Issue type (-t, --type).
-Values: bug, feature, task, epic, chore, merge-request, molecule,
-gate, agent, role, rig, convoy, event. Default: 'task'."
-    ;; CLI properties
     :long-option "type"
     :short-option "t"
-    :option-type :string
-    ;; Transient properties
-    :key "y"
-    :transient "--type"
-    :class transient-option
-    :argument "--type="
+    :type (or null string)
+    :transient-key "y"
     :prompt "Type: "
     :choices ("bug" "feature" "task" "epic" "chore"
                         "merge-request" "molecule" "gate" "agent"
                         "role" "rig" "convoy" "event")
-    :transient-reader beads-reader-issue-type
-    :transient-group "Issue Attributes"
+    :reader beads-reader-issue-type
+    :group "Issue Attributes"
     :level 2
     :order 1)
    (priority
-    :initarg :priority
     :type (or null string integer)
-    :initform nil
-    :documentation "Priority (-p, --priority).
-Values: 0-4 or P0-P4 (0=highest). Default: '2'."
-    ;; CLI properties
-    :long-option "priority"
     :short-option "p"
-    :option-type :string
-    ;; Transient properties
-    :key "p"
-    :transient "--priority"
-    :class transient-option
-    :argument "--priority="
+    :type (or null string)
     :prompt "Priority: "
-    :transient-reader beads-reader-issue-priority
-    :transient-group "Issue Attributes"
+    :reader beads-reader-issue-priority
+    :group "Issue Attributes"
     :level 2
     :order 2)
    (assignee
-    :initarg :assignee
-    :type (or null string)
-    :initform nil
-    :documentation "Assignee (-a, --assignee)."
-    ;; CLI properties
-    :long-option "assignee"
     :short-option "a"
-    :option-type :string
-    ;; Transient properties
-    :key "a"
-    :transient "--assignee"
-    :class transient-option
-    :argument "--assignee="
+    :type (or null string)
     :prompt "Assignee: "
-    :transient-reader beads-reader-issue-assignee
-    :transient-group "Issue Attributes"
+    :reader beads-reader-issue-assignee
+    :group "Issue Attributes"
     :level 2
     :order 3)
    (labels
-    :initarg :labels
-    :type (or null list)
-    :initform nil
-    :documentation "Labels (-l, --labels).
-List of label strings, comma-separated."
-    ;; CLI properties
-    :long-option "labels"
     :short-option "l"
-    :option-type :list
-    :option-separator ","
-    ;; Transient properties
-    :key "l"
-    :transient "--labels"
-    :class transient-option
-    :argument "--labels="
+    :type (list-of string)
+    :separator ","
     :prompt "Labels (comma-separated): "
-    :transient-reader beads-reader-issue-labels
-    :transient-group "Issue Attributes"
+    :reader beads-reader-issue-labels
+    :group "Issue Attributes"
     :level 2
     :order 4)
 
    ;; Content
    (description
-    :initarg :description
-    :type (or null string)
-    :initform nil
-    :documentation "Issue description (-d, --description)."
-    ;; CLI properties
-    :long-option "description"
     :short-option "d"
-    :option-type :string
-    ;; Transient properties
-    :key "d"
-    :transient "--description"
-    :class beads-transient-multiline
-    :argument "--description="
-    :field-name "Description"
-    :transient-group "Content"
+    :type (or null string)
+    :transient beads-transient-multiline
+    :documentation "Description"
+    :group "Content"
     :level 3
     :order 1)
    (acceptance
-    :initarg :acceptance
     :type (or null string)
-    :initform nil
-    :documentation "Acceptance criteria (--acceptance)."
-    ;; CLI properties
-    :long-option "acceptance"
-    :option-type :string
-    ;; Transient properties
-    :key "A"
-    :transient "--acceptance"
-    :class beads-transient-multiline
-    :argument "--acceptance="
-    :field-name "Acceptance Criteria"
-    :transient-group "Content"
+    :short-option "A"
+    :transient beads-transient-multiline
+    :documentation "Acceptance Criteria"
+    :group "Content"
     :level 3
     :order 2)
    (design
-    :initarg :design
     :type (or null string)
-    :initform nil
-    :documentation "Design notes (--design)."
-    ;; CLI properties
-    :long-option "design"
-    :option-type :string
-    ;; Transient properties
-    :key "G"
-    :transient "--design"
-    :class beads-transient-multiline
-    :argument "--design="
-    :field-name "Design"
-    :transient-group "Content"
+    :short-option "G"
+    :transient beads-transient-multiline
+    :documentation "Design"
+    :group "Content"
     :level 3
     :order 3)
    (notes
-    :initarg :notes
     :type (or null string)
-    :initform nil
-    :documentation "Additional notes (--notes)."
-    ;; CLI properties
-    :long-option "notes"
-    :option-type :string
-    ;; Transient properties
-    :key "N"
-    :transient "--notes"
-    :class beads-transient-multiline
-    :argument "--notes="
-    :field-name "Notes"
-    :transient-group "Content"
+    :short-option "N"
+    :transient beads-transient-multiline
+    :documentation "Notes"
+    :group "Content"
     :level 3
     :order 4)
    (body-file
-    :initarg :body-file
     :type (or null string)
-    :initform nil
-    :documentation "Read description from file (--body-file).
-Use - for stdin."
-    ;; CLI properties
-    :long-option "body-file"
-    :option-type :string
-    ;; Transient properties
-    :key "B"
-    :transient "--body-file"
-    :class transient-option
-    :argument "--body-file="
+    :short-option "B"
     :prompt "Body file: "
-    :transient-reader transient-read-file
-    :transient-group "Content"
+    :reader transient-read-file
+    :group "Content"
     :level 4
     :order 5)
 
    ;; Time Management
    (estimate
-    :initarg :estimate
-    :type (or null integer)
-    :initform nil
-    :documentation "Time estimate in minutes (-e, --estimate).
-Example: 60 for 1 hour."
-    ;; CLI properties
-    :long-option "estimate"
     :short-option "e"
-    :option-type :integer
-    ;; Transient properties
-    :key "e"
-    :transient "--estimate (minutes)"
-    :class transient-option
-    :argument "--estimate="
+    :type (or null string integer)
     :prompt "Estimate (minutes): "
-    :transient-group "Time"
+    :group "Time"
     :level 3
     :order 1)
    (due
-    :initarg :due
     :type (or null string)
-    :initform nil
-    :documentation "Due date/time (--due).
-Formats: +6h, +1d, +2w, tomorrow, next monday, 2025-01-15."
-    ;; CLI properties
-    :long-option "due"
-    :option-type :string
-    ;; Transient properties
-    :key "D"
-    :transient "--due"
-    :class transient-option
-    :argument "--due="
+    :short-option "D"
     :prompt "Due date: "
-    :transient-group "Time"
+    :group "Time"
     :level 3
     :order 2)
    (defer
-    :initarg :defer
     :type (or null string)
-    :initform nil
-    :documentation "Defer until date (--defer).
-Issue hidden from bd ready until then. Same formats as --due."
-    ;; CLI properties
-    :long-option "defer"
-    :option-type :string
-    ;; Transient properties
-    :key "E"
-    :transient "--defer"
-    :class transient-option
-    :argument "--defer="
+    :short-option "E"
     :prompt "Defer until: "
-    :transient-group "Time"
+    :group "Time"
     :level 3
     :order 3)
 
    ;; Relationships
    (parent
-    :initarg :parent
     :type (or null string)
-    :initform nil
-    :documentation "Parent issue ID for hierarchical child (--parent).
-Example: 'bd-a3f8e9'."
-    ;; CLI properties
-    :long-option "parent"
-    :option-type :string
-    ;; Transient properties
-    :key "P"
-    :transient "--parent"
-    :class transient-option
-    :argument "--parent="
+    :short-option "P"
     :prompt "Parent issue ID: "
-    :transient-reader beads-reader-create-parent
-    :transient-group "Relationships"
+    :reader beads-reader-create-parent
+    :group "Relationships"
     :level 4
     :order 1)
    (deps
-    :initarg :deps
-    :type (or null list)
-    :initform nil
-    :documentation "Dependencies (--deps).
-List of strings in format 'type:id' or 'id'.
-Examples: 'discovered-from:bd-20', 'blocks:bd-15', 'bd-20'."
-    ;; CLI properties
-    :long-option "deps"
-    :option-type :list
-    :option-separator ","
-    ;; Transient properties
-    :key "R"
-    :transient "--deps"
-    :class transient-option
-    :argument "--deps="
+    :type (list-of string)
+    :separator ","
+    :short-option "R"
     :prompt "Dependencies (type:id,...): "
-    :transient-reader beads-reader-create-dependencies
-    :transient-group "Relationships"
+    :reader beads-reader-create-dependencies
+    :group "Relationships"
     :level 4
     :order 2)
    (waits-for
-    :initarg :waits-for
     :type (or null string)
-    :initform nil
-    :documentation "Spawner issue ID to wait for (--waits-for).
-Creates waits-for dependency for fanout gate."
-    ;; CLI properties
-    :long-option "waits-for"
-    :option-type :string
-    ;; Transient properties
-    :key "W"
-    :transient "--waits-for"
-    :class transient-option
-    :argument "--waits-for="
+    :short-option "W"
     :prompt "Waits for issue ID: "
-    :transient-group "Relationships"
+    :group "Relationships"
     :level 5
     :order 3)
    (waits-for-gate
-    :initarg :waits-for-gate
     :type (or null string)
-    :initform nil
-    :documentation "Gate type for waits-for (--waits-for-gate).
-Values: all-children (wait for all) or any-children (wait for first).
-Default: all-children."
-    ;; CLI properties
-    :long-option "waits-for-gate"
-    :option-type :string
-    ;; Transient properties
-    :key "g"
-    :transient "--waits-for-gate"
-    :class transient-option
-    :argument "--waits-for-gate="
+    :short-option "g"
     :prompt "Gate type: "
     :choices ("all-children" "any-children")
-    :transient-group "Relationships"
+    :group "Relationships"
     :level 5
     :order 4)
 
    ;; Advanced Options
    (external-ref
-    :initarg :external-ref
     :type (or null string)
-    :initform nil
-    :documentation "External reference (--external-ref).
-Examples: 'gh-9', 'jira-ABC'."
-    ;; CLI properties
-    :long-option "external-ref"
-    :option-type :string
-    ;; Transient properties
-    :key "x"
-    :transient "--external-ref"
-    :class transient-option
-    :argument "--external-ref="
+    :short-option "x"
     :prompt "External reference: "
-    :transient-reader beads-reader-issue-external-ref
-    :transient-group "Advanced"
+    :reader beads-reader-issue-external-ref
+    :group "Advanced"
     :level 4
     :order 1)
    (id
-    :initarg :id
     :type (or null string)
-    :initform nil
-    :documentation "Explicit issue ID (--id).
-Example: 'bd-42' for partitioning."
-    ;; CLI properties
-    :long-option "id"
-    :option-type :string
-    ;; Transient properties
-    :key "i"
-    :transient "--id"
-    :class transient-option
-    :argument "--id="
+    :short-option "i"
     :prompt "Custom ID: "
-    :transient-reader beads-reader-create-custom-id
-    :transient-group "Advanced"
+    :reader beads-reader-create-custom-id
+    :group "Advanced"
     :level 4
     :order 2)
    (prefix-arg
-    :initarg :prefix-arg
-    :type (or null string)
-    :initform nil
-    :documentation "Create issue in rig by prefix (--prefix).
-Example: --prefix bd- or --prefix bd."
-    ;; CLI properties
     :long-option "prefix"
-    :option-type :string
-    ;; Transient properties
-    :key "r"
-    :transient "--prefix"
-    :class transient-option
-    :argument "--prefix="
+    :type (or null string)
+    :short-option "r"
     :prompt "Prefix: "
-    :transient-group "Advanced"
+    :group "Advanced"
     :level 4
     :order 3)
    (rig
-    :initarg :rig
     :type (or null string)
-    :initform nil
-    :documentation "Create issue in a different rig (--rig).
-Example: --rig beads."
-    ;; CLI properties
-    :long-option "rig"
-    :option-type :string
-    ;; Transient properties
-    :key "I"
-    :transient "--rig"
-    :class transient-option
-    :argument "--rig="
+    :short-option "I"
     :prompt "Rig: "
-    :transient-group "Advanced"
+    :group "Advanced"
     :level 4
     :order 4)
    (repo
-    :initarg :repo
     :type (or null string)
-    :initform nil
-    :documentation "Target repository for issue (--repo).
-Overrides auto-routing."
-    ;; CLI properties
-    :long-option "repo"
-    :option-type :string
-    ;; Transient properties
-    :key "o"
-    :transient "--repo"
-    :class transient-option
-    :argument "--repo="
+    :short-option "o"
     :prompt "Target repository: "
-    :transient-reader beads-reader-create-repo
-    :transient-group "Advanced"
+    :reader beads-reader-create-repo
+    :group "Advanced"
     :level 4
     :order 5)
 
    ;; Batch/File Creation
    (file
-    :initarg :file
-    :type (or null string)
-    :initform nil
-    :documentation "Create multiple issues from markdown file (-f, --file)."
-    ;; CLI properties
-    :long-option "file"
     :short-option "f"
-    :option-type :string
-    ;; Transient properties
-    :key "F"
-    :transient "--file"
-    :class transient-option
-    :argument "--file="
+    :type (or null string)
+    :transient-key "F"
     :prompt "Markdown file: "
-    :transient-reader beads-reader-create-file
-    :transient-group "Batch"
+    :reader beads-reader-create-file
+    :group "Batch"
     :level 5
     :order 1)
    (from-template
-    :initarg :from-template
     :type (or null string)
-    :initform nil
-    :documentation "Create issue from template (--from-template).
-Examples: 'epic', 'bug', 'feature'."
-    ;; CLI properties
-    :long-option "from-template"
-    :option-type :string
-    ;; Transient properties
-    :key "T"
-    :transient "--from-template"
-    :class transient-option
-    :argument "--from-template="
+    :short-option "T"
     :prompt "Template: "
-    :transient-reader beads-reader-create-from-template
-    :transient-group "Batch"
+    :reader beads-reader-create-from-template
+    :group "Batch"
     :level 5
     :order 2)
 
    ;; Flags
    (dry-run
-    :initarg :dry-run
     :type boolean
-    :initform nil
-    :documentation "Preview what would be created (--dry-run)."
-    ;; CLI properties
-    :long-option "dry-run"
-    :option-type :boolean
-    ;; Transient properties
-    :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :transient-group "Flags"
+    :short-option "n"
+    :group "Flags"
     :level 2
     :order 1)
    (force
-    :initarg :force
     :type boolean
-    :initform nil
-    :documentation "Force creation even if prefix doesn't match (--force)."
-    ;; CLI properties
-    :long-option "force"
-    :option-type :boolean
-    ;; Transient properties
-    :key "!"
-    :transient "--force"
-    :class transient-switch
-    :argument "--force"
-    :transient-group "Flags"
+    :short-option "!"
+    :group "Flags"
     :level 5
     :order 1)
    (ephemeral
-    :initarg :ephemeral
     :type boolean
-    :initform nil
-    :documentation "Create as ephemeral, not exported to JSONL (--ephemeral)."
-    ;; CLI properties
-    :long-option "ephemeral"
-    :option-type :boolean
-    ;; Transient properties
-    :key "@"
-    :transient "--ephemeral"
-    :class transient-switch
-    :argument "--ephemeral"
-    :transient-group "Flags"
+    :short-option "@"
+    :group "Flags"
     :level 5
     :order 2)
    (silent
-    :initarg :silent
     :type boolean
-    :initform nil
-    :documentation "Output only the issue ID (--silent).
-For scripting."
-    ;; CLI properties
-    :long-option "silent"
-    :option-type :boolean
-    ;; Transient properties
-    :key "s"
-    :transient "--silent"
-    :class transient-switch
-    :argument "--silent"
-    :transient-group "Flags"
+    :short-option "s"
+    :group "Flags"
     :level 5
     :order 3)
    (validate
-    :initarg :validate
     :type boolean
-    :initform nil
-    :documentation "Validate description contains required sections (--validate)."
-    ;; CLI properties
-    :long-option "validate"
-    :option-type :boolean
-    ;; Transient properties
-    :key "V"
-    :transient "--validate"
-    :class transient-switch
-    :argument "--validate"
-    :transient-group "Flags"
+    :short-option "V"
+    :group "Flags"
     :level 5
     :order 4)
 
    ;; Molecule-specific
    (mol-type
-    :initarg :mol-type
     :type (or null string)
-    :initform nil
-    :documentation "Molecule type (--mol-type).
-Values: swarm (multi-polecat), patrol (recurring ops), work (default).
-Requires --type=molecule."
-    ;; CLI properties
-    :long-option "mol-type"
-    :option-type :string
-    ;; Transient properties
-    :key "mt"
-    :transient "--mol-type"
-    :class transient-option
-    :argument "--mol-type="
+    :short-option "mt"
     :prompt "Molecule type: "
     :choices ("swarm" "patrol" "work")
-    :transient-group "Molecule"
+    :group "Molecule"
     :level 6
     :order 1)
 
    ;; Agent-specific
    (agent-rig
-    :initarg :agent-rig
     :type (or null string)
-    :initform nil
-    :documentation "Agent's rig name (--agent-rig).
-Requires --type=agent."
-    ;; CLI properties
-    :long-option "agent-rig"
-    :option-type :string
-    ;; Transient properties
-    :key "ar"
-    :transient "--agent-rig"
-    :class transient-option
-    :argument "--agent-rig="
+    :short-option "ar"
     :prompt "Agent rig: "
-    :transient-group "Agent"
+    :group "Agent"
     :level 6
     :order 1)
    (role-type
-    :initarg :role-type
     :type (or null string)
-    :initform nil
-    :documentation "Agent role type (--role-type).
-Values: polecat, crew, witness, refinery, mayor, deacon.
-Requires --type=agent."
-    ;; CLI properties
-    :long-option "role-type"
-    :option-type :string
-    ;; Transient properties
-    :key "rt"
-    :transient "--role-type"
-    :class transient-option
-    :argument "--role-type="
+    :short-option "rt"
     :prompt "Role type: "
     :choices ("polecat" "crew" "witness" "refinery" "mayor" "deacon")
-    :transient-group "Agent"
+    :group "Agent"
     :level 6
     :order 2)
 
    ;; Event-specific
    (event-actor
-    :initarg :event-actor
     :type (or null string)
-    :initform nil
-    :documentation "Entity URI who caused this event (--event-actor).
-Requires --type=event."
-    ;; CLI properties
-    :long-option "event-actor"
-    :option-type :string
-    ;; Transient properties
-    :key "ea"
-    :transient "--event-actor"
-    :class transient-option
-    :argument "--event-actor="
+    :short-option "ea"
     :prompt "Event actor: "
-    :transient-group "Event"
+    :group "Event"
     :level 6
     :order 1)
    (event-category
-    :initarg :event-category
     :type (or null string)
-    :initform nil
-    :documentation "Event category (--event-category).
-Examples: patrol.muted, agent.started. Requires --type=event."
-    ;; CLI properties
-    :long-option "event-category"
-    :option-type :string
-    ;; Transient properties
-    :key "ec"
-    :transient "--event-category"
-    :class transient-option
-    :argument "--event-category="
+    :short-option "ec"
     :prompt "Event category: "
-    :transient-group "Event"
+    :group "Event"
     :level 6
     :order 2)
    (event-payload
-    :initarg :event-payload
     :type (or null string)
-    :initform nil
-    :documentation "Event-specific JSON data (--event-payload).
-Requires --type=event."
-    ;; CLI properties
-    :long-option "event-payload"
-    :option-type :string
-    ;; Transient properties
-    :key "ep"
-    :transient "--event-payload"
-    :class transient-option
-    :argument "--event-payload="
+    :short-option "ep"
     :prompt "Event payload (JSON): "
-    :transient-group "Event"
+    :group "Event"
     :level 6
     :order 3)
    (event-target
-    :initarg :event-target
     :type (or null string)
-    :initform nil
-    :documentation "Entity URI or bead ID affected (--event-target).
-Requires --type=event."
-    ;; CLI properties
-    :long-option "event-target"
-    :option-type :string
-    ;; Transient properties
-    :key "et"
-    :transient "--event-target"
-    :class transient-option
-    :argument "--event-target="
+    :short-option "et"
     :prompt "Event target: "
-    :transient-group "Event"
+    :group "Event"
     :level 6
-    :order 4))
+    :order 4)
+
+   ;; Additional flags from CLI
+   (append-notes
+    :type (or null string)
+    :long-option "append-notes"
+    :transient beads-transient-multiline
+    :documentation "Append Notes"
+    :group "Content"
+    :level 4
+    :order 6)
+   (context
+    :type (or null string)
+    :long-option "context"
+    :transient beads-transient-multiline
+    :documentation "Context"
+    :group "Content"
+    :level 4
+    :order 7)
+   (design-file
+    :type (or null string)
+    :long-option "design-file"
+    :prompt "Design file: "
+    :reader transient-read-file
+    :group "Content"
+    :level 4
+    :order 8)
+   (graph
+    :type (or null string)
+    :long-option "graph"
+    :prompt "Graph JSON file: "
+    :reader transient-read-file
+    :group "Batch"
+    :level 5
+    :order 3)
+   (metadata
+    :type (or null string)
+    :long-option "metadata"
+    :prompt "Metadata (JSON or @file.json): "
+    :group "Advanced"
+    :level 4
+    :order 6)
+   (no-history
+    :type boolean
+    :long-option "no-history"
+    :group "Flags"
+    :level 5
+    :order 5)
+   (no-inherit-labels
+    :type boolean
+    :long-option "no-inherit-labels"
+    :group "Flags"
+    :level 4
+    :order 6)
+   (skills
+    :type (or null string)
+    :long-option "skills"
+    :prompt "Required skills: "
+    :group "Advanced"
+    :level 4
+    :order 7)
+   (spec-id
+    :type (or null string)
+    :long-option "spec-id"
+    :prompt "Spec ID: "
+    :group "Advanced"
+    :level 4
+    :order 8)
+   (stdin
+    :type boolean
+    :long-option "stdin"
+    :group "Content"
+    :level 5
+    :order 9)
+   (wisp-type
+    :type (or null string)
+    :long-option "wisp-type"
+    :prompt "Wisp type: "
+    :choices ("heartbeat" "ping" "patrol" "gc_report"
+              "recovery" "error" "escalation")
+    :group "Advanced"
+    :level 5
+    :order 9))
   :documentation "Represents bd create command.
 Creates a new issue (or multiple issues from markdown file).
-When executed with :json t, returns the created beads-issue instance(s).")
+When executed with :json t, returns the created beads-issue instance(s)."
+  :transient :manual)
 
 
 (cl-defmethod beads-command-validate ((command beads-command-create))
@@ -775,8 +468,8 @@ Returns error string or nil if valid."
                 deps))
           "Dependencies must be in format: type:issue-id or plain issue-id"))))
 
-(cl-defmethod beads-command-parse ((command beads-command-create) execution)
-  "Parse create COMMAND output from EXECUTION.
+(cl-defmethod beads-command-parse ((command beads-command-create) stdout)
+  "Parse create COMMAND output from STDOUT.
 Returns created issue(s).
 When :json is nil, falls back to parent (returns raw stdout).
 When :json is t, returns beads-issue instance (or list when creating
@@ -792,32 +485,30 @@ Does not modify any slots."
             (cond
              ;; Single issue (JSON object, including non-empty alists)
              ((and (listp parsed-json) (not (null parsed-json)))
-              (beads-issue-from-json parsed-json))
+              (beads-from-json 'beads-issue parsed-json))
              ;; Multiple issues from file (JSON array)
              ((eq (type-of parsed-json) 'vector)
-              (mapcar #'beads-issue-from-json
+              (mapcar (lambda (j) (beads-from-json 'beads-issue j))
                       (append parsed-json nil)))
              ;; Unexpected JSON structure
              (t
               (signal 'beads-json-parse-error
                       (list "Unexpected JSON structure from bd create"
-                            :exit-code (oref execution exit-code)
-                            :parsed-json parsed-json
-                            :stderr (oref execution stderr)))))
+                            :stdout stdout
+                            :parsed-json parsed-json))))
           (error
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-issue instance: %s"
                                  (error-message-string err))
-                         :exit-code (oref execution exit-code)
+                         :stdout stdout
                          :parsed-json parsed-json
-                         :stderr (oref execution stderr)
                          :parse-error err))))))))
 
 (cl-defmethod beads-command-execute-interactive ((cmd beads-command-create))
   "Execute CMD to create issue and offer to show it.
 Overrides default `compilation-mode' behavior with issue-specific UX."
   (oset cmd json t)
-  (let* ((result (oref (beads-command-execute cmd) result))
+  (let* ((result (beads-command-execute cmd))
          ;; Handle both single-issue and multi-issue responses
          (issues (cond
                   ((null result) nil)
@@ -918,7 +609,7 @@ This uses transient's standard argument parsing with dash-style flags."
           (user-error "Validation failed: %s" error-msg)
         (oset cmd json t)
         (condition-case err
-            (let* ((result (oref (beads-command-execute cmd) result))
+            (let* ((result (beads-command-execute cmd))
                    ;; Handle both single-issue and multi-issue responses:
                    ;; - With --title flag: returns one beads-issue object
                    ;; - With --file flag: returns list of beads-issue objects

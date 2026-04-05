@@ -245,13 +245,13 @@
       (should (< elapsed 0.5)))))
 
 ;;; ============================================================
-;;; Convenience Function Tests
+;;; Command Class Tests
 ;;; ============================================================
 
-(ert-deftest beads-comments-test-bang-function-exists ()
-  "Test that convenience functions are defined."
-  (should (fboundp 'beads-command-comments!))
-  (should (fboundp 'beads-command-comments-add!)))
+(ert-deftest beads-comments-test-classes-defined ()
+  "Test that command classes are defined."
+  (should (find-class 'beads-command-comments nil))
+  (should (find-class 'beads-command-comments-add nil)))
 
 (provide 'beads-command-comments-test)
 ;;; beads-command-comments-test.el ends here

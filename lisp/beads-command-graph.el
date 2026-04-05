@@ -25,9 +25,7 @@
 (require 'transient)
 
 ;; Forward declarations
-(declare-function beads-command-reopen! "beads-command-reopen" (&rest args))
 (declare-function beads-command-update "beads-command-update" (&rest args))
-(declare-function beads-command-show! "beads-command-show" (&rest args))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-graph
@@ -35,53 +33,34 @@
 
 (beads-defcommand beads-command-graph (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to show graph for."
     :positional 1)
    (all
-    :initarg :all
     :type boolean
-    :initform nil
-    :documentation "Show graph for all open issues."
-    :long-option "all"
-    :option-type :boolean
-    :key "a"
-    :transient "--all"
-    :class transient-switch
-    :argument "--all"
-    :transient-group "Options"
+    :short-option "a"
+    :group "Options"
     :level 1
     :order 1)
    (box
-    :initarg :box
-    :type boolean
     :initform t
-    :documentation "ASCII boxes showing layers (default)."
-    :long-option "box"
-    :option-type :boolean
-    :key "b"
-    :transient "--box"
-    :class transient-switch
-    :argument "--box"
-    :transient-group "Display"
+    :type boolean
+    :short-option "b"
+    :group "Display"
     :level 1
     :order 2)
    (compact
-    :initarg :compact
     :type boolean
-    :initform nil
-    :documentation "Tree format, one line per issue."
-    :long-option "compact"
-    :option-type :boolean
-    :key "c"
-    :transient "--compact"
-    :class transient-switch
-    :argument "--compact"
-    :transient-group "Display"
+    :short-option "c"
+    :group "Display"
     :level 1
-    :order 3))
+    :order 3)
+   (dot
+    :type boolean
+    :group "Options"
+    :level 2)
+   (html
+    :type boolean
+    :group "Options"
+    :level 2))
   :documentation "Represents bd graph command.
 Displays issue dependency graph visualization.")
 
@@ -214,14 +193,14 @@ ISSUE is a beads-issue EIEIO object."
 (defun beads-graph--get-dependencies ()
   "Get all dependencies from all issues.
 Returns a list of plists with :from, :to, and :type keys."
-  (let ((issues (beads-command-list!))
+  (let ((issues (beads-list-execute))
         (deps nil))
     (dolist (issue issues)
       (let ((issue-id (oref issue id)))
         ;; Get dependencies for this issue using EIEIO command class
         ;; JSON mode returns beads-dependency objects
         (condition-case nil
-            (let ((dep-list (beads-command-dep-list! :issue-id issue-id)))
+            (let ((dep-list (beads-execute 'beads-command-dep-list :issue-id issue-id)))
               (dolist (dep dep-list)
                 (push (list :from (oref dep issue-id)
                             :to (oref dep depends-on-id)
@@ -332,7 +311,7 @@ Returns the path to the generated image file."
          (default-name (format "beads-graph.%s" format))
          (file (read-file-name "Export to: " nil nil nil default-name)))
     (beads-graph--check-dot)
-    (let* ((issues (beads-command-list!))
+    (let* ((issues (beads-list-execute))
            (deps (beads-graph--get-dependencies))
            (dot (beads-graph--generate-dot issues deps)))
       (if (string= format "dot")
@@ -394,7 +373,7 @@ Returns the path to the generated image file."
   (beads-check-executable)
   (beads-graph--check-dot)
   (message "Generating graph...")
-  (let* ((issues (beads-command-list!))
+  (let* ((issues (beads-list-execute))
          (deps (beads-graph--get-dependencies))
          (dot (beads-graph--generate-dot issues deps))
          (image-file (beads-graph--render-dot dot beads-graph-default-format)))
@@ -412,7 +391,7 @@ Returns the path to the generated image file."
   (beads-check-executable)
   (beads-graph--check-dot)
   (message "Generating graph for %s..." issue-id)
-  (let* ((all-issues (beads-command-list!))
+  (let* ((all-issues (beads-list-execute))
          (all-deps (beads-graph--get-dependencies))
          ;; Find connected issues (simplified - includes all for now)
          (issues all-issues)

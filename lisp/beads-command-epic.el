@@ -42,99 +42,58 @@
 
 (beads-defcommand beads-command-epic-status (beads-command-global-options)
   ((eligible-only
-    :initarg :eligible-only
     :type boolean
-    :initform nil
-    :documentation "Show only epics eligible for closure (--eligible-only)."
-    ;; CLI properties
-    :long-option "eligible-only"
-    :option-type :boolean
-    ;; Transient properties
-    :key "e"
-    :transient "--eligible-only"
-    :class transient-switch
-    :argument "--eligible-only"
-    :transient-group "Epic Status"
+    :short-option "e"
+    :group "Epic Status"
     :level 1
     :order 1))
+  :transient :manual
   :documentation "Represents bd epic status command.
-Shows epic completion status.")
+Shows epic completion status."
+  :result (list-of beads-epic-status))
 
 
-(cl-defmethod beads-command-validate ((_command beads-command-epic-status))
-  "Validate epic status COMMAND.
-No required fields.
-Returns nil (always valid)."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
-(cl-defmethod beads-command-parse ((command beads-command-epic-status) execution)
-  "Parse epic status COMMAND output from EXECUTION.
+(cl-defmethod beads-command-parse ((command beads-command-epic-status) stdout)
+  "Parse epic status COMMAND output from STDOUT.
 Returns list of beads-epic-status instances.
 When :json is nil, falls back to parent (returns raw stdout).
 When :json is t, returns list of beads-epic-status instances.
-Does not modify any slots."
+Handles bare JSON object (not array) as a single-element list,
+since the base method's (list-of ...) coercion only handles arrays."
   (with-slots (json) command
     (if (not json)
         (cl-call-next-method)
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (cond
-             ((null parsed-json)
-              nil)
-             ((eq (type-of parsed-json) 'vector)
-              (mapcar #'beads-epic-status-from-json
-                      (append parsed-json nil)))
-             ((eq (type-of parsed-json) 'cons)
-              (list (beads-epic-status-from-json parsed-json)))
-             (t
-              (signal 'beads-json-parse-error
-                      (list "Unexpected JSON structure from bd epic status"
-                            :exit-code (oref execution exit-code)
-                            :parsed-json parsed-json
-                            :stderr (oref execution stderr)))))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to create beads-epic-status: %s"
-                                 (error-message-string err))
-                         :exit-code (oref execution exit-code)
-                         :parsed-json parsed-json
-                         :stderr (oref execution stderr)
-                         :parse-error err))))))))
-
-(cl-defmethod beads-command-execute-interactive ((_cmd beads-command-epic-status))
-  "Execute in terminal buffer with human-readable output."
-  (cl-call-next-method))
-
+      ;; Check if stdout contains a bare object (not an array).
+      ;; The base method with (list-of T) can't handle bare objects.
+      (let* ((trimmed (string-trim stdout)))
+        (if (and (> (length trimmed) 0)
+                 (eq (aref trimmed 0) ?\{))
+            ;; Single object — parse and wrap in a list
+            (let* ((json-null nil)
+                   (json-object-type 'alist)
+                   (json-array-type 'vector)
+                   (json-key-type 'symbol)
+                   (raw (json-read-from-string trimmed)))
+              (list (beads-from-json 'beads-epic-status raw)))
+          ;; Array or null — delegate to base method
+          (cl-call-next-method))))))
 
 ;;; Epic Close-Eligible Command
 
 (beads-defcommand beads-command-epic-close-eligible (beads-command-global-options)
   ((dry-run
-    :initarg :dry-run
     :type boolean
-    :initform nil
-    :documentation "Preview what would be closed without making changes
-(--dry-run)."
-    ;; CLI properties
-    :long-option "dry-run"
-    :option-type :boolean
-    ;; Transient properties
-    :key "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
-    :transient-group "Close Eligible Epics"
+    :short-option "n"
+    :group "Close Eligible Epics"
     :level 1
     :order 1))
   :documentation "Represents bd epic close-eligible command.
 Closes epics where all children are complete."
   :cli-command "epic close-eligible")
 
-(cl-defmethod beads-command-validate ((_command beads-command-epic-close-eligible))
-  "Validate epic close-eligible COMMAND.
-No required fields.
-Returns nil (always valid)."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 
 ;;; Transient Menus
@@ -260,7 +219,7 @@ Format: ((epic-id . (expanded-p . children)) ...)")
   (interactive)
   (beads-check-executable)
   (let* ((caller-dir default-directory)
-         (epics (beads-command-epic-status!))
+         (epics (beads-execute 'beads-command-epic-status))
          (buf-name (beads-buffer-name-utility "epic-status"))
          (buffer (get-buffer-create buf-name)))
     (with-current-buffer buffer
@@ -399,7 +358,7 @@ Format: ((epic-id . (expanded-p . children)) ...)")
 
 (defun beads-epic-status--fetch-children (epic-id)
   "Fetch all child issues for EPIC-ID using dependency tree."
-  (let* ((tree-data (beads-command-dep-tree! :issue-id epic-id :direction "up")))
+  (let* ((tree-data (beads-execute 'beads-command-dep-tree :issue-id epic-id :direction "up")))
     ;; Filter out the epic itself (depth=0) and keep only children
     (seq-filter (lambda (node)
                   (and (> (oref node depth) 0)

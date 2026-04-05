@@ -189,18 +189,13 @@
   "Test that reset suffix is defined."
   (should (fboundp 'beads-search--reset)))
 
-;;; Parse Tests (:parse-as :issues)
+;;; Parse Tests
 
 (ert-deftest beads-command-search-test-parse-as-issues ()
-  "Test that search command has :parse-as :issues behavior.
-The command should parse JSON arrays into beads-issue objects."
+  "Test that search command parses JSON arrays into beads-issue objects."
   (let* ((cmd (beads-command-search :json t))
-         (json-output "[{\"id\":\"bd-1\",\"title\":\"Test\",\"status\":\"open\",\"priority\":2}]")
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout json-output)))
-    (let ((result (beads-command-parse cmd exec)))
+         (json-output "[{\"id\":\"bd-1\",\"title\":\"Test\",\"status\":\"open\",\"priority\":2}]"))
+    (let ((result (beads-command-parse cmd json-output)))
       (should (listp result))
       (should (= 1 (length result)))
       (should (beads-issue-p (car result)))
@@ -215,16 +210,13 @@ The command should parse JSON arrays into beads-issue objects."
              (lambda () t))
             ((symbol-function 'beads-command-execute)
              (lambda (cmd &rest _args)
-               (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :result (list
-                         (beads-issue :id "bd-1"
-                                      :title "Search result"
-                                      :status "open"
-                                      :priority 2
-                                      :issue-type "bug"
-                                      :created-at "2025-10-20T14:30:00Z")))))
+               (list
+                (beads-issue :id "bd-1"
+                             :title "Search result"
+                             :status "open"
+                             :priority 2
+                             :issue-type "bug"
+                             :created-at "2025-10-20T14:30:00Z"))))
             ((symbol-function 'beads-git-find-project-root)
              (lambda () default-directory))
             ((symbol-function 'beads-git-get-project-name)
@@ -254,10 +246,7 @@ The command should parse JSON arrays into beads-issue objects."
              (lambda () t))
             ((symbol-function 'beads-command-execute)
              (lambda (cmd &rest _args)
-               (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :result nil)))
+               nil))
             ((symbol-function 'beads-git-find-project-root)
              (lambda () default-directory))
             ((symbol-function 'beads-git-get-project-name)
@@ -286,10 +275,7 @@ The command should parse JSON arrays into beads-issue objects."
               ((symbol-function 'beads-command-execute)
                (lambda (cmd &rest _args)
                  (setq captured-cmd cmd)
-                 (beads-command-execution
-                  :command cmd
-                  :exit-code 0
-                  :result nil)))
+                 nil))
               ((symbol-function 'beads-git-find-project-root)
                (lambda () default-directory))
               ((symbol-function 'beads-git-get-project-name)

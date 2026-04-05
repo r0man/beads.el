@@ -14,7 +14,7 @@
 ;; in the Dolt-backed beads database.
 ;;
 ;; Usage:
-;;   (beads-command-diff! :from-ref "HEAD~1" :to-ref "HEAD")
+;;   (beads-execute 'beads-command-diff :from-ref "HEAD~1" :to-ref "HEAD")
 ;;   (beads-diff)  ; invoke transient menu
 
 ;;; Code:
@@ -28,34 +28,22 @@
 
 (beads-defcommand beads-command-diff (beads-command-global-options)
   ((from-ref
-    :initarg :from-ref
-    :type (or null string)
-    :initform nil
-    :documentation "Starting reference (commit hash, branch name, or HEAD~N)."
     :positional 1
-    :option-type :string
-    :key "f"
-    :transient "From ref (required)"
-    :class transient-option
+    :type (or null string)
+    :short-option "f"
     :argument "--from="
     :prompt "From ref: "
-    :transient-group "Diff"
+    :group "Diff"
     :level 1
     :order 1
     :required t)
    (to-ref
-    :initarg :to-ref
-    :type (or null string)
-    :initform nil
-    :documentation "Ending reference (commit hash, branch name, or HEAD)."
     :positional 2
-    :option-type :string
-    :key "t"
-    :transient "To ref (required)"
-    :class transient-option
+    :type (or null string)
+    :short-option "t"
     :argument "--to="
     :prompt "To ref: "
-    :transient-group "Diff"
+    :group "Diff"
     :level 1
     :order 2
     :required t))

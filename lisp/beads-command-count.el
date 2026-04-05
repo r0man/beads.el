@@ -28,181 +28,142 @@
 
 (beads-defcommand beads-command-count (beads-command-global-options)
   ((assignee
-    :initarg :assignee
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by assignee (--assignee)."
-    :long-option "assignee"
     :short-option "a"
-    :option-type :string
-    :key "a"
-    :transient "Filter by assignee"
-    :class transient-option
-    :argument "--assignee="
-    :prompt "Assignee: "
-    :transient-group "Filters"
+    :type (or null string)
+    :group "Filters"
     :level 2
     :order 1)
    (status
-    :initarg :status
     :type (or null string)
-    :initform nil
-    :documentation "Filter by status (--status).
-Valid values: open, in_progress, blocked, closed."
-    :long-option "status"
-    :option-type :string
-    :key "s"
-    :transient "Filter by status"
-    :class transient-option
-    :argument "--status="
-    :prompt "Status: "
+    :short-option "s"
     :choices ("open" "in_progress" "blocked" "closed")
-    :transient-group "Filters"
+    :group "Filters"
     :level 2
     :order 2)
    (created-after
-    :initarg :created-after
     :type (or null string)
-    :initform nil
-    :documentation "Filter issues created after date (--created-after).
-Format: YYYY-MM-DD or RFC3339."
-    :long-option "created-after"
-    :option-type :string
-    :key "Ca"
-    :transient "Created after date"
-    :class transient-option
-    :argument "--created-after="
+    :short-option "Ca"
     :prompt "Created after (YYYY-MM-DD): "
-    :transient-group "Date Filters"
+    :group "Date Filters"
     :level 3
     :order 1)
    (created-before
-    :initarg :created-before
     :type (or null string)
-    :initform nil
-    :documentation "Filter issues created before date (--created-before).
-Format: YYYY-MM-DD or RFC3339."
-    :long-option "created-before"
-    :option-type :string
-    :key "Cb"
-    :transient "Created before date"
-    :class transient-option
-    :argument "--created-before="
+    :short-option "Cb"
     :prompt "Created before (YYYY-MM-DD): "
-    :transient-group "Date Filters"
+    :group "Date Filters"
     :level 3
     :order 2)
    (closed-after
-    :initarg :closed-after
     :type (or null string)
-    :initform nil
-    :documentation "Filter issues closed after date (--closed-after).
-Format: YYYY-MM-DD or RFC3339."
-    :long-option "closed-after"
-    :option-type :string
-    :key "ca"
-    :transient "Closed after date"
-    :class transient-option
-    :argument "--closed-after="
+    :short-option "ca"
     :prompt "Closed after (YYYY-MM-DD): "
-    :transient-group "Date Filters"
+    :group "Date Filters"
     :level 3
     :order 3)
    (closed-before
-    :initarg :closed-before
     :type (or null string)
-    :initform nil
-    :documentation "Filter issues closed before date (--closed-before).
-Format: YYYY-MM-DD or RFC3339."
-    :long-option "closed-before"
-    :option-type :string
-    :key "cb"
-    :transient "Closed before date"
-    :class transient-option
-    :argument "--closed-before="
+    :short-option "cb"
     :prompt "Closed before (YYYY-MM-DD): "
-    :transient-group "Date Filters"
+    :group "Date Filters"
     :level 3
     :order 4)
    (by-status
-    :initarg :by-status
     :type boolean
-    :initform nil
-    :documentation "Group count by status (--by-status)."
-    :long-option "by-status"
-    :option-type :boolean
-    :key "bs"
-    :transient "Group by status"
-    :class transient-switch
-    :argument "--by-status"
-    :transient-group "Grouping"
+    :short-option "bs"
+    :group "Grouping"
     :level 2
     :order 1)
    (by-priority
-    :initarg :by-priority
     :type boolean
-    :initform nil
-    :documentation "Group count by priority (--by-priority)."
-    :long-option "by-priority"
-    :option-type :boolean
-    :key "bp"
-    :transient "Group by priority"
-    :class transient-switch
-    :argument "--by-priority"
-    :transient-group "Grouping"
+    :short-option "bp"
+    :group "Grouping"
     :level 2
     :order 2)
    (by-type
-    :initarg :by-type
     :type boolean
-    :initform nil
-    :documentation "Group count by issue type (--by-type)."
-    :long-option "by-type"
-    :option-type :boolean
-    :key "bt"
-    :transient "Group by type"
-    :class transient-switch
-    :argument "--by-type"
-    :transient-group "Grouping"
+    :short-option "bt"
+    :group "Grouping"
     :level 2
     :order 3)
    (by-assignee
-    :initarg :by-assignee
     :type boolean
-    :initform nil
-    :documentation "Group count by assignee (--by-assignee)."
-    :long-option "by-assignee"
-    :option-type :boolean
-    :key "ba"
-    :transient "Group by assignee"
-    :class transient-switch
-    :argument "--by-assignee"
-    :transient-group "Grouping"
+    :short-option "ba"
+    :group "Grouping"
     :level 2
     :order 4)
    (by-label
-    :initarg :by-label
     :type boolean
-    :initform nil
-    :documentation "Group count by label (--by-label)."
-    :long-option "by-label"
-    :option-type :boolean
-    :key "bl"
-    :transient "Group by label"
-    :class transient-switch
-    :argument "--by-label"
-    :transient-group "Grouping"
+    :short-option "bl"
+    :group "Grouping"
     :level 2
-    :order 5))
+    :order 5)
+   (desc-contains
+    :type (or null string)
+    :long-option "desc-contains"
+    :group "Filter"
+    :level 3)
+   (empty-description
+    :type boolean
+    :long-option "empty-description"
+    :group "Filter"
+    :level 3)
+   (id
+    :type (or null string)
+    :long-option "id"
+    :group "Filter"
+    :level 3)
+   (label
+    :type (or null string)
+    :long-option "label"
+    :group "Filter"
+    :level 3)
+   (label-any
+    :type (or null string)
+    :long-option "label-any"
+    :group "Filter"
+    :level 3)
+   (no-assignee
+    :type boolean
+    :long-option "no-assignee"
+    :group "Filter"
+    :level 3)
+   (no-labels
+    :type boolean
+    :long-option "no-labels"
+    :group "Filter"
+    :level 3)
+   (notes-contains
+    :type (or null string)
+    :long-option "notes-contains"
+    :group "Filter"
+    :level 3)
+   (priority-min
+    :type (or null integer)
+    :long-option "priority-min"
+    :group "Filter"
+    :level 3)
+   (priority-max
+    :type (or null integer)
+    :long-option "priority-max"
+    :group "Filter"
+    :level 3)
+   (title
+    :type (or null string)
+    :long-option "title"
+    :group "Filter"
+    :level 3)
+   (title-contains
+    :type (or null string)
+    :long-option "title-contains"
+    :group "Filter"
+    :level 3))
   :documentation "Represents bd count command.
 Counts issues matching the specified filters.
 When executed with :json t, returns count data as JSON.")
 
 
-(cl-defmethod beads-command-validate ((_command beads-command-count))
-  "Validate count COMMAND.
-No required fields, returns nil (valid)."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 
 ;;; Transient Menu

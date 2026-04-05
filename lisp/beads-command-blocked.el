@@ -22,7 +22,7 @@
 ;;
 ;; Usage:
 ;;   (beads-command-execute (beads-command-blocked))
-;;   (beads-command-blocked!)  ; convenience function
+;;   (beads-execute 'beads-command-blocked)  ; convenience function
 
 ;;; Code:
 
@@ -37,50 +37,21 @@
 
 (beads-defcommand beads-command-blocked (beads-command-global-options)
   ((parent
-    :initarg :parent
     :type (or null string)
-    :initform nil
-    :documentation "Filter to descendants of this bead/epic (--parent)."
-    ;; CLI properties
-    :long-option "parent"
-    :option-type :string
-    ;; Transient properties
-    :key "P"
-    :transient "--parent"
-    :class transient-option
-    :argument "--parent="
+    :short-option "P"
     :prompt "Parent ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Scope"
+    :reader beads-reader-issue-id
+    :group "Scope"
     :level 2
     :order 1))
   :documentation "Represents bd blocked command.
 Shows blocked issues (issues with unresolved blockers).
-When executed with :json t, returns list of beads-blocked-issue instances.")
+When executed with :json t, returns list of beads-blocked-issue instances."
+  :result (list-of beads-blocked-issue))
 
 
-(cl-defmethod beads-command-parse ((command beads-command-blocked) execution)
-  "Parse blocked COMMAND output from EXECUTION.
-Returns list of beads-blocked-issue instances.
-When :json is nil, falls back to parent (returns raw stdout).
-When :json is t, converts parsed JSON to beads-blocked-issue instances.
-Does not modify any slots."
-  (with-slots (json) command
-    (if (not json)
-        ;; If json is not enabled, use parent implementation
-        (cl-call-next-method)
-      ;; Call parent to parse JSON, then convert to beads-blocked-issue instances
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (mapcar #'beads-blocked-issue-from-json (append parsed-json nil))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to create beads-blocked-issue instances: %s"
-                                 (error-message-string err))
-                         :exit-code (oref execution exit-code)
-                         :parsed-json parsed-json
-                         :stderr (oref execution stderr)
-                         :parse-error err))))))))
+;; Parse override removed: the base method handles JSON-to-domain
+;; parsing automatically via :result (list-of beads-blocked-issue).
 
 
 ;;; Transient Menu

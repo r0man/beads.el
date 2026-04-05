@@ -166,7 +166,7 @@ Default functions:
 Fetches issues via `bd list --status open --json' and sorts by
 priority (lowest number first)."
   (let* ((cmd (beads-command-list :status "open" :json t))
-         (issues (oref (beads-command-execute cmd) result)))
+         (issues (beads-command-execute cmd)))
     (when issues
       (vui-component 'beads-section--issue-group
         :title "Open Issues"
@@ -179,7 +179,7 @@ Fetches issues via `bd blocked --json'.
 Issues with status \"hooked\" or \"in_progress\" are excluded because
 they represent actively running work, not stalled work."
   (let* ((cmd (beads-command-blocked :json t))
-         (all-issues (oref (beads-command-execute cmd) result))
+         (all-issues (beads-command-execute cmd))
          (issues (seq-remove
                   (lambda (issue)
                     (member (oref issue status)
@@ -194,7 +194,7 @@ they represent actively running work, not stalled work."
   "Return a collapsible vui vnode for ready work, or nil when none.
 Fetches issues via `bd ready --json'."
   (let* ((cmd (beads-command-ready :json t))
-         (issues (oref (beads-command-execute cmd) result)))
+         (issues (beads-command-execute cmd)))
     (when issues
       (vui-component 'beads-section--issue-group
         :title "Ready Work"

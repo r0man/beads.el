@@ -25,7 +25,7 @@
 ;; Usage:
 ;;   (beads-command-execute (beads-command-reopen :issue-ids '("bd-1")
 ;;                                                 :reason "Needs more work"))
-;;   (beads-command-reopen!)  ; convenience function
+;;   (beads-execute 'beads-command-reopen)  ; convenience function
 
 ;;; Code:
 
@@ -44,50 +44,31 @@
 
 (beads-defcommand beads-command-reopen (beads-command-global-options)
   ((issue-ids
-    :initarg :issue-ids
-    :type (or null list)
-    :initform nil
-    :documentation "One or more issue IDs to reopen (positional arguments).
-Example: '(\"bd-1\" \"bd-2\")"
-    ;; CLI properties
     :positional 1
-    :option-type :list
-    :option-separator " "
-    ;; Transient properties
-    :key "i"
-    :transient "Issue ID (required)"
-    :class transient-option
+    :type (list-of string)
+    :separator " "
+    :short-option "i"
+    :transient transient-option
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads-reader-reopen-issue-id
-    :transient-group "Reopen Issue"
+    :reader beads-reader-reopen-issue-id
+    :group "Reopen Issue"
     :level 1
     :order 1
-    ;; Validation
     :required t)
    (reason
-    :initarg :reason
     :type (or null string)
-    :initform nil
-    :documentation "Reason for reopening (-r, --reason).
-Optional, but recommended for documentation."
-    ;; CLI properties
-    :long-option "reason"
     :short-option "r"
-    :option-type :string
-    ;; Transient properties
-    :key "r"
-    :transient "--reason"
-    :class beads-transient-multiline
-    :argument "--reason="
-    :field-name "Reopen Reason"
-    :transient-group "Reopen Issue"
+    :transient beads-transient-multiline
+    :documentation "Reopen Reason"
+    :group "Reopen Issue"
     :level 1
     :order 2))
   :documentation "Represents bd reopen command.
 Reopens one or more closed issues with optional reason.
 When executed with :json t, returns beads-issue instance (or list
-of instances when multiple IDs provided).")
+of instances when multiple IDs provided)."
+  :result (list-of beads-issue))
 
 
 (cl-defmethod beads-command-validate ((command beads-command-reopen))
@@ -102,56 +83,15 @@ Returns error string or nil if valid."
      ;; Validate list content types
      (beads-command--validate-string-list issue-ids "issue-ids"))))
 
-(cl-defmethod beads-command-parse ((command beads-command-reopen) execution)
-  "Parse reopen COMMAND output from EXECUTION.
-Returns reopened issue(s).
-When :json is nil, falls back to parent (returns raw stdout).
-When :json is t, returns beads-issue instance (or list when multiple IDs).
-Does not modify any slots."
-  (with-slots (json issue-ids) command
-    (if (not json)
-        ;; If json is not enabled, use parent implementation
-        (cl-call-next-method)
-      ;; Call parent to parse JSON, then convert to beads-issue instance(s)
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (if (eq (type-of parsed-json) 'vector)
-                ;; bd reopen returns array - convert to issue objects
-                (let ((issues (mapcar #'beads-issue-from-json
-                                      (append parsed-json nil))))
-                  ;; Return single issue if only one ID, list otherwise
-                  (if (= (length issue-ids) 1)
-                      (car issues)
-                    issues))
-              ;; Unexpected JSON structure
-              (signal 'beads-json-parse-error
-                      (list "Unexpected JSON structure from bd reopen"
-                            :exit-code (oref execution exit-code)
-                            :parsed-json parsed-json
-                            :stderr (oref execution stderr))))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to create beads-issue instance: %s"
-                                 (error-message-string err))
-                         :exit-code (oref execution exit-code)
-                         :parsed-json parsed-json
-                         :stderr (oref execution stderr)
-                         :parse-error err))))))))
+;; Parse override removed: the base method handles JSON-to-domain
+;; parsing automatically via :result (list-of beads-issue).
+;; The execute-interactive method normalizes results to a list.
 
 (cl-defmethod beads-command-execute-interactive ((cmd beads-command-reopen))
-  "Execute CMD to reopen issue and show result.
-Overrides default `compilation-mode' behavior."
+  "Execute CMD to reopen issue and show result."
   (oset cmd json t)
-  (let* ((result (oref (beads-command-execute cmd) result))
-         (issues (cond
-                  ((null result) nil)
-                  ((cl-typep result 'beads-issue) (list result))
-                  ((and (listp result)
-                        (not (null result))
-                        (cl-typep (car result) 'beads-issue))
-                   result)
-                  (t nil))))
-    ;; Invalidate completion cache after reopening
+  (let* ((result (beads-command-execute cmd))
+         (issues (if (listp result) result (list result))))
     (beads--invalidate-completion-cache)
     (if issues
         (message "Reopened %d issue%s: %s"

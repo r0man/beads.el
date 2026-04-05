@@ -45,7 +45,6 @@
 (declare-function beads-agent-jump "beads-agent")
 (declare-function beads-agent-cleanup-stale-sessions "beads-agent")
 (declare-function beads-show "beads-show")
-(declare-function beads-command-show! "beads-command-show" (&rest args))
 
 ;;; Customization
 
@@ -176,7 +175,7 @@
   (let ((cache (make-hash-table :test #'equal)))
     (when issue-ids
       (condition-case nil
-          (let ((issues (beads-command-show! :issue-ids issue-ids)))
+          (let ((issues (beads-execute 'beads-command-show :issue-ids issue-ids)))
             (dolist (issue (if (listp issues) issues (list issues)))
               (when issue
                 (puthash (oref issue id)

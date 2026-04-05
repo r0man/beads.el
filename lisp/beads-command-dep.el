@@ -49,87 +49,47 @@
 
 (beads-defcommand beads-command-dep-add (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue that will depend on another (positional arg 1)."
-    ;; CLI properties
     :positional 1
-    :option-type :string
-    ;; Transient properties
-    :key "i"
-    :transient "Issue ID"
-    :class transient-option
+    :type (or null string)
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Add Dependency"
+    :reader beads-reader-issue-id
+    :group "Add Dependency"
     :level 1
     :order 1
     :required t)
    (depends-on
-    :initarg :depends-on
-    :type (or null string)
-    :initform nil
-    :documentation "Issue that blocks the first issue (positional arg 2).
-Can also use --blocked-by or --depends-on flags.
-Can be a local issue ID or external:project:capability."
-    ;; CLI properties
     :positional 2
-    :option-type :string
-    ;; Transient properties
-    :key "d"
-    :transient "Depends on"
-    :class transient-option
+    :type (or null string)
+    :short-option "d"
     :argument "--depends-on="
     :prompt "Depends on: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Add Dependency"
+    :reader beads-reader-issue-id
+    :group "Add Dependency"
     :level 1
     :order 2
     :required t)
    (blocked-by
-    :initarg :blocked-by
     :type (or null string)
-    :initform nil
-    :documentation "Issue ID that blocks the first issue (--blocked-by).
-Alternative to positional arg.  Alias for --depends-on."
-    ;; CLI properties
-    :long-option "blocked-by"
-    :option-type :string
-    ;; Transient properties
-    :key "b"
-    :transient "--blocked-by"
-    :class transient-option
-    :argument "--blocked-by="
+    :short-option "b"
     :prompt "Blocked by: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Add Dependency"
+    :reader beads-reader-issue-id
+    :group "Add Dependency"
     :level 2
     :order 1)
    (dep-type
-    :initarg :dep-type
-    :type (or null string)
-    :initform nil
-    :documentation "Dependency type (-t, --type).
-Values: blocks, tracks, related, parent-child, discovered-from,
-until, caused-by, validates, relates-to, supersedes.
-Default: blocks."
-    ;; CLI properties
     :long-option "type"
     :short-option "t"
-    :option-type :string
-    ;; Transient properties
-    :key "t"
-    :transient "--type"
-    :class transient-option
-    :argument "--type="
+    :type (or null string)
     :prompt "Dependency type: "
-    :transient-group "Add Dependency"
+    :group "Add Dependency"
     :level 1
     :order 3))
   :documentation "Represents bd dep add command.
-Adds a dependency between two issues.")
+Adds a dependency between two issues."
+  :result beads-dep-op-result
+  :transient :manual)
 
 
 (cl-defmethod beads-command-validate ((command beads-command-dep-add))
@@ -145,71 +105,38 @@ Returns error string or nil if valid."
       "Must provide depends-on or blocked-by issue ID")
      (t nil))))
 
-(cl-defmethod beads-command-parse ((command beads-command-dep-add) execution)
-  "Parse dep add COMMAND output from EXECUTION.
-Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
-  (with-slots (json) command
-    (if (not json)
-        (cl-call-next-method)
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (if (listp parsed-json)
-                (beads-dep-op-result-from-json parsed-json)
-              (signal 'beads-json-parse-error
-                      (list "Unexpected JSON from bd dep add"
-                            :exit-code (oref execution exit-code)
-                            :parsed-json parsed-json
-                            :stderr (oref execution stderr))))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to parse dep add result: %s"
-                                 (error-message-string err))
-                         :exit-code (oref execution exit-code)
-                         :stderr (oref execution stderr)))))))))
+;; Parse override removed: the base method handles JSON-to-domain
+;; parsing automatically via :result beads-dep-op-result.
 
 ;;; Dependency Remove Command
 
 (beads-defcommand beads-command-dep-remove (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue with the dependency (positional arg 1)."
-    ;; CLI properties
     :positional 1
-    :option-type :string
-    ;; Transient properties
-    :key "i"
-    :transient "Issue ID"
-    :class transient-option
+    :type (or null string)
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Remove Dependency"
+    :reader beads-reader-issue-id
+    :group "Remove Dependency"
     :level 1
     :order 1
     :required t)
    (depends-on
-    :initarg :depends-on
-    :type (or null string)
-    :initform nil
-    :documentation "Issue to remove from dependencies (positional arg 2)."
-    ;; CLI properties
     :positional 2
-    :option-type :string
-    ;; Transient properties
-    :key "d"
-    :transient "Depends on"
-    :class transient-option
+    :type (or null string)
+    :short-option "d"
     :argument "--depends-on="
     :prompt "Remove dependency on: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Remove Dependency"
+    :reader beads-reader-issue-id
+    :group "Remove Dependency"
     :level 1
     :order 2
     :required t))
   :documentation "Represents bd dep remove command.
-Removes a dependency between two issues.")
+Removes a dependency between two issues."
+  :result beads-dep-op-result
+  :transient :manual)
 
 
 (cl-defmethod beads-command-validate ((command beads-command-dep-remove))
@@ -224,90 +151,41 @@ Returns error string or nil if valid."
       "Must provide depends-on issue ID")
      (t nil))))
 
-(cl-defmethod beads-command-parse ((command beads-command-dep-remove) execution)
-  "Parse dep remove COMMAND output from EXECUTION.
-Returns a beads-dep-op-result when :json is t, raw stdout otherwise."
-  (with-slots (json) command
-    (if (not json)
-        (cl-call-next-method)
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (if (listp parsed-json)
-                (beads-dep-op-result-from-json parsed-json)
-              (signal 'beads-json-parse-error
-                      (list "Unexpected JSON from bd dep remove"
-                            :exit-code (oref execution exit-code)
-                            :parsed-json parsed-json
-                            :stderr (oref execution stderr))))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to parse dep remove result: %s"
-                                 (error-message-string err))
-                         :exit-code (oref execution exit-code)
-                         :stderr (oref execution stderr)))))))))
+;; Parse override removed: the base method handles JSON-to-domain
+;; parsing automatically via :result beads-dep-op-result.
 
 ;;; Dependency List Command
 
 (beads-defcommand beads-command-dep-list (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue to list dependencies for (positional arg)."
-    ;; CLI properties
     :positional 1
-    :option-type :string
-    ;; Transient properties
-    :key "i"
-    :transient "Issue ID"
-    :class transient-option
+    :type (or null string)
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "List Dependencies"
+    :reader beads-reader-issue-id
+    :group "List Dependencies"
     :level 1
     :order 1
     :required t)
    (direction
-    :initarg :direction
     :type (or null string)
-    :initform nil
-    :documentation "Direction to list (--direction).
-Values: down (dependencies), up (dependents).
-Default: down."
-    ;; CLI properties
-    :long-option "direction"
-    :option-type :string
-    ;; Transient properties
-    :key "D"
-    :transient "--direction"
-    :class transient-option
-    :argument "--direction="
+    :short-option "D"
     :prompt "Direction (down/up): "
-    :transient-group "List Dependencies"
+    :group "List Dependencies"
     :level 1
     :order 2)
    (dep-type
-    :initarg :dep-type
-    :type (or null string)
-    :initform nil
-    :documentation "Filter by dependency type (-t, --type).
-Values: tracks, blocks, parent-child, etc."
-    ;; CLI properties
     :long-option "type"
     :short-option "t"
-    :option-type :string
-    ;; Transient properties
-    :key "t"
-    :transient "--type"
-    :class transient-option
-    :argument "--type="
+    :type (or null string)
     :prompt "Dependency type: "
-    :transient-group "List Dependencies"
+    :group "List Dependencies"
     :level 1
     :order 3))
   :documentation "Represents bd dep list command.
-Lists dependencies or dependents of an issue.")
+Lists dependencies or dependents of an issue."
+  :result (list-of beads-dependency))
 
 
 (cl-defmethod beads-command-validate ((command beads-command-dep-list))
@@ -319,8 +197,8 @@ Returns error string or nil if valid."
         "Must provide issue ID"
       nil)))
 
-(cl-defmethod beads-command-parse ((command beads-command-dep-list) execution)
-  "Parse dep list COMMAND output from EXECUTION.
+(cl-defmethod beads-command-parse ((command beads-command-dep-list) stdout)
+  "Parse dep list COMMAND output from STDOUT.
 Returns list of beads-dependency instances.
 When :json is nil, falls back to parent (returns raw stdout).
 When :json is t, returns list of beads-dependency instances which
@@ -329,168 +207,69 @@ Does not modify any slots."
   (with-slots (json issue-id) command
     (if (not json)
         (cl-call-next-method)
-      (let ((parsed-json (cl-call-next-method)))
-        (condition-case err
-            (cond
-             ((eq (type-of parsed-json) 'vector)
-              ;; bd dep list returns IssueWithDependencyMetadata objects
-              ;; which have full issue fields + dependency_type.
-              ;; Use beads-dependency-from-json which handles this format.
-              ;; Also set issue-id slot since bd dep list doesn't include it
-              ;; (it's implicit from the command argument).
-              (mapcar (lambda (item)
-                        (let ((dep (beads-dependency-from-json item)))
-                          (oset dep issue-id issue-id)
-                          dep))
-                      (append parsed-json nil)))
-             ((or (null parsed-json) (eq parsed-json :null))
-              nil)
-             (t
-              (signal 'beads-json-parse-error
-                      (list "Unexpected JSON structure from bd dep list"
-                            :exit-code (oref execution exit-code)
-                            :parsed-json parsed-json
-                            :stderr (oref execution stderr)))))
-          (error
-           (signal 'beads-json-parse-error
-                   (list (format "Failed to parse dep list result: %s"
-                                 (error-message-string err))
-                         :exit-code (oref execution exit-code)
-                         :parsed-json parsed-json
-                         :stderr (oref execution stderr)
-                         :parse-error err))))))))
+      ;; Base method parses JSON and coerces via :result (list-of beads-dependency).
+      ;; We just need to set issue-id on each dependency since bd dep list
+      ;; doesn't include it (it's implicit from the command argument).
+      (let ((deps (cl-call-next-method)))
+        (dolist (dep deps)
+          (oset dep issue-id issue-id))
+        deps))))
 
 ;;; Dependency Tree Command
 
 (beads-defcommand beads-command-dep-tree (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Root issue for the tree (positional arg)."
-    ;; CLI properties
     :positional 1
-    :option-type :string
-    ;; Transient properties
-    :key "i"
-    :transient "Issue ID"
-    :class transient-option
+    :type (or null string)
+    :short-option "i"
     :argument "--id="
     :prompt "Issue ID: "
-    :transient-reader beads-reader-issue-id
-    :transient-group "Dependency Tree"
+    :reader beads-reader-issue-id
+    :group "Dependency Tree"
     :level 1
     :order 1
     :required t)
    (direction
-    :initarg :direction
     :type (or null string)
-    :initform nil
-    :documentation "Tree direction (--direction).
-Values: down (dependencies), up (dependents), both.
-Default: down."
-    ;; CLI properties
-    :long-option "direction"
-    :option-type :string
-    ;; Transient properties
-    :key "D"
-    :transient "--direction"
-    :class transient-option
-    :argument "--direction="
+    :short-option "D"
     :prompt "Direction (down/up/both): "
-    :transient-group "Dependency Tree"
+    :group "Dependency Tree"
     :level 1
     :order 2)
    (max-depth
-    :initarg :max-depth
-    :type (or null integer)
-    :initform nil
-    :documentation "Maximum tree depth (-d, --max-depth).
-Safety limit, default: 50."
-    ;; CLI properties
-    :long-option "max-depth"
     :short-option "d"
-    :option-type :integer
-    ;; Transient properties
-    :key "d"
-    :transient "--max-depth"
-    :class transient-option
-    :argument "--max-depth="
+    :type (or null string integer)
     :prompt "Max depth: "
-    :transient-group "Dependency Tree"
+    :group "Dependency Tree"
     :level 2
     :order 1)
    (status
-    :initarg :status
     :type (or null string)
-    :initform nil
-    :documentation "Filter to only show issues with this status (--status).
-Values: open, in_progress, blocked, deferred, closed."
-    ;; CLI properties
-    :long-option "status"
-    :option-type :string
-    ;; Transient properties
-    :key "s"
-    :transient "--status"
-    :class transient-option
-    :argument "--status="
+    :short-option "s"
     :prompt "Status filter: "
-    :transient-reader beads-reader-list-status
-    :transient-group "Dependency Tree"
+    :reader beads-reader-list-status
+    :group "Dependency Tree"
     :level 1
     :order 3)
    (dep-type
-    :initarg :dep-type
-    :type (or null string)
-    :initform nil
-    :documentation "Filter to only show dependencies of this type (-t, --type).
-Values: tracks, blocks, parent-child, etc."
-    ;; CLI properties
     :long-option "type"
     :short-option "t"
-    :option-type :string
-    ;; Transient properties
-    :key "t"
-    :transient "--type"
-    :class transient-option
-    :argument "--type="
+    :type (or null string)
     :prompt "Dependency type: "
-    :transient-group "Dependency Tree"
+    :group "Dependency Tree"
     :level 2
     :order 2)
    (format
-    :initarg :format
     :type (or null string)
-    :initform nil
-    :documentation "Output format (--format).
-Values: 'mermaid' for Mermaid.js flowchart."
-    ;; CLI properties
-    :long-option "format"
-    :option-type :string
-    ;; Transient properties
-    :key "F"
-    :transient "--format"
-    :class transient-option
-    :argument "--format="
+    :short-option "F"
     :prompt "Format (mermaid): "
-    :transient-group "Dependency Tree"
+    :group "Dependency Tree"
     :level 2
     :order 3)
    (show-all-paths
-    :initarg :show-all-paths
     :type boolean
-    :initform nil
-    :documentation "Show all paths to nodes (--show-all-paths).
-No deduplication for diamond dependencies."
-    ;; CLI properties
-    :long-option "show-all-paths"
-    :option-type :boolean
-    ;; Transient properties
-    :key "ap"
-    :transient "--show-all-paths"
-    :class transient-switch
-    :argument "--show-all-paths"
-    :transient-group "Dependency Tree"
+    :short-option "ap"
+    :group "Dependency Tree"
     :level 3
     :order 1))
   :documentation "Represents bd dep tree command.
@@ -506,8 +285,8 @@ Returns error string or nil if valid."
         "Must provide issue ID"
       nil)))
 
-(cl-defmethod beads-command-parse ((command beads-command-dep-tree) execution)
-  "Parse dep tree COMMAND output from EXECUTION.
+(cl-defmethod beads-command-parse ((command beads-command-dep-tree) stdout)
+  "Parse dep tree COMMAND output from STDOUT.
 Return list of beads-tree-node objects."
   (with-slots (json) command
     (if (not json)
@@ -515,21 +294,19 @@ Return list of beads-tree-node objects."
       (let ((parsed-json (cl-call-next-method)))
         (condition-case err
             (if (eq (type-of parsed-json) 'vector)
-                (mapcar #'beads-tree-node-from-json
+                (mapcar (lambda (j) (beads-from-json 'beads-tree-node j))
                         (append parsed-json nil))
               (signal 'beads-json-parse-error
                       (list "Unexpected JSON structure from dep tree"
-                            :exit-code (oref execution exit-code)
-                            :parsed-json parsed-json
-                            :stderr (oref execution stderr))))
+                            :stdout stdout
+                            :parsed-json parsed-json)))
           (beads-json-parse-error (signal (car err) (cdr err)))
           (error
            (signal 'beads-json-parse-error
                    (list (format "Failed to create beads-tree-node: %s"
                                  (error-message-string err))
-                         :exit-code (oref execution exit-code)
-                         :parsed-json parsed-json
-                         :stderr (oref execution stderr)))))))))
+                         :stdout stdout
+                         :parsed-json parsed-json))))))))
 
 
 ;;; Dependency Cycles Command
@@ -540,27 +317,15 @@ Return list of beads-tree-node objects."
 Detects dependency cycles in the issue graph.")
 
 
-(cl-defmethod beads-command-validate ((_command beads-command-dep-cycles))
-  "Validate dep cycles COMMAND.
-No required fields.
-Returns nil (always valid)."
-  nil)
+;; Validate override removed: base handles slot-level validation.
 
 ;;; Dep Relate Command
 
 (beads-defcommand beads-command-dep-relate (beads-command-global-options)
   ((id1
-    :initarg :id1
-    :type (or null string)
-    :initform nil
-    :documentation "First issue ID."
     :positional 1
     :required t)
    (id2
-    :initarg :id2
-    :type (or null string)
-    :initform nil
-    :documentation "Second issue ID."
     :positional 2
     :required t))
   :documentation "Represents bd dep relate command.
@@ -582,17 +347,9 @@ Creates a bidirectional relates_to link between two issues.")
 
 (beads-defcommand beads-command-dep-unrelate (beads-command-global-options)
   ((id1
-    :initarg :id1
-    :type (or null string)
-    :initform nil
-    :documentation "First issue ID."
     :positional 1
     :required t)
    (id2
-    :initarg :id2
-    :type (or null string)
-    :initform nil
-    :documentation "Second issue ID."
     :positional 2
     :required t))
   :documentation "Represents bd dep unrelate command.
@@ -762,7 +519,7 @@ Returns error message string if invalid, nil if valid."
     (if error-msg
         (user-error "Cannot add dependency: %s" error-msg)
       (condition-case err
-          (let* ((result (beads-command-dep-add!
+          (let* ((result (beads-execute 'beads-command-dep-add
                           :issue-id issue-id
                           :depends-on depends-on-id
                           :dep-type type))
@@ -865,7 +622,7 @@ Returns error message string if invalid, nil if valid."
     (if error-msg
         (user-error "Cannot remove dependency: %s" error-msg)
       (condition-case err
-          (let* ((result (beads-command-dep-remove!
+          (let* ((result (beads-execute 'beads-command-dep-remove
                           :issue-id issue-id
                           :depends-on depends-on-id))
                  (op-status (oref result op-status)))
@@ -1021,7 +778,7 @@ context or prompt the user."
   (when (and (derived-mode-p 'beads-dep-tree-mode)
              beads-dep-tree--issue-id)
     (message "Refreshing dependency tree...")
-    (let* ((issues (beads-command-dep-tree!
+    (let* ((issues (beads-execute 'beads-command-dep-tree
                     :issue-id beads-dep-tree--issue-id)))
       (beads-dep-tree--render issues beads-dep-tree--issue-id)
       (message "Dependency tree refreshed"))))
@@ -1039,7 +796,7 @@ Completion matches on both issue ID and title."
   (when (or (null issue-id) (string-empty-p issue-id))
     (user-error "Issue ID is required"))
   (let* ((caller-dir default-directory)
-         (issues (beads-command-dep-tree! :issue-id issue-id))
+         (issues (beads-execute 'beads-command-dep-tree :issue-id issue-id))
          (buf-name (beads-buffer-name-utility "dep-tree" issue-id))
          (buffer (get-buffer-create buf-name)))
     (with-current-buffer buffer
@@ -1124,7 +881,7 @@ Issue ID field with that value."
   (interactive)
   (when (derived-mode-p 'beads-dep-cycles-mode)
     (message "Checking for dependency cycles...")
-    (let ((cycles (beads-command-dep-cycles!)))
+    (let ((cycles (beads-execute 'beads-command-dep-cycles)))
       (beads-dep-cycles--render cycles)
       (message "Dependency cycles check complete"))))
 
@@ -1134,7 +891,7 @@ Issue ID field with that value."
   (interactive)
   (beads-check-executable)
   (let* ((caller-dir default-directory)
-         (cycles (beads-command-dep-cycles!))
+         (cycles (beads-execute 'beads-command-dep-cycles))
          (buf-name (beads-buffer-name-utility "dep-cycles"))
          (buffer (get-buffer-create buf-name)))
     (with-current-buffer buffer

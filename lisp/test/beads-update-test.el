@@ -423,16 +423,16 @@
 
 (ert-deftest beads-update-test-fetch-issue-success ()
   "Test fetching issue data."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (lambda (&rest _) beads-update-test--sample-issue)))
+  (cl-letf (((symbol-function 'beads-command-execute)
+             (lambda (_cmd) beads-update-test--sample-issue)))
     (let ((issue (beads-update--fetch-issue "bd-42")))
       (should (beads-issue-p issue))
       (should (equal (oref issue id) "bd-42")))))
 
 (ert-deftest beads-update-test-fetch-issue-error ()
   "Test that fetch-issue signals error on failure."
-  (cl-letf (((symbol-function 'beads-command-show!)
-             (lambda (&rest _) (error "Not found"))))
+  (cl-letf (((symbol-function 'beads-command-execute)
+             (lambda (_cmd) (error "Not found"))))
     (should-error (beads-update--fetch-issue "bd-999")
                   :type 'user-error)))
 
@@ -509,7 +509,7 @@ Tests the complete flow: create issue, update multiple fields, verify changes."
   ;; Create temporary project using beads-test-with-shared-project
   (beads-test-with-shared-project
     ;; Create a test issue
-    (let* ((created-issue (beads-command-create!
+    (let* ((created-issue (beads-execute 'beads-command-create
                            :json t
                            :title "Test Issue for Update"
                            :description "Original description"
@@ -522,14 +522,14 @@ Tests the complete flow: create issue, update multiple fields, verify changes."
       (should (string-match-p "^bt[A-Za-z0-9]+-" issue-id))
 
       ;; Update the issue using beads-command-update
-      (let ((updated-issue (beads-command-update!
-                            :json t
-                            :issue-ids (list issue-id)
-                            :title "Updated Test Issue"
-                            :description "Updated description"
-                            :status "in_progress"
-                            :priority 1
-                            :notes "Added some notes")))
+      (let ((updated-issue (car (beads-execute 'beads-command-update
+                                 :json t
+                                 :issue-ids (list issue-id)
+                                 :title "Updated Test Issue"
+                                 :description "Updated description"
+                                 :status "in_progress"
+                                 :priority 1
+                                 :notes "Added some notes"))))
 
         ;; Verify the update returned an issue
         (should (beads-issue-p updated-issue))
@@ -544,7 +544,7 @@ Tests the complete flow: create issue, update multiple fields, verify changes."
         (should (equal (oref updated-issue notes) "Added some notes"))
 
         ;; Fetch the issue again to verify persistence
-        (let ((fetched-issue (beads-command-show!
+        (let ((fetched-issue (beads-execute 'beads-command-show
                               :json t
                               :issue-ids (list issue-id))))
           (should (beads-issue-p fetched-issue))
@@ -651,26 +651,19 @@ Regression test for bug bde-z65s: 'Not a transient prefix: beads-update'."
 (ert-deftest beads-update-test-parse-json-single-issue ()
   "Test parse method returns single issue for single ID."
   (let* ((cmd (beads-command-update :json t :issue-ids '("bd-42")
-                                     :status "open"))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "[{\"id\":\"bd-42\",\"title\":\"Test\"}]"
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
-      (should (beads-issue-p result))
-      (should (string= (oref result id) "bd-42")))))
+                                     :status "open")))
+    (let ((result (beads-command-parse cmd "[{\"id\":\"bd-42\",\"title\":\"Test\"}]")))
+      ;; :result (list-of beads-issue) always returns a list
+      (should (listp result))
+      (should (= (length result) 1))
+      (should (beads-issue-p (car result)))
+      (should (string= (oref (car result) id) "bd-42")))))
 
 (ert-deftest beads-update-test-parse-json-multiple-issues ()
   "Test parse method returns list for multiple IDs."
   (let* ((cmd (beads-command-update :json t :issue-ids '("bd-1" "bd-2")
-                                     :status "open"))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "[{\"id\":\"bd-1\",\"title\":\"A\"},{\"id\":\"bd-2\",\"title\":\"B\"}]"
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+                                     :status "open")))
+    (let ((result (beads-command-parse cmd "[{\"id\":\"bd-1\",\"title\":\"A\"},{\"id\":\"bd-2\",\"title\":\"B\"}]")))
       (should (listp result))
       (should (= (length result) 2))
       (should (beads-issue-p (car result))))))
@@ -678,25 +671,15 @@ Regression test for bug bde-z65s: 'Not a transient prefix: beads-update'."
 (ert-deftest beads-update-test-parse-json-nil ()
   "Test parse method with json disabled returns raw string."
   (let* ((cmd (beads-command-update :json nil :issue-ids '("bd-42")
-                                     :status "open"))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "Updated bd-42"
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+                                     :status "open")))
+    (let ((result (beads-command-parse cmd "Updated bd-42")))
       (should (stringp result)))))
 
 (ert-deftest beads-update-test-parse-json-error ()
   "Test parse signals error on bad JSON."
   (let* ((cmd (beads-command-update :json t :issue-ids '("bd-42")
-                                     :status "open"))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "not json"
-                :stderr "")))
-    (should-error (beads-command-parse cmd exec)
+                                     :status "open")))
+    (should-error (beads-command-parse cmd "not json")
                   :type 'beads-json-parse-error)))
 
 ;;; Tests for beads-command-update execute-interactive
@@ -705,13 +688,9 @@ Regression test for bug bde-z65s: 'Not a transient prefix: beads-update'."
   "Test execute-interactive messages for single issue update."
   (let* ((issue (beads-issue :id "bd-42" :title "Test"))
          (cmd (beads-command-update :json t :issue-ids '("bd-42")
-                                    :status "open"))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "" :stderr "")))
-    (oset exec result issue)
+                                    :status "open")))
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd) exec))
+               (lambda (_cmd) issue))
               ((symbol-function 'beads--invalidate-completion-cache)
                #'ignore))
       (beads-command-execute-interactive cmd)
@@ -720,12 +699,9 @@ Regression test for bug bde-z65s: 'Not a transient prefix: beads-update'."
 (ert-deftest beads-update-test-execute-interactive-no-result ()
   "Test execute-interactive handles nil result."
   (let* ((cmd (beads-command-update :json t :issue-ids '("bd-42")
-                                    :status "open"))
-         (exec (beads-command-execution
-                :command cmd :exit-code 0
-                :stdout "" :stderr "")))
+                                    :status "open")))
     (cl-letf (((symbol-function 'beads-command-execute)
-               (lambda (_cmd) exec))
+               (lambda (_cmd) nil))
               ((symbol-function 'beads--invalidate-completion-cache)
                #'ignore))
       (beads-command-execute-interactive cmd)
@@ -773,10 +749,10 @@ Regression test for bug bde-z65s: 'Not a transient prefix: beads-update'."
     (should (beads-command-validate cmd))))
 
 (ert-deftest beads-update-test-validate-invalid-labels ()
-  "Test validation fails with non-string label list."
-  (let ((cmd (beads-command-update :issue-ids '("bd-42")
-                                    :add-label '("valid" 42))))
-    (should (beads-command-validate cmd))))
+  "Test non-string label list is rejected.
+EIEIO enforces (list-of string) at construction time."
+  (should-error (beads-command-update :issue-ids '("bd-42")
+                                      :add-label '("valid" 42))))
 
 ;;; Tests for beads-update--get-changed-fields (acceptance, design, notes,
 ;;; assignee, external-ref fields — lines 687-702)
@@ -889,15 +865,9 @@ Regression test for bug bde-z65s: 'Not a transient prefix: beads-update'."
   "Test parse signals beads-json-parse-error on non-vector JSON."
   :tags '(:unit)
   (let* ((cmd (beads-command-update :json t :issue-ids '("bd-42")
-                                     :status "open"))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                ;; Return a JSON object (not an array), which will
-                ;; parse as an alist, not a vector
-                :stdout "{\"id\":\"bd-42\",\"title\":\"Test\"}"
-                :stderr "")))
-    (should-error (beads-command-parse cmd exec)
+                                     :status "open")))
+    ;; A JSON object (not an array) parses as an alist, not a vector
+    (should-error (beads-command-parse cmd "{\"id\":\"bd-42\",\"title\":\"Test\"}")
                   :type 'beads-json-parse-error)))
 
 ;;; Tests for beads-update--parse-transient-args additional fields (be-rzf)

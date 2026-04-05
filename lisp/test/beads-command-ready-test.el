@@ -142,27 +142,22 @@
       (should (null (beads-command-validate cmd))))))
 
 (ert-deftest beads-command-ready-test-validate-non-string-labels ()
-  "Test validation fails with non-string label list."
-  (let ((cmd (beads-command-ready :label '("valid" 42))))
-    (should (beads-command-validate cmd))))
+  "Test non-string label list is rejected.
+EIEIO enforces (list-of string) at construction time."
+  (should-error (beads-command-ready :label '("valid" 42))))
 
 (ert-deftest beads-command-ready-test-validate-non-string-label-any ()
-  "Test validation fails with non-string label-any list."
-  (let ((cmd (beads-command-ready :label-any '("valid" 42))))
-    (should (beads-command-validate cmd))))
+  "Test non-string label-any list is rejected.
+EIEIO enforces (list-of string) at construction time."
+  (should-error (beads-command-ready :label-any '("valid" 42))))
 
 ;;; Parse Method Tests
 
 (ert-deftest beads-command-ready-test-parse-json-issues ()
   "Test parse method converts JSON to beads-issue instances."
   (let* ((cmd (beads-command-ready :json t))
-         (json-string (json-encode beads-command-ready-test--sample-issues-json))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout json-string
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+         (json-string (json-encode beads-command-ready-test--sample-issues-json)))
+    (let ((result (beads-command-parse cmd json-string)))
       (should (listp result))
       (should (= (length result) 2))
       (should (beads-issue-p (car result)))
@@ -172,40 +167,25 @@
 
 (ert-deftest beads-command-ready-test-parse-json-empty ()
   "Test parse method with empty JSON array."
-  (let* ((cmd (beads-command-ready :json t))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "[]"
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-ready :json t)))
+    (let ((result (beads-command-parse cmd "[]")))
       (should (listp result))
       (should (= (length result) 0)))))
 
 (ert-deftest beads-command-ready-test-parse-json-disabled ()
   "Test parse method with :json nil."
-  (let* ((cmd (beads-command-ready :json nil))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "Ready issues listed"
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+  (let* ((cmd (beads-command-ready :json nil)))
+    (let ((result (beads-command-parse cmd "Ready issues listed")))
       (should (stringp result)))))
 
 (ert-deftest beads-command-ready-test-parse-json-error ()
   "Test parse method signals error on bad data."
   (let* ((cmd (beads-command-ready :json t))
          ;; Provide data that will cause beads-issue-from-json to fail
-         (json-string (json-encode (vector '((not_an_issue . t)))))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout json-string
-                :stderr "")))
+         (json-string (json-encode (vector '((not_an_issue . t))))))
     ;; beads-issue-from-json should work with any alist (permissive)
     ;; but parse should still return a list
-    (let ((result (beads-command-parse cmd exec)))
+    (let ((result (beads-command-parse cmd json-string)))
       (should (listp result)))))
 
 ;;; Subcommand Tests
@@ -219,13 +199,8 @@
 
 (ert-deftest beads-command-ready-test-parse-json-error-path ()
   "Test parse signals beads-json-parse-error on invalid data."
-  (let* ((cmd (beads-command-ready :json t))
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout "not valid json"
-                :stderr "")))
-    (should-error (beads-command-parse cmd exec)
+  (let* ((cmd (beads-command-ready :json t)))
+    (should-error (beads-command-parse cmd "not valid json")
                   :type 'beads-json-parse-error)))
 
 ;;; Tests for command-line after removing redundant method

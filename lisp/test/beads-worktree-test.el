@@ -135,8 +135,10 @@
 
 (ert-deftest beads-worktree-test-find-by-name-found ()
   "Test finding worktree by name when it exists."
-  (cl-letf (((symbol-function 'beads-command-worktree-list!)
-             #'beads-worktree-test--make-mock-worktrees))
+  (cl-letf (((symbol-function 'beads-command-execute)
+             (lambda (cmd)
+               (when (cl-typep cmd 'beads-command-worktree-list)
+                 (beads-worktree-test--make-mock-worktrees)))))
     (let ((result (beads-worktree-find-by-name "feature-auth")))
       (should result)
       (should (equal (oref result name) "feature-auth"))
@@ -144,15 +146,17 @@
 
 (ert-deftest beads-worktree-test-find-by-name-not-found ()
   "Test finding worktree by name when it doesn't exist."
-  (cl-letf (((symbol-function 'beads-command-worktree-list!)
-             #'beads-worktree-test--make-mock-worktrees))
+  (cl-letf (((symbol-function 'beads-command-execute)
+             (lambda (cmd)
+               (when (cl-typep cmd 'beads-command-worktree-list)
+                 (beads-worktree-test--make-mock-worktrees)))))
     (let ((result (beads-worktree-find-by-name "nonexistent")))
       (should-not result))))
 
 (ert-deftest beads-worktree-test-find-by-name-handles-error ()
   "Test that find-by-name handles errors gracefully."
-  (cl-letf (((symbol-function 'beads-command-worktree-list!)
-             (lambda () (error "bd command failed"))))
+  (cl-letf (((symbol-function 'beads-command-execute)
+             (lambda (_cmd) (error "bd command failed"))))
     (let ((result (beads-worktree-find-by-name "any")))
       (should-not result))))
 
@@ -298,8 +302,10 @@
                           :branch "test-branch"
                           :is-main nil
                           :beads-state "redirect")))
-    (cl-letf (((symbol-function 'beads-command-worktree-create!)
-               (lambda (&rest _args) created-worktree))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (cmd)
+                 (when (cl-typep cmd 'beads-command-worktree-create)
+                   created-worktree)))
               ((symbol-function 'beads-completion-invalidate-worktree-cache)
                #'ignore))
       (beads-worktree--create)
@@ -313,16 +319,18 @@
 
 (ert-deftest beads-worktree-test-list-empty ()
   "Test list suffix handles empty worktree list."
-  (cl-letf (((symbol-function 'beads-command-worktree-list!)
-             (lambda () nil)))
+  (cl-letf (((symbol-function 'beads-command-execute)
+             (lambda (_cmd) nil)))
     ;; Should not error, just message
     (beads-worktree--list)))
 
 (ert-deftest beads-worktree-test-list-with-worktrees ()
   "Test list suffix displays worktrees."
   (let ((displayed nil))
-    (cl-letf (((symbol-function 'beads-command-worktree-list!)
-               #'beads-worktree-test--make-mock-worktrees)
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (cmd)
+                 (when (cl-typep cmd 'beads-command-worktree-list)
+                   (beads-worktree-test--make-mock-worktrees))))
               ((symbol-function 'beads-worktree--display-list)
                (lambda (wts) (setq displayed wts))))
       (beads-worktree--list)
@@ -342,8 +350,8 @@
               :branch "main"
               :main-path nil
               :beads-state "shared")))
-    (cl-letf (((symbol-function 'beads-command-worktree-info!)
-               (lambda () info)))
+    (cl-letf (((symbol-function 'beads-execute)
+               (lambda (_class &rest _args) info)))
       ;; Should not error
       (beads-worktree--info))))
 
@@ -356,8 +364,8 @@
               :branch "feature/auth"
               :main-path "/path/to/repo"
               :beads-state "redirect")))
-    (cl-letf (((symbol-function 'beads-command-worktree-info!)
-               (lambda () info)))
+    (cl-letf (((symbol-function 'beads-execute)
+               (lambda (_class &rest _args) info)))
       ;; Should not error
       (beads-worktree--info))))
 

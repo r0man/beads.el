@@ -186,14 +186,8 @@
 (ert-deftest beads-command-formula-test-list-parse ()
   "Test formula list JSON parsing."
   (let* ((cmd (beads-command-formula-list :json t))
-         (json-string (json-encode beads-command-formula-test--sample-list-json))
-         ;; Create execution object with simulated results
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout json-string
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+         (json-string (json-encode beads-command-formula-test--sample-list-json)))
+    (let ((result (beads-command-parse cmd json-string)))
       (should (= (length result) 2))
       (should (beads-formula-summary-p (car result)))
       (should (string= (oref (car result) name) "emacs-lisp-dev"))
@@ -230,14 +224,8 @@
 (ert-deftest beads-command-formula-test-show-parse ()
   "Test formula show JSON parsing."
   (let* ((cmd (beads-command-formula-show :json t :formula-name "test"))
-         (json-string (json-encode beads-command-formula-test--sample-show-json))
-         ;; Create execution object with simulated results
-         (exec (beads-command-execution
-                :command cmd
-                :exit-code 0
-                :stdout json-string
-                :stderr "")))
-    (let ((result (beads-command-parse cmd exec)))
+         (json-string (json-encode beads-command-formula-test--sample-show-json)))
+    (let ((result (beads-command-parse cmd json-string)))
       (should (beads-formula-p result))
       (should (string= (oref result name) "emacs-lisp-dev"))
       (should (= (oref result version) 1)))))
@@ -439,13 +427,9 @@
   (beads-test-with-temp-repo (:init-beads t)
     ;; This test will actually run bd formula list --json
     (let* ((cmd (beads-command-formula-list :json t))
-           (exec (beads-command-execute cmd)))
-      ;; Should return execution object
-      (should (cl-typep exec 'beads-command-execution))
-      ;; Exit code should be 0
-      (should (= (oref exec exit-code) 0))
+           (result (beads-command-execute cmd)))
       ;; Result should be a list (possibly empty)
-      (should (listp (oref exec result))))))
+      (should (listp result)))))
 
 ;;; ========================================
 ;;; Formula Show Render Tests
