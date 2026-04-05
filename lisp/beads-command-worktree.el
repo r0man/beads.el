@@ -257,9 +257,11 @@ Returns error message string or nil if valid."
 ;;; Command Class: beads-command-worktree-create
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-worktree-create "beads-command-worktree" nil t)
 (beads-defcommand beads-command-worktree-create (beads-command-global-options)
   ((name
-    :positional 1)
+    :positional 1
+    :required t)
    (branch
     :type (or null string)
     :short-option "b"
@@ -271,15 +273,8 @@ Returns error message string or nil if valid."
 Creates a git worktree with beads redirect configuration."
   :result beads-worktree)
 
-
-(cl-defmethod beads-command-validate ((command beads-command-worktree-create))
-  "Validate worktree create COMMAND.
-Requires name to be set."
-  (with-slots (name) command
-    (cond
-     ((not name) "Worktree name is required")
-     ((string-empty-p name) "Worktree name cannot be empty")
-     (t nil))))
+;; Validate override removed: the base method checks :required slots
+;; automatically via beads-command-validate-slots.
 
 ;; Parse override removed: the base method handles JSON-to-domain
 ;; parsing automatically via :result beads-worktree.
@@ -288,12 +283,12 @@ Requires name to be set."
 ;;; Command Class: beads-command-worktree-list
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-worktree-list "beads-command-worktree" nil t)
 (beads-defcommand beads-command-worktree-list (beads-command-global-options)
   ()
   :documentation "Represents bd worktree list command.
 Lists all git worktrees with their beads configuration state."
   :result (list-of beads-worktree))
-
 
 ;; Parse override removed: the base method handles JSON-to-domain
 ;; parsing automatically via :result (list-of beads-worktree).
@@ -302,9 +297,11 @@ Lists all git worktrees with their beads configuration state."
 ;;; Command Class: beads-command-worktree-remove
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-worktree-remove "beads-command-worktree" nil t)
 (beads-defcommand beads-command-worktree-remove (beads-command-global-options)
   ((name
-    :positional 1)
+    :positional 1
+    :required t)
    (force
     :type boolean
     :short-option "f"
@@ -314,15 +311,8 @@ Lists all git worktrees with their beads configuration state."
   :documentation "Represents bd worktree remove command.
 Removes a worktree with safety checks (unless --force is used).")
 
-
-(cl-defmethod beads-command-validate ((command beads-command-worktree-remove))
-  "Validate worktree remove COMMAND.
-Requires name to be set."
-  (with-slots (name) command
-    (cond
-     ((not name) "Worktree name is required")
-     ((string-empty-p name) "Worktree name cannot be empty")
-     (t nil))))
+;; Validate override removed: the base method checks :required slots
+;; automatically via beads-command-validate-slots.
 
 ;;; ============================================================
 ;;; Command Class: beads-command-worktree-info
@@ -376,40 +366,6 @@ Returns beads-worktree instance or nil if not found."
 ;;; ============================================================
 ;;; Transient Menus
 ;;; ============================================================
-
-;; Individual subcommand transients
-;;;###autoload (autoload 'beads-worktree-create "beads-command-worktree" nil t)
-(beads-meta-define-transient beads-command-worktree-create "beads-worktree-create"
-  "Create a new git worktree with beads redirect.
-
-When creating a worktree, beads automatically sets up a redirect file
-so all worktrees share the same .beads database.
-
-Transient levels control which options are visible (cycle with C-x l):
-  Level 1: Branch name option"
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-worktree-list "beads-command-worktree" nil t)
-(beads-meta-define-transient beads-command-worktree-list "beads-worktree-list"
-  "List all git worktrees.
-
-Shows all worktrees with their beads configuration state:
-- shared: Main repository with .beads directory
-- redirect: Worktree with redirect to main .beads
-- local: Has its own .beads (not recommended)
-- none: No beads configuration"
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-worktree-remove "beads-command-worktree" nil t)
-(beads-meta-define-transient beads-command-worktree-remove "beads-worktree-remove"
-  "Remove a git worktree.
-
-By default, checks for uncommitted changes, unpushed commits,
-and stashes before removing. Use --force to skip safety checks.
-
-Transient levels control which options are visible (cycle with C-x l):
-  Level 1: Force option"
-  beads-option-global-section)
 
 ;;;###autoload (autoload 'beads-worktree-show-info "beads-command-worktree" nil t)
 (beads-meta-define-transient beads-command-worktree-info "beads-worktree-show-info"

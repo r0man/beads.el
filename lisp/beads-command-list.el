@@ -11,7 +11,11 @@
 
 ;; This module defines the `beads-command-list' EIEIO class for the
 ;; `bd list' command.  The class includes full slot metadata for
-;; automatic transient menu generation via `beads-meta-define-transient'.
+;; automatic transient menu generation via `beads-defcommand'.  List
+;; uses `:transient :manual' because the auto-derived name
+;; (`beads-list') doesn't match the actual transient name
+;; (`beads-list-transient'), so `beads-meta-define-transient' is
+;; called explicitly below.
 ;;
 ;; The bd list command lists issues with extensive filtering and
 ;; output formatting options.

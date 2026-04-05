@@ -68,12 +68,12 @@
 (ert-deftest beads-coverage-3-label-list-validate-no-issue ()
   "Test label list validation with no issue ID."
   (let ((cmd (beads-command-label-list :issue-id nil)))
-    (should (stringp (beads-command-validate cmd)))))
+    (should (beads-command-validate cmd))))
 
 (ert-deftest beads-coverage-3-label-list-validate-empty ()
   "Test label list validation with empty issue ID."
   (let ((cmd (beads-command-label-list :issue-id "")))
-    (should (stringp (beads-command-validate cmd)))))
+    (should (beads-command-validate cmd))))
 
 (ert-deftest beads-coverage-3-label-list-validate-valid ()
   "Test label list validation with valid issue ID."

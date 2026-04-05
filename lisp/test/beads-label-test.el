@@ -783,13 +783,13 @@ EIEIO enforces (list-of string) at construction time."
   "Test label-list validate fails when issue-id is nil."
   :tags '(:unit)
   (let ((cmd (beads-command-label-list :issue-id nil)))
-    (should (equal (beads-command-validate cmd) "Must provide issue ID"))))
+    (should (equal (beads-command-validate cmd) '("issue-id is required")))))
 
 (ert-deftest beads-label-test-list-validate-empty-issue-id ()
   "Test label-list validate fails when issue-id is empty string."
   :tags '(:unit)
   (let ((cmd (beads-command-label-list :issue-id "")))
-    (should (equal (beads-command-validate cmd) "Must provide issue ID"))))
+    (should (equal (beads-command-validate cmd) '("issue-id is required")))))
 
 (ert-deftest beads-label-test-list-validate-valid-issue-id ()
   "Test label-list validate passes with a valid issue-id."

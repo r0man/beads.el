@@ -391,12 +391,12 @@
 (ert-deftest beads-coverage-2-worktree-create-validate-no-name ()
   "Test worktree-create validation: name required."
   (let ((cmd (beads-command-worktree-create :name nil)))
-    (should (stringp (beads-command-validate cmd)))))
+    (should (beads-command-validate cmd))))
 
 (ert-deftest beads-coverage-2-worktree-create-validate-empty-name ()
   "Test worktree-create validation: empty name."
   (let ((cmd (beads-command-worktree-create :name "")))
-    (should (stringp (beads-command-validate cmd)))))
+    (should (beads-command-validate cmd))))
 
 (ert-deftest beads-coverage-2-worktree-create-validate-valid ()
   "Test worktree-create validation: valid name."
@@ -1174,7 +1174,7 @@ does not check whether fields have actually changed."
 (ert-deftest beads-coverage-2-dep-remove-validate-no-name ()
   "Test dep remove validation with no name."
   (let ((cmd (beads-command-worktree-remove :name nil)))
-    (should (stringp (beads-command-validate cmd)))))
+    (should (beads-command-validate cmd))))
 
 ;;; ============================================================
 ;;; beads-command-update.el - Execute Interactive Tests

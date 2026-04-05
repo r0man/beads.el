@@ -11,7 +11,7 @@
 
 ;; This module defines the `beads-command-search' EIEIO class for the
 ;; `bd search' command.  The class includes full slot metadata for
-;; automatic transient menu generation via `beads-meta-define-transient'.
+;; automatic transient menu generation via `beads-defcommand'.
 ;;
 ;; The bd search command performs full-text search across issues.
 ;; It searches title, description, and ID fields.  It supports:

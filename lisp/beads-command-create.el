@@ -11,7 +11,7 @@
 
 ;; This module defines the `beads-command-create' EIEIO class for the
 ;; `bd create' command.  The class includes full slot metadata for
-;; automatic transient menu generation via `beads-meta-define-transient'.
+;; automatic transient menu generation via `beads-defcommand'.
 ;;
 ;; The bd create command creates a new issue (or multiple issues from
 ;; markdown file).  It supports various issue types including bugs,

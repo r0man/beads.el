@@ -11,7 +11,7 @@
 
 ;; This module defines the `beads-command-update' EIEIO class for the
 ;; `bd update' command.  The class includes full slot metadata for
-;; automatic transient menu generation via `beads-meta-define-transient'.
+;; automatic transient menu generation via `beads-defcommand'.
 ;;
 ;; The bd update command updates one or more issues with new field
 ;; values.  It supports modifying status, priority, title, description,
@@ -54,7 +54,8 @@
     :reader beads--read-issue-at-point-or-prompt
     :group "Issue"
     :level 1
-    :order 1)
+    :order 1
+    :required t)
 
    ;; Status & Priority
    (status

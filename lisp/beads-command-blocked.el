@@ -11,7 +11,7 @@
 
 ;; This module defines the `beads-command-blocked' EIEIO class for the
 ;; `bd blocked' command.  The class includes full slot metadata for
-;; automatic transient menu generation via `beads-meta-define-transient'.
+;; automatic transient menu generation via `beads-defcommand'.
 ;;
 ;; The bd blocked command shows blocked issues (issues with unresolved
 ;; blockers).  This is useful for understanding what work is stalled
@@ -47,7 +47,8 @@
   :documentation "Represents bd blocked command.
 Shows blocked issues (issues with unresolved blockers).
 When executed with :json t, returns list of beads-blocked-issue instances."
-  :result (list-of beads-blocked-issue))
+  :result (list-of beads-blocked-issue)
+  :transient :manual)
 
 
 ;; Parse override removed: the base method handles JSON-to-domain

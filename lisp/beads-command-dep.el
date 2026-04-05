@@ -11,7 +11,7 @@
 
 ;; This module defines EIEIO classes for all `bd dep' subcommands.
 ;; Classes include full slot metadata for automatic transient menu
-;; generation via `beads-meta-define-transient'.
+;; generation via `beads-defcommand'.
 ;;
 ;; Commands included:
 ;; - beads-command-dep-add: Add a dependency between issues
@@ -138,19 +138,6 @@ Removes a dependency between two issues."
   :result beads-dep-op-result
   :transient :manual)
 
-
-(cl-defmethod beads-command-validate ((command beads-command-dep-remove))
-  "Validate dep remove COMMAND.
-Checks that both issue IDs are provided.
-Returns error string or nil if valid."
-  (with-slots (issue-id depends-on) command
-    (cond
-     ((or (null issue-id) (string-empty-p issue-id))
-      "Must provide issue ID")
-     ((or (null depends-on) (string-empty-p depends-on))
-      "Must provide depends-on issue ID")
-     (t nil))))
-
 ;; Parse override removed: the base method handles JSON-to-domain
 ;; parsing automatically via :result beads-dep-op-result.
 
@@ -185,17 +172,8 @@ Returns error string or nil if valid."
     :order 3))
   :documentation "Represents bd dep list command.
 Lists dependencies or dependents of an issue."
-  :result (list-of beads-dependency))
-
-
-(cl-defmethod beads-command-validate ((command beads-command-dep-list))
-  "Validate dep list COMMAND.
-Checks that issue ID is provided.
-Returns error string or nil if valid."
-  (with-slots (issue-id) command
-    (if (or (null issue-id) (string-empty-p issue-id))
-        "Must provide issue ID"
-      nil)))
+  :result (list-of beads-dependency)
+  :transient :manual)
 
 (cl-defmethod beads-command-parse ((command beads-command-dep-list) stdout)
   "Parse dep list COMMAND output from STDOUT.
@@ -273,17 +251,8 @@ Does not modify any slots."
     :level 3
     :order 1))
   :documentation "Represents bd dep tree command.
-Shows dependency tree rooted at the given issue.")
-
-
-(cl-defmethod beads-command-validate ((command beads-command-dep-tree))
-  "Validate dep tree COMMAND.
-Checks that issue ID is provided.
-Returns error string or nil if valid."
-  (with-slots (issue-id) command
-    (if (or (null issue-id) (string-empty-p issue-id))
-        "Must provide issue ID"
-      nil)))
+Shows dependency tree rooted at the given issue."
+  :transient :manual)
 
 (cl-defmethod beads-command-parse ((command beads-command-dep-tree) stdout)
   "Parse dep tree COMMAND output from STDOUT.
@@ -314,13 +283,15 @@ Return list of beads-tree-node objects."
 (beads-defcommand beads-command-dep-cycles (beads-command-global-options)
   ()
   :documentation "Represents bd dep cycles command.
-Detects dependency cycles in the issue graph.")
+Detects dependency cycles in the issue graph."
+  :transient :manual)
 
 
 ;; Validate override removed: base handles slot-level validation.
 
 ;;; Dep Relate Command
 
+;;;###autoload (autoload 'beads-dep-relate "beads-command-dep" nil t)
 (beads-defcommand beads-command-dep-relate (beads-command-global-options)
   ((id1
     :positional 1
@@ -345,6 +316,7 @@ Creates a bidirectional relates_to link between two issues.")
 
 ;;; Dep Unrelate Command
 
+;;;###autoload (autoload 'beads-dep-unrelate "beads-command-dep" nil t)
 (beads-defcommand beads-command-dep-unrelate (beads-command-global-options)
   ((id1
     :positional 1
@@ -354,16 +326,6 @@ Creates a bidirectional relates_to link between two issues.")
     :required t))
   :documentation "Represents bd dep unrelate command.
 Removes a relates_to link between two issues.")
-
-(cl-defmethod beads-command-validate ((command beads-command-dep-unrelate))
-  "Validate dep unrelate COMMAND."
-  (with-slots (id1 id2) command
-    (cond
-     ((or (null id1) (string-empty-p id1))
-      "First issue ID is required")
-     ((or (null id2) (string-empty-p id2))
-      "Second issue ID is required")
-     (t nil))))
 
 ;;; Transient Menus
 
@@ -402,22 +364,6 @@ Use --type to filter by dependency type."
         (lambda ()
           (when-let ((id (beads-dep--detect-issue-id)))
             (list (concat "--id=" id))))))
-
-;;;###autoload (autoload 'beads-dep-relate "beads-command-dep" nil t)
-(beads-meta-define-transient beads-command-dep-relate "beads-dep-relate"
-  "Create a bidirectional relates_to link between two issues.
-
-The link is bidirectional - both issues will reference each other.
-This enables knowledge-graph connections without blocking or hierarchy.
-
-Examples:
-  bd dep relate bd-abc bd-xyz    ; Link two related issues"
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-dep-unrelate "beads-command-dep" nil t)
-(beads-meta-define-transient beads-command-dep-unrelate "beads-dep-unrelate"
-  "Remove a bidirectional relates_to link between two issues."
-  beads-option-global-section)
 
 ;;;###autoload (autoload 'beads-dep-tree-transient "beads-command-dep" nil t)
 (beads-meta-define-transient beads-command-dep-tree "beads-dep-tree-transient"

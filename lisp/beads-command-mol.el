@@ -11,6 +11,9 @@
 
 ;; This module defines EIEIO command classes for `bd mol' operations.
 ;; Mol manages molecules (work templates) for agent workflows.
+;;
+;; Each command class includes full slot metadata for automatic
+;; transient menu generation via `beads-defcommand'.
 
 ;;; Code:
 
@@ -23,6 +26,7 @@
 ;;; Command Class: beads-command-mol-show
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-mol-show "beads-command-mol" nil t)
 (beads-defcommand beads-command-mol-show (beads-command-global-options)
   ((mol-id
     :positional 1)
@@ -40,6 +44,7 @@ Shows molecule details.")
 ;;; Command Class: beads-command-mol-pour
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-mol-pour "beads-command-mol" nil t)
 (beads-defcommand beads-command-mol-pour (beads-command-global-options)
   ((proto-id
     :positional 1)
@@ -85,6 +90,7 @@ Instantiates proto as persistent mol (liquid phase).")
 ;;; Command Class: beads-command-mol-wisp
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-mol-wisp "beads-command-mol" nil t)
 (beads-defcommand beads-command-mol-wisp (beads-command-global-options)
   ((proto-id
     :positional 1)
@@ -109,6 +115,7 @@ Creates or manages wisps (ephemeral molecules).")
 ;;; Command Class: beads-command-mol-wisp-create
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-mol-wisp-create "beads-command-mol" nil t)
 (beads-defcommand beads-command-mol-wisp-create (beads-command-global-options)
   ((proto-id
     :positional 1)
@@ -139,6 +146,7 @@ Instantiates a proto as an ephemeral wisp (solid -> vapor).")
 ;;; Command Class: beads-command-mol-wisp-list
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-mol-wisp-list "beads-command-mol" nil t)
 (beads-defcommand beads-command-mol-wisp-list (beads-command-global-options)
   ((show-all
     :long-option "all"
@@ -163,6 +171,7 @@ Lists all wisps (ephemeral molecules) in the current context.")
 ;;; Command Class: beads-command-mol-wisp-gc
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-mol-wisp-gc "beads-command-mol" nil t)
 (beads-defcommand beads-command-mol-wisp-gc (beads-command-global-options)
   ((dry-run
     :type boolean
@@ -211,6 +220,7 @@ Garbage-collects abandoned or closed wisps.")
 ;;; Command Class: beads-command-mol-bond
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-mol-bond "beads-command-mol" nil t)
 (beads-defcommand beads-command-mol-bond (beads-command-global-options)
   ((first-id
     :positional 1)
@@ -271,6 +281,7 @@ Bonds two protos or molecules together.")
 ;;; Command Class: beads-command-mol-squash
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-mol-squash "beads-command-mol" nil t)
 (beads-defcommand beads-command-mol-squash (beads-command-global-options)
   ((mol-id
     :positional 1)
@@ -301,6 +312,7 @@ Compresses molecule execution into a digest.")
 ;;; Command Class: beads-command-mol-burn
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-mol-burn "beads-command-mol" nil t)
 (beads-defcommand beads-command-mol-burn (beads-command-global-options)
   ((mol-id
     :positional 1)
@@ -324,6 +336,7 @@ Deletes a molecule without creating a digest.")
 ;;; Command Class: beads-command-mol-distill
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-mol-distill "beads-command-mol" nil t)
 (beads-defcommand beads-command-mol-distill (beads-command-global-options)
   ((epic-id
     :positional 1)
@@ -355,6 +368,7 @@ Extracts a formula from an existing epic.")
 ;;; Command Class: beads-command-mol-current
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-mol-current "beads-command-mol" nil t)
 (beads-defcommand beads-command-mol-current (beads-command-global-options)
   ((mol-id
     :positional 1)
@@ -388,6 +402,7 @@ Shows current position in molecule workflow.")
 ;;; Command Class: beads-command-mol-progress
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-mol-progress "beads-command-mol" nil t)
 (beads-defcommand beads-command-mol-progress (beads-command-global-options)
   ((mol-id
     :positional 1))
@@ -399,6 +414,7 @@ Shows molecule progress summary.")
 ;;; Command Class: beads-command-mol-ready
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-mol-ready "beads-command-mol" nil t)
 (beads-defcommand beads-command-mol-ready (beads-command-global-options)
   ()
   :documentation "Represents bd mol ready command.
@@ -409,99 +425,16 @@ Finds molecules ready for gate-resume dispatch.")
 ;;; Command Class: beads-command-mol-stale
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-mol-stale "beads-command-mol" nil t)
 (beads-defcommand beads-command-mol-stale (beads-command-global-options)
   ()
   :documentation "Represents bd mol stale command.
 Detects complete-but-unclosed molecules.")
 
 
-;;; Execute Interactive Methods
-
-
-
-
-
-
-
-
-
-
-
-
-;;; Transient Menus
-
-;;;###autoload (autoload 'beads-mol-show "beads-command-mol" nil t)
-(beads-meta-define-transient beads-command-mol-show "beads-mol-show"
-  "Show molecule/proto details."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-mol-pour "beads-command-mol" nil t)
-(beads-meta-define-transient beads-command-mol-pour "beads-mol-pour"
-  "Instantiate proto as persistent mol."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-mol-wisp "beads-command-mol" nil t)
-(beads-meta-define-transient beads-command-mol-wisp "beads-mol-wisp"
-  "Create ephemeral molecule (wisp)."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-mol-wisp-create "beads-command-mol" nil t)
-(beads-meta-define-transient beads-command-mol-wisp-create "beads-mol-wisp-create"
-  "Instantiate a proto as a wisp (solid -> vapor)."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-mol-wisp-list "beads-command-mol" nil t)
-(beads-meta-define-transient beads-command-mol-wisp-list "beads-mol-wisp-list"
-  "List all wisps in current context."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-mol-wisp-gc "beads-command-mol" nil t)
-(beads-meta-define-transient beads-command-mol-wisp-gc "beads-mol-wisp-gc"
-  "Garbage-collect abandoned or closed wisps."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-mol-bond "beads-command-mol" nil t)
-(beads-meta-define-transient beads-command-mol-bond "beads-mol-bond"
-  "Bond two protos or molecules."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-mol-squash "beads-command-mol" nil t)
-(beads-meta-define-transient beads-command-mol-squash "beads-mol-squash"
-  "Compress molecule into digest."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-mol-burn "beads-command-mol" nil t)
-(beads-meta-define-transient beads-command-mol-burn "beads-mol-burn"
-  "Delete molecule without digest."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-mol-distill "beads-command-mol" nil t)
-(beads-meta-define-transient beads-command-mol-distill "beads-mol-distill"
-  "Extract formula from epic."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-mol-current "beads-command-mol" nil t)
-(beads-meta-define-transient beads-command-mol-current "beads-mol-current"
-  "Show current workflow position."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-mol-progress "beads-command-mol" nil t)
-(beads-meta-define-transient beads-command-mol-progress "beads-mol-progress"
-  "Show molecule progress."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-mol-ready "beads-command-mol" nil t)
-(beads-meta-define-transient beads-command-mol-ready "beads-mol-ready"
-  "Find ready molecules."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-mol-stale "beads-command-mol" nil t)
-(beads-meta-define-transient beads-command-mol-stale "beads-mol-stale"
-  "Find complete-but-unclosed molecules."
-  beads-option-global-section)
-
 ;;; Mol Seed Command
 
+;;;###autoload (autoload 'beads-mol-seed "beads-command-mol" nil t)
 (beads-defcommand beads-command-mol-seed (beads-command-global-options)
   ((formula-name
     :positional t
@@ -516,13 +449,9 @@ Detects complete-but-unclosed molecules.")
 Verify that formulas are accessible and can be cooked."
   :cli-command "mol seed")
 
-;;;###autoload (autoload 'beads-mol-seed "beads-command-mol" nil t)
-(beads-meta-define-transient beads-command-mol-seed "beads-mol-seed"
-  "Verify formula accessibility."
-  beads-option-global-section)
-
 ;;; Mol Last-Activity Command
 
+;;;###autoload (autoload 'beads-mol-last-activity "beads-command-mol" nil t)
 (beads-defcommand beads-command-mol-last-activity (beads-command-global-options)
   ((molecule-id
     :positional t
@@ -530,12 +459,6 @@ Verify that formulas are accessible and can be cooked."
   :documentation "Represents bd mol last-activity command.
 Show the most recent activity timestamp for a molecule."
   :cli-command "mol last-activity")
-
-;;;###autoload (autoload 'beads-mol-last-activity "beads-command-mol" nil t)
-(beads-meta-define-transient beads-command-mol-last-activity
-  "beads-mol-last-activity"
-  "Show most recent molecule activity."
-  beads-option-global-section)
 
 ;;; Parent Transient Menu
 

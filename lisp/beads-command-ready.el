@@ -11,7 +11,7 @@
 
 ;; This module defines the `beads-command-ready' EIEIO class for the
 ;; `bd ready' command.  The class includes full slot metadata for
-;; automatic transient menu generation via `beads-meta-define-transient'.
+;; automatic transient menu generation via `beads-defcommand'.
 ;;
 ;; The bd ready command shows ready work (issues with no blockers that
 ;; are open or in_progress).  This is useful for finding the next task
@@ -167,7 +167,8 @@
   :documentation "Represents bd ready command.
 Shows ready work (no blockers, open or in-progress).
 When executed with :json t, returns list of beads-issue instances."
-  :result (list-of beads-issue))
+  :result (list-of beads-issue)
+  :transient :manual)
 
 
 (cl-defmethod beads-command-validate ((command beads-command-ready))

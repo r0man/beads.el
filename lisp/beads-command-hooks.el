@@ -23,6 +23,7 @@
 ;;; Command Class: beads-command-hooks-install
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-hooks-install "beads-command-hooks" nil t)
 (beads-defcommand beads-command-hooks-install (beads-command-global-options)
   ((force
     :short-option "f"
@@ -42,74 +43,39 @@
     :group "Options"
     :level 1
     :order 3))
-  :documentation "Represents bd hooks install command.
-Installs bd git hooks.")
+  :documentation "Install bd git hooks.")
 
 
 ;;; ============================================================
 ;;; Command Class: beads-command-hooks-uninstall
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-hooks-uninstall "beads-command-hooks" nil t)
 (beads-defcommand beads-command-hooks-uninstall (beads-command-global-options)
   ()
-  :documentation "Represents bd hooks uninstall command.
-Uninstalls bd git hooks.")
+  :documentation "Uninstall bd git hooks.")
 
 
 ;;; ============================================================
 ;;; Command Class: beads-command-hooks-list
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-hooks-list "beads-command-hooks" nil t)
 (beads-defcommand beads-command-hooks-list (beads-command-global-options)
   ()
-  :documentation "Represents bd hooks list command.
-Lists installed git hooks status.")
+  :documentation "List installed git hooks status.")
 
 
 ;;; ============================================================
 ;;; Command Class: beads-command-hooks-run
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-hooks-run "beads-command-hooks" nil t)
 (beads-defcommand beads-command-hooks-run (beads-command-global-options)
   ((hook-name
     :positional 1))
-  :documentation "Represents bd hooks run command.
-Executes a git hook (called by thin shims).")
+  :documentation "Execute a git hook (internal use).")
 
-
-;;; Execute Interactive Methods
-
-
-
-
-
-;;; Transient Menus
-
-;;;###autoload (autoload 'beads-hooks-install "beads-command-hooks" nil t)
-(beads-meta-define-transient beads-command-hooks-install "beads-hooks-install"
-  "Install bd git hooks.
-
-Hooks ensure automatic sync:
-- pre-commit: Flush pending changes
-- post-merge: Import updated JSONL
-- pre-push: Prevent pushing stale JSONL
-- post-checkout: Import after branch switch"
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-hooks-uninstall "beads-command-hooks" nil t)
-(beads-meta-define-transient beads-command-hooks-uninstall "beads-hooks-uninstall"
-  "Uninstall bd git hooks."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-hooks-list "beads-command-hooks" nil t)
-(beads-meta-define-transient beads-command-hooks-list "beads-hooks-list"
-  "List installed git hooks status."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-hooks-run "beads-command-hooks" nil t)
-(beads-meta-define-transient beads-command-hooks-run "beads-hooks-run"
-  "Execute a git hook (internal use)."
-  beads-option-global-section)
 
 ;;; Parent Transient Menu
 

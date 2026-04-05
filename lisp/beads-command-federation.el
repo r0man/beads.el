@@ -10,7 +10,8 @@
 ;;; Commentary:
 
 ;; This module defines EIEIO command classes for `bd federation'
-;; operations.  Provides peer-to-peer federation management:
+;; operations.  Provides peer-to-peer federation management via
+;; `beads-defcommand' with automatic transient menu generation:
 ;; - federation add-peer: Add a federation peer
 ;; - federation remove-peer: Remove a federation peer
 ;; - federation list-peers: List configured peers
@@ -20,7 +21,6 @@
 ;;; Code:
 
 (require 'beads-command)
-(require 'beads-meta)
 (require 'beads-option)
 (require 'transient)
 
@@ -28,6 +28,7 @@
 ;;; Command Class: beads-command-federation-add-peer
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-federation-add-peer "beads-command-federation" nil t)
 (beads-defcommand beads-command-federation-add-peer (beads-command-global-options)
   ((peer-name
     :positional 1
@@ -75,20 +76,11 @@
 Requires Dolt backend."
   :cli-command "federation add-peer")
 
-(cl-defmethod beads-command-validate
-    ((command beads-command-federation-add-peer))
-  "Validate federation add-peer COMMAND."
-  (with-slots (peer-name url) command
-    (cond
-     ((or (null peer-name) (string-empty-p peer-name))
-      "Must provide a peer name")
-     ((or (null url) (string-empty-p url))
-      "Must provide a peer URL"))))
-
 ;;; ============================================================
 ;;; Command Class: beads-command-federation-remove-peer
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-federation-remove-peer "beads-command-federation" nil t)
 (beads-defcommand beads-command-federation-remove-peer (beads-command-global-options)
   ((peer-name
     :positional 1
@@ -104,17 +96,11 @@ Requires Dolt backend."
 Requires Dolt backend."
   :cli-command "federation remove-peer")
 
-(cl-defmethod beads-command-validate
-    ((command beads-command-federation-remove-peer))
-  "Validate federation remove-peer COMMAND."
-  (with-slots (peer-name) command
-    (when (or (null peer-name) (string-empty-p peer-name))
-      "Must provide a peer name")))
-
 ;;; ============================================================
 ;;; Command Class: beads-command-federation-list-peers
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-federation-list-peers "beads-command-federation" nil t)
 (beads-defcommand beads-command-federation-list-peers (beads-command-global-options)
   ()
   :documentation "List configured federation peers.
@@ -125,6 +111,7 @@ Requires Dolt backend."
 ;;; Command Class: beads-command-federation-sync
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-federation-sync "beads-command-federation" nil t)
 (beads-defcommand beads-command-federation-sync (beads-command-global-options)
   ((peer
     :type (or null string)
@@ -154,6 +141,7 @@ Requires Dolt backend.")
 ;;; Command Class: beads-command-federation-status
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-federation-status "beads-command-federation" nil t)
 (beads-defcommand beads-command-federation-status (beads-command-global-options)
   ((peer
     :type (or null string)
@@ -171,38 +159,6 @@ Requires Dolt backend.")
   "Execute CMD in terminal buffer with human-readable output."
   (oset cmd json nil)
   (cl-call-next-method))
-
-;;; Transient Menus
-
-;;;###autoload (autoload 'beads-federation-add-peer "beads-command-federation" nil t)
-(beads-meta-define-transient beads-command-federation-add-peer
-  "beads-federation-add-peer"
-  "Add a federation peer."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-federation-remove-peer "beads-command-federation" nil t)
-(beads-meta-define-transient beads-command-federation-remove-peer
-  "beads-federation-remove-peer"
-  "Remove a federation peer."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-federation-list-peers "beads-command-federation" nil t)
-(beads-meta-define-transient beads-command-federation-list-peers
-  "beads-federation-list-peers"
-  "List configured federation peers."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-federation-sync "beads-command-federation" nil t)
-(beads-meta-define-transient beads-command-federation-sync
-  "beads-federation-sync"
-  "Synchronize with federation peers."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-federation-status "beads-command-federation" nil t)
-(beads-meta-define-transient beads-command-federation-status
-  "beads-federation-status"
-  "Show federation sync status."
-  beads-option-global-section)
 
 ;;; Parent Menu
 

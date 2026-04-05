@@ -10,8 +10,12 @@
 ;;; Commentary:
 
 ;; This module defines the `beads-command-init' EIEIO class for the
-;; `bd init' command.  The class includes full slot metadata for
-;; automatic transient menu generation via `beads-meta-define-transient'.
+;; `bd init' command.  The class uses shorthand slot syntax with
+;; `beads-defcommand'.  Init uses `:transient :manual' because the
+;; auto-derived name (beads-init) differs from the hand-written
+;; transient (beads-init-transient).  Bootstrap uses auto-generated
+;; transient menus -- no separate `beads-meta-define-transient' call
+;; is needed.
 ;;
 ;; The bd init command initializes beads in the current directory by
 ;; creating a .beads/ directory and database file.  Optionally specify
@@ -282,6 +286,7 @@ the initialization."
 
 ;;; Bootstrap Command
 
+;;;###autoload (autoload 'beads-bootstrap "beads-command-init" nil t)
 (beads-defcommand beads-command-bootstrap (beads-command-global-options)
   ((dry-run
     :type boolean
@@ -291,11 +296,6 @@ the initialization."
     :order 1))
   :documentation "Represents bd bootstrap command.
 Non-destructive database setup for fresh clones and recovery.")
-
-;;;###autoload (autoload 'beads-bootstrap "beads-command-init" nil t)
-(beads-meta-define-transient beads-command-bootstrap "beads-bootstrap"
-  "Non-destructive database setup."
-  beads-option-global-section)
 
 (provide 'beads-command-init)
 ;;; beads-command-init.el ends here

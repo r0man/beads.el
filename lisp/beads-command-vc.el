@@ -26,6 +26,7 @@
 ;;; Command Class: beads-command-vc-commit
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-vc-commit "beads-command-vc" nil t)
 (beads-defcommand beads-command-vc-commit (beads-command-global-options)
   ((message
     :short-option "m"
@@ -43,6 +44,7 @@ Requires Dolt backend.")
 ;;; Command Class: beads-command-vc-merge
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-vc-merge "beads-command-vc" nil t)
 (beads-defcommand beads-command-vc-merge (beads-command-global-options)
   ((branch
     :positional 1
@@ -65,41 +67,17 @@ Requires Dolt backend.")
 Requires Dolt backend.")
 
 
-(cl-defmethod beads-command-validate ((command beads-command-vc-merge))
-  "Validate vc merge COMMAND.
-Branch is required."
-  (with-slots (branch) command
-    (when (or (null branch) (string-empty-p branch))
-      "Must provide a branch name")))
-
-
 ;;; ============================================================
 ;;; Command Class: beads-command-vc-status
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-vc-status "beads-command-vc" nil t)
 (beads-defcommand beads-command-vc-status (beads-command-global-options)
   ()
   :documentation "Show current branch and uncommitted changes.
 Requires Dolt backend.")
 
 
-
-;;; Transient Menus
-
-;;;###autoload (autoload 'beads-vc-commit "beads-command-vc" nil t)
-(beads-meta-define-transient beads-command-vc-commit "beads-vc-commit"
-  "Create a Dolt commit from pending changes."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-vc-merge "beads-command-vc" nil t)
-(beads-meta-define-transient beads-command-vc-merge "beads-vc-merge"
-  "Merge a Dolt branch into the current branch."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-vc-status "beads-command-vc" nil t)
-(beads-meta-define-transient beads-command-vc-status "beads-vc-status"
-  "Show current branch and uncommitted changes."
-  beads-option-global-section)
 
 ;;; Parent Menu
 

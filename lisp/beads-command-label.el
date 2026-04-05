@@ -13,7 +13,7 @@
 ;; and provides label management functionality for beads.el.
 ;;
 ;; Classes include full slot metadata for automatic transient menu
-;; generation via `beads-meta-define-transient'.
+;; generation via `beads-defcommand'.
 ;;
 ;; Commands included:
 ;; - beads-command-label-add: Add a label to one or more issues
@@ -203,17 +203,9 @@ Returns error string or nil if valid."
     :order 1
     :required t))
   :documentation "Represents bd label list command.
-Lists labels for a specific issue.")
+Lists labels for a specific issue."
+  :transient :manual)
 
-
-(cl-defmethod beads-command-validate ((command beads-command-label-list))
-  "Validate label list COMMAND.
-Checks that issue ID is provided.
-Returns error string or nil if valid."
-  (with-slots (issue-id) command
-    (if (or (null issue-id) (string-empty-p issue-id))
-        "Must provide issue ID"
-      nil)))
 
 ;;; Label List All Command
 
@@ -221,12 +213,14 @@ Returns error string or nil if valid."
   ()
   :documentation "Represents bd label list-all command.
 Lists all unique labels in the database."
-  :cli-command "label list-all")
+  :cli-command "label list-all"
+  :transient :manual)
 
 ;; Validate override removed: base handles slot-level validation.
 
 ;;; Label Propagate Command
 
+;;;###autoload (autoload 'beads-label-propagate "beads-command-label" nil t)
 (beads-defcommand beads-command-label-propagate (beads-command-global-options)
   ((parent-id
     :positional 1
@@ -253,18 +247,6 @@ Lists all unique labels in the database."
 Propagates a label from a parent issue to all direct children
 that don't already have it."
   :cli-command "label propagate")
-
-(cl-defmethod beads-command-validate ((command beads-command-label-propagate))
-  "Validate label propagate COMMAND.
-Checks that parent ID and label are provided.
-Returns error string or nil if valid."
-  (with-slots (parent-id label) command
-    (cond
-     ((or (null parent-id) (string-empty-p parent-id))
-      "Must provide parent issue ID")
-     ((or (null label) (string-empty-p label))
-      "Must provide a label")
-     (t nil))))
 
 ;;; Auto-Generated Transient Menus
 
@@ -293,17 +275,6 @@ See `beads-label-remove' for the full user-facing transient menu."
 (beads-meta-define-transient beads-command-label-list-all
   "beads-label-list-all-transient"
   "List all unique labels in the database (auto-generated menu)."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-label-propagate "beads-command-label" nil t)
-(beads-meta-define-transient beads-command-label-propagate "beads-label-propagate"
-  "Propagate a label from a parent issue to all direct children.
-
-Pushes the label down to all direct children that don't already have it.
-Useful for applying branch: labels across an epic's subtasks.
-
-Example:
-  bd label propagate bd-1 feature    ; Add 'feature' to all children of bd-1"
   beads-option-global-section)
 
 ;;; Label Fetching and Caching

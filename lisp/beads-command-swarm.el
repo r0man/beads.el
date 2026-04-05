@@ -23,9 +23,11 @@
 ;;; Command Class: beads-command-swarm-create
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-swarm-create "beads-command-swarm" nil t)
 (beads-defcommand beads-command-swarm-create (beads-command-global-options)
   ((epic-id
-    :positional 1)
+    :positional 1
+    :required t)
    (coordinator
     :type (or null string)
     :short-option "c"
@@ -39,79 +41,37 @@
     :group "Options"
     :level 1
     :order 2))
-  :documentation "Represents bd swarm create command.
-Creates a swarm molecule from an epic.")
-
-
-(cl-defmethod beads-command-validate ((command beads-command-swarm-create))
-  "Validate swarm create COMMAND."
-  (with-slots (epic-id) command
-    (if (not epic-id) "Epic ID is required" nil)))
+  :documentation "Creates a swarm molecule from an epic.")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-swarm-list
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-swarm-list "beads-command-swarm" nil t)
 (beads-defcommand beads-command-swarm-list (beads-command-global-options)
   ()
-  :documentation "Represents bd swarm list command.
-Lists all swarm molecules.")
-
+  :documentation "Lists all swarm molecules.")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-swarm-status
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-swarm-status "beads-command-swarm" nil t)
 (beads-defcommand beads-command-swarm-status (beads-command-global-options)
   ((swarm-id
     :positional 1))
-  :documentation "Represents bd swarm status command.
-Shows current swarm status.")
-
+  :documentation "Shows current swarm status.")
 
 ;;; ============================================================
 ;;; Command Class: beads-command-swarm-validate
 ;;; ============================================================
 
+;;;###autoload (autoload 'beads-swarm-validate "beads-command-swarm" nil t)
 (beads-defcommand beads-command-swarm-validate (beads-command-global-options)
   ((epic-id
-    :positional 1))
-  :documentation "Represents bd swarm validate command.
-Validates epic structure for swarming.")
-
-
-(cl-defmethod beads-command-validate ((command beads-command-swarm-validate))
-  "Validate swarm validate COMMAND."
-  (with-slots (epic-id) command
-    (if (not epic-id) "Epic ID is required" nil)))
-
-;;; Execute Interactive Methods
-
-
-
-
-
-;;; Transient Menus
-
-;;;###autoload (autoload 'beads-swarm-create "beads-command-swarm" nil t)
-(beads-meta-define-transient beads-command-swarm-create "beads-swarm-create"
-  "Create a swarm molecule from an epic."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-swarm-list "beads-command-swarm" nil t)
-(beads-meta-define-transient beads-command-swarm-list "beads-swarm-list"
-  "List all swarm molecules."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-swarm-status "beads-command-swarm" nil t)
-(beads-meta-define-transient beads-command-swarm-status "beads-swarm-status"
-  "Show current swarm status."
-  beads-option-global-section)
-
-;;;###autoload (autoload 'beads-swarm-validate "beads-command-swarm" nil t)
-(beads-meta-define-transient beads-command-swarm-validate "beads-swarm-validate"
-  "Validate epic structure for swarming."
-  beads-option-global-section)
+    :positional 1
+    :required t))
+  :documentation "Validates epic structure for swarming.")
 
 ;;; Parent Transient Menu
 
