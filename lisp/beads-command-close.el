@@ -90,20 +90,8 @@
   :result (list-of beads-issue))
 
 
-(cl-defmethod beads-command-validate ((command beads-command-close))
-  "Validate close COMMAND.
-Checks that at least one issue ID and a reason are provided.
-Returns error string or nil if valid."
-  (with-slots (issue-ids reason) command
-    (or
-     ;; Must have at least one issue ID
-     (and (or (null issue-ids) (zerop (length issue-ids)))
-          "Must provide at least one issue ID")
-     ;; Must have a reason
-     (and (or (null reason) (string-empty-p reason))
-          "Must provide a reason for closing")
-     ;; Validate list content types
-     (beads-command--validate-string-list issue-ids "issue-ids"))))
+;; Validate override removed: the base method checks :required slots
+;; automatically via beads-command-validate-slots.
 
 ;; Parse override removed: the base method handles JSON-to-domain
 ;; parsing automatically via :result (list-of beads-issue).
