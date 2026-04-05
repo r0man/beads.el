@@ -1076,8 +1076,13 @@
     (should (memq 'issue-ids slots))
     (should (memq 'reason slots))
     (should (memq 'force slots))
-    ;; Should have exactly 3 slots with transient keys
-    (should (= 3 (length slots)))))
+    ;; Should have all 7 own slots with transient keys
+    ;; (beads--normalize-slot infers :transient-key for all command options)
+    (should (memq 'claim-next slots))
+    (should (memq 'continue-mol slots))
+    (should (memq 'session slots))
+    (should (memq 'suggest-next slots))
+    (should (= 7 (length slots)))))
 
 (ert-deftest beads-meta-close-option-slots ()
   "Test that option slots are identified correctly."
@@ -1091,8 +1096,8 @@
   "Test that infix specs can be generated from beads-command-close."
   (let ((specs (beads-meta-generate-infix-specs
                 'beads-command-close "beads-close")))
-    ;; Should have specs for all transient-enabled slots
-    (should (= 3 (length specs)))
+    ;; Should have specs for all 7 transient-enabled slots
+    (should (= 7 (length specs)))
     ;; Check for specific infixes
     (let ((issue-ids-spec (cl-find-if
                            (lambda (s)
@@ -1159,8 +1164,9 @@
   (let ((slots (beads-meta-transient-slots 'beads-command-show)))
     ;; Should have issue-ids slot with transient key
     (should (memq 'issue-ids slots))
-    ;; Should have 6 slots with transient keys
-    (should (= 6 (length slots)))))
+    ;; Should have 10 slots with transient keys
+    ;; (beads--normalize-slot infers :transient-key for all command options)
+    (should (= 10 (length slots)))))
 
 (ert-deftest beads-meta-show-option-slots ()
   "Test that option slots are identified correctly."
@@ -1177,8 +1183,8 @@
   "Test that infix specs can be generated from beads-command-show."
   (let ((specs (beads-meta-generate-infix-specs
                 'beads-command-show "beads-show")))
-    ;; Should have 6 infix specs
-    (should (= 6 (length specs)))
+    ;; Should have 10 infix specs
+    (should (= 10 (length specs)))
     ;; Check for specific infix
     (let ((issue-ids-spec (cl-find-if
                            (lambda (s)
@@ -1421,8 +1427,9 @@
     (should (memq 'long slots))
     (should (memq 'format slots))
     (should (memq 'all slots))
-    ;; Should have 45 slots with transient keys
-    (should (= 45 (length slots)))))
+    ;; Should have 56 slots with transient keys
+    ;; (beads--normalize-slot infers :transient-key for all command options)
+    (should (= 56 (length slots)))))
 
 (ert-deftest beads-meta-list-option-slots ()
   "Test that non-positional CLI options are identified."
@@ -1449,8 +1456,8 @@
   "Test that infix specs can be generated from beads-command-list."
   (let ((specs (beads-meta-generate-infix-specs
                 'beads-command-list "beads-list")))
-    ;; Should have specs for all 45 transient-enabled slots
-    (should (= 45 (length specs)))
+    ;; Should have specs for all 56 transient-enabled slots
+    (should (= 56 (length specs)))
     ;; Check for specific infixes
     (let ((status-spec (cl-find-if
                         (lambda (s)
@@ -1463,15 +1470,17 @@
   "Test that group specs can be generated from beads-command-list."
   (let ((groups (beads-meta-generate-group-specs
                  'beads-command-list "beads-list")))
-    ;; Should have 5 groups
-    (should (= 5 (length groups)))
+    ;; Should have 7 groups (unified normalization reveals more slots)
+    (should (= 7 (length groups)))
     ;; Check for expected groups
     (let ((group-names (mapcar (lambda (g) (plist-get g :description)) groups)))
       (should (member "Basic Filters" group-names))
       (should (member "Content Filters" group-names))
       (should (member "Date Filters" group-names))
       (should (member "Special Filters" group-names))
-      (should (member "Output Options" group-names)))))
+      (should (member "Output Options" group-names))
+      (should (member "Filter" group-names))
+      (should (member "Display" group-names)))))
 
 ;;; ============================================================
 ;;; Tests for positional args without explicit :transient-key
