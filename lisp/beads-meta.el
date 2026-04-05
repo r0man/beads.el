@@ -436,6 +436,87 @@ Positional slots skip :long-option inference."
         (setq result (beads-meta--plist-remove result (car alias)))))
     (cons name result)))
 
+(eval-and-compile
+(defun beads--normalize-slot (slot-def)
+  "Normalize SLOT-DEF by inferring all missing properties in one pass.
+SLOT-DEF is a slot definition of the form (NAME . PLIST).
+Returns a new slot definition with all inferred properties filled in.
+
+This is the unified normalization function that combines:
+- EIEIO basics: :initarg, :type, :initform, :long-option, :option-type
+- Transient properties: :transient-argument, :transient-class,
+  :transient-prompt, :transient-key, :transient-level, :transient-description
+- Alias expansion and EIEIO-conflicting property stripping
+
+Explicit values always override inference.  Positional slots skip
+CLI-option inference (no :long-option, :argument, etc.).
+
+This function is available at macro-expansion time."
+  (let* ((name (car slot-def))
+         (props (cdr slot-def))
+         (result (copy-sequence props)))
+    ;; === Phase 1: EIEIO core inference ===
+    ;; Infer :initarg from slot name
+    (when-let ((initarg (beads-meta--infer-initarg name result)))
+      (setq result (plist-put result :initarg initarg)))
+    ;; Infer :type from :option-type
+    (when-let ((type-spec (beads-meta--infer-type result)))
+      (setq result (plist-put result :type type-spec)))
+    ;; Infer :option-type from :type
+    (when-let ((opt-type (beads-meta--infer-option-type result)))
+      (setq result (plist-put result :option-type opt-type)))
+    ;; Infer :initform (nil default for command options)
+    (when (eq :infer-nil (beads-meta--infer-initform result))
+      (setq result (plist-put result :initform nil)))
+    ;; Infer :long-option from slot name (skip positional)
+    (when (and (not (plist-get result :long-option))
+               (not (plist-get result :positional))
+               (not (plist-get result :positional-rest))
+               (or (plist-get result :option-type)
+                   (and (plist-get result :type)
+                        (or (plist-get result :short-option)
+                            (plist-get result :transient-key)))))
+      (setq result (plist-put result :long-option (symbol-name name))))
+
+    ;; === Phase 2: Expand concise property aliases ===
+    (setq result (cdr (beads-meta--normalize-slot-def (cons name result))))
+    ;; Re-expand concise properties for transient inference
+    (setq result (beads-meta--expand-concise-properties result))
+
+    ;; === Phase 3: Transient inference (only for command options) ===
+    (when (beads-meta--slot-is-command-option-p result)
+      ;; Infer :transient-argument
+      (when-let ((argument (beads-meta--infer-argument result)))
+        (unless (or (plist-get result :transient-argument)
+                    (plist-get result :argument))
+          (setq result (plist-put result :transient-argument argument))))
+      ;; Infer :transient-class
+      (when-let ((class (beads-meta--infer-class result)))
+        (unless (or (plist-get result :transient-class)
+                    (plist-get result :class))
+          (setq result (plist-put result :transient-class class))))
+      ;; Infer :transient-prompt
+      (when-let ((prompt (beads-meta--infer-prompt name result)))
+        (unless (or (plist-get result :transient-prompt)
+                    (plist-get result :prompt))
+          (setq result (plist-put result :transient-prompt prompt))))
+      ;; Infer :transient-key from :short-option or first char of slot name
+      (unless (plist-get result :transient-key)
+        (setq result (plist-put result :transient-key
+                                (or (plist-get result :short-option)
+                                    (substring (symbol-name name) 0 1)))))
+      ;; Infer :transient-level (default 1)
+      (unless (or (plist-get result :transient-level)
+                  (plist-get result :level))
+        (setq result (plist-put result :transient-level 1))))
+
+    ;; === Phase 4: Strip EIEIO-conflicting aliases ===
+    (dolist (alias beads-meta--eieio-conflicting-aliases)
+      (when-let ((value (plist-get result (car alias))))
+        (setq result (plist-put result (cdr alias) value))
+        (setq result (beads-meta--plist-remove result (car alias)))))
+    (cons name result))))
+
 (defun beads-meta--resolve-long-option (slot-name slot-options)
   "Resolve :long-option from SLOT-NAME if not already set in SLOT-OPTIONS.
 Converts slot name to CLI option format (e.g., `issue-type' -> \"type\").
