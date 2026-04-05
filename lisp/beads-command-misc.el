@@ -755,16 +755,8 @@ Returns error string or nil if valid."
 
 (beads-defcommand beads-command-todo-list (beads-command-global-options)
   ((all
-    :initarg :all
-    :type boolean
-    :initform nil
-    :documentation "Show all TODOs including completed (--all)."
-    :long-option "all"
     :type boolean
     :short-option "a"
-    :transient "--all"
-    :class transient-switch
-    :argument "--all"
     :group "Options"
     :level 1
     :order 1))
@@ -782,16 +774,11 @@ Lists TODO items (open task issues).")
 
 (beads-defcommand beads-command-todo-done (beads-command-global-options)
   ((issue-ids
-    :initarg :issue-ids
-    :type (or null list)
-    :initform nil
-    :documentation "One or more TODO issue IDs to mark done (positional)."
     :positional 1
     :type (list-of string)
     :separator " "
     :short-option "i"
-    :transient "Issue ID (required)"
-    :class transient-option
+    :transient transient-option
     :argument "--id="
     :prompt "Issue ID: "
     :reader beads-reader-issue-id
@@ -800,16 +787,8 @@ Lists TODO items (open task issues).")
     :order 1
     :required t)
    (reason
-    :initarg :reason
-    :type (or null string)
-    :initform nil
-    :documentation "Reason for closing (--reason). Default: Completed."
-    :long-option "reason"
     :type (or null string)
     :short-option "r"
-    :transient "--reason"
-    :class transient-option
-    :argument "--reason="
     :prompt "Reason: "
     :group "Mark Done"
     :level 2
@@ -863,16 +842,8 @@ Finds semantically similar issues using text analysis or AI."
 
 (beads-defcommand beads-command-backup (beads-command-global-options)
   ((force
-    :initarg :force
-    :type boolean
-    :initform nil
-    :documentation "Export even if nothing changed."
-    :long-option "force"
     :type boolean
     :short-option "f"
-    :transient "--force"
-    :class transient-switch
-    :argument "--force"
     :group "Options"
     :level 1
     :order 1))
@@ -890,17 +861,10 @@ Backs up your beads database by exporting all tables to JSONL.")
 
 (beads-defcommand beads-command-backup-init (beads-command-global-options)
   ((path
-    :initarg :path
-    :type (or null string)
-    :initform nil
-    :documentation "Backup destination path or URL (required).
-Local path: /mnt/usb/beads-backup or ~/Dropbox/beads-backup.
-DoltHub: https://doltremoteapi.dolthub.com/user/repo"
     :positional 1
     :type (or null string)
     :short-option "p"
-    :transient "Path or URL (required)"
-    :class transient-option
+    :transient transient-option
     :argument "--path="
     :prompt "Backup destination (path or DoltHub URL): "
     :group "Options"
@@ -967,32 +931,18 @@ init <path>' first to configure a destination."
 
 (beads-defcommand beads-command-backup-restore (beads-command-global-options)
   ((path
-    :initarg :path
-    :type (or null string)
-    :initform nil
-    :documentation "Path to directory containing JSONL backup files.
-Defaults to .beads/backup/ if not specified."
     :positional 1
     :type (or null string)
     :short-option "p"
-    :transient "Backup directory path"
-    :class transient-option
+    :transient transient-option
     :argument "--path="
     :prompt "Backup directory (leave empty for .beads/backup/): "
     :group "Options"
     :level 1
     :order 1)
    (dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Show what would be restored without making changes."
-    :long-option "dry-run"
     :type boolean
     :short-option "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
     :group "Options"
     :level 1
     :order 2))
@@ -1047,22 +997,11 @@ Exports issues to JSONL format.")
 
 (beads-defcommand beads-command-import (beads-command-global-options)
   ((file
-    :initarg :file
-    :type (or null string)
-    :initform nil
-    :documentation "JSONL file to import (default: .beads/issues.jsonl)."
-    :positional 1)
+    :positional 1
+    :type (or null string))
    (dry-run
-    :initarg :dry-run
-    :type boolean
-    :initform nil
-    :documentation "Show what would be imported without importing."
-    :long-option "dry-run"
     :type boolean
     :short-option "n"
-    :transient "--dry-run"
-    :class transient-switch
-    :argument "--dry-run"
     :group "Options"
     :level 1
     :order 1))
@@ -1110,14 +1049,10 @@ Deletes closed ephemeral beads to reclaim space.")
 
 (beads-defcommand beads-command-forget (beads-command-global-options)
   ((memory-id
-    :initarg :memory-id
-    :type (or null string)
-    :initform nil
-    :documentation "Memory ID to remove."
     :positional 1
+    :type (or null string)
     :short-option "m"
-    :transient "Memory ID (required)"
-    :class transient-option
+    :transient transient-option
     :argument "--id="
     :prompt "Memory ID: "
     :group "Options"
@@ -1146,15 +1081,10 @@ Key-value store commands.")
 
 (beads-defcommand beads-command-kv-get (beads-command-global-options)
   ((kv-key
-    :initarg :kv-key
-    :type (or null string)
-    :initform nil
-    :documentation "Key to retrieve from the key-value store (required)."
     :positional 1
     :type (or null string)
     :short-option "k"
-    :transient "Key (required)"
-    :class transient-option
+    :transient transient-option
     :argument "--key="
     :prompt "Key: "
     :group "Options"
@@ -1182,15 +1112,10 @@ Retrieves a value by key from the key-value store.")
 
 (beads-defcommand beads-command-kv-set (beads-command-global-options)
   ((kv-key
-    :initarg :kv-key
-    :type (or null string)
-    :initform nil
-    :documentation "Key to set in the key-value store (required)."
     :positional 1
     :type (or null string)
     :short-option "k"
-    :transient "Key (required)"
-    :class transient-option
+    :transient transient-option
     :argument "--key="
     :prompt "Key: "
     :group "Options"
@@ -1198,15 +1123,10 @@ Retrieves a value by key from the key-value store.")
     :order 1
     :required t)
    (kv-value
-    :initarg :kv-value
-    :type (or null string)
-    :initform nil
-    :documentation "Value to associate with the key (required)."
     :positional 2
     :type (or null string)
     :short-option "v"
-    :transient "Value (required)"
-    :class transient-option
+    :transient transient-option
     :argument "--value="
     :prompt "Value: "
     :group "Options"
@@ -1235,15 +1155,10 @@ Sets a key-value pair in the key-value store.")
 
 (beads-defcommand beads-command-kv-clear (beads-command-global-options)
   ((kv-key
-    :initarg :kv-key
-    :type (or null string)
-    :initform nil
-    :documentation "Key to delete from the key-value store (required)."
     :positional 1
     :type (or null string)
     :short-option "k"
-    :transient "Key (required)"
-    :class transient-option
+    :transient transient-option
     :argument "--key="
     :prompt "Key: "
     :group "Options"
@@ -1291,14 +1206,10 @@ Lists or searches persistent memories.")
 
 (beads-defcommand beads-command-recall (beads-command-global-options)
   ((memory-id
-    :initarg :memory-id
-    :type (or null string)
-    :initform nil
-    :documentation "Memory ID to retrieve."
     :positional 1
+    :type (or null string)
     :short-option "m"
-    :transient "Memory ID (required)"
-    :class transient-option
+    :transient transient-option
     :argument "--id="
     :prompt "Memory ID: "
     :group "Options"
@@ -1314,14 +1225,10 @@ Retrieves a specific memory.")
 
 (beads-defcommand beads-command-remember (beads-command-global-options)
   ((content
-    :initarg :content
-    :type (or null string)
-    :initform nil
-    :documentation "Memory content to store."
     :positional 1
+    :type (or null string)
     :short-option "c"
-    :transient "Content (required)"
-    :class transient-option
+    :transient transient-option
     :argument "--content="
     :prompt "Memory content: "
     :group "Options"
@@ -1339,14 +1246,10 @@ Stores a persistent memory.")
 
 (beads-defcommand beads-command-rename (beads-command-global-options)
   ((old-id
-    :initarg :old-id
-    :type (or null string)
-    :initform nil
-    :documentation "Current issue ID to rename."
     :positional 1
+    :type (or null string)
     :short-option "o"
-    :transient "Old issue ID (required)"
-    :class transient-option
+    :transient transient-option
     :argument "--old-id="
     :prompt "Old issue ID: "
     :reader beads--read-issue-at-point-or-prompt
@@ -1354,14 +1257,10 @@ Stores a persistent memory.")
     :level 1
     :order 0)
    (new-id
-    :initarg :new-id
-    :type (or null string)
-    :initform nil
-    :documentation "New issue ID to assign."
     :positional 2
+    :type (or null string)
     :short-option "n"
-    :transient "New issue ID (required)"
-    :class transient-option
+    :transient transient-option
     :argument "--new-id="
     :prompt "New issue ID: "
     :group "Rename Issue"
@@ -1403,14 +1302,10 @@ Show effective backend identity and repository context.")
 
 (beads-defcommand beads-command-assign (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to assign."
     :positional 1
+    :type (or null string)
     :short-option "i"
-    :transient "Issue ID (required)"
-    :class transient-option
+    :transient transient-option
     :argument "--id="
     :prompt "Issue ID: "
     :reader beads--read-issue-at-point-or-prompt
@@ -1418,14 +1313,10 @@ Show effective backend identity and repository context.")
     :level 1
     :order 0)
    (assignee
-    :initarg :assignee
-    :type (or null string)
-    :initform nil
-    :documentation "Name to assign the issue to.  Empty string unassigns."
     :positional 2
+    :type (or null string)
     :short-option "a"
-    :transient "Assignee (empty to unassign)"
-    :class transient-option
+    :transient transient-option
     :argument "--assignee="
     :prompt "Assignee: "
     :group "Assign Issue"
@@ -1455,14 +1346,10 @@ Pass an empty string as assignee to unassign."
 
 (beads-defcommand beads-command-comment (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to comment on."
     :positional 1
+    :type (or null string)
     :short-option "i"
-    :transient "Issue ID (required)"
-    :class transient-option
+    :transient transient-option
     :argument "--id="
     :prompt "Issue ID: "
     :reader beads--read-issue-at-point-or-prompt
@@ -1470,44 +1357,24 @@ Pass an empty string as assignee to unassign."
     :level 1
     :order 0)
    (text
-    :initarg :text
-    :type (or null string)
-    :initform nil
-    :documentation "Comment text (positional)."
     :positional 2
+    :type (or null string)
     :short-option "t"
-    :transient "Comment text"
-    :class transient-option
+    :transient transient-option
     :argument "--text="
     :prompt "Comment: "
     :group "Add Comment"
     :level 1
     :order 1)
    (stdin
-    :initarg :stdin
-    :type boolean
-    :initform nil
-    :documentation "Read comment from stdin (--stdin)."
-    :long-option "stdin"
     :type boolean
     :short-option "s"
-    :transient "--stdin"
-    :class transient-switch
-    :argument "--stdin"
     :group "Options"
     :level 2
     :order 1)
    (file
-    :initarg :file
-    :type (or null string)
-    :initform nil
-    :documentation "Read comment text from file (--file)."
-    :long-option "file"
     :type (or null string)
     :short-option "f"
-    :transient "Read from file"
-    :class transient-option
-    :argument "--file="
     :prompt "File path: "
     :group "Options"
     :level 2
@@ -1536,14 +1403,10 @@ Shorthand for: bd comments add <id> \"text\""
 
 (beads-defcommand beads-command-link (beads-command-global-options)
   ((id1
-    :initarg :id1
-    :type (or null string)
-    :initform nil
-    :documentation "First issue ID (the dependent issue)."
     :positional 1
+    :type (or null string)
     :short-option "1"
-    :transient "Dependent issue (required)"
-    :class transient-option
+    :transient transient-option
     :argument "--id1="
     :prompt "Dependent issue ID: "
     :reader beads--read-issue-at-point-or-prompt
@@ -1551,14 +1414,10 @@ Shorthand for: bd comments add <id> \"text\""
     :level 1
     :order 0)
    (id2
-    :initarg :id2
-    :type (or null string)
-    :initform nil
-    :documentation "Second issue ID (the blocker/dependency)."
     :positional 2
+    :type (or null string)
     :short-option "2"
-    :transient "Blocker issue (required)"
-    :class transient-option
+    :transient transient-option
     :argument "--id2="
     :prompt "Blocker issue ID: "
     :reader beads-reader-issue-id
@@ -1566,17 +1425,9 @@ Shorthand for: bd comments add <id> \"text\""
     :level 1
     :order 1)
    (link-type
-    :initarg :link-type
-    :type (or null string)
-    :initform nil
-    :documentation "Dependency type: blocks, tracks, related, parent-child,
-discovered-from.  Default: blocks."
     :long-option "type"
-    :short-option "t"
     :type (or null string)
-    :transient "Link type"
-    :class transient-option
-    :argument "--type="
+    :short-option "t"
     :prompt "Type (blocks/tracks/related/parent-child/discovered-from): "
     :choices ("blocks" "tracks" "related" "parent-child" "discovered-from")
     :group "Options"
@@ -1611,14 +1462,10 @@ Use --type to specify a different relationship."
 
 (beads-defcommand beads-command-priority (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to set priority on."
     :positional 1
+    :type (or null string)
     :short-option "i"
-    :transient "Issue ID (required)"
-    :class transient-option
+    :transient transient-option
     :argument "--id="
     :prompt "Issue ID: "
     :reader beads--read-issue-at-point-or-prompt
@@ -1626,15 +1473,10 @@ Use --type to specify a different relationship."
     :level 1
     :order 0)
    (level
-    :initarg :level
-    :type (or null string integer)
-    :initform nil
-    :documentation "Priority level: 0=critical, 1=high, 2=medium,
-3=low, 4=backlog."
     :positional 2
+    :type (or null string integer)
     :short-option "p"
-    :transient "Priority level (required)"
-    :class transient-option
+    :transient transient-option
     :argument "--level="
     :prompt "Priority (0-4): "
     :reader beads-reader-priority-level
@@ -1681,14 +1523,10 @@ Priority levels:
 
 (beads-defcommand beads-command-tag (beads-command-global-options)
   ((issue-id
-    :initarg :issue-id
-    :type (or null string)
-    :initform nil
-    :documentation "Issue ID to tag."
     :positional 1
+    :type (or null string)
     :short-option "i"
-    :transient "Issue ID (required)"
-    :class transient-option
+    :transient transient-option
     :argument "--id="
     :prompt "Issue ID: "
     :reader beads--read-issue-at-point-or-prompt
@@ -1696,14 +1534,10 @@ Priority levels:
     :level 1
     :order 0)
    (label
-    :initarg :label
-    :type (or null string)
-    :initform nil
-    :documentation "Label to add to the issue."
     :positional 2
+    :type (or null string)
     :short-option "l"
-    :transient "Label (required)"
-    :class transient-option
+    :transient transient-option
     :argument "--label="
     :prompt "Label: "
     :reader beads-reader-label-name
@@ -1758,14 +1592,12 @@ any custom statuses configured via status.custom."
 (beads-defcommand beads-command-rules-audit (beads-command-global-options)
   ((path
     :type (or null string)
-    :long-option "path"
     :prompt "Rules directory: "
     :group "Options"
     :level 2
     :order 1)
    (threshold
     :type (or null number)
-    :long-option "threshold"
     :prompt "Similarity threshold: "
     :group "Options"
     :level 2
@@ -1781,26 +1613,22 @@ Scans rules for contradictions and merge opportunities."
 (beads-defcommand beads-command-rules-compact (beads-command-global-options)
   ((path
     :type (or null string)
-    :long-option "path"
     :prompt "Rules directory: "
     :group "Options"
     :level 2
     :order 1)
    (auto
     :type boolean
-    :long-option "auto"
     :group "Options"
     :level 1
     :order 2)
    (dry-run
     :type boolean
-    :long-option "dry-run"
     :group "Options"
     :level 1
     :order 3)
    (group
     :type (or null string)
-    :long-option "group"
     :prompt "Rule names to merge: "
     :group "Options"
     :level 2
