@@ -1232,7 +1232,6 @@ SPEC should contain :name, :key, and optionally :class, :argument,
         (choices (plist-get spec :choices))
         (prompt (plist-get spec :prompt)))
     `(transient-define-infix ,name ()
-       ,@(when desc (list desc))
        :class ',class
        :key ,key
        ,@(when arg (list :argument arg))
