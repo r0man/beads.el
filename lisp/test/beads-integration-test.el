@@ -504,6 +504,7 @@ Example:
   (declare (indent 2) (debug (form form body)))
   `(beads-test-with-temp-repo ,args
      (require 'beads-command)
+     (require 'beads-command-create)
      ;; Create each issue
      (dolist (issue-args ',issues)
        (apply #'beads-execute 'beads-command-create issue-args))

@@ -675,7 +675,7 @@ so that `beads-agent-start' gets a valid project root."
                   (lambda (issue-id callback)
                     (condition-case nil
                         (funcall callback
-                                 (beads-command-show! :issue-ids (list issue-id)))
+                                 (beads-execute 'beads-command-show :issue-ids (list issue-id)))
                       (error (funcall callback nil)))))
                  ;; The outer test fixture mocks beads-git-find-project-root
                  ;; to nil; restore it here so agent sessions get a valid dir.
@@ -764,7 +764,7 @@ Returns the value of PRED."
       (:init-beads t)
       ((:title "Agent start from show" :issue-type "task" :priority 2))
     (beads-live-test--with-mock-agent
-      (let* ((issues (beads-command-list!))
+      (let* ((issues (beads-list-execute))
              (issue-id (oref (car issues) id))
              (show-buf (beads-live-test--open-show-buffer issue-id)))
         (should show-buf)
@@ -1007,7 +1007,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
       (:init-beads t)
       ((:title "Agent stop from show" :issue-type "task" :priority 2))
     (beads-live-test--with-mock-agent
-      (let* ((issues (beads-command-list!))
+      (let* ((issues (beads-list-execute))
              (issue-id (oref (car issues) id))
              (show-buf (beads-live-test--open-show-buffer issue-id)))
         (should show-buf)
@@ -1039,7 +1039,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
       (:init-beads t)
       ((:title "Agent jump from show" :issue-type "task" :priority 2))
     (beads-live-test--with-mock-agent
-      (let* ((issues (beads-command-list!))
+      (let* ((issues (beads-list-execute))
              (issue-id (oref (car issues) id))
              (show-buf (beads-live-test--open-show-buffer issue-id)))
         (should show-buf)
@@ -1145,7 +1145,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
           (with-current-buffer list-buf
             (let ((row-count-before (length tabulated-list-entries)))
               ;; Create a new issue
-              (beads-command-create!
+              (beads-execute 'beads-command-create
                :title "Refreshed new issue"
                :issue-type "task"
                :priority 2)
@@ -1283,7 +1283,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
               (should (null beads-list--marked-issues))
               ;; Both issues now closed
               (dolist (id marked-ids)
-                (let ((issue (beads-command-show! :issue-ids (list id))))
+                (let ((issue (beads-execute 'beads-command-show :issue-ids (list id))))
                   (should (equal "closed" (oref issue status)))))))
         (when (buffer-live-p list-buf)
           (kill-buffer list-buf))))))
@@ -1297,11 +1297,11 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
       ((:title "Bulk reopen A" :issue-type "task" :priority 2)
        (:title "Bulk reopen B" :issue-type "task" :priority 2))
     ;; Close both issues first, capture their IDs
-    (let* ((all (beads-command-list!))
+    (let* ((all (beads-list-execute))
            (ids (mapcar (lambda (i) (oref i id)) all)))
       (dolist (id ids)
-        (beads-command-close! :issue-ids (list id)
-                              :reason "Pre-close for test"))
+        (beads-execute 'beads-command-close :issue-ids (list id)
+                       :reason "Pre-close for test"))
       ;; Open a list buffer and manually set marked IDs to the closed issues
       (let ((list-buf (beads-live-test--open-list-buffer)))
         (should list-buf)
@@ -1316,7 +1316,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
                 (beads-list-bulk-reopen))
               (should (null beads-list--marked-issues))
               (dolist (id ids)
-                (let ((issue (beads-command-show! :issue-ids (list id))))
+                (let ((issue (beads-execute 'beads-command-show :issue-ids (list id))))
                   (should (equal "open" (oref issue status))))))
           (when (buffer-live-p list-buf)
             (kill-buffer list-buf)))))))
@@ -1343,7 +1343,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
                 (beads-list-bulk-update-status))
               (should (null beads-list--marked-issues))
               (dolist (id marked-ids)
-                (let ((issue (beads-command-show! :issue-ids (list id))))
+                (let ((issue (beads-execute 'beads-command-show :issue-ids (list id))))
                   (should (equal "in_progress" (oref issue status)))))))
         (when (buffer-live-p list-buf)
           (kill-buffer list-buf))))))
@@ -1389,7 +1389,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
       ((:title "Section nav issue"
         :issue-type "feature"
         :priority 1))
-    (let* ((issues (beads-command-list!))
+    (let* ((issues (beads-list-execute))
            (issue-id (oref (car issues) id))
            (show-buf (beads-live-test--open-show-buffer issue-id)))
       (should show-buf)
@@ -1420,7 +1420,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
   (beads-test-with-temp-repo-and-issues
       (:init-beads t)
       ((:title "Copy ID show test" :issue-type "task" :priority 2))
-    (let* ((issues (beads-command-list!))
+    (let* ((issues (beads-list-execute))
            (issue-id (oref (car issues) id))
            (show-buf (beads-live-test--open-show-buffer issue-id)))
       (should show-buf)
@@ -1444,7 +1444,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
       (:init-beads t)
       ((:title "Ref issue A" :issue-type "bug"  :priority 0)
        (:title "Ref issue B" :issue-type "task" :priority 2))
-    (let* ((issues (beads-command-list!))
+    (let* ((issues (beads-list-execute))
            (issue-a (cl-find "Ref issue A" issues
                              :key (lambda (i) (oref i title))
                              :test #'equal))
@@ -1454,7 +1454,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
            (id-a (oref issue-a id))
            (id-b (oref issue-b id)))
       ;; B depends on A, so show buffer for B will contain A's ID as a link
-      (beads-command-dep-add!
+      (beads-execute 'beads-command-dep-add
        :issue-id id-b
        :depends-on id-a
        :dep-type "blocks")
@@ -1487,7 +1487,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
       (:init-beads t)
       ((:title "Follow ref A" :issue-type "bug"  :priority 0)
        (:title "Follow ref B" :issue-type "task" :priority 2))
-    (let* ((issues (beads-command-list!))
+    (let* ((issues (beads-list-execute))
            (issue-a (cl-find "Follow ref A" issues
                              :key (lambda (i) (oref i title))
                              :test #'equal))
@@ -1496,7 +1496,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
                              :test #'equal))
            (id-a (oref issue-a id))
            (id-b (oref issue-b id)))
-      (beads-command-dep-add!
+      (beads-execute 'beads-command-dep-add
        :issue-id id-b
        :depends-on id-a
        :dep-type "blocks")
@@ -1537,7 +1537,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
   (beads-test-with-temp-repo-and-issues
       (:init-beads t)
       ((:title "Show actions test" :issue-type "task" :priority 2))
-    (let* ((issues (beads-command-list!))
+    (let* ((issues (beads-list-execute))
            (issue-id (oref (car issues) id))
            (show-buf (beads-live-test--open-show-buffer issue-id)))
       (should show-buf)
@@ -1558,7 +1558,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
   (beads-test-with-temp-repo-and-issues
       (:init-beads t)
       ((:title "Edit field original" :issue-type "task" :priority 2))
-    (let* ((issues (beads-command-list!))
+    (let* ((issues (beads-list-execute))
            (issue-id (oref (car issues) id))
            (show-buf (beads-live-test--open-show-buffer issue-id)))
       (should show-buf)
@@ -1572,7 +1572,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
                        (lambda (&rest _) "Edit field updated")))
               (beads-show-edit-field))
             ;; Verify via beads-command-show!
-            (let ((updated (beads-command-show! :issue-ids (list issue-id))))
+            (let ((updated (beads-execute 'beads-command-show :issue-ids (list issue-id))))
               (should (equal "Edit field updated" (oref updated title)))))
         (when (buffer-live-p show-buf)
           (kill-buffer show-buf))))))
@@ -1588,7 +1588,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
   (beads-test-with-temp-repo-and-issues
       (:init-beads t)
       ((:title "Compose edit test" :issue-type "task" :priority 2))
-    (let* ((issues (beads-command-list!))
+    (let* ((issues (beads-list-execute))
            (issue-id (oref (car issues) id))
            (show-buf (beads-live-test--open-show-buffer issue-id)))
       (should show-buf)
@@ -1619,7 +1619,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
   (beads-test-with-temp-repo-and-issues
       (:init-beads t)
       ((:title "Compose comment test" :issue-type "task" :priority 2))
-    (let* ((issues (beads-command-list!))
+    (let* ((issues (beads-list-execute))
            (issue-id (oref (car issues) id))
            (show-buf (beads-live-test--open-show-buffer issue-id)))
       (should show-buf)
@@ -1654,15 +1654,15 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
   (beads-test-with-temp-repo-and-issues
       (:init-beads t)
       ((:title "Refresh show original" :issue-type "task" :priority 2))
-    (let* ((issues (beads-command-list!))
+    (let* ((issues (beads-list-execute))
            (issue-id (oref (car issues) id))
            (show-buf (beads-live-test--open-show-buffer issue-id)))
       (should show-buf)
       (unwind-protect
           (with-current-buffer show-buf
             ;; Update the issue externally
-            (beads-command-update! :issue-ids (list issue-id)
-                                   :title "Refresh show updated")
+            (beads-execute 'beads-command-update :issue-ids (list issue-id)
+                           :title "Refresh show updated")
             ;; Refresh the show buffer
             (beads-refresh-show)
             ;; Content should now show the updated title
@@ -1681,7 +1681,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
   (beads-test-with-temp-repo-and-issues
       (:init-beads t)
       ((:title "Show close action" :issue-type "task" :priority 2))
-    (let* ((issues (beads-command-list!))
+    (let* ((issues (beads-list-execute))
            (issue-id (oref (car issues) id))
            (show-buf (beads-live-test--open-show-buffer issue-id)))
       (should show-buf)
@@ -1690,7 +1690,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
             (cl-letf (((symbol-function 'read-string)
                        (lambda (&rest _) "Done in show")))
               (beads-actions-close))
-            (let ((updated (beads-command-show! :issue-ids (list issue-id))))
+            (let ((updated (beads-execute 'beads-command-show :issue-ids (list issue-id))))
               (should (equal "closed" (oref updated status)))))
         (when (buffer-live-p show-buf)
           (kill-buffer show-buf))))))
@@ -1702,7 +1702,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
   (beads-test-with-temp-repo-and-issues
       (:init-beads t)
       ((:title "Show claim action" :issue-type "task" :priority 2))
-    (let* ((issues (beads-command-list!))
+    (let* ((issues (beads-list-execute))
            (issue-id (oref (car issues) id))
            (show-buf (beads-live-test--open-show-buffer issue-id)))
       (should show-buf)
@@ -1710,7 +1710,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
           (with-current-buffer show-buf
             ;; Claim executes immediately without prompting
             (beads-actions-claim)
-            (let ((updated (beads-command-show! :issue-ids (list issue-id))))
+            (let ((updated (beads-execute 'beads-command-show :issue-ids (list issue-id))))
               ;; Assignee should be set to current actor
               (should (oref updated assignee))))
         (when (buffer-live-p show-buf)
@@ -1723,7 +1723,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
   (beads-test-with-temp-repo-and-issues
       (:init-beads t)
       ((:title "Show set-status action" :issue-type "task" :priority 2))
-    (let* ((issues (beads-command-list!))
+    (let* ((issues (beads-list-execute))
            (issue-id (oref (car issues) id))
            (show-buf (beads-live-test--open-show-buffer issue-id)))
       (should show-buf)
@@ -1732,7 +1732,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
             (cl-letf (((symbol-function 'completing-read)
                        (lambda (&rest _) "in_progress")))
               (beads-actions-set-status))
-            (let ((updated (beads-command-show! :issue-ids (list issue-id))))
+            (let ((updated (beads-execute 'beads-command-show :issue-ids (list issue-id))))
               (should (equal "in_progress" (oref updated status)))))
         (when (buffer-live-p show-buf)
           (kill-buffer show-buf))))))
@@ -1744,7 +1744,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
   (beads-test-with-temp-repo-and-issues
       (:init-beads t)
       ((:title "Show set-priority action" :issue-type "task" :priority 2))
-    (let* ((issues (beads-command-list!))
+    (let* ((issues (beads-list-execute))
            (issue-id (oref (car issues) id))
            (show-buf (beads-live-test--open-show-buffer issue-id)))
       (should show-buf)
@@ -1753,7 +1753,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
             (cl-letf (((symbol-function 'completing-read)
                        (lambda (&rest _) "1 - High")))
               (beads-actions-set-priority))
-            (let ((updated (beads-command-show! :issue-ids (list issue-id))))
+            (let ((updated (beads-execute 'beads-command-show :issue-ids (list issue-id))))
               (should (= 1 (oref updated priority)))))
         (when (buffer-live-p show-buf)
           (kill-buffer show-buf))))))
