@@ -429,7 +429,13 @@ Examples:
         (quiet (if (plist-member args :quiet)
                    (plist-get args :quiet)
                  t)))  ; Default quiet to t
-    `(let* (;; Route bd to the isolated suite server when running;
+    `(let* (;; Check suite server health before each temp-repo test.
+            ;; Dolt can become unresponsive (accepting TCP but not responding
+            ;; to MySQL queries) after many database operations on CI.
+            ;; beads-test--suite-start-server restarts the server when the
+            ;; MySQL-level health check fails, preventing i/o timeout errors.
+            (_ (beads-test--suite-start-server))
+            ;; Route bd to the isolated suite server when running;
             ;; otherwise unset BEADS_DOLT_PORT to prevent inheriting
             ;; a production port from the outer environment.
             (process-environment
