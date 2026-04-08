@@ -89,6 +89,8 @@
 (require 'json)
 (require 'beads)
 (require 'beads-command)
+(require 'beads-command-show)
+(require 'beads-command-update)
 (require 'beads-command-worktree)
 (require 'beads-completion)
 (require 'beads-git)
@@ -550,21 +552,21 @@ are passed through from `beads-agent--start-async'."
 (defun beads-agent--fetch-issue-async (issue-id callback)
   "Fetch ISSUE-ID asynchronously and call CALLBACK with result.
 CALLBACK receives a beads-issue object, or nil on error."
-  (let ((cmd (beads-command-show :issue-ids (list issue-id))))
-    (beads-command-execute-async
-     cmd
-     (lambda (data)
-       ;; data is the parsed issue(s) - a vector from bd show
-       (condition-case err
-           (let ((issue (if (vectorp data) (aref data 0) data)))
-             (funcall callback issue))
-         (error
-          (message "Failed to parse issue: %s" (error-message-string err))
-          (funcall callback nil))))
-     (lambda (err)
-       (message "Failed to fetch issue %s: %s"
-                issue-id (error-message-string err))
-       (funcall callback nil)))))
+  (beads-execute-async
+   'beads-command-show
+   (lambda (data)
+     ;; data is the parsed issue(s) - a vector from bd show
+     (condition-case err
+         (let ((issue (if (vectorp data) (aref data 0) data)))
+           (funcall callback issue))
+       (error
+        (message "Failed to parse issue: %s" (error-message-string err))
+        (funcall callback nil))))
+   (lambda (err)
+     (message "Failed to fetch issue %s: %s"
+              issue-id (error-message-string err))
+     (funcall callback nil))
+   :issue-ids (list issue-id)))
 
 (defun beads-agent--rename-and-store-buffer (session buffer)
   "Rename BUFFER to beads format and store in SESSION.
