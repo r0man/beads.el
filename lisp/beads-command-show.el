@@ -39,7 +39,6 @@
 (require 'beads-command-label)
 (require 'beads-command-update)
 (require 'beads-completion)
-(require 'beads-agent)
 (require 'beads-meta)
 (require 'beads-option)
 (require 'beads-sesman)
