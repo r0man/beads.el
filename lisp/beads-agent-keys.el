@@ -13,14 +13,14 @@
 
 ;;; Code:
 
-(declare-function beads-agent-start-at-point "beads-agent")
-(declare-function beads-agent-start-task "beads-agent" (&optional arg))
-(declare-function beads-agent-start-review "beads-agent" (&optional arg))
-(declare-function beads-agent-start-plan "beads-agent" (&optional arg))
-(declare-function beads-agent-start-qa "beads-agent" (&optional arg))
-(declare-function beads-agent-start-custom "beads-agent" (&optional arg))
-(declare-function beads-agent-stop-at-point "beads-agent")
-(declare-function beads-agent-jump-at-point "beads-agent")
+(autoload 'beads-agent-start-at-point "beads-agent" nil t)
+(autoload 'beads-agent-start-task "beads-agent" nil t)
+(autoload 'beads-agent-start-review "beads-agent" nil t)
+(autoload 'beads-agent-start-plan "beads-agent" nil t)
+(autoload 'beads-agent-start-qa "beads-agent" nil t)
+(autoload 'beads-agent-start-custom "beads-agent" nil t)
+(autoload 'beads-agent-stop-at-point "beads-agent" nil t)
+(autoload 'beads-agent-jump-at-point "beads-agent" nil t)
 
 (defvar beads-agent-prefix-map
   (let ((map (make-sparse-keymap)))
