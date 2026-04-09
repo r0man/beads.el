@@ -795,9 +795,10 @@ Returns the selected value, or nil if \"Current directory\" was selected."
                                   beads-completion--current-dir-value)))
     (cond
      ((string= result beads-completion--current-dir-value) nil)
-     ;; Return the issue-id from text property for create candidates
-     ((eq 'create (get-text-property 0 'beads-agent-wt-type result))
-      (get-text-property 0 'beads-issue-id result))
+     ;; Extract issue-id from "Create worktree for <issue-id>" candidates.
+     ;; Text properties may be stripped by completing-read, so match by prefix.
+     ((and default (string-prefix-p "Create worktree for " result))
+      default)
      (t result))))
 
 ;;; Marginalia Integration

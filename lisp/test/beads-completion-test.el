@@ -1446,6 +1446,17 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
       (should (string= "feature-auth"
                        (beads-completion-read-agent-worktree "Test: "))))))
 
+(ert-deftest beads-completion-test-read-agent-worktree-returns-issue-id-for-create ()
+  "Test that read-agent-worktree returns issue-id when create candidate selected.
+The completing-read may strip text properties, so detection uses string prefix."
+  (let ((beads-completion--worktree-cache (cons (float-time) nil)))
+    (cl-letf (((symbol-function 'completing-read)
+               ;; Simulate completing-read returning display text without properties
+               (lambda (&rest _) "Create worktree for bd-42")))
+      (should (string= "bd-42"
+                       (beads-completion-read-agent-worktree
+                        "Test: " nil nil nil nil "bd-42"))))))
+
 (ert-deftest beads-completion-test-setup-marginalia-registers-categories ()
   "Test that setup-marginalia registers beads categories in marginalia-annotators."
   (let ((marginalia-annotators nil))
