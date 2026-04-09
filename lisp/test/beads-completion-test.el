@@ -1317,10 +1317,10 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
 
 ;;; Agent Worktree Completion Tests
 
-(ert-deftest beads-completion-test-agent-worktree-no-worktree-constant ()
-  "Test that no-worktree constant is defined."
-  (should (boundp 'beads-completion--no-worktree-value))
-  (should (string= "(no worktree)" beads-completion--no-worktree-value)))
+(ert-deftest beads-completion-test-agent-worktree-current-dir-constant ()
+  "Test that current-dir constant is defined."
+  (should (boundp 'beads-completion--current-dir-value))
+  (should (string= "Current directory" beads-completion--current-dir-value)))
 
 (ert-deftest beads-completion-test-agent-worktree-table-metadata ()
   "Test that agent worktree completion table provides correct metadata."
@@ -1335,14 +1335,14 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
       (should (eq 'beads-completion--agent-worktree-group
                   (cdr (assq 'group-function metadata)))))))
 
-(ert-deftest beads-completion-test-agent-worktree-table-has-no-worktree-first ()
-  "Test that agent worktree table has (no worktree) as first candidate."
+(ert-deftest beads-completion-test-agent-worktree-table-has-current-dir-first ()
+  "Test that agent worktree table has Current directory as first candidate."
   (let ((beads-completion--worktree-cache
          (cons (float-time) (beads-completion-test--make-mock-worktrees)))
         (beads-completion--cache (list (beads--get-database-path) (float-time) nil)))
     (let* ((table (beads-completion-agent-worktree-table))
            (candidates (funcall table "" nil t)))
-      (should (string= "(no worktree)" (car candidates))))))
+      (should (string= "Current directory" (car candidates))))))
 
 (ert-deftest beads-completion-test-agent-worktree-table-includes-worktrees ()
   "Test that agent worktree table includes existing worktrees."
@@ -1351,26 +1351,33 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
         (beads-completion--cache (list (beads--get-database-path) (float-time) nil)))
     (let* ((table (beads-completion-agent-worktree-table))
            (candidates (funcall table "" nil t)))
-      ;; Should have (no worktree) + 4 worktrees = at least 5
+      ;; Should have Current directory + 4 worktrees = 5
       (should (>= (length candidates) 5))
       (should (member "beads.el" candidates))
       (should (member "feature-auth" candidates)))))
 
-(ert-deftest beads-completion-test-agent-worktree-table-includes-issues ()
-  "Test that agent worktree table includes issues."
-  (let ((beads-completion--worktree-cache (cons (float-time) nil))
-        (beads-completion--cache
-         (list (beads--get-database-path) (float-time) (beads-completion-test--make-mock-issues))))
+(ert-deftest beads-completion-test-agent-worktree-table-create-candidate ()
+  "Test that agent worktree table includes create candidate when issue-id given."
+  (let ((beads-completion--worktree-cache (cons (float-time) nil)))
+    (let* ((table (beads-completion-agent-worktree-table "bd-42"))
+           (candidates (funcall table "" nil t)))
+      ;; Should have Current directory + create candidate = 2
+      (should (= 2 (length candidates)))
+      (should (cl-find-if (lambda (c) (string-match-p "Create worktree for bd-42" c))
+                          candidates)))))
+
+(ert-deftest beads-completion-test-agent-worktree-table-no-create-without-issue ()
+  "Test that agent worktree table omits create candidate when no issue-id."
+  (let ((beads-completion--worktree-cache (cons (float-time) nil)))
     (let* ((table (beads-completion-agent-worktree-table))
            (candidates (funcall table "" nil t)))
-      ;; Should have (no worktree) + 4 issues = 5
-      (should (= 5 (length candidates)))
-      (should (member "bd-def2" candidates))  ;; in_progress
-      (should (member "bd-abc1" candidates))))) ;; open
+      ;; Should only have Current directory
+      (should (= 1 (length candidates)))
+      (should (string= "Current directory" (car candidates))))))
 
 (ert-deftest beads-completion-test-agent-worktree-annotate-none ()
-  "Test annotation for (no worktree) option."
-  (let ((candidate (propertize "(no worktree)" 'beads-agent-wt-type 'none)))
+  "Test annotation for Current directory option."
+  (let ((candidate (propertize "Current directory" 'beads-agent-wt-type 'none)))
     (let ((annotation (beads-completion--agent-worktree-annotate candidate)))
       (should (string-match-p "run in current project" annotation)))))
 
@@ -1382,27 +1389,23 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
                                 'beads-agent-wt-type 'worktree
                                 'beads-worktree wt)))
     (let ((annotation (beads-completion--agent-worktree-annotate candidate)))
-      (should (string-match-p "EXISTS" annotation))
       (should (string-match-p "feature/auth" annotation)))))
 
-(ert-deftest beads-completion-test-agent-worktree-annotate-issue ()
-  "Test annotation for issue."
-  (let* ((issue (beads-completion-test--make-issue "bd-1" "Test" "open" 1))
-         (candidate (propertize "bd-1"
-                                'beads-agent-wt-type 'issue
-                                'beads-issue issue)))
+(ert-deftest beads-completion-test-agent-worktree-annotate-create ()
+  "Test annotation for create candidate."
+  (let ((candidate (propertize "Create worktree for bd-42"
+                               'beads-agent-wt-type 'create
+                               'beads-issue-id "bd-42")))
     (let ((annotation (beads-completion--agent-worktree-annotate candidate)))
-      (should (string-match-p "P1" annotation))
-      (should (string-match-p "OPEN" annotation))
-      (should (string-match-p "Test" annotation)))))
+      (should (string-match-p "new worktree\\+branch" annotation)))))
 
 (ert-deftest beads-completion-test-agent-worktree-annotate-handles-error ()
   "Test that annotation handles errors gracefully."
   (should (string= "" (beads-completion--agent-worktree-annotate nil))))
 
 (ert-deftest beads-completion-test-agent-worktree-group-none ()
-  "Test grouping for (no worktree) option."
-  (let ((candidate (propertize "(no worktree)" 'beads-agent-wt-type 'none)))
+  "Test grouping for Current directory option."
+  (let ((candidate (propertize "Current directory" 'beads-agent-wt-type 'none)))
     (should (string= "Default"
                      (beads-completion--agent-worktree-group candidate nil)))))
 
@@ -1412,20 +1415,12 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
     (should (string= "Existing Worktrees"
                      (beads-completion--agent-worktree-group candidate nil)))))
 
-(ert-deftest beads-completion-test-agent-worktree-group-issue-by-status ()
-  "Test grouping for issues by status."
-  (let ((open (propertize "bd-1" 'beads-agent-wt-type 'issue 'beads-status "open"))
-        (in-progress (propertize "bd-2" 'beads-agent-wt-type 'issue 'beads-status "in_progress"))
-        (blocked (propertize "bd-3" 'beads-agent-wt-type 'issue 'beads-status "blocked"))
-        (closed (propertize "bd-4" 'beads-agent-wt-type 'issue 'beads-status "closed")))
-    (should (string= "Open Issues"
-                     (beads-completion--agent-worktree-group open nil)))
-    (should (string= "In Progress Issues"
-                     (beads-completion--agent-worktree-group in-progress nil)))
-    (should (string= "Blocked Issues"
-                     (beads-completion--agent-worktree-group blocked nil)))
-    (should (string= "Closed Issues"
-                     (beads-completion--agent-worktree-group closed nil)))))
+(ert-deftest beads-completion-test-agent-worktree-group-create ()
+  "Test grouping for create candidate."
+  (let ((candidate (propertize "Create worktree for bd-42"
+                               'beads-agent-wt-type 'create)))
+    (should (string= "Create New"
+                     (beads-completion--agent-worktree-group candidate nil)))))
 
 (ert-deftest beads-completion-test-agent-worktree-group-transform ()
   "Test that group function returns candidate when transform is t."
@@ -1433,12 +1428,12 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
     (should (eq candidate
                 (beads-completion--agent-worktree-group candidate t)))))
 
-(ert-deftest beads-completion-test-read-agent-worktree-returns-nil-for-no-worktree ()
-  "Test that read-agent-worktree returns nil when (no worktree) is selected."
+(ert-deftest beads-completion-test-read-agent-worktree-returns-nil-for-current-dir ()
+  "Test that read-agent-worktree returns nil when Current directory is selected."
   (let ((beads-completion--worktree-cache (cons (float-time) nil))
         (beads-completion--cache (list (beads--get-database-path) (float-time) nil)))
     (cl-letf (((symbol-function 'completing-read)
-               (lambda (&rest _) "(no worktree)")))
+               (lambda (&rest _) "Current directory")))
       (should (null (beads-completion-read-agent-worktree "Test: "))))))
 
 (ert-deftest beads-completion-test-read-agent-worktree-returns-selection ()

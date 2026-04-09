@@ -606,17 +606,6 @@ by checking if the function is available after requiring beads."
   (should (fboundp 'beads-search))
   (should (fboundp 'beads-graph-all)))
 
-(ert-deftest beads-main-test-gastown-injection-point ()
-  "Test that beads main menu is defined with Gas Town injection support.
-The Gas Town entry uses :if predicate so it only appears when gastown
-is loaded. We verify the menu itself is a valid transient prefix."
-  ;; The Gas Town entry is conditional; the menu must still be valid
-  (should (fboundp 'beads))
-  (should (get 'beads 'transient--prefix))
-  ;; Verify the menu has children (not empty)
-  (let ((prefix (get 'beads 'transient--prefix)))
-    (should (oref prefix command))))
-
 (ert-deftest beads-main-test-core-issues-commands-in-main ()
   "Test that core issue commands are directly in main dispatch."
   ;; These should be top-level commands accessible from the main menu

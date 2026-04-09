@@ -700,22 +700,22 @@ HISTORY, and DEFAULT are passed to `completing-read'."
 ;;; Agent Worktree Selection
 ;;
 ;; For agent spawning, provide smart completion with:
-;; 1. "(no worktree)" - run agent in current project directory (default)
-;; 2. Existing worktrees - grouped together
-;; 3. Issue IDs - sorted by status priority
+;; 1. "Current directory" - run agent in current project directory (default)
+;; 2. "Create worktree for <issue>" - create new worktree+branch for the issue
+;; 3. Existing worktrees - grouped together
 
-(defconst beads-completion--no-worktree-value "(no worktree)"
+(defconst beads-completion--current-dir-value "Current directory"
   "Special value indicating agent should run in current project directory.")
 
-(defun beads-completion-agent-worktree-table ()
+(defun beads-completion-agent-worktree-table (&optional issue-id)
   "Return completion table for agent worktree selection.
 Combines:
-1. \"(no worktree)\" special option - run in current project (default/first)
-2. Existing worktree names - grouped as \"Existing Worktrees\"
-3. Issue IDs sorted by status: in_progress > open > blocked > closed
+1. \"Current directory\" - run in current project (default/first)
+2. \"Create worktree for ISSUE-ID\" - create new worktree+branch (when ISSUE-ID given)
+3. Existing worktree names - grouped as \"Existing Worktrees\"
 
-This is used when spawning an agent to select where to run it.
-The default \"(no worktree)\" option runs in the current project directory."
+ISSUE-ID, when non-nil, adds a \"Create New\" candidate for that issue.
+This is used when spawning an agent to select where to run it."
   (lambda (string pred action)
     (if (eq action 'metadata)
         '(metadata
@@ -723,12 +723,15 @@ The default \"(no worktree)\" option runs in the current project directory."
           (annotation-function . beads-completion--agent-worktree-annotate)
           (group-function . beads-completion--agent-worktree-group))
       (let* ((worktrees (beads-completion--get-cached-worktrees))
-             (issues (beads-completion--sort-issues
-                      (beads-completion--get-cached-issues)))
-             ;; Build candidates: (no worktree) first, then worktrees, then issues
-             (no-wt-candidate
-              (propertize beads-completion--no-worktree-value
+             ;; Build candidates: current dir first, then create, then worktrees
+             (current-dir-candidate
+              (propertize beads-completion--current-dir-value
                           'beads-agent-wt-type 'none))
+             (create-candidate
+              (when issue-id
+                (propertize (format "Create worktree for %s" issue-id)
+                            'beads-agent-wt-type 'create
+                            'beads-issue-id issue-id)))
              (worktree-candidates
               (mapcar (lambda (wt)
                         (propertize (oref wt name)
@@ -737,16 +740,10 @@ The default \"(no worktree)\" option runs in the current project directory."
                                     'beads-branch (oref wt branch)
                                     'beads-state (oref wt beads-state)))
                       worktrees))
-             (issue-candidates
-              (mapcar (lambda (i)
-                        (propertize (oref i id)
-                                    'beads-agent-wt-type 'issue
-                                    'beads-issue i
-                                    'beads-title (oref i title)
-                                    'beads-status (oref i status)))
-                      issues))
-             (all-candidates (cons no-wt-candidate
-                                   (append worktree-candidates issue-candidates))))
+             (all-candidates
+              (append (list current-dir-candidate)
+                      (when create-candidate (list create-candidate))
+                      worktree-candidates)))
         (complete-with-action action all-candidates string pred)))))
 
 (defun beads-completion--agent-worktree-annotate (candidate)
@@ -756,30 +753,15 @@ The default \"(no worktree)\" option runs in the current project directory."
         (pcase type
           ('none
            (propertize " (run in current project)" 'face 'font-lock-comment-face))
+          ('create
+           (propertize " (new worktree+branch)" 'face 'font-lock-comment-face))
           ('worktree
            (let* ((wt (get-text-property 0 'beads-worktree candidate))
                   (branch (and wt (oref wt branch)))
                   (state (and wt (oref wt beads-state))))
              (concat
-              (propertize " [EXISTS]" 'face 'warning)
               (when branch (format " [%s]" branch))
               (when state (format " %s" state)))))
-          ('issue
-           (let ((issue (get-text-property 0 'beads-issue candidate)))
-             (when issue
-               (let ((status (oref issue status))
-                     (title (oref issue title))
-                     (priority (oref issue priority)))
-                 (format " [P%s] %s - %s"
-                         priority
-                         (propertize (upcase status)
-                                     'face (pcase status
-                                             ("in_progress" 'warning)
-                                             ("open" 'success)
-                                             ("blocked" 'error)
-                                             ("closed" 'shadow)
-                                             (_ 'default)))
-                         (beads-completion--truncate-string title 40))))))
           (_ nil)))
     (error "")))
 
@@ -791,33 +773,32 @@ If TRANSFORM is non-nil, return CANDIDATE."
     (let ((type (get-text-property 0 'beads-agent-wt-type candidate)))
       (pcase type
         ('none "Default")
+        ('create "Create New")
         ('worktree "Existing Worktrees")
-        ('issue
-         (let ((status (get-text-property 0 'beads-status candidate)))
-           (pcase status
-             ("in_progress" "In Progress Issues")
-             ("open" "Open Issues")
-             ("blocked" "Blocked Issues")
-             ("closed" "Closed Issues")
-             (_ "Other Issues"))))
         (_ "Other")))))
 
 (defun beads-completion-read-agent-worktree (prompt &optional predicate require-match
                                                      initial-input history default)
   "Read agent worktree selection with smart ordering.
-Shows \"(no worktree)\" first, then existing worktrees, then issues.
+Shows \"Current directory\" first, then \"Create worktree for <issue>\" if
+DEFAULT is an issue ID, then existing worktrees.
 PROMPT is the prompt string.  PREDICATE, REQUIRE-MATCH, INITIAL-INPUT,
 HISTORY, and DEFAULT are passed to `completing-read'.
-Returns the selected value, or nil if \"(no worktree)\" was selected."
+DEFAULT is also used as the issue-id for the \"Create New\" candidate.
+Returns the selected value, or nil if \"Current directory\" was selected."
   (let* ((completion-category-overrides
           (cons '(beads-agent-worktree (styles beads-worktree-name-create basic))
                 completion-category-overrides))
-         (result (completing-read prompt (beads-completion-agent-worktree-table)
+         (result (completing-read prompt
+                                  (beads-completion-agent-worktree-table default)
                                   predicate require-match initial-input history
-                                  (or default beads-completion--no-worktree-value))))
-    (if (string= result beads-completion--no-worktree-value)
-        nil
-      result)))
+                                  beads-completion--current-dir-value)))
+    (cond
+     ((string= result beads-completion--current-dir-value) nil)
+     ;; Return the issue-id from text property for create candidates
+     ((eq 'create (get-text-property 0 'beads-agent-wt-type result))
+      (get-text-property 0 'beads-issue-id result))
+     (t result))))
 
 ;;; Marginalia Integration
 

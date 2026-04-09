@@ -449,14 +449,18 @@ Returns a string suitable for `bd worktree create NAME'."
   (beads-completion-read-worktree-name
    "Worktree name (issue ID or custom): " nil nil nil 'beads--worktree-name-history))
 
-(defun beads-reader-worktree-branch (_prompt _initial-input _history)
+(defun beads-reader-worktree-branch (prompt initial-input history)
   "Read an existing git branch name for worktree creation.
-Uses `git branch --list' to provide completion for existing branches.
+Uses `git branch --sort=-committerdate' to provide completion sorted
+by most recent commit, with main/master listed first.
+PROMPT is the prompt string, INITIAL-INPUT is pre-filled input,
+HISTORY is the history variable.
 Used with `bd worktree create NAME --branch BRANCH'.
 
 Returns a branch name string."
-  (let ((branches (beads-reader--get-git-branches)))
-    (completing-read "Branch: " branches nil nil nil 'beads--worktree-branch-history)))
+  (let ((branches (beads-reader--get-git-branches-sorted)))
+    (completing-read (or prompt "Branch: ") branches nil nil
+                     initial-input (or history 'beads--worktree-branch-history))))
 
 (defun beads-reader--get-git-branches ()
   "Return list of local git branch names.
@@ -475,6 +479,33 @@ Strips leading markers (* for current, + for worktree) and whitespace."
                   (push (string-trim (match-string 1 line)) branches)))
               (forward-line 1))
             (nreverse branches))))
+    (error nil)))
+
+(defun beads-reader--get-git-branches-sorted ()
+  "Return list of local git branch names sorted by most recent commit.
+Main/master branches are listed first, then remaining branches sorted
+by committer date (most recent first)."
+  (condition-case nil
+      (with-temp-buffer
+        (when (zerop (call-process "git" nil t nil
+                                   "branch" "--list"
+                                   "--sort=-committerdate"
+                                   "--format=%(refname:short)"))
+          (let ((branches nil)
+                (main-branches nil))
+            (goto-char (point-min))
+            (while (not (eobp))
+              (let ((branch (string-trim
+                             (buffer-substring-no-properties
+                              (line-beginning-position)
+                              (line-end-position)))))
+                (unless (string-empty-p branch)
+                  (if (member branch '("main" "master"))
+                      (push branch main-branches)
+                    (push branch branches))))
+              (forward-line 1))
+            ;; main/master first, then rest in recency order
+            (append (nreverse main-branches) (nreverse branches)))))
     (error nil)))
 
 (defun beads-reader-worktree-existing (_prompt _initial-input _history)
