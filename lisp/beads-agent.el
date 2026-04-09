@@ -213,8 +213,8 @@ Returns the branch name string, or nil for auto (uses worktree name)."
 
 (defun beads-agent--setup-worktree-interactive (issue-id callback)
   "Interactively setup worktree for ISSUE-ID asynchronously.
-Prompts for worktree selection with smart ordering: (no worktree) first,
-then existing worktrees, then issues sorted by status priority.
+Prompts for worktree selection with smart ordering: current directory first,
+then \"Create worktree for ISSUE-ID\", then existing worktrees.
 CALLBACK receives (success worktree-path-or-error) where:
 - success is t and worktree-path-or-error is the path on success
 - success is nil and worktree-path-or-error is error message on failure"

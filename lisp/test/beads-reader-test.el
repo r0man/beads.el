@@ -944,7 +944,7 @@
 
 (ert-deftest beads-reader-test-worktree-branch ()
   "Test reading worktree branch from git branches."
-  (cl-letf (((symbol-function 'beads-reader--get-git-branches)
+  (cl-letf (((symbol-function 'beads-reader--get-git-branches-sorted)
              (lambda () '("main" "develop" "feature/auth")))
             ((symbol-function 'completing-read)
              (lambda (_prompt branches &rest _args)
@@ -956,7 +956,7 @@
 
 (ert-deftest beads-reader-test-worktree-branch-empty ()
   "Test reading worktree branch when no branches available."
-  (cl-letf (((symbol-function 'beads-reader--get-git-branches)
+  (cl-letf (((symbol-function 'beads-reader--get-git-branches-sorted)
              (lambda () nil))
             ((symbol-function 'completing-read)
              (lambda (_prompt branches &rest _args)

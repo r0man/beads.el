@@ -428,8 +428,6 @@ into a compact hierarchical structure with sub-dispatches."
     ("#" "Set priority" beads-actions-set-priority)
     ("C" "Claim" beads-actions-claim)
     ("?" "Actions..." beads-show-actions)]
-   ["Extensions"
-    ("G" "Gas Town" gastown :if (lambda () (featurep 'gastown)))]
    ["Actions"
     ("!" "Ops..." beads-ops-menu)
     (">" "Advanced..." beads-advanced-menu)
