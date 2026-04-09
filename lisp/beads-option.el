@@ -25,7 +25,7 @@
 
 ;;; Code:
 
-(require 'beads)
+(require 'beads-util)
 (require 'beads-state)
 (require 'transient)
 
@@ -34,14 +34,8 @@
   (require 'beads-command))
 
 ;; Forward declare reader functions (loaded later to avoid circular deps)
-(declare-function beads-reader-create-title "beads-reader")
-(declare-function beads-reader-create-type "beads-reader")
-(declare-function beads-reader-create-priority "beads-reader")
 (declare-function beads-reader-create-custom-id "beads-reader")
 (declare-function beads-reader-create-dependencies "beads-reader")
-(declare-function beads-reader-create-assignee "beads-reader")
-(declare-function beads-reader-create-external-ref "beads-reader")
-(declare-function beads-reader-create-labels "beads-reader")
 (declare-function beads-reader-create-parent "beads-reader")
 (declare-function beads-reader-create-repo "beads-reader")
 (declare-function beads-reader-create-from-template "beads-reader")

@@ -43,15 +43,10 @@
 (require 'cl-lib)
 (require 'json)
 
-;; Forward declarations to avoid circular dependency
-;; (beads.el requires beads-command, so we can't require beads here)
-(defvar beads-executable)
+(require 'beads-util)
+
 (defvar beads-list-default-limit)
-(declare-function beads--log "beads")
-(declare-function beads--find-beads-dir "beads")
-(declare-function beads--string-blank-p "beads")
-(declare-function beads--invalidate-completion-cache "beads")
-(declare-function beads-show "beads-show")
+(declare-function beads-show "beads-command-show")
 
 ;; Forward declarations for optional terminal packages
 ;; These suppress byte-compiler warnings for optional dependencies

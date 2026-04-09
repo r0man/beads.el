@@ -87,7 +87,7 @@
 (require 'eieio)
 (require 'cl-lib)
 (require 'json)
-(require 'beads)
+(require 'beads-util)
 (require 'beads-command)
 (require 'beads-command-show)
 (require 'beads-command-update)
@@ -101,10 +101,8 @@
 (require 'transient)
 
 ;; Forward declarations
-(declare-function beads-list--current-issue-id "beads-list")
+(declare-function beads-list--current-issue-id "beads-command-list")
 (declare-function beads-sesman--link-session-buffer "beads-sesman")
-(declare-function beads-command-update "beads-command-update" (&rest args))
-(declare-function beads-command-show "beads-command-show" (&rest args))
 (defvar beads-show--issue-id)
 (defvar beads-sesman--buffer-session-id)
 

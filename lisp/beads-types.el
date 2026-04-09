@@ -68,8 +68,8 @@
 (require 'beads-meta)
 
 ;; Forward declarations to avoid circular dependencies
-(declare-function beads--parse-issue "beads")
-(declare-function beads--parse-issues "beads")
+(declare-function beads--parse-issue "beads-util")
+(declare-function beads--parse-issues "beads-util")
 
 ;;; Constants and Enumerations
 

@@ -21,7 +21,7 @@
 (require 'transient)
 
 ;; Forward declarations
-(declare-function beads-doctor "beads-command-misc" nil)
+(declare-function beads-doctor "beads-command-doctor" nil)
 (declare-function beads-preflight "beads-command-misc" nil)
 (declare-function beads-upgrade "beads-command-misc" nil)
 (declare-function beads-compact "beads-command-compact" nil)
@@ -45,9 +45,9 @@
 (declare-function beads-gitlab "beads-command-integrations" nil)
 (declare-function beads-github "beads-command-integrations" nil)
 (declare-function beads-repo "beads-command-integrations" nil)
-(declare-function beads-mail "beads-command-integrations" nil)
+(declare-function beads-mail "beads-command-misc" nil)
 (declare-function beads-init "beads-command-init" nil)
-(declare-function beads-bootstrap "beads-command-misc" nil)
+(declare-function beads-bootstrap "beads-command-init" nil)
 (declare-function beads-context "beads-command-misc" nil)
 (declare-function beads-quickstart "beads-command-quickstart" nil)
 (declare-function beads-hooks "beads-command-hooks" nil)

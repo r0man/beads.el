@@ -40,7 +40,10 @@
 
 ;;; Code:
 
+(require 'beads-util)
+(require 'beads-buffer)
 (require 'beads-command)
+(require 'beads-completion)
 (require 'beads-meta)
 (require 'beads-option)
 (require 'beads-pager)
@@ -48,17 +51,10 @@
 (require 'transient)
 
 ;; Forward declarations
-(declare-function beads--invalidate-completion-cache "beads")
-(declare-function beads--string-blank-p "beads")
-(declare-function beads--build-command "beads")
-(declare-function beads-buffer-name-list "beads-buffer")
-(declare-function beads-buffer-name-utility "beads-buffer")
-(declare-function beads-buffer-parse-show "beads-buffer")
-(declare-function beads-completion-read-issue "beads-completion")
-(declare-function beads-list--current-issue-id "beads-list")
-(declare-function beads-list--populate-buffer "beads-list")
-(declare-function beads-list-mode "beads-list")
-(declare-function beads-list-refresh "beads-list")
+(declare-function beads-list--current-issue-id "beads-command-list")
+(declare-function beads-list--populate-buffer "beads-command-list")
+(declare-function beads-list-mode "beads-command-list")
+(declare-function beads-list-refresh "beads-command-list")
 (declare-function beads-refresh-show "beads-command-show")
 (declare-function beads-reader-label-issue-ids "beads-reader")
 (declare-function beads-reader-label-name "beads-reader")

@@ -39,7 +39,7 @@
 (require 'transient)
 
 ;; Forward declaration
-(declare-function beads--invalidate-completion-cache "beads")
+(declare-function beads--invalidate-completion-cache "beads-util")
 
 ;;; Update Command
 
@@ -387,12 +387,12 @@ update transient is invoked from different beads buffers.")
 
 ;;; Transient Menu - Utility Functions
 
-(declare-function beads-list--current-issue-id "beads-list")
-(declare-function beads-list-refresh "beads-list")
+(declare-function beads-list--current-issue-id "beads-command-list")
+(declare-function beads-list-refresh "beads-command-list")
 (declare-function beads-buffer-parse-show "beads-buffer")
 (declare-function beads-completion-read-issue "beads-completion")
-(declare-function beads-check-executable "beads")
-(declare-function beads-refresh-show "beads-show")
+(declare-function beads-check-executable "beads-util")
+(declare-function beads-refresh-show "beads-command-show")
 (defvar beads-show--issue-id)
 (defvar beads-auto-refresh)
 

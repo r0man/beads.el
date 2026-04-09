@@ -300,16 +300,6 @@
     (should (equal (beads-git-ensure-worktree "beads-1")
                    "/path/to/new"))))
 
-;;; Test compatibility aliases (ensure they exist and work)
-
-(ert-deftest beads-git-test-compatibility-alias-project-root ()
-  "Test that beads--find-project-root alias exists and works."
-  :tags '(:unit)
-  (cl-letf (((symbol-function 'beads-git-find-project-root)
-             (lambda () "/test/path")))
-    ;; The alias should call through to the new function
-    (with-no-warnings
-      (should (equal (beads--find-project-root) "/test/path")))))
 
 
 ;;; Test beads-git-find-project-root

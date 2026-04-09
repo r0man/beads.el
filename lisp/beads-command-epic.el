@@ -24,7 +24,7 @@
 
 ;;; Code:
 
-(require 'beads)
+(require 'beads-util)
 (require 'beads-buffer)
 (require 'beads-command)
 (require 'beads-command-dep)
@@ -35,8 +35,10 @@
 (require 'transient)
 
 ;; Forward declarations
-(declare-function beads-list-issues "beads-command-list")
 (declare-function beads-show "beads-command-show")
+(declare-function beads-list-mode "beads-command-list")
+(declare-function beads-list--populate-buffer "beads-command-list")
+(declare-function beads-buffer-name-list "beads-buffer")
 
 ;;; Epic Status Command
 
@@ -365,10 +367,19 @@ Format: ((epic-id . (expanded-p . children)) ...)")
   "Show children of epic at point in beads-list buffer."
   (interactive)
   (if-let* ((epic-id (get-text-property (point) 'epic-id)))
-      (progn
-        (beads-list-issues
-         (beads-issue-filter
-          :deps (format "parent-child:%s" epic-id))))
+      (let* ((cmd (beads-command-list :json t :parent epic-id))
+             (issues (beads-command-execute cmd))
+             (buffer (get-buffer-create
+                      (beads-buffer-name-list nil (format "children:%s" epic-id)))))
+        (with-current-buffer buffer
+          (beads-list-mode)
+          (if (not issues)
+              (progn
+                (setq tabulated-list-entries nil)
+                (tabulated-list-print t)
+                (message "No children found for epic %s" epic-id))
+            (beads-list--populate-buffer issues 'list cmd)))
+        (pop-to-buffer buffer))
     (user-error "No epic at point")))
 
 (defun beads-epic-status-next ()

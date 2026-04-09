@@ -35,8 +35,8 @@
 (require 'transient)
 
 ;; Forward declarations
-(declare-function beads--invalidate-completion-cache "beads")
-(declare-function beads-check-executable "beads")
+(declare-function beads--invalidate-completion-cache "beads-util")
+(declare-function beads-check-executable "beads-util")
 (defvar beads-auto-refresh)
 
 ;;; ============================================================

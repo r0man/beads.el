@@ -35,7 +35,7 @@
 (require 'beads-types)
 
 ;; Forward declarations
-(declare-function beads--invalidate-completion-cache "beads")
+(declare-function beads--invalidate-completion-cache "beads-util")
 (declare-function beads-reader-reopen-issue-id "beads-reader")
 (defvar beads-auto-refresh)
 

@@ -34,14 +34,14 @@
 (require 'transient)
 
 ;; Forward declarations
-(declare-function beads--invalidate-completion-cache "beads")
-(declare-function beads-list--current-issue-id "beads-list")
+(declare-function beads--invalidate-completion-cache "beads-util")
+(declare-function beads-list--current-issue-id "beads-command-list")
 (declare-function beads-buffer-name-utility "beads-buffer")
 (declare-function beads-buffer-parse-show "beads-buffer")
 (declare-function beads-completion-read-issue "beads-completion")
-(declare-function beads-check-executable "beads")
-(declare-function beads-show "beads-show")
-(defvar beads-show--current-issue-id)
+(declare-function beads-check-executable "beads-util")
+(declare-function beads-show "beads-command-show")
+(defvar beads-show--issue-id)
 (defvar beads-auto-refresh)
 (defvar beads--issue-id-history)
 
@@ -406,9 +406,9 @@ then falls back to detecting from beads-list or beads-show buffers."
         (beads-list--current-issue-id))
        ;; In beads-show buffer
        ((and (derived-mode-p 'beads-show-mode)
-             (boundp 'beads-show--current-issue-id)
-             beads-show--current-issue-id)
-        beads-show--current-issue-id)
+             (boundp 'beads-show--issue-id)
+             beads-show--issue-id)
+        beads-show--issue-id)
        ;; No context
        (t nil))))
 

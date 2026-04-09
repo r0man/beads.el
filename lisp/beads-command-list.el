@@ -54,7 +54,7 @@
 (declare-function beads-list-filter-menu "beads-spec")
 (declare-function beads-list--refresh "beads-spec" (&optional spec))
 (declare-function beads--transient-args-to-spec "beads-spec" (args))
-(declare-function beads-agent--get-sessions-for-issue "beads-agent")
+(declare-function beads-agent--get-sessions-for-issue "beads-agent-backend")
 (declare-function beads-agent--get-sessions-focused-on-issue "beads-agent-backend")
 (declare-function beads-agent--get-sessions-touching-issue "beads-agent-backend")
 (declare-function beads-agent-session-instance-number "beads-agent-backend")

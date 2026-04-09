@@ -23,7 +23,7 @@
 
 ;;; Code:
 
-(require 'beads)
+(require 'beads-util)
 (require 'beads-buffer)
 (require 'beads-command)
 (require 'beads-command-list)
@@ -34,12 +34,7 @@
 (require 'transient)
 
 ;; Forward declarations
-(declare-function beads-list "beads-command-list")
-(declare-function beads-ready "beads-command-list")
-(declare-function beads-blocked "beads-command-list")
-(declare-function beads-list-mode "beads-command-list")
-(declare-function beads-list--populate-buffer "beads-command-list")
-(declare-function beads-list--format-filter-string "beads-command-list")
+(declare-function beads-pager--mode-line-fragment "beads-pager")
 
 ;;; Status Command
 
@@ -183,7 +178,7 @@ Opens a beads-list buffer with all issues, bypassing the transient menu."
                                  (format " [%d marked]"
                                         (length beads-list--marked-issues))
                                "")
-                             (beads-list--format-filter-string)))))))
+                             (or (beads-pager--mode-line-fragment) "")))))))
     (pop-to-buffer buffer)))
 
 (defun beads-stats--list-by-status (status)
@@ -221,7 +216,7 @@ STATUS should be one of: open, in-progress, closed, or deferred."
                                  (format " [%d marked]"
                                         (length beads-list--marked-issues))
                                "")
-                             (beads-list--format-filter-string)))))))
+                             (or (beads-pager--mode-line-fragment) "")))))))
     (pop-to-buffer buffer)))
 
 (defun beads-stats--insert-stat-button (text filter-type count face)
