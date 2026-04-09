@@ -249,7 +249,7 @@ CALLBACK receives (success worktree-path-or-error).
 Uses `bd worktree create' which automatically sets up beads database redirect."
   (require 'beads-command-worktree)
   (require 'beads-command)
-  (let ((cmd (beads-command-worktree-create :name issue-id :branch issue-id)))
+  (let ((cmd (beads-command-worktree-create :name issue-id :branch issue-id :json t)))
     (beads-command-execute-async
      cmd
      (lambda (result)
@@ -259,8 +259,12 @@ Uses `bd worktree create' which automatically sets up beads database redirect."
          (funcall callback t path)))
      (lambda (err)
        (funcall callback nil
-                (or (error-message-string err)
-                    "Worktree creation failed"))))))
+                (cond
+                 ((stringp err) err)
+                 ((and (consp err) (stringp (car err))) (car err))
+                 (t (condition-case nil
+                        (error-message-string err)
+                      (error "Worktree creation failed")))))))))
 
 (provide 'beads-git)
 

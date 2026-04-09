@@ -108,6 +108,20 @@
 (defvar beads-show--issue-id)
 (defvar beads-sesman--buffer-session-id)
 
+;;; Error Handling Helpers
+
+(defun beads-agent--format-async-error (err &optional fallback)
+  "Extract a human-readable message from async error ERR.
+ERR may be a string, a plist-style list from `beads-command-execute-async'
+\(where car is the message string), or an Emacs error condition.
+FALLBACK is returned if no message can be extracted."
+  (cond
+   ((stringp err) err)
+   ((and (consp err) (stringp (car err))) (car err))
+   (t (condition-case nil
+          (error-message-string err)
+        (error (or fallback (format "%S" err)))))))
+
 ;;; Customization
 
 (defgroup beads-agent nil
@@ -220,7 +234,7 @@ CALLBACK receives (success worktree-path-or-error) where:
      ;; New worktree - prompt for branch and create
      (t
       (let* ((branch (beads-agent--read-worktree-branch wt-name))
-             (cmd (beads-command-worktree-create :name wt-name :branch branch)))
+             (cmd (beads-command-worktree-create :name wt-name :branch branch :json t)))
         (beads-command-execute-async
          cmd
          (lambda (result)
@@ -229,8 +243,8 @@ CALLBACK receives (success worktree-path-or-error) where:
              (funcall callback t path)))
          (lambda (err)
            (funcall callback nil
-                    (or (error-message-string err)
-                        "Worktree creation failed")))))))))
+                    (beads-agent--format-async-error
+                     err "Worktree creation failed")))))))))
 
 ;;; Backend Selection
 
@@ -564,7 +578,7 @@ CALLBACK receives a beads-issue object, or nil on error."
         (funcall callback nil))))
    (lambda (err)
      (message "Failed to fetch issue %s: %s"
-              issue-id (error-message-string err))
+              issue-id (beads-agent--format-async-error err))
      (funcall callback nil))
    :issue-ids (list issue-id)))
 
