@@ -40,9 +40,8 @@
 (require 'transient)
 
 ;; Forward declarations
-(declare-function beads--sanitize-string "beads")
-(declare-function beads--error "beads")
-(defvar beads-executable)
+(declare-function beads--sanitize-string "beads-util")
+(declare-function beads--error "beads-util")
 
 ;;; Init Command
 

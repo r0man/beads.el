@@ -31,7 +31,7 @@
 
 ;;; Code:
 
-(require 'beads)
+(require 'beads-util)
 (require 'beads-buffer)
 (require 'beads-command)
 (require 'beads-agent-backend)
@@ -44,7 +44,7 @@
 (declare-function beads-agent-stop "beads-agent")
 (declare-function beads-agent-jump "beads-agent")
 (declare-function beads-agent-cleanup-stale-sessions "beads-agent")
-(declare-function beads-show "beads-show")
+(declare-function beads-show "beads-command-show")
 
 ;;; Customization
 

@@ -26,7 +26,7 @@
 
 ;;; Code:
 
-(require 'beads)
+(require 'beads-util)
 (require 'beads-command)
 (require 'eldoc)
 

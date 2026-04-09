@@ -32,11 +32,10 @@
 (require 'transient)
 
 ;; Forward declarations
-(declare-function beads-check-executable "beads")
+(declare-function beads-check-executable "beads-util")
 (declare-function beads-git-get-project-name "beads-git")
-(declare-function beads--invalidate-completion-cache "beads")
+(declare-function beads--invalidate-completion-cache "beads-util")
 (declare-function beads-list-refresh-all "beads-command-list")
-(declare-function beads-command-execute "beads-command")
 (declare-function beads-refresh-show "beads-command-show")
 (declare-function beads-issue-at-point-or-read "beads")
 (declare-function beads-command-update "beads-command-update")

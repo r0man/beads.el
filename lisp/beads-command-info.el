@@ -25,7 +25,7 @@
 
 ;;; Code:
 
-(require 'beads)
+(require 'beads-util)
 (require 'beads-command)
 (require 'beads-meta)
 (require 'beads-option)

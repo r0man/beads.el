@@ -35,7 +35,7 @@
 (declare-function beads-label--detect-issue-id "beads-command-label")
 
 ;; Forward declare list/show functions (loaded later to avoid circular deps)
-(declare-function beads-list--current-issue-id "beads-list")
+(declare-function beads-list--current-issue-id "beads-command-list")
 (declare-function beads-buffer-parse-show "beads-buffer")
 (defvar beads-show--issue-id)
 

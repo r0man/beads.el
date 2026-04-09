@@ -29,7 +29,7 @@
 ;; Forward declarations
 (defvar beads-completion-show-unavailable-backends)
 (declare-function beads-list-execute "beads-command-list" (&rest args))
-(declare-function beads--get-database-path "beads" ())
+(declare-function beads--get-database-path "beads-util" ())
 
 ;;; Completion Cache
 

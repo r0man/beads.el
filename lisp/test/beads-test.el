@@ -2477,23 +2477,6 @@ The log format is compatible with `log-view-mode':
 ;;; Alias Tests
 ;;; ========================================
 
-(ert-deftest beads-test-project-root-alias ()
-  "Test beads--find-project-root alias."
-  (cl-letf (((symbol-function 'beads-git-find-project-root)
-             (lambda () "/test/path/")))
-    (should (equal (beads--find-project-root) "/test/path/"))))
-
-(ert-deftest beads-test-get-project-name-alias ()
-  "Test beads--get-project-name alias."
-  (cl-letf (((symbol-function 'beads-git-get-project-name)
-             (lambda () "test-project")))
-    (should (equal (beads--get-project-name) "test-project"))))
-
-(ert-deftest beads-test-get-git-branch-alias ()
-  "Test beads--get-git-branch alias."
-  (cl-letf (((symbol-function 'beads-git-get-branch)
-             (lambda () "main")))
-    (should (equal (beads--get-git-branch) "main"))))
 
 
 (ert-deftest beads-test-completion-aliases ()

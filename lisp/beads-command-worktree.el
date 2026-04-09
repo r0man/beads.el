@@ -43,7 +43,7 @@
 
 ;;; Code:
 
-(require 'beads)
+(require 'beads-util)
 (require 'beads-buffer)
 (require 'beads-completion)
 (require 'beads-worktree-types)

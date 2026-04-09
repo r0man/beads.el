@@ -817,7 +817,7 @@
   (require 'beads-command-show)
   (with-temp-buffer
     (beads-show-mode)
-    (setq-local beads-show--current-issue-id "bd-99")
+    (setq-local beads-show--issue-id "bd-99")
     (should (equal (beads-dep--detect-issue-id) "bd-99"))))
 
 ;;; Tests for Format Dependency Edge Cases
@@ -1281,7 +1281,7 @@
   (require 'beads-command-show)
   (with-temp-buffer
     (beads-show-mode)
-    (setq-local beads-show--current-issue-id "bd-context")
+    (setq-local beads-show--issue-id "bd-context")
     (let ((beads-dep--pending-issue-id "bd-explicit"))
       (should (equal (beads-dep--detect-issue-id) "bd-explicit")))))
 

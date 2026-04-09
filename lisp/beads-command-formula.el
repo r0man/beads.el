@@ -28,7 +28,7 @@
 
 ;;; Code:
 
-(require 'beads)
+(require 'beads-util)
 (require 'beads-buffer)
 (require 'beads-command)
 (require 'beads-option)

@@ -20,12 +20,12 @@
 (require 'transient)
 
 ;; Forward declarations
-(declare-function beads-list--current-issue-id "beads-list")
+(declare-function beads-list--current-issue-id "beads-command-list")
 (declare-function beads-buffer-parse-show "beads-buffer")
 (declare-function beads-completion-read-issue "beads-completion")
-(declare-function beads-check-executable "beads")
-(declare-function beads--sanitize-string "beads")
-(declare-function beads--string-blank-p "beads")
+(declare-function beads-check-executable "beads-util")
+(declare-function beads--sanitize-string "beads-util")
+(declare-function beads--string-blank-p "beads-util")
 (defvar beads-show--issue-id)
 (defvar beads-edit--issue-id)
 
