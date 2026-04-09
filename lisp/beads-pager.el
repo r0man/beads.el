@@ -166,15 +166,25 @@ Returns nil when pager mode is off or there is only one page."
 
 ;;; Window Resize Hook
 
-(defun beads-pager--on-window-resize (frame)
-  "Recompute and redisplay page when FRAME is resized.
-Iterates over all windows in FRAME and refreshes any buffer
-where `beads-pager-mode' is active."
-  (dolist (window (window-list frame))
-    (with-current-buffer (window-buffer window)
-      (when (and (bound-and-true-p beads-pager-mode)
-                 beads-pager--all-entries)
-        (beads-pager--apply)))))
+(defun beads-pager--on-window-resize (window-or-frame)
+  "Recompute and redisplay page when a window changes size.
+WINDOW-OR-FRAME is a window when called from a buffer-local hook,
+or a frame when called from the global hook.  Buffer-local hooks on
+`window-size-change-functions' receive the changed window, not
+the frame."
+  (if (windowp window-or-frame)
+      ;; Buffer-local: called with the specific window
+      (when (window-live-p window-or-frame)
+        (with-current-buffer (window-buffer window-or-frame)
+          (when (and (bound-and-true-p beads-pager-mode)
+                     beads-pager--all-entries)
+            (beads-pager--apply))))
+    ;; Global: called with frame, iterate all windows
+    (dolist (window (window-list window-or-frame))
+      (with-current-buffer (window-buffer window)
+        (when (and (bound-and-true-p beads-pager-mode)
+                   beads-pager--all-entries)
+          (beads-pager--apply))))))
 
 ;;; Keymap
 
