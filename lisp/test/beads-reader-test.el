@@ -943,82 +943,28 @@
   (should (fboundp 'beads-reader-worktree-branch)))
 
 (ert-deftest beads-reader-test-worktree-branch ()
-  "Test reading worktree branch from git branches."
-  (cl-letf (((symbol-function 'beads-reader--get-git-branches-sorted)
-             (lambda () '("main" "develop" "feature/auth")))
-            ((symbol-function 'completing-read)
-             (lambda (_prompt branches &rest _args)
-               (should (member "main" branches))
-               (should (member "develop" branches))
-               "develop")))
-    (let ((result (beads-reader-worktree-branch nil nil nil)))
-      (should (equal result "develop")))))
+  "Test that reader delegates to beads-completion-read-branch."
+  (let ((received-prompt nil)
+        (received-default nil))
+    (cl-letf (((symbol-function 'beads-completion-read-branch)
+               (lambda (prompt _pred _req _init _hist default)
+                 (setq received-prompt prompt
+                       received-default default)
+                 "develop")))
+      (let ((result (beads-reader-worktree-branch nil nil nil "main")))
+        (should (equal result "develop"))
+        (should (string= "Branch: " received-prompt))
+        (should (equal "main" received-default))))))
 
-(ert-deftest beads-reader-test-worktree-branch-empty ()
-  "Test reading worktree branch when no branches available."
-  (cl-letf (((symbol-function 'beads-reader--get-git-branches-sorted)
-             (lambda () nil))
-            ((symbol-function 'completing-read)
-             (lambda (_prompt branches &rest _args)
-               (should (null branches))
-               "new-branch")))
-    (let ((result (beads-reader-worktree-branch nil nil nil)))
-      (should (equal result "new-branch")))))
-
-(ert-deftest beads-reader-test-get-git-branches-exists ()
-  "Test that beads-reader--get-git-branches is defined."
-  (should (fboundp 'beads-reader--get-git-branches)))
-
-(ert-deftest beads-reader-test-get-git-branches-parses-output ()
-  "Test that beads-reader--get-git-branches parses git branch output."
-  (cl-letf (((symbol-function 'call-process)
-             (lambda (_program _infile destination _display &rest _args)
-               ;; When destination is t, insert into current buffer
-               (when (eq destination t)
-                 (insert "* main\n")
-                 (insert "  develop\n")
-                 (insert "+ feature/auth\n")
-                 (insert "  bugfix/login\n"))
-               0)))
-    (let ((branches (beads-reader--get-git-branches)))
-      (should (member "main" branches))
-      (should (member "develop" branches))
-      (should (member "feature/auth" branches))
-      (should (member "bugfix/login" branches))
-      (should (= 4 (length branches))))))
-
-(ert-deftest beads-reader-test-get-git-branches-strips-markers ()
-  "Test that beads-reader--get-git-branches strips branch markers."
-  (cl-letf (((symbol-function 'call-process)
-             (lambda (_program _infile destination _display &rest _args)
-               ;; When destination is t, insert into current buffer
-               (when (eq destination t)
-                 (insert "* main\n")
-                 (insert "+ worktree-branch\n"))
-               0)))
-    (let ((branches (beads-reader--get-git-branches)))
-      ;; Should not contain * or + markers
-      (should-not (seq-find (lambda (b) (string-prefix-p "*" b)) branches))
-      (should-not (seq-find (lambda (b) (string-prefix-p "+" b)) branches)))))
-
-(ert-deftest beads-reader-test-get-git-branches-handles-error ()
-  "Test that beads-reader--get-git-branches handles git errors gracefully."
-  (cl-letf (((symbol-function 'call-process)
-             (lambda (&rest _args)
-               (error "Git not found"))))
-    (let ((branches (beads-reader--get-git-branches)))
-      (should (null branches)))))
-
-(ert-deftest beads-reader-test-get-git-branches-handles-non-zero-exit ()
-  "Test that beads-reader--get-git-branches handles non-zero exit code."
-  (cl-letf (((symbol-function 'call-process)
-             (lambda (_program _infile destination _display &rest _args)
-               ;; When destination is t, insert into current buffer
-               (when (eq destination t)
-                 (insert "fatal: not a git repository\n"))
-               128)))
-    (let ((branches (beads-reader--get-git-branches)))
-      (should (null branches)))))
+(ert-deftest beads-reader-test-worktree-branch-custom-prompt ()
+  "Test that reader forwards a custom prompt unchanged."
+  (let ((received-prompt nil))
+    (cl-letf (((symbol-function 'beads-completion-read-branch)
+               (lambda (prompt &rest _args)
+                 (setq received-prompt prompt)
+                 "main")))
+      (beads-reader-worktree-branch "Pick branch: " nil nil)
+      (should (string= "Pick branch: " received-prompt)))))
 
 (ert-deftest beads-reader-test-worktree-existing-exists ()
   "Test that beads-reader-worktree-existing is defined."

@@ -1315,6 +1315,118 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
       (should (= 1 (length matches)))
       (should (string= "feature-auth" (car matches))))))
 
+;;; Branch Completion Tests
+
+(defun beads-completion-test--mock-branch-records ()
+  "Return a mock list of git branch records for tests."
+  (list (list :name "feature/auth"
+              :current-p t
+              :upstream "origin/feature/auth"
+              :date "2 hours ago"
+              :subject "Add login flow")
+        (list :name "main"
+              :current-p nil
+              :upstream "origin/main"
+              :date "1 day ago"
+              :subject "Merge pull request #42")
+        (list :name "bugfix/typo"
+              :current-p nil
+              :upstream nil
+              :date "3 days ago"
+              :subject "Fix typo in README")))
+
+(ert-deftest beads-completion-test-branch-table-metadata ()
+  "Test that branch table exposes beads-branch metadata."
+  (cl-letf (((symbol-function 'beads-completion--get-git-branches)
+             #'beads-completion-test--mock-branch-records))
+    (let* ((table (beads-completion-branch-table))
+           (metadata (funcall table "" nil 'metadata)))
+      (should (eq 'metadata (car metadata)))
+      (should (eq 'beads-branch (cdr (assq 'category metadata))))
+      (should (eq 'beads-completion--branch-annotate
+                  (cdr (assq 'annotation-function metadata))))
+      (should (eq 'beads-completion--branch-group
+                  (cdr (assq 'group-function metadata)))))))
+
+(ert-deftest beads-completion-test-branch-table-candidates ()
+  "Test that branch table returns propertized candidate strings."
+  (cl-letf (((symbol-function 'beads-completion--get-git-branches)
+             #'beads-completion-test--mock-branch-records))
+    (let* ((table (beads-completion-branch-table))
+           (candidates (funcall table "" nil t)))
+      (should (equal '("feature/auth" "main" "bugfix/typo") candidates))
+      (let ((current (car candidates)))
+        (should (get-text-property 0 'beads-branch-current current))
+        (should (equal "origin/feature/auth"
+                       (get-text-property 0 'beads-branch-upstream current)))
+        (should (equal "2 hours ago"
+                       (get-text-property 0 'beads-branch-date current)))
+        (should (equal "Add login flow"
+                       (get-text-property 0 'beads-branch-subject current)))))))
+
+(ert-deftest beads-completion-test-branch-annotate ()
+  "Test branch annotation formats date, upstream, and subject."
+  (let ((candidate (propertize "feature/auth"
+                               'beads-branch-current t
+                               'beads-branch-upstream "origin/feature/auth"
+                               'beads-branch-date "2 hours ago"
+                               'beads-branch-subject "Add login flow")))
+    (let ((annotation (beads-completion--branch-annotate candidate)))
+      (should (string-match-p "2 hours ago" annotation))
+      (should (string-match-p "origin/feature/auth" annotation))
+      (should (string-match-p "Add login flow" annotation)))))
+
+(ert-deftest beads-completion-test-branch-annotate-missing-fields ()
+  "Test branch annotation handles missing upstream/subject gracefully."
+  (let ((candidate (propertize "bugfix/typo"
+                               'beads-branch-date "3 days ago")))
+    (let ((annotation (beads-completion--branch-annotate candidate)))
+      (should (stringp annotation))
+      (should (string-match-p "3 days ago" annotation)))))
+
+(ert-deftest beads-completion-test-branch-annotate-handles-error ()
+  "Test that branch annotate returns empty string on nil input."
+  (should (string= "" (beads-completion--branch-annotate nil))))
+
+(ert-deftest beads-completion-test-branch-group-current ()
+  "Test that current branch is grouped as Current Branch."
+  (let ((candidate (propertize "feature/auth" 'beads-branch-current t)))
+    (should (string= "Current Branch"
+                     (beads-completion--branch-group candidate nil)))))
+
+(ert-deftest beads-completion-test-branch-group-main ()
+  "Test that main/master branches are grouped as Main."
+  (let ((main (propertize "main" 'beads-branch-current nil))
+        (master (propertize "master" 'beads-branch-current nil)))
+    (should (string= "Main" (beads-completion--branch-group main nil)))
+    (should (string= "Main" (beads-completion--branch-group master nil)))))
+
+(ert-deftest beads-completion-test-branch-group-other ()
+  "Test that non-current non-main branches fall into Other Branches."
+  (let ((candidate (propertize "feature/auth" 'beads-branch-current nil)))
+    (should (string= "Other Branches"
+                     (beads-completion--branch-group candidate nil)))))
+
+(ert-deftest beads-completion-test-branch-group-transform ()
+  "Test that group returns candidate unchanged when TRANSFORM is non-nil."
+  (let ((candidate (propertize "feature/auth" 'beads-branch-current t)))
+    (should (eq candidate
+                (beads-completion--branch-group candidate t)))))
+
+(ert-deftest beads-completion-test-read-branch-delegates ()
+  "Test that read-branch uses the branch table and returns selection."
+  (cl-letf (((symbol-function 'beads-completion--get-git-branches)
+             #'beads-completion-test--mock-branch-records)
+            ((symbol-function 'completing-read)
+             (lambda (prompt table &rest _args)
+               (should (string= "Branch: " prompt))
+               ;; Confirm the passed table exposes beads-branch metadata.
+               (let ((metadata (funcall table "" nil 'metadata)))
+                 (should (eq 'beads-branch (cdr (assq 'category metadata)))))
+               "main")))
+    (should (string= "main"
+                     (beads-completion-read-branch "Branch: ")))))
+
 ;;; Agent Worktree Completion Tests
 
 (ert-deftest beads-completion-test-agent-worktree-current-dir-constant ()
@@ -1357,14 +1469,23 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
       (should (member "feature-auth" candidates)))))
 
 (ert-deftest beads-completion-test-agent-worktree-table-create-candidate ()
-  "Test that agent worktree table includes create candidate when issue-id given."
+  "Test that agent worktree table includes create candidate when issue-id given.
+The candidate text is the bare issue-id; the `create' type is carried
+on the `beads-agent-wt-type' text property, not parsed from the string."
   (let ((beads-completion--worktree-cache (cons (float-time) nil)))
     (let* ((table (beads-completion-agent-worktree-table "bd-42"))
-           (candidates (funcall table "" nil t)))
+           (candidates (funcall table "" nil t))
+           (create (cl-find-if
+                    (lambda (c)
+                      (eq 'create
+                          (get-text-property 0 'beads-agent-wt-type c)))
+                    candidates)))
       ;; Should have Current directory + create candidate = 2
       (should (= 2 (length candidates)))
-      (should (cl-find-if (lambda (c) (string-match-p "Create worktree for bd-42" c))
-                          candidates)))))
+      (should create)
+      (should (string= "bd-42" create))
+      (should (string= "bd-42"
+                       (get-text-property 0 'beads-issue-id create))))))
 
 (ert-deftest beads-completion-test-agent-worktree-table-no-create-without-issue ()
   "Test that agent worktree table omits create candidate when no issue-id."
@@ -1392,12 +1513,14 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
       (should (string-match-p "feature/auth" annotation)))))
 
 (ert-deftest beads-completion-test-agent-worktree-annotate-create ()
-  "Test annotation for create candidate."
-  (let ((candidate (propertize "Create worktree for bd-42"
+  "Test annotation for create candidate.
+Candidate text is the bare issue-id; the annotation explains the
+create semantics."
+  (let ((candidate (propertize "bd-42"
                                'beads-agent-wt-type 'create
                                'beads-issue-id "bd-42")))
     (let ((annotation (beads-completion--agent-worktree-annotate candidate)))
-      (should (string-match-p "new worktree\\+branch" annotation)))))
+      (should (string-match-p "new worktree \\+ branch" annotation)))))
 
 (ert-deftest beads-completion-test-agent-worktree-annotate-handles-error ()
   "Test that annotation handles errors gracefully."
@@ -1416,8 +1539,8 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
                      (beads-completion--agent-worktree-group candidate nil)))))
 
 (ert-deftest beads-completion-test-agent-worktree-group-create ()
-  "Test grouping for create candidate."
-  (let ((candidate (propertize "Create worktree for bd-42"
+  "Test grouping for create candidate (candidate text is the bare issue-id)."
+  (let ((candidate (propertize "bd-42"
                                'beads-agent-wt-type 'create)))
     (should (string= "Create New"
                      (beads-completion--agent-worktree-group candidate nil)))))
@@ -1447,31 +1570,15 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
                        (beads-completion-read-agent-worktree "Test: "))))))
 
 (ert-deftest beads-completion-test-read-agent-worktree-returns-issue-id-for-create ()
-  "Test that read-agent-worktree returns issue-id when create candidate selected.
-The completing-read may strip text properties, so detection uses string prefix."
+  "Test that read-agent-worktree returns the bare issue-id for a create selection.
+The candidate text emitted by the table is the issue-id itself, so the
+reader simply returns it — no display-string parsing required."
   (let ((beads-completion--worktree-cache (cons (float-time) nil)))
     (cl-letf (((symbol-function 'completing-read)
-               ;; Simulate completing-read returning display text without properties
-               (lambda (&rest _) "Create worktree for bd-42")))
+               (lambda (&rest _) "bd-42")))
       (should (string= "bd-42"
                        (beads-completion-read-agent-worktree
                         "Test: " nil nil nil nil "bd-42"))))))
-
-(ert-deftest beads-completion-test-read-agent-worktree-create-no-default ()
-  "Reader must recover issue id from display string even when DEFAULT is nil.
-Regression guard: the pre-fix reader returned the raw
-\"Create worktree for bd-42\" string when DEFAULT was not supplied,
-because the `(and default ...)` guard bailed out on nil DEFAULT and
-fell through to the `(t result)` branch.  The fix strips the sentinel
-prefix unconditionally so any future call path that omits DEFAULT
-still yields a clean worktree name instead of leaking display text."
-  (let ((beads-completion--worktree-cache (cons (float-time) nil))
-        (beads-completion--cache (list (beads--get-database-path)
-                                       (float-time) nil)))
-    (cl-letf (((symbol-function 'completing-read)
-               (lambda (&rest _) "Create worktree for bd-42")))
-      (should (string= "bd-42"
-                       (beads-completion-read-agent-worktree "Test: "))))))
 
 (ert-deftest beads-completion-test-setup-marginalia-registers-categories ()
   "Test that setup-marginalia registers beads categories in marginalia-annotators."
@@ -1481,7 +1588,8 @@ still yields a clean worktree name instead of leaking display text."
     (should (assq 'beads-agent-backend marginalia-annotators))
     (should (assq 'beads-worktree marginalia-annotators))
     (should (assq 'beads-worktree-name marginalia-annotators))
-    (should (assq 'beads-agent-worktree marginalia-annotators))))
+    (should (assq 'beads-agent-worktree marginalia-annotators))
+    (should (assq 'beads-branch marginalia-annotators))))
 
 (ert-deftest beads-completion-test-setup-marginalia-annotator-functions ()
   "Test that setup-marginalia registers correct annotator functions."

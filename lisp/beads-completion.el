@@ -698,30 +698,142 @@ HISTORY, and DEFAULT are passed to `completing-read'."
     (completing-read prompt (beads-completion-worktree-name-table)
                      predicate require-match initial-input history default)))
 
+;;; Git Branch Completion
+;;
+;; Idiomatic completion for git branches used by the worktree-create
+;; --branch prompt.  Mirrors the worktree-table pattern: a single
+;; `git for-each-ref' call per invocation, NUL-separated record
+;; parsing, candidates propertized with branch metadata, and a
+;; programmed completion table with category/annotation/group metadata.
+
+(defun beads-completion--get-git-branches ()
+  "Return list of git branch records sorted by committer date (newest first).
+Each record is a plist with :name, :current-p, :upstream, :date, and
+:subject fields, sourced from a single `git for-each-ref' invocation.
+Returns nil on error or when outside a git repository."
+  (condition-case nil
+      (with-temp-buffer
+        (when (zerop (call-process
+                      "git" nil t nil
+                      "for-each-ref"
+                      "--sort=-committerdate"
+                      (concat "--format="
+                              "%(refname:short)%00"
+                              "%(HEAD)%00"
+                              "%(upstream:short)%00"
+                              "%(committerdate:relative)%00"
+                              "%(contents:subject)")
+                      "refs/heads"))
+          (let ((records nil))
+            (goto-char (point-min))
+            (while (not (eobp))
+              (let* ((line (buffer-substring-no-properties
+                            (line-beginning-position)
+                            (line-end-position)))
+                     (fields (split-string line "\0")))
+                (when (and (>= (length fields) 5)
+                           (not (string-empty-p (nth 0 fields))))
+                  (push (list :name (nth 0 fields)
+                              :current-p (string= "*" (nth 1 fields))
+                              :upstream (let ((u (nth 2 fields)))
+                                          (and (not (string-empty-p u)) u))
+                              :date (nth 3 fields)
+                              :subject (nth 4 fields))
+                        records)))
+              (forward-line 1))
+            (nreverse records))))
+    (error nil)))
+
+(defun beads-completion-branch-table ()
+  "Return completion table for git branches with rich metadata.
+Candidates are branch-name strings propertized with
+`beads-branch-current', `beads-branch-upstream', `beads-branch-date',
+and `beads-branch-subject' text properties.  Provides metadata for the
+`beads-branch' category with annotation and grouping functions."
+  (lambda (string pred action)
+    (if (eq action 'metadata)
+        '(metadata
+          (category . beads-branch)
+          (annotation-function . beads-completion--branch-annotate)
+          (group-function . beads-completion--branch-group))
+      (let ((branches (beads-completion--get-git-branches)))
+        (complete-with-action
+         action
+         (mapcar (lambda (b)
+                   (propertize (plist-get b :name)
+                               'beads-branch-current (plist-get b :current-p)
+                               'beads-branch-upstream (plist-get b :upstream)
+                               'beads-branch-date (plist-get b :date)
+                               'beads-branch-subject (plist-get b :subject)))
+                 branches)
+         string pred)))))
+
+(defun beads-completion--branch-annotate (candidate)
+  "Annotate branch CANDIDATE with date, upstream, and subject."
+  (condition-case nil
+      (let ((date (get-text-property 0 'beads-branch-date candidate))
+            (upstream (get-text-property 0 'beads-branch-upstream candidate))
+            (subject (get-text-property 0 'beads-branch-subject candidate)))
+        (concat
+         (when (and date (not (string-empty-p date)))
+           (format " %s"
+                   (propertize date 'face 'font-lock-comment-face)))
+         (when upstream
+           (format " %s"
+                   (propertize upstream 'face 'font-lock-keyword-face)))
+         (when (and subject (not (string-empty-p subject)))
+           (format "  %s"
+                   (propertize (beads-completion--truncate-string subject 50)
+                               'face 'font-lock-comment-face)))))
+    (error "")))
+
+(defun beads-completion--branch-group (candidate transform)
+  "Group branch CANDIDATE into Current / Main / Other Branches.
+If TRANSFORM is non-nil, return CANDIDATE unchanged."
+  (if transform
+      candidate
+    (cond
+     ((get-text-property 0 'beads-branch-current candidate)
+      "Current Branch")
+     ((member candidate '("main" "master"))
+      "Main")
+     (t "Other Branches"))))
+
+(defun beads-completion-read-branch (prompt &optional predicate require-match
+                                            initial-input history default)
+  "Read a git branch name with rich completion.
+PROMPT is the prompt string.  PREDICATE, REQUIRE-MATCH, INITIAL-INPUT,
+HISTORY, and DEFAULT are passed to `completing-read'.  Uses the
+`beads-branch' completion category so Marginalia, embark, and other
+completion frameworks can attach category-specific behavior."
+  (let ((completion-category-overrides
+         (cons '(beads-branch (styles basic))
+               completion-category-overrides)))
+    (completing-read prompt (beads-completion-branch-table)
+                     predicate require-match initial-input history default)))
+
 ;;; Agent Worktree Selection
 ;;
 ;; For agent spawning, provide smart completion with:
 ;; 1. "Current directory" - run agent in current project directory (default)
-;; 2. "Create worktree for <issue>" - create new worktree+branch for the issue
+;; 2. <issue-id> - create new worktree+branch for the issue (annotated)
 ;; 3. Existing worktrees - grouped together
 
 (defconst beads-completion--current-dir-value "Current directory"
   "Special value indicating agent should run in current project directory.")
 
-(defconst beads-completion--create-worktree-prefix "Create worktree for "
-  "Sentinel prefix for the \"create new worktree\" candidate.
-Emitted by `beads-completion-agent-worktree-table' and stripped by
-`beads-completion-read-agent-worktree' to recover the issue id.
-Not user-facing prose; do not translate.")
-
 (defun beads-completion-agent-worktree-table (&optional issue-id)
   "Return completion table for agent worktree selection.
 Combines:
 1. \"Current directory\" - run in current project (default/first)
-2. \"Create worktree for ISSUE-ID\" - create new worktree+branch (when ISSUE-ID given)
+2. ISSUE-ID - create new worktree+branch (when ISSUE-ID given)
 3. Existing worktree names - grouped as \"Existing Worktrees\"
 
 ISSUE-ID, when non-nil, adds a \"Create New\" candidate for that issue.
+The candidate text is the bare ISSUE-ID (propertized with
+`beads-agent-wt-type' and `beads-issue-id'); callers identify it via
+those text properties rather than parsing the candidate string.
+
 This is used when spawning an agent to select where to run it."
   (lambda (string pred action)
     (if (eq action 'metadata)
@@ -736,8 +848,7 @@ This is used when spawning an agent to select where to run it."
                           'beads-agent-wt-type 'none))
              (create-candidate
               (when issue-id
-                (propertize (concat beads-completion--create-worktree-prefix
-                                    issue-id)
+                (propertize issue-id
                             'beads-agent-wt-type 'create
                             'beads-issue-id issue-id)))
              (worktree-candidates
@@ -762,7 +873,7 @@ This is used when spawning an agent to select where to run it."
           ('none
            (propertize " (run in current project)" 'face 'font-lock-comment-face))
           ('create
-           (propertize " (new worktree+branch)" 'face 'font-lock-comment-face))
+           (propertize " (new worktree + branch)" 'face 'font-lock-comment-face))
           ('worktree
            (let* ((wt (get-text-property 0 'beads-worktree candidate))
                   (branch (and wt (oref wt branch)))
@@ -788,12 +899,19 @@ If TRANSFORM is non-nil, return CANDIDATE."
 (defun beads-completion-read-agent-worktree (prompt &optional predicate require-match
                                                      initial-input history default)
   "Read agent worktree selection with smart ordering.
-Shows \"Current directory\" first, then \"Create worktree for <issue>\" if
-DEFAULT is an issue ID, then existing worktrees.
+Shows \"Current directory\" first, then a create candidate for the
+DEFAULT issue ID (rendered as the bare id with a \" (new worktree +
+branch)\" annotation), then existing worktrees.
 PROMPT is the prompt string.  PREDICATE, REQUIRE-MATCH, INITIAL-INPUT,
 HISTORY, and DEFAULT are passed to `completing-read'.
 DEFAULT is also used as the issue-id for the \"Create New\" candidate.
-Returns the selected value, or nil if \"Current directory\" was selected."
+Returns the selected value, or nil if \"Current directory\" was selected.
+
+The returned string is one of:
+- nil, if \"Current directory\" was selected;
+- an existing worktree name, matched by `beads-worktree-find-by-name';
+- the bare issue-id (which is also the candidate text for the
+  create entry) — callers pass this straight to worktree setup."
   (let* ((completion-category-overrides
           (cons '(beads-agent-worktree (styles basic))
                 completion-category-overrides))
@@ -801,18 +919,9 @@ Returns the selected value, or nil if \"Current directory\" was selected."
                                   (beads-completion-agent-worktree-table default)
                                   predicate require-match initial-input history
                                   beads-completion--current-dir-value)))
-    (cond
-     ((string= result beads-completion--current-dir-value) nil)
-     ;; Extract issue-id from "Create worktree for <issue-id>" candidates.
-     ;; Text properties may be stripped by completing-read, so match by prefix.
-     ;; Prefer the authoritative DEFAULT when present, otherwise recover the
-     ;; id by stripping the prefix so callers that omit DEFAULT still get a
-     ;; usable worktree name rather than leaking display text into
-     ;; `bd worktree create --name'.
-     ((string-prefix-p beads-completion--create-worktree-prefix result)
-      (or default
-          (string-remove-prefix beads-completion--create-worktree-prefix result)))
-     (t result))))
+    (if (string= result beads-completion--current-dir-value)
+        nil
+      result)))
 
 ;;; Marginalia Integration
 
@@ -919,6 +1028,17 @@ issue (issue ID), or no type."
             (title :width 50 :truncate 50)))))
       (_ nil))))
 
+(defun beads-completion--marginalia-annotate-branch (cand)
+  "Marginalia annotator for beads branch candidates.
+CAND is a branch-name string propertized with branch metadata."
+  (let ((date (or (get-text-property 0 'beads-branch-date cand) ""))
+        (upstream (or (get-text-property 0 'beads-branch-upstream cand) ""))
+        (subject (or (get-text-property 0 'beads-branch-subject cand) "")))
+    (marginalia--fields
+     (date :face 'font-lock-comment-face :width 15 :truncate 15)
+     (upstream :face 'font-lock-keyword-face :width 20 :truncate 20)
+     (subject :face 'font-lock-comment-face :width 50 :truncate 50))))
+
 (defun beads-completion--marginalia-annotate-agent-worktree (cand)
   "Marginalia annotator for combined agent-worktree candidates.
 CAND may have beads-agent-wt-type of none, worktree, or issue."
@@ -979,6 +1099,10 @@ in beads completion interfaces.  For example:
   (add-to-list 'marginalia-annotators
                '(beads-agent-worktree
                  beads-completion--marginalia-annotate-agent-worktree
+                 none))
+  (add-to-list 'marginalia-annotators
+               '(beads-branch
+                 beads-completion--marginalia-annotate-branch
                  none)))
 
 
