@@ -216,7 +216,7 @@ Returns the branch name string, or nil for auto (uses worktree name)."
 (defun beads-agent--setup-worktree-interactive (issue-id callback)
   "Interactively setup worktree for ISSUE-ID asynchronously.
 Prompts for worktree selection with smart ordering: current directory first,
-then \"Create worktree for ISSUE-ID\", then existing worktrees.
+then a create entry for ISSUE-ID, then existing worktrees.
 CALLBACK receives (success worktree-path-or-error) where:
 - success is t and worktree-path-or-error is the path on success
 - success is nil and worktree-path-or-error is error message on failure"
@@ -234,9 +234,7 @@ CALLBACK receives (success worktree-path-or-error) where:
      ;; New worktree - prompt for branch and create
      (t
       (when (or (string-empty-p wt-name)
-                (string-match-p "[ \t/]" wt-name)
-                (string-prefix-p beads-completion--create-worktree-prefix
-                                 wt-name))
+                (string-match-p "[ \t/]" wt-name))
         (error "Invalid worktree name: %S" wt-name))
       (let* ((branch (beads-agent--read-worktree-branch wt-name))
              (cmd (beads-command-worktree-create :name wt-name :branch branch :json t)))
