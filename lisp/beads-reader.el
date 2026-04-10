@@ -449,18 +449,20 @@ Returns a string suitable for `bd worktree create NAME'."
   (beads-completion-read-worktree-name
    "Worktree name (issue ID or custom): " nil nil nil 'beads--worktree-name-history))
 
-(defun beads-reader-worktree-branch (prompt initial-input history)
+(defun beads-reader-worktree-branch (prompt initial-input history &optional default)
   "Read an existing git branch name for worktree creation.
 Uses `git branch --sort=-committerdate' to provide completion sorted
 by most recent commit, with main/master listed first.
 PROMPT is the prompt string, INITIAL-INPUT is pre-filled input,
-HISTORY is the history variable.
+HISTORY is the history variable, DEFAULT is passed as the DEF
+argument to `completing-read' so that RET on empty input yields it.
 Used with `bd worktree create NAME --branch BRANCH'.
 
 Returns a branch name string."
   (let ((branches (beads-reader--get-git-branches-sorted)))
     (completing-read (or prompt "Branch: ") branches nil nil
-                     initial-input (or history 'beads--worktree-branch-history))))
+                     initial-input (or history 'beads--worktree-branch-history)
+                     default)))
 
 (defun beads-reader--get-git-branches ()
   "Return list of local git branch names.

@@ -1457,6 +1457,22 @@ The completing-read may strip text properties, so detection uses string prefix."
                        (beads-completion-read-agent-worktree
                         "Test: " nil nil nil nil "bd-42"))))))
 
+(ert-deftest beads-completion-test-read-agent-worktree-create-no-default ()
+  "Reader must recover issue id from display string even when DEFAULT is nil.
+Regression guard: the pre-fix reader returned the raw
+\"Create worktree for bd-42\" string when DEFAULT was not supplied,
+because the `(and default ...)` guard bailed out on nil DEFAULT and
+fell through to the `(t result)` branch.  The fix strips the sentinel
+prefix unconditionally so any future call path that omits DEFAULT
+still yields a clean worktree name instead of leaking display text."
+  (let ((beads-completion--worktree-cache (cons (float-time) nil))
+        (beads-completion--cache (list (beads--get-database-path)
+                                       (float-time) nil)))
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (&rest _) "Create worktree for bd-42")))
+      (should (string= "bd-42"
+                       (beads-completion-read-agent-worktree "Test: "))))))
+
 (ert-deftest beads-completion-test-setup-marginalia-registers-categories ()
   "Test that setup-marginalia registers beads categories in marginalia-annotators."
   (let ((marginalia-annotators nil))

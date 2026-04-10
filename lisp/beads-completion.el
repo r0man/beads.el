@@ -25,6 +25,7 @@
 (require 'beads-command)
 (require 'beads-worktree-types)
 (require 'seq)
+(require 'subr-x)
 
 ;; Forward declarations
 (defvar beads-completion-show-unavailable-backends)
@@ -707,6 +708,12 @@ HISTORY, and DEFAULT are passed to `completing-read'."
 (defconst beads-completion--current-dir-value "Current directory"
   "Special value indicating agent should run in current project directory.")
 
+(defconst beads-completion--create-worktree-prefix "Create worktree for "
+  "Sentinel prefix for the \"create new worktree\" candidate.
+Emitted by `beads-completion-agent-worktree-table' and stripped by
+`beads-completion-read-agent-worktree' to recover the issue id.
+Not user-facing prose; do not translate.")
+
 (defun beads-completion-agent-worktree-table (&optional issue-id)
   "Return completion table for agent worktree selection.
 Combines:
@@ -729,7 +736,8 @@ This is used when spawning an agent to select where to run it."
                           'beads-agent-wt-type 'none))
              (create-candidate
               (when issue-id
-                (propertize (format "Create worktree for %s" issue-id)
+                (propertize (concat beads-completion--create-worktree-prefix
+                                    issue-id)
                             'beads-agent-wt-type 'create
                             'beads-issue-id issue-id)))
              (worktree-candidates
@@ -787,7 +795,7 @@ HISTORY, and DEFAULT are passed to `completing-read'.
 DEFAULT is also used as the issue-id for the \"Create New\" candidate.
 Returns the selected value, or nil if \"Current directory\" was selected."
   (let* ((completion-category-overrides
-          (cons '(beads-agent-worktree (styles beads-worktree-name-create basic))
+          (cons '(beads-agent-worktree (styles basic))
                 completion-category-overrides))
          (result (completing-read prompt
                                   (beads-completion-agent-worktree-table default)
@@ -797,8 +805,13 @@ Returns the selected value, or nil if \"Current directory\" was selected."
      ((string= result beads-completion--current-dir-value) nil)
      ;; Extract issue-id from "Create worktree for <issue-id>" candidates.
      ;; Text properties may be stripped by completing-read, so match by prefix.
-     ((and default (string-prefix-p "Create worktree for " result))
-      default)
+     ;; Prefer the authoritative DEFAULT when present, otherwise recover the
+     ;; id by stripping the prefix so callers that omit DEFAULT still get a
+     ;; usable worktree name rather than leaking display text into
+     ;; `bd worktree create --name'.
+     ((string-prefix-p beads-completion--create-worktree-prefix result)
+      (or default
+          (string-remove-prefix beads-completion--create-worktree-prefix result)))
      (t result))))
 
 ;;; Marginalia Integration
