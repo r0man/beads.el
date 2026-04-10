@@ -206,9 +206,11 @@ Returns the worktree/issue name string, or nil for no worktree."
 (defun beads-agent--read-worktree-branch (default)
   "Prompt for branch name with DEFAULT as default.
 Shows prompt like \"Branch [bd-123]: \" where RET accepts the default.
+DEFAULT is passed as the DEF argument to `completing-read', so the
+minibuffer starts empty and RET yields DEFAULT (Magit convention).
 Returns the branch name string, or nil for auto (uses worktree name)."
   (let* ((prompt (format "Branch [%s]: " default))
-         (input (beads-reader-worktree-branch prompt default nil)))
+         (input (beads-reader-worktree-branch prompt nil nil default)))
     (if (string-empty-p input) nil input)))
 
 (defun beads-agent--setup-worktree-interactive (issue-id callback)
@@ -231,6 +233,11 @@ CALLBACK receives (success worktree-path-or-error) where:
 
      ;; New worktree - prompt for branch and create
      (t
+      (when (or (string-empty-p wt-name)
+                (string-match-p "[ \t/]" wt-name)
+                (string-prefix-p beads-completion--create-worktree-prefix
+                                 wt-name))
+        (error "Invalid worktree name: %S" wt-name))
       (let* ((branch (beads-agent--read-worktree-branch wt-name))
              (cmd (beads-command-worktree-create :name wt-name :branch branch :json t)))
         (beads-command-execute-async
@@ -1091,11 +1098,16 @@ For quick starts with defaults, use P/T/R/Q/C keys in list/show buffers."
     (let ((use-existing (y-or-n-p "Use existing worktree? "))
           (project-root (beads-git-find-project-root)))
       (if use-existing
-          ;; Select from existing worktrees (synchronous, fast)
-          (let* ((wt (beads-completion-read-worktree "Worktree: " nil t))
-                 (wt-path (oref wt path)))
+          ;; Select from existing worktrees (synchronous, fast).
+          ;; `beads-completion-read-worktree' returns a NAME string, not
+          ;; an EIEIO object, so look up the worktree object by name to
+          ;; get its path.
+          (let* ((wt-name (beads-completion-read-worktree "Worktree: " nil t))
+                 (wt (beads-worktree-find-by-name wt-name)))
+            (unless wt
+              (user-error "Unknown worktree: %s" wt-name))
             (beads-agent--start-with-worktree
-             issue-id nil project-root wt-path "Task"))
+             issue-id nil project-root (oref wt path) "Task"))
         ;; Create new worktree with prompts (async)
         (beads-agent--setup-worktree-interactive
          issue-id

@@ -4128,12 +4128,29 @@ When worktrees are disabled, uses beads-agent-start directly."
 (ert-deftest beads-agent-test-read-worktree-branch-uses-default ()
   "Test branch prompt returns nil (auto) when user types RET."
   (cl-letf (((symbol-function 'beads-reader-worktree-branch)
-             (lambda (prompt default &rest _)
+             (lambda (prompt _initial-input _history &optional default)
                ;; Verify prompt includes default in brackets
                (should (string-match-p "\\[my-wt\\]" prompt))
                (should (equal "my-wt" default))
                "")))  ; empty = accept default (nil)
     (should (null (beads-agent--read-worktree-branch "my-wt")))))
+
+(ert-deftest beads-agent-test-read-worktree-branch-uses-def ()
+  "Ensure default is passed as DEF to the reader, not as INITIAL-INPUT.
+Magit convention (and `completing-read' idiom) is that DEFAULT goes
+in the 7th positional arg so the minibuffer starts empty and RET
+yields it.  The pre-fix code placed default in INITIAL-INPUT (5th
+positional), which pre-filled the minibuffer with \"bd-42\" — a
+subtly different UX that surprises users familiar with Magit."
+  (let (captured-args)
+    (cl-letf (((symbol-function 'beads-reader-worktree-branch)
+               (lambda (&rest args)
+                 (setq captured-args args)
+                 "")))
+      (beads-agent--read-worktree-branch "bd-42")
+      ;; args: (prompt initial-input history default)
+      (should (null (nth 1 captured-args)))
+      (should (equal "bd-42" (nth 3 captured-args))))))
 
 (ert-deftest beads-agent-test-read-worktree-branch-custom-input ()
   "Test branch prompt returns custom input."
