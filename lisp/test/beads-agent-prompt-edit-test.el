@@ -35,10 +35,10 @@
   "Test that customization variable exists."
   (should (boundp 'beads-agent-prompt-edit-enabled)))
 
-(ert-deftest beads-agent-prompt-edit-test-default-disabled ()
-  "Test that prompt editing is disabled by default."
-  (let ((beads-agent-prompt-edit-enabled nil))
-    (should-not beads-agent-prompt-edit-enabled)))
+(ert-deftest beads-agent-prompt-edit-test-default-enabled ()
+  "Test that prompt editing is enabled by default."
+  (should (eq (eval (car (get 'beads-agent-prompt-edit-enabled 'standard-value)))
+              t)))
 
 (ert-deftest beads-agent-prompt-edit-test-customization-type ()
   "Test customization variable is boolean."
