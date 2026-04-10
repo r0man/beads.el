@@ -29,21 +29,6 @@
               (lambda (&optional _branch) t)))
      ,@body))
 
-;;; Customization Tests
-
-(ert-deftest beads-agent-prompt-edit-test-customization-exists ()
-  "Test that customization variable exists."
-  (should (boundp 'beads-agent-prompt-edit-enabled)))
-
-(ert-deftest beads-agent-prompt-edit-test-default-enabled ()
-  "Test that prompt editing is enabled by default."
-  (should (eq (eval (car (get 'beads-agent-prompt-edit-enabled 'standard-value)))
-              t)))
-
-(ert-deftest beads-agent-prompt-edit-test-customization-type ()
-  "Test customization variable is boolean."
-  (should (custom-variable-p 'beads-agent-prompt-edit-enabled)))
-
 ;;; Mode Tests
 
 (ert-deftest beads-agent-prompt-edit-test-mode-defined ()
@@ -269,39 +254,6 @@
     (let ((header (beads-agent-prompt-edit--header-line)))
       (should (string-match "C-c C-c" header))
       (should (string-match "C-c C-k" header)))))
-
-;;; Integration with beads-agent--maybe-edit-prompt Tests
-
-(ert-deftest beads-agent-prompt-edit-test-maybe-edit-disabled ()
-  "Test maybe-edit-prompt calls callback directly when disabled."
-  (require 'beads-agent)
-  (let ((beads-agent-prompt-edit-enabled nil)
-        (received-prompt nil))
-    (beads-agent--maybe-edit-prompt
-     "test-123"
-     "Original prompt"
-     "Task"
-     (lambda (prompt) (setq received-prompt prompt)))
-    (should (equal received-prompt "Original prompt"))))
-
-(ert-deftest beads-agent-prompt-edit-test-maybe-edit-enabled ()
-  "Test maybe-edit-prompt shows buffer when enabled."
-  (require 'beads-agent)
-  (beads-agent-prompt-edit-test--with-mock-git
-   (let ((beads-agent-prompt-edit-enabled t)
-         (buf nil))
-     (save-window-excursion
-       (beads-agent--maybe-edit-prompt
-        "test-123"
-        "Test prompt"
-        "Task"
-        (lambda (_prompt) nil))
-       (setq buf (current-buffer))
-       ;; Verify we're in the edit buffer
-       (should (derived-mode-p 'beads-agent-prompt-edit-mode))
-       ;; Clean up
-       (beads-agent-prompt-edit-cancel))
-     (should-not (buffer-live-p buf)))))
 
 ;;; Edge Cases
 

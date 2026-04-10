@@ -232,48 +232,23 @@
     (beads-agent-types-test--teardown)))
 
 
-(ert-deftest beads-agent-types-test-custom-prompts-user ()
-  "Test Custom agent prompts user and builds prompt with placeholders."
+(ert-deftest beads-agent-types-test-custom-returns-issue-prompt ()
+  "Test Custom agent returns issue-based prompt without minibuffer input.
+The user authors their custom instructions in the prompt-edit buffer
+that is shown after `beads-agent-type-build-prompt' returns, so this
+method must never prompt via `read-string'."
   (beads-agent-types-test--setup)
   (unwind-protect
       (cl-letf (((symbol-function 'read-string)
-                 (lambda (_prompt &optional _initial _history)
-                   "User's custom instructions for <ISSUE-ID>")))
+                 (lambda (&rest _args)
+                   (error "Custom type must not call read-string"))))
         (let* ((type (beads-agent-type-get "custom"))
                (prompt (beads-agent-type-build-prompt
                         type (beads-agent-types-test--make-sample-issue))))
           (should (stringp prompt))
-          (should (string-match "User's custom instructions" prompt))
-          (should (string-match "test-123" prompt))))
-    (beads-agent-types-test--teardown)))
-
-(ert-deftest beads-agent-types-test-custom-empty-input-error ()
-  "Test Custom agent signals error on empty input."
-  (beads-agent-types-test--setup)
-  (unwind-protect
-      (cl-letf (((symbol-function 'read-string)
-                 (lambda (_prompt &optional _initial _history) "")))
-        (let ((type (beads-agent-type-get "custom")))
-          (should-error
-           (beads-agent-type-build-prompt
-            type (beads-agent-types-test--make-sample-issue))
-           :type 'user-error)))
-    (beads-agent-types-test--teardown)))
-
-(ert-deftest beads-agent-types-test-custom-stores-last-prompt ()
-  "Test Custom agent stores prompt in history variable."
-  (beads-agent-types-test--setup)
-  (unwind-protect
-      (let ((beads-agent-type-custom--prompt-history nil))
-        (cl-letf (((symbol-function 'read-string)
-                   (lambda (_prompt &optional _initial _history)
-                     "Stored prompt")))
-          (let ((type (beads-agent-type-get "custom")))
-            (beads-agent-type-build-prompt
-             type (beads-agent-types-test--make-sample-issue))
-            ;; read-string adds to history automatically when passed a history
-            ;; variable, so just verify the function was called correctly
-            (should type))))
+          (should (string-match "test-123" prompt))
+          (should (string-match "Test Issue Title" prompt))
+          (should (string-match "Test issue description" prompt))))
     (beads-agent-types-test--teardown)))
 
 ;;; Tests for Completion Support
