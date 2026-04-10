@@ -27,7 +27,7 @@
   :group 'beads-agent
   :prefix "beads-agent-prompt-edit-")
 
-(defcustom beads-agent-prompt-edit-enabled nil
+(defcustom beads-agent-prompt-edit-enabled t
   "When non-nil, show prompt editing buffer before agent launch.
 This allows reviewing and modifying the auto-generated prompt."
   :type 'boolean

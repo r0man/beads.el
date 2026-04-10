@@ -1135,9 +1135,16 @@ AGENT-TYPE-NAME is optional agent type name (defaults to \"Task\")."
            (message "Cannot start agent: failed to fetch issue %s" issue-id)
          (let* ((default-directory project-dir)
                 (prompt (beads-agent-type-build-prompt agent-type issue)))
-           ;; Continue with the standard flow but skip worktree creation
-           (beads-agent--continue-start
-            issue-id effective-backend project-dir worktree-path prompt issue agent-type)))))))
+           ;; Optionally let the user review/edit the prompt before launch
+           (beads-agent--maybe-edit-prompt
+            issue-id prompt effective-type-name
+            (lambda (final-prompt)
+              (if (null final-prompt)
+                  (message "Agent start cancelled")
+                ;; Continue with the standard flow but skip worktree creation
+                (beads-agent--continue-start
+                 issue-id effective-backend project-dir worktree-path
+                 final-prompt issue agent-type))))))))))
 
 (defun beads-agent--start-project-agent (backend project-dir worktree-path)
   "Start agent in WORKTREE-PATH without specific issue.

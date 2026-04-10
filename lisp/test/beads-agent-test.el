@@ -4213,7 +4213,10 @@ When worktrees are disabled, uses beads-agent-start directly."
 (ert-deftest beads-agent-test-start-with-worktree ()
   "Test start-with-worktree fetches issue and continues."
   (let ((fetch-called nil)
-        (continue-called nil))
+        (continue-called nil)
+        ;; Disable prompt editing so --maybe-edit-prompt passes through
+        ;; immediately instead of popping up a buffer.
+        (beads-agent-prompt-edit-enabled nil))
     (cl-letf (((symbol-function 'beads-agent--fetch-issue-async)
                (lambda (id callback)
                  (setq fetch-called id)
