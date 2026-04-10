@@ -8,30 +8,14 @@
 ;;; Commentary:
 
 ;; This module provides a mode for reviewing and editing agent prompts
-;; before launching the agent.  When enabled via `beads-agent-prompt-edit-enabled',
-;; users can modify the auto-generated prompt, then confirm with C-c C-c
-;; or cancel with C-c C-k.
-;;
-;; Usage:
-;;   (setq beads-agent-prompt-edit-enabled t)
-;;   Then call `beads-agent-start' - a prompt editing buffer will appear.
+;; before launching the agent.  Every agent start routes through
+;; `beads-agent-prompt-edit-show', which pops a buffer pre-filled with
+;; the auto-generated prompt.  Users can modify it, then confirm with
+;; C-c C-c or cancel with C-c C-k.
 
 ;;; Code:
 
 (require 'beads-buffer)
-
-;;; Customization
-
-(defgroup beads-agent-prompt-edit nil
-  "Agent prompt editing settings."
-  :group 'beads-agent
-  :prefix "beads-agent-prompt-edit-")
-
-(defcustom beads-agent-prompt-edit-enabled t
-  "When non-nil, show prompt editing buffer before agent launch.
-This allows reviewing and modifying the auto-generated prompt."
-  :type 'boolean
-  :group 'beads-agent-prompt-edit)
 
 ;;; Buffer-local Variables
 
@@ -61,7 +45,7 @@ This allows reviewing and modifying the auto-generated prompt."
 \\<beads-agent-prompt-edit-mode-map>
 Press \\[beads-agent-prompt-edit-confirm] to confirm and launch the agent.
 Press \\[beads-agent-prompt-edit-cancel] to cancel without launching."
-  :group 'beads-agent-prompt-edit
+  :group 'beads-agent
   (setq-local header-line-format
               '(:eval (beads-agent-prompt-edit--header-line))))
 

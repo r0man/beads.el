@@ -345,36 +345,28 @@ Uses the customizable `beads-agent-qa-prompt' template.")
    (letter :initform "C")
    (description :initform "User-provided prompt at runtime")
    (prompt-template :initform nil))
-  :documentation "Custom agent type with user-provided prompt.
-Prompts the user for a prompt string via the minibuffer.")
-
-(defvar beads-agent-type-custom--prompt-history nil
-  "History list for Custom agent prompts.
-Used by `completing-read' for prompt history navigation.")
+  :documentation "Custom agent type with user-authored prompt.
+Builds the default issue-based prompt as a starting point; the user
+writes their custom instructions in the prompt-edit buffer that is
+shown before launch.")
 
 (cl-defmethod beads-agent-type-build-prompt ((_type beads-agent-type-custom)
                                               issue)
-  "Prompt user for custom prompt for TYPE and combine with ISSUE.
-ISSUE is a beads-issue EIEIO object.
-
-The user-provided prompt can contain placeholders:
-  <ISSUE-ID>          - The issue ID
-  <ISSUE-TITLE>       - The issue title
-  <ISSUE-DESCRIPTION> - The issue description"
-  (let* ((issue-id (oref issue id))
-         (issue-title (oref issue title))
-         (issue-desc (or (oref issue description) ""))
-         (user-prompt (read-string
-                       (format "Custom prompt for %s: " issue-id)
-                       nil  ; initial-input
-                       'beads-agent-type-custom--prompt-history)))
-    (when (string-empty-p user-prompt)
-      (user-error "Custom prompt cannot be empty"))
-    ;; Replace placeholders in user prompt
-    (thread-last user-prompt
-      (string-replace "<ISSUE-ID>" issue-id)
-      (string-replace "<ISSUE-TITLE>" issue-title)
-      (string-replace "<ISSUE-DESCRIPTION>" issue-desc))))
+  "Return the default issue-based prompt for ISSUE.
+The user edits the result in the prompt-edit buffer before launch,
+so this method only provides issue context as a starting template."
+  (let ((title (oref issue title))
+        (description (oref issue description))
+        (acceptance (oref issue acceptance-criteria))
+        (id (oref issue id)))
+    (concat
+     (format "Please work on beads issue %s:\n\n" id)
+     (when (and title (not (string-empty-p title)))
+       (format "Title: %s\n" title))
+     (when (and description (not (string-empty-p description)))
+       (format "\nDescription:\n%s\n" description))
+     (when (and acceptance (not (string-empty-p acceptance)))
+       (format "\nAcceptance Criteria:\n%s\n" acceptance)))))
 
 ;;; Registration
 

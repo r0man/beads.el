@@ -374,17 +374,6 @@ ISSUE is a beads-issue instance."
      (when (and acceptance (not (string-empty-p acceptance)))
        (format "\nAcceptance Criteria:\n%s\n" acceptance)))))
 
-(defun beads-agent--maybe-edit-prompt (issue-id prompt agent-type-name callback)
-  "Optionally show prompt editing buffer for ISSUE-ID.
-PROMPT is the initial prompt text.
-AGENT-TYPE-NAME is the name of the agent type (for display).
-CALLBACK is called with the final prompt text (or nil if cancelled).
-When `beads-agent-prompt-edit-enabled' is nil, calls CALLBACK immediately
-with PROMPT unchanged."
-  (if beads-agent-prompt-edit-enabled
-      (beads-agent-prompt-edit-show issue-id prompt agent-type-name callback)
-    (funcall callback prompt)))
-
 ;;; Status Update
 
 (defun beads-agent--maybe-update-status (issue-id)
@@ -526,8 +515,8 @@ AGENT-TYPE is an optional `beads-agent-type' instance."
                 ;; Default: build from issue
                 (t (beads-agent--build-prompt issue))))
               (type-name (and agent-type (oref agent-type name))))
-         ;; Step 2: Optionally show prompt editing buffer
-         (beads-agent--maybe-edit-prompt
+         ;; Step 2: Show prompt editing buffer for user review
+         (beads-agent-prompt-edit-show
           issue-id effective-prompt type-name
           (lambda (final-prompt)
             (if (null final-prompt)
@@ -1135,8 +1124,8 @@ AGENT-TYPE-NAME is optional agent type name (defaults to \"Task\")."
            (message "Cannot start agent: failed to fetch issue %s" issue-id)
          (let* ((default-directory project-dir)
                 (prompt (beads-agent-type-build-prompt agent-type issue)))
-           ;; Optionally let the user review/edit the prompt before launch
-           (beads-agent--maybe-edit-prompt
+           ;; Let the user review/edit the prompt before launch
+           (beads-agent-prompt-edit-show
             issue-id prompt effective-type-name
             (lambda (final-prompt)
               (if (null final-prompt)

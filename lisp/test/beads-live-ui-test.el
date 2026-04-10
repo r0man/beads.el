@@ -680,7 +680,13 @@ so that `beads-agent-start' gets a valid project root."
                  ;; The outer test fixture mocks beads-git-find-project-root
                  ;; to nil; restore it here so agent sessions get a valid dir.
                  ((symbol-function 'beads-git-find-project-root)
-                  (lambda () default-directory)))
+                  (lambda () default-directory))
+                 ;; Bypass the prompt-edit buffer by passing the prompt
+                 ;; through immediately.  Tests can't interact with the
+                 ;; buffer; this preserves the pre-toggle-removal behavior.
+                 ((symbol-function 'beads-agent-prompt-edit-show)
+                  (lambda (_issue-id prompt _agent-type-name callback)
+                    (funcall callback prompt))))
          (unwind-protect
              (progn ,@body)
            (beads-live-test--cleanup-agent-sessions)
@@ -743,8 +749,7 @@ Returns the value of PRED."
                 (should issue-id)
                 (cl-letf (((symbol-function 'beads-agent--should-use-worktree-p)
                            (lambda (_) nil)))
-                  (let ((beads-agent-auto-set-in-progress nil)
-                        (beads-agent-prompt-edit-enabled nil))
+                  (let ((beads-agent-auto-set-in-progress nil))
                     (beads-agent-start-at-point)))
                 (should (beads-live-test--wait-until
                          (lambda ()
@@ -772,8 +777,7 @@ Returns the value of PRED."
             (with-current-buffer show-buf
               (cl-letf (((symbol-function 'beads-agent--should-use-worktree-p)
                          (lambda (_) nil)))
-                (let ((beads-agent-auto-set-in-progress nil)
-                      (beads-agent-prompt-edit-enabled nil))
+                (let ((beads-agent-auto-set-in-progress nil))
                   (beads-agent-start-at-point)))
               (should (beads-live-test--wait-until
                        (lambda ()
@@ -808,8 +812,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
                  (should (beads-issue-at-point))
                  (cl-letf (((symbol-function 'beads-agent--should-use-worktree-p)
                             (lambda (_) nil)))
-                   (let ((beads-agent-auto-set-in-progress nil)
-                         (beads-agent-prompt-edit-enabled nil))
+                   (let ((beads-agent-auto-set-in-progress nil))
                      (funcall #',type-fn)))
                  (should (beads-live-test--wait-until
                           (lambda ()
@@ -853,8 +856,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
                 ;; Start initial Task session
                 (cl-letf (((symbol-function 'beads-agent--should-use-worktree-p)
                            (lambda (_) nil)))
-                  (let ((beads-agent-auto-set-in-progress nil)
-                        (beads-agent-prompt-edit-enabled nil))
+                  (let ((beads-agent-auto-set-in-progress nil))
                     (beads-agent-start issue-id nil nil "Task")))
                 (should (beads-live-test--wait-until
                          (lambda ()
@@ -862,8 +864,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
                 ;; Call start-task again (no prefix) — should jump, not start new
                 (cl-letf (((symbol-function 'beads-agent--should-use-worktree-p)
                            (lambda (_) nil)))
-                  (let ((beads-agent-auto-set-in-progress nil)
-                        (beads-agent-prompt-edit-enabled nil))
+                  (let ((beads-agent-auto-set-in-progress nil))
                     (beads-agent-start-task)))
                 ;; Still only 1 start call total
                 (beads-agent-mock-assert-start-called 1)))
@@ -893,8 +894,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
                 ;; Start a session first
                 (cl-letf (((symbol-function 'beads-agent--should-use-worktree-p)
                            (lambda (_) nil)))
-                  (let ((beads-agent-auto-set-in-progress nil)
-                        (beads-agent-prompt-edit-enabled nil))
+                  (let ((beads-agent-auto-set-in-progress nil))
                     (beads-agent-start issue-id)))
                 (should (beads-live-test--wait-until
                          (lambda ()
@@ -953,8 +953,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
                 ;; Start a session
                 (cl-letf (((symbol-function 'beads-agent--should-use-worktree-p)
                            (lambda (_) nil)))
-                  (let ((beads-agent-auto-set-in-progress nil)
-                        (beads-agent-prompt-edit-enabled nil))
+                  (let ((beads-agent-auto-set-in-progress nil))
                     (beads-agent-start issue-id)))
                 (should (beads-live-test--wait-until
                          (lambda ()
@@ -984,8 +983,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
               ;; No session — jump should start one
               (cl-letf (((symbol-function 'beads-agent--should-use-worktree-p)
                          (lambda (_) nil)))
-                (let ((beads-agent-auto-set-in-progress nil)
-                      (beads-agent-prompt-edit-enabled nil))
+                (let ((beads-agent-auto-set-in-progress nil))
                   (beads-agent-jump-at-point)))
               (should (beads-live-test--wait-until
                        (lambda ()
@@ -1016,8 +1014,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
               ;; Start a session for this issue
               (cl-letf (((symbol-function 'beads-agent--should-use-worktree-p)
                          (lambda (_) nil)))
-                (let ((beads-agent-auto-set-in-progress nil)
-                      (beads-agent-prompt-edit-enabled nil))
+                (let ((beads-agent-auto-set-in-progress nil))
                   (beads-agent-start issue-id)))
               (should (beads-live-test--wait-until
                        (lambda ()
@@ -1050,8 +1047,7 @@ TYPE-NAME is the expected session type (e.g., \"Task\")."
               ;; Start a session
               (cl-letf (((symbol-function 'beads-agent--should-use-worktree-p)
                          (lambda (_) nil)))
-                (let ((beads-agent-auto-set-in-progress nil)
-                      (beads-agent-prompt-edit-enabled nil))
+                (let ((beads-agent-auto-set-in-progress nil))
                   (beads-agent-start issue-id)))
               (should (beads-live-test--wait-until
                        (lambda ()

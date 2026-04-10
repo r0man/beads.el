@@ -4213,10 +4213,7 @@ When worktrees are disabled, uses beads-agent-start directly."
 (ert-deftest beads-agent-test-start-with-worktree ()
   "Test start-with-worktree fetches issue and continues."
   (let ((fetch-called nil)
-        (continue-called nil)
-        ;; Disable prompt editing so --maybe-edit-prompt passes through
-        ;; immediately instead of popping up a buffer.
-        (beads-agent-prompt-edit-enabled nil))
+        (continue-called nil))
     (cl-letf (((symbol-function 'beads-agent--fetch-issue-async)
                (lambda (id callback)
                  (setq fetch-called id)
@@ -4228,6 +4225,10 @@ When worktrees are disabled, uses beads-agent-start directly."
                  (beads-agent-type-task)))
               ((symbol-function 'beads-agent-type-build-prompt)
                (lambda (_type _issue) "Test prompt"))
+              ;; Bypass the prompt-edit buffer: pass prompt straight through.
+              ((symbol-function 'beads-agent-prompt-edit-show)
+               (lambda (_issue-id prompt _type callback)
+                 (funcall callback prompt)))
               ((symbol-function 'beads-agent--continue-start)
                (lambda (&rest args)
                  (setq continue-called args))))
