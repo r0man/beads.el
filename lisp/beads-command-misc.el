@@ -355,12 +355,21 @@ Acknowledge the current bd version to suppress upgrade notifications.")
 
 ;;;###autoload (autoload 'beads-rename-prefix "beads-command-misc" nil t)
 (beads-defcommand beads-command-rename-prefix (beads-command-global-options)
-  ((old-prefix
+  ((new-prefix
     :positional 1
     :required t)
-   (new-prefix
-    :positional 2
-    :required t))
+   (dry-run
+    :type boolean
+    :short-option "n"
+    :group "Options"
+    :level 1
+    :order 1)
+   (repair
+    :type boolean
+    :short-option "r"
+    :group "Options"
+    :level 1
+    :order 2))
   :documentation "Represents bd rename-prefix command.
 Renames the issue prefix for all issues in the database."
   :cli-command "rename-prefix")
@@ -372,7 +381,50 @@ Renames the issue prefix for all issues in the database."
 ;;;###autoload (autoload 'beads-setup "beads-command-misc" nil t)
 (beads-defcommand beads-command-setup (beads-command-global-options)
   ((editor
-    :positional 1))
+    :positional 1)
+   (add
+    :type (or null string)
+    :prompt "Recipe name: "
+    :group "Recipe"
+    :level 2
+    :order 1)
+   (check
+    :type boolean
+    :group "Recipe"
+    :level 1
+    :order 2)
+   (list
+    :type boolean
+    :group "Recipe"
+    :level 1
+    :order 4)
+   (output
+    :type (or null string)
+    :short-option "o"
+    :prompt "Output path: "
+    :group "Recipe"
+    :level 2
+    :order 5)
+   (print
+    :type boolean
+    :group "Recipe"
+    :level 1
+    :order 6)
+   (project
+    :type boolean
+    :group "Scope"
+    :level 1
+    :order 7)
+   (remove
+    :type boolean
+    :group "Recipe"
+    :level 1
+    :order 8)
+   (stealth
+    :type boolean
+    :group "Recipe"
+    :level 2
+    :order 9))
   :documentation "Represents bd setup command.
 Setup integration with AI editors.")
 

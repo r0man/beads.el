@@ -955,15 +955,15 @@ Integration test that retrieves issue database stats."
   "Unit test: beads-command-init with all options."
   :tags '(:unit)
   (let* ((cmd (beads-command-init
-               :branch "develop"
+               :remote "git@example.com:foo/bar"
                :prefix "myproj"
                :quiet t
                :contributor t
                :skip-hooks t))
          (args (beads-command-line cmd)))
     (should (member "init" args))
-    (should (member "--branch" args))
-    (should (member "develop" args))
+    (should (member "--remote" args))
+    (should (member "git@example.com:foo/bar" args))
     (should (member "--prefix" args))
     (should (member "myproj" args))
     (should (member "--quiet" args))
@@ -1177,7 +1177,7 @@ Integration test that retrieves issue database stats."
   :tags '(:unit)
   (let ((cmd (beads-command-init)))
     (should (beads-command-init-p cmd))
-    (should-not (oref cmd branch))
+    (should-not (oref cmd remote))
     (should-not (oref cmd prefix))
     (should-not (oref cmd quiet))
     (should-not (oref cmd contributor))

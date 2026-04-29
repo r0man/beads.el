@@ -284,16 +284,29 @@
 (ert-deftest beads-command-rename-prefix-test-command-line-basic ()
   "Unit test: rename-prefix builds correct command line."
   :tags '(:unit)
-  (let* ((cmd (beads-command-rename-prefix :old-prefix "old" :new-prefix "new"))
+  (let* ((cmd (beads-command-rename-prefix :new-prefix "new"))
          (args (beads-command-line cmd)))
     (should (member "rename-prefix" args))
-    (should (member "old" args))
     (should (member "new" args))))
 
-(ert-deftest beads-command-rename-prefix-test-validation-missing-old ()
-  "Unit test: rename-prefix validation fails without old-prefix."
+(ert-deftest beads-command-rename-prefix-test-command-line-dry-run ()
+  "Unit test: rename-prefix includes --dry-run."
   :tags '(:unit)
-  (let ((cmd (beads-command-rename-prefix :new-prefix "new")))
+  (let* ((cmd (beads-command-rename-prefix :new-prefix "new" :dry-run t))
+         (args (beads-command-line cmd)))
+    (should (member "--dry-run" args))))
+
+(ert-deftest beads-command-rename-prefix-test-command-line-repair ()
+  "Unit test: rename-prefix includes --repair."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-rename-prefix :new-prefix "new" :repair t))
+         (args (beads-command-line cmd)))
+    (should (member "--repair" args))))
+
+(ert-deftest beads-command-rename-prefix-test-validation-missing-new ()
+  "Unit test: rename-prefix validation fails without new-prefix."
+  :tags '(:unit)
+  (let ((cmd (beads-command-rename-prefix)))
     (should (beads-command-validate cmd))))
 
 ;;; Unit Tests: beads-command-restore command-line

@@ -727,14 +727,6 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :prompt "Database path: "
   :reader #'beads-reader-init-db)
 
-(transient-define-infix beads-option-init-branch ()
-  "Set the git branch for beads commits."
-  :class 'transient-option
-  :description "--branch"
-  :key "-b"
-  :argument "--branch="
-  :prompt "Git branch: ")
-
 (transient-define-infix beads-option-init-contributor ()
   "Run OSS contributor setup wizard."
   :class 'transient-switch

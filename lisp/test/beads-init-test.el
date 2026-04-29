@@ -13,7 +13,7 @@
 ;;
 ;; This test file uses the transient-args pattern where tests mock
 ;; (transient-args 'beads-init) to return argument lists like
-;; '("--prefix=myproj" "--branch=main").
+;; '("--prefix=myproj" "--db=foo").
 
 ;;; Code:
 
@@ -25,7 +25,7 @@
 
 (defun beads-init-test--mock-transient-args (args)
   "Create a mock for `transient-args' returning ARGS.
-ARGS should be a list of strings like (\"--prefix=myproj\" \"--branch=main\")."
+ARGS should be a list of strings like (\"--prefix=myproj\" \"--db=foo\")."
   (lambda (prefix)
     (when (eq prefix 'beads-init)
       args)))
@@ -49,7 +49,6 @@ ARGS should be a list of strings like (\"--prefix=myproj\" \"--branch=main\")."
   (let ((cmd (beads-init--parse-transient-args nil)))
     (should (beads-command-init-p cmd))
     (should (null (oref cmd prefix)))
-    (should (null (oref cmd branch)))
     (should (null (oref cmd db)))
     (should (null (oref cmd contributor)))
     (should (null (oref cmd quiet)))
@@ -61,21 +60,18 @@ ARGS should be a list of strings like (\"--prefix=myproj\" \"--branch=main\")."
   (let ((cmd (beads-init--parse-transient-args
               '("--prefix=myproject"))))
     (should (beads-command-init-p cmd))
-    (should (equal (oref cmd prefix) "myproject"))
-    (should (null (oref cmd branch)))))
+    (should (equal (oref cmd prefix) "myproject"))))
 
 (ert-deftest beads-init-test-parse-args-all-options ()
   "Test parsing with all options."
   (let ((cmd (beads-init--parse-transient-args
               '("--prefix=myproj"
-                "--branch=develop"
                 "--db=/path/to/db"
                 "--contributor"
                 "--quiet"
                 "--skip-hooks"))))
     (should (beads-command-init-p cmd))
     (should (equal (oref cmd prefix) "myproj"))
-    (should (equal (oref cmd branch) "develop"))
     (should (equal (oref cmd db) "/path/to/db"))
     (should (equal (oref cmd contributor) t))
     (should (equal (oref cmd quiet) t))
@@ -90,14 +86,14 @@ ARGS should be a list of strings like (\"--prefix=myproj\" \"--branch=main\")."
     (should (equal (oref cmd team) t))
     (should (null (oref cmd contributor)))))
 
-(ert-deftest beads-init-test-parse-args-branch-and-prefix ()
-  "Test parsing with branch and prefix."
+(ert-deftest beads-init-test-parse-args-prefix-and-db ()
+  "Test parsing with prefix and db."
   (let ((cmd (beads-init--parse-transient-args
               '("--prefix=proj"
-                "--branch=main"))))
+                "--db=/tmp/test.db"))))
     (should (beads-command-init-p cmd))
     (should (equal (oref cmd prefix) "proj"))
-    (should (equal (oref cmd branch) "main"))))
+    (should (equal (oref cmd db) "/tmp/test.db"))))
 
 ;;; Tests for Validation
 
@@ -130,7 +126,6 @@ ARGS should be a list of strings like (\"--prefix=myproj\" \"--branch=main\")."
   "Test validation allows all other combinations."
   (let ((cmd (beads-command-init
               :prefix "myproj"
-              :branch "develop"
               :quiet t
               :skip-hooks t)))
     (should (null (beads-init--validate-all cmd)))))
@@ -157,7 +152,7 @@ ARGS should be a list of strings like (\"--prefix=myproj\" \"--branch=main\")."
   "Test init execution with all options."
   :tags '(:unit :mock)
   (let* ((args '("--prefix=proj"
-                "--branch=main"
+                "--db=/tmp/test.db"
                 "--quiet"
                 "--skip-hooks"))
          (cmd (beads-init--parse-transient-args args))
@@ -171,8 +166,8 @@ ARGS should be a list of strings like (\"--prefix=myproj\" \"--branch=main\")."
       (should (member "init" executed-args))
       (should (member "--prefix" executed-args))
       (should (member "proj" executed-args))
-      (should (member "--branch" executed-args))
-      (should (member "main" executed-args))
+      (should (member "--db" executed-args))
+      (should (member "/tmp/test.db" executed-args))
       (should (member "--quiet" executed-args))
       (should (member "--skip-hooks" executed-args)))))
 
@@ -272,13 +267,13 @@ ARGS should be a list of strings like (\"--prefix=myproj\" \"--branch=main\")."
     (should (member "--prefix" args))
     (should (member "test" args))))
 
-(ert-deftest beads-init-test-command-line-with-branch ()
-  "Test command line construction with branch."
-  (let* ((cmd (beads-command-init :prefix "proj" :branch "develop"))
+(ert-deftest beads-init-test-command-line-with-remote ()
+  "Test command line construction with remote URL."
+  (let* ((cmd (beads-command-init :prefix "proj" :remote "git@example.com:foo/bar"))
          (args (beads-command-line cmd)))
     (should (member "init" args))
-    (should (member "--branch" args))
-    (should (member "develop" args))))
+    (should (member "--remote" args))
+    (should (member "git@example.com:foo/bar" args))))
 
 (ert-deftest beads-init-test-command-line-with-db ()
   "Test command line construction with custom db path."
@@ -322,9 +317,9 @@ ARGS should be a list of strings like (\"--prefix=myproj\" \"--branch=main\")."
   (let ((cmd (beads-command-init :db "/path/to/db" :team t)))
     (should (null (beads-init--validate-all cmd)))))
 
-(ert-deftest beads-init-test-validate-branch-with-prefix ()
-  "Test validation allows branch with prefix."
-  (let ((cmd (beads-command-init :prefix "proj" :branch "main")))
+(ert-deftest beads-init-test-validate-role-with-prefix ()
+  "Test validation allows role with prefix."
+  (let ((cmd (beads-command-init :prefix "proj" :role "maintainer")))
     (should (null (beads-init--validate-all cmd)))))
 
 ;;; Transient Suffix Command Tests
@@ -412,7 +407,7 @@ ARGS should be a list of strings like (\"--prefix=myproj\" \"--branch=main\")."
   :tags '(:unit)
   (let ((message-output nil))
     (cl-letf (((symbol-function 'transient-args)
-               (lambda (_prefix) '("--prefix=proj" "--branch=main")))
+               (lambda (_prefix) '("--prefix=proj" "--db=/tmp/x.db")))
               ((symbol-function 'message)
                (lambda (fmt &rest args)
                  (setq message-output (apply #'format fmt args)))))

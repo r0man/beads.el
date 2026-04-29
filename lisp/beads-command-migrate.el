@@ -29,12 +29,6 @@
     :group "Options"
     :level 1
     :order 1)
-   (cleanup
-    :type boolean
-    :short-option "c"
-    :group "Options"
-    :level 1
-    :order 2)
    (yes
     :short-option "y"
     :type boolean
@@ -59,24 +53,113 @@
 
 ;;;###autoload (autoload 'beads-migrate-issues "beads-command-migrate" nil t)
 (beads-defcommand beads-command-migrate-issues (beads-command-global-options)
-  ((source
-    :positional 1)
-   (target
-    :positional 2))
+  ((dry-run
+    :type boolean
+    :short-option "n"
+    :group "Options"
+    :level 1
+    :order 1)
+   (from
+    :type (or null string)
+    :prompt "Source repository: "
+    :group "Repos"
+    :level 1
+    :order 2
+    :required t)
+   (to
+    :type (or null string)
+    :prompt "Destination repository: "
+    :group "Repos"
+    :level 1
+    :order 3
+    :required t)
+   (id
+    :type (or null list)
+    :option-type :strings
+    :prompt "Issue IDs (repeatable): "
+    :group "Filters"
+    :level 2
+    :order 4)
+   (ids-file
+    :type (or null string)
+    :prompt "IDs file: "
+    :group "Filters"
+    :level 2
+    :order 5)
+   (include
+    :type (or null string)
+    :choices ("none" "upstream" "downstream" "closure")
+    :prompt "Include dependencies: "
+    :group "Filters"
+    :level 2
+    :order 6)
+   (label
+    :type (or null list)
+    :option-type :strings
+    :prompt "Labels (repeatable): "
+    :group "Filters"
+    :level 2
+    :order 7)
+   (priority
+    :type (or null integer string)
+    :prompt "Priority (0-4): "
+    :group "Filters"
+    :level 2
+    :order 8)
+   (status
+    :type (or null string)
+    :choices ("open" "closed" "all")
+    :prompt "Status: "
+    :group "Filters"
+    :level 2
+    :order 9)
+   (strict
+    :type boolean
+    :group "Options"
+    :level 3
+    :order 10)
+   (issue-type
+    :long-option "type"
+    :type (or null string)
+    :choices ("bug" "feature" "task" "epic" "chore" "decision")
+    :prompt "Issue type: "
+    :group "Filters"
+    :level 2
+    :order 11)
+   (within-from-only
+    :type boolean
+    :group "Options"
+    :level 3
+    :order 12)
+   (yes
+    :type boolean
+    :short-option "y"
+    :group "Options"
+    :level 1
+    :order 13))
   :documentation "Move issues between repositories.")
 
 ;;; Migrate Sync Command
 
 ;;;###autoload (autoload 'beads-migrate-sync "beads-command-migrate" nil t)
 (beads-defcommand beads-command-migrate-sync (beads-command-global-options)
-  ()
+  ((branch
+    :positional 1)
+   (dry-run
+    :type boolean
+    :short-option "n"
+    :group "Options"
+    :level 1
+    :order 1))
   :documentation "Migrate to sync.branch workflow for multi-clone setups.")
 
 ;;; Migrate Hooks Command
 
 ;;;###autoload (autoload 'beads-migrate-hooks "beads-command-migrate" nil t)
 (beads-defcommand beads-command-migrate-hooks (beads-command-global-options)
-  ((dry-run
+  ((path
+    :positional 1)
+   (dry-run
     :type boolean
     :short-option "n"
     :group "Options"

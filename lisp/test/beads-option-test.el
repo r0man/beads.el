@@ -562,10 +562,6 @@
 ;;; Init Infix Tests (additional)
 ;;; ============================================================
 
-(ert-deftest beads-option-test-init-branch-infix-exists ()
-  "Test that init branch infix is defined."
-  (should (commandp 'beads-option-init-branch)))
-
 (ert-deftest beads-option-test-init-contributor-infix-exists ()
   "Test that init contributor infix is defined."
   (should (commandp 'beads-option-init-contributor)))
