@@ -53,10 +53,6 @@ bde-ks79/
 # Beads local data directory.
 # Track project-owned formulas; ignore everything else (Dolt data,
 # JSONL exports, and symlinked system formulas under .beads/formulas/).
-.beads/*
-!.beads/formulas/
-.beads/formulas/*
-!.beads/formulas/cli-audit.formula.toml
 
 # Local Emacs state (transient history, etc)
 share/
@@ -90,3 +86,4 @@ test-worktree/
 
 # Beads / Dolt files (added by bd init)
 .beads-credential-key
+/.beads/issues.jsonl
