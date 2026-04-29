@@ -50,8 +50,13 @@ bde-89aa/
 # bd worktree
 bde-ks79/
 
-# Beads local data directory
-.beads/
+# Beads local data directory.
+# Track project-owned formulas; ignore everything else (Dolt data,
+# JSONL exports, and symlinked system formulas under .beads/formulas/).
+.beads/*
+!.beads/formulas/
+.beads/formulas/*
+!.beads/formulas/cli-audit.formula.toml
 
 # Local Emacs state (transient history, etc)
 share/
@@ -64,9 +69,6 @@ eca-support/
 .runtime/
 .claude/commands/
 .logs/
-# Beads local database
-.beads/
-
 # Gas Town (added by gt)
 .claude/
 __pycache__/
