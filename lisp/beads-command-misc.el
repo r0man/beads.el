@@ -513,7 +513,15 @@ Creates a new issue using an interactive form."
     :reader beads-reader-issue-id
     :group "Options"
     :level 1
-    :order 0))
+    :order 0)
+   (reason
+    :type (or null string)
+    :short-option "r"
+    :transient beads-transient-multiline
+    :documentation "Reason for promotion"
+    :group "Options"
+    :level 1
+    :order 1))
   :documentation "Represents bd promote command.
 Promotes a wisp to a permanent bead.")
 

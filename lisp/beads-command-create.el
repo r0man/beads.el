@@ -45,10 +45,12 @@
 
 (beads-defcommand beads-command-create (beads-command-global-options)
   ((title
-    :positional 1
+    :long-option "title"
+    :type (or null string)
     :short-option "t"
     :prompt "Issue title: "
     :reader beads-reader-issue-title
+    :documentation "Issue title (alternative to positional argument)"
     :group "Required"
     :level 1
     :order 1
@@ -100,7 +102,7 @@
     :short-option "d"
     :type (or null string)
     :transient beads-transient-multiline
-    :documentation "Description"
+    :documentation "Issue description"
     :group "Content"
     :level 3
     :order 1)
@@ -108,7 +110,7 @@
     :type (or null string)
     :short-option "A"
     :transient beads-transient-multiline
-    :documentation "Acceptance Criteria"
+    :documentation "Acceptance criteria"
     :group "Content"
     :level 3
     :order 2)
@@ -116,7 +118,7 @@
     :type (or null string)
     :short-option "G"
     :transient beads-transient-multiline
-    :documentation "Design"
+    :documentation "Design notes"
     :group "Content"
     :level 3
     :order 3)
@@ -124,7 +126,7 @@
     :type (or null string)
     :short-option "N"
     :transient beads-transient-multiline
-    :documentation "Notes"
+    :documentation "Additional notes"
     :group "Content"
     :level 3
     :order 4)
@@ -211,21 +213,6 @@
     :group "Advanced"
     :level 4
     :order 2)
-   (prefix-arg
-    :long-option "prefix"
-    :type (or null string)
-    :short-option "r"
-    :prompt "Prefix: "
-    :group "Advanced"
-    :level 4
-    :order 3)
-   (rig
-    :type (or null string)
-    :short-option "I"
-    :prompt "Rig: "
-    :group "Advanced"
-    :level 4
-    :order 4)
    (repo
     :type (or null string)
     :short-option "o"
@@ -245,14 +232,6 @@
     :group "Batch"
     :level 5
     :order 1)
-   (from-template
-    :type (or null string)
-    :short-option "T"
-    :prompt "Template: "
-    :reader beads-reader-create-from-template
-    :group "Batch"
-    :level 5
-    :order 2)
 
    ;; Flags
    (dry-run
@@ -296,23 +275,6 @@
     :level 6
     :order 1)
 
-   ;; Agent-specific
-   (agent-rig
-    :type (or null string)
-    :short-option "ar"
-    :prompt "Agent rig: "
-    :group "Agent"
-    :level 6
-    :order 1)
-   (role-type
-    :type (or null string)
-    :short-option "rt"
-    :prompt "Role type: "
-    :choices ("polecat" "crew" "witness" "refinery" "mayor" "deacon")
-    :group "Agent"
-    :level 6
-    :order 2)
-
    ;; Event-specific
    (event-actor
     :type (or null string)
@@ -348,7 +310,7 @@
     :type (or null string)
     :long-option "append-notes"
     :transient beads-transient-multiline
-    :documentation "Append Notes"
+    :documentation "Append to existing notes (with newline separator)"
     :group "Content"
     :level 4
     :order 6)
@@ -356,7 +318,7 @@
     :type (or null string)
     :long-option "context"
     :transient beads-transient-multiline
-    :documentation "Context"
+    :documentation "Additional context for the issue"
     :group "Content"
     :level 4
     :order 7)
@@ -574,8 +536,6 @@ This uses transient's standard argument parsing with dash-style flags."
          (parent (beads--sanitize-string
                   (transient-arg-value "--parent=" args)))
          (repo (beads--sanitize-string (transient-arg-value "--repo=" args)))
-         (from-template (beads--sanitize-string
-                         (transient-arg-value "--from-template=" args)))
          (file (beads--sanitize-string (transient-arg-value "--file=" args))))
     (beads-command-create
      :title title
@@ -592,7 +552,6 @@ This uses transient's standard argument parsing with dash-style flags."
      :force force
      :parent parent
      :repo repo
-     :from-template from-template
      :file file)))
 
 ;;; Transient Menu - Suffix Commands
@@ -712,7 +671,6 @@ This uses transient's standard argument parsing with dash-style flags."
           (beads-option-create-dependencies)
           (beads-option-create-parent)
           (beads-option-create-repo)
-          (beads-option-create-from-template)
           (beads-option-create-file)
           (beads-option-create-force)])
 
