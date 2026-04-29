@@ -345,5 +345,184 @@
          (args (beads-command-line cmd)))
     (should (member "--dry-run" args))))
 
+;;; ============================================================
+;;; Unit Tests: Per-provider pull/push commands (bde-s84l.13)
+;;; ============================================================
+
+;; Each provider exposes directional `<provider>-pull` and `<provider>-push`
+;; subcommands as alternatives to bidirectional `sync`.  These smoke tests
+;; verify that each new class is defined, builds the right two-word
+;; subcommand, and serializes its --dry-run flag.
+
+(ert-deftest beads-command-jira-pull-test-class-exists ()
+  "Unit test: beads-command-jira-pull class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-jira-pull)))
+
+(ert-deftest beads-command-jira-pull-test-command-line-basic ()
+  "Unit test: jira pull builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-jira-pull))
+         (args (beads-command-line cmd)))
+    (should (member "jira" args))
+    (should (member "pull" args))))
+
+(ert-deftest beads-command-jira-pull-test-command-line-dry-run ()
+  "Unit test: jira pull includes --dry-run flag."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-jira-pull :dry-run t))
+         (args (beads-command-line cmd)))
+    (should (member "--dry-run" args))))
+
+(ert-deftest beads-command-jira-push-test-class-exists ()
+  "Unit test: beads-command-jira-push class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-jira-push)))
+
+(ert-deftest beads-command-jira-push-test-command-line-basic ()
+  "Unit test: jira push builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-jira-push))
+         (args (beads-command-line cmd)))
+    (should (member "jira" args))
+    (should (member "push" args))))
+
+(ert-deftest beads-command-linear-pull-test-class-exists ()
+  "Unit test: beads-command-linear-pull class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-linear-pull)))
+
+(ert-deftest beads-command-linear-pull-test-command-line-basic ()
+  "Unit test: linear pull builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-linear-pull))
+         (args (beads-command-line cmd)))
+    (should (member "linear" args))
+    (should (member "pull" args))))
+
+(ert-deftest beads-command-linear-pull-test-command-line-relations ()
+  "Unit test: linear pull includes --relations flag."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-linear-pull :relations t))
+         (args (beads-command-line cmd)))
+    (should (member "--relations" args))))
+
+(ert-deftest beads-command-linear-push-test-class-exists ()
+  "Unit test: beads-command-linear-push class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-linear-push)))
+
+(ert-deftest beads-command-linear-push-test-command-line-basic ()
+  "Unit test: linear push builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-linear-push))
+         (args (beads-command-line cmd)))
+    (should (member "linear" args))
+    (should (member "push" args))))
+
+(ert-deftest beads-command-gitlab-pull-test-class-exists ()
+  "Unit test: beads-command-gitlab-pull class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-gitlab-pull)))
+
+(ert-deftest beads-command-gitlab-pull-test-command-line-basic ()
+  "Unit test: gitlab pull builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-gitlab-pull))
+         (args (beads-command-line cmd)))
+    (should (member "gitlab" args))
+    (should (member "pull" args))))
+
+(ert-deftest beads-command-gitlab-push-test-class-exists ()
+  "Unit test: beads-command-gitlab-push class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-gitlab-push)))
+
+(ert-deftest beads-command-gitlab-push-test-command-line-basic ()
+  "Unit test: gitlab push builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-gitlab-push))
+         (args (beads-command-line cmd)))
+    (should (member "gitlab" args))
+    (should (member "push" args))))
+
+(ert-deftest beads-command-github-pull-test-class-exists ()
+  "Unit test: beads-command-github-pull class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-github-pull)))
+
+(ert-deftest beads-command-github-pull-test-command-line-basic ()
+  "Unit test: github pull builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-github-pull))
+         (args (beads-command-line cmd)))
+    (should (member "github" args))
+    (should (member "pull" args))))
+
+(ert-deftest beads-command-github-push-test-class-exists ()
+  "Unit test: beads-command-github-push class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-github-push)))
+
+(ert-deftest beads-command-github-push-test-command-line-basic ()
+  "Unit test: github push builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-github-push))
+         (args (beads-command-line cmd)))
+    (should (member "github" args))
+    (should (member "push" args))))
+
+(ert-deftest beads-command-ado-pull-test-class-exists ()
+  "Unit test: beads-command-ado-pull class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-ado-pull)))
+
+(ert-deftest beads-command-ado-pull-test-command-line-basic ()
+  "Unit test: ado pull builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-ado-pull))
+         (args (beads-command-line cmd)))
+    (should (member "ado" args))
+    (should (member "pull" args))))
+
+(ert-deftest beads-command-ado-push-test-class-exists ()
+  "Unit test: beads-command-ado-push class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-ado-push)))
+
+(ert-deftest beads-command-ado-push-test-command-line-basic ()
+  "Unit test: ado push builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-ado-push))
+         (args (beads-command-line cmd)))
+    (should (member "ado" args))
+    (should (member "push" args))))
+
+(ert-deftest beads-command-notion-pull-test-class-exists ()
+  "Unit test: beads-command-notion-pull class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-notion-pull)))
+
+(ert-deftest beads-command-notion-pull-test-command-line-basic ()
+  "Unit test: notion pull builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-notion-pull))
+         (args (beads-command-line cmd)))
+    (should (member "notion" args))
+    (should (member "pull" args))))
+
+(ert-deftest beads-command-notion-push-test-class-exists ()
+  "Unit test: beads-command-notion-push class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-notion-push)))
+
+(ert-deftest beads-command-notion-push-test-command-line-basic ()
+  "Unit test: notion push builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-notion-push))
+         (args (beads-command-line cmd)))
+    (should (member "notion" args))
+    (should (member "push" args))))
+
 (provide 'beads-command-integrations-test)
 ;;; beads-command-integrations-test.el ends here

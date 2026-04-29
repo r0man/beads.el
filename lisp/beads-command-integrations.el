@@ -97,6 +97,42 @@ Use --pull or --push to limit direction; otherwise bidirectional.")
 Shows Jira sync status.")
 
 
+;;;###autoload (autoload 'beads-jira-pull "beads-command-integrations" nil t)
+(beads-defcommand beads-command-jira-pull (beads-command-global-options)
+  ((refs
+    :positional-rest t
+    :prompt "Bead IDs or external refs: "
+    :group "Selection"
+    :level 1
+    :order 1)
+   (dry-run
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 2))
+  :documentation "Represents bd jira pull command.
+Pull one or more items from Jira.
+Equivalent to: bd jira sync --pull --issues <refs>.")
+
+
+;;;###autoload (autoload 'beads-jira-push "beads-command-integrations" nil t)
+(beads-defcommand beads-command-jira-push (beads-command-global-options)
+  ((bead-ids
+    :positional-rest t
+    :prompt "Bead IDs: "
+    :group "Selection"
+    :level 1
+    :order 1)
+   (dry-run
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 2))
+  :documentation "Represents bd jira push command.
+Push one or more beads issues to Jira.
+Equivalent to: bd jira sync --push --issues <ids>.")
+
+
 ;;; ============================================================
 ;;; Linear Commands
 ;;; ============================================================
@@ -205,6 +241,47 @@ Shows Linear sync status.")
   ()
   :documentation "Represents bd linear teams command.
 Lists available Linear teams.")
+
+
+;;;###autoload (autoload 'beads-linear-pull "beads-command-integrations" nil t)
+(beads-defcommand beads-command-linear-pull (beads-command-global-options)
+  ((refs
+    :positional-rest t
+    :prompt "Bead IDs or external refs: "
+    :group "Selection"
+    :level 1
+    :order 1)
+   (dry-run
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 2)
+   (relations
+    :type boolean
+    :group "Options"
+    :level 2
+    :order 3))
+  :documentation "Represents bd linear pull command.
+Pull one or more items from Linear.
+Equivalent to: bd linear sync --pull --issues <refs>.")
+
+
+;;;###autoload (autoload 'beads-linear-push "beads-command-integrations" nil t)
+(beads-defcommand beads-command-linear-push (beads-command-global-options)
+  ((bead-ids
+    :positional-rest t
+    :prompt "Bead IDs: "
+    :group "Selection"
+    :level 1
+    :order 1)
+   (dry-run
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 2))
+  :documentation "Represents bd linear push command.
+Push one or more beads issues to Linear.
+Equivalent to: bd linear sync --push --issues <ids>.")
 
 
 ;;; ============================================================
@@ -355,6 +432,42 @@ Shows GitLab sync status.")
 Lists accessible GitLab projects.")
 
 
+;;;###autoload (autoload 'beads-gitlab-pull "beads-command-integrations" nil t)
+(beads-defcommand beads-command-gitlab-pull (beads-command-global-options)
+  ((refs
+    :positional-rest t
+    :prompt "Bead IDs or external refs: "
+    :group "Selection"
+    :level 1
+    :order 1)
+   (dry-run
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 2))
+  :documentation "Represents bd gitlab pull command.
+Pull one or more items from GitLab.
+Equivalent to: bd gitlab sync --pull-only --issues <refs>.")
+
+
+;;;###autoload (autoload 'beads-gitlab-push "beads-command-integrations" nil t)
+(beads-defcommand beads-command-gitlab-push (beads-command-global-options)
+  ((bead-ids
+    :positional-rest t
+    :prompt "Bead IDs: "
+    :group "Selection"
+    :level 1
+    :order 1)
+   (dry-run
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 2))
+  :documentation "Represents bd gitlab push command.
+Push one or more beads issues to GitLab.
+Equivalent to: bd gitlab sync --push-only --issues <ids>.")
+
+
 ;;; Parent Transient Menus
 
 ;;;###autoload (autoload 'beads-jira "beads-command-integrations" nil t)
@@ -362,6 +475,8 @@ Lists accessible GitLab projects.")
   "Jira integration commands."
   ["Jira Commands"
    ("s" "Sync" beads-jira-sync)
+   ("p" "Pull" beads-jira-pull)
+   ("P" "Push" beads-jira-push)
    ("S" "Status" beads-jira-status)])
 
 ;;;###autoload (autoload 'beads-linear "beads-command-integrations" nil t)
@@ -369,6 +484,8 @@ Lists accessible GitLab projects.")
   "Linear integration commands."
   ["Linear Commands"
    ("s" "Sync" beads-linear-sync)
+   ("p" "Pull" beads-linear-pull)
+   ("P" "Push" beads-linear-push)
    ("S" "Status" beads-linear-status)
    ("t" "Teams" beads-linear-teams)])
 
@@ -386,6 +503,8 @@ Lists accessible GitLab projects.")
   "GitLab integration commands."
   ["GitLab Commands"
    ("s" "Sync" beads-gitlab-sync)
+   ("l" "Pull" beads-gitlab-pull)
+   ("u" "Push" beads-gitlab-push)
    ("S" "Status" beads-gitlab-status)
    ("p" "Projects" beads-gitlab-projects)])
 
@@ -452,11 +571,47 @@ Shows GitHub sync status.")
   :documentation "Represents bd github repos command.
 Lists accessible GitHub repositories.")
 
+;;;###autoload (autoload 'beads-github-pull "beads-command-integrations" nil t)
+(beads-defcommand beads-command-github-pull (beads-command-global-options)
+  ((refs
+    :positional-rest t
+    :prompt "Bead IDs or external refs: "
+    :group "Selection"
+    :level 1
+    :order 1)
+   (dry-run
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 2))
+  :documentation "Represents bd github pull command.
+Pull one or more items from GitHub.
+Equivalent to: bd github sync --pull-only --issues <refs>.")
+
+;;;###autoload (autoload 'beads-github-push "beads-command-integrations" nil t)
+(beads-defcommand beads-command-github-push (beads-command-global-options)
+  ((bead-ids
+    :positional-rest t
+    :prompt "Bead IDs: "
+    :group "Selection"
+    :level 1
+    :order 1)
+   (dry-run
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 2))
+  :documentation "Represents bd github push command.
+Push one or more beads issues to GitHub.
+Equivalent to: bd github sync --push-only --issues <ids>.")
+
 ;;;###autoload (autoload 'beads-github "beads-command-integrations" nil t)
 (transient-define-prefix beads-github ()
   "GitHub integration commands."
   ["GitHub Commands"
    ("s" "Sync" beads-github-sync)
+   ("p" "Pull" beads-github-pull)
+   ("P" "Push" beads-github-push)
    ("S" "Status" beads-github-status)
    ("r" "Repos" beads-github-repos)])
 
@@ -574,11 +729,49 @@ Show Azure DevOps sync status."
 List accessible Azure DevOps projects."
   :cli-command "ado projects")
 
+;;;###autoload (autoload 'beads-ado-pull "beads-command-integrations" nil t)
+(beads-defcommand beads-command-ado-pull (beads-command-global-options)
+  ((refs
+    :positional-rest t
+    :prompt "Bead IDs or external refs: "
+    :group "Selection"
+    :level 1
+    :order 1)
+   (dry-run
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 2))
+  :documentation "Represents bd ado pull command.
+Pull one or more items from Azure DevOps.
+Equivalent to: bd ado sync --pull-only --issues <refs>."
+  :cli-command "ado pull")
+
+;;;###autoload (autoload 'beads-ado-push "beads-command-integrations" nil t)
+(beads-defcommand beads-command-ado-push (beads-command-global-options)
+  ((bead-ids
+    :positional-rest t
+    :prompt "Bead IDs: "
+    :group "Selection"
+    :level 1
+    :order 1)
+   (dry-run
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 2))
+  :documentation "Represents bd ado push command.
+Push one or more beads issues to Azure DevOps.
+Equivalent to: bd ado sync --push-only --issues <ids>."
+  :cli-command "ado push")
+
 ;;;###autoload (autoload 'beads-ado "beads-command-integrations" nil t)
 (transient-define-prefix beads-ado ()
   "Azure DevOps integration commands."
   ["Azure DevOps Commands"
    ("s" "Sync" beads-ado-sync)
+   ("l" "Pull" beads-ado-pull)
+   ("u" "Push" beads-ado-push)
    ("S" "Status" beads-ado-status)
    ("p" "Projects" beads-ado-projects)])
 
@@ -689,6 +882,42 @@ Synchronize issues between beads and Notion.
 By default performs bidirectional sync.")
 
 
+;;;###autoload (autoload 'beads-notion-pull "beads-command-integrations" nil t)
+(beads-defcommand beads-command-notion-pull (beads-command-global-options)
+  ((refs
+    :positional-rest t
+    :prompt "Bead IDs or external refs: "
+    :group "Selection"
+    :level 1
+    :order 1)
+   (dry-run
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 2))
+  :documentation "Represents bd notion pull command.
+Pull one or more items from Notion.
+Equivalent to: bd notion sync --pull --issues <refs>.")
+
+
+;;;###autoload (autoload 'beads-notion-push "beads-command-integrations" nil t)
+(beads-defcommand beads-command-notion-push (beads-command-global-options)
+  ((bead-ids
+    :positional-rest t
+    :prompt "Bead IDs: "
+    :group "Selection"
+    :level 1
+    :order 1)
+   (dry-run
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 2))
+  :documentation "Represents bd notion push command.
+Push one or more beads issues to Notion.
+Equivalent to: bd notion sync --push --issues <ids>.")
+
+
 ;;;###autoload (autoload 'beads-notion "beads-command-integrations" nil t)
 (transient-define-prefix beads-notion ()
   "Notion integration commands."
@@ -696,7 +925,9 @@ By default performs bidirectional sync.")
    ("c" "Connect" beads-notion-connect)
    ("i" "Init database" beads-notion-init)
    ("s" "Status" beads-notion-status)
-   ("S" "Sync" beads-notion-sync)])
+   ("S" "Sync" beads-notion-sync)
+   ("p" "Pull" beads-notion-pull)
+   ("P" "Push" beads-notion-push)])
 
 (provide 'beads-command-integrations)
 ;;; beads-command-integrations.el ends here
