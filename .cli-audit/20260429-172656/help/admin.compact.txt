@@ -1,0 +1,73 @@
+Compact old closed issues using semantic summarization.
+
+Compaction reduces database size by summarizing closed issues that are no longer
+actively referenced. This is permanent graceful decay - original content is discarded.
+
+Modes:
+  - Analyze: Export candidates for agent review (no API key needed)
+  - Apply: Accept agent-provided summary (no API key needed)
+  - Auto: AI-powered compaction (requires ANTHROPIC_API_KEY or ai.api_key, legacy)
+  - Dolt: Run Dolt garbage collection (for Dolt-backend repositories)
+
+Tiers:
+  - Tier 1: Semantic compression (30 days closed, 70% reduction)
+  - Tier 2: Ultra compression (90 days closed, 95% reduction)
+
+Dolt Garbage Collection:
+  With auto-commit per mutation, Dolt commit history grows over time. Use
+  --dolt to run Dolt garbage collection and reclaim disk space.
+
+  --dolt: Run Dolt GC on .beads/dolt directory to free disk space.
+          This removes unreachable commits and compacts storage.
+
+Examples:
+  # Dolt garbage collection
+  bd compact --dolt                        # Run Dolt GC
+  bd compact --dolt --dry-run              # Preview without running GC
+
+  # Agent-driven workflow (recommended)
+  bd compact --analyze --json              # Get candidates with full content
+  bd compact --apply --id bd-42 --summary summary.txt
+  bd compact --apply --id bd-42 --summary - < summary.txt
+
+  # Legacy AI-powered workflow
+  bd compact --auto --dry-run              # Preview candidates
+  bd compact --auto --all                  # Compact all eligible issues
+  bd compact --auto --id bd-42             # Compact specific issue
+
+  # Statistics
+  bd compact --stats                       # Show statistics
+
+
+Usage:
+  bd admin compact [flags]
+
+Flags:
+      --actor string     Actor name for audit trail (default "agent")
+      --all              Process all candidates
+      --analyze          Analyze mode: export candidates for agent review
+      --apply            Apply mode: accept agent-provided summary
+      --auto             Auto mode: AI-powered compaction (legacy)
+      --batch-size int   Issues per batch (default 10)
+      --dolt             Dolt mode: run Dolt garbage collection on .beads/dolt
+      --dry-run          Preview without compacting
+      --force            Force compact (bypass checks, requires --id)
+  -h, --help             help for compact
+      --id string        Compact specific issue
+      --json             Output JSON format
+      --limit int        Limit number of candidates (0 = no limit)
+      --stats            Show compaction statistics
+      --summary string   Path to summary file (use '-' for stdin)
+      --tier int         Compaction tier (1 or 2) (default 1)
+      --workers int      Parallel workers (default 5)
+
+Global Flags:
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

@@ -1,0 +1,49 @@
+Synchronize issues between beads and Jira.
+
+Configuration:
+  bd config set jira.url "https://company.atlassian.net"
+  bd config set jira.project "PROJ"
+  bd config set jira.projects "PROJ1,PROJ2"   # Multiple projects
+  bd config set jira.api_token "YOUR_TOKEN"
+  bd config set jira.username "your_email@company.com"  # For Jira Cloud
+  bd config set jira.push_prefix "hippo"       # Only push hippo-* issues to Jira
+  bd config set jira.push_prefix "proj1,proj2" # Multiple prefixes (comma-separated)
+
+Environment variables (alternative to config):
+  JIRA_API_TOKEN  - Jira API token
+  JIRA_USERNAME   - Jira username/email
+  JIRA_PROJECTS   - Comma-separated project keys
+
+Examples:
+  bd jira sync --pull         # Import issues from Jira
+  bd jira sync --push         # Export issues to Jira
+  bd jira sync                # Bidirectional sync (pull then push)
+  bd jira sync --dry-run      # Preview sync without changes
+  bd jira status              # Show sync status
+
+Usage:
+  bd jira [command]
+
+Available Commands:
+  pull        Pull specific items from Jira
+  push        Push specific beads to Jira
+  status      Show Jira sync status
+  sync        Synchronize issues with Jira
+
+Flags:
+  -h, --help   help for jira
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output
+
+Use "bd jira [command] --help" for more information about a command.

@@ -1,0 +1,37 @@
+Show dependency tree rooted at the given issue.
+
+By default, shows dependencies (what blocks this issue). Use --direction to control:
+  - down: Show dependencies (what blocks this issue) - default
+  - up:   Show dependents (what this issue blocks)
+  - both: Show full graph in both directions
+
+Examples:
+  bd dep tree gt-0iqq                    # Show what blocks gt-0iqq
+  bd dep tree gt-0iqq --direction=up     # Show what gt-0iqq blocks
+  bd dep tree gt-0iqq --status=open      # Only show open issues
+  bd dep tree gt-0iqq --depth=3          # Limit to 3 levels deep
+
+Usage:
+  bd dep tree [issue-id] [flags]
+
+Flags:
+      --direction string   Tree direction: 'down' (dependencies), 'up' (dependents), or 'both'
+      --format string      Output format: 'mermaid' for Mermaid.js flowchart
+  -h, --help               help for tree
+  -d, --max-depth int      Maximum tree depth to display (safety limit) (default 50)
+      --reverse            Show dependent tree (deprecated: use --direction=up)
+      --show-all-paths     Show all paths to nodes (no deduplication for diamond dependencies)
+      --status string      Filter to only show issues with this status (open, in_progress, blocked, deferred, closed)
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

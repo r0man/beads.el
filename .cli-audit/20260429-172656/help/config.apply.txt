@@ -1,0 +1,34 @@
+Reconcile actual system state to match declared configuration.
+
+Runs drift detection and then fixes any mismatches it finds:
+  - hooks     Reinstall git hooks if missing or outdated
+  - remote    Add/update Dolt origin remote to match federation.remote
+  - server    Start Dolt server if dolt.shared-server is enabled
+
+This command is idempotent — safe to run multiple times. Use --dry-run
+to preview what would change without making modifications.
+
+Examples:
+  bd config apply
+  bd config apply --dry-run
+  bd config apply --json
+
+Usage:
+  bd config apply [flags]
+
+Flags:
+      --dry-run   Show what would change without making modifications
+  -h, --help      help for apply
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

@@ -1,0 +1,46 @@
+Configure and manage multiple repository support for multi-repo hydration.
+
+Multi-repo support allows hydrating issues from multiple beads repositories
+into a single database for unified cross-repo issue tracking.
+
+Configuration is stored in .beads/config.yaml under the 'repos' section:
+
+  repos:
+    primary: "."
+    additional:
+      - ~/beads-planning
+      - ~/work-repo
+
+Examples:
+  bd repo add ~/beads-planning       # Add planning repo
+  bd repo add ../other-repo          # Add relative path repo
+  bd repo list                       # Show all configured repos
+  bd repo remove ~/beads-planning    # Remove by path
+  bd repo sync                       # Sync from all configured repos
+
+Usage:
+  bd repo [command]
+
+Available Commands:
+  add         Add an additional repository to sync
+  list        List all configured repositories
+  remove      Remove a repository from sync configuration
+  sync        Manually trigger multi-repo sync
+
+Flags:
+  -h, --help   help for repo
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output
+
+Use "bd repo [command] --help" for more information about a command.

@@ -1,0 +1,37 @@
+Display information about the current database.
+
+This command helps debug issues where bd is using an unexpected database. It shows:
+  - The absolute path to the database file
+  - Database statistics (issue count)
+  - Schema information (with --schema flag)
+  - What's new in recent versions (with --whats-new flag)
+
+Examples:
+  bd info
+  bd info --json
+  bd info --schema --json
+  bd info --whats-new
+  bd info --whats-new --json
+  bd info --thanks
+
+Usage:
+  bd info [flags]
+
+Flags:
+  -h, --help        help for info
+      --json        Output in JSON format
+      --schema      Include schema information in output
+      --thanks      Show thank you page for contributors
+      --whats-new   Show agent-relevant changes from recent versions
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

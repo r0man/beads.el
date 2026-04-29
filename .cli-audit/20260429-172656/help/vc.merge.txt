@@ -1,0 +1,29 @@
+Merge the specified branch into the current branch.
+
+If there are merge conflicts, they will be reported. You can resolve
+conflicts with --strategy.
+
+Examples:
+  bd vc merge feature-xyz                    # Merge feature-xyz into current branch
+  bd vc merge feature-xyz --strategy ours    # Merge, preferring our changes on conflict
+  bd vc merge feature-xyz --strategy theirs  # Merge, preferring their changes on conflict
+
+Usage:
+  bd vc merge <branch> [flags]
+
+Flags:
+  -h, --help              help for merge
+      --strategy string   Conflict resolution strategy: 'ours' or 'theirs'
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

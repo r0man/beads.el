@@ -1,0 +1,44 @@
+Create a wisp from a proto - sublimation from solid to vapor.
+
+This is the chemistry-inspired command for creating ephemeral work from templates.
+The resulting wisp is stored in the main database with Ephemeral=true and NOT synced via git.
+
+Phase transition: Proto (solid) -> Wisp (vapor)
+
+Use wisp for:
+  - Operational loops and recurring cycles
+  - Health checks and monitoring
+  - One-shot orchestration runs
+  - Routine operations with no audit value
+
+The wisp will:
+  - Be stored in main database with Ephemeral=true flag
+  - NOT be synced via git
+  - Either evaporate (burn) or condense to digest (squash)
+
+Examples:
+  bd mol wisp create mol-patrol                    # Ephemeral patrol cycle
+  bd mol wisp create mol-health-check              # One-time health check
+  bd mol wisp create mol-diagnostics --var target=db  # Diagnostic run
+
+Usage:
+  bd mol wisp create <proto-id> [flags]
+
+Flags:
+      --dry-run           Preview what would be created
+  -h, --help              help for create
+      --root-only         Create only the root issue (no child step issues)
+      --var stringArray   Variable substitution (key=value)
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

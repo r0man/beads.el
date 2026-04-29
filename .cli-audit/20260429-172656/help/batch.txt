@@ -1,0 +1,63 @@
+Run multiple write operations in a single database transaction.
+
+Commands are read from stdin (one per line) or from a file via -f/--file.
+All operations execute inside a single dolt transaction: on any error the
+whole batch is rolled back, otherwise it is committed with one DOLT_COMMIT.
+
+This is intended for shell scripts that currently invoke 'bd' many times in
+a loop, which causes severe write amplification on a dolt sql-server backed
+by btrfs+compression. Batching collapses N invocations into one transaction
+and one dolt commit.
+
+Grammar (one command per line):
+  close <id> [reason...]
+  update <id> <key>=<value> [<key>=<value> ...]
+  create <type> <priority> <title...>
+  dep add <from-id> <to-id> [type]
+  dep remove <from-id> <to-id>
+  #comment  (blank lines and '# ...' comments are ignored)
+
+Supported 'update' keys: status, priority, title, assignee
+Supported dependency types: see 'bd dep add --help' (default: blocks)
+
+Tokens are whitespace-separated. Double-quoted strings ("like this") may
+contain spaces; use \" to embed a quote and \\ for a backslash.
+
+Examples:
+  # From a pipe
+  bd list --status stale -q | awk '{print "close",$1," stale"}' | bd batch
+
+  # From a file
+  bd batch -f operations.txt
+
+  # Inline
+  printf 'close bd-1 done\nupdate bd-2 status=in_progress\n' | bd batch
+
+On success, exits 0 and prints a summary (or JSON with --json). On any error,
+rolls back the entire transaction and exits non-zero with the failing line.
+
+NOTE: This is a narrow subset. Commands like 'show', 'list', 'ready', 'sync',
+complex create flows, or any flag not listed above are NOT accepted. Use
+normal 'bd' subcommands for interactive/read operations.
+
+Usage:
+  bd batch [flags]
+
+Flags:
+      --dry-run          Parse input and echo commands without executing
+  -f, --file string      Read commands from file instead of stdin
+  -h, --help             help for batch
+  -m, --message string   DOLT_COMMIT message (default: 'bd: batch N ops by <actor>')
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output
