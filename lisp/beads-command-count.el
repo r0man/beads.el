@@ -115,15 +115,55 @@
     :group "Filter"
     :level 3)
    (label
-    :type (or null string)
+    :type (list-of string)
     :long-option "label"
+    :short-option "l"
+    :prompt "Labels (AND): "
+    :reader beads-reader-issue-labels
     :group "Filter"
-    :level 3)
+    :level 3
+    :documentation "Filter by labels (AND: must have ALL)")
    (label-any
-    :type (or null string)
+    :type (list-of string)
     :long-option "label-any"
+    :prompt "Labels (OR): "
+    :reader beads-reader-issue-labels
     :group "Filter"
-    :level 3)
+    :level 3
+    :documentation "Filter by labels (OR: must have AT LEAST ONE)")
+   (priority
+    :type (or null integer)
+    :short-option "p"
+    :prompt "Priority (0-4): "
+    :group "Filters"
+    :level 2
+    :order 3
+    :documentation "Filter by priority (0-4: 0=critical, 1=high, 2=medium, 3=low, 4=backlog)")
+   (issue-type
+    :long-option "type"
+    :short-option "t"
+    :type (or null string)
+    :prompt "Type: "
+    :group "Filters"
+    :level 2
+    :order 4
+    :documentation "Filter by type (bug, feature, task, epic, chore, decision, merge-request, molecule, gate)")
+   (updated-after
+    :type (or null string)
+    :long-option "updated-after"
+    :prompt "Updated after (YYYY-MM-DD): "
+    :group "Date Filters"
+    :level 3
+    :order 5
+    :documentation "Filter issues updated after date (YYYY-MM-DD or RFC3339)")
+   (updated-before
+    :type (or null string)
+    :long-option "updated-before"
+    :prompt "Updated before (YYYY-MM-DD): "
+    :group "Date Filters"
+    :level 3
+    :order 6
+    :documentation "Filter issues updated before date (YYYY-MM-DD or RFC3339)")
    (no-assignee
     :type boolean
     :long-option "no-assignee"

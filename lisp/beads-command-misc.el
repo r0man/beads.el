@@ -48,12 +48,22 @@ Marks an issue as a duplicate of another.")
 
 ;;;###autoload (autoload 'beads-duplicates "beads-command-misc" nil t)
 (beads-defcommand beads-command-duplicates (beads-command-global-options)
-  ((merge
+  ((auto-merge
     :type boolean
+    :long-option "auto-merge"
     :short-option "m"
     :group "Options"
     :level 1
-    :order 1))
+    :order 1
+    :documentation "Automatically merge all duplicates")
+   (dry-run
+    :type boolean
+    :long-option "dry-run"
+    :short-option "n"
+    :group "Options"
+    :level 1
+    :order 2
+    :documentation "Show what would be merged without making changes"))
   :documentation "Represents bd duplicates command.
 Finds and optionally merges duplicate issues.")
 
@@ -98,7 +108,26 @@ Marks an issue as superseded by a newer one.")
     :type boolean
     :group "Options"
     :level 1
-    :order 2))
+    :order 2)
+   (label
+    :type (list-of string)
+    :long-option "label"
+    :short-option "l"
+    :prompt "Labels (AND): "
+    :reader beads-reader-issue-labels
+    :group "Filters"
+    :level 2
+    :order 1
+    :documentation "Filter by labels (AND: must have ALL). Can combine with --label-any")
+   (label-any
+    :type (list-of string)
+    :long-option "label-any"
+    :prompt "Labels (OR): "
+    :reader beads-reader-issue-labels
+    :group "Filters"
+    :level 2
+    :order 2
+    :documentation "Filter by labels (OR: must have AT LEAST ONE). Can combine with --label"))
   :documentation "Represents bd orphans command.
 Identifies orphaned issues referenced in commits but still open.")
 
@@ -444,7 +473,51 @@ Promotes a wisp to a permanent bead.")
     :argument "--query="
     :group "Options"
     :level 1
-    :order 0))
+    :order 0)
+   (all
+    :type boolean
+    :short-option "a"
+    :group "Options"
+    :level 1
+    :order 1
+    :documentation "Include closed issues (default: exclude closed)")
+   (limit
+    :type (or null string integer)
+    :short-option "n"
+    :prompt "Limit: "
+    :group "Options"
+    :level 1
+    :order 2
+    :documentation "Limit results (default: 50, 0 = unlimited)")
+   (sort
+    :type (or null string)
+    :short-option "s"
+    :prompt "Sort by: "
+    :group "Options"
+    :level 1
+    :order 3
+    :documentation "Sort by field: priority, created, updated, closed, status, id, title, type, assignee")
+   (reverse
+    :type boolean
+    :short-option "r"
+    :group "Options"
+    :level 1
+    :order 4
+    :documentation "Reverse sort order")
+   (long
+    :type boolean
+    :short-option "l"
+    :group "Options"
+    :level 2
+    :order 1
+    :documentation "Show detailed multi-line output for each issue")
+   (parse-only
+    :type boolean
+    :short-option "P"
+    :group "Options"
+    :level 3
+    :order 1
+    :documentation "Only parse the query and show the AST (for debugging)"))
   :documentation "Represents bd query command.
 Queries issues using a simple query language.")
 
@@ -623,7 +696,48 @@ Lists valid issue types.")
 
 ;;;###autoload (autoload 'beads-find-duplicates "beads-command-misc" nil t)
 (beads-defcommand beads-command-find-duplicates (beads-command-global-options)
-  ()
+  ((limit
+    :type (or null string integer)
+    :short-option "n"
+    :prompt "Limit: "
+    :group "Options"
+    :level 1
+    :order 1
+    :documentation "Maximum number of pairs to show (default 50)")
+   (method
+    :type (or null string)
+    :long-option "method"
+    :short-option "m"
+    :choices ("mechanical" "ai")
+    :group "Options"
+    :level 1
+    :order 2
+    :documentation "Detection method: mechanical, ai (default \"mechanical\")")
+   (threshold
+    :type (or null string)
+    :long-option "threshold"
+    :short-option "T"
+    :prompt "Threshold (0.0-1.0): "
+    :group "Options"
+    :level 1
+    :order 3
+    :documentation "Similarity threshold (0.0-1.0, lower = more results) (default 0.5)")
+   (status
+    :type (or null string)
+    :short-option "s"
+    :prompt "Status: "
+    :group "Filters"
+    :level 2
+    :order 1
+    :documentation "Filter by status (default: non-closed)")
+   (model
+    :type (or null string)
+    :long-option "model"
+    :prompt "AI model: "
+    :group "Options"
+    :level 2
+    :order 2
+    :documentation "AI model to use (only with --method ai; default from config ai.model)"))
   :documentation "Represents bd find-duplicates command.
 Finds semantically similar issues using text analysis or AI."
   :cli-command "find-duplicates")

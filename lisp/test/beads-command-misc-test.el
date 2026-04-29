@@ -42,12 +42,19 @@
          (args (beads-command-line cmd)))
     (should (member "duplicates" args))))
 
-(ert-deftest beads-command-duplicates-test-command-line-merge ()
-  "Unit test: duplicates includes --merge option."
+(ert-deftest beads-command-duplicates-test-command-line-auto-merge ()
+  "Unit test: duplicates includes --auto-merge option."
   :tags '(:unit)
-  (let* ((cmd (beads-command-duplicates :merge t))
+  (let* ((cmd (beads-command-duplicates :auto-merge t))
          (args (beads-command-line cmd)))
-    (should (member "--merge" args))))
+    (should (member "--auto-merge" args))))
+
+(ert-deftest beads-command-duplicates-test-command-line-dry-run ()
+  "Unit test: duplicates includes --dry-run option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-duplicates :dry-run t))
+         (args (beads-command-line cmd)))
+    (should (member "--dry-run" args))))
 
 ;;; Unit Tests: beads-command-supersede command-line
 
