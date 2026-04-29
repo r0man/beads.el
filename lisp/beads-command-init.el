@@ -382,5 +382,21 @@ the initialization."
   :documentation "Represents bd bootstrap command.
 Non-destructive database setup for fresh clones and recovery.")
 
+;;; Init-Safety Command
+;;
+;; `bd init-safety' is a help-style command that prints the bd init flag
+;; safety contract (refusal rules, destroy-token semantics, exit codes,
+;; recovery guidance).  It takes no flags beyond the global options.
+;; CLI subcommand name has a dash and would not survive the default
+;; hyphen-to-space derivation, so :cli-command is set explicitly.
+
+;;;###autoload (autoload 'beads-init-safety "beads-command-init" nil t)
+(beads-defcommand beads-command-init-safety (beads-command-global-options)
+  ()
+  :documentation "Represents bd init-safety command.
+Prints the bd init flag safety contract: refusal rules,
+destroy-token semantics, exit codes, and recovery guidance."
+  :cli-command "init-safety")
+
 (provide 'beads-command-init)
 ;;; beads-command-init.el ends here

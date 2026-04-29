@@ -335,10 +335,14 @@ into logical groups for easy access."
    ("0" "Preflight check" beads-preflight)
    ("-" "Upgrade bd" beads-upgrade)
    ("P" "Rename prefix" beads-rename-prefix)
-   ("nc" "Compact menu" beads-compact)
+   ("nc" "Admin compact menu" beads-compact)
+   ("nC" "Compact Dolt commits" beads-compact-commits)
    ("nf" "Flatten Dolt" beads-flatten)
    ("ng" "Garbage collect" beads-gc)
-   ("np" "Purge ephemeral" beads-purge)]
+   ("np" "Purge ephemeral" beads-purge)
+   ("nP" "Prune closed beads" beads-prune)
+   ("nB" "Batch ops (transactional)" beads-batch)
+   ("ni" "Ping database" beads-ping)]
   ["Dolt & Version Control"
    ("#" "VC menu" beads-vc)
    ("p" "Branch" beads-branch)
@@ -363,6 +367,7 @@ into logical groups for easy access."
    ("*" "Mail delegate" beads-mail)]
   ["Setup & Config"
    ("ii" "Init project" beads-init)
+   ("is" "Init safety" beads-init-safety)
    ("ib" "Bootstrap" beads-bootstrap)
    ("ic" "Context" beads-context)
    ("?" "Quickstart" beads-quickstart)
@@ -619,6 +624,24 @@ which shows daemon status and database statistics."
 ;; beads-command-compact
 ;;;###autoload
 (autoload 'beads-compact "beads-command-compact" nil t)
+;;;###autoload
+(autoload 'beads-compact-commits "beads-command-compact" nil t)
+
+;; beads-command-batch
+;;;###autoload
+(autoload 'beads-batch "beads-command-batch" nil t)
+
+;; beads-command-prune
+;;;###autoload
+(autoload 'beads-prune "beads-command-prune" nil t)
+
+;; beads-command-ping
+;;;###autoload
+(autoload 'beads-ping "beads-command-ping" nil t)
+
+;; beads-command-init (init-safety)
+;;;###autoload
+(autoload 'beads-init-safety "beads-command-init" nil t)
 
 ;; beads-command-dolt
 ;;;###autoload

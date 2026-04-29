@@ -10,9 +10,24 @@
 ;;; Commentary:
 
 ;; This module defines EIEIO command classes for `bd admin compact'
-;; operations.  The compact command manages database compaction for
-;; old closed issues.  The class includes full slot metadata for
-;; automatic transient menu generation via `beads-defcommand'.
+;; operations AND the distinct top-level `bd compact' command.  The
+;; admin-compact cluster manages semantic database compaction for old
+;; closed issues; the top-level `bd compact' squashes Dolt commit
+;; history older than N days.  Both live in this file because of
+;; naming coherence -- they share the `compact' word.
+;;
+;; TWO DIFFERENT 'COMPACT' COMMANDS:
+;;   - `bd admin compact' (4 mode classes below): semantic issue
+;;     summarization for old closed issues (graceful decay).
+;;   - `bd compact'       (`beads-command-compact' near the bottom):
+;;     squashes Dolt commit history older than --days, preserving
+;;     recent commits via cherry-pick.  This is a Dolt-storage
+;;     operation, NOT semantic issue compaction.
+;;
+;; The user-facing transient `beads-compact' (transient-define-prefix
+;; near the bottom) routes to the admin-compact mode menu.  The
+;; top-level `bd compact' is exposed via `beads-compact-commits'
+;; (manual transient name to avoid colliding with `beads-compact').
 ;;
 ;; INTENTIONAL DESIGN: 5-class cluster targeting `admin.compact'
 ;; ===============================================================
@@ -282,9 +297,71 @@ Tiers:
    ("s" "Show statistics" beads-compact-show-stats)
    ("z" "Analyze candidates" beads-compact-analyze)
    ("a" "Apply summary" beads-compact-apply)
-   ("A" "Auto compact (legacy)" beads-compact-auto)]
+   ("A" "Auto compact (legacy)" beads-compact-auto)
+   ("D" "Compact Dolt commits" beads-compact-commits)]
   ["Quick Actions"
    ("q" "Quit" transient-quit-one)])
+
+;;; ============================================================
+;;; Command Class: beads-command-compact (top-level bd compact)
+;;; ============================================================
+;;
+;; This class targets the TOP-LEVEL `bd compact' command (Dolt commit
+;; squash), which is *distinct* from the `bd admin compact' cluster
+;; above.  Confusing names, distinct semantics:
+;;
+;;   - `bd compact'        squashes Dolt commit history (storage)
+;;   - `bd admin compact'  semantic issue summarization (data decay)
+;;
+;; For semantic compaction, use the `beads-command-compact-*'
+;; siblings.  For full history squash, use `beads-flatten'.
+;;
+;; The auto-generated transient name `beads-compact' is already taken
+;; by the admin-compact mode menu above, so this class uses
+;; :transient :manual and a manually-named transient
+;; `beads-compact-commits'.
+
+;;;###autoload (autoload 'beads-compact-commits "beads-command-compact" nil t)
+(beads-defcommand beads-command-compact (beads-command-global-options)
+  ((days
+    :type (or null integer string)
+    :prompt "Keep commits newer than (days, default 30): "
+    :group "Options"
+    :level 1
+    :order 1
+    :documentation "Keep commits newer than N days (default 30)")
+   (dry-run
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 2
+    :documentation "Preview without making changes")
+   (force
+    :type boolean
+    :short-option "f"
+    :group "Options"
+    :level 1
+    :order 3
+    :documentation "Confirm commit squash"))
+  :documentation "Represents top-level bd compact command.
+Squashes Dolt commits older than N days into a single commit,
+preserving recent commits via cherry-pick.  Distinct from
+`bd admin compact' (semantic issue summarization)."
+  :transient :manual
+  :cli-command "compact")
+
+;;;###autoload (autoload 'beads-compact-commits "beads-command-compact" nil t)
+(beads-meta-define-transient beads-command-compact "beads-compact-commits"
+  "Squash Dolt commits older than N days into a single commit.
+
+Recent commits (within the retention window) are preserved via
+cherry-pick.  This reduces Dolt storage overhead from auto-commit
+history while keeping recent change tracking intact.
+
+For semantic issue compaction (summarizing closed issues), use
+`beads-compact' (the admin-compact menu).  For full history squash,
+use `beads-flatten'."
+  beads-option-global-section)
 
 (provide 'beads-command-compact)
 ;;; beads-command-compact.el ends here
