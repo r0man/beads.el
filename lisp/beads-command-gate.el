@@ -22,6 +22,52 @@
 (require 'transient)
 
 ;;; ============================================================
+;;; Command Class: beads-command-gate-create
+;;; ============================================================
+
+;;;###autoload (autoload 'beads-gate-create "beads-command-gate" nil t)
+(beads-defcommand beads-command-gate-create (beads-command-global-options)
+  ((blocks
+    :type (or null string)
+    :prompt "Issue to block: "
+    :reader beads-reader-issue-id
+    :group "Options"
+    :level 1
+    :order 1
+    :required t)
+   (gate-type
+    :long-option "type"
+    :short-option "t"
+    :type (or null string)
+    :prompt "Gate type: "
+    :choices ("human" "timer" "gh:run" "gh:pr")
+    :group "Options"
+    :level 1
+    :order 2)
+   (reason
+    :short-option "r"
+    :type (or null string)
+    :transient beads-transient-multiline
+    :documentation "Reason"
+    :group "Options"
+    :level 1
+    :order 3)
+   (timeout
+    :type (or null string)
+    :prompt "Timeout (e.g. 2h, 30m): "
+    :group "Options"
+    :level 2
+    :order 1)
+   (await-id
+    :type (or null string)
+    :prompt "Condition identifier: "
+    :group "Options"
+    :level 2
+    :order 2))
+  :documentation "Create an ad-hoc gate issue that blocks another issue.")
+
+
+;;; ============================================================
 ;;; Command Class: beads-command-gate-list
 ;;; ============================================================
 
@@ -140,6 +186,7 @@
 
 Gate types: human, timer, gh:run, gh:pr, bead"
   ["Gate Commands"
+   ("n" "Create gate" beads-gate-create)
    ("l" "List gates" beads-gate-list)
    ("c" "Check/evaluate" beads-gate-check)
    ("r" "Resolve gate" beads-gate-resolve)

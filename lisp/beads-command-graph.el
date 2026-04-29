@@ -84,6 +84,32 @@ Status icons: open in_progress blocked closed deferred"
   beads-option-global-section)
 
 ;;; ============================================================
+;;; Command Class: beads-command-graph-check
+;;; ============================================================
+
+;;;###autoload (autoload 'beads-graph-check "beads-command-graph" nil t)
+(beads-defcommand beads-command-graph-check (beads-command-global-options)
+  ()
+  :documentation "Check the dependency graph for cycles, orphans,
+and other integrity issues.
+
+Returns exit code 0 if the graph is clean, 1 if issues are found."
+  :cli-command "graph check")
+
+
+;;; ============================================================
+;;; Parent Transient Menu: beads-graph-menu
+;;; ============================================================
+
+;;;###autoload (autoload 'beads-graph-menu "beads-command-graph" nil t)
+(transient-define-prefix beads-graph-menu ()
+  "Manage dependency graph operations."
+  ["Graph Commands"
+   ("d" "Display graph (bd graph)" beads-graph-transient)
+   ("c" "Check integrity" beads-graph-check)
+   ("v" "Visual graph (Graphviz)" beads-graph-all)])
+
+;;; ============================================================
 ;;; Graphviz-based Graph Visualization
 ;;; ============================================================
 
