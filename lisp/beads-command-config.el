@@ -98,6 +98,70 @@ Each argument must be in key=value format."
   :documentation "Represents bd config validate command.
 Validates sync-related configuration settings.")
 
+;;; Config Show
+
+;;;###autoload (autoload 'beads-config-show "beads-command-config" nil t)
+(beads-defcommand beads-command-config-show (beads-command-global-options)
+  ((source
+    :type (or null string)
+    :group "Options"
+    :level 1
+    :order 1))
+  :documentation "Represents bd config show command.
+Displays a unified view of all effective configuration across all
+sources with annotations showing where each value comes from.
+
+Sources (by precedence for Viper-managed keys):
+  - env          Environment variable (BD_* or BEADS_*)
+  - config.yaml  Project config file (.beads/config.yaml)
+  - default      Built-in default value
+
+Additional sources:
+  - metadata     Connection settings from .beads/metadata.json
+  - database     Integration config stored in the Dolt database
+  - git          Git config (e.g., beads.role)")
+
+;;; Config Apply
+
+;;;###autoload (autoload 'beads-config-apply "beads-command-config" nil t)
+(beads-defcommand beads-command-config-apply (beads-command-global-options)
+  ((dry-run
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 1))
+  :documentation "Represents bd config apply command.
+Reconciles actual system state to match declared configuration.
+
+Runs drift detection and then fixes any mismatches it finds:
+  - hooks     Reinstall git hooks if missing or outdated
+  - remote    Add/update Dolt origin remote to match federation.remote
+  - server    Start Dolt server if dolt.shared-server is enabled
+
+This command is idempotent -- safe to run multiple times.  Use
+--dry-run to preview what would change without making
+modifications.")
+
+;;; Config Drift
+
+;;;###autoload (autoload 'beads-config-drift "beads-command-config" nil t)
+(beads-defcommand beads-command-config-drift (beads-command-global-options)
+  ()
+  :documentation "Represents bd config drift command.
+Detects drift between declared configuration and actual system state.
+
+This is a read-only diagnostic that answers \"is my environment
+consistent with my config?\" -- no mutations are performed.
+
+Checks:
+  - hooks     Git hooks installed and up-to-date
+  - remote    Dolt remote matches federation.remote config
+  - server    Server state matches dolt.shared-server config
+
+Exit codes:
+  0  No drift detected (all checks ok/info/skipped)
+  1  Drift detected (at least one check has status \"drift\")")
+
 ;;; Parent Transient Menu
 
 ;;;###autoload (autoload 'beads-config "beads-command-config" nil t)
@@ -117,6 +181,9 @@ Common namespaces:
    ("S" "Set many" beads-config-set-many)
    ("l" "List all" beads-config-list)
    ("u" "Unset value" beads-config-unset)
+   ("w" "Show effective config" beads-config-show)
+   ("a" "Apply (reconcile)" beads-config-apply)
+   ("d" "Drift detection" beads-config-drift)
    ("v" "Validate config" beads-config-validate)])
 
 (provide 'beads-command-config)
