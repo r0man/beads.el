@@ -44,9 +44,50 @@
     :short-option "n"
     :group "Options"
     :level 1
-    :order 1))
+    :order 3)
+   (create-only
+    :type boolean
+    :group "Options"
+    :level 2
+    :order 4)
+   (issues
+    :type (or null string)
+    :prompt "Issues (comma-separated bead IDs): "
+    :group "Selection"
+    :level 2
+    :order 5)
+   (parent
+    :type (or null string)
+    :prompt "Parent bead ID: "
+    :group "Selection"
+    :level 2
+    :order 6)
+   (project
+    :type (or null string)
+    :prompt "Project key(s) (comma-separated): "
+    :group "Filters"
+    :level 2
+    :order 7)
+   (state
+    :type (or null string)
+    :prompt "State (open/closed/all): "
+    :choices ("open" "closed" "all")
+    :group "Filters"
+    :level 2
+    :order 8)
+   (prefer-local
+    :type boolean
+    :group "Conflict"
+    :level 2
+    :order 9)
+   (prefer-jira
+    :type boolean
+    :group "Conflict"
+    :level 2
+    :order 10))
   :documentation "Represents bd jira sync command.
-Synchronizes issues with Jira.")
+Synchronizes issues with Jira.
+Use --pull or --push to limit direction; otherwise bidirectional.")
 
 
 ;;;###autoload (autoload 'beads-jira-status "beads-command-integrations" nil t)
@@ -79,9 +120,77 @@ Shows Jira sync status.")
     :short-option "n"
     :group "Options"
     :level 1
-    :order 1))
+    :order 3)
+   (create-only
+    :type boolean
+    :group "Options"
+    :level 2
+    :order 4)
+   (issues
+    :type (or null string)
+    :prompt "Issues (comma-separated bead IDs): "
+    :group "Selection"
+    :level 2
+    :order 5)
+   (parent
+    :type (or null string)
+    :prompt "Parent bead ID: "
+    :group "Selection"
+    :level 2
+    :order 6)
+   (state
+    :type (or null string)
+    :prompt "State (open/closed/all): "
+    :choices ("open" "closed" "all")
+    :group "Filters"
+    :level 2
+    :order 7)
+   (team
+    :type (or null string)
+    :prompt "Team ID(s) (comma-separated): "
+    :group "Filters"
+    :level 2
+    :order 8)
+   (type
+    :type (or null string)
+    :prompt "Issue types (comma-separated): "
+    :group "Filters"
+    :level 2
+    :order 9)
+   (exclude-type
+    :type (or null string)
+    :prompt "Exclude issue types (comma-separated): "
+    :group "Filters"
+    :level 2
+    :order 10)
+   (include-ephemeral
+    :type boolean
+    :group "Filters"
+    :level 2
+    :order 11)
+   (relations
+    :type boolean
+    :group "Options"
+    :level 2
+    :order 12)
+   (update-refs
+    :type boolean
+    :group "Options"
+    :level 2
+    :order 13)
+   (prefer-local
+    :type boolean
+    :group "Conflict"
+    :level 2
+    :order 14)
+   (prefer-linear
+    :type boolean
+    :group "Conflict"
+    :level 2
+    :order 15))
   :documentation "Represents bd linear sync command.
-Synchronizes issues with Linear.")
+Synchronizes issues with Linear.
+Use --pull or --push to limit direction; otherwise bidirectional.")
 
 
 ;;;###autoload (autoload 'beads-linear-status "beads-command-integrations" nil t)
@@ -143,26 +252,93 @@ Manually triggers multi-repo sync.")
 
 ;;;###autoload (autoload 'beads-gitlab-sync "beads-command-integrations" nil t)
 (beads-defcommand beads-command-gitlab-sync (beads-command-global-options)
-  ((pull
+  ((pull-only
     :type boolean
-    :short-option "p"
     :group "Direction"
     :level 1
     :order 1)
-   (push
+   (push-only
     :type boolean
-    :short-option "P"
     :group "Direction"
     :level 1
     :order 2)
    (dry-run
     :type boolean
-    :short-option "n"
     :group "Options"
     :level 1
-    :order 1))
+    :order 3)
+   (issues
+    :type (or null string)
+    :prompt "Issues (comma-separated bead IDs): "
+    :group "Selection"
+    :level 2
+    :order 4)
+   (parent
+    :type (or null string)
+    :prompt "Parent bead ID: "
+    :group "Selection"
+    :level 2
+    :order 5)
+   (project
+    :type (or null string)
+    :prompt "Project ID (group mode): "
+    :group "Filters"
+    :level 2
+    :order 6)
+   (assignee
+    :type (or null string)
+    :prompt "Assignee username: "
+    :group "Filters"
+    :level 2
+    :order 7)
+   (label
+    :type (or null string)
+    :prompt "Labels (comma-separated, AND): "
+    :group "Filters"
+    :level 2
+    :order 8)
+   (milestone
+    :type (or null string)
+    :prompt "Milestone title: "
+    :group "Filters"
+    :level 2
+    :order 9)
+   (type
+    :type (or null string)
+    :prompt "Issue types (comma-separated): "
+    :group "Filters"
+    :level 2
+    :order 10)
+   (exclude-type
+    :type (or null string)
+    :prompt "Exclude issue types (comma-separated): "
+    :group "Filters"
+    :level 2
+    :order 11)
+   (no-ephemeral
+    :type boolean
+    :group "Filters"
+    :level 2
+    :order 12)
+   (prefer-local
+    :type boolean
+    :group "Conflict"
+    :level 2
+    :order 13)
+   (prefer-gitlab
+    :type boolean
+    :group "Conflict"
+    :level 2
+    :order 14)
+   (prefer-newer
+    :type boolean
+    :group "Conflict"
+    :level 2
+    :order 15))
   :documentation "Represents bd gitlab sync command.
-Synchronizes issues with GitLab.")
+Synchronizes issues with GitLab.
+By default performs bidirectional sync; use --pull-only or --push-only
+to limit direction.")
 
 
 ;;;###autoload (autoload 'beads-gitlab-status "beads-command-integrations" nil t)
@@ -217,26 +393,52 @@ Lists accessible GitLab projects.")
 
 ;;;###autoload (autoload 'beads-github-sync "beads-command-integrations" nil t)
 (beads-defcommand beads-command-github-sync (beads-command-global-options)
-  ((pull
+  ((pull-only
     :type boolean
-    :short-option "p"
     :group "Direction"
     :level 1
     :order 1)
-   (push
+   (push-only
     :type boolean
-    :short-option "P"
     :group "Direction"
     :level 1
     :order 2)
    (dry-run
     :type boolean
-    :short-option "n"
     :group "Options"
     :level 1
-    :order 3))
+    :order 3)
+   (issues
+    :type (or null string)
+    :prompt "Issues (comma-separated bead IDs): "
+    :group "Selection"
+    :level 2
+    :order 4)
+   (parent
+    :type (or null string)
+    :prompt "Parent bead ID: "
+    :group "Selection"
+    :level 2
+    :order 5)
+   (prefer-local
+    :type boolean
+    :group "Conflict"
+    :level 2
+    :order 6)
+   (prefer-github
+    :type boolean
+    :group "Conflict"
+    :level 2
+    :order 7)
+   (prefer-newer
+    :type boolean
+    :group "Conflict"
+    :level 2
+    :order 8))
   :documentation "Represents bd github sync command.
-Sync issues with GitHub.")
+Sync issues with GitHub.
+By default performs bidirectional sync; use --pull-only or --push-only
+to limit direction.")
 
 ;;;###autoload (autoload 'beads-github-status "beads-command-integrations" nil t)
 (beads-defcommand beads-command-github-status (beads-command-global-options)
@@ -279,9 +481,83 @@ Lists accessible GitHub repositories.")
     :short-option "P"
     :group "Direction"
     :level 1
-    :order 3))
+    :order 3)
+   (issues
+    :type (or null string)
+    :prompt "Issues (comma-separated bead IDs): "
+    :group "Selection"
+    :level 2
+    :order 4)
+   (parent
+    :type (or null string)
+    :prompt "Parent bead ID: "
+    :group "Selection"
+    :level 2
+    :order 5)
+   (project
+    :type (or null string)
+    :prompt "Project name(s) (comma-separated): "
+    :group "Filters"
+    :level 2
+    :order 6)
+   (area-path
+    :type (or null string)
+    :prompt "ADO area path: "
+    :group "Filters"
+    :level 2
+    :order 7)
+   (iteration-path
+    :type (or null string)
+    :prompt "ADO iteration path: "
+    :group "Filters"
+    :level 2
+    :order 8)
+   (types
+    :type (or null string)
+    :prompt "Work item types (comma-separated): "
+    :group "Filters"
+    :level 2
+    :order 9)
+   (states
+    :type (or null string)
+    :prompt "ADO states (comma-separated): "
+    :group "Filters"
+    :level 2
+    :order 10)
+   (no-create
+    :type boolean
+    :group "Options"
+    :level 2
+    :order 11)
+   (bootstrap-match
+    :type boolean
+    :group "Options"
+    :level 2
+    :order 12)
+   (reconcile
+    :type boolean
+    :group "Options"
+    :level 2
+    :order 13)
+   (prefer-local
+    :type boolean
+    :group "Conflict"
+    :level 2
+    :order 14)
+   (prefer-ado
+    :type boolean
+    :group "Conflict"
+    :level 2
+    :order 15)
+   (prefer-newer
+    :type boolean
+    :group "Conflict"
+    :level 2
+    :order 16))
   :documentation "Represents bd ado sync command.
-Synchronize issues between beads and Azure DevOps."
+Synchronize issues between beads and Azure DevOps.
+By default performs bidirectional sync; use --pull-only or --push-only
+to limit direction."
   :cli-command "ado sync")
 
 ;;;###autoload (autoload 'beads-ado-status "beads-command-integrations" nil t)
@@ -395,7 +671,19 @@ Show Notion sync status.")
     :short-option "N"
     :group "Conflict"
     :level 2
-    :order 7))
+    :order 7)
+   (issues
+    :type (or null string)
+    :prompt "Issues (comma-separated bead IDs): "
+    :group "Selection"
+    :level 2
+    :order 8)
+   (parent
+    :type (or null string)
+    :prompt "Parent bead ID: "
+    :group "Selection"
+    :level 2
+    :order 9))
   :documentation "Represents bd notion sync command.
 Synchronize issues between beads and Notion.
 By default performs bidirectional sync.")

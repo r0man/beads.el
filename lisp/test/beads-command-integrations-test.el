@@ -171,19 +171,19 @@
     (should (member "gitlab" args))
     (should (member "sync" args))))
 
-(ert-deftest beads-command-gitlab-sync-test-command-line-pull ()
-  "Unit test: gitlab sync includes --pull option."
+(ert-deftest beads-command-gitlab-sync-test-command-line-pull-only ()
+  "Unit test: gitlab sync includes --pull-only option."
   :tags '(:unit)
-  (let* ((cmd (beads-command-gitlab-sync :pull t))
+  (let* ((cmd (beads-command-gitlab-sync :pull-only t))
          (args (beads-command-line cmd)))
-    (should (member "--pull" args))))
+    (should (member "--pull-only" args))))
 
-(ert-deftest beads-command-gitlab-sync-test-command-line-push ()
-  "Unit test: gitlab sync includes --push option."
+(ert-deftest beads-command-gitlab-sync-test-command-line-push-only ()
+  "Unit test: gitlab sync includes --push-only option."
   :tags '(:unit)
-  (let* ((cmd (beads-command-gitlab-sync :push t))
+  (let* ((cmd (beads-command-gitlab-sync :push-only t))
          (args (beads-command-line cmd)))
-    (should (member "--push" args))))
+    (should (member "--push-only" args))))
 
 (ert-deftest beads-command-gitlab-sync-test-command-line-dry-run ()
   "Unit test: gitlab sync includes --dry-run option."
