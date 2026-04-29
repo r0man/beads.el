@@ -135,7 +135,7 @@
     :short-option "r"
     :type (or null string)
     :transient beads-transient-multiline
-    :documentation "Resolve Reason"
+    :documentation "Reason for resolving the gate"
     :group "Options"
     :level 1
     :order 1))
@@ -174,7 +174,38 @@
 ;;;###autoload (autoload 'beads-gate-discover "beads-command-gate" nil t)
 (beads-defcommand beads-command-gate-discover (beads-command-global-options)
   ((gate-id
-    :positional 1))
+    :positional 1)
+   (branch
+    :short-option "b"
+    :type (or null string)
+    :prompt "Branch: "
+    :documentation "Filter runs by branch (default: current branch)"
+    :group "Options"
+    :level 1
+    :order 1)
+   (dry-run
+    :type boolean
+    :short-option "n"
+    :documentation "Preview mode: show matches without updating"
+    :group "Options"
+    :level 1
+    :order 2)
+   (limit
+    :short-option "l"
+    :type (or null string integer)
+    :prompt "Limit: "
+    :documentation "Max runs to query from GitHub (default 10)"
+    :group "Options"
+    :level 1
+    :order 3)
+   (max-age
+    :short-option "a"
+    :type (or null string)
+    :prompt "Max age (e.g., 30m): "
+    :documentation "Max age for gate/run matching (default 30m0s)"
+    :group "Options"
+    :level 1
+    :order 4))
   :documentation "Discover await_id for gh:run gates.")
 
 
