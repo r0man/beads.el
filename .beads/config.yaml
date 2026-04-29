@@ -1,1 +1,3 @@
 sync.remote: "git+ssh://git@github.com/r0man/beads.el.git"
+
+export.auto: false
