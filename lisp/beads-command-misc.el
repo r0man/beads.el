@@ -244,12 +244,7 @@ Appends a note to an issue's notes field.")
 
 ;;;###autoload (autoload 'beads-version "beads-command-misc" nil t)
 (beads-defcommand beads-command-version (beads-command-global-options)
-  ((daemon
-    :type boolean
-    :short-option "d"
-    :group "Options"
-    :level 1
-    :order 1))
+  ()
   :documentation "Represents bd version command.
 Prints version information.")
 
@@ -293,7 +288,30 @@ Displays minimal snippet for AGENTS.md.")
 
 ;;;###autoload (autoload 'beads-prime "beads-command-misc" nil t)
 (beads-defcommand beads-command-prime (beads-command-global-options)
-  ()
+  ((export
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 1
+    :documentation "Output default content (ignores PRIME.md override)")
+   (full
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 2
+    :documentation "Force full CLI output (ignore MCP detection)")
+   (mcp
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 3
+    :documentation "Force MCP mode (minimal output)")
+   (stealth
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 4
+    :documentation "Stealth mode (no git operations, flush only)"))
   :documentation "Represents bd prime command.
 Outputs AI-optimized workflow context.")
 
@@ -304,7 +322,24 @@ Outputs AI-optimized workflow context.")
 
 ;;;###autoload (autoload 'beads-preflight "beads-command-misc" nil t)
 (beads-defcommand beads-command-preflight (beads-command-global-options)
-  ()
+  ((check
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 1
+    :documentation "Run checks automatically")
+   (fix
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 2
+    :documentation "Auto-fix issues where possible (not yet implemented)")
+   (skip-lint
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 3
+    :documentation "Skip lint check explicitly"))
   :documentation "Represents bd preflight command.
 Shows PR readiness checklist.")
 
@@ -436,7 +471,19 @@ Setup integration with AI editors.")
 ;;;###autoload (autoload 'beads-ship "beads-command-misc" nil t)
 (beads-defcommand beads-command-ship (beads-command-global-options)
   ((capability
-    :positional 1))
+    :positional 1)
+   (dry-run
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 1
+    :documentation "Preview without making changes")
+   (force
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 2
+    :documentation "Ship even if issue is not closed"))
   :documentation "Represents bd ship command.
 Publishes a capability for cross-project dependencies.")
 
@@ -448,7 +495,60 @@ Publishes a capability for cross-project dependencies.")
 ;;;###autoload (autoload 'beads-cook "beads-command-misc" nil t)
 (beads-defcommand beads-command-cook (beads-command-global-options)
   ((formula-id
-    :positional 1))
+    :positional 1)
+   (dry-run
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 1
+    :documentation "Preview what would be created")
+   (force
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 2
+    :documentation "Replace existing proto if it exists (requires --persist)")
+   (mode
+    :type (or null string)
+    :prompt "Mode (compile|runtime): "
+    :choices ("compile" "runtime")
+    :group "Options"
+    :level 1
+    :order 3
+    :documentation "Cooking mode: compile (keep placeholders) or runtime (substitute vars)")
+   (persist
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 4
+    :documentation "Persist proto to database (legacy behavior)")
+   (prefix
+    :type (or null string)
+    :prompt "Proto ID prefix: "
+    :group "Options"
+    :level 2
+    :order 5
+    :documentation "Prefix to prepend to proto ID (e.g., 'gt-' creates 'gt-mol-feature')")
+   (search-path
+    :type (list-of string)
+    :separator ","
+    :transient transient-option
+    :argument "--search-path="
+    :prompt "Additional formula search path: "
+    :group "Options"
+    :level 2
+    :order 6
+    :documentation "Additional paths to search for formula inheritance")
+   (var
+    :type (list-of string)
+    :separator ","
+    :transient transient-option
+    :argument "--var="
+    :prompt "Variable (key=value): "
+    :group "Options"
+    :level 2
+    :order 7
+    :documentation "Variable substitution (key=value), enables runtime mode"))
   :documentation "Represents bd cook command.
 Compiles a formula into a proto (ephemeral by default).")
 
@@ -498,7 +598,14 @@ Lists child beads of a parent issue.")
 
 ;;;###autoload (autoload 'beads-create-form "beads-command-misc" nil t)
 (beads-defcommand beads-command-create-form (beads-command-global-options)
-  ()
+  ((parent
+    :type (or null string)
+    :prompt "Parent issue ID: "
+    :reader beads-reader-issue-id
+    :group "Options"
+    :level 1
+    :order 1
+    :documentation "Parent issue ID for creating a hierarchical child (e.g., 'bd-a3f8e9')"))
   :documentation "Represents bd create-form command.
 Creates a new issue using an interactive form."
   :cli-command "create-form")
@@ -809,12 +916,7 @@ Finds semantically similar issues using text analysis or AI."
 ;;; ============================================================
 
 (beads-defcommand beads-command-backup (beads-command-global-options)
-  ((force
-    :type boolean
-    :short-option "f"
-    :group "Options"
-    :level 1
-    :order 1))
+  ()
   :documentation "Represents bd backup command.
 Backs up your beads database by exporting all tables to JSONL."
   :transient :manual)
@@ -880,12 +982,12 @@ Pushes the database to the configured Dolt backup destination.")
     :group "Options"
     :level 1
     :order 1)
-   (dry-run
+   (force
     :type boolean
-    :short-option "n"
     :group "Options"
     :level 1
-    :order 2))
+    :order 2
+    :documentation "Overwrite existing database with backup contents"))
   :documentation "Represents bd backup restore command.
 Restores the database from JSONL backup files.")
 
@@ -919,7 +1021,38 @@ Dolt-native backup commands (preserve full commit history):
 
 ;;;###autoload (autoload 'beads-export "beads-command-misc" nil t)
 (beads-defcommand beads-command-export (beads-command-global-options)
-  ()
+  ((all
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 1
+    :documentation "Include all records (infra, templates, gates)")
+   (include-infra
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 2
+    :documentation "Include infrastructure beads (agents, rigs, roles, messages)")
+   (no-memories
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 3
+    :documentation "Exclude persistent memories from the export")
+   (output
+    :type (or null string)
+    :short-option "o"
+    :prompt "Output file path: "
+    :group "Options"
+    :level 1
+    :order 4
+    :documentation "Output file path (default: stdout)")
+   (scrub
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 5
+    :documentation "Exclude test/pollution records"))
   :documentation "Represents bd export command.
 Exports issues to JSONL format.")
 
@@ -933,7 +1066,22 @@ Exports issues to JSONL format.")
     :short-option "n"
     :group "Options"
     :level 1
-    :order 1))
+    :order 1
+    :documentation "Show what would be imported without importing")
+   (dedup
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 2
+    :documentation "Skip lines whose title matches an existing open issue")
+   (input
+    :type (or null string)
+    :short-option "i"
+    :prompt "Input file: "
+    :group "Options"
+    :level 1
+    :order 3
+    :documentation "Read JSONL from a specific file"))
   :documentation "Represents bd import command.
 Imports issues from a JSONL file into the database.")
 
@@ -941,19 +1089,88 @@ Imports issues from a JSONL file into the database.")
 
 ;;;###autoload (autoload 'beads-flatten "beads-command-misc" nil t)
 (beads-defcommand beads-command-flatten (beads-command-global-options)
-  ()
+  ((dry-run
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 1
+    :documentation "Preview without making changes")
+   (force
+    :type boolean
+    :short-option "f"
+    :group "Options"
+    :level 1
+    :order 2
+    :documentation "Confirm irreversible history squash"))
   :documentation "Represents bd flatten command.
 Squashes all Dolt history into a single commit.")
 
 ;;;###autoload (autoload 'beads-gc "beads-command-misc" nil t)
 (beads-defcommand beads-command-gc (beads-command-global-options)
-  ()
+  ((dry-run
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 1
+    :documentation "Preview without making changes")
+   (force
+    :type boolean
+    :short-option "f"
+    :group "Options"
+    :level 1
+    :order 2
+    :documentation "Skip confirmation prompts")
+   (older-than
+    :type (or null integer string)
+    :prompt "Older than (days): "
+    :group "Options"
+    :level 1
+    :order 3
+    :documentation "Delete closed issues older than N days (default 90)")
+   (skip-decay
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 4
+    :documentation "Skip issue deletion phase")
+   (skip-dolt
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 5
+    :documentation "Skip Dolt garbage collection phase"))
   :documentation "Represents bd gc command.
 Garbage collects: decays old issues, compacts Dolt, runs GC.")
 
 ;;;###autoload (autoload 'beads-purge "beads-command-misc" nil t)
 (beads-defcommand beads-command-purge (beads-command-global-options)
-  ()
+  ((dry-run
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 1
+    :documentation "Preview what would be purged with stats")
+   (force
+    :type boolean
+    :short-option "f"
+    :group "Options"
+    :level 1
+    :order 2
+    :documentation "Actually purge (without this, shows preview)")
+   (older-than
+    :type (or null string)
+    :prompt "Older than (e.g. 7d, 2w, 30): "
+    :group "Options"
+    :level 1
+    :order 3
+    :documentation "Only purge beads closed more than N ago (e.g., 7d, 2w, 30)")
+   (pattern
+    :type (or null string)
+    :prompt "ID glob pattern: "
+    :group "Options"
+    :level 1
+    :order 4
+    :documentation "Only purge beads matching ID glob pattern (e.g., *-wisp-*)"))
   :documentation "Represents bd purge command.
 Deletes closed ephemeral beads to reclaim space.")
 
@@ -1089,7 +1306,14 @@ Retrieves a specific memory.")
     :prompt "Memory content: "
     :group "Options"
     :level 1
-    :order 0))
+    :order 0)
+   (key
+    :type (or null string)
+    :prompt "Memory key: "
+    :group "Options"
+    :level 1
+    :order 1
+    :documentation "Explicit key for the memory (auto-generated from content if not set). If a memory with this key already exists, it will be updated in place"))
   :documentation "Represents bd remember command.
 Stores a persistent memory.")
 

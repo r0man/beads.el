@@ -155,13 +155,6 @@
          (args (beads-command-line cmd)))
     (should (member "version" args))))
 
-(ert-deftest beads-command-version-test-command-line-daemon ()
-  "Unit test: version includes --daemon option."
-  :tags '(:unit)
-  (let* ((cmd (beads-command-version :daemon t))
-         (args (beads-command-line cmd)))
-    (should (member "--daemon" args))))
-
 ;;; Unit Tests: beads-command-where command-line
 
 (ert-deftest beads-command-where-test-command-line-basic ()
@@ -649,12 +642,12 @@
          (args (beads-command-line cmd)))
     (should (member "/tmp/backup" args))))
 
-(ert-deftest beads-command-backup-restore-test-command-line-dry-run ()
-  "Unit test: backup restore includes --dry-run option."
+(ert-deftest beads-command-backup-restore-test-command-line-force ()
+  "Unit test: backup restore includes --force option."
   :tags '(:unit)
-  (let* ((cmd (beads-command-backup-restore :dry-run t))
+  (let* ((cmd (beads-command-backup-restore :force t))
          (args (beads-command-line cmd)))
-    (should (member "--dry-run" args))))
+    (should (member "--force" args))))
 
 ;;; Unit Tests: beads-command-kv-get
 
