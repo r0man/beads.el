@@ -249,19 +249,19 @@
   "Test transient-format-value for switch when true."
   (let ((obj (beads-option-global-switch)))
     (oset obj value t)
-    (oset obj argument "--no-daemon")
+    (oset obj argument "--global")
     (let ((result (transient-format-value obj)))
       (should (stringp result))
-      (should (string-match-p "(--no-daemon)" result)))))
+      (should (string-match-p "(--global)" result)))))
 
 (ert-deftest beads-option-test-global-switch-format-value-false ()
   "Test transient-format-value for switch when false."
   (let ((obj (beads-option-global-switch)))
     (oset obj value nil)
-    (oset obj argument "--no-daemon")
+    (oset obj argument "--global")
     (let ((result (transient-format-value obj)))
       (should (stringp result))
-      (should (string-match-p "(--no-daemon)" result)))))
+      (should (string-match-p "(--global)" result)))))
 
 (ert-deftest beads-option-test-global-infix-value-returns-nil ()
   "Test transient-infix-value returns nil for global options."
@@ -291,21 +291,13 @@
   "Test that global json infix is defined."
   (should (commandp 'beads-option-global-json)))
 
-(ert-deftest beads-option-test-global-no-auto-flush-infix-exists ()
-  "Test that global no-auto-flush infix is defined."
-  (should (commandp 'beads-option-global-no-auto-flush)))
+(ert-deftest beads-option-test-global-directory-infix-exists ()
+  "Test that global directory infix is defined."
+  (should (commandp 'beads-option-global-directory)))
 
-(ert-deftest beads-option-test-global-no-auto-import-infix-exists ()
-  "Test that global no-auto-import infix is defined."
-  (should (commandp 'beads-option-global-no-auto-import)))
-
-(ert-deftest beads-option-test-global-no-daemon-infix-exists ()
-  "Test that global no-daemon infix is defined."
-  (should (commandp 'beads-option-global-no-daemon)))
-
-(ert-deftest beads-option-test-global-no-db-infix-exists ()
-  "Test that global no-db infix is defined."
-  (should (commandp 'beads-option-global-no-db)))
+(ert-deftest beads-option-test-global-global-infix-exists ()
+  "Test that global shared-server infix is defined."
+  (should (commandp 'beads-option-global-global)))
 
 (ert-deftest beads-option-test-global-sandbox-infix-exists ()
   "Test that global sandbox infix is defined."
@@ -323,11 +315,9 @@
   "Test that global option variables are defined."
   (should (boundp 'beads-global-actor))
   (should (boundp 'beads-global-db))
+  (should (boundp 'beads-global-directory))
+  (should (boundp 'beads-global-global))
   (should (boundp 'beads-global-json))
-  (should (boundp 'beads-global-no-auto-flush))
-  (should (boundp 'beads-global-no-auto-import))
-  (should (boundp 'beads-global-no-daemon))
-  (should (boundp 'beads-global-no-db))
   (should (boundp 'beads-global-sandbox)))
 
 ;;; ============================================================

@@ -832,7 +832,7 @@ Integration test that retrieves issue database stats."
                :json t
                :status "open"
                :priority "1"
-               :no-daemon t))
+               :sandbox t))
          (args (beads-command-line cmd)))
     (should (listp args))
     (should (member "list" args))
@@ -840,7 +840,7 @@ Integration test that retrieves issue database stats."
     (should (member "open" args))
     (should (member "--priority" args))
     (should (member "1" args))
-    (should (member "--no-daemon" args))
+    (should (member "--sandbox" args))
     (should (member "--json" args))
     ;; --flat must NOT be present; bd 0.58.0 --json works without it
     (should-not (member "--flat" args))))

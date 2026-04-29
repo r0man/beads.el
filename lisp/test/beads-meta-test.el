@@ -1176,8 +1176,8 @@
     ;; Should include global options inherited from beads-command-global-options
     (should (memq 'actor options))
     (should (memq 'verbose options))
-    ;; Should have 10 command-show + 14 global option slots = 24
-    (should (= 24 (length options)))))
+    ;; Should have 10 command-show + 10 global option slots = 20
+    (should (= 20 (length options)))))
 
 (ert-deftest beads-meta-show-generate-infix-specs ()
   "Test that infix specs can be generated from beads-command-show."
@@ -1449,8 +1449,8 @@
     ;; Should include global options inherited from beads-command-global-options
     (should (memq 'actor options))
     (should (memq 'verbose options))
-    ;; All slots have :long-option: 56 command-list + 1 json + 14 global options
-    (should (= 71 (length options)))))
+    ;; All slots have :long-option: 56 command-list + 1 json + 10 global options
+    (should (= 67 (length options)))))
 
 (ert-deftest beads-meta-list-generate-infix-specs ()
   "Test that infix specs can be generated from beads-command-list."

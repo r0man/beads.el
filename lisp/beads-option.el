@@ -1023,37 +1023,22 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "=j"
   :argument "--json")
 
-(transient-define-infix beads-option-global-no-auto-flush ()
-  "Disable automatic JSONL sync."
-  :class 'beads-option-global-switch
-  :variable 'beads-global-no-auto-flush
-  :description "No auto-flush"
-  :key "=F"
-  :argument "--no-auto-flush")
+(transient-define-infix beads-option-global-directory ()
+  "Override working directory (like git -C)."
+  :class 'beads-option-global
+  :variable 'beads-global-directory
+  :description "Working directory (-C)"
+  :key "=C"
+  :argument "--directory="
+  :prompt "Working directory: ")
 
-(transient-define-infix beads-option-global-no-auto-import ()
-  "Disable automatic JSONL import."
+(transient-define-infix beads-option-global-global ()
+  "Use the global shared-server database (beads_global)."
   :class 'beads-option-global-switch
-  :variable 'beads-global-no-auto-import
-  :description "No auto-import"
-  :key "=I"
-  :argument "--no-auto-import")
-
-(transient-define-infix beads-option-global-no-daemon ()
-  "Force direct storage mode."
-  :class 'beads-option-global-switch
-  :variable 'beads-global-no-daemon
-  :description "No daemon"
-  :key "=D"
-  :argument "--no-daemon")
-
-(transient-define-infix beads-option-global-no-db ()
-  "Use no-db mode (JSONL only)."
-  :class 'beads-option-global-switch
-  :variable 'beads-global-no-db
-  :description "No-db mode"
-  :key "=N"
-  :argument "--no-db")
+  :variable 'beads-global-global
+  :description "Global shared DB"
+  :key "=g"
+  :argument "--global")
 
 (transient-define-infix beads-option-global-sandbox ()
   "Enable sandbox mode."
@@ -1063,31 +1048,14 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :key "=s"
   :argument "--sandbox")
 
-(transient-define-infix beads-option-global-allow-stale ()
-  "Allow operations on potentially stale data."
-  :class 'beads-option-global-switch
-  :variable 'beads-global-allow-stale
-  :description "Allow stale data"
-  :key "=S"
-  :argument "--allow-stale")
-
 (transient-define-infix beads-option-global-dolt-auto-commit ()
   "Set Dolt auto-commit policy (off|on|batch)."
   :class 'beads-option-global
   :variable 'beads-global-dolt-auto-commit
   :description "Dolt auto-commit"
-  :key "=C"
+  :key "=A"
   :argument "--dolt-auto-commit="
   :prompt "Auto-commit policy (off|on|batch): ")
-
-(transient-define-infix beads-option-global-lock-timeout ()
-  "Set SQLite lock timeout."
-  :class 'beads-option-global
-  :variable 'beads-global-lock-timeout
-  :description "Lock timeout"
-  :key "=l"
-  :argument "--lock-timeout="
-  :prompt "Lock timeout (e.g., 30s): ")
 
 (transient-define-infix beads-option-global-profile ()
   "Generate CPU profile for performance analysis."
@@ -1125,14 +1093,10 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   [:level 5 "Global Options"
           (beads-option-global-actor)
           (beads-option-global-db)
-          (beads-option-global-json)
-          (beads-option-global-allow-stale)
+          (beads-option-global-directory)
           (beads-option-global-dolt-auto-commit)
-          (beads-option-global-lock-timeout)
-          (beads-option-global-no-auto-flush)
-          (beads-option-global-no-auto-import)
-          (beads-option-global-no-daemon)
-          (beads-option-global-no-db)
+          (beads-option-global-global)
+          (beads-option-global-json)
           (beads-option-global-profile)
           (beads-option-global-quiet)
           (beads-option-global-readonly)

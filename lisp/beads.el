@@ -439,7 +439,7 @@ into a compact hierarchical structure with sub-dispatches."
 ;;;###autoload
 (defun beads-emacs-info ()
   "Display Emacs-specific beads configuration information.
-Shows worktree status, database path, and --no-daemon settings.
+Shows worktree status and database path.
 Useful for debugging Emacs configuration issues.
 
 Note: Use `beads-info' (M-x beads-info) for bd CLI info command
@@ -453,14 +453,11 @@ which shows daemon status and database statistics."
   In worktree: %s
   Main repo: %s
   .beads dir: %s
-  Database: %s
-  --no-daemon: %s%s"
+  Database: %s"
              (if in-worktree "yes" "no")
              (or main-repo "N/A")
              (or beads-dir "NOT FOUND")
-             (or db-path "NOT FOUND")
-             (if beads-global-no-daemon "enabled" "disabled")
-             (if beads-global-no-daemon " (via transient)" ""))))
+             (or db-path "NOT FOUND"))))
 
 ;; Main menu command autoloads — ensures all commands referenced in the
 ;; `beads' transient menu are available when the menu renders, without
