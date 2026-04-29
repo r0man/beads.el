@@ -9,16 +9,35 @@
 
 ;;; Commentary:
 
-;; This module defines EIEIO command classes for `bd compact' operations.
-;; The compact command manages database compaction for old closed issues.
-;; The class includes full slot metadata for automatic transient menu
-;; generation via `beads-defcommand'.
+;; This module defines EIEIO command classes for `bd admin compact'
+;; operations.  The compact command manages database compaction for
+;; old closed issues.  The class includes full slot metadata for
+;; automatic transient menu generation via `beads-defcommand'.
 ;;
-;; Compact has multiple modes:
-;; - Analyze: Export candidates for agent review (JSON output)
-;; - Apply: Accept agent-provided summary
-;; - Auto: AI-powered compaction (legacy, requires ANTHROPIC_API_KEY)
-;; - Stats: Show compaction statistics
+;; INTENTIONAL DESIGN: 5-class cluster targeting `admin.compact'
+;; ===============================================================
+;;
+;; `bd admin compact' has mutually-exclusive operating modes selected
+;; by --analyze / --apply / --auto / --dolt / --stats flags.  Rather
+;; than expose a single class with a `--mode' selector, this file (and
+;; `beads-command-admin.el' for the parent) ships ONE class per mode so
+;; the transient UX surfaces only the slots that are relevant to the
+;; chosen mode.  All five classes set `:cli-command "admin compact"',
+;; which is intentional collision; cli-audit reports flag this as a
+;; collision but it is not drift.
+;;
+;; The cluster:
+;;   - beads-command-compact-stats     (--stats)    : statistics display
+;;   - beads-command-compact-analyze   (--analyze)  : export candidates
+;;   - beads-command-compact-apply     (--apply)    : accept summary
+;;   - beads-command-compact-auto      (--auto)     : AI-powered (legacy)
+;;   - beads-command-admin-compact     (--dolt etc) : full/dolt-mode form
+;;
+;; Each class carries ONLY the flags from `bd admin compact --help'
+;; that are meaningful in its mode; it inherits global flags from
+;; `beads-command-global-options'.  Sibling-only slots intentionally
+;; do not appear and should not be added to keep mode-specific UX
+;; clean.  Future audits should treat the cluster as ONE unit.
 ;;
 ;; Usage:
 ;;   (beads-execute 'beads-command-compact-stats)                    ; Show stats
@@ -111,7 +130,13 @@ or tier 2 candidates."
     :group "Apply Options"
     :level 1
     :order 2
-    :required t))
+    :required t)
+   (force
+    :type boolean
+    :short-option "f"
+    :group "Apply Options"
+    :level 2
+    :order 3))
   :documentation "Apply agent-provided summary to compact an issue.
 
 Accepts a summary file for the specified issue.  Use '-' as the

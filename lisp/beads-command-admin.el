@@ -50,12 +50,6 @@
     :group "Filters"
     :level 1
     :order 1)
-   (hard
-    :type boolean
-    :short-option "H"
-    :group "Options"
-    :level 2
-    :order 4)
    (older-than
     :type (or null string integer)
     :short-option "o"
@@ -124,13 +118,12 @@ Deletes closed issues and prunes expired tombstones.")
     :group "Options"
     :level 2
     :order 4)
-   (older-than
-    :type (or null string integer)
-    :short-option "o"
-    :prompt "Days: "
-    :group "Options"
+   (dolt
+    :type boolean
+    :short-option "d"
+    :group "Mode"
     :level 1
-    :order 5)
+    :order 7)
    (limit
     :type (or null string integer)
     :short-option "L"
