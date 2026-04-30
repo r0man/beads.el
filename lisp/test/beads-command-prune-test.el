@@ -69,6 +69,18 @@
   (let ((cmd (beads-command-prune :pattern "gm-*")))
     (should (null (beads-command-validate cmd)))))
 
+(ert-deftest beads-command-prune-test-validation-rejects-empty-strings ()
+  "Unit test: prune validation rejects empty --older-than/--pattern.
+An accidentally cleared transient field must not bypass the safety
+gate."
+  :tags '(:unit)
+  (should (beads-command-validate
+           (beads-command-prune :older-than "" :pattern "")))
+  (should (beads-command-validate
+           (beads-command-prune :older-than "")))
+  (should (beads-command-validate
+           (beads-command-prune :pattern ""))))
+
 (ert-deftest beads-command-prune-test-transient-defined ()
   "Unit test: beads-prune transient is defined."
   :tags '(:unit)
