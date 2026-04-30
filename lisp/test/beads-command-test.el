@@ -483,9 +483,11 @@ all children leaves no eligible epics (they are already closed)."
 
 (ert-deftest beads-command-test-epic-close-eligible-dry-run ()
   "Test beads-command-epic-close-eligible with --dry-run flag.
-Integration test that previews eligible epics without closing them.
-bd 1.0.3 does not auto-close epics on child close — close-eligible
-must be invoked explicitly."
+Integration test that previews eligible epics without changing
+state.  Some bd versions auto-close epics when all children close
+(\"Auto-closed completed molecule\"); others leave the epic open
+until close-eligible is invoked.  We assert that --dry-run does not
+change the epic's status, regardless of which behavior bd has."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
@@ -501,18 +503,24 @@ must be invoked explicitly."
                     :title "Child 2"
                     :deps (list (concat "parent-child:"
                                        (oref epic id))))))
-      ;; Close both children
+      ;; Close both children — epic may or may not auto-close
       (shell-command (format "bd close %s %s --reason 'Done'"
                             (oref child1 id)
                             (oref child2 id)))
-      ;; Preview close-eligible (must not close)
-      (beads-execute 'beads-command-epic-close-eligible :dry-run t)
-      ;; Epic should still be open after dry-run
-      (let ((epic-check (beads-list-execute
-                        :id (oref epic id)
-                        :status "all")))
-        (should (= (length epic-check) 1))
-        (should (string= (oref (car epic-check) status) "open"))))))
+      ;; Capture epic status before dry-run
+      (let* ((before-list (beads-list-execute
+                           :id (oref epic id)
+                           :status "all"))
+             (status-before (oref (car before-list) status)))
+        (should (= (length before-list) 1))
+        ;; Preview close-eligible — must not change state
+        (beads-execute 'beads-command-epic-close-eligible :dry-run t)
+        ;; Epic status should be unchanged after the dry-run preview
+        (let ((after-list (beads-list-execute
+                          :id (oref epic id)
+                          :status "all")))
+          (should (= (length after-list) 1))
+          (should (string= (oref (car after-list) status) status-before)))))))
 
 (ert-deftest beads-command-test-epic-close-eligible-execute ()
   "Test beads-command-epic-close-eligible actually closes eligible epics.
