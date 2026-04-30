@@ -583,13 +583,6 @@ Shows the value in brackets with appropriate face, or [unset] if nil."
   :prompt "Output file: "
   :reader #'beads-reader-export-output)
 
-(transient-define-infix beads-option-export-no-auto-flush ()
-  "Toggle no-auto-flush flag."
-  :class 'transient-switch
-  :description "--no-auto-flush"
-  :key "-n"
-  :argument "--no-auto-flush")
-
 (transient-define-infix beads-option-export-force ()
   "Toggle force flag."
   :class 'transient-switch
