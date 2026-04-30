@@ -104,6 +104,9 @@ Validates sync-related configuration settings.")
 (beads-defcommand beads-command-config-show (beads-command-global-options)
   ((source
     :type (or null string)
+    :long-option "source"
+    :prompt "Filter by source (config.yaml, env, default, ...): "
+    :documentation "Filter by source (e.g., config.yaml, env, default, metadata, database, git)"
     :group "Options"
     :level 1
     :order 1))

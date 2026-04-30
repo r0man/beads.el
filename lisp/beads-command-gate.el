@@ -29,8 +29,10 @@
 (beads-defcommand beads-command-gate-create (beads-command-global-options)
   ((blocks
     :type (or null string)
+    :long-option "blocks"
     :prompt "Issue to block: "
     :reader beads-reader-issue-id
+    :documentation "Issue ID to block (required)"
     :group "Options"
     :level 1
     :order 1
