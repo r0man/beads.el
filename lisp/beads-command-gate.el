@@ -50,7 +50,7 @@
     :short-option "r"
     :type (or null string)
     :transient beads-transient-multiline
-    :documentation "Reason"
+    :documentation "Reason for the gate"
     :group "Options"
     :level 1
     :order 3)

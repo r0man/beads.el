@@ -321,7 +321,6 @@ Tiers:
 ;; :transient :manual and a manually-named transient
 ;; `beads-compact-commits'.
 
-;;;###autoload (autoload 'beads-compact-commits "beads-command-compact" nil t)
 (beads-defcommand beads-command-compact (beads-command-global-options)
   ((days
     :type (or null integer string)
