@@ -661,15 +661,15 @@
 
 (ert-deftest beads-meta-create-slot-property-title ()
   "Test that title slot has correct metadata."
-  ;; Title is positional
-  (should (equal 1 (beads-meta-slot-property
-                    'beads-command-create 'title :positional)))
+  ;; Title is a flag in bd 1.0.3 ('alternative to positional argument'),
+  ;; not a positional slot.
+  (should-not (beads-meta-slot-property
+               'beads-command-create 'title :positional))
+  (should (equal "title" (beads-meta-slot-property
+                           'beads-command-create 'title :long-option)))
   ;; Transient properties
   (should (equal "t" (beads-meta-slot-property
                       'beads-command-create 'title :transient-key)))
-  (should (equal "Title" (beads-meta-slot-property
-                          'beads-command-create 'title
-                          :transient-description)))
   (should (equal "Required" (beads-meta-slot-property
                              'beads-command-create 'title :transient-group)))
   (should (eq t (beads-meta-slot-property
@@ -747,25 +747,24 @@
     (should (memq 'force slots))))
 
 (ert-deftest beads-meta-create-positional-slots ()
-  "Test that title is correctly identified as positional."
+  "Test that beads-command-create has no positional slots in bd 1.0.3.
+Title moved from positional to --title flag (CLI: 'alternative to
+positional argument')."
   (let ((positionals (beads-meta-positional-slots 'beads-command-create)))
-    ;; Should have title as positional 1
-    (should (= 1 (length positionals)))
-    (should (eq 'title (caar positionals)))
-    (should (= 1 (cdar positionals)))))
+    (should (= 0 (length positionals)))))
 
 (ert-deftest beads-meta-create-option-slots ()
-  "Test that non-positional CLI options are identified."
+  "Test that CLI options are identified.
+In bd 1.0.3 title is a flag option, not positional."
   (let ((options (beads-meta-option-slots 'beads-command-create)))
     ;; Should include various options
+    (should (memq 'title options))
     (should (memq 'priority options))
     (should (memq 'issue-type options))
     (should (memq 'assignee options))
     (should (memq 'labels options))
     (should (memq 'deps options))
-    (should (memq 'force options))
-    ;; Should NOT include title (it's positional)
-    (should-not (memq 'title options))))
+    (should (memq 'force options))))
 
 (ert-deftest beads-meta-create-generate-infix-specs ()
   "Test that infix specs can be generated from beads-command-create."
@@ -895,9 +894,9 @@
   (should (eq 'beads-transient-multiline
               (beads-meta-slot-property
                'beads-command-update 'description :transient-class)))
-  (should (equal "Description" (beads-meta-slot-property
-                                'beads-command-update 'description
-                                :transient-description)))
+  (should (equal "Issue description" (beads-meta-slot-property
+                                      'beads-command-update 'description
+                                      :transient-description)))
   (should (equal "Content" (beads-meta-slot-property
                             'beads-command-update 'description
                             :transient-group))))
@@ -914,7 +913,7 @@
   (should (eq 'beads-transient-multiline
               (beads-meta-slot-property
                'beads-command-update 'acceptance :transient-class)))
-  (should (equal "Acceptance Criteria" (beads-meta-slot-property
+  (should (equal "Acceptance criteria" (beads-meta-slot-property
                                         'beads-command-update 'acceptance
                                         :transient-description))))
 
@@ -929,8 +928,9 @@
   (should (eq 'beads-transient-multiline
               (beads-meta-slot-property
                'beads-command-update 'design :transient-class)))
-  (should (equal "Design" (beads-meta-slot-property
-                           'beads-command-update 'design :transient-description))))
+  (should (equal "Design notes" (beads-meta-slot-property
+                                  'beads-command-update 'design
+                                  :transient-description))))
 
 (ert-deftest beads-meta-update-slot-property-notes ()
   "Test that notes slot has correct metadata."
@@ -943,8 +943,9 @@
   (should (eq 'beads-transient-multiline
               (beads-meta-slot-property
                'beads-command-update 'notes :transient-class)))
-  (should (equal "Notes" (beads-meta-slot-property
-                          'beads-command-update 'notes :transient-description))))
+  (should (equal "Additional notes" (beads-meta-slot-property
+                                     'beads-command-update 'notes
+                                     :transient-description))))
 
 (ert-deftest beads-meta-update-transient-slots ()
   "Test that all expected slots have transient keys."
@@ -1051,9 +1052,9 @@
   ;; Transient properties
   (should (equal "r" (beads-meta-slot-property
                       'beads-command-close 'reason :transient-key)))
-  (should (equal "Close Reason" (beads-meta-slot-property
-                                  'beads-command-close 'reason
-                                  :transient-description)))
+  (should (equal "Reason for closing" (beads-meta-slot-property
+                                        'beads-command-close 'reason
+                                        :transient-description)))
   (should (eq 'beads-transient-multiline (beads-meta-slot-property
                                                  'beads-command-close 'reason
                                                  :transient-class)))
@@ -1070,19 +1071,23 @@
                  'beads-command-close 'reason :required))))
 
 (ert-deftest beads-meta-close-transient-slots ()
-  "Test that all expected slots have transient keys."
+  "Test that all expected slots have transient keys.
+bd 1.0.3 added --reason-file and --no-auto, raising the slot count
+to 9."
   (let ((slots (beads-meta-transient-slots 'beads-command-close)))
     ;; Should have both transient-enabled slots
     (should (memq 'issue-ids slots))
     (should (memq 'reason slots))
     (should (memq 'force slots))
-    ;; Should have all 7 own slots with transient keys
+    ;; Should have all own slots with transient keys
     ;; (beads--normalize-slot infers :transient-key for all command options)
     (should (memq 'claim-next slots))
     (should (memq 'continue-mol slots))
     (should (memq 'session slots))
     (should (memq 'suggest-next slots))
-    (should (= 7 (length slots)))))
+    (should (memq 'reason-file slots))
+    (should (memq 'no-auto slots))
+    (should (= 9 (length slots)))))
 
 (ert-deftest beads-meta-close-option-slots ()
   "Test that option slots are identified correctly."
@@ -1096,8 +1101,8 @@
   "Test that infix specs can be generated from beads-command-close."
   (let ((specs (beads-meta-generate-infix-specs
                 'beads-command-close "beads-close")))
-    ;; Should have specs for all 7 transient-enabled slots
-    (should (= 7 (length specs)))
+    ;; Should have specs for all 9 transient-enabled slots
+    (should (= 9 (length specs)))
     ;; Check for specific infixes
     (let ((issue-ids-spec (cl-find-if
                            (lambda (s)
@@ -1130,13 +1135,12 @@
 ;; after migration to use beads-meta.
 
 (ert-deftest beads-meta-show-slot-property-issue-ids ()
-  "Test that issue-ids slot has correct metadata."
+  "Test that issue-ids slot has correct metadata.
+In bd 1.0.3 issue-ids is a --id flag (advertised for IDs that look
+like flags) rather than a positional slot."
   ;; Transient properties
   (should (equal "i" (beads-meta-slot-property
                       'beads-command-show 'issue-ids :transient-key)))
-  (should (equal "Issue IDs" (beads-meta-slot-property
-                              'beads-command-show 'issue-ids
-                              :transient-description)))
   (should (eq 'transient-option (beads-meta-slot-property
                                  'beads-command-show 'issue-ids
                                  :transient-class)))
@@ -1169,15 +1173,18 @@
     (should (= 10 (length slots)))))
 
 (ert-deftest beads-meta-show-option-slots ()
-  "Test that option slots are identified correctly."
+  "Test that option slots are identified correctly.
+In bd 1.0.3 issue-ids is a --id flag, so all 10 own slots are options."
   (let ((options (beads-meta-option-slots 'beads-command-show)))
+    ;; Should include the new --id flag for issue-ids
+    (should (memq 'issue-ids options))
     ;; Should include json slot inherited from beads-command
     (should (memq 'json options))
     ;; Should include global options inherited from beads-command-global-options
     (should (memq 'actor options))
     (should (memq 'verbose options))
-    ;; Should have 10 command-show + 10 global option slots = 20
-    (should (= 20 (length options)))))
+    ;; Should have 10 command-show + 11 inherited option slots = 21
+    (should (= 21 (length options)))))
 
 (ert-deftest beads-meta-show-generate-infix-specs ()
   "Test that infix specs can be generated from beads-command-show."
@@ -1427,9 +1434,9 @@
     (should (memq 'long slots))
     (should (memq 'format slots))
     (should (memq 'all slots))
-    ;; Should have 56 slots with transient keys
+    ;; Should have 57 slots with transient keys
     ;; (beads--normalize-slot infers :transient-key for all command options)
-    (should (= 56 (length slots)))))
+    (should (= 57 (length slots)))))
 
 (ert-deftest beads-meta-list-option-slots ()
   "Test that non-positional CLI options are identified."
@@ -1449,15 +1456,15 @@
     ;; Should include global options inherited from beads-command-global-options
     (should (memq 'actor options))
     (should (memq 'verbose options))
-    ;; All slots have :long-option: 56 command-list + 1 json + 10 global options
-    (should (= 67 (length options)))))
+    ;; All slots have :long-option: 57 command-list + 1 json + 10 global options
+    (should (= 68 (length options)))))
 
 (ert-deftest beads-meta-list-generate-infix-specs ()
   "Test that infix specs can be generated from beads-command-list."
   (let ((specs (beads-meta-generate-infix-specs
                 'beads-command-list "beads-list")))
-    ;; Should have specs for all 56 transient-enabled slots
-    (should (= 56 (length specs)))
+    ;; Should have specs for all 57 transient-enabled slots
+    (should (= 57 (length specs)))
     ;; Check for specific infixes
     (let ((status-spec (cl-find-if
                         (lambda (s)

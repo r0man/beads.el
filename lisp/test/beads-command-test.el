@@ -483,8 +483,9 @@ all children leaves no eligible epics (they are already closed)."
 
 (ert-deftest beads-command-test-epic-close-eligible-dry-run ()
   "Test beads-command-epic-close-eligible with --dry-run flag.
-Integration test that verifies auto-close behavior: when all children
-of an epic are closed, bd auto-closes the epic."
+Integration test that previews eligible epics without closing them.
+bd 1.0.3 does not auto-close epics on child close — close-eligible
+must be invoked explicitly."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
@@ -500,16 +501,18 @@ of an epic are closed, bd auto-closes the epic."
                     :title "Child 2"
                     :deps (list (concat "parent-child:"
                                        (oref epic id))))))
-      ;; Close both children — bd auto-closes the epic
+      ;; Close both children
       (shell-command (format "bd close %s %s --reason 'Done'"
                             (oref child1 id)
                             (oref child2 id)))
-      ;; Epic should be auto-closed now
+      ;; Preview close-eligible (must not close)
+      (beads-execute 'beads-command-epic-close-eligible :dry-run t)
+      ;; Epic should still be open after dry-run
       (let ((epic-check (beads-list-execute
                         :id (oref epic id)
                         :status "all")))
         (should (= (length epic-check) 1))
-        (should (string= (oref (car epic-check) status) "closed"))))))
+        (should (string= (oref (car epic-check) status) "open"))))))
 
 (ert-deftest beads-command-test-epic-close-eligible-execute ()
   "Test beads-command-epic-close-eligible actually closes eligible epics.
