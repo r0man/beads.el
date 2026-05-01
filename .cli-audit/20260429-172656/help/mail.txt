@@ -1,4 +1,4 @@
-warning: no beads configuration found in /home/roman/workspace/beads.el/.beads; using default database name "beads"
+warning: no beads configuration found in $REPO/.beads; using default database name "beads"
 Delegates mail operations to an external mail provider.
 
 Agents often type 'bd mail' when working with beads, but mail functionality

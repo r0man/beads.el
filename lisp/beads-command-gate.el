@@ -227,7 +227,9 @@ Gate types: human, timer, gh:run, gh:pr, bead"
    ("r" "Resolve gate" beads-gate-resolve)
    ("s" "Show gate" beads-gate-show)
    ("a" "Add waiter" beads-gate-add-waiter)
-   ("d" "Discover await_id" beads-gate-discover)])
+   ("d" "Discover await_id" beads-gate-discover)]
+  ["Quick Actions"
+   ("q" "Quit" transient-quit-one)])
 
 (provide 'beads-command-gate)
 ;;; beads-command-gate.el ends here

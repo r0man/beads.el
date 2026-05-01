@@ -191,6 +191,6 @@ bd create --type=feature --priority=2 \
   --title="Add classes for missing config subcommands (config.apply, config.drift, config.show)"
 ```
 
-Absolute path to this report:
+Repo-relative path to this report:
 
-    /home/roman/workspace/beads.el/.cli-audit/20260429-172656/REPORT.md
+    .cli-audit/20260429-172656/REPORT.md

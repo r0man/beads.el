@@ -187,7 +187,9 @@ Common namespaces:
    ("w" "Show effective config" beads-config-show)
    ("a" "Apply (reconcile)" beads-config-apply)
    ("d" "Drift detection" beads-config-drift)
-   ("v" "Validate config" beads-config-validate)])
+   ("v" "Validate config" beads-config-validate)]
+  ["Quick Actions"
+   ("q" "Quit" transient-quit-one)])
 
 (provide 'beads-command-config)
 ;;; beads-command-config.el ends here
