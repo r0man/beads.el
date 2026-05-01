@@ -240,16 +240,20 @@ single issue or --all for all eligible candidates."
           '("--auto")))
 
 (cl-defmethod beads-command-validate ((command beads-command-compact-auto))
-  "Validate auto COMMAND."
-  (with-slots (issue-id all force) command
-    (cond
-     ;; --force requires --id
-     ((and force (not issue-id))
-      "--force requires --id to be specified")
-     ;; Either --id or --all should be specified
-     ((and (not issue-id) (not all))
-      "Specify --id for a single issue or --all for all candidates")
-     (t nil))))
+  "Validate auto COMMAND.
+Chains parent :required validation first, then enforces the
+mode-specific rules: --force requires --id, and one of --id or
+--all must be specified."
+  (or (cl-call-next-method)
+      (with-slots (issue-id all force) command
+        (cond
+         ;; --force requires --id
+         ((and force (not issue-id))
+          "--force requires --id to be specified")
+         ;; Either --id or --all should be specified
+         ((and (not issue-id) (not all))
+          "Specify --id for a single issue or --all for all candidates")
+         (t nil)))))
 
 (cl-defmethod beads-command-execute-interactive
     ((cmd beads-command-compact-auto))

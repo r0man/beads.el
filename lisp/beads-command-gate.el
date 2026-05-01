@@ -163,9 +163,11 @@
 ;;;###autoload (autoload 'beads-gate-add-waiter "beads-command-gate" nil t)
 (beads-defcommand beads-command-gate-add-waiter (beads-command-global-options)
   ((gate-id
-    :positional 1)
+    :positional 1
+    :required t)
    (waiter-id
-    :positional 2))
+    :positional 2
+    :required t))
   :documentation "Add a waiter to a gate."
   :cli-command "gate add-waiter")
 
