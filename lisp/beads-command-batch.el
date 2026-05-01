@@ -48,6 +48,7 @@
     :documentation "Parse input and echo commands without executing")
    (file
     :type (or null string)
+    :long-option "file"
     :short-option "f"
     :prompt "Commands file: "
     :group "Options"
