@@ -47,6 +47,7 @@
 ;;   - beads-command-compact-apply     (--apply)    : accept summary
 ;;   - beads-command-compact-auto      (--auto)     : AI-powered (legacy)
 ;;   - beads-command-admin-compact     (--dolt etc) : full/dolt-mode form
+;;     (defined in beads-command-admin.el; not in this file)
 ;;
 ;; Each class carries ONLY the flags from `bd admin compact --help'
 ;; that are meaningful in its mode; it inherits global flags from

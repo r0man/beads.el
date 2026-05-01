@@ -16,18 +16,6 @@
 (require 'json)
 (require 'beads-command-compact)
 
-;;; Test Utilities
-
-(defun beads-compact-test--mock-process-file (exit-code output)
-  "Create a mock for `process-file' returning EXIT-CODE and OUTPUT."
-  (lambda (program &optional infile buffer display &rest args)
-    (when buffer
-      (let ((buf (if (listp buffer) (car buffer) buffer)))
-        (when buf
-          (with-current-buffer (if (bufferp buf) buf (current-buffer))
-            (insert output)))))
-    exit-code))
-
 ;;; Tests for Stats Command
 
 (ert-deftest beads-compact-test-stats-class-exists ()

@@ -1,6 +1,6 @@
 ;;; beads-command-prune.el --- Prune command class for beads -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2025
+;; Copyright (C) 2026
 
 ;; Author: Beads Contributors
 ;; Keywords: tools

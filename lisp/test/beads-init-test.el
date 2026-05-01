@@ -444,6 +444,35 @@ ARGS should be a list of strings like (\"--prefix=myproj\" \"--db=foo\")."
       (beads-init--reset)
       (should-not reset-called))))
 
+;;; ============================================================
+;;; Tests for beads-command-init-safety
+;;; ============================================================
+
+(ert-deftest beads-command-init-safety-test-class-exists ()
+  "Unit test: beads-command-init-safety class is defined."
+  :tags '(:unit)
+  (should (cl-find-class 'beads-command-init-safety)))
+
+(ert-deftest beads-command-init-safety-test-command-line-basic ()
+  "Unit test: init-safety builds correct command line.
+The CLI subcommand has a hyphen, so :cli-command is set explicitly
+to override the default hyphen-to-space derivation."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-init-safety))
+         (args (beads-command-line cmd)))
+    (should (member "init-safety" args))))
+
+(ert-deftest beads-command-init-safety-test-validation-always-valid ()
+  "Unit test: init-safety has no required fields."
+  :tags '(:unit)
+  (let ((cmd (beads-command-init-safety)))
+    (should (null (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-init-safety-test-transient-defined ()
+  "Unit test: beads-init-safety transient is defined."
+  :tags '(:unit)
+  (should (fboundp 'beads-init-safety)))
+
 ;;; Footer
 
 (provide 'beads-init-test)

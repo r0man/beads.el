@@ -1,6 +1,6 @@
 ;;; beads-command-ping.el --- Ping command class for beads -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2025
+;; Copyright (C) 2026
 
 ;; Author: Beads Contributors
 ;; Keywords: tools
