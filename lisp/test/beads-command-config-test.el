@@ -214,5 +214,37 @@
     (should (member "config" args))
     (should (member "drift" args))))
 
+;;; Unit Tests: transient definitions for new config subcommands
+
+(ert-deftest beads-command-config-show-test-transient-defined ()
+  "Unit test: beads-config-show transient is defined."
+  :tags '(:unit)
+  (should (fboundp 'beads-config-show)))
+
+(ert-deftest beads-command-config-show-test-transient-is-prefix ()
+  "Unit test: beads-config-show is a transient prefix."
+  :tags '(:unit)
+  (should (get 'beads-config-show 'transient--prefix)))
+
+(ert-deftest beads-command-config-apply-test-transient-defined ()
+  "Unit test: beads-config-apply transient is defined."
+  :tags '(:unit)
+  (should (fboundp 'beads-config-apply)))
+
+(ert-deftest beads-command-config-apply-test-transient-is-prefix ()
+  "Unit test: beads-config-apply is a transient prefix."
+  :tags '(:unit)
+  (should (get 'beads-config-apply 'transient--prefix)))
+
+(ert-deftest beads-command-config-drift-test-transient-defined ()
+  "Unit test: beads-config-drift transient is defined."
+  :tags '(:unit)
+  (should (fboundp 'beads-config-drift)))
+
+(ert-deftest beads-command-config-drift-test-transient-is-prefix ()
+  "Unit test: beads-config-drift is a transient prefix."
+  :tags '(:unit)
+  (should (get 'beads-config-drift 'transient--prefix)))
+
 (provide 'beads-command-config-test)
 ;;; beads-command-config-test.el ends here

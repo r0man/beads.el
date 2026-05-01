@@ -23,6 +23,13 @@ Artifact under test: `lisp/beads-command-*.el`.
 | `beads-command-global-options` missing slots | 2 (`--directory`, `--global`) |
 | `beads-command-global-options` stale slots | 6 |
 
+> **Note (post-audit):** This snapshot was the *input* to the
+> reconciliation work. The global-options changes listed above
+> (missing slots added, stale slots removed) were resolved in
+> commit 170abe0 (`feat(global-options): sync with bd 1.0.3 Global
+> Flags (bde-s84l.1)`). All 13 sub-epics under bde-s84l have since
+> closed.
+
 ## Artifacts
 
 - [`commands.json`](commands.json) — all 259 dotted CLI paths + summaries

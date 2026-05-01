@@ -25,7 +25,6 @@
 (require 'transient)
 
 ;; Forward declarations
-(declare-function beads-command-update "beads-command-update" (&rest args))
 
 ;;; ============================================================
 ;;; Command Class: beads-command-graph
@@ -435,7 +434,6 @@ Returns the path to the generated image file."
     (define-key map (kbd "g") #'beads-graph-refresh)
     (define-key map (kbd "q") #'quit-window)
     (define-key map (kbd "f") #'beads-graph-filter)
-    (define-key map (kbd "c") #'beads-graph-filter)  ; clear/filter
     (define-key map (kbd "e") #'beads-graph-export)
     map)
   "Keymap for `beads-graph-mode'.")
