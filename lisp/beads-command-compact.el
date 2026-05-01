@@ -354,6 +354,9 @@ Tiers:
 Squashes Dolt commits older than N days into a single commit,
 preserving recent commits via cherry-pick.  Distinct from
 `bd admin compact' (semantic issue summarization)."
+  ;; :transient :manual: the auto-generated name `beads-compact' is
+  ;; already bound by the admin-compact mode menu above.  See the
+  ;; section header comment for why this naming collision is intentional.
   :transient :manual
   :cli-command "compact")
 
