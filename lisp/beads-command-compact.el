@@ -99,7 +99,7 @@ Shows compaction statistics including tier 1 and tier 2 candidates."
     :type (or null string integer)
     :short-option "t"
     :prompt "Tier (1 or 2): "
-    :choices '("1" "2")
+    :choices ("1" "2")
     :group "Analyze Options"
     :level 1
     :order 1)
@@ -198,7 +198,7 @@ summary path to read from stdin."
     :type (or null string integer)
     :short-option "t"
     :prompt "Tier (1 or 2): "
-    :choices '("1" "2")
+    :choices ("1" "2")
     :group "Auto Options"
     :level 1
     :order 3)
@@ -228,6 +228,10 @@ summary path to read from stdin."
     :level 3
     :order 7))
   :documentation "AI-powered automatic compaction (legacy).
+
+Prefer the Analyze -> Apply workflow (`beads-compact-analyze' followed
+by `beads-compact-apply') for current usage; this auto mode is kept
+for backward compatibility.
 
 Requires ANTHROPIC_API_KEY environment variable.  Use --dry-run
 to preview candidates before compacting.  Specify --id for a
