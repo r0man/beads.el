@@ -248,7 +248,9 @@
   (should (eq (lookup-key beads-graph-mode-map (kbd "f"))
               'beads-graph-filter))
   (should (eq (lookup-key beads-graph-mode-map (kbd "e"))
-              'beads-graph-export)))
+              'beads-graph-export))
+  (should (eq (lookup-key beads-graph-mode-map (kbd "i"))
+              'beads-graph-issue)))
 
 ;;; Tests for Commands
 
@@ -297,6 +299,38 @@
     (beads-graph-mode)
     (let ((binding (lookup-key beads-graph-mode-map (kbd "e"))))
       (should (eq binding 'beads-graph-export)))))
+
+(ert-deftest beads-graph-test-keybinding-i-issue ()
+  "Integration test: Verify i keybinding for focused-issue graph."
+  :tags '(:integration)
+  (with-temp-buffer
+    (beads-graph-mode)
+    (let ((binding (lookup-key beads-graph-mode-map (kbd "i"))))
+      (should (eq binding 'beads-graph-issue)))))
+
+(ert-deftest beads-graph-test-cleanup-image-file-deletes-temp ()
+  "`beads-graph--cleanup-image-file' deletes the tracked temp file
+and clears `beads-graph--current-image-file'."
+  (let ((tmp (make-temp-file "beads-graph-test-" nil ".png")))
+    (with-temp-buffer
+      (beads-graph-mode)
+      (setq beads-graph--current-image-file tmp)
+      (should (file-exists-p tmp))
+      (beads-graph--cleanup-image-file)
+      (should-not (file-exists-p tmp))
+      (should-not beads-graph--current-image-file))))
+
+(ert-deftest beads-graph-test-cleanup-image-file-handles-missing ()
+  "`beads-graph--cleanup-image-file' is a no-op when nothing is tracked
+or when the file no longer exists."
+  (with-temp-buffer
+    (beads-graph-mode)
+    (setq beads-graph--current-image-file nil)
+    (beads-graph--cleanup-image-file)
+    (should-not beads-graph--current-image-file)
+    (setq beads-graph--current-image-file "/nonexistent/path/x.png")
+    (beads-graph--cleanup-image-file)
+    (should-not beads-graph--current-image-file)))
 
 ;;; ============================================================
 ;;; Tests for Render and Display

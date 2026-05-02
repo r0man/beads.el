@@ -397,7 +397,6 @@ Non-destructive database setup for fresh clones and recovery.")
 ;; but the docstring explicitly leads with the "read-only, prints help
 ;; text" signal so the menu's purpose is discoverable from the header.
 
-;;;###autoload (autoload 'beads-init-safety "beads-command-init" nil t)
 (beads-defcommand beads-command-init-safety (beads-command-global-options)
   ()
   :documentation "Represents bd init-safety command.

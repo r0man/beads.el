@@ -164,6 +164,10 @@ Returns exit code 0 if the graph is clean, 1 if issues are found."
 (defvar-local beads-graph--root-issue nil
   "Root issue for focused graph view.")
 
+(defvar-local beads-graph--current-image-file nil
+  "Path to the temp image file currently displayed in this buffer.
+Cleaned up on refresh and on `kill-buffer'.")
+
 ;;; Utilities
 
 (defun beads-graph--check-dot ()
@@ -223,7 +227,13 @@ ISSUE is a beads-issue EIEIO object."
   "Get all dependencies from all issues.
 Returns a list of plists with :from, :to, and :type keys.
 On per-issue fetch failure, reports the first error and suppresses
-the rest so a broken bd binary or Dolt outage isn't silently hidden."
+the rest so a broken bd binary or Dolt outage isn't silently hidden.
+
+Performance: this issues one `bd dep list' call per issue, so it
+is O(n) RPC calls for n issues.  `bd dep list' accepts multiple
+positional IDs in a single invocation, but the current
+`beads-command-dep-list' class is single-positional; tracked as
+bde-g5b1."
   (let ((issues (beads-list-execute))
         (deps nil)
         (failures 0)
@@ -350,13 +360,26 @@ Returns the path to the generated image file."
 
 ;;; Commands
 
+(defun beads-graph--cleanup-image-file ()
+  "Delete the temp image file tracked in this buffer, if any."
+  (when (and beads-graph--current-image-file
+             (file-exists-p beads-graph--current-image-file))
+    (ignore-errors (delete-file beads-graph--current-image-file)))
+  (setq beads-graph--current-image-file nil))
+
 (defun beads-graph--display-image (image-file)
-  "Display IMAGE-FILE in a buffer."
+  "Display IMAGE-FILE in a buffer.
+Takes ownership of IMAGE-FILE: the previously displayed temp file
+is deleted, IMAGE-FILE is tracked buffer-locally, and a
+`kill-buffer-hook' deletes it when the buffer goes away."
   (let ((buffer (get-buffer-create (beads-buffer-name-utility "graph"))))
     (with-current-buffer buffer
       (let ((inhibit-read-only t))
+        (beads-graph--cleanup-image-file)
         (erase-buffer)
         (beads-graph-mode)
+        (setq beads-graph--current-image-file image-file)
+        (add-hook 'kill-buffer-hook #'beads-graph--cleanup-image-file nil t)
         (insert-image (create-image image-file))
         (insert "\n")
         (goto-char (point-min))))
@@ -384,18 +407,12 @@ Returns the path to the generated image file."
       (if (string= format "dot")
           (with-temp-file file
             (insert dot))
-        (let ((temp-dot (make-temp-file "beads-export-" nil ".dot")))
-          (with-temp-file temp-dot
-            (insert dot))
-          (let ((exit-code (call-process beads-graph-dot-executable nil nil nil
-                                        (concat "-T" format)
-                                        "-K" beads-graph-layout
-                                        temp-dot
-                                        "-o" file)))
-            (delete-file temp-dot)
-            (if (zerop exit-code)
-                (message "Graph exported to: %s" file)
-              (error "Failed to export graph")))))
+        (let ((rendered (beads-graph--render-dot dot format)))
+          (unwind-protect
+              (copy-file rendered file t)
+            (when (file-exists-p rendered)
+              (delete-file rendered)))
+          (message "Graph exported to: %s" file)))
       file)))
 
 (defun beads-graph-filter ()
@@ -487,6 +504,7 @@ dependency edges (in either direction)."
     (define-key map (kbd "q") #'quit-window)
     (define-key map (kbd "f") #'beads-graph-filter)
     (define-key map (kbd "e") #'beads-graph-export)
+    (define-key map (kbd "i") #'beads-graph-issue)
     map)
   "Keymap for `beads-graph-mode'.")
 
