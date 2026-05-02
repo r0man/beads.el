@@ -1,6 +1,6 @@
 ;;; beads-command-batch.el --- Batch command class for beads -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2026
+;; Copyright (C) 2025
 
 ;; Author: Beads Contributors
 ;; Keywords: tools

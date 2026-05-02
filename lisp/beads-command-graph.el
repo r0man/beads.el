@@ -14,6 +14,8 @@
 
 ;;; Code:
 
+(require 'cl-lib)
+(require 'seq)
 (require 'beads-util)
 (require 'beads-buffer)
 (require 'beads-command)
@@ -106,7 +108,9 @@ Returns exit code 0 if the graph is clean, 1 if issues are found."
   ["Graph Commands"
    ("d" "Display graph (bd graph)" beads-graph-transient)
    ("c" "Check integrity" beads-graph-check)
-   ("v" "Visual graph (Graphviz)" beads-graph-all)])
+   ("v" "Visual graph (Graphviz)" beads-graph-all)]
+  ["Quick Actions"
+   ("q" "Quit" transient-quit-one)])
 
 ;;; ============================================================
 ;;; Graphviz-based Graph Visualization
@@ -217,76 +221,114 @@ ISSUE is a beads-issue EIEIO object."
 
 (defun beads-graph--get-dependencies ()
   "Get all dependencies from all issues.
-Returns a list of plists with :from, :to, and :type keys."
+Returns a list of plists with :from, :to, and :type keys.
+On per-issue fetch failure, reports the first error and suppresses
+the rest so a broken bd binary or Dolt outage isn't silently hidden."
   (let ((issues (beads-list-execute))
-        (deps nil))
+        (deps nil)
+        (failures 0)
+        (first-error nil)
+        (first-failed-id nil))
     (dolist (issue issues)
       (let ((issue-id (oref issue id)))
-        ;; Get dependencies for this issue using EIEIO command class
-        ;; JSON mode returns beads-dependency objects
-        (condition-case nil
+        (condition-case err
             (let ((dep-list (beads-execute 'beads-command-dep-list :issue-id issue-id)))
               (dolist (dep dep-list)
                 (push (list :from (oref dep issue-id)
                             :to (oref dep depends-on-id)
                             :type (oref dep type))
                       deps)))
-          (error nil))))
+          (error
+           (cl-incf failures)
+           (unless first-error
+             (setq first-error (error-message-string err)
+                   first-failed-id issue-id))))))
+    (when (> failures 0)
+      (message "beads-graph: failed to fetch deps for %s: %s%s"
+               first-failed-id first-error
+               (if (> failures 1)
+                   (format " (and %d more failure%s)"
+                           (1- failures)
+                           (if (= failures 2) "" "s"))
+                 "")))
     (nreverse deps)))
+
+(defun beads-graph--connected-ids (root-id deps)
+  "Return list of issue IDs reachable from ROOT-ID via DEPS.
+Treats edges as undirected so both ancestors and descendants are
+included.  DEPS is a list of plists with :from and :to keys.  The
+returned list always contains ROOT-ID itself."
+  (let ((visited (make-hash-table :test 'equal))
+        (queue (list root-id)))
+    (puthash root-id t visited)
+    (while queue
+      (let ((current (pop queue)))
+        (dolist (dep deps)
+          (let ((from (plist-get dep :from))
+                (to (plist-get dep :to)))
+            (cond
+             ((and (equal from current) (not (gethash to visited)))
+              (puthash to t visited)
+              (push to queue))
+             ((and (equal to current) (not (gethash from visited)))
+              (puthash from t visited)
+              (push from queue)))))))
+    (hash-table-keys visited)))
 
 (defun beads-graph--generate-dot (issues deps)
   "Generate DOT format graph from ISSUES and DEPS.
 ISSUES is a list of beads-issue EIEIO objects.
 DEPS is a list of plists with :from, :to, and :type keys."
-  (with-temp-buffer
-    (insert "digraph beads {\n")
-    (insert "  rankdir=TB;\n")
-    (insert "  node [style=filled];\n")
-    (insert "  \n")
-
-    ;; Generate nodes
+  (let ((issue-by-id (make-hash-table :test 'equal)))
     (dolist (issue issues)
-      (when (beads-graph--filter-issue issue)
-        (let ((id (oref issue id))
-              (label (beads-graph--issue-label issue))
-              (color (beads-graph--issue-color issue))
-              (shape (beads-graph--issue-shape issue)))
-          (insert (format "  \"%s\" [label=\"%s\", fillcolor=\"%s\", \
+      (puthash (oref issue id) issue issue-by-id))
+    (with-temp-buffer
+      (insert "digraph beads {\n")
+      (insert "  rankdir=TB;\n")
+      (insert "  node [style=filled];\n")
+      (insert "  \n")
+
+      ;; Generate nodes
+      (dolist (issue issues)
+        (when (beads-graph--filter-issue issue)
+          (let ((id (oref issue id))
+                (label (beads-graph--issue-label issue))
+                (color (beads-graph--issue-color issue))
+                (shape (beads-graph--issue-shape issue)))
+            (insert (format "  \"%s\" [label=\"%s\", fillcolor=\"%s\", \
 shape=%s];\n"
-                          id label color shape)))))
+                            id label color shape)))))
 
-    (insert "  \n")
+      (insert "  \n")
 
-    ;; Generate edges
-    (dolist (dep deps)
-      (let ((from (plist-get dep :from))
-            (to (plist-get dep :to))
-            (type (plist-get dep :type)))
-        ;; Only include edge if both nodes are in filtered issues
-        (when (and (seq-find (lambda (i) (string= (oref i id) from)) issues)
-                   (seq-find (lambda (i) (string= (oref i id) to)) issues)
-                   (beads-graph--filter-issue
-                    (seq-find (lambda (i) (string= (oref i id) from)) issues))
-                   (beads-graph--filter-issue
-                    (seq-find (lambda (i) (string= (oref i id) to)) issues)))
-          (let ((style (pcase type
-                         ("blocks" "solid")
-                         ("related" "dashed")
-                         ("parent-child" "bold")
-                         ("discovered-from" "dotted")
-                         (_ "solid")))
-                (color (pcase type
-                         ("blocks" "red")
-                         ("related" "blue")
-                         ("parent-child" "green")
-                         ("discovered-from" "gray")
-                         (_ "black"))))
-            (insert (format "  \"%s\" -> \"%s\" [style=%s, color=\"%s\", \
+      ;; Generate edges
+      (dolist (dep deps)
+        (let* ((from (plist-get dep :from))
+               (to (plist-get dep :to))
+               (type (plist-get dep :type))
+               (from-issue (gethash from issue-by-id))
+               (to-issue (gethash to issue-by-id)))
+          (when (and from-issue to-issue
+                     (beads-graph--filter-issue from-issue)
+                     (beads-graph--filter-issue to-issue))
+            (let ((style (pcase type
+                           ("blocks" "solid")
+                           ("related" "dashed")
+                           ("parent-child" "bold")
+                           ("discovered-from" "dotted")
+                           (_ "solid")))
+                  (color (pcase type
+                           ("blocks" "red")
+                           ("related" "blue")
+                           ("parent-child" "green")
+                           ("discovered-from" "gray")
+                           (_ "black"))))
+              (insert (format "  \"%s\" -> \"%s\" [style=%s, color=\"%s\", \
 label=\"%s\"];\n"
-                            from to style color type))))))
+                              from to style color type))))))
 
-    (insert "}\n")
-    (buffer-string)))
+      (insert "}\n")
+      (buffer-string))))
 
 (defun beads-graph--render-dot (dot-string format)
   "Render DOT-STRING to FORMAT using graphviz.
@@ -409,7 +451,9 @@ Returns the path to the generated image file."
 
 ;;;###autoload
 (defun beads-graph-issue (issue-id)
-  "Show dependency graph focused on ISSUE-ID using Graphviz."
+  "Show dependency graph focused on ISSUE-ID using Graphviz.
+Restricts the graph to issues reachable from ISSUE-ID through the
+dependency edges (in either direction)."
   (interactive
    (list (beads-completion-read-issue "Graph for issue: "
                          nil t nil 'beads--issue-id-history)))
@@ -418,14 +462,22 @@ Returns the path to the generated image file."
   (message "Generating graph for %s..." issue-id)
   (let* ((all-issues (beads-list-execute))
          (all-deps (beads-graph--get-dependencies))
-         ;; Find connected issues (simplified - includes all for now)
-         (issues all-issues)
-         (deps all-deps)
+         (connected-ids (beads-graph--connected-ids issue-id all-deps))
+         (id-set (let ((h (make-hash-table :test 'equal)))
+                   (dolist (id connected-ids) (puthash id t h))
+                   h))
+         (issues (seq-filter (lambda (i) (gethash (oref i id) id-set))
+                             all-issues))
+         (deps (seq-filter (lambda (d)
+                             (and (gethash (plist-get d :from) id-set)
+                                  (gethash (plist-get d :to) id-set)))
+                           all-deps))
          (dot (beads-graph--generate-dot issues deps))
          (image-file (beads-graph--render-dot dot beads-graph-default-format)))
     (beads-graph--display-image image-file)
     (setq beads-graph--root-issue issue-id)
-    (message "Graph generated for %s" issue-id)))
+    (message "Graph generated for %s (%d issues, %d dependencies)"
+             issue-id (length issues) (length deps))))
 
 ;;; Mode Definition
 

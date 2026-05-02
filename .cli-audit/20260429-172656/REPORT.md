@@ -29,6 +29,27 @@ Artifact under test: `lisp/beads-command-*.el`.
 > commit 170abe0 (`feat(global-options): sync with bd 1.0.3 Global
 > Flags (bde-s84l.1)`). All 13 sub-epics under bde-s84l have since
 > closed.
+>
+> The actionable findings in this snapshot have been addressed in
+> the PR. The summary counts above (47 missing classes, 72 drifted
+> classes, 294 slot findings) reflect the *pre-fix* state and are
+> intentionally preserved for reproducibility. Remaining
+> classifications that are **not** actionable bugs and stay out of
+> scope going forward:
+>
+> - 24 of the 47 "missing classes" are top-level group commands
+>   (`admin`, `dolt`, `mol`, …) that, by project policy, get a
+>   parent transient menu but never a `beads-defcommand` class.
+>   See `CLAUDE.md` § "Top-level group commands".
+> - The 5-class collision on `admin.compact` is intentional — each
+>   class exposes a different `--mode` through its own transient.
+>   The 4 `compact-*` classes inflate the missing-slot count
+>   because they each model only one mode; treat the cluster as
+>   one unit.
+>
+> Re-running the audit after the fix commits will produce a new
+> snapshot under `.cli-audit/<timestamp>/` with the residual
+> baseline.
 
 ## Artifacts
 
