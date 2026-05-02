@@ -521,6 +521,85 @@ or when the file no longer exists."
       (when (file-exists-p temp-file)
         (delete-file temp-file)))))
 
+(ert-deftest beads-graph-test-export-honours-root-issue ()
+  "Test that beads-graph-export limits output to the connected
+component when `beads-graph--root-issue' is set, mirroring
+`beads-graph-issue' scoping."
+  (skip-unless (executable-find "dot"))
+  (let* ((issues (list (beads-issue :id "bd-1" :title "Connected A"
+                                    :status "open" :priority 1
+                                    :issue-type "feature")
+                       (beads-issue :id "bd-2" :title "Connected B"
+                                    :status "open" :priority 2
+                                    :issue-type "bug")
+                       (beads-issue :id "bd-99" :title "Disconnected"
+                                    :status "open" :priority 1
+                                    :issue-type "task")))
+         (deps '((:from "bd-1" :to "bd-2" :type "blocks")))
+         (temp-file (make-temp-file "beads-graph-export-test-" nil ".dot")))
+    (unwind-protect
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (&rest _) "dot"))
+                  ((symbol-function 'read-file-name)
+                   (lambda (&rest _) temp-file))
+                  ((symbol-function 'beads-check-executable) #'ignore)
+                  ((symbol-function 'beads-execute)
+                   (lambda (_class &rest _args) issues))
+                  ((symbol-function 'beads-graph--get-dependencies)
+                   (lambda () deps)))
+          (let ((beads-graph--filter-status nil)
+                (beads-graph--filter-priority nil)
+                (beads-graph--filter-type nil)
+                (beads-graph--root-issue "bd-1"))
+            (beads-graph-export)
+            (with-temp-buffer
+              (insert-file-contents temp-file)
+              (let ((contents (buffer-string)))
+                (should (string-match-p "\"bd-1\"" contents))
+                (should (string-match-p "\"bd-2\"" contents))
+                (should-not (string-match-p "\"bd-99\"" contents))))))
+      (when (file-exists-p temp-file)
+        (delete-file temp-file)))))
+
+(ert-deftest beads-graph-test-export-no-root-includes-all ()
+  "Test that beads-graph-export includes all issues when no root
+is set, falling back to the full graph."
+  (skip-unless (executable-find "dot"))
+  (let* ((issues (list (beads-issue :id "bd-1" :title "Connected A"
+                                    :status "open" :priority 1
+                                    :issue-type "feature")
+                       (beads-issue :id "bd-2" :title "Connected B"
+                                    :status "open" :priority 2
+                                    :issue-type "bug")
+                       (beads-issue :id "bd-99" :title "Disconnected"
+                                    :status "open" :priority 1
+                                    :issue-type "task")))
+         (deps '((:from "bd-1" :to "bd-2" :type "blocks")))
+         (temp-file (make-temp-file "beads-graph-export-test-" nil ".dot")))
+    (unwind-protect
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (&rest _) "dot"))
+                  ((symbol-function 'read-file-name)
+                   (lambda (&rest _) temp-file))
+                  ((symbol-function 'beads-check-executable) #'ignore)
+                  ((symbol-function 'beads-execute)
+                   (lambda (_class &rest _args) issues))
+                  ((symbol-function 'beads-graph--get-dependencies)
+                   (lambda () deps)))
+          (let ((beads-graph--filter-status nil)
+                (beads-graph--filter-priority nil)
+                (beads-graph--filter-type nil)
+                (beads-graph--root-issue nil))
+            (beads-graph-export)
+            (with-temp-buffer
+              (insert-file-contents temp-file)
+              (let ((contents (buffer-string)))
+                (should (string-match-p "\"bd-1\"" contents))
+                (should (string-match-p "\"bd-2\"" contents))
+                (should (string-match-p "\"bd-99\"" contents))))))
+      (when (file-exists-p temp-file)
+        (delete-file temp-file)))))
+
 ;;; ============================================================
 ;;; Tests for Graph All and Graph Issue
 ;;; ============================================================

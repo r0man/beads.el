@@ -72,7 +72,6 @@
 ;; Forward declarations
 (declare-function beads--invalidate-completion-cache "beads-util")
 (declare-function beads-check-executable "beads-util")
-(defvar beads-auto-refresh)
 
 ;;; ============================================================
 ;;; Command Class: beads-command-compact-stats

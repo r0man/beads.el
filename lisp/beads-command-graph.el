@@ -207,7 +207,7 @@ ISSUE is a beads-issue EIEIO object."
             id
             (if (> (length title) beads-graph-label-max-length)
                 (concat (substring title 0
-                                   (- beads-graph-label-max-length 3))
+                                   (max 0 (- beads-graph-label-max-length 3)))
                         "...")
               title)
             priority
@@ -393,7 +393,10 @@ is deleted, IMAGE-FILE is tracked buffer-locally, and a
     (beads-graph-all)))
 
 (defun beads-graph-export ()
-  "Export current graph to a file."
+  "Export current graph to a file.
+When `beads-graph--root-issue' is set, exports only the connected
+component the user is viewing, mirroring the scoping logic of
+`beads-graph-issue'.  Otherwise exports the full graph."
   (interactive)
   (let* ((format (completing-read "Export format: "
                                  '("svg" "png" "pdf" "dot")
@@ -401,8 +404,24 @@ is deleted, IMAGE-FILE is tracked buffer-locally, and a
          (default-name (format "beads-graph.%s" format))
          (file (read-file-name "Export to: " nil nil nil default-name)))
     (beads-graph--check-dot)
-    (let* ((issues (beads-list-execute))
-           (deps (beads-graph--get-dependencies))
+    (let* ((all-issues (beads-list-execute))
+           (all-deps (beads-graph--get-dependencies))
+           (id-set (when beads-graph--root-issue
+                     (let ((h (make-hash-table :test 'equal)))
+                       (dolist (id (beads-graph--connected-ids
+                                    beads-graph--root-issue all-deps))
+                         (puthash id t h))
+                       h)))
+           (issues (if id-set
+                       (seq-filter (lambda (i) (gethash (oref i id) id-set))
+                                   all-issues)
+                     all-issues))
+           (deps (if id-set
+                     (seq-filter (lambda (d)
+                                   (and (gethash (plist-get d :from) id-set)
+                                        (gethash (plist-get d :to) id-set)))
+                                 all-deps)
+                   all-deps))
            (dot (beads-graph--generate-dot issues deps)))
       (if (string= format "dot")
           (with-temp-file file
