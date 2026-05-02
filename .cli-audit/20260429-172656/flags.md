@@ -1,5 +1,8 @@
 # Slot Drift — Per-Class Findings
 
+> **GENERATED SNAPSHOT — DO NOT EDIT BY HAND.** Captured 2026-04-29
+> 17:26:56. Re-run the audit (`audit.el`) to refresh.
+
 Source: 216 classes audited against `bd <cmd> --help`.
 Global flags handled separately in `inheritance.md`.
 

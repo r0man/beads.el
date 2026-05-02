@@ -1,5 +1,8 @@
 # Global Options Inheritance Audit
 
+> **GENERATED SNAPSHOT — DO NOT EDIT BY HAND.** Captured 2026-04-29
+> 17:26:56. Re-run the audit (`audit.el`) to refresh.
+
 A `bd <cmd> --help` showing a `Global Flags:` section ⇒ the class should inherit `beads-command-global-options`.
 
 ## `beads-command-global-options` slot drift

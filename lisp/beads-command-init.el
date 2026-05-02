@@ -389,14 +389,34 @@ Non-destructive database setup for fresh clones and recovery.")
 ;; recovery guidance).  It takes no flags beyond the global options.
 ;; CLI subcommand name has a dash and would not survive the default
 ;; hyphen-to-space derivation, so :cli-command is set explicitly.
+;;
+;; The auto-generated transient would carry only the global flags
+;; group, which can read as an empty/confusing menu.  We use
+;; :transient :manual and route through `beads-meta-define-transient'
+;; so the standard execute/preview/reset suffixes are still wired up,
+;; but the docstring explicitly leads with the "read-only, prints help
+;; text" signal so the menu's purpose is discoverable from the header.
 
 ;;;###autoload (autoload 'beads-init-safety "beads-command-init" nil t)
 (beads-defcommand beads-command-init-safety (beads-command-global-options)
   ()
   :documentation "Represents bd init-safety command.
 Prints the bd init flag safety contract: refusal rules,
-destroy-token semantics, exit codes, and recovery guidance."
-  :cli-command "init-safety")
+destroy-token semantics, exit codes, and recovery guidance.
+Read-only: never modifies the database or workspace."
+  :cli-command "init-safety"
+  :transient :manual)
+
+;;;###autoload (autoload 'beads-init-safety "beads-command-init" nil t)
+(beads-meta-define-transient beads-command-init-safety "beads-init-safety"
+  "Print the bd init flag safety contract — read-only.
+
+This command takes no command-specific options; the menu shows
+only the global flags.  Running it invokes `bd init-safety',
+which prints the refusal rules, destroy-token semantics, exit
+codes, and recovery guidance for `bd init'.  The database and
+workspace are never modified."
+  beads-option-global-section)
 
 (provide 'beads-command-init)
 ;;; beads-command-init.el ends here

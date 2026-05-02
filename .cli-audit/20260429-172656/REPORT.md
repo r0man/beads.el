@@ -1,5 +1,12 @@
 # bd CLI ↔ beads.el Audit — 20260429-172656
 
+> **GENERATED SNAPSHOT — DO NOT EDIT BY HAND.** This directory is a
+> point-in-time audit captured on **2026-04-29 17:26:56**. Counts and
+> findings reflect the bd/beads.el state at that timestamp and become
+> stale as either side evolves. Re-run the audit (per `audit.el`) to
+> produce a fresh snapshot under `.cli-audit/<timestamp>/`; do not edit
+> these files except for the post-audit annotation block below.
+
 Source of truth: `bd --version` = `1.0.3 (dev)`, parsed at audit time.
 Artifact under test: `lisp/beads-command-*.el`.
 

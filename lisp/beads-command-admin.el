@@ -61,6 +61,18 @@
 Deletes closed issues and prunes expired tombstones.")
 
 
+(cl-defmethod beads-command-validate ((command beads-command-admin-cleanup))
+  "Validate admin-cleanup COMMAND.
+Mirrors bd's runtime safety check: the command refuses to delete
+unless invoked with --force or --dry-run.  Catching this in Emacs
+fails fast with a clear message instead of round-tripping to bd
+just to surface its CLI error."
+  (or (cl-call-next-method)
+      (with-slots (force dry-run) command
+        (unless (or force dry-run)
+          "Specify --force to delete or --dry-run to preview (safety gate, mirrors bd's own check)"))))
+
+
 ;;; ============================================================
 ;;; Command Class: beads-command-admin-compact
 ;;; ============================================================

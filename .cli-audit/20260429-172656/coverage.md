@@ -1,5 +1,9 @@
 # Coverage Diff — bd CLI ↔ beads.el classes
 
+> **GENERATED SNAPSHOT — DO NOT EDIT BY HAND.** Captured 2026-04-29
+> 17:26:56. Re-run the audit (`audit.el`) to refresh; counts below
+> reflect that timestamp.
+
 Source: `commands.json` (259 paths) ↔ `classes.json` (216 classes, 212 unique cli_paths).
 
 ## Missing Classes

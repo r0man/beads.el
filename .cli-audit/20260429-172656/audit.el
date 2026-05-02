@@ -35,6 +35,43 @@
 
 (defconst audit-run-dir ".cli-audit/20260429-172656")
 
+;; Intentional cli_path collisions (machine-readable).
+;;
+;; Some CLI paths are deliberately targeted by more than one
+;; `beads-defcommand' class -- typically because the underlying CLI
+;; subcommand has mutually-exclusive operating modes selected by flags
+;; (e.g. `bd admin compact --analyze' vs `--apply' vs `--auto') and we
+;; expose ONE class per mode so the transient surfaces only the slots
+;; relevant to the chosen mode.
+;;
+;; Future audit revisions should consult this list before reporting a
+;; collision in `coverage.md' / `REPORT.md' so the policy lives in code
+;; instead of in prose. Each entry carries a rationale and the expected
+;; member classes; a collision whose member set differs from the entry
+;; should still be flagged (intent has drifted).
+(defconst audit--intentional-collisions
+  '(("admin.compact"
+     :rationale "bd admin compact has mutually-exclusive operating modes (--stats, --analyze, --apply, --auto, --dolt). Each Emacs class models one mode so the transient surfaces only the relevant flags. See lisp/beads-command-compact.el header."
+     :classes (beads-command-admin-compact
+               beads-command-compact-stats
+               beads-command-compact-analyze
+               beads-command-compact-apply
+               beads-command-compact-auto)))
+  "Alist of (CLI-PATH . PLIST) for cli_path collisions that are intentional.
+PLIST keys: `:rationale' (string), `:classes' (list of expected
+member class symbols).  Future audit tooling should suppress these
+collisions from the actionable list and re-flag only when the
+member set drifts from the recorded intent.")
+
+(defun audit--intentional-collision-p (cli-path classes)
+  "Return non-nil if (CLI-PATH . CLASSES) matches an intentional collision.
+CLASSES is the list of class symbols that target CLI-PATH."
+  (when-let ((entry (cdr (assoc cli-path audit--intentional-collisions))))
+    (let ((expected (plist-get entry :classes))
+          (actual (sort (copy-sequence classes) #'string<)))
+      (equal (sort (copy-sequence expected) #'string<)
+             actual))))
+
 ;;; ============================================================
 ;;; CLI help parsing
 ;;; ============================================================

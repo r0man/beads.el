@@ -105,11 +105,14 @@ menu, but **never** a `beads-defcommand` EIEIO class.
   config` with no args, which prints help and exits — not a useful
   Emacs command. The transient menu *is* the parent UX.
 
-CLI-coverage audits (`.cli-audit/*/coverage.md`) flag these groups as
-"missing classes". That is expected and in-policy; the audit script
-filters them out of the actionable list. Mid-level groups (e.g.
-`dolt.remote`, `backup` parents that route to subcommands) follow the
-same rule: parent transient yes, EIEIO class no.
+CLI-coverage audits flag these groups under `coverage.md` >
+`Missing Classes` > `Top-level group commands (N) — IN POLICY, no
+action` (mirrored in `REPORT.md` > `Missing Classes` >
+`Top-level group commands without a class`). That bucketing is
+expected and in-policy; the audit script filters them out of the
+actionable list. Mid-level groups (e.g. `dolt.remote`, `backup`
+parents that route to subcommands) follow the same rule: parent
+transient yes, EIEIO class no.
 
 ## Agent Instructions
 
