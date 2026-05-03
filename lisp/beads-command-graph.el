@@ -196,22 +196,34 @@ ISSUE is a beads-issue EIEIO object."
     ("chore" "note")
     (_ "box")))
 
+(defun beads-graph--dot-escape (s)
+  "Escape S for safe inclusion inside a DOT double-quoted string.
+Doubles backslashes first, then escapes double quotes.  Apply this
+to user-supplied values (titles, dependency types, IDs) before
+substituting them into a DOT attribute like label=\"...\".  Do
+not apply it to format strings that already contain intentional
+DOT escapes such as `\\n'."
+  (replace-regexp-in-string
+   "\"" "\\\\\""
+   (replace-regexp-in-string "\\\\" "\\\\\\\\" s)))
+
 (defun beads-graph--issue-label (issue)
   "Create label for ISSUE in graph.
 ISSUE is a beads-issue EIEIO object."
-  (let ((id (oref issue id))
-        (title (oref issue title))
-        (status (oref issue status))
-        (priority (oref issue priority)))
+  (let* ((id (oref issue id))
+         (title (oref issue title))
+         (status (oref issue status))
+         (priority (oref issue priority))
+         (truncated (if (> (length title) beads-graph-label-max-length)
+                        (concat (substring title 0
+                                           (max 0 (- beads-graph-label-max-length 3)))
+                                "...")
+                      title)))
     (format "%s\\n%s\\n[P%s %s]"
-            id
-            (if (> (length title) beads-graph-label-max-length)
-                (concat (substring title 0
-                                   (max 0 (- beads-graph-label-max-length 3)))
-                        "...")
-              title)
+            (beads-graph--dot-escape id)
+            (beads-graph--dot-escape truncated)
             priority
-            status)))
+            (beads-graph--dot-escape status))))
 
 (defun beads-graph--filter-issue (issue)
   "Return non-nil if ISSUE passes current filters.
@@ -307,7 +319,10 @@ DEPS is a list of plists with :from, :to, and :type keys."
                 (shape (beads-graph--issue-shape issue)))
             (insert (format "  \"%s\" [label=\"%s\", fillcolor=\"%s\", \
 shape=%s];\n"
-                            id label color shape)))))
+                            (beads-graph--dot-escape id)
+                            label
+                            color
+                            shape)))))
 
       (insert "  \n")
 
@@ -335,7 +350,11 @@ shape=%s];\n"
                            (_ "black"))))
               (insert (format "  \"%s\" -> \"%s\" [style=%s, color=\"%s\", \
 label=\"%s\"];\n"
-                              from to style color type))))))
+                              (beads-graph--dot-escape from)
+                              (beads-graph--dot-escape to)
+                              style
+                              color
+                              (beads-graph--dot-escape type)))))))
 
       (insert "}\n")
       (buffer-string))))

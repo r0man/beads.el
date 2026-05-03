@@ -129,6 +129,50 @@
       (should (string-match-p "\\.\\.\\." label))
       (should (< (length (car (split-string label "\\\\n"))) 40)))))
 
+;;; Tests for DOT Escaping
+
+(ert-deftest beads-graph-test-dot-escape-plain ()
+  "Plain strings pass through unchanged."
+  (should (string= (beads-graph--dot-escape "hello world") "hello world")))
+
+(ert-deftest beads-graph-test-dot-escape-double-quote ()
+  "Double quotes are backslash-escaped."
+  (should (string= (beads-graph--dot-escape "Fix \"broken\" parser")
+                   "Fix \\\"broken\\\" parser")))
+
+(ert-deftest beads-graph-test-dot-escape-backslash ()
+  "Backslashes are doubled (escaped before quote-escaping)."
+  (should (string= (beads-graph--dot-escape "path\\to\\file")
+                   "path\\\\to\\\\file")))
+
+(ert-deftest beads-graph-test-dot-escape-mixed ()
+  "Mixed backslashes and quotes are escaped in the right order."
+  (should (string= (beads-graph--dot-escape "a\\b\"c")
+                   "a\\\\b\\\"c")))
+
+(ert-deftest beads-graph-test-issue-label-escapes-quote-in-title ()
+  "Issue title with embedded double quote is escaped in the label."
+  (let* ((issue (beads-issue :id "bd-1" :title "Fix \"broken\" parser"
+                             :status "open" :priority 1))
+         (label (beads-graph--issue-label issue)))
+    ;; Raw quote must not appear unescaped (quotes here are the only ones
+    ;; in the label besides escaped ones).
+    (should-not (string-match-p "[^\\\\]\"" label))
+    (should (string-match-p "\\\\\"broken\\\\\"" label))))
+
+(ert-deftest beads-graph-test-generate-dot-escapes-title-quote ()
+  "DOT output for an issue title with quotes is well-formed."
+  (let* ((beads-graph--filter-status nil)
+         (beads-graph--filter-priority nil)
+         (beads-graph--filter-type nil)
+         (issues (list (beads-issue :id "bd-1" :title "Fix \"broken\" parser"
+                                    :status "open" :priority 1
+                                    :issue-type "bug")))
+         (dot (beads-graph--generate-dot issues nil)))
+    ;; Inside the label="..." attribute we must see escaped quotes,
+    ;; not raw ones that would terminate the attribute prematurely.
+    (should (string-match-p "label=\"[^\"]*\\\\\"broken\\\\\"" dot))))
+
 ;;; Tests for Filtering
 
 (ert-deftest beads-graph-test-filter-issue-no-filters ()
