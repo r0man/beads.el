@@ -337,7 +337,13 @@ Removes a repository from sync configuration.")
     :documentation "Output JSON"
     :group "Options"
     :level 2
-    :order 1))
+    :order 1)
+   (verbose
+    :type boolean
+    :documentation "Show detailed sync progress"
+    :group "Options"
+    :level 2
+    :order 2))
   :documentation "Represents bd repo sync command.
 Manually triggers multi-repo sync.")
 
