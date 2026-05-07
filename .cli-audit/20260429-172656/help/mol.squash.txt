@@ -1,0 +1,50 @@
+Squash a molecule's ephemeral children into a single digest issue.
+
+This command collects all ephemeral child issues of a molecule (Ephemeral=true),
+generates a summary digest, and promotes the wisps to persistent by
+clearing their Wisp flag (or optionally deletes them).
+
+The squash operation:
+  1. Loads the molecule and all its children
+  2. Filters to only wisps (ephemeral issues with Ephemeral=true)
+  3. Generates a digest (summary of work done)
+  4. Creates a permanent digest issue (Ephemeral=false)
+  5. Clears Wisp flag on children (promotes to persistent)
+     OR keeps them with --keep-children (default: delete)
+
+AGENT INTEGRATION:
+Use --summary to provide an AI-generated summary. This keeps bd as a pure
+tool - the calling agent (orchestrator worker, Claude Code, etc.) is responsible
+for generating intelligent summaries. Without --summary, a basic concatenation
+of child issue content is used.
+
+This is part of the wisp workflow: spawn creates wisps,
+execution happens, squash compresses the trace into an outcome (digest).
+
+Example:
+  bd mol squash bd-abc123                    # Squash and promote children
+  bd mol squash bd-abc123 --dry-run          # Preview what would be squashed
+  bd mol squash bd-abc123 --keep-children    # Keep wisps after digest
+  bd mol squash bd-abc123 --summary "Agent-generated summary of work done"
+
+Usage:
+  bd mol squash <molecule-id> [flags]
+
+Flags:
+      --dry-run          Preview what would be squashed
+  -h, --help             help for squash
+      --keep-children    Don't delete ephemeral children after squash
+      --summary string   Agent-provided summary (bypasses auto-generation)
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

@@ -549,41 +549,37 @@ Tests creating an issue with dependency links."
 
 (ert-deftest beads-create-test-execute-from-file ()
   "Integration test: Create issue from markdown file.
-Tests the --file flag which is mutually exclusive with --title."
+Tests the --file flag which is mutually exclusive with --title.
+Verifies by title — not by count — to be robust against shared-state
+test interleaving."
   :tags '(:integration :slow)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
-    (let ((issue-file (expand-file-name "test-issue.md" default-directory)))
+    (let ((issue-file (expand-file-name "test-issue.md" default-directory))
+          (unique-title (format "Issue From File %s" (random 1000000))))
       (unwind-protect
           (progn
-            ;; Count issues before creation (should be 0 in fresh project)
-            (let ((before-count (length (beads-list-execute))))
-              (with-temp-file issue-file
-                (insert "## Issue Created From File\n\n")
-                (insert "This is the description of the issue.\n")
-                (insert "It was created using the --file flag.\n"))
-              ;; Create issue from file
-              (let ((result
-                     (beads-test-with-cache-tracking
-                      (cl-letf (((symbol-function 'y-or-n-p)
-                                 (lambda (_) nil)))
-                        (beads-test-with-transient-args 'beads-create
-                            (list (format "--file=%s" issue-file))
-                          (call-interactively #'beads-create--execute))))))
-                ;; Verify cache was invalidated
-                (should (plist-get result :completion-cache-invalidated))
-                ;; Verify exactly one new issue was created
-                (let* ((after-issues (beads-list-execute))
-                       (after-count (length after-issues)))
-                  (should (= after-count (1+ before-count)))
-                  ;; Find and verify the created issue
-                  (let ((created (seq-find
-                                  (lambda (issue)
-                                    (string-match-p "From File" (oref issue title)))
-                                  after-issues)))
-                    (should created)
-                    (should (equal (oref created title)
-                                   "Issue Created From File")))))))
+            (with-temp-file issue-file
+              (insert (format "## %s\n\n" unique-title))
+              (insert "This is the description of the issue.\n")
+              (insert "It was created using the --file flag.\n"))
+            ;; Create issue from file
+            (let ((result
+                   (beads-test-with-cache-tracking
+                    (cl-letf (((symbol-function 'y-or-n-p)
+                               (lambda (_) nil)))
+                      (beads-test-with-transient-args 'beads-create
+                          (list (format "--file=%s" issue-file))
+                        (call-interactively #'beads-create--execute))))))
+              ;; Verify cache was invalidated
+              (should (plist-get result :completion-cache-invalidated))
+              ;; Verify the new issue exists with the unique title
+              (let* ((after-issues (beads-list-execute :limit nil))
+                     (created (seq-find
+                               (lambda (issue)
+                                 (equal (oref issue title) unique-title))
+                               after-issues)))
+                (should created))))
         (when (file-exists-p issue-file)
           (delete-file issue-file))))))
 

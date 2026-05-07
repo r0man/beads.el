@@ -434,10 +434,7 @@ EIEIO enforces (list-of string) at construction time."
   "Test build-command converts symbol actor to string."
   (let ((beads-actor 'my-actor)
         (beads-global-actor nil)
-        (beads-global-db nil)
-        (beads-global-no-auto-flush nil)
-        (beads-global-no-auto-import nil)
-        (beads-global-no-daemon nil))
+        (beads-global-db nil))
     (cl-letf (((symbol-function 'beads--get-database-path)
                (lambda () nil)))
       (let ((result (beads--build-command "list")))
@@ -448,10 +445,7 @@ EIEIO enforces (list-of string) at construction time."
   "Test build-command converts symbol db to string."
   (let ((beads-actor nil)
         (beads-global-actor nil)
-        (beads-global-db 'my-db)
-        (beads-global-no-auto-flush nil)
-        (beads-global-no-auto-import nil)
-        (beads-global-no-daemon nil))
+        (beads-global-db 'my-db))
     (let ((result (beads--build-command "list")))
       (should (member "--db" result))
       (should (member "my-db" result)))))

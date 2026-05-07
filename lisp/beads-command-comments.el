@@ -50,7 +50,13 @@
     :group "List Comments"
     :level 1
     :order 1
-    :required t))
+    :required t)
+   (local-time
+    :type boolean
+    :group "List Comments"
+    :level 1
+    :order 2
+    :documentation "Show timestamps in local time instead of UTC"))
   :documentation "Represents bd comments command.
 Lists all comments on an issue."
   :result (list-of beads-comment))

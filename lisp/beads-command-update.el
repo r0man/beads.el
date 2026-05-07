@@ -135,7 +135,7 @@
     :short-option "d"
     :type (or null string)
     :transient beads-transient-multiline
-    :documentation "Description"
+    :documentation "Issue description"
     :group "Content"
     :level 3
     :order 1)
@@ -143,7 +143,7 @@
     :type (or null string)
     :short-option "A"
     :transient beads-transient-multiline
-    :documentation "Acceptance Criteria"
+    :documentation "Acceptance criteria"
     :group "Content"
     :level 3
     :order 2)
@@ -151,7 +151,7 @@
     :type (or null string)
     :short-option "G"
     :transient beads-transient-multiline
-    :documentation "Design"
+    :documentation "Design notes"
     :group "Content"
     :level 3
     :order 3)
@@ -159,7 +159,7 @@
     :type (or null string)
     :short-option "N"
     :transient beads-transient-multiline
-    :documentation "Notes"
+    :documentation "Additional notes"
     :group "Content"
     :level 3
     :order 4)
@@ -251,7 +251,7 @@
     :type (or null string)
     :long-option "append-notes"
     :transient beads-transient-multiline
-    :documentation "Append Notes"
+    :documentation "Append to existing notes (with newline separator)"
     :group "Content"
     :level 3
     :order 5)

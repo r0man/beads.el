@@ -37,7 +37,7 @@
     :type (or null string)
     :short-option "r"
     :transient beads-transient-multiline
-    :documentation "State Change Reason"
+    :documentation "Reason for the state change (recorded in event)"
     :group "Options"
     :level 1
     :order 1))

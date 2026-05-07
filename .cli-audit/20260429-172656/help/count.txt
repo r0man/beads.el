@@ -1,0 +1,61 @@
+Count issues matching the specified filters.
+
+By default, returns the total count of issues matching the filters.
+Use --by-* flags to group counts by different attributes.
+
+Examples:
+  bd count                          # Count all issues
+  bd count --status open            # Count open issues
+  bd count --by-status              # Group count by status
+  bd count --by-priority            # Group count by priority
+  bd count --by-type                # Group count by issue type
+  bd count --by-assignee            # Group count by assignee
+  bd count --by-label               # Group count by label
+  bd count --assignee alice --by-status  # Count alice's issues by status
+
+
+Usage:
+  bd count [flags]
+
+Flags:
+  -a, --assignee string         Filter by assignee
+      --by-assignee             Group count by assignee
+      --by-label                Group count by label
+      --by-priority             Group count by priority
+      --by-status               Group count by status
+      --by-type                 Group count by issue type
+      --closed-after string     Filter issues closed after date (YYYY-MM-DD or RFC3339)
+      --closed-before string    Filter issues closed before date (YYYY-MM-DD or RFC3339)
+      --created-after string    Filter issues created after date (YYYY-MM-DD or RFC3339)
+      --created-before string   Filter issues created before date (YYYY-MM-DD or RFC3339)
+      --desc-contains string    Filter by description substring
+      --empty-description       Filter issues with empty description
+  -h, --help                    help for count
+      --id string               Filter by specific issue IDs (comma-separated)
+  -l, --label strings           Filter by labels (AND: must have ALL)
+      --label-any strings       Filter by labels (OR: must have AT LEAST ONE)
+      --no-assignee             Filter issues with no assignee
+      --no-labels               Filter issues with no labels
+      --notes-contains string   Filter by notes substring
+  -p, --priority int            Filter by priority (0-4: 0=critical, 1=high, 2=medium, 3=low, 4=backlog)
+      --priority-max int        Filter by maximum priority (inclusive)
+      --priority-min int        Filter by minimum priority (inclusive)
+  -s, --status string           Filter by stored status (open, in_progress, blocked, deferred, closed). Note: dependency-blocked issues use 'bd blocked'
+      --title string            Filter by title text (case-insensitive substring match)
+      --title-contains string   Filter by title substring
+  -t, --type string             Filter by type (bug, feature, task, epic, chore, decision, merge-request, molecule, gate)
+      --updated-after string    Filter issues updated after date (YYYY-MM-DD or RFC3339)
+      --updated-before string   Filter issues updated before date (YYYY-MM-DD or RFC3339)
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

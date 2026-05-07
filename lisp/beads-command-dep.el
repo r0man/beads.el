@@ -70,6 +70,8 @@
     :level 1
     :order 2
     :required t)
+   ;; CLI also accepts --depends-on as an alias for --blocked-by; we model
+   ;; only the canonical flag (positional 2 above covers the same value).
    (blocked-by
     :type (or null string)
     :short-option "b"
@@ -85,6 +87,21 @@
     :prompt "Dependency type: "
     :group "Add Dependency"
     :level 1
+    :order 3)
+   (file
+    :short-option "f"
+    :type (or null string)
+    :prompt "JSONL file (or - for stdin): "
+    :documentation "Read dependency edges from JSONL file, or '-' for stdin"
+    :group "Add Dependency"
+    :level 2
+    :order 2)
+   (no-cycle-check
+    :type boolean
+    :short-option "N"
+    :documentation "Skip cycle detection after adding (use for bulk wiring — run 'bd dep cycles' to verify afterwards)"
+    :group "Add Dependency"
+    :level 2
     :order 3))
   :documentation "Represents bd dep add command.
 Adds a dependency between two issues."
@@ -229,14 +246,6 @@ Does not modify any slots."
     :group "Dependency Tree"
     :level 1
     :order 3)
-   (dep-type
-    :long-option "type"
-    :short-option "t"
-    :type (or null string)
-    :prompt "Dependency type: "
-    :group "Dependency Tree"
-    :level 2
-    :order 2)
    (format
     :type (or null string)
     :short-option "F"
@@ -244,6 +253,13 @@ Does not modify any slots."
     :group "Dependency Tree"
     :level 2
     :order 3)
+   (reverse
+    :type boolean
+    :short-option "r"
+    :documentation "Show dependent tree (deprecated: use --direction=up)"
+    :group "Dependency Tree"
+    :level 2
+    :order 4)
    (show-all-paths
     :type boolean
     :short-option "ap"
@@ -375,7 +391,7 @@ Use --status to filter by issue status.
 
 Transient levels control which options are visible (cycle with C-x l):
   Level 1: Issue ID, direction, status
-  Level 2: Max depth, type filter, format
+  Level 2: Max depth, format, reverse
   Level 3: Show all paths"
   beads-option-global-section)
 

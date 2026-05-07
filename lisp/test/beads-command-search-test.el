@@ -146,8 +146,8 @@
   "Test query slot has correct transient properties."
   (should (equal "q" (beads-meta-slot-property
                       'beads-command-search 'query :transient-key)))
-  (should (eq 1 (beads-meta-slot-property
-                 'beads-command-search 'query :positional))))
+  (should (equal "query" (beads-meta-slot-property
+                          'beads-command-search 'query :long-option))))
 
 (ert-deftest beads-command-search-test-status-slot-properties ()
   "Test status slot has correct transient properties."

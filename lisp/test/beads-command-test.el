@@ -483,8 +483,11 @@ all children leaves no eligible epics (they are already closed)."
 
 (ert-deftest beads-command-test-epic-close-eligible-dry-run ()
   "Test beads-command-epic-close-eligible with --dry-run flag.
-Integration test that verifies auto-close behavior: when all children
-of an epic are closed, bd auto-closes the epic."
+Integration test that previews eligible epics without changing
+state.  Some bd versions auto-close epics when all children close
+(\"Auto-closed completed molecule\"); others leave the epic open
+until close-eligible is invoked.  We assert that --dry-run does not
+change the epic's status, regardless of which behavior bd has."
   :tags '(:integration)
   (skip-unless (executable-find beads-executable))
   (beads-test-with-shared-project
@@ -500,16 +503,24 @@ of an epic are closed, bd auto-closes the epic."
                     :title "Child 2"
                     :deps (list (concat "parent-child:"
                                        (oref epic id))))))
-      ;; Close both children — bd auto-closes the epic
+      ;; Close both children — epic may or may not auto-close
       (shell-command (format "bd close %s %s --reason 'Done'"
                             (oref child1 id)
                             (oref child2 id)))
-      ;; Epic should be auto-closed now
-      (let ((epic-check (beads-list-execute
-                        :id (oref epic id)
-                        :status "all")))
-        (should (= (length epic-check) 1))
-        (should (string= (oref (car epic-check) status) "closed"))))))
+      ;; Capture epic status before dry-run
+      (let* ((before-list (beads-list-execute
+                           :id (oref epic id)
+                           :status "all"))
+             (status-before (oref (car before-list) status)))
+        (should (= (length before-list) 1))
+        ;; Preview close-eligible — must not change state
+        (beads-execute 'beads-command-epic-close-eligible :dry-run t)
+        ;; Epic status should be unchanged after the dry-run preview
+        (let ((after-list (beads-list-execute
+                          :id (oref epic id)
+                          :status "all")))
+          (should (= (length after-list) 1))
+          (should (string= (oref (car after-list) status) status-before)))))))
 
 (ert-deftest beads-command-test-epic-close-eligible-execute ()
   "Test beads-command-epic-close-eligible actually closes eligible epics.
@@ -832,7 +843,7 @@ Integration test that retrieves issue database stats."
                :json t
                :status "open"
                :priority "1"
-               :no-daemon t))
+               :sandbox t))
          (args (beads-command-line cmd)))
     (should (listp args))
     (should (member "list" args))
@@ -840,7 +851,7 @@ Integration test that retrieves issue database stats."
     (should (member "open" args))
     (should (member "--priority" args))
     (should (member "1" args))
-    (should (member "--no-daemon" args))
+    (should (member "--sandbox" args))
     (should (member "--json" args))
     ;; --flat must NOT be present; bd 0.58.0 --json works without it
     (should-not (member "--flat" args))))
@@ -955,15 +966,15 @@ Integration test that retrieves issue database stats."
   "Unit test: beads-command-init with all options."
   :tags '(:unit)
   (let* ((cmd (beads-command-init
-               :branch "develop"
+               :remote "git@example.com:foo/bar"
                :prefix "myproj"
                :quiet t
                :contributor t
                :skip-hooks t))
          (args (beads-command-line cmd)))
     (should (member "init" args))
-    (should (member "--branch" args))
-    (should (member "develop" args))
+    (should (member "--remote" args))
+    (should (member "git@example.com:foo/bar" args))
     (should (member "--prefix" args))
     (should (member "myproj" args))
     (should (member "--quiet" args))
@@ -1177,7 +1188,7 @@ Integration test that retrieves issue database stats."
   :tags '(:unit)
   (let ((cmd (beads-command-init)))
     (should (beads-command-init-p cmd))
-    (should-not (oref cmd branch))
+    (should-not (oref cmd remote))
     (should-not (oref cmd prefix))
     (should-not (oref cmd quiet))
     (should-not (oref cmd contributor))

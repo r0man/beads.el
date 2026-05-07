@@ -1,0 +1,32 @@
+Show the most recent activity timestamp for a molecule.
+
+Returns the timestamp of the most recent change to any step in the molecule,
+making it easy to detect stale or stuck molecules.
+
+Activity sources:
+  step_closed      - A step was closed
+  step_updated     - A step was updated (claimed, edited, etc.)
+  molecule_updated - The molecule root itself was updated
+
+Examples:
+  bd mol last-activity hq-wisp-0laki
+  bd mol last-activity hq-wisp-0laki --json
+
+Usage:
+  bd mol last-activity <molecule-id> [flags]
+
+Flags:
+  -h, --help   help for last-activity
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

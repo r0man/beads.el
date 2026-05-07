@@ -1,0 +1,43 @@
+Squash Dolt commits older than N days into a single commit.
+
+Recent commits (within the retention window) are preserved via cherry-pick.
+This reduces Dolt storage overhead from auto-commit history while keeping
+recent change tracking intact.
+
+For semantic issue compaction (summarizing closed issues), use 'bd admin compact'.
+For full history squash, use 'bd flatten'.
+
+How it works:
+  1. Identifies commits older than --days threshold
+  2. Creates a squashed base commit from all old history
+  3. Cherry-picks recent commits on top
+  4. Swaps main branch to the compacted version
+  5. Runs Dolt GC to reclaim space
+
+Examples:
+  bd compact --dry-run               # Preview: show commit breakdown
+  bd compact --force                 # Squash commits older than 30 days
+  bd compact --days 7 --force        # Keep only last 7 days of history
+  bd compact --days 90 --force       # Conservative: squash 90+ day old commits
+
+Usage:
+  bd compact [flags]
+
+Flags:
+      --days int   Keep commits newer than N days (default 30)
+      --dry-run    Preview without making changes
+  -f, --force      Confirm commit squash
+  -h, --help       help for compact
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

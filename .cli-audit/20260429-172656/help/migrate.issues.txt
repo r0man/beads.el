@@ -1,0 +1,51 @@
+Move issues from one source repository to another with filtering and dependency preservation.
+
+This command updates the source_repo field for selected issues, allowing you to:
+- Move contributor planning issues to upstream repository
+- Reorganize issues across multi-phase repositories
+- Consolidate issues from multiple repos
+
+Examples:
+  # Preview migration from planning repo to current repo
+  bd migrate-issues --from ~/.beads-planning --to . --dry-run
+
+  # Move all open P1 bugs
+  bd migrate-issues --from ~/repo1 --to ~/repo2 --priority 1 --type bug --status open
+
+  # Move specific issues with their dependencies
+  bd migrate-issues --from . --to ~/archive --id bd-abc --id bd-xyz --include closure
+
+  # Move issues with label filter
+  bd migrate-issues --from . --to ~/feature-work --label frontend --label urgent
+
+Usage:
+  bd migrate issues [flags]
+
+Flags:
+      --dry-run            Show plan without making changes
+      --from string        Source repository (required)
+  -h, --help               help for issues
+      --id strings         Specific issue IDs to migrate (can specify multiple)
+      --ids-file string    File containing issue IDs (one per line)
+      --include string     Include dependencies: none/upstream/downstream/closure (default "none")
+      --label strings      Filter by labels (can specify multiple)
+      --priority int       Filter by priority (0-4) (default -1)
+      --status string      Filter by status (open/closed/all)
+      --strict             Fail on orphaned dependencies or missing repos
+      --to string          Destination repository (required)
+      --type string        Filter by issue type (bug/feature/task/epic/chore/decision)
+      --within-from-only   Only include dependencies from source repo (default true)
+      --yes                Skip confirmation prompt
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

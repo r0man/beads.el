@@ -42,7 +42,13 @@
     :short-option "s"
     :group "Options"
     :level 1
-    :order 3))
+    :order 3)
+   (beads
+    :type boolean
+    :short-option "b"
+    :group "Options"
+    :level 1
+    :order 4))
   :documentation "Install bd git hooks.")
 
 

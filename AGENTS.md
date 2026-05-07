@@ -83,6 +83,37 @@ EIEIO classes mirroring the Go structs from `beads/internal/types`: `beads-issue
 - Transient menus are auto-generated from slot metadata where possible; use `:transient :manual` only when custom layout is needed.
 - Dependencies: Emacs 29.1+, transient 0.10.1+, sesman 0.3.2+, vui 1.0.0+ (from MELPA).
 
+### Top-level group commands (`bd <group> <subcommand>`)
+
+`bd` exposes 24 top-level *group* commands (`admin`, `ado`, `audit`,
+`config`, `dep`, `dolt`, `epic`, `federation`, `formula`, `gate`,
+`github`, `gitlab`, `hooks`, `jira`, `label`, `linear`, `merge-slot`,
+`mol`, `notion`, `repo`, `rules`, `swarm`, `vc`, `worktree`). These
+exist purely as routers for subcommands; running `bd <group>` with no
+subcommand prints help. They take no positional arguments and no
+non-global flags.
+
+**Policy:** every top-level group gets a parent `transient-define-prefix`
+menu, but **never** a `beads-defcommand` EIEIO class.
+
+- The transient is named `beads-<group>` (or `beads-<group>-menu` when
+  the unsuffixed name is reserved for a leaf — see
+  `beads-command-label.el` and `beads-command-worktree.el`).
+- Leaf subcommands are EIEIO classes via `beads-defcommand`; the parent
+  transient simply binds keys to those leaves' transient suffixes.
+- A `beads-defcommand` class for a router would serialize to e.g. `bd
+  config` with no args, which prints help and exits — not a useful
+  Emacs command. The transient menu *is* the parent UX.
+
+CLI-coverage audits flag these groups under `coverage.md` >
+`Missing Classes` > `Top-level group commands (N) — IN POLICY, no
+action` (mirrored in `REPORT.md` > `Missing Classes` >
+`Top-level group commands without a class`). That bucketing is
+expected and in-policy; the audit script filters them out of the
+actionable list. Mid-level groups (e.g. `dolt.remote`, `backup`
+parents that route to subcommands) follow the same rule: parent
+transient yes, EIEIO class no.
+
 ## Agent Instructions
 
 This project uses **bd** (beads) for issue tracking. Run `bd prime` for full workflow context.

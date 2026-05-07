@@ -1,0 +1,40 @@
+Database migration and data transformation commands.
+
+Without subcommand, checks and updates database metadata to current version.
+
+Subcommands:
+  hooks       Plan git hook migration to marker-managed format
+  issues      Move issues between repositories
+  sync        Set up sync.branch workflow for multi-clone setups
+
+
+Usage:
+  bd migrate [flags]
+  bd migrate [command]
+
+Available Commands:
+  hooks       Plan or apply git hook migration to marker-managed format
+  issues      Move issues between repositories
+  sync        Set up sync.branch workflow for multi-clone setups
+
+Flags:
+      --dry-run          Show what would be done without making changes
+  -h, --help             help for migrate
+      --inspect          Show migration plan and database state for AI agent analysis
+      --json             Output migration statistics in JSON format
+      --update-repo-id   Update repository ID (use after changing git remote)
+      --yes              Auto-confirm prompts
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output
+
+Use "bd migrate [command] --help" for more information about a command.

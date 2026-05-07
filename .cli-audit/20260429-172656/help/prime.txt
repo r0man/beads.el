@@ -1,0 +1,40 @@
+Output essential Beads workflow context in AI-optimized markdown format.
+
+Automatically detects if MCP server is active and adapts output:
+- MCP mode: Brief workflow reminders (~50 tokens)
+- CLI mode: Full command reference (~1-2k tokens)
+
+Designed for Claude Code hooks (SessionStart, PreCompact) to prevent
+agents from forgetting bd workflow after context compaction.
+
+Config options:
+- no-git-ops: When true, outputs stealth mode (no git commands in session close protocol).
+  Set via: bd config set no-git-ops true
+  Useful when you want to control when commits happen manually.
+
+	Workflow customization:
+	- Place a .beads/PRIME.md file in the local clone or resolved workspace to override the default output entirely.
+	- Use --export to dump the default content for customization.
+
+Usage:
+  bd prime [flags]
+
+Flags:
+      --export    Output default content (ignores PRIME.md override)
+      --full      Force full CLI output (ignore MCP detection)
+  -h, --help      help for prime
+      --mcp       Force MCP mode (minimal output)
+      --stealth   Stealth mode (no git operations, flush only)
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

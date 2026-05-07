@@ -1,0 +1,36 @@
+Manage TODO items as lightweight task issues.
+
+TODOs are regular task-type issues with convenient shortcuts:
+  bd todo add "Title"    -> bd create "Title" -t task -p 2
+  bd todo                -> bd list --type task --status open
+  bd todo done <id>      -> bd close <id>
+
+TODOs can be promoted to full issues by changing type or priority:
+  bd update todo-123 --type bug --priority 0
+
+Usage:
+  bd todo [flags]
+  bd todo [command]
+
+Available Commands:
+  add         Add a new TODO item
+  done        Mark TODO(s) as done
+  list        List TODO items
+
+Flags:
+  -h, --help   help for todo
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output
+
+Use "bd todo [command] --help" for more information about a command.

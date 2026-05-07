@@ -132,6 +132,22 @@
     :group "Filters"
     :level 1
     :order 3)
+   (claim
+    :type boolean
+    :long-option "claim"
+    :group "Options"
+    :level 1
+    :order 5
+    :documentation "Atomically claim the first ready issue matching the filters")
+   (exclude-label
+    :type (list-of string)
+    :long-option "exclude-label"
+    :prompt "Exclude labels (any of): "
+    :reader beads-reader-list-label
+    :group "Label Filters"
+    :level 2
+    :order 3
+    :documentation "Exclude issues that have ANY of these labels")
    (exclude-type
     :type (or null string)
     :long-option "exclude-type"

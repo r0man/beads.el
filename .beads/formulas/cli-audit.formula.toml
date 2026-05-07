@@ -1,0 +1,306 @@
+formula = "cli-audit"
+description = """
+Audit beads.el's EIEIO command classes against the live `bd` CLI surface.
+
+Drives an agent through a full sweep of the `bd` command tree, checking
+that every command and subcommand has a `beads-defcommand` class in
+`lisp/beads-command-*.el`, that every slot lines up exactly with the
+flags reported by `bd <command> --help` (long name, short name, type,
+description, positional position), and that any command which prints a
+`Global Flags:` section inherits from `beads-command-global-options`.
+
+Output is a single Markdown report under `.cli-audit/<run-id>/` listing:
+  - missing classes (CLI command has no Emacs class)
+  - orphan classes (Emacs class for a command that no longer exists)
+  - per-class slot drift (missing/extra/renamed flags, wrong short
+    option, wrong description)
+  - inheritance gaps (commands with global flags whose class does not
+    inherit `beads-command-global-options`)
+
+The formula does not edit code on its own — it produces a punch list
+the agent (or a human) can then act on, ideally by filing a beads
+issue per gap.
+
+## Scope
+
+Source of truth is `bd <command> --help` parsed at audit time. The
+class definitions in `lisp/beads-command-*.el` are the artifact under
+test. `bd help` output is parsed structurally:
+
+  - Subcommands: lines under `Available Commands:` (or grouped sections
+    like `Working With Issues:`, `Sync & Data:`, etc. in the top-level
+    `bd --help`).
+  - Flags: lines under `Flags:` of the form
+    `  -s, --long TYPE   Description` or `      --long   Description`.
+  - Global flags: lines under `Global Flags:` — any command that
+    prints this section should inherit `beads-command-global-options`.
+  - Positional args: parsed from the `Usage:` line, e.g.
+    `bd close [id...] [flags]` -> one positional `id` (variadic).
+
+Slot-to-flag matching uses the long-option name (after stripping `--`)
+as the join key. Slot names in Emacs may differ from CLI long names
+when the long name collides with a Lisp keyword (e.g. `--continue` ->
+slot `continue-mol`); in that case the slot must declare
+`:long-option "continue"` and the audit accepts the mapping.
+
+## Non-goals
+
+  - Generating new class files. The agent should propose edits and
+    file beads issues; this formula intentionally stops at the report.
+  - Touching transient menus beyond what slot metadata implies.
+  - Auditing slots that exist purely for Emacs UX (e.g. `:transient`,
+    `:reader`, `:group`) — only the CLI-facing properties are checked.
+"""
+version = 1
+type = "workflow"
+
+[vars.command_filter]
+description = "Optional regex to limit which bd subcommands are audited (e.g. '^(close|create|list)$'). Empty means audit everything."
+required = false
+default = ""
+
+[vars.report_dir]
+description = "Directory (relative to repo root) where the audit report is written."
+required = false
+default = ".cli-audit"
+
+[[steps]]
+id = "discover-commands"
+title = "Enumerate bd commands and subcommands"
+description = """
+Build the complete tree of `bd` commands.
+
+**Steps:**
+1. Run `bd --help` and extract every entry from the grouped command
+   sections (`Working With Issues:`, `Views & Reports:`, `Dependencies
+   & Structure:`, `Sync & Data:`, `Setup & Configuration:`,
+   `Maintenance:`, `Integrations & Advanced:`, `Additional Commands:`).
+   Skip `help` and `completion`.
+2. For each top-level command, run `bd <command> --help`. If the help
+   text contains an `Available Commands:` section, recurse and capture
+   each subcommand's name + one-line description.
+3. If `command_filter` is set, drop any command whose dotted path
+   (e.g. `dolt.start`, `dep.add`) does not match the regex.
+4. Write the discovered tree as JSON to
+   `{{report_dir}}/{{run_id}}/commands.json`. Schema:
+   ```json
+   [
+     {"path": "close",        "summary": "Close one or more issues"},
+     {"path": "dep.add",      "summary": "Add a dependency"},
+     {"path": "dolt.start",   "summary": "Start the Dolt server"}
+   ]
+   ```
+
+**Done when:** `commands.json` exists and contains every command shown
+by `bd --help` (minus `help`/`completion` and any filtered out).
+"""
+
+[[steps]]
+id = "inventory-classes"
+title = "Inventory beads-defcommand classes in lisp/"
+description = """
+Build the inverse map: every EIEIO command class declared by
+`beads-defcommand` in this repo.
+
+**Steps:**
+1. Grep `lisp/beads-command-*.el` for `beads-defcommand` forms. For
+   each match, capture: class name, file:line, superclass list, and
+   the explicit `:cli-command` if present (otherwise the subcommand is
+   auto-derived from the class name by stripping `beads-command-`).
+2. Resolve each class to its CLI dotted path. If the class is the
+   top-level `beads-command-<x>` it maps to `<x>`. If the class file
+   defines a parent like `beads-command-dolt` and a child like
+   `beads-command-dolt-start`, the child's CLI path is `dolt.start`.
+   Use the project convention from `beads--derive-transient-name` and
+   any `:cli-command` overrides.
+3. Write `{{report_dir}}/{{run_id}}/classes.json`. Schema:
+   ```json
+   [
+     {
+       "class":      "beads-command-close",
+       "cli_path":   "close",
+       "file":       "lisp/beads-command-close.el",
+       "line":       42,
+       "supers":     ["beads-command-global-options"]
+     }
+   ]
+   ```
+
+**Done when:** every `beads-defcommand` form in `lisp/` is represented
+once in `classes.json`.
+"""
+needs = ["discover-commands"]
+
+[[steps]]
+id = "coverage-diff"
+title = "Diff command coverage"
+description = """
+Cross-reference `commands.json` with `classes.json` to find gaps.
+
+**Output:** `{{report_dir}}/{{run_id}}/coverage.md` with three lists:
+
+1. **Missing classes** — entries in `commands.json` whose `path` has
+   no matching `cli_path` in `classes.json`. These need a new
+   `beads-command-<name>.el` file.
+2. **Orphan classes** — entries in `classes.json` whose `cli_path` is
+   not present in `commands.json`. Either `bd` removed the command or
+   the class is misnamed; flag for human review.
+3. **Path mismatches** — classes whose derived `cli_path` does not
+   match what the file appears to claim (e.g. file
+   `beads-command-foo.el` but `:cli-command "bar"` and no `bar`
+   subcommand exists). These usually mean a stale `:cli-command`.
+
+For each entry include `bd <path> --help` summary and the file:line.
+
+**Done when:** `coverage.md` exists with all three sections (each may
+be empty, but the headings must be present).
+"""
+needs = ["inventory-classes"]
+
+[[steps]]
+id = "flag-audit"
+title = "Compare slots against `bd <command> --help`"
+description = """
+For every (cli_path, class) pair from the previous steps, run
+`bd <cli_path> --help` and verify the class's slots match the CLI
+flags exactly.
+
+**Procedure for each pair:**
+
+1. Parse the `Flags:` section of the help output into a list of
+   records:
+   ```
+   { long: "reason", short: "r", type: "string",
+     description: "Reason for closing", required: false }
+   ```
+   - `long` is the `--long-name` with dashes stripped.
+   - `short` is the single letter after `-` (or null).
+   - `type` is the metavar (`string`, `int`, etc.) or `boolean` if
+     the flag takes no metavar.
+   - `description` is the help text after the metavar, trimmed and
+     joined across continuation lines.
+2. Parse the `Usage:` line into a list of positional args.
+   `bd close [id...] [flags]` -> `[{name: "id", variadic: true,
+   required: false}]`. `bd dep add <issue> <depends-on>` -> two
+   required positionals.
+3. Read the class's slot list from `lisp/beads-command-<name>.el`.
+   For each slot, extract: `name`, `:long-option`, `:short-option`,
+   `:type`, `:positional`, `:required`, `:documentation`. Apply the
+   default mapping: if `:long-option` is absent, the long option is
+   the slot name with underscores swapped to dashes.
+4. Compare:
+   - **Missing slot:** flag in CLI, no slot in class. Record the
+     suggested slot definition (long, short, type, doc).
+   - **Extra slot:** slot in class, no flag in CLI. Likely a flag
+     `bd` removed; flag for cleanup.
+   - **Wrong short option:** short letters differ.
+   - **Wrong description:** the slot's `:documentation` first
+     sentence does not match the CLI description (case-insensitive,
+     after stripping a trailing period). Use first sentence only —
+     beads.el slots often add a second clarifying sentence.
+   - **Wrong positional:** positional index or arity disagrees with
+     the parsed `Usage:` line.
+   - **Wrong required:** CLI marks the flag required (rare, but the
+     help text sometimes says `(required)`) but the slot does not, or
+     vice versa.
+5. Append one section per class to
+   `{{report_dir}}/{{run_id}}/flags.md`:
+   ```markdown
+   ### beads-command-close (close)
+   **File:** lisp/beads-command-close.el:42
+
+   - [missing slot] `--reason-file` (string) — Read close reason from file
+   - [missing slot] `--no-auto` (boolean) — With --continue, show next step but don't claim it
+   - [drift] slot `force` — short option matches, but description
+     differs:
+       CLI:   "Force close pinned issues or unsatisfied gates"
+       slot:  "Force close pinned issues"
+   ```
+6. Skip flags that originate from `Global Flags:` — those are handled
+   by the next step.
+
+**Done when:** `flags.md` contains an entry for every audited class
+(an "OK" line is fine for clean classes).
+"""
+needs = ["coverage-diff"]
+
+[[steps]]
+id = "globals-audit"
+title = "Verify global-options inheritance"
+description = """
+A `bd` subcommand prints a `Global Flags:` section iff it accepts the
+global option set. Every such command's class must inherit (directly
+or transitively) from `beads-command-global-options`.
+
+**Procedure:**
+1. For each class in `classes.json`, look at its already-fetched help
+   output from the previous step. Note whether `Global Flags:` is
+   present.
+2. Walk the class's superclass chain (using
+   `eieio-class-parents` / the `supers` field) and check whether
+   `beads-command-global-options` appears anywhere.
+3. Append findings to `{{report_dir}}/{{run_id}}/inheritance.md`:
+   - **Should inherit, doesn't:** `bd <cmd>` shows Global Flags but
+     the class extends only `beads-command`. Recommend changing the
+     superclass.
+   - **Inherits but shouldn't (rare):** class inherits the global
+     options but `bd <cmd> --help` shows no Global Flags section.
+     Worth a manual look; usually a bug in `bd`, not in beads.el.
+4. For every "should inherit, doesn't" case, also list the global
+   slots that would now become available
+   (actor, db, json, dolt-auto-commit, …) so the agent can verify
+   nothing is being shadowed.
+
+**Done when:** `inheritance.md` enumerates every class with its
+inheritance verdict. Empty mismatch list is the success state.
+"""
+needs = ["flag-audit"]
+
+[[steps]]
+id = "report"
+title = "Synthesize the audit report"
+description = """
+Combine `coverage.md`, `flags.md`, and `inheritance.md` into a single
+top-level report at `{{report_dir}}/{{run_id}}/REPORT.md`.
+
+**Structure:**
+```markdown
+# bd CLI ↔ beads.el Audit — {{run_id}}
+
+## Summary
+- N commands audited
+- N classes inventoried
+- N missing classes
+- N orphan classes
+- N slot drift findings
+- N inheritance gaps
+
+## Missing Classes
+(from coverage.md)
+
+## Orphan Classes
+(from coverage.md)
+
+## Slot Drift
+(from flags.md, sorted by class name)
+
+## Inheritance Gaps
+(from inheritance.md)
+
+## Suggested Beads Issues
+For each finding, a one-line `bd create` invocation the user can run,
+e.g.:
+    bd create --type=task --priority=2 \\
+      --title="Add --reason-file slot to beads-command-close" \\
+      --description="bd close --help advertises --reason-file but the EIEIO class lacks the slot."
+```
+
+Print the absolute path to `REPORT.md` at the end so the user can
+jump straight to it. Do not file beads issues automatically — that is
+a follow-up the user opts into.
+
+**Done when:** `REPORT.md` exists and references every other artifact
+in the run directory.
+"""
+needs = ["globals-audit"]
+type = "human"

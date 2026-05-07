@@ -115,5 +115,45 @@
     (should (member "discover" args))
     (should (member "gate-1" args))))
 
+;;; Unit Tests: beads-command-gate-create command-line
+
+(ert-deftest beads-command-gate-create-test-command-line-basic ()
+  "Unit test: gate create builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-gate-create :blocks "bd-1"))
+         (args (beads-command-line cmd)))
+    (should (member "gate" args))
+    (should (member "create" args))
+    (should (member "--blocks" args))
+    (should (member "bd-1" args))))
+
+(ert-deftest beads-command-gate-create-test-command-line-with-type ()
+  "Unit test: gate create with --type flag."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-gate-create :blocks "bd-1" :gate-type "timer"))
+         (args (beads-command-line cmd)))
+    (should (member "--type" args))
+    (should (member "timer" args))))
+
+(ert-deftest beads-command-gate-create-test-command-line-with-await-id ()
+  "Unit test: gate create with --await-id flag."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-gate-create :blocks "bd-1" :await-id "42"))
+         (args (beads-command-line cmd)))
+    (should (member "--await-id" args))
+    (should (member "42" args))))
+
+(ert-deftest beads-command-gate-create-test-validation-missing-blocks ()
+  "Unit test: gate create validation fails without --blocks."
+  :tags '(:unit)
+  (let ((cmd (beads-command-gate-create)))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-gate-create-test-validation-success ()
+  "Unit test: gate create validation succeeds with --blocks."
+  :tags '(:unit)
+  (let ((cmd (beads-command-gate-create :blocks "bd-1")))
+    (should (null (beads-command-validate cmd)))))
+
 (provide 'beads-command-gate-test)
 ;;; beads-command-gate-test.el ends here

@@ -2268,8 +2268,7 @@ The log format is compatible with `log-view-mode':
              (lambda () "/path/to/.beads"))
             ((symbol-function 'beads--get-database-path)
              (lambda () "/path/to/.beads/beads.db")))
-    (let ((beads-global-no-daemon nil)
-          (output nil))
+    (let ((output nil))
       (cl-letf (((symbol-function 'message)
                  (lambda (fmt &rest args) (setq output (apply #'format fmt args)))))
         (beads-emacs-info)
@@ -2288,33 +2287,13 @@ The log format is compatible with `log-view-mode':
              (lambda () "/main/repo/.beads"))
             ((symbol-function 'beads--get-database-path)
              (lambda () "/main/repo/.beads/db.db")))
-    (let ((beads-global-no-daemon nil)
-          (output nil))
+    (let ((output nil))
       (cl-letf (((symbol-function 'message)
                  (lambda (fmt &rest args) (setq output (apply #'format fmt args)))))
         (beads-emacs-info)
         (should output)
         (should (string-match-p "In worktree: yes" output))
         (should (string-match-p "/main/repo/" output))))))
-
-(ert-deftest beads-test-info-no-daemon-enabled ()
-  "Test beads-emacs-info shows --no-daemon when enabled."
-  (cl-letf (((symbol-function 'beads-git-in-worktree-p)
-             (lambda () nil))
-            ((symbol-function 'beads-git-find-main-repo)
-             (lambda () nil))
-            ((symbol-function 'beads--find-beads-dir)
-             (lambda () nil))
-            ((symbol-function 'beads--get-database-path)
-             (lambda () nil)))
-    (let ((beads-global-no-daemon t)
-          (output nil))
-      (cl-letf (((symbol-function 'message)
-                 (lambda (fmt &rest args) (setq output (apply #'format fmt args)))))
-        (beads-emacs-info)
-        (should output)
-        (should (string-match-p "--no-daemon: enabled" output))
-        (should (string-match-p "(via transient)" output))))))
 
 (ert-deftest beads-test-info-not-found ()
   "Test beads-emacs-info when beads not found."
@@ -2326,8 +2305,7 @@ The log format is compatible with `log-view-mode':
              (lambda () nil))
             ((symbol-function 'beads--get-database-path)
              (lambda () nil)))
-    (let ((beads-global-no-daemon nil)
-          (output nil))
+    (let ((output nil))
       (cl-letf (((symbol-function 'message)
                  (lambda (fmt &rest args) (setq output (apply #'format fmt args)))))
         (beads-emacs-info)
@@ -2339,33 +2317,20 @@ The log format is compatible with `log-view-mode':
 ;;; Build Command Global Flags Tests
 ;;; ========================================
 
-(ert-deftest beads-test-build-command-global-no-auto-flush ()
-  "Test --no-auto-flush flag in command building."
+(ert-deftest beads-test-build-command-global-directory ()
+  "Test --directory flag in command building."
   (beads-test-with-temp-config
-   (let ((beads-global-no-auto-flush t))
+   (let ((beads-global-directory "/tmp/work"))
      (let ((cmd (beads--build-command "list")))
-       (should (member "--no-auto-flush" cmd))))))
+       (should (member "--directory" cmd))
+       (should (member "/tmp/work" cmd))))))
 
-(ert-deftest beads-test-build-command-global-no-auto-import ()
-  "Test --no-auto-import flag in command building."
+(ert-deftest beads-test-build-command-global-flag ()
+  "Test --global flag in command building."
   (beads-test-with-temp-config
-   (let ((beads-global-no-auto-import t))
+   (let ((beads-global-global t))
      (let ((cmd (beads--build-command "list")))
-       (should (member "--no-auto-import" cmd))))))
-
-(ert-deftest beads-test-build-command-global-no-daemon ()
-  "Test --no-daemon flag in command building."
-  (beads-test-with-temp-config
-   (let ((beads-global-no-daemon t))
-     (let ((cmd (beads--build-command "list")))
-       (should (member "--no-daemon" cmd))))))
-
-(ert-deftest beads-test-build-command-global-no-db ()
-  "Test --no-db flag in command building."
-  (beads-test-with-temp-config
-   (let ((beads-global-no-db t))
-     (let ((cmd (beads--build-command "list")))
-       (should (member "--no-db" cmd))))))
+       (should (member "--global" cmd))))))
 
 (ert-deftest beads-test-build-command-global-sandbox ()
   "Test --sandbox flag in command building."
@@ -2377,16 +2342,13 @@ The log format is compatible with `log-view-mode':
 (ert-deftest beads-test-build-command-all-global-flags ()
   "Test all global flags together."
   (beads-test-with-temp-config
-   (let ((beads-global-no-auto-flush t)
-         (beads-global-no-auto-import t)
-         (beads-global-no-daemon t)
-         (beads-global-no-db t)
+   (let ((beads-global-directory "/tmp/work")
+         (beads-global-global t)
          (beads-global-sandbox t))
      (let ((cmd (beads--build-command "list")))
-       (should (member "--no-auto-flush" cmd))
-       (should (member "--no-auto-import" cmd))
-       (should (member "--no-daemon" cmd))
-       (should (member "--no-db" cmd))
+       (should (member "--directory" cmd))
+       (should (member "/tmp/work" cmd))
+       (should (member "--global" cmd))
        (should (member "--sandbox" cmd))))))
 
 (ert-deftest beads-test-build-command-global-actor-precedence ()

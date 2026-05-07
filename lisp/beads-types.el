@@ -1687,6 +1687,104 @@ Delegates to `beads-from-json'."
   (beads-from-json 'beads-compact-result json))
 
 ;;; ============================================================
+;;; Batch Types
+;;; ============================================================
+;;
+;; bd batch --json emits one of three shapes:
+;;
+;; Success:
+;;   {\"status\": \"ok\", \"operations\": N, \"results\": [...], \"schema_version\": 1}
+;; Dry-run:
+;;   {\"dry_run\": true, \"operations\": N, \"schema_version\": 1}
+;; Error (transaction rolled back):
+;;   {\"code\": \"batch_error\", \"error\": \"line K (...): ...\", \"schema_version\": 1}
+;;
+;; A single `beads-batch-result' class covers all three: every field
+;; is optional and `beads-from-json' only sets initargs for keys
+;; actually present, so callers branch on `status' / `error' / `dry-run'.
+
+(defclass beads-batch-op-result ()
+  ((line
+    :initarg :line
+    :type (or null integer)
+    :initform nil
+    :documentation "1-based line number in the batch input.")
+   (op
+    :initarg :op
+    :type (or null string)
+    :initform nil
+    :documentation "Operation name (\"close\", \"update\", \"create\", \"dep-add\", \"dep-remove\").")
+   (target
+    :initarg :target
+    :type (or null string)
+    :initform nil
+    :documentation "Issue ID the operation acted on (or created)."))
+  "One executed operation inside a `bd batch' transaction.")
+
+(defun beads-batch-op-result-from-json (json)
+  "Create a beads-batch-op-result from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-batch-op-result json))
+
+(defclass beads-batch-result ()
+  ((status
+    :initarg :status
+    :type (or null string)
+    :initform nil
+    :documentation "\"ok\" on success; nil for error or dry-run shapes.")
+   (operations
+    :initarg :operations
+    :type (or null integer)
+    :initform nil
+    :documentation "Number of operations executed (success) or parsed (dry-run).")
+   (results
+    :initarg :results
+    :type (or null (list-of beads-batch-op-result))
+    :initform nil
+    :documentation "Per-operation results, present on success.")
+   (dry-run
+    :initarg :dry-run
+    :type boolean
+    :initform nil
+    :json-key dry_run
+    :documentation "Non-nil when the run was a dry-run.")
+   (code
+    :initarg :code
+    :type (or null string)
+    :initform nil
+    :documentation "Error code (e.g. \"batch_error\") on failure; nil on success.")
+   (error-message
+    :initarg :error-message
+    :type (or null string)
+    :initform nil
+    :json-key error
+    :documentation "Error message on failure -- includes the failing line on parse/run errors.  The whole transaction is rolled back when this is set.")
+   (schema-version
+    :initarg :schema-version
+    :type (or null integer)
+    :initform nil
+    :json-key schema_version
+    :documentation "Output schema version (currently 1)."))
+  "Result of a `bd batch' invocation.
+A single class covers success, dry-run, and error shapes.  Branch
+on `status' (\"ok\") or `error-message' (set on rollback).  See
+the file header for the underlying JSON shapes.")
+
+(defun beads-batch-result-from-json (json)
+  "Create a beads-batch-result from JSON alist.
+Delegates to `beads-from-json'."
+  (beads-from-json 'beads-batch-result json))
+
+(defun beads-batch-result-success-p (result)
+  "Return non-nil if RESULT (a `beads-batch-result') succeeded.
+A successful run has status \"ok\" and no `error-message'.  A
+dry-run is treated as a success: bd parsed the input cleanly and
+exited without rolling anything back."
+  (and (null (oref result error-message))
+       (or (equal (oref result status) "ok")
+           (oref result dry-run))))
+
+;;; ============================================================
 ;;; Section Data Classes
 ;;; ============================================================
 

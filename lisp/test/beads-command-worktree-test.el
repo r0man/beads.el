@@ -173,11 +173,12 @@
   "Test beads-command-worktree-create with global flags."
   (let* ((cmd (beads-command-worktree-create :name "test"
                                               :actor "alice"
-                                              :no-daemon t))
+                                              :directory "/tmp/wt"))
          (args (beads-command-line cmd)))
     (should (member "--actor" args))
     (should (member "alice" args))
-    (should (member "--no-daemon" args))))
+    (should (member "--directory" args))
+    (should (member "/tmp/wt" args))))
 
 (ert-deftest beads-command-worktree-test-create-validate-missing-name ()
   "Test validation fails when name is missing."
@@ -298,12 +299,12 @@
 (ert-deftest beads-command-worktree-test-global-flags-in-command-line ()
   "Test that global flags are included in command line."
   (let* ((cmd (beads-command-worktree-list :actor "bob"
-                                            :no-daemon t
+                                            :global t
                                             :sandbox t))
          (args (beads-command-line cmd)))
     (should (member "--actor" args))
     (should (member "bob" args))
-    (should (member "--no-daemon" args))
+    (should (member "--global" args))
     (should (member "--sandbox" args))))
 
 ;;; ============================================================

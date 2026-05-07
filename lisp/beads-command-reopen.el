@@ -60,7 +60,7 @@
     :type (or null string)
     :short-option "r"
     :transient beads-transient-multiline
-    :documentation "Reopen Reason"
+    :documentation "Reason for reopening"
     :group "Reopen Issue"
     :level 1
     :order 2))

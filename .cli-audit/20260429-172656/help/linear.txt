@@ -1,0 +1,80 @@
+Synchronize issues between beads and Linear.
+
+Configuration:
+  bd config set linear.api_key "YOUR_API_KEY"
+  bd config set linear.team_id "TEAM_ID"
+  bd config set linear.team_ids "TEAM_ID1,TEAM_ID2"  # Multiple teams (comma-separated)
+  bd config set linear.project_id "PROJECT_ID"  # Optional: sync only this project
+
+Environment variables (alternative to config):
+  LINEAR_API_KEY  - Linear API key
+  LINEAR_TEAM_ID  - Linear team ID (UUID, singular)
+  LINEAR_TEAM_IDS - Linear team IDs (comma-separated UUIDs)
+
+Data Mapping (optional, sensible defaults provided):
+  Priority mapping (Linear 0-4 to Beads 0-4):
+    bd config set linear.priority_map.0 4    # No priority -> Backlog
+    bd config set linear.priority_map.1 0    # Urgent -> Critical
+    bd config set linear.priority_map.2 1    # High -> High
+    bd config set linear.priority_map.3 2    # Medium -> Medium
+    bd config set linear.priority_map.4 3    # Low -> Low
+
+  State mapping (Linear state type to Beads status):
+    bd config set linear.state_map.backlog open
+    bd config set linear.state_map.unstarted open
+    bd config set linear.state_map.started in_progress
+    bd config set linear.state_map.completed closed
+    bd config set linear.state_map.canceled closed
+    bd config set linear.state_map.my_custom_state in_progress  # Custom state names
+
+  Label to issue type mapping:
+    bd config set linear.label_type_map.bug bug
+    bd config set linear.label_type_map.feature feature
+    bd config set linear.label_type_map.epic epic
+
+  Relation type mapping (Linear relations to Beads dependencies):
+    bd config set linear.relation_map.blocks blocks
+    bd config set linear.relation_map.blockedBy blocks
+    bd config set linear.relation_map.duplicate duplicates
+    bd config set linear.relation_map.related related
+
+  ID generation (optional, hash IDs to match bd/Jira hash mode):
+    bd config set linear.id_mode "hash"      # hash (default)
+    bd config set linear.hash_length "6"     # hash length 3-8 (default: 6)
+
+Examples:
+  bd linear sync --pull         # Import issues from Linear
+  bd linear sync --push         # Export issues to Linear
+  bd linear sync                # Bidirectional sync (pull then push)
+  bd linear sync --dry-run      # Preview sync without changes
+  bd create "Fix login" --external-ref https://linear.app/team/issue/TEAM-123
+                              # Link a local issue to an existing Linear issue
+  bd linear status              # Show sync status
+
+Usage:
+  bd linear [command]
+
+Available Commands:
+  pull        Pull specific items from Linear
+  push        Push specific beads to Linear
+  status      Show Linear sync status
+  sync        Synchronize issues with Linear
+  teams       List available Linear teams
+
+Flags:
+  -h, --help   help for linear
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output
+
+Use "bd linear [command] --help" for more information about a command.

@@ -1,0 +1,41 @@
+List all wisps (ephemeral molecules) in the current context.
+
+Wisps are issues with Ephemeral=true in the main database. They are stored
+locally but not synced via git.
+
+The list shows:
+  - ID: Issue ID of the wisp
+  - Title: Wisp title
+  - Status: Current status (open, in_progress, closed)
+  - Started: When the wisp was created
+  - Updated: Last modification time
+
+Old wisp detection:
+  - Old wisps haven't been updated in 24+ hours
+  - Use 'bd mol wisp gc' to clean up old/abandoned wisps
+
+Examples:
+  bd mol wisp list              # List all wisps
+  bd mol wisp list --json       # JSON output for programmatic use
+  bd mol wisp list --all        # Include closed wisps
+
+Usage:
+  bd mol wisp list [flags]
+
+Flags:
+      --all           Include closed wisps
+  -h, --help          help for list
+      --type string   Filter by issue type (e.g., agent, task, patrol)
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

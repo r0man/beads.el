@@ -1,0 +1,68 @@
+Create or manage wisps - EPHEMERAL molecules for operational workflows.
+
+When called with a proto-id argument, creates a wisp from that proto.
+When called with a subcommand (list, gc), manages existing wisps.
+
+Wisps are issues with Ephemeral=true in the main database. They're stored
+locally but NOT synced via git.
+
+WHEN TO USE WISP vs POUR:
+  wisp (vapor): Ephemeral work that auto-cleans up
+    - Release workflows (one-time execution)
+    - Operational loops and recurring cycles
+    - Health checks and diagnostics
+    - Any operational workflow without audit value
+
+  pour (liquid): Persistent work that needs audit trail
+    - Feature implementations spanning multiple sessions
+    - Work you may need to reference later
+    - Anything worth preserving in git history
+
+TIP: Formulas can specify phase:"vapor" to recommend wisp usage.
+     If you use pour on a vapor-phase formula, you'll get a warning.
+
+The wisp lifecycle:
+  1. Create: bd mol wisp <proto> or bd create --ephemeral
+  2. Execute: Normal bd operations work on wisp issues
+  3. Squash: bd mol squash <id> (clears Ephemeral flag, promotes to persistent)
+  4. Or burn: bd mol burn <id> (deletes without creating digest)
+
+Examples:
+  bd mol wisp beads-release --var version=1.0  # Release workflow
+  bd mol wisp mol-my-workflow                  # Ephemeral operational cycle
+  bd mol wisp list                             # List all wisps
+  bd mol wisp gc                               # Garbage collect old wisps
+
+Subcommands:
+  list  List all wisps in current context
+  gc    Garbage collect orphaned wisps
+
+Usage:
+  bd mol wisp [proto-id] [flags]
+  bd mol wisp [command]
+
+Available Commands:
+  create      Instantiate a proto as a wisp (solid -> vapor)
+  gc          Garbage collect old/abandoned wisps
+  list        List all wisps in current context
+
+Flags:
+      --dry-run           Preview what would be created
+  -h, --help              help for wisp
+      --root-only         Create only the root issue (no child step issues)
+      --var stringArray   Variable substitution (key=value)
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output
+
+Use "bd mol wisp [command] --help" for more information about a command.

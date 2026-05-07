@@ -1,0 +1,37 @@
+Pull from and push to peer towns.
+
+Without --peer, syncs with all configured peers.
+With --peer, syncs only with the specified peer.
+
+Handles merge conflicts using the configured strategy:
+  --strategy ours    Keep local changes on conflict
+  --strategy theirs  Accept remote changes on conflict
+
+If no strategy is specified and conflicts occur, the sync will pause
+and report which tables have conflicts for manual resolution.
+
+Examples:
+  bd federation sync                      # Sync with all peers
+  bd federation sync --peer town-beta     # Sync with specific peer
+  bd federation sync --strategy theirs    # Auto-resolve using remote values
+
+Usage:
+  bd federation sync [--peer name] [flags]
+
+Flags:
+  -h, --help              help for sync
+      --peer string       Specific peer to sync with
+      --strategy string   Conflict resolution strategy (ours|theirs)
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

@@ -45,33 +45,17 @@ When non-nil, forces JSON output format.")
   "Global dolt-auto-commit value.
 Dolt auto-commit policy: off, on, or batch.")
 
-(defvar beads-global-no-auto-flush nil
-  "Global no-auto-flush flag.
-When non-nil, disables automatic JSONL sync after CRUD operations.")
+(defvar beads-global-directory nil
+  "Global working directory override.
+When set, bd changes to this directory before running (like git -C).")
 
-(defvar beads-global-no-auto-import nil
-  "Global no-auto-import flag.
-When non-nil, disables automatic JSONL import when newer than DB.")
-
-(defvar beads-global-no-daemon nil
-  "Global no-daemon flag.
-When non-nil, forces direct storage mode, bypassing daemon.")
-
-(defvar beads-global-no-db nil
-  "Global no-db flag.
-When non-nil, uses no-db mode: load from JSONL only, no SQLite.")
+(defvar beads-global-global nil
+  "Global shared-server database flag.
+When non-nil, uses the global shared-server database (beads_global).")
 
 (defvar beads-global-sandbox nil
   "Global sandbox flag.
 When non-nil, enables sandbox mode: disables daemon and auto-sync.")
-
-(defvar beads-global-allow-stale nil
-  "Global allow-stale flag.
-When non-nil, allows operations on potentially stale data.")
-
-(defvar beads-global-lock-timeout nil
-  "Global lock-timeout value.
-SQLite busy timeout duration (e.g., \"30s\").")
 
 (defvar beads-global-profile nil
   "Global profile flag.

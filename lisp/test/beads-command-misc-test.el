@@ -42,12 +42,19 @@
          (args (beads-command-line cmd)))
     (should (member "duplicates" args))))
 
-(ert-deftest beads-command-duplicates-test-command-line-merge ()
-  "Unit test: duplicates includes --merge option."
+(ert-deftest beads-command-duplicates-test-command-line-auto-merge ()
+  "Unit test: duplicates includes --auto-merge option."
   :tags '(:unit)
-  (let* ((cmd (beads-command-duplicates :merge t))
+  (let* ((cmd (beads-command-duplicates :auto-merge t))
          (args (beads-command-line cmd)))
-    (should (member "--merge" args))))
+    (should (member "--auto-merge" args))))
+
+(ert-deftest beads-command-duplicates-test-command-line-dry-run ()
+  "Unit test: duplicates includes --dry-run option."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-duplicates :dry-run t))
+         (args (beads-command-line cmd)))
+    (should (member "--dry-run" args))))
 
 ;;; Unit Tests: beads-command-supersede command-line
 
@@ -147,13 +154,6 @@
   (let* ((cmd (beads-command-version))
          (args (beads-command-line cmd)))
     (should (member "version" args))))
-
-(ert-deftest beads-command-version-test-command-line-daemon ()
-  "Unit test: version includes --daemon option."
-  :tags '(:unit)
-  (let* ((cmd (beads-command-version :daemon t))
-         (args (beads-command-line cmd)))
-    (should (member "--daemon" args))))
 
 ;;; Unit Tests: beads-command-where command-line
 
@@ -277,16 +277,29 @@
 (ert-deftest beads-command-rename-prefix-test-command-line-basic ()
   "Unit test: rename-prefix builds correct command line."
   :tags '(:unit)
-  (let* ((cmd (beads-command-rename-prefix :old-prefix "old" :new-prefix "new"))
+  (let* ((cmd (beads-command-rename-prefix :new-prefix "new"))
          (args (beads-command-line cmd)))
     (should (member "rename-prefix" args))
-    (should (member "old" args))
     (should (member "new" args))))
 
-(ert-deftest beads-command-rename-prefix-test-validation-missing-old ()
-  "Unit test: rename-prefix validation fails without old-prefix."
+(ert-deftest beads-command-rename-prefix-test-command-line-dry-run ()
+  "Unit test: rename-prefix includes --dry-run."
   :tags '(:unit)
-  (let ((cmd (beads-command-rename-prefix :new-prefix "new")))
+  (let* ((cmd (beads-command-rename-prefix :new-prefix "new" :dry-run t))
+         (args (beads-command-line cmd)))
+    (should (member "--dry-run" args))))
+
+(ert-deftest beads-command-rename-prefix-test-command-line-repair ()
+  "Unit test: rename-prefix includes --repair."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-rename-prefix :new-prefix "new" :repair t))
+         (args (beads-command-line cmd)))
+    (should (member "--repair" args))))
+
+(ert-deftest beads-command-rename-prefix-test-validation-missing-new ()
+  "Unit test: rename-prefix validation fails without new-prefix."
+  :tags '(:unit)
+  (let ((cmd (beads-command-rename-prefix)))
     (should (beads-command-validate cmd))))
 
 ;;; Unit Tests: beads-command-restore command-line
@@ -629,12 +642,12 @@
          (args (beads-command-line cmd)))
     (should (member "/tmp/backup" args))))
 
-(ert-deftest beads-command-backup-restore-test-command-line-dry-run ()
-  "Unit test: backup restore includes --dry-run option."
+(ert-deftest beads-command-backup-restore-test-command-line-force ()
+  "Unit test: backup restore includes --force option."
   :tags '(:unit)
-  (let* ((cmd (beads-command-backup-restore :dry-run t))
+  (let* ((cmd (beads-command-backup-restore :force t))
          (args (beads-command-line cmd)))
-    (should (member "--dry-run" args))))
+    (should (member "--force" args))))
 
 ;;; Unit Tests: beads-command-kv-get
 

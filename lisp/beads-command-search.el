@@ -36,9 +36,11 @@
 ;;;###autoload (autoload 'beads-search "beads-command-search" nil t)
 (beads-defcommand beads-command-search (beads-command-global-options)
   ((query
-    :positional 1
+    :long-option "query"
+    :type (or null string)
     :short-option "q"
     :prompt "Search query: "
+    :documentation "Search query (alternative to positional argument)"
     :group "Query"
     :level 1
     :order 1)

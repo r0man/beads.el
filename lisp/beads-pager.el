@@ -167,7 +167,7 @@ Returns nil when pager mode is off or there is only one page."
 ;;; Window Resize Hook
 
 (defun beads-pager--on-window-resize (window-or-frame)
-  "Recompute and redisplay page when a window changes size.
+  "Recompute and redisplay page after a resize event.
 WINDOW-OR-FRAME is a window when called from a buffer-local hook,
 or a frame when called from the global hook.  Buffer-local hooks on
 `window-size-change-functions' receive the changed window, not

@@ -22,6 +22,54 @@
 (require 'transient)
 
 ;;; ============================================================
+;;; Command Class: beads-command-gate-create
+;;; ============================================================
+
+;;;###autoload (autoload 'beads-gate-create "beads-command-gate" nil t)
+(beads-defcommand beads-command-gate-create (beads-command-global-options)
+  ((blocks
+    :type (or null string)
+    :long-option "blocks"
+    :prompt "Issue to block: "
+    :reader beads-reader-issue-id
+    :documentation "Issue ID to block (required)"
+    :group "Options"
+    :level 1
+    :order 1
+    :required t)
+   (gate-type
+    :long-option "type"
+    :short-option "t"
+    :type (or null string)
+    :prompt "Gate type: "
+    :choices ("human" "timer" "gh:run" "gh:pr")
+    :group "Options"
+    :level 1
+    :order 2)
+   (reason
+    :short-option "r"
+    :type (or null string)
+    :transient beads-transient-multiline
+    :documentation "Reason for the gate"
+    :group "Options"
+    :level 1
+    :order 3)
+   (timeout
+    :type (or null string)
+    :prompt "Timeout (e.g. 2h, 30m): "
+    :group "Options"
+    :level 2
+    :order 1)
+   (await-id
+    :type (or null string)
+    :prompt "Condition identifier: "
+    :group "Options"
+    :level 2
+    :order 2))
+  :documentation "Create an ad-hoc gate issue that blocks another issue.")
+
+
+;;; ============================================================
 ;;; Command Class: beads-command-gate-list
 ;;; ============================================================
 
@@ -89,7 +137,7 @@
     :short-option "r"
     :type (or null string)
     :transient beads-transient-multiline
-    :documentation "Resolve Reason"
+    :documentation "Reason for resolving the gate"
     :group "Options"
     :level 1
     :order 1))
@@ -115,9 +163,11 @@
 ;;;###autoload (autoload 'beads-gate-add-waiter "beads-command-gate" nil t)
 (beads-defcommand beads-command-gate-add-waiter (beads-command-global-options)
   ((gate-id
-    :positional 1)
+    :positional 1
+    :required t)
    (waiter-id
-    :positional 2))
+    :positional 2
+    :required t))
   :documentation "Add a waiter to a gate."
   :cli-command "gate add-waiter")
 
@@ -128,7 +178,38 @@
 ;;;###autoload (autoload 'beads-gate-discover "beads-command-gate" nil t)
 (beads-defcommand beads-command-gate-discover (beads-command-global-options)
   ((gate-id
-    :positional 1))
+    :positional 1)
+   (branch
+    :short-option "b"
+    :type (or null string)
+    :prompt "Branch: "
+    :documentation "Filter runs by branch (default: current branch)"
+    :group "Options"
+    :level 1
+    :order 1)
+   (dry-run
+    :type boolean
+    :short-option "n"
+    :documentation "Preview mode: show matches without updating"
+    :group "Options"
+    :level 1
+    :order 2)
+   (limit
+    :short-option "l"
+    :type (or null string integer)
+    :prompt "Limit: "
+    :documentation "Max runs to query from GitHub (default 10)"
+    :group "Options"
+    :level 1
+    :order 3)
+   (max-age
+    :short-option "a"
+    :type (or null string)
+    :prompt "Max age (e.g., 30m): "
+    :documentation "Max age for gate/run matching (default 30m0s)"
+    :group "Options"
+    :level 1
+    :order 4))
   :documentation "Discover await_id for gh:run gates.")
 
 
@@ -140,12 +221,15 @@
 
 Gate types: human, timer, gh:run, gh:pr, bead"
   ["Gate Commands"
+   ("n" "Create gate" beads-gate-create)
    ("l" "List gates" beads-gate-list)
    ("c" "Check/evaluate" beads-gate-check)
    ("r" "Resolve gate" beads-gate-resolve)
    ("s" "Show gate" beads-gate-show)
    ("a" "Add waiter" beads-gate-add-waiter)
-   ("d" "Discover await_id" beads-gate-discover)])
+   ("d" "Discover await_id" beads-gate-discover)]
+  ["Quick Actions"
+   ("q" "Quit" transient-quit-one)])
 
 (provide 'beads-command-gate)
 ;;; beads-command-gate.el ends here

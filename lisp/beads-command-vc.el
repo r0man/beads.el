@@ -34,7 +34,13 @@
     :prompt "Commit message: "
     :group "Commit"
     :level 1
-    :order 1))
+    :order 1)
+   (stdin
+    :type boolean
+    :group "Commit"
+    :level 1
+    :order 2
+    :documentation "Read commit message from stdin"))
   :documentation "Create a Dolt commit from pending changes.
 Requires Dolt backend.")
 

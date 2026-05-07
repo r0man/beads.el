@@ -379,14 +379,6 @@ or raw stdout).  Commands are immutable/reusable.")
 Overrides $BD_ACTOR or $USER"
     :long-option "actor"
     :option-type :string)
-   (allow-stale
-    :initarg :allow-stale
-    :type boolean
-    :initform nil
-    :documentation "Allow operations on potentially stale data
-Skip staleness check"
-    :long-option "allow-stale"
-    :option-type :boolean)
    (db
     :initarg :db
     :type (or null string)
@@ -394,6 +386,15 @@ Skip staleness check"
     :documentation "Database path
 Overrides auto-discovery of .beads/*.db"
     :long-option "db"
+    :option-type :string)
+   (directory
+    :initarg :directory
+    :type (or null string)
+    :initform nil
+    :documentation "Change to this directory before running the command
+Like git -C"
+    :long-option "directory"
+    :short-option "C"
     :option-type :string)
    (dolt-auto-commit
     :initarg :dolt-auto-commit
@@ -404,45 +405,12 @@ Values: off, on, batch.  on: commit after each write.
 batch: defer commits to bd dolt commit"
     :long-option "dolt-auto-commit"
     :option-type :string)
-   (lock-timeout
-    :initarg :lock-timeout
-    :type (or null string)
-    :initform nil
-    :documentation "SQLite busy timeout
-E.g., \"30s\". 0 means fail immediately if locked"
-    :long-option "lock-timeout"
-    :option-type :string)
-   (no-auto-flush
-    :initarg :no-auto-flush
+   (global
+    :initarg :global
     :type boolean
     :initform nil
-    :documentation "Disable automatic JSONL sync
-Prevents auto-export after CRUD operations"
-    :long-option "no-auto-flush"
-    :option-type :boolean)
-   (no-auto-import
-    :initarg :no-auto-import
-    :type boolean
-    :initform nil
-    :documentation "Disable automatic JSONL import
-Prevents auto-import when JSONL is newer than DB"
-    :long-option "no-auto-import"
-    :option-type :boolean)
-   (no-daemon
-    :initarg :no-daemon
-    :type boolean
-    :initform nil
-    :documentation "Force direct storage mode
-Bypass daemon if running"
-    :long-option "no-daemon"
-    :option-type :boolean)
-   (no-db
-    :initarg :no-db
-    :type boolean
-    :initform nil
-    :documentation "Use no-db mode
-Load from JSONL, no SQLite database"
-    :long-option "no-db"
+    :documentation "Use the global shared-server database (beads_global)"
+    :long-option "global"
     :option-type :boolean)
    (profile
     :initarg :profile

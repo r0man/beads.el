@@ -1,0 +1,37 @@
+Create a swarm molecule to orchestrate parallel work on an epic.
+
+The swarm molecule:
+- Links to the epic it orchestrates
+- Has mol_type=swarm for discovery
+- Specifies a coordinator (optional)
+- Can be picked up by any coordinator agent
+
+If given a single issue (not an epic), it will be auto-wrapped:
+- Creates an epic with that issue as its only child
+- Then creates the swarm molecule for that epic
+
+Examples:
+  bd swarm create bd-epic-123                          # Create swarm for epic
+  bd swarm create bd-epic-123 --coordinator=observer/   # With specific coordinator
+  bd swarm create bd-task-456                          # Auto-wrap single issue
+
+Usage:
+  bd swarm create [epic-id] [flags]
+
+Flags:
+      --coordinator string   Coordinator address (e.g., my-project/witness)
+      --force                Create new swarm even if one already exists
+  -h, --help                 help for create
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

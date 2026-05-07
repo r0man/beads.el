@@ -25,12 +25,12 @@
          (args (beads-command-line cmd)))
     (should (member "--dry-run" args))))
 
-(ert-deftest beads-command-migrate-test-command-line-cleanup ()
-  "Unit test: migrate includes --cleanup option."
+(ert-deftest beads-command-migrate-test-command-line-update-repo-id ()
+  "Unit test: migrate includes --update-repo-id option."
   :tags '(:unit)
-  (let* ((cmd (beads-command-migrate :cleanup t))
+  (let* ((cmd (beads-command-migrate :update-repo-id t))
          (args (beads-command-line cmd)))
-    (should (member "--cleanup" args))))
+    (should (member "--update-repo-id" args))))
 
 (ert-deftest beads-command-migrate-test-command-line-yes ()
   "Unit test: migrate includes --yes option."
@@ -51,11 +51,13 @@
 (ert-deftest beads-command-migrate-issues-test-command-line-basic ()
   "Unit test: migrate issues builds correct command line."
   :tags '(:unit)
-  (let* ((cmd (beads-command-migrate-issues :source "/src" :target "/dst"))
+  (let* ((cmd (beads-command-migrate-issues :from "/src" :to "/dst"))
          (args (beads-command-line cmd)))
     (should (member "migrate" args))
     (should (member "issues" args))
+    (should (member "--from" args))
     (should (member "/src" args))
+    (should (member "--to" args))
     (should (member "/dst" args))))
 
 ;;; Unit Tests: beads-command-migrate-sync command-line

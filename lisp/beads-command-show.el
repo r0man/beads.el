@@ -58,13 +58,14 @@
 
 (beads-defcommand beads-command-show (beads-command-global-options)
   ((issue-ids
-    :positional 1
+    :long-option "id"
     :type (list-of string)
-    :separator " "
+    :separator nil
     :short-option "i"
     :argument "--id="
     :prompt "Issue ID(s): "
     :reader beads--read-issue-at-point-or-prompt
+    :documentation "Issue ID (use for IDs that look like flags, e.g., --id=gt--xyz)"
     :group "Show Issue"
     :level 1
     :order 1

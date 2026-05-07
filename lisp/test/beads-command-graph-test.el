@@ -234,6 +234,28 @@
              (lambda (_cmd) nil)))
     (should-error (beads-graph--check-dot) :type 'user-error)))
 
+(ert-deftest beads-command-graph-test-connected-ids-self-only ()
+  "An issue with no edges traces to a singleton component."
+  :tags '(:unit)
+  (let ((deps (list (list :from "bd-9" :to "bd-10" :type "blocks"))))
+    (should (equal (beads-graph--connected-ids "bd-1" deps) '("bd-1")))))
+
+(ert-deftest beads-command-graph-test-connected-ids-traverses-both-directions ()
+  "Connected component follows edges as undirected (ancestors + descendants)."
+  :tags '(:unit)
+  ;; bd-1 -> bd-2 -> bd-3, plus an unrelated bd-9 -> bd-10.
+  (let* ((deps (list (list :from "bd-1" :to "bd-2" :type "blocks")
+                     (list :from "bd-2" :to "bd-3" :type "blocks")
+                     (list :from "bd-9" :to "bd-10" :type "blocks")))
+         (from-leaf (sort (beads-graph--connected-ids "bd-3" deps) #'string<))
+         (from-root (sort (beads-graph--connected-ids "bd-1" deps) #'string<))
+         (from-mid (sort (beads-graph--connected-ids "bd-2" deps) #'string<)))
+    (should (equal from-leaf '("bd-1" "bd-2" "bd-3")))
+    (should (equal from-root '("bd-1" "bd-2" "bd-3")))
+    (should (equal from-mid '("bd-1" "bd-2" "bd-3")))
+    (should-not (member "bd-9" from-mid))
+    (should-not (member "bd-10" from-mid))))
+
 (ert-deftest beads-command-graph-test-mode-defined ()
   "Test graph mode is defined."
   :tags '(:unit)

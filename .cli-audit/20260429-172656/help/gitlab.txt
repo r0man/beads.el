@@ -1,0 +1,36 @@
+Commands for syncing issues between beads and GitLab.
+
+Configuration can be set via 'bd config' or environment variables:
+  gitlab.url / GITLAB_URL                         - GitLab instance URL
+  gitlab.token / GITLAB_TOKEN                     - Personal access token
+  gitlab.project_id / GITLAB_PROJECT_ID           - Project ID or path
+  gitlab.group_id / GITLAB_GROUP_ID               - Group ID for group-level sync
+  gitlab.default_project_id / GITLAB_DEFAULT_PROJECT_ID - Project for creating issues in group mode
+
+Usage:
+  bd gitlab [command]
+
+Available Commands:
+  projects    List accessible GitLab projects
+  pull        Pull specific items from GitLab
+  push        Push specific beads to GitLab
+  status      Show GitLab sync status
+  sync        Sync issues with GitLab
+
+Flags:
+  -h, --help   help for gitlab
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output
+
+Use "bd gitlab [command] --help" for more information about a command.

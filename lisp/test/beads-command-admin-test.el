@@ -33,6 +33,36 @@
          (args (beads-command-line cmd)))
     (should (member "--force" args))))
 
+(ert-deftest beads-command-admin-cleanup-test-validation-missing-force ()
+  "Unit test: admin cleanup validation requires --force or --dry-run.
+Mirrors bd's runtime safety check; without either flag bd refuses
+to act, so we fail fast in Emacs instead of round-tripping."
+  :tags '(:unit)
+  (let ((cmd (beads-command-admin-cleanup)))
+    (should (beads-command-validate cmd))))
+
+(ert-deftest beads-command-admin-cleanup-test-validation-with-force ()
+  "Unit test: admin cleanup validation succeeds with --force."
+  :tags '(:unit)
+  (let ((cmd (beads-command-admin-cleanup :force t)))
+    (should (null (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-admin-cleanup-test-validation-with-dry-run ()
+  "Unit test: admin cleanup validation succeeds with --dry-run."
+  :tags '(:unit)
+  (let ((cmd (beads-command-admin-cleanup :dry-run t)))
+    (should (null (beads-command-validate cmd)))))
+
+(ert-deftest beads-command-admin-cleanup-test-validation-filter-only-fails ()
+  "Unit test: admin cleanup validation fails when only filters are set.
+Filters narrow what gets deleted but do not satisfy the safety
+gate -- bd still requires --force or --dry-run."
+  :tags '(:unit)
+  (should (beads-command-validate
+           (beads-command-admin-cleanup :older-than "30")))
+  (should (beads-command-validate
+           (beads-command-admin-cleanup :ephemeral t))))
+
 ;;; Unit Tests: beads-command-admin-compact command-line
 
 (ert-deftest beads-command-admin-compact-test-command-line-basic ()

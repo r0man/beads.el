@@ -1,0 +1,44 @@
+Manage workflow formulas - the source layer for molecule templates.
+
+Formulas are YAML/JSON files that define workflows with composition rules.
+They are "cooked" into proto beads which can then be poured or wisped.
+
+The Rig → Cook → Run lifecycle:
+  - Rig: Compose formulas (extends, compose)
+  - Cook: Transform to proto (bd cook expands macros, applies aspects)
+  - Run: Agents execute poured mols or wisps
+
+Search paths (in order):
+  1. <resolved-beads-dir>/formulas/ (active project)
+  2. ~/.beads/formulas/ (user)
+  3. $GT_ROOT/.beads/formulas/ (orchestrator, if GT_ROOT set)
+
+Commands:
+  list   List available formulas from all search paths
+  show   Show formula details, steps, and composition rules
+
+Usage:
+  bd formula [command]
+
+Available Commands:
+  convert     Convert formula from JSON to TOML
+  list        List available formulas
+  show        Show formula details
+
+Flags:
+  -h, --help   help for formula
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output
+
+Use "bd formula [command] --help" for more information about a command.

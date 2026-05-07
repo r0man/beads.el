@@ -1,0 +1,34 @@
+List all formulas from search paths.
+
+Search paths (in order of priority):
+  1. <resolved-beads-dir>/formulas/ (active project - highest priority)
+  2. ~/.beads/formulas/ (user)
+  3. $GT_ROOT/.beads/formulas/ (orchestrator, if GT_ROOT set)
+
+Formulas in earlier paths shadow those with the same name in later paths.
+
+Examples:
+  bd formula list
+  bd formula list --json
+  bd formula list --type workflow
+  bd formula list --type convoy
+
+Usage:
+  bd formula list [flags]
+
+Flags:
+  -h, --help          help for list
+      --type string   Filter by type (workflow, expansion, aspect, convoy)
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

@@ -1,0 +1,36 @@
+Detect drift between declared configuration and actual system state.
+
+This is a read-only diagnostic that answers "is my environment consistent
+with my config?" — no mutations are performed.
+
+Checks:
+  - hooks     Git hooks installed and up-to-date
+  - remote    Dolt remote matches federation.remote config
+  - server    Server state matches dolt.shared-server config
+
+Exit codes:
+  0  No drift detected (all checks ok/info/skipped)
+  1  Drift detected (at least one check has status "drift")
+
+Examples:
+  bd config drift
+  bd config drift --json
+
+Usage:
+  bd config drift [flags]
+
+Flags:
+  -h, --help   help for drift
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

@@ -1,0 +1,35 @@
+Execute a raw SQL query against the underlying database (SQLite or Dolt).
+
+Useful for debugging, maintenance, and working around bugs in higher-level commands.
+
+Examples:
+  bd sql 'SELECT COUNT(*) FROM issues'
+  bd sql 'SELECT id, title FROM issues WHERE status = "open" LIMIT 5'
+  bd sql 'DELETE FROM dirty_issues WHERE issue_id = "bd-abc123"'
+  bd sql --csv 'SELECT id, title, status FROM issues'
+
+The query is passed directly to the database. SELECT queries return results as a
+table (or JSON/CSV with --json/--csv). Non-SELECT queries (INSERT, UPDATE, DELETE)
+report the number of rows affected.
+
+WARNING: Direct database access bypasses the storage layer. Use with caution.
+
+Usage:
+  bd sql <query> [flags]
+
+Flags:
+      --csv    Output results in CSV format
+  -h, --help   help for sql
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

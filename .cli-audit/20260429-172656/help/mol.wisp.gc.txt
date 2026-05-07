@@ -1,0 +1,50 @@
+Garbage collect old or abandoned wisps from the database.
+
+A wisp is considered abandoned if:
+  - It hasn't been updated in --age duration and is not closed
+
+Abandoned wisps are deleted without creating a digest. Use 'bd mol squash'
+if you want to preserve a summary before garbage collection.
+
+Use --closed to purge ALL closed wisps (regardless of age). This is the
+fastest way to reclaim space from accumulated wisp bloat. Safe by default:
+requires --force to actually delete.
+
+Note: This uses time-based cleanup, appropriate for ephemeral wisps.
+For graph-pressure staleness detection (blocking other work), see 'bd mol stale'.
+
+Examples:
+  bd mol wisp gc                                    # Clean abandoned wisps (default: 1h threshold)
+  bd mol wisp gc --dry-run                          # Preview what would be cleaned
+  bd mol wisp gc --age 24h                          # Custom age threshold
+  bd mol wisp gc --all                              # Also clean closed wisps older than threshold
+  bd mol wisp gc --closed                           # Preview closed wisp deletion
+  bd mol wisp gc --closed --force                   # Delete all closed wisps
+  bd mol wisp gc --closed --dry-run                 # Explicit dry-run (same as no --force)
+  bd mol wisp gc --exclude-type agent,rig           # Protect agent and rig wisps from GC
+  bd mol wisp gc --closed --force --exclude-type mol # Delete closed wisps except mol type
+
+Usage:
+  bd mol wisp gc [flags]
+
+Flags:
+      --age string             Age threshold for abandoned wisp detection (default "1h")
+      --all                    Also clean closed wisps older than threshold
+      --closed                 Delete all closed wisps (ignores --age threshold)
+      --dry-run                Preview what would be cleaned
+      --exclude-type strings   Exclude wisps of these types from GC (comma-separated, e.g., agent,rig)
+  -f, --force                  Actually delete (default: preview only)
+  -h, --help                   help for gc
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

@@ -375,7 +375,8 @@
       :short-option "nP"
       :group "Output Options"
       :level 3
-      :order 2)
+      :order 2
+      :documentation "Disable pager output")
      (watch
       :short-option "w"
       :type boolean
@@ -383,6 +384,14 @@
       :level 2
       :order 4)
 
+     (exclude-label
+      :type (list-of string)
+      :long-option "exclude-label"
+      :prompt "Exclude labels (any of): "
+      :reader beads-reader-issue-labels
+      :group "Filter"
+      :level 3
+      :documentation "Exclude issues that have ANY of these labels")
      (exclude-type
       :type (or null string)
       :long-option "exclude-type"

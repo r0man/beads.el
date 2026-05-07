@@ -100,13 +100,20 @@ Instantiates proto as persistent mol (liquid phase).")
     :group "Options"
     :level 1
     :order 1)
+   (root-only
+    :type boolean
+    :short-option "r"
+    :documentation "Create only the root issue (no child step issues)"
+    :group "Options"
+    :level 1
+    :order 2)
    (var
     :type (list-of string)
     :short-option "v"
     :prompt "Variable (key=value): "
     :group "Options"
     :level 1
-    :order 2))
+    :order 3))
   :documentation "Represents bd mol wisp command.
 Creates or manages wisps (ephemeral molecules).")
 
@@ -261,8 +268,10 @@ Garbage-collects abandoned or closed wisps.")
     :level 2
     :order 5)
    (ref
-    :type boolean
+    :type (or null string)
     :short-option "r"
+    :prompt "Child reference (e.g., arm-{{name}}): "
+    :documentation "Custom child reference with {{var}} substitution (e.g., arm-{{polecat_name}})"
     :group "Options"
     :level 2
     :order 6)
@@ -427,7 +436,28 @@ Finds molecules ready for gate-resume dispatch.")
 
 ;;;###autoload (autoload 'beads-mol-stale "beads-command-mol" nil t)
 (beads-defcommand beads-command-mol-stale (beads-command-global-options)
-  ()
+  ((show-all
+    :long-option "all"
+    :type boolean
+    :short-option "a"
+    :documentation "Include molecules with 0 children"
+    :group "Options"
+    :level 1
+    :order 1)
+   (blocking
+    :type boolean
+    :short-option "b"
+    :documentation "Only show molecules blocking other work"
+    :group "Options"
+    :level 1
+    :order 2)
+   (unassigned
+    :type boolean
+    :short-option "u"
+    :documentation "Only show unassigned molecules"
+    :group "Options"
+    :level 1
+    :order 3))
   :documentation "Represents bd mol stale command.
 Detects complete-but-unclosed molecules.")
 
@@ -439,9 +469,11 @@ Detects complete-but-unclosed molecules.")
   ((formula-name
     :positional t
     :positional-order 1)
-   (patrol
-    :type boolean
-    :short-option "p"
+   (var
+    :type (list-of string)
+    :short-option "v"
+    :prompt "Variable (key=value): "
+    :documentation "Variable substitution for condition filtering (key=value)"
     :group "Options"
     :level 1
     :order 1))

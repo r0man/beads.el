@@ -113,7 +113,7 @@ Appends an audit interaction entry.")
     :type (or null string)
     :short-option "r"
     :transient beads-transient-multiline
-    :documentation "Label Reason"
+    :documentation "Reason for label"
     :group "Options"
     :level 1
     :order 2))
