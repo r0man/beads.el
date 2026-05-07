@@ -45,7 +45,13 @@ Gets a configuration value.")
     :required t)
    (value
     :positional 2
-    :required t))
+    :required t)
+   (force-git-tracked
+    :type boolean
+    :documentation "Allow writing secret keys to git-tracked config files (use with caution)"
+    :group "Options"
+    :level 3
+    :order 1))
   :documentation "Represents bd config set command.
 Sets a configuration value.")
 
@@ -81,7 +87,13 @@ Deletes a configuration value.")
     :positional 1
     :type (list-of string)
     :separator " "
-    :required t))
+    :required t)
+   (force-git-tracked
+    :type boolean
+    :documentation "Allow writing secret keys to git-tracked config files (use with caution)"
+    :group "Options"
+    :level 3
+    :order 1))
   :documentation "Represents bd config set-many command.
 Sets multiple configuration values at once with a single auto-commit.
 Each argument must be in key=value format."
