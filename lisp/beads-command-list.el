@@ -375,7 +375,8 @@
       :short-option "nP"
       :group "Output Options"
       :level 3
-      :order 2)
+      :order 2
+      :documentation "Disable pager output")
      (watch
       :short-option "w"
       :type boolean
