@@ -70,6 +70,8 @@
     :level 1
     :order 2
     :required t)
+   ;; CLI also accepts --depends-on as an alias for --blocked-by; we model
+   ;; only the canonical flag (positional 2 above covers the same value).
    (blocked-by
     :type (or null string)
     :short-option "b"
