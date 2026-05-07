@@ -1033,12 +1033,12 @@ Dolt-native backup commands (preserve full commit history):
     :level 1
     :order 2
     :documentation "Include infrastructure beads (agents, rigs, roles, messages)")
-   (no-memories
+   (include-memories
     :type boolean
     :group "Options"
     :level 1
     :order 3
-    :documentation "Exclude persistent memories from the export")
+    :documentation "Include persistent memories (from 'bd remember') in the export")
    (output
     :type (or null string)
     :short-option "o"
@@ -1054,7 +1054,7 @@ Dolt-native backup commands (preserve full commit history):
     :order 5
     :documentation "Exclude test/pollution records"))
   :documentation "Represents bd export command.
-Exports issues to JSONL format.")
+Export all issues to JSONL (newline-delimited JSON) format.")
 
 ;;;###autoload (autoload 'beads-import "beads-command-misc" nil t)
 (beads-defcommand beads-command-import (beads-command-global-options)
