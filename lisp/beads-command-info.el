@@ -51,7 +51,13 @@
     :short-option "t"
     :group "Options"
     :level 2
-    :order 3))
+    :order 3)
+   (json
+    :type boolean
+    :documentation "Output in JSON format"
+    :group "Options"
+    :level 2
+    :order 4))
   :documentation "Represents bd info command.
 Shows database and daemon information for debugging.
 When executed with :json t, returns info data as JSON.")

@@ -38,7 +38,13 @@
     :group "Restore"
     :level 1
     :order 1
-    :required t))
+    :required t)
+   (json
+    :type boolean
+    :documentation "Output restore results in JSON format"
+    :group "Options"
+    :level 2
+    :order 2))
   :documentation "Restore a compacted issue from Dolt history.
 Requires Dolt backend.")
 

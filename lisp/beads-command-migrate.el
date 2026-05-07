@@ -46,7 +46,13 @@
     :short-option "u"
     :group "Options"
     :level 2
-    :order 5))
+    :order 5)
+   (json
+    :type boolean
+    :documentation "Output migration statistics in JSON format"
+    :group "Options"
+    :level 2
+    :order 6))
   :documentation "Detect and migrate database schema to current version.")
 
 ;;; Migrate Issues Command
@@ -150,7 +156,13 @@
     :short-option "n"
     :group "Options"
     :level 1
-    :order 1))
+    :order 1)
+   (json
+    :type boolean
+    :documentation "Output in JSON format"
+    :group "Options"
+    :level 2
+    :order 2))
   :documentation "Migrate to sync.branch workflow for multi-clone setups.")
 
 ;;; Migrate Hooks Command
@@ -176,7 +188,13 @@
     :short-option "y"
     :group "Options"
     :level 1
-    :order 3))
+    :order 3)
+   (json
+    :type boolean
+    :documentation "Output in JSON format"
+    :group "Options"
+    :level 2
+    :order 4))
   :documentation "Migrate git hooks to marker-managed format."
   :cli-command "migrate hooks")
 

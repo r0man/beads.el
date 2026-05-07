@@ -339,7 +339,13 @@ Outputs AI-optimized workflow context.")
     :group "Options"
     :level 1
     :order 3
-    :documentation "Skip lint check explicitly"))
+    :documentation "Skip lint check explicitly")
+   (json
+    :type boolean
+    :group "Options"
+    :level 2
+    :order 4
+    :documentation "Output results as JSON"))
   :documentation "Represents bd preflight command.
 Shows PR readiness checklist.")
 

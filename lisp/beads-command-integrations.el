@@ -292,14 +292,25 @@ Equivalent to: bd linear sync --push --issues <ids>.")
 (beads-defcommand beads-command-repo-add (beads-command-global-options)
   ((repo-path
     :positional 1
-    :required t))
+    :required t)
+   (json
+    :type boolean
+    :documentation "Output JSON"
+    :group "Options"
+    :level 2
+    :order 1))
   :documentation "Represents bd repo add command.
 Adds an additional repository to sync.")
 
 
 ;;;###autoload (autoload 'beads-repo-list "beads-command-integrations" nil t)
 (beads-defcommand beads-command-repo-list (beads-command-global-options)
-  ()
+  ((json
+    :type boolean
+    :documentation "Output JSON"
+    :group "Options"
+    :level 2
+    :order 1))
   :documentation "Represents bd repo list command.
 Lists all configured repositories.")
 
@@ -308,14 +319,25 @@ Lists all configured repositories.")
 (beads-defcommand beads-command-repo-remove (beads-command-global-options)
   ((repo-path
     :positional 1
-    :required t))
+    :required t)
+   (json
+    :type boolean
+    :documentation "Output JSON"
+    :group "Options"
+    :level 2
+    :order 1))
   :documentation "Represents bd repo remove command.
 Removes a repository from sync configuration.")
 
 
 ;;;###autoload (autoload 'beads-repo-sync "beads-command-integrations" nil t)
 (beads-defcommand beads-command-repo-sync (beads-command-global-options)
-  ()
+  ((json
+    :type boolean
+    :documentation "Output JSON"
+    :group "Options"
+    :level 2
+    :order 1))
   :documentation "Represents bd repo sync command.
 Manually triggers multi-repo sync.")
 
