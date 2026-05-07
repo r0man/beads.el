@@ -46,18 +46,59 @@
 ;;; Init Command
 
 (beads-defcommand beads-command-init (beads-command-global-options)
-  ((branch
-    :short-option "b"
+  ((agents-file
     :type (or null string)
-    :group "Basic Options"
-    :level 1
+    :prompt "Agents file: "
+    :group "Agents"
+    :level 4
+    :order 1)
+   (agents-profile
+    :type (or null string)
+    :choices ("minimal" "full")
+    :prompt "Agents profile: "
+    :group "Agents"
+    :level 4
     :order 2)
+   (agents-template
+    :type (or null string)
+    :prompt "Agents template: "
+    :group "Agents"
+    :level 4
+    :order 3)
+   (backend
+    :type (or null string)
+    :prompt "Backend: "
+    :group "Advanced"
+    :level 3
+    :order 5)
    (contributor
     :type boolean
     :short-option "C"
     :group "Setup Wizards"
     :level 2
     :order 1)
+   (database
+    :type (or null string)
+    :prompt "Database name: "
+    :group "Server Connection"
+    :level 3
+    :order 4)
+   (destroy-token
+    :type (or null string)
+    :prompt "Destroy token: "
+    :group "Advanced"
+    :level 4
+    :order 6)
+   (discard-remote
+    :type boolean
+    :group "Advanced"
+    :level 4
+    :order 7)
+   (external
+    :type boolean
+    :group "Server Connection"
+    :level 4
+    :order 5)
    (force
     :type boolean
     :short-option "f"
@@ -70,18 +111,40 @@
     :group "Advanced"
     :level 3
     :order 2)
+   (non-interactive
+    :type boolean
+    :group "Other Options"
+    :level 2
+    :order 3)
    (prefix
     :short-option "p"
     :type (or null string)
     :group "Basic Options"
     :level 1
     :order 1)
-   (quiet
-    :short-option "q"
+   (reinit-local
     :type boolean
-    :group "Other Options"
+    :group "Advanced"
+    :level 4
+    :order 8)
+   (remote
+    :type (or null string)
+    :prompt "Remote URL: "
+    :group "Server Connection"
+    :level 3
+    :order 6)
+   (role
+    :type (or null string)
+    :choices ("maintainer" "contributor")
+    :prompt "Role: "
+    :group "Setup Wizards"
     :level 2
-    :order 1)
+    :order 3)
+   (server
+    :type boolean
+    :group "Server Connection"
+    :level 3
+    :order 4)
    (server-host
     :type (or null string)
     :short-option "h"
@@ -96,6 +159,12 @@
     :group "Server Connection"
     :level 3
     :order 2)
+   (server-socket
+    :type (or null string)
+    :prompt "Server socket: "
+    :group "Server Connection"
+    :level 4
+    :order 7)
    (server-user
     :type (or null string)
     :short-option "U"
@@ -109,6 +178,16 @@
     :group "Advanced"
     :level 3
     :order 3)
+   (shared-server
+    :type boolean
+    :group "Server Connection"
+    :level 4
+    :order 8)
+   (skip-agents
+    :type boolean
+    :group "Other Options"
+    :level 2
+    :order 4)
    (skip-hooks
     :type boolean
     :short-option "H"
@@ -168,8 +247,6 @@ This uses transient's standard argument parsing with dash-style
 flags."
   (let* ((prefix (beads--sanitize-string
                   (transient-arg-value "--prefix=" args)))
-         (branch (beads--sanitize-string
-                  (transient-arg-value "--branch=" args)))
          (db (beads--sanitize-string
               (transient-arg-value "--db=" args)))
          (contributor (and (member "--contributor" args) t))
@@ -185,7 +262,6 @@ flags."
                        (transient-arg-value "--server-user=" args))))
     (beads-command-init
      :prefix prefix
-     :branch branch
      :db db
      :contributor contributor
      :quiet quiet
@@ -270,7 +346,6 @@ the initialization."
    :description "Set initialization options"
    ["Basic Options"
     (beads-option-init-prefix)
-    (beads-option-init-branch)
     (beads-option-init-db)]
    ["Setup Wizards"
     (beads-option-init-contributor)
@@ -292,9 +367,55 @@ the initialization."
     :short-option "n"
     :group "Options"
     :level 1
-    :order 1))
+    :order 1)
+   (yes
+    :type boolean
+    :short-option "y"
+    :group "Options"
+    :level 1
+    :order 2)
+   (non-interactive
+    :type boolean
+    :group "Options"
+    :level 1
+    :order 3))
   :documentation "Represents bd bootstrap command.
 Non-destructive database setup for fresh clones and recovery.")
+
+;;; Init-Safety Command
+;;
+;; `bd init-safety' is a help-style command that prints the bd init flag
+;; safety contract (refusal rules, destroy-token semantics, exit codes,
+;; recovery guidance).  It takes no flags beyond the global options.
+;; CLI subcommand name has a dash and would not survive the default
+;; hyphen-to-space derivation, so :cli-command is set explicitly.
+;;
+;; The auto-generated transient would carry only the global flags
+;; group, which can read as an empty/confusing menu.  We use
+;; :transient :manual and route through `beads-meta-define-transient'
+;; so the standard execute/preview/reset suffixes are still wired up,
+;; but the docstring explicitly leads with the "read-only, prints help
+;; text" signal so the menu's purpose is discoverable from the header.
+
+(beads-defcommand beads-command-init-safety (beads-command-global-options)
+  ()
+  :documentation "Represents bd init-safety command.
+Prints the bd init flag safety contract: refusal rules,
+destroy-token semantics, exit codes, and recovery guidance.
+Read-only: never modifies the database or workspace."
+  :cli-command "init-safety"
+  :transient :manual)
+
+;;;###autoload (autoload 'beads-init-safety "beads-command-init" nil t)
+(beads-meta-define-transient beads-command-init-safety "beads-init-safety"
+  "Print the bd init flag safety contract — read-only.
+
+This command takes no command-specific options; the menu shows
+only the global flags.  Running it invokes `bd init-safety',
+which prints the refusal rules, destroy-token semantics, exit
+codes, and recovery guidance for `bd init'.  The database and
+workspace are never modified."
+  beads-option-global-section)
 
 (provide 'beads-command-init)
 ;;; beads-command-init.el ends here

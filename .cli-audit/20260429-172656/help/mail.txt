@@ -1,0 +1,40 @@
+warning: no beads configuration found in $REPO/.beads; using default database name "beads"
+Delegates mail operations to an external mail provider.
+
+Agents often type 'bd mail' when working with beads, but mail functionality
+is typically provided by the orchestrator. This command bridges that gap
+by delegating to the configured mail provider.
+
+Configuration (checked in order):
+  1. BEADS_MAIL_DELEGATE or BD_MAIL_DELEGATE environment variable
+  2. 'mail.delegate' config setting (bd config set mail.delegate "gt mail")
+
+Examples:
+  # Configure delegation (one-time setup)
+  export BEADS_MAIL_DELEGATE="gt mail"
+  # or
+  bd config set mail.delegate "gt mail"
+
+  # Then use bd mail as if it were gt mail
+  bd mail inbox                    # Lists inbox
+  bd mail send mayor/ -s "Hi"      # Sends mail
+  bd mail read msg-123             # Reads a message
+
+Usage:
+  bd mail [subcommand] [args...] [flags]
+
+Flags:
+  -h, --help   help for mail
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

@@ -1,0 +1,50 @@
+Gates are async wait conditions that block workflow steps.
+
+Gates are created automatically when a formula step has a gate field.
+They must be closed (manually or via watchers) for the blocked step to proceed.
+
+Gate types:
+  human   - Requires manual bd close (Phase 1)
+  timer   - Expires after timeout (Phase 2)
+  gh:run  - Waits for GitHub workflow (Phase 3)
+  gh:pr   - Waits for PR merge (Phase 3)
+  bead    - Waits for cross-rig bead to close (Phase 4)
+
+For bead gates, await_id format is <rig>:<bead-id> (e.g., "other-project:op-abc123").
+
+Examples:
+  bd gate list           # Show all open gates
+  bd gate list --all     # Show all gates including closed
+  bd gate check          # Evaluate all open gates
+  bd gate check --type=bead  # Evaluate only bead gates
+  bd gate resolve <id>   # Close a gate manually
+
+Usage:
+  bd gate [command]
+
+Available Commands:
+  add-waiter  Add a waiter to a gate
+  check       Evaluate gates and close resolved ones
+  create      Create a gate that blocks an issue
+  discover    Discover await_id for gh:run gates
+  list        List gate issues
+  resolve     Manually resolve (close) a gate
+  show        Show a gate issue
+
+Flags:
+  -h, --help   help for gate
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output
+
+Use "bd gate [command] --help" for more information about a command.

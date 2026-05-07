@@ -57,11 +57,20 @@
     :type (or null string)
     :short-option "r"
     :transient beads-transient-multiline
-    :documentation "Close Reason"
+    :documentation "Reason for closing"
     :group "Close Issue"
     :level 1
     :order 2
     :required t)
+   (reason-file
+    :type (or null string)
+    :long-option "reason-file"
+    :prompt "Reason file: "
+    :reader transient-read-file
+    :documentation "Read close reason from file (use - for stdin)"
+    :group "Close Issue"
+    :level 2
+    :order 3)
    (claim-next
     :type boolean
     :short-option "c"
@@ -71,6 +80,12 @@
     :long-option "continue"
     :type boolean
     :short-option "C"
+    :group "Options"
+    :level 3)
+   (no-auto
+    :type boolean
+    :long-option "no-auto"
+    :documentation "With --continue, show next step but don't claim it"
     :group "Options"
     :level 3)
    (force

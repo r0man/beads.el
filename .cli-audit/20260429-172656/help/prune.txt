@@ -1,0 +1,48 @@
+Permanently delete closed non-ephemeral beads and their associated data.
+
+Use this to trim closed regular beads (tasks, features, bugs, chores, etc.)
+that are no longer useful. The common case is a long-lived repo where
+closed work has piled up and is bloating auto-export or slowing queries.
+
+Requires --older-than or --pattern. The flag is a safety gate — without
+it, a muscle-memory `--force` could wipe every closed bead in the repo.
+Use `--pattern '*'` if you really do want to sweep everything closed.
+
+Deletes: issues, dependencies, labels, events, and comments for matching beads.
+Skips: pinned beads (protected), open/in-progress beads, and ephemeral beads.
+
+To delete closed ephemeral beads (wisps, transient molecules) use
+`bd purge` instead.
+
+For full Dolt storage reclaim after deleting many rows, follow with `bd flatten`
+so history can be collapsed and old chunks can be garbage-collected.
+
+EXAMPLES:
+  bd prune --older-than 30d              # Preview closed beads >30d old
+  bd prune --older-than 30d --force      # Delete them
+  bd prune --older-than 90d --dry-run    # Detailed preview with stats
+  bd prune --pattern "*" --force         # Delete all closed regular beads
+  bd prune --pattern "gm-temp-*" --force # Scope to a pattern
+
+Usage:
+  bd prune [flags]
+
+Flags:
+      --dry-run             Preview what would be pruned with stats
+  -f, --force               Actually prune (without this, shows preview)
+  -h, --help                help for prune
+      --older-than string   Only prune beads closed more than N ago (e.g., 30d, 2w, 60)
+      --pattern string      Only prune beads matching ID glob pattern (e.g., 'gm-old-*')
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

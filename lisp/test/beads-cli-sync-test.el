@@ -50,17 +50,19 @@
     (should (member "github" args))
     (should (member "sync" args))))
 
-(ert-deftest beads-cli-sync-test-github-sync-pull ()
-  "Test github sync --pull flag."
+(ert-deftest beads-cli-sync-test-github-sync-pull-only ()
+  "Test github sync --pull-only flag (bd 1.0.3 renamed --pull)."
   :tags '(:unit)
-  (let ((args (beads-command-line (beads-command-github-sync :pull t))))
-    (should (member "--pull" args))))
+  (let ((args (beads-command-line
+               (beads-command-github-sync :pull-only t))))
+    (should (member "--pull-only" args))))
 
-(ert-deftest beads-cli-sync-test-github-sync-push ()
-  "Test github sync --push flag."
+(ert-deftest beads-cli-sync-test-github-sync-push-only ()
+  "Test github sync --push-only flag (bd 1.0.3 renamed --push)."
   :tags '(:unit)
-  (let ((args (beads-command-line (beads-command-github-sync :push t))))
-    (should (member "--push" args))))
+  (let ((args (beads-command-line
+               (beads-command-github-sync :push-only t))))
+    (should (member "--push-only" args))))
 
 (ert-deftest beads-cli-sync-test-github-sync-dry-run ()
   "Test github sync --dry-run flag."
@@ -148,11 +150,13 @@
     (should (member "mol" args))
     (should (member "seed" args))))
 
-(ert-deftest beads-cli-sync-test-mol-seed-patrol ()
-  "Test mol seed --patrol flag."
+(ert-deftest beads-cli-sync-test-mol-seed-var ()
+  "Test mol seed --var flag (bd 1.0.3 only flag besides global)."
   :tags '(:unit)
-  (let ((args (beads-command-line (beads-command-mol-seed :patrol t))))
-    (should (member "--patrol" args))))
+  (let ((args (beads-command-line
+               (beads-command-mol-seed :var '("name=test")))))
+    (should (member "--var" args))
+    (should (member "name=test" args))))
 
 (ert-deftest beads-cli-sync-test-mol-seed-formula-name ()
   "Test mol seed with formula name."

@@ -1,0 +1,41 @@
+Synchronize issues between beads and GitLab.
+
+By default, performs bidirectional sync:
+- Pulls new/updated issues from GitLab to beads
+- Pushes local beads issues to GitLab
+
+Use --pull-only or --push-only to limit direction.
+
+Usage:
+  bd gitlab sync [flags]
+
+Flags:
+      --assignee string       Filter by assignee username
+      --dry-run               Show what would be synced without making changes
+      --exclude-type string   Exclude these issue types from sync (comma-separated)
+  -h, --help                  help for sync
+      --issues string         Comma-separated bead IDs to sync selectively (e.g., bd-abc,bd-def). Mutually exclusive with --parent.
+      --label string          Filter by labels (comma-separated, AND logic)
+      --milestone string      Filter by milestone title
+      --no-ephemeral          Exclude ephemeral/wisp issues from push (default: true) (default true)
+      --parent string         Limit push to this bead and its descendants (push only). Mutually exclusive with --issues.
+      --prefer-gitlab         On conflict, use GitLab version
+      --prefer-local          On conflict, keep local beads version
+      --prefer-newer          On conflict, use most recent version (default)
+      --project string        Filter to issues from this project ID (group mode)
+      --pull-only             Only pull issues from GitLab
+      --push-only             Only push issues to GitLab
+      --type string           Only sync these issue types (comma-separated, e.g. 'epic,feature,task')
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

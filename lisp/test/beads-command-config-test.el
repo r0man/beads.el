@@ -169,5 +169,82 @@
   (let ((cmd (beads-command-config-set-many :pairs '("k=v"))))
     (should (null (beads-command-validate cmd)))))
 
+;;; Unit Tests: beads-command-config-show command-line
+
+(ert-deftest beads-command-config-show-test-command-line-basic ()
+  "Unit test: config show builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-config-show))
+         (args (beads-command-line cmd)))
+    (should (member "config" args))
+    (should (member "show" args))))
+
+(ert-deftest beads-command-config-show-test-command-line-source ()
+  "Unit test: config show --source filter."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-config-show :source "config.yaml"))
+         (args (beads-command-line cmd)))
+    (should (member "--source" args))
+    (should (member "config.yaml" args))))
+
+;;; Unit Tests: beads-command-config-apply command-line
+
+(ert-deftest beads-command-config-apply-test-command-line-basic ()
+  "Unit test: config apply builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-config-apply))
+         (args (beads-command-line cmd)))
+    (should (member "config" args))
+    (should (member "apply" args))))
+
+(ert-deftest beads-command-config-apply-test-command-line-dry-run ()
+  "Unit test: config apply --dry-run flag."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-config-apply :dry-run t))
+         (args (beads-command-line cmd)))
+    (should (member "--dry-run" args))))
+
+;;; Unit Tests: beads-command-config-drift command-line
+
+(ert-deftest beads-command-config-drift-test-command-line-basic ()
+  "Unit test: config drift builds correct command line."
+  :tags '(:unit)
+  (let* ((cmd (beads-command-config-drift))
+         (args (beads-command-line cmd)))
+    (should (member "config" args))
+    (should (member "drift" args))))
+
+;;; Unit Tests: transient definitions for new config subcommands
+
+(ert-deftest beads-command-config-show-test-transient-defined ()
+  "Unit test: beads-config-show transient is defined."
+  :tags '(:unit)
+  (should (fboundp 'beads-config-show)))
+
+(ert-deftest beads-command-config-show-test-transient-is-prefix ()
+  "Unit test: beads-config-show is a transient prefix."
+  :tags '(:unit)
+  (should (get 'beads-config-show 'transient--prefix)))
+
+(ert-deftest beads-command-config-apply-test-transient-defined ()
+  "Unit test: beads-config-apply transient is defined."
+  :tags '(:unit)
+  (should (fboundp 'beads-config-apply)))
+
+(ert-deftest beads-command-config-apply-test-transient-is-prefix ()
+  "Unit test: beads-config-apply is a transient prefix."
+  :tags '(:unit)
+  (should (get 'beads-config-apply 'transient--prefix)))
+
+(ert-deftest beads-command-config-drift-test-transient-defined ()
+  "Unit test: beads-config-drift transient is defined."
+  :tags '(:unit)
+  (should (fboundp 'beads-config-drift)))
+
+(ert-deftest beads-command-config-drift-test-transient-is-prefix ()
+  "Unit test: beads-config-drift is a transient prefix."
+  :tags '(:unit)
+  (should (get 'beads-config-drift 'transient--prefix)))
+
 (provide 'beads-command-config-test)
 ;;; beads-command-config-test.el ends here

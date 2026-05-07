@@ -121,9 +121,17 @@ Auto-generates commit message if not provided.")
     :short-option "f"
     :group "Options"
     :level 2
-    :order 1))
+    :order 1)
+   (remote
+    :type (or null string)
+    :short-option "r"
+    :prompt "Remote name: "
+    :group "Options"
+    :level 1
+    :order 2))
   :documentation "Push commits to Dolt remote.
-Use --force to overwrite remote changes.")
+Use --force to overwrite remote changes.
+Use --remote to push to a specific named remote instead of the default.")
 
 
 
@@ -133,8 +141,15 @@ Use --force to overwrite remote changes.")
 
 ;;;###autoload (autoload 'beads-dolt-pull "beads-command-dolt" nil t)
 (beads-defcommand beads-command-dolt-pull (beads-command-global-options)
-  ()
-  :documentation "Pull commits from Dolt remote.")
+  ((remote
+    :type (or null string)
+    :short-option "r"
+    :prompt "Remote name: "
+    :group "Options"
+    :level 1
+    :order 1))
+  :documentation "Pull commits from Dolt remote.
+Use --remote to pull from a specific named remote instead of the default.")
 
 
 
@@ -231,8 +246,15 @@ Reports PID, port, and running status.")
     :group "Remove Remote"
     :level 1
     :order 1
-    :required t))
-  :documentation "Remove a Dolt remote.")
+    :required t)
+   (force
+    :type boolean
+    :short-option "f"
+    :group "Options"
+    :level 1
+    :order 2))
+  :documentation "Remove a Dolt remote.
+Use --force to remove even when SQL and CLI URLs conflict.")
 
 
 ;;; Dolt Remote Submenu (hand-written)

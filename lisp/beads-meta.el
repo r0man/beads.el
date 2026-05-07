@@ -957,8 +957,8 @@ Returns a string or nil if value should not be included."
 ;;; ============================================================
 
 (defconst beads-meta--global-option-slots
-  '(actor allow-stale db dolt-auto-commit lock-timeout no-auto-flush
-    no-auto-import no-daemon no-db profile quiet readonly sandbox verbose)
+  '(actor db directory dolt-auto-commit global profile quiet readonly
+    sandbox verbose)
   "List of slot names that are global bd CLI options.
 These slots are defined in `beads-command-global-options' class.")
 

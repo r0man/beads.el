@@ -335,10 +335,14 @@ into logical groups for easy access."
    ("0" "Preflight check" beads-preflight)
    ("-" "Upgrade bd" beads-upgrade)
    ("P" "Rename prefix" beads-rename-prefix)
-   ("nc" "Compact menu" beads-compact)
+   ("nc" "Admin compact menu" beads-compact)
+   ("nC" "Compact Dolt commits" beads-compact-commits)
    ("nf" "Flatten Dolt" beads-flatten)
    ("ng" "Garbage collect" beads-gc)
-   ("np" "Purge ephemeral" beads-purge)]
+   ("np" "Purge ephemeral" beads-purge)
+   ("nP" "Prune closed beads" beads-prune)
+   ("nB" "Batch ops (transactional)" beads-batch)
+   ("ni" "Ping database" beads-ping)]
   ["Dolt & Version Control"
    ("#" "VC menu" beads-vc)
    ("p" "Branch" beads-branch)
@@ -363,6 +367,7 @@ into logical groups for easy access."
    ("*" "Mail delegate" beads-mail)]
   ["Setup & Config"
    ("ii" "Init project" beads-init)
+   ("is" "Init safety" beads-init-safety)
    ("ib" "Bootstrap" beads-bootstrap)
    ("ic" "Context" beads-context)
    ("?" "Quickstart" beads-quickstart)
@@ -439,7 +444,7 @@ into a compact hierarchical structure with sub-dispatches."
 ;;;###autoload
 (defun beads-emacs-info ()
   "Display Emacs-specific beads configuration information.
-Shows worktree status, database path, and --no-daemon settings.
+Shows worktree status and database path.
 Useful for debugging Emacs configuration issues.
 
 Note: Use `beads-info' (M-x beads-info) for bd CLI info command
@@ -453,14 +458,11 @@ which shows daemon status and database statistics."
   In worktree: %s
   Main repo: %s
   .beads dir: %s
-  Database: %s
-  --no-daemon: %s%s"
+  Database: %s"
              (if in-worktree "yes" "no")
              (or main-repo "N/A")
              (or beads-dir "NOT FOUND")
-             (or db-path "NOT FOUND")
-             (if beads-global-no-daemon "enabled" "disabled")
-             (if beads-global-no-daemon " (via transient)" ""))))
+             (or db-path "NOT FOUND"))))
 
 ;; Main menu command autoloads — ensures all commands referenced in the
 ;; `beads' transient menu are available when the menu renders, without
@@ -622,6 +624,24 @@ which shows daemon status and database statistics."
 ;; beads-command-compact
 ;;;###autoload
 (autoload 'beads-compact "beads-command-compact" nil t)
+;;;###autoload
+(autoload 'beads-compact-commits "beads-command-compact" nil t)
+
+;; beads-command-batch
+;;;###autoload
+(autoload 'beads-batch "beads-command-batch" nil t)
+
+;; beads-command-prune
+;;;###autoload
+(autoload 'beads-prune "beads-command-prune" nil t)
+
+;; beads-command-ping
+;;;###autoload
+(autoload 'beads-ping "beads-command-ping" nil t)
+
+;; beads-command-init (init-safety)
+;;;###autoload
+(autoload 'beads-init-safety "beads-command-init" nil t)
 
 ;; beads-command-dolt
 ;;;###autoload

@@ -1,0 +1,33 @@
+Show issue details
+
+Usage:
+  bd show [id...] [--id=<id>...] [--current] [flags]
+
+Aliases:
+  show, view
+
+Flags:
+      --as-of string     Show issue as it existed at a specific commit hash or branch (requires Dolt)
+      --children         Show only the children of this issue
+      --current          Show the currently active issue (in-progress, hooked, or last touched)
+  -h, --help             help for show
+      --id stringArray   Issue ID (use for IDs that look like flags, e.g., --id=gt--xyz)
+      --local-time       Show timestamps in local time instead of UTC
+      --long             Show all available fields (extended metadata, agent identity, gate fields, etc.)
+      --refs             Show issues that reference this issue (reverse lookup)
+      --short            Show compact one-line output per issue
+      --thread           Show full conversation thread (for messages)
+  -w, --watch            Watch for changes and auto-refresh display
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

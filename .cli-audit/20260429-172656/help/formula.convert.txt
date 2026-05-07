@@ -1,0 +1,38 @@
+Convert formula files from JSON to TOML format.
+
+TOML format provides better ergonomics:
+  - Multi-line strings without \n escaping
+  - Human-readable diffs
+  - Comments allowed
+
+The convert command reads a .formula.json file and outputs .formula.toml.
+The original JSON file is preserved (use --delete to remove it).
+
+Examples:
+  bd formula convert shiny              # Convert shiny.formula.json to .toml
+  bd formula convert ./my.formula.json  # Convert specific file
+  bd formula convert --all              # Convert all JSON formulas
+  bd formula convert shiny --delete     # Convert and remove JSON file
+  bd formula convert shiny --stdout     # Print TOML to stdout
+
+Usage:
+  bd formula convert <formula-name|path> [--all] [flags]
+
+Flags:
+      --all      Convert all JSON formulas
+      --delete   Delete JSON file after conversion
+  -h, --help     help for convert
+      --stdout   Print TOML to stdout instead of file
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

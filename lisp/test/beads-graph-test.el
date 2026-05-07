@@ -129,6 +129,50 @@
       (should (string-match-p "\\.\\.\\." label))
       (should (< (length (car (split-string label "\\\\n"))) 40)))))
 
+;;; Tests for DOT Escaping
+
+(ert-deftest beads-graph-test-dot-escape-plain ()
+  "Plain strings pass through unchanged."
+  (should (string= (beads-graph--dot-escape "hello world") "hello world")))
+
+(ert-deftest beads-graph-test-dot-escape-double-quote ()
+  "Double quotes are backslash-escaped."
+  (should (string= (beads-graph--dot-escape "Fix \"broken\" parser")
+                   "Fix \\\"broken\\\" parser")))
+
+(ert-deftest beads-graph-test-dot-escape-backslash ()
+  "Backslashes are doubled (escaped before quote-escaping)."
+  (should (string= (beads-graph--dot-escape "path\\to\\file")
+                   "path\\\\to\\\\file")))
+
+(ert-deftest beads-graph-test-dot-escape-mixed ()
+  "Mixed backslashes and quotes are escaped in the right order."
+  (should (string= (beads-graph--dot-escape "a\\b\"c")
+                   "a\\\\b\\\"c")))
+
+(ert-deftest beads-graph-test-issue-label-escapes-quote-in-title ()
+  "Issue title with embedded double quote is escaped in the label."
+  (let* ((issue (beads-issue :id "bd-1" :title "Fix \"broken\" parser"
+                             :status "open" :priority 1))
+         (label (beads-graph--issue-label issue)))
+    ;; Raw quote must not appear unescaped (quotes here are the only ones
+    ;; in the label besides escaped ones).
+    (should-not (string-match-p "[^\\\\]\"" label))
+    (should (string-match-p "\\\\\"broken\\\\\"" label))))
+
+(ert-deftest beads-graph-test-generate-dot-escapes-title-quote ()
+  "DOT output for an issue title with quotes is well-formed."
+  (let* ((beads-graph--filter-status nil)
+         (beads-graph--filter-priority nil)
+         (beads-graph--filter-type nil)
+         (issues (list (beads-issue :id "bd-1" :title "Fix \"broken\" parser"
+                                    :status "open" :priority 1
+                                    :issue-type "bug")))
+         (dot (beads-graph--generate-dot issues nil)))
+    ;; Inside the label="..." attribute we must see escaped quotes,
+    ;; not raw ones that would terminate the attribute prematurely.
+    (should (string-match-p "label=\"[^\"]*\\\\\"broken\\\\\"" dot))))
+
 ;;; Tests for Filtering
 
 (ert-deftest beads-graph-test-filter-issue-no-filters ()
@@ -248,7 +292,9 @@
   (should (eq (lookup-key beads-graph-mode-map (kbd "f"))
               'beads-graph-filter))
   (should (eq (lookup-key beads-graph-mode-map (kbd "e"))
-              'beads-graph-export)))
+              'beads-graph-export))
+  (should (eq (lookup-key beads-graph-mode-map (kbd "i"))
+              'beads-graph-issue)))
 
 ;;; Tests for Commands
 
@@ -297,6 +343,38 @@
     (beads-graph-mode)
     (let ((binding (lookup-key beads-graph-mode-map (kbd "e"))))
       (should (eq binding 'beads-graph-export)))))
+
+(ert-deftest beads-graph-test-keybinding-i-issue ()
+  "Integration test: Verify i keybinding for focused-issue graph."
+  :tags '(:integration)
+  (with-temp-buffer
+    (beads-graph-mode)
+    (let ((binding (lookup-key beads-graph-mode-map (kbd "i"))))
+      (should (eq binding 'beads-graph-issue)))))
+
+(ert-deftest beads-graph-test-cleanup-image-file-deletes-temp ()
+  "`beads-graph--cleanup-image-file' deletes the tracked temp file
+and clears `beads-graph--current-image-file'."
+  (let ((tmp (make-temp-file "beads-graph-test-" nil ".png")))
+    (with-temp-buffer
+      (beads-graph-mode)
+      (setq beads-graph--current-image-file tmp)
+      (should (file-exists-p tmp))
+      (beads-graph--cleanup-image-file)
+      (should-not (file-exists-p tmp))
+      (should-not beads-graph--current-image-file))))
+
+(ert-deftest beads-graph-test-cleanup-image-file-handles-missing ()
+  "`beads-graph--cleanup-image-file' is a no-op when nothing is tracked
+or when the file no longer exists."
+  (with-temp-buffer
+    (beads-graph-mode)
+    (setq beads-graph--current-image-file nil)
+    (beads-graph--cleanup-image-file)
+    (should-not beads-graph--current-image-file)
+    (setq beads-graph--current-image-file "/nonexistent/path/x.png")
+    (beads-graph--cleanup-image-file)
+    (should-not beads-graph--current-image-file)))
 
 ;;; ============================================================
 ;;; Tests for Render and Display
@@ -484,6 +562,85 @@
                 (beads-graph--filter-type nil))
             (beads-graph-export)
             (should (file-exists-p temp-file))))
+      (when (file-exists-p temp-file)
+        (delete-file temp-file)))))
+
+(ert-deftest beads-graph-test-export-honours-root-issue ()
+  "Test that beads-graph-export limits output to the connected
+component when `beads-graph--root-issue' is set, mirroring
+`beads-graph-issue' scoping."
+  (skip-unless (executable-find "dot"))
+  (let* ((issues (list (beads-issue :id "bd-1" :title "Connected A"
+                                    :status "open" :priority 1
+                                    :issue-type "feature")
+                       (beads-issue :id "bd-2" :title "Connected B"
+                                    :status "open" :priority 2
+                                    :issue-type "bug")
+                       (beads-issue :id "bd-99" :title "Disconnected"
+                                    :status "open" :priority 1
+                                    :issue-type "task")))
+         (deps '((:from "bd-1" :to "bd-2" :type "blocks")))
+         (temp-file (make-temp-file "beads-graph-export-test-" nil ".dot")))
+    (unwind-protect
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (&rest _) "dot"))
+                  ((symbol-function 'read-file-name)
+                   (lambda (&rest _) temp-file))
+                  ((symbol-function 'beads-check-executable) #'ignore)
+                  ((symbol-function 'beads-execute)
+                   (lambda (_class &rest _args) issues))
+                  ((symbol-function 'beads-graph--get-dependencies)
+                   (lambda () deps)))
+          (let ((beads-graph--filter-status nil)
+                (beads-graph--filter-priority nil)
+                (beads-graph--filter-type nil)
+                (beads-graph--root-issue "bd-1"))
+            (beads-graph-export)
+            (with-temp-buffer
+              (insert-file-contents temp-file)
+              (let ((contents (buffer-string)))
+                (should (string-match-p "\"bd-1\"" contents))
+                (should (string-match-p "\"bd-2\"" contents))
+                (should-not (string-match-p "\"bd-99\"" contents))))))
+      (when (file-exists-p temp-file)
+        (delete-file temp-file)))))
+
+(ert-deftest beads-graph-test-export-no-root-includes-all ()
+  "Test that beads-graph-export includes all issues when no root
+is set, falling back to the full graph."
+  (skip-unless (executable-find "dot"))
+  (let* ((issues (list (beads-issue :id "bd-1" :title "Connected A"
+                                    :status "open" :priority 1
+                                    :issue-type "feature")
+                       (beads-issue :id "bd-2" :title "Connected B"
+                                    :status "open" :priority 2
+                                    :issue-type "bug")
+                       (beads-issue :id "bd-99" :title "Disconnected"
+                                    :status "open" :priority 1
+                                    :issue-type "task")))
+         (deps '((:from "bd-1" :to "bd-2" :type "blocks")))
+         (temp-file (make-temp-file "beads-graph-export-test-" nil ".dot")))
+    (unwind-protect
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (&rest _) "dot"))
+                  ((symbol-function 'read-file-name)
+                   (lambda (&rest _) temp-file))
+                  ((symbol-function 'beads-check-executable) #'ignore)
+                  ((symbol-function 'beads-execute)
+                   (lambda (_class &rest _args) issues))
+                  ((symbol-function 'beads-graph--get-dependencies)
+                   (lambda () deps)))
+          (let ((beads-graph--filter-status nil)
+                (beads-graph--filter-priority nil)
+                (beads-graph--filter-type nil)
+                (beads-graph--root-issue nil))
+            (beads-graph-export)
+            (with-temp-buffer
+              (insert-file-contents temp-file)
+              (let ((contents (buffer-string)))
+                (should (string-match-p "\"bd-1\"" contents))
+                (should (string-match-p "\"bd-2\"" contents))
+                (should (string-match-p "\"bd-99\"" contents))))))
       (when (file-exists-p temp-file)
         (delete-file temp-file)))))
 

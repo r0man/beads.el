@@ -1,0 +1,49 @@
+Pour a proto into a persistent mol - like pouring molten metal into a mold.
+
+This is the chemistry-inspired command for creating PERSISTENT work from templates.
+The resulting mol lives in .beads/ (permanent storage) and is synced with git.
+
+Phase transition: Proto (solid) -> pour -> Mol (liquid)
+
+WHEN TO USE POUR vs WISP:
+  pour (liquid): Persistent work that needs audit trail
+    - Feature implementations spanning multiple sessions
+    - Work you may need to reference later
+    - Anything worth preserving in git history
+
+  wisp (vapor): Ephemeral work that auto-cleans up
+    - Release workflows (one-time execution)
+    - Operational loops and recurring cycles
+    - Health checks and diagnostics
+    - Any operational workflow without audit value
+
+TIP: Formulas can specify phase:"vapor" to recommend wisp usage.
+     If you pour a vapor-phase formula, you'll get a warning.
+
+Examples:
+  bd mol pour mol-feature --var name=auth    # Persistent feature work
+  bd mol pour mol-review --var pr=123        # Persistent code review
+
+Usage:
+  bd mol pour <proto-id> [flags]
+
+Flags:
+      --assignee string      Assign the root issue to this agent/user
+      --attach strings       Proto to attach after spawning (repeatable)
+      --attach-type string   Bond type for attachments: sequential, parallel, or conditional (default "sequential")
+      --dry-run              Preview what would be created
+  -h, --help                 help for pour
+      --var stringArray      Variable substitution (key=value)
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

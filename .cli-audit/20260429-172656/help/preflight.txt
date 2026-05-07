@@ -1,0 +1,38 @@
+Display a checklist of common pre-PR checks for contributors.
+
+This command helps catch common issues before pushing to CI:
+- Tests not run locally
+- Lint errors
+- Unformatted Go files
+- .beads/issues.jsonl pollution
+- Stale nix vendorHash
+- Version mismatches
+
+Examples:
+  bd preflight              # Show checklist
+  bd preflight --check      # Run checks automatically
+  bd preflight --check --json  # JSON output for programmatic use
+  bd preflight --check --skip-lint  # Explicitly skip lint check
+
+
+Usage:
+  bd preflight [flags]
+
+Flags:
+      --check       Run checks automatically
+      --fix         Auto-fix issues where possible (not yet implemented)
+  -h, --help        help for preflight
+      --json        Output results as JSON
+      --skip-lint   Skip lint check explicitly
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

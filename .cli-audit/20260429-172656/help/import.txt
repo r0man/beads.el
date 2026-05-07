@@ -1,0 +1,45 @@
+Import issues from a JSONL file (newline-delimited JSON) into the database.
+
+If no file is specified, imports from .beads/issues.jsonl (the git-tracked
+export). Use "-" to read from stdin. This is the incremental counterpart to
+'bd export': new issues are created and existing issues are updated (upsert
+semantics).
+
+Memory records (lines with "_type":"memory") are automatically detected and
+imported as persistent memories (equivalent to 'bd remember'). This makes
+'bd export | bd import' a full round-trip for both issues and memories.
+
+Each JSONL line should map to an issue with at minimum "title". Optional
+fields: description, issue_type (type), priority, acceptance_criteria.
+
+EXAMPLES:
+  bd import                        # Import from .beads/issues.jsonl
+  bd import backup.jsonl           # Import from a specific file
+  bd import -i backup.jsonl        # Legacy alias for a specific file
+  bd import -                      # Read JSONL from stdin
+  cat issues.jsonl | bd import -   # Pipe JSONL from another tool
+  bd import --dry-run              # Show what would be imported
+  bd import --dedup                # Skip issues with duplicate titles
+  bd import --json                 # Structured output with created IDs
+
+Usage:
+  bd import [file|-] [flags]
+
+Flags:
+      --dedup          Skip lines whose title matches an existing open issue
+      --dry-run        Show what would be imported without importing
+  -h, --help           help for import
+  -i, --input string   Read JSONL from a specific file
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

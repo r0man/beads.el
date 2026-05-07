@@ -1,0 +1,41 @@
+Burn a molecule, deleting it without creating a digest.
+
+Unlike squash (which creates a permanent digest before deletion), burn
+completely removes the molecule with no trace. Use this for:
+  - Abandoned patrol cycles
+  - Crashed or failed workflows
+  - Test/debug molecules you don't want to preserve
+
+The burn operation differs based on molecule phase:
+  - Wisp (ephemeral): Direct delete
+  - Mol (persistent): Cascade delete (syncs to remotes)
+
+CAUTION: This is a destructive operation. The molecule's data will be
+permanently lost. If you want to preserve a summary, use 'bd mol squash'.
+
+Example:
+  bd mol burn bd-abc123              # Delete molecule with no trace
+  bd mol burn bd-abc123 --dry-run    # Preview what would be deleted
+  bd mol burn bd-abc123 --force      # Skip confirmation
+  bd mol burn bd-a1 bd-b2 bd-c3      # Batch delete multiple wisps
+
+Usage:
+  bd mol burn <molecule-id> [molecule-id...] [flags]
+
+Flags:
+      --dry-run   Preview what would be deleted
+      --force     Skip confirmation prompt
+  -h, --help      help for burn
+
+Global Flags:
+      --actor string              Actor name for audit trail (default: $BEADS_ACTOR, git user.name, $USER)
+      --db string                 Database path (default: auto-discover .beads/*.db)
+  -C, --directory string          Change to this directory before running the command (like git -C)
+      --dolt-auto-commit string   Dolt auto-commit policy (off|on|batch). 'on': commit after each write. 'batch': defer commits to bd dolt commit; uncommitted changes persist in the working set until then. SIGTERM/SIGHUP flush pending batch commits. Default: off. Override via config key dolt.auto-commit
+      --global                    Use the global shared-server database (beads_global)
+      --json                      Output in JSON format
+      --profile                   Generate CPU profile for performance analysis
+  -q, --quiet                     Suppress non-essential output (errors only)
+      --readonly                  Read-only mode: block write operations (for worker sandboxes)
+      --sandbox                   Sandbox mode: disables auto-sync
+  -v, --verbose                   Enable verbose/debug output

@@ -31,11 +31,9 @@
 ;; Forward declarations for global option variables (defined in beads-option.el)
 (defvar beads-global-actor nil)
 (defvar beads-global-db nil)
+(defvar beads-global-directory nil)
+(defvar beads-global-global nil)
 (defvar beads-global-json nil)
-(defvar beads-global-no-auto-flush nil)
-(defvar beads-global-no-auto-import nil)
-(defvar beads-global-no-daemon nil)
-(defvar beads-global-no-db nil)
 (defvar beads-global-sandbox nil)
 
 ;;; Constants
@@ -210,15 +208,16 @@ take precedence over defcustom settings."
           (push "--db" parts)
           (push (file-local-name db-str) parts))))
 
+    ;; Working directory (like git -C)
+    (when-let ((dir beads-global-directory))
+      (let ((dir-str (if (stringp dir) dir (format "%s" dir))))
+        (unless (string-empty-p (string-trim dir-str))
+          (push "--directory" parts)
+          (push (file-local-name dir-str) parts))))
+
     ;; Boolean global flags (only if set via transient)
-    (when beads-global-no-auto-flush
-      (push "--no-auto-flush" parts))
-    (when beads-global-no-auto-import
-      (push "--no-auto-import" parts))
-    (when beads-global-no-daemon
-      (push "--no-daemon" parts))
-    (when beads-global-no-db
-      (push "--no-db" parts))
+    (when beads-global-global
+      (push "--global" parts))
     (when beads-global-sandbox
       (push "--sandbox" parts))
 

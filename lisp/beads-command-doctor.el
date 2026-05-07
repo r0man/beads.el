@@ -34,17 +34,21 @@
 (beads-defcommand beads-command-doctor (beads-command-global-options)
   ((path
     :positional 1)
+   (agent
+    :type boolean
+    :group "Modes"
+    :level 2
+    :order 5)
    (check
     :type (or null string)
     :short-option "c"
-    :prompt "Check (pollution): "
-    :choices ("pollution")
+    :prompt "Check: "
+    :choices ("artifacts" "conventions" "pollution" "validate")
     :group "Checks"
     :level 2
     :order 1)
    (check-health
     :type boolean
-    :short-option "h"
     :group "Checks"
     :level 2
     :order 2)
@@ -91,19 +95,29 @@
     :group "Fix Options"
     :level 4
     :order 5)
-   (force
-    :type boolean
-    :short-option "F"
-    :group "Fix Options"
-    :level 4
-    :order 6)
-   (source
+   (migration
     :type (or null string)
-    :short-option "s"
-    :choices ("auto" "jsonl" "db")
-    :group "Fix Options"
+    :choices ("pre" "post")
+    :prompt "Migration phase: "
+    :group "Modes"
+    :level 3
+    :order 6)
+   (orchestrator
+    :type boolean
+    :group "Modes"
     :level 4
     :order 7)
+   (orchestrator-duplicates-threshold
+    :type (or null integer string)
+    :prompt "Duplicate threshold: "
+    :group "Modes"
+    :level 4
+    :order 8)
+   (server
+    :type boolean
+    :group "Modes"
+    :level 3
+    :order 9)
    (output
     :short-option "o"
     :type (or null string)
@@ -111,12 +125,6 @@
     :group "Output"
     :level 3
     :order 1)
-   (verbose
-    :short-option "v"
-    :type boolean
-    :group "Output"
-    :level 3
-    :order 2)
    (clean
     :type boolean
     :short-option "D"
