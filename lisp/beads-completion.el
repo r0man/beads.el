@@ -432,6 +432,26 @@ On fetch failure, returns previous cached data (if any) with a warning."
   "Invalidate the worktree completion cache."
   (setq beads-completion--worktree-cache nil))
 
+(defun beads-completion--current-worktree (worktrees)
+  "Return the worktree from WORKTREES that contains `default-directory'.
+Resolves symlinks via `file-truename' and uses longest-prefix matching
+so nested worktrees resolve to the innermost match.  Returns nil when
+no worktree's path encloses `default-directory'."
+  (let* ((dir (file-name-as-directory
+               (file-truename default-directory)))
+         (best nil)
+         (best-len 0))
+    (dolist (wt worktrees)
+      (let ((path (oref wt path)))
+        (when (and path (not (string-empty-p path)))
+          (let* ((wt-dir (file-name-as-directory (file-truename path)))
+                 (len (length wt-dir)))
+            (when (and (> len best-len)
+                       (string-prefix-p wt-dir dir))
+              (setq best wt
+                    best-len len))))))
+    best))
+
 (defun beads-completion-worktree-table ()
   "Return completion table for worktree names with branch and state annotations.
 This table provides metadata for rich completion experiences with Vertico,
@@ -439,14 +459,23 @@ Ivy, or other completion frameworks.
 
 The completion category is `beads-worktree', which allows marginalia
 to automatically use the annotation function.  The custom completion
-style allows matching on worktree name, branch, or beads state."
+style allows matching on worktree name, branch, or beads state.
+
+When `default-directory' lies inside one of the listed worktrees, that
+worktree is hoisted to the front of the candidate list and tagged with
+the `beads-is-current' text property so `beads-completion--worktree-group'
+renders it under the `Current Worktree' group."
   (lambda (string pred action)
     (if (eq action 'metadata)
         '(metadata
           (category . beads-worktree)
           (annotation-function . beads-completion--worktree-annotate)
           (group-function . beads-completion--worktree-group))
-      (let ((worktrees (beads-completion--get-cached-worktrees)))
+      (let* ((worktrees (beads-completion--get-cached-worktrees))
+             (current (beads-completion--current-worktree worktrees))
+             (ordered (if current
+                          (cons current (delq current (copy-sequence worktrees)))
+                        worktrees)))
         (complete-with-action
          action
          (mapcar (lambda (wt)
@@ -454,8 +483,9 @@ style allows matching on worktree name, branch, or beads state."
                                'beads-worktree wt
                                'beads-branch (oref wt branch)
                                'beads-state (oref wt beads-state)
-                               'beads-is-main (oref wt is-main)))
-                 worktrees)
+                               'beads-is-main (oref wt is-main)
+                               'beads-is-current (eq wt current)))
+                 ordered)
          string pred)))))
 
 (defun beads-completion--worktree-annotate (candidate)
@@ -485,17 +515,25 @@ Returns a string like \" [main] shared - /path/to/worktree\"."
     (error "")))
 
 (defun beads-completion--worktree-group (candidate transform)
-  "Group worktree CANDIDATE by beads state.
+  "Group worktree CANDIDATE for completion display.
 If TRANSFORM is non-nil, return CANDIDATE unchanged.
-Otherwise, return the group name (\"Shared\", \"Redirect\", \"Local\", or \"None\")."
+
+Otherwise, return the group name.  The candidate marked with the
+`beads-is-current' text property goes into \"Current Worktree\";
+remaining candidates fall through to a beads-state grouping
+(\"Shared\", \"Redirect\", \"Local\", or \"None\")."
   (if transform
       candidate
-    (let ((state (get-text-property 0 'beads-state candidate)))
-      (pcase state
-        ("shared" "Shared (Main Repository)")
-        ("redirect" "Redirect (Linked Worktrees)")
-        ("local" "Local (Independent)")
-        (_ "None (No Beads)")))))
+    (cond
+     ((get-text-property 0 'beads-is-current candidate)
+      "Current Worktree")
+     (t
+      (let ((state (get-text-property 0 'beads-state candidate)))
+        (pcase state
+          ("shared" "Shared (Main Repository)")
+          ("redirect" "Redirect (Linked Worktrees)")
+          ("local" "Local (Independent)")
+          (_ "None (No Beads)")))))))
 
 ;;; Worktree Completion Style
 
@@ -707,9 +745,15 @@ HISTORY, and DEFAULT are passed to `completing-read'."
 ;; programmed completion table with category/annotation/group metadata.
 
 (defun beads-completion--get-git-branches ()
-  "Return list of git branch records sorted by committer date (newest first).
+  "Return list of git branch records ordered for grouped completion.
 Each record is a plist with :name, :current-p, :upstream, :date, and
 :subject fields, sourced from a single `git for-each-ref' invocation.
+
+Records are ordered so that grouped completion UIs render the
+`Current Branch' group first: the current branch (if any), then
+`main'/`master' (when not the current branch), then the remaining
+branches in committerdate order (newest first).
+
 Returns nil on error or when outside a git repository."
   (condition-case nil
       (with-temp-buffer
@@ -741,7 +785,19 @@ Returns nil on error or when outside a git repository."
                               :subject (nth 4 fields))
                         records)))
               (forward-line 1))
-            (nreverse records))))
+            (let ((ordered (nreverse records))
+                  current main others)
+              (dolist (r ordered)
+                (cond
+                 ((plist-get r :current-p)
+                  (setq current r))
+                 ((member (plist-get r :name) '("main" "master"))
+                  (push r main))
+                 (t
+                  (push r others))))
+              (append (and current (list current))
+                      (nreverse main)
+                      (nreverse others))))))
     (error nil)))
 
 (defun beads-completion-branch-table ()
