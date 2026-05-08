@@ -1034,6 +1034,113 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
            (candidate (car candidates)))
       (should (string= candidate (beads-completion--worktree-group candidate t))))))
 
+;;; Current Worktree Detection Tests
+
+(defun beads-completion-test--make-tempdir-worktrees ()
+  "Create mock worktrees rooted in a real temp directory.
+Returns a cons (TMPDIR . WORKTREES) where TMPDIR is the parent
+directory and WORKTREES is a list of mock worktrees with real
+on-disk paths so `file-truename' resolves cleanly."
+  (let* ((tmpdir (file-name-as-directory
+                  (make-temp-file "beads-completion-test-" t)))
+         (mk (lambda (subpath)
+               (let ((p (expand-file-name subpath tmpdir)))
+                 (make-directory p t)
+                 p))))
+    (cons
+     tmpdir
+     (list
+      (beads-completion-test--make-mock-worktree
+       "beads.el" (funcall mk "beads.el") "main" t "shared")
+      (beads-completion-test--make-mock-worktree
+       "feature-auth"
+       (funcall mk "worktrees/feature-auth")
+       "feature/auth" nil "redirect")
+      (beads-completion-test--make-mock-worktree
+       "nested"
+       (funcall mk "beads.el/sub/nested")
+       "nested" nil "redirect")))))
+
+(ert-deftest beads-completion-test-current-worktree-match ()
+  "Test that current-worktree returns the worktree enclosing default-directory."
+  (let* ((fixture (beads-completion-test--make-tempdir-worktrees))
+         (tmpdir (car fixture))
+         (worktrees (cdr fixture))
+         (target (seq-find (lambda (wt) (string= "beads.el" (oref wt name)))
+                           worktrees)))
+    (unwind-protect
+        (let ((default-directory
+               (file-name-as-directory
+                (expand-file-name "beads.el" tmpdir))))
+          (should (eq target
+                      (beads-completion--current-worktree worktrees))))
+      (delete-directory tmpdir t))))
+
+(ert-deftest beads-completion-test-current-worktree-no-match ()
+  "Test that current-worktree returns nil when no worktree encloses pwd."
+  (let* ((fixture (beads-completion-test--make-tempdir-worktrees))
+         (tmpdir (car fixture))
+         (worktrees (cdr fixture)))
+    (unwind-protect
+        (let ((default-directory (file-name-as-directory
+                                  (temporary-file-directory))))
+          (should (null (beads-completion--current-worktree worktrees))))
+      (delete-directory tmpdir t))))
+
+(ert-deftest beads-completion-test-current-worktree-longest-prefix ()
+  "Test that nested worktrees resolve to the longest-prefix match."
+  (let* ((fixture (beads-completion-test--make-tempdir-worktrees))
+         (tmpdir (car fixture))
+         (worktrees (cdr fixture))
+         (nested (seq-find (lambda (wt) (string= "nested" (oref wt name)))
+                           worktrees)))
+    (unwind-protect
+        (let ((default-directory
+               (file-name-as-directory
+                (expand-file-name "beads.el/sub/nested/deep" tmpdir))))
+          (make-directory default-directory t)
+          (should (eq nested
+                      (beads-completion--current-worktree worktrees))))
+      (delete-directory tmpdir t))))
+
+;;; Worktree Table Ordering Tests
+
+(ert-deftest beads-completion-test-worktree-table-current-first ()
+  "Test that worktree table returns the current worktree first."
+  (let* ((fixture (beads-completion-test--make-tempdir-worktrees))
+         (tmpdir (car fixture))
+         (worktrees (cdr fixture))
+         (beads-completion--worktree-cache (cons (float-time) worktrees)))
+    (unwind-protect
+        (let* ((default-directory
+                (file-name-as-directory
+                 (expand-file-name "beads.el" tmpdir)))
+               (table (beads-completion-worktree-table))
+               (candidates (all-completions "" table nil))
+               (first (car candidates)))
+          (should (string= "beads.el" first))
+          (should (get-text-property 0 'beads-is-current first))
+          (should (string= "Current Worktree"
+                           (beads-completion--worktree-group first nil))))
+      (delete-directory tmpdir t))))
+
+(ert-deftest beads-completion-test-worktree-table-no-current ()
+  "Test that worktree ordering is unchanged outside any worktree."
+  (let* ((fixture (beads-completion-test--make-tempdir-worktrees))
+         (tmpdir (car fixture))
+         (worktrees (cdr fixture))
+         (beads-completion--worktree-cache (cons (float-time) worktrees)))
+    (unwind-protect
+        (let* ((default-directory (file-name-as-directory
+                                   (temporary-file-directory)))
+               (table (beads-completion-worktree-table))
+               (candidates (all-completions "" table nil)))
+          (dolist (c candidates)
+            (should (null (get-text-property 0 'beads-is-current c)))
+            (should-not (string= "Current Worktree"
+                                 (beads-completion--worktree-group c nil)))))
+      (delete-directory tmpdir t))))
+
 ;;; Worktree Completion Style Tests
 
 (ert-deftest beads-completion-test-worktree-style-match-name ()
@@ -1412,6 +1519,55 @@ IS-MAIN is whether it's the main worktree, BEADS-STATE is the beads state."
   (let ((candidate (propertize "feature/auth" 'beads-branch-current t)))
     (should (eq candidate
                 (beads-completion--branch-group candidate t)))))
+
+(ert-deftest beads-completion-test-branch-ordering-current-first ()
+  "Test that current branch sorts first even when not most-recently committed.
+The raw `git for-each-ref --sort=-committerdate' output may yield the
+current branch in any position; the parsed result must hoist it to
+the front, then `main', then the rest."
+  (cl-letf (((symbol-function 'call-process)
+             (lambda (_program _infile _buffer _display &rest _args)
+               (insert "main\0\0origin/main\0001 day ago\0Merge\n")
+               (insert "feature/x\0\0\0002 days ago\0Some work\n")
+               (insert "feature/auth\0*\0origin/feature/auth\0003 days ago\0Login\n")
+               0)))
+    (let ((records (beads-completion--get-git-branches)))
+      (should (= 3 (length records)))
+      (should (string= "feature/auth" (plist-get (nth 0 records) :name)))
+      (should (plist-get (nth 0 records) :current-p))
+      (should (string= "main" (plist-get (nth 1 records) :name)))
+      (should (string= "feature/x" (plist-get (nth 2 records) :name))))))
+
+(ert-deftest beads-completion-test-branch-ordering-no-current ()
+  "Test branch ordering when no branch is current (e.g. detached HEAD)."
+  (cl-letf (((symbol-function 'call-process)
+             (lambda (_program _infile _buffer _display &rest _args)
+               (insert "feature/x\0\0\0001 day ago\0X\n")
+               (insert "main\0\0origin/main\0002 days ago\0Merge\n")
+               (insert "feature/y\0\0\0003 days ago\0Y\n")
+               0)))
+    (let ((records (beads-completion--get-git-branches)))
+      (should (= 3 (length records)))
+      (should (string= "main" (plist-get (nth 0 records) :name)))
+      (should (string= "feature/x" (plist-get (nth 1 records) :name)))
+      (should (string= "feature/y" (plist-get (nth 2 records) :name))))))
+
+(ert-deftest beads-completion-test-branch-table-current-marked ()
+  "Test that the first table candidate carries the current-branch property."
+  (cl-letf (((symbol-function 'beads-completion--get-git-branches)
+             (lambda ()
+               (list (list :name "feature/auth" :current-p t
+                           :upstream nil :date "" :subject "")
+                     (list :name "main" :current-p nil
+                           :upstream nil :date "" :subject "")
+                     (list :name "old" :current-p nil
+                           :upstream nil :date "" :subject "")))))
+    (let* ((table (beads-completion-branch-table))
+           (candidates (funcall table "" nil t)))
+      (should (string= "feature/auth" (car candidates)))
+      (should (get-text-property 0 'beads-branch-current (car candidates)))
+      (should (string= "Current Branch"
+                       (beads-completion--branch-group (car candidates) nil))))))
 
 (ert-deftest beads-completion-test-read-branch-delegates ()
   "Test that read-branch uses the branch table and returns selection."
