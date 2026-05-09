@@ -69,26 +69,21 @@
   "Test temp repo creation with beads initialization."
   :tags '(:integration)
   (skip-unless (executable-find "bd"))
-  (let* ((temp-dir (beads-test-create-temp-repo :init-beads t))
-         (prefix beads-test--last-init-prefix))
+  (let ((temp-dir (beads-test-create-temp-repo :init-beads t)))
     (unwind-protect
-        (progn
-          ;; Should have .beads directory
-          (should (file-directory-p (expand-file-name ".beads" temp-dir))))
-      (beads-test--drop-dolt-database prefix)
+        ;; Should have .beads directory
+        (should (file-directory-p (expand-file-name ".beads" temp-dir)))
       (delete-directory temp-dir t))))
 
 (ert-deftest beads-integration-test-create-temp-repo-with-prefix ()
   "Test temp repo creation with custom prefix."
   :tags '(:integration)
   (skip-unless (executable-find "bd"))
-  (let* ((temp-dir (beads-test-create-temp-repo :init-beads t :prefix "testpfx"))
-         (prefix beads-test--last-init-prefix))
+  (let ((temp-dir (beads-test-create-temp-repo :init-beads t :prefix "testpfx")))
     (unwind-protect
         (let ((default-directory temp-dir))
           ;; Should have .beads directory
           (should (file-directory-p ".beads")))
-      (beads-test--drop-dolt-database prefix)
       (delete-directory temp-dir t))))
 
 ;;; Test: beads-test-with-temp-repo macro
@@ -146,100 +141,6 @@
   (beads-test-skip-unless-bd)
   (should t))
 
-;;; Test: beads-test--find-free-port
-
-(ert-deftest beads-integration-test-find-free-port-returns-integer ()
-  "Test that find-free-port returns an integer port number."
-  (let ((port (beads-test--find-free-port)))
-    (should (integerp port))
-    (should (> port 0))
-    (should (< port 65536))))
-
-(ert-deftest beads-integration-test-find-free-port-above-1024 ()
-  "Test that find-free-port returns a port above the privileged range."
-  (let ((port (beads-test--find-free-port)))
-    (should (> port 1024))))
-
-(ert-deftest beads-integration-test-find-free-port-is-free ()
-  "Test that the returned port is actually free (bindable)."
-  (let* ((port (beads-test--find-free-port))
-         (server (make-network-process
-                  :name "beads-test-port-verify"
-                  :server t
-                  :host "127.0.0.1"
-                  :service port
-                  :family 'ipv4
-                  :noquery t)))
-    (unwind-protect
-        (should server)
-      (delete-process server))))
-
-;;; Test: beads-test--dolt-server-ready-p
-
-(ert-deftest beads-integration-test-dolt-server-ready-p-false ()
-  "Test that dolt-server-ready-p returns nil for a port not in use."
-  ;; Find a free port and verify it reports as not ready (nothing listening)
-  (let ((port (beads-test--find-free-port)))
-    ;; Port is free so nothing is listening — should not be ready
-    (should-not (beads-test--dolt-server-ready-p port))))
-
-(ert-deftest beads-integration-test-dolt-server-ready-p-true ()
-  "Test that dolt-server-ready-p returns t for a port that is in use."
-  (let* ((port (beads-test--find-free-port))
-         (server (make-network-process
-                  :name "beads-test-ready-verify"
-                  :server t
-                  :host "127.0.0.1"
-                  :service port
-                  :family 'ipv4
-                  :noquery t)))
-    (unwind-protect
-        (should (beads-test--dolt-server-ready-p port))
-      (delete-process server))))
-
-;;; Test: suite-level Dolt server
-
-(ert-deftest beads-integration-test-suite-server-running ()
-  "Test that the suite-level Dolt server is running.
-The port is stored in `beads-test--suite-server-port'.
-All test macros route bd commands to this server via BEADS_DOLT_PORT
-in process-environment."
-  :tags '(:integration)
-  (skip-unless (executable-find "dolt"))
-  ;; Ensure suite server is running
-  (beads-test--start-test-dolt-server)
-  ;; Port must be stored in the variable
-  (should beads-test--suite-server-port)
-  (let ((port beads-test--suite-server-port))
-    (should (integerp port))
-    (should (> port 0))
-    (should (< port 65536))
-    ;; Server must be accepting connections
-    (should (beads-test--dolt-server-ready-p port))))
-
-(ert-deftest beads-integration-test-suite-server-idempotent ()
-  "Test that starting the suite server again is idempotent."
-  :tags '(:integration)
-  (skip-unless (executable-find "dolt"))
-  (beads-test--start-test-dolt-server)
-  (let ((port-before beads-test--suite-server-port))
-    ;; Starting again must not change the port
-    (beads-test--start-test-dolt-server)
-    (should (equal beads-test--suite-server-port port-before))))
-
-(ert-deftest beads-integration-test-suite-server-stop-noop ()
-  "Test that stop-test-dolt-server is a no-op for individual tests.
-The suite server persists for the entire Emacs process; individual
-tests must not stop it."
-  :tags '(:integration)
-  (skip-unless (executable-find "dolt"))
-  (beads-test--start-test-dolt-server)
-  (let ((port-before beads-test--suite-server-port))
-    ;; stop must return nil and leave the server running
-    (should (null (beads-test--stop-test-dolt-server)))
-    (should (equal beads-test--suite-server-port port-before))
-    (should (beads-test--dolt-server-ready-p port-before))))
-
 ;;; Isolation helpers
 
 (defun beads-integration-test--effective-env-var (name env)
@@ -260,11 +161,12 @@ The effective value is the first matching entry:
 ;;; Test: production Dolt server isolation
 
 (ert-deftest beads-integration-test-create-temp-repo-no-production-leak ()
-  "Test that beads-test-create-temp-repo never passes BEADS_DOLT_PORT=3307.
-When BEADS_DOLT_PORT=3307 is set in the environment (Gas Town
-production), the test infrastructure must override it — routing bd
-to the isolated suite server or unsetting the variable entirely.
-It must never forward the production port to bd commands."
+  "Test that beads-test-create-temp-repo unsets BEADS_DOLT_PORT.
+When BEADS_DOLT_PORT=3307 is set in the outer environment (e.g. a
+Gas Town shell), the test infrastructure must defensively unset it
+so bd uses its embedded Dolt engine in the temp repo's
+.beads/embeddeddolt/ directory and never reaches a production
+sql-server."
   (let* ((captured-env nil)
          ;; Simulate Gas Town production environment
          (process-environment
@@ -279,27 +181,28 @@ It must never forward the production port to bd commands."
             (progn
               ;; init must have been called — captured-env was set
               (should captured-env)
-              ;; The effective BEADS_DOLT_PORT must NOT be "3307".
-              ;; It should be the suite server port (when running) or
-              ;; unset (nil) — never the production port.
+              ;; The effective BEADS_DOLT_PORT must be nil ("unset"
+              ;; sentinel from -effective-env-var) — never the
+              ;; production port, never any other value.
               (let ((effective (beads-integration-test--effective-env-var
                                 "BEADS_DOLT_PORT" captured-env)))
-                (should-not (equal effective "3307"))))
+                (should (null effective))))
           (delete-directory temp-dir t))))))
 
 (ert-deftest beads-integration-test-with-temp-repo-no-production-leak ()
-  "Test that beads-test-with-temp-repo never uses BEADS_DOLT_PORT=3307.
+  "Test that beads-test-with-temp-repo unsets BEADS_DOLT_PORT.
 Even when BEADS_DOLT_PORT=3307 is present in the outer environment,
-the macro must unset or override the variable to prevent bd commands
-inside the body from connecting to the production Dolt server."
+the macro must unset the variable so bd commands inside the body
+use embedded Dolt and never connect to a production server."
   ;; Simulate Gas Town environment with production port set
   (let ((process-environment
          (cons "BEADS_DOLT_PORT=3307" process-environment)))
     (beads-test-with-temp-repo ()
-      ;; Inside the macro, the effective BEADS_DOLT_PORT must not be 3307
+      ;; Inside the macro, the effective BEADS_DOLT_PORT must be
+      ;; unset (nil), not just rerouted to a different port.
       (let ((effective (beads-integration-test--effective-env-var
                         "BEADS_DOLT_PORT" process-environment)))
-        (should-not (equal effective "3307"))))))
+        (should (null effective))))))
 
 (provide 'beads-integration-test-test)
 ;;; beads-integration-test-test.el ends here

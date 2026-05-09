@@ -47,25 +47,10 @@ issue IDs by splitting on the first hyphen."
   "Prefix used by the most recent `beads-test-create-project' call.
 Set as a side effect so callers can retrieve the prefix for cleanup.")
 
-;; Suite-level Dolt server management is in beads-integration-test.el.
-;; beads-test.el requires beads-integration-test above so the server
-;; is started at load time before any test in this file runs.
-
-(defun beads-test--drop-dolt-database (prefix)
-  "Drop the Dolt database PREFIX on the suite test server.
-Silently ignores errors.  No-op if PREFIX is empty or nil, or if
-the suite Dolt server is not running."
-  (when (and prefix (not (string-empty-p prefix))
-             beads-test--suite-server-port)
-    (ignore-errors
-      (let ((process-environment
-             (cons (format "BEADS_DOLT_PORT=%d"
-                           beads-test--suite-server-port)
-                   process-environment)))
-        (call-process "bd" nil nil nil
-                      "sql"
-                      (format "DROP DATABASE IF EXISTS `%s`"
-                              prefix))))))
+;; bd uses its embedded Dolt engine since v1.0.0.  Each temp project
+;; gets its own .beads/embeddeddolt/ — no shared sql-server, no port
+;; plumbing.  beads-test.el requires beads-integration-test above only
+;; for the prefix generator and other shared helpers.
 
 (defun beads-test-create-project (&rest init-args)
   "Create a temporary beads project and return its directory.
@@ -92,9 +77,9 @@ Sets `beads-test--last-created-prefix' as a side effect."
     (call-process "git" nil nil nil "config" "user.email" "test@beads-test.local")
     (call-process "git" nil nil nil "config" "user.name" "Beads Test")
     ;; Execute bd init.  The caller (beads-test-with-project or
-    ;; beads-test-with-shared-project) sets BEADS_DOLT_PORT to route
-    ;; bd to the suite-level isolated Dolt server, preventing writes to
-    ;; the production server at port 3307.
+    ;; beads-test-with-shared-project) unsets BEADS_DOLT_PORT so bd
+    ;; uses its embedded Dolt engine in .beads/embeddeddolt/ and never
+    ;; reaches a production sql-server (e.g. Gas Town on 3307).
     (beads-command-execute (apply #'beads-command-init effective-args))
     default-directory))
 
@@ -161,22 +146,12 @@ For a project with default settings, use an empty list:
     )"
   (declare (indent 1))
   (let ((temp-dir (make-symbol "temp-dir")))
-    `(let* (;; Route bd to the suite-level isolated Dolt test server.
-            ;; bd v0.58.0+ requires Dolt as the only storage backend —
-            ;; there is no JSONL-only mode.  Without BEADS_DOLT_PORT, bd
-            ;; auto-discovers the default port (3307), which is the
-            ;; production Gas Town server.  Always route to the suite
-            ;; server to prevent pollution of the production database.
+    `(let* (;; Defensively unset BEADS_DOLT_PORT so we never inherit a
+            ;; production port (e.g. 3307 from a Gas Town shell).
+            ;; bd uses its embedded Dolt engine, writing to the
+            ;; repo-local .beads/embeddeddolt/ directory.
             (process-environment
-             (if beads-test--suite-server-port
-                 (cons (format "BEADS_DOLT_PORT=%d"
-                               beads-test--suite-server-port)
-                       process-environment)
-               ;; Fallback: unset so bd can auto-start its own Dolt.
-               ;; This path is taken only when the suite server failed
-               ;; to start (rare).  Tests that call real bd commands
-               ;; will fail gracefully via skip-unless checks.
-               (cons "BEADS_DOLT_PORT" process-environment)))
+             (cons "BEADS_DOLT_PORT" process-environment))
             (,temp-dir (beads-test-create-project ,@init-args))
             (default-directory ,temp-dir)
             (beads--project-cache (make-hash-table :test 'equal)))
@@ -192,11 +167,8 @@ For a project with default settings, use an empty list:
                (progn ,@body)
              ;; Clear transient state after test too
              (beads-test--clear-transient-state)
-             ;; Clean up temp directory.
-             ;; NOTE: Per-test DROP DATABASE is intentionally omitted.
-             ;; The suite server's temp data directory is deleted at
-             ;; process exit by beads-test--suite-stop-server, making
-             ;; per-test drops unnecessary.
+             ;; Clean up temp directory; embedded Dolt data lives under
+             ;; .beads/embeddeddolt/ and is removed with the repo.
              (when (file-directory-p ,temp-dir)
                (delete-directory ,temp-dir t))))))))
 
@@ -541,8 +513,8 @@ STRUCTURE is a list of paths to create (dirs end with /)."
 ;;; ========================================
 
 ;; A single beads project shared across all tests in a session.
-;; This avoids running `bd init` (which takes ~52s due to Dolt backoff)
-;; for each of the 121 uses of `beads-test-with-project'.
+;; With embedded Dolt `bd init` is fast (~0.4s), but reusing one
+;; project across many tests is still cheaper than re-initializing.
 
 (defvar beads-test--shared-project-dir nil
   "Directory of the shared test project, or nil if not yet created.")
@@ -554,21 +526,7 @@ STRUCTURE is a list of paths to create (dirs end with /)."
   "Return the shared test project directory, creating it on first call.
 Lazily initializes a single beads project that all tests can share.
 The project is created with a unique prefix and persists for the
-duration of the test session.
-
-If the suite Dolt server has become unresponsive (hung at MySQL
-level), restarts it and recreates the shared project from scratch,
-since the old database is gone after a server restart."
-  ;; Verify the suite Dolt server is MySQL-ready.  If the server had
-  ;; become unresponsive (accepts TCP but hangs at MySQL), the guard
-  ;; in beads-test--suite-start-server detects this and restarts.
-  ;; Track the process before the check so we can detect a restart.
-  (let ((proc-before beads-test--suite-server-process))
-    (beads-test--suite-start-server)
-    (when (not (eq proc-before beads-test--suite-server-process))
-      ;; Server was restarted; old shared project database is gone.
-      (setq beads-test--shared-project-dir nil
-            beads-test--shared-project-prefix nil)))
+duration of the test session."
   (unless (and beads-test--shared-project-dir
                (file-directory-p beads-test--shared-project-dir))
     (let ((prefix (beads-test--generate-prefix)))
@@ -607,9 +565,8 @@ Uses `bd delete --force' to remove issues without re-initializing."
 (defun beads-test-destroy-shared-project ()
   "Destroy the shared test project and clean up.
 Call this at the end of the test session (e.g., in a teardown hook).
-Also drops the Dolt database to prevent orphan accumulation."
-  ;; Drop the Dolt database before removing the filesystem
-  (beads-test--drop-dolt-database beads-test--shared-project-prefix)
+Removes the project directory; embedded Dolt data lives under
+.beads/embeddeddolt/ and is removed with it."
   (when (and beads-test--shared-project-dir
              (file-directory-p beads-test--shared-project-dir))
     (delete-directory beads-test--shared-project-dir t))
@@ -619,52 +576,20 @@ Also drops the Dolt database to prevent orphan accumulation."
 (defmacro beads-test-with-shared-project (&rest body)
   "Execute BODY with `default-directory' set to the shared test project.
 Like `beads-test-with-project' but uses a session-level shared fixture
-instead of creating a new project for each test.  This avoids the ~52s
+instead of creating a new project for each test.  This avoids the
 `bd init' overhead per test.
 
 The shared project is lazily created on first use and all issues are
 deleted between tests to ensure isolation.
 
-Before each use, the suite Dolt server is checked for MySQL-level
-readiness.  If the server has become unresponsive (accepts TCP but
-hangs on MySQL protocol), it is restarted automatically and the
-shared project is recreated on the fresh server.  This prevents
-per-test 20-30 second connection timeouts when Dolt hangs on CI.
-
 Tests that need custom init args (e.g., a specific :prefix) should
 continue using `beads-test-with-project' instead."
   (declare (indent 0))
-  `(let* (;; Snapshot port before health check so we can detect restart.
-          (beads-test--pre-check-port beads-test--suite-server-port)
-          ;; Check server MySQL-level health; restart if unresponsive.
-          ;; beads-test--suite-start-server is idempotent and uses
-          ;; beads-test--dolt-mysql-ready-p as its health condition, so
-          ;; a hung server (accepts TCP but does not respond to MySQL)
-          ;; will trigger a restart here.
-          (_ (beads-test--suite-start-server))
-          ;; If the server was restarted (port changed), the shared project's
-          ;; Dolt database no longer exists on the new server.  Destroy the
-          ;; stale shared project so beads-test-get-shared-project recreates
-          ;; it fresh on the new server below.
-          (_ (when (and beads-test--pre-check-port
-                        (not (equal beads-test--pre-check-port
-                                    beads-test--suite-server-port)))
-               (beads-test-destroy-shared-project)))
-          ;; Route bd to the suite-level isolated Dolt test server.
-          ;; bd v0.58.0+ requires Dolt as the only storage backend —
-          ;; there is no JSONL-only mode.  Without BEADS_DOLT_PORT, bd
-          ;; auto-discovers the default port (3307), which is the
-          ;; production Gas Town server.  Always route to the suite
-          ;; server to prevent pollution of the production database.
+  `(let* (;; Defensively unset BEADS_DOLT_PORT so we never inherit a
+          ;; production port (e.g. 3307 from a Gas Town shell).
+          ;; bd uses its embedded Dolt engine in .beads/embeddeddolt/.
           (process-environment
-           (if beads-test--suite-server-port
-               (cons (format "BEADS_DOLT_PORT=%d"
-                             beads-test--suite-server-port)
-                     process-environment)
-             ;; Fallback: unset so bd can auto-start its own Dolt.
-             (cons "BEADS_DOLT_PORT" process-environment)))
-          ;; Must come after process-environment (let* is sequential) so
-          ;; beads-test-get-shared-project runs with the suite Dolt port.
+           (cons "BEADS_DOLT_PORT" process-environment))
           (default-directory (beads-test-get-shared-project))
           (beads--project-cache (make-hash-table :test 'equal)))
      ;; Clean up issues from previous tests
