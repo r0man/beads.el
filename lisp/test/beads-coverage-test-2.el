@@ -329,26 +329,6 @@
     (should-not (beads-agent--backend-available-and-get "nonexistent"))))
 
 ;;; ============================================================
-;;; beads-agent.el - Maybe Update Status (sync)
-;;; ============================================================
-
-(ert-deftest beads-coverage-2-agent-maybe-update-status-disabled ()
-  "Test beads-agent--maybe-update-status when disabled."
-  (let ((beads-agent-auto-set-in-progress nil))
-    ;; Should not error, just be a no-op
-    (beads-agent--maybe-update-status "bd-1")))
-
-(ert-deftest beads-coverage-2-agent-maybe-update-status-non-open ()
-  "Test beads-agent--maybe-update-status when issue is not open."
-  (let ((beads-agent-auto-set-in-progress t))
-    (cl-letf (((symbol-function 'beads-execute)
-               (lambda (_class &rest _args)
-                 (beads-issue :id "bd-1" :title "Test" :status "in_progress"
-                              :priority 1 :issue-type "task"))))
-      ;; Issue is already in_progress, so no update should happen
-      (beads-agent--maybe-update-status "bd-1"))))
-
-;;; ============================================================
 ;;; beads-command-worktree.el - Parse Method Tests
 ;;; ============================================================
 

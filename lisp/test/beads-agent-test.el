@@ -512,10 +512,6 @@ should have indicators displayed."
 
 ;;; Tests for Customization
 
-(ert-deftest beads-agent-test-custom-auto-set-in-progress ()
-  "Test auto-set-in-progress customization default."
-  (should (eq beads-agent-auto-set-in-progress t)))
-
 (ert-deftest beads-agent-test-custom-default-backend ()
   "Test default-backend customization default."
   (should (null beads-agent-default-backend)))
@@ -3678,63 +3674,6 @@ When worktrees are disabled, uses beads-agent-start directly."
           (should (plist-get ctx :branch))))
     (beads-agent-test--teardown)))
 
-;;; Auto Status Update Tests
-
-(ert-deftest beads-agent-test-maybe-update-status-disabled ()
-  "Test that maybe-update-status does nothing when disabled."
-  (beads-agent-test--setup)
-  (unwind-protect
-      (let ((beads-agent-auto-set-in-progress nil)
-            (called nil))
-        (cl-letf (((symbol-function 'beads-execute)
-                   (lambda (_class &rest _args) (setq called t))))
-          (beads-agent--maybe-update-status "bd-1")
-          ;; Should not call show! when disabled
-          (should-not called)))
-    (beads-agent-test--teardown)))
-
-(ert-deftest beads-agent-test-maybe-update-status-enabled ()
-  "Test that maybe-update-status updates open issues."
-  (beads-agent-test--setup)
-  (unwind-protect
-      (let ((beads-agent-auto-set-in-progress t)
-            (updated nil))
-        (cl-letf (((symbol-function 'beads-command-execute)
-                   (lambda (cmd)
-                     (if (cl-typep cmd 'beads-command-show)
-                         (beads-issue :id "bd-1" :title "Test"
-                                      :status "open"
-                                      :priority 2 :issue-type "task"
-                                      :created-at "2025-01-01"
-                                      :updated-at "2025-01-01")
-                       (setq updated t)
-                       nil))))
-          (beads-agent--maybe-update-status "bd-1")
-          ;; Should call update for open issues
-          (should updated)))
-    (beads-agent-test--teardown)))
-
-(ert-deftest beads-agent-test-maybe-update-status-not-open ()
-  "Test that maybe-update-status skips non-open issues."
-  (beads-agent-test--setup)
-  (unwind-protect
-      (let ((beads-agent-auto-set-in-progress t)
-            (updated nil))
-        (cl-letf (((symbol-function 'beads-command-execute)
-                   (lambda (cmd)
-                     (if (cl-typep cmd 'beads-command-show)
-                         (beads-issue :id "bd-1" :title "Test"
-                                      :status "in_progress"
-                                      :priority 2 :issue-type "task"
-                                      :created-at "2025-01-01"
-                                      :updated-at "2025-01-01")
-                       (setq updated t)
-                       nil))))
-          (beads-agent--maybe-update-status "bd-1")
-          ;; Should NOT call update for in_progress issues
-          (should-not updated)))
-    (beads-agent-test--teardown)))
-
 ;;; Jump Tests
 
 (ert-deftest beads-agent-test-jump-no-sessions ()
@@ -4023,22 +3962,6 @@ When worktrees are disabled, uses beads-agent-start directly."
           (beads-show-mode)
           ;; Should detect the issue ID
           (should (equal issue-id (beads-agent--detect-issue-id))))))))
-
-(ert-deftest beads-agent-test-integration-maybe-update-status ()
-  "Integration test: maybe-update-status with real issue."
-  :tags '(:integration :slow)
-  (skip-unless (executable-find beads-executable))
-  (beads-test-with-shared-project
-    (let ((issue (beads-execute 'beads-command-create :title "Status Update Test"
-                                         :priority 2
-                                         :issue-type "task")))
-      (let ((issue-id (oref issue id))
-            (beads-agent-auto-set-in-progress t))
-        ;; Should update the issue status
-        (beads-agent--maybe-update-status issue-id)
-        ;; Verify status was updated
-        (let ((updated (beads-execute 'beads-command-show :issue-ids (list issue-id))))
-          (should (equal "in_progress" (oref updated status))))))))
 
 (ert-deftest beads-agent-test-integration-select-backend ()
   "Integration test: select backend with default."
