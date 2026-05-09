@@ -31,7 +31,7 @@ eldev compile
 eldev lint
 ```
 
-Tests live in `lisp/test/` and are named `<module>-test.el`. Tests use a suite-level isolated Dolt server on a random port (via `beads-integration-test.el`) so they never hit production. `bd` v0.58.0+ requires Dolt -- there is no JSONL-only fallback.
+Tests live in `lisp/test/` and are named `<module>-test.el`. Tests use bd's embedded Dolt engine — each temp repo gets its own `.beads/embeddeddolt/` directory for true filesystem-level isolation, with no shared sql-server, no port plumbing, and no MySQL handshake. The test macros defensively unset `BEADS_DOLT_PORT` so a value inherited from the outer environment cannot reroute bd to a production server.
 
 ## Architecture
 
