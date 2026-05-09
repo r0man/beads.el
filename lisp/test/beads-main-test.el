@@ -296,9 +296,10 @@
     (should (beads--in-beads-buffer-p))))
 
 (ert-deftest beads-main-test-in-beads-buffer-p-status-mode ()
-  "Test predicate returns t in beads-status-mode (via beads-section-mode)."
+  "Test predicate returns t in beads-dashboard-mode (via beads-section-mode)."
+  (require 'beads-dashboard)
   (with-temp-buffer
-    (beads-status-mode)
+    (beads-dashboard-mode)
     (should (beads--in-beads-buffer-p))))
 
 (ert-deftest beads-main-test-in-beads-buffer-p-other-mode ()

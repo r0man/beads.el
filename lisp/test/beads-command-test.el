@@ -1903,5 +1903,238 @@ The default limit behavior is in beads-command-list!, not the class."
     (should (equal (beads-command--process-environment)
                    '("BEADS_DOLT_PORT=3308")))))
 
+;;; ============================================================
+;;; Async Queue / Coalesce / Timeout / Policy Tests (bde-laks)
+;;; ============================================================
+
+(defun beads-command-test--reset-async-state ()
+  "Reset the async queue, in-flight counter, and single-flight table."
+  (setq beads-command--in-flight 0
+        beads-command--queue nil
+        beads-command--queue-tail nil)
+  (clrhash beads-command--single-flight))
+
+(ert-deftest beads-command-test-async-policy-max-concurrent-integer ()
+  "User integer override of `beads-command-async-max-concurrent' trumps probe."
+  :tags '(:unit)
+  (let ((beads-command-async-max-concurrent 3)
+        (beads-command--policy '(:max-concurrent 8 :backend server)))
+    (should (= 3 (beads-command--policy-max-concurrent)))))
+
+(ert-deftest beads-command-test-async-policy-max-concurrent-unlimited ()
+  "`unlimited' resolves to most-positive-fixnum."
+  :tags '(:unit)
+  (let ((beads-command-async-max-concurrent 'unlimited))
+    (should (= most-positive-fixnum
+               (beads-command--policy-max-concurrent)))))
+
+(ert-deftest beads-command-test-async-policy-max-concurrent-auto-default ()
+  "Without a probe, auto resolves to the policy default."
+  :tags '(:unit)
+  (let ((beads-command-async-max-concurrent 'auto)
+        (beads-command--policy nil))
+    (should (= beads-command--policy-default-max-concurrent
+               (beads-command--policy-max-concurrent)))))
+
+(ert-deftest beads-command-test-async-policy-max-concurrent-auto-from-probe ()
+  "Auto reads from the cached policy plist."
+  :tags '(:unit)
+  (let ((beads-command-async-max-concurrent 'auto)
+        (beads-command--policy '(:max-concurrent 8 :backend server)))
+    (should (= 8 (beads-command--policy-max-concurrent)))))
+
+(ert-deftest beads-command-test-async-policy-probe-server-mode ()
+  "Probe maps mode=server to max-concurrent=8."
+  :tags '(:unit)
+  (let ((called-with nil)
+        (beads-command-policy-functions
+         (list (lambda (cb)
+                 (funcall cb '(:backend server :max-concurrent 8))))))
+    (beads-command--policy-probe (lambda (p) (setq called-with p)))
+    (should (equal called-with '(:backend server :max-concurrent 8)))
+    (should (equal beads-command--policy
+                   '(:backend server :max-concurrent 8)))))
+
+(ert-deftest beads-command-test-async-policy-probe-embedded-mode ()
+  "Probe maps mode=embedded to max-concurrent=1."
+  :tags '(:unit)
+  (let ((called-with nil)
+        (beads-command-policy-functions
+         (list (lambda (cb)
+                 (funcall cb '(:backend embedded :max-concurrent 1))))))
+    (beads-command--policy-probe (lambda (p) (setq called-with p)))
+    (should (equal called-with '(:backend embedded :max-concurrent 1)))))
+
+(ert-deftest beads-command-test-async-policy-probe-error-defaults-to-policy-default ()
+  "When all probes return nil, policy falls back to the policy default."
+  :tags '(:unit)
+  (let ((beads-command--policy nil)
+        (beads-command-policy-functions
+         (list (lambda (cb) (funcall cb nil)))))
+    (beads-command--policy-probe #'ignore)
+    (should (equal beads-command--policy
+                   (list :max-concurrent
+                         beads-command--policy-default-max-concurrent)))))
+
+(ert-deftest beads-command-test-async-queue-serializes-with-cap-1 ()
+  "With max-concurrent=1, the second submission must be queued, not spawned."
+  :tags '(:unit)
+  (beads-command-test--reset-async-state)
+  (let ((beads-command-async-max-concurrent 1)
+        (cmd (beads-command-list :json nil)))
+    (cl-letf (((symbol-function 'beads-command-validate)
+               (lambda (_cmd) nil))
+              ((symbol-function 'beads-command-line)
+               (lambda (_cmd) '("sh" "-c" "sleep 0.5"))))
+      (let* ((proc1 (beads-command-execute-async
+                     cmd #'ignore #'ignore :queue 'auto))
+             (proc2 (beads-command-execute-async
+                     cmd #'ignore #'ignore :queue 'auto)))
+        (unwind-protect
+            (progn
+              (should (processp proc1))
+              (should (eq proc2 'queued))
+              (should (= 1 (length beads-command--queue))))
+          (when (process-live-p proc1) (delete-process proc1))
+          (beads-command-test--reset-async-state))))))
+
+(ert-deftest beads-command-test-async-queue-pumps-on-exit ()
+  "After the in-flight process exits the queue is pumped automatically."
+  :tags '(:unit)
+  (beads-command-test--reset-async-state)
+  (let ((beads-command-async-max-concurrent 1)
+        (cmd (beads-command-list :json nil))
+        (calls 0))
+    (cl-letf (((symbol-function 'beads-command-validate)
+               (lambda (_cmd) nil))
+              ((symbol-function 'beads-command-line)
+               (lambda (_cmd) '("echo" "ok")))
+              ((symbol-function 'beads-command-parse)
+               (lambda (_cmd _out) (cl-incf calls) :ok)))
+      (beads-command-execute-async cmd (lambda (_) nil) #'ignore :queue 'auto)
+      (let ((res (beads-command-execute-async cmd (lambda (_) nil) #'ignore :queue 'auto)))
+        (should (eq res 'queued)))
+      (let ((deadline (+ (float-time) 5.0)))
+        (while (and (< calls 2) (< (float-time) deadline))
+          (sit-for 0.05)))
+      (should (= 2 calls))
+      (should (= 0 beads-command--in-flight))
+      (should (null beads-command--queue))))
+  (beads-command-test--reset-async-state))
+
+(ert-deftest beads-command-test-async-coalesce-shares-process ()
+  "Two async submissions sharing :cache-key share one bd subprocess."
+  :tags '(:unit)
+  (beads-command-test--reset-async-state)
+  (let ((cmd (beads-command-list :json nil))
+        (results nil))
+    (cl-letf (((symbol-function 'beads-command-validate)
+               (lambda (_cmd) nil))
+              ((symbol-function 'beads-command-line)
+               (lambda (_cmd) '("sh" "-c" "sleep 0.2; echo done")))
+              ((symbol-function 'beads-command-parse)
+               (lambda (_cmd _out) :payload)))
+      (let ((p1 (beads-command-execute-async
+                 cmd (lambda (r) (push (cons :a r) results)) #'ignore
+                 :cache-key '(test coalesce)))
+            (p2 (beads-command-execute-async
+                 cmd (lambda (r) (push (cons :b r) results)) #'ignore
+                 :cache-key '(test coalesce))))
+        (should (processp p1))
+        (should (eq p2 'coalesced))
+        (let ((deadline (+ (float-time) 5.0)))
+          (while (and (< (length results) 2) (< (float-time) deadline))
+            (sit-for 0.05)))
+        (should (= 2 (length results)))
+        (should (equal (cdr (assq :a results)) :payload))
+        (should (equal (cdr (assq :b results)) :payload)))))
+  (beads-command-test--reset-async-state))
+
+(ert-deftest beads-command-test-async-timeout-fires-on-error ()
+  "A `:timeout' kills the process and routes to on-error with a timeout flag."
+  :tags '(:unit)
+  (beads-command-test--reset-async-state)
+  (let ((cmd (beads-command-list :json nil))
+        (err nil))
+    (cl-letf (((symbol-function 'beads-command-validate)
+               (lambda (_cmd) nil))
+              ((symbol-function 'beads-command-line)
+               (lambda (_cmd) '("sh" "-c" "sleep 5"))))
+      (beads-command-execute-async
+       cmd #'ignore (lambda (e) (setq err e)) :timeout 0.2)
+      (let ((deadline (+ (float-time) 5.0)))
+        (while (and (null err) (< (float-time) deadline))
+          (sit-for 0.05)))
+      (should err)
+      (should (plist-get (cdr-safe err) :timed-out))))
+  (beads-command-test--reset-async-state))
+
+(ert-deftest beads-command-test-async-buffer-disposal-safety ()
+  "Callbacks on a dead caller buffer must not error."
+  :tags '(:unit)
+  (beads-command-test--reset-async-state)
+  (let ((cmd (beads-command-list :json nil))
+        (tmp-buf (generate-new-buffer " *beads-test-disposal*")))
+    (cl-letf (((symbol-function 'beads-command-validate)
+               (lambda (_cmd) nil))
+              ((symbol-function 'beads-command-line)
+               (lambda (_cmd) '("echo" "ok")))
+              ((symbol-function 'beads-command-parse)
+               (lambda (_cmd _out) :ok)))
+      (with-current-buffer tmp-buf
+        (beads-command-execute-async
+         cmd
+         (lambda (_) (error "Should not run on dead buffer"))
+         (lambda (_) (error "Should not run on dead buffer"))))
+      (let ((kill-buffer-query-functions nil)) (kill-buffer tmp-buf))
+      ;; Spin briefly; if buffer-live-p guard works, no error fires.
+      (let ((deadline (+ (float-time) 2.0)))
+        (while (< (float-time) deadline) (sit-for 0.05)))
+      ;; Reaching here without signaling means the guard worked.
+      (should t)))
+  (beads-command-test--reset-async-state))
+
+(ert-deftest beads-command-test-async-spawn-failure-fires-on-error ()
+  "If `make-process' raises (binary missing), on-error is called, not infinite spin."
+  :tags '(:unit)
+  (beads-command-test--reset-async-state)
+  (let ((cmd (beads-command-list :json nil))
+        (err nil))
+    (cl-letf (((symbol-function 'beads-command-validate)
+               (lambda (_cmd) nil))
+              ((symbol-function 'beads-command-line)
+               (lambda (_cmd) '("/no/such/path/bd-binary-xyzzy"))))
+      (beads-command-execute-async
+       cmd #'ignore (lambda (e) (setq err e)))
+      (let ((deadline (+ (float-time) 2.0)))
+        (while (and (null err) (< (float-time) deadline))
+          (sit-for 0.05)))
+      (should err)
+      (should (or (plist-get (cdr-safe err) :spawn-error)
+                  (string-match-p "spawn\\|process\\|Failed"
+                                  (or (car-safe err) ""))))))
+  (beads-command-test--reset-async-state))
+
+(ert-deftest beads-command-test-async-queue-tail-invariant ()
+  "Queue tail pointer stays consistent under push/pop sequences."
+  :tags '(:unit)
+  (beads-command-test--reset-async-state)
+  (let ((t1 (lambda () nil))
+        (t2 (lambda () nil))
+        (t3 (lambda () nil)))
+    (beads-command--queue-push t1)
+    (should (eq beads-command--queue-tail (last beads-command--queue)))
+    (beads-command--queue-push t2)
+    (beads-command--queue-push t3)
+    (should (eq beads-command--queue-tail (last beads-command--queue)))
+    (should (= 3 (length beads-command--queue)))
+    (should (eq t1 (beads-command--queue-pop)))
+    (should (eq beads-command--queue-tail (last beads-command--queue)))
+    (should (eq t2 (beads-command--queue-pop)))
+    (should (eq t3 (beads-command--queue-pop)))
+    (should (null beads-command--queue))
+    (should (null beads-command--queue-tail)))
+  (beads-command-test--reset-async-state))
+
 (provide 'beads-command-test)
 ;;; beads-command-test.el ends here

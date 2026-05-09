@@ -911,34 +911,239 @@ Signals `beads-json-parse-error' if JSON parsing fails (for JSON commands)."
 
 ;;; Async Command Execution
 
+(defcustom beads-command-async-timeout 10
+  "Default timeout in seconds for `beads-command-execute-async' callers.
+
+When `:timeout' is supplied to `beads-command-execute-async' the
+process is auto-killed and `on-error' is invoked with a timeout
+condition.  Callers that do not specify `:timeout' opt out of timeout
+handling entirely.  The dashboard always passes this default."
+  :type '(choice (number :tag "Seconds")
+                 (const :tag "No default" nil))
+  :group 'beads)
+
+(defcustom beads-command-async-max-concurrent 'auto
+  "Concurrency limit for `beads-command-execute-async' when `:queue' is honoured.
+
+Values:
+  `auto'      — resolve from `beads-command--policy' probe (the default).
+  integer N   — at most N processes in flight at once (overrides probe).
+  `unlimited' — no cap (legacy / single-shot callers).
+
+A user override to an integer trumps the probe — set this to 1 to
+force serial execution even on `server-mode' Dolt."
+  :type '(choice (const :tag "Probe-driven" auto)
+                 (integer :tag "Maximum N processes")
+                 (const :tag "Unlimited" unlimited))
+  :group 'beads)
+
+(defconst beads-command--policy-default-max-concurrent 4
+  "Concurrency cap to apply before the policy probe has resolved.
+Reads through `bd --json' tolerate concurrent invocations on both
+embedded and server Dolt; this lets the dashboard's cold open finish
+in a few round-trips instead of strictly serially.")
+
+(defvar beads-command--policy nil
+  "Cached plist of the latest concurrency-policy probe.
+Shape: `(:backend SYMBOL :max-concurrent N)'.  Re-probed by
+`beads-command--policy-probe'; falls back to
+`beads-command--policy-default-max-concurrent' when unknown.")
+
+(defvar beads-command-policy-functions
+  '(beads-command-policy--from-dolt-status)
+  "Hook of probe functions that resolve `beads-command--policy'.
+
+Each function receives a single CALLBACK and must call it with a
+plist `(:backend SYM :max-concurrent N)' on success, or nil on
+failure.  The first non-nil result wins.  Lets future backends
+contribute without touching the dashboard.")
+
+(defvar beads-command--in-flight 0
+  "Count of beads async processes currently in flight via the queue.")
+
+(defvar beads-command--queue nil
+  "Head of the FIFO queue of pending beads async submissions.
+Each entry is a thunk that dispatches the command when called.
+Drained by `beads-command--pump-queue' when an in-flight process
+exits.  See `beads-command--queue-tail' for the O(1) append cell.")
+
+(defvar beads-command--queue-tail nil
+  "Last cons cell of `beads-command--queue', for O(1) FIFO append.
+nil when the queue is empty.")
+
+(defvar beads-command--single-flight (make-hash-table :test 'equal)
+  "Single-flight coalescing table for `:cache-key' callers.
+
+Maps cache-key -> plist `(:process P :waiters W)'.  When a duplicate
+request arrives while one is in flight, its callbacks are added to the
+waiter list and share the existing process's result.")
+
+(defun beads-command-policy--from-dolt-status (callback)
+  "Probe `bd dolt status --json' and resolve a concurrency policy.
+
+Calls CALLBACK with `(:backend SYM :max-concurrent N)'.  Maps
+`mode=server' to 8 and anything else to 1 — the safe default.  Calls
+CALLBACK with nil if probe spawn fails."
+  (let* ((cmd (list (or (and (boundp 'beads-executable) beads-executable) "bd")
+                    "dolt" "status" "--json"))
+         (stdout (generate-new-buffer " *beads-policy-probe-stdout*"))
+         (stderr (generate-new-buffer " *beads-policy-probe-stderr*"))
+         (process-environment (beads-command--process-environment))
+         (timed-out nil)
+         (timer nil)
+         proc)
+    (condition-case _
+        (setq proc
+              (make-process
+               :name "beads-policy-probe"
+               :buffer stdout
+               :stderr stderr
+               :command cmd
+               :connection-type 'pipe
+               :sentinel
+               (lambda (p _event)
+                 (when (memq (process-status p) '(exit signal))
+                   (when timer (cancel-timer timer) (setq timer nil))
+                   (let ((exit (process-exit-status p))
+                         (out (with-current-buffer stdout (buffer-string))))
+                     (let ((kill-buffer-query-functions nil))
+                       (kill-buffer stdout) (kill-buffer stderr))
+                     (if timed-out
+                         (funcall callback nil)
+                       (if (and (zerop exit) (not (string-empty-p out)))
+                           (condition-case _
+                               (let* ((json-object-type 'alist)
+                                      (json-array-type 'list)
+                                      (parsed (json-read-from-string out))
+                                      (mode (alist-get 'mode parsed)))
+                                 (funcall callback
+                                          (list :backend (intern (or mode "unknown"))
+                                                :max-concurrent
+                                                (if (equal mode "server") 8 1))))
+                             (error (funcall callback nil)))
+                         (funcall callback nil))))))))
+      (error
+       (let ((kill-buffer-query-functions nil))
+         (when (buffer-live-p stdout) (kill-buffer stdout))
+         (when (buffer-live-p stderr) (kill-buffer stderr)))
+       (funcall callback nil)))
+    (when (and proc (process-live-p proc))
+      (setq timer
+            (run-at-time
+             2 nil
+             (lambda ()
+               (setq timed-out t)
+               (when (process-live-p proc) (delete-process proc))))))))
+
+(defun beads-command--policy-probe (callback)
+  "Probe `beads-command-policy-functions' and update `beads-command--policy'.
+CALLBACK is invoked with the resolved plist (or nil if all probes fail)."
+  (let ((funcs beads-command-policy-functions)
+        (resolved nil))
+    (cl-labels ((next ()
+                  (if (or resolved (null funcs))
+                      (progn
+                        (setq beads-command--policy
+                              (or resolved
+                                  (list :max-concurrent
+                                        beads-command--policy-default-max-concurrent)))
+                        (funcall callback resolved))
+                    (let ((fn (pop funcs)))
+                      (funcall fn (lambda (plist)
+                                    (when plist (setq resolved plist))
+                                    (next)))))))
+      (next))))
+
+(defun beads-command--policy-max-concurrent ()
+  "Resolve the effective maximum concurrent processes.
+User integer or `unlimited' override of `beads-command-async-max-concurrent'
+trumps the probe; otherwise return the cached policy's `:max-concurrent',
+falling back to `beads-command--policy-default-max-concurrent'."
+  (cond
+   ((integerp beads-command-async-max-concurrent)
+    beads-command-async-max-concurrent)
+   ((eq beads-command-async-max-concurrent 'unlimited) most-positive-fixnum)
+   (t (or (plist-get beads-command--policy :max-concurrent)
+          beads-command--policy-default-max-concurrent))))
+
+(defun beads-command--queue-push (thunk)
+  "Append THUNK to the FIFO queue in O(1) via `beads-command--queue-tail'."
+  (let ((cell (list thunk)))
+    (if beads-command--queue-tail
+        (setcdr beads-command--queue-tail cell)
+      (setq beads-command--queue cell))
+    (setq beads-command--queue-tail cell)))
+
+(defun beads-command--queue-pop ()
+  "Pop the head of the queue, maintaining the tail invariant."
+  (let ((thunk (pop beads-command--queue)))
+    (unless beads-command--queue
+      (setq beads-command--queue-tail nil))
+    thunk))
+
+(defun beads-command--pump-queue ()
+  "Dispatch as many queued submissions as the policy will allow."
+  (let ((cap (beads-command--policy-max-concurrent)))
+    (while (and beads-command--queue
+                (< beads-command--in-flight cap))
+      (funcall (beads-command--queue-pop)))))
+
+(defun beads-command--cancel-queued (thunk)
+  "Remove THUNK from the pending queue if present."
+  (setq beads-command--queue (delq thunk beads-command--queue))
+  (setq beads-command--queue-tail (last beads-command--queue)))
+
 (cl-defgeneric beads-command-execute-async (command on-success
-                                                    &optional on-error)
+                                                    &optional on-error
+                                                    &rest kwargs)
   "Execute COMMAND asynchronously without blocking Emacs.
 
 ON-SUCCESS receives the parsed result (same as sync return value).
 ON-ERROR receives the error condition; nil means display via `beads--error'.
 
+Optional KWARGS extend behaviour additively (all default to nil so
+existing callers are unchanged):
+
+  :queue VAL       — non-nil enables the global concurrency cap from
+                     `beads-command-async-max-concurrent'.  When the
+                     cap is reached the submission is queued FIFO and
+                     dispatched as in-flight processes exit.
+
+  :cache-key KEY   — single-flight coalescing.  If another in-flight
+                     request shares this key, the new caller\\='s
+                     callbacks attach to the existing process; only
+                     one bd subprocess is spawned per key.
+
+  :timeout SECS    — auto-kill the process after SECS and call
+                     ON-ERROR with a timeout condition.
+
 Signals `beads-validation-error' immediately if validation fails.
 
-Return value: process object (use `delete-process' to cancel).
+Return value: process object, the symbol `coalesced' when a
+single-flight match attached to an existing in-flight request, or
+the symbol `queued' when the request was deferred by `:queue'.
 
-Example usage:
+Example:
 
   (beads-command-execute-async
    (beads-command-list :status \"open\")
-   (lambda (result)
-     (message \"Got %d issues\" (length result)))
-   (lambda (err)
-     (message \"Failed: %s\" (cadr err))))")
+   (lambda (result) (message \"Got %d issues\" (length result)))
+   (lambda (err)    (message \"Failed: %s\" (cadr err)))
+   :queue \\='auto
+   :cache-key \\='(list open)
+   :timeout 10)")
 
 (cl-defmethod beads-command-execute-async ((command beads-command)
                                            on-success
-                                           &optional on-error)
+                                           &optional on-error
+                                           &rest kwargs)
   "Execute COMMAND asynchronously.
-ON-SUCCESS receives the parsed result on success.
-ON-ERROR receives the error condition; nil means display via `beads--error'.
-Signals `beads-validation-error' immediately if validation fails.
-Returns process object."
+
+ON-SUCCESS receives the parsed result on success.  ON-ERROR receives
+the error condition; nil means display via `beads--error'.  KWARGS
+accepts `:queue', `:cache-key', and `:timeout' as documented on the
+generic.  Signals `beads-validation-error' immediately if validation
+fails.  Returns a process object, `coalesced', or `queued'."
   ;; Validate first - raise error immediately
   (when-let ((errors (beads-command-validate command)))
     (let ((error-msg (beads-command--format-validation-errors errors)))
@@ -946,86 +1151,200 @@ Returns process object."
               (list (format "Command validation failed: %s" error-msg)
                     :command command
                     :error errors))))
+  (cl-block beads-command-execute-async
+    (let* ((queue     (plist-get kwargs :queue))
+           (cache-key (plist-get kwargs :cache-key))
+           (timeout   (plist-get kwargs :timeout))
+           (caller-buffer (current-buffer)))
+      ;; Single-flight coalescing: attach to an existing in-flight request
+      ;; with the same cache key.
+      (when cache-key
+        (let ((entry (gethash cache-key beads-command--single-flight)))
+          (when (and entry (process-live-p (plist-get entry :process)))
+            (let ((waiters (plist-get entry :waiters)))
+              (push (list caller-buffer on-success on-error) waiters)
+              (puthash cache-key
+                       (plist-put entry :waiters waiters)
+                       beads-command--single-flight))
+            (cl-return-from beads-command-execute-async 'coalesced))))
+      (cl-flet ((spawn ()
+                  (beads-command--spawn-async
+                   command on-success on-error
+                   :queue queue
+                   :cache-key cache-key
+                   :timeout timeout
+                   :caller-buffer caller-buffer)))
+        (cond
+         ;; Honour the global queue cap.
+         ((and queue
+               (>= beads-command--in-flight
+                   (beads-command--policy-max-concurrent)))
+          (beads-command--queue-push (lambda () (spawn)))
+          'queued)
+         (t (spawn)))))))
 
-  ;; Validation passed - build command line and execute
+(cl-defun beads-command--spawn-async (command on-success on-error
+                                              &key queue cache-key timeout
+                                              caller-buffer)
+  "Spawn COMMAND as an async process with queue/coalesce/timeout guards.
+ON-SUCCESS receives the parsed result; ON-ERROR receives the error
+condition.  QUEUE, CACHE-KEY, TIMEOUT, and CALLER-BUFFER are forwarded
+from `beads-command-execute-async'.  Internal helper."
   (let* ((cmd (beads-command-line command))
          (cmd-string (mapconcat #'shell-quote-argument cmd " "))
          (stdout-buffer (generate-new-buffer " *beads-async-stdout*"))
          (stderr-buffer (generate-new-buffer " *beads-async-stderr*"))
          (process-environment (beads-command--process-environment))
          (start-time (current-time))
+         (timed-out nil)
+         (timer nil)
+         (counted nil)
          process)
-
     (when (fboundp 'beads--log)
       (beads--log 'info "Running async: %s" cmd-string)
       (beads--log 'verbose "In directory: %s" default-directory))
-
-    (setq process
-          (make-process
-           :name "beads-async"
-           :buffer stdout-buffer
-           :stderr stderr-buffer
-           :command cmd
-           :connection-type 'pipe
-           :sentinel
-           (lambda (proc _event)
-             (when (memq (process-status proc) '(exit signal))
-               (let* ((proc-exit-code (process-exit-status proc))
-                      (end-time (current-time))
-                      (elapsed (float-time (time-subtract end-time start-time)))
-                      (proc-stdout (with-current-buffer stdout-buffer
-                                     (buffer-string)))
-                      (proc-stderr (with-current-buffer stderr-buffer
-                                     (buffer-string))))
-
-                 (when (fboundp 'beads--log)
-                   (beads--log 'info "Async command completed in %.3fs" elapsed)
-                   (beads--log 'verbose "Exit code: %d" proc-exit-code)
-                   ;; Truncate output to avoid logging sensitive issue content
-                   (beads--log 'verbose "Stdout: %s"
-                               (if (> (length proc-stdout) 500)
-                                   (concat (substring proc-stdout 0 500)
-                                           "...[truncated]")
-                                 proc-stdout))
-                   (beads--log 'verbose "Stderr: %s"
-                               (if (> (length proc-stderr) 500)
-                                   (concat (substring proc-stderr 0 500)
-                                           "...[truncated]")
-                                 proc-stderr)))
-
-                 ;; Clean up buffers (suppress kill queries for these temp buffers)
-                 (let ((kill-buffer-query-functions nil))
-                   (kill-buffer stdout-buffer)
-                   (kill-buffer stderr-buffer))
-
-                 (if (zerop proc-exit-code)
-                     ;; Success: parse and call on-success
-                     (condition-case parse-err
-                         (let ((result (beads-command-parse
-                                        command proc-stdout)))
-                           (funcall on-success result))
-                       (error
-                        (let ((err (list (format "Parse error: %s"
-                                                 (error-message-string
-                                                  parse-err))
-                                         :stdout proc-stdout
-                                         :parse-error parse-err)))
-                          (if on-error
-                              (funcall on-error err)
-                            (when (fboundp 'beads--error)
-                              (beads--error "%s" (car err)))))))
-                   ;; Failure: call on-error or display
-                   (let ((err (list (format "Command failed with exit code %d"
-                                            proc-exit-code)
-                                    :command cmd-string
-                                    :exit-code proc-exit-code
-                                    :stdout proc-stdout
-                                    :stderr proc-stderr)))
-                     (if on-error
-                         (funcall on-error err)
-                       (when (fboundp 'beads--error)
-                         (beads--error "%s" (car err)))))))))))
-    process))
+    ;; Helpers for dispatching results — shared between the success
+    ;; path and the spawn-failure / coalesced-waiter paths.
+    (cl-labels
+        ((cleanup-buffers ()
+           (let ((kill-buffer-query-functions nil))
+             (when (buffer-live-p stdout-buffer) (kill-buffer stdout-buffer))
+             (when (buffer-live-p stderr-buffer) (kill-buffer stderr-buffer))))
+         (notify (target-buffer cb arg)
+           ;; Buffer-disposal safety: skip callbacks on dead buffers.
+           (when (and cb (buffer-live-p (or target-buffer (current-buffer))))
+             (with-current-buffer (or target-buffer (current-buffer))
+               (funcall cb arg))))
+         (resolve-all (result)
+           (notify caller-buffer on-success result)
+           (when cache-key
+             (let ((entry (gethash cache-key beads-command--single-flight)))
+               (when entry
+                 (dolist (w (plist-get entry :waiters))
+                   (let ((wbuf (nth 0 w)) (wsucc (nth 1 w)))
+                     (notify wbuf wsucc result))))
+               (remhash cache-key beads-command--single-flight))))
+         (reject-all (err)
+           (if on-error
+               (notify caller-buffer on-error err)
+             (when (and (fboundp 'beads--error)
+                        (buffer-live-p caller-buffer))
+               (beads--error "%s" (car err))))
+           (when cache-key
+             (let ((entry (gethash cache-key beads-command--single-flight)))
+               (when entry
+                 (dolist (w (plist-get entry :waiters))
+                   (let ((wbuf (nth 0 w)) (werr (nth 2 w)))
+                     (if werr
+                         (notify wbuf werr err)
+                       (when (and (fboundp 'beads--error)
+                                  (buffer-live-p (or wbuf (current-buffer))))
+                         (beads--error "%s" (car err)))))))
+               (remhash cache-key beads-command--single-flight))))
+         (decrement ()
+           (when (and queue counted)
+             (setq counted nil)
+             (cl-decf beads-command--in-flight)
+             (beads-command--pump-queue))))
+      ;; Increment the in-flight counter before spawning so a tight
+      ;; submission loop never overshoots the cap.
+      (when queue
+        (cl-incf beads-command--in-flight)
+        (setq counted t))
+      (condition-case spawn-err
+          (setq process
+                (make-process
+                 :name "beads-async"
+                 :buffer stdout-buffer
+                 :stderr stderr-buffer
+                 :command cmd
+                 :connection-type 'pipe
+                 :sentinel
+                 (lambda (proc _event)
+                   (when (memq (process-status proc) '(exit signal))
+                     (when timer (cancel-timer timer) (setq timer nil))
+                     (let* ((proc-exit-code (process-exit-status proc))
+                            (end-time (current-time))
+                            (elapsed (float-time (time-subtract end-time start-time)))
+                            (proc-stdout (with-current-buffer stdout-buffer
+                                           (buffer-string)))
+                            (proc-stderr (with-current-buffer stderr-buffer
+                                           (buffer-string))))
+                       (when (fboundp 'beads--log)
+                         (beads--log 'info "Async command completed in %.3fs" elapsed)
+                         (beads--log 'verbose "Exit code: %d" proc-exit-code)
+                         (beads--log 'verbose "Stdout: %s"
+                                     (if (> (length proc-stdout) 500)
+                                         (concat (substring proc-stdout 0 500)
+                                                 "...[truncated]")
+                                       proc-stdout))
+                         (beads--log 'verbose "Stderr: %s"
+                                     (if (> (length proc-stderr) 500)
+                                         (concat (substring proc-stderr 0 500)
+                                                 "...[truncated]")
+                                       proc-stderr)))
+                       (cleanup-buffers)
+                       (decrement)
+                       (cond
+                        (timed-out
+                         (reject-all
+                          (list "Command timed out"
+                                :command cmd-string
+                                :timeout timeout
+                                :timed-out t)))
+                        ((zerop proc-exit-code)
+                         (condition-case parse-err
+                             (let ((result (beads-command-parse
+                                            command proc-stdout)))
+                               (resolve-all result))
+                           (error
+                            (reject-all
+                             (list (format "Parse error: %s"
+                                           (error-message-string parse-err))
+                                   :stdout proc-stdout
+                                   :parse-error parse-err)))))
+                        (t
+                         (reject-all
+                          (list (format "Command failed with exit code %d"
+                                        proc-exit-code)
+                                :command cmd-string
+                                :exit-code proc-exit-code
+                                :stdout proc-stdout
+                                :stderr proc-stderr))))))) ))
+        (error
+         (cleanup-buffers)
+         (decrement)
+         (let ((err (list (format "Failed to spawn bd: %s"
+                                  (error-message-string spawn-err))
+                          :command cmd-string
+                          :spawn-error spawn-err)))
+           (run-at-time 0 nil (lambda () (reject-all err))))
+         (cl-return-from beads-command--spawn-async nil)))
+      ;; Spawn-failure detection: `make-process' may return a process
+      ;; that's already dead if the binary is missing.
+      (unless (process-live-p process)
+        (cleanup-buffers)
+        (decrement)
+        (let ((err (list (format "Failed to spawn bd command: %s" cmd-string)
+                         :command cmd-string
+                         :spawn-error 'process-died-immediately)))
+          (run-at-time 0 nil (lambda () (reject-all err))))
+        (cl-return-from beads-command--spawn-async nil))
+      ;; Wire single-flight entry now that we have a live process.
+      (when cache-key
+        (puthash cache-key
+                 (list :process process :waiters nil)
+                 beads-command--single-flight))
+      ;; Arm the timeout timer when requested.
+      (when timeout
+        (setq timer
+              (run-at-time
+               timeout nil
+               (lambda ()
+                 (when (process-live-p process)
+                   (setq timed-out t)
+                   (delete-process process))))))
+      process)))
 
 
 ;;; Convenience Functions

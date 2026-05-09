@@ -9,44 +9,13 @@
 
 ;;; Commentary:
 
-;; This module provides vui.el-based UI infrastructure for beads.el.
-;; It replaces the former magit-section-mode implementation with a
-;; declarative, component-based approach using vui.el.
-;;
-;; ## Section Data Classes
-;;
-;; Pure EIEIO data containers (no magit-section inheritance):
-;; - `beads-issues-section'  — container for a group of issues
-;; - `beads-issue-section'   — a single issue (with `:issue' slot)
-;; - `beads-blocked-section' — container for blocked issues
-;; - `beads-ready-section'   — container for ready (unblocked) issues
-;;
-;; ## Context Detection
-;;
-;; Issue context is stored as a `beads-section' text property on each
-;; rendered line, mirroring the pattern used in gastown-status-buffer.
-;; `beads-section-issue-id-at-point' reads this property.
-;;
-;; ## Status Sections Hook
-;;
-;; `beads-status-sections-hook' lists functions that RETURN vui vnodes.
-;; Each function returns a vnode or nil (when no data to show).
-;;
-;; ## Collapsible Section Component
-;;
-;; `beads-section--issue-group' is a `vui-defcomponent' with `:state'
-;; that tracks expanded/collapsed state.  Clicking the section header
-;; toggles visibility without a full re-fetch.
-;;
-;; ## Mode
-;;
-;; `beads-section-mode' is derived from `vui-mode'.  It inherits TAB
-;; navigation from `widget-keymap' (through vui-mode).  RET on an
-;; issue line triggers `beads-section-visit-issue'.
-;;
-;; ## Dependencies
-;;
-;; Requires the `vui' package (available from MELPA and Guix).
+;; vui.el-based UI primitives for beads.el.  Provides EIEIO data
+;; containers (`beads-issues-section', `beads-issue-section',
+;; `beads-blocked-section', `beads-ready-section'), a section
+;; text-property contract for context detection at point, and the
+;; `beads-section-mode' major mode.  Issue context is stored as a
+;; `beads-section' text property on each rendered line and read back
+;; via `beads-section-issue-id-at-point'.
 
 ;;; Code:
 
@@ -61,6 +30,21 @@
 ;;; Forward Declarations
 
 (declare-function beads-show "beads-command-show" (&optional issue-id))
+
+;;; Glyphs
+
+(defconst beads-section-glyph-expanded "▼"
+  "Glyph rendered on expanded section headers.")
+
+(defconst beads-section-glyph-collapsed "▶"
+  "Glyph rendered on collapsed section headers.")
+
+;;; Faces
+
+(defface beads-issue-line
+  '((t :inherit default))
+  "Face for clickable issue lines in section and dashboard buffers."
+  :group 'beads)
 
 ;;; Context Detection
 
@@ -79,6 +63,16 @@ from a `beads-issue-section' data object."
 
 ;;; vui Components
 
+(defun beads-section--plain-button (label on-click)
+  "Return a non-decorated, plain-faced `vui-button' carrying LABEL and ON-CLICK.
+Used for buttons that should read as plain text rather than as
+hyperlinks (no underline, no tooltip)."
+  (vui-button label
+    :no-decoration t
+    :face 'beads-issue-line
+    :help-echo nil
+    :on-click on-click))
+
 (defun beads-section--issue-line-vnode (issue)
   "Return a vui button vnode for a single ISSUE.
 The button displays the issue id, priority, type, status, and title.
@@ -94,10 +88,10 @@ detection at point via `beads-section-issue-id-at-point'."
                     (format "  %-14s %-4s %-10s %-14s %s"
                             id prio-str type status title)
                     (beads-issue-section :issue issue))))
-    (vui-button label
-      :no-decoration t
-      :on-click (let ((issue-id id))
-                  (lambda () (beads-show issue-id))))))
+    (beads-section--plain-button
+     label
+     (let ((issue-id id))
+       (lambda () (beads-show issue-id))))))
 
 (vui-defcomponent beads-section--issue-group (title issues)
   "Collapsible vui component showing a group of ISSUES under TITLE.
@@ -109,7 +103,9 @@ When ISSUES is nil this component renders nothing."
     (vui-vstack
      (vui-button
       (format "%s %s (%d)"
-              (if expanded "▼" "▶")
+              (if expanded
+                  beads-section-glyph-expanded
+                beads-section-glyph-collapsed)
               title
               (length issues))
       :no-decoration t
