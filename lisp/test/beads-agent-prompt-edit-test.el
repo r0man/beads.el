@@ -188,6 +188,28 @@
        (beads-agent-prompt-edit-confirm))
      (should-not (buffer-live-p buf)))))
 
+(ert-deftest beads-agent-prompt-edit-test-confirm-kills-buffer-before-callback ()
+  "Confirm must kill the prompt-edit buffer BEFORE invoking the callback.
+Otherwise async work spawned from the callback captures a buffer about
+to die, and `beads-command--spawn-async' silently drops the result.
+Regression test for bde-d3eg."
+  (beads-agent-prompt-edit-test--with-mock-git
+   (let ((buf nil)
+         (callback-buf 'unset))
+     (save-window-excursion
+       (beads-agent-prompt-edit-show
+        "test-123"
+        "Test prompt"
+        "Task"
+        (lambda (_prompt)
+          (setq callback-buf (current-buffer))))
+       (setq buf (current-buffer))
+       (beads-agent-prompt-edit-confirm))
+     (should-not (buffer-live-p buf))
+     ;; Callback ran in some live buffer that is NOT the prompt-edit buf.
+     (should (buffer-live-p callback-buf))
+     (should-not (eq callback-buf buf)))))
+
 ;;; Cancel Tests
 
 (ert-deftest beads-agent-prompt-edit-test-cancel-function-exists ()

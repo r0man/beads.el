@@ -1211,10 +1211,24 @@ from `beads-command-execute-async'.  Internal helper."
              (when (buffer-live-p stdout-buffer) (kill-buffer stdout-buffer))
              (when (buffer-live-p stderr-buffer) (kill-buffer stderr-buffer))))
          (notify (target-buffer cb arg)
-           ;; Buffer-disposal safety: skip callbacks on dead buffers.
-           (when (and cb (buffer-live-p (or target-buffer (current-buffer))))
-             (with-current-buffer (or target-buffer (current-buffer))
-               (funcall cb arg))))
+           ;; If the caller-buffer captured at spawn time died before
+           ;; the process finished, fall back to a still-live buffer
+           ;; (the process buffer or whatever is current) and warn — a
+           ;; silent drop here is debug-hostile (see bde-d3eg).
+           (when cb
+             (let ((buf (cond
+                         ((buffer-live-p target-buffer) target-buffer)
+                         ((null target-buffer) (current-buffer))
+                         (t
+                          (when (fboundp 'beads--log)
+                            (beads--log
+                             'warn
+                             "caller-buffer %S died before async callback; running in %S"
+                             target-buffer (current-buffer)))
+                          (current-buffer)))))
+               (when (buffer-live-p buf)
+                 (with-current-buffer buf
+                   (funcall cb arg))))))
          (resolve-all (result)
            (notify caller-buffer on-success result)
            (when cache-key

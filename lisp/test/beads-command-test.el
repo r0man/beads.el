@@ -2070,11 +2070,15 @@ The default limit behavior is in beads-command-list!, not the class."
   (beads-command-test--reset-async-state))
 
 (ert-deftest beads-command-test-async-buffer-disposal-safety ()
-  "Callbacks on a dead caller buffer must not error."
+  "When the caller-buffer dies, callbacks run in a fallback buffer (bde-d3eg).
+The pre-fix behaviour silently dropped callbacks, which stalled async
+flows like `beads-agent-prompt-edit-confirm' that kill the caller-buffer
+before the process finishes."
   :tags '(:unit)
   (beads-command-test--reset-async-state)
   (let ((cmd (beads-command-list :json nil))
-        (tmp-buf (generate-new-buffer " *beads-test-disposal*")))
+        (tmp-buf (generate-new-buffer " *beads-test-disposal*"))
+        (called nil))
     (cl-letf (((symbol-function 'beads-command-validate)
                (lambda (_cmd) nil))
               ((symbol-function 'beads-command-line)
@@ -2084,14 +2088,14 @@ The default limit behavior is in beads-command-list!, not the class."
       (with-current-buffer tmp-buf
         (beads-command-execute-async
          cmd
-         (lambda (_) (error "Should not run on dead buffer"))
-         (lambda (_) (error "Should not run on dead buffer"))))
+         (lambda (_) (setq called 'success))
+         (lambda (_) (setq called 'error))))
       (let ((kill-buffer-query-functions nil)) (kill-buffer tmp-buf))
-      ;; Spin briefly; if buffer-live-p guard works, no error fires.
+      ;; Spin until the callback fires (or timeout).
       (let ((deadline (+ (float-time) 2.0)))
-        (while (< (float-time) deadline) (sit-for 0.05)))
-      ;; Reaching here without signaling means the guard worked.
-      (should t)))
+        (while (and (null called) (< (float-time) deadline))
+          (sit-for 0.05)))
+      (should (eq called 'success))))
   (beads-command-test--reset-async-state))
 
 (ert-deftest beads-command-test-async-spawn-failure-fires-on-error ()

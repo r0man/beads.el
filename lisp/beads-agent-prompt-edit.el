@@ -88,21 +88,22 @@ or called with nil when cancelled."
   (interactive)
   (let ((prompt (buffer-substring-no-properties (point-min) (point-max)))
         (callback beads-agent-prompt-edit--callback))
-    (unwind-protect
-        (when callback
-          (funcall callback prompt))
-      (beads-agent-prompt-edit--cleanup))))
+    ;; Clean up the prompt-edit buffer BEFORE invoking the callback.
+    ;; The callback may spawn async work that captures `(current-buffer)'
+    ;; as its caller-buffer; if we kill this buffer afterward (e.g. via
+    ;; unwind-protect) the async result is silently dropped.  See bde-d3eg.
+    (beads-agent-prompt-edit--cleanup)
+    (when callback
+      (funcall callback prompt))))
 
 (defun beads-agent-prompt-edit-cancel ()
   "Cancel prompt editing without launching agent."
   (interactive)
   (let ((callback beads-agent-prompt-edit--callback))
-    (unwind-protect
-        (progn
-          (when callback
-            (funcall callback nil))
-          (message "Agent launch cancelled"))
-      (beads-agent-prompt-edit--cleanup))))
+    (beads-agent-prompt-edit--cleanup)
+    (when callback
+      (funcall callback nil))
+    (message "Agent launch cancelled")))
 
 (defun beads-agent-prompt-edit--cleanup ()
   "Clean up prompt edit buffer."
