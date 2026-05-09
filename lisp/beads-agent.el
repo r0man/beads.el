@@ -127,13 +127,6 @@ FALLBACK is returned if no message can be extracted."
   :group 'beads
   :prefix "beads-agent-")
 
-(defcustom beads-agent-auto-set-in-progress t
-  "Automatically set issue status to in_progress when agent starts.
-When non-nil, starting an agent on an issue will update the issue
-status to in_progress if it is currently open."
-  :type 'boolean
-  :group 'beads-agent)
-
 (defcustom beads-agent-default-backend nil
   "Default backend to use for agent sessions.
 If nil, prompt user to select from available backends.
@@ -379,59 +372,6 @@ ISSUE is a beads-issue instance."
      (when (and acceptance (not (string-empty-p acceptance)))
        (format "\nAcceptance Criteria:\n%s\n" acceptance)))))
 
-;;; Status Update
-
-(defun beads-agent--maybe-update-status (issue-id)
-  "Update ISSUE-ID to in_progress if configured and currently open."
-  (when beads-agent-auto-set-in-progress
-    (condition-case nil
-        (let ((issue (beads-execute 'beads-command-show :issue-ids (list issue-id))))
-          (when (equal (oref issue status) "open")
-            (beads-execute 'beads-command-update
-             :issue-ids (list issue-id)
-             :status "in_progress")
-            (beads--invalidate-completion-cache)
-            (message "Set %s to in_progress" issue-id)))
-      (error nil))))  ; Silently ignore errors
-
-(defun beads-agent--maybe-update-status-async (issue-id callback)
-  "Update ISSUE-ID to in_progress if currently open.
-Only updates when `beads-agent-auto-set-in-progress' is non-nil.
-CALLBACK receives no arguments when done."
-  (if (not beads-agent-auto-set-in-progress)
-      (funcall callback)
-    ;; Get issue status first
-    (let ((cmd (beads-command-show :issue-ids (list issue-id) :json t)))
-      (beads-command-execute-async
-       cmd
-       (lambda (data)
-         ;; Parse and check status - data is the parsed issue(s)
-         (condition-case nil
-             (let* ((issue (if (vectorp data) (aref data 0) data))
-                    (status (oref issue status)))
-               (if (equal status "open")
-                   ;; Update to in_progress
-                   (beads-agent--update-status-async issue-id callback)
-                 (funcall callback)))
-           (error (funcall callback))))
-       (lambda (_err)
-         (funcall callback))))))  ; Skip on error
-
-(defun beads-agent--update-status-async (issue-id callback)
-  "Set ISSUE-ID status to in_progress asynchronously.
-CALLBACK receives no arguments when done."
-  (let ((cmd (beads-command-update
-              :issue-ids (list issue-id)
-              :status "in_progress")))
-    (beads-command-execute-async
-     cmd
-     (lambda (_result)
-       (beads--invalidate-completion-cache)
-       (message "Set %s to in_progress" issue-id)
-       (funcall callback))
-     (lambda (_err)
-       (funcall callback)))))
-
 ;;; Context Detection
 
 (defun beads-agent--detect-issue-id ()
@@ -547,13 +487,8 @@ AGENT-TYPE is an optional `beads-agent-type' instance."
   "Continue agent start after worktree is ready.
 ISSUE-ID, BACKEND, PROJECT-DIR, WORKTREE-DIR, PROMPT, ISSUE, AGENT-TYPE
 are passed through from `beads-agent--start-async'."
-  ;; Update status async, then start backend
-  (beads-agent--maybe-update-status-async
-   issue-id
-   (lambda ()
-     ;; Step 4: Start the backend
-     (beads-agent--start-backend-async
-      issue-id backend project-dir worktree-dir prompt issue agent-type))))
+  (beads-agent--start-backend-async
+   issue-id backend project-dir worktree-dir prompt issue agent-type))
 
 (defun beads-agent--fetch-issue-async (issue-id callback)
   "Fetch ISSUE-ID asynchronously and call CALLBACK with result.
