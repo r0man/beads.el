@@ -407,7 +407,7 @@ into a compact hierarchical structure with sub-dispatches."
     ("l" "List" beads-list)
     ("c" "Create" beads-compose-create)
     ("/" "Search" beads-search)
-    ("S" "Show" beads-show)
+    ("i" "Show" beads-show)
     ("u" "Update" beads-update)
     ("x" "Close" beads-close)]
    ["Workflow"
@@ -417,7 +417,8 @@ into a compact hierarchical structure with sub-dispatches."
     ("e" "Edit" beads-edit)
     ("o" "Reopen" beads-reopen)]
    ["Views"
-    ("s" "Status" beads-status)
+    ("s" "Dashboard" beads-dashboard)
+    ("S" "Stats" beads-stats)
     ("v" "Graph" beads-graph-all)
     ("E" "Epic" beads-epic-menu)
     ("H" "History" beads-history)
@@ -517,9 +518,13 @@ which shows daemon status and database statistics."
 ;;;###autoload
 (autoload 'beads-delete "beads-command-delete" nil t)
 
-;; beads-status
+;; beads-status (deprecated compat shim)
 ;;;###autoload
 (autoload 'beads-status "beads-status" nil t)
+
+;; beads-dashboard
+;;;###autoload
+(autoload 'beads-dashboard "beads-dashboard" nil t)
 
 ;; beads-command-show
 ;;;###autoload
