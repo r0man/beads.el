@@ -171,20 +171,29 @@ Returns nil when pager mode is off or there is only one page."
 WINDOW-OR-FRAME is a window when called from a buffer-local hook,
 or a frame when called from the global hook.  Buffer-local hooks on
 `window-size-change-functions' receive the changed window, not
-the frame."
-  (if (windowp window-or-frame)
-      ;; Buffer-local: called with the specific window
-      (when (window-live-p window-or-frame)
-        (with-current-buffer (window-buffer window-or-frame)
-          (when (and (bound-and-true-p beads-pager-mode)
-                     beads-pager--all-entries)
-            (beads-pager--apply))))
-    ;; Global: called with frame, iterate all windows
-    (dolist (window (window-list window-or-frame))
-      (with-current-buffer (window-buffer window)
-        (when (and (bound-and-true-p beads-pager-mode)
-                   beads-pager--all-entries)
-          (beads-pager--apply))))))
+the frame.
+
+For each affected window, sync buffer-point with the window's
+`window-point' before re-paginating, then propagate the new
+buffer-point back.  `tabulated-list-print' inside
+`beads-pager--apply' calls `erase-buffer', which clamps the
+window-point of any non-selected window to `(point-min)' and only
+restores buffer-point — without this dance the cursor jumps to
+the first row whenever the user pops up another buffer (e.g.
+pressing RET on an issue in `beads-list')."
+  (cl-flet ((apply-window
+             (window)
+             (when (window-live-p window)
+               (with-current-buffer (window-buffer window)
+                 (when (and (bound-and-true-p beads-pager-mode)
+                            beads-pager--all-entries)
+                   (goto-char (window-point window))
+                   (beads-pager--apply)
+                   (set-window-point window (point)))))))
+    (if (windowp window-or-frame)
+        (apply-window window-or-frame)
+      (dolist (window (window-list window-or-frame))
+        (apply-window window)))))
 
 ;;; Keymap
 

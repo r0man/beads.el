@@ -251,5 +251,81 @@
       (beads-pager-set-entries entries)
       (should (eq (length tabulated-list-entries) 5)))))
 
+;;; Window Resize Hook — Window-Point Preservation
+
+(defun beads-pager-test--make-rendered-buffer (n page-size)
+  "Return a fresh buffer with N pager entries already rendered.
+PAGE-SIZE pins the page size so window geometry doesn't matter."
+  (let ((buf (generate-new-buffer " *beads-pager-test-rendered*")))
+    (with-current-buffer buf
+      (tabulated-list-mode)
+      (setq tabulated-list-format (vector (list "ID" 5 t) (list "Val" 10 t)))
+      (tabulated-list-init-header)
+      (beads-pager-mode 1)
+      (setq beads-pager--page-size page-size)
+      (beads-pager-set-entries (beads-pager-test--make-entries n)))
+    buf))
+
+(ert-deftest beads-pager-test-on-resize-preserves-window-point ()
+  "`beads-pager--on-window-resize' must preserve the window's cursor row.
+Reproduces bde-grus: pressing RET on issue 2 in *beads-list* used to
+reset the cursor to the first issue because the buffer-local resize
+hook called `tabulated-list-print', whose `erase-buffer' clamps a
+non-selected window's `window-point' to `(point-min)' before buffer-point
+is restored."
+  (let* ((pager-buf (beads-pager-test--make-rendered-buffer 10 20))
+         (other-buf (generate-new-buffer " *beads-pager-test-other*"))
+         (saved-config (current-window-configuration)))
+    (unwind-protect
+        (progn
+          (delete-other-windows)
+          (set-window-buffer (selected-window) other-buf)
+          (let ((pager-win (split-window (selected-window) nil 'below)))
+            (set-window-buffer pager-win pager-buf)
+            ;; Position window-point on entry 2 (second tabulated row).
+            (with-current-buffer pager-buf
+              (goto-char (point-min))
+              (forward-line 1)
+              (should (equal (tabulated-list-get-id) "2"))
+              (set-window-point pager-win (point)))
+            ;; Trigger the buffer-local resize hook path.
+            (beads-pager--on-window-resize pager-win)
+            ;; Window-point should still resolve to entry "2", not "1".
+            (let ((wp (window-point pager-win)))
+              (with-current-buffer pager-buf
+                (goto-char wp)
+                (should (equal (tabulated-list-get-id) "2"))))))
+      (set-window-configuration saved-config)
+      (when (buffer-live-p pager-buf) (kill-buffer pager-buf))
+      (when (buffer-live-p other-buf) (kill-buffer other-buf)))))
+
+(ert-deftest beads-pager-test-on-resize-frame-path-preserves-window-point ()
+  "Global (frame) resize-hook path must also preserve `window-point'.
+Same scenario as `beads-pager-test-on-resize-preserves-window-point' but
+exercises the dolist branch where `window-or-frame' is a frame."
+  (let* ((pager-buf (beads-pager-test--make-rendered-buffer 10 20))
+         (other-buf (generate-new-buffer " *beads-pager-test-other*"))
+         (saved-config (current-window-configuration)))
+    (unwind-protect
+        (progn
+          (delete-other-windows)
+          (set-window-buffer (selected-window) other-buf)
+          (let ((pager-win (split-window (selected-window) nil 'below)))
+            (set-window-buffer pager-win pager-buf)
+            (with-current-buffer pager-buf
+              (goto-char (point-min))
+              (forward-line 2)
+              (should (equal (tabulated-list-get-id) "3"))
+              (set-window-point pager-win (point)))
+            ;; Pass a frame, not a window, to take the dolist branch.
+            (beads-pager--on-window-resize (selected-frame))
+            (let ((wp (window-point pager-win)))
+              (with-current-buffer pager-buf
+                (goto-char wp)
+                (should (equal (tabulated-list-get-id) "3"))))))
+      (set-window-configuration saved-config)
+      (when (buffer-live-p pager-buf) (kill-buffer pager-buf))
+      (when (buffer-live-p other-buf) (kill-buffer other-buf)))))
+
 (provide 'beads-pager-test)
 ;;; beads-pager-test.el ends here
