@@ -802,7 +802,7 @@ and `beads-agent-ralph-notification-body-format`.  Falls back to `message`
 ;; Default Claude permission mode (string).  When using a worktree,
 ;; `bypassPermissions' is allowed; in the main repo a stricter mode is
 ;; required (the controller errors otherwise).
-(setq beads-agent-ralph-default-permission-mode "acceptEdits")
+(setq beads-agent-ralph-permission-mode "acceptEdits")
 
 ;; Desktop notifications — symbol, one of `always', `on-stop' (default),
 ;; `on-failure', `never'.
