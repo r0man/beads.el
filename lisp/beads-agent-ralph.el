@@ -1775,6 +1775,16 @@ Steps:
                  ;; next iter so it cannot leak across.
                  (oset controller user-killed-iter nil)
                  (cond
+                  ;; User-initiated stop: terminate before any other
+                  ;; dispatch.  `beads-agent-ralph-stop' sets
+                  ;; `done-reason' but leaves status `running' until
+                  ;; the in-flight stream's sentinel fires; without
+                  ;; this branch the loop would silently continue.
+                  ;; `kill-iter' deliberately does NOT set
+                  ;; `done-reason', so it falls through to the
+                  ;; continue path below.
+                  ((eq (oref controller done-reason) 'stop)
+                   (beads-agent-ralph--terminate controller 'stop))
                   ;; Stall cap → auto-pause; counter+cost preserved.
                   (paused
                    (beads-agent-ralph--pause
