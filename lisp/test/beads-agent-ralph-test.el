@@ -1578,6 +1578,188 @@ test, which is exactly what we need to avoid."
     (should called)
     (should (zerop resolver-calls))))
 
+;;; Full-reset cascade (bde-kz5s)
+
+(ert-deftest beads-agent-ralph-test-full-reset-flag-nil-no-op ()
+  "When `pending-full-reset' is nil DONE fires immediately and bd is untouched."
+  (let ((c (beads-agent-ralph-test--make-controller :pending-full-reset nil))
+        (called nil)
+        (bd-calls 0))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id _k) (cl-incf bd-calls)))
+              ((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id _k) (cl-incf bd-calls)))
+              ((symbol-function 'beads-agent-ralph--bd-reopen-clear-async)
+               (lambda (_id _k) (cl-incf bd-calls))))
+      (beads-agent-ralph--maybe-bd-reset-async
+       c (lambda () (setq called t))))
+    (should called)
+    (should (zerop bd-calls))
+    (should-not (oref c pending-full-reset))))
+
+(ert-deftest beads-agent-ralph-test-full-reset-issue-mode-closed-root ()
+  "Issue mode + closed root → reopen-clear runs once and the flag is cleared."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :pending-full-reset t :root-kind 'issue :root-id "bde-root"))
+         (called nil)
+         (reopen-ids nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id id :status "closed"))))
+              ((symbol-function 'beads-agent-ralph--bd-reopen-clear-async)
+               (lambda (id k) (push id reopen-ids) (funcall k t nil))))
+      (beads-agent-ralph--maybe-bd-reset-async
+       c (lambda () (setq called t))))
+    (should called)
+    (should-not (oref c pending-full-reset))
+    (should (equal reopen-ids '("bde-root")))
+    (should (cl-some (lambda (b)
+                       (and (eq 'info (plist-get b :severity))
+                            (string-match-p "Full-reset complete"
+                                            (plist-get b :text))))
+                     (oref c banner-log)))))
+
+(ert-deftest beads-agent-ralph-test-full-reset-issue-mode-open-root-skips ()
+  "Issue mode + open root → no reopen call but the flag still clears."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :pending-full-reset t :root-kind 'issue :root-id "bde-root"))
+         (called nil)
+         (reopen-calls 0))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id id :status "open"))))
+              ((symbol-function 'beads-agent-ralph--bd-reopen-clear-async)
+               (lambda (_id _k) (cl-incf reopen-calls))))
+      (beads-agent-ralph--maybe-bd-reset-async
+       c (lambda () (setq called t))))
+    (should called)
+    (should-not (oref c pending-full-reset))
+    (should (zerop reopen-calls))
+    (should (cl-some (lambda (b) (string-match-p "no closed target"
+                                                 (plist-get b :text)))
+                     (oref c banner-log)))))
+
+(ert-deftest beads-agent-ralph-test-full-reset-epic-mode-mixed-children ()
+  "Epic mode reopens only the closed children and reports them by id."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :pending-full-reset t :root-kind 'epic :root-id "bde-root"))
+         (called nil)
+         (reopen-ids nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id k)
+                 (funcall k t
+                          (list
+                           (beads-agent-ralph-test--make-issue
+                            :id "bde-c1" :status "closed")
+                           (beads-agent-ralph-test--make-issue
+                            :id "bde-c2" :status "open")
+                           (beads-agent-ralph-test--make-issue
+                            :id "bde-c3" :status "closed")))))
+              ((symbol-function 'beads-agent-ralph--bd-reopen-clear-async)
+               (lambda (id k) (push id reopen-ids) (funcall k t nil))))
+      (beads-agent-ralph--maybe-bd-reset-async
+       c (lambda () (setq called t))))
+    (should called)
+    (should-not (oref c pending-full-reset))
+    (should (equal (sort (copy-sequence reopen-ids) #'string<)
+                   '("bde-c1" "bde-c3")))
+    (should (cl-some (lambda (b)
+                       (let ((text (plist-get b :text)))
+                         (and (string-match-p "bde-c1" text)
+                              (string-match-p "bde-c3" text))))
+                     (oref c banner-log)))))
+
+(ert-deftest beads-agent-ralph-test-full-reset-epic-mode-no-children ()
+  "Epic mode + no children → flag cleared, info banner says nothing to reopen."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :pending-full-reset t :root-kind 'epic :root-id "bde-root"))
+         (called nil)
+         (reopen-calls 0))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--bd-reopen-clear-async)
+               (lambda (_id _k) (cl-incf reopen-calls))))
+      (beads-agent-ralph--maybe-bd-reset-async
+       c (lambda () (setq called t))))
+    (should called)
+    (should-not (oref c pending-full-reset))
+    (should (zerop reopen-calls))
+    (should (cl-some (lambda (b) (string-match-p "no closed children"
+                                                 (plist-get b :text)))
+                     (oref c banner-log)))))
+
+(ert-deftest beads-agent-ralph-test-full-reset-partial-failure ()
+  "A failing per-child update logs a warning but does not abort the cascade."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :pending-full-reset t :root-kind 'epic :root-id "bde-root"))
+         (called nil)
+         (attempts nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id k)
+                 (funcall k t
+                          (list (beads-agent-ralph-test--make-issue
+                                 :id "bde-ok" :status "closed")
+                                (beads-agent-ralph-test--make-issue
+                                 :id "bde-fail" :status "closed")
+                                (beads-agent-ralph-test--make-issue
+                                 :id "bde-late-ok" :status "closed")))))
+              ((symbol-function 'beads-agent-ralph--bd-reopen-clear-async)
+               (lambda (id k)
+                 (push id attempts)
+                 (funcall k (not (string= id "bde-fail")) "err"))))
+      (beads-agent-ralph--maybe-bd-reset-async
+       c (lambda () (setq called t))))
+    (should called)
+    (should-not (oref c pending-full-reset))
+    (should (equal (sort (copy-sequence attempts) #'string<)
+                   '("bde-fail" "bde-late-ok" "bde-ok")))
+    (should (cl-some (lambda (b)
+                       (and (eq 'warning (plist-get b :severity))
+                            (string-match-p "bde-fail reopen failed"
+                                            (plist-get b :text))))
+                     (oref c banner-log)))
+    (should (cl-some (lambda (b)
+                       (and (eq 'warning (plist-get b :severity))
+                            (string-match-p "1 failure" (plist-get b :text))))
+                     (oref c banner-log)))))
+
+(ert-deftest beads-agent-ralph-test-full-reset-list-failure-degrades ()
+  "If `bd list' fails the cascade pushes a warning, clears the flag, calls DONE."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :pending-full-reset t :root-kind 'epic :root-id "bde-root"))
+         (called nil)
+         (reopen-calls 0))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id k) (funcall k nil "boom")))
+              ((symbol-function 'beads-agent-ralph--bd-reopen-clear-async)
+               (lambda (_id _k) (cl-incf reopen-calls))))
+      (beads-agent-ralph--maybe-bd-reset-async
+       c (lambda () (setq called t))))
+    (should called)
+    (should-not (oref c pending-full-reset))
+    (should (zerop reopen-calls))
+    (should (cl-some (lambda (b)
+                       (and (eq 'warning (plist-get b :severity))
+                            (string-match-p "bd list failed"
+                                            (plist-get b :text))))
+                     (oref c banner-log)))))
+
+(ert-deftest beads-agent-ralph-test-apply-resume-choice-full-reset-sets-flag ()
+  "`apply-resume-choice' for full-reset returns args carrying the pending flag."
+  (let* ((tmp (make-temp-file "ralph-resume-" t))
+         (root "bde-root"))
+    (unwind-protect
+        (cl-letf (((symbol-function 'beads-agent-ralph-persist-archive-jsonl)
+                   (lambda (&rest _) nil)))
+          (let ((args (beads-agent-ralph--apply-resume-choice
+                       'full-reset tmp root nil
+                       (list :root-id root))))
+            (should (equal t (plist-get args :pending-full-reset)))
+            (should (equal root (plist-get args :root-id)))))
+      (delete-directory tmp t))))
+
 (provide 'beads-agent-ralph-test)
 
 ;;; beads-agent-ralph-test.el ends here
