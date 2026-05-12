@@ -43,17 +43,15 @@
 
 ;; This module is a leaf: the controller (`beads-agent-ralph') and the
 ;; stream (`beads-agent-ralph-stream') require us, not vice versa.  We
-;; only use generic `oref' on caller-supplied objects at runtime;
-;; declare-function plus suppressed-warnings keep the byte-compiler
-;; quiet about slots it cannot see.
+;; only use generic `oref' on caller-supplied objects at runtime, with
+;; the slot accesses on the controller/iteration classes wrapped in
+;; `with-no-warnings' since the byte-compiler cannot see those classes
+;; from this file (same precedent as `beads-command.el').
 
 (declare-function beads-agent-ralph--stream-subscribe
                   "beads-agent-ralph-stream" (stream label callback))
 (declare-function beads-agent-ralph--stream-unsubscribe
                   "beads-agent-ralph-stream" (stream label))
-
-(eval-when-compile
-  (defvar warning-suppress-types))
 
 ;;; Customization
 
@@ -133,38 +131,47 @@ duality)."
 ROOT-ID is recorded on each summary record so the JSONL is self-
 describing even when copied out of context.  The shape mirrors the
 iteration object slots plus a stable `kind' tag."
-  (list
-   (cons "kind" "iteration")
-   (cons "root_id" (or root-id ""))
-   (cons "issue_id" (or (oref iter issue-id) ""))
-   (cons "status" (and (oref iter status) (symbol-name (oref iter status))))
-   (cons "duration_ms" (or (oref iter duration-ms) 0))
-   (cons "cost_usd" (or (oref iter cost-usd) 0))
-   (cons "tool_call_count" (oref iter tool-call-count))
-   (cons "bd_updates_count" (oref iter bd-updates-count))
-   (cons "sentinel_hit" (if (oref iter sentinel-hit) t :json-false))
-   (cons "summary" (or (oref iter summary) ""))
-   (cons "files_touched" (oref iter files-touched))
-   (cons "stderr_tail" (oref iter stderr-tail))
-   (cons "verify_result" (oref iter verify-result))
-   (cons "timestamp" (format-time-string "%FT%T%z"))))
+  ;; `with-no-warnings' here silences spurious \"Unknown slot\" warnings:
+  ;; this module deliberately does not require `beads-agent-ralph' (the
+  ;; dep direction is the other way), so the byte-compiler cannot see
+  ;; the iteration class.  Slots are real -- see the iteration defclass
+  ;; in `beads-agent-ralph.el'.  Same precedent as `beads-command.el'.
+  (with-no-warnings
+    (list
+     (cons "kind" "iteration")
+     (cons "root_id" (or root-id ""))
+     (cons "issue_id" (or (oref iter issue-id) ""))
+     (cons "status" (and (oref iter status) (symbol-name (oref iter status))))
+     (cons "duration_ms" (or (oref iter duration-ms) 0))
+     (cons "cost_usd" (or (oref iter cost-usd) 0))
+     (cons "tool_call_count" (oref iter tool-call-count))
+     (cons "bd_updates_count" (oref iter bd-updates-count))
+     (cons "sentinel_hit" (if (oref iter sentinel-hit) t :json-false))
+     (cons "summary" (or (oref iter summary) ""))
+     (cons "files_touched" (oref iter files-touched))
+     (cons "stderr_tail" (oref iter stderr-tail))
+     (cons "verify_result" (oref iter verify-result))
+     (cons "timestamp" (format-time-string "%FT%T%z")))))
 
 (defun beads-agent-ralph-persist--status-to-alist (controller status)
   "Convert a CONTROLLER status transition into an alist for JSON.
 Captures terminal-state crumbs (status, done-reason, totals) so a
 post-mortem reader can reconstruct the loop's final disposition
 without consulting the live controller."
-  (list
-   (cons "kind" "status")
-   (cons "root_id" (or (oref controller root-id) ""))
-   (cons "status" (and (oref controller status) (symbol-name status)))
-   (cons "done_reason" (and (oref controller done-reason)
-                            (symbol-name (oref controller done-reason))))
-   (cons "iteration" (oref controller iteration))
-   (cons "cumulative_cost_usd" (oref controller cumulative-cost-usd))
-   (cons "false_claim_count" (oref controller false-claim-count))
-   (cons "consecutive_stalls" (oref controller consecutive-stalls))
-   (cons "timestamp" (format-time-string "%FT%T%z"))))
+  ;; See sibling helper above: leaf-module slot accesses on the
+  ;; controller class require `with-no-warnings'.
+  (with-no-warnings
+    (list
+     (cons "kind" "status")
+     (cons "root_id" (or (oref controller root-id) ""))
+     (cons "status" (and (oref controller status) (symbol-name status)))
+     (cons "done_reason" (and (oref controller done-reason)
+                              (symbol-name (oref controller done-reason))))
+     (cons "iteration" (oref controller iteration))
+     (cons "cumulative_cost_usd" (oref controller cumulative-cost-usd))
+     (cons "false_claim_count" (oref controller false-claim-count))
+     (cons "consecutive_stalls" (oref controller consecutive-stalls))
+     (cons "timestamp" (format-time-string "%FT%T%z")))))
 
 ;;; Writers
 

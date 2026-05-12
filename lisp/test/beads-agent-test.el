@@ -93,6 +93,11 @@ Calls sync stop immediately for testing purposes."
 (defvar beads-agent-test--mock-backend nil
   "Mock backend instance for tests.")
 
+(defvar beads-agent-test--saved-backends nil
+  "Snapshot of `beads-agent--backends' taken in setup.
+Restored in teardown so tests in this file do not bleed state into
+later test files that depend on top-level backend registration.")
+
 (defvar beads-agent-test--saved-hook-handlers nil
   "Saved hook handlers to restore after tests.")
 
@@ -121,7 +126,11 @@ SESSION is the beads-agent-session object."
   "Setup test fixtures."
   ;; Clear mock sesman storage
   (setq beads-agent-test--sesman-sessions nil)
-  ;; Clear backends
+  ;; Save and clear backends so registrations from other modules do not
+  ;; interfere with the mock-only registry these tests assume.  The
+  ;; teardown restores the snapshot so later test files still see the
+  ;; backends that registered themselves at load time.
+  (setq beads-agent-test--saved-backends beads-agent--backends)
   (setq beads-agent--backends nil)
   ;; Save and replace hook handlers
   (setq beads-agent-test--saved-hook-handlers beads-agent-state-change-hook)
@@ -135,8 +144,9 @@ SESSION is the beads-agent-session object."
   "Teardown test fixtures."
   ;; Clear mock sesman storage
   (setq beads-agent-test--sesman-sessions nil)
-  ;; Clear backends
-  (setq beads-agent--backends nil)
+  ;; Restore backends snapshot captured in setup.
+  (setq beads-agent--backends beads-agent-test--saved-backends)
+  (setq beads-agent-test--saved-backends nil)
   ;; Restore original hook handlers
   (setq beads-agent-state-change-hook beads-agent-test--saved-hook-handlers)
   (setq beads-agent-test--saved-hook-handlers nil)
