@@ -315,7 +315,7 @@ renderer can show the expand affordance when truncated."
           (oref controller cumulative-cost-usd)))
 
 (defun beads-agent-ralph-dashboard--secondary-line (controller)
-  "Return the secondary header detail line.
+  "Return the secondary header detail line for CONTROLLER.
 Surfaces model, backend kind, sentinel state.  Rendered when the
 header expansion key is toggled."
   (let ((stream (oref controller current-stream)))
@@ -346,7 +346,7 @@ Severity ordering: error > warning > notice > info."
                       0))))))))
 
 (defun beads-agent-ralph-dashboard--banner-line (controller)
-  "Return the top banner as a vnode, or nil if no banners."
+  "Return the top banner from CONTROLLER as a vnode, or nil if no banners."
   (when-let ((entry (beads-agent-ralph-dashboard--top-banner controller)))
     (let ((face (pcase (plist-get entry :severity)
                   ('error 'error) ('warning 'warning)
