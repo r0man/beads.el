@@ -1715,6 +1715,7 @@ Customize `beads-agent-mode-line-format' to change the display style."
 (require 'beads-agent-agent-shell nil t)
 (require 'beads-agent-efrit nil t)
 (require 'beads-agent-eca nil t)
+(require 'beads-agent-ralph-backend nil t)
 
 ;;; Load Agent List Module
 
