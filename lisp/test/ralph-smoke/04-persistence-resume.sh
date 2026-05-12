@@ -27,17 +27,26 @@ bd init >/dev/null 2>&1 || true
 ISSUE=$(bd create --title "Resume test" --description "Append a single line per iter." --type task --priority 2 --json | sed -n 's/.*"id":"\([^"]*\)".*/\1/p' | head -1)
 
 # Round 1: launch with timeout, expect at least one iteration to land.
-timeout 60s emacs -batch \
+timeout 90s emacs -batch \
     -L "$PROJECT_ROOT/lisp" \
     -l beads-agent-ralph \
-    --eval "(let ((default-directory \"$TMPDIR/\")
-                   (beads-agent-use-worktrees nil))
-              (beads-agent-ralph-start
-                :issue \"$ISSUE\"
-                :project-dir \"$TMPDIR/\"
-                :max-iterations 10
-                :iteration-delay 1
-                :resume-action 'fresh-no-prompt))" \
+    --eval "(let* ((default-directory \"$TMPDIR/\")
+                    (beads-agent-use-worktrees nil)
+                    (result (beads-agent-ralph-start
+                             :issue \"$ISSUE\"
+                             :project-dir \"$TMPDIR/\"
+                             :max-iterations 10
+                             :iteration-delay 1
+                             :resume-action 'fresh-no-prompt))
+                    (controller (car result)))
+              ;; Block for up to 75 s so at least one iteration lands;
+              ;; the outer \`timeout 90s\` will SIGTERM us if we're still
+              ;; running, which is the intended kill-mid-run scenario.
+              (let ((deadline (+ (float-time) 75)))
+                (while (and (< (float-time) deadline)
+                            (not (memq (oref controller status)
+                                       '(done failed stopped auto-paused))))
+                  (accept-process-output nil 1.0))))" \
     2>&1 | tail -20
 
 echo "Round 1 JSONL state:"
