@@ -1763,6 +1763,7 @@ Customize `beads-agent-mode-line-format' to change the display style."
 ;; does not flip any per-type default).
 (require 'beads-agent-backend-terminal nil t)
 (require 'beads-agent-ralph-backend nil t)
+(require 'beads-agent-ralph-mode-line nil t)
 
 ;;; Load Agent List Module
 

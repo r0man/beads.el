@@ -275,6 +275,13 @@ children), `budget' (max-iterations or cost cap), `stop' (user),
 Even when zero, the next iteration is dispatched via `run-at-time' so
 the call stack does not grow across sentinels.  Configurable so the
 user can rate-limit overnight runs.")
+   (started-at
+    :initarg :started-at
+    :initform nil
+    :documentation "Wall-clock time the controller was started, or nil.
+Set once by `beads-agent-ralph-start' and read by the mode-line
+indicator and notification formatter to compute elapsed time.  Stays
+fixed across iterations; a resume keeps the original start.")
    (banner-log
     :initarg :banner-log
     :initform nil
@@ -540,6 +547,54 @@ exist the defcustom value is used instead, without error -- this
 makes it safe to leave configured for repos that opt in via a
 checked-in `.beads/scratch/ralph/<id>.prompt.md'."
   :type '(choice (const :tag "Use defcustom only" nil) file)
+  :group 'beads-agent-ralph)
+
+(defcustom beads-agent-ralph-mode-line-sticky-seconds 10
+  "Seconds the mode-line indicator stays visible after a controller terminates.
+The user has just dropped focus on an overnight run; a brief
+post-terminal lingering prevents the indicator from vanishing the
+moment the user looks up.  Set to 0 to disable the sticky window."
+  :type 'number
+  :group 'beads-agent-ralph)
+
+(defcustom beads-agent-ralph-notify 'on-stop
+  "When the Ralph controller should fire a desktop notification.
+- `always'      every state transition.
+- `on-stop'     any terminal state (`done', `stopped', `failed') and
+                `auto-paused' — i.e. anything that interrupts the loop,
+                success included.  Silent success is the worst possible
+                UX for an overnight run.
+- `on-failure'  only `stopped' (for non-stop reasons), `failed', and
+                `auto-paused'.
+- `never'       no notifications.
+
+Notifications use `notifications-notify' when available, falling back
+to `message' + `ding'."
+  :type '(choice (const :tag "Every transition" always)
+                 (const :tag "Terminal states (default)" on-stop)
+                 (const :tag "Failure/stall only" on-failure)
+                 (const :tag "Never" never))
+  :group 'beads-agent-ralph)
+
+(defcustom beads-agent-ralph-notification-title-format "Ralph: %s"
+  "Format string for the notification title.
+A single `%s' is replaced with the controller's root id."
+  :type 'string
+  :group 'beads-agent-ralph)
+
+(defcustom beads-agent-ralph-notification-body-format
+  "%v · %r %s · %n iters · $%c · %e%R"
+  "`format-spec' template for the notification body.
+Supported specs:
+
+  %v   verb (the new status name, e.g. \"done\", \"stopped\")
+  %r   controller root id
+  %s   bd state suffix — \"closed\" when status is `done', else \"open\"
+  %n   iteration count
+  %c   cumulative cost (already formatted with `$' suffix-free width)
+  %e   elapsed wall-clock (e.g. \"1h34m\", \"22m\", \"47s\")
+  %R   reason segment — \" · <reason>\" when one is available, else empty"
+  :type 'string
   :group 'beads-agent-ralph)
 
 ;;; Hooks
@@ -1614,6 +1669,7 @@ the backend can pick it up).  The first iteration is dispatched via
            :prompt-template prompt
            :max-iterations max-iterations
            :iteration-delay iteration-delay
+           :started-at (current-time)
            :status 'idle)))
     (beads-agent-ralph--ensure-stub-dashboard controller)
     (beads-agent-ralph--set-status controller 'running)
