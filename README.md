@@ -616,6 +616,9 @@ From the browser, you can:
 
 Currently implemented:
 - **claude-code-ide**: Integration with Claude Code via claude-code-ide.el
+- **ralph**: Iterative "Ralph Wiggum" loop driving `claude --print` directly
+  with a live vui dashboard, cost guards, persistence, and resume.  See
+  [Ralph Loop](#ralph-loop) below.
 
 Placeholder backends (not yet implemented):
 - efrit
@@ -660,6 +663,161 @@ multiple agents working in isolated worktrees.
 3. Press `e` and select a worktree from the completion list
 4. Optionally press `i` to associate with an issue
 5. Press `x` to start agent in the selected worktree
+
+## Ralph Loop
+
+The **Ralph** backend implements an iterative "I do say" loop inspired by the
+[Ralph Wiggum Guide](https://ghuntley.com/ralph/) and Geoff Huntley's
+[canonical essay](https://ghuntley.com/ralph/).  Instead of one long-running
+agent context, Ralph runs a fresh `claude --print` invocation each iteration
+on the same prompt, until the agent emits a sentinel (default:
+`<promise>COMPLETE</promise>`) or the issue is closed.  Fresh sessions
+sidestep context bloat and hallucination.
+
+In a beads workspace there is no `plan.md` / `activity.md` scaffolding: the bd
+issue itself is the plan, and `bd update --notes` events are the activity log.
+
+### Launching Ralph
+
+`M-x beads-agent-ralph-launch` is the public entry point.  Pass `:issue` (a bd
+issue id) and optionally `:kind` (`'issue` or `'epic`):
+
+```elisp
+(beads-agent-ralph-launch :issue "bd-42")            ; single issue
+(beads-agent-ralph-launch :issue "bd-99" :kind 'epic) ; epic: auto-advance children
+```
+
+In **epic mode** the loop picks the first ready child each iteration and
+auto-advances when one closes.  In **issue mode** the loop iterates on a
+single issue until it closes or a budget cap fires.
+
+When `beads-agent-ralph-confirm-start` is non-nil (default), the launch goes
+through a confirm-start dialog:
+
+- `y` — spawn the loop immediately.
+- `n` — cancel.
+- `d` — pop a **dry-run buffer** showing the iter-1 prompt, the full `claude`
+  argv, and `[Spawn now]` / `[Apply argv overrides]` / `[Cancel]` buttons.
+  Edit the prompt in-buffer, then spawn when satisfied.
+
+### Dashboard
+
+Each Ralph session mounts a vui-backed dashboard buffer with four regions:
+
+| Region | What it shows |
+|--------|---------------|
+| Header | Root id, kind (issue/epic), iteration count, cumulative cost, run status. |
+| Iterations table | One row per iteration: number, child id (epic mode), status, duration, cost, tool-uses, summary. |
+| Live stream | Streaming assistant text + tool calls for the current iteration. |
+| Banners | Severity-ranked banners for stall, lying-agent, budget exhaustion, verify failure, etc. |
+
+The dashboard updates incrementally as NDJSON events arrive from
+`claude --print --output-format stream-json --verbose`.
+
+### Cost guards
+
+Three independent caps protect against runaway spend:
+
+- `beads-agent-ralph-max-budget-usd` — total cumulative budget across all
+  iterations (nil = unlimited).
+- `beads-agent-ralph-max-budget-usd-per-iter` — per-iteration cap, passed to
+  `claude --max-budget-usd`.
+- `beads-agent-ralph-max-turns` — per-iteration turn cap, passed to
+  `claude --max-turns`.
+
+When any cap fires the loop terminates with a `budget` reason and a banner.
+The mode-line indicator (see below) shows cumulative cost in a width-adaptive
+format.
+
+### Persistence + resume
+
+Every iteration appends a record to `.beads/scratch/ralph/<root-id>.jsonl`
+and the raw NDJSON stream to
+`.beads/scratch/ralph/<root-id>.iter-<N>.ndjson` (newest 50 retained by
+default, older files gzipped to `.ndjson.gz`).
+
+`M-x beads-agent-ralph-show-history` replays the JSONL log for an inspector
+buffer.  When a controller is restarted on a root that already has history,
+Ralph detects the resume and prompts with `read-char`:
+
+- **clean tree** — `[r]esume  [f]resh  [F]ull-reset  [c]ancel`
+- **dirty tree** — `[r]esume  [s]tash-and-resume  [f]resh  [F]ull-reset  [c]ancel`
+
+`[F]ull-reset` reopens a closed root issue and clears stale claims so the
+next iteration starts from a known-good state.
+
+### Worktree integration
+
+Ralph honours the agent framework's `beads-agent-use-worktrees`.  In epic
+mode all sub-issues of one epic **share a single worktree** keyed on the
+root id, so the agent can carry incremental progress across iterations on
+different child issues without flipping branches.
+
+`beads-agent-ralph-verify-protect-paths` (default `test/**`, `tests/**`,
+`spec/**`) feeds two complementary guards:
+
+1. A `--settings` payload written before each spawn injects
+   `Edit(glob)`/`Write(glob)`/`MultiEdit(glob)`/`NotebookEdit(glob)` deny
+   rules so the agent cannot rewrite test files inside the iteration even
+   under `--permission-mode bypassPermissions`.  Bash is deliberately
+   omitted: the agent still needs shell to run `bd`.
+2. A post-iteration git diff restricted to the same paths posts a
+   `warning` banner if a test file changed anyway — backstop for cases
+   the deny rules miss.
+
+### Mode-line indicator
+
+`M-x beads-agent-ralph-mode-line-mode` shows a per-controller indicator with
+the root id, iteration count, cumulative cost (`$1.23` or `XXX ` for sums
+≥ $1000), and a status glyph.  Sticky for
+`beads-agent-ralph-mode-line-sticky-seconds` after a terminal transition so
+the final state remains visible.
+
+### Notifications
+
+`beads-agent-ralph-notify` controls when `notifications-notify` fires:
+
+- `always` — every state transition.
+- `on-stop` (default) — any terminal state (`done`, `stopped`, `failed`,
+  `auto-paused`).  Silent success is the worst UX for an overnight run.
+- `on-failure` — failure/auto-pause only.
+- `never` — disable.
+
+Formats are configurable via `beads-agent-ralph-notification-title-format`
+and `beads-agent-ralph-notification-body-format`.  Falls back to `message`
++ `ding` if `notifications-notify` is unavailable.
+
+### Configuration cheatsheet
+
+```elisp
+;; Skip the confirm-start dialog (less safety; faster restart cycle).
+(setq beads-agent-ralph-confirm-start nil)
+
+;; Caps.
+(setq beads-agent-ralph-max-iterations 50)
+(setq beads-agent-ralph-max-turns 30)
+(setq beads-agent-ralph-max-budget-usd 20.0)
+(setq beads-agent-ralph-max-budget-usd-per-iter 2.0)
+
+;; Default Claude permission mode (string).  When using a worktree,
+;; `bypassPermissions' is allowed; in the main repo a stricter mode is
+;; required (the controller errors otherwise).
+(setq beads-agent-ralph-default-permission-mode "acceptEdits")
+
+;; Desktop notifications — symbol, one of `always', `on-stop' (default),
+;; `on-failure', `never'.
+(setq beads-agent-ralph-notify 'always)
+
+;; Custom prompt.  Either set `beads-agent-ralph-prompt' inline or
+;; point `-prompt-file' at a file.  Either text supports the
+;; placeholders <ROOT-ID>, <ISSUE-ID>, <ISSUE-TITLE>, <PLAN-VIEW>,
+;; and <SENTINEL>.  The path itself can also contain `<ROOT-ID>'
+;; so each loop can have its own in-tree prompt.
+(setq beads-agent-ralph-prompt-file ".beads/ralph/<ROOT-ID>.prompt.md")
+```
+
+See `M-x customize-group RET beads-agent-ralph RET` for all 30+
+configurable variables.
 
 ## Worktree Management
 
