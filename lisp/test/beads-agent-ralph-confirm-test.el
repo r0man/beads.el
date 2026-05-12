@@ -45,8 +45,8 @@
     (should (member "--" argv))))
 
 (ert-deftest beads-agent-ralph-confirm-test-argv-permission-default ()
-  "Permission mode defaults to the bypassPermissions defcustom."
-  (let* ((beads-agent-ralph-default-permission-mode "bypassPermissions")
+  "Permission mode defaults to `beads-agent-ralph-permission-mode'."
+  (let* ((beads-agent-ralph-permission-mode "bypassPermissions")
          (argv (beads-agent-ralph--preview-argv
                 (list :prompt "p" :project-dir "/x"))))
     (should (member "bypassPermissions" argv))))
@@ -106,14 +106,24 @@
     (should (string-match-p "/tmp/wt/bd-42" line))))
 
 (ert-deftest beads-agent-ralph-confirm-test-summary-line-defaults ()
-  "Summary line falls back to defaults when args omit fields."
-  (let* ((beads-agent-ralph-default-max-budget-per-iter 2.0)
-         (beads-agent-ralph-default-permission-mode "bypassPermissions")
+  "Summary line falls back to the real loop vars when args omit fields."
+  (let* ((beads-agent-ralph-max-iterations 50)
+         (beads-agent-ralph-max-budget-usd-per-iter 2.0)
+         (beads-agent-ralph-permission-mode "bypassPermissions")
          (line (beads-agent-ralph--summary-line
                 (list :project-dir "/repo"))))
     (should (string-match-p "50 iters" line))
     (should (string-match-p "\\$2\\.00/iter cap" line))
     (should (string-match-p "bypassPermissions" line))))
+
+(ert-deftest beads-agent-ralph-confirm-test-summary-line-no-budget ()
+  "Summary line renders \"no /iter cap\" when the budget var is nil."
+  (let* ((beads-agent-ralph-max-iterations 50)
+         (beads-agent-ralph-max-budget-usd-per-iter nil)
+         (beads-agent-ralph-permission-mode "bypassPermissions")
+         (line (beads-agent-ralph--summary-line
+                (list :project-dir "/repo"))))
+    (should (string-match-p "no /iter cap" line))))
 
 (ert-deftest beads-agent-ralph-confirm-test-header-issue ()
   "Header for an issue kind omits the children count."

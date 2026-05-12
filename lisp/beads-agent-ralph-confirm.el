@@ -44,20 +44,6 @@ working directory.  Set to nil to skip the dialog in scripted launches."
   :type 'boolean
   :group 'beads-agent-ralph)
 
-(defcustom beads-agent-ralph-default-max-budget-per-iter 2.0
-  "Default per-iteration cost cap, in USD, shown in the confirm-start dialog.
-The cost-guard task (bde-e8lj) wires this into the stream spawn; the
-dialog reads it so the user sees what they're authorising."
-  :type 'number
-  :group 'beads-agent-ralph)
-
-(defcustom beads-agent-ralph-default-permission-mode "bypassPermissions"
-  "Default permission mode passed to `claude --permission-mode'.
-Shown in the confirm-start dialog so the user sees what authorisation
-the agent is about to run with."
-  :type 'string
-  :group 'beads-agent-ralph)
-
 ;;; Per-root argv overrides
 
 (defvar beads-agent-ralph-argv-overrides nil
@@ -95,7 +81,7 @@ for `make-process :command'."
          (project-dir (or (plist-get args :project-dir) default-directory))
          (program (or (plist-get args :program) "claude"))
          (permission-mode (or (plist-get args :permission-mode)
-                              beads-agent-ralph-default-permission-mode))
+                              beads-agent-ralph-permission-mode))
          (max-budget (plist-get args :max-budget-usd))
          (max-turns (plist-get args :max-turns))
          (mcp-config (plist-get args :mcp-config))
@@ -156,16 +142,20 @@ PRIOR-FALSE-CLAIMS, GIT-DIFF-STAT) that are zero on iter 1 anyway."
 
 (defun beads-agent-ralph--summary-line (args)
   "Render the one-line summary of ARGS shown beneath the confirm-start prompt."
-  (let* ((max-iter (or (plist-get args :max-iterations) 50))
+  (let* ((max-iter (or (plist-get args :max-iterations)
+                       beads-agent-ralph-max-iterations))
          (max-budget (or (plist-get args :max-budget-usd)
-                         beads-agent-ralph-default-max-budget-per-iter))
+                         beads-agent-ralph-max-budget-usd-per-iter))
          (permission (or (plist-get args :permission-mode)
-                         beads-agent-ralph-default-permission-mode))
+                         beads-agent-ralph-permission-mode))
          (project-dir (or (plist-get args :worktree-dir)
                           (plist-get args :project-dir)
-                          default-directory)))
-    (format "%d iters · $%.2f/iter cap · %s · %s"
-            max-iter max-budget permission
+                          default-directory))
+         (budget-str (if (numberp max-budget)
+                         (format "$%.2f/iter cap" max-budget)
+                       "no /iter cap")))
+    (format "%d iters · %s · %s · %s"
+            max-iter budget-str permission
             (abbreviate-file-name (expand-file-name project-dir)))))
 
 (defun beads-agent-ralph--header-line (root-id kind child-count)
