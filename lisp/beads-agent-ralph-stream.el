@@ -149,14 +149,15 @@ Useful for log correlation; not used to resume since Ralph runs with
     :documentation "Non-nil once the agent emitted the completion sentinel.
 The controller polls this to decide whether the iteration is done by
 agent declaration vs. by external termination.  Set by the parser
-hardening pass; remains nil in the skeleton.")
+when an assistant text block matches `beads-agent-ralph-stream-sentinel-regexp'.")
    (bd-updates
     :initarg :bd-updates
     :initform nil
     :type list
     :documentation "List of (ISSUE-ID . ACTION) pairs observed in tool_use events.
 Captures any `bd update'/`bd close'/`bd dep' the agent ran via its
-tool harness.  Populated by the parser; empty in the skeleton.")
+tool harness.  Populated by the parser as `Bash' tool_use events are
+observed and parsed for bd subcommands.")
    (files-touched
     :initarg :files-touched
     :initform nil
@@ -180,8 +181,8 @@ present.")
     :initform nil
     :type list
     :documentation "Bounded ring of the most recent stderr lines (max 50).
-Stored newest-first.  The hardening pass enforces the bound; the
-skeleton appends without trimming.  Used in failure banners.")
+Stored newest-first; the parser trims to `beads-agent-ralph-stderr-tail-max'
+on every append.  Used in failure banners.")
    (verify-result
     :initarg :verify-result
     :initform nil

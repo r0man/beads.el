@@ -264,8 +264,9 @@ dry-run buffer's argv-overrides also flow through this slot.")
     :initarg :prompt-template
     :initform nil
     :documentation "String template with %-placeholders for prompt construction.
-Rendered each iteration by the prompt-construction task (bde-aqu1);
-left nil in the skeleton, which forces tests to supply a template.")
+Rendered each iteration by `beads-agent-ralph--effective-template'.
+When nil, the controller falls back to `beads-agent-ralph-prompt-file'
+or `beads-agent-ralph-prompt'; tests may pin a template explicitly.")
    (prompt-file
     :initarg :prompt-file
     :initform nil
@@ -734,9 +735,10 @@ Supported specs:
 
 (defvar beads-agent-ralph-dashboard-rerender-function nil
   "Function invoked with the controller whenever its state changes.
-Set by the dashboard module (bde-9b00); nil during the skeleton.
-Called with one argument, the `beads-agent-ralph--controller', and
-is responsible for refreshing whatever buffer represents the loop.")
+Set by `beads-agent-ralph-dashboard' when a dashboard buffer mounts;
+unset when no dashboard is observing.  Called with one argument, the
+`beads-agent-ralph--controller', and is responsible for refreshing
+whatever buffer represents the loop.")
 
 (defvar beads-agent-ralph-state-change-functions nil
   "Abnormal hook run after `status' transitions on a controller.
