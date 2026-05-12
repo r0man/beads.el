@@ -84,9 +84,18 @@ line-reassembly state; UTF-8 boundary safety is added in hardening.")
     :initarg :partial-messages
     :initform nil
     :documentation "Hash table keyed by message id for stream_event assembly.
-Populated when `--include-partial-messages' is in effect; remains
-empty in the skeleton.  Value shape is defined by the parser-hardening
-task; reserved here so callers can hold a reference.")
+Populated when `--include-partial-messages' is in effect.  Keys are
+the message ids from `message_start' events; values are per-message
+buckets (themselves hash tables) holding accumulating blocks indexed
+by their `index' field.  The reserved keys `:current-message-id'
+\(the last id seen on a `message_start') and `:meta' (message-level
+fields: role, stop-reason, stopped) are also stored.
+
+On `message_stop' the bucket is finalised: an `assistant'-shaped
+event is synthesised and pushed onto `events' so downstream
+extractors do not need a separate path.  The bucket itself is kept
+in the hash with `:stopped t' for forensic queries (replay,
+inspection).")
    (status
     :initarg :status
     :initform 'starting
@@ -225,8 +234,10 @@ is declared done.  Re-entrancy from subscribers that pump the event
 loop is mitigated by `in-flight-guard'.
 
 Partial-message reassembly (when `--include-partial-messages' is
-in argv) is reserved on `partial-messages' but not yet wired,
-pending empirical TODO #3 in the plan.")
+in argv) buckets `stream_event' envelopes by message id into
+`partial-messages', accumulates content blocks, and synthesises a
+canonical `assistant'-shaped event on `message_stop' so downstream
+code is mode-agnostic.  See `beads-agent-ralph--stream-handle-partial'.")
 
 ;;; Subscriber Helpers
 
@@ -322,6 +333,311 @@ UI responsive even under high event rates."
   "Alias kept for callers that expected the synchronous-sounding name.
 Dispatch is deferred via `beads-agent-ralph--stream-schedule-flush'.")
 
+;;; Partial-message reassembly
+;;
+;; When the controller spawns `claude --include-partial-messages', the
+;; CLI emits `stream_event' envelopes that wrap the same Anthropic
+;; Messages-API streaming events the SDK consumes:
+;;
+;;   message_start         carries message.id and role
+;;   content_block_start   indexed block, type=text|tool_use|thinking
+;;   content_block_delta   delta.type=text_delta|input_json_delta|...
+;;   content_block_stop    marks a block complete
+;;   message_delta         carries stop_reason
+;;   message_stop          terminates the message
+;;
+;; Empirical TODO #3 (lisp/test/ralph-empirical/03-partial-messages-shape.sh)
+;; documents the exact field shape against a real claude binary.  This
+;; module assembles those partials back into a synthesised `assistant'
+;; event with the same plist shape the non-partial path produces, so
+;; downstream extractors (`-extract-summary-tag', `-extract-last-text',
+;; `-extract-tool-uses') keep working uniformly across both modes.
+;;
+;; State lives in `partial-messages', a hash table keyed by the message
+;; id from `message_start'.  Each value is a plist of accumulating
+;; blocks indexed by their `index' field.  A block is itself a plist
+;; with :type, :text (for text/thinking), :input-json (for tool_use
+;; partial JSON), :name and :id (for tool_use), and :stopped.
+
+(defun beads-agent-ralph--stream-event-payload (envelope)
+  "Return the inner SSE event plist for a top-level stream_event ENVELOPE.
+ENVELOPE is the parsed NDJSON line.  When ENVELOPE's :type is
+\"stream_event\", returns the nested :event plist (or ENVELOPE itself
+when the inner event is hoisted to the envelope's keys).  Returns nil
+for non-partial envelopes so the caller can short-circuit."
+  (when (listp envelope)
+    (let ((type (plist-get envelope :type)))
+      (when (or (equal type "stream_event") (eq type 'stream_event))
+        (or (plist-get envelope :event)
+            envelope)))))
+
+(defun beads-agent-ralph--stream-event-type-eq (event tag)
+  "Return non-nil when EVENT's :type slot matches TAG (a string)."
+  (let ((type (and (listp event) (plist-get event :type))))
+    (or (equal type tag)
+        (eq type (intern tag)))))
+
+(defun beads-agent-ralph--stream-partial-key (stream envelope inner)
+  "Return the partial-messages hash key for ENVELOPE / INNER on STREAM.
+INNER is the unwrapped SSE event from
+`beads-agent-ralph--stream-event-payload'.  Resolution order:
+
+  1. message_start carries message.id — use it and record on STREAM
+     so subsequent partials in this message can recover the key.
+  2. Otherwise fall back to STREAM's most recently observed id, which
+     covers the common case where Anthropic's SSE stream does not
+     repeat the id on every event.
+  3. Failing that, fall back to the envelope's parent_tool_use_id or
+     session_id so events still bucket somewhere rather than being
+     silently dropped.
+
+The fallbacks are defensive: if the empirical harness reveals a
+different field, the dispatcher still finds a stable key."
+  (let* ((inner-msg (plist-get inner :message))
+         (msg-id (and (listp inner-msg) (plist-get inner-msg :id))))
+    (cond
+     ((and msg-id (stringp msg-id))
+      ;; Stash on the stream as the "current" id so later events
+      ;; without an explicit id route here.
+      (puthash :current-message-id msg-id (oref stream partial-messages))
+      msg-id)
+     (t
+      (or (gethash :current-message-id (oref stream partial-messages))
+          (plist-get envelope :parent_tool_use_id)
+          (plist-get envelope :session_id))))))
+
+(defun beads-agent-ralph--stream-ensure-bucket (stream key)
+  "Return STREAM's bucket plist for partial KEY, creating it if absent.
+The bucket is itself a hash table keyed by block :index (so out-of-
+order delta arrivals still land in the right block) plus a `:meta'
+key holding message-level fields (role, stop_reason)."
+  (let ((bucket (gethash key (oref stream partial-messages))))
+    (unless bucket
+      (setq bucket (make-hash-table :test #'equal))
+      (puthash :meta (list :role nil :stop-reason nil :stopped nil) bucket)
+      (puthash key bucket (oref stream partial-messages)))
+    bucket))
+
+(defun beads-agent-ralph--stream-handle-content-block-start
+    (bucket inner)
+  "Initialise BUCKET's slot for the block opened by INNER (content_block_start)."
+  (let* ((index (plist-get inner :index))
+         (block (or (plist-get inner :content_block)
+                    (plist-get inner :content-block)))
+         (type (and (listp block) (plist-get block :type)))
+         (state
+          (list :type type
+                :text (or (and (listp block) (plist-get block :text)) "")
+                :input-json ""
+                :input (and (listp block) (plist-get block :input))
+                :name (and (listp block) (plist-get block :name))
+                :id (and (listp block) (plist-get block :id))
+                :tool-use-id (and (listp block)
+                                  (plist-get block :tool_use_id))
+                :stopped nil)))
+    (when (numberp index)
+      (puthash index state bucket))))
+
+(defun beads-agent-ralph--stream-handle-content-block-delta
+    (bucket inner)
+  "Append INNER's delta into BUCKET at INNER's index.
+Handles text_delta (concatenated into :text), input_json_delta
+\(concatenated into :input-json for later parsing once the block stops),
+and thinking_delta (treated as text).  Unknown delta types are stored
+verbatim under :unknown-deltas so a future taxonomy change does not
+silently lose data."
+  (let* ((index (plist-get inner :index))
+         (delta (plist-get inner :delta))
+         (delta-type (and (listp delta) (plist-get delta :type)))
+         (state (and (numberp index) (gethash index bucket))))
+    (unless state
+      ;; Some streams omit content_block_start (or it arrived in a
+      ;; separate flush before our hash existed); initialise lazily so
+      ;; deltas are not dropped.
+      (setq state (list :type nil :text "" :input-json "" :stopped nil))
+      (when (numberp index)
+        (puthash index state bucket)))
+    (cond
+     ((or (equal delta-type "text_delta") (eq delta-type 'text_delta))
+      (let ((piece (or (plist-get delta :text) "")))
+        (plist-put state :text (concat (plist-get state :text) piece))))
+     ((or (equal delta-type "thinking_delta") (eq delta-type 'thinking_delta))
+      (let ((piece (or (plist-get delta :thinking)
+                       (plist-get delta :text)
+                       "")))
+        (plist-put state :text (concat (plist-get state :text) piece))
+        (plist-put state :type (or (plist-get state :type) "thinking"))))
+     ((or (equal delta-type "input_json_delta")
+          (eq delta-type 'input_json_delta))
+      (let ((piece (or (plist-get delta :partial_json)
+                       (plist-get delta :partial-json)
+                       "")))
+        (plist-put state :input-json
+                   (concat (plist-get state :input-json) piece))))
+     (t
+      ;; Unknown delta shape — keep for forensic visibility.
+      (plist-put state :unknown-deltas
+                 (cons delta (plist-get state :unknown-deltas)))))
+    (when (numberp index)
+      (puthash index state bucket))))
+
+(defun beads-agent-ralph--stream-handle-content-block-stop
+    (bucket inner)
+  "Mark BUCKET's block at INNER's index as stopped and finalise input JSON."
+  (let* ((index (plist-get inner :index))
+         (state (and (numberp index) (gethash index bucket))))
+    (when state
+      (plist-put state :stopped t)
+      (let ((raw (plist-get state :input-json)))
+        (when (and (stringp raw) (not (string-empty-p raw)))
+          (let ((parsed
+                 (condition-case _err
+                     (let ((json-object-type 'plist)
+                           (json-array-type 'list)
+                           (json-key-type 'keyword)
+                           (json-false nil)
+                           (json-null nil))
+                       (json-read-from-string raw))
+                   (error nil))))
+            (when parsed
+              (plist-put state :input parsed)))))
+      (puthash index state bucket))))
+
+(defun beads-agent-ralph--stream-handle-message-delta
+    (bucket inner)
+  "Capture stop_reason from INNER into BUCKET's :meta plist."
+  (let* ((delta (plist-get inner :delta))
+         (stop (and (listp delta) (plist-get delta :stop_reason)))
+         (meta (gethash :meta bucket)))
+    (when stop
+      (plist-put meta :stop-reason stop)
+      (puthash :meta meta bucket))))
+
+(defun beads-agent-ralph--stream-bucket-blocks (bucket)
+  "Return BUCKET's accumulated content blocks as a list ordered by index.
+Skips the :meta key and any synthetic state; produces blocks in the
+shape the non-partial assistant event uses (`(:type STR :text STR …)')
+so downstream extractors do not need a separate path."
+  (let (entries)
+    (maphash
+     (lambda (key value)
+       (when (numberp key)
+         (push (cons key value) entries)))
+     bucket)
+    (setq entries (sort entries (lambda (a b) (< (car a) (car b)))))
+    (mapcar
+     (lambda (entry)
+       (let* ((state (cdr entry))
+              (type (or (plist-get state :type) "text")))
+         (cond
+          ((or (equal type "text") (eq type 'text)
+               (equal type "thinking") (eq type 'thinking))
+           (list :type type :text (or (plist-get state :text) "")))
+          ((or (equal type "tool_use") (eq type 'tool_use))
+           (list :type type
+                 :name (plist-get state :name)
+                 :id (plist-get state :id)
+                 :input (or (plist-get state :input)
+                            (and (stringp (plist-get state :input-json))
+                                 (not (string-empty-p
+                                       (plist-get state :input-json)))
+                                 (list :__raw (plist-get state :input-json))))))
+          ((or (equal type "tool_result") (eq type 'tool_result))
+           (list :type type
+                 :tool_use_id (plist-get state :tool-use-id)
+                 :content (plist-get state :text)))
+          (t
+           ;; Unknown block type — preserve raw shape.
+           (append (list :type type) state)))))
+     entries)))
+
+(defun beads-agent-ralph--stream-finalize-bucket (stream key)
+  "Synthesise an `assistant'-shaped event from STREAM's bucket KEY.
+Returns the synthesised event plist (suitable for pushing into the
+events vector) without mutating the events list.  The caller decides
+whether to insert it (the parser inserts on message_stop)."
+  (let* ((bucket (gethash key (oref stream partial-messages)))
+         (meta (and bucket (gethash :meta bucket)))
+         (blocks (and bucket (beads-agent-ralph--stream-bucket-blocks
+                              bucket))))
+    (when bucket
+      (list :type "assistant"
+            :message (list :id (and (stringp key) key)
+                           :role (or (plist-get meta :role) "assistant")
+                           :stop_reason (plist-get meta :stop-reason)
+                           :content blocks)
+            :__synthesized-from-partials t))))
+
+(defun beads-agent-ralph--stream-handle-partial (stream envelope)
+  "Process ENVELOPE against STREAM's partial-messages hash.
+
+Returns one of:
+
+  nil          — ENVELOPE is not a partial-message event.  The caller
+                 stores it normally.
+  `:absorbed'  — ENVELOPE updated partial state.  The caller stores
+                 the envelope for forensics but should not re-emit it
+                 as the canonical assistant event.
+  PLIST        — assembly just finalised: returned plist is a
+                 synthesised assistant event.  The caller pushes it
+                 into `events' so extractors observe it once.
+
+This function never raises on malformed inner shapes: missing keys
+short-circuit to `:absorbed'."
+  (let ((inner (beads-agent-ralph--stream-event-payload envelope)))
+    (when inner
+      (let* ((key (beads-agent-ralph--stream-partial-key
+                   stream envelope inner)))
+        (cond
+         ((null key)
+          ;; No id to bucket under.  Record as absorbed so the envelope
+          ;; still lands in `events' for inspection but does not trigger
+          ;; further partial state.
+          :absorbed)
+         (t
+          (let ((bucket (beads-agent-ralph--stream-ensure-bucket stream key)))
+            (cond
+             ((beads-agent-ralph--stream-event-type-eq inner "message_start")
+              (let* ((msg (plist-get inner :message))
+                     (role (and (listp msg) (plist-get msg :role)))
+                     (meta (gethash :meta bucket)))
+                (plist-put meta :role (or role "assistant"))
+                (puthash :meta meta bucket))
+              :absorbed)
+             ((beads-agent-ralph--stream-event-type-eq
+               inner "content_block_start")
+              (beads-agent-ralph--stream-handle-content-block-start
+               bucket inner)
+              :absorbed)
+             ((beads-agent-ralph--stream-event-type-eq
+               inner "content_block_delta")
+              (beads-agent-ralph--stream-handle-content-block-delta
+               bucket inner)
+              :absorbed)
+             ((beads-agent-ralph--stream-event-type-eq
+               inner "content_block_stop")
+              (beads-agent-ralph--stream-handle-content-block-stop
+               bucket inner)
+              :absorbed)
+             ((beads-agent-ralph--stream-event-type-eq inner "message_delta")
+              (beads-agent-ralph--stream-handle-message-delta bucket inner)
+              :absorbed)
+             ((beads-agent-ralph--stream-event-type-eq inner "message_stop")
+              ;; Finalise: synthesise the assistant event and clear
+              ;; :current-message-id so the next message starts fresh.
+              (let ((synth (beads-agent-ralph--stream-finalize-bucket
+                            stream key)))
+                (remhash :current-message-id (oref stream partial-messages))
+                ;; Mark the bucket itself stopped but keep it in the
+                ;; hash for late-arriving forensic queries.
+                (let ((meta (gethash :meta bucket)))
+                  (plist-put meta :stopped t)
+                  (puthash :meta meta bucket))
+                synth))
+             (t
+              ;; Unknown inner type — absorb so we do not re-emit.
+              :absorbed)))))))))
+
 ;;; NDJSON Filter
 
 (defun beads-agent-ralph--stream-parse-line (stream line)
@@ -329,7 +645,15 @@ Dispatch is deferred via `beads-agent-ralph--stream-schedule-flush'.")
 Returns the parsed plist on success, or nil if LINE was empty or
 malformed.  Malformed lines are recorded as events of type `error'
 so they remain visible in the dashboard rather than being silently
-dropped."
+dropped.
+
+When LINE is a partial-message envelope (stream_event wrapping
+content_block_delta, message_start, etc.), the envelope is recorded
+verbatim AND routed through
+`beads-agent-ralph--stream-handle-partial' to update the assembly
+hash; on message_stop the synthesised `assistant'-shaped event is
+pushed onto `events' so the same extractor reads partial and
+non-partial runs uniformly."
   (when (and line (not (string-empty-p line)))
     (let ((parsed
            (condition-case _err
@@ -342,6 +666,12 @@ dropped."
              (error
               (list :type 'error :raw line)))))
       (oset stream events (cons parsed (oref stream events)))
+      ;; Partial-message handling: absorbed events stay on `events'
+      ;; (for forensics) but do not duplicate; on finalisation we
+      ;; insert the synthesised assistant event before returning.
+      (let ((synth (beads-agent-ralph--stream-handle-partial stream parsed)))
+        (when (and synth (listp synth))
+          (oset stream events (cons synth (oref stream events)))))
       ;; Cheap status transition: as soon as any event arrives we are
       ;; no longer in `starting'.  Terminal transitions remain the
       ;; sentinel's responsibility.
