@@ -813,6 +813,20 @@ which shows daemon status and database statistics."
 (autoload 'beads-eldoc-mode "beads-eldoc"
   "Global minor mode to enable eldoc support for beads issue references." t)
 
+;; beads-agent-ralph — overnight iteration loop entry points.  These
+;; are autoloaded from the controller module; the
+;; `beads-agent-ralph-backend' subclass picks them up by name at run
+;; time when the user invokes the backend.
+;;;###autoload
+(autoload 'beads-agent-ralph-start "beads-agent-ralph"
+  "Start a Ralph iteration loop for an issue or epic." t)
+;;;###autoload
+(autoload 'beads-agent-ralph-stop "beads-agent-ralph"
+  "Stop a Ralph controller's loop after the current iteration." t)
+;;;###autoload
+(autoload 'beads-agent-ralph-show-history "beads-agent-ralph"
+  "Pop to a Ralph controller's dashboard buffer." t)
+
 ;;; Footer
 
 (provide 'beads)
