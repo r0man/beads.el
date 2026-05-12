@@ -30,6 +30,30 @@
 (require 'cl-lib)
 (require 'json)
 
+;;; Customization
+
+(defgroup beads-agent-ralph nil
+  "Ralph Wiggum iteration loop for beads-agent."
+  :group 'beads
+  :prefix "beads-agent-ralph-")
+
+(defcustom beads-agent-ralph-stop-grace-ms 2000
+  "Grace period (ms) before SIGKILL after SIGINT.
+Used by `beads-agent-ralph--stream-stop'.  If the `claude' subprocess
+has not exited this many milliseconds after `interrupt-process', the
+stream escalates to `kill-process'.  Tune up for slow-to-quit prompts;
+tune down for snappier stop-then-resume cycles."
+  :type 'integer
+  :group 'beads-agent-ralph)
+
+(defcustom beads-agent-ralph-stderr-tail-max 50
+  "Maximum number of lines retained in a stream's `stderr-tail' ring.
+Older lines are dropped once this bound is exceeded.  The dashboard
+shows the tail in failure banners; 50 lines is plenty for diagnosis
+without unbounded memory growth."
+  :type 'integer
+  :group 'beads-agent-ralph)
+
 ;;; Stream Class
 
 (defclass beads-agent-ralph--stream ()
@@ -154,16 +178,29 @@ so the iteration record can copy it from the active stream snapshot.")
     :initarg :in-flight-guard
     :initform nil
     :type boolean
-    :documentation "Non-nil while the filter is actively parsing a chunk.
-Used by the parser-hardening pass to defer re-entrant render
-notifications.  Always nil in the skeleton.")
+    :documentation "Non-nil while a flush is currently dispatching subscribers.
+The flush function checks this on entry: if it is already set, the
+inner call sets `pending-render' instead of re-entering dispatch.
+This protects against re-entrancy when a subscriber callback runs
+`accept-process-output' (or `sit-for', or anything else that pumps
+the event loop) while flush is on the stack.")
    (pending-render
     :initarg :pending-render
     :initform nil
     :type boolean
-    :documentation "Non-nil when a render was deferred while `in-flight-guard' held.
-Cleared once the deferred render is dispatched.  Reserved for the
-hardening pass.")
+    :documentation "Non-nil when a flush is scheduled or was deferred.
+Set by the filter to mark new events; cleared by the flush after a
+successful dispatch.  If a re-entrant flush is blocked by
+`in-flight-guard', it sets `pending-render' so the outer flush
+re-runs once before returning.")
+   (flush-timer
+    :initarg :flush-timer
+    :initform nil
+    :documentation "Idle timer scheduling the next subscriber flush, or nil.
+The filter schedules at most one timer; subsequent filter calls
+flip `pending-render' but do not re-schedule.  The flush function
+clears this slot before running, so a subscriber that schedules
+work via the filter loop can rearm the timer cleanly.")
    (subscribers
     :initarg :subscribers
     :initform nil
@@ -177,13 +214,19 @@ vui dashboard, persistence) to remove their subscription on teardown."))
 This object is the unit of concurrency for the Ralph loop: exactly
 one is alive per running iteration.  The controller spawns it via
 `beads-agent-ralph--stream-spawn', subscribes to status/event
-changes, and treats it as opaque otherwise.  Filters mutate slots in
-place; the sentinel is the sole writer of terminal `status' values.
+changes, and treats it as opaque otherwise.
 
-The skeleton implementation parses one NDJSON line per newline,
-appends each parsed plist to `events', and notifies subscribers.
-UTF-8 boundary safety, partial-message reassembly, and bounded
-ring trimming are layered on by `bde-2qha'.")
+Concurrency model: filters mutate slots in place and SCHEDULE a
+deferred flush via `run-at-time' — they never dispatch subscribers
+synchronously.  The sentinel forces a synchronous drain
+(`accept-process-output' + final flush) before setting terminal
+status so subscribers observe the result event before the process
+is declared done.  Re-entrancy from subscribers that pump the event
+loop is mitigated by `in-flight-guard'.
+
+Partial-message reassembly (when `--include-partial-messages' is
+in argv) is reserved on `partial-messages' but not yet wired,
+pending empirical TODO #3 in the plan.")
 
 ;;; Subscriber Helpers
 
@@ -202,10 +245,17 @@ stream object after each parsed event and on status transitions."
   (oset stream subscribers
         (cl-remove label (oref stream subscribers) :key #'car)))
 
-(defun beads-agent-ralph--stream-notify (stream)
-  "Notify every subscriber of STREAM.
-Errors in one callback do not stop the others; they are caught and
-written to *Messages* so a bad subscriber cannot kill the loop."
+(defun beads-agent-ralph--stream-dispatch (stream)
+  "Dispatch all subscribers of STREAM synchronously, ONCE.
+
+Internal helper used by the flush.  Subscriber errors are caught per
+callback so a bad one cannot break the others or break the loop.
+
+CONTRACT: subscribers MUST NOT call `accept-process-output',
+`sit-for', or anything else that pumps the Emacs event loop
+synchronously.  Doing so risks a re-entrant filter call between
+events; the `in-flight-guard' check in `beads-agent-ralph--stream-flush'
+mitigates the damage but cannot make it free."
   (dolist (entry (oref stream subscribers))
     (condition-case err
         (funcall (cdr entry) stream)
@@ -213,7 +263,66 @@ written to *Messages* so a bad subscriber cannot kill the loop."
        (message "beads-agent-ralph stream subscriber %s errored: %S"
                 (car entry) err)))))
 
-;;; NDJSON Filter (skeleton)
+(defun beads-agent-ralph--stream-flush (stream)
+  "Run pending subscriber dispatch for STREAM.
+
+If a flush is already running (`in-flight-guard' is set), this call
+flips `pending-render' so the outer flush re-runs once before
+returning and exits without re-entering dispatch.  This protects
+against re-entrancy from subscribers that pump the event loop.
+
+Clears `flush-timer' so the next filter call can re-arm cleanly."
+  (when (timerp (oref stream flush-timer))
+    (cancel-timer (oref stream flush-timer)))
+  (oset stream flush-timer nil)
+  (cond
+   ((oref stream in-flight-guard)
+    ;; Re-entered while an outer flush is running.  Mark pending and
+    ;; let the outer flush re-run.
+    (oset stream pending-render t))
+   (t
+    (unwind-protect
+        (progn
+          (oset stream in-flight-guard t)
+          ;; Loop so that re-entrant pending-render flips during
+          ;; dispatch are absorbed without dropping notifications.
+          ;; Cap at 8 iterations to guard against pathological
+          ;; subscriber loops.
+          (let ((iterations 0)
+                (continue t))
+            (while continue
+              (oset stream pending-render nil)
+              (beads-agent-ralph--stream-dispatch stream)
+              (cl-incf iterations)
+              (setq continue (and (oref stream pending-render)
+                                  (< iterations 8))))))
+      (oset stream in-flight-guard nil)))))
+
+(defun beads-agent-ralph--stream-schedule-flush (stream)
+  "Mark STREAM dirty and schedule a deferred flush if not already scheduled.
+
+The filter never dispatches synchronously: it parses bytes into events
+and calls this function.  The flush runs on the next event-loop pump
+via `run-at-time' (not `run-with-idle-timer', which is unreliable in
+batch tests) so the filter returns to Emacs immediately, keeping the
+UI responsive even under high event rates."
+  (oset stream pending-render t)
+  (unless (timerp (oref stream flush-timer))
+    (oset stream flush-timer
+          (run-at-time
+           0 nil
+           #'beads-agent-ralph--stream-flush stream))))
+
+;; Compatibility shim: the controller and tests still call -notify.
+;; Route through the deferred flush so all dispatch goes through one
+;; surface (avoids the two-paths-to-subscribers footgun called out in
+;; the spec).
+(defalias 'beads-agent-ralph--stream-notify
+  #'beads-agent-ralph--stream-schedule-flush
+  "Alias kept for callers that expected the synchronous-sounding name.
+Dispatch is deferred via `beads-agent-ralph--stream-schedule-flush'.")
+
+;;; NDJSON Filter
 
 (defun beads-agent-ralph--stream-parse-line (stream line)
   "Parse a single NDJSON LINE and update STREAM in place.
@@ -241,10 +350,17 @@ dropped."
       parsed)))
 
 (defun beads-agent-ralph--stream-filter (stream chunk)
-  "Process filter body for STREAM, given raw CHUNK from stdout.
-Splits CHUNK on newline boundaries, preserves any trailing partial
-line in `partial-line', and parses each complete line.  Notifies
-subscribers once after the whole chunk is consumed."
+  "Process filter body for STREAM, given decoded CHUNK from stdout.
+
+Splits CHUNK on newline boundaries and parses each complete NDJSON
+line.  Bytes received but not terminated by a newline are preserved
+in `partial-line' for the next call.  Because `make-process' was
+called with `:coding \\='utf-8-unix', CHUNK is an Emacs string with
+correct UTF-8 boundaries; multibyte glyphs split across kernel reads
+are reassembled by Emacs's coding system, not by us.
+
+Schedules a deferred flush; never dispatches subscribers
+synchronously."
   (let* ((buffered (concat (oref stream partial-line) chunk))
          (parts (split-string buffered "\n"))
          (trailing (car (last parts)))
@@ -252,20 +368,50 @@ subscribers once after the whole chunk is consumed."
     (oset stream partial-line (or trailing ""))
     (dolist (line complete-lines)
       (beads-agent-ralph--stream-parse-line stream line))
-    (beads-agent-ralph--stream-notify stream)))
+    (beads-agent-ralph--stream-schedule-flush stream)))
 
 (defun beads-agent-ralph--stream-stderr-filter (stream chunk)
-  "Append CHUNK (split on newlines) to STREAM's stderr-tail."
+  "Append CHUNK (split on newlines) to STREAM's stderr-tail.
+The tail is bounded by `beads-agent-ralph-stderr-tail-max'; older
+lines are trimmed once the bound is exceeded.  Schedules a deferred
+flush so banner subscribers see the new line."
   (dolist (line (split-string chunk "\n" t))
-    (oset stream stderr-tail
-          (cons line (oref stream stderr-tail))))
-  (beads-agent-ralph--stream-notify stream))
+    (let* ((current (oref stream stderr-tail))
+           (next (cons line current))
+           (bound beads-agent-ralph-stderr-tail-max))
+      (oset stream stderr-tail
+            (if (> (length next) bound)
+                (cl-subseq next 0 bound)
+              next))))
+  (beads-agent-ralph--stream-schedule-flush stream))
 
 (defun beads-agent-ralph--stream-sentinel (stream event)
   "Process sentinel body for STREAM, given EVENT string from Emacs.
-Transitions `status' to a terminal value and stamps `finished-at'.
-The string-based dispatch mirrors what Emacs delivers: `\"finished\\n\"',
-`\"exited abnormally...\"', `\"interrupt\"', etc."
+
+The sentinel handles the drain-vs-status race carefully:
+
+1. Pump `accept-process-output' so any pending stdout chunks reach
+   the filter before we declare the process done.
+2. Parse any residual bytes left in `partial-line' (a final
+   newline-less line that the filter has buffered).
+3. Set the terminal `status' and `finished-at'.
+4. Force a synchronous flush so subscribers observe the terminal
+   transition without waiting on the idle timer.
+
+Without step 1 we'd risk setting `status' = `finished' before the
+last result event is parsed, which would hide cost data from the
+controller and the dashboard."
+  (let ((proc (oref stream process)))
+    (when (processp proc)
+      ;; Drain any pending stdout into the filter.
+      (when (process-live-p proc)
+        (accept-process-output proc 0 0 t))))
+  ;; A final partial-line without a trailing newline is unusual but
+  ;; possible if claude flushes mid-line on exit.  Parse it now.
+  (let ((residual (oref stream partial-line)))
+    (when (and residual (not (string-empty-p residual)))
+      (beads-agent-ralph--stream-parse-line stream residual)
+      (oset stream partial-line "")))
   (cond
    ((string-prefix-p "finished" event)
     (oset stream status 'finished))
@@ -276,7 +422,9 @@ The string-based dispatch mirrors what Emacs delivers: `\"finished\\n\"',
         (string-prefix-p "killed" event))
     (oset stream status 'stopped)))
   (oset stream finished-at (current-time))
-  (beads-agent-ralph--stream-notify stream))
+  ;; Final flush is synchronous: dashboards and the controller need
+  ;; the terminal transition immediately, not after idle.
+  (beads-agent-ralph--stream-flush stream))
 
 ;;; Public Seam
 
@@ -370,13 +518,18 @@ the signature and return shape stable across refactors."
 ;;; Stop
 
 (defun beads-agent-ralph--stream-stop (stream)
-  "Interrupt STREAM's subprocess and mark it stopped.
-Sends SIGINT once, then SIGKILL if the process is still alive after a
-brief grace period.  The sentinel will set `status' to `stopped'."
+  "Interrupt STREAM's subprocess and let the sentinel mark it stopped.
+
+Uses `interrupt-process' (portable on Windows where raw SIGINT is
+unreliable).  If the process is still alive after
+`beads-agent-ralph-stop-grace-ms' milliseconds, escalates to
+`kill-process'.  The sentinel handles the terminal status transition;
+this function never sets `status' directly."
   (let ((proc (oref stream process)))
     (when (process-live-p proc)
       (interrupt-process proc)
-      (run-at-time 1.0 nil
+      (run-at-time (/ beads-agent-ralph-stop-grace-ms 1000.0)
+                   nil
                    (lambda ()
                      (when (process-live-p proc)
                        (kill-process proc)))))))
