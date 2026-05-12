@@ -47,22 +47,21 @@ emacs -batch \
     -L "$PROJECT_ROOT/lisp" \
     -l beads-agent-ralph \
     -l beads-agent-ralph-dashboard \
-    --eval "(let ((default-directory \"$TMPDIR/\")
-                   (beads-agent-use-worktrees nil)
-                   (beads-agent-ralph-permission-mode \"bypassPermissions\"))
-              (beads-agent-ralph-start
-                :issue \"$ISSUE_ID\"
-                :project-dir \"$TMPDIR/\"
-                :max-iterations 5
-                :iteration-delay 1)
+    --eval "(let* ((default-directory \"$TMPDIR/\")
+                    (beads-agent-use-worktrees nil)
+                    (beads-agent-ralph-permission-mode \"bypassPermissions\")
+                    (result (beads-agent-ralph-start
+                             :issue \"$ISSUE_ID\"
+                             :project-dir \"$TMPDIR/\"
+                             :max-iterations 5
+                             :iteration-delay 1
+                             :resume-action 'fresh-no-prompt))
+                    (controller (car result)))
               ;; Wait up to 5 minutes for terminal status.
               (let ((deadline (+ (float-time) 300)))
                 (while (and (< (float-time) deadline)
-                            (not (memq (oref (caar
-                                              (or (and (boundp 'beads-agent-ralph--last)
-                                                       (list beads-agent-ralph--last))
-                                                  '(nil))) status)
-                                       '(done failed stopped))))
+                            (not (memq (oref controller status)
+                                       '(done failed stopped auto-paused))))
                   (accept-process-output nil 1.0))))" \
     2>&1 | tail -50
 

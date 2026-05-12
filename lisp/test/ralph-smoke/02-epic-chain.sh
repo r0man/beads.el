@@ -44,14 +44,22 @@ emacs -batch \
     -L "$PROJECT_ROOT/lisp" \
     -l beads-agent-ralph \
     -l beads-agent-ralph-dashboard \
-    --eval "(let ((default-directory \"$TMPDIR/\")
-                   (beads-agent-use-worktrees nil))
-              (beads-agent-ralph-start
-                :issue \"$EPIC\"
-                :kind 'epic
-                :project-dir \"$TMPDIR/\"
-                :max-iterations 6
-                :iteration-delay 1))" \
+    --eval "(let* ((default-directory \"$TMPDIR/\")
+                    (beads-agent-use-worktrees nil)
+                    (result (beads-agent-ralph-start
+                             :issue \"$EPIC\"
+                             :kind 'epic
+                             :project-dir \"$TMPDIR/\"
+                             :max-iterations 6
+                             :iteration-delay 1
+                             :resume-action 'fresh-no-prompt))
+                    (controller (car result)))
+              ;; Wait up to 10 minutes for terminal status (3 children).
+              (let ((deadline (+ (float-time) 600)))
+                (while (and (< (float-time) deadline)
+                            (not (memq (oref controller status)
+                                       '(done failed stopped auto-paused))))
+                  (accept-process-output nil 1.0))))" \
     2>&1 | tail -30
 
 echo
