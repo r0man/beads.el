@@ -87,3 +87,7 @@ test-worktree/
 # Beads / Dolt files (added by bd init)
 .beads-credential-key
 /.beads/issues.jsonl
+# bd worktree
+bde-root/
+# bd worktree
+bde-epic/
