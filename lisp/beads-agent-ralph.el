@@ -441,6 +441,107 @@ the rest accumulate for the history toggle."
   :type 'integer
   :group 'beads-agent-ralph)
 
+(defcustom beads-agent-ralph-sentinel "<promise>COMPLETE</promise>"
+  "Literal string the agent must emit to signal root-level completion.
+Substituted for the <SENTINEL> placeholder in the prompt template.
+Must match `beads-agent-ralph--sentinel-regexp' so the stream parser
+recognises the emitted token; change both together."
+  :type 'string
+  :group 'beads-agent-ralph)
+
+(defcustom beads-agent-ralph-verify-tail-bytes 4000
+  "Maximum bytes of previous verify stdout/stderr included in <VERIFY-TAIL>.
+Long tails crowd out the rest of the prompt context window without
+helping the agent.  4 KB is enough for a typical failing test trace."
+  :type 'integer
+  :group 'beads-agent-ralph)
+
+(defcustom beads-agent-ralph-prompt
+  "You are an autonomous agent driving a Beads-tracked codebase.
+The orchestrator launches you one iteration at a time; each
+iteration is a fresh process with no memory of the prior one, so
+every fact you need lives in bd state or in this prompt.
+
+ITERATION       <ITERATION> / <MAX-ITERATIONS>
+ROOT            <ROOT-ID>
+CURRENT TARGET  <ISSUE-ID> -- <ISSUE-TITLE>
+
+DESCRIPTION
+<ISSUE-DESCRIPTION>
+
+ACCEPTANCE CRITERIA
+<ACCEPTANCE>
+
+PLAN VIEW (children of <ROOT-ID>)
+<PLAN-VIEW>
+
+PREVIOUS VERIFY
+<VERIFY-TAIL>
+
+DIFF STAT SINCE LAST ITER
+<GIT-DIFF-STAT>
+
+<PRIOR-FALSE-CLAIMS>
+<PRIOR-STALL-COUNT>
+
+WHAT TO DO THIS ITERATION
+
+1. Re-read bd state fresh.  Run `bd show <ROOT-ID> --json` and
+   `bd show <ISSUE-ID> --json` BEFORE acting.  The PLAN VIEW above
+   is a stale summary; trust the live bd output.
+
+2. Make ONE focused unit of progress on <ISSUE-ID>.  Do not start
+   side quests.  If you notice work for a different issue listed
+   in PLAN VIEW, append a short note to it with
+   `bd update <other-id> --notes \"…\"` and keep moving.  Those
+   notes flow back into the next iteration's PLAN VIEW.
+
+3. Record your progress with `bd update <ISSUE-ID> --notes \"…\"`.
+   Move the issue to `bd close <ISSUE-ID>` only when its
+   acceptance criteria are demonstrably satisfied; otherwise
+   leave it open for the next iteration.
+
+4. Before exiting, emit exactly one line of the form
+
+       <summary>one short paragraph recapping this iteration</summary>
+
+   This is the dashboard's summary column for this iteration.
+
+5. Emit the completion sentinel <SENTINEL> ONLY when both of the
+   following hold in THIS iteration:
+
+     a) you just ran `bd show <ROOT-ID> --json`, and
+     b) the parsed `status` field of that output equals \"closed\".
+
+   The loop will detect a false claim and pause itself; do not
+   emit the sentinel speculatively."
+  "Prompt template fed to `claude' each iteration.
+The template is interpolated with the placeholders documented in
+`beads-agent-ralph--render-prompt'.  Strings that look like
+placeholders but are not in that set are left untouched, so user-
+supplied issue content is safe to interpolate.
+
+Override per-repo by setting `beads-agent-ralph-prompt-file' to a
+file path that holds the desired template, or by binding this
+defcustom in a `dir-locals.el'.
+
+The default explicitly implements the (a)-(g) instructions on the
+parent issue: fresh re-read, single focused unit, summary tag,
+bd updates, cross-issue notes, sentinel precondition check."
+  :type 'string
+  :group 'beads-agent-ralph)
+
+(defcustom beads-agent-ralph-prompt-file nil
+  "Optional path to a file whose contents override `beads-agent-ralph-prompt'.
+The path may contain the literal substring `<ROOT-ID>'; it is
+substituted with the controller's root id before reading so each
+loop can have its own in-tree prompt.  When the file does not
+exist the defcustom value is used instead, without error -- this
+makes it safe to leave configured for repos that opt in via a
+checked-in `.beads/scratch/ralph/<id>.prompt.md'."
+  :type '(choice (const :tag "Use defcustom only" nil) file)
+  :group 'beads-agent-ralph)
+
 ;;; Hooks
 
 (defvar beads-agent-ralph-dashboard-rerender-function nil
@@ -693,6 +794,26 @@ bd's `--ready' already excludes blocked issues."
      (lambda (err)
        (funcall callback nil err)))))
 
+(defun beads-agent-ralph--bd-list-children-async (parent-id callback)
+  "List ALL children of PARENT-ID via `bd list --parent ... --json'.
+CALLBACK receives (success ISSUES-OR-ERROR).  ISSUES is a list of
+`beads-issue' objects across all statuses, in bd's default sort
+order; used to build the PLAN VIEW which surfaces both done and
+remaining work to the agent.  Distinct from
+`beads-agent-ralph--bd-ready-children-async', which is the epic-mode
+target picker."
+  (beads-agent-ralph--in-host
+    (beads-command-execute-async
+     (beads-command-list :parent parent-id :json t)
+     (lambda (result)
+       (funcall callback t
+                (cond
+                 ((null result) nil)
+                 ((listp result) result)
+                 (t (list result)))))
+     (lambda (err)
+       (funcall callback nil err)))))
+
 (defun beads-agent-ralph--run-shell-async (command project-dir callback)
   "Run shell COMMAND in PROJECT-DIR asynchronously.
 COMMAND is a shell string evaluated under $SHELL -c.  CALLBACK
@@ -804,19 +925,258 @@ one final iter overshoot."
      (total (max 0.0 (- total spent)))
      (t nil))))
 
-;;; Prompt rendering (placeholder)
+;;; Prompt rendering
 
-(defun beads-agent-ralph--render-prompt (controller issue-id)
-  "Render CONTROLLER's `prompt-template' for ISSUE-ID.
-Skeleton implementation: returns the template verbatim with simple
-`%s' substitution for the issue id.  The full PLAN-VIEW /
-PRIOR-FALSE-CLAIMS / LAST-NOTE / VERIFY-TAIL / GIT-DIFF-STAT
-construction is bde-aqu1's scope; this placeholder lets the controller
-chain be exercised end-to-end without depending on that task."
-  (let ((template (or (oref controller prompt-template) "%s")))
-    (condition-case _err
-        (format template (or issue-id ""))
-      (error template))))
+(defconst beads-agent-ralph--placeholder-regexp
+  "<\\(ISSUE-ID\\|ISSUE-TITLE\\|ISSUE-DESCRIPTION\\|ACCEPTANCE\\|\
+ROOT-ID\\|ITERATION\\|MAX-ITERATIONS\\|SENTINEL\\|\
+PLAN-VIEW\\|PRIOR-FALSE-CLAIMS\\|PRIOR-STALL-COUNT\\|\
+VERIFY-TAIL\\|GIT-DIFF-STAT\\)>"
+  "Regexp matching the placeholder set understood by the prompt renderer.
+Tokens outside this set survive verbatim, so issue descriptions that
+happen to contain HTML-looking tags are not mangled.")
+
+(defun beads-agent-ralph--effective-template (controller)
+  "Return the prompt template CONTROLLER should render this iteration.
+Resolution order: the controller's `prompt-template' slot (set
+explicitly at start time) wins, then `beads-agent-ralph-prompt-file'
+if its contents are readable, then `beads-agent-ralph-prompt'."
+  (let ((slot (oref controller prompt-template))
+        (path (when beads-agent-ralph-prompt-file
+                (replace-regexp-in-string
+                 (regexp-quote "<ROOT-ID>")
+                 (or (oref controller root-id) "")
+                 beads-agent-ralph-prompt-file t t))))
+    (or slot
+        (and path (file-readable-p path)
+             (with-temp-buffer
+               (insert-file-contents path)
+               (buffer-string)))
+        beads-agent-ralph-prompt)))
+
+(defun beads-agent-ralph--tail-text (text bytes)
+  "Return up to BYTES trailing characters of TEXT.
+Prefixes a `...' marker when the result was truncated.  Counts
+characters rather than literal bytes -- Emacs strings are multibyte
+and we don't need byte-exact precision for prompt context."
+  (cond
+   ((null text) "")
+   ((or (null bytes) (<= (length text) bytes)) text)
+   (t (concat "...\n" (substring text (- (length text) bytes))))))
+
+(defun beads-agent-ralph--render-verify-tail (verify)
+  "Render VERIFY (a plist :exit :stdout :stderr) for the <VERIFY-TAIL> slot.
+Returns the empty string when VERIFY is nil so the prompt doesn't
+include a useless nil marker on the first iteration."
+  (cond
+   ((null verify) "")
+   ((not (listp verify)) "")
+   (t
+    (let ((exit (plist-get verify :exit))
+          (out (plist-get verify :stdout))
+          (err (plist-get verify :stderr))
+          (cap beads-agent-ralph-verify-tail-bytes))
+      (format "exit: %s\nstdout:\n%s\nstderr:\n%s"
+              (if (numberp exit) exit "n/a")
+              (beads-agent-ralph--tail-text out cap)
+              (beads-agent-ralph--tail-text err cap))))))
+
+(defun beads-agent-ralph--render-prior-false-claims (controller)
+  "Return the <PRIOR-FALSE-CLAIMS> body for CONTROLLER, possibly empty.
+Empty string when the counter is zero so the prompt doesn't carry a
+distracting `0 times' note before the first false claim happens."
+  (let ((n (oref controller false-claim-count)))
+    (if (or (null n) (zerop n)) ""
+      (format
+       "PRIOR FALSE CLAIMS\nYou have emitted %s %d time%s while %s remains open."
+       (or beads-agent-ralph-sentinel "<promise>COMPLETE</promise>")
+       n (if (= n 1) "" "s")
+       (or (oref controller root-id) "the root")))))
+
+(defun beads-agent-ralph--render-prior-stall-count (controller)
+  "Return the <PRIOR-STALL-COUNT> body for CONTROLLER, possibly empty.
+Surfaced the iteration after a resume from `auto-paused' so the
+agent learns its prior pattern.  The body emits whenever the
+`consecutive-stalls' counter is non-zero, regardless of whether
+the prior iter was the one that paused -- the reader is the agent,
+not the controller, and a non-zero stall counter is signal worth
+showing."
+  (let ((n (oref controller consecutive-stalls)))
+    (if (or (null n) (zerop n)) ""
+      (format
+       "PRIOR STALL COUNT\nYou were auto-paused after %d consecutive iteration%s with no bd update, no file edit, and no completion sentinel."
+       n (if (= n 1) "" "s")))))
+
+(defun beads-agent-ralph--iteration-number-for-issue (controller target-id)
+  "Return the iteration number whose record targeted TARGET-ID, or nil.
+Walks CONTROLLER's `history' newest-first; returns the iter number of
+the first match, computed from list position so it survives history
+trimming.  Used to annotate PLAN VIEW rows with the agent's own
+prior touch."
+  (let* ((history (oref controller history))
+         (len (length history))
+         (i 0)
+         hit)
+    (catch 'done
+      (dolist (entry history)
+        (when (equal (oref entry issue-id) target-id)
+          (setq hit (- len i))
+          (throw 'done nil))
+        (cl-incf i)))
+    hit))
+
+(defun beads-agent-ralph--summary-for-issue (controller target-id)
+  "Return the most recent iter `summary' for TARGET-ID, or nil.
+Reads CONTROLLER's `history' newest-first and returns the first
+match.  Used to annotate PLAN VIEW rows."
+  (catch 'done
+    (dolist (entry (oref controller history))
+      (when (equal (oref entry issue-id) target-id)
+        (throw 'done (oref entry summary))))))
+
+(defun beads-agent-ralph--row-blocked-by (row plan-issues)
+  "Return a list of open-dependency ids for ROW given PLAN-ISSUES.
+ROW is a `beads-issue'; PLAN-ISSUES is the same list of issues used
+to build PLAN VIEW.  An open dep is one present in PLAN-ISSUES whose
+status is not `closed'.  Returns nil when no dependencies are
+populated -- bd list may or may not expand them depending on
+schema."
+  (let ((deps (and (eieio-object-p row) (oref row dependencies)))
+        (open-ids nil))
+    (when (listp deps)
+      (dolist (dep deps)
+        (let ((dep-id (and (eieio-object-p dep)
+                           (oref dep depends-on-id))))
+          (when dep-id
+            (let ((target (cl-find dep-id plan-issues
+                                   :key (lambda (i) (oref i id))
+                                   :test #'equal)))
+              (when (and target
+                         (not (equal (oref target status) "closed")))
+                (push dep-id open-ids)))))))
+    (nreverse open-ids)))
+
+(defun beads-agent-ralph--render-plan-row (controller row plan-issues current-id)
+  "Render one PLAN VIEW row for ROW under CONTROLLER.
+PLAN-ISSUES is the full list (used to detect open blockers).
+CURRENT-ID is the id of this iteration's target so we can mark it
+with the arrow annotation."
+  (let* ((id (oref row id))
+         (title (or (oref row title) ""))
+         (status (or (oref row status) "open"))
+         (closed (equal status "closed"))
+         (blocked-by (beads-agent-ralph--row-blocked-by row plan-issues))
+         (suffix (cond
+                  ((equal id current-id) " <- current")
+                  (blocked-by
+                   (format " (blocked by %s)"
+                           (mapconcat #'identity blocked-by ", ")))
+                  (t "")))
+         (iter-n (beads-agent-ralph--iteration-number-for-issue
+                  controller id))
+         (summary (and iter-n
+                       (beads-agent-ralph--summary-for-issue controller id)))
+         (line1 (format "- [%s] %s %s (%s)%s"
+                        (if closed "x" " ")
+                        id title status suffix)))
+    (if (and iter-n summary (not (string-empty-p summary)))
+        (concat line1
+                (format "\n      last touched by iter %d: %S"
+                        iter-n summary))
+      line1)))
+
+(defun beads-agent-ralph--render-plan-view (controller plan-issues current-id)
+  "Render the <PLAN-VIEW> body for CONTROLLER.
+PLAN-ISSUES is the list of `beads-issue' children of the root (may
+be nil or contain only the root for a single-issue loop).  CURRENT-ID
+is the id of this iteration's target so its row is marked with the
+arrow annotation.  Empty PLAN-ISSUES renders a one-line placeholder
+so the agent still sees a deterministic block."
+  (cond
+   ((null plan-issues)
+    (format "- [ ] %s (no plan-view children available)"
+            (or current-id (oref controller root-id) "?")))
+   (t
+    (mapconcat
+     (lambda (row)
+       (beads-agent-ralph--render-plan-row
+        controller row plan-issues current-id))
+     plan-issues
+     "\n"))))
+
+(defun beads-agent-ralph--prompt-substitutions
+    (controller issue plan-issues)
+  "Build the placeholder->replacement alist for the renderer.
+CONTROLLER provides loop-level state.  ISSUE is the current target
+`beads-issue' (may be nil if the bd show step failed).  PLAN-ISSUES
+is the list of children rendered into <PLAN-VIEW>.  Values are plain
+strings; literal substitution applies."
+  (let* ((current-id (or (and issue (oref issue id))
+                         (oref controller current-issue-id)
+                         (oref controller root-id))))
+    (list
+     (cons "ISSUE-ID"          (or current-id ""))
+     (cons "ISSUE-TITLE"       (or (and issue (oref issue title)) ""))
+     (cons "ISSUE-DESCRIPTION" (or (and issue (oref issue description)) ""))
+     (cons "ACCEPTANCE"        (or (and issue (oref issue acceptance-criteria))
+                                   ""))
+     (cons "ROOT-ID"           (or (oref controller root-id) ""))
+     (cons "ITERATION"
+           (number-to-string (or (oref controller iteration) 0)))
+     (cons "MAX-ITERATIONS"
+           (number-to-string (or (oref controller max-iterations) 0)))
+     (cons "SENTINEL"
+           (or beads-agent-ralph-sentinel "<promise>COMPLETE</promise>"))
+     (cons "PLAN-VIEW"
+           (beads-agent-ralph--render-plan-view
+            controller plan-issues current-id))
+     (cons "PRIOR-FALSE-CLAIMS"
+           (beads-agent-ralph--render-prior-false-claims controller))
+     (cons "PRIOR-STALL-COUNT"
+           (beads-agent-ralph--render-prior-stall-count controller))
+     (cons "VERIFY-TAIL"
+           (beads-agent-ralph--render-verify-tail
+            (oref controller last-verify)))
+     (cons "GIT-DIFF-STAT"
+           (or (oref controller last-git-diff-stat) "")))))
+
+(defun beads-agent-ralph--apply-substitutions (template substitutions)
+  "Apply SUBSTITUTIONS (an alist) to TEMPLATE.
+Replaces each `<TAG>' (per `beads-agent-ralph--placeholder-regexp')
+with the literal value from SUBSTITUTIONS.  Replacement is single-
+pass and literal, so issue text that contains `<ISSUE-ID>'-like
+strings is NOT re-expanded.  Unknown placeholders -- caught by the
+regexp but absent from the alist -- collapse to the empty string;
+non-placeholder angle-bracket runs are left alone."
+  (replace-regexp-in-string
+   beads-agent-ralph--placeholder-regexp
+   (lambda (match)
+     (let* ((tag (match-string 1 match))
+            (cell (assoc tag substitutions)))
+       (if cell (or (cdr cell) "") "")))
+   template t t))
+
+(defun beads-agent-ralph--render-prompt (controller issue plan-issues)
+  "Render CONTROLLER's prompt template for ISSUE with PLAN-ISSUES.
+
+ISSUE is the current target `beads-issue' object (full result from
+`bd show ID --json'); when nil the placeholder fields for the issue
+collapse to the empty string.  PLAN-ISSUES is the list of
+`beads-issue' children of `root-id' used for PLAN VIEW; nil renders
+a single placeholder row.
+
+Placeholders supported (literal, single-pass substitution):
+
+  <ISSUE-ID>, <ISSUE-TITLE>, <ISSUE-DESCRIPTION>, <ACCEPTANCE>
+  <ROOT-ID>, <ITERATION>, <MAX-ITERATIONS>, <SENTINEL>
+  <PLAN-VIEW>, <PRIOR-FALSE-CLAIMS>, <PRIOR-STALL-COUNT>
+  <VERIFY-TAIL>, <GIT-DIFF-STAT>
+
+Returns the rendered prompt as a single string."
+  (let ((template (beads-agent-ralph--effective-template controller))
+        (subs (beads-agent-ralph--prompt-substitutions
+               controller issue plan-issues)))
+    (beads-agent-ralph--apply-substitutions template subs)))
 
 ;;; Stub dashboard
 
@@ -1169,21 +1529,34 @@ Stream completion is handled by the subscriber installed in
             (format "Claim failed for %s; continuing"
                     (plist-get acc :issue-id)))
            (funcall k nil nil)))))
-    ;; Step 3: capture acceptance-before.
+    ;; Step 3: fetch the current target issue (full record).
     (lambda (acc k)
       (beads-agent-ralph--bd-show-async
        (plist-get acc :issue-id)
        (lambda (ok result)
-         (if (not ok) (funcall k nil nil)
+         (if (not ok) (funcall k nil (list :issue nil
+                                           :acceptance-before nil))
            (let ((issue (beads-agent-ralph--coerce-single-issue result)))
-             (funcall k nil (list :acceptance-before
-                                  (and issue
-                                       (oref issue acceptance-criteria)))))))))
+             (funcall k nil
+                      (list :issue issue
+                            :acceptance-before
+                            (and issue
+                                 (oref issue acceptance-criteria)))))))))
+    ;; Step 3b: fetch plan-view children of root (best-effort).
+    (lambda (_acc k)
+      (beads-agent-ralph--bd-list-children-async
+       (oref controller root-id)
+       (lambda (ok result)
+         ;; Non-fatal: an empty plan-view still renders.
+         (funcall k nil (list :plan-view (if ok result nil))))))
     ;; Step 4: render prompt + spawn.
     (lambda (acc k)
       (condition-case err
           (let* ((id (plist-get acc :issue-id))
-                 (prompt (beads-agent-ralph--render-prompt controller id)))
+                 (issue (plist-get acc :issue))
+                 (plan-view (plist-get acc :plan-view))
+                 (prompt (beads-agent-ralph--render-prompt
+                          controller issue plan-view)))
             (beads-agent-ralph--spawn-stream-for controller id prompt)
             (funcall k nil nil))
         (error
@@ -1199,9 +1572,11 @@ ARGS is a plist:
   :issue       ISSUE-ID-STRING-OR-OBJECT — required.  When an object
                is supplied, only its `id' is used; iterations re-fetch
                state from bd to stay live.
-  :prompt      STRING — required, the prompt template (placeholder
-               substitution is bde-aqu1's scope; for now this string
-               is fed to the agent verbatim).
+  :prompt      STRING — optional override for the iteration template.
+               When omitted the renderer reads from
+               `beads-agent-ralph-prompt' (or the file pointed at by
+               `beads-agent-ralph-prompt-file').  Supports the
+               placeholders documented in `beads-agent-ralph--render-prompt'.
   :kind        `issue' or `epic'.  Defaults to `issue'.
   :project-dir STRING — bd repo root; defaults to `default-directory'.
   :worktree-dir STRING — if a worktree is in use, the agent works here
@@ -1219,8 +1594,7 @@ the backend can pick it up).  The first iteration is dispatched via
                                (beads-issue-p issue))
                           (oref issue id))
                          (t (error "beads-agent-ralph-start: :issue required"))))
-         (prompt (or (plist-get args :prompt)
-                     (error "beads-agent-ralph-start: :prompt required")))
+         (prompt (plist-get args :prompt))
          (kind (or (plist-get args :kind) 'issue))
          (project-dir (or (plist-get args :project-dir) default-directory))
          (worktree-dir (plist-get args :worktree-dir))
