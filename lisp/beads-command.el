@@ -1277,13 +1277,23 @@ from `beads-command-execute-async'.  Internal helper."
                  (lambda (proc _event)
                    (when (memq (process-status proc) '(exit signal))
                      (when timer (cancel-timer timer) (setq timer nil))
+                     ;; Guard buffer reads: a racing teardown (e.g. the
+                     ;; coverage test's explicit `delete-process') can
+                     ;; tear the stdout/stderr buffers down before the
+                     ;; sentinel fires.  `(with-current-buffer killed)'
+                     ;; would otherwise raise "Selecting deleted buffer"
+                     ;; and abort the test runner mid-suite.
                      (let* ((proc-exit-code (process-exit-status proc))
                             (end-time (current-time))
                             (elapsed (float-time (time-subtract end-time start-time)))
-                            (proc-stdout (with-current-buffer stdout-buffer
-                                           (buffer-string)))
-                            (proc-stderr (with-current-buffer stderr-buffer
-                                           (buffer-string))))
+                            (proc-stdout (if (buffer-live-p stdout-buffer)
+                                             (with-current-buffer stdout-buffer
+                                               (buffer-string))
+                                           ""))
+                            (proc-stderr (if (buffer-live-p stderr-buffer)
+                                             (with-current-buffer stderr-buffer
+                                               (buffer-string))
+                                           "")))
                        (when (fboundp 'beads--log)
                          (beads--log 'info "Async command completed in %.3fs" elapsed)
                          (beads--log 'verbose "Exit code: %d" proc-exit-code)
