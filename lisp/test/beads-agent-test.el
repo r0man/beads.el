@@ -94,6 +94,11 @@ Calls sync stop immediately for testing purposes."
 (defvar beads-agent-test--mock-backend nil
   "Mock backend instance for tests.")
 
+(defvar beads-agent-test--saved-backends nil
+  "Snapshot of `beads-agent--backends' taken in setup.
+Restored in teardown so tests in this file do not bleed state into
+later test files that depend on top-level backend registration.")
+
 (defvar beads-agent-test--saved-hook-handlers nil
   "Saved hook handlers to restore after tests.")
 
