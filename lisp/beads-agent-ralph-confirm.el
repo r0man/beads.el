@@ -78,7 +78,12 @@ contract: :prompt, :project-dir, :max-budget-usd, :max-turns,
 Returns a list of strings ready for `(string-join ARGV \" \")' or
 for `make-process :command'."
   (let* ((prompt (or (plist-get args :prompt) ""))
-         (project-dir (or (plist-get args :project-dir) default-directory))
+         ;; Match `--spawn-stream-for' and `--summary-line': worktree-dir
+         ;; takes precedence so the dry-run shows the same `--add-dir' the
+         ;; real spawn will use when a worktree is configured.
+         (project-dir (or (plist-get args :worktree-dir)
+                          (plist-get args :project-dir)
+                          default-directory))
          (program (or (plist-get args :program) "claude"))
          (permission-mode (or (plist-get args :permission-mode)
                               beads-agent-ralph-permission-mode))

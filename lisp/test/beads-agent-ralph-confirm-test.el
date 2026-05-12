@@ -82,6 +82,19 @@
                (list :prompt "p" :project-dir "/x" :program "/bin/echo"))))
     (should (equal (car argv) "/bin/echo"))))
 
+(ert-deftest beads-agent-ralph-confirm-test-argv-worktree-dir-wins ()
+  "When :worktree-dir is supplied it takes precedence over :project-dir
+for `--add-dir', matching the real spawn path."
+  (let* ((argv (beads-agent-ralph--preview-argv
+                (list :prompt "p"
+                      :project-dir "/repo"
+                      :worktree-dir "/tmp/wt/bd-42")))
+         (tail (cdr (member "--add-dir" argv))))
+    (should tail)
+    (should (equal (car tail)
+                   (expand-file-name "/tmp/wt/bd-42")))
+    (should-not (member (expand-file-name "/repo") argv))))
+
 ;;; Shell-quoting renderer
 
 (ert-deftest beads-agent-ralph-confirm-test-argv-shell-string ()
