@@ -1502,9 +1502,11 @@ Returns the rendered prompt as a single string."
 
 (defun beads-agent-ralph--ensure-stub-dashboard (controller)
   "Create a minimal dashboard buffer for CONTROLLER if missing.
-The buffer is a placeholder for the real vui dashboard (bde-9b00):
-it shows controller status, iteration count, cumulative cost, and a
-one-line summary per finished iteration.  Returns the buffer."
+This is the no-vui fallback used by
+`beads-agent-ralph--mount-live-dashboard' when
+`beads-agent-ralph-dashboard' or vui itself fails to load; it shows
+controller status, iteration count, cumulative cost, and a one-line
+summary per finished iteration.  Returns the buffer."
   (let* ((root (oref controller root-id))
          (name (beads-agent-ralph--stub-dashboard-name root))
          (buf (get-buffer-create name)))
@@ -1518,8 +1520,10 @@ one-line summary per finished iteration.  Returns the buffer."
 
 (defun beads-agent-ralph--stub-dashboard-update (controller)
   "Refresh the stub dashboard buffer for CONTROLLER, if alive.
-Renders header + iteration table compactly so users still see
-progress before the real dashboard (bde-9b00) lands."
+Renders header + iteration table compactly when the vui dashboard
+is unavailable; see `beads-agent-ralph--ensure-stub-dashboard'.
+The vui dashboard, when mounted, owns the buffer and bypasses this
+update via `beads-agent-ralph-dashboard-rerender-function'."
   (let ((buf (get-buffer
               (beads-agent-ralph--stub-dashboard-name
                (oref controller root-id)))))
