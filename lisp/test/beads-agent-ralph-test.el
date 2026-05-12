@@ -1279,6 +1279,94 @@ extract-* helpers can run."
     (should stop-called)
     (should (eq (oref c done-reason) 'stop))))
 
+;;; beads-agent-ralph-kill-iter (bde-k1kh)
+
+(ert-deftest beads-agent-ralph-test-kill-iter-no-op-without-stream ()
+  "Kill-iter on a controller with no in-flight stream is a silent no-op."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :status 'running :current-stream nil
+            :user-killed-iter nil :banner-log nil)))
+    (beads-agent-ralph-kill-iter c)
+    (should-not (oref c user-killed-iter))
+    (should (null (oref c banner-log)))
+    (should-not (oref c done-reason))))
+
+(ert-deftest beads-agent-ralph-test-kill-iter-sets-latch-and-stops-stream ()
+  "Kill-iter sets `user-killed-iter', banners, calls stream-stop, leaves
+`done-reason' nil so the loop continues after the sentinel."
+  (let* ((stop-called nil)
+         (stream (beads-agent-ralph-test--fake-stream :status 'running))
+         (c (beads-agent-ralph-test--make-controller
+             :status 'running :current-stream stream
+             :user-killed-iter nil :banner-log nil)))
+    (cl-letf (((symbol-function 'beads-agent-ralph--stream-stop)
+               (lambda (s) (should (eq s stream)) (setq stop-called t))))
+      (beads-agent-ralph-kill-iter c))
+    (should stop-called)
+    (should (oref c user-killed-iter))
+    (should-not (oref c done-reason))
+    (should (cl-find-if
+             (lambda (entry)
+               (string-match-p "killed by user"
+                               (plist-get entry :text)))
+             (oref c banner-log)))))
+
+(ert-deftest beads-agent-ralph-test-on-stream-finish-user-killed-clears-latch ()
+  "After a user-killed iter the latch is cleared by on-stream-finish so
+the next iter starts with a fresh marker."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :history nil
+             :user-killed-iter t :consecutive-stalls 0
+             :iteration 1 :max-iterations 50))
+         (stream (beads-agent-ralph-test--fake-stream
+                  :events nil :status 'failed)))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id "bde-root" :status "in_progress"))))
+              ((symbol-function 'beads-agent-ralph--continue-after-iteration)
+               #'ignore))
+      (beads-agent-ralph--on-stream-finish c stream))
+    (should-not (oref c user-killed-iter))))
+
+(ert-deftest beads-agent-ralph-test-on-stream-finish-user-killed-skips-stall ()
+  "A user-killed iter must NOT contribute to consecutive-stalls."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :history nil
+             :user-killed-iter t :consecutive-stalls 0
+             :iteration 1 :max-iterations 50))
+         (stream (beads-agent-ralph-test--fake-stream
+                  :events nil :status 'finished)))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id "bde-root" :status "in_progress"))))
+              ((symbol-function 'beads-agent-ralph--continue-after-iteration)
+               #'ignore))
+      (let ((beads-agent-ralph-stall-threshold 2))
+        (beads-agent-ralph--on-stream-finish c stream)))
+    (should (= (oref c consecutive-stalls) 0))))
+
+(ert-deftest beads-agent-ralph-test-on-stream-finish-user-killed-overrides-stop-on-failed ()
+  "stop-on-failed=t still continues when the iter was user-killed."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :history nil
+             :user-killed-iter t :iteration 1 :max-iterations 50))
+         (stream (beads-agent-ralph-test--fake-stream
+                  :events nil :status 'failed))
+         (continued nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id "bde-root" :status "in_progress"))))
+              ((symbol-function 'beads-agent-ralph--continue-after-iteration)
+               (lambda (_c) (setq continued t))))
+      (let ((beads-agent-ralph-stop-on-failed t))
+        (beads-agent-ralph--on-stream-finish c stream)))
+    (should continued)
+    (should-not (eq (oref c status) 'failed))
+    (should (null (oref c done-reason)))))
+
 ;;; Protected-paths post-iter check
 
 (defmacro beads-agent-ralph-test--with-git-repo (varname &rest body)

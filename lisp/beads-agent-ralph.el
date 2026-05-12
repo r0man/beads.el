@@ -362,7 +362,18 @@ fixed across iterations; a resume keeps the original start.")
     :documentation "Bounded ring of past banner records, newest first.
 Each entry is a plist (:severity SYM :text STR :time TIME).  The
 dashboard renders the most severe recent banner; the ring keeps a
-short history for the action bar's history toggle."))
+short history for the action bar's history toggle.")
+   (user-killed-iter
+    :initarg :user-killed-iter
+    :initform nil
+    :type boolean
+    :documentation "Non-nil when the current iteration was aborted by the user.
+Set by `beads-agent-ralph-kill-iter' before signalling the stream;
+read by `beads-agent-ralph--on-stream-finish' to skip stall and
+lying-agent detection for an iter the user themselves cut short, and
+to always continue to the next iter regardless of stream status or
+`beads-agent-ralph-stop-on-failed'.  Cleared by on-stream-finish so
+it is a per-iteration latch, not a sticky flag."))
   :documentation "Ralph loop controller: iteration state machine.
 
 One controller per running loop.  The dashboard buffer holds a
@@ -1751,9 +1762,18 @@ Steps:
                (let* ((root-closed (equal root-status "closed"))
                       (kind (oref controller root-kind))
                       (stream-failed (eq (oref stream status) 'failed))
+                      (user-killed (oref controller user-killed-iter))
                       (paused (and stalled
+                                   (not user-killed)
                                    (>= (oref controller consecutive-stalls)
                                        beads-agent-ralph-stall-threshold))))
+                 ;; A user-killed iter must not count toward stall
+                 ;; accounting; roll back the increment from above.
+                 (when (and user-killed stalled)
+                   (cl-decf (oref controller consecutive-stalls)))
+                 ;; Clear the per-iter latch before scheduling the
+                 ;; next iter so it cannot leak across.
+                 (oset controller user-killed-iter nil)
                  (cond
                   ;; Stall cap → auto-pause; counter+cost preserved.
                   (paused
@@ -1764,8 +1784,11 @@ Steps:
                   ;; Single-issue loop ends when the root closes.
                   ((and (eq kind 'issue) root-closed)
                    (beads-agent-ralph--terminate controller 'closed))
-                  ;; Failed iter with stop-on-failed honours the cap.
-                  ((and stream-failed beads-agent-ralph-stop-on-failed)
+                  ;; Failed iter with stop-on-failed honours the cap,
+                  ;; unless the user themselves killed this iter.
+                  ((and stream-failed
+                        beads-agent-ralph-stop-on-failed
+                        (not user-killed))
                    (beads-agent-ralph--terminate controller 'failed))
                   ;; Epic loop: a child closed (or didn't) — advance.
                   ;; The next resolve-target step emits `epic-empty'
@@ -2386,6 +2409,29 @@ its iteration record via the existing sentinel path."
     (unless stream
       (beads-agent-ralph--set-status controller 'stopped))
     controller))
+
+;;;###autoload
+(defun beads-agent-ralph-kill-iter (controller)
+  "Abort CONTROLLER's in-flight iteration without terminating the loop.
+Sets the `user-killed-iter' latch and signals the current stream the
+same way `beads-agent-ralph-stop' does, but does NOT set
+`done-reason'.  When the sentinel fires, `on-stream-finish' sees the
+latch and:
+
+- skips stall / lying-agent / consecutive-stall accounting (the user
+  killed it, the agent did not stall);
+- ignores `beads-agent-ralph-stop-on-failed' for this iter (a
+  user-initiated abort must not double as a loop-terminating failure);
+- schedules the next iteration via the normal continue path.
+
+If no stream is in flight this is a no-op.  The latch is cleared by
+`on-stream-finish' so it never persists across iterations."
+  (when (oref controller current-stream)
+    (oset controller user-killed-iter t)
+    (beads-agent-ralph--push-banner
+     controller 'info "Iteration killed by user; advancing to next.")
+    (beads-agent-ralph--stream-stop (oref controller current-stream)))
+  controller)
 
 ;;; History viewer
 
