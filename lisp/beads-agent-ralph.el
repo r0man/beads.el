@@ -267,11 +267,6 @@ dry-run buffer's argv-overrides also flow through this slot.")
 Rendered each iteration by `beads-agent-ralph--effective-template'.
 When nil, the controller falls back to `beads-agent-ralph-prompt-file'
 or `beads-agent-ralph-prompt'; tests may pin a template explicitly.")
-   (prompt-file
-    :initarg :prompt-file
-    :initform nil
-    :documentation "Optional path persisted with the rendered prompt for the iteration.
-Reserved for the persistence task (bde-1p2c).")
    (verify-command
     :initarg :verify-command
     :initform nil
