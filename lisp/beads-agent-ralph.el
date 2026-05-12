@@ -720,10 +720,13 @@ controller still demands a fresh bd-show confirmation of `closed'
 before treating this as termination.")
 
 (defun beads-agent-ralph--extract-sentinel-hit (stream)
-  "Return non-nil if STREAM's assistant text emitted the completion sentinel."
+  "Return non-nil if STREAM's assistant text emitted the completion sentinel.
+Normalises to t/nil so the value fits the `boolean'-typed iteration
+slot regardless of which assistant block contained the match."
   (let ((re beads-agent-ralph--sentinel-regexp))
-    (cl-some (lambda (text) (string-match-p re text))
-             (beads-agent-ralph--assistant-text-blocks stream))))
+    (and (cl-some (lambda (text) (string-match-p re text))
+                  (beads-agent-ralph--assistant-text-blocks stream))
+         t)))
 
 (defun beads-agent-ralph--extract-last-text (stream)
   "Return the last non-empty assistant text block from STREAM, or nil."

@@ -359,6 +359,911 @@ the (a)-(g) instructions on the parent issue."
     (should (string-match-p "<SENTINEL>" tmpl))
     (should (string-match-p "<PLAN-VIEW>" tmpl))))
 
+;;; Controller state-machine tests (bde-t9is)
+;;
+;; The tests below cover the detectors, banner ring, derived-iteration
+;; builder, async wrappers (via cl-letf stubs), and the controller's
+;; status-mutation primitives.  They never spawn a real claude or hit
+;; bd: every external surface is rebound under cl-letf for the duration
+;; of one test.  Where the controller uses `run-at-time' to break the
+;; call stack between iterations, the test pumps the timer queue with
+;; `accept-process-output' (with a tiny timeout) so the deferred body
+;; runs synchronously enough to assert against.
+
+(defun beads-agent-ralph-test--fake-stream (&rest args)
+  "Return a `beads-agent-ralph--stream' populated for tests.
+ARGS overrides slots; missing slots take sensible defaults so the
+extract-* helpers can run."
+  (apply #'beads-agent-ralph--stream
+         (append args
+                 (list :events (or (plist-get args :events) nil)
+                       :stderr-tail (or (plist-get args :stderr-tail) nil)
+                       :status (or (plist-get args :status) 'finished)))))
+
+(defun beads-agent-ralph-test--assistant-event (&rest blocks)
+  "Build an `assistant' NDJSON event plist with content BLOCKS."
+  (list :type "assistant"
+        :message (list :content blocks)))
+
+(defun beads-agent-ralph-test--text-block (text)
+  "Return an assistant `text' content block with TEXT."
+  (list :type "text" :text text))
+
+(defun beads-agent-ralph-test--tool-use-block (name input)
+  "Return an assistant `tool_use' content block with NAME and INPUT plist."
+  (list :type "tool_use" :name name :input input))
+
+(defun beads-agent-ralph-test--result-event (&rest fields)
+  "Build a `result' NDJSON event plist with FIELDS merged in."
+  (apply #'list :type "result" fields))
+
+;;; Stalled / lying-agent detectors
+
+(ert-deftest beads-agent-ralph-test-stalled-when-everything-quiet ()
+  "Iter with no bd updates, no files, and no sentinel is stalled."
+  (let ((iter (beads-agent-ralph--iteration
+               :bd-updates-count 0 :files-touched nil)))
+    (should (beads-agent-ralph--iteration-stalled-p iter nil))))
+
+(ert-deftest beads-agent-ralph-test-stalled-cleared-by-bd-update ()
+  "A bd-mutating tool call defeats stall."
+  (let ((iter (beads-agent-ralph--iteration
+               :bd-updates-count 1 :files-touched nil)))
+    (should-not (beads-agent-ralph--iteration-stalled-p iter nil))))
+
+(ert-deftest beads-agent-ralph-test-stalled-cleared-by-files-touched ()
+  "A file edit defeats stall."
+  (let ((iter (beads-agent-ralph--iteration
+               :bd-updates-count 0 :files-touched '("lisp/x.el"))))
+    (should-not (beads-agent-ralph--iteration-stalled-p iter nil))))
+
+(ert-deftest beads-agent-ralph-test-stalled-cleared-by-sentinel ()
+  "Sentinel hit defeats stall even with no other activity."
+  (let ((iter (beads-agent-ralph--iteration
+               :bd-updates-count 0 :files-touched nil)))
+    (should-not (beads-agent-ralph--iteration-stalled-p iter t))))
+
+(ert-deftest beads-agent-ralph-test-lying-agent-sentinel-but-open ()
+  "Sentinel hit + non-closed root counts as a false claim."
+  (should (beads-agent-ralph--lying-agent-p t "in_progress"))
+  (should (beads-agent-ralph--lying-agent-p t "open")))
+
+(ert-deftest beads-agent-ralph-test-lying-agent-honest-when-closed ()
+  "Sentinel hit + closed root is honest."
+  (should-not (beads-agent-ralph--lying-agent-p t "closed")))
+
+(ert-deftest beads-agent-ralph-test-lying-agent-no-claim ()
+  "Without a sentinel hit there's no claim to lie about."
+  (should-not (beads-agent-ralph--lying-agent-p nil "in_progress"))
+  (should-not (beads-agent-ralph--lying-agent-p nil "closed")))
+
+;;; Budget detectors
+
+(ert-deftest beads-agent-ralph-test-budget-iter-cap-hit ()
+  "Reaching max-iterations triggers budget-exhausted."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :iteration 10 :max-iterations 10)))
+    (let ((beads-agent-ralph-max-budget-usd nil))
+      (should (beads-agent-ralph--budget-exhausted-p c)))))
+
+(ert-deftest beads-agent-ralph-test-budget-cost-cap-hit ()
+  "Cumulative cost at-or-above the total cap triggers budget-exhausted."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :iteration 1 :max-iterations 50
+            :cumulative-cost-usd 5.0)))
+    (let ((beads-agent-ralph-max-budget-usd 5.0))
+      (should (beads-agent-ralph--budget-exhausted-p c)))))
+
+(ert-deftest beads-agent-ralph-test-budget-not-hit ()
+  "Below both caps, budget-exhausted is nil."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :iteration 1 :max-iterations 50
+            :cumulative-cost-usd 1.0)))
+    (let ((beads-agent-ralph-max-budget-usd 5.0))
+      (should-not (beads-agent-ralph--budget-exhausted-p c)))))
+
+(ert-deftest beads-agent-ralph-test-effective-budget-min-of-per-and-remaining ()
+  "When both caps are set the next spawn gets min(per-iter, total - spent)."
+  (let ((c (beads-agent-ralph-test--make-controller :cumulative-cost-usd 4.2)))
+    (let ((beads-agent-ralph-max-budget-usd-per-iter 2.0)
+          (beads-agent-ralph-max-budget-usd 5.0))
+      (should (< (abs (- (beads-agent-ralph--effective-per-iter-budget c)
+                         0.8))
+                 0.0001)))))
+
+(ert-deftest beads-agent-ralph-test-effective-budget-per-only ()
+  "With only per-iter set the per-iter value is passed through."
+  (let ((c (beads-agent-ralph-test--make-controller :cumulative-cost-usd 4.2)))
+    (let ((beads-agent-ralph-max-budget-usd-per-iter 1.5)
+          (beads-agent-ralph-max-budget-usd nil))
+      (should (= (beads-agent-ralph--effective-per-iter-budget c) 1.5)))))
+
+(ert-deftest beads-agent-ralph-test-effective-budget-total-only ()
+  "With only total set the per-iter value is the remaining headroom."
+  (let ((c (beads-agent-ralph-test--make-controller :cumulative-cost-usd 3.0)))
+    (let ((beads-agent-ralph-max-budget-usd-per-iter nil)
+          (beads-agent-ralph-max-budget-usd 5.0))
+      (should (= (beads-agent-ralph--effective-per-iter-budget c) 2.0)))))
+
+(ert-deftest beads-agent-ralph-test-effective-budget-none ()
+  "With no caps the effective per-iter budget is nil."
+  (let ((c (beads-agent-ralph-test--make-controller :cumulative-cost-usd 1.0)))
+    (let ((beads-agent-ralph-max-budget-usd-per-iter nil)
+          (beads-agent-ralph-max-budget-usd nil))
+      (should (null (beads-agent-ralph--effective-per-iter-budget c))))))
+
+(ert-deftest beads-agent-ralph-test-effective-budget-clamp-floor ()
+  "When cumulative exceeds total cap the effective value clamps to 0, not negative."
+  (let ((c (beads-agent-ralph-test--make-controller :cumulative-cost-usd 5.5)))
+    (let ((beads-agent-ralph-max-budget-usd-per-iter 2.0)
+          (beads-agent-ralph-max-budget-usd 5.0))
+      (should (= (beads-agent-ralph--effective-per-iter-budget c) 0.0)))))
+
+;;; Banner ring
+
+(ert-deftest beads-agent-ralph-test-push-banner-prepends ()
+  "Newest banner is at the head of `banner-log'."
+  (let ((c (beads-agent-ralph-test--make-controller :banner-log nil)))
+    (beads-agent-ralph--push-banner c 'info "first")
+    (beads-agent-ralph--push-banner c 'warning "second")
+    (should (equal (plist-get (car (oref c banner-log)) :text) "second"))
+    (should (equal (plist-get (cadr (oref c banner-log)) :text) "first"))))
+
+(ert-deftest beads-agent-ralph-test-push-banner-trims-to-max ()
+  "Banner ring is bounded by `beads-agent-ralph-banner-log-max'."
+  (let ((c (beads-agent-ralph-test--make-controller :banner-log nil))
+        (beads-agent-ralph-banner-log-max 3))
+    (dotimes (i 5)
+      (beads-agent-ralph--push-banner c 'info (format "b%d" i)))
+    (should (= (length (oref c banner-log)) 3))
+    (should (equal (plist-get (car (oref c banner-log)) :text) "b4"))))
+
+;;; Extractors
+
+(ert-deftest beads-agent-ralph-test-events-in-order-reverses-stream ()
+  "`events' is stored newest-first; the helper reverses to receive order."
+  (let ((s (beads-agent-ralph-test--fake-stream
+            :events '((:type "result") (:type "assistant") (:type "system_init")))))
+    (should (equal (mapcar (lambda (e) (plist-get e :type))
+                           (beads-agent-ralph--events-in-order s))
+                   '("system_init" "assistant" "result")))))
+
+(ert-deftest beads-agent-ralph-test-tool-uses-extracts-blocks ()
+  "Tool-use blocks across assistant events are collected in order."
+  (let* ((a1 (beads-agent-ralph-test--assistant-event
+              (beads-agent-ralph-test--tool-use-block "Bash" '(:command "ls"))))
+         (a2 (beads-agent-ralph-test--assistant-event
+              (beads-agent-ralph-test--tool-use-block "Edit" '(:file_path "x.el"))))
+         (s (beads-agent-ralph-test--fake-stream :events (list a2 a1)))
+         (tus (beads-agent-ralph--tool-uses s)))
+    (should (= (length tus) 2))
+    (should (equal (plist-get (car tus) :name) "Bash"))
+    (should (equal (plist-get (cadr tus) :name) "Edit"))))
+
+(ert-deftest beads-agent-ralph-test-tool-uses-ignores-non-assistant ()
+  "Tool-use extraction skips events whose type is not `assistant'."
+  (let* ((sys (list :type "system_init"
+                    :message (list :content
+                                   (list (beads-agent-ralph-test--tool-use-block
+                                          "Bash" '(:command "echo"))))))
+         (s (beads-agent-ralph-test--fake-stream :events (list sys))))
+    (should (null (beads-agent-ralph--tool-uses s)))))
+
+(ert-deftest beads-agent-ralph-test-files-touched-from-fs-edit-tools ()
+  "Files-touched dedupes paths from Edit/Write/MultiEdit calls."
+  (let* ((e1 (beads-agent-ralph-test--assistant-event
+              (beads-agent-ralph-test--tool-use-block
+               "Edit" '(:file_path "lisp/a.el"))))
+         (e2 (beads-agent-ralph-test--assistant-event
+              (beads-agent-ralph-test--tool-use-block
+               "Write" '(:file_path "lisp/b.el"))))
+         (e3 (beads-agent-ralph-test--assistant-event
+              (beads-agent-ralph-test--tool-use-block
+               "Edit" '(:file_path "lisp/a.el"))))
+         (s (beads-agent-ralph-test--fake-stream :events (list e3 e2 e1))))
+    (should (equal (beads-agent-ralph--extract-files-touched s)
+                   '("lisp/a.el" "lisp/b.el")))))
+
+(ert-deftest beads-agent-ralph-test-files-touched-ignores-bash ()
+  "Bash tool calls do not contribute to files-touched."
+  (let* ((e (beads-agent-ralph-test--assistant-event
+             (beads-agent-ralph-test--tool-use-block
+              "Bash" '(:command "echo hi"))))
+         (s (beads-agent-ralph-test--fake-stream :events (list e))))
+    (should (null (beads-agent-ralph--extract-files-touched s)))))
+
+(ert-deftest beads-agent-ralph-test-bd-updates-extracts-id-and-sub ()
+  "Bash bd-update commands surface as (id . subcommand) pairs."
+  (let* ((e1 (beads-agent-ralph-test--assistant-event
+              (beads-agent-ralph-test--tool-use-block
+               "Bash" '(:command "bd update bde-aaa --notes 'hi'"))))
+         (e2 (beads-agent-ralph-test--assistant-event
+              (beads-agent-ralph-test--tool-use-block
+               "Bash" '(:command "bd close bde-bbb"))))
+         (s (beads-agent-ralph-test--fake-stream :events (list e2 e1)))
+         (upd (beads-agent-ralph--extract-bd-updates s)))
+    (should (equal upd '(("bde-aaa" . "update") ("bde-bbb" . "close"))))))
+
+(ert-deftest beads-agent-ralph-test-bd-updates-skips-non-mutating ()
+  "bd list / bd show are read-only and not classified as bd updates."
+  (let* ((e (beads-agent-ralph-test--assistant-event
+             (beads-agent-ralph-test--tool-use-block
+              "Bash" '(:command "bd show bde-aaa --json"))))
+         (s (beads-agent-ralph-test--fake-stream :events (list e))))
+    (should (null (beads-agent-ralph--extract-bd-updates s)))))
+
+(ert-deftest beads-agent-ralph-test-tool-call-count ()
+  "Tool-call count matches the number of tool_use blocks."
+  (let* ((e (beads-agent-ralph-test--assistant-event
+             (beads-agent-ralph-test--tool-use-block "Bash" '(:command "ls"))
+             (beads-agent-ralph-test--tool-use-block "Edit" '(:file_path "x")))))
+    (should (= (beads-agent-ralph--extract-tool-call-count
+                (beads-agent-ralph-test--fake-stream :events (list e)))
+               2))))
+
+(ert-deftest beads-agent-ralph-test-summary-tag-extracted ()
+  "The last <summary>...</summary> block wins."
+  (let* ((e1 (beads-agent-ralph-test--assistant-event
+              (beads-agent-ralph-test--text-block "<summary>earlier</summary>")))
+         (e2 (beads-agent-ralph-test--assistant-event
+              (beads-agent-ralph-test--text-block "<summary>later one</summary>")))
+         (s (beads-agent-ralph-test--fake-stream :events (list e2 e1))))
+    (should (equal (beads-agent-ralph--extract-summary-tag s) "later one"))))
+
+(ert-deftest beads-agent-ralph-test-summary-tag-absent ()
+  "No <summary> tag yields nil."
+  (let* ((e (beads-agent-ralph-test--assistant-event
+             (beads-agent-ralph-test--text-block "plain prose"))))
+    (should (null (beads-agent-ralph--extract-summary-tag
+                   (beads-agent-ralph-test--fake-stream
+                    :events (list e)))))))
+
+(ert-deftest beads-agent-ralph-test-sentinel-hit-detection ()
+  "The completion sentinel is detected from an assistant text block."
+  (let* ((e (beads-agent-ralph-test--assistant-event
+             (beads-agent-ralph-test--text-block
+              "done <promise>COMPLETE</promise>"))))
+    (should (beads-agent-ralph--extract-sentinel-hit
+             (beads-agent-ralph-test--fake-stream :events (list e))))))
+
+(ert-deftest beads-agent-ralph-test-sentinel-hit-absent ()
+  "No sentinel token yields nil."
+  (let* ((e (beads-agent-ralph-test--assistant-event
+             (beads-agent-ralph-test--text-block "still working"))))
+    (should-not (beads-agent-ralph--extract-sentinel-hit
+                 (beads-agent-ralph-test--fake-stream :events (list e))))))
+
+(ert-deftest beads-agent-ralph-test-last-text-newest-wins ()
+  "The last non-empty assistant text block surfaces as `last-text'."
+  (let* ((e1 (beads-agent-ralph-test--assistant-event
+              (beads-agent-ralph-test--text-block "first")))
+         (e2 (beads-agent-ralph-test--assistant-event
+              (beads-agent-ralph-test--text-block "second")))
+         (s (beads-agent-ralph-test--fake-stream :events (list e2 e1))))
+    (should (equal (beads-agent-ralph--extract-last-text s) "second"))))
+
+(ert-deftest beads-agent-ralph-test-result-fields-extracted ()
+  "Result event populates `:cost-usd' and `:duration-ms'."
+  (let* ((r (beads-agent-ralph-test--result-event
+             :total_cost_usd 0.5 :duration_ms 1234))
+         (s (beads-agent-ralph-test--fake-stream :events (list r)))
+         (fields (beads-agent-ralph--extract-result-fields s)))
+    (should (equal (plist-get fields :cost-usd) 0.5))
+    (should (equal (plist-get fields :duration-ms) 1234))))
+
+(ert-deftest beads-agent-ralph-test-result-fields-fallback-keys ()
+  "The result extractor accepts the alternative `:cost_usd' key."
+  (let* ((r (beads-agent-ralph-test--result-event :cost_usd 0.25))
+         (s (beads-agent-ralph-test--fake-stream :events (list r))))
+    (should (= (plist-get (beads-agent-ralph--extract-result-fields s)
+                          :cost-usd)
+               0.25))))
+
+(ert-deftest beads-agent-ralph-test-result-fields-absent ()
+  "Without a result event, both fields stay nil."
+  (let ((s (beads-agent-ralph-test--fake-stream :events nil)))
+    (should (null (plist-get (beads-agent-ralph--extract-result-fields s)
+                             :cost-usd)))
+    (should (null (plist-get (beads-agent-ralph--extract-result-fields s)
+                             :duration-ms)))))
+
+;;; build-iteration composition
+
+(ert-deftest beads-agent-ralph-test-build-iteration-captures-fields ()
+  "`build-iteration' assembles cost, files, summary, sentinel-hit, and status."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :current-issue-id "bde-aaa"))
+         (e-text (beads-agent-ralph-test--assistant-event
+                  (beads-agent-ralph-test--text-block
+                   "doing things <promise>COMPLETE</promise>")
+                  (beads-agent-ralph-test--text-block
+                   "<summary>did the thing</summary>")))
+         (e-edit (beads-agent-ralph-test--assistant-event
+                  (beads-agent-ralph-test--tool-use-block
+                   "Edit" '(:file_path "lisp/foo.el"))))
+         (e-result (beads-agent-ralph-test--result-event
+                    :total_cost_usd 0.42 :duration_ms 9876))
+         (s (beads-agent-ralph-test--fake-stream
+             :events (list e-result e-edit e-text)
+             :stderr-tail '("warn"))) ;; copied verbatim
+         (iter (beads-agent-ralph--build-iteration c s)))
+    (should (equal (oref iter issue-id) "bde-aaa"))
+    (should (eq (oref iter status) 'finished))
+    (should (= (oref iter cost-usd) 0.42))
+    (should (= (oref iter duration-ms) 9876))
+    (should (equal (oref iter files-touched) '("lisp/foo.el")))
+    (should (equal (oref iter summary) "did the thing"))
+    (should (oref iter sentinel-hit))
+    (should (equal (oref iter stderr-tail) '("warn")))))
+
+(ert-deftest beads-agent-ralph-test-build-iteration-summary-truncates ()
+  "Summary longer than `beads-agent-ralph-summary-max-len' is ellided."
+  (let* ((c (beads-agent-ralph-test--make-controller))
+         (long (make-string 200 ?A))
+         (e (beads-agent-ralph-test--assistant-event
+             (beads-agent-ralph-test--text-block
+              (format "<summary>%s</summary>" long))))
+         (s (beads-agent-ralph-test--fake-stream
+             :events (list e) :status 'finished))
+         (beads-agent-ralph-summary-max-len 50)
+         (iter (beads-agent-ralph--build-iteration c s)))
+    (should (= (length (oref iter summary)) 51)) ;; 50 chars + ellipsis
+    (should (string-suffix-p "…" (oref iter summary)))))
+
+(ert-deftest beads-agent-ralph-test-build-iteration-summary-falls-back-to-last-text ()
+  "When no <summary> tag is present the last assistant text is used."
+  (let* ((c (beads-agent-ralph-test--make-controller))
+         (e (beads-agent-ralph-test--assistant-event
+             (beads-agent-ralph-test--text-block "plain ending")))
+         (s (beads-agent-ralph-test--fake-stream
+             :events (list e) :status 'finished))
+         (iter (beads-agent-ralph--build-iteration c s)))
+    (should (equal (oref iter summary) "plain ending"))))
+
+(ert-deftest beads-agent-ralph-test-build-iteration-stream-status-mapping ()
+  "Stream-level status maps to the iteration-level status enum."
+  (let ((c (beads-agent-ralph-test--make-controller)))
+    (dolist (pair '((finished . finished)
+                    (failed   . failed)
+                    (stopped  . stopped)
+                    (running  . failed))) ;; non-terminal coerces to failed
+      (let* ((s (beads-agent-ralph-test--fake-stream
+                 :events nil :status (car pair)))
+             (iter (beads-agent-ralph--build-iteration c s)))
+        (should (eq (oref iter status) (cdr pair)))))))
+
+;;; Coercion
+
+(ert-deftest beads-agent-ralph-test-coerce-single-issue-object ()
+  "An object passes through unchanged."
+  (let ((issue (beads-agent-ralph-test--make-issue :id "bde-x")))
+    (should (eq (beads-agent-ralph--coerce-single-issue issue) issue))))
+
+(ert-deftest beads-agent-ralph-test-coerce-single-issue-singleton-list ()
+  "A one-element list unwraps to its issue."
+  (let* ((issue (beads-agent-ralph-test--make-issue :id "bde-x"))
+         (out (beads-agent-ralph--coerce-single-issue (list issue))))
+    (should (eq out issue))))
+
+(ert-deftest beads-agent-ralph-test-coerce-single-issue-multi-list ()
+  "A multi-element list returns the head (bd convention)."
+  (let* ((a (beads-agent-ralph-test--make-issue :id "bde-a"))
+         (b (beads-agent-ralph-test--make-issue :id "bde-b"))
+         (out (beads-agent-ralph--coerce-single-issue (list a b))))
+    (should (eq out a))))
+
+;;; Status mutations
+
+(ert-deftest beads-agent-ralph-test-set-status-fires-hook ()
+  "`set-status' invokes `beads-agent-ralph-state-change-functions'."
+  (let* ((c (beads-agent-ralph-test--make-controller :status 'idle))
+         (calls nil)
+         (beads-agent-ralph-state-change-functions
+          (list (lambda (ctrl new) (push (cons (oref ctrl root-id) new) calls)))))
+    (beads-agent-ralph--set-status c 'running)
+    (should (eq (oref c status) 'running))
+    (should (equal calls '(("bde-root" . running))))))
+
+(ert-deftest beads-agent-ralph-test-set-status-idempotent ()
+  "Same-status transitions don't fire the hook again."
+  (let* ((c (beads-agent-ralph-test--make-controller :status 'running))
+         (calls nil)
+         (beads-agent-ralph-state-change-functions
+          (list (lambda (_ctrl _new) (cl-incf calls 1)))))
+    (setq calls 0)
+    (beads-agent-ralph--set-status c 'running)
+    (should (= calls 0))))
+
+(ert-deftest beads-agent-ralph-test-set-status-hook-error-doesnt-leak ()
+  "A signalling hook still lets `set-status' complete."
+  (let* ((c (beads-agent-ralph-test--make-controller :status 'idle))
+         (beads-agent-ralph-state-change-functions
+          (list (lambda (_c _s) (error "intentional")))))
+    (beads-agent-ralph--set-status c 'running)
+    (should (eq (oref c status) 'running))))
+
+(ert-deftest beads-agent-ralph-test-terminate-maps-reasons ()
+  "Each terminate reason maps to its terminal status."
+  (dolist (pair '((stop . stopped) (failed . failed) (budget . done)
+                  (epic-empty . done) (closed . done) (sentinel . done)))
+    (let ((c (beads-agent-ralph-test--make-controller :status 'running)))
+      (beads-agent-ralph--terminate c (car pair))
+      (should (eq (oref c status) (cdr pair)))
+      (should (eq (oref c done-reason) (car pair)))
+      (should (null (oref c current-stream))))))
+
+(ert-deftest beads-agent-ralph-test-terminate-no-op-after-terminal ()
+  "Terminate is a no-op when the controller already reached a terminal state."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :status 'done :done-reason 'sentinel)))
+    (beads-agent-ralph--terminate c 'failed)
+    (should (eq (oref c status) 'done))
+    (should (eq (oref c done-reason) 'sentinel))))
+
+(ert-deftest beads-agent-ralph-test-pause-sets-auto-paused-and-banner ()
+  "`pause' transitions to auto-paused and pushes a warning banner."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :status 'running :banner-log nil)))
+    (beads-agent-ralph--pause c "stalled out")
+    (should (eq (oref c status) 'auto-paused))
+    (should (null (oref c current-stream)))
+    (let ((latest (car (oref c banner-log))))
+      (should (eq (plist-get latest :severity) 'warning))
+      (should (equal (plist-get latest :text) "stalled out")))))
+
+;;; continue-after-iteration
+
+(ert-deftest beads-agent-ralph-test-continue-honours-budget-cap ()
+  "`continue-after-iteration' terminates when iterations are exhausted."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :status 'running :iteration 5 :max-iterations 5)))
+    (let ((beads-agent-ralph-max-budget-usd nil))
+      (beads-agent-ralph--continue-after-iteration c)
+      (should (eq (oref c status) 'done))
+      (should (eq (oref c done-reason) 'budget)))))
+
+(ert-deftest beads-agent-ralph-test-continue-schedules-next-iteration ()
+  "`continue-after-iteration' transitions to cooling-down and schedules a run."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :iteration 1 :max-iterations 50
+             :iteration-delay 0.0))
+         (calls 0))
+    (cl-letf (((symbol-function 'beads-agent-ralph--run-iteration)
+               (lambda (_c) (cl-incf calls))))
+      (let ((beads-agent-ralph-max-budget-usd nil))
+        (beads-agent-ralph--continue-after-iteration c))
+      ;; The schedule fires asynchronously; pump the timer queue.
+      (with-timeout (1.0) (while (zerop calls) (sit-for 0.01)))
+      (should (= calls 1))
+      ;; Schedule increments the iteration counter before the thunk runs.
+      (should (= (oref c iteration) 2)))))
+
+;;; schedule-next-iteration
+
+(ert-deftest beads-agent-ralph-test-schedule-increments-iteration ()
+  "The scheduler increments `iteration' before invoking THUNK."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :iteration 4 :iteration-delay 0.0))
+         (observed nil))
+    (beads-agent-ralph--schedule-next-iteration
+     c (lambda () (setq observed (oref c iteration))))
+    (with-timeout (1.0) (while (null observed) (sit-for 0.01)))
+    (should (= observed 5))))
+
+;;; Async chain helper
+
+(ert-deftest beads-agent-ralph-test-then-runs-all-steps-in-order ()
+  "Each step receives the accumulated plist; results accumulate left to right."
+  (let* ((trace nil))
+    (beads-agent-ralph--then
+     :acc (list :i 0)
+     :steps
+     (list
+      (lambda (acc k)
+        (push (cons 'a (plist-get acc :i)) trace)
+        (funcall k nil (list :seen 'a)))
+      (lambda (acc k)
+        (push (cons 'b (plist-get acc :seen)) trace)
+        (funcall k nil nil))))
+    (should (equal (reverse trace) '((a . 0) (b . a))))))
+
+(ert-deftest beads-agent-ralph-test-then-short-circuits-on-error ()
+  "An error in one step skips remaining steps and runs on-error with the index."
+  (let* ((second-called nil)
+         (err-args nil))
+    (beads-agent-ralph--then
+     :steps
+     (list
+      (lambda (_acc k) (funcall k nil nil))
+      (lambda (_acc k) (funcall k 'boom nil))
+      (lambda (_acc _k) (setq second-called t)))
+     :on-error (lambda (err idx) (setq err-args (list err idx))))
+    (should (null second-called))
+    (should (equal err-args (list 'boom 1)))))
+
+(ert-deftest beads-agent-ralph-test-then-honours-cancellation ()
+  "Cancellation predicate aborts before the next step runs."
+  (let* ((calls 0)
+         (cancelled t)
+         (err-args nil))
+    (beads-agent-ralph--then
+     :steps
+     (list (lambda (_acc _k) (cl-incf calls)))
+     :cancelled (lambda () cancelled)
+     :on-error (lambda (err idx) (setq err-args (list err idx))))
+    (should (= calls 0))
+    (should (equal err-args (list 'cancelled 0)))))
+
+;;; Async shell wrapper
+
+(ert-deftest beads-agent-ralph-test-run-shell-async-true ()
+  "/bin/true exits 0 with empty stdout/stderr."
+  (let ((done nil) (result nil))
+    (beads-agent-ralph--run-shell-async
+     "true" nil (lambda (r) (setq result r done t)))
+    (with-timeout (5.0) (while (not done) (sit-for 0.05)))
+    (should (= (plist-get result :exit) 0))
+    (should (equal (plist-get result :stdout) ""))
+    (should (equal (plist-get result :stderr) ""))))
+
+(ert-deftest beads-agent-ralph-test-run-shell-async-false ()
+  "/bin/false exits 1; stderr can be empty."
+  (let ((done nil) (result nil))
+    (beads-agent-ralph--run-shell-async
+     "false" nil (lambda (r) (setq result r done t)))
+    (with-timeout (5.0) (while (not done) (sit-for 0.05)))
+    (should (= (plist-get result :exit) 1))))
+
+(ert-deftest beads-agent-ralph-test-run-verify-async-nil ()
+  "When no verify command is configured the callback receives nil."
+  (let ((c (beads-agent-ralph-test--make-controller :verify-command nil))
+        (got 'unset))
+    (beads-agent-ralph--run-verify-async
+     c (lambda (r) (setq got r)))
+    (should (null got))))
+
+(ert-deftest beads-agent-ralph-test-run-verify-async-function ()
+  "Function-valued verify commands are invoked with the controller."
+  (let* ((c (beads-agent-ralph-test--make-controller))
+         (got nil))
+    (oset c verify-command
+          (lambda (_ctrl) (list :exit 0 :stdout "fn-ok" :stderr "")))
+    (beads-agent-ralph--run-verify-async
+     c (lambda (r) (setq got r)))
+    (should (equal (plist-get got :stdout) "fn-ok"))))
+
+(ert-deftest beads-agent-ralph-test-run-verify-async-invalid-value ()
+  "Non-string, non-function verify-command returns an :exit -1 plist."
+  (let* ((c (beads-agent-ralph-test--make-controller))
+         (got nil))
+    (oset c verify-command 42)
+    (beads-agent-ralph--run-verify-async
+     c (lambda (r) (setq got r)))
+    (should (= (plist-get got :exit) -1))
+    (should (string-match-p "invalid" (plist-get got :stderr)))))
+
+;;; on-stream-finish: detector dispatch
+
+(ert-deftest beads-agent-ralph-test-on-stream-finish-stall-pauses ()
+  "Two consecutive stalled iterations transition the controller to auto-paused."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :consecutive-stalls 1
+             :verify-command nil :history nil))
+         (beads-agent-ralph-stall-threshold 2)
+         (stream (beads-agent-ralph-test--fake-stream
+                  :events nil :status 'finished)))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id "bde-root" :status "open")))))
+      (beads-agent-ralph--on-stream-finish c stream))
+    (should (eq (oref c status) 'auto-paused))
+    (should (= (length (oref c history)) 1))
+    (should (eq (oref (car (oref c history)) status) 'finished))
+    (should (= (oref c consecutive-stalls) 2))))
+
+(ert-deftest beads-agent-ralph-test-on-stream-finish-closed-terminates ()
+  "Single-issue loop terminates `done(closed)' when root closes."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :root-kind 'issue
+             :history nil))
+         (stream (beads-agent-ralph-test--fake-stream
+                  :events (list (beads-agent-ralph-test--assistant-event
+                                 (beads-agent-ralph-test--tool-use-block
+                                  "Bash" '(:command "bd close bde-root"))))
+                  :status 'finished)))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id "bde-root" :status "closed")))))
+      (beads-agent-ralph--on-stream-finish c stream))
+    (should (eq (oref c status) 'done))
+    (should (eq (oref c done-reason) 'closed))))
+
+(ert-deftest beads-agent-ralph-test-on-stream-finish-lying-agent-banner ()
+  "Sentinel hit + open root increments false-claim-count and banners."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :root-kind 'issue
+             :history nil :banner-log nil :false-claim-count 0
+             :iteration 1 :max-iterations 10))
+         (text-block (beads-agent-ralph-test--text-block
+                      "<promise>COMPLETE</promise>"))
+         (bd-update-block (beads-agent-ralph-test--tool-use-block
+                           "Bash" '(:command "bd update bde-root --notes x")))
+         (stream (beads-agent-ralph-test--fake-stream
+                  :events (list (beads-agent-ralph-test--assistant-event
+                                 text-block bd-update-block))
+                  :status 'finished)))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id "bde-root" :status "in_progress"))))
+              ((symbol-function 'beads-agent-ralph--continue-after-iteration)
+               #'ignore))
+      (beads-agent-ralph--on-stream-finish c stream))
+    (should (= (oref c false-claim-count) 1))
+    (should (cl-find-if
+             (lambda (entry)
+               (string-match-p "Agent claimed complete"
+                               (plist-get entry :text)))
+             (oref c banner-log)))))
+
+(ert-deftest beads-agent-ralph-test-on-stream-finish-accumulates-cost ()
+  "Per-iter cost is added to the cumulative total on completion."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :cumulative-cost-usd 1.0 :history nil))
+         (stream (beads-agent-ralph-test--fake-stream
+                  :events (list (beads-agent-ralph-test--result-event
+                                 :total_cost_usd 0.5))
+                  :status 'finished)))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id "bde-root" :status "in_progress"))))
+              ((symbol-function 'beads-agent-ralph--continue-after-iteration)
+               #'ignore))
+      (beads-agent-ralph--on-stream-finish c stream))
+    (should (= (oref c cumulative-cost-usd) 1.5))))
+
+(ert-deftest beads-agent-ralph-test-on-stream-finish-stall-below-threshold-continues ()
+  "A single stall increments the counter but does not auto-pause."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :consecutive-stalls 0 :history nil
+             :iteration 1 :max-iterations 50))
+         (stream (beads-agent-ralph-test--fake-stream
+                  :events nil :status 'finished)))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id "bde-root" :status "in_progress"))))
+              ((symbol-function 'beads-agent-ralph--continue-after-iteration)
+               #'ignore))
+      (let ((beads-agent-ralph-stall-threshold 2))
+        (beads-agent-ralph--on-stream-finish c stream)))
+    (should (= (oref c consecutive-stalls) 1))
+    (should (eq (oref c status) 'running))))
+
+(ert-deftest beads-agent-ralph-test-on-stream-finish-resets-stalls-on-activity ()
+  "An iter with bd-update activity zeroes `consecutive-stalls'."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :consecutive-stalls 2 :history nil
+             :iteration 1 :max-iterations 50))
+         (active (beads-agent-ralph-test--assistant-event
+                  (beads-agent-ralph-test--tool-use-block
+                   "Bash" '(:command "bd update bde-root --notes hi"))))
+         (stream (beads-agent-ralph-test--fake-stream
+                  :events (list active) :status 'finished)))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id "bde-root" :status "in_progress"))))
+              ((symbol-function 'beads-agent-ralph--continue-after-iteration)
+               #'ignore))
+      (beads-agent-ralph--on-stream-finish c stream))
+    (should (= (oref c consecutive-stalls) 0))))
+
+(ert-deftest beads-agent-ralph-test-on-stream-finish-failed-no-stop-continues ()
+  "stop-on-failed=nil: a failed stream does not terminate the loop."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :history nil
+             :iteration 1 :max-iterations 50))
+         (stream (beads-agent-ralph-test--fake-stream
+                  :events nil :status 'failed))
+         (continued nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id "bde-root" :status "in_progress"))))
+              ((symbol-function 'beads-agent-ralph--continue-after-iteration)
+               (lambda (_c) (setq continued t))))
+      (let ((beads-agent-ralph-stop-on-failed nil))
+        (beads-agent-ralph--on-stream-finish c stream)))
+    (should continued)
+    (should-not (eq (oref c status) 'failed))
+    (should (null (oref c done-reason)))))
+
+(ert-deftest beads-agent-ralph-test-on-stream-finish-failed-stop-terminates ()
+  "stop-on-failed=t: a failed stream terminates the loop with reason `failed'."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :history nil
+             :iteration 1 :max-iterations 50))
+         (stream (beads-agent-ralph-test--fake-stream
+                  :events nil :status 'failed)))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id "bde-root" :status "in_progress")))))
+      (let ((beads-agent-ralph-stop-on-failed t))
+        (beads-agent-ralph--on-stream-finish c stream)))
+    (should (eq (oref c status) 'failed))
+    (should (eq (oref c done-reason) 'failed))))
+
+(ert-deftest beads-agent-ralph-test-on-stream-finish-epic-mode-continues ()
+  "Epic mode with an open root continues even after a stream finishes."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :root-kind 'epic :history nil
+             :iteration 1 :max-iterations 50))
+         (stream (beads-agent-ralph-test--fake-stream
+                  :events (list
+                           (beads-agent-ralph-test--assistant-event
+                            (beads-agent-ralph-test--tool-use-block
+                             "Bash" '(:command "bd close bde-kid"))))
+                  :status 'finished))
+         (continued nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id "bde-root" :status "in_progress"))))
+              ((symbol-function 'beads-agent-ralph--continue-after-iteration)
+               (lambda (_c) (setq continued t))))
+      (beads-agent-ralph--on-stream-finish c stream))
+    (should continued)
+    (should (null (oref c done-reason)))))
+
+;;; Cross-iteration prompt threading
+
+(ert-deftest beads-agent-ralph-test-prior-false-claims-flows-into-next-prompt ()
+  "After a lying-agent iter the next prompt mentions PRIOR FALSE CLAIMS."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :root-kind 'issue :root-id "bde-root"
+             :history nil :banner-log nil :false-claim-count 0
+             :iteration 1 :max-iterations 10
+             :prompt-template "P:<PRIOR-FALSE-CLAIMS>"))
+         (text-block (beads-agent-ralph-test--text-block
+                      "<promise>COMPLETE</promise>"))
+         (bd-update-block (beads-agent-ralph-test--tool-use-block
+                           "Bash" '(:command "bd update bde-root --notes x")))
+         (stream (beads-agent-ralph-test--fake-stream
+                  :events (list (beads-agent-ralph-test--assistant-event
+                                 text-block bd-update-block))
+                  :status 'finished)))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id "bde-root" :status "in_progress"))))
+              ((symbol-function 'beads-agent-ralph--continue-after-iteration)
+               #'ignore))
+      (beads-agent-ralph--on-stream-finish c stream))
+    (let ((rendered (beads-agent-ralph--render-prompt c nil nil)))
+      (should (string-match-p "PRIOR FALSE CLAIMS" rendered)))))
+
+(ert-deftest beads-agent-ralph-test-prior-stall-count-flows-into-next-prompt ()
+  "After a stalled (but not auto-paused) iter the next prompt mentions stalls."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :consecutive-stalls 0 :history nil
+             :iteration 1 :max-iterations 50
+             :prompt-template "P:<PRIOR-STALL-COUNT>"))
+         (stream (beads-agent-ralph-test--fake-stream
+                  :events nil :status 'finished)))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id "bde-root" :status "in_progress"))))
+              ((symbol-function 'beads-agent-ralph--continue-after-iteration)
+               #'ignore))
+      (let ((beads-agent-ralph-stall-threshold 99))
+        (beads-agent-ralph--on-stream-finish c stream)))
+    (let ((rendered (beads-agent-ralph--render-prompt c nil nil)))
+      (should (string-match-p "PRIOR STALL COUNT" rendered)))))
+
+;;; run-iteration: target resolution
+
+(ert-deftest beads-agent-ralph-test-run-iteration-epic-empty-terminates ()
+  "Epic mode with no ready children terminates `done(epic-empty)'."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :status 'running :root-kind 'epic :history nil)))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-ready-children-async)
+               (lambda (_id k) (funcall k t nil))))
+      (beads-agent-ralph--run-iteration c))
+    (should (eq (oref c status) 'done))
+    (should (eq (oref c done-reason) 'epic-empty))))
+
+(ert-deftest beads-agent-ralph-test-run-iteration-issue-mode-uses-root-id ()
+  "Issue mode sets `current-issue-id' to the root and spawns a stream."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :root-kind 'issue :root-id "bde-root"
+             :prompt-template "X"))
+         (spawned nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-claim-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue :id id))))
+              ((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--spawn-stream-for)
+               (lambda (_c id _p) (setq spawned id))))
+      (beads-agent-ralph--run-iteration c))
+    (should (equal spawned "bde-root"))
+    (should (equal (oref c current-issue-id) "bde-root"))))
+
+(ert-deftest beads-agent-ralph-test-run-iteration-epic-picks-first-ready-child ()
+  "Epic mode resolves `current-issue-id' to the first ready child."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :root-kind 'epic :root-id "bde-epic"
+             :prompt-template "X"))
+         (kid (beads-agent-ralph-test--make-issue :id "bde-kid1"))
+         (kid2 (beads-agent-ralph-test--make-issue :id "bde-kid2"))
+         (spawned nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-ready-children-async)
+               (lambda (_id k) (funcall k t (list kid kid2))))
+              ((symbol-function 'beads-agent-ralph--bd-claim-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue :id id))))
+              ((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--spawn-stream-for)
+               (lambda (_c id _p) (setq spawned id))))
+      (beads-agent-ralph--run-iteration c))
+    (should (equal spawned "bde-kid1"))
+    (should (equal (oref c current-issue-id) "bde-kid1"))))
+
+(ert-deftest beads-agent-ralph-test-run-iteration-claim-failure-is-non-fatal ()
+  "A failed bd claim is recorded as a banner but does not abort the iter."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :root-kind 'issue :root-id "bde-root"
+             :banner-log nil :prompt-template "X"))
+         (spawned nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-claim-async)
+               (lambda (_id k) (funcall k nil "claim-failed")))
+              ((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue :id id))))
+              ((symbol-function 'beads-agent-ralph--bd-list-children-async)
+               (lambda (_id k) (funcall k t nil)))
+              ((symbol-function 'beads-agent-ralph--spawn-stream-for)
+               (lambda (_c id _p) (setq spawned id))))
+      (beads-agent-ralph--run-iteration c))
+    (should (equal spawned "bde-root"))
+    (should (cl-some (lambda (b)
+                       (string-match-p "Claim failed"
+                                       (plist-get b :text)))
+                     (oref c banner-log)))))
+
+;;; beads-agent-ralph-stop
+
+(ert-deftest beads-agent-ralph-test-stop-without-stream-transitions-to-stopped ()
+  "Stop on a controller with no in-flight stream is synchronous."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :status 'running :current-stream nil)))
+    (beads-agent-ralph-stop c)
+    (should (eq (oref c status) 'stopped))
+    (should (eq (oref c done-reason) 'stop))))
+
+(ert-deftest beads-agent-ralph-test-stop-with-stream-calls-stream-stop ()
+  "Stop on an in-flight controller forwards to `stream-stop' without flipping status."
+  (let* ((stop-called nil)
+         (stream (beads-agent-ralph-test--fake-stream :status 'running))
+         (c (beads-agent-ralph-test--make-controller
+             :status 'running :current-stream stream)))
+    (cl-letf (((symbol-function 'beads-agent-ralph--stream-stop)
+               (lambda (s) (should (eq s stream)) (setq stop-called t))))
+      (beads-agent-ralph-stop c))
+    (should stop-called)
+    (should (eq (oref c done-reason) 'stop))))
+
 (provide 'beads-agent-ralph-test)
 
 ;;; beads-agent-ralph-test.el ends here
