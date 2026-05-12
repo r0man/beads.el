@@ -1762,6 +1762,7 @@ Customize `beads-agent-mode-line-format' to change the display style."
 ;; Terminal-spawned backend (Phase 1b, opt-in: defines the class but
 ;; does not flip any per-type default).
 (require 'beads-agent-backend-terminal nil t)
+(require 'beads-agent-ralph-backend nil t)
 
 ;;; Load Agent List Module
 
