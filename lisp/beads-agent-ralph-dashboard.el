@@ -420,8 +420,10 @@ Severity ordering: error > warning > notice > info."
 ;;; Action bar
 
 (defun beads-agent-ralph-dashboard--action-bar ()
-  "Return the action-bar legend vnode."
-  (vui-text "[s]top [k]ill [p]ause [r]esume [e]dit [b]udget [v]iew [B]anners [?]"
+  "Return the action-bar legend vnode.
+The legend must match the keymap in `beads-agent-ralph-dashboard-mode-map'
+and the body of `beads-agent-ralph-dashboard-help'."
+  (vui-text "[s]top [k]ill [p]ause [r]esume [v]iew [B]anners [g]refresh [q]uit [?]"
             :face 'shadow))
 
 ;;; Root composition
