@@ -2281,12 +2281,13 @@ ARGS is a plist:
                 `cancel'.  Test/backend callers use this to skip the
                 `read-char' prompt when a JSONL exists for ISSUE-ID.
 
-Returns the controller object (also stored on the global state so
-the backend can pick it up).  The first iteration is dispatched via
-`run-at-time' so this function returns immediately.  When a prior
-JSONL log for ISSUE-ID exists under PROJECT-DIR's
-`.beads/scratch/ralph/' and `:resume-action' is not supplied, the
-user is prompted to resume / stash / fresh / full-reset / cancel."
+Returns a cons cell (CONTROLLER . DASHBOARD-BUFFER) where CONTROLLER
+is the freshly built `beads-agent-ralph--controller' and DASHBOARD-BUFFER
+is the live vui dashboard mounted for the session.  The first iteration
+is dispatched via `run-at-time' so this function returns immediately.
+When a prior JSONL log for ISSUE-ID exists under PROJECT-DIR's
+`.beads/scratch/ralph/' and `:resume-action' is not supplied, the user
+is prompted to resume / stash / fresh / full-reset / cancel."
   (let* ((issue (plist-get args :issue))
          (issue-id (cond ((stringp issue) issue)
                          ((and issue (eieio-object-p issue)
