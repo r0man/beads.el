@@ -218,9 +218,12 @@ continues without blocking iteration."
 
 ;;; Per-iter event capture
 ;;
-;; The capture subscriber holds a count of events already written so
-;; each tick only flushes the delta.  Mutation is hidden behind a
-;; cell so the subscriber can be a closure referring to it.
+;; The capture subscriber tracks the previously-seen head cell of the
+;; stream's `events' list and walks only the new prefix on each flush.
+;; `events' is push-style (newest at head) so walking head-first and
+;; pushing into a fresh list yields chronological order without ever
+;; reversing the whole history.  O(new-events-per-flush) instead of
+;; O(total-events).
 
 (defun beads-agent-ralph-persist-make-event-subscriber (project-dir root-id iter)
   "Return a stream subscriber that captures events for one iteration.
@@ -234,21 +237,25 @@ flush.  On terminal status it compresses the file (best-effort) and
 prunes older event files per `beads-agent-ralph-event-retention'.
 
 A second invocation after compression is a no-op."
-  (let ((written 0)
+  (let ((seen-head nil)
         (compressed nil)
         (path (beads-agent-ralph-persist-iter-event-path
                project-dir root-id iter)))
     (lambda (stream)
       (unless compressed
-        (let* ((all (reverse (oref stream events)))
-               (new (nthcdr written all)))
-          (when new
-            (dolist (event new)
+        (let* ((head (oref stream events))
+               (new-chron nil)
+               (cur head))
+          (while (and cur (not (eq cur seen-head)))
+            (push (car cur) new-chron)
+            (setq cur (cdr cur)))
+          (when new-chron
+            (dolist (event new-chron)
               (beads-agent-ralph-persist-append-line
                path
                (beads-agent-ralph-persist--encode
                 (beads-agent-ralph-persist--event-to-alist event))))
-            (setq written (length all))))
+            (setq seen-head head)))
         (when (memq (oref stream status) '(finished failed stopped))
           (setq compressed t)
           (beads-agent-ralph-persist--maybe-compress path)

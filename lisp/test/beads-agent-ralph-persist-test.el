@@ -146,6 +146,28 @@ PLIST overrides individual slots."
         (should (equal "system" (cdr (assoc "type" (nth 0 events)))))
         (should (equal "assistant" (cdr (assoc "type" (nth 1 events)))))))))
 
+(ert-deftest beads-agent-ralph-persist-test-event-subscriber-incremental-many-flushes ()
+  "Across many flushes with one new event each, the subscriber writes
+each event exactly once in chronological order — exercising the
+incremental head-walk path (no duplicates, no missed events)."
+  (beads-agent-ralph-persist-test--in-tempdir dir
+    (let* ((stream (beads-agent-ralph--stream
+                    :partial-messages (make-hash-table :test #'equal)
+                    :status 'starting))
+           (subscriber (beads-agent-ralph-persist-make-event-subscriber
+                        dir "bde-many" 1)))
+      (dotimes (i 8)
+        (oset stream events
+              (cons (list :type "assistant" :idx i)
+                    (oref stream events)))
+        (funcall subscriber stream))
+      (let ((events (beads-agent-ralph-persist-read-iter-events
+                     dir "bde-many" 1)))
+        (should (= 8 (length events)))
+        ;; Chronological order: idx 0 .. 7.
+        (dotimes (i 8)
+          (should (= i (cdr (assoc "idx" (nth i events))))))))))
+
 (ert-deftest beads-agent-ralph-persist-test-event-subscriber-compresses-on-finish ()
   "Terminal status triggers compression of the per-iter NDJSON."
   (beads-agent-ralph-persist-test--in-tempdir dir
