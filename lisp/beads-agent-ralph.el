@@ -10,22 +10,40 @@
 ;; This module is the OUTER layer of the Ralph integration.  It owns
 ;; the iteration state machine, the per-iteration history, and the
 ;; async chaining primitive (`beads-agent-ralph--then') used by the
-;; per-iteration sequence (bde-q3b4).  It is deliberately
-;; backend-agnostic about transport: any subprocess work goes through
+;; per-iteration sequence.  It is deliberately backend-agnostic about
+;; transport: any subprocess work goes through
 ;; `beads-agent-ralph-stream'.
 ;;
-;; This file ships the SKELETON only:
+;; What this file owns:
 ;;
-;;   - `beads-agent-ralph--controller' defclass
-;;   - `beads-agent-ralph--iteration' defclass
-;;   - `beads-agent-ralph--then' async chaining helper
-;;   - `beads-agent-ralph--schedule-next-iteration', the reentry guard
+;;   - `beads-agent-ralph--controller' / `--iteration' defclasses and
+;;     their reentrancy guard (`--schedule-next-iteration').
+;;   - The async chaining primitive `--then' that the per-iter sequence
+;;     uses to thread bd-show / claim / stream / verify / persist /
+;;     advance through one synchronous-looking pipeline.
+;;   - The per-iteration step list: prompt construction with placeholders
+;;     and PLAN-VIEW synthesis, claude spawn, stream draining, stall /
+;;     lying-agent / protected-path detectors, per-iter and cumulative
+;;     cost guards, max-turns + max-iterations caps, verify-command
+;;     sandbox with deny-rule injection via --settings, epic-shared
+;;     worktree hygiene, resume-detection 4- and 5-way prompts.
+;;   - Public entry points `beads-agent-ralph-start' /
+;;     `beads-agent-ralph-stop' / `beads-agent-ralph-show-history'
+;;     and the `beads-agent-ralph-state-change-functions' hook that
+;;     the mode-line and notification modules subscribe to.
 ;;
-;; The per-iteration step list, sentinel/stall/lying-agent detectors,
-;; cost guards, worktree sharing, verify sandbox, persistence, dashboard
-;; rendering, mode-line indicator, notifications, and backend protocol
-;; wiring all live in follow-up tasks.  This skeleton is what they
-;; build on top of.
+;; What lives elsewhere:
+;;
+;;   - Dashboard rendering: `beads-agent-ralph-dashboard'
+;;   - Mode-line + desktop notifications: `beads-agent-ralph-mode-line'
+;;   - JSONL persistence + per-iter NDJSON capture:
+;;     `beads-agent-ralph-persist'
+;;   - Confirm-start dialog + dry-run buffer:
+;;     `beads-agent-ralph-confirm'
+;;   - `beads-agent-backend' protocol subclass:
+;;     `beads-agent-ralph-backend'
+;;   - NDJSON stream parser + claude subprocess:
+;;     `beads-agent-ralph-stream'
 
 ;;; Code:
 
