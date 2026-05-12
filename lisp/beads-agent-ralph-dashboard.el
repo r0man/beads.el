@@ -500,9 +500,17 @@ Keybindings reflect the action bar legend at the foot of the buffer.")
     (beads-agent-ralph-dashboard-refresh)))
 
 (defun beads-agent-ralph-dashboard-kill-iter ()
-  "Stop the in-flight iteration; same effect as `stop' currently."
+  "Abort the in-flight iteration but keep the loop alive.
+Delegates to `beads-agent-ralph-kill-iter', which signals the current
+stream the same way `stop' does but does NOT set the controller's
+`done-reason'.  When the sentinel fires, `on-stream-finish' detects
+the user-killed latch, skips stall/lying detection for the iter, and
+schedules the next iteration via the normal continue path.
+Distinct from `[s]top', which terminates the whole loop."
   (interactive)
-  (beads-agent-ralph-dashboard-stop))
+  (when beads-agent-ralph-dashboard--controller
+    (beads-agent-ralph-kill-iter beads-agent-ralph-dashboard--controller)
+    (beads-agent-ralph-dashboard-refresh)))
 
 (defun beads-agent-ralph-dashboard-pause ()
   "Pause the loop after the in-flight iteration completes."
