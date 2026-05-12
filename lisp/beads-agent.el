@@ -1764,6 +1764,7 @@ Customize `beads-agent-mode-line-format' to change the display style."
 (require 'beads-agent-backend-terminal nil t)
 (require 'beads-agent-ralph-backend nil t)
 (require 'beads-agent-ralph-mode-line nil t)
+(require 'beads-agent-ralph-confirm nil t)
 
 ;;; Load Agent List Module
 
