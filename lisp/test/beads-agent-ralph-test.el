@@ -929,6 +929,27 @@ extract-* helpers can run."
     (should done)
     (should (= (plist-get result :exit) 1))))
 
+(ert-deftest beads-agent-ralph-test-run-shell-async-make-process-raises ()
+  "When `make-process' signals, both temp buffers are killed and the
+callback receives an :exit -1 plist explaining the failure."
+  (let ((default-directory temporary-file-directory)
+        (got nil))
+    (cl-letf (((symbol-function 'make-process)
+               (lambda (&rest _) (error "synthetic spawn failure"))))
+      (beads-agent-ralph--run-shell-async
+       "true" nil (lambda (r) (setq got r))))
+    (should got)
+    (should (= (plist-get got :exit) -1))
+    (should (string-match-p "synthetic spawn failure"
+                            (plist-get got :stderr)))
+    ;; No stdout/stderr buffers should linger after the failure.
+    (should-not (cl-find-if
+                 (lambda (b)
+                   (string-match-p
+                    "beads-agent-ralph-stdout\\|beads-agent-ralph-stderr"
+                    (buffer-name b)))
+                 (buffer-list)))))
+
 (ert-deftest beads-agent-ralph-test-run-verify-async-nil ()
   "When no verify command is configured the callback receives nil."
   (let ((c (beads-agent-ralph-test--make-controller :verify-command nil))

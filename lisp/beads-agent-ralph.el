@@ -1032,32 +1032,53 @@ target picker."
   "Run shell COMMAND in PROJECT-DIR asynchronously.
 COMMAND is a shell string evaluated under $SHELL -c.  CALLBACK
 receives a plist (:exit N :stdout S :stderr S).  Stdout and stderr
-buffers are killed in the sentinel; the caller never sees them."
+buffers are killed in the sentinel; the caller never sees them.
+If `make-process' itself signals (missing shell, fork failure, …)
+the buffers are killed and CALLBACK receives an error plist with
+:exit -1 and :stderr describing the failure."
   (let* ((default-directory (or project-dir default-directory))
          (stdout-buf (generate-new-buffer " *beads-agent-ralph-stdout*"))
          (stderr-buf (generate-new-buffer " *beads-agent-ralph-stderr*"))
-         (shell (or (getenv "SHELL") "/bin/sh")))
-    (make-process
-     :name "beads-agent-ralph-verify"
-     :command (list shell "-c" command)
-     :buffer stdout-buf
-     :stderr stderr-buf
-     :noquery t
-     :sentinel
-     (lambda (proc _event)
-       (when (memq (process-status proc) '(exit signal))
-         (let* ((exit (process-exit-status proc))
-                (stdout (if (buffer-live-p stdout-buf)
-                            (with-current-buffer stdout-buf (buffer-string))
-                          ""))
-                (stderr (if (buffer-live-p stderr-buf)
-                            (with-current-buffer stderr-buf (buffer-string))
-                          "")))
-           (when (buffer-live-p stdout-buf) (kill-buffer stdout-buf))
-           (when (buffer-live-p stderr-buf) (kill-buffer stderr-buf))
-           (funcall callback (list :exit exit
-                                   :stdout stdout
-                                   :stderr stderr))))))))
+         (shell (or (getenv "SHELL") "/bin/sh"))
+         (spawned nil))
+    (unwind-protect
+        (condition-case err
+            (prog1
+                (make-process
+                 :name "beads-agent-ralph-verify"
+                 :command (list shell "-c" command)
+                 :buffer stdout-buf
+                 :stderr stderr-buf
+                 :noquery t
+                 :sentinel
+                 (lambda (proc _event)
+                   (when (memq (process-status proc) '(exit signal))
+                     (let* ((exit (process-exit-status proc))
+                            (stdout (if (buffer-live-p stdout-buf)
+                                        (with-current-buffer stdout-buf
+                                          (buffer-string))
+                                      ""))
+                            (stderr (if (buffer-live-p stderr-buf)
+                                        (with-current-buffer stderr-buf
+                                          (buffer-string))
+                                      "")))
+                       (when (buffer-live-p stdout-buf)
+                         (kill-buffer stdout-buf))
+                       (when (buffer-live-p stderr-buf)
+                         (kill-buffer stderr-buf))
+                       (funcall callback (list :exit exit
+                                               :stdout stdout
+                                               :stderr stderr))))))
+              (setq spawned t))
+          (error
+           (funcall callback
+                    (list :exit -1
+                          :stdout ""
+                          :stderr (format "make-process failed: %s"
+                                          (error-message-string err))))))
+      (unless spawned
+        (when (buffer-live-p stdout-buf) (kill-buffer stdout-buf))
+        (when (buffer-live-p stderr-buf) (kill-buffer stderr-buf))))))
 
 (defun beads-agent-ralph--run-verify-async (controller callback)
   "Run CONTROLLER's verify command (if any) asynchronously.
