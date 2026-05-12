@@ -183,6 +183,20 @@ Compared against the total-cost guard each iteration.")
     :type string
     :documentation "Passed straight through to `claude --permission-mode'.
 Override only when running against a sandboxed harness.")
+   (model
+    :initarg :model
+    :initform nil
+    :documentation "Optional `--model' override for `claude' spawns.
+Nil inherits the user's claude default.  Seeded from
+`beads-agent-ralph-model' at start time so each loop can opt into a
+different model without mutating the defcustom mid-run.")
+   (extra-args
+    :initarg :extra-args
+    :initform nil
+    :type list
+    :documentation "Additional argv strings threaded into every spawn.
+Seeded from `beads-agent-ralph-extra-args' at start time.  The
+dry-run buffer's argv-overrides also flow through this slot.")
    (prompt-template
     :initarg :prompt-template
     :initform nil
@@ -423,6 +437,62 @@ the next spawn so the total cap is never exceeded."
 Nil omits the flag.  This is a coarser guard than the cost budget
 but works even when the agent is calling cheap tools in a tight loop."
   :type '(choice (const :tag "Unlimited" nil) integer)
+  :group 'beads-agent-ralph)
+
+(defcustom beads-agent-ralph-max-iterations 20
+  "Default ceiling for iterations across a single Ralph loop.
+Seeds the controller's `max-iterations' slot when
+`beads-agent-ralph-start' is called without an explicit
+`:max-iterations'.  20 mirrors the Ralph Wiggum Guide's recommendation:
+enough headroom for a productive overnight run, low enough to limit
+runaway spend if a sentinel never fires."
+  :type 'integer
+  :group 'beads-agent-ralph)
+
+(defcustom beads-agent-ralph-iteration-delay 0
+  "Default seconds to wait between iterations.
+Seeds the controller's `iteration-delay' slot.  Zero matches the
+Ralph essay's `while :; do' cadence; raise this when running against
+a rate-limited claude endpoint or to give shell hooks time to finish
+between iterations."
+  :type 'number
+  :group 'beads-agent-ralph)
+
+(defcustom beads-agent-ralph-permission-mode "bypassPermissions"
+  "Default `--permission-mode' passed to `claude' for Ralph spawns.
+The default `bypassPermissions' lets the loop run unattended.  A
+safety guard in `beads-agent-ralph-start' refuses to spawn with the
+default value when no `:worktree-dir' is in play: bypassPermissions
+in the main repo is a foot-gun.  Customize this (via setq, setopt, or
+Customize) to opt into the default for non-worktree directories."
+  :type 'string
+  :group 'beads-agent-ralph)
+
+(defcustom beads-agent-ralph-model nil
+  "Optional `--model' override for `claude' spawns.
+Nil inherits the user's claude default.  Useful for pinning a Ralph
+loop to a cheaper model for grinding work, or a stronger one for
+high-stakes overnight runs."
+  :type '(choice (const :tag "Inherit claude default" nil) string)
+  :group 'beads-agent-ralph)
+
+(defcustom beads-agent-ralph-extra-args nil
+  "Additional argv strings appended to every `claude' spawn.
+Threaded through `--' so they cannot be mistaken for the prompt.
+Use this for `--mcp-config' / `--settings' or any flag without a
+first-class defcustom yet."
+  :type '(repeat string)
+  :group 'beads-agent-ralph)
+
+(defcustom beads-agent-ralph-verify-protect-paths
+  '("test/**" "tests/**" "spec/**")
+  "Glob patterns for paths the agent should not edit between iterations.
+After every iteration the controller computes a git diff restricted to
+these paths.  Any change there pushes a `warning' banner (e.g. the
+agent gaming the verify command by rewriting its tests) regardless of
+the verify command's exit code.  The default protects the canonical
+test-folder layouts; extend per project."
+  :type '(repeat string)
   :group 'beads-agent-ralph)
 
 (defcustom beads-agent-ralph-summary-max-len 100
@@ -955,12 +1025,120 @@ the stream's parser scan and is not re-derived here."
        (null (oref iter files-touched))
        (not sentinel-hit)))
 
+(defun beads-agent-ralph--protected-paths-modified (controller)
+  "Return CONTROLLER's protected paths touched since the last iter.
+Runs `git diff --name-only HEAD' restricted to
+`beads-agent-ralph-verify-protect-paths'.  Returns a list of paths;
+nil when nothing protected was touched (or when git is unavailable).
+
+Designed for the post-iter banner: a verify-protect-paths violation
+fires regardless of the verify command's exit code, so an agent
+gaming verify by rewriting its own tests cannot fly under the radar."
+  (let* ((dir (or (oref controller worktree-dir)
+                  (oref controller project-dir)
+                  default-directory))
+         (globs beads-agent-ralph-verify-protect-paths))
+    (when (and globs (file-directory-p dir))
+      (let* ((default-directory (file-name-as-directory dir))
+             (args (append (list "git" "diff" "--name-only" "HEAD" "--")
+                           globs))
+             (output
+              (condition-case _err
+                  (with-output-to-string
+                    (with-current-buffer standard-output
+                      (apply #'call-process (car args) nil
+                             (current-buffer) nil (cdr args))))
+                (error nil))))
+        (when (and output (not (string-empty-p (string-trim output))))
+          (split-string output "\n" t "[ \t\n\r]+"))))))
+
+(defun beads-agent-ralph--git-dirty-state (controller)
+  "Return CONTROLLER's working-tree dirty state as a string, or nil.
+Runs `git status --porcelain' in the controller's working directory.
+Returns the trimmed output when dirty, nil otherwise (or on git failure).
+Used by the post-iter banner so the user notices an iteration that left
+the tree in an unexpected state."
+  (let ((dir (or (oref controller worktree-dir)
+                 (oref controller project-dir)
+                 default-directory)))
+    (when (file-directory-p dir)
+      (let* ((default-directory (file-name-as-directory dir))
+             (output
+              (condition-case _err
+                  (with-output-to-string
+                    (with-current-buffer standard-output
+                      (call-process "git" nil (current-buffer) nil
+                                    "status" "--porcelain")))
+                (error nil)))
+             (trimmed (and output (string-trim output))))
+        (when (and trimmed (not (string-empty-p trimmed)))
+          trimmed)))))
+
+(defun beads-agent-ralph--maybe-banner-dirty-state (controller)
+  "Push a notice banner when CONTROLLER's worktree has uncommitted change.
+Lower severity than `protected-paths' — dirty state is informational
+\(Ralph mid-flight); protected paths are a policy violation."
+  (when-let ((state (beads-agent-ralph--git-dirty-state controller)))
+    (let* ((lines (split-string state "\n" t))
+           (count (length lines))
+           (sample (car lines)))
+      (beads-agent-ralph--push-banner
+       controller 'notice
+       (format "Worktree dirty: %d file%s (%s%s)"
+               count (if (= count 1) "" "s")
+               (if (> (length sample) 60)
+                   (concat (substring sample 0 60) "…")
+                 sample)
+               (if (> count 1) " …" ""))))))
+
+(defun beads-agent-ralph--maybe-banner-protected-paths (controller)
+  "Push a warning banner when CONTROLLER touched a protected path.
+Idempotent: called once per iter from `on-stream-finish'."
+  (when-let ((touched (beads-agent-ralph--protected-paths-modified
+                       controller)))
+    (beads-agent-ralph--push-banner
+     controller 'warning
+     (format "Protected paths modified: %s"
+             (mapconcat #'identity touched ", ")))))
+
 (defun beads-agent-ralph--lying-agent-p (sentinel-hit root-status)
   "Return non-nil if SENTINEL-HIT contradicts ROOT-STATUS.
 ROOT-STATUS is the freshly-queried bd status of the loop's root
 issue (a string).  Sentinel-hit without `closed' = false claim."
   (and sentinel-hit
        (not (equal root-status "closed"))))
+
+(defun beads-agent-ralph--permission-mode-at-default-p ()
+  "Return non-nil while `beads-agent-ralph-permission-mode' is unchanged.
+Reads the defcustom's `standard-value' so `setq', `customize-set-variable',
+`setopt', and saved-Custom values all bypass the guard equivalently.
+When the default is missing (someone unset the property), returns nil so
+the guard never fires from an empty comparison."
+  (let* ((sv (get 'beads-agent-ralph-permission-mode 'standard-value))
+         (default (and sv (eval (car sv) t))))
+    (and default
+         (equal beads-agent-ralph-permission-mode default))))
+
+(defun beads-agent-ralph--guard-permission-mode (permission-mode worktree-dir)
+  "Refuse `bypassPermissions' in a non-worktree dir when at the default.
+PERMISSION-MODE is the resolved value about to be passed to claude;
+WORKTREE-DIR is the controller's `:worktree-dir' or nil.
+
+The guard fires only when ALL three hold:
+  - PERMISSION-MODE is the literal string \"bypassPermissions\";
+  - WORKTREE-DIR is nil (loop targets the main repo);
+  - the defcustom is still at its standard value (user has not
+    explicitly opted in via setq/setopt/customize).
+
+Bypassing this guard requires customizing
+`beads-agent-ralph-permission-mode' -- the safety net is intentional,
+not a roadblock for advanced users."
+  (when (and (equal permission-mode "bypassPermissions")
+             (null worktree-dir)
+             (beads-agent-ralph--permission-mode-at-default-p))
+    (user-error
+     "Refusing to start Ralph with bypassPermissions in non-worktree dir; %s"
+     "customize `beads-agent-ralph-permission-mode' to opt in")))
 
 (defun beads-agent-ralph--budget-exhausted-p (controller)
   "Return non-nil when CONTROLLER has hit iteration or cost ceilings."
@@ -1455,6 +1633,8 @@ Steps:
                   controller 'warning
                   (format "Agent claimed complete %d×; root still open"
                           (oref controller false-claim-count))))
+               (beads-agent-ralph--maybe-banner-protected-paths controller)
+               (beads-agent-ralph--maybe-banner-dirty-state controller)
                (let* ((root-closed (equal root-status "closed"))
                       (kind (oref controller root-kind))
                       (stream-failed (eq (oref stream status) 'failed))
@@ -1504,11 +1684,22 @@ transition, schedules `beads-agent-ralph--on-stream-finish' via
        (t
         (beads-agent-ralph--dashboard-rerender controller))))))
 
+(defun beads-agent-ralph--effective-extra-args (controller)
+  "Return the effective argv tail for CONTROLLER's next spawn.
+Combines the controller's `model' slot (rendered as `--model VALUE')
+with its `extra-args' slot.  Model flag comes first so user-supplied
+extra-args can re-override it if they really mean to."
+  (append
+   (when-let ((model (oref controller model)))
+     (list "--model" model))
+   (oref controller extra-args)))
+
 (defun beads-agent-ralph--spawn-stream-for (controller issue-id rendered-prompt)
   "Spawn a stream on CONTROLLER for ISSUE-ID with RENDERED-PROMPT.
 Plumbs the cost guard (`--max-budget-usd'), turn cap (`--max-turns'),
-permission mode, and worktree (`--add-dir').  Subscribes a fresh
-controller-bound subscriber so iteration completion is observed."
+permission mode, model, worktree (`--add-dir'), and any extra-args
+configured on the controller.  Subscribes a fresh controller-bound
+subscriber so iteration completion is observed."
   (let* ((per-iter-budget
           (beads-agent-ralph--effective-per-iter-budget controller))
          (stream (beads-agent-ralph--stream-spawn
@@ -1518,7 +1709,9 @@ controller-bound subscriber so iteration completion is observed."
                                    default-directory)
                   :permission-mode (oref controller permission-mode)
                   :max-budget-usd per-iter-budget
-                  :max-turns beads-agent-ralph-max-turns)))
+                  :max-turns beads-agent-ralph-max-turns
+                  :extra-args
+                  (beads-agent-ralph--effective-extra-args controller))))
     (oset controller current-stream stream)
     (oset controller current-issue-id issue-id)
     (beads-agent-ralph--stream-subscribe
@@ -1640,8 +1833,13 @@ ARGS is a plist:
   :worktree-dir STRING — if a worktree is in use, the agent works here
                instead of `:project-dir'.
   :verify-command STRING-OR-FUNCTION — optional per-iter verification.
-  :max-iterations INTEGER — defaults to the slot default (50).
-  :iteration-delay NUMBER — seconds between iterations.
+  :max-iterations INTEGER — defaults to `beads-agent-ralph-max-iterations'.
+  :iteration-delay NUMBER — defaults to `beads-agent-ralph-iteration-delay'.
+  :permission-mode STRING — defaults to `beads-agent-ralph-permission-mode'.
+                Spawning with the defcustom default in a non-worktree
+                directory signals a `user-error' (see safety guard).
+  :model       STRING — defaults to `beads-agent-ralph-model'.
+  :extra-args  LIST   — defaults to `beads-agent-ralph-extra-args'.
 
 Returns the controller object (also stored on the global state so
 the backend can pick it up).  The first iteration is dispatched via
@@ -1657,28 +1855,39 @@ the backend can pick it up).  The first iteration is dispatched via
          (project-dir (or (plist-get args :project-dir) default-directory))
          (worktree-dir (plist-get args :worktree-dir))
          (verify-command (plist-get args :verify-command))
-         (max-iterations (or (plist-get args :max-iterations) 50))
-         (iteration-delay (or (plist-get args :iteration-delay) 0.0))
-         (controller
-          (beads-agent-ralph--controller
-           :root-id issue-id
-           :root-kind kind
-           :project-dir project-dir
-           :worktree-dir worktree-dir
-           :verify-command verify-command
-           :prompt-template prompt
-           :max-iterations max-iterations
-           :iteration-delay iteration-delay
-           :started-at (current-time)
-           :status 'idle)))
-    (beads-agent-ralph--ensure-stub-dashboard controller)
-    (beads-agent-ralph--set-status controller 'running)
-    (beads-agent-ralph--schedule-next-iteration
-     controller
-     (lambda () (beads-agent-ralph--run-iteration controller)))
-    (cons controller
-          (get-buffer
-           (beads-agent-ralph--stub-dashboard-name issue-id)))))
+         (max-iterations (or (plist-get args :max-iterations)
+                             beads-agent-ralph-max-iterations))
+         (iteration-delay (or (plist-get args :iteration-delay)
+                              beads-agent-ralph-iteration-delay))
+         (permission-mode (or (plist-get args :permission-mode)
+                              beads-agent-ralph-permission-mode))
+         (model (or (plist-get args :model) beads-agent-ralph-model))
+         (extra-args (or (plist-get args :extra-args)
+                         beads-agent-ralph-extra-args)))
+    (beads-agent-ralph--guard-permission-mode permission-mode worktree-dir)
+    (let ((controller
+           (beads-agent-ralph--controller
+            :root-id issue-id
+            :root-kind kind
+            :project-dir project-dir
+            :worktree-dir worktree-dir
+            :verify-command verify-command
+            :prompt-template prompt
+            :max-iterations max-iterations
+            :iteration-delay iteration-delay
+            :permission-mode permission-mode
+            :model model
+            :extra-args extra-args
+            :started-at (current-time)
+            :status 'idle)))
+      (beads-agent-ralph--ensure-stub-dashboard controller)
+      (beads-agent-ralph--set-status controller 'running)
+      (beads-agent-ralph--schedule-next-iteration
+       controller
+       (lambda () (beads-agent-ralph--run-iteration controller)))
+      (cons controller
+            (get-buffer
+             (beads-agent-ralph--stub-dashboard-name issue-id))))))
 
 ;;;###autoload
 (defun beads-agent-ralph-stop (controller)

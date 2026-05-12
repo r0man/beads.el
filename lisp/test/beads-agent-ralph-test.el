@@ -1264,6 +1264,149 @@ extract-* helpers can run."
     (should stop-called)
     (should (eq (oref c done-reason) 'stop))))
 
+;;; Protected-paths post-iter check
+
+(defmacro beads-agent-ralph-test--with-git-repo (varname &rest body)
+  "Initialize a temp git repo, bind its path to VARNAME, run BODY, cleanup."
+  (declare (indent 1) (debug (sexp body)))
+  `(let ((,varname (make-temp-file "ralph-protect-" t)))
+     (unwind-protect
+         (let ((default-directory (file-name-as-directory ,varname)))
+           (call-process "git" nil nil nil "init" "-q")
+           (call-process "git" nil nil nil "config" "user.email" "t@e")
+           (call-process "git" nil nil nil "config" "user.name" "t")
+           (call-process "git" nil nil nil "commit" "--allow-empty"
+                         "-q" "-m" "init")
+           ,@body)
+       (delete-directory ,varname t))))
+
+(ert-deftest beads-agent-ralph-test-protected-paths-empty ()
+  "Nothing modified → protected-paths-modified returns nil."
+  (beads-agent-ralph-test--with-git-repo dir
+    (let ((c (beads-agent-ralph-test--make-controller :project-dir dir))
+          (beads-agent-ralph-verify-protect-paths '("test/**")))
+      (should (null (beads-agent-ralph--protected-paths-modified c))))))
+
+(ert-deftest beads-agent-ralph-test-protected-paths-detects-touch ()
+  "Modifying a protected path surfaces it in the result list."
+  (beads-agent-ralph-test--with-git-repo dir
+    (let ((c (beads-agent-ralph-test--make-controller :project-dir dir))
+          (beads-agent-ralph-verify-protect-paths '("tests/")))
+      (make-directory "tests")
+      (with-temp-file "tests/example.el" (insert "hi"))
+      (call-process "git" nil nil nil "add" "tests/example.el")
+      (let ((touched (beads-agent-ralph--protected-paths-modified c)))
+        (should touched)
+        (should (cl-some (lambda (p) (string-match-p "tests/example\\.el" p))
+                         touched))))))
+
+(ert-deftest beads-agent-ralph-test-dirty-state-clean ()
+  "Clean tree → git-dirty-state returns nil."
+  (beads-agent-ralph-test--with-git-repo dir
+    (let ((c (beads-agent-ralph-test--make-controller :project-dir dir)))
+      (should (null (beads-agent-ralph--git-dirty-state c))))))
+
+(ert-deftest beads-agent-ralph-test-dirty-state-detects-untracked ()
+  "Untracked files surface in the git-dirty-state output."
+  (beads-agent-ralph-test--with-git-repo dir
+    (let ((c (beads-agent-ralph-test--make-controller :project-dir dir)))
+      (with-temp-file (expand-file-name "new.txt" dir) (insert "x"))
+      (should (beads-agent-ralph--git-dirty-state c)))))
+
+(ert-deftest beads-agent-ralph-test-dirty-state-banner-notice ()
+  "Dirty state pushes a `notice' (not `warning') banner."
+  (beads-agent-ralph-test--with-git-repo dir
+    (let ((c (beads-agent-ralph-test--make-controller :project-dir dir)))
+      (with-temp-file (expand-file-name "new.txt" dir) (insert "x"))
+      (beads-agent-ralph--maybe-banner-dirty-state c)
+      (let ((banner (car (oref c banner-log))))
+        (should banner)
+        (should (eq (plist-get banner :severity) 'notice))
+        (should (string-match-p "Worktree dirty"
+                                (plist-get banner :text)))))))
+
+(ert-deftest beads-agent-ralph-test-protected-paths-banner ()
+  "The maybe-banner helper pushes a warning to banner-log on violation."
+  (beads-agent-ralph-test--with-git-repo dir
+    (let ((c (beads-agent-ralph-test--make-controller :project-dir dir))
+          (beads-agent-ralph-verify-protect-paths '("tests/")))
+      (make-directory "tests")
+      (with-temp-file "tests/example.el" (insert "hi"))
+      (call-process "git" nil nil nil "add" "tests/example.el")
+      (beads-agent-ralph--maybe-banner-protected-paths c)
+      (let ((banner (car (oref c banner-log))))
+        (should banner)
+        (should (eq (plist-get banner :severity) 'warning))
+        (should (string-match-p "Protected paths modified"
+                                (plist-get banner :text)))))))
+
+;;; Permission-mode safety guard
+
+(ert-deftest beads-agent-ralph-test-permission-guard-blocks-default-no-worktree ()
+  "Default permission-mode in non-worktree dir signals a user-error."
+  (let ((beads-agent-ralph-permission-mode "bypassPermissions"))
+    (should-error
+     (beads-agent-ralph--guard-permission-mode
+      "bypassPermissions" nil)
+     :type 'user-error)))
+
+(ert-deftest beads-agent-ralph-test-permission-guard-allows-worktree ()
+  "Default permission-mode with a worktree-dir is fine (no error)."
+  (let ((beads-agent-ralph-permission-mode "bypassPermissions"))
+    (should-not
+     (condition-case _err
+         (progn
+           (beads-agent-ralph--guard-permission-mode
+            "bypassPermissions" "/tmp/wt/bd-42")
+           nil)
+       (error t)))))
+
+(ert-deftest beads-agent-ralph-test-permission-guard-allows-custom ()
+  "Customized permission-mode bypasses the guard even in non-worktree dir."
+  (let ((beads-agent-ralph-permission-mode "ask"))
+    (should-not
+     (condition-case _err
+         (progn
+           (beads-agent-ralph--guard-permission-mode "ask" nil)
+           nil)
+       (error t)))))
+
+(ert-deftest beads-agent-ralph-test-permission-mode-at-default-p ()
+  "`--at-default-p' tracks the defcustom standard value."
+  (let ((beads-agent-ralph-permission-mode "bypassPermissions"))
+    (should (beads-agent-ralph--permission-mode-at-default-p)))
+  (let ((beads-agent-ralph-permission-mode "ask"))
+    (should-not (beads-agent-ralph--permission-mode-at-default-p))))
+
+;;; Model + extra-args wiring
+
+(ert-deftest beads-agent-ralph-test-effective-extra-args-empty ()
+  "No model and no extra-args produces an empty list."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :model nil :extra-args nil)))
+    (should (null (beads-agent-ralph--effective-extra-args c)))))
+
+(ert-deftest beads-agent-ralph-test-effective-extra-args-model-only ()
+  "A model slot renders as a `--model VALUE' pair."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :model "haiku" :extra-args nil)))
+    (should (equal (beads-agent-ralph--effective-extra-args c)
+                   '("--model" "haiku")))))
+
+(ert-deftest beads-agent-ralph-test-effective-extra-args-extra-only ()
+  "Bare extra-args pass through unchanged."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :model nil :extra-args '("--settings" "/p"))))
+    (should (equal (beads-agent-ralph--effective-extra-args c)
+                   '("--settings" "/p")))))
+
+(ert-deftest beads-agent-ralph-test-effective-extra-args-model-first ()
+  "Model precedes extra-args so user overrides remain visible at the tail."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :model "sonnet" :extra-args '("--max-budget-usd" "0.5"))))
+    (should (equal (beads-agent-ralph--effective-extra-args c)
+                   '("--model" "sonnet" "--max-budget-usd" "0.5")))))
+
 (provide 'beads-agent-ralph-test)
 
 ;;; beads-agent-ralph-test.el ends here
