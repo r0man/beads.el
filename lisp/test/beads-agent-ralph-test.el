@@ -904,12 +904,16 @@ extract-* helpers can run."
 
 (ert-deftest beads-agent-ralph-test-run-shell-async-true ()
   "/bin/true exits 0 with empty stdout/stderr."
-  (let ((done nil) (result nil))
+  ;; Pin default-directory to a known-good path; other tests in the
+  ;; full suite may leak a deleted temp-repo path into it, which would
+  ;; cause make-process to fail and the sentinel never to fire.
+  (let ((default-directory temporary-file-directory)
+        (done nil) (result nil))
     (beads-agent-ralph--run-shell-async
      "true" nil (lambda (r) (setq result r done t)))
     ;; `accept-process-output' yields directly to subprocess sentinels;
     ;; `sit-for' is flaky under batch when other processes are busy.
-    (with-timeout (10.0) (while (not done) (accept-process-output nil 0.05)))
+    (with-timeout (30.0) (while (not done) (accept-process-output nil 0.1)))
     (should done)
     (should (= (plist-get result :exit) 0))
     (should (equal (plist-get result :stdout) ""))
@@ -917,10 +921,11 @@ extract-* helpers can run."
 
 (ert-deftest beads-agent-ralph-test-run-shell-async-false ()
   "/bin/false exits 1; stderr can be empty."
-  (let ((done nil) (result nil))
+  (let ((default-directory temporary-file-directory)
+        (done nil) (result nil))
     (beads-agent-ralph--run-shell-async
      "false" nil (lambda (r) (setq result r done t)))
-    (with-timeout (10.0) (while (not done) (accept-process-output nil 0.05)))
+    (with-timeout (30.0) (while (not done) (accept-process-output nil 0.1)))
     (should done)
     (should (= (plist-get result :exit) 1))))
 
