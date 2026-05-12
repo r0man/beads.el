@@ -1097,6 +1097,27 @@ extract-* helpers can run."
     (should-not (eq (oref c status) 'failed))
     (should (null (oref c done-reason)))))
 
+(ert-deftest beads-agent-ralph-test-on-stream-finish-stop-reason-terminates ()
+  "When done-reason='stop is set (user clicked [s]top mid-iter), the
+sentinel must terminate the loop instead of scheduling the next iter."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'running :history nil
+             :iteration 1 :max-iterations 50
+             :done-reason 'stop))
+         (stream (beads-agent-ralph-test--fake-stream
+                  :events nil :status 'stopped))
+         (continued nil))
+    (cl-letf (((symbol-function 'beads-agent-ralph--bd-show-async)
+               (lambda (_id k)
+                 (funcall k t (beads-agent-ralph-test--make-issue
+                               :id "bde-root" :status "in_progress"))))
+              ((symbol-function 'beads-agent-ralph--continue-after-iteration)
+               (lambda (_c) (setq continued t))))
+      (beads-agent-ralph--on-stream-finish c stream))
+    (should-not continued)
+    (should (eq (oref c status) 'stopped))
+    (should (eq (oref c done-reason) 'stop))))
+
 (ert-deftest beads-agent-ralph-test-on-stream-finish-failed-stop-terminates ()
   "stop-on-failed=t: a failed stream terminates the loop with reason `failed'."
   (let* ((c (beads-agent-ralph-test--make-controller
