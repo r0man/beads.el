@@ -180,6 +180,16 @@ skipped.")
 Guards `--ensure-worktree-async' from being called per iteration; the
 worktree is a per-controller artefact, not per-iter, and an epic loop
 must reuse one tree across all child iterations.")
+   (pending-full-reset
+    :initarg :pending-full-reset
+    :initform nil
+    :documentation "Non-nil when a `full-reset' resume left bd cleanup outstanding.
+Set by `--apply-resume-choice' for the `full-reset' branch and read
+by `--maybe-bd-reset-async' (an iteration-sequence step).  The flag
+is cleared after the cascade fires once so subsequent iterations
+skip it.  The bd flip is deferred to the controller's first iteration
+because `beads-agent-ralph-start' is synchronous and the cleanup
+needs the async machinery already wired into the controller.")
    (settings-file
     :initarg :settings-file
     :initform nil
@@ -950,6 +960,21 @@ bd's `--ready' already excludes blocked issues."
        (funcall callback t (if (listp result) result (list result))))
      (lambda (err)
        (funcall callback nil err)))))
+
+(defun beads-agent-ralph--bd-reopen-clear-async (issue-id callback)
+  "Reopen ISSUE-ID and clear its assignee asynchronously.
+Runs `bd update --status=open --assignee=\"\"' so the issue moves
+out of `closed' and the previous claimant is detached -- the next
+iteration's claim step will re-assign cleanly.  CALLBACK receives
+\(success RESULT-OR-ERROR).  Used by the full-reset cascade
+\(`--maybe-bd-reset-async') after a destructive resume."
+  (beads-agent-ralph--in-host
+    (beads-command-execute-async
+     (beads-command-update :issue-ids (list issue-id)
+                           :status beads-status-open
+                           :assignee "")
+     (lambda (result) (funcall callback t result))
+     (lambda (err) (funcall callback nil err)))))
 
 (defun beads-agent-ralph--bd-list-children-async (parent-id callback)
   "List ALL children of PARENT-ID via `bd list --parent ... --json'.
@@ -1884,6 +1909,94 @@ do not abort the whole run over a worktree hiccup."
          (oset controller worktree-resolved t)
          (funcall done)))))))
 
+(defun beads-agent-ralph--maybe-bd-reset-async (controller done)
+  "If CONTROLLER has a pending full-reset, reopen closed scope and clear claims.
+DONE is invoked after the cascade completes; called immediately when
+the `pending-full-reset' flag is nil so non-reset iterations pay no
+overhead.  The flag is cleared before DONE fires either way.
+
+Scope:
+  issue mode → only the controller's `root-id' (if currently closed).
+  epic mode  → all closed children of the `root-id'.
+
+Each per-issue update is best-effort: a single failure is logged as a
+warning banner and the cascade continues.  The cumulative outcome is
+summarised by a final banner."
+  (cond
+   ((not (oref controller pending-full-reset))
+    (funcall done))
+   (t
+    (let ((kind (oref controller root-kind))
+          (root (oref controller root-id)))
+      (cl-labels
+          ((finalize
+             (ok-ids fail-count)
+             (oset controller pending-full-reset nil)
+             (beads-agent-ralph--push-banner
+              controller (if (zerop fail-count) 'info 'warning)
+              (if (and (zerop fail-count) (null ok-ids))
+                  (format "Full-reset: no closed %s to reopen for %s"
+                          (if (eq kind 'epic) "children" "target") root)
+                (format "Full-reset complete for %s: reopened %d (%s); %d failure(s)"
+                        root
+                        (length ok-ids)
+                        (mapconcat #'identity (reverse ok-ids) ", ")
+                        fail-count)))
+             (funcall done))
+           (cascade
+             (remaining ok-ids fail-count)
+             (cond
+              ((null remaining)
+               (finalize ok-ids fail-count))
+              (t
+               (let* ((issue (car remaining))
+                      (rest (cdr remaining))
+                      (id (oref issue id)))
+                 (beads-agent-ralph--bd-reopen-clear-async
+                  id
+                  (lambda (ok _result)
+                    (cond
+                     (ok (cascade rest (cons id ok-ids) fail-count))
+                     (t
+                      (beads-agent-ralph--push-banner
+                       controller 'warning
+                       (format "Full-reset: %s reopen failed; continuing" id))
+                      (cascade rest ok-ids (1+ fail-count))))))))))
+           (reset-closed-list
+             (issues)
+             (cascade (cl-remove-if-not
+                       (lambda (i) (equal (oref i status) beads-status-closed))
+                       issues)
+                      nil 0)))
+        (pcase kind
+          ('epic
+           (beads-agent-ralph--bd-list-children-async
+            root
+            (lambda (ok result)
+              (cond
+               ((not ok)
+                (oset controller pending-full-reset nil)
+                (beads-agent-ralph--push-banner
+                 controller 'warning
+                 (format "Full-reset: bd list failed for %s; skipping" root))
+                (funcall done))
+               (t (reset-closed-list (or result nil)))))))
+          ('issue
+           (beads-agent-ralph--bd-show-async
+            root
+            (lambda (ok issue)
+              (cond
+               ((not ok)
+                (oset controller pending-full-reset nil)
+                (beads-agent-ralph--push-banner
+                 controller 'warning
+                 (format "Full-reset: bd show failed for %s; skipping" root))
+                (funcall done))
+               (t (reset-closed-list (if issue (list issue) nil)))))))
+          (_
+           (oset controller pending-full-reset nil)
+           (funcall done))))))))
+
 (defun beads-agent-ralph--register-persist-subscriber (controller stream)
   "Attach the persistence event subscriber to STREAM, tied to CONTROLLER.
 The subscriber writes new stream events to the per-iter NDJSON file
@@ -1959,6 +2072,12 @@ Stream completion is handled by the subscriber installed in
     ;; across all child iterations.
     (lambda (_acc k)
       (beads-agent-ralph--maybe-resolve-worktree-async
+       controller (lambda () (funcall k nil nil))))
+    ;; Step 0a: full-reset cascade if pending (one-shot per controller).
+    ;; Reopens closed scope and clears claims after a destructive resume.
+    ;; No-op when `pending-full-reset' is nil.
+    (lambda (_acc k)
+      (beads-agent-ralph--maybe-bd-reset-async
        controller (lambda () (funcall k nil nil))))
     ;; Step 1: resolve target issue.
     (lambda (_acc k)
@@ -2078,11 +2197,13 @@ Side effects:
                 with a one-line banner queued).
   fresh       — archives JSONL.  No controller-args mutation; the
                 fresh loop starts at iter 0, cost 0.
-  full-reset  — archives JSONL.  Caller (start) is responsible for
-                clearing bd state via the controller's first-iter
-                sequence; this step does NOT touch bd because the
-                bd flip needs the async machinery already wired into
-                the controller."
+  full-reset  — archives JSONL and sets `:pending-full-reset t' on the
+                returned controller args.  The controller's first
+                iteration runs `--maybe-bd-reset-async' which reopens
+                closed scope and clears claims; this step does not
+                touch bd directly because `start' is synchronous and
+                the bd flip needs the async machinery already wired
+                into the controller."
   (pcase choice
     ('resume
      (append (list :iteration (or (plist-get summary :last-iteration) 0)
@@ -2101,9 +2222,7 @@ Side effects:
      controller-args)
     ('full-reset
      (beads-agent-ralph-persist-archive-jsonl project-dir root-id)
-     ;; TODO: bd-update --status=open / clear-claim on closed children.
-     ;; Defer to a follow-up so the start function stays synchronous.
-     controller-args)
+     (append (list :pending-full-reset t) controller-args))
     (_ controller-args)))
 
 ;;;###autoload
