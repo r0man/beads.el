@@ -1182,6 +1182,39 @@ PROJECT-DIR is the main project directory."
   (call-interactively #'beads-agent-switch-backend)
   (transient--redisplay))
 
+(declare-function beads-agent-ralph-launch "beads-agent-ralph-confirm" (&rest args))
+
+(defun beads-agent--ralph-detect-kind (issue-id)
+  "Return `epic' when ISSUE-ID is a beads epic, else `issue'.
+Synchronously fetches the issue via `bd show'; falls back to `issue'
+on any lookup error so the caller never has to deal with nil."
+  (condition-case _err
+      (let* ((cmd (make-instance 'beads-command-show
+                                 :issue-ids (list issue-id)
+                                 :json t))
+             (result (beads-command-execute cmd))
+             (issue (cond ((vectorp result) (aref result 0))
+                          ((consp result) (car result))
+                          (t result))))
+        (if (and (eieio-object-p issue)
+                 (equal (oref issue issue-type) "epic"))
+            'epic
+          'issue))
+    (error 'issue)))
+
+(transient-define-suffix beads-agent--ralph-suffix ()
+  "Launch a Ralph Wiggum loop on the issue at point.
+Reads the issue id with the same context-detection as the generic
+start suffix, auto-detects whether the root is an epic, and hands
+off to `beads-agent-ralph-launch' (which runs the confirm-start
+dialog when `beads-agent-ralph-confirm-start' is non-nil)."
+  :key "R"
+  :description "Ralph loop (auto-detect issue/epic)"
+  (interactive)
+  (let* ((issue-id (beads-agent--read-issue-id))
+         (kind (beads-agent--ralph-detect-kind issue-id)))
+    (beads-agent-ralph-launch :issue issue-id :kind kind)))
+
 ;;;###autoload (autoload 'beads-agent "beads-agent" nil t)
 (transient-define-prefix beads-agent ()
   "AI Agent integration for Beads issues."
@@ -1191,6 +1224,7 @@ PROJECT-DIR is the main project directory."
    ("" "" ignore :if (lambda () nil))]
   ["Agent Actions"
    (beads-agent--start-suffix)
+   (beads-agent--ralph-suffix)
    (beads-agent--sling-suffix)
    (beads-agent--stop-suffix)
    (beads-agent--jump-suffix)

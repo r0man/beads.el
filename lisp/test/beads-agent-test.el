@@ -4042,6 +4042,39 @@ When worktrees are disabled, uses beads-agent-start directly."
   "Test that sling suffix is defined."
   (should (fboundp 'beads-agent--sling-suffix)))
 
+(ert-deftest beads-agent-test-ralph-suffix-defined ()
+  "The Ralph fast-path suffix is defined and bound to a key."
+  (should (fboundp 'beads-agent--ralph-suffix))
+  (should (fboundp 'beads-agent--ralph-detect-kind)))
+
+(ert-deftest beads-agent-test-ralph-detect-kind-falls-back-to-issue ()
+  "When the show command errors, kind detection returns `issue'.
+A real lookup may fail (db not reachable, issue id typo) — the
+suffix must still default sanely so the user gets a launch."
+  (cl-letf (((symbol-function 'beads-command-execute)
+             (lambda (&rest _) (error "simulated bd failure"))))
+    (should (eq 'issue (beads-agent--ralph-detect-kind "bd-does-not-exist")))))
+
+(ert-deftest beads-agent-test-ralph-detect-kind-detects-epic ()
+  "An issue with issue-type=\"epic\" is detected as `epic'."
+  (let ((epic-issue (make-instance 'beads-issue
+                                   :id "bd-99"
+                                   :issue-type "epic"
+                                   :title "an epic")))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (&rest _) (vector epic-issue))))
+      (should (eq 'epic (beads-agent--ralph-detect-kind "bd-99"))))))
+
+(ert-deftest beads-agent-test-ralph-detect-kind-detects-non-epic ()
+  "An issue with a non-epic issue-type is detected as `issue'."
+  (let ((task-issue (make-instance 'beads-issue
+                                   :id "bd-42"
+                                   :issue-type "task"
+                                   :title "a task")))
+    (cl-letf (((symbol-function 'beads-command-execute)
+               (lambda (&rest _) (vector task-issue))))
+      (should (eq 'issue (beads-agent--ralph-detect-kind "bd-42"))))))
+
 ;;; Tests for Interactive Worktree Prompt Functions
 
 (ert-deftest beads-agent-test-read-worktree-name-uses-default ()
