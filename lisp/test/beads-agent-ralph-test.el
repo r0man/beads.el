@@ -18,6 +18,12 @@
 (require 'beads-agent-ralph)
 (require 'beads-types)
 
+;; `beads-agent-use-worktrees' is defined in `beads-agent.el' (not
+;; loaded here).  Tell the byte-compiler the symbol is dynamic so the
+;; `let' bindings below take effect even when only the forward declaration
+;; in `beads-agent-ralph.el' is in scope.
+(defvar beads-agent-use-worktrees)
+
 ;;; Test Fixtures
 
 (defun beads-agent-ralph-test--make-issue (&rest args)
@@ -1381,31 +1387,196 @@ extract-* helpers can run."
 ;;; Model + extra-args wiring
 
 (ert-deftest beads-agent-ralph-test-effective-extra-args-empty ()
-  "No model and no extra-args produces an empty list."
+  "No model, no extra-args, no protect-paths produces an empty list."
   (let ((c (beads-agent-ralph-test--make-controller
-            :model nil :extra-args nil)))
+            :model nil :extra-args nil))
+        (beads-agent-ralph-verify-protect-paths nil))
     (should (null (beads-agent-ralph--effective-extra-args c)))))
 
 (ert-deftest beads-agent-ralph-test-effective-extra-args-model-only ()
   "A model slot renders as a `--model VALUE' pair."
   (let ((c (beads-agent-ralph-test--make-controller
-            :model "haiku" :extra-args nil)))
+            :model "haiku" :extra-args nil))
+        (beads-agent-ralph-verify-protect-paths nil))
     (should (equal (beads-agent-ralph--effective-extra-args c)
                    '("--model" "haiku")))))
 
 (ert-deftest beads-agent-ralph-test-effective-extra-args-extra-only ()
   "Bare extra-args pass through unchanged."
   (let ((c (beads-agent-ralph-test--make-controller
-            :model nil :extra-args '("--settings" "/p"))))
+            :model nil :extra-args '("--settings" "/p")))
+        (beads-agent-ralph-verify-protect-paths nil))
     (should (equal (beads-agent-ralph--effective-extra-args c)
                    '("--settings" "/p")))))
 
 (ert-deftest beads-agent-ralph-test-effective-extra-args-model-first ()
   "Model precedes extra-args so user overrides remain visible at the tail."
   (let ((c (beads-agent-ralph-test--make-controller
-            :model "sonnet" :extra-args '("--max-budget-usd" "0.5"))))
+            :model "sonnet" :extra-args '("--max-budget-usd" "0.5")))
+        (beads-agent-ralph-verify-protect-paths nil))
     (should (equal (beads-agent-ralph--effective-extra-args c)
                    '("--model" "sonnet" "--max-budget-usd" "0.5")))))
+
+(ert-deftest beads-agent-ralph-test-effective-extra-args-injects-settings ()
+  "When protect-paths are set, --settings PATH is appended."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :model nil :extra-args nil))
+         (beads-agent-ralph-verify-protect-paths '("test/**"))
+         (args (beads-agent-ralph--effective-extra-args c)))
+    (unwind-protect
+        (progn
+          (should (member "--settings" args))
+          (let ((path (cadr (member "--settings" args))))
+            (should (stringp path))
+            (should (file-readable-p path))))
+      (beads-agent-ralph--cleanup-settings-file c))))
+
+;;; Permission-settings file injection (bde-soyy)
+
+(ert-deftest beads-agent-ralph-test-settings-deny-rules-empty ()
+  "Empty protect-paths produce zero deny rules."
+  (should (null (beads-agent-ralph--settings-deny-rules nil))))
+
+(ert-deftest beads-agent-ralph-test-settings-deny-rules-cross-product ()
+  "Each glob produces one rule per tool in tool-denies."
+  (let* ((beads-agent-ralph-settings-tool-denies '("Edit" "Write"))
+         (rules (beads-agent-ralph--settings-deny-rules
+                 '("test/**" "spec/**"))))
+    (should (member "Edit(test/**)" rules))
+    (should (member "Write(test/**)" rules))
+    (should (member "Edit(spec/**)" rules))
+    (should (member "Write(spec/**)" rules))
+    (should (= 4 (length rules)))))
+
+(ert-deftest beads-agent-ralph-test-settings-payload-shape ()
+  "Payload is a JSON object with permissions.deny array."
+  (let* ((beads-agent-ralph-verify-protect-paths '("test/**"))
+         (json (beads-agent-ralph--settings-payload))
+         (parsed (let ((json-object-type 'alist)
+                       (json-array-type 'list)
+                       (json-key-type 'string))
+                   (json-read-from-string json))))
+    (should (assoc "permissions" parsed))
+    (should (assoc "deny" (cdr (assoc "permissions" parsed))))
+    (should (cl-some (lambda (rule) (string-match-p "test/\\*\\*" rule))
+                     (cdr (assoc "deny"
+                                 (cdr (assoc "permissions" parsed))))))))
+
+(ert-deftest beads-agent-ralph-test-ensure-settings-file-skipped-without-paths ()
+  "Empty protect-paths returns nil and writes no file."
+  (let ((c (beads-agent-ralph-test--make-controller))
+        (beads-agent-ralph-verify-protect-paths nil))
+    (should (null (beads-agent-ralph--ensure-settings-file c)))
+    (should (null (oref c settings-file)))))
+
+(ert-deftest beads-agent-ralph-test-ensure-settings-file-writes-once ()
+  "Calling ensure-settings-file twice reuses the same path."
+  (let ((c (beads-agent-ralph-test--make-controller))
+        (beads-agent-ralph-verify-protect-paths '("test/**")))
+    (unwind-protect
+        (let ((p1 (beads-agent-ralph--ensure-settings-file c))
+              (p2 (beads-agent-ralph--ensure-settings-file c)))
+          (should (equal p1 p2))
+          (should (file-readable-p p1)))
+      (beads-agent-ralph--cleanup-settings-file c))))
+
+(ert-deftest beads-agent-ralph-test-cleanup-settings-file ()
+  "Cleanup deletes the temp file and clears the slot."
+  (let ((c (beads-agent-ralph-test--make-controller))
+        (beads-agent-ralph-verify-protect-paths '("test/**")))
+    (let ((path (beads-agent-ralph--ensure-settings-file c)))
+      (should (file-readable-p path))
+      (beads-agent-ralph--cleanup-settings-file c)
+      (should-not (file-exists-p path))
+      (should-not (oref c settings-file)))))
+
+;;; Worktree resolution (bde-soyy)
+
+(ert-deftest beads-agent-ralph-test-worktree-skipped-when-disabled ()
+  "Worktree resolution is a no-op when use-worktrees is nil."
+  (let ((c (beads-agent-ralph-test--make-controller))
+        (beads-agent-use-worktrees nil)
+        (called nil))
+    (beads-agent-ralph--maybe-resolve-worktree-async
+     c (lambda () (setq called t)))
+    (should called)
+    (should (oref c worktree-resolved))
+    (should-not (oref c worktree-dir))))
+
+(ert-deftest beads-agent-ralph-test-worktree-uses-explicit-dir ()
+  "Explicit :worktree-dir at start is preserved and marks resolved."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :worktree-dir "/tmp/explicit"))
+        (called nil))
+    (beads-agent-ralph--maybe-resolve-worktree-async
+     c (lambda () (setq called t)))
+    (should called)
+    (should (oref c worktree-resolved))
+    (should (equal "/tmp/explicit" (oref c worktree-dir)))))
+
+(defmacro beads-agent-ralph-test--with-worktree-resolver (impl &rest body)
+  "Bind `beads-agent--ensure-worktree-async' to IMPL for BODY.
+Uses an explicit `fset' / `fmakunbound' pair so the stub works
+reliably across tests even when the symbol was previously unbound.
+`cl-letf' on `symbol-function' loses its restoration target for a
+previously-unbound symbol and leaves the binding visible to the next
+test, which is exactly what we need to avoid."
+  (declare (indent 1) (debug (form body)))
+  (let ((prev (make-symbol "prev"))
+        (was-bound (make-symbol "was-bound")))
+    `(let* ((,was-bound (fboundp 'beads-agent--ensure-worktree-async))
+            (,prev (and ,was-bound
+                        (symbol-function 'beads-agent--ensure-worktree-async))))
+       (unwind-protect
+           (progn
+             (fset 'beads-agent--ensure-worktree-async ,impl)
+             ,@body)
+         (if ,was-bound
+             (fset 'beads-agent--ensure-worktree-async ,prev)
+           (fmakunbound 'beads-agent--ensure-worktree-async))))))
+
+(ert-deftest beads-agent-ralph-test-worktree-resolve-success ()
+  "Successful worktree async resolve pins the path on the controller."
+  (let ((c (beads-agent-ralph-test--make-controller))
+        (beads-agent-use-worktrees t)
+        (called nil))
+    (beads-agent-ralph-test--with-worktree-resolver
+        (lambda (_id cb) (funcall cb t "/tmp/resolved"))
+      (beads-agent-ralph--maybe-resolve-worktree-async
+       c (lambda () (setq called t))))
+    (should called)
+    (should (oref c worktree-resolved))
+    (should (equal "/tmp/resolved" (oref c worktree-dir)))))
+
+(ert-deftest beads-agent-ralph-test-worktree-resolve-failure-banner ()
+  "Failed worktree async still calls DONE and pushes a warning banner."
+  (let ((c (beads-agent-ralph-test--make-controller))
+        (beads-agent-use-worktrees t)
+        (called nil))
+    (beads-agent-ralph-test--with-worktree-resolver
+        (lambda (_id cb) (funcall cb nil "fake-error"))
+      (beads-agent-ralph--maybe-resolve-worktree-async
+       c (lambda () (setq called t))))
+    (should called)
+    (should (oref c worktree-resolved))
+    (should-not (oref c worktree-dir))
+    (should (cl-some (lambda (b) (eq 'warning (plist-get b :severity)))
+                     (oref c banner-log)))))
+
+(ert-deftest beads-agent-ralph-test-worktree-resolve-is-one-shot ()
+  "A second call after resolve invokes DONE immediately without resolver."
+  (let ((c (beads-agent-ralph-test--make-controller))
+        (resolver-calls 0)
+        (called nil))
+    (oset c worktree-resolved t)
+    (beads-agent-ralph-test--with-worktree-resolver
+        (lambda (_id cb)
+          (cl-incf resolver-calls)
+          (funcall cb t "/tmp/r"))
+      (beads-agent-ralph--maybe-resolve-worktree-async
+       c (lambda () (setq called t))))
+    (should called)
+    (should (zerop resolver-calls))))
 
 (provide 'beads-agent-ralph-test)
 

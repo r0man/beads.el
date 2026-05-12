@@ -34,11 +34,22 @@
 (require 'subr-x)
 
 (require 'beads-agent-ralph-stream)
+(require 'beads-agent-ralph-persist)
 (require 'beads-command)
 (require 'beads-command-list)
 (require 'beads-command-show)
 (require 'beads-command-update)
 (require 'beads-types)
+
+;; Worktree integration lives in `beads-agent.el' (alias of
+;; `beads-git.el').  Avoid the load-time dependency: Ralph can run
+;; without worktrees, and `beads-agent.el' transitively pulls in the
+;; entire backend protocol.
+(declare-function beads-agent--ensure-worktree-async
+                  "beads-agent" (issue-id callback))
+(declare-function beads-agent--should-use-worktree-p
+                  "beads-agent" (issue-id))
+(defvar beads-agent-use-worktrees)
 
 ;;; Iteration Record
 
@@ -157,7 +168,25 @@ This is the directory the user launched the loop from; the worktree
     :initarg :worktree-dir
     :initform nil
     :documentation "Working directory for `claude --add-dir', or nil for the project root.
-Set by the worktree-sharing step (bde-e8lj); the skeleton leaves it nil.")
+Resolved by the worktree-sharing step (bde-soyy) on the first
+iteration when `beads-agent-use-worktrees' is non-nil; for epic
+loops the worktree is keyed on `root-id' so all children share one
+tree.  When set explicitly at start time, the resolution step is
+skipped.")
+   (worktree-resolved
+    :initarg :worktree-resolved
+    :initform nil
+    :documentation "Non-nil once the worktree-sharing step has run.
+Guards `--ensure-worktree-async' from being called per iteration; the
+worktree is a per-controller artefact, not per-iter, and an epic loop
+must reuse one tree across all child iterations.")
+   (settings-file
+    :initarg :settings-file
+    :initform nil
+    :documentation "Path to the Claude permission settings file for this loop.
+Written under `temporary-file-directory' the first time a spawn is
+issued; refreshed if it goes missing.  Deleted in `terminate' so a
+crashed loop leaves the temp directory clean on the next session.")
    (iteration
     :initarg :iteration
     :initform 0
@@ -1507,6 +1536,11 @@ follows with a dashboard re-render so observers see the new state."
                             controller new-status)
       (error
        (message "beads-agent-ralph: state-change hook errored: %S" err)))
+    ;; Persist the status crumb so a kill before the next iteration
+    ;; still records the terminal disposition on disk.
+    (when (oref controller project-dir)
+      (beads-agent-ralph-persist-record-status
+       (oref controller project-dir) controller new-status))
     (beads-agent-ralph--dashboard-rerender controller)))
 
 ;;; Iteration sequence
@@ -1554,11 +1588,13 @@ need only read this record to render its row."
   "Terminate CONTROLLER's loop with REASON (a symbol).
 Sets `done-reason' and drives status through the appropriate
 terminal value; clears `current-stream' but leaves `history' intact
-so the dashboard remains useful after stop.  Idempotent: a second
-call with the same reason is a no-op."
+so the dashboard remains useful after stop.  Cleans up the temp
+permission-settings file.  Idempotent: a second call with the same
+reason is a no-op."
   (when (memq (oref controller status) '(running cooling-down))
     (oset controller done-reason reason)
     (oset controller current-stream nil)
+    (beads-agent-ralph--cleanup-settings-file controller)
     (beads-agent-ralph--set-status
      controller
      (pcase reason
@@ -1623,6 +1659,13 @@ Steps:
                           (oref iter cost-usd))))
                (oset controller last-verify (oref iter verify-result))
                (push iter (oref controller history))
+               ;; Persist the iteration record now so a crash before the
+               ;; next status transition still leaves a recoverable
+               ;; timeline on disk.
+               (beads-agent-ralph-persist-record-iteration
+                (oref controller project-dir)
+                (oref controller root-id)
+                iter)
                (oset controller current-stream nil)
                (if stalled
                    (cl-incf (oref controller consecutive-stalls))
@@ -1687,12 +1730,175 @@ transition, schedules `beads-agent-ralph--on-stream-finish' via
 (defun beads-agent-ralph--effective-extra-args (controller)
   "Return the effective argv tail for CONTROLLER's next spawn.
 Combines the controller's `model' slot (rendered as `--model VALUE')
-with its `extra-args' slot.  Model flag comes first so user-supplied
-extra-args can re-override it if they really mean to."
+with its `extra-args' slot and the resolved settings-file (rendered
+as `--settings PATH').  Model flag comes first so user-supplied
+extra-args can re-override it if they really mean to.  Settings flag
+is appended last so a user-supplied `--settings' overrides ours."
   (append
    (when-let ((model (oref controller model)))
      (list "--model" model))
-   (oref controller extra-args)))
+   (oref controller extra-args)
+   (when-let ((settings (beads-agent-ralph--ensure-settings-file controller)))
+     (list "--settings" settings))))
+
+;;; Permission-settings file injection (bde-soyy)
+;;
+;; At each spawn we write a JSON permission-settings file Claude reads
+;; via `--settings'.  The file contains deny rules for every glob in
+;; `beads-agent-ralph-verify-protect-paths', complementing the post-iter
+;; protected-paths banner (which only detects after the fact) with a
+;; pre-iter sandbox the agent cannot bypass.
+
+(defcustom beads-agent-ralph-settings-tool-denies
+  '("Edit" "Write" "MultiEdit" "NotebookEdit")
+  "Tool names whose protected-path access is denied in the settings file.
+Each glob in `beads-agent-ralph-verify-protect-paths' becomes one
+entry per tool name listed here, formatted as `TOOL(glob)'.  Bash is
+deliberately omitted: blocking Bash on a path is brittle and the agent
+needs shell to run bd commands."
+  :type '(repeat string)
+  :group 'beads-agent-ralph)
+
+(defun beads-agent-ralph--settings-deny-rules (globs)
+  "Return a list of permission-deny rule strings for GLOBS.
+Each glob becomes one rule per tool in
+`beads-agent-ralph-settings-tool-denies', formatted as TOOL(GLOB)."
+  (let (rules)
+    (dolist (glob globs)
+      (dolist (tool beads-agent-ralph-settings-tool-denies)
+        (push (format "%s(%s)" tool glob) rules)))
+    (nreverse rules)))
+
+(defun beads-agent-ralph--settings-payload ()
+  "Return the JSON-encoded permission settings payload.
+Builds an alist with the `permissions.deny' shape Claude consumes.
+Honours `beads-agent-ralph-verify-protect-paths'."
+  (let* ((rules (beads-agent-ralph--settings-deny-rules
+                 beads-agent-ralph-verify-protect-paths))
+         (payload (list (cons "permissions"
+                              (list (cons "deny" rules))))))
+    (let ((json-encoding-default-indentation "  ")
+          (json-encoding-pretty-print t))
+      (json-encode payload))))
+
+(defun beads-agent-ralph--ensure-settings-file (controller)
+  "Return CONTROLLER's permission-settings path, writing it on demand.
+Best-effort: when no protect-paths are configured, returns nil so the
+`--settings' flag is omitted entirely (no need to inject an empty
+sandbox)."
+  (when beads-agent-ralph-verify-protect-paths
+    (let ((path (oref controller settings-file)))
+      (unless (and path (file-readable-p path))
+        (setq path (make-temp-file
+                    (format "beads-agent-ralph-settings-%s-"
+                            (or (oref controller root-id) "loop"))
+                    nil ".json"))
+        (oset controller settings-file path))
+      (condition-case _err
+          (let ((coding-system-for-write 'utf-8-unix))
+            (with-temp-file path
+              (insert (beads-agent-ralph--settings-payload))))
+        (error nil))
+      (when (file-readable-p path) path))))
+
+(defun beads-agent-ralph--cleanup-settings-file (controller)
+  "Delete CONTROLLER's settings file if present."
+  (let ((path (oref controller settings-file)))
+    (when (and path (file-exists-p path))
+      (condition-case _err
+          (delete-file path)
+        (error nil))
+      (oset controller settings-file nil))))
+
+;;; Worktree resolution (bde-soyy)
+;;
+;; One-shot per controller: the first iteration runs the resolver and
+;; pins the resolved path on the controller; subsequent iterations
+;; (including every child of an epic loop) reuse the same worktree.
+
+(defun beads-agent-ralph--worktree-key (controller)
+  "Return the worktree key for CONTROLLER.
+For epic mode, this is the root id so every child of the epic shares
+one tree.  For issue mode, it's likewise the root id (which equals
+the current issue) so the key is stable across resume cycles."
+  (oref controller root-id))
+
+(defun beads-agent-ralph--maybe-resolve-worktree-async (controller done)
+  "Ensure CONTROLLER's worktree is resolved, then invoke DONE.
+DONE is a thunk run after resolution succeeds, fails, or is skipped.
+Resolution is one-shot per controller: subsequent calls invoke DONE
+immediately.
+
+Skipped when any of the following hold:
+  - `beads-agent-use-worktrees' is nil (user opted out globally);
+  - `worktree-dir' was supplied explicitly at start time;
+  - `beads-agent--ensure-worktree-async' is not available (the agent
+    module hasn't been loaded — possible in minimal test
+    configurations).
+
+On failure the controller pushes a notice banner and continues
+without a worktree.  The loop is still useful in the main repo; we
+do not abort the whole run over a worktree hiccup."
+  (cond
+   ((oref controller worktree-resolved)
+    (funcall done))
+   ((oref controller worktree-dir)
+    ;; User supplied an explicit dir at start.
+    (oset controller worktree-resolved t)
+    (funcall done))
+   ((or (not (boundp 'beads-agent-use-worktrees))
+        (null beads-agent-use-worktrees))
+    (oset controller worktree-resolved t)
+    (funcall done))
+   (t
+    ;; Funcall via symbol so `cl-letf' rebinds and tests can stub the
+    ;; resolver without loading the full agent module.  When the
+    ;; resolver is genuinely unbound the condition-case below catches
+    ;; the `void-function' signal and falls back to the project root
+    ;; with a notice banner -- equivalent to opting out of worktrees.
+    (let ((key (beads-agent-ralph--worktree-key controller))
+          (resolver 'beads-agent--ensure-worktree-async))
+      (condition-case err
+          (funcall
+           resolver
+           key
+           (lambda (success result)
+             (cond
+              (success
+               (oset controller worktree-dir result)
+               (oset controller worktree-resolved t)
+               (beads-agent-ralph--push-banner
+                controller 'info
+                (format "Worktree resolved for %s: %s" key result)))
+              (t
+               (beads-agent-ralph--push-banner
+                controller 'warning
+                (format "Worktree resolution failed for %s: %s; continuing in project root"
+                        key result))
+               (oset controller worktree-resolved t)))
+             (funcall done)))
+        (error
+         (beads-agent-ralph--push-banner
+          controller 'warning
+          (format "Worktree resolver errored: %S; continuing in project root" err))
+         (oset controller worktree-resolved t)
+         (funcall done)))))))
+
+(defun beads-agent-ralph--register-persist-subscriber (controller stream)
+  "Attach the persistence event subscriber to STREAM, tied to CONTROLLER.
+The subscriber writes new stream events to the per-iter NDJSON file
+each flush, then compresses + prunes on terminal status.  Best-effort:
+errors are caught by the stream dispatcher so persistence cannot break
+the loop."
+  (let ((project-dir (oref controller project-dir))
+        (root-id (oref controller root-id))
+        (iter (oref controller iteration)))
+    (when (and project-dir root-id)
+      (beads-agent-ralph--stream-subscribe
+       stream
+       'persist
+       (beads-agent-ralph-persist-make-event-subscriber
+        project-dir root-id iter)))))
 
 (defun beads-agent-ralph--spawn-stream-for (controller issue-id rendered-prompt)
   "Spawn a stream on CONTROLLER for ISSUE-ID with RENDERED-PROMPT.
@@ -1718,6 +1924,7 @@ subscriber so iteration completion is observed."
      stream
      'controller
      (beads-agent-ralph--make-stream-subscriber controller))
+    (beads-agent-ralph--register-persist-subscriber controller stream)
     (beads-agent-ralph--dashboard-rerender controller)
     stream))
 
@@ -1746,6 +1953,13 @@ Stream completion is handled by the subscriber installed in
        (beads-agent-ralph--terminate controller 'failed))))
    :steps
    (list
+    ;; Step 0: ensure worktree if requested (one-shot per controller).
+    ;; Both single-issue and epic loops route through here; for epic
+    ;; mode this means the worktree is keyed on the root id and shared
+    ;; across all child iterations.
+    (lambda (_acc k)
+      (beads-agent-ralph--maybe-resolve-worktree-async
+       controller (lambda () (funcall k nil nil))))
     ;; Step 1: resolve target issue.
     (lambda (_acc k)
       (let ((kind (oref controller root-kind)))
@@ -1815,6 +2029,83 @@ Stream completion is handled by the subscriber installed in
 
 ;;; Entry points
 
+;;; Resume detection
+
+(defun beads-agent-ralph--resume-prompt-choice
+    (project-dir root-id summary)
+  "Prompt the user for a resume action and return a symbol.
+
+Returned values:
+  `resume'      — keep state, start at iteration count + 1.
+  `stash'       — git stash uncommitted changes, then resume.
+  `fresh'       — archive the JSONL and start counters at zero.
+                  bd state (closed children, claims) is preserved.
+  `full-reset'  — destructive: archive JSONL, reopen closed children
+                  of root, clear claims, start at iter 1.  Asks for
+                  explicit y/n confirmation before returning.
+  `cancel'      — user backed out.
+
+PROJECT-DIR, ROOT-ID, SUMMARY arguments are passed for prompt
+context."
+  (let* ((dirty (beads-agent-ralph-persist--worktree-dirty-p project-dir))
+         (options (beads-agent-ralph-persist-resume-options dirty))
+         (text (beads-agent-ralph-persist-resume-prompt-text summary dirty))
+         (prompt (concat text "\nChoice: "))
+         (ch (read-char-choice prompt options)))
+    (pcase ch
+      (?r 'resume)
+      (?s (if dirty 'stash 'cancel))
+      (?f 'fresh)
+      (?F (if (yes-or-no-p
+               (format "FULL-RESET will archive %s and reopen closed children of %s.  Continue? "
+                       (plist-get summary :path) root-id))
+              'full-reset
+            'cancel))
+      (?c 'cancel)
+      (_ 'cancel))))
+
+(defun beads-agent-ralph--apply-resume-choice
+    (choice project-dir root-id summary controller-args)
+  "Apply resume CHOICE to CONTROLLER-ARGS and side-effect on-disk state.
+PROJECT-DIR, ROOT-ID, SUMMARY position the work.  Returns a new
+plist replacing CONTROLLER-ARGS for the controller constructor.
+Side effects:
+
+  resume      — fills :iteration and :cumulative-cost-usd on the
+                controller args from the disk summary so the next
+                iteration index matches what JSONL last saw.
+  stash       — runs git stash push -u and resumes (same as resume,
+                with a one-line banner queued).
+  fresh       — archives JSONL.  No controller-args mutation; the
+                fresh loop starts at iter 0, cost 0.
+  full-reset  — archives JSONL.  Caller (start) is responsible for
+                clearing bd state via the controller's first-iter
+                sequence; this step does NOT touch bd because the
+                bd flip needs the async machinery already wired into
+                the controller."
+  (pcase choice
+    ('resume
+     (append (list :iteration (or (plist-get summary :last-iteration) 0)
+                   :cumulative-cost-usd
+                   (or (plist-get summary :cumulative-cost) 0.0))
+             controller-args))
+    ('stash
+     (let ((iter (or (plist-get summary :last-iteration) 0)))
+       (beads-agent-ralph-persist-stash-worktree project-dir root-id iter))
+     (append (list :iteration (or (plist-get summary :last-iteration) 0)
+                   :cumulative-cost-usd
+                   (or (plist-get summary :cumulative-cost) 0.0))
+             controller-args))
+    ('fresh
+     (beads-agent-ralph-persist-archive-jsonl project-dir root-id)
+     controller-args)
+    ('full-reset
+     (beads-agent-ralph-persist-archive-jsonl project-dir root-id)
+     ;; TODO: bd-update --status=open / clear-claim on closed children.
+     ;; Defer to a follow-up so the start function stays synchronous.
+     controller-args)
+    (_ controller-args)))
+
 ;;;###autoload
 (defun beads-agent-ralph-start (&rest args)
   "Start a Ralph loop for an issue or epic.
@@ -1840,10 +2131,17 @@ ARGS is a plist:
                 directory signals a `user-error' (see safety guard).
   :model       STRING — defaults to `beads-agent-ralph-model'.
   :extra-args  LIST   — defaults to `beads-agent-ralph-extra-args'.
+  :resume-action SYMBOL — bypasses the interactive resume prompt with
+                one of `resume', `stash', `fresh', `full-reset', or
+                `cancel'.  Test/backend callers use this to skip the
+                read-char prompt when a JSONL exists for ISSUE-ID.
 
 Returns the controller object (also stored on the global state so
 the backend can pick it up).  The first iteration is dispatched via
-`run-at-time' so this function returns immediately."
+`run-at-time' so this function returns immediately.  When a prior
+JSONL log for ISSUE-ID exists under PROJECT-DIR's
+`.beads/scratch/ralph/' and `:resume-action' is not supplied, the
+user is prompted to resume / stash / fresh / full-reset / cancel."
   (let* ((issue (plist-get args :issue))
          (issue-id (cond ((stringp issue) issue)
                          ((and issue (eieio-object-p issue)
@@ -1865,29 +2163,50 @@ the backend can pick it up).  The first iteration is dispatched via
          (extra-args (or (plist-get args :extra-args)
                          beads-agent-ralph-extra-args)))
     (beads-agent-ralph--guard-permission-mode permission-mode worktree-dir)
-    (let ((controller
-           (beads-agent-ralph--controller
-            :root-id issue-id
-            :root-kind kind
-            :project-dir project-dir
-            :worktree-dir worktree-dir
-            :verify-command verify-command
-            :prompt-template prompt
-            :max-iterations max-iterations
-            :iteration-delay iteration-delay
-            :permission-mode permission-mode
-            :model model
-            :extra-args extra-args
-            :started-at (current-time)
-            :status 'idle)))
-      (beads-agent-ralph--ensure-stub-dashboard controller)
-      (beads-agent-ralph--set-status controller 'running)
-      (beads-agent-ralph--schedule-next-iteration
-       controller
-       (lambda () (beads-agent-ralph--run-iteration controller)))
-      (cons controller
-            (get-buffer
-             (beads-agent-ralph--stub-dashboard-name issue-id))))))
+    ;; Resume detection: when a prior JSONL exists for this root, ask
+    ;; the user before clobbering it.  Non-interactive callers can pass
+    ;; :resume-action explicitly to skip the prompt (used by tests and
+    ;; the backend).
+    (let* ((summary (beads-agent-ralph-persist-resume-summary
+                     project-dir issue-id))
+           (resume-action
+            (cond
+             ((null summary) 'fresh-no-prompt)
+             ((plist-member args :resume-action)
+              (plist-get args :resume-action))
+             (t
+              (beads-agent-ralph--resume-prompt-choice
+               project-dir issue-id summary)))))
+      (when (eq resume-action 'cancel)
+        (user-error "beads-agent-ralph-start: cancelled"))
+      (let* ((controller-args
+              (list :root-id issue-id
+                    :root-kind kind
+                    :project-dir project-dir
+                    :worktree-dir worktree-dir
+                    :verify-command verify-command
+                    :prompt-template prompt
+                    :max-iterations max-iterations
+                    :iteration-delay iteration-delay
+                    :permission-mode permission-mode
+                    :model model
+                    :extra-args extra-args
+                    :started-at (current-time)
+                    :status 'idle))
+             (controller-args
+              (if (and summary (memq resume-action '(resume stash fresh full-reset)))
+                  (beads-agent-ralph--apply-resume-choice
+                   resume-action project-dir issue-id summary controller-args)
+                controller-args))
+             (controller (apply #'beads-agent-ralph--controller controller-args)))
+        (beads-agent-ralph--ensure-stub-dashboard controller)
+        (beads-agent-ralph--set-status controller 'running)
+        (beads-agent-ralph--schedule-next-iteration
+         controller
+         (lambda () (beads-agent-ralph--run-iteration controller)))
+        (cons controller
+              (get-buffer
+               (beads-agent-ralph--stub-dashboard-name issue-id)))))))
 
 ;;;###autoload
 (defun beads-agent-ralph-stop (controller)
@@ -1904,18 +2223,193 @@ its iteration record via the existing sentinel path."
       (beads-agent-ralph--set-status controller 'stopped))
     controller))
 
-;;;###autoload
-(defun beads-agent-ralph-show-history (controller)
-  "Pop to CONTROLLER's dashboard buffer.
-Skeleton implementation: the stub dashboard already shows the
-iteration log.  The persistence-replay version (bde-1p2c) replaces
-this body to read JSONL off disk and replay per-iter NDJSON files."
+;;; History viewer
+
+(defvar-local beads-agent-ralph-history--project-dir nil
+  "Project directory bound to the current history buffer.")
+
+(defvar-local beads-agent-ralph-history--root-id nil
+  "Root id bound to the current history buffer.")
+
+(defvar beads-agent-ralph-history-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "RET") #'beads-agent-ralph-history-replay-at-point)
+    (define-key map (kbd "g") #'beads-agent-ralph-history-refresh)
+    (define-key map (kbd "q") #'quit-window)
+    map)
+  "Keymap for `beads-agent-ralph-history-mode'.")
+
+(define-derived-mode beads-agent-ralph-history-mode special-mode
+  "Ralph History"
+  "Major mode for replaying a persisted Ralph timeline.
+RET on an iteration line opens a read-only replay buffer with that
+iteration's captured NDJSON events.  g refreshes from disk.")
+
+(defun beads-agent-ralph-history--buffer-name (root-id)
+  "Return the history buffer name for ROOT-ID."
+  (format "*beads-agent-ralph history: %s*" (or root-id "?")))
+
+(defun beads-agent-ralph-history--replay-buffer-name (root-id iter)
+  "Return the per-iter replay buffer name for ROOT-ID iteration ITER."
+  (format "*beads-agent-ralph replay: %s iter %d*"
+          (or root-id "?") (or iter 0)))
+
+(defun beads-agent-ralph-history--insert-record (record idx)
+  "Insert RECORD (an alist from the JSONL) into the current buffer.
+IDX is the iteration index assigned by position (one-based)."
+  (let* ((kind (cdr (assoc "kind" record)))
+         (start (point)))
+    (cond
+     ((equal kind "iteration")
+      (insert
+       (propertize
+        (format "  #%d %-8s $%-7s %s\n"
+                idx
+                (or (cdr (assoc "status" record)) "?")
+                (let ((c (cdr (assoc "cost_usd" record))))
+                  (if (numberp c) (format "%.4f" c) "n/a"))
+                (or (cdr (assoc "summary" record)) ""))
+        'beads-agent-ralph-record record
+        'beads-agent-ralph-iter idx))
+      (when (cdr (assoc "files_touched" record))
+        (insert "    files: "
+                (mapconcat #'identity
+                           (cdr (assoc "files_touched" record))
+                           ", ")
+                "\n")))
+     ((equal kind "status")
+      (insert
+       (propertize
+        (format "  → %s%s\n"
+                (or (cdr (assoc "status" record)) "?")
+                (let ((r (cdr (assoc "done_reason" record))))
+                  (if r (format " (%s)" r) "")))
+        'face 'shadow)))
+     (t
+      (insert (format "  ? %s\n" (or kind "unknown")))))
+    (add-text-properties start (point)
+                         (list 'beads-agent-ralph-record record))))
+
+(defun beads-agent-ralph-history--render (buffer project-dir root-id)
+  "Render the timeline for ROOT-ID into BUFFER from PROJECT-DIR's JSONL."
+  (with-current-buffer buffer
+    (let ((inhibit-read-only t)
+          (records (beads-agent-ralph-persist-read-jsonl project-dir root-id))
+          (iter-counter 0))
+      (erase-buffer)
+      (insert (format "Ralph history: %s\n" (or root-id "?")))
+      (insert (format "Source: %s\n\n"
+                      (beads-agent-ralph-persist-jsonl-path
+                       project-dir root-id)))
+      (cond
+       ((null records)
+        (insert "No persisted history found.\n"))
+       (t
+        (dolist (record records)
+          (when (equal (cdr (assoc "kind" record)) "iteration")
+            (cl-incf iter-counter))
+          (beads-agent-ralph-history--insert-record record iter-counter))))
+      (goto-char (point-min)))))
+
+(defun beads-agent-ralph-history-refresh ()
+  "Re-read the on-disk JSONL for this history buffer."
   (interactive)
-  (let ((buf (or (get-buffer
-                  (beads-agent-ralph--stub-dashboard-name
-                   (oref controller root-id)))
-                 (beads-agent-ralph--ensure-stub-dashboard controller))))
-    (pop-to-buffer buf)))
+  (when (and beads-agent-ralph-history--project-dir
+             beads-agent-ralph-history--root-id)
+    (beads-agent-ralph-history--render
+     (current-buffer)
+     beads-agent-ralph-history--project-dir
+     beads-agent-ralph-history--root-id)))
+
+(defun beads-agent-ralph-history-replay-at-point ()
+  "Replay the per-iter captured events at point in a side buffer."
+  (interactive)
+  (let* ((iter (get-text-property (point) 'beads-agent-ralph-iter))
+         (project-dir beads-agent-ralph-history--project-dir)
+         (root-id beads-agent-ralph-history--root-id))
+    (cond
+     ((not (and iter project-dir root-id))
+      (user-error "No iteration record at point"))
+     (t
+      (let* ((events (beads-agent-ralph-persist-read-iter-events
+                      project-dir root-id iter))
+             (name (beads-agent-ralph-history--replay-buffer-name
+                    root-id iter))
+             (buf (get-buffer-create name)))
+        (with-current-buffer buf
+          (let ((inhibit-read-only t))
+            (erase-buffer)
+            (insert (format "Replay: %s iter %d\n" root-id iter))
+            (insert (format "Path: %s\n\n"
+                            (or (beads-agent-ralph-persist-iter-events-path
+                                 project-dir root-id iter)
+                                "(no events file)")))
+            (cond
+             ((null events)
+              (insert "No captured events for this iteration.\n"))
+             (t
+              (dolist (event events)
+                (let* ((type (or (cdr (assoc "type" event)) "?"))
+                       (subtype (cdr (assoc "subtype" event)))
+                       (header (format "[%s%s]"
+                                       type
+                                       (if subtype (format ":%s" subtype) ""))))
+                  (insert (propertize header 'face 'shadow))
+                  (insert "\n")
+                  (insert (beads-agent-ralph-persist--encode event))
+                  (insert "\n\n")))))
+            (setq-local buffer-read-only t)
+            (goto-char (point-min))))
+        (pop-to-buffer buf))))))
+
+;;;###autoload
+(defun beads-agent-ralph-show-history (controller-or-root-id &optional project-dir)
+  "Pop to the persisted history viewer for a Ralph loop.
+CONTROLLER-OR-ROOT-ID is either a `beads-agent-ralph--controller'
+\(its `root-id' and `project-dir' slots are used) or a string root id.
+When a string is supplied, PROJECT-DIR defaults to
+`default-directory'.
+
+Reads the on-disk JSONL summary log and renders each iteration as a
+clickable row; RET on a row opens the captured per-iter NDJSON in a
+read-only replay buffer.  If no persistence exists yet, falls back
+to the stub dashboard."
+  (interactive (list (read-string "Root id: "
+                                  (and (boundp 'beads-agent-ralph-current-root)
+                                       beads-agent-ralph-current-root))))
+  (let* ((root-id (cond
+                   ((stringp controller-or-root-id) controller-or-root-id)
+                   ((and (eieio-object-p controller-or-root-id)
+                         (beads-agent-ralph--controller-p
+                          controller-or-root-id))
+                    (oref controller-or-root-id root-id))
+                   (t (error "Invalid argument"))))
+         (project-dir
+          (or project-dir
+              (and (eieio-object-p controller-or-root-id)
+                   (beads-agent-ralph--controller-p controller-or-root-id)
+                   (oref controller-or-root-id project-dir))
+              default-directory))
+         (jsonl (beads-agent-ralph-persist-jsonl-path project-dir root-id)))
+    (cond
+     ((file-readable-p jsonl)
+      (let ((buf (get-buffer-create
+                  (beads-agent-ralph-history--buffer-name root-id))))
+        (with-current-buffer buf
+          (beads-agent-ralph-history-mode)
+          (setq-local beads-agent-ralph-history--project-dir project-dir)
+          (setq-local beads-agent-ralph-history--root-id root-id))
+        (beads-agent-ralph-history--render buf project-dir root-id)
+        (pop-to-buffer buf)))
+     ((and (eieio-object-p controller-or-root-id)
+           (beads-agent-ralph--controller-p controller-or-root-id))
+      (let ((buf (or (get-buffer
+                      (beads-agent-ralph--stub-dashboard-name root-id))
+                     (beads-agent-ralph--ensure-stub-dashboard
+                      controller-or-root-id))))
+        (pop-to-buffer buf)))
+     (t
+      (user-error "No history found for %s under %s" root-id project-dir)))))
 
 (provide 'beads-agent-ralph)
 
