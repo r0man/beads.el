@@ -1760,6 +1760,68 @@ test, which is exactly what we need to avoid."
             (should (equal root (plist-get args :root-id)))))
       (delete-directory tmp t))))
 
+;;; Live dashboard auto-mount (bde-ziu2.1)
+
+(ert-deftest beads-agent-ralph-test-mount-live-dashboard-prefers-vui ()
+  "When `beads-agent-ralph-dashboard-mount' returns a buffer, the
+helper returns it and does NOT fall back to the stub."
+  (let* ((controller (beads-agent-ralph-test--make-controller))
+         (sentinel-buf (generate-new-buffer "*vui-sentinel*"))
+         (stub-called nil))
+    (unwind-protect
+        (cl-letf (((symbol-function 'require)
+                   (lambda (feat &rest _) feat))
+                  ((symbol-function 'beads-agent-ralph-dashboard-mount)
+                   (lambda (_) sentinel-buf))
+                  ((symbol-function 'beads-agent-ralph--ensure-stub-dashboard)
+                   (lambda (_) (setq stub-called t) (current-buffer))))
+          (let ((buf (beads-agent-ralph--mount-live-dashboard controller)))
+            (should (eq buf sentinel-buf))
+            (should-not stub-called)))
+      (when (buffer-live-p sentinel-buf) (kill-buffer sentinel-buf)))))
+
+(ert-deftest beads-agent-ralph-test-mount-live-dashboard-falls-back-to-stub ()
+  "When loading the vui dashboard signals an error, the helper
+falls back to `beads-agent-ralph--ensure-stub-dashboard'."
+  (let* ((controller (beads-agent-ralph-test--make-controller))
+         (stub-buf (generate-new-buffer "*ralph-stub-sentinel*")))
+    (unwind-protect
+        (cl-letf (((symbol-function 'require)
+                   (lambda (feat &rest _)
+                     (if (eq feat 'beads-agent-ralph-dashboard)
+                         (error "vui not available")
+                       feat)))
+                  ((symbol-function 'beads-agent-ralph--ensure-stub-dashboard)
+                   (lambda (_) stub-buf)))
+          (let ((buf (beads-agent-ralph--mount-live-dashboard controller)))
+            (should (eq buf stub-buf))))
+      (when (buffer-live-p stub-buf) (kill-buffer stub-buf)))))
+
+(ert-deftest beads-agent-ralph-test-dashboard-rerender-skips-stub-when-vui-bound ()
+  "When `beads-agent-ralph-dashboard-rerender-function' is set, the
+controller's rerender hook MUST NOT also call the stub updater (both
+write the same buffer name)."
+  (let* ((controller (beads-agent-ralph-test--make-controller))
+         (vui-calls 0)
+         (stub-calls 0))
+    (let ((beads-agent-ralph-dashboard-rerender-function
+           (lambda (_) (cl-incf vui-calls))))
+      (cl-letf (((symbol-function 'beads-agent-ralph--stub-dashboard-update)
+                 (lambda (_) (cl-incf stub-calls))))
+        (beads-agent-ralph--dashboard-rerender controller)))
+    (should (= 1 vui-calls))
+    (should (zerop stub-calls))))
+
+(ert-deftest beads-agent-ralph-test-dashboard-rerender-uses-stub-without-vui ()
+  "Without a bound vui rerender function, the stub renders."
+  (let* ((controller (beads-agent-ralph-test--make-controller))
+         (stub-calls 0))
+    (let ((beads-agent-ralph-dashboard-rerender-function nil))
+      (cl-letf (((symbol-function 'beads-agent-ralph--stub-dashboard-update)
+                 (lambda (_) (cl-incf stub-calls))))
+        (beads-agent-ralph--dashboard-rerender controller)))
+    (should (= 1 stub-calls))))
+
 (provide 'beads-agent-ralph-test)
 
 ;;; beads-agent-ralph-test.el ends here

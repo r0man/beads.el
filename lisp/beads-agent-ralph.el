@@ -51,6 +51,12 @@
                   "beads-agent" (issue-id))
 (defvar beads-agent-use-worktrees)
 
+;; Vui dashboard lives in `beads-agent-ralph-dashboard.el', which pulls in
+;; `vui'.  Avoid the load-time dependency so the controller stays usable in
+;; environments without vui; we `require' it lazily inside the mount helper.
+(declare-function beads-agent-ralph-dashboard-mount
+                  "beads-agent-ralph-dashboard" (controller))
+
 ;;; Iteration Record
 
 (defclass beads-agent-ralph--iteration ()
@@ -1533,20 +1539,40 @@ progress before the real dashboard (bde-9b00) lands."
                               (plist-get entry :text)))))
           (goto-char (min point-was (point-max))))))))
 
+(defun beads-agent-ralph--mount-live-dashboard (controller)
+  "Mount the vui dashboard for CONTROLLER when available.
+Loads `beads-agent-ralph-dashboard' lazily (pulling in vui).  When
+the module loads cleanly, calls `beads-agent-ralph-dashboard-mount'
+and returns its buffer.  Otherwise falls back to
+`beads-agent-ralph--ensure-stub-dashboard' so callers always get a
+visible buffer."
+  (or (condition-case err
+          (progn
+            (require 'beads-agent-ralph-dashboard)
+            (beads-agent-ralph-dashboard-mount controller))
+        (error
+         (message "beads-agent-ralph: vui dashboard unavailable, falling back to stub: %S"
+                  err)
+         nil))
+      (beads-agent-ralph--ensure-stub-dashboard controller)))
+
 (defun beads-agent-ralph--dashboard-rerender (controller)
   "Refresh whatever view is bound to CONTROLLER.
-Calls `beads-agent-ralph-dashboard-rerender-function' when set, then
-the stub dashboard.  Both run inside a `condition-case' so a broken
-renderer cannot break the controller."
-  (when beads-agent-ralph-dashboard-rerender-function
+When `beads-agent-ralph-dashboard-rerender-function' is set (the vui
+dashboard has been mounted) it owns the buffer and the stub is
+skipped — both share the same buffer name, so running both would
+have the stub clobber the vui mount.  Otherwise the stub renders.
+Runs inside a `condition-case' so a broken renderer cannot break
+the controller."
+  (if beads-agent-ralph-dashboard-rerender-function
+      (condition-case err
+          (funcall beads-agent-ralph-dashboard-rerender-function controller)
+        (error
+         (message "beads-agent-ralph: dashboard rerender errored: %S" err)))
     (condition-case err
-        (funcall beads-agent-ralph-dashboard-rerender-function controller)
+        (beads-agent-ralph--stub-dashboard-update controller)
       (error
-       (message "beads-agent-ralph: dashboard rerender errored: %S" err))))
-  (condition-case err
-      (beads-agent-ralph--stub-dashboard-update controller)
-    (error
-     (message "beads-agent-ralph: stub dashboard errored: %S" err))))
+       (message "beads-agent-ralph: stub dashboard errored: %S" err)))))
 
 ;;; State change
 
@@ -2317,15 +2343,14 @@ user is prompted to resume / stash / fresh / full-reset / cancel."
                   (beads-agent-ralph--apply-resume-choice
                    resume-action project-dir issue-id summary controller-args)
                 controller-args))
-             (controller (apply #'beads-agent-ralph--controller controller-args)))
-        (beads-agent-ralph--ensure-stub-dashboard controller)
+             (controller (apply #'beads-agent-ralph--controller controller-args))
+             (dashboard-buf
+              (beads-agent-ralph--mount-live-dashboard controller)))
         (beads-agent-ralph--set-status controller 'running)
         (beads-agent-ralph--schedule-next-iteration
          controller
          (lambda () (beads-agent-ralph--run-iteration controller)))
-        (cons controller
-              (get-buffer
-               (beads-agent-ralph--stub-dashboard-name issue-id)))))))
+        (cons controller dashboard-buf)))))
 
 ;;;###autoload
 (defun beads-agent-ralph-stop (controller)
@@ -2492,7 +2517,8 @@ When a string is supplied, PROJECT-DIR defaults to
 Reads the on-disk JSONL summary log and renders each iteration as a
 clickable row; RET on a row opens the captured per-iter NDJSON in a
 read-only replay buffer.  If no persistence exists yet, falls back
-to the stub dashboard."
+to the live vui dashboard (via `beads-agent-ralph--mount-live-dashboard',
+which uses the stub when vui is unavailable)."
   (interactive (list (read-string "Root id: "
                                   (and (boundp 'beads-agent-ralph-current-root)
                                        beads-agent-ralph-current-root))))
@@ -2524,7 +2550,7 @@ to the stub dashboard."
            (beads-agent-ralph--controller-p controller-or-root-id))
       (let ((buf (or (get-buffer
                       (beads-agent-ralph--stub-dashboard-name root-id))
-                     (beads-agent-ralph--ensure-stub-dashboard
+                     (beads-agent-ralph--mount-live-dashboard
                       controller-or-root-id))))
         (pop-to-buffer buf)))
      (t
