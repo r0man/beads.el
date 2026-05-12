@@ -554,10 +554,13 @@ Keybindings reflect the action bar legend at the foot of the buffer.")
       (pop-to-buffer buf))))
 
 (defun beads-agent-ralph-dashboard-help ()
-  "Show the full key legend in the echo area."
+  "Show the full key legend in the echo area.
+Keep the message in sync with the action-bar legend rendered by
+`beads-agent-ralph-dashboard--action-bar' so the user can press `?'
+and see the same set of keys advertised at the bottom of the buffer."
   (interactive)
   (message
-   "Ralph keys: [s]top [k]ill [p]ause [r]esume [v]iew issue [B]anners [g]refresh [q]uit"))
+   "Ralph keys: [s]top [k]ill [p]ause [r]esume [v]iew issue [B]anners [g]refresh [?]help [q]uit"))
 
 ;;; Mount + re-render machinery
 

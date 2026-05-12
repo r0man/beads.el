@@ -241,6 +241,19 @@
     (kill-buffer buf)
     (should-not (assq c beads-agent-ralph-dashboard--pending-rerender))))
 
+(ert-deftest beads-agent-ralph-dashboard-test-help-echoes-question-mark-key ()
+  "`beads-agent-ralph-dashboard-help' must advertise its own `?' binding.
+Regression for bde-uuao: the action-bar legend lists `[?]' but the
+echoed help message previously omitted the self-reference."
+  (let ((message-log-max nil)
+        (echoed nil))
+    (cl-letf (((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (setq echoed (apply #'format fmt args)))))
+      (beads-agent-ralph-dashboard-help))
+    (should echoed)
+    (should (string-match-p "\\[\\?\\]help" echoed))))
+
 (provide 'beads-agent-ralph-dashboard-test)
 
 ;;; beads-agent-ralph-dashboard-test.el ends here
