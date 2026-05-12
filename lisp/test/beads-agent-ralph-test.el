@@ -907,7 +907,10 @@ extract-* helpers can run."
   (let ((done nil) (result nil))
     (beads-agent-ralph--run-shell-async
      "true" nil (lambda (r) (setq result r done t)))
-    (with-timeout (5.0) (while (not done) (sit-for 0.05)))
+    ;; `accept-process-output' yields directly to subprocess sentinels;
+    ;; `sit-for' is flaky under batch when other processes are busy.
+    (with-timeout (10.0) (while (not done) (accept-process-output nil 0.05)))
+    (should done)
     (should (= (plist-get result :exit) 0))
     (should (equal (plist-get result :stdout) ""))
     (should (equal (plist-get result :stderr) ""))))
@@ -917,7 +920,8 @@ extract-* helpers can run."
   (let ((done nil) (result nil))
     (beads-agent-ralph--run-shell-async
      "false" nil (lambda (r) (setq result r done t)))
-    (with-timeout (5.0) (while (not done) (sit-for 0.05)))
+    (with-timeout (10.0) (while (not done) (accept-process-output nil 0.05)))
+    (should done)
     (should (= (plist-get result :exit) 1))))
 
 (ert-deftest beads-agent-ralph-test-run-verify-async-nil ()
