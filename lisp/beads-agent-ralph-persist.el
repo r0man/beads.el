@@ -96,8 +96,9 @@ existence."
 
 (defun beads-agent-ralph-persist-iter-event-path
     (project-dir root-id iter &optional compressed)
-  "Return the per-iter NDJSON event file path for ROOT-ID iteration ITER.
-When COMPRESSED is non-nil, returns the gzipped path (.ndjson.gz)."
+  "Return the per-iter NDJSON event file path under PROJECT-DIR.
+The path is for ROOT-ID iteration ITER.  When COMPRESSED is
+non-nil, returns the gzipped path (.ndjson.gz)."
   (expand-file-name
    (format "%s.iter-%d.ndjson%s"
            root-id iter (if compressed ".gz" ""))
@@ -154,7 +155,7 @@ iteration object slots plus a stable `kind' tag."
      (cons "timestamp" (format-time-string "%FT%T%z")))))
 
 (defun beads-agent-ralph-persist--status-to-alist (controller status)
-  "Convert a CONTROLLER status transition into an alist for JSON.
+  "Convert a CONTROLLER transition to STATUS into an alist for JSON.
 Captures terminal-state crumbs (status, done-reason, totals) so a
 post-mortem reader can reconstruct the loop's final disposition
 without consulting the live controller."
@@ -205,7 +206,7 @@ continues without blocking iteration."
        (beads-agent-ralph-persist--encode alist)))))
 
 (defun beads-agent-ralph-persist-record-status (project-dir controller status)
-  "Append a status transition record for CONTROLLER to STATUS."
+  "Append a status transition record for CONTROLLER to STATUS under PROJECT-DIR."
   (when (and project-dir (oref controller root-id))
     (let ((alist (beads-agent-ralph-persist--status-to-alist
                   controller status))
@@ -296,9 +297,10 @@ NAME is a basename like `bde-foo.iter-7.ndjson' or `.iter-3.ndjson.gz'."
     (string-to-number (match-string 1 name))))
 
 (defun beads-agent-ralph-persist--list-event-files (project-dir root-id)
-  "Return a list of (ITER . FULL-PATH) for ROOT-ID's per-iter event files.
-Sorted by ITER ascending.  Both `.ndjson' and `.ndjson.gz' files are
-included; if both exist for the same iter, the gzipped one wins."
+  "Return per-iter event files for ROOT-ID under PROJECT-DIR.
+Returns a list of (ITER . FULL-PATH) sorted by ITER ascending.
+Both `.ndjson' and `.ndjson.gz' files are included; if both exist
+for the same iter, the gzipped one wins."
   (let* ((dir (beads-agent-ralph-persist-root-dir project-dir))
          (prefix (concat root-id ".iter-"))
          (entries (and (file-directory-p dir)
@@ -324,8 +326,9 @@ included; if both exist for the same iter, the gzipped one wins."
           (lambda (a b) (< (car a) (car b))))))
 
 (defun beads-agent-ralph-persist--prune-event-files (project-dir root-id)
-  "Drop oldest per-iter event files beyond the retention threshold.
-Bounded by `beads-agent-ralph-event-retention'; nil disables pruning."
+  "Drop oldest per-iter event files for ROOT-ID under PROJECT-DIR.
+Trims any files beyond the retention threshold.  Bounded by
+`beads-agent-ralph-event-retention'; nil disables pruning."
   (when (and (numberp beads-agent-ralph-event-retention)
              (> beads-agent-ralph-event-retention 0))
     (let* ((files (beads-agent-ralph-persist--list-event-files
@@ -372,7 +375,7 @@ line is replaced with a placeholder alist)."
           (nreverse records))))))
 
 (defun beads-agent-ralph-persist-iter-events-path (project-dir root-id iter)
-  "Return the readable event-file path for ROOT-ID iteration ITER, or nil.
+  "Return readable event-file path under PROJECT-DIR for ROOT-ID iter ITER.
 Prefers the gzipped path if it exists, falling back to the raw
 `.ndjson'.  Returns nil when neither is on disk."
   (let ((compressed (beads-agent-ralph-persist-iter-event-path
@@ -385,12 +388,12 @@ Prefers the gzipped path if it exists, falling back to the raw
      (t nil))))
 
 (defun beads-agent-ralph-persist-read-iter-events (project-dir root-id iter)
-  "Read all events captured for ROOT-ID iteration ITER.
+  "Read all events under PROJECT-DIR captured for ROOT-ID iteration ITER.
 Transparently decompresses `.ndjson.gz' via
 `auto-compression-mode' (Emacs's `jka-compr' handles this when the
-mode is enabled, which is the default).  Returns a list of alists in
-receive order; an unparsable line is preserved as `((\"kind\"
-. \"malformed\") (\"raw\" . LINE))'."
+mode is enabled, which is the default).  Returns a list of alists
+in receive order; an unparsable line is preserved as
+`((\"kind\" . \"malformed\") (\"raw\" . LINE))'."
   (let ((path (beads-agent-ralph-persist-iter-events-path
                project-dir root-id iter)))
     (when path
@@ -417,7 +420,7 @@ receive order; an unparsable line is preserved as `((\"kind\"
 ;;; Resume detection
 
 (defun beads-agent-ralph-persist-resume-summary (project-dir root-id)
-  "Return a plist summarising prior state for ROOT-ID, or nil if none.
+  "Return a plist summarising prior state for ROOT-ID under PROJECT-DIR.
 
 Plist keys:
   :iterations        — count of iteration records on disk.
@@ -447,7 +450,7 @@ Returns nil when no summary log exists or it is empty."
               :path path)))))
 
 (defun beads-agent-ralph-persist-archive-jsonl (project-dir root-id)
-  "Rename the existing JSONL log for ROOT-ID with a timestamp suffix.
+  "Rename the existing JSONL log under PROJECT-DIR for ROOT-ID with a timestamp.
 Returns the archive path on success, nil if there was no log to
 archive or the rename failed.  The archive name follows the pattern
 `<root-id>.<timestamp>.jsonl' under the same scratch directory."
@@ -470,7 +473,7 @@ spec.  Always includes [r]esume, [f]resh, [F]ull-reset, [c]ancel."
     (list ?r ?f ?F ?c)))
 
 (defun beads-agent-ralph-persist-resume-prompt-text (summary worktree-dirty)
-  "Return the two-line legend text for the resume read-char prompt.
+  "Return the two-line legend text for the resume `read-char' prompt.
 SUMMARY is the plist from `beads-agent-ralph-persist-resume-summary'.
 WORKTREE-DIRTY adds the dirty-tree header line and [s]tash option."
   (let* ((iters (or (plist-get summary :iterations) 0))
@@ -509,7 +512,7 @@ path."
           (format-time-string "%FT%T%z")))
 
 (defun beads-agent-ralph-persist-stash-worktree (project-dir root-id iter)
-  "Run `git stash push' in PROJECT-DIR with a timestamped Ralph message.
+  "Run `git stash push' in PROJECT-DIR with a Ralph message for ROOT-ID/ITER.
 Returns the stash output on success, nil on failure.  The caller
 displays the result in the dashboard banner."
   (when (file-directory-p project-dir)

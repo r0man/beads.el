@@ -2279,7 +2279,7 @@ ARGS is a plist:
   :resume-action SYMBOL — bypasses the interactive resume prompt with
                 one of `resume', `stash', `fresh', `full-reset', or
                 `cancel'.  Test/backend callers use this to skip the
-                read-char prompt when a JSONL exists for ISSUE-ID.
+                `read-char' prompt when a JSONL exists for ISSUE-ID.
 
 Returns the controller object (also stored on the global state so
 the backend can pick it up).  The first iteration is dispatched via
@@ -2323,7 +2323,7 @@ user is prompted to resume / stash / fresh / full-reset / cancel."
               (beads-agent-ralph--resume-prompt-choice
                project-dir issue-id summary)))))
       (when (eq resume-action 'cancel)
-        (user-error "beads-agent-ralph-start: cancelled"))
+        (user-error "Ralph start cancelled"))
       (let* ((controller-args
               (list :root-id issue-id
                     :root-kind kind
