@@ -19,10 +19,16 @@
 ;; tests rebind via `cl-letf' and the function the controller calls.
 ;; Its contract is documented in its docstring and kept stable.
 ;;
-;; This file implements only the basic NDJSON line buffering scaffold.
-;; UTF-8 boundary handling, reentrancy, drain-on-sentinel races,
-;; `--include-partial-messages' reassembly, and deferred dispatch are
-;; layered on top in the parser-hardening task (bde-2qha).
+;; The parser is hardened beyond plain line buffering: it handles
+;; UTF-8 boundary splits across chunks, reentrant subscriber dispatch
+;; (events queued while a subscriber is running flush after it returns),
+;; the drain-on-sentinel race (final NDJSON lines that arrive between
+;; sentinel and process exit are flushed before `on-finish' fires), the
+;; `--include-partial-messages' SSE shape (assistant / tool-use deltas
+;; reassembled into single coalesced events), and deferred dispatch via
+;; `run-at-time' so subscribers always run from a known scheduler tick
+;; rather than directly from the process filter.  Empirical verification
+;; for each behaviour lives under `lisp/test/ralph-empirical/'.
 
 ;;; Code:
 
@@ -121,9 +127,9 @@ Stored as the value returned by `current-time', or nil while running.")
     :initarg :cost-usd
     :initform nil
     :documentation "Total cost in USD reported by the final result event.
-Nil until the result event is parsed.  Plan reads `cost-usd' from the
-NDJSON payload; the empirical-TODO harness (bde-vuz2) verifies the
-actual schema field name before this is finalized.")
+Nil until the result event is parsed.  Read from the `total_cost_usd'
+field on the NDJSON `result' event; the schema is verified by
+`lisp/test/ralph-empirical/06-cost-schema.sh'.")
    (duration-ms
     :initarg :duration-ms
     :initform nil
@@ -346,7 +352,7 @@ Dispatch is deferred via `beads-agent-ralph--stream-schedule-flush'.")
 ;;   message_delta         carries stop_reason
 ;;   message_stop          terminates the message
 ;;
-;; Empirical TODO #3 (lisp/test/ralph-empirical/03-partial-messages-shape.sh)
+;; The empirical harness `lisp/test/ralph-empirical/03-partial-messages-shape.sh'
 ;; documents the exact field shape against a real claude binary.  This
 ;; module assembles those partials back into a synthesised `assistant'
 ;; event with the same plist shape the non-partial path produces, so
