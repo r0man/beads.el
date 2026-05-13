@@ -272,6 +272,42 @@ incremental head-walk path (no duplicates, no missed events)."
         (should (= 2 (plist-get summary :iterations)))
         (should (= 1.5 (plist-get summary :cumulative-cost)))))))
 
+(ert-deftest beads-agent-ralph-persist-test-resume-summary-last-iteration-from-field ()
+  "Resume summary reads `:last-iteration' from the iteration field, not the record count (bde-3787).
+
+Records 1, 2, and 4 (iter 3 missing): `:last-iteration' should be 4, not 3.
+Without this fix, a crash-recovered resume could spawn iter 4 again, overwriting
+the existing per-iter NDJSON for the real iter 4."
+  (beads-agent-ralph-persist-test--in-tempdir dir
+    (let ((iter-1 (beads-agent-ralph-persist-test--make-iter
+                   :iter-number 1 :cost-usd 0.1))
+          (iter-2 (beads-agent-ralph-persist-test--make-iter
+                   :iter-number 2 :cost-usd 0.2))
+          (iter-4 (beads-agent-ralph-persist-test--make-iter
+                   :iter-number 4 :cost-usd 0.4)))
+      (beads-agent-ralph-persist-record-iteration dir "bde-gap" iter-1)
+      (beads-agent-ralph-persist-record-iteration dir "bde-gap" iter-2)
+      (beads-agent-ralph-persist-record-iteration dir "bde-gap" iter-4)
+      (let ((summary (beads-agent-ralph-persist-resume-summary dir "bde-gap")))
+        (should summary)
+        (should (= 3 (plist-get summary :iterations)))
+        (should (= 4 (plist-get summary :last-iteration)))))))
+
+(ert-deftest beads-agent-ralph-persist-test-resume-summary-legacy-fallback ()
+  "Legacy JSONL without the `iteration' field falls back to record count (bde-3787)."
+  (beads-agent-ralph-persist-test--in-tempdir dir
+    (beads-agent-ralph-persist--ensure-dir dir)
+    ;; Write iteration records without the "iteration" field, as the
+    ;; pre-bde-3787 code emitted them.
+    (let ((path (beads-agent-ralph-persist-jsonl-path dir "bde-old")))
+      (with-temp-file path
+        (insert "{\"kind\":\"iteration\",\"root_id\":\"bde-old\",\"cost_usd\":0.1}\n")
+        (insert "{\"kind\":\"iteration\",\"root_id\":\"bde-old\",\"cost_usd\":0.2}\n"))
+      (let ((summary (beads-agent-ralph-persist-resume-summary dir "bde-old")))
+        (should summary)
+        (should (= 2 (plist-get summary :iterations)))
+        (should (= 2 (plist-get summary :last-iteration)))))))
+
 (ert-deftest beads-agent-ralph-persist-test-archive-jsonl ()
   "Archiving renames the JSONL out of the way with a timestamp."
   (beads-agent-ralph-persist-test--in-tempdir dir

@@ -142,6 +142,7 @@ iteration object slots plus a stable `kind' tag."
      (cons "kind" "iteration")
      (cons "root_id" (or root-id ""))
      (cons "issue_id" (or (oref iter issue-id) ""))
+     (cons "iteration" (or (oref iter iter-number) 0))
      (cons "status" (and (oref iter status) (symbol-name (oref iter status))))
      (cons "duration_ms" (or (oref iter duration-ms) 0))
      (cons "cost_usd" (or (oref iter cost-usd) 0))
@@ -455,14 +456,21 @@ Returns nil when no summary log exists or it is empty."
                  records)))
     (when iters
       (let ((cost 0.0)
-            (last-time nil))
+            (last-time nil)
+            (max-iter 0))
         (dolist (rec iters)
           (let ((c (cdr (assoc "cost_usd" rec)))
-                (t- (cdr (assoc "timestamp" rec))))
+                (t- (cdr (assoc "timestamp" rec)))
+                (n (cdr (assoc "iteration" rec))))
             (when (numberp c) (cl-incf cost c))
-            (when (stringp t-) (setq last-time t-))))
+            (when (stringp t-) (setq last-time t-))
+            (when (and (numberp n) (> n max-iter))
+              (setq max-iter n))))
+        ;; Prefer the highest recorded iteration index; fall back to
+        ;; (length iters) for legacy JSONL written before bde-3787
+        ;; added the "iteration" field.
         (list :iterations (length iters)
-              :last-iteration (length iters)
+              :last-iteration (if (> max-iter 0) max-iter (length iters))
               :cumulative-cost cost
               :last-timestamp last-time
               :path path)))))
