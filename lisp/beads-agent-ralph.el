@@ -1856,8 +1856,11 @@ transition, schedules `beads-agent-ralph--on-stream-finish' via
 Combines the controller's `model' slot (rendered as `--model VALUE')
 with its `extra-args' slot and the resolved settings-file (rendered
 as `--settings PATH').  Model flag comes first so user-supplied
-extra-args can re-override it if they really mean to.  Settings flag
-is appended last so a user-supplied `--settings' overrides ours."
+extra-args can re-override it if they really mean to.  The sandbox
+`--settings' is appended LAST so it cannot be bypassed by a
+user-supplied `--settings' in `extra-args' -- claude takes the last
+occurrence, and the protected-paths jail is the security boundary
+this loop relies on."
   (append
    (when-let ((model (oref controller model)))
      (list "--model" model))
