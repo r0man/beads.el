@@ -1361,6 +1361,42 @@ short-circuits."
     (should (eq (oref c status) 'stopped))
     (should (eq (oref c done-reason) 'stop))))
 
+(ert-deftest beads-agent-ralph-test-pause-during-cooling-down-cancels-pending-timer ()
+  "Pause during cooling-down cancels the queued next-iteration timer (bde-82a7).
+
+Without the cancellation, the timer set by `--schedule-next-iteration' would
+fire after pause and flip status back to `running' via its
+`--set-status'/`--run-iteration' calls, silently overriding the pause."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'cooling-down :current-stream nil))
+         scheduled-timer)
+    (oset c iteration-delay 60)
+    (beads-agent-ralph--schedule-next-iteration
+     c
+     (lambda ()
+       (beads-agent-ralph--set-status c 'running)
+       (beads-agent-ralph--run-iteration c)))
+    (setq scheduled-timer (oref c next-iter-timer))
+    (should (timerp scheduled-timer))
+    (should (memq scheduled-timer timer-list))
+    (beads-agent-ralph--pause c "Paused by user")
+    (should (eq (oref c status) 'auto-paused))
+    (should (null (oref c next-iter-timer)))
+    (should-not (memq scheduled-timer timer-list))))
+
+(ert-deftest beads-agent-ralph-test-continue-after-iteration-respects-auto-paused ()
+  "`--continue-after-iteration' is a no-op when status is already `auto-paused' (bde-82a7).
+
+If the user paused mid-iteration, the cond ladder in `--on-stream-finish'
+falls through to the continue branches.  Without the auto-paused early-return,
+continue-after-iteration would set status to `cooling-down', schedule a new
+iter, and silently override the pause."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :status 'auto-paused :current-stream nil)))
+    (beads-agent-ralph--continue-after-iteration c)
+    (should (eq (oref c status) 'auto-paused))
+    (should (null (oref c next-iter-timer)))))
+
 ;;; beads-agent-ralph-kill-iter (bde-k1kh)
 
 (ert-deftest beads-agent-ralph-test-kill-iter-no-op-without-stream ()
