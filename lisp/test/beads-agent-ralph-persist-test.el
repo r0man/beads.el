@@ -216,6 +216,26 @@ incremental head-walk path (no duplicates, no missed events)."
      (file-exists-p (beads-agent-ralph-persist-iter-event-path
                      dir "bde-p" 5 nil)))))
 
+(ert-deftest beads-agent-ralph-persist-test-list-event-files-deletes-stale-uncompressed ()
+  "When both .ndjson and .ndjson.gz exist for an iter, the stale .ndjson is removed (bde-ptff)."
+  (beads-agent-ralph-persist-test--in-tempdir dir
+    (beads-agent-ralph-persist--ensure-dir dir)
+    (let* ((raw (beads-agent-ralph-persist-iter-event-path
+                 dir "bde-stale" 3 nil))
+           (gz (beads-agent-ralph-persist-iter-event-path
+                dir "bde-stale" 3 t)))
+      (with-temp-file raw (insert "{}\n"))
+      (with-temp-file gz (insert "gz-bytes\n"))
+      (let ((files (beads-agent-ralph-persist--list-event-files
+                    dir "bde-stale")))
+        ;; Only one logical entry for iter 3, pointing at the .gz copy.
+        (should (= 1 (length files)))
+        (should (= 3 (caar files)))
+        (should (string-suffix-p ".gz" (cdar files))))
+      ;; Stale uncompressed copy was removed; compressed still on disk.
+      (should-not (file-exists-p raw))
+      (should (file-exists-p gz)))))
+
 (ert-deftest beads-agent-ralph-persist-test-prune-disabled-by-nil ()
   "Setting retention to nil disables pruning entirely."
   (beads-agent-ralph-persist-test--in-tempdir dir

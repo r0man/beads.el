@@ -307,7 +307,9 @@ NAME is a basename like `bde-foo.iter-7.ndjson' or `.iter-3.ndjson.gz'."
   "Return per-iter event files for ROOT-ID under PROJECT-DIR.
 Returns a list of (ITER . FULL-PATH) sorted by ITER ascending.
 Both `.ndjson' and `.ndjson.gz' files are included; if both exist
-for the same iter, the gzipped one wins."
+for the same iter, the gzipped one wins AND the stale uncompressed
+copy is deleted from disk so the retention pruner's byte budget
+matches reality."
   (let* ((dir (beads-agent-ralph-persist-root-dir project-dir))
          (prefix (concat root-id ".iter-"))
          (entries (and (file-directory-p dir)
@@ -317,16 +319,25 @@ for the same iter, the gzipped one wins."
     (dolist (name entries)
       (let ((iter (beads-agent-ralph-persist--iter-number-from-name name)))
         (when iter
-          (let* ((compressed (string-suffix-p ".gz" name))
+          (let* ((path (expand-file-name name dir))
+                 (compressed (string-suffix-p ".gz" name))
                  (existing (assq iter table)))
             (cond
              ((null existing)
-              (push (cons iter (cons compressed
-                                     (expand-file-name name dir)))
-                    table))
-             ;; Prefer compressed copy when both exist.
+              (push (cons iter (cons compressed path)) table))
+             ;; Both copies exist; prefer compressed and delete the
+             ;; uncompressed leftover (gzip -f normally removes its
+             ;; source, but a crash or external archival can leave
+             ;; both behind).
              ((and compressed (not (car (cdr existing))))
-              (setcdr existing (cons t (expand-file-name name dir)))))))))
+              (condition-case _err
+                  (delete-file (cdr (cdr existing)))
+                (error nil))
+              (setcdr existing (cons t path)))
+             ((and (not compressed) (car (cdr existing)))
+              (condition-case _err
+                  (delete-file path)
+                (error nil))))))))
     (sort (mapcar (lambda (cell)
                     (cons (car cell) (cdr (cdr cell))))
                   table)
