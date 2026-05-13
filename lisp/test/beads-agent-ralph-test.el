@@ -1321,6 +1321,33 @@ sentinel must terminate the loop instead of scheduling the next iter."
     (should stop-called)
     (should (eq (oref c done-reason) 'stop))))
 
+(ert-deftest beads-agent-ralph-test-stop-during-cooling-down-cancels-pending-timer ()
+  "Stop during cooling-down cancels the queued next-iteration timer (bde-t3d4).
+
+Without the cancellation, the timer set by `--schedule-next-iteration' would
+fire after stop and flip status back to `running' via its
+`--set-status'/`--run-iteration' calls, spawning an iteration the user expected
+to be aborted."
+  (let* ((c (beads-agent-ralph-test--make-controller
+             :status 'cooling-down :current-stream nil))
+         scheduled-timer)
+    ;; Queue a thunk the way --continue-after-iteration would.  Use a
+    ;; long delay so the timer cannot fire mid-test.
+    (oset c iteration-delay 60)
+    (beads-agent-ralph--schedule-next-iteration
+     c
+     (lambda ()
+       (beads-agent-ralph--set-status c 'running)
+       (beads-agent-ralph--run-iteration c)))
+    (setq scheduled-timer (oref c next-iter-timer))
+    (should (timerp scheduled-timer))
+    (should (memq scheduled-timer timer-list))
+    (beads-agent-ralph-stop c)
+    (should (eq (oref c status) 'stopped))
+    (should (eq (oref c done-reason) 'stop))
+    (should (null (oref c next-iter-timer)))
+    (should-not (memq scheduled-timer timer-list))))
+
 ;;; beads-agent-ralph-kill-iter (bde-k1kh)
 
 (ert-deftest beads-agent-ralph-test-kill-iter-no-op-without-stream ()

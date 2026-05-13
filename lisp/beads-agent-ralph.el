@@ -382,7 +382,17 @@ read by `beads-agent-ralph--on-stream-finish' to skip stall and
 lying-agent detection for an iter the user themselves cut short, and
 to always continue to the next iter regardless of stream status or
 `beads-agent-ralph-stop-on-failed'.  Cleared by on-stream-finish so
-it is a per-iteration latch, not a sticky flag."))
+it is a per-iteration latch, not a sticky flag.")
+   (next-iter-timer
+    :initarg :next-iter-timer
+    :initform nil
+    :documentation "Pending `run-at-time' timer for the next iteration body, or nil.
+Set by `beads-agent-ralph--schedule-next-iteration' when scheduling
+across `iteration-delay'; cleared when the thunk fires or when
+`--terminate' aborts the loop.  Without this handle, a stop or budget
+hit during the cooling-down window would let the queued thunk fire
+and unconditionally flip status back to `running' -- spawning an
+iteration the user expected to be cancelled."))
   :documentation "Ralph loop controller: iteration state machine.
 
 One controller per running loop.  The dashboard buffer holds a
@@ -473,14 +483,20 @@ stack is broken across the process sentinel that triggered scheduling.
 This prevents the controller from re-entering itself mid-callback,
 which would otherwise corrupt `current-stream' and confuse subscribers.
 
-Increments `iteration' before the thunk runs so the new iteration's
-records line up with their dashboard row."
-  (let ((delay (or (oref controller iteration-delay) 0.0)))
-    (run-at-time
-     delay nil
-     (lambda ()
-       (cl-incf (oref controller iteration))
-       (funcall thunk)))))
+The timer handle is stored on CONTROLLER's `next-iter-timer' slot so
+`--terminate' can cancel it if the user stops the loop (or budget
+trips) during the cooling-down window.  Increments `iteration' before
+the thunk runs so the new iteration's records line up with their
+dashboard row."
+  (let* ((delay (or (oref controller iteration-delay) 0.0))
+         (timer
+          (run-at-time
+           delay nil
+           (lambda ()
+             (oset controller next-iter-timer nil)
+             (cl-incf (oref controller iteration))
+             (funcall thunk)))))
+    (oset controller next-iter-timer timer)))
 
 ;;; Customization
 
@@ -1700,12 +1716,17 @@ need only read this record to render its row."
   "Terminate CONTROLLER's loop with REASON (a symbol).
 Sets `done-reason' and drives status through the appropriate
 terminal value; clears `current-stream' but leaves `history' intact
-so the dashboard remains useful after stop.  Cleans up the temp
-permission-settings file.  Idempotent: a second call with the same
-reason is a no-op."
+so the dashboard remains useful after stop.  Cancels any pending
+next-iteration timer so a queued thunk cannot resurrect the loop
+after the terminal transition.  Cleans up the temp permission-settings
+file.  Idempotent: a second call with the same reason is a no-op."
   (when (memq (oref controller status) '(running cooling-down))
     (oset controller done-reason reason)
     (oset controller current-stream nil)
+    (let ((timer (oref controller next-iter-timer)))
+      (when (timerp timer)
+        (cancel-timer timer))
+      (oset controller next-iter-timer nil))
     (beads-agent-ralph--cleanup-settings-file controller)
     (beads-agent-ralph--set-status
      controller
@@ -2445,14 +2466,19 @@ is prompted to resume / stash / fresh / full-reset / cancel."
 Signals the in-flight stream with SIGINT (escalating to SIGKILL after
 `beads-agent-ralph-stop-grace-ms') and transitions the controller to
 `stopped'.  The currently-in-flight iteration is allowed to register
-its iteration record via the existing sentinel path."
+its iteration record via the existing sentinel path.
+
+When called while CONTROLLER has no in-flight stream (e.g. between
+iterations in the cooling-down window), routes through `--terminate'
+so any pending next-iteration timer is cancelled.  Otherwise the
+queued thunk would fire after the stop and unconditionally flip status
+back to `running'."
   (let ((stream (oref controller current-stream)))
     (oset controller done-reason 'stop)
-    (when stream
-      (beads-agent-ralph--stream-stop stream))
-    (unless stream
-      (beads-agent-ralph--set-status controller 'stopped))
-    controller))
+    (if stream
+        (beads-agent-ralph--stream-stop stream)
+      (beads-agent-ralph--terminate controller 'stop)))
+  controller)
 
 ;;;###autoload
 (defun beads-agent-ralph-kill-iter (controller)
