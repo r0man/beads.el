@@ -1719,8 +1719,11 @@ terminal value; clears `current-stream' but leaves `history' intact
 so the dashboard remains useful after stop.  Cancels any pending
 next-iteration timer so a queued thunk cannot resurrect the loop
 after the terminal transition.  Cleans up the temp permission-settings
-file.  Idempotent: a second call with the same reason is a no-op."
-  (when (memq (oref controller status) '(running cooling-down))
+file.  Idempotent: a second call with the same reason is a no-op.
+`auto-paused' is treated as non-terminal: terminating from it is
+correct so [s]top on a paused loop drives a real state transition
+instead of silently mutating `done-reason' (bde-rx4u)."
+  (when (memq (oref controller status) '(running cooling-down auto-paused))
     (oset controller done-reason reason)
     (oset controller current-stream nil)
     (let ((timer (oref controller next-iter-timer)))
