@@ -248,6 +248,25 @@ Regression for a bug where both branches returned the same number of lines, so t
     (should subscriber-removed)
     (should (eq (oref stream status) 'stopped))))
 
+(ert-deftest beads-agent-ralph-dashboard-test-kill-drives-controller-terminal ()
+  "Killing the buffer mid-run drives the controller to terminal `stopped' (bde-mfrl).
+
+`--detach-stream' neutralises the stream sentinel, so without an explicit
+`--terminate' call in the kill hook the controller would remain `status='running'
+forever, blocking mode-line cleanup and any later stop/resume."
+  (let* ((c (beads-agent-ralph-dashboard-test--make-controller
+             :root-id "bde-zomb"))
+         (stream (beads-agent-ralph--stream
+                  :partial-messages (make-hash-table :test #'equal)
+                  :status 'running))
+         (buf (beads-agent-ralph-dashboard-render c)))
+    (oset c status 'running)
+    (oset c current-stream stream)
+    (kill-buffer buf)
+    (should (eq (oref c status) 'stopped))
+    (should (eq (oref c done-reason) 'stop))
+    (should (null (oref c current-stream)))))
+
 (ert-deftest beads-agent-ralph-dashboard-test-kill-cancels-pending-rerender ()
   "Buffer kill cancels any debounced re-render timer for the controller."
   (let* ((c (beads-agent-ralph-dashboard-test--make-controller
