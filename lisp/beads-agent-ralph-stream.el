@@ -73,11 +73,17 @@ Filters update slots on this object; the sentinel transitions `status'.")
     :initarg :events
     :initform nil
     :type list
-    :documentation "Vector of parsed event plists, in receive order.
+    :documentation "List of parsed event plists, newest-first (push order).
 Each entry is a plist describing one NDJSON line (e.g. system_init,
-assistant, tool_use, tool_result, result).  Stored as a list with
-`push'; reverse before display.  The hardening task adds bounded
-truncation when the list grows past a configured limit.")
+assistant, tool_use, tool_result, result).  Consumers `reverse' for
+chronological order; the bde-u9b7 persist subscriber walks an
+`eq'-cached head cell to stay O(new-events-per-flush) without paying
+for a full reverse.  This list is intentionally unbounded -- the
+persistence subscriber writes every event to NDJSON on disk and the
+dashboard renders from the in-memory list, so capping here would
+silently drop history the dashboard's expand affordance promises.
+A chatty overnight iter can grow this to tens of thousands of plists;
+that is by design, bounded only by per-iter cost / max-turns guards.")
    (partial-line
     :initarg :partial-line
     :initform ""
