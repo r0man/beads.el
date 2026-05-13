@@ -67,6 +67,24 @@
     (should (plist-get cap :truncated))
     (should (= 100 (plist-get cap :total)))))
 
+(ert-deftest beads-agent-ralph-dashboard-test-cap-text-truncated-preview-is-collapse-lines ()
+  "When truncated, preview returns `collapse-cap' lines; when not, full text (bde-t9tx).
+
+Regression for a bug where both branches returned the same number of lines, so the
+`line-cap' defcustom only flipped the boolean but never affected the preview length."
+  (let ((beads-agent-ralph-inline-line-cap 5)
+        (beads-agent-ralph-inline-collapse-cap 2))
+    ;; Total <= cap: not truncated, full text returned.
+    (let ((res (beads-agent-ralph-dashboard--cap-text-lines "a\nb\nc")))
+      (should-not (plist-get res :truncated))
+      (should (= 3 (plist-get res :total)))
+      (should (equal "a\nb\nc" (plist-get res :preview))))
+    ;; Total > cap: truncated, preview = collapse-cap lines.
+    (let ((res (beads-agent-ralph-dashboard--cap-text-lines "a\nb\nc\nd\ne\nf")))
+      (should (plist-get res :truncated))
+      (should (= 6 (plist-get res :total)))
+      (should (equal "a\nb" (plist-get res :preview))))))
+
 ;;; Header / format-elapsed
 
 (ert-deftest beads-agent-ralph-dashboard-test-format-elapsed-nil ()

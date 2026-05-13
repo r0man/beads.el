@@ -128,16 +128,19 @@ Handles both NDJSON (plist) and JSONL-read (alist) shapes."
 (defun beads-agent-ralph-dashboard--cap-text-lines (text)
   "Cap TEXT to a previewable form per inline-line-cap rules.
 Returns a plist (:preview STRING :truncated BOOL :total INT) so the
-renderer can show the expand affordance when truncated."
+renderer can show the expand affordance when truncated.
+
+When total lines exceed `beads-agent-ralph-inline-line-cap', preview is
+the first `beads-agent-ralph-inline-collapse-cap' lines and :truncated
+is t.  Otherwise preview is the full text and :truncated is nil."
   (let* ((lines (split-string (or text "") "\n"))
          (total (length lines))
          (collapse beads-agent-ralph-inline-collapse-cap)
          (cap beads-agent-ralph-inline-line-cap)
-         (head-count (min total collapse))
          (truncated (> total cap))
          (preview-lines (if truncated
-                            (cl-subseq lines 0 head-count)
-                          (cl-subseq lines 0 head-count))))
+                            (cl-subseq lines 0 (min total collapse))
+                          lines)))
     (list :preview (mapconcat #'identity preview-lines "\n")
           :truncated truncated
           :total total)))
