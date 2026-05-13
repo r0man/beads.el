@@ -555,11 +555,9 @@ between iterations."
 
 (defcustom beads-agent-ralph-permission-mode "bypassPermissions"
   "Default `--permission-mode' passed to `claude' for Ralph spawns.
-The default `bypassPermissions' lets the loop run unattended.  A
-safety guard in `beads-agent-ralph-start' refuses to spawn with the
-default value when no `:worktree-dir' is in play: bypassPermissions
-in the main repo is a foot-gun.  Customize this (via setq, setopt, or
-Customize) to opt into the default for non-worktree directories."
+The default `bypassPermissions' lets the loop run unattended without
+prompting for tool approvals.  Set to `acceptEdits', `plan', or
+`default' for stricter modes."
   :type 'string
   :group 'beads-agent-ralph)
 
@@ -1239,38 +1237,6 @@ ROOT-STATUS is the freshly-queried bd status of the loop's root
 issue (a string).  Sentinel-hit without `closed' = false claim."
   (and sentinel-hit
        (not (equal root-status "closed"))))
-
-(defun beads-agent-ralph--permission-mode-at-default-p ()
-  "Return non-nil while `beads-agent-ralph-permission-mode' is unchanged.
-Reads the defcustom's `standard-value' so `setq', `customize-set-variable',
-`setopt', and saved-Custom values all bypass the guard equivalently.
-When the default is missing (someone unset the property), returns nil so
-the guard never fires from an empty comparison."
-  (let* ((sv (get 'beads-agent-ralph-permission-mode 'standard-value))
-         (default (and sv (eval (car sv) t))))
-    (and default
-         (equal beads-agent-ralph-permission-mode default))))
-
-(defun beads-agent-ralph--guard-permission-mode (permission-mode worktree-dir)
-  "Refuse `bypassPermissions' in a non-worktree dir when at the default.
-PERMISSION-MODE is the resolved value about to be passed to claude;
-WORKTREE-DIR is the controller's `:worktree-dir' or nil.
-
-The guard fires only when ALL three hold:
-  - PERMISSION-MODE is the literal string \"bypassPermissions\";
-  - WORKTREE-DIR is nil (loop targets the main repo);
-  - the defcustom is still at its standard value (user has not
-    explicitly opted in via setq/setopt/customize).
-
-Bypassing this guard requires customizing
-`beads-agent-ralph-permission-mode' -- the safety net is intentional,
-not a roadblock for advanced users."
-  (when (and (equal permission-mode "bypassPermissions")
-             (null worktree-dir)
-             (beads-agent-ralph--permission-mode-at-default-p))
-    (user-error
-     "Refusing to start Ralph with bypassPermissions in non-worktree dir; %s"
-     "customize `beads-agent-ralph-permission-mode' to opt in")))
 
 (defun beads-agent-ralph--budget-exhausted-p (controller)
   "Return non-nil when CONTROLLER has hit iteration or cost ceilings."
@@ -2430,7 +2396,6 @@ is prompted to resume / stash / fresh / full-reset / cancel."
          (model (or (plist-get args :model) beads-agent-ralph-model))
          (extra-args (or (plist-get args :extra-args)
                          beads-agent-ralph-extra-args)))
-    (beads-agent-ralph--guard-permission-mode permission-mode worktree-dir)
     ;; Resume detection: when a prior JSONL exists for this root, ask
     ;; the user before clobbering it.  Non-interactive callers can pass
     ;; :resume-action explicitly to skip the prompt (used by tests and
