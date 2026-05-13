@@ -832,25 +832,39 @@ the signature and return shape stable across refactors."
                   :partial-messages (make-hash-table :test #'equal)
                   :started-at (current-time)
                   :status 'starting))
-         (proc
-          (make-process
-           :name name
-           :command argv
-           :buffer nil
-           :connection-type 'pipe
-           :coding 'utf-8-unix
-           :noquery t
-           :stderr (make-pipe-process
-                    :name (concat name "-stderr")
-                    :buffer nil
-                    :noquery t
-                    :filter (lambda (_p chunk)
-                              (beads-agent-ralph--stream-stderr-filter
-                               stream chunk)))
-           :filter (lambda (_p chunk)
-                     (beads-agent-ralph--stream-filter stream chunk))
-           :sentinel (lambda (_p event)
-                       (beads-agent-ralph--stream-sentinel stream event)))))
+         ;; Create the stderr pipe first and hold a handle.  If
+         ;; `make-process' below raises (e.g. claude binary missing,
+         ;; fork failure, EAGAIN), the pipe-process would otherwise be
+         ;; orphaned with no caller-visible handle to delete.  Mirror
+         ;; the bde-km3r fix shape for `run-shell-async'.
+         (stderr-proc (make-pipe-process
+                       :name (concat name "-stderr")
+                       :buffer nil
+                       :noquery t
+                       :filter (lambda (_p chunk)
+                                 (beads-agent-ralph--stream-stderr-filter
+                                  stream chunk))))
+         (spawn-ok nil)
+         (proc nil))
+    (unwind-protect
+        (progn
+          (setq proc
+                (make-process
+                 :name name
+                 :command argv
+                 :buffer nil
+                 :connection-type 'pipe
+                 :coding 'utf-8-unix
+                 :noquery t
+                 :stderr stderr-proc
+                 :filter (lambda (_p chunk)
+                           (beads-agent-ralph--stream-filter stream chunk))
+                 :sentinel (lambda (_p event)
+                             (beads-agent-ralph--stream-sentinel stream event))))
+          (setq spawn-ok t))
+      (unless spawn-ok
+        (when (process-live-p stderr-proc)
+          (delete-process stderr-proc))))
     (oset stream process proc)
     ;; Close stdin immediately: claude --print reads its prompt from
     ;; argv, not stdin, and leaving it open masks parent-process leaks.
