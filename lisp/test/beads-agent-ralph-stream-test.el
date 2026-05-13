@@ -341,6 +341,29 @@ corrupting it."
        stream (format "line %d\n" i)))
     (should (<= (length (oref stream stderr-tail)) 5))))
 
+;;; Spawn failure (bde-qc6k)
+
+(ert-deftest beads-agent-ralph-stream-test-spawn-failure-cleans-stderr-pipe ()
+  "When `make-process' raises, the stderr pipe is deleted (bde-qc6k).
+
+Without the cleanup, the stderr pipe-process created as `make-process's
+:stderr argument leaks: it is live before `make-process' fails and the
+caller has no handle to delete it.  Mirrors the bde-km3r fix."
+  (let* ((before (length (process-list)))
+         (stderr-name "bde-qc6k-stderr-leak-test-stderr"))
+    (cl-letf (((symbol-function 'make-process)
+               (lambda (&rest _) (error "intentional spawn failure"))))
+      (should-error
+       (beads-agent-ralph--stream-spawn
+        :prompt "p"
+        :name "bde-qc6k-stderr-leak-test"
+        :program "claude")))
+    ;; No leftover stderr pipe and no net new processes from this test.
+    (should-not (cl-find-if (lambda (p)
+                              (string= (process-name p) stderr-name))
+                            (process-list)))
+    (should (= before (length (process-list))))))
+
 (provide 'beads-agent-ralph-stream-test)
 
 ;;; beads-agent-ralph-stream-test.el ends here
