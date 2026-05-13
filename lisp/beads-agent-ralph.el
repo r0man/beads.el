@@ -1741,8 +1741,15 @@ instead of silently mutating `done-reason' (bde-rx4u)."
 (defun beads-agent-ralph--pause (controller reason)
   "Transition CONTROLLER to `auto-paused' with banner REASON (a string).
 Auto-pause is recoverable: state, counter, and cumulative cost are
-preserved.  The resume command (bde-9b00) un-pauses without rebuilding."
+preserved.  The resume command (bde-9b00) un-pauses without rebuilding.
+Cancels any pending next-iteration timer so a pause issued during the
+cooling-down window cannot be silently overridden by the queued thunk
+re-entering `--run-iteration' (bde-82a7)."
   (oset controller current-stream nil)
+  (let ((timer (oref controller next-iter-timer)))
+    (when (timerp timer)
+      (cancel-timer timer))
+    (oset controller next-iter-timer nil))
   (beads-agent-ralph--push-banner controller 'warning reason)
   (beads-agent-ralph--set-status controller 'auto-paused))
 
@@ -1750,8 +1757,13 @@ preserved.  The resume command (bde-9b00) un-pauses without rebuilding."
   "Schedule the next iteration body on CONTROLLER unless terminating.
 Increments `iteration' before scheduling so dashboard rows align.
 Honours `iteration-delay' even when zero so the call stack is broken
-between iterations."
+between iterations.  Respects a pre-set `auto-paused' status: if the
+user paused mid-iteration, the cond ladder in `--on-stream-finish'
+still falls through here on normal completion, and unconditionally
+scheduling would silently override the pause (bde-82a7)."
   (cond
+   ((eq (oref controller status) 'auto-paused)
+    nil)
    ((beads-agent-ralph--budget-exhausted-p controller)
     (beads-agent-ralph--terminate controller 'budget))
    (t
