@@ -525,11 +525,17 @@ Distinct from `[s]top', which terminates the whole loop."
     (beads-agent-ralph-dashboard-refresh)))
 
 (defun beads-agent-ralph-dashboard-resume ()
-  "Resume from `auto-paused' / `paused' status."
+  "Resume from `auto-paused' / `paused' / `stopped' status.
+Clears any terminal `done-reason' crumb left over from a prior
+`beads-agent-ralph-stop'; otherwise the first stream-finish after
+resume would hit the `(eq done-reason \\='stop)' branch in
+`--on-stream-finish' and terminate the loop again after a single
+iteration (bde-7943)."
   (interactive)
   (when beads-agent-ralph-dashboard--controller
     (let ((c beads-agent-ralph-dashboard--controller))
       (when (memq (oref c status) '(auto-paused stopped))
+        (oset c done-reason nil)
         (beads-agent-ralph--set-status c 'cooling-down)
         (beads-agent-ralph--schedule-next-iteration
          c (lambda ()
