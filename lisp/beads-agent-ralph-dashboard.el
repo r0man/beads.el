@@ -627,14 +627,15 @@ When the user kills the dashboard buffer mid-run we must:
      `finished/failed' against a buffer that no longer exists;
   2. `delete-process' the stream so its file descriptors and IO
      subscribers go away cleanly;
-  3. Unsubscribe the dashboard's renderer from the stream so a late
-     filter call (between detach and delete) does not run our render
-     pipeline against a dead buffer.
+  3. Unsubscribe the controller and persistence subscribers from the
+     stream so a late filter call (between detach and delete) does not
+     fire their callbacks against a half-torn-down loop.
 
-This is intentionally idempotent.  The controller's
-`current-stream' slot is left in place because the controller's own
-sentinel-driven path (e.g. graceful stop, normal completion) still
-needs to see the stream object; we only neutralise its IO."
+This is intentionally idempotent.  Note that detaching alone leaves
+the controller pointed at a dead stream with `status' still
+`running'; the caller (`--kill-buffer-cleanup') is responsible for
+driving the controller to a terminal state afterwards (see
+`beads-agent-ralph--terminate')."
   (let ((stream (oref controller current-stream)))
     (when (and stream (slot-boundp stream 'process))
       (let ((proc (oref stream process)))
@@ -654,9 +655,13 @@ needs to see the stream object; we only neutralise its IO."
 
 (defun beads-agent-ralph-dashboard--kill-buffer-cleanup ()
   "Buffer-kill hook for `beads-agent-ralph-dashboard-mode' buffers.
-Cancels any pending re-render and detaches the controller's stream
-so the live process cannot trip a sentinel transition against a
-buffer that no longer exists."
+Cancels any pending re-render and, when the controller is still in
+flight, detaches its current stream AND drives the controller to a
+terminal `stopped' state.  Without the terminal transition, killing
+the dashboard would leave a zombie controller pointing at a dead
+stream: `--detach-stream' neutralises the sentinel so `on-stream-finish'
+never fires, so without an explicit `--terminate' here `status' would
+remain `running' forever."
   (when beads-agent-ralph-dashboard--controller
     (let* ((controller beads-agent-ralph-dashboard--controller)
            (entry (assq controller
@@ -667,12 +672,11 @@ buffer that no longer exists."
         (setq beads-agent-ralph-dashboard--pending-rerender
               (assq-delete-all controller
                                beads-agent-ralph-dashboard--pending-rerender)))
-      ;; Only detach the stream when the controller is still in flight;
-      ;; a finished/failed/stopped controller has nothing to clean up
-      ;; and we shouldn't kill a downstream process that the next
-      ;; iteration's resume cycle expects.
+      ;; Only act when the controller is still in flight; a terminal
+      ;; controller has nothing to clean up.
       (when (memq (oref controller status) '(running cooling-down))
-        (beads-agent-ralph-dashboard--detach-stream controller)))))
+        (beads-agent-ralph-dashboard--detach-stream controller)
+        (beads-agent-ralph--terminate controller 'stop)))))
 
 (defun beads-agent-ralph-dashboard-render (controller)
   "Render CONTROLLER into its dashboard buffer (sync)."
