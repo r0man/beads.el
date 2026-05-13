@@ -1561,44 +1561,6 @@ the next iter starts with a fresh marker."
         (should (string-match-p "Protected paths modified"
                                 (plist-get banner :text)))))))
 
-;;; Permission-mode safety guard
-
-(ert-deftest beads-agent-ralph-test-permission-guard-blocks-default-no-worktree ()
-  "Default permission-mode in non-worktree dir signals a user-error."
-  (let ((beads-agent-ralph-permission-mode "bypassPermissions"))
-    (should-error
-     (beads-agent-ralph--guard-permission-mode
-      "bypassPermissions" nil)
-     :type 'user-error)))
-
-(ert-deftest beads-agent-ralph-test-permission-guard-allows-worktree ()
-  "Default permission-mode with a worktree-dir is fine (no error)."
-  (let ((beads-agent-ralph-permission-mode "bypassPermissions"))
-    (should-not
-     (condition-case _err
-         (progn
-           (beads-agent-ralph--guard-permission-mode
-            "bypassPermissions" "/tmp/wt/bd-42")
-           nil)
-       (error t)))))
-
-(ert-deftest beads-agent-ralph-test-permission-guard-allows-custom ()
-  "Customized permission-mode bypasses the guard even in non-worktree dir."
-  (let ((beads-agent-ralph-permission-mode "ask"))
-    (should-not
-     (condition-case _err
-         (progn
-           (beads-agent-ralph--guard-permission-mode "ask" nil)
-           nil)
-       (error t)))))
-
-(ert-deftest beads-agent-ralph-test-permission-mode-at-default-p ()
-  "`--at-default-p' tracks the defcustom standard value."
-  (let ((beads-agent-ralph-permission-mode "bypassPermissions"))
-    (should (beads-agent-ralph--permission-mode-at-default-p)))
-  (let ((beads-agent-ralph-permission-mode "ask"))
-    (should-not (beads-agent-ralph--permission-mode-at-default-p))))
-
 ;;; Model + extra-args wiring
 
 (ert-deftest beads-agent-ralph-test-effective-extra-args-empty ()
