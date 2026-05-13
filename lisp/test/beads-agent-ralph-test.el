@@ -1348,6 +1348,19 @@ to be aborted."
     (should (null (oref c next-iter-timer)))
     (should-not (memq scheduled-timer timer-list))))
 
+(ert-deftest beads-agent-ralph-test-stop-on-auto-paused-drives-terminal-transition ()
+  "Stop on an `auto-paused' controller transitions through `--terminate' (bde-rx4u).
+
+Without the auto-paused entry in `--terminate's guard, calling stop on a
+paused loop mutates `done-reason' but skips the state-change hook,
+mode-line teardown, and JSONL stop record because `--terminate's body
+short-circuits."
+  (let ((c (beads-agent-ralph-test--make-controller
+            :status 'auto-paused :current-stream nil)))
+    (beads-agent-ralph-stop c)
+    (should (eq (oref c status) 'stopped))
+    (should (eq (oref c done-reason) 'stop))))
+
 ;;; beads-agent-ralph-kill-iter (bde-k1kh)
 
 (ert-deftest beads-agent-ralph-test-kill-iter-no-op-without-stream ()
