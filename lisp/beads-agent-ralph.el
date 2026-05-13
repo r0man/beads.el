@@ -158,7 +158,16 @@ agent buffer to see why the iteration failed.")
     :initarg :verify-result
     :initform nil
     :documentation "Plist (:exit N :stdout S :stderr S) from the verify command.
-Nil if no verify command was configured for the run."))
+Nil if no verify command was configured for the run.")
+   (iter-number
+    :initarg :iter-number
+    :initform nil
+    :documentation "1-based iteration index this record belongs to, or nil.
+Captured from the controller's `iteration' slot at the time the
+iteration record is built so the persisted JSONL is self-describing
+even after iter records are lost or archived.  bde-3787: lets resume
+recover the actual highest iteration index rather than a count of
+records on disk."))
   :documentation "One completed Ralph iteration.
 
 The controller pushes one of these into `history' when an iteration
@@ -1684,7 +1693,8 @@ need only read this record to render its row."
      :summary summary
      :sentinel-hit sentinel-hit
      :stderr-tail (oref stream stderr-tail)
-     :verify-result (oref stream verify-result))))
+     :verify-result (oref stream verify-result)
+     :iter-number (oref controller iteration))))
 
 (defun beads-agent-ralph--terminate (controller reason)
   "Terminate CONTROLLER's loop with REASON (a symbol).
