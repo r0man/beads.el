@@ -4168,8 +4168,8 @@ subtly different UX that surprises users familiar with Magit."
                (lambda (_type _issue) "Test prompt"))
               ;; Bypass the prompt-edit buffer: pass prompt straight through.
               ((symbol-function 'beads-agent-prompt-edit-show)
-               (lambda (_issue-id prompt _type callback)
-                 ;; New 2-arg contract: (SYSTEM USER); system nil here.
+               (lambda (_issue-id _sys prompt _type callback)
+                 ;; 5-arg show; 2-arg callback (SYSTEM USER), nil sys.
                  (funcall callback nil prompt)))
               ((symbol-function 'beads-agent--continue-start)
                (lambda (&rest args)

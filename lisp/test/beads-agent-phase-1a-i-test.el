@@ -31,50 +31,13 @@
 (require 'beads-agent-mock)
 (require 'beads-types)
 
-(defun beads-agent-phase-1a-i-test--golden-path ()
-  "Return the absolute path to the committed golden prompt fixture."
-  (expand-file-name
-   "golden/prompts-pre.eld"
-   (file-name-directory
-    (or load-file-name buffer-file-name
-        (locate-library "beads-agent-phase-1a-i-test")))))
-
-(defun beads-agent-phase-1a-i-test--read-golden ()
-  "Read and return the golden prompt fixture alist."
-  (with-temp-buffer
-    (insert-file-contents (beads-agent-phase-1a-i-test--golden-path))
-    (goto-char (point-min))
-    (read (current-buffer))))
-
-;;; Golden-fixture byte-identical gate
-
-(ert-deftest beads-agent-phase-1a-i-test-golden-byte-identical ()
-  "Re-rendered prompts are byte-identical to the parent-commit fixture.
-SYSTEM must be nil for every built-in type and the fallback in
-Phase 1a-i (defaults frozen, slots still nil); USER must equal the
-old `beads-agent-type-build-prompt' output verbatim."
-  (beads-agent-types-register-builtin)
-  (let* ((golden (beads-agent-phase-1a-i-test--read-golden))
-         (issue (beads-issue :id "bde-TEST"
-                             :title "Synthetic golden issue"
-                             :description "Golden description body."
-                             :acceptance-criteria "Golden acceptance criteria.")))
-    (should golden)
-    (dolist (entry golden)
-      (let* ((name (car entry))
-             (want-sys (cadr entry))
-             (want-user (cddr entry)))
-        (if (equal name "__fallback__")
-            (progn
-              (should (null want-sys))
-              (should (equal (beads-agent--build-prompt issue) want-user)))
-          (let ((type (beads-agent-type-get name)))
-            (should type)
-            ;; Frozen: every type's system prompt is nil in 1a-i.
-            (should (null (beads-agent-type-system-prompt type issue)))
-            (should (equal want-sys nil))
-            (should (equal (beads-agent-type-build-user-prompt type issue)
-                           want-user))))))))
+;; NOTE: the Phase 1a-i golden byte-identical gate
+;; (lisp/test/golden/prompts-pre.eld) was a 1a-i-commit-boundary
+;; check; Phase 1a-ii is the deliberate behavioural break that
+;; rewrites the defaults, so that gate no longer holds and was
+;; retired with the fixture.  The post-split substitution / no-
+;; placeholder / builder-carve-out gates live in
+;; beads-agent-phase-1a-ii-test.el.
 
 ;;; 4-arity protocol introspection
 
@@ -154,7 +117,7 @@ is never reached."
               ((symbol-function 'beads-agent-type-build-user-prompt)
                (lambda (_type _issue) "the user prompt"))
               ((symbol-function 'beads-agent-prompt-edit-show)
-               (lambda (_issue-id _prompt _type callback)
+               (lambda (_issue-id _sys _prompt _type callback)
                  ;; Cancel sentinel.
                  (funcall callback nil nil)))
               ((symbol-function 'beads-agent--continue-start)
@@ -177,7 +140,7 @@ must reach `beads-agent--continue-start'."
               ((symbol-function 'beads-agent-type-build-user-prompt)
                (lambda (_type _issue) "the user prompt"))
               ((symbol-function 'beads-agent-prompt-edit-show)
-               (lambda (_issue-id _prompt _type callback)
+               (lambda (_issue-id _sys _prompt _type callback)
                  (funcall callback nil "the user prompt")))
               ((symbol-function 'beads-agent--continue-start)
                (lambda (&rest args) (setq continue-args args))))

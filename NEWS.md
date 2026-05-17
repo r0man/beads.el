@@ -91,3 +91,109 @@ orchestrator distinguishes cancel — `(and (null sys) (null user))` —
 from "use the default system prompt" — `(null sys)` with non-nil
 `user`. Any out-of-tree code installing a prompt-edit callback must
 accept two arguments and treat `(nil nil)` as cancel.
+
+### Behavioural break: default prompts split into system + user
+
+The built-in agent-type default prompts were **rewritten** (not
+relabelled). The role/identity preamble is now a **role-only** system
+prompt; the issue envelope (`<ISSUE-ID>: <ISSUE-TITLE>` +
+`<ISSUE-DESCRIPTION>`) and the type-specific `bd close`/`bd update`
+shell blocks moved to a new **user-prompt** defconst per type:
+
+- `beads-agent-type-task--prompt` → split into
+  `beads-agent-type-task--system-prompt` (role) +
+  `beads-agent-type-task--user-prompt` (envelope/output).
+- `beads-agent-{review,plan,qa}-prompt` defcustom **default values**
+  rewritten to role-only; new
+  `beads-agent-type-{review,plan,qa}--user-prompt` defconsts carry the
+  envelope/output. Defcustom *names* are unchanged.
+- Custom and the orchestration fallback are builders (no
+  `<ISSUE-...>`); `system-prompt` stays nil; their builder is
+  unchanged (renamed only, in 1a-i).
+
+**Consequence for users who `setq`/`customize`d the role defcustoms:**
+your value is now delivered as the **system** prompt. Embedded
+`<ISSUE-...>` placeholders still substitute. Embedded `bd close`/`bd
+update` instructions now arrive in the *role* channel — move them into
+the matching `beads-agent-type-*--user-prompt` if you relied on them.
+
+The prompt editor now shows **two editable regions** (`## System
+prompt` / `## User prompt`) with read-only marked headings; a blank
+system region means "use the backend's built-in identity".
+
+#### Old default values (verbatim, for diffing)
+
+`beads-agent-type-task--prompt` (removed):
+
+```
+You are a task-completion agent for beads. Please work on beads issue <ISSUE-ID>: <ISSUE-TITLE>.
+
+# Constraints
+
+- Stay focused on the assigned task
+- Don't make unrelated changes
+- If blocked, explain clearly what's needed
+- Communicate progress and decisions
+
+# Agent Workflow
+
+1. **Claim the Task**
+   - Update issue status to in_progress: `bd update <ISSUE-ID> --status in_progress`
+   - Read the task description carefully
+   - Check acceptance criteria if available
+
+2. **Execute the Task**
+   - Use available tools to complete the work
+   - Follow best practices from project documentation
+   - Run tests if applicable
+   - Keep changes focused on the task
+
+3. **Track Discoveries**
+   - If you find bugs, TODOs, or related work:
+     - File new issues using bd create
+     - Link them with discovered-from dependencies: `bd dep add <new-id> --type discovered-from --target <ISSUE-ID>`
+   - This maintains context for future work
+
+4. **Verify Completion**
+   - Check that all acceptance criteria are met
+   - Ensure tests pass
+   - Review your changes for quality
+
+# Output
+
+When work is complete, close the issue with a clear summary:
+
+    bd close <ISSUE-ID> --reason "$(cat <<'EOF'
+    <Summary of what was accomplished, any important decisions made, and verification performed>
+    EOF
+    )"
+
+If blocked, update the issue status and explain:
+
+    bd update <ISSUE-ID> --status blocked --notes "$(cat <<'EOF'
+    <Clear explanation of what is blocking progress and what is needed to proceed>
+    EOF
+    )"
+```
+
+`beads-agent-review-prompt` old default began:
+`"You are a code review agent. Please work on beads issue <ISSUE-ID>:
+<ISSUE-TITLE>."` followed by the Constraints/Review Focus sections and
+an `# Output` block with `bd update <ISSUE-ID> --notes …`.
+
+`beads-agent-qa-prompt` old default began: `"You are a QA agent.
+Please work on beads issue <ISSUE-ID>: <ISSUE-TITLE>."` followed by
+the Constraints/QA Workflow sections and an `# Output` block with `bd
+update <ISSUE-ID> --acceptance … --notes …`.
+
+`beads-agent-plan-prompt` old default began: `"You are a planning
+agent. Please work on beads issue <ISSUE-ID>: <ISSUE-TITLE>."` then
+`"Create a detailed implementation plan WITHOUT making any code
+changes."`, the Constraints/Planning Steps/Plan Review sections, and
+an `# Output` block with `bd update <ISSUE-ID> --description … --design
+… --acceptance … --notes …`.
+
+The combined rendered prompt (system + blank line + user) for the
+built-in template types still contains the same substituted issue id
+and the same instruction content as before — only the delivery
+channel split.

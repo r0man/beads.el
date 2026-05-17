@@ -7,26 +7,53 @@
 
 ;;; Commentary:
 
-;; This module provides a mode for reviewing and editing agent prompts
-;; before launching the agent.  Every agent start routes through
-;; `beads-agent-prompt-edit-show', which pops a buffer pre-filled with
-;; the auto-generated prompt.  Users can modify it, then confirm with
-;; C-c C-c or cancel with C-c C-k.
+;; Two-region prompt editor (Phase 1a-ii, bde-xle9.2).  Every agent
+;; start routes through `beads-agent-prompt-edit-show', which pops a
+;; buffer with two editable regions separated by read-only marked
+;; headings:
+;;
+;;   ## System prompt
+;;   <editable role/identity>
+;;
+;;   ## User prompt
+;;   <editable task>
+;;
+;; Both heading lines carry `read-only', `front-sticky',
+;; `rear-nonsticky', and a unique `beads-prompt-section' text property
+;; (`system-heading' / `user-heading').  Parsing uses
+;; `text-property-search-forward' on that marker, NOT a regex on the
+;; literal heading text — pasting Markdown that itself contains
+;; "## User prompt" into a region does not desync the parser.
+;;
+;; Callback contract: confirm calls (funcall callback SYS USER) where
+;; SYS is a string, or nil when the system region is blank ("use the
+;; backend's built-in identity"); USER is the user-region string.
+;; Cancel calls (funcall callback nil nil).  The (nil nil) pair is the
+;; cancel sentinel; "no system override, real user" is (nil "text").
 
 ;;; Code:
 
 (require 'beads-buffer)
+(require 'subr-x)
 
 ;;; Buffer-local Variables
 
 (defvar-local beads-agent-prompt-edit--callback nil
-  "Callback function to invoke with the final prompt.")
+  "Callback invoked as (SYS USER); (nil nil) is the cancel sentinel.")
 
 (defvar-local beads-agent-prompt-edit--issue-id nil
   "Issue ID for the prompt being edited.")
 
 (defvar-local beads-agent-prompt-edit--agent-type nil
   "Agent type name for display purposes.")
+
+;;; Region markers
+
+(defconst beads-agent-prompt-edit--system-heading "## System prompt"
+  "Literal text of the system-region heading line.")
+
+(defconst beads-agent-prompt-edit--user-heading "## User prompt"
+  "Literal text of the user-region heading line.")
 
 ;;; Keymap
 
@@ -61,22 +88,48 @@ Press \\[beads-agent-prompt-edit-cancel] to cancel without launching."
   "Generate buffer name for prompt editing for ISSUE-ID."
   (beads-buffer-utility "prompt-edit" issue-id))
 
-(defun beads-agent-prompt-edit-show (issue-id prompt agent-type-name callback)
-  "Show prompt editing buffer for ISSUE-ID.
-PROMPT is the initial prompt text to edit.
-AGENT-TYPE-NAME is the name of the agent type (for display).
-CALLBACK is called as (SYSTEM USER): on confirm with SYSTEM nil and
-USER the edited text (the buffer is single-region in Phase 1a-i;
-the two-region UI lands in 1a-ii); on cancel with both nil.  The
-\(nil nil) pair is the cancel sentinel the orchestrator checks; a
-real user prompt with no system override is (nil \"the text\")."
+(defun beads-agent-prompt-edit--insert-heading (text section)
+  "Insert a read-only heading line TEXT marked with SECTION.
+SECTION is `system-heading' or `user-heading'.  The whole line plus
+its trailing newline is read-only, `front-sticky' (so text typed at
+its start cannot merge into it) and `rear-nonsticky' (so text typed
+on the next line is editable)."
+  (let ((start (point)))
+    (insert text "\n")
+    (add-text-properties
+     start (point)
+     (list 'read-only t
+           'front-sticky t
+           'rear-nonsticky t
+           'beads-prompt-section section
+           'face 'font-lock-keyword-face))))
+
+(defun beads-agent-prompt-edit-show (issue-id system-prompt user-prompt
+                                              agent-type-name callback)
+  "Show the two-region prompt editor for ISSUE-ID.
+SYSTEM-PROMPT is the initial role/identity text (string, or nil for
+an empty system region).  USER-PROMPT is the initial task text.
+AGENT-TYPE-NAME is shown in the header.  CALLBACK is invoked as
+\(SYS USER): on confirm with SYS the edited system text or nil when
+that region is blank, and USER the edited task; on cancel with both
+nil (the (nil nil) cancel sentinel)."
   (let* ((buf-name (beads-agent-prompt-edit--buffer-name issue-id))
-         (buf (get-buffer-create buf-name)))
+         (buf (get-buffer-create buf-name))
+         ;; Capture the caller's cwd (worktree/project dir) so the
+         ;; editor buffer resolves the right .beads at confirm time.
+         (dir default-directory))
     (with-current-buffer buf
-      (beads-agent-prompt-edit-mode)
-      (erase-buffer)
-      (insert prompt)
-      (goto-char (point-min))
+      (let ((inhibit-read-only t))
+        (beads-agent-prompt-edit-mode)
+        (erase-buffer)
+        (beads-agent-prompt-edit--insert-heading
+         beads-agent-prompt-edit--system-heading 'system-heading)
+        (insert (or system-prompt "") "\n\n")
+        (beads-agent-prompt-edit--insert-heading
+         beads-agent-prompt-edit--user-heading 'user-heading)
+        (insert (or user-prompt "")))
+      (goto-char (point-max))
+      (setq-local default-directory dir)
       (setq beads-agent-prompt-edit--callback callback)
       (setq beads-agent-prompt-edit--issue-id issue-id)
       (setq beads-agent-prompt-edit--agent-type agent-type-name)
@@ -84,26 +137,64 @@ real user prompt with no system override is (nil \"the text\")."
     (pop-to-buffer buf)
     (message "Edit prompt, then C-c C-c to confirm or C-c C-k to cancel")))
 
+;;; Region extraction
+
+(defun beads-agent-prompt-edit--region-bounds (section)
+  "Return (START . END) of the editable region after SECTION's heading.
+SECTION is `system-heading' or `user-heading'.  The region runs from
+the character after that heading's newline up to (but excluding) the
+next `beads-prompt-section' heading, or `point-max'.  Parsing is by
+the text property marker, never the heading text, so a pasted
+\"## User prompt\" inside a region does not desync."
+  (save-excursion
+    (goto-char (point-min))
+    (let ((m (text-property-search-forward 'beads-prompt-section section t)))
+      (unless m
+        (error "Prompt-edit buffer corrupted: %s marker missing" section))
+      (let* ((start (prop-match-end m))
+             (next (save-excursion
+                     (goto-char start)
+                     (text-property-search-forward
+                      'beads-prompt-section nil
+                      (lambda (_ v) v))))
+             (end (if next (prop-match-beginning next) (point-max))))
+        (cons start end)))))
+
+(defun beads-agent-prompt-edit--trim-blank-lines (s)
+  "Strip leading and trailing blank lines from S, internals verbatim.
+Returns the trimmed string (internal whitespace — fenced code
+blocks, indented lists — is preserved exactly)."
+  (replace-regexp-in-string
+   "\\`\\(?:[ \t]*\n\\)+" ""
+   (replace-regexp-in-string "\\(?:\n[ \t]*\\)+\\'" "" s)))
+
+(defun beads-agent-prompt-edit--region-string (section)
+  "Return SECTION's editable region, blank lines trimmed, or \"\"."
+  (let* ((b (beads-agent-prompt-edit--region-bounds section))
+         (raw (buffer-substring-no-properties (car b) (cdr b))))
+    (beads-agent-prompt-edit--trim-blank-lines raw)))
+
 ;;; Commands
 
 (defun beads-agent-prompt-edit-confirm ()
-  "Confirm prompt and launch agent."
+  "Confirm both regions and launch the agent.
+A blank system region yields SYS=nil (use the backend's built-in
+identity)."
   (interactive)
-  (let ((prompt (buffer-substring-no-properties (point-min) (point-max)))
-        (callback beads-agent-prompt-edit--callback))
+  (let* ((sys-raw (beads-agent-prompt-edit--region-string 'system-heading))
+         (user (beads-agent-prompt-edit--region-string 'user-heading))
+         (sys (if (string-empty-p sys-raw) nil sys-raw))
+         (callback beads-agent-prompt-edit--callback))
     ;; Clean up the prompt-edit buffer BEFORE invoking the callback.
     ;; The callback may spawn async work that captures `(current-buffer)'
     ;; as its caller-buffer; if we kill this buffer afterward (e.g. via
     ;; unwind-protect) the async result is silently dropped.  See bde-d3eg.
     (beads-agent-prompt-edit--cleanup)
     (when callback
-      ;; Phase 1a-i: single-region buffer, so SYSTEM is nil and the
-      ;; whole buffer is the USER prompt.  (nil nil) stays reserved
-      ;; as the cancel sentinel (see `beads-agent-prompt-edit-cancel').
-      (funcall callback nil prompt))))
+      (funcall callback sys user))))
 
 (defun beads-agent-prompt-edit-cancel ()
-  "Cancel prompt editing without launching agent."
+  "Cancel prompt editing without launching the agent."
   (interactive)
   (let ((callback beads-agent-prompt-edit--callback))
     (beads-agent-prompt-edit--cleanup)
@@ -117,7 +208,9 @@ real user prompt with no system override is (nil \"the text\")."
   (let ((buf (current-buffer)))
     (quit-window t)
     (when (buffer-live-p buf)
-      (kill-buffer buf))))
+      (let ((kill-buffer-query-functions nil)
+            (inhibit-read-only t))
+        (kill-buffer buf)))))
 
 (provide 'beads-agent-prompt-edit)
 ;;; beads-agent-prompt-edit.el ends here
