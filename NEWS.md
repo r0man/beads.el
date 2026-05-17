@@ -197,3 +197,52 @@ The combined rendered prompt (system + blank line + user) for the
 built-in template types still contains the same substituted issue id
 and the same instruction content as before — only the delivery
 channel split.
+
+### Terminal backend registered (opt-in); efrit removed
+
+`beads-agent-backend-claude` (the `claude` CLI spawned directly into a
+terminal — collision-free by construction) is now **registered and
+selectable**. It is **opt-in**: the per-type backend defcustoms
+(`beads-agent-{task,review,plan,qa}-backend`) are **not** flipped.
+
+> Net effect for default users in this release: `beads-agent.el`'s
+> orchestrator `rename-buffer` is **not** patched and the per-type
+> backend defcustom defaults are **not** flipped. A user who never
+> customised their backend gets *exactly the bde-h93r behaviour after
+> this PR as before it*. Only users who explicitly opt in via
+> `(setq beads-agent-task-backend "claude")` are protected. The
+> originating bug is *displaced*, not fixed, this release.
+
+The `efrit` backend was **removed** (`beads-agent-efrit.el` and its
+test deleted; the `require`, header comment, and `"efrit"` test
+fixtures dropped). No deprecation alias.
+
+`beads-reader-terminal` was added (completes over registered
+terminals, returns the class symbol for `beads-agent-default-terminal`).
+
+#### Two terminal knobs coexist (time-boxed)
+
+For one release the `beads-terminal` group holds **two** knobs:
+
+- `beads-terminal-backend` — *symbol* (`nil`/`vterm`/`eat`/`term`),
+  governs one-shot `bd` command execution
+  (`beads-command--run-in-terminal`).
+- `beads-agent-default-terminal` — *class symbol* (default
+  `beads-terminal-auto`), governs agent terminal spawning.
+
+`beads-terminal--symbol->class` bridges the old vocabulary so the
+Phase 3 unification (collapse onto one knob) is mechanical.
+
+#### Per-backend system-prompt seam status
+
+The Phase 2 spike requires reading the upstream source of each wrapper
+package to confirm its system-prompt seam. In this build environment
+**none of `claude-code-ide`, `claude-code`, `claudemacs`, `eca`, or
+`agent-shell` is installed**, so no seam could be verified. Per the
+plan's spike-gating rule, every wrapper backend therefore **holds the
+Phase 1a-i concat shim** (system + blank line + user combined via
+`beads-agent-backend--combine-prompt`) and ships unchanged. Wiring a
+dedicated seam for any wrapper is deferred until its upstream source
+can be verified. Only the terminal `beads-agent-backend-claude`
+delivers the system prompt through a dedicated channel
+(`--append-system-prompt`).

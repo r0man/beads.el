@@ -18,7 +18,6 @@
 ;; - claude-code-ide.el (MCP-based integration)
 ;; - claude-code.el (terminal-based integration)
 ;; - claudemacs (AI pair programming with eat terminal)
-;; - efrit (Emacs-native AI agent framework)
 ;;
 ;; See `beads-agent-backend.el' for the backend protocol definition.
 ;;
@@ -1741,7 +1740,6 @@ Customize `beads-agent-mode-line-format' to change the display style."
 (require 'beads-agent-claude-code nil t)
 (require 'beads-agent-claudemacs nil t)
 (require 'beads-agent-agent-shell nil t)
-(require 'beads-agent-efrit nil t)
 (require 'beads-agent-eca nil t)
 ;; Terminal-spawned backend (Phase 1b, opt-in: defines the class but
 ;; does not flip any per-type default).

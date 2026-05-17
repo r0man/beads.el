@@ -232,5 +232,14 @@ Collision-free by construction; ships opt-in (NOT a per-type
 default in this release).  `agent-flag' is intentionally unset —
 claude has no named-agent flag.")
 
+;;; Registration
+
+;; Register the terminal-spawned claude backend so it is selectable.
+;; This is OPT-IN: the per-type backend defcustoms
+;; (`beads-agent-{task,review,plan,qa}-backend') are NOT flipped, so a
+;; user who never customised their backend gets exactly the prior
+;; behaviour.  Registration only makes "claude" available to choose.
+(beads-agent--register-backend (beads-agent-backend-claude))
+
 (provide 'beads-agent-backend-terminal)
 ;;; beads-agent-backend-terminal.el ends here

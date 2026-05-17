@@ -60,7 +60,8 @@ EIEIO classes mirroring the Go structs from `beads/internal/types`: `beads-issue
 - **`beads-command-list.el`** / **`beads-spec.el`**: Tabulated list mode with `beads-issue-spec` filter objects (status/type/priority/sort/limit) that convert to CLI args.
 - **`beads-command-show.el`** / **`beads-section.el`**: Issue detail view using magit-section-style rendering.
 - **`beads-eldoc.el`**: Hover-to-preview issue references anywhere, with caching.
-- **`beads-agent.el`** + backends: AI agent integration with sesman session management and git worktree isolation.
+- **`beads-agent.el`** + backends: AI agent integration with sesman session management and git worktree isolation. The prompt protocol is split into a role-only **system** prompt (`beads-agent-type-system-prompt`) and an issue-envelope **user** prompt (`beads-agent-type-build-user-prompt`); `beads-agent-backend-start` is 4-arity `(backend issue system-prompt user-prompt)`.
+- **`beads-terminal.el`** / **`beads-agent-backend-terminal.el`**: EIEIO terminal subsystem (vterm/ghostel/eat/ansi-term/term + auto + registry) and the opt-in collision-free `beads-agent-backend-claude` (spawns the CLI directly into a terminal). The `efrit` backend was removed.
 
 ### Key Files
 
