@@ -229,34 +229,11 @@ Example (hand-written transient):
 
 ;;; Terminal Backend Customization
 
-(defgroup beads-terminal nil
-  "Terminal settings for beads command execution."
-  :group 'beads
-  :prefix "beads-terminal-")
-
-(defcustom beads-terminal-backend nil
-  "Backend to use for interactive command execution.
-
-When nil (auto-detect), tries backends in order: vterm, eat, term.
-The first available backend is used.
-
-Available backends:
-- nil: Auto-detect best available backend (vterm > eat > term).
-- `vterm': Use vterm (libvterm-based terminal).
-  Fast and feature-complete, requires vterm package.
-- `eat': Use Eat (Emulate A Terminal).
-  Pure Emacs Lisp terminal, requires eat package.
-- `term': Use built-in `term-mode' terminal emulator.
-  Full terminal support, no external dependencies.
-
-Note: Compilation mode is not included because it cannot handle
-interactive input (prompts, confirmations) that some bd commands
-like `bd doctor --fix' may require."
-  :type '(choice (const :tag "Auto-detect (vterm > eat > term)" nil)
-                 (const :tag "Vterm (requires vterm package)" vterm)
-                 (const :tag "Eat (requires eat package)" eat)
-                 (const :tag "Term mode (built-in)" term))
-  :group 'beads-terminal)
+;; The `beads-terminal' defgroup and the symbol-valued
+;; `beads-terminal-backend' defcustom moved to beads-terminal.el
+;; (Phase 1b).  beads-command.el keeps using `beads-terminal-backend'
+;; for one-shot `bd' command execution; re-require it here.
+(require 'beads-terminal)
 
 ;;; Terminal Backend Implementations
 
