@@ -52,49 +52,71 @@
     (should (equal (cdr result) '(:doc "Test")))))
 
 ;;; ============================================================
-;;; Terminal Backend Detection Tests
+;;; beads-command--run-in-terminal delegation Tests (Phase 3)
 ;;; ============================================================
+;;; The legacy per-terminal runners and `--detect-best-backend' were
+;;; removed; `--run-in-terminal' now resolves the symbol-valued
+;;; `beads-terminal-backend' through `beads-terminal--symbol->class'
+;;; and delegates to the unified `beads-terminal-spawn'.
 
-(ert-deftest beads-command-coverage-test-detect-backend-term-fallback ()
-  "Test backend detection falls back to term when nothing else available."
-  (cl-letf (((symbol-function 'beads-command--vterm-available-p)
-             (lambda () nil))
-            ((symbol-function 'beads-command--eat-available-p)
-             (lambda () nil)))
-    (should (eq (beads-command--detect-best-backend) 'term))))
+(defmacro beads-command-coverage-test--capture-spawn (&rest body)
+  "Eval BODY with `beads-terminal-spawn'/`pop-to-buffer' stubbed.
+Binds `spawned' to (TERMINAL-CLASS BUFFER-NAME ARGV WD ENV)."
+  `(let (spawned)
+     (cl-letf (((symbol-function 'beads-terminal-spawn)
+                (lambda (term name argv wd env)
+                  (setq spawned (list (eieio-object-class term)
+                                      name argv wd env))
+                  (get-buffer-create name)))
+               ((symbol-function 'pop-to-buffer) #'identity))
+       ,@body
+       spawned)))
 
-(ert-deftest beads-command-coverage-test-detect-backend-vterm ()
-  "Test backend detection prefers vterm when available."
-  (cl-letf (((symbol-function 'beads-command--vterm-available-p)
-             (lambda () t))
-            ((symbol-function 'beads-command--eat-available-p)
-             (lambda () t)))
-    (should (eq (beads-command--detect-best-backend) 'vterm))))
+(ert-deftest beads-command-coverage-test-run-in-terminal-nil-is-auto ()
+  "nil backend resolves to `beads-terminal-auto'."
+  (let ((beads-terminal-backend nil))
+    (let ((s (beads-command-coverage-test--capture-spawn
+              (beads-command--run-in-terminal "echo hi" "*t*" "/tmp"))))
+      (should (eq (nth 0 s) 'beads-terminal-auto))
+      (should (equal (nth 1 s) "*t*"))
+      ;; cd/exit wrapper is the caller's choice in the shell argv.
+      (should (equal (nth 2 s)
+                     (list shell-file-name "-c"
+                           (concat "cd " (shell-quote-argument "/tmp")
+                                   " && echo hi; exit"))))
+      (should (equal (nth 4 s) '(("CLICOLOR_FORCE" . "1")))))))
 
-(ert-deftest beads-command-coverage-test-detect-backend-eat ()
-  "Test backend detection uses eat when vterm unavailable."
-  (cl-letf (((symbol-function 'beads-command--vterm-available-p)
-             (lambda () nil))
-            ((symbol-function 'beads-command--eat-available-p)
-             (lambda () t)))
-    (should (eq (beads-command--detect-best-backend) 'eat))))
+(ert-deftest beads-command-coverage-test-run-in-terminal-vterm ()
+  "vterm backend resolves to `beads-terminal-vterm'."
+  (let ((beads-terminal-backend 'vterm))
+    (let ((s (beads-command-coverage-test--capture-spawn
+              (beads-command--run-in-terminal "x" "*t*" "/tmp"))))
+      (should (eq (nth 0 s) 'beads-terminal-vterm)))))
 
-;;; ============================================================
-;;; beads-command--run-in-terminal Tests
-;;; ============================================================
+(ert-deftest beads-command-coverage-test-run-in-terminal-eat ()
+  "eat backend resolves to `beads-terminal-eat'."
+  (let ((beads-terminal-backend 'eat))
+    (let ((s (beads-command-coverage-test--capture-spawn
+              (beads-command--run-in-terminal "x" "*t*" "/tmp"))))
+      (should (eq (nth 0 s) 'beads-terminal-eat)))))
 
 (ert-deftest beads-command-coverage-test-run-in-terminal-term ()
-  "Test run-in-terminal dispatches to term backend."
-  (let ((beads-terminal-backend 'term)
-        (called-with nil))
-    (cl-letf (((symbol-function 'beads-command--run-term)
-               (lambda (cmd buf dir)
-                 (setq called-with (list cmd buf dir)))))
-      (beads-command--run-in-terminal "echo hi" "*test*" "/tmp")
-      (should (equal called-with '("echo hi" "*test*" "/tmp"))))))
+  "term backend resolves to `beads-terminal-term'."
+  (let ((beads-terminal-backend 'term))
+    (let ((s (beads-command-coverage-test--capture-spawn
+              (beads-command--run-in-terminal "x" "*t*" "/tmp"))))
+      (should (eq (nth 0 s) 'beads-terminal-term)))))
+
+(ert-deftest beads-command-coverage-test-run-in-terminal-unknown-is-auto ()
+  "An unknown/legacy backend symbol falls back to `beads-terminal-auto'."
+  (let ((beads-terminal-backend 'unknown-backend))
+    (let ((s (beads-command-coverage-test--capture-spawn
+              (beads-command--run-in-terminal "x" "*t*" "/tmp"))))
+      (should (eq (nth 0 s) 'beads-terminal-auto)))))
 
 (ert-deftest beads-command-coverage-test-run-in-terminal-compile ()
-  "Test run-in-terminal dispatches to compile backend."
+  "`compile' still routes to `beads-command--run-compile' (no
+`beads-terminal' equivalent)."
   (let ((beads-terminal-backend 'compile)
         (called-with nil))
     (cl-letf (((symbol-function 'beads-command--run-compile)
@@ -103,62 +125,18 @@
       (beads-command--run-in-terminal "echo hi" "*test*" "/tmp")
       (should (equal called-with '("echo hi" "*test*" "/tmp"))))))
 
-(ert-deftest beads-command-coverage-test-run-in-terminal-auto-detect ()
-  "Test run-in-terminal auto-detects when backend is nil."
-  (let ((beads-terminal-backend nil)
-        (called nil))
-    (cl-letf (((symbol-function 'beads-command--detect-best-backend)
-               (lambda () 'term))
-              ((symbol-function 'beads-command--run-term)
-               (lambda (_cmd _buf _dir)
-                 (setq called t))))
-      (beads-command--run-in-terminal "echo hi" "*test*" "/tmp")
-      (should called))))
-
-(ert-deftest beads-command-coverage-test-run-in-terminal-vterm ()
-  "Test run-in-terminal dispatches to vterm backend."
-  (let ((beads-terminal-backend 'vterm)
-        (called nil))
-    (cl-letf (((symbol-function 'beads-command--run-vterm)
-               (lambda (_cmd _buf _dir) (setq called t))))
-      (beads-command--run-in-terminal "echo hi" "*test*" "/tmp")
-      (should called))))
-
-(ert-deftest beads-command-coverage-test-run-in-terminal-eat ()
-  "Test run-in-terminal dispatches to eat backend."
-  (let ((beads-terminal-backend 'eat)
-        (called nil))
-    (cl-letf (((symbol-function 'beads-command--run-eat)
-               (lambda (_cmd _buf _dir) (setq called t))))
-      (beads-command--run-in-terminal "echo hi" "*test*" "/tmp")
-      (should called))))
-
-(ert-deftest beads-command-coverage-test-run-in-terminal-unknown ()
-  "Test run-in-terminal falls back to term for unknown backend."
-  (let ((beads-terminal-backend 'unknown-backend)
-        (called nil))
-    (cl-letf (((symbol-function 'beads-command--run-term)
-               (lambda (_cmd _buf _dir) (setq called t))))
-      (beads-command--run-in-terminal "echo hi" "*test*" "/tmp")
-      (should called))))
-
-;;; ============================================================
-;;; beads-command--run-term Tests
-;;; ============================================================
-
-(ert-deftest beads-command-coverage-test-run-term ()
-  "Test run-term creates term buffer."
-  (let ((buf nil))
-    (unwind-protect
-        (cl-letf (((symbol-function 'pop-to-buffer)
-                   (lambda (b) (setq buf b))))
-          (beads-command--run-term "echo hello" "*beads-test-term*" "/tmp")
-          (should (bufferp buf))
-          (should (string= (buffer-name buf) "*beads-test-term*")))
-      (when (and buf (buffer-live-p buf))
-        (let ((proc (get-buffer-process buf)))
-          (when proc (delete-process proc)))
-        (kill-buffer buf)))))
+(ert-deftest beads-command-coverage-test-run-in-terminal-pops-buffer ()
+  "The spawned buffer is shown via `pop-to-buffer'."
+  (let ((beads-terminal-backend 'term)
+        (popped nil))
+    (cl-letf (((symbol-function 'beads-terminal-spawn)
+               (lambda (_t name _a _w _e) (get-buffer-create name)))
+              ((symbol-function 'pop-to-buffer)
+               (lambda (b) (setq popped b))))
+      (beads-command--run-in-terminal "x" "*pop-test*" "/tmp")
+      (should (bufferp popped))
+      (should (equal (buffer-name popped) "*pop-test*"))
+      (kill-buffer popped))))
 
 ;;; ============================================================
 ;;; beads-command--run-compile Tests

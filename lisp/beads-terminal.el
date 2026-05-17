@@ -60,12 +60,18 @@
 (defcustom beads-terminal-backend nil
   "Backend to use for interactive one-shot `bd' command execution.
 
-This symbol-valued knob governs `beads-command--run-in-terminal'
-ONLY (running a single `bd' command in a terminal).  The agent
-spawn path is governed by the class-valued
-`beads-agent-default-terminal' instead.  Both knobs coexist in the
-`beads-terminal' group for one release; see NEWS.  Phase 3 collapses
-them via `beads-terminal--symbol->class'.
+Deprecated (Phase 3): this symbol-valued knob is superseded by the
+unified `beads-terminal' spawn vocabulary.  It is still honoured for
+back-compat — `beads-command--run-in-terminal' resolves it through
+`beads-terminal--symbol->class' and delegates to
+`beads-terminal-spawn' — but new configuration should prefer the
+class-valued terminal selection (`beads-agent-default-terminal' for
+agents).  Expect this symbol-valued option to be removed in a future
+release.
+
+This knob governs `beads-command--run-in-terminal' ONLY (running a
+single `bd' command in a terminal).  The agent spawn path is
+governed by the class-valued `beads-agent-default-terminal'.
 
 When nil (auto-detect), tries backends in order: vterm, eat, term.
 The first available backend is used.
