@@ -97,6 +97,12 @@ Calls sync stop immediately for testing purposes."
 (defvar beads-agent-test--saved-hook-handlers nil
   "Saved hook handlers to restore after tests.")
 
+(defvar beads-agent-test--saved-backends nil
+  "Saved global backend registry to restore after tests.
+The teardown previously nilled `beads-agent--backends', which
+destroyed the load-time registrations (e.g. the `claude'
+terminal backend) for every test file that ran afterwards.")
+
 (defun beads-agent-test--mock-sesman-sessions (_system)
   "Mock implementation of `sesman-sessions' for tests."
   beads-agent-test--sesman-sessions)
@@ -122,7 +128,9 @@ SESSION is the beads-agent-session object."
   "Setup test fixtures."
   ;; Clear mock sesman storage
   (setq beads-agent-test--sesman-sessions nil)
-  ;; Clear backends
+  ;; Save and clear backends (restored in teardown so the load-time
+  ;; registrations survive for subsequent test files)
+  (setq beads-agent-test--saved-backends beads-agent--backends)
   (setq beads-agent--backends nil)
   ;; Save and replace hook handlers
   (setq beads-agent-test--saved-hook-handlers beads-agent-state-change-hook)
@@ -136,8 +144,10 @@ SESSION is the beads-agent-session object."
   "Teardown test fixtures."
   ;; Clear mock sesman storage
   (setq beads-agent-test--sesman-sessions nil)
-  ;; Clear backends
-  (setq beads-agent--backends nil)
+  ;; Restore the global backend registry (do NOT leave it nil — that
+  ;; would strip the load-time `claude' registration for later files)
+  (setq beads-agent--backends beads-agent-test--saved-backends)
+  (setq beads-agent-test--saved-backends nil)
   ;; Restore original hook handlers
   (setq beads-agent-state-change-hook beads-agent-test--saved-hook-handlers)
   (setq beads-agent-test--saved-hook-handlers nil)

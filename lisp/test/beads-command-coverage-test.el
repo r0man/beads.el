@@ -468,24 +468,6 @@ never hang waiting for a response that never arrives."
     (should (string= (beads-command-subcommand cmd) "close"))))
 
 ;;; ============================================================
-;;; beads-command--run-vterm and run-eat Tests
-;;; ============================================================
-
-(ert-deftest beads-command-coverage-test-run-vterm-unavailable ()
-  "Test run-vterm signals error when vterm not available."
-  (cl-letf (((symbol-function 'beads-command--vterm-available-p)
-             (lambda () nil)))
-    (should-error (beads-command--run-vterm "echo hi" "*test*" "/tmp")
-                  :type 'user-error)))
-
-(ert-deftest beads-command-coverage-test-run-eat-unavailable ()
-  "Test run-eat signals error when eat not available."
-  (cl-letf (((symbol-function 'beads-command--eat-available-p)
-             (lambda () nil)))
-    (should-error (beads-command--run-eat "echo hi" "*test*" "/tmp")
-                  :type 'user-error)))
-
-;;; ============================================================
 ;;; beads-command-preview Tests (more coverage)
 ;;; ============================================================
 
@@ -514,22 +496,6 @@ never hang waiting for a response that never arrives."
          (args (beads-command-line cmd)))
     (should (member "--db" args))
     (should (member "/tmp/test.db" args))))
-
-;;; ============================================================
-;;; Additional Terminal Backend Tests
-;;; ============================================================
-
-(ert-deftest beads-command-coverage-test-vterm-available-check ()
-  "Test vterm availability check when not installed."
-  (cl-letf (((symbol-function 'require)
-             (lambda (_feature &rest _args) nil)))
-    (should-not (beads-command--vterm-available-p))))
-
-(ert-deftest beads-command-coverage-test-eat-available-check ()
-  "Test eat availability check when not installed."
-  (cl-letf (((symbol-function 'require)
-             (lambda (_feature &rest _args) nil)))
-    (should-not (beads-command--eat-available-p))))
 
 (ert-deftest beads-command-coverage-test-execute-interactive-default ()
   "Test default execute-interactive runs in terminal."

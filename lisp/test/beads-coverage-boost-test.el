@@ -803,33 +803,11 @@ EIEIO enforces (list-of string) at construction time."
       (should compile-called)
       (should (equal compile-command "echo test")))))
 
-(ert-deftest beads-coverage-boost-command-vterm-available ()
-  "Test vterm availability check."
-  ;; vterm is likely not available in test environment
-  (let ((result (beads-command--vterm-available-p)))
-    ;; Just test it returns boolean-ish
-    (should (or (null result) result))))
-
-(ert-deftest beads-coverage-boost-command-eat-available ()
-  "Test eat availability check."
-  (let ((result (beads-command--eat-available-p)))
-    (should (or (null result) result))))
-
-(ert-deftest beads-coverage-boost-command-run-vterm-not-available ()
-  "Test run-vterm errors when vterm not installed."
-  (cl-letf (((symbol-function 'beads-command--vterm-available-p)
-             (lambda () nil)))
-    (should-error (beads-command--run-vterm "echo test" "*test*"
-                                            default-directory)
-                  :type 'user-error)))
-
-(ert-deftest beads-coverage-boost-command-run-eat-not-available ()
-  "Test run-eat errors when eat not installed."
-  (cl-letf (((symbol-function 'beads-command--eat-available-p)
-             (lambda () nil)))
-    (should-error (beads-command--run-eat "echo test" "*test*"
-                                          default-directory)
-                  :type 'user-error)))
+;; Phase 3 (bde-xle9.5) removed the per-terminal runners
+;; (`--run-{vterm,eat,term}') and the `--{vterm,eat}-available-p'
+;; predicates; `--run-in-terminal' now delegates to the unified
+;; `beads-terminal-spawn'.  Canonical delegation coverage lives in
+;; `beads-command-coverage-test.el'.
 
 ;;; ============================================================
 ;;; beads-command-edit.el: entry point

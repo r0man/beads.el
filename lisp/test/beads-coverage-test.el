@@ -28,33 +28,12 @@
 ;;; beads-command.el - Terminal Backend Tests
 ;;; ============================================================
 
-(ert-deftest beads-coverage-test-vterm-available-p-no-vterm ()
-  "Test vterm availability check when vterm is not installed."
-  ;; vterm is not installed in test environment
-  (cl-letf (((symbol-function 'require) (lambda (feat &optional _file _noerror) nil)))
-    (should-not (beads-command--vterm-available-p))))
-
-(ert-deftest beads-coverage-test-eat-available-p-no-eat ()
-  "Test eat availability check when eat is not installed."
-  (cl-letf (((symbol-function 'require) (lambda (feat &optional _file _noerror) nil)))
-    (should-not (beads-command--eat-available-p))))
-
-(ert-deftest beads-coverage-test-detect-best-backend-term-fallback ()
-  "Test detect-best-backend falls back to term when others unavailable."
-  (cl-letf (((symbol-function 'beads-command--vterm-available-p) (lambda () nil))
-            ((symbol-function 'beads-command--eat-available-p) (lambda () nil)))
-    (should (eq (beads-command--detect-best-backend) 'term))))
-
-(ert-deftest beads-coverage-test-detect-best-backend-vterm ()
-  "Test detect-best-backend returns vterm when available."
-  (cl-letf (((symbol-function 'beads-command--vterm-available-p) (lambda () t)))
-    (should (eq (beads-command--detect-best-backend) 'vterm))))
-
-(ert-deftest beads-coverage-test-detect-best-backend-eat ()
-  "Test detect-best-backend returns eat when vterm unavailable."
-  (cl-letf (((symbol-function 'beads-command--vterm-available-p) (lambda () nil))
-            ((symbol-function 'beads-command--eat-available-p) (lambda () t)))
-    (should (eq (beads-command--detect-best-backend) 'eat))))
+;; Phase 3 (bde-xle9.5) removed the per-terminal runners
+;; (`--run-{vterm,eat,term}'), `--detect-best-backend' and the
+;; `--{vterm,eat}-available-p' predicates; `--run-in-terminal' now
+;; delegates to the unified `beads-terminal-spawn'.  Canonical
+;; delegation coverage lives in `beads-command-coverage-test.el'.
+;; Only the two surviving helpers are exercised here.
 
 (ert-deftest beads-coverage-test-run-in-terminal-compile ()
   "Test run-in-terminal dispatches to compile backend."
@@ -66,53 +45,6 @@
       (should called)
       (should (equal (car called) "echo test")))))
 
-(ert-deftest beads-coverage-test-run-in-terminal-term ()
-  "Test run-in-terminal dispatches to term backend."
-  (let ((beads-terminal-backend 'term)
-        (called nil))
-    (cl-letf (((symbol-function 'beads-command--run-term)
-               (lambda (cmd buf dir) (setq called (list cmd buf dir)))))
-      (beads-command--run-in-terminal "echo test" "*test*" "/tmp")
-      (should called))))
-
-(ert-deftest beads-coverage-test-run-in-terminal-vterm ()
-  "Test run-in-terminal dispatches to vterm backend."
-  (let ((beads-terminal-backend 'vterm)
-        (called nil))
-    (cl-letf (((symbol-function 'beads-command--run-vterm)
-               (lambda (cmd buf dir) (setq called t))))
-      (beads-command--run-in-terminal "echo test" "*test*" "/tmp")
-      (should called))))
-
-(ert-deftest beads-coverage-test-run-in-terminal-eat ()
-  "Test run-in-terminal dispatches to eat backend."
-  (let ((beads-terminal-backend 'eat)
-        (called nil))
-    (cl-letf (((symbol-function 'beads-command--run-eat)
-               (lambda (cmd buf dir) (setq called t))))
-      (beads-command--run-in-terminal "echo test" "*test*" "/tmp")
-      (should called))))
-
-(ert-deftest beads-coverage-test-run-in-terminal-nil-autodetect ()
-  "Test run-in-terminal auto-detects backend when nil."
-  (let ((beads-terminal-backend nil)
-        (called nil))
-    (cl-letf (((symbol-function 'beads-command--detect-best-backend)
-               (lambda () 'term))
-              ((symbol-function 'beads-command--run-term)
-               (lambda (cmd buf dir) (setq called t))))
-      (beads-command--run-in-terminal "echo test" "*test*" "/tmp")
-      (should called))))
-
-(ert-deftest beads-coverage-test-run-in-terminal-unknown-fallback ()
-  "Test run-in-terminal falls back to term for unknown backend."
-  (let ((beads-terminal-backend 'unknown-backend)
-        (called nil))
-    (cl-letf (((symbol-function 'beads-command--run-term)
-               (lambda (cmd buf dir) (setq called t))))
-      (beads-command--run-in-terminal "echo test" "*test*" "/tmp")
-      (should called))))
-
 (ert-deftest beads-coverage-test-run-compile ()
   "Test run-compile creates a compilation buffer."
   (let ((compile-called nil)
@@ -123,18 +55,6 @@
                (lambda (_name) nil)))
       (beads-command--run-compile "echo hello" "*bd test*" "/tmp")
       (should (equal compile-called "echo hello")))))
-
-(ert-deftest beads-coverage-test-run-vterm-unavailable ()
-  "Test run-vterm signals error when vterm not available."
-  (cl-letf (((symbol-function 'beads-command--vterm-available-p) (lambda () nil)))
-    (should-error (beads-command--run-vterm "echo" "*test*" "/tmp")
-                  :type 'user-error)))
-
-(ert-deftest beads-coverage-test-run-eat-unavailable ()
-  "Test run-eat signals error when eat not available."
-  (cl-letf (((symbol-function 'beads-command--eat-available-p) (lambda () nil)))
-    (should-error (beads-command--run-eat "echo" "*test*" "/tmp")
-                  :type 'user-error)))
 
 (ert-deftest beads-coverage-test-ansi-color-filter ()
   "Test ANSI color filter strips OSC sequences."

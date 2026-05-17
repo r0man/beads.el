@@ -767,76 +767,11 @@
       (beads-command--run-compile "echo test" "*beads-test*" default-directory)
       (when buf (kill-buffer buf)))))
 
-(ert-deftest beads-coverage-4-command-run-term ()
-  "Test run-term creates term buffer."
-  (let ((buf nil))
-    (cl-letf (((symbol-function 'term-exec)
-               (lambda (_buf _name _program _sentinel _switches)
-                 nil))
-              ((symbol-function 'term-char-mode)
-               (lambda () nil))
-              ((symbol-function 'pop-to-buffer)
-               (lambda (b) (setq buf b))))
-      (beads-command--run-term "echo test" "*beads-term-test*" default-directory)
-      (when buf
-        (should (bufferp buf))
-        (kill-buffer buf)))))
-
-(ert-deftest beads-coverage-4-command-run-eat-not-available ()
-  "Test run-eat errors when eat not available."
-  (cl-letf (((symbol-function 'beads-command--eat-available-p)
-             (lambda () nil)))
-    (should-error (beads-command--run-eat "echo" "*test*" default-directory)
-                  :type 'user-error)))
-
-(ert-deftest beads-coverage-4-command-run-vterm-not-available ()
-  "Test run-vterm errors when vterm not available."
-  (cl-letf (((symbol-function 'beads-command--vterm-available-p)
-             (lambda () nil)))
-    (should-error (beads-command--run-vterm "echo" "*test*" default-directory)
-                  :type 'user-error)))
-
-(ert-deftest beads-coverage-4-command-run-in-terminal-auto-detect ()
-  "Test run-in-terminal with auto-detect backend."
-  (let ((beads-terminal-backend nil)
-        (ran-term nil))
-    (cl-letf (((symbol-function 'beads-command--detect-best-backend)
-               (lambda () 'term))
-              ((symbol-function 'beads-command--run-term)
-               (lambda (_cmd _name _dir)
-                 (setq ran-term t))))
-      (beads-command--run-in-terminal "echo test" "*test*" default-directory)
-      (should ran-term))))
-
-(ert-deftest beads-coverage-4-command-run-in-terminal-explicit-term ()
-  "Test run-in-terminal with explicit term backend."
-  (let ((beads-terminal-backend 'term)
-        (ran-term nil))
-    (cl-letf (((symbol-function 'beads-command--run-term)
-               (lambda (_cmd _name _dir)
-                 (setq ran-term t))))
-      (beads-command--run-in-terminal "echo test" "*test*" default-directory)
-      (should ran-term))))
-
-(ert-deftest beads-coverage-4-command-run-in-terminal-explicit-vterm ()
-  "Test run-in-terminal with explicit vterm backend."
-  (let ((beads-terminal-backend 'vterm)
-        (ran-vterm nil))
-    (cl-letf (((symbol-function 'beads-command--run-vterm)
-               (lambda (_cmd _name _dir)
-                 (setq ran-vterm t))))
-      (beads-command--run-in-terminal "echo test" "*test*" default-directory)
-      (should ran-vterm))))
-
-(ert-deftest beads-coverage-4-command-run-in-terminal-explicit-eat ()
-  "Test run-in-terminal with explicit eat backend."
-  (let ((beads-terminal-backend 'eat)
-        (ran-eat nil))
-    (cl-letf (((symbol-function 'beads-command--run-eat)
-               (lambda (_cmd _name _dir)
-                 (setq ran-eat t))))
-      (beads-command--run-in-terminal "echo test" "*test*" default-directory)
-      (should ran-eat))))
+;; Phase 3 (bde-xle9.5) removed the per-terminal runners
+;; (`--run-{vterm,eat,term}'), `--detect-best-backend' and the
+;; `--{vterm,eat}-available-p' predicates; `--run-in-terminal' now
+;; delegates to the unified `beads-terminal-spawn'.  Canonical
+;; delegation coverage lives in `beads-command-coverage-test.el'.
 
 ;;; ============================================================
 ;;; beads-command-formula.el - List Commands
