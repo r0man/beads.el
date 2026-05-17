@@ -110,7 +110,7 @@
               ((symbol-function 'efrit-progress-get-buffer)
                (lambda (_id)
                  (beads-agent-efrit-test--session-buffer mock-session))))
-      (let ((result (beads-agent-backend-start backend nil "Test prompt")))
+      (let ((result (beads-agent-backend-start backend nil nil "Test prompt")))
         (should (consp result))
         (should (equal (car result) mock-session))
         (should (bufferp (cdr result)))))))
@@ -120,7 +120,7 @@
   (let ((backend (beads-agent-backend-efrit)))
     (cl-letf (((symbol-function 'featurep) (lambda (_) nil))
               ((symbol-function 'require) (lambda (&rest _) nil)))
-      (should-error (beads-agent-backend-start backend nil "Test prompt")
+      (should-error (beads-agent-backend-start backend nil nil "Test prompt")
                     :type 'error))))
 
 (ert-deftest beads-agent-efrit-test-start-propagates-efrit-errors ()
@@ -131,7 +131,7 @@
               ((symbol-function 'efrit-do)
                (lambda (_prompt)
                  (error "Efrit initialization failed"))))
-      (should-error (beads-agent-backend-start backend nil "Test prompt")
+      (should-error (beads-agent-backend-start backend nil nil "Test prompt")
                     :type 'error))))
 
 ;;; Stop Session Tests

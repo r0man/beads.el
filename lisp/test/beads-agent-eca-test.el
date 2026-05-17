@@ -129,7 +129,7 @@ requiring the actual eca-emacs package."
   (let ((backend (beads-agent-backend-eca)))
     (cl-letf (((symbol-function 'featurep) (lambda (_) nil))
               ((symbol-function 'require) (lambda (&rest _) nil)))
-      (should-error (beads-agent-backend-start backend nil "Test prompt")
+      (should-error (beads-agent-backend-start backend nil nil "Test prompt")
                     :type 'error))))
 
 (ert-deftest beads-agent-eca-test-start-error-no-chat ()
@@ -140,7 +140,7 @@ requiring the actual eca-emacs package."
               ((symbol-function 'require)
                (lambda (f &rest _)
                  (if (eq f 'eca) t nil))))
-      (should-error (beads-agent-backend-start backend nil "Test prompt")
+      (should-error (beads-agent-backend-start backend nil nil "Test prompt")
                     :type 'error))))
 
 (ert-deftest beads-agent-eca-test-start-creates-session ()
@@ -165,7 +165,7 @@ requiring the actual eca-emacs package."
                    (lambda (_) mock-buffer))
                   ((symbol-function 'beads-agent-eca--wait-for-session)
                    (lambda (&optional _) mock-session)))
-          (let ((result (beads-agent-backend-start backend nil "Test prompt")))
+          (let ((result (beads-agent-backend-start backend nil nil "Test prompt")))
             (should eca-called)
             (should (equal prompt-sent "Test prompt"))
             (should (consp result))
@@ -511,7 +511,7 @@ across the full lifecycle."
                                            eca-process-running-p)))))
           ;; Step 1: Start session
           (let* ((result (beads-agent-backend-start
-                         backend nil "Initial prompt"))
+                         backend nil nil "Initial prompt"))
                  (session (beads-agent-session
                           :id "test#integration"
                           :issue-id "test"

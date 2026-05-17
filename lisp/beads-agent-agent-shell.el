@@ -123,9 +123,13 @@ Verifies the package is loaded and key functions exist."
        agent-shell-agent-configs))
 
 (cl-defmethod beads-agent-backend-start
-    ((_backend beads-agent-backend-agent-shell) _issue prompt)
-  "Start agent-shell session with PROMPT.
+    ((_backend beads-agent-backend-agent-shell) _issue
+     system-prompt user-prompt)
+  "Start agent-shell session with SYSTEM-PROMPT and USER-PROMPT.
 ISSUE is ignored as agent-shell works per-project/workspace.
+SYSTEM-PROMPT and USER-PROMPT are combined via
+`beads-agent-backend--combine-prompt' (Phase 2 wires the dedicated
+system-prompt seam).
 The working directory is determined by the caller (may be a worktree).
 Returns cons cell (BACKEND-SESSION . BUFFER)."
   ;; Pre-flight checks with helpful error messages
@@ -135,7 +139,9 @@ Returns cons cell (BACKEND-SESSION . BUFFER)."
   (unless (and (boundp 'agent-shell-agent-configs) agent-shell-agent-configs)
     (error "No agent-shell configs defined.  Configure `agent-shell-agent-configs'"))
   ;; default-directory is set by beads-agent-start (may be worktree)
-  (let* ((config (or beads-agent-agent-shell-config
+  (let* ((prompt (beads-agent-backend--combine-prompt
+                  system-prompt user-prompt))
+         (config (or beads-agent-agent-shell-config
                      (and (boundp 'agent-shell-preferred-agent-config)
                           agent-shell-preferred-agent-config)
                      (agent-shell-select-config :prompt "Select agent: ")))

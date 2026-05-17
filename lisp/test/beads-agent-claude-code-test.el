@@ -87,7 +87,7 @@
   (let ((backend (beads-agent-backend-claude-code)))
     (cl-letf (((symbol-function 'featurep) (lambda (_) nil))
               ((symbol-function 'require) (lambda (&rest _) nil)))
-      (should-error (beads-agent-backend-start backend nil "Test prompt")
+      (should-error (beads-agent-backend-start backend nil nil "Test prompt")
                     :type 'error))))
 
 (ert-deftest beads-agent-claude-code-test-start-error-no-claude ()
@@ -96,7 +96,7 @@
     (cl-letf (((symbol-function 'featurep) (lambda (_) t))
               ((symbol-function 'require) (lambda (&rest _) t))
               ((symbol-function 'executable-find) (lambda (_) nil)))
-      (should-error (beads-agent-backend-start backend nil "Test prompt")
+      (should-error (beads-agent-backend-start backend nil nil "Test prompt")
                     :type 'error))))
 
 ;;; Buffer Finding Tests

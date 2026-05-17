@@ -350,8 +350,8 @@ Builds the default issue-based prompt as a starting point; the user
 writes their custom instructions in the prompt-edit buffer that is
 shown before launch.")
 
-(cl-defmethod beads-agent-type-build-prompt ((_type beads-agent-type-custom)
-                                              issue)
+(cl-defmethod beads-agent-type-build-user-prompt ((_type beads-agent-type-custom)
+                                                   issue)
   "Return the default issue-based prompt for ISSUE.
 The user edits the result in the prompt-edit buffer before launch,
 so this method only provides issue context as a starting template."

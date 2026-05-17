@@ -102,7 +102,7 @@
   (beads-agent-types-test--setup)
   (unwind-protect
       (let* ((type (beads-agent-type-get "task"))
-             (prompt (beads-agent-type-build-prompt
+             (prompt (beads-agent-type-build-user-prompt
                       type (beads-agent-types-test--make-sample-issue))))
         (should (stringp prompt))
         ;; Check for embedded prompt content
@@ -128,7 +128,7 @@
   (beads-agent-types-test--setup)
   (unwind-protect
       (let* ((type (beads-agent-type-get "review"))
-             (prompt (beads-agent-type-build-prompt
+             (prompt (beads-agent-type-build-user-prompt
                       type (beads-agent-types-test--make-sample-issue))))
         (should (stringp prompt))
         ;; Check for default prompt content
@@ -146,7 +146,7 @@
       (let ((beads-agent-review-prompt
              "Custom review instructions for <ISSUE-ID>: <ISSUE-TITLE>")
             (type (beads-agent-type-get "review")))
-        (let ((prompt (beads-agent-type-build-prompt
+        (let ((prompt (beads-agent-type-build-user-prompt
                        type (beads-agent-types-test--make-sample-issue))))
           (should (string-match "Custom review instructions" prompt))
           (should (string-match "test-123" prompt))
@@ -169,7 +169,7 @@
   (beads-agent-types-test--setup)
   (unwind-protect
       (let* ((type (beads-agent-type-get "plan"))
-             (prompt (beads-agent-type-build-prompt
+             (prompt (beads-agent-type-build-user-prompt
                       type (beads-agent-types-test--make-sample-issue))))
         (should (stringp prompt))
         ;; Check for plan prompt content
@@ -195,7 +195,7 @@
   (beads-agent-types-test--setup)
   (unwind-protect
       (let* ((type (beads-agent-type-get "qa"))
-             (prompt (beads-agent-type-build-prompt
+             (prompt (beads-agent-type-build-user-prompt
                       type (beads-agent-types-test--make-sample-issue))))
         (should (stringp prompt))
         ;; Check for default prompt content
@@ -213,7 +213,7 @@
       (let ((beads-agent-qa-prompt
              "Custom QA instructions for <ISSUE-ID>: <ISSUE-TITLE>")
             (type (beads-agent-type-get "qa")))
-        (let ((prompt (beads-agent-type-build-prompt
+        (let ((prompt (beads-agent-type-build-user-prompt
                        type (beads-agent-types-test--make-sample-issue))))
           (should (string-match "Custom QA instructions" prompt))
           (should (string-match "test-123" prompt))
@@ -235,7 +235,7 @@
 (ert-deftest beads-agent-types-test-custom-returns-issue-prompt ()
   "Test Custom agent returns issue-based prompt without minibuffer input.
 The user authors their custom instructions in the prompt-edit buffer
-that is shown after `beads-agent-type-build-prompt' returns, so this
+that is shown after `beads-agent-type-build-user-prompt' returns, so this
 method must never prompt via `read-string'."
   (beads-agent-types-test--setup)
   (unwind-protect
@@ -243,7 +243,7 @@ method must never prompt via `read-string'."
                  (lambda (&rest _args)
                    (error "Custom type must not call read-string"))))
         (let* ((type (beads-agent-type-get "custom"))
-               (prompt (beads-agent-type-build-prompt
+               (prompt (beads-agent-type-build-user-prompt
                         type (beads-agent-types-test--make-sample-issue))))
           (should (stringp prompt))
           (should (string-match "test-123" prompt))
@@ -274,7 +274,7 @@ method must never prompt via `read-string'."
   (unwind-protect
       (dolist (type-name '("task" "review" "qa"))
         (let* ((type (beads-agent-type-get type-name))
-               (prompt (beads-agent-type-build-prompt
+               (prompt (beads-agent-type-build-user-prompt
                         type (beads-agent-types-test--make-sample-issue))))
           (should (string-match "Test Issue Title" prompt))))
     (beads-agent-types-test--teardown)))
@@ -287,7 +287,7 @@ method must never prompt via `read-string'."
       (let ((beads-agent-review-prompt
              "Review <ISSUE-ID>: <ISSUE-TITLE>\n\nDescription: <ISSUE-DESCRIPTION>")
             (type (beads-agent-type-get "review")))
-        (let ((prompt (beads-agent-type-build-prompt
+        (let ((prompt (beads-agent-type-build-user-prompt
                        type (beads-agent-types-test--make-sample-issue))))
           (should (string-match "Test issue description" prompt))))
     (beads-agent-types-test--teardown)))
@@ -299,7 +299,7 @@ method must never prompt via `read-string'."
       (let ((issue (beads-issue :id "test-456" :title "No Description")))
         (dolist (type-name '("task" "review" "qa"))
           (let* ((type (beads-agent-type-get type-name))
-                 (prompt (beads-agent-type-build-prompt type issue)))
+                 (prompt (beads-agent-type-build-user-prompt type issue)))
             (should (stringp prompt))
             (should (string-match "test-456" prompt)))))
     (beads-agent-types-test--teardown)))

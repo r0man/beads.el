@@ -114,7 +114,7 @@
         "test-123"
         "Test prompt"
         "Task"
-        (lambda (prompt) (setq callback-called prompt)))
+        (lambda (_sys prompt) (setq callback-called prompt)))
        (setq buf-name (buffer-name))
        ;; Clean up
        (beads-agent-prompt-edit-cancel))
@@ -129,7 +129,7 @@
         "test-123"
         "Test prompt content"
         "Task"
-        (lambda (_prompt) nil))
+        (lambda (_sys _user) nil))
        (setq content (buffer-substring-no-properties (point-min) (point-max)))
        (beads-agent-prompt-edit-cancel))
      (should (equal content "Test prompt content")))))
@@ -144,7 +144,7 @@
         "test-123"
         "Test prompt"
         "Review"
-        (lambda (_prompt) nil))
+        (lambda (_sys _user) nil))
        (setq issue-id beads-agent-prompt-edit--issue-id)
        (setq agent-type beads-agent-prompt-edit--agent-type)
        (beads-agent-prompt-edit-cancel))
@@ -166,7 +166,7 @@
         "test-123"
         "Original prompt"
         "Task"
-        (lambda (prompt) (setq received-prompt prompt)))
+        (lambda (_sys prompt) (setq received-prompt prompt)))
        ;; Modify the prompt
        (erase-buffer)
        (insert "Modified prompt")
@@ -183,7 +183,7 @@
         "test-123"
         "Test prompt"
         "Task"
-        (lambda (_prompt) nil))
+        (lambda (_sys _user) nil))
        (setq buf (current-buffer))
        (beads-agent-prompt-edit-confirm))
      (should-not (buffer-live-p buf)))))
@@ -201,7 +201,7 @@ Regression test for bde-d3eg."
         "test-123"
         "Test prompt"
         "Task"
-        (lambda (_prompt)
+        (lambda (_sys _user)
           (setq callback-buf (current-buffer))))
        (setq buf (current-buffer))
        (beads-agent-prompt-edit-confirm))
@@ -225,7 +225,7 @@ Regression test for bde-d3eg."
         "test-123"
         "Test prompt"
         "Task"
-        (lambda (prompt) (setq received-prompt prompt)))
+        (lambda (_sys prompt) (setq received-prompt prompt)))
        (beads-agent-prompt-edit-cancel))
      (should (null received-prompt)))))
 
@@ -238,7 +238,7 @@ Regression test for bde-d3eg."
         "test-123"
         "Test prompt"
         "Task"
-        (lambda (_prompt) nil))
+        (lambda (_sys _user) nil))
        (setq buf (current-buffer))
        (beads-agent-prompt-edit-cancel))
      (should-not (buffer-live-p buf)))))
@@ -288,7 +288,7 @@ Regression test for bde-d3eg."
         "test-123"
         ""
         "Task"
-        (lambda (prompt) (setq received-prompt prompt)))
+        (lambda (_sys prompt) (setq received-prompt prompt)))
        (beads-agent-prompt-edit-confirm))
      (should (equal received-prompt "")))))
 
@@ -302,7 +302,7 @@ Regression test for bde-d3eg."
         "test-123"
         multiline
         "Task"
-        (lambda (prompt) (setq received-prompt prompt)))
+        (lambda (_sys prompt) (setq received-prompt prompt)))
        (beads-agent-prompt-edit-confirm))
      (should (equal received-prompt multiline)))))
 

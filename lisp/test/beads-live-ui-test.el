@@ -686,7 +686,8 @@ so that `beads-agent-start' gets a valid project root."
                  ;; buffer; this preserves the pre-toggle-removal behavior.
                  ((symbol-function 'beads-agent-prompt-edit-show)
                   (lambda (_issue-id prompt _agent-type-name callback)
-                    (funcall callback prompt))))
+                    ;; New 2-arg contract: (SYSTEM USER); system nil here.
+                    (funcall callback nil prompt))))
          (unwind-protect
              (progn ,@body)
            (beads-live-test--cleanup-agent-sessions)

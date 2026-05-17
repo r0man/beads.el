@@ -78,9 +78,12 @@ Verifies efrit-do package is loadable and key functions exist."
       (require 'efrit nil t)))
 
 (cl-defmethod beads-agent-backend-start
-    ((_backend beads-agent-backend-efrit) _issue prompt)
-  "Start efrit session with PROMPT.
+    ((_backend beads-agent-backend-efrit) _issue system-prompt user-prompt)
+  "Start efrit session with SYSTEM-PROMPT and USER-PROMPT.
 ISSUE is ignored as efrit works per-project.
+SYSTEM-PROMPT and USER-PROMPT are combined via
+`beads-agent-backend--combine-prompt' (this backend is deleted in
+Phase 2; migrated here only to keep the legacy suite green).
 The working directory is determined by the caller (may be a worktree).
 Returns cons cell (BACKEND-SESSION . BUFFER)."
   ;; Pre-flight checks
@@ -91,7 +94,9 @@ Returns cons cell (BACKEND-SESSION . BUFFER)."
   (require 'efrit-progress)
   ;; Start efrit-do with the prompt
   (condition-case err
-      (let* ((efrit-session (efrit-do prompt))
+      (let* ((prompt (beads-agent-backend--combine-prompt
+                      system-prompt user-prompt))
+             (efrit-session (efrit-do prompt))
              (buffer (when efrit-session
                        (efrit-progress-get-buffer (efrit-session-id efrit-session)))))
         ;; Return (efrit-session . buffer)

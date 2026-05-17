@@ -454,17 +454,22 @@ AGENT-TYPE is an optional `beads-agent-type' instance."
                (cond
                 ;; Agent type builds its own prompt
                 (agent-type
-                 (beads-agent-type-build-prompt agent-type issue))
+                 (beads-agent-type-build-user-prompt agent-type issue))
                 ;; Explicit prompt provided
                 (prompt prompt)
                 ;; Default: build from issue
                 (t (beads-agent--build-prompt issue))))
               (type-name (and agent-type (oref agent-type name))))
-         ;; Step 2: Show prompt editing buffer for user review
+         ;; Step 2: Show prompt editing buffer for user review.
+         ;; Callback contract (Phase 1a-i): (SYS USER); the (nil nil)
+         ;; pair is the cancel sentinel.  In 1a-i the buffer is still
+         ;; single-region so SYS is always nil and USER carries the
+         ;; edited text; the system prompt is threaded separately from
+         ;; the agent type at the backend-start call site.
          (beads-agent-prompt-edit-show
           issue-id effective-prompt type-name
-          (lambda (final-prompt)
-            (if (null final-prompt)
+          (lambda (sys final-prompt)
+            (if (and (null sys) (null final-prompt))
                 (message "Agent start cancelled")
               ;; Step 3: Setup worktree if needed (async)
               (if (beads-agent--should-use-worktree-p issue-id)
@@ -555,8 +560,16 @@ are passed through from `beads-agent--continue-start'."
                    display-buffer-use-some-window
                    display-buffer-pop-up-window)
                   (inhibit-same-window . t)))
-               ;; backend-start returns (backend-session . buffer)
-               (start-result (beads-agent-backend-start backend issue prompt))
+               ;; backend-start returns (backend-session . buffer).
+               ;; System prompt comes from the agent type (nil for all
+               ;; types in Phase 1a-i; builder types / nil type stay
+               ;; nil); PROMPT is the user prompt threaded from the
+               ;; prompt-edit callback.
+               (system-prompt (and agent-type
+                                   (beads-agent-type-system-prompt
+                                    agent-type issue)))
+               (start-result (beads-agent-backend-start
+                              backend issue system-prompt prompt))
                (backend-session (car start-result))
                (buffer (cdr start-result))
                (issue-title (when issue (oref issue title)))
@@ -1068,12 +1081,16 @@ AGENT-TYPE-NAME is optional agent type name (defaults to \"Task\")."
        (if (null issue)
            (message "Cannot start agent: failed to fetch issue %s" issue-id)
          (let* ((default-directory project-dir)
-                (prompt (beads-agent-type-build-prompt agent-type issue)))
-           ;; Let the user review/edit the prompt before launch
+                (prompt (beads-agent-type-build-user-prompt agent-type issue)))
+           ;; Let the user review/edit the prompt before launch.
+           ;; Callback contract (Phase 1a-i): (SYS USER); (nil nil) is
+           ;; the cancel sentinel.  Single-region buffer in 1a-i so SYS
+           ;; is always nil; the system prompt is threaded from the
+           ;; agent type at the backend-start call site.
            (beads-agent-prompt-edit-show
             issue-id prompt effective-type-name
-            (lambda (final-prompt)
-              (if (null final-prompt)
+            (lambda (sys final-prompt)
+              (if (and (null sys) (null final-prompt))
                   (message "Agent start cancelled")
                 ;; Continue with the standard flow but skip worktree creation
                 (beads-agent--continue-start
@@ -1092,8 +1109,9 @@ PROJECT-DIR is the main project directory."
             (inhibit-same-window . t)))
          ;; Build a generic project prompt
          (prompt "Please help with development tasks in this project.")
-         ;; Start backend without issue context
-         (start-result (beads-agent-backend-start backend nil prompt))
+         ;; Start backend without issue context (no agent type here,
+         ;; so no system prompt).
+         (start-result (beads-agent-backend-start backend nil nil prompt))
          (backend-session (car start-result))
          (buffer (cdr start-result))
          ;; Generate a project-based session ID

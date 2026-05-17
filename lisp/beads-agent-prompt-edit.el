@@ -65,8 +65,11 @@ Press \\[beads-agent-prompt-edit-cancel] to cancel without launching."
   "Show prompt editing buffer for ISSUE-ID.
 PROMPT is the initial prompt text to edit.
 AGENT-TYPE-NAME is the name of the agent type (for display).
-CALLBACK is called with the final prompt text when confirmed,
-or called with nil when cancelled."
+CALLBACK is called as (SYSTEM USER): on confirm with SYSTEM nil and
+USER the edited text (the buffer is single-region in Phase 1a-i;
+the two-region UI lands in 1a-ii); on cancel with both nil.  The
+\(nil nil) pair is the cancel sentinel the orchestrator checks; a
+real user prompt with no system override is (nil \"the text\")."
   (let* ((buf-name (beads-agent-prompt-edit--buffer-name issue-id))
          (buf (get-buffer-create buf-name)))
     (with-current-buffer buf
@@ -94,7 +97,10 @@ or called with nil when cancelled."
     ;; unwind-protect) the async result is silently dropped.  See bde-d3eg.
     (beads-agent-prompt-edit--cleanup)
     (when callback
-      (funcall callback prompt))))
+      ;; Phase 1a-i: single-region buffer, so SYSTEM is nil and the
+      ;; whole buffer is the USER prompt.  (nil nil) stays reserved
+      ;; as the cancel sentinel (see `beads-agent-prompt-edit-cancel').
+      (funcall callback nil prompt))))
 
 (defun beads-agent-prompt-edit-cancel ()
   "Cancel prompt editing without launching agent."
@@ -102,7 +108,8 @@ or called with nil when cancelled."
   (let ((callback beads-agent-prompt-edit--callback))
     (beads-agent-prompt-edit--cleanup)
     (when callback
-      (funcall callback nil))
+      ;; Cancel sentinel: (nil nil) — both system and user nil.
+      (funcall callback nil nil))
     (message "Agent launch cancelled")))
 
 (defun beads-agent-prompt-edit--cleanup ()
