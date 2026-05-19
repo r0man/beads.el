@@ -59,17 +59,20 @@ Reentrancy must hold for hermeticity under `ert-randomize-tests'."
 ;;; Priorities
 
 (ert-deftest beads-terminal-test-distinct-priorities ()
-  "Built-in concretes have the distinct priorities 10/15/20/40/50.
-`auto' is priority 0 and sorts first."
+  "Built-in concretes have the distinct priorities 5/10/20/40/50.
+`auto' is priority 0 and sorts first; ghostel (5) is preferred over
+vterm (10) so `auto' picks ghostel -> vterm -> eat -> ... ."
   (beads-test-with-temp-registry
     (beads-terminal-register-builtin)
     (let ((by-name (lambda (n) (oref (beads-terminal-get n) priority))))
       (should (= 0  (funcall by-name "auto")))
+      (should (= 5  (funcall by-name "ghostel")))
       (should (= 10 (funcall by-name "vterm")))
-      (should (= 15 (funcall by-name "ghostel")))
       (should (= 20 (funcall by-name "eat")))
       (should (= 40 (funcall by-name "ansi-term")))
       (should (= 50 (funcall by-name "term")))
+      ;; ghostel outranks vterm (the `auto' preference order).
+      (should (< (funcall by-name "ghostel") (funcall by-name "vterm")))
       ;; List is priority-sorted ascending.
       (let ((prios (mapcar (lambda (x) (oref x priority))
                            (beads-terminal-list))))

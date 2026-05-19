@@ -49,6 +49,7 @@
 (declare-function vterm "vterm" (&optional buffer-name))
 (declare-function eat-mode "eat" ())
 (declare-function eat-exec "eat" (buffer name command startfile switches))
+(declare-function ghostel-exec "ghostel" (buffer program &optional args))
 
 ;;; Customization
 
@@ -182,11 +183,13 @@ its own buffer (do NOT `get-buffer-create' first)."
       (setq-local vterm-kill-buffer-on-exit nil))
     buf))
 
-;;; Concrete: ghostel (priority 15) — strict availability
+;;; Concrete: ghostel (priority 5) — strict availability
 
+;; Priority 5 (below vterm's 10) makes ghostel the first choice for
+;; the `auto' terminal: ghostel -> vterm -> eat -> ansi-term -> term.
 (defclass beads-terminal-ghostel (beads-terminal)
   ((name :initform "ghostel")
-   (priority :initform 15))
+   (priority :initform 5))
   :documentation "ghostel (libghostty-vt) terminal.
 Availability is strict: the elisp can be present while the native
 module is absent, so `beads-terminal-available-p' requires every
@@ -196,12 +199,12 @@ needed symbol to be bound, not merely `featurep'.")
   "Return non-nil only when ghostel is genuinely usable.
 Requires the feature AND every symbol the spawn path touches to be
 bound (the native module is loaded at runtime via
-`ghostel-download-module', so the elisp alone is not enough)."
+`ghostel-download-module', so the elisp alone is not enough).
+The spawn path uses `ghostel-exec' (ghostel's public exec API) and
+overrides `ghostel-kill-buffer-on-exit' buffer-locally."
   (and (featurep 'ghostel)
-       (boundp 'ghostel-buffer-name)
-       (boundp 'ghostel-shell)
        (boundp 'ghostel-kill-buffer-on-exit)
-       (fboundp 'ghostel)))
+       (fboundp 'ghostel-exec)))
 
 (cl-defmethod beads-terminal-available-p ((_t beads-terminal-ghostel))
   "Return non-nil only when ghostel is fully functional."
@@ -209,19 +212,36 @@ bound (the native module is loaded at runtime via
 
 (cl-defmethod beads-terminal-spawn ((_t beads-terminal-ghostel)
                                     buffer-name argv working-dir env)
-  "Spawn ARGV via ghostel into BUFFER-NAME (same shape as vterm).
-Signals an actionable `user-error' when the native module is
-missing, mirroring `--run-vterm''s missing-package error."
+  "Spawn ARGV via ghostel into BUFFER-NAME (mirrors `--run-eat').
+Uses `ghostel-exec' — ghostel's public exec API — exactly as the
+eat/term backends use `eat-exec'/`term-exec': PROGRAM is the argv
+head, ARGS its tail.  `ghostel-shell' must NOT be used here: it is
+a single interactive-shell PROGRAM path, so feeding it a joined
+command line makes ghostel exec a program literally named
+\"claude --append-system-prompt ...\", which fails instantly.
+Name ownership is via the pre-named `get-buffer-create' buffer
+passed to `ghostel-exec'.  Signals an actionable `user-error' when
+the native module is missing, mirroring `--run-vterm''s error."
   (unless (beads-terminal--ghostel-functional-p)
     (user-error
      "Ghostel native module not loaded.  Run: M-x ghostel-download-module"))
   (let* ((default-directory working-dir)
          (process-environment (beads-terminal--apply-env env))
-         (ghostel-shell (mapconcat #'shell-quote-argument argv " "))
-         (ghostel-buffer-name buffer-name)
-         (buf (funcall (symbol-function 'ghostel) buffer-name)))
-    ;; ghostel defaults `ghostel-kill-buffer-on-exit' to t — override
-    ;; it buffer-locally so a long-lived agent buffer survives exit.
+         (buf (get-buffer-create buffer-name)))
+    ;; ghostel defaults `ghostel-kill-buffer-on-exit' to t and
+    ;; `ghostel--sentinel' kills the buffer on process exit (it reads
+    ;; the value buffer-locally via `with-current-buffer').  Keep a
+    ;; long-lived agent buffer alive race-free with two layers:
+    ;;  1. Dynamically bind the GLOBAL to nil across `ghostel-exec' so
+    ;;     a process that exits during spawn — before any buffer-local
+    ;;     can exist — has the sentinel fall back to this nil.
+    ;;  2. `ghostel-exec' switches major mode, and `ghostel-mode'
+    ;;     (a `define-derived-mode') runs `kill-all-local-variables',
+    ;;     which would wipe a buffer-local set beforehand.  So set the
+    ;;     buffer-local AFTER it returns; this persists for the buffer's
+    ;;     life and covers the normal async exit.
+    (let ((ghostel-kill-buffer-on-exit nil))
+      (ghostel-exec buf (car argv) (cdr argv)))
     (with-current-buffer buf
       (setq-local ghostel-kill-buffer-on-exit nil))
     buf))
