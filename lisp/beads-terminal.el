@@ -130,8 +130,10 @@ Returns the live spawn buffer.  The buffer name is owned from spawn
   "Send TEXT to the process in TERMINAL's BUFFER.
 Deferred in this release; the default signals an error.  The real
 future seam is `vterm-send-string' / `term-send-string' / etc."
-  (ignore terminal buffer text)
-  (error "Stdin delivery not implemented in this release"))
+  (ignore terminal text)
+  (error "Stdin delivery not implemented in this release (terminal %s, buffer %s)"
+         (ignore-errors (oref terminal name))
+         (if (bufferp buffer) (buffer-name buffer) buffer)))
 
 ;;; Helpers
 

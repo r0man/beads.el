@@ -268,9 +268,15 @@ is carried via the env alist (the historical one-shot behaviour;
 intentionally NOT carried for the agent backend)."
   (if (eq beads-terminal-backend 'compile)
       (beads-command--run-compile cmd-string buffer-name default-dir)
-    (let* ((class (condition-case nil
+    (let* ((class (condition-case err
                       (beads-terminal--symbol->class beads-terminal-backend)
-                    (error 'beads-terminal-auto)))
+                    (error
+                     (lwarn 'beads :warning
+                            "Unrecognised `beads-terminal-backend' %S (%s); \
+falling back to auto"
+                            beads-terminal-backend
+                            (error-message-string err))
+                     'beads-terminal-auto)))
            (terminal (make-instance class))
            (argv (list shell-file-name "-c"
                        (concat "cd " (shell-quote-argument default-dir)

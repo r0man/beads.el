@@ -250,3 +250,26 @@ dedicated seam for any wrapper is deferred until its upstream source
 can be verified. Only the terminal `beads-agent-backend-claude`
 delivers the system prompt through a dedicated channel
 (`--append-system-prompt`).
+
+### New: `pi` terminal backend; ghostel `ghostel-exec` fix
+
+`beads-agent-backend-pi` (the `pi` CLI spawned directly into a
+terminal) is now **registered and selectable**, configuration-identical
+to `beads-agent-backend-claude` (`--append-system-prompt` + positional
+message). Like `claude` it is **opt-in** — the per-type backend
+defcustoms are **not** flipped.
+
+`beads-terminal-ghostel` now spawns through ghostel's public
+`ghostel-exec` (PROGRAM + ARGS) instead of the single-shell
+`ghostel-shell` defcustom, fixing a bug where ghostel tried to exec a
+program literally named `"claude --append-system-prompt …"`. Its
+priority dropped 15 → 5 so `auto` prefers ghostel → vterm → eat →
+ansi-term → term.
+
+> vterm trade-off: vterm has no argv-direct entry point, so
+> `beads-terminal-vterm` joins the argv through
+> `shell-quote-argument` and feeds it to `/bin/sh -c`. This is safe
+> for shell metacharacters (including single quotes in a system
+> prompt, which become correct POSIX `'…'"'"'…'` quoting), but the
+> quoted form may display surprisingly inside the vterm buffer. Use
+> ghostel/eat/term for argv-direct spawning if that matters.

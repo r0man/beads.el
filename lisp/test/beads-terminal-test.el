@@ -132,6 +132,21 @@ EIEIO drops custom slot props per CLAUDE.md)."
        (beads-terminal-spawn (beads-terminal-auto) "*x*" '("cat") "/tmp" nil)
        :type 'error))))
 
+(ert-deftest beads-terminal-test-auto-only-registered-no-recurse ()
+  "`auto' does not recurse when it is the ONLY registered terminal.
+Unlike `...-auto-all-unavailable-errors' this stubs nothing: it
+exercises the real `beads-terminal--first-available' self-skip
+(the `cl-typep ... beads-terminal-auto' guard) so a future
+regression that drops the guard would infinite-loop or pick auto."
+  (beads-test-with-temp-registry
+    (beads-terminal-register (beads-terminal-auto))
+    ;; Real first-available must skip auto itself and find nothing.
+    (should-not (beads-terminal--first-available))
+    (should-not (beads-terminal-available-p (beads-terminal-auto)))
+    (should-error
+     (beads-terminal-spawn (beads-terminal-auto) "*x*" '("cat") "/tmp" nil)
+     :type 'error)))
+
 (ert-deftest beads-terminal-test-auto-skips-unavailable-picks-lower ()
   "`auto' skips a registered-but-unavailable class for a lower one.
 vterm (10) is stubbed unavailable; the fake (99) is available, so

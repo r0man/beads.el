@@ -249,10 +249,10 @@ intentionally unset — pi has no named-agent flag.
 
 EXPECTED INTERFACE: a `pi' on PATH whose CLI accepts
 `--append-system-prompt STRING' followed by a positional message
-argument (verified live against pi as of 2026-05).  If the local
-`pi' predates that interface the spawn will fail at the terminal
-with pi's own argument error — there is no runtime capability
-probe.")
+argument.  This was the `pi' CLI contract known at the time of
+writing; if the local `pi' predates (or has since changed) that
+interface the spawn will fail at the terminal with pi's own
+argument error — there is no runtime capability probe.")
 
 ;;; Registration
 
