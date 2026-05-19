@@ -21,9 +21,10 @@
 ;; This is the gate that prevents a `no-applicable-method' the first
 ;; time the orchestrator queries availability.
 ;;
-;; `beads-agent-backend-claude' is the single concrete in this phase:
-;; the `claude' CLI in a terminal.  It ships opt-in — it is NOT
-;; registered as any per-type default here (that flip is deferred).
+;; `beads-agent-backend-claude' and `beads-agent-backend-pi' are the
+;; concrete terminal backends: the `claude' / `pi' CLIs in a terminal.
+;; They ship opt-in — NOT registered as any per-type default here
+;; (that flip is deferred).
 
 ;;; Code:
 
@@ -232,14 +233,29 @@ Collision-free by construction; ships opt-in (NOT a per-type
 default in this release).  `agent-flag' is intentionally unset —
 claude has no named-agent flag.")
 
+;;; Concrete: pi CLI in a terminal (opt-in)
+
+(defclass beads-agent-backend-pi (beads-agent-backend-terminal)
+  ((name :initform "pi")
+   (priority :initform 30)
+   (description :initform "pi CLI spawned directly into a terminal")
+   (command :initform "pi")
+   (user-prompt-position :initform 'positional))
+  :documentation "The `pi' AI coding assistant CLI spawned into a terminal.
+Configuration-identical to `beads-agent-backend-claude': pi accepts
+`--append-system-prompt' and positional message arguments.  Collision-free
+by construction; ships opt-in (NOT a per-type default).  `agent-flag' is
+intentionally unset — pi has no named-agent flag.")
+
 ;;; Registration
 
-;; Register the terminal-spawned claude backend so it is selectable.
-;; This is OPT-IN: the per-type backend defcustoms
+;; Register the terminal-spawned claude and pi backends so they are
+;; selectable.  This is OPT-IN: the per-type backend defcustoms
 ;; (`beads-agent-{task,review,plan,qa}-backend') are NOT flipped, so a
 ;; user who never customised their backend gets exactly the prior
-;; behaviour.  Registration only makes "claude" available to choose.
+;; behaviour.  Registration only makes "claude"/"pi" available to choose.
 (beads-agent--register-backend (beads-agent-backend-claude))
+(beads-agent--register-backend (beads-agent-backend-pi))
 
 (provide 'beads-agent-backend-terminal)
 ;;; beads-agent-backend-terminal.el ends here

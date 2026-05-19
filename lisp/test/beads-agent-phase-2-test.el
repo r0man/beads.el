@@ -42,6 +42,20 @@
   (should (null beads-agent-plan-backend))
   (should (null beads-agent-qa-backend)))
 
+(ert-deftest beads-agent-phase-2-test-pi-registered ()
+  "`beads-agent-backend-pi' is registered and retrievable."
+  (let ((b (beads-agent--get-backend "pi")))
+    (should b)
+    (should (object-of-class-p b 'beads-agent-backend-pi))))
+
+(ert-deftest beads-agent-phase-2-test-pi-argv ()
+  "The pi backend builds claude-identical argv shape with its command."
+  (let ((b (beads-agent-backend-pi)))
+    (should (equal (beads-agent-backend-terminal-build-argv b nil "u" nil)
+                   '("pi" "u")))
+    (should (equal (beads-agent-backend-terminal-build-argv b "S" "u" nil)
+                   '("pi" "--append-system-prompt" "S" "u")))))
+
 ;;; efrit fully removed
 
 (ert-deftest beads-agent-phase-2-test-efrit-class-absent ()
