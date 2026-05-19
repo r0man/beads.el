@@ -219,6 +219,10 @@ fixtures dropped). No deprecation alias.
 
 `beads-reader-terminal` was added (completes over registered
 terminals, returns the class symbol for `beads-agent-default-terminal`).
+It resolves the class from the registered terminal *instance* rather
+than reconstructing `beads-terminal-<name>`, so a third-party terminal
+whose registered name differs from its class symbol resolves
+correctly.
 
 #### Two terminal knobs coexist (time-boxed)
 

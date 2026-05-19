@@ -215,6 +215,52 @@ module / symbols are absent."
      (beads-terminal-spawn g "*x*" '("cat") "/tmp" nil)
      :type 'error)))
 
+;; `ghostel-kill-buffer-on-exit' is normally defined by the ghostel
+;; package.  Declare it special here so the spawn path's dynamic
+;; `let' binding is observable by the stubbed `ghostel-exec' even
+;; when ghostel itself is not loaded in the test environment.
+(defvar ghostel-kill-buffer-on-exit)
+
+(ert-deftest beads-terminal-test-ghostel-spawn-uses-ghostel-exec ()
+  "ghostel spawn drives `ghostel-exec' with PROGRAM + ARGS, not a
+joined shell line, and protects the buffer from the exit-kill race.
+This is the dedicated unit for the primary fix in this subsystem
+(bde-tndv): it stubs functionality + `ghostel-exec' so no native
+module is required."
+  (let ((recorded nil)
+        (kill-during nil)
+        (g (beads-terminal-ghostel)))
+    (cl-letf (((symbol-function 'beads-terminal--ghostel-functional-p)
+               (lambda () t))
+              ((symbol-function 'ghostel-exec)
+               (lambda (buf program args)
+                 ;; Layer 1: the GLOBAL must be nil across exec so a
+                 ;; process exiting mid-spawn has the sentinel fall
+                 ;; back to nil (buffer survives).
+                 (setq kill-during ghostel-kill-buffer-on-exit)
+                 (setq recorded (list buf program args))
+                 buf)))
+      (let ((buf (beads-terminal-spawn
+                  g "*bd-ghostel-x*"
+                  '("claude" "--append-system-prompt" "sys `$(x)`" "msg")
+                  "/tmp" nil)))
+        (unwind-protect
+            (progn
+              ;; argv head is PROGRAM; tail is ARGS — never joined.
+              (should (equal (nth 1 recorded) "claude"))
+              (should (equal (nth 2 recorded)
+                             '("--append-system-prompt" "sys `$(x)`" "msg")))
+              ;; Exec received the pre-named buffer (name ownership).
+              (should (eq (nth 0 recorded) buf))
+              (should (equal (buffer-name buf) "*bd-ghostel-x*"))
+              ;; Layer 1: global nil during exec.
+              (should (null kill-during))
+              ;; Layer 2: buffer-local nil persists after exec.
+              (should (local-variable-p 'ghostel-kill-buffer-on-exit buf))
+              (should (null (buffer-local-value
+                             'ghostel-kill-buffer-on-exit buf))))
+          (when (buffer-live-p buf) (kill-buffer buf)))))))
+
 (ert-deftest beads-terminal-test-apply-env-drops-term ()
   "`beads-terminal--apply-env' adds entries but never sets TERM."
   (let ((env '(("FOO" . "bar") ("TERM" . "evil") ("BAZ" . "qux"))))

@@ -521,19 +521,24 @@ execution."
          (names (mapcar (lambda (term) (oref term name)) terminals))
          (current (and (boundp 'beads-agent-default-terminal)
                        beads-agent-default-terminal))
+         ;; Map class<->name through the registered INSTANCES, never
+         ;; by reconstructing `beads-terminal-<name>': a third-party
+         ;; terminal may register a name that does not match its class
+         ;; symbol (e.g. name "ghostty" / class `my-ghostty-terminal').
          (default-name
-          (cl-find-if
-           (lambda (n)
-             (eq (intern (concat "beads-terminal-" n)) current))
-           names)))
+          (cl-loop for term in terminals
+                   when (eq (eieio-object-class term) current)
+                   return (oref term name))))
     (unless names
       (user-error "No terminals registered"))
     (let* ((choice (completing-read "Agent terminal: " names nil t
                                     nil nil default-name))
-           (sym (intern (concat "beads-terminal-" choice))))
-      (unless (and (class-p sym) (child-of-class-p sym 'beads-terminal))
+           (term (beads-terminal-get choice)))
+      (unless (and term
+                   (child-of-class-p (eieio-object-class term)
+                                     'beads-terminal))
         (error "Unknown terminal: %s" choice))
-      sym)))
+      (eieio-object-class term))))
 
 (provide 'beads-reader)
 ;;; beads-reader.el ends here

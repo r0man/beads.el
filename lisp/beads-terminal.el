@@ -169,7 +169,18 @@ ENV is an alist of (NAME . VALUE).  A NAME of \"TERM\" is dropped
                                     buffer-name argv working-dir env)
   "Spawn ARGV via vterm into BUFFER-NAME (mirrors `--run-vterm').
 Name ownership is via the dynamic `vterm-buffer-name'; vterm makes
-its own buffer (do NOT `get-buffer-create' first)."
+its own buffer (do NOT `get-buffer-create' first).
+
+KNOWN LIMITATION: vterm has no argv-direct exec entry point — the
+only public knob is `vterm-shell', a command line vterm hands to
+`/bin/sh -c'.  The eat/term/ghostel backends pass PROGRAM + ARGS
+directly and never invoke a shell; vterm cannot.  ARGV is therefore
+joined through `shell-quote-argument', which single-quotes each
+element so shell metacharacters (backticks, $, quotes) in the
+agent's system/user prompt are passed through literally and safely
+under any POSIX `/bin/sh'.  This relies on (a) `/bin/sh' being
+POSIX and (b) `shell-quote-argument' producing sh-safe quoting; it
+is not a free-form argv pass like the other backends."
   (unless (require 'vterm nil t)
     (user-error "Vterm package not installed"))
   (let* ((default-directory working-dir)
@@ -212,10 +223,12 @@ overrides `ghostel-kill-buffer-on-exit' buffer-locally."
 
 (cl-defmethod beads-terminal-spawn ((_t beads-terminal-ghostel)
                                     buffer-name argv working-dir env)
-  "Spawn ARGV via ghostel into BUFFER-NAME (mirrors `--run-eat').
-Uses `ghostel-exec' — ghostel's public exec API — exactly as the
-eat/term backends use `eat-exec'/`term-exec': PROGRAM is the argv
-head, ARGS its tail.  `ghostel-shell' must NOT be used here: it is
+  "Spawn ARGV via ghostel into BUFFER-NAME.
+Uses `ghostel-exec' — ghostel's public exec API — following the
+same PROGRAM + ARGS pattern as the eat/term backends'
+`eat-exec'/`term-exec' (PROGRAM is the argv head, ARGS its tail),
+though the exec function itself is ghostel's, not eat's.
+`ghostel-shell' must NOT be used here: it is
 a single interactive-shell PROGRAM path, so feeding it a joined
 command line makes ghostel exec a program literally named
 \"claude --append-system-prompt ...\", which fails instantly.

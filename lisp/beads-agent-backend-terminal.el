@@ -245,7 +245,14 @@ claude has no named-agent flag.")
 Configuration-identical to `beads-agent-backend-claude': pi accepts
 `--append-system-prompt' and positional message arguments.  Collision-free
 by construction; ships opt-in (NOT a per-type default).  `agent-flag' is
-intentionally unset — pi has no named-agent flag.")
+intentionally unset — pi has no named-agent flag.
+
+EXPECTED INTERFACE: a `pi' on PATH whose CLI accepts
+`--append-system-prompt STRING' followed by a positional message
+argument (verified live against pi as of 2026-05).  If the local
+`pi' predates that interface the spawn will fail at the terminal
+with pi's own argument error — there is no runtime capability
+probe.")
 
 ;;; Registration
 
