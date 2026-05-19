@@ -12,6 +12,15 @@
 (require 'ert)
 (require 'cl-lib)
 (require 'beads-status)
+;; `beads-status' forwards via `(require 'beads-dashboard)' then
+;; `(beads-dashboard)'.  Load `beads-dashboard' HERE so that, in the
+;; forwards-to-dashboard test, the forwarder's internal `require' is a
+;; no-op and the `cl-letf' stub survives.  Without this, suite-order
+;; dependent: when nothing loaded `beads-dashboard' earlier, the
+;; forwarder's `require' loads beads-dashboard.el whose `defun
+;; beads-dashboard' clobbers the stub and the real (bd-shelling) command
+;; runs instead — a non-deterministic failure.
+(require 'beads-dashboard)
 
 (ert-deftest beads-status-test-shim-fboundp ()
   "`beads-status' remains callable as a compat shim."

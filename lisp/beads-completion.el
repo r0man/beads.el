@@ -433,7 +433,7 @@ On fetch failure, returns previous cached data (if any) with a warning."
   (setq beads-completion--worktree-cache nil))
 
 (defun beads-completion--current-worktree (worktrees)
-  "Return the worktree from WORKTREES that contains `default-directory'.
+  "Return the worktree from WORKTREES enclosing `default-directory'.
 Resolves symlinks via `file-truename' and uses longest-prefix matching
 so nested worktrees resolve to the innermost match.  Returns nil when
 no worktree's path encloses `default-directory'."
@@ -521,7 +521,7 @@ If TRANSFORM is non-nil, return CANDIDATE unchanged.
 Otherwise, return the group name.  The candidate marked with the
 `beads-is-current' text property goes into \"Current Worktree\";
 remaining candidates fall through to a beads-state grouping
-(\"Shared\", \"Redirect\", \"Local\", or \"None\")."
+\(\"Shared\", \"Redirect\", \"Local\", or \"None\")."
   (if transform
       candidate
     (cond
