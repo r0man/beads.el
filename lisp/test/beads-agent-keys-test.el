@@ -39,7 +39,9 @@
   (should (eq (lookup-key beads-agent-prefix-map (kbd "j"))
               #'beads-agent-jump-at-point))
   (should (eq (lookup-key beads-agent-prefix-map (kbd "a"))
-              #'beads-agent-start-at-point)))
+              #'beads-agent-start-at-point))
+  (should (eq (lookup-key beads-agent-prefix-map (kbd "l"))
+              #'beads-agent-list)))
 
 ;;; List-mode "a" prefix tests
 
@@ -68,6 +70,11 @@
   (should (eq (lookup-key beads-list-mode-map (kbd "a j"))
               #'beads-agent-jump-at-point)))
 
+(ert-deftest beads-agent-keys-test-list-mode-a-l ()
+  "Test that `a l' in list-mode opens the agent list buffer."
+  (should (eq (lookup-key beads-list-mode-map (kbd "a l"))
+              #'beads-agent-list)))
+
 ;;; Show-mode "a" prefix tests
 
 (ert-deftest beads-agent-keys-test-show-mode-a-prefix ()
@@ -94,6 +101,11 @@
   "Test that `a j' in show-mode jumps to agent."
   (should (eq (lookup-key beads-show-mode-map (kbd "a j"))
               #'beads-agent-jump-at-point)))
+
+(ert-deftest beads-agent-keys-test-show-mode-a-l ()
+  "Test that `a l' in show-mode opens the agent list buffer."
+  (should (eq (lookup-key beads-show-mode-map (kbd "a l"))
+              #'beads-agent-list)))
 
 ;;; Dashboard-mode "a" prefix tests
 
@@ -141,6 +153,11 @@
   "`a j' in dashboard-mode jumps to the agent for the issue at point."
   (should (eq (lookup-key beads-dashboard-mode-map (kbd "a j"))
               #'beads-agent-jump-at-point)))
+
+(ert-deftest beads-agent-keys-test-dashboard-mode-a-l ()
+  "`a l' in dashboard-mode opens the agent list buffer."
+  (should (eq (lookup-key beads-dashboard-mode-map (kbd "a l"))
+              #'beads-agent-list)))
 
 ;;; Old single-letter bindings removed
 

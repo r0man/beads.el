@@ -10,6 +10,10 @@
 ;; This avoids polluting mode-maps with 8 uppercase single-letter
 ;; bindings (T, R, P, Q, C, X, J, A) and frees those keys for
 ;; issue-related commands in later phases of the UX redesign.
+;;
+;; Current inventory under the `a' prefix: t/r/p/q/c (start typed
+;; agents), a (start default agent at point), x (stop), j (jump),
+;; l (open the `*beads-agents*' list buffer).
 
 ;;; Code:
 
@@ -21,6 +25,7 @@
 (autoload 'beads-agent-start-custom "beads-agent" nil t)
 (autoload 'beads-agent-stop-at-point "beads-agent" nil t)
 (autoload 'beads-agent-jump-at-point "beads-agent" nil t)
+(autoload 'beads-agent-list "beads-agent-list" nil t)
 
 (defvar beads-agent-prefix-map
   (let ((map (make-sparse-keymap)))
@@ -32,6 +37,7 @@
     (define-key map (kbd "x") #'beads-agent-stop-at-point)
     (define-key map (kbd "j") #'beads-agent-jump-at-point)
     (define-key map (kbd "a") #'beads-agent-start-at-point)
+    (define-key map (kbd "l") #'beads-agent-list)
     map)
   "Prefix keymap for agent commands.
 Bound to `a' in `beads-list-mode-map' and `beads-show-mode-map'.")
