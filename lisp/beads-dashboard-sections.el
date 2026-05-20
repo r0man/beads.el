@@ -274,22 +274,8 @@ informative counters as a single horizontal line of buttons."
    '(list in_progress)))
 
 (defun beads-dashboard-render-in-flight (issues)
-  "Render the In Flight section from ISSUES, grouped by assignee.
-Honours `beads-dashboard-section-limit' across all assignees."
-  (beads-dashboard--limited-vstack
-   issues nil
-   (lambda (visible)
-     (mapcan
-      (lambda (group)
-        (cons (vui-text (car group) :face 'font-lock-variable-name-face)
-              (mapcar #'beads-section--issue-line-vnode (cdr group))))
-      (seq-group-by
-       (lambda (i)
-         (or (and (slot-exists-p i 'assignee)
-                  (slot-boundp i 'assignee)
-                  (oref i assignee))
-             "unassigned"))
-       visible)))))
+  "Render the In Flight section from ISSUES as a flat issue list."
+  (beads-dashboard--render-issue-list issues))
 
 ;;; Ready
 
