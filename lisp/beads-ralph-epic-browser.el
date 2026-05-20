@@ -124,8 +124,12 @@ re-render."
   (oref (oref epic-status epic) id))
 
 (defun beads-ralph-epic-browser--row-title (epic-status)
-  "Return the epic title from EPIC-STATUS, or the empty string."
-  (or (oref (oref epic-status epic) title) ""))
+  "Return the epic title from EPIC-STATUS, or the empty string.
+Embedded control whitespace (newlines, tabs) is collapsed to a
+single space so a stray newline in the title cannot break the
+row layout."
+  (let ((title (or (oref (oref epic-status epic) title) "")))
+    (replace-regexp-in-string "[\n\t\r]+" " " title)))
 
 (defun beads-ralph-epic-browser--row-priority (epic-status)
   "Return the priority column string (e.g. \"P1\") for EPIC-STATUS."

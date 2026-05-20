@@ -99,6 +99,40 @@ The buffer is created, the mode is enabled, but no fetch occurs."
              :closed 4 :total 9)))
     (should (string= "4/9" (beads-ralph-epic-browser--row-progress es)))))
 
+(ert-deftest beads-ralph-epic-browser-test-row-progress-zero-of-zero ()
+  "An epic with no children renders 0/0 without dividing by zero."
+  (let ((es (beads-ralph-epic-browser-test--make-epic-status
+             :closed 0 :total 0)))
+    (should (string= "0/0" (beads-ralph-epic-browser--row-progress es)))))
+
+(ert-deftest beads-ralph-epic-browser-test-row-priority-nil ()
+  "An epic with nil priority renders \"P?\" rather than crashing."
+  (let ((es (beads-ralph-epic-browser-test--make-epic-status :priority 1)))
+    ;; Force the slot to nil after construction; the constructor's
+    ;; default would otherwise reject nil.
+    (oset (oref es epic) priority nil)
+    (should (string= "P?" (beads-ralph-epic-browser--row-priority es)))))
+
+(ert-deftest beads-ralph-epic-browser-test-row-title-strips-newlines ()
+  "A title containing newlines or tabs is normalised to single spaces."
+  (let ((es (beads-ralph-epic-browser-test--make-epic-status
+             :title "first line\nsecond\tline")))
+    (should (string= "first line second line"
+                     (beads-ralph-epic-browser--row-title es)))))
+
+(ert-deftest beads-ralph-epic-browser-test-mount-strips-title-newlines ()
+  "A multi-line title does not introduce a literal newline into the row."
+  (beads-ralph-epic-browser-test--with-clean-registry
+    (beads-ralph-epic-browser-test--with-buffer buf
+      (beads-ralph-epic-browser--render
+       buf (list (beads-ralph-epic-browser-test--make-epic-status
+                  :id "bde-nn1"
+                  :title "line one\nline two")))
+      (let ((text (buffer-string)))
+        (should (string-match-p "line one line two" text))
+        ;; The id and title should land on the same row.
+        (should-not (string-match-p "\nline two" text))))))
+
 ;;; Ralph badge driven by the registry
 
 (ert-deftest beads-ralph-epic-browser-test-badge-absent-without-controller ()
