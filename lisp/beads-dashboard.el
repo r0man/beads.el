@@ -520,8 +520,14 @@ found, nil when point did not move."
 Derived from `beads-section-mode' so the existing `beads-section'
 text-property contract is preserved (RET to visit, eldoc, etc.).
 
+Long issue titles are truncated rather than wrapped so each issue
+stays on a single row when the buffer is shown in a narrow window
+(e.g. a side-by-side `C-x 3' split).  Toggle per-buffer with
+\\[toggle-truncate-lines]; eldoc-on-hover still shows full titles.
+
 \\{beads-dashboard-mode-map}"
   :interactive nil
+  (setq-local truncate-lines t)
   (setq-local revert-buffer-function #'beads-dashboard--revert)
   (setq-local mode-line-misc-info nil))
 
