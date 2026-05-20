@@ -500,10 +500,9 @@ found, nil when point did not move."
   "M-2" #'beads-dashboard-depth-2
   "M-3" #'beads-dashboard-depth-3
   "M-4" #'beads-dashboard-depth-4
-  ;; Agent prefix — same `a' family that `beads-list-mode' uses:
-  ;; `a a' start, `a t/r/p/q/c' typed starts, `a x' stop, `a j' jump.
-  ;; All resolve the issue at point through the section text-property
-  ;; contract via `beads-agent--detect-issue-id'.
+  ;; Share the `a' prefix with list/show modes; the issue at point is
+  ;; resolved via the section text-property branch of
+  ;; `beads-agent--detect-issue-id'.
   "a"   beads-agent-prefix-map
   "q"   #'quit-window)
 

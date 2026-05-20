@@ -383,25 +383,16 @@ Looks in this order:
   3. Any buffer honouring the `beads-section' text-property contract
      (dashboard and other `beads-section-mode'-derived views) — the
      id stamped on the line at point via `beads-section-issue-id-at-point';
-  4. The buffer name, parsed as a `*beads-show[PROJECT]/ID*' buffer.
-
-The section-property branch lets `beads-agent-start-at-point' (and the
-typed `beads-agent-start-{task,review,plan,qa,custom}', plus
-`beads-agent-{stop,jump}-at-point') work uniformly from any view that
-renders issues with the section contract — no per-mode plumbing needed."
+  4. The buffer name, parsed as a `*beads-show[PROJECT]/ID*' buffer."
   (or
-   ;; From beads-list buffer
    (when (derived-mode-p 'beads-list-mode)
      (beads-list--current-issue-id))
-   ;; From beads-show buffer
    (when (derived-mode-p 'beads-show-mode)
      beads-show--issue-id)
-   ;; From any buffer using the section text-property contract
-   ;; (dashboard, future section-mode views). `fboundp' guard keeps us
-   ;; safe if `beads-section' has not been loaded yet.
+   ;; `fboundp' guard: `beads-agent' does not require `beads-section',
+   ;; so the section clause is only active when a caller has loaded it.
    (when (fboundp 'beads-section-issue-id-at-point)
      (beads-section-issue-id-at-point))
-   ;; From buffer name (*beads-show[PROJECT]/ISSUE-ID*)
    (when-let ((parsed (beads-buffer-parse-show (buffer-name))))
      (plist-get parsed :issue-id))))
 
