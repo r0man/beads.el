@@ -96,6 +96,22 @@
       (should (eq ctrl (beads-agent-ralph--unregister-controller ctrl)))
       (should (null (beads-agent-ralph-controllers))))))
 
+(ert-deftest beads-agent-ralph-registry-test-unregister-is-eq-not-root-id ()
+  "Unregistering a stale OLD instance must not evict the live NEW one.
+After a relaunch the registry holds the NEW controller for that root.
+A late kill-buffer hook firing on the OLD dashboard buffer (which
+still references the OLD controller) should be a no-op — evicting
+the NEW one would break the live loop the user just launched."
+  (beads-agent-ralph-registry-test--with-clean-registry
+    (let ((old (beads-agent-ralph-registry-test--make-controller "bde-42"))
+          (new (beads-agent-ralph-registry-test--make-controller "bde-42")))
+      (beads-agent-ralph--register-controller old)
+      (beads-agent-ralph--register-controller new)
+      (should (eq new (beads-agent-ralph-controller-for-root "bde-42")))
+      (beads-agent-ralph--unregister-controller old)
+      (should (eq new (beads-agent-ralph-controller-for-root "bde-42")))
+      (should (equal (list new) (beads-agent-ralph-controllers))))))
+
 (ert-deftest beads-agent-ralph-registry-test-controllers-returns-copy ()
   "The public accessor returns a fresh copy; mutating it does not leak."
   (beads-agent-ralph-registry-test--with-clean-registry
