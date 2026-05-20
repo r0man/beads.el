@@ -823,7 +823,13 @@ idempotent on root-id."
 Idempotent on `root-id': re-registering a root-id that already has
 an entry removes the previous entry first, so the registry never
 carries two controllers for one root.  Re-registration moves
-CONTROLLER to the head (most-recently-started)."
+CONTROLLER to the head (most-recently-started).
+
+Note the deliberate asymmetry with
+`beads-agent-ralph--unregister-controller': register matches by
+`equal' on `root-id' (so a relaunch replaces the prior entry),
+unregister matches by `eq' on identity (so a stale kill-buffer
+hook cannot evict the live replacement)."
   (setq beads-agent-ralph--controllers
         (cons controller
               (cl-remove (oref controller root-id)

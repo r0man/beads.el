@@ -113,13 +113,22 @@ the NEW one would break the live loop the user just launched."
       (should (equal (list new) (beads-agent-ralph-controllers))))))
 
 (ert-deftest beads-agent-ralph-registry-test-controllers-returns-copy ()
-  "The public accessor returns a fresh copy; mutating it does not leak."
+  "The public accessor returns a fresh copy; mutating it does not leak.
+Mutating the returned list's *contents* (here: `setcar' to clobber the
+head) must not change the underlying registry — that is the contract
+that lets the cockpit iterate without worrying about disturbing other
+consumers' state.  An earlier draft of this test only rebound the
+local binding (`setq view nil'), which would have passed even if the
+accessor returned the live list verbatim."
   (beads-agent-ralph-registry-test--with-clean-registry
-    (let ((ctrl (beads-agent-ralph-registry-test--make-controller "bde-42")))
-      (beads-agent-ralph--register-controller ctrl)
+    (let ((c-a (beads-agent-ralph-registry-test--make-controller "bde-a"))
+          (c-b (beads-agent-ralph-registry-test--make-controller "bde-b")))
+      (beads-agent-ralph--register-controller c-a)
+      (beads-agent-ralph--register-controller c-b)
       (let ((view (beads-agent-ralph-controllers)))
-        (setq view nil))
-      (should (equal (list ctrl) (beads-agent-ralph-controllers))))))
+        (setcar view 'garbage)
+        (setcdr view nil))
+      (should (equal (list c-b c-a) (beads-agent-ralph-controllers))))))
 
 (ert-deftest beads-agent-ralph-registry-test-lookup-by-root-id ()
   "`beads-agent-ralph-controller-for-root' finds the entry by root-id."
