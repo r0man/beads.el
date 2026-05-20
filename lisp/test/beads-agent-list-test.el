@@ -198,7 +198,7 @@ WORKTREE-DIR is optional worktree directory."
                      (beads-agent-list-test--make-session
                       "sess-1" "beads.el-42" "claude-code-ide")
                      (beads-agent-list-test--make-session
-                      "sess-2" "beads.el-43" "efrit"))))
+                      "sess-2" "beads.el-43" "claude-code"))))
       (cl-letf (((symbol-function 'beads-agent--get-all-sessions)
                  (lambda () sessions))
                 ((symbol-function 'beads-command-execute)

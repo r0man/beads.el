@@ -219,9 +219,13 @@ Verifies the package is loaded and key functions exist."
        (executable-find "claude")))
 
 (cl-defmethod beads-agent-backend-start
-    ((_backend beads-agent-backend-claudemacs) _issue prompt)
-  "Start claudemacs session with PROMPT.
+    ((_backend beads-agent-backend-claudemacs) _issue
+     system-prompt user-prompt)
+  "Start claudemacs session with SYSTEM-PROMPT and USER-PROMPT.
 ISSUE is ignored as claudemacs works per-project/workspace.
+SYSTEM-PROMPT and USER-PROMPT are combined via
+`beads-agent-backend--combine-prompt' (Phase 2 wires the dedicated
+system-prompt seam).
 The working directory is determined by the caller (may be a worktree).
 Returns cons cell (BACKEND-SESSION . BUFFER)."
   ;; Pre-flight checks with helpful error messages
@@ -238,7 +242,9 @@ Returns cons cell (BACKEND-SESSION . BUFFER)."
   ;; Install bell handler advice now that claudemacs is loaded
   (beads-agent-claudemacs--install-bell-handler-advice)
   ;; default-directory is set by beads-agent-start (may be worktree)
-  (let* ((working-dir default-directory)
+  (let* ((prompt (beads-agent-backend--combine-prompt
+                  system-prompt user-prompt))
+         (working-dir default-directory)
          buffer)
     ;; Start claudemacs session in the working directory
     ;; Pass prompt as CLI argument via the &rest args parameter.

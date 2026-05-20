@@ -25,9 +25,12 @@
 ;;; Code:
 
 (require 'ert)
+(require 'cl-lib)
 (require 'beads)
 (require 'beads-reader)
 (require 'beads-agent-backend)
+(require 'beads-terminal)
+(require 'beads-test-helpers)
 
 ;;; Test Fixtures
 
@@ -1228,6 +1231,29 @@ In Emacs Lisp, 0 is truthy, so (when 0 ...) should fire."
              (lambda (&rest _args) "10")))
     (let ((result (beads-reader-list-limit nil nil nil)))
       (should (equal result "10")))))
+
+;;; beads-reader-terminal
+
+;; Third-party terminal whose registered `name' deliberately does NOT
+;; match its class symbol (class is NOT `beads-terminal-ghostty').
+;; The old `(intern (concat "beads-terminal-" name))' path produced
+;; the wrong symbol here; the registry-instance lookup must not.
+(defclass beads-reader-test--ghostty (beads-terminal)
+  ((name :initform "ghostty")
+   (priority :initform 7))
+  :documentation "Test double: name/class symbol intentionally mismatched.")
+
+(ert-deftest beads-reader-test-terminal-name-class-mismatch ()
+  "`beads-reader-terminal' resolves via the registry instance, so a
+third-party terminal whose name differs from its class symbol maps
+to the correct class (regression for PR #59 fragile-intern note)."
+  (beads-test-with-temp-registry
+    (beads-terminal-register (beads-reader-test--ghostty))
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (&rest _) "ghostty")))
+      (let ((sym (beads-reader-terminal "p" nil nil)))
+        (should (eq sym 'beads-reader-test--ghostty))
+        (should (child-of-class-p sym 'beads-terminal))))))
 
 (provide 'beads-reader-test)
 ;;; beads-reader-test.el ends here

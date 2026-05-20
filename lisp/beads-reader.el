@@ -26,6 +26,8 @@
 
 ;;; Code:
 
+(require 'cl-lib)
+(require 'eieio)
 (require 'beads)
 (require 'beads-completion)
 (require 'beads-state)
@@ -506,6 +508,37 @@ are available."
          (member (if (consp cand) (car cand) cand)
                  available-names))
        t nil nil default)))))
+
+(defun beads-reader-terminal (_prompt _initial-input _history)
+  "Read a `beads-terminal' subclass for agent spawning.
+Completes over the registered terminal names and returns the
+matching class symbol, suitable for `beads-agent-default-terminal'.
+This is the class-valued agent-spawn knob, distinct from the
+symbol-valued `beads-terminal-backend' that governs one-shot `bd'
+execution."
+  (require 'beads-terminal)
+  (let* ((terminals (beads-terminal-list))
+         (names (mapcar (lambda (term) (oref term name)) terminals))
+         (current (and (boundp 'beads-agent-default-terminal)
+                       beads-agent-default-terminal))
+         ;; Map class<->name through the registered INSTANCES, never
+         ;; by reconstructing `beads-terminal-<name>': a third-party
+         ;; terminal may register a name that does not match its class
+         ;; symbol (e.g. name "ghostty" / class `my-ghostty-terminal').
+         (default-name
+          (cl-loop for term in terminals
+                   when (eq (eieio-object-class term) current)
+                   return (oref term name))))
+    (unless names
+      (user-error "No terminals registered"))
+    (let* ((choice (completing-read "Agent terminal: " names nil t
+                                    nil nil default-name))
+           (term (beads-terminal-get choice)))
+      (unless (and term
+                   (child-of-class-p (eieio-object-class term)
+                                     'beads-terminal))
+        (error "Unknown terminal: %s" choice))
+      (eieio-object-class term))))
 
 (provide 'beads-reader)
 ;;; beads-reader.el ends here

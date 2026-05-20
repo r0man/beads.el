@@ -229,34 +229,11 @@ Example (hand-written transient):
 
 ;;; Terminal Backend Customization
 
-(defgroup beads-terminal nil
-  "Terminal settings for beads command execution."
-  :group 'beads
-  :prefix "beads-terminal-")
-
-(defcustom beads-terminal-backend nil
-  "Backend to use for interactive command execution.
-
-When nil (auto-detect), tries backends in order: vterm, eat, term.
-The first available backend is used.
-
-Available backends:
-- nil: Auto-detect best available backend (vterm > eat > term).
-- `vterm': Use vterm (libvterm-based terminal).
-  Fast and feature-complete, requires vterm package.
-- `eat': Use Eat (Emulate A Terminal).
-  Pure Emacs Lisp terminal, requires eat package.
-- `term': Use built-in `term-mode' terminal emulator.
-  Full terminal support, no external dependencies.
-
-Note: Compilation mode is not included because it cannot handle
-interactive input (prompts, confirmations) that some bd commands
-like `bd doctor --fix' may require."
-  :type '(choice (const :tag "Auto-detect (vterm > eat > term)" nil)
-                 (const :tag "Vterm (requires vterm package)" vterm)
-                 (const :tag "Eat (requires eat package)" eat)
-                 (const :tag "Term mode (built-in)" term))
-  :group 'beads-terminal)
+;; The `beads-terminal' defgroup and the symbol-valued
+;; `beads-terminal-backend' defcustom moved to beads-terminal.el
+;; (Phase 1b).  beads-command.el keeps using `beads-terminal-backend'
+;; for one-shot `bd' command execution; re-require it here.
+(require 'beads-terminal)
 
 ;;; Terminal Backend Implementations
 
@@ -271,91 +248,42 @@ like `bd doctor --fix' may require."
         (add-hook 'compilation-filter-hook
                   #'beads-command--ansi-color-filter nil t)))))
 
-(defun beads-command--run-term (cmd-string buffer-name default-dir)
-  "Run CMD-STRING in term buffer BUFFER-NAME from DEFAULT-DIR."
-  (require 'term)
-  (let* ((default-directory default-dir)
-         (process-environment (cons "CLICOLOR_FORCE=1" process-environment))
-         (buf (get-buffer-create buffer-name)))
-    (with-current-buffer buf
-      (unless (derived-mode-p 'term-mode)
-        (term-mode))
-      (let ((proc (get-buffer-process buf)))
-        (when (and proc (process-live-p proc))
-          (delete-process proc)))
-      (erase-buffer)
-      (term-exec buf buffer-name shell-file-name nil
-                 (list "-c" (concat "cd " (shell-quote-argument default-dir)
-                                    " && " cmd-string "; exit")))
-      (term-char-mode))
-    (pop-to-buffer buf)))
-
-(defun beads-command--vterm-available-p ()
-  "Return non-nil if vterm is available."
-  (require 'vterm nil t))
-
-(defun beads-command--run-vterm (cmd-string buffer-name default-dir)
-  "Run CMD-STRING in vterm buffer BUFFER-NAME from DEFAULT-DIR."
-  (unless (beads-command--vterm-available-p)
-    (user-error "Vterm package not installed.  Install it or change `beads-terminal-backend'"))
-  (let* ((default-directory default-dir)
-         (process-environment (cons "CLICOLOR_FORCE=1" process-environment))
-         (vterm-shell (format "%s -c %s"
-                              shell-file-name
-                              (shell-quote-argument
-                               (concat "cd " (shell-quote-argument default-dir)
-                                       " && " cmd-string))))
-         (vterm-buffer-name buffer-name)
-         (buf (vterm buffer-name)))
-    ;; Set vterm-kill-buffer-on-exit buffer-local to keep buffer after exit.
-    ;; This must be done after buffer creation since the sentinel checks the
-    ;; buffer-local value when the process terminates.
-    (with-current-buffer buf
-      (setq-local vterm-kill-buffer-on-exit nil))
-    buf))
-
-(defun beads-command--eat-available-p ()
-  "Return non-nil if eat is available."
-  (require 'eat nil t))
-
-(defun beads-command--run-eat (cmd-string buffer-name default-dir)
-  "Run CMD-STRING in eat buffer BUFFER-NAME from DEFAULT-DIR."
-  (unless (beads-command--eat-available-p)
-    (user-error "Eat package not installed.  Install it or change `beads-terminal-backend'"))
-  (let* ((default-directory default-dir)
-         (process-environment (cons "CLICOLOR_FORCE=1" process-environment))
-         (buf (get-buffer-create buffer-name)))
-    (with-current-buffer buf
-      (unless (derived-mode-p 'eat-mode)
-        (eat-mode))
-      (let ((proc (get-buffer-process buf)))
-        (when (and proc (process-live-p proc))
-          (delete-process proc)))
-      (eat-exec buf buffer-name shell-file-name nil
-                (list "-c" (concat "cd " (shell-quote-argument default-dir)
-                                   " && " cmd-string "; exit"))))
-    (pop-to-buffer buf)))
-
-(defun beads-command--detect-best-backend ()
-  "Detect the best available terminal backend.
-Tries in order: vterm, eat, term.  Falls back to term (built-in)."
-  (cond
-   ((beads-command--vterm-available-p) 'vterm)
-   ((beads-command--eat-available-p) 'eat)
-   (t 'term)))
+;; Phase 3 (bde-xle9.5): the per-terminal one-shot runners
+;; (`--run-{vterm,eat,term}', `--detect-best-backend',
+;; `--vterm-available-p', `--eat-available-p') were removed.  The
+;; single spawn vocabulary now lives in `beads-terminal.el'; this
+;; runner delegates to `beads-terminal-spawn'.  The `compile' path
+;; has no `beads-terminal' equivalent and is kept as a special case.
 
 (defun beads-command--run-in-terminal (cmd-string buffer-name default-dir)
   "Run CMD-STRING in terminal buffer BUFFER-NAME from DEFAULT-DIR.
-Uses the backend specified by `beads-terminal-backend'.
-When nil, auto-detects best available backend."
-  (let ((backend (or beads-terminal-backend
-                     (beads-command--detect-best-backend))))
-    (pcase backend
-      ('vterm (beads-command--run-vterm cmd-string buffer-name default-dir))
-      ('eat (beads-command--run-eat cmd-string buffer-name default-dir))
-      ('term (beads-command--run-term cmd-string buffer-name default-dir))
-      ('compile (beads-command--run-compile cmd-string buffer-name default-dir))
-      (_ (beads-command--run-term cmd-string buffer-name default-dir)))))
+Delegates to the unified `beads-terminal-spawn'.  The terminal class
+is resolved from the symbol-valued `beads-terminal-backend' via
+`beads-terminal--symbol->class' (nil -> `beads-terminal-auto'; an
+unknown/legacy symbol falls back to auto).  One-shot `bd' semantics
+are preserved by wrapping the command in a `cd DIR && CMD; exit'
+shell argv — that wrapper is the CALLER's choice here;
+`beads-terminal-spawn' adds no wrapper of its own.  `CLICOLOR_FORCE'
+is carried via the env alist (the historical one-shot behaviour;
+intentionally NOT carried for the agent backend)."
+  (if (eq beads-terminal-backend 'compile)
+      (beads-command--run-compile cmd-string buffer-name default-dir)
+    (let* ((class (condition-case err
+                      (beads-terminal--symbol->class beads-terminal-backend)
+                    (error
+                     (lwarn 'beads :warning
+                            "Unrecognised `beads-terminal-backend' %S (%s); \
+falling back to auto"
+                            beads-terminal-backend
+                            (error-message-string err))
+                     'beads-terminal-auto)))
+           (terminal (make-instance class))
+           (argv (list shell-file-name "-c"
+                       (concat "cd " (shell-quote-argument default-dir)
+                               " && " cmd-string "; exit")))
+           (buf (beads-terminal-spawn terminal buffer-name argv default-dir
+                                      '(("CLICOLOR_FORCE" . "1")))))
+      (pop-to-buffer buf))))
 
 ;;; Base Command Class
 

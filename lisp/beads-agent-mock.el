@@ -105,8 +105,11 @@ Created during start to allow testing buffer renaming."))
   beads-agent-mock-available)
 
 (cl-defmethod beads-agent-backend-start
-    ((_backend beads-agent-backend-mock) issue prompt)
-  "Start mock session with ISSUE and PROMPT.
+    ((_backend beads-agent-backend-mock) issue system-prompt user-prompt)
+  "Start mock session with ISSUE, SYSTEM-PROMPT and USER-PROMPT.
+Records the `beads-agent-backend--combine-prompt' concatenation so
+the `--start-calls' / handle `:prompt' introspection surface is
+byte-identical to the pre-split 3-arity call.
 Returns cons cell (BACKEND-SESSION . BUFFER).  Signals error if
 `beads-agent-mock-start-should-error' is set.
 Creates a temporary buffer for testing buffer renaming."
@@ -114,23 +117,26 @@ Creates a temporary buffer for testing buffer renaming."
     (error (if (stringp beads-agent-mock-start-should-error)
                beads-agent-mock-start-should-error
              "Mock start error")))
-  ;; Record the call
-  (push (list issue prompt) beads-agent-mock--start-calls)
-  ;; Create and track session handle with a real buffer
-  (let* ((handle-id (format "mock-session-%d"
-                            (cl-incf beads-agent-mock--session-counter)))
-         ;; Create a buffer for this mock session
-         (buffer-name (format "*mock-agent-%s*" handle-id))
-         (buffer (get-buffer-create buffer-name))
-         (handle (beads-agent-mock-session-handle
-                  :id handle-id
-                  :issue issue
-                  :prompt prompt
-                  :active t
-                  :buffer buffer)))
-    (puthash handle-id handle beads-agent-mock--sessions)
-    ;; Return (backend-session . buffer)
-    (cons handle buffer)))
+  (let ((prompt (beads-agent-backend--combine-prompt
+                 system-prompt user-prompt)))
+    ;; Record the call (the combined string, so introspection is
+    ;; byte-identical to a pre-split 3-arity call)
+    (push (list issue prompt) beads-agent-mock--start-calls)
+    ;; Create and track session handle with a real buffer
+    (let* ((handle-id (format "mock-session-%d"
+                              (cl-incf beads-agent-mock--session-counter)))
+           ;; Create a buffer for this mock session
+           (buffer-name (format "*mock-agent-%s*" handle-id))
+           (buffer (get-buffer-create buffer-name))
+           (handle (beads-agent-mock-session-handle
+                    :id handle-id
+                    :issue issue
+                    :prompt prompt
+                    :active t
+                    :buffer buffer)))
+      (puthash handle-id handle beads-agent-mock--sessions)
+      ;; Return (backend-session . buffer)
+      (cons handle buffer))))
 
 (cl-defmethod beads-agent-backend-stop
     ((_backend beads-agent-backend-mock) session)

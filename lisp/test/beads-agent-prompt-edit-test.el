@@ -7,13 +7,17 @@
 
 ;;; Commentary:
 
-;; Comprehensive ERT tests for beads-agent-prompt-edit.el module.
-;; Tests cover the prompt editing mode, buffer management, confirm/cancel
-;; workflows, and keyboard bindings.
+;; ERT tests for the two-region prompt editor (Phase 1a-ii rewrite,
+;; bde-xle9.2).  The two-region SEMANTICS (split parse, blank-system
+;; -> nil, cancel sentinel, marker robustness, whitespace trimming,
+;; read-only headings, confirm-time default-directory) are covered in
+;; beads-agent-phase-1a-ii-test.el; this file covers the module's
+;; structural API and lifecycle.
 
 ;;; Code:
 
 (require 'ert)
+(require 'cl-lib)
 (require 'beads-agent-prompt-edit)
 (require 'beads-git)
 
@@ -32,17 +36,17 @@
 ;;; Mode Tests
 
 (ert-deftest beads-agent-prompt-edit-test-mode-defined ()
-  "Test that the major mode is defined."
+  "The major mode is defined."
   (should (fboundp 'beads-agent-prompt-edit-mode)))
 
 (ert-deftest beads-agent-prompt-edit-test-mode-derived-from-text ()
-  "Test that mode is derived from text-mode."
+  "Mode is derived from `text-mode'."
   (with-temp-buffer
     (beads-agent-prompt-edit-mode)
     (should (derived-mode-p 'text-mode))))
 
 (ert-deftest beads-agent-prompt-edit-test-mode-sets-header-line ()
-  "Test that mode sets header-line-format."
+  "Mode sets a header line."
   (with-temp-buffer
     (beads-agent-prompt-edit-mode)
     (should header-line-format)))
@@ -50,294 +54,165 @@
 ;;; Keymap Tests
 
 (ert-deftest beads-agent-prompt-edit-test-keymap-exists ()
-  "Test that keymap exists."
+  "The keymap exists."
   (should (keymapp beads-agent-prompt-edit-mode-map)))
 
 (ert-deftest beads-agent-prompt-edit-test-keymap-confirm ()
-  "Test C-c C-c is bound to confirm."
+  "C-c C-c is bound to confirm."
   (should (eq (lookup-key beads-agent-prompt-edit-mode-map (kbd "C-c C-c"))
-              'beads-agent-prompt-edit-confirm)))
+              #'beads-agent-prompt-edit-confirm)))
 
 (ert-deftest beads-agent-prompt-edit-test-keymap-cancel ()
-  "Test C-c C-k is bound to cancel."
+  "C-c C-k is bound to cancel."
   (should (eq (lookup-key beads-agent-prompt-edit-mode-map (kbd "C-c C-k"))
-              'beads-agent-prompt-edit-cancel)))
+              #'beads-agent-prompt-edit-cancel)))
 
-;;; Buffer-Local Variable Tests
+;;; Buffer-local Variable Tests
 
 (ert-deftest beads-agent-prompt-edit-test-callback-variable ()
-  "Test callback variable becomes buffer-local when set."
+  "The callback variable becomes buffer-local when set."
   (with-temp-buffer
     (beads-agent-prompt-edit-mode)
-    (setq beads-agent-prompt-edit--callback #'identity)
+    (setq beads-agent-prompt-edit--callback #'ignore)
     (should (local-variable-p 'beads-agent-prompt-edit--callback))))
 
 (ert-deftest beads-agent-prompt-edit-test-issue-id-variable ()
-  "Test issue-id variable becomes buffer-local when set."
+  "The issue-id variable becomes buffer-local when set."
   (with-temp-buffer
     (beads-agent-prompt-edit-mode)
-    (setq beads-agent-prompt-edit--issue-id "test-123")
+    (setq beads-agent-prompt-edit--issue-id "x")
     (should (local-variable-p 'beads-agent-prompt-edit--issue-id))))
 
-(ert-deftest beads-agent-prompt-edit-test-agent-type-variable ()
-  "Test agent-type variable becomes buffer-local when set."
-  (with-temp-buffer
-    (beads-agent-prompt-edit-mode)
-    (setq beads-agent-prompt-edit--agent-type "Task")
-    (should (local-variable-p 'beads-agent-prompt-edit--agent-type))))
-
-;;; Buffer Name Tests
+;;; Buffer Name
 
 (ert-deftest beads-agent-prompt-edit-test-buffer-name-function ()
-  "Test buffer name generation function exists."
+  "The buffer-name function exists."
   (should (fboundp 'beads-agent-prompt-edit--buffer-name)))
 
 (ert-deftest beads-agent-prompt-edit-test-buffer-name-includes-issue-id ()
-  "Test buffer name includes issue ID."
+  "The buffer name includes the issue id."
   (beads-agent-prompt-edit-test--with-mock-git
    (let ((name (beads-agent-prompt-edit--buffer-name "test-123")))
      (should (string-match "test-123" name)))))
 
-;;; Show Function Tests
+;;; Show Tests
 
 (ert-deftest beads-agent-prompt-edit-test-show-function-exists ()
-  "Test show function exists."
+  "The show function exists."
   (should (fboundp 'beads-agent-prompt-edit-show)))
 
-(ert-deftest beads-agent-prompt-edit-test-show-creates-buffer ()
-  "Test show creates a buffer with correct name."
+(ert-deftest beads-agent-prompt-edit-test-show-creates-buffer-with-headings ()
+  "Show creates a buffer containing both region headings."
   (beads-agent-prompt-edit-test--with-mock-git
-   (let ((buf-name nil)
-         (callback-called nil))
+   (let (buf-name content)
      (save-window-excursion
        (beads-agent-prompt-edit-show
-        "test-123"
-        "Test prompt"
-        "Task"
-        (lambda (prompt) (setq callback-called prompt)))
-       (setq buf-name (buffer-name))
-       ;; Clean up
+        "test-123" "SYS" "USR" "Task" #'ignore)
+       (setq buf-name (buffer-name)
+             content (buffer-substring-no-properties
+                      (point-min) (point-max)))
        (beads-agent-prompt-edit-cancel))
-     (should (string-match "test-123" buf-name)))))
-
-(ert-deftest beads-agent-prompt-edit-test-show-inserts-prompt ()
-  "Test show inserts the initial prompt text."
-  (beads-agent-prompt-edit-test--with-mock-git
-   (let ((content nil))
-     (save-window-excursion
-       (beads-agent-prompt-edit-show
-        "test-123"
-        "Test prompt content"
-        "Task"
-        (lambda (_prompt) nil))
-       (setq content (buffer-substring-no-properties (point-min) (point-max)))
-       (beads-agent-prompt-edit-cancel))
-     (should (equal content "Test prompt content")))))
+     (should (string-match "test-123" buf-name))
+     (should (string-match "## System prompt" content))
+     (should (string-match "## User prompt" content))
+     (should (string-match "SYS" content))
+     (should (string-match "USR" content)))))
 
 (ert-deftest beads-agent-prompt-edit-test-show-sets-local-vars ()
-  "Test show sets buffer-local variables."
+  "Show sets the buffer-local issue-id and agent-type."
   (beads-agent-prompt-edit-test--with-mock-git
-   (let ((issue-id nil)
-         (agent-type nil))
+   (let (issue-id agent-type)
      (save-window-excursion
        (beads-agent-prompt-edit-show
-        "test-123"
-        "Test prompt"
-        "Review"
-        (lambda (_prompt) nil))
-       (setq issue-id beads-agent-prompt-edit--issue-id)
-       (setq agent-type beads-agent-prompt-edit--agent-type)
+        "test-123" "SYS" "USR" "Review" #'ignore)
+       (setq issue-id beads-agent-prompt-edit--issue-id
+             agent-type beads-agent-prompt-edit--agent-type)
        (beads-agent-prompt-edit-cancel))
      (should (equal issue-id "test-123"))
      (should (equal agent-type "Review")))))
 
-;;; Confirm Tests
-
-(ert-deftest beads-agent-prompt-edit-test-confirm-function-exists ()
-  "Test confirm function exists."
-  (should (fboundp 'beads-agent-prompt-edit-confirm)))
-
-(ert-deftest beads-agent-prompt-edit-test-confirm-calls-callback ()
-  "Test confirm calls callback with buffer content."
-  (beads-agent-prompt-edit-test--with-mock-git
-   (let ((received-prompt nil))
-     (save-window-excursion
-       (beads-agent-prompt-edit-show
-        "test-123"
-        "Original prompt"
-        "Task"
-        (lambda (prompt) (setq received-prompt prompt)))
-       ;; Modify the prompt
-       (erase-buffer)
-       (insert "Modified prompt")
-       ;; Confirm
-       (beads-agent-prompt-edit-confirm))
-     (should (equal received-prompt "Modified prompt")))))
+;;; Confirm / Cancel lifecycle
 
 (ert-deftest beads-agent-prompt-edit-test-confirm-kills-buffer ()
-  "Test confirm kills the edit buffer."
+  "Confirm kills the edit buffer."
   (beads-agent-prompt-edit-test--with-mock-git
-   (let ((buf nil))
+   (let (buf)
      (save-window-excursion
        (beads-agent-prompt-edit-show
-        "test-123"
-        "Test prompt"
-        "Task"
-        (lambda (_prompt) nil))
+        "test-123" "SYS" "USR" "Task" (lambda (_s _u) nil))
        (setq buf (current-buffer))
        (beads-agent-prompt-edit-confirm))
+     (should-not (buffer-live-p buf)))))
+
+(ert-deftest beads-agent-prompt-edit-test-cancel-kills-buffer ()
+  "Cancel kills the edit buffer."
+  (beads-agent-prompt-edit-test--with-mock-git
+   (let (buf)
+     (save-window-excursion
+       (beads-agent-prompt-edit-show
+        "test-123" "SYS" "USR" "Task" (lambda (_s _u) nil))
+       (setq buf (current-buffer))
+       (beads-agent-prompt-edit-cancel))
      (should-not (buffer-live-p buf)))))
 
 (ert-deftest beads-agent-prompt-edit-test-confirm-kills-buffer-before-callback ()
-  "Confirm must kill the prompt-edit buffer BEFORE invoking the callback.
-Otherwise async work spawned from the callback captures a buffer about
-to die, and `beads-command--spawn-async' silently drops the result.
-Regression test for bde-d3eg."
+  "Confirm kills the prompt-edit buffer BEFORE invoking the callback.
+Otherwise async work spawned from the callback captures a buffer
+about to die and the result is silently dropped (regression for
+bde-d3eg)."
   (beads-agent-prompt-edit-test--with-mock-git
-   (let ((buf nil)
-         (callback-buf 'unset))
+   (let (buf (callback-buf 'unset))
      (save-window-excursion
        (beads-agent-prompt-edit-show
-        "test-123"
-        "Test prompt"
-        "Task"
-        (lambda (_prompt)
-          (setq callback-buf (current-buffer))))
+        "test-123" "SYS" "USR" "Task"
+        (lambda (_s _u) (setq callback-buf (current-buffer))))
        (setq buf (current-buffer))
        (beads-agent-prompt-edit-confirm))
      (should-not (buffer-live-p buf))
-     ;; Callback ran in some live buffer that is NOT the prompt-edit buf.
      (should (buffer-live-p callback-buf))
      (should-not (eq callback-buf buf)))))
 
-;;; Cancel Tests
-
-(ert-deftest beads-agent-prompt-edit-test-cancel-function-exists ()
-  "Test cancel function exists."
-  (should (fboundp 'beads-agent-prompt-edit-cancel)))
-
-(ert-deftest beads-agent-prompt-edit-test-cancel-calls-callback-with-nil ()
-  "Test cancel calls callback with nil."
+(ert-deftest beads-agent-prompt-edit-test-nil-callback-handling ()
+  "Confirm handles a nil callback gracefully."
   (beads-agent-prompt-edit-test--with-mock-git
-   (let ((received-prompt 'not-called))
-     (save-window-excursion
-       (beads-agent-prompt-edit-show
-        "test-123"
-        "Test prompt"
-        "Task"
-        (lambda (prompt) (setq received-prompt prompt)))
-       (beads-agent-prompt-edit-cancel))
-     (should (null received-prompt)))))
+   (save-window-excursion
+     (beads-agent-prompt-edit-show "test-123" "S" "U" "Task" nil)
+     (should-not (condition-case _err
+                     (progn (beads-agent-prompt-edit-confirm) nil)
+                   (error t))))))
 
-(ert-deftest beads-agent-prompt-edit-test-cancel-kills-buffer ()
-  "Test cancel kills the edit buffer."
+(ert-deftest beads-agent-prompt-edit-test-cancel-nil-callback-handling ()
+  "Cancel handles a nil callback gracefully."
   (beads-agent-prompt-edit-test--with-mock-git
-   (let ((buf nil))
-     (save-window-excursion
-       (beads-agent-prompt-edit-show
-        "test-123"
-        "Test prompt"
-        "Task"
-        (lambda (_prompt) nil))
-       (setq buf (current-buffer))
-       (beads-agent-prompt-edit-cancel))
-     (should-not (buffer-live-p buf)))))
+   (save-window-excursion
+     (beads-agent-prompt-edit-show "test-123" "S" "U" "Task" nil)
+     (should-not (condition-case _err
+                     (progn (beads-agent-prompt-edit-cancel) nil)
+                   (error t))))))
 
-;;; Header Line Tests
+;;; Header Line
 
 (ert-deftest beads-agent-prompt-edit-test-header-line-function ()
-  "Test header line generation function exists."
+  "The header-line function exists."
   (should (fboundp 'beads-agent-prompt-edit--header-line)))
 
 (ert-deftest beads-agent-prompt-edit-test-header-line-includes-agent-type ()
-  "Test header line includes agent type."
+  "The header line includes the agent type."
   (with-temp-buffer
     (beads-agent-prompt-edit-mode)
     (setq beads-agent-prompt-edit--agent-type "Review")
     (setq beads-agent-prompt-edit--issue-id "test-123")
-    (let ((header (beads-agent-prompt-edit--header-line)))
-      (should (string-match "Review" header)))))
-
-(ert-deftest beads-agent-prompt-edit-test-header-line-includes-issue-id ()
-  "Test header line includes issue ID."
-  (with-temp-buffer
-    (beads-agent-prompt-edit-mode)
-    (setq beads-agent-prompt-edit--agent-type "Task")
-    (setq beads-agent-prompt-edit--issue-id "beads-42")
-    (let ((header (beads-agent-prompt-edit--header-line)))
-      (should (string-match "beads-42" header)))))
+    (should (string-match "Review" (beads-agent-prompt-edit--header-line)))))
 
 (ert-deftest beads-agent-prompt-edit-test-header-line-includes-keybindings ()
-  "Test header line mentions keybindings."
+  "The header line mentions the keybindings."
   (with-temp-buffer
     (beads-agent-prompt-edit-mode)
     (setq beads-agent-prompt-edit--agent-type "Task")
     (setq beads-agent-prompt-edit--issue-id "test-123")
-    (let ((header (beads-agent-prompt-edit--header-line)))
-      (should (string-match "C-c C-c" header))
-      (should (string-match "C-c C-k" header)))))
-
-;;; Edge Cases
-
-(ert-deftest beads-agent-prompt-edit-test-empty-prompt ()
-  "Test handling empty initial prompt."
-  (beads-agent-prompt-edit-test--with-mock-git
-   (let ((received-prompt nil))
-     (save-window-excursion
-       (beads-agent-prompt-edit-show
-        "test-123"
-        ""
-        "Task"
-        (lambda (prompt) (setq received-prompt prompt)))
-       (beads-agent-prompt-edit-confirm))
-     (should (equal received-prompt "")))))
-
-(ert-deftest beads-agent-prompt-edit-test-multiline-prompt ()
-  "Test handling multiline prompt."
-  (beads-agent-prompt-edit-test--with-mock-git
-   (let ((multiline "Line 1\nLine 2\nLine 3")
-         (received-prompt nil))
-     (save-window-excursion
-       (beads-agent-prompt-edit-show
-        "test-123"
-        multiline
-        "Task"
-        (lambda (prompt) (setq received-prompt prompt)))
-       (beads-agent-prompt-edit-confirm))
-     (should (equal received-prompt multiline)))))
-
-(ert-deftest beads-agent-prompt-edit-test-nil-callback-handling ()
-  "Test confirm handles nil callback gracefully."
-  (beads-agent-prompt-edit-test--with-mock-git
-   (save-window-excursion
-     (beads-agent-prompt-edit-show
-      "test-123"
-      "Test prompt"
-      "Task"
-      nil)
-     ;; Should not error even with nil callback
-     (should-not (condition-case err
-                     (progn
-                       (beads-agent-prompt-edit-confirm)
-                       nil)
-                   (error t))))))
-
-(ert-deftest beads-agent-prompt-edit-test-cancel-nil-callback-handling ()
-  "Test cancel handles nil callback gracefully."
-  (beads-agent-prompt-edit-test--with-mock-git
-   (save-window-excursion
-     (beads-agent-prompt-edit-show
-      "test-123"
-      "Test prompt"
-      "Task"
-      nil)
-     ;; Should not error even with nil callback
-     (should-not (condition-case err
-                     (progn
-                       (beads-agent-prompt-edit-cancel)
-                       nil)
-                   (error t))))))
+    (let ((h (beads-agent-prompt-edit--header-line)))
+      (should (string-match "C-c C-c" h))
+      (should (string-match "C-c C-k" h)))))
 
 (provide 'beads-agent-prompt-edit-test)
-
 ;;; beads-agent-prompt-edit-test.el ends here

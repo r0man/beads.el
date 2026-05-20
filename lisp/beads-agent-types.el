@@ -63,7 +63,7 @@ Set to a backend name string to prefer a specific backend for QA agents."
   :group 'beads-agent-types)
 
 (defcustom beads-agent-review-prompt
-  "You are a code review agent. Please work on beads issue <ISSUE-ID>: <ISSUE-TITLE>.
+  "You are a code review agent.
 
 # Constraints
 
@@ -79,7 +79,21 @@ Set to a backend name string to prefer a specific backend for QA agents."
 - Style consistency with the project
 - Performance considerations
 
-Provide specific, actionable feedback with file paths and line references.
+Provide specific, actionable feedback with file paths and line references."
+  "System (role) prompt for the Review agent.
+Role-only as of the Phase 1a-ii split: the issue envelope and the
+`bd update' output block now live in the Review *user* prompt
+\(`beads-agent-type-review--user-prompt').  A user-customised value
+is delivered via the backend's system-prompt channel; any embedded
+<ISSUE-ID>/<ISSUE-TITLE>/<ISSUE-DESCRIPTION> placeholders are still
+substituted (see NEWS for the old default verbatim)."
+  :type 'string
+  :group 'beads-agent-types)
+
+(defconst beads-agent-type-review--user-prompt
+  "<ISSUE-ID>: <ISSUE-TITLE>
+
+<ISSUE-DESCRIPTION>
 
 # Output
 
@@ -101,14 +115,13 @@ bd update <ISSUE-ID> --notes \"$(cat <<'EOF'
 EOF
 )\"
 ```"
-  "Prompt template for the Review agent.
-Placeholders <ISSUE-ID>, <ISSUE-TITLE>, and <ISSUE-DESCRIPTION> are replaced
-with issue data when the prompt is built."
-  :type 'string
-  :group 'beads-agent-types)
+  "User prompt envelope for the Review agent.
+Carries the issue envelope and the type-specific `bd update' output
+block.  Placeholders <ISSUE-ID>, <ISSUE-TITLE>, and
+<ISSUE-DESCRIPTION> are replaced with issue data when built.")
 
 (defcustom beads-agent-qa-prompt
-  "You are a QA agent. Please work on beads issue <ISSUE-ID>: <ISSUE-TITLE>.
+  "You are a QA agent.
 
 # Constraints
 
@@ -123,7 +136,20 @@ with issue data when the prompt is built."
 2. **Run Tests** - Execute relevant test suite, note any failures
 3. **Manual Verification** - Test edge cases and error handling
 4. **Check Regressions** - Verify related functionality still works
-5. **Document Results** - Update issue with findings
+5. **Document Results** - Update issue with findings"
+  "System (role) prompt for the QA agent.
+Role-only as of the Phase 1a-ii split; the issue envelope and the
+`bd update' output block live in `beads-agent-type-qa--user-prompt'.
+A user-customised value is delivered via the backend's
+system-prompt channel with placeholders still substituted (see NEWS
+for the old default verbatim)."
+  :type 'string
+  :group 'beads-agent-types)
+
+(defconst beads-agent-type-qa--user-prompt
+  "<ISSUE-ID>: <ISSUE-TITLE>
+
+<ISSUE-DESCRIPTION>
 
 # Output
 
@@ -154,14 +180,12 @@ EOF
 EOF
 )\"
 ```"
-  "Prompt template for the QA agent.
-Placeholders <ISSUE-ID>, <ISSUE-TITLE>, and <ISSUE-DESCRIPTION> are replaced
-with issue data when the prompt is built."
-  :type 'string
-  :group 'beads-agent-types)
+  "User prompt envelope for the QA agent.
+Placeholders <ISSUE-ID>, <ISSUE-TITLE>, and <ISSUE-DESCRIPTION> are
+replaced with issue data when built.")
 
 (defcustom beads-agent-plan-prompt
-  "You are a planning agent. Please work on beads issue <ISSUE-ID>: <ISSUE-TITLE>.
+  "You are a planning agent.
 
 Create a detailed implementation plan WITHOUT making any code changes.
 
@@ -188,7 +212,20 @@ Before finalizing, verify:
 - [ ] All requirements from the issue are addressed
 - [ ] Edge cases are considered
 - [ ] Scope is appropriate (not over-engineered)
-- [ ] Changes are minimal and focused
+- [ ] Changes are minimal and focused"
+  "System (role) prompt for the Plan agent.
+Role-only as of the Phase 1a-ii split; the issue envelope and the
+`bd update' output block live in `beads-agent-type-plan--user-prompt'.
+A user-customised value is delivered via the backend's
+system-prompt channel with placeholders still substituted (see NEWS
+for the old default verbatim)."
+  :type 'string
+  :group 'beads-agent-types)
+
+(defconst beads-agent-type-plan--user-prompt
+  "<ISSUE-ID>: <ISSUE-TITLE>
+
+<ISSUE-DESCRIPTION>
 
 # Output
 
@@ -215,16 +252,14 @@ Plan created. Key changes: <brief summary of main modifications>
 EOF
 )\"
 ```"
-  "Prompt template for the Plan agent.
-Placeholders <ISSUE-ID>, <ISSUE-TITLE>, and <ISSUE-DESCRIPTION> are replaced
-with issue data when the prompt is built."
-  :type 'string
-  :group 'beads-agent-types)
+  "User prompt envelope for the Plan agent.
+Placeholders <ISSUE-ID>, <ISSUE-TITLE>, and <ISSUE-DESCRIPTION> are
+replaced with issue data when built.")
 
 ;;; Task Agent
 
-(defconst beads-agent-type-task--prompt
-  "You are a task-completion agent for beads. Please work on beads issue <ISSUE-ID>: <ISSUE-TITLE>.
+(defconst beads-agent-type-task--system-prompt
+  "You are a task-completion agent for beads.
 
 # Constraints
 
@@ -235,28 +270,27 @@ with issue data when the prompt is built."
 
 # Agent Workflow
 
-1. **Claim the Task**
-   - Update issue status to in_progress: `bd update <ISSUE-ID> --status in_progress`
-   - Read the task description carefully
-   - Check acceptance criteria if available
+1. **Claim the Task** — set the issue status to in_progress, read the
+   task description carefully, and check the acceptance criteria.
+2. **Execute the Task** — use available tools, follow project
+   documentation, run tests where applicable, and keep changes
+   focused on the task.
+3. **Track Discoveries** — file new issues for bugs, TODOs, or
+   related work and link them with discovered-from dependencies so
+   context is preserved for future work.
+4. **Verify Completion** — confirm every acceptance criterion is met,
+   ensure tests pass, and review your changes for quality."
+  "System (role) prompt for the Task agent type.
+Role-only as of the Phase 1a-ii split: no <ISSUE-...> placeholders
+and no shell snippets.  The issue envelope and the concrete
+`bd close'/`bd update' commands live in
+`beads-agent-type-task--user-prompt' (see NEWS for the old combined
+default verbatim).")
 
-2. **Execute the Task**
-   - Use available tools to complete the work
-   - Follow best practices from project documentation
-   - Run tests if applicable
-   - Keep changes focused on the task
+(defconst beads-agent-type-task--user-prompt
+  "<ISSUE-ID>: <ISSUE-TITLE>
 
-3. **Track Discoveries**
-   - If you find bugs, TODOs, or related work:
-     - File new issues using bd create
-     - Link them with discovered-from dependencies: `bd dep add <new-id> --type \
-discovered-from --target <ISSUE-ID>`
-   - This maintains context for future work
-
-4. **Verify Completion**
-   - Check that all acceptance criteria are met
-   - Ensure tests pass
-   - Review your changes for quality
+<ISSUE-DESCRIPTION>
 
 # Output
 
@@ -278,15 +312,16 @@ bd update <ISSUE-ID> --status blocked --notes \"$(cat <<'EOF'
 EOF
 )\"
 ```"
-  "Embedded prompt template for Task agent type.
-Placeholders <ISSUE-ID>, <ISSUE-TITLE>, and <ISSUE-DESCRIPTION> are replaced
-with issue data when the prompt is built.")
+  "User prompt envelope for the Task agent type.
+Placeholders <ISSUE-ID>, <ISSUE-TITLE>, and <ISSUE-DESCRIPTION> are
+replaced with issue data when the prompt is built.")
 
 (defclass beads-agent-type-task (beads-agent-type)
   ((name :initform "Task")
    (letter :initform "T")
    (description :initform "Autonomous task completion agent")
-   (prompt-template :initform 'beads-agent-type-task--prompt))
+   (system-prompt :initform 'beads-agent-type-task--system-prompt)
+   (prompt-template :initform 'beads-agent-type-task--user-prompt))
   :documentation "Task agent type for autonomous task completion.
 Uses a structured prompt that guides the agent through understanding,
 executing, and verifying task completion.")
@@ -301,7 +336,8 @@ executing, and verifying task completion.")
   ((name :initform "Review")
    (letter :initform "R")
    (description :initform "Code review agent")
-   (prompt-template :initform 'beads-agent-review-prompt))
+   (system-prompt :initform 'beads-agent-review-prompt)
+   (prompt-template :initform 'beads-agent-type-review--user-prompt))
   :documentation "Review agent type for code review.
 Uses the customizable `beads-agent-review-prompt' template.")
 
@@ -315,7 +351,8 @@ Uses the customizable `beads-agent-review-prompt' template.")
   ((name :initform "Plan")
    (letter :initform "P")
    (description :initform "Planning agent (read-only analysis)")
-   (prompt-template :initform 'beads-agent-plan-prompt))
+   (system-prompt :initform 'beads-agent-plan-prompt)
+   (prompt-template :initform 'beads-agent-type-plan--user-prompt))
   :documentation "Plan agent type for implementation planning.
 Uses a prompt that instructs the agent to analyze and plan without
 making changes.  Works with any backend.")
@@ -330,7 +367,8 @@ making changes.  Works with any backend.")
   ((name :initform "QA")
    (letter :initform "Q")
    (description :initform "Testing and quality assurance agent")
-   (prompt-template :initform 'beads-agent-qa-prompt))
+   (system-prompt :initform 'beads-agent-qa-prompt)
+   (prompt-template :initform 'beads-agent-type-qa--user-prompt))
   :documentation "QA agent type for testing and verification.
 Uses the customizable `beads-agent-qa-prompt' template.")
 
@@ -350,8 +388,8 @@ Builds the default issue-based prompt as a starting point; the user
 writes their custom instructions in the prompt-edit buffer that is
 shown before launch.")
 
-(cl-defmethod beads-agent-type-build-prompt ((_type beads-agent-type-custom)
-                                              issue)
+(cl-defmethod beads-agent-type-build-user-prompt ((_type beads-agent-type-custom)
+                                                   issue)
   "Return the default issue-based prompt for ISSUE.
 The user edits the result in the prompt-edit buffer before launch,
 so this method only provides issue context as a starting template."

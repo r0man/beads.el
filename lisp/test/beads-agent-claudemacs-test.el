@@ -93,7 +93,7 @@
   (let ((backend (beads-agent-backend-claudemacs)))
     (cl-letf (((symbol-function 'featurep) (lambda (_) nil))
               ((symbol-function 'require) (lambda (&rest _) nil)))
-      (should-error (beads-agent-backend-start backend nil "Test prompt")
+      (should-error (beads-agent-backend-start backend nil nil "Test prompt")
                     :type 'error))))
 
 (ert-deftest beads-agent-claudemacs-test-start-error-no-claudemacs ()
@@ -105,7 +105,7 @@
                (lambda (f &rest _) (eq f 'eat)))
               ((symbol-function 'beads-agent-claudemacs--ensure-eat-gv-setter)
                #'ignore))
-      (should-error (beads-agent-backend-start backend nil "Test prompt")
+      (should-error (beads-agent-backend-start backend nil nil "Test prompt")
                     :type 'error))))
 
 (ert-deftest beads-agent-claudemacs-test-start-error-no-claude ()
@@ -118,7 +118,7 @@
                #'ignore)
               ((symbol-function 'beads-agent-claudemacs--install-bell-handler-advice)
                #'ignore))
-      (should-error (beads-agent-backend-start backend nil "Test prompt")
+      (should-error (beads-agent-backend-start backend nil nil "Test prompt")
                     :type 'error))))
 
 ;;; Buffer Finding Tests

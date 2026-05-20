@@ -119,7 +119,7 @@
    (lambda ()
      (let* ((backend (beads-agent-mock-get-instance))
             (issue (beads-issue :id "test-1" :title "Test"))
-            (result (beads-agent-backend-start backend issue "test prompt")))
+            (result (beads-agent-backend-start backend issue nil "test prompt")))
        (should (consp result))
        (should (beads-agent-mock-session-handle-p (car result)))
        (should (bufferp (cdr result)))
@@ -133,7 +133,7 @@
    (lambda ()
      (let* ((backend (beads-agent-mock-get-instance))
             (issue (beads-issue :id "test-1" :title "Test"))
-            (result (beads-agent-backend-start backend issue "prompt")))
+            (result (beads-agent-backend-start backend issue nil "prompt")))
        (should (= 1 (length (beads-agent-mock-sessions))))
        ;; Clean up
        (when (buffer-live-p (cdr result))
@@ -145,7 +145,7 @@
    (lambda ()
      (let* ((backend (beads-agent-mock-get-instance))
             (issue (beads-issue :id "test-1" :title "Test"))
-            (result (beads-agent-backend-start backend issue "test prompt")))
+            (result (beads-agent-backend-start backend issue nil "test prompt")))
        (should (= 1 (length (beads-agent-mock-start-calls))))
        (let ((call (car (beads-agent-mock-start-calls))))
          (should (equal (car call) issue))
@@ -161,7 +161,7 @@
      (setq beads-agent-mock-start-should-error t)
      (let* ((backend (beads-agent-mock-get-instance))
             (issue (beads-issue :id "test-1" :title "Test")))
-       (should-error (beads-agent-backend-start backend issue "prompt")
+       (should-error (beads-agent-backend-start backend issue nil "prompt")
                      :type 'error)))))
 
 (ert-deftest beads-agent-mock-test-start-error-custom-message ()
@@ -172,7 +172,7 @@
      (let* ((backend (beads-agent-mock-get-instance))
             (issue (beads-issue :id "test-1" :title "Test")))
        (condition-case err
-           (beads-agent-backend-start backend issue "prompt")
+           (beads-agent-backend-start backend issue nil "prompt")
          (error
           (should (string= (cadr err) "Custom error"))))))))
 
@@ -188,7 +188,7 @@
    (lambda ()
      (let* ((backend (beads-agent-mock-get-instance))
             (issue (beads-issue :id "test-1" :title "Test"))
-            (result (beads-agent-backend-start backend issue "prompt"))
+            (result (beads-agent-backend-start backend issue nil "prompt"))
             (handle (car result)))
        (should (oref handle active))
        ;; Clean up
@@ -204,7 +204,7 @@
      (let* ((backend (beads-agent-mock-get-instance))
             (issue (beads-issue :id "test-1" :title "Test")))
        ;; Start a session
-       (beads-agent-backend-start backend issue "prompt")
+       (beads-agent-backend-start backend issue nil "prompt")
        (should (= 1 (length (beads-agent-mock-sessions))))
        ;; Reset
        (beads-agent-mock-reset)
@@ -217,7 +217,7 @@
      (let* ((backend (beads-agent-mock-get-instance))
             (issue (beads-issue :id "test-1" :title "Test")))
        ;; Start a session
-       (beads-agent-backend-start backend issue "prompt")
+       (beads-agent-backend-start backend issue nil "prompt")
        (should (= 1 (length (beads-agent-mock-start-calls))))
        ;; Reset
        (beads-agent-mock-reset)
@@ -245,7 +245,7 @@
    (lambda ()
      (let* ((backend (beads-agent-mock-get-instance))
             (issue (beads-issue :id "test-1" :title "Test")))
-       (beads-agent-backend-start backend issue "prompt")
+       (beads-agent-backend-start backend issue nil "prompt")
        (should (= 1 (length (beads-agent-mock-active-sessions))))
        ;; All sessions are active after start
        (should (= 1 (length (beads-agent-mock-sessions))))))))
@@ -258,7 +258,7 @@
    (lambda ()
      (let* ((backend (beads-agent-mock-get-instance))
             (issue (beads-issue :id "test-1" :title "Test"))
-            (result (beads-agent-backend-start backend issue "prompt")))
+            (result (beads-agent-backend-start backend issue nil "prompt")))
        (should-not (beads-agent-mock-assert-start-called 1))
        ;; Clean up
        (when (buffer-live-p (cdr result))
@@ -282,7 +282,7 @@
    (lambda ()
      (let* ((backend (beads-agent-mock-get-instance))
             (issue (beads-issue :id "test-1" :title "Test"))
-            (result (beads-agent-backend-start backend issue "prompt")))
+            (result (beads-agent-backend-start backend issue nil "prompt")))
        (should-error (beads-agent-mock-assert-no-sessions))
        ;; Clean up
        (when (buffer-live-p (cdr result))
@@ -294,7 +294,7 @@
    (lambda ()
      (let* ((backend (beads-agent-mock-get-instance))
             (issue (beads-issue :id "test-1" :title "Test"))
-            (result (beads-agent-backend-start backend issue "prompt")))
+            (result (beads-agent-backend-start backend issue nil "prompt")))
        (should-not (beads-agent-mock-assert-session-count 1))
        ;; Clean up
        (when (buffer-live-p (cdr result))
