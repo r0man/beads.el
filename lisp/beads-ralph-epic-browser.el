@@ -225,11 +225,16 @@ EPICS is a list of `beads-epic-status' instances to render."
 ;;; Render driver
 
 (defun beads-ralph-epic-browser--render (buffer epics)
-  "Mount the epic-browser component into BUFFER with EPICS."
+  "Mount the epic-browser component into BUFFER with EPICS.
+Installs the buffer's `kill-buffer-hook' once so a buffer kill
+mid-flight cancels any pending re-render timer."
   (with-current-buffer buffer
     (unless (eq major-mode 'beads-ralph-epic-browser-mode)
       (beads-ralph-epic-browser-mode))
     (setq-local beads-ralph-epic-browser--epics epics)
+    (add-hook 'kill-buffer-hook
+              #'beads-ralph-epic-browser--cancel-pending-rerender
+              nil t)
     (vui-mount
      (vui-component 'beads-ralph-epic-browser--root :epics epics)
      (buffer-name buffer))))
@@ -313,16 +318,28 @@ back to the legacy `beads-agent-ralph-launch' entry."
            (message "beads-ralph-epic-browser: render errored: %S" err)))))))
 
 (defun beads-ralph-epic-browser--schedule-rerender (buffer)
-  "Schedule a debounced re-render of BUFFER."
+  "Schedule a debounced re-render of BUFFER.
+No-op when BUFFER is not in `beads-ralph-epic-browser-mode' so a
+buffer that merely happens to share the singleton name (created
+by an unrelated caller) is not touched."
   (when (buffer-live-p buffer)
     (with-current-buffer buffer
-      (unless beads-ralph-epic-browser--rerender-timer
+      (when (and (eq major-mode 'beads-ralph-epic-browser-mode)
+                 (not beads-ralph-epic-browser--rerender-timer))
         (setq-local beads-ralph-epic-browser--rerender-timer
                     (run-with-idle-timer
                      beads-ralph-epic-browser-render-debounce
                      nil
                      #'beads-ralph-epic-browser--flush-rerender
                      buffer))))))
+
+(defun beads-ralph-epic-browser--cancel-pending-rerender ()
+  "Cancel the pending re-render timer for the current buffer, if any.
+Used by the buffer's `kill-buffer-hook' so a buffer kill mid-flight
+does not leave a queued idle-timer firing against a dead buffer."
+  (when (timerp beads-ralph-epic-browser--rerender-timer)
+    (cancel-timer beads-ralph-epic-browser--rerender-timer))
+  (setq-local beads-ralph-epic-browser--rerender-timer nil))
 
 (defun beads-ralph-epic-browser--on-controller-state-change
     (_controller _status)

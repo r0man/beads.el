@@ -243,6 +243,43 @@ The buffer is created, the mode is enabled, but no fetch occurs."
   ;; Should not signal.
   (beads-ralph-epic-browser--on-controller-state-change nil nil))
 
+(ert-deftest beads-ralph-epic-browser-test-schedule-wrong-mode-noops ()
+  "A buffer that merely shares the singleton name is not touched."
+  (beads-ralph-epic-browser-test--with-clean-registry
+    (let ((buf (generate-new-buffer "*beads-ralph-epic-browser-test-fake*")))
+      (unwind-protect
+          (with-current-buffer buf
+            ;; Not in beads-ralph-epic-browser-mode.
+            (setq-local beads-ralph-epic-browser--rerender-timer nil)
+            (beads-ralph-epic-browser--schedule-rerender buf)
+            (should (null beads-ralph-epic-browser--rerender-timer)))
+        (when (buffer-live-p buf) (kill-buffer buf))))))
+
+(ert-deftest beads-ralph-epic-browser-test-kill-buffer-cancels-timer ()
+  "Killing the browser buffer cancels its pending re-render timer."
+  (beads-ralph-epic-browser-test--with-clean-registry
+    (let ((buf (get-buffer-create
+                beads-ralph-epic-browser-buffer-name))
+          captured-timer)
+      (unwind-protect
+          (progn
+            (with-current-buffer buf
+              (beads-ralph-epic-browser-mode)
+              (beads-ralph-epic-browser--render
+               buf (list (beads-ralph-epic-browser-test--make-epic-status
+                          :id "bde-kk1"))))
+            (beads-ralph-epic-browser--on-controller-state-change nil nil)
+            (with-current-buffer buf
+              (setq captured-timer
+                    beads-ralph-epic-browser--rerender-timer))
+            (should (timerp captured-timer))
+            (kill-buffer buf)
+            ;; Timer was cancelled by the buffer-kill hook.  Emacs
+            ;; flags a cancelled timer with a 0 :triggered slot, but
+            ;; the surest signal is membership in `timer-idle-list'.
+            (should-not (memq captured-timer timer-idle-list)))
+        (when (buffer-live-p buf) (kill-buffer buf))))))
+
 ;;; Epic-id at point
 
 (ert-deftest beads-ralph-epic-browser-test-epic-id-at-point ()
