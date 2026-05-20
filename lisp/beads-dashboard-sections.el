@@ -57,8 +57,14 @@ Closed, and the Epic Progress list."
 
 (defcustom beads-dashboard-section-batch 10
   "Rows added to a section per `beads-dashboard-load-more' invocation.
-Also the step used by `beads-dashboard-load-less'."
-  :type 'integer
+Also the step used by `beads-dashboard-load-less'.  Must be at least 1
+— values of 0 or below make load-more a no-op and load-less immediately
+floor every section."
+  :type '(integer :validate
+                  (lambda (widget)
+                    (when (< (widget-value widget) 1)
+                      (widget-put widget :error "Must be at least 1")
+                      widget)))
   :group 'beads)
 
 ;;; Effective Limit Resolution
@@ -92,9 +98,7 @@ Returns:
          when the new fetch-limit is below the CLI default) and is
          the only honest way to render the misleading-(100) Ready
          section."
-  (cond
-   ((null extra-for-section) nil)
-   (t 0)))
+  (when extra-for-section 0))
 
 ;;; Helper Component
 
@@ -289,10 +293,11 @@ stored as a text property on the button label."
                   'beads-dashboard-section-key section-key)))
       (beads-section--plain-button
        label
-       (let ((key section-key))
-         (lambda ()
-           (beads-dashboard--bump-extra
-            key beads-dashboard-section-batch)))))))
+       ;; Lexical binding (declared at top of file) captures
+       ;; SECTION-KEY directly — no `let' alias needed.
+       (lambda ()
+         (beads-dashboard--bump-extra
+          section-key beads-dashboard-section-batch))))))
 
 (defun beads-dashboard--limited-vstack (items render-fn
                                               &optional extra-rows
@@ -452,7 +457,8 @@ when non-nil, is forwarded as `--limit'; otherwise a sensible default
    (beads-command-list :status beads-status-closed
                        :sort "closed"
                        :limit (or fetch-limit
-                                  (or beads-dashboard-section-limit 25))
+                                  beads-dashboard-section-limit
+                                  25)
                        :json t)
    '(list closed)))
 
@@ -529,6 +535,11 @@ commands can resolve the enclosing section."
   "Render the Federation section from DATA."
   (cond
    ((null data)
+    ;; The federation renderer does not receive SECTION-KEY (federation
+    ;; has no +/-/* load-more — `bd federation' has no --limit), so we
+    ;; hardcode `federation' here to keep the empty-line stamped.  All
+    ;; other sections thread the key through their renderer; if
+    ;; federation ever grows load-more, swap this for a parameter.
     (beads-dashboard--empty-line "No federation peers." 'federation))
    ((listp data)
     (apply #'vui-vstack

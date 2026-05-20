@@ -346,10 +346,15 @@ no-op writes from idle ticks and back-to-back refreshes."
   "Hard refresh: invalidate cache, re-probe policy, reset extras, re-fetch.
 Resetting the per-section `+'/`-'/`*' overrides matches the semantics
 of `C-u g' as a \"fresh dashboard\" gesture; soft `g'
-\(`beads-dashboard-refresh') leaves them untouched."
+\(`beads-dashboard-refresh') leaves them untouched.
+
+The `derived-mode-p' guard exists so calling this from outside a
+dashboard buffer (e.g. an `after-change-functions' hook or
+`global-set-key' binding) still clears the single-flight cache and
+re-probes the policy without raising on the missing root state."
   (interactive)
   (clrhash beads-command--single-flight)
-  (when (eq major-mode 'beads-dashboard-mode)
+  (when (derived-mode-p 'beads-dashboard-mode)
     (let ((root (beads-dashboard--project-root)))
       (beads-dashboard--save-extra root nil)
       (beads-dashboard--bump :extra nil)))
@@ -632,19 +637,29 @@ Lands past the chevron so the header widget is under point."
                  beads-section-glyph-collapsed " ")))
       t)))
 
+(defconst beads-dashboard--more-line-re
+  "and [0-9]+ more (\\+)"
+  "Regexp matching the distinctive suffix of a `… and N more (+)' row.
+Single source of truth for the format produced by
+`beads-dashboard--more-line'; update both together if the label
+template ever changes.")
+
+(defun beads-dashboard--more-line-text-p ()
+  "Return non-nil when the current line's text matches the more-line format."
+  (string-match-p beads-dashboard--more-line-re
+                  (buffer-substring (line-beginning-position)
+                                    (line-end-position))))
+
 (defun beads-dashboard--on-more-line-p ()
   "Return non-nil when the current line is a `… and N more (+)' button.
-Detected by scanning the line for the distinctive `(+)' suffix on a
-text-stamped line — the more-line is the only row that carries a
+A more-line is the only row that carries a
 `beads-dashboard-section-key' property without a `beads-section'
-issue object."
+issue object and whose text matches `beads-dashboard--more-line-re'."
   (save-excursion
     (forward-line 0)
     (and (beads-dashboard--section-key-on-line)
          (not (beads-dashboard--issue-id-at-line))
-         (let ((line (buffer-substring (line-beginning-position)
-                                       (line-end-position))))
-           (string-match-p "and [0-9]+ more (\\+)" line)))))
+         (beads-dashboard--more-line-text-p))))
 
 (defun beads-dashboard--goto-more-line (section-key)
   "Move point to the `… and N more' line for SECTION-KEY, returning t on hit."
@@ -656,9 +671,7 @@ issue object."
                        (beads-dashboard--section-key-on-line))
                    (not (beads-dashboard--header-line-p))
                    (not (beads-dashboard--issue-id-at-line))
-                   (let ((line (buffer-substring (line-beginning-position)
-                                                 (line-end-position))))
-                     (string-match-p "and [0-9]+ more (\\+)" line)))
+                   (beads-dashboard--more-line-text-p))
           (setq target (point)))
         (unless target (forward-line 1))))
     (when target
@@ -694,7 +707,15 @@ in a sibling section.  We fight that by capturing the issue-id (or
 \"was on more-line\" state) at point first, then re-anchoring after
 the synchronous rerender, after a short timer (cached loads), and
 after a longer timer (cold fetches).  Each retry is idempotent — if
-point is already on the right line, the goto is a no-op."
+point is already on the right line, the goto is a no-op.
+
+Latency trade-off: the 0.5s retry covers a typical local `bd' CLI
+fetch.  A cold fetch on a slow disk or huge repo (or remote Dolt)
+can exceed that window; in that pathological case point may be left
+on the loading-skeleton row until the user scrolls.  We do not chain
+arbitrarily long retries because (a) it would keep idle CPU work
+running long after the user has moved on, and (b) magit's
+load-more-style flows have the same trade-off and we mirror it."
   (let ((issue-id (beads-dashboard--issue-id-at-line))
         (on-more-line (beads-dashboard--on-more-line-p))
         (buf (current-buffer)))
@@ -705,7 +726,7 @@ point is already on the right line, the goto is a no-op."
         ((retry ()
            (when (buffer-live-p buf)
              (with-current-buffer buf
-               (when (eq major-mode 'beads-dashboard-mode)
+               (when (derived-mode-p 'beads-dashboard-mode)
                  (beads-dashboard--restore-point
                   section-key issue-id on-more-line))))))
       ;; Cached-load path — async resolves on the next tick.

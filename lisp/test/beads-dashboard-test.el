@@ -824,6 +824,26 @@ when the issue is no longer in the buffer."
     (goto-char (point-min))
     (should-not (beads-dashboard--on-more-line-p))))
 
+(ert-deftest beads-dashboard-test-more-line-text-p-shared-format ()
+  "`beads-dashboard--more-line-text-p' matches the same format string
+that `beads-dashboard--more-line' produces — guards against the two
+sites drifting if the button label ever changes."
+  :tags '(:unit)
+  (with-temp-buffer
+    (insert "  … and 7 more (+)")
+    (forward-line 0)
+    (should (beads-dashboard--more-line-text-p))
+    ;; Other rows that share the section-key contract must NOT match
+    ;; (header, empty-state, issue line).
+    (erase-buffer)
+    (insert "▼ Ready (15)")
+    (forward-line 0)
+    (should-not (beads-dashboard--more-line-text-p))
+    (erase-buffer)
+    (insert "  Nothing to show.")
+    (forward-line 0)
+    (should-not (beads-dashboard--more-line-text-p))))
+
 (ert-deftest beads-dashboard-test-goto-more-line-finds-stamped-row ()
   "`beads-dashboard--goto-more-line' jumps to the more-line for the key."
   :tags '(:unit)
