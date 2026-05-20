@@ -80,24 +80,21 @@ Returns:
   nil  — when EXTRA-FOR-SECTION is nil; the loader passes no --limit
          so the bd CLI default applies (e.g. `bd ready' → 100, `bd
          stale' → 50).  This preserves the dashboard's headline counts
-         at rest and keeps the `… and N more' affordance live.
-  0    — when EXTRA-FOR-SECTION is `all'; bd CLIs interpret 0 as
-         unlimited so the section fetches and shows everything.
-  N    — when EXTRA-FOR-SECTION is a positive integer; the loader
-         requests `beads-dashboard-section-limit + extra +
-         beads-dashboard-section-batch'.  The trailing `+batch'
-         lookahead overfetches by exactly one batch so the `… and N
-         more' affordance stays visible after `+': the user keeps
-         seeing there is more to unlock until the section is truly
-         exhausted, at which point the local truncation produces 0
-         hidden rows and the line disappears on its own."
+         at rest and keeps the `… and N more' affordance live without
+         a heavier upfront fetch.
+  0    — for any non-nil EXTRA-FOR-SECTION (integer or the `all'
+         sentinel); bd CLIs interpret 0 as unlimited.  Once the user
+         has invoked `+'/`-'/`*' on a section, they have asked the
+         dashboard to grow beyond the CLI cap, so we fetch the full
+         dataset and let `beads-dashboard--limited-vstack' do the
+         truncation locally.  This makes the header count monotonic
+         under `+' (it reveals the true total instead of dropping
+         when the new fetch-limit is below the CLI default) and is
+         the only honest way to render the misleading-(100) Ready
+         section."
   (cond
    ((null extra-for-section) nil)
-   ((eq extra-for-section 'all) 0)
-   ((null beads-dashboard-section-limit) 0)
-   (t (+ beads-dashboard-section-limit
-         extra-for-section
-         beads-dashboard-section-batch))))
+   (t 0)))
 
 ;;; Helper Component
 

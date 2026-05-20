@@ -451,13 +451,14 @@ affordance live when the user has not bumped the section."
     (should (= 0 (beads-dashboard--effective-fetch-limit 'all)))))
 
 (ert-deftest beads-dashboard-test-effective-fetch-limit-int ()
-  "Integer extra → display-limit + extra + batch (one-batch lookahead).
-The lookahead keeps the `… and N more' affordance visible after `+'
-until the section is truly exhausted."
+  "Integer extra → 0 (unlimited at the CLI; local truncation does the work).
+Once the user has invoked `+', we want the section header to report
+the true total instead of dropping when our derived limit falls below
+the CLI default."
   :tags '(:unit)
   (let ((beads-dashboard-section-limit 10)
         (beads-dashboard-section-batch 10))
-    (should (= 35 (beads-dashboard--effective-fetch-limit 15)))))
+    (should (= 0 (beads-dashboard--effective-fetch-limit 15)))))
 
 (ert-deftest beads-dashboard-test-more-line-clickable ()
   "`beads-dashboard--more-line' returns a clickable button vnode with
