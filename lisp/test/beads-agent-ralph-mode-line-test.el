@@ -46,11 +46,11 @@ Disables the minor mode at teardown so leftover state never leaks."
   (declare (indent 0) (debug (body)))
   `(unwind-protect
        (progn
-         (beads-agent-ralph--mode-line-registry-clear)
+         (beads-agent-ralph--mode-line-reset)
          (when beads-agent-ralph-mode-line-mode
            (beads-agent-ralph-mode-line-mode -1))
          ,@body)
-     (beads-agent-ralph--mode-line-registry-clear)
+     (beads-agent-ralph--mode-line-reset)
      (when beads-agent-ralph-mode-line-mode
        (beads-agent-ralph-mode-line-mode -1))))
 
@@ -104,7 +104,7 @@ Disables the minor mode at teardown so leftover state never leaks."
     (let ((ctrl (beads-agent-ralph-mode-line-test--make-controller
                  :iteration 5 :max-iterations 50
                  :cumulative-cost-usd 4.17 :status 'running)))
-      (beads-agent-ralph--mode-line-register ctrl)
+      (beads-agent-ralph--mode-line-show ctrl)
       (let ((s (substring-no-properties
                 (beads-agent-ralph--mode-line-string))))
         (should (string-match-p "Ralph 5/50" s))
@@ -115,7 +115,7 @@ Disables the minor mode at teardown so leftover state never leaks."
   (beads-agent-ralph-mode-line-test--with-clean-registry
     (let ((ctrl (beads-agent-ralph-mode-line-test--make-controller
                  :status 'auto-paused)))
-      (beads-agent-ralph--mode-line-register ctrl)
+      (beads-agent-ralph--mode-line-show ctrl)
       (let* ((s (beads-agent-ralph--mode-line-string))
              (face (get-text-property 0 'face s)))
         (should (eq face 'beads-agent-ralph-mode-line-stalled))))))
@@ -125,7 +125,7 @@ Disables the minor mode at teardown so leftover state never leaks."
   (beads-agent-ralph-mode-line-test--with-clean-registry
     (let ((ctrl (beads-agent-ralph-mode-line-test--make-controller
                  :status 'failed)))
-      (beads-agent-ralph--mode-line-register ctrl)
+      (beads-agent-ralph--mode-line-show ctrl)
       (let* ((s (beads-agent-ralph--mode-line-string))
              (face (get-text-property 0 'face s)))
         (should (eq face 'beads-agent-ralph-mode-line-failed))))))

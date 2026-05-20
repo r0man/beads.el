@@ -88,7 +88,7 @@ list of live controllers lives in `beads-agent-ralph--controllers'.")
   "Timer that sweeps expired sticky entries from the display list.
 Re-armed by `beads-agent-ralph--mode-line-mark-sticky'.")
 
-(defun beads-agent-ralph--mode-line-registry-clear ()
+(defun beads-agent-ralph--mode-line-reset ()
   "Reset the mode-line display state and cancel any pending sweeper.
 Intended for tests; the production path never resets unconditionally.
 Only touches this module's display state — the public controller
@@ -108,18 +108,17 @@ deadline)."
   (cl-find controller beads-agent-ralph--mode-line-sticky
            :key (lambda (entry) (plist-get entry :controller))))
 
-(defun beads-agent-ralph--mode-line-register (controller)
-  "Ensure CONTROLLER is displayed by the mode-line, non-sticky.
-Touches only this module's display-intent list — the public
-controller registry is populated once, at start, by
-`beads-agent-ralph-start' calling
-`beads-agent-ralph--register-controller'.  Re-running this on every
-state change must therefore not re-prepend CONTROLLER into the
-public registry, or the cockpit's most-recently-started ordering
-would shuffle on each transition.
+(defun beads-agent-ralph--mode-line-show (controller)
+  "Push CONTROLLER to the head of the mode-line display list, non-sticky.
+Touches only this module's display state — the public controller
+registry is populated once, at start, by `beads-agent-ralph-start'
+calling `beads-agent-ralph--register-controller', and must not be
+mutated here.  If it were, the cockpit's most-recently-started
+ordering would shuffle on every status transition.
 
-A re-register (e.g. resume after auto-pause) clears any sticky tail
-in the local display list so the indicator drops the deadline."
+Calling this on a controller that is already shown moves it back
+to the head and clears any sticky tail (e.g. resume after auto-
+pause drops the deadline)."
   (setq beads-agent-ralph--mode-line-sticky
         (cl-remove controller beads-agent-ralph--mode-line-sticky
                    :key (lambda (entry) (plist-get entry :controller))))
@@ -133,12 +132,12 @@ The entry is removed when `current-time' exceeds `:sticky-until'."
   (when-let ((entry (beads-agent-ralph--mode-line-find controller)))
     (let ((seconds beads-agent-ralph-mode-line-sticky-seconds))
       (if (or (null seconds) (<= seconds 0))
-          (beads-agent-ralph--mode-line-deregister controller)
+          (beads-agent-ralph--mode-line-hide controller)
         (setf (plist-get entry :sticky-until)
               (time-add (current-time) seconds))
         (beads-agent-ralph--mode-line-arm-sweeper seconds)))))
 
-(defun beads-agent-ralph--mode-line-deregister (controller)
+(defun beads-agent-ralph--mode-line-hide (controller)
   "Stop displaying CONTROLLER in the mode-line.
 Removes the display entry only; the controller remains in the
 public registry (terminal controllers are retained for inspection
@@ -400,19 +399,21 @@ Falls back to `message' + `ding' in batch or when D-Bus is missing."
 
 ;;; State-change observer
 ;;
-;; Bridges the controller's abnormal hook to the registry and notify
-;; subsystem.  Installed unconditionally on load; the policy defcustoms
-;; gate the user-visible side-effects.
+;; Bridges the controller's status-transition hook to this module's
+;; display state and the notify subsystem.  Installed unconditionally
+;; on load; the policy defcustoms gate the user-visible side-effects.
 
 (defun beads-agent-ralph--mode-line-on-state-change (controller new-status)
   "React to CONTROLLER moving into NEW-STATUS.
-Registers/de-registers the controller in the mode-line registry and
-fires a desktop notification per `beads-agent-ralph-notify'."
+Updates the mode-line's display state and fires a desktop
+notification per `beads-agent-ralph-notify'.  The public controller
+registry is owned by `beads-agent-ralph-start' and is intentionally
+not touched here."
   (pcase new-status
     ((or 'running 'cooling-down 'auto-paused)
-     (beads-agent-ralph--mode-line-register controller))
+     (beads-agent-ralph--mode-line-show controller))
     ((or 'done 'stopped 'failed)
-     (beads-agent-ralph--mode-line-register controller)
+     (beads-agent-ralph--mode-line-show controller)
      (beads-agent-ralph--mode-line-mark-sticky controller))
     (_ nil))
   (beads-agent-ralph--maybe-notify controller new-status)
