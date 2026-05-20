@@ -794,7 +794,7 @@ the notification module to react to terminal transitions.")
 Added during `beads-agent-ralph-start' via
 `beads-agent-ralph--register-controller' (after the dashboard mounts,
 before the first iteration is scheduled) and removed by
-`beads-agent-ralph--unregister-controller' (dashboard kill-buffer
+`beads-agent-ralph--unregister-controller' (dashboard `kill-buffer'
 hook today, cockpit GC tomorrow).  Terminal-state controllers are
 retained until explicit unregister so the dashboard and downstream
 UIs (cockpit, epic browser) can still introspect them post-run.
@@ -828,7 +828,7 @@ CONTROLLER to the head (most-recently-started).
 Note the deliberate asymmetry with
 `beads-agent-ralph--unregister-controller': register matches by
 `equal' on `root-id' (so a relaunch replaces the prior entry),
-unregister matches by `eq' on identity (so a stale kill-buffer
+unregister matches by `eq' on identity (so a stale `kill-buffer'
 hook cannot evict the live replacement)."
   (setq beads-agent-ralph--controllers
         (cons controller
@@ -847,7 +847,7 @@ must not evict the live replacement).  Callers that mean
 \"remove whatever is registered for this root\" should look it up
 first via `beads-agent-ralph-controller-for-root'.
 A no-op when CONTROLLER is not in the registry, so callers
-(kill-buffer hooks, cockpit GC) need not check membership first."
+\(`kill-buffer' hooks, cockpit GC) need not check membership first."
   (setq beads-agent-ralph--controllers
         (delq controller beads-agent-ralph--controllers))
   controller)
