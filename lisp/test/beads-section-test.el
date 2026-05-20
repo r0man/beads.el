@@ -255,6 +255,39 @@
         (beads-section-visit-issue))
       (should (equal visited-id "bd-visit")))))
 
+;;; Issue Line Vnode — trailing agent badge group
+
+(ert-deftest beads-section-test-issue-line-vnode-no-agents ()
+  "Issue line label has no trailing badges (or padding) when AGENTS is nil/empty."
+  (let* ((issue (beads-section-test--make-issue :id "bd-row" :title "Row title"))
+         (vnode-nil (beads-section--issue-line-vnode issue))
+         (vnode-empty (beads-section--issue-line-vnode issue nil ""))
+         (label-nil (vui-vnode-button-label vnode-nil))
+         (label-empty (vui-vnode-button-label vnode-empty)))
+    ;; Without agents, the label ends at the title.
+    (should (string-suffix-p "Row title" label-nil))
+    (should (equal label-nil label-empty))))
+
+(ert-deftest beads-section-test-issue-line-vnode-with-agents ()
+  "Non-empty AGENTS is appended after the title with a two-space separator."
+  (let* ((issue (beads-section-test--make-issue :id "bd-row" :title "Row title"))
+         (vnode (beads-section--issue-line-vnode
+                 issue nil (propertize "T" 'face 'beads-list-agent-working)))
+         (label (vui-vnode-button-label vnode)))
+    (should (string-suffix-p "Row title  T" label))))
+
+(ert-deftest beads-section-test-issue-line-vnode-agents-preserves-section-prop ()
+  "Appending AGENTS does not strip the `beads-section' property on the core label."
+  (let* ((issue (beads-section-test--make-issue :id "bd-prop" :title "X"))
+         (vnode (beads-section--issue-line-vnode
+                 issue nil
+                 (propertize "T" 'face 'beads-list-agent-working)))
+         (label (vui-vnode-button-label vnode))
+         ;; The first char belongs to the core (propertized) label.
+         (sec (get-text-property 0 'beads-section label)))
+    (should sec)
+    (should (eq (oref sec issue) issue))))
+
 ;;; Section Build Vnode Tests
 
 (ert-deftest beads-section-test-build-vnode-empty-hook ()

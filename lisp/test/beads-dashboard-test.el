@@ -345,6 +345,126 @@ rows do not wrap to a continuation line in narrow / side-by-side splits."
                           (vui-vnode-vstack-children vnode))))
       (should (= 3 (length children))))))
 
+;;; Trailing agent badges on issue rows (bde-npte.4)
+
+(ert-deftest beads-dashboard-test-render-issue-list-no-agents-no-padding ()
+  "Issue rows with no agent activity render no trailing badge or padding."
+  :tags '(:unit)
+  (cl-letf (((symbol-function 'beads-agent--get-sessions-focused-on-issue)
+             (lambda (_id) nil))
+            ((symbol-function 'beads-agent--get-sessions-touching-issue)
+             (lambda (_id) nil))
+            ((symbol-function 'beads-agent--get-sessions-for-issue)
+             (lambda (_id) nil))
+            ((symbol-function 'beads-agent--get-issue-outcome)
+             (lambda (_id) nil)))
+    (let* ((issues (list (beads-issue :id "bd-noagent" :title "Plain row"
+                                      :status "open" :priority 2
+                                      :issue-type "task")))
+           (vnode (beads-dashboard--render-issue-list issues 'ready))
+           (kids (vui-vnode-vstack-children vnode))
+           (label (vui-vnode-button-label (car kids))))
+      ;; The label ends at the title — no trailing badge or padding.
+      (should (string-suffix-p "Plain row" label)))))
+
+(ert-deftest beads-dashboard-test-render-issue-list-one-focused-agent ()
+  "Issue rows with one focused agent append the role glyph to the label."
+  :tags '(:unit)
+  (require 'beads-agent-types)
+  (unless (beads-agent-type-get "task")
+    (beads-agent-type-register (beads-agent-type-task)))
+  (let ((beads-agent-display-use-icons nil)
+        (beads-agent-type-icons nil))
+    (cl-letf (((symbol-function 'beads-agent--get-sessions-focused-on-issue)
+               (lambda (id) (and (equal id "bd-agent") '(sess1))))
+              ((symbol-function 'beads-agent--get-sessions-touching-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-sessions-for-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-issue-outcome)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent-session-type-name)
+               (lambda (_s) "Task"))
+              ((symbol-function 'beads-agent-session-instance-number)
+               (lambda (_s) 1)))
+      (let* ((issues (list (beads-issue :id "bd-agent" :title "Has agent"
+                                        :status "in_progress" :priority 2
+                                        :issue-type "task")))
+             (vnode (beads-dashboard--render-issue-list issues 'in-flight))
+             (label (vui-vnode-button-label (car (vui-vnode-vstack-children vnode)))))
+        (should (string-suffix-p "Has agent  T" label))))))
+
+(ert-deftest beads-dashboard-test-render-issue-list-multiple-focused-agents ()
+  "Multiple focused agents render joined by a space, after a two-space gap."
+  :tags '(:unit)
+  (require 'beads-agent-types)
+  (unless (beads-agent-type-get "task")
+    (beads-agent-type-register (beads-agent-type-task)))
+  (require 'beads-agent-types)
+  (unless (beads-agent-type-get "review")
+    (beads-agent-type-register (beads-agent-type-review)))
+  (let* ((beads-agent-display-use-icons nil)
+         (beads-agent-type-icons nil)
+         (types '((s1 . "Task") (s2 . "Review"))))
+    (cl-letf (((symbol-function 'beads-agent--get-sessions-focused-on-issue)
+               (lambda (_id) '(s1 s2)))
+              ((symbol-function 'beads-agent--get-sessions-touching-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-sessions-for-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-issue-outcome)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent-session-type-name)
+               (lambda (s) (cdr (assoc s types))))
+              ((symbol-function 'beads-agent-session-instance-number)
+               (lambda (_s) 1)))
+      (let* ((issues (list (beads-issue :id "bd-multi" :title "Two agents"
+                                        :status "in_progress" :priority 2
+                                        :issue-type "task")))
+             (vnode (beads-dashboard--render-issue-list issues 'in-flight))
+             (label (vui-vnode-button-label (car (vui-vnode-vstack-children vnode)))))
+        (should (string-suffix-p "Two agents  T R" label))))))
+
+(ert-deftest beads-dashboard-test-render-issue-list-finished-outcome-badge ()
+  "Finished outcome renders `✓T' badge on the trailing position."
+  :tags '(:unit)
+  (let ((beads-agent-display-use-icons nil)
+        (beads-agent-type-icons nil))
+    (cl-letf (((symbol-function 'beads-agent--get-sessions-focused-on-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-sessions-touching-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-sessions-for-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-issue-outcome)
+               (lambda (_id) '("Task" . finished))))
+      (let* ((issues (list (beads-issue :id "bd-done" :title "Done row"
+                                        :status "closed" :priority 2
+                                        :issue-type "task")))
+             (vnode (beads-dashboard--render-issue-list issues 'closed))
+             (label (vui-vnode-button-label (car (vui-vnode-vstack-children vnode)))))
+        (should (string-suffix-p "Done row  ✓T" label))))))
+
+(ert-deftest beads-dashboard-test-render-issue-list-failed-outcome-badge ()
+  "Failed outcome renders `✗R' badge on the trailing position."
+  :tags '(:unit)
+  (let ((beads-agent-display-use-icons nil)
+        (beads-agent-type-icons nil))
+    (cl-letf (((symbol-function 'beads-agent--get-sessions-focused-on-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-sessions-touching-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-sessions-for-issue)
+               (lambda (_id) nil))
+              ((symbol-function 'beads-agent--get-issue-outcome)
+               (lambda (_id) '("Review" . failed))))
+      (let* ((issues (list (beads-issue :id "bd-fail" :title "Fail row"
+                                        :status "open" :priority 2
+                                        :issue-type "task")))
+             (vnode (beads-dashboard--render-issue-list issues 'blocked))
+             (label (vui-vnode-button-label (car (vui-vnode-vstack-children vnode)))))
+        (should (string-suffix-p "Fail row  ✗R" label))))))
+
 ;;; Agent issue-id detection from dashboard-style buffers
 
 (ert-deftest beads-dashboard-test-agent-detect-issue-id-from-section ()

@@ -457,6 +457,102 @@ type as \"T\", colliding with Task."
               (should (equal (substring-no-properties result) "X")))))
       (beads-agent-type--unregister "Test"))))
 
+;;;; beads-agent-display-format-issue-agents — shared issue-row badge group
+
+(defmacro beads-agent-display-test--with-issue-agents
+    (focused-list touched-list outcome &rest body)
+  "Run BODY with mocked issue-session accessors.
+FOCUSED-LIST is the list returned by
+`beads-agent--get-sessions-focused-on-issue', TOUCHED-LIST the list
+returned by `beads-agent--get-sessions-touching-issue', and OUTCOME
+the value returned by `beads-agent--get-issue-outcome'."
+  (declare (indent 3) (debug t))
+  `(cl-letf (((symbol-function 'beads-agent--get-sessions-focused-on-issue)
+              (lambda (_id) ,focused-list))
+             ((symbol-function 'beads-agent--get-sessions-touching-issue)
+              (lambda (_id) ,touched-list))
+             ((symbol-function 'beads-agent--get-sessions-for-issue)
+              (lambda (_id) nil))
+             ((symbol-function 'beads-agent--get-issue-outcome)
+              (lambda (_id) ,outcome)))
+     ,@body))
+
+(ert-deftest beads-agent-display-test-format-issue-agents-empty ()
+  "Returns empty string when there are no focused / touched / outcome agents."
+  (beads-agent-display-test--with-issue-agents nil nil nil
+    (should (equal (beads-agent-display-format-issue-agents "bd-x") ""))))
+
+(ert-deftest beads-agent-display-test-format-issue-agents-one-focused ()
+  "One focused Task agent renders as the role glyph (letter mode = `T')."
+  (beads-agent-display-test--ensure-task-registered)
+  (let ((beads-agent-display-use-icons nil)
+        (beads-agent-type-icons nil))
+    (cl-letf (((symbol-function 'beads-agent-session-type-name)
+               (lambda (_s) "Task"))
+              ((symbol-function 'beads-agent-session-instance-number)
+               (lambda (_s) 1)))
+      (beads-agent-display-test--with-issue-agents '(sess1) nil nil
+        (let ((result (beads-agent-display-format-issue-agents "bd-x")))
+          (should (string= (substring-no-properties result) "T"))
+          (should (string-match-p "Focused: 1, Touched: 0"
+                                  (get-text-property 0 'help-echo result))))))))
+
+(ert-deftest beads-agent-display-test-format-issue-agents-multiple-focused ()
+  "Multiple focused agents render joined by a space separator, no `#N'."
+  (beads-agent-display-test--ensure-task-registered)
+  (require 'beads-agent-types)
+  (unless (beads-agent-type-get "review")
+    (beads-agent-type-register (beads-agent-type-review)))
+  (let* ((beads-agent-display-use-icons nil)
+         (beads-agent-type-icons nil)
+         (types '((s1 . "Task") (s2 . "Review"))))
+    (cl-letf (((symbol-function 'beads-agent-session-type-name)
+               (lambda (s) (cdr (assoc s types))))
+              ((symbol-function 'beads-agent-session-instance-number)
+               (lambda (_s) 1)))
+      (beads-agent-display-test--with-issue-agents '(s1 s2) nil nil
+        (let* ((result (beads-agent-display-format-issue-agents "bd-x"))
+               (plain (substring-no-properties result)))
+          (should (string= plain "T R"))
+          (should-not (string-match-p "#" plain)))))))
+
+(ert-deftest beads-agent-display-test-format-issue-agents-finished-outcome ()
+  "Finished outcome with no live sessions renders `✓T' (letter mode)."
+  (let ((beads-agent-display-use-icons nil)
+        (beads-agent-type-icons nil))
+    (beads-agent-display-test--with-issue-agents nil nil '("Task" . finished)
+      (let ((result (beads-agent-display-format-issue-agents "bd-x")))
+        (should (string= (substring-no-properties result) "✓T"))
+        (should (eq (get-text-property 0 'face result)
+                    'beads-list-agent-finished))))))
+
+(ert-deftest beads-agent-display-test-format-issue-agents-failed-outcome ()
+  "Failed outcome with no live sessions renders `✗R' (letter mode)."
+  (let ((beads-agent-display-use-icons nil)
+        (beads-agent-type-icons nil))
+    (beads-agent-display-test--with-issue-agents nil nil '("Review" . failed)
+      (let ((result (beads-agent-display-format-issue-agents "bd-x")))
+        (should (string= (substring-no-properties result) "✗R"))
+        (should (eq (get-text-property 0 'face result)
+                    'beads-list-agent-failed))))))
+
+(ert-deftest beads-agent-display-test-format-issue-agents-focused-wins-outcome ()
+  "When both focused sessions and an outcome exist, focused agents win.
+The outcome cell is reserved for terminated sessions; an active focused
+session means the issue is still in flight."
+  (beads-agent-display-test--ensure-task-registered)
+  (let ((beads-agent-display-use-icons nil)
+        (beads-agent-type-icons nil))
+    (cl-letf (((symbol-function 'beads-agent-session-type-name)
+               (lambda (_s) "Task"))
+              ((symbol-function 'beads-agent-session-instance-number)
+               (lambda (_s) 1)))
+      (beads-agent-display-test--with-issue-agents
+          '(sess1) nil '("Task" . finished)
+        (let ((result (beads-agent-display-format-issue-agents "bd-x")))
+          (should (string= (substring-no-properties result) "T"))
+          (should-not (string-match-p "✓" result)))))))
+
 (provide 'beads-agent-display-test)
 
 ;;; beads-agent-display-test.el ends here

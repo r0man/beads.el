@@ -20,6 +20,7 @@
 
 (require 'eieio)
 (require 'vui)
+(require 'beads-agent-display)
 (require 'beads-command)
 (require 'beads-section)
 (require 'beads-types)
@@ -334,12 +335,21 @@ Truncated to the section's effective display limit (computed from
 `beads-dashboard-section-limit' plus EXTRA-ROWS), with a trailing
 `… and N more' button when more rows are available.  Each row carries
 SECTION-KEY as a `beads-dashboard-section-key' text property so the
-load-more commands can resolve the enclosing section in O(1)."
+load-more commands can resolve the enclosing section in O(1).
+
+Each row also gets a trailing agent badge group built via
+`beads-agent-display-format-issue-agents', so the dashboard shows
+the same role icons as the issue list whenever an issue has a
+focused agent session or a recent finished/failed outcome."
   (beads-dashboard--limited-vstack
    issues
    (lambda (issue sk)
-     (beads-section--issue-line-vnode
-      issue (when sk (list 'beads-dashboard-section-key sk))))
+     (let* ((id (oref issue id))
+            (agents (and id (beads-agent-display-format-issue-agents id))))
+       (beads-section--issue-line-vnode
+        issue
+        (when sk (list 'beads-dashboard-section-key sk))
+        agents)))
    extra-rows section-key))
 
 (defun beads-dashboard--issue-not-blocker-p (issue)

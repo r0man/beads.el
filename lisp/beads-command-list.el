@@ -824,69 +824,10 @@ the value of `beads-list-date-format'."
 (defun beads-list--format-agent (issue-id)
   "Format the Agents column for ISSUE-ID.
 
-Renders one role glyph per focused session on the issue, joined by a
-faint space separator.  Under GUI Emacs the glyph is the role icon
-\(🦫 🦉 🐙 🐕 🦋), under TTY it is the type's single letter (T/R/P/Q/C).
-Finished and failed outcomes prefix the glyph with `✓' or `✗' so the
-status stays shape-distinguishable in TTY too.
-
-Touched-only sessions (focused elsewhere) are not rendered in the
-column; their count surfaces in the cell help-echo only.
-
-The latent collision bug from earlier versions — where any registered
-type whose name starts with the same letter would render identically —
-is fixed by routing all glyph resolution through
-`beads-agent-type-icon-or-letter', which honors the registered
-`:letter' slot."
-  (let* ((focused (and (fboundp 'beads-agent--get-sessions-focused-on-issue)
-                       (beads-agent--get-sessions-focused-on-issue issue-id)))
-         (touched (and (fboundp 'beads-agent--get-sessions-touching-issue)
-                       (beads-agent--get-sessions-touching-issue issue-id)))
-         (touched-only (cl-set-difference touched focused))
-         (legacy-sessions (and (not focused) (not touched)
-                               (fboundp 'beads-agent--get-sessions-for-issue)
-                               (beads-agent--get-sessions-for-issue issue-id)))
-         (outcome (and (fboundp 'beads-agent--get-issue-outcome)
-                       (beads-agent--get-issue-outcome issue-id)))
-         (separator (propertize " " 'face 'shadow)))
-    (cond
-     ;; Focused sessions — directory-bound model.  Touched-only sessions
-     ;; do not render in the column; they appear in help-echo only.
-     (focused
-      (let* ((indicators
-              (mapcar (lambda (session)
-                        (beads-agent-display-format-session session nil t))
-                      focused))
-             (body (mapconcat #'identity indicators separator)))
-        (propertize body
-                    'help-echo (format "Focused: %d, Touched: %d"
-                                       (length focused)
-                                       (length touched-only)))))
-     ;; Legacy issue-bound sessions (backward compatibility).
-     (legacy-sessions
-      (let* ((indicators
-              (mapcar (lambda (session)
-                        (beads-agent-display-format-session session nil t))
-                      legacy-sessions))
-             (body (mapconcat #'identity indicators separator)))
-        (propertize body
-                    'help-echo (format "%d agent%s working"
-                                       (length legacy-sessions)
-                                       (if (= (length legacy-sessions) 1) "" "s")))))
-     ;; Finished outcome — render the role glyph prefixed with ✓.
-     ((and (consp outcome) (eq (cdr outcome) 'finished))
-      (beads-agent-display-format-type-name (car outcome) 'finished))
-     ((eq outcome 'finished)
-      (beads-agent-display-format-type-name nil 'finished))
-     ;; Failed outcome — render the role glyph prefixed with ✗.
-     ((and (consp outcome) (eq (cdr outcome) 'failed))
-      (beads-agent-display-format-type-name (car outcome) 'failed))
-     ((eq outcome 'failed)
-      (beads-agent-display-format-type-name nil 'failed))
-     ;; No focused agent activity.  Touched-only sessions don't render in
-     ;; the column at all; their presence surfaces only when they coexist
-     ;; with a focused agent (via the help-echo built above).
-     (t ""))))
+Thin wrapper over `beads-agent-display-format-issue-agents' so the
+issue list, dashboard, and any other surface that wants the same
+badge group render through the single shared formatter."
+  (beads-agent-display-format-issue-agents issue-id))
 
 (defun beads-list--issue-to-entry (issue)
   "Convert ISSUE (beads-issue object) to tabulated-list entry."

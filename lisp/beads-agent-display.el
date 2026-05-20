@@ -31,6 +31,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'beads-agent-type)
 
 ;; Session accessors live in beads-agent-backend.el; callers load that
@@ -41,6 +42,14 @@
                   "beads-agent-backend" (session))
 (declare-function beads-agent-session-instance-number
                   "beads-agent-backend" (session))
+(declare-function beads-agent--get-sessions-focused-on-issue
+                  "beads-agent-backend" (issue-id))
+(declare-function beads-agent--get-sessions-touching-issue
+                  "beads-agent-backend" (issue-id))
+(declare-function beads-agent--get-sessions-for-issue
+                  "beads-agent-backend" (issue-id))
+(declare-function beads-agent--get-issue-outcome
+                  "beads-agent-backend" (issue-id))
 
 ;; Faces are defined in `beads-command-list.el'; we reference them by
 ;; symbol here without requiring their definition module.
@@ -142,6 +151,65 @@ The returned string carries two text properties:
    (beads-agent-session-instance-number session)
    outcome
    brief))
+
+;;;###autoload
+(defun beads-agent-display-format-issue-agents (issue-id)
+  "Return the agent-badge string for ISSUE-ID, or empty string.
+
+Renders one role glyph per focused session on the issue, joined by a
+faint space separator.  Under GUI Emacs the glyph is the role icon,
+under TTY it is the type's single letter.  Finished and failed
+outcomes prefix the glyph with `✓' or `✗' so the status stays
+shape-distinguishable in TTY too.
+
+Touched-only sessions (focused elsewhere) are not rendered; their
+count surfaces only in the cell `help-echo'.
+
+Returns \"\" when there are no focused sessions and no outcome.
+Functions in `beads-agent-backend' are guarded via `fboundp' so the
+display module stays load-cheap and usable from contexts where the
+backend has not been required."
+  (let* ((focused (and (fboundp 'beads-agent--get-sessions-focused-on-issue)
+                       (beads-agent--get-sessions-focused-on-issue issue-id)))
+         (touched (and (fboundp 'beads-agent--get-sessions-touching-issue)
+                       (beads-agent--get-sessions-touching-issue issue-id)))
+         (touched-only (cl-set-difference touched focused))
+         (legacy-sessions (and (not focused) (not touched)
+                               (fboundp 'beads-agent--get-sessions-for-issue)
+                               (beads-agent--get-sessions-for-issue issue-id)))
+         (outcome (and (fboundp 'beads-agent--get-issue-outcome)
+                       (beads-agent--get-issue-outcome issue-id)))
+         (separator (propertize " " 'face 'shadow)))
+    (cond
+     (focused
+      (let* ((indicators
+              (mapcar (lambda (session)
+                        (beads-agent-display-format-session session nil t))
+                      focused))
+             (body (mapconcat #'identity indicators separator)))
+        (propertize body
+                    'help-echo (format "Focused: %d, Touched: %d"
+                                       (length focused)
+                                       (length touched-only)))))
+     (legacy-sessions
+      (let* ((indicators
+              (mapcar (lambda (session)
+                        (beads-agent-display-format-session session nil t))
+                      legacy-sessions))
+             (body (mapconcat #'identity indicators separator)))
+        (propertize body
+                    'help-echo (format "%d agent%s working"
+                                       (length legacy-sessions)
+                                       (if (= (length legacy-sessions) 1) "" "s")))))
+     ((and (consp outcome) (eq (cdr outcome) 'finished))
+      (beads-agent-display-format-type-name (car outcome) 'finished))
+     ((eq outcome 'finished)
+      (beads-agent-display-format-type-name nil 'finished))
+     ((and (consp outcome) (eq (cdr outcome) 'failed))
+      (beads-agent-display-format-type-name (car outcome) 'failed))
+     ((eq outcome 'failed)
+      (beads-agent-display-format-type-name nil 'failed))
+     (t ""))))
 
 ;;;###autoload
 (defun beads-agent-display-format-type-name (type-name &optional outcome)
