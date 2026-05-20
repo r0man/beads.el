@@ -255,6 +255,18 @@ Default-collapsed sections must not fetch their data until expanded."
       (forward-line 1)
       (should-not (beads-dashboard--issue-line-p)))))
 
+(ert-deftest beads-dashboard-test-truncate-lines-buffer-local ()
+  "`beads-dashboard-mode' sets `truncate-lines' buffer-locally so issue
+rows do not wrap to a continuation line in narrow / side-by-side splits."
+  :tags '(:unit)
+  (let ((tmp (generate-new-buffer " *beads-dash-truncate-test*")))
+    (unwind-protect
+        (with-current-buffer tmp
+          (beads-dashboard-mode)
+          (should (eq truncate-lines t))
+          (should (local-variable-p 'truncate-lines)))
+      (kill-buffer tmp))))
+
 (ert-deftest beads-dashboard-test-magit-keys-bound ()
   "`g', `r', `q', `c', `b', `RET', `TAB' have Magit-idiomatic bindings."
   :tags '(:unit)
