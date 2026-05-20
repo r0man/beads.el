@@ -117,6 +117,21 @@
   (should (eq (lookup-key beads-dashboard-mode-map (kbd "a r"))
               #'beads-agent-start-review)))
 
+(ert-deftest beads-agent-keys-test-dashboard-mode-a-p ()
+  "`a p' in dashboard-mode starts the Plan agent."
+  (should (eq (lookup-key beads-dashboard-mode-map (kbd "a p"))
+              #'beads-agent-start-plan)))
+
+(ert-deftest beads-agent-keys-test-dashboard-mode-a-q ()
+  "`a q' in dashboard-mode starts the QA agent."
+  (should (eq (lookup-key beads-dashboard-mode-map (kbd "a q"))
+              #'beads-agent-start-qa)))
+
+(ert-deftest beads-agent-keys-test-dashboard-mode-a-c ()
+  "`a c' in dashboard-mode starts the Custom agent."
+  (should (eq (lookup-key beads-dashboard-mode-map (kbd "a c"))
+              #'beads-agent-start-custom)))
+
 (ert-deftest beads-agent-keys-test-dashboard-mode-a-x ()
   "`a x' in dashboard-mode stops the agent for the issue at point."
   (should (eq (lookup-key beads-dashboard-mode-map (kbd "a x"))
