@@ -192,7 +192,9 @@ bound to the epic's id."
     (vui-text line)))
 
 (defun beads-ralph-epic-browser--action-bar ()
-  "Return the action-bar legend vnode."
+  "Return the action-bar legend vnode.
+The legend must mirror the bindings in
+`beads-ralph-epic-browser-mode-map'."
   (vui-text "[R]un · [d]etails · [g]refresh · [q]uit"
             :face 'shadow))
 
@@ -263,27 +265,25 @@ mid-flight cancels any pending re-render timer."
 
 ;;; Interactive commands
 
+(defun beads-ralph-epic-browser--epic-id-at-point-or-error ()
+  "Return the epic id at point, or signal a `user-error'."
+  (or (beads-ralph-epic-browser--epic-id-at-point)
+      (user-error "No epic at point")))
+
 (defun beads-ralph-epic-browser-show ()
   "Show the epic at point via `beads-show'."
   (interactive)
-  (let ((id (beads-ralph-epic-browser--epic-id-at-point)))
-    (if id
-        (beads-show id)
-      (user-error "No epic at point"))))
+  (beads-show (beads-ralph-epic-browser--epic-id-at-point-or-error)))
 
 (defun beads-ralph-epic-browser-launch ()
   "Open the Ralph launcher on the epic at point.
 If `beads-ralph-launcher' (bde-deqx.5) is not yet loaded, falls
-back to the legacy `beads-agent-ralph-launch' entry."
+back to the existing `beads-agent-ralph-launch' confirm dialog."
   (interactive)
-  (let ((id (beads-ralph-epic-browser--epic-id-at-point)))
-    (unless id
-      (user-error "No epic at point"))
-    (cond
-     ((fboundp 'beads-ralph-launcher)
-      (beads-ralph-launcher id :kind 'epic))
-     (t
-      (beads-agent-ralph-launch :issue id :kind 'epic)))))
+  (let ((id (beads-ralph-epic-browser--epic-id-at-point-or-error)))
+    (if (fboundp 'beads-ralph-launcher)
+        (beads-ralph-launcher id :kind 'epic)
+      (beads-agent-ralph-launch :issue id :kind 'epic))))
 
 (defun beads-ralph-epic-browser-refresh ()
   "Refresh the epic browser from `bd epic status --json'."
