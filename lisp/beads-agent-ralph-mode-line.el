@@ -91,10 +91,11 @@ Re-armed by `beads-agent-ralph--mode-line-mark-sticky'.")
 (defun beads-agent-ralph--mode-line-registry-clear ()
   "Reset the mode-line display state and cancel any pending sweeper.
 Intended for tests; the production path never resets unconditionally.
-Also clears the public controller registry so both the mode-line
-overlay and the underlying registry start from a clean slate."
+Only touches this module's display state — the public controller
+registry (`beads-agent-ralph--controllers') is owned by
+`beads-agent-ralph.el' and must be reset there by callers that
+need it (typically a `let'-binding around the test body)."
   (setq beads-agent-ralph--mode-line-sticky nil)
-  (setq beads-agent-ralph--controllers nil)
   (when (timerp beads-agent-ralph--mode-line-sticky-timer)
     (cancel-timer beads-agent-ralph--mode-line-sticky-timer))
   (setq beads-agent-ralph--mode-line-sticky-timer nil))
@@ -109,10 +110,16 @@ deadline)."
 
 (defun beads-agent-ralph--mode-line-register (controller)
   "Ensure CONTROLLER is displayed by the mode-line, non-sticky.
-Also registers CONTROLLER in the public controller registry so
-state-change observers stay aligned with start-driven registration.
-A re-register (e.g. resume after auto-pause) clears any sticky tail."
-  (beads-agent-ralph--register-controller controller)
+Touches only this module's display-intent list — the public
+controller registry is populated once, at start, by
+`beads-agent-ralph-start' calling
+`beads-agent-ralph--register-controller'.  Re-running this on every
+state change must therefore not re-prepend CONTROLLER into the
+public registry, or the cockpit's most-recently-started ordering
+would shuffle on each transition.
+
+A re-register (e.g. resume after auto-pause) clears any sticky tail
+in the local display list so the indicator drops the deadline."
   (setq beads-agent-ralph--mode-line-sticky
         (cl-remove controller beads-agent-ralph--mode-line-sticky
                    :key (lambda (entry) (plist-get entry :controller))))
@@ -171,13 +178,13 @@ when no display entries are left."
 
 (defun beads-agent-ralph--mode-line-active-controller ()
   "Return the controller the indicator should display, or nil.
-Walks the public controller registry in most-recently-started order
-and returns the first controller that also carries a display entry
-in `beads-agent-ralph--mode-line-sticky'."
-  (cl-some (lambda (controller)
-             (when (beads-agent-ralph--mode-line-find controller)
-               controller))
-           (beads-agent-ralph-controllers)))
+Reads the head of this module's display list, which is ordered
+most-recently-touched first (start, state change, or resume push
+the controller to the head).  The mode-line wants the most recent
+*activity*, not the most recent *start* — so it deliberately uses
+its own ordering rather than walking the public registry."
+  (when-let ((entry (car beads-agent-ralph--mode-line-sticky)))
+    (plist-get entry :controller)))
 
 ;;; Cost formatter
 

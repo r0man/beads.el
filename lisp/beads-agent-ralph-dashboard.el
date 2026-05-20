@@ -667,7 +667,14 @@ terminal `stopped' state.  Without the terminal transition, killing
 the dashboard would leave a zombie controller pointing at a dead
 stream: `--detach-stream' neutralises the sentinel so `on-stream-finish'
 never fires, so without an explicit `--terminate' here `status' would
-remain `running' forever."
+remain `running' forever.
+
+Finally, drops the controller from the public registry
+(`beads-agent-ralph--controllers').  Killing the dashboard is the
+user's signal that they are done with this loop, so the registry
+should not retain it indefinitely; downstream UIs (cockpit,
+epic browser) read the registry and would otherwise show a
+controller with no live surface."
   (when beads-agent-ralph-dashboard--controller
     (let* ((controller beads-agent-ralph-dashboard--controller)
            (entry (assq controller
@@ -682,7 +689,8 @@ remain `running' forever."
       ;; controller has nothing to clean up.
       (when (memq (oref controller status) '(running cooling-down))
         (beads-agent-ralph-dashboard--detach-stream controller)
-        (beads-agent-ralph--terminate controller 'stop)))))
+        (beads-agent-ralph--terminate controller 'stop))
+      (beads-agent-ralph--unregister-controller controller))))
 
 (defun beads-agent-ralph-dashboard-render (controller)
   "Render CONTROLLER into its dashboard buffer (sync)."

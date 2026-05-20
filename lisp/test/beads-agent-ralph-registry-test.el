@@ -116,6 +116,30 @@
       (should (eq c-b (beads-agent-ralph-controller-for-root "bde-bbb")))
       (should (null (beads-agent-ralph-controller-for-root "bde-zzz"))))))
 
+(ert-deftest beads-agent-ralph-registry-test-state-changes-preserve-order ()
+  "Mode-line state-change handling must not reshuffle the public registry.
+The public registry is ordered most-recently-*started* first; only
+`beads-agent-ralph-start' (and explicit register/unregister) should
+mutate it.  In particular, the mode-line subscriber reacting to
+status transitions on an existing controller must not move it back
+to the head."
+  (require 'beads-agent-ralph-mode-line)
+  (beads-agent-ralph-registry-test--with-clean-registry
+    (let ((c-old (beads-agent-ralph-registry-test--make-controller "bde-old"))
+          (c-new (beads-agent-ralph-registry-test--make-controller "bde-new")))
+      (beads-agent-ralph--register-controller c-old)
+      (beads-agent-ralph--register-controller c-new)
+      (should (equal (list c-new c-old) (beads-agent-ralph-controllers)))
+      ;; Drive the older controller through every status the mode-line
+      ;; subscribes to: it must stay at the tail of the public registry.
+      (unwind-protect
+          (dolist (status '(running cooling-down auto-paused
+                                    running done))
+            (beads-agent-ralph--mode-line-on-state-change c-old status)
+            (should (equal (list c-new c-old)
+                           (beads-agent-ralph-controllers))))
+        (beads-agent-ralph--mode-line-registry-clear)))))
+
 (provide 'beads-agent-ralph-registry-test)
 
 ;;; beads-agent-ralph-registry-test.el ends here
