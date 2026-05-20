@@ -48,9 +48,12 @@
 
 ;;; Context Detection
 
-(defun beads-section--propertize (str section)
-  "Return STR with SECTION stored as the `beads-section' text property."
-  (propertize str 'beads-section section))
+(defun beads-section--propertize (str section &optional extra-props)
+  "Return STR with SECTION stored as the `beads-section' text property.
+When EXTRA-PROPS is non-nil, it is a plist of additional text properties
+merged into the result (callers stamp surface-specific keys like
+`beads-dashboard-section-key' without polluting this module)."
+  (apply #'propertize str 'beads-section section extra-props))
 
 (defun beads-section-issue-id-at-point ()
   "Return the issue ID at point via text property, or nil.
@@ -73,11 +76,16 @@ hyperlinks (no underline, no tooltip)."
     :help-echo nil
     :on-click on-click))
 
-(defun beads-section--issue-line-vnode (issue)
+(defun beads-section--issue-line-vnode (issue &optional extra-props)
   "Return a vui button vnode for a single ISSUE.
 The button displays the issue id, priority, type, status, and title.
 Its label carries a `beads-section' text property for context
-detection at point via `beads-section-issue-id-at-point'."
+detection at point via `beads-section-issue-id-at-point'.
+
+EXTRA-PROPS, when non-nil, is a plist of additional text properties
+merged into the label (e.g. `beads-dashboard-section-key' stamped by
+the dashboard so commands like `beads-dashboard-load-more' can resolve
+the enclosing section in O(1))."
   (let* ((id       (or (oref issue id) ""))
          (title    (or (oref issue title) ""))
          (priority (oref issue priority))
@@ -87,7 +95,8 @@ detection at point via `beads-section-issue-id-at-point'."
          (label    (beads-section--propertize
                     (format "  %-14s %-4s %-10s %-14s %s"
                             id prio-str type status title)
-                    (beads-issue-section :issue issue))))
+                    (beads-issue-section :issue issue)
+                    extra-props)))
     (beads-section--plain-button
      label
      (let ((issue-id id))
