@@ -670,7 +670,7 @@ never fires, so without an explicit `--terminate' here `status' would
 remain `running' forever.
 
 Finally, drops the controller from the public registry
-(`beads-agent-ralph--controllers').  Killing the dashboard is the
+\(`beads-agent-ralph--controllers').  Killing the dashboard is the
 user's signal that they are done with this loop, so the registry
 should not retain it indefinitely; downstream UIs (cockpit,
 epic browser) read the registry and would otherwise show a
