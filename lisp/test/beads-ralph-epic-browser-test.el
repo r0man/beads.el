@@ -108,8 +108,8 @@ The buffer is created, the mode is enabled, but no fetch occurs."
 (ert-deftest beads-ralph-epic-browser-test-row-priority-nil ()
   "An epic with nil priority renders \"P?\" rather than crashing."
   (let ((es (beads-ralph-epic-browser-test--make-epic-status :priority 1)))
-    ;; Force the slot to nil after construction; the constructor's
-    ;; default would otherwise reject nil.
+    ;; The fixture defaults :priority to 1 if unset, so we cannot
+    ;; pass nil through the keyword.  Override directly on the slot.
     (oset (oref es epic) priority nil)
     (should (string= "P?" (beads-ralph-epic-browser--row-priority es)))))
 
@@ -290,7 +290,13 @@ The buffer is created, the mode is enabled, but no fetch occurs."
         (when (buffer-live-p buf) (kill-buffer buf))))))
 
 (ert-deftest beads-ralph-epic-browser-test-kill-buffer-cancels-timer ()
-  "Killing the browser buffer cancels its pending re-render timer."
+  "Killing the browser buffer cancels its pending re-render timer.
+
+Verifies the chain of behaviour end-to-end: (1) firing the hook
+arms a timer in `timer-idle-list', (2) the buffer's
+`kill-buffer-hook' includes `--cancel-pending-rerender', and
+(3) once the buffer is killed the timer is gone from
+`timer-idle-list'."
   (beads-ralph-epic-browser-test--with-clean-registry
     (let ((buf (get-buffer-create
                 beads-ralph-epic-browser-buffer-name))
@@ -305,12 +311,15 @@ The buffer is created, the mode is enabled, but no fetch occurs."
             (beads-ralph-epic-browser--on-controller-state-change nil nil)
             (with-current-buffer buf
               (setq captured-timer
-                    beads-ralph-epic-browser--rerender-timer))
+                    beads-ralph-epic-browser--rerender-timer)
+              ;; Hook is installed buffer-local by `--render'.
+              (should (memq #'beads-ralph-epic-browser--cancel-pending-rerender
+                            kill-buffer-hook)))
+            ;; Timer was successfully armed by `run-with-idle-timer'.
             (should (timerp captured-timer))
+            (should (memq captured-timer timer-idle-list))
             (kill-buffer buf)
-            ;; Timer was cancelled by the buffer-kill hook.  Emacs
-            ;; flags a cancelled timer with a 0 :triggered slot, but
-            ;; the surest signal is membership in `timer-idle-list'.
+            ;; …and is removed by the kill-buffer hook.
             (should-not (memq captured-timer timer-idle-list)))
         (when (buffer-live-p buf) (kill-buffer buf))))))
 
