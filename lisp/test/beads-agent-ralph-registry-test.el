@@ -1,0 +1,121 @@
+;;; beads-agent-ralph-registry-test.el --- Tests for Ralph public controller registry -*- lexical-binding: t; -*-
+
+;; Copyright (C) 2026
+
+;; Author: Beads Contributors
+;; Keywords: test
+
+;;; Commentary:
+
+;; ERT coverage for the public controller registry in
+;; `beads-agent-ralph.el' (bde-deqx.2): the defvar
+;; `beads-agent-ralph--controllers' and its accessors
+;; `beads-agent-ralph-controllers' /
+;; `beads-agent-ralph-controller-for-root' /
+;; `beads-agent-ralph--register-controller' /
+;; `beads-agent-ralph--unregister-controller'.
+
+;;; Code:
+
+(require 'ert)
+(require 'cl-lib)
+(require 'beads-agent-ralph)
+
+;;; Test fixtures
+
+(defun beads-agent-ralph-registry-test--make-controller (root-id)
+  "Build a minimal controller pinned to ROOT-ID."
+  (beads-agent-ralph--controller
+   :root-id root-id
+   :root-kind 'issue
+   :iteration 0
+   :max-iterations 10
+   :cumulative-cost-usd 0.0
+   :started-at (current-time)
+   :status 'idle))
+
+(defmacro beads-agent-ralph-registry-test--with-clean-registry (&rest body)
+  "Run BODY with the public registry reset to nil before and after."
+  (declare (indent 0) (debug (body)))
+  `(let ((beads-agent-ralph--controllers nil))
+     (unwind-protect (progn ,@body)
+       (setq beads-agent-ralph--controllers nil))))
+
+;;; Tests
+
+(ert-deftest beads-agent-ralph-registry-test-empty-by-default ()
+  "An empty registry returns nil from the public accessors."
+  (beads-agent-ralph-registry-test--with-clean-registry
+    (should (null (beads-agent-ralph-controllers)))
+    (should (null (beads-agent-ralph-controller-for-root "bde-42")))))
+
+(ert-deftest beads-agent-ralph-registry-test-register-adds-controller ()
+  "Registering a controller exposes it via the public accessors."
+  (beads-agent-ralph-registry-test--with-clean-registry
+    (let ((ctrl (beads-agent-ralph-registry-test--make-controller "bde-42")))
+      (should (eq ctrl (beads-agent-ralph--register-controller ctrl)))
+      (should (equal (list ctrl) (beads-agent-ralph-controllers)))
+      (should (eq ctrl (beads-agent-ralph-controller-for-root "bde-42"))))))
+
+(ert-deftest beads-agent-ralph-registry-test-register-is-idempotent ()
+  "Registering the same root-id twice leaves only one entry, newest first."
+  (beads-agent-ralph-registry-test--with-clean-registry
+    (let ((c1 (beads-agent-ralph-registry-test--make-controller "bde-42"))
+          (c2 (beads-agent-ralph-registry-test--make-controller "bde-42")))
+      (beads-agent-ralph--register-controller c1)
+      (beads-agent-ralph--register-controller c2)
+      (let ((list (beads-agent-ralph-controllers)))
+        (should (= 1 (length list)))
+        (should (eq c2 (car list)))
+        (should (eq c2 (beads-agent-ralph-controller-for-root "bde-42")))))))
+
+(ert-deftest beads-agent-ralph-registry-test-register-orders-newest-first ()
+  "Distinct root-ids land in the registry head-first."
+  (beads-agent-ralph-registry-test--with-clean-registry
+    (let ((c1 (beads-agent-ralph-registry-test--make-controller "bde-1"))
+          (c2 (beads-agent-ralph-registry-test--make-controller "bde-2"))
+          (c3 (beads-agent-ralph-registry-test--make-controller "bde-3")))
+      (beads-agent-ralph--register-controller c1)
+      (beads-agent-ralph--register-controller c2)
+      (beads-agent-ralph--register-controller c3)
+      (should (equal (list c3 c2 c1) (beads-agent-ralph-controllers))))))
+
+(ert-deftest beads-agent-ralph-registry-test-unregister-removes-controller ()
+  "Unregistering drops the controller from the public accessors."
+  (beads-agent-ralph-registry-test--with-clean-registry
+    (let ((ctrl (beads-agent-ralph-registry-test--make-controller "bde-42")))
+      (beads-agent-ralph--register-controller ctrl)
+      (should (eq ctrl (beads-agent-ralph--unregister-controller ctrl)))
+      (should (null (beads-agent-ralph-controllers)))
+      (should (null (beads-agent-ralph-controller-for-root "bde-42"))))))
+
+(ert-deftest beads-agent-ralph-registry-test-unregister-missing-is-noop ()
+  "Unregistering a controller that was never registered does not error."
+  (beads-agent-ralph-registry-test--with-clean-registry
+    (let ((ctrl (beads-agent-ralph-registry-test--make-controller "bde-42")))
+      (should (eq ctrl (beads-agent-ralph--unregister-controller ctrl)))
+      (should (null (beads-agent-ralph-controllers))))))
+
+(ert-deftest beads-agent-ralph-registry-test-controllers-returns-copy ()
+  "The public accessor returns a fresh copy; mutating it does not leak."
+  (beads-agent-ralph-registry-test--with-clean-registry
+    (let ((ctrl (beads-agent-ralph-registry-test--make-controller "bde-42")))
+      (beads-agent-ralph--register-controller ctrl)
+      (let ((view (beads-agent-ralph-controllers)))
+        (setq view nil))
+      (should (equal (list ctrl) (beads-agent-ralph-controllers))))))
+
+(ert-deftest beads-agent-ralph-registry-test-lookup-by-root-id ()
+  "`beads-agent-ralph-controller-for-root' finds the entry by root-id."
+  (beads-agent-ralph-registry-test--with-clean-registry
+    (let ((c-a (beads-agent-ralph-registry-test--make-controller "bde-aaa"))
+          (c-b (beads-agent-ralph-registry-test--make-controller "bde-bbb")))
+      (beads-agent-ralph--register-controller c-a)
+      (beads-agent-ralph--register-controller c-b)
+      (should (eq c-a (beads-agent-ralph-controller-for-root "bde-aaa")))
+      (should (eq c-b (beads-agent-ralph-controller-for-root "bde-bbb")))
+      (should (null (beads-agent-ralph-controller-for-root "bde-zzz"))))))
+
+(provide 'beads-agent-ralph-registry-test)
+
+;;; beads-agent-ralph-registry-test.el ends here

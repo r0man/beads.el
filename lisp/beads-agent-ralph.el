@@ -775,6 +775,64 @@ Each function is called with two arguments: the controller and the
 new status symbol.  Used by the mode-line indicator (bde-vjfa) and
 the notification module to react to terminal transitions.")
 
+;;; Controller registry
+;;
+;; The public seam over the set of live controllers.  The cockpit,
+;; epic-browser, mode-line, and tests all read from this single list
+;; instead of reaching into mode-line internals.  Terminal-state
+;; controllers are retained here until explicitly unregistered (e.g.
+;; by a cockpit GC pass or when the per-loop dashboard buffer is
+;; killed) so callers can inspect post-run state.
+
+(defvar beads-agent-ralph--controllers nil
+  "List of all live `beads-agent-ralph--controller' instances.
+A controller is added by `beads-agent-ralph--register-controller'
+when `beads-agent-ralph-start' returns and removed by
+`beads-agent-ralph--unregister-controller'.  Terminal-state
+controllers are retained until an explicit unregister so the
+dashboard and downstream UIs (cockpit, epic-browser) can still
+introspect them post-run.  Ordered most-recently-started first.")
+
+(defun beads-agent-ralph-controllers ()
+  "Return the list of live controllers, most-recently-started first.
+The returned list is a fresh copy; mutating it does not affect the
+internal registry.  Callers that need to look up by root-id should
+prefer `beads-agent-ralph-controller-for-root'."
+  (copy-sequence beads-agent-ralph--controllers))
+
+(defun beads-agent-ralph-controller-for-root (root-id)
+  "Return the registered controller for ROOT-ID, or nil.
+ROOT-ID is matched by `equal' against each controller's `root-id'
+slot.  When several historical controllers share a root-id (e.g.
+relaunch after a terminal state), the registry holds only the most
+recent one because `beads-agent-ralph--register-controller' is
+idempotent on root-id."
+  (cl-find root-id beads-agent-ralph--controllers
+           :key (lambda (c) (oref c root-id))
+           :test #'equal))
+
+(defun beads-agent-ralph--register-controller (controller)
+  "Add CONTROLLER to the registry; return CONTROLLER.
+Idempotent on `root-id': re-registering a root-id that already has
+an entry removes the previous entry first, so the registry never
+carries two controllers for one root.  Re-registration moves
+CONTROLLER to the head (most-recently-started)."
+  (setq beads-agent-ralph--controllers
+        (cons controller
+              (cl-remove (oref controller root-id)
+                         beads-agent-ralph--controllers
+                         :key (lambda (c) (oref c root-id))
+                         :test #'equal)))
+  controller)
+
+(defun beads-agent-ralph--unregister-controller (controller)
+  "Remove CONTROLLER from the registry; return CONTROLLER.
+A no-op when CONTROLLER is not in the registry, so callers (kill-
+buffer hooks, cockpit GC) need not check membership first."
+  (setq beads-agent-ralph--controllers
+        (delq controller beads-agent-ralph--controllers))
+  controller)
+
 ;;; Host buffer
 ;;
 ;; All async bd calls are issued from a hidden, never-killed scratch
@@ -2434,6 +2492,7 @@ is prompted to resume / stash / fresh / full-reset / cancel."
              (controller (apply #'beads-agent-ralph--controller controller-args))
              (dashboard-buf
               (beads-agent-ralph--mount-live-dashboard controller)))
+        (beads-agent-ralph--register-controller controller)
         (beads-agent-ralph--set-status controller 'running)
         (beads-agent-ralph--schedule-next-iteration
          controller
