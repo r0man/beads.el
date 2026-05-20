@@ -278,6 +278,24 @@ forever, blocking mode-line cleanup and any later stop/resume."
     (kill-buffer buf)
     (should-not (assq c beads-agent-ralph-dashboard--pending-rerender))))
 
+(ert-deftest beads-agent-ralph-dashboard-test-kill-unregisters-controller ()
+  "Killing the dashboard drops the controller from the public registry (bde-deqx.2).
+The user closing the dashboard is the natural signal that they are
+done with this loop; without an unregister here the registry would
+grow without bound and downstream UIs (cockpit, epic browser) would
+list controllers with no live surface."
+  (let* ((beads-agent-ralph--controllers nil)
+         (c (beads-agent-ralph-dashboard-test--make-controller
+             :root-id "bde-unreg"))
+         (buf (beads-agent-ralph-dashboard-render c)))
+    (beads-agent-ralph--register-controller c)
+    (oset c status 'done)
+    (oset c current-stream nil)
+    (should (eq c (beads-agent-ralph-controller-for-root "bde-unreg")))
+    (kill-buffer buf)
+    (should (null (beads-agent-ralph-controller-for-root "bde-unreg")))
+    (should (null (beads-agent-ralph-controllers)))))
+
 (ert-deftest beads-agent-ralph-dashboard-test-help-echoes-question-mark-key ()
   "`beads-agent-ralph-dashboard-help' must advertise its own `?' binding.
 Regression for bde-uuao: the action-bar legend lists `[?]' but the
