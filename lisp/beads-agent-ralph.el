@@ -778,11 +778,16 @@ the notification module to react to terminal transitions.")
 ;;; Controller registry
 ;;
 ;; The public seam over the set of live controllers.  The cockpit,
-;; epic-browser, mode-line, and tests all read from this single list
-;; instead of reaching into mode-line internals.  Terminal-state
-;; controllers are retained here until explicitly unregistered (e.g.
-;; by a cockpit GC pass or when the per-loop dashboard buffer is
-;; killed) so callers can inspect post-run state.
+;; epic browser, and tests all read from this single list instead of
+;; reaching into other modules' internals.  Mutated only by
+;; `beads-agent-ralph-start' (registers the controller it just built)
+;; and explicit unregister calls (dashboard kill-buffer hook today,
+;; cockpit GC tomorrow); the mode-line subscriber observes the same
+;; controllers via the status-change hook but never touches this
+;; list — its display ordering is independent and lives in
+;; `beads-agent-ralph-mode-line.el'.  Terminal-state controllers are
+;; retained here until explicitly unregistered so callers can
+;; inspect post-run state.
 
 (defvar beads-agent-ralph--controllers nil
   "List of all live `beads-agent-ralph--controller' instances.

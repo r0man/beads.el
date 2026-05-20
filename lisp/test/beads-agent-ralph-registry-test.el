@@ -138,7 +138,7 @@ to the head."
             (beads-agent-ralph--mode-line-on-state-change c-old status)
             (should (equal (list c-new c-old)
                            (beads-agent-ralph-controllers))))
-        (beads-agent-ralph--mode-line-registry-clear)))))
+        (beads-agent-ralph--mode-line-reset)))))
 
 (provide 'beads-agent-ralph-registry-test)
 
