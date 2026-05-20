@@ -215,13 +215,13 @@ Sections receive collapse state as a prop because per-component
        (beads-dashboard--stale-loader)
        (lambda (data) (beads-dashboard--render-issue-list (or data '())))
        collapsed generation buffer
-       :icon "⚠")
+       :icon "💤")
       (beads-dashboard--section
        'orphans "Orphaned dependencies"
        (beads-dashboard--orphans-loader)
        (lambda (data) (beads-dashboard--render-issue-list (or data '())))
        collapsed generation buffer
-       :icon "⚠")
+       :icon "🩹")
       (beads-dashboard--section
        'in-flight "In progress"
        (beads-dashboard--in-flight-loader)
