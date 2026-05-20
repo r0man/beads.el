@@ -832,8 +832,14 @@ CONTROLLER to the head (most-recently-started)."
 
 (defun beads-agent-ralph--unregister-controller (controller)
   "Remove CONTROLLER from the registry; return CONTROLLER.
-A no-op when CONTROLLER is not in the registry, so callers (kill-
-buffer hooks, cockpit GC) need not check membership first."
+Identity is matched by `eq', not by `root-id': after a relaunch
+the registry holds the NEW controller instance for that root, so
+calling this with a stale OLD instance is a deliberate no-op (it
+must not evict the live replacement).  Callers that mean
+\"remove whatever is registered for this root\" should look it up
+first via `beads-agent-ralph-controller-for-root'.
+A no-op when CONTROLLER is not in the registry, so callers
+(kill-buffer hooks, cockpit GC) need not check membership first."
   (setq beads-agent-ralph--controllers
         (delq controller beads-agent-ralph--controllers))
   controller)

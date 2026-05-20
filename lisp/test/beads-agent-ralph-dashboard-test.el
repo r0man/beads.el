@@ -296,6 +296,25 @@ list controllers with no live surface."
     (should (null (beads-agent-ralph-controller-for-root "bde-unreg")))
     (should (null (beads-agent-ralph-controllers)))))
 
+(ert-deftest beads-agent-ralph-dashboard-test-kill-in-flight-unregisters ()
+  "Killing the dashboard mid-run unregisters AFTER driving to terminal.
+Combines the bde-mfrl `--terminate' wiring with the bde-deqx.2 public-
+registry cleanup: both must fire so the controller becomes both
+terminal AND unreachable from the registry."
+  (let* ((beads-agent-ralph--controllers nil)
+         (c (beads-agent-ralph-dashboard-test--make-controller
+             :root-id "bde-inflight"))
+         (stream (beads-agent-ralph--stream
+                  :partial-messages (make-hash-table :test #'equal)
+                  :status 'running))
+         (buf (beads-agent-ralph-dashboard-render c)))
+    (oset c status 'running)
+    (oset c current-stream stream)
+    (beads-agent-ralph--register-controller c)
+    (kill-buffer buf)
+    (should (eq (oref c status) 'stopped))
+    (should (null (beads-agent-ralph-controller-for-root "bde-inflight")))))
+
 (ert-deftest beads-agent-ralph-dashboard-test-help-echoes-question-mark-key ()
   "`beads-agent-ralph-dashboard-help' must advertise its own `?' binding.
 Regression for bde-uuao: the action-bar legend lists `[?]' but the
